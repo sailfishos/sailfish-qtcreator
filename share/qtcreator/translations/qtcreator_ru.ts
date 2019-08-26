@@ -47904,4 +47904,3048 @@ What do you want to do?</source>
         <translation>Текст</translation>
     </message>
 </context>
+<context>
+    <name>GdbServerReadyWatcher</name>
+    <message>
+        <location filename="merdevicedebugsupport.cpp" line="82"/>
+        <source>Waiting for gdbserver...</source>
+        <translation>Ожидание gdbserver...</translation>
+    </message>
+    <message>
+        <location filename="merdevicedebugsupport.cpp" line="91"/>
+        <source>Timeout waiting for gdbserver to become ready.</source>
+        <translation>Время ожидания готовности gdbserver истекло.</translation>
+    </message>
+</context>
+<context>
+    <name>Mer</name>
+    <message>
+        <location filename="merconstants.h" line="35"/>
+        <source>Sailfish OS</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merconstants.h" line="37"/>
+        <source>Build Engine</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merconstants.h" line="39"/>
+        <source>General</source>
+        <translation>Общее</translation>
+    </message>
+    <message>
+        <location filename="merconstants.h" line="41"/>
+        <source>Emulator Modes</source>
+        <translation>Режимы эмулятора</translation>
+    </message>
+    <message>
+        <location filename="merconstants.h" line="42"/>
+        <source>&amp;Emulator mode...</source>
+        <translation>Режим эмулятора...</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerAbstractVmStartStep</name>
+    <message>
+        <location filename="merabstractvmstartstep.cpp" line="84"/>
+        <source>%1: Internal error.</source>
+        <translation>%1: Внутренняя ошибка.</translation>
+    </message>
+    <message>
+        <location filename="merabstractvmstartstep.cpp" line="90"/>
+        <source>%1: The &quot;%2&quot; virtual machine is already running. Nothing to do.</source>
+        <translation>%1: Виртуальная машина &quot;%2&quot; уже запущена.</translation>
+    </message>
+    <message>
+        <location filename="merabstractvmstartstep.cpp" line="94"/>
+        <source>%1: Starting &quot;%2&quot; virtual machine...</source>
+        <translation>%1: Запуск виртуальной машины &quot;%2&quot;...</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerAbstractVmStartStepConfigWidget</name>
+    <message>
+        <location filename="merabstractvmstartstep.cpp" line="61"/>
+        <source>Starts the virtual machine, if necessary.</source>
+        <translation>При необходимости запускает виртуальную машину.</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerConnectionAction</name>
+    <message>
+        <location filename="merconnectionmanager.cpp" line="202"/>
+        <source>Error connecting to &quot;%1&quot; virtual machine: %2</source>
+        <translation>Ошибка подключения к виртуальной машине &quot;%1&quot;: %2</translation>
+    </message>
+    <message>
+        <location filename="merconnectionmanager.cpp" line="227"/>
+        <source>&lt;UNKNOWN&gt;</source>
+        <translation></translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerConnectionManager</name>
+    <message>
+        <location filename="merconnectionmanager.cpp" line="251"/>
+        <source>Start/Stop a Sailfish OS Emulator</source>
+        <translation>Запуск/остановка эмулятора Sailfish OS</translation>
+    </message>
+    <message>
+        <location filename="merconnectionmanager.cpp" line="255"/>
+        <location filename="merconnectionmanager.cpp" line="267"/>
+        <source>Start &apos;%1&apos;</source>
+        <translation>Запуск &apos;%1&apos;</translation>
+    </message>
+    <message>
+        <location filename="merconnectionmanager.cpp" line="256"/>
+        <location filename="merconnectionmanager.cpp" line="268"/>
+        <source>Stop &apos;%1&apos;</source>
+        <translation>Остановка &apos;%1&apos;</translation>
+    </message>
+    <message>
+        <location filename="merconnectionmanager.cpp" line="257"/>
+        <location filename="merconnectionmanager.cpp" line="269"/>
+        <source>Connecting...</source>
+        <translation>Подключение...</translation>
+    </message>
+    <message>
+        <location filename="merconnectionmanager.cpp" line="258"/>
+        <location filename="merconnectionmanager.cpp" line="270"/>
+        <source>Disconnecting...</source>
+        <translation>Отключение...</translation>
+    </message>
+    <message>
+        <location filename="merconnectionmanager.cpp" line="259"/>
+        <location filename="merconnectionmanager.cpp" line="271"/>
+        <source>Closing...</source>
+        <translation>Закрытие...</translation>
+    </message>
+    <message>
+        <location filename="merconnectionmanager.cpp" line="260"/>
+        <location filename="merconnectionmanager.cpp" line="272"/>
+        <source>Starting...</source>
+        <translation>Запуск...</translation>
+    </message>
+    <message>
+        <location filename="merconnectionmanager.cpp" line="263"/>
+        <source>Start/Stop a Sailfish OS Build Engine</source>
+        <translation>Запуск/остановка Sailfish OS Build Engine</translation>
+    </message>
+    <message>
+        <location filename="merconnectionmanager.cpp" line="402"/>
+        <source>Connected</source>
+        <translation>Подключено</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerConnectionTestStep</name>
+    <message>
+        <location filename="merdeploysteps.cpp" line="345"/>
+        <source>Test Device Connection</source>
+        <translation>Проверить подключение устройства</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="383"/>
+        <source>%1: Testing connection to &quot;%2&quot;...</source>
+        <translation>%1: Проверка подключения к &quot;%2&quot;...</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerConnectionTestStepConfigWidget</name>
+    <message>
+        <location filename="merdeploysteps.cpp" line="101"/>
+        <source>Verifies connection to the device can be established.</source>
+        <translation>Проверка возможности подключения к устройству.</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerDeployStepWidget</name>
+    <message>
+        <location filename="merdeploystep.ui" line="14"/>
+        <source>Form</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merdeploystep.ui" line="23"/>
+        <source>Arguments:</source>
+        <translation>Аргументы:</translation>
+    </message>
+    <message>
+        <location filename="merdeploystep.ui" line="33"/>
+        <source>Command:</source>
+        <translation>Команда:</translation>
+    </message>
+    <message>
+        <location filename="merdeploystep.ui" line="40"/>
+        <source>mb2 deploy</source>
+        <translation></translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerDevice</name>
+    <message>
+        <location filename="merdevice.cpp" line="42"/>
+        <source>Sailfish OS Device</source>
+        <translation>Устройство Sailfish OS</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevice.cpp" line="123"/>
+        <source>Redeploy SSH Keys</source>
+        <translation>Перезаписать SSH-ключ</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerDeviceFactory</name>
+    <message>
+        <location filename="merdevicefactory.cpp" line="76"/>
+        <source>Sailfish OS Device</source>
+        <translation>Устройство Sailfish OS</translation>
+    </message>
+    <message>
+        <location filename="merdevicefactory.cpp" line="105"/>
+        <source>Emulator</source>
+        <translation>Эмулятор</translation>
+    </message>
+    <message>
+        <location filename="merdevicefactory.cpp" line="105"/>
+        <source>Physical device</source>
+        <translation>Физическое устройство</translation>
+    </message>
+    <message>
+        <location filename="merdevicefactory.cpp" line="108"/>
+        <source>Create a Sailfish OS Device</source>
+        <translation>Создать устройство Sailfish OS</translation>
+    </message>
+    <message>
+        <location filename="merdevicefactory.cpp" line="109"/>
+        <source>Add an emulator or physical device?</source>
+        <translation>Добавить эмулятор или физическое устройство?</translation>
+    </message>
+    <message>
+        <location filename="merdevicefactory.cpp" line="173"/>
+        <source>Could not generate key.</source>
+        <translation>Не удалось создать ключ.</translation>
+    </message>
+    <message>
+        <location filename="merdevicefactory.cpp" line="234"/>
+        <source>Unable to find device model &quot;%1&quot;! Switching to device model &quot;%2&quot;.</source>
+        <translation>Не удалось найти модель устройства &quot;%1&quot;! Переключение на модель устройства &quot;%2&quot;.</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerDeviceModelComboBox</name>
+    <message>
+        <location filename="merdevicemodelcombobox.cpp" line="112"/>
+        <source>SDK provided device model</source>
+        <translation>Предоставляемая SDK модель устройства</translation>
+    </message>
+    <message>
+        <location filename="merdevicemodelcombobox.cpp" line="113"/>
+        <source>User defined device model</source>
+        <translation>Пользовательская модель устройства</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerEmualtorSshPage</name>
+    <message>
+        <location filename="meremulatordevicewizardpages.cpp" line="256"/>
+        <location filename="meremulatordevicewizardpages.cpp" line="257"/>
+        <location filename="meremulatordevicewizardpages.cpp" line="271"/>
+        <location filename="meremulatordevicewizardpages.cpp" line="272"/>
+        <source>none</source>
+        <translation></translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerEmualtorVMPage</name>
+    <message>
+        <location filename="meremulatordevicewizardpages.cpp" line="61"/>
+        <source>Emulator</source>
+        <translation>Эмулятор</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardpages.cpp" line="162"/>
+        <location filename="meremulatordevicewizardpages.cpp" line="182"/>
+        <location filename="meremulatordevicewizardpages.cpp" line="187"/>
+        <location filename="meremulatordevicewizardpages.cpp" line="192"/>
+        <location filename="meremulatordevicewizardpages.cpp" line="197"/>
+        <location filename="meremulatordevicewizardpages.cpp" line="202"/>
+        <location filename="meremulatordevicewizardpages.cpp" line="207"/>
+        <source>none</source>
+        <translation></translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerEmulatorDeviceTester</name>
+    <message>
+        <location filename="meremulatordevicetester.cpp" line="77"/>
+        <source>Virtual machine could not be started: User aborted</source>
+        <translation>Не удалось запустить виртуальную машину: прервано пользователем</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicetester.cpp" line="89"/>
+        <source>Starting virtual machine...</source>
+        <translation>Запуск виртуальной машины...</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerEmulatorDeviceWidget</name>
+    <message>
+        <location filename="meremulatordevicewidget.ui" line="14"/>
+        <source>Form</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.ui" line="35"/>
+        <source>Virtual Machine:</source>
+        <translation>Виртуальная машина:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.ui" line="42"/>
+        <location filename="meremulatordevicewidget.ui" line="86"/>
+        <location filename="meremulatordevicewidget.ui" line="155"/>
+        <location filename="meremulatordevicewidget.ui" line="181"/>
+        <location filename="meremulatordevicewidget.ui" line="224"/>
+        <location filename="meremulatordevicewidget.cpp" line="295"/>
+        <location filename="meremulatordevicewidget.cpp" line="304"/>
+        <location filename="meremulatordevicewidget.cpp" line="308"/>
+        <location filename="meremulatordevicewidget.cpp" line="313"/>
+        <source>none</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.ui" line="52"/>
+        <source>Fa&amp;ctory snapshot:</source>
+        <translation>Снимок заводского состояния:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.ui" line="62"/>
+        <source>Host:</source>
+        <translation>Адрес:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.ui" line="69"/>
+        <source>localhost</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.ui" line="79"/>
+        <source>MAC:</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.ui" line="96"/>
+        <source>SSH port:</source>
+        <translation>SSH-порт:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.ui" line="142"/>
+        <source>&quot;config&quot; folder:</source>
+        <translation>Каталог настроек:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.ui" line="168"/>
+        <source>&quot;ssh&quot; folder:</source>
+        <translation>Каталог ssh:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.ui" line="194"/>
+        <source>&amp;Username:</source>
+        <translation>&amp;Имя пользователя:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.ui" line="211"/>
+        <source>SSH key:</source>
+        <translation>SSH-ключ:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.ui" line="237"/>
+        <source>&amp;Timeout:</source>
+        <translation>&amp;Время ожидания:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.ui" line="253"/>
+        <source>s</source>
+        <translation>с</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.ui" line="269"/>
+        <source>F&amp;ree ports:</source>
+        <translation>Свободные порты:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.ui" line="281"/>
+        <location filename="meremulatordevicewidget.ui" line="309"/>
+        <source>You can enter lists and ranges like this: 1024,1026-1028,1030</source>
+        <translation>Перечислите порты через запятую или укажите интервал, например: 1024, 1026-1028, 1030</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.ui" line="297"/>
+        <source>&amp;QmlLive ports:</source>
+        <translation>&amp;QmlLive порты:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.ui" line="340"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The name of the virtual machine snapshot that is used to restore the emulator to the &lt;span style=&quot; font-style:italic;&quot;&gt;factory&lt;/span&gt; state.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Имя снимка виртуальной машины, который используется для восстановления эмулятора &lt;span style=&quot; font-style:italic;&quot;&gt;к заводским&lt;/span&gt; настройкам.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.ui" line="350"/>
+        <source>...</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.cpp" line="99"/>
+        <source>No snapshot found</source>
+        <translation>Снимок не найден</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.cpp" line="100"/>
+        <source>No snapshot exists for the &apos;%1&apos; virtual machine.</source>
+        <translation>Нет снимков для виртуальной машины &apos;%1&apos;.</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.cpp" line="107"/>
+        <source>Select factory snapshot</source>
+        <translation>Выбор снимка заводского состояния</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.cpp" line="108"/>
+        <source>Select the virtual machine snapshot to be used as the factory snapshot for &apos;%1&apos;</source>
+        <translation>Выберите снимок виртуальной машины, который будет использоваться в качестве снимка заводского состояния для &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.cpp" line="146"/>
+        <source>Stop emulator to unlock this field for editing.</source>
+        <translation>Остановите эмулятор, чтобы разблокировать поле для редактирования.</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.cpp" line="148"/>
+        <source>Finish adding the device to unlock this field for editing.</source>
+        <translation>Завершите добавление устройства, чтобы разблокировать поле для редактирования.</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.cpp" line="272"/>
+        <source>You will need at least two ports for debugging.</source>
+        <translation>Для отладки потребуется не менее двух портов.</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewidget.cpp" line="278"/>
+        <source>You will need at least one and at most %1 ports for QmlLive use.</source>
+        <translation>Для использования QmlLive требуется не менее одного и не более %1 портов.</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerEmulatorDeviceWizard</name>
+    <message>
+        <location filename="meremulatordevicewizard.cpp" line="34"/>
+        <source>New Sailfish OS Emulator Device Setup</source>
+        <translation>Добавление нового эмулятора Sailfish OS</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerEmulatorDeviceWizardSshPage</name>
+    <message>
+        <location filename="meremulatordevicewizardsshpage.ui" line="14"/>
+        <source>Form</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardsshpage.ui" line="32"/>
+        <source>User &quot;nemo&quot;</source>
+        <translation>Пользователь &quot;nemo&quot;</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardsshpage.ui" line="38"/>
+        <location filename="meremulatordevicewizardsshpage.ui" line="110"/>
+        <source>Username:</source>
+        <translation>Имя пользователя:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardsshpage.ui" line="51"/>
+        <location filename="meremulatordevicewizardsshpage.ui" line="123"/>
+        <source>Authorized keys:</source>
+        <translation>Авторизованные ключи:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardsshpage.ui" line="58"/>
+        <location filename="meremulatordevicewizardsshpage.ui" line="78"/>
+        <location filename="meremulatordevicewizardsshpage.ui" line="130"/>
+        <location filename="meremulatordevicewizardsshpage.ui" line="150"/>
+        <source>none</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardsshpage.ui" line="71"/>
+        <location filename="meremulatordevicewizardsshpage.ui" line="143"/>
+        <source>SSH key:</source>
+        <translation>SSH-ключ:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardsshpage.ui" line="91"/>
+        <location filename="meremulatordevicewizardsshpage.ui" line="163"/>
+        <source>Generate new SSH keys</source>
+        <translation>Сгенерировать новые SSH-ключи</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardsshpage.ui" line="104"/>
+        <source>User &quot;root&quot;</source>
+        <translation>Пользователь &quot;root&quot;</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerEmulatorDeviceWizardVMPage</name>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="14"/>
+        <source>Form</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="34"/>
+        <source>Conf&amp;ig Name:</source>
+        <translation>Конфигурация:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="47"/>
+        <source>Virtual &amp;Machine</source>
+        <translation>Виртуальная &amp;машина</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="60"/>
+        <source>SSH &amp;Timeout:</source>
+        <translation>&amp;Время ожидания SSH:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="70"/>
+        <source>s</source>
+        <translation>с</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="86"/>
+        <source>Free ports:</source>
+        <translation>Свободные порты:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="96"/>
+        <source>You can enter lists and ranges like this: 1024,1026-1028,1030</source>
+        <translation>Перечислите порты через запятую или укажите интервал, например: 1024, 1026-1028, 1030</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="105"/>
+        <source>Virtual machine parameters</source>
+        <translation>Параметры виртуальной машины</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="111"/>
+        <source>Host:</source>
+        <translation>Адрес:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="118"/>
+        <source>localhost</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="128"/>
+        <source>MAC:</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="135"/>
+        <location filename="meremulatordevicewizardvmpage.ui" line="152"/>
+        <location filename="meremulatordevicewizardvmpage.ui" line="169"/>
+        <location filename="meremulatordevicewizardvmpage.ui" line="203"/>
+        <location filename="meremulatordevicewizardvmpage.ui" line="226"/>
+        <location filename="meremulatordevicewizardvmpage.ui" line="240"/>
+        <location filename="meremulatordevicewizardvmpage.ui" line="254"/>
+        <source>none</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="145"/>
+        <source>SSH port:</source>
+        <translation>SSH-порт:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="162"/>
+        <source>QmlLive ports:</source>
+        <translation>QmlLive порты:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="176"/>
+        <source>&quot;config&quot; folder:</source>
+        <translation>Каталог настроек:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="183"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;none&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="196"/>
+        <source>&quot;ssh&quot; folder:</source>
+        <translation>Каталог ssh:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="216"/>
+        <source>Memory size:</source>
+        <translation>Память:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="233"/>
+        <source>CPU count:</source>
+        <translation>Кол-во CPU:</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardvmpage.ui" line="247"/>
+        <source>VDI capacity:</source>
+        <translation>Размер VDI:</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerEmulatorModeDetailsWidget</name>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="14"/>
+        <source>Form</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="32"/>
+        <source>General</source>
+        <translation>Основное</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="38"/>
+        <source>Name:</source>
+        <translation>Имя:</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="62"/>
+        <source>Auto-detected:</source>
+        <translation>Автоопределенное:</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="72"/>
+        <source>Physical Properties</source>
+        <translation>Физические характеристики</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="78"/>
+        <source>Screen resolution:</source>
+        <translation>Разрешение экрана:</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="99"/>
+        <location filename="meremulatormodedetailswidget.ui" line="177"/>
+        <source>Width</source>
+        <translation>Ширина</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="102"/>
+        <location filename="meremulatormodedetailswidget.ui" line="131"/>
+        <source>px</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="115"/>
+        <location filename="meremulatormodedetailswidget.ui" line="190"/>
+        <source>x</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="128"/>
+        <location filename="meremulatormodedetailswidget.ui" line="203"/>
+        <source>Height</source>
+        <translation>Высота</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="156"/>
+        <source>Screen size:</source>
+        <translation>Размер экрана:</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="180"/>
+        <location filename="meremulatormodedetailswidget.ui" line="206"/>
+        <source>mm</source>
+        <translation>мм</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="234"/>
+        <source>Dconf Options</source>
+        <translation>Параметры экрана</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="244"/>
+        <source>Simple</source>
+        <translation>Основные</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="250"/>
+        <source>Icon subdir:</source>
+        <translation>Каталог значков:</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="273"/>
+        <source>Pixel ratio:</source>
+        <translation>Соотношение пикселей:</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="311"/>
+        <source>Scaling factor:</source>
+        <translation>Коэффициент масштабирования:</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="349"/>
+        <source>Allowed orientations:</source>
+        <translation>Поддерживаемые ориентации:</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="365"/>
+        <source>Portrait</source>
+        <translation>Портретная</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="384"/>
+        <source>Portrait inverted</source>
+        <translation>Портретная перевернутая</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="403"/>
+        <source>Landscape</source>
+        <translation>Альбомная</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="422"/>
+        <source>Landscape inverted</source>
+        <translation>Альбомная перевернутая</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="433"/>
+        <source>Advanced</source>
+        <translation>Расширенные</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.ui" line="445"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Define dconf values separated by new lines&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Определите построчно значения dcon&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.cpp" line="88"/>
+        <source>Rename device model</source>
+        <translation>Переименовать модель устройства</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.cpp" line="93"/>
+        <source>Device model name is not unique</source>
+        <translation>Имя модели устройства не уникально</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.cpp" line="148"/>
+        <source>Yes</source>
+        <translation>Да</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedetailswidget.cpp" line="148"/>
+        <source>No</source>
+        <translation>Нет</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerEmulatorModeDialog</name>
+    <message>
+        <location filename="meremulatormodedialog.ui" line="14"/>
+        <source>Change Emulator Mode</source>
+        <translation>Изменение модели эмулятора</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedialog.ui" line="20"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-style:italic; color:#ff0000;&quot;&gt;This emulator does not support multiple device models.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-style:italic; color:#ff0000;&quot;&gt;Данный эмулятор не поддерживает несколько моделей устройств.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedialog.ui" line="39"/>
+        <source>Emulator:</source>
+        <translation>Эмулятор:</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedialog.ui" line="46"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Emulator used by the active project target.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Эмулятор, используемый текущей целью проекта.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedialog.ui" line="49"/>
+        <source>none</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedialog.ui" line="56"/>
+        <source>&amp;Device model:</source>
+        <translation>&amp;Модель устройства:</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedialog.ui" line="73"/>
+        <source>Orientation:</source>
+        <translation>Ориентация:</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedialog.ui" line="80"/>
+        <source>Por&amp;trait</source>
+        <translation>Портретная</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedialog.ui" line="93"/>
+        <source>&amp;Landscape</source>
+        <translation>Альбомная</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedialog.ui" line="103"/>
+        <source>View mode:</source>
+        <translation>Режим отображения:</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedialog.ui" line="110"/>
+        <source>Ori&amp;ginal</source>
+        <translation>Оригинальный</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedialog.ui" line="123"/>
+        <source>Scaled down (&amp;1:2)</source>
+        <translation>Уменьшенный(&amp;1:2)</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedialog.ui" line="151"/>
+        <source>These changes take effect only at the next emulator start.</source>
+        <translation>Изменения вступят в силу при следующем запуске эмулятора.</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodedialog.ui" line="154"/>
+        <source>&amp;Restart emulator now</source>
+        <translation>&amp;Перезапустить эмулятор сейчас</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerEmulatorModeOptionsWidget</name>
+    <message>
+        <location filename="meremulatormodeoptionswidget.ui" line="14"/>
+        <source>Form</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="meremulatormodeoptionswidget.ui" line="24"/>
+        <source>Device model:</source>
+        <translation>Модель устройства:</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodeoptionswidget.ui" line="85"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Add new device model&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Добавить новую модель устройства&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodeoptionswidget.ui" line="88"/>
+        <source>&amp;Add</source>
+        <translation>&amp;Добавить</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodeoptionswidget.ui" line="98"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Remove selected device model&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Удалить выбранную модель устройства&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodeoptionswidget.ui" line="101"/>
+        <source>&amp;Remove</source>
+        <translation>&amp;Удалить</translation>
+    </message>
+    <message>
+        <location filename="meremulatormodeoptionswidget.cpp" line="210"/>
+        <source>Unnamed</source>
+        <translation>Безымянный</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerEmulatorStartStep</name>
+    <message>
+        <location filename="merdeploysteps.cpp" line="313"/>
+        <source>Start Emulator</source>
+        <translation>Запустить эмулятор</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerGeneralOptionsWidget</name>
+    <message>
+        <location filename="mergeneraloptionswidget.ui" line="14"/>
+        <source>Form</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.ui" line="22"/>
+        <source>Build Environment</source>
+        <translation>Среда сборки</translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.ui" line="28"/>
+        <source>Environment variables &amp;to forward:</source>
+        <translation>Переменные среды:</translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.ui" line="44"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The build environment is isolated from the host environment. List here the environment variables to be forwarded to the build environment.&lt;/p&gt;&lt;p&gt;Any white space works as a separator. Pattern matching is possible with the &apos;*&apos; character.&lt;/p&gt;&lt;p&gt;This option may be overridden with the %1 environment variable, in which case it becomes read-only here.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Среда сборки изолирована от среды хоста. Здесь перечислены переменные среды, которые будут переданы в среду сборки.&lt;/p&gt;&lt;p&gt;Любой пробел работает как разделитель. Сопоставление шаблонов возможно с символом&apos;*&apos;.&lt;/p&gt;&lt;p&gt;Данный параметр может быть переопределен переменной среды %1, в этом случае он становится доступным только для чтения.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.ui" line="51"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-style:italic;&quot;&gt;This option is currently overridden with the %1 environment variable.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-style:italic;&quot;&gt;В настоящее время этот параметр переопределен переменной среды %1.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.ui" line="64"/>
+        <source>RPM Validation</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.ui" line="70"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-style:italic;&quot;&gt;Use the RPM Validator tool to do a quick quality criteria check for your Sailfish OS application package before publishing it. The tool runs checks similar to the &lt;/span&gt;&lt;a href=&quot;https://harbour.jolla.com/faq&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Jolla Harbour&lt;/span&gt;&lt;/a&gt;&lt;span style=&quot; font-style:italic;&quot;&gt; package validation process.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-style:italic;&quot;&gt;Используйте инструмент RPM Validator для быстрой проверки критериев качества пакета приложений Sailfish OS перед его публикацией. Инструмент выполняет проверки, аналогичные &lt;/span&gt;&lt;a href=&quot;https://harbour.jolla.com/faq&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Jolla Harbour&lt;/span&gt;&lt;/a&gt;&lt;span style=&quot; font-style:italic;&quot;&gt; package validation.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.ui" line="89"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The &amp;quot;%1&amp;quot; deploy step is implicit to the &amp;quot;%2&amp;quot; method.&lt;/p&gt;&lt;p&gt;This option influences the initial enabled state of this step for new project configurations. It does not affect existing project configurations.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt; Шаг установки &amp;quot;%1&amp;quot; выполняется для &amp;quot;%2&amp;quot;.&lt;/p&gt;&lt;p&gt;Данный параметр влияет на начальное включенное  состояние этого шага для новых конфигураций проекта и не влияет на существующие конфигурации проекта .&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.ui" line="92"/>
+        <source>Enable RPM validation step initially</source>
+        <translation>Включить шаг валидации RPM</translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.ui" line="117"/>
+        <source>Virtual Machines</source>
+        <translation>Виртуальные машины</translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.ui" line="123"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Applies to starting a Sailfish OS build engine or emulator virtual machine during build, deploy or run step execution.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Применяется для запуска Sailfish OS Build Engine или виртуальной машины эмулятора во время выполнения шага сборки, развертывания или запуска.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.ui" line="126"/>
+        <source>Ask before starting a virtual machine</source>
+        <translation>Спросить перед запуском виртуальной машины</translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.ui" line="133"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Applies to closing a headless Sailfish OS build engine virtual machine when Qt Creator is about to quit.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Применяется для остановки виртуальной машины Sailfish OS Build Engine перед закрытием Qt Creator.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.ui" line="136"/>
+        <source>Ask before closing a virtual machine</source>
+        <translation>Спросить перед остановкой виртуальной машины</translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.ui" line="146"/>
+        <source>QmlLive</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.ui" line="152"/>
+        <source>Bench &amp;location:</source>
+        <translation>Расположение:</translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.ui" line="171"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Allow Qt Creator to automatically change QmlLive Bench&apos;s workspace to match the active run configuration.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Позволяет Qt Creator автоматически изменить рабочее пространство QmlLive Bench, чтобы соответствовать текущей конфигурации.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.ui" line="174"/>
+        <source>Control workspace</source>
+        <translation>Контролировать рабочее пространство</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerHardwareDeviceWidget</name>
+    <message>
+        <location filename="merhardwaredevicewidget.ui" line="14"/>
+        <source>Form</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.ui" line="20"/>
+        <source>&amp;Hostname:</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.ui" line="30"/>
+        <source>IP or hostname of the device</source>
+        <translation>IP или hostname устройства</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.ui" line="37"/>
+        <source>&amp;Username:</source>
+        <translation>&amp;Имя пользователя:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.ui" line="50"/>
+        <source>&amp;SSH port:</source>
+        <translation>&amp;SSH-порт:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.ui" line="79"/>
+        <source>Timeout:</source>
+        <translation>Время ожидания:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.ui" line="95"/>
+        <source>s</source>
+        <translation>с</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.ui" line="111"/>
+        <source>Free ports:</source>
+        <translation>Свободные порты:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.ui" line="123"/>
+        <location filename="merhardwaredevicewidget.ui" line="151"/>
+        <source>You can enter lists and ranges like this: 1024,1026-1028,1030</source>
+        <translation>Перечислите порты через запятую или укажите интервал, например: 1024, 1026-1028, 1030</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.ui" line="139"/>
+        <source>QmlLive ports:</source>
+        <translation>QmlLive порты:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.ui" line="173"/>
+        <source>Authentication:</source>
+        <translation>Aутентификация:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.ui" line="180"/>
+        <location filename="merhardwaredevicewidget.ui" line="208"/>
+        <source>none</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.ui" line="190"/>
+        <source>Private SSH Key:</source>
+        <translation>Приватный SSH-ключ:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.ui" line="239"/>
+        <source>X</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.ui" line="246"/>
+        <location filename="merhardwaredevicewidget.cpp" line="138"/>
+        <source>Authorize</source>
+        <translation>Авторизация</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.cpp" line="151"/>
+        <source>Generating key…</source>
+        <translation>Генерация ключа...</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.cpp" line="155"/>
+        <location filename="merhardwaredevicewidget.cpp" line="167"/>
+        <source>Failed</source>
+        <translation>Ошибка</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.cpp" line="156"/>
+        <source>Failed to generate key: %1</source>
+        <translation>Не удалось создать ключ: %1</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.cpp" line="163"/>
+        <source>Deploying key…</source>
+        <translation>Запись ключа...</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.cpp" line="168"/>
+        <source>Failed to deploy SSH key: %1</source>
+        <translation>Не удалось записать SSH-ключ: %1</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.cpp" line="200"/>
+        <source>Authorized</source>
+        <translation>Авторизация</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.cpp" line="201"/>
+        <source>Successfully authorized SSH key</source>
+        <translation>SSH-ключ успешно авторизован</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.cpp" line="240"/>
+        <source>You will need at least two ports for debugging.</source>
+        <translation>Для отладки потребуется не менее двух портов.</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.cpp" line="245"/>
+        <source>You will need at least one and at most %1 ports for QmlLive use.</source>
+        <translation>Вам понадобится не менее одного и не более %1 портов для использования QmlLive.</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.cpp" line="249"/>
+        <source>File does not exist.</source>
+        <translation>Файл не существует.</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidget.cpp" line="259"/>
+        <source>SSH Key</source>
+        <translation>SSH ключ</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerHardwareDeviceWidget_AuthorizeDialog</name>
+    <message>
+        <location filename="merhardwaredevicewidgetauthorizedialog.ui" line="14"/>
+        <source>Deploy SSH Key</source>
+        <translation>Установка SSH-ключа</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidgetauthorizedialog.ui" line="35"/>
+        <source>Device:</source>
+        <translation>Устройство:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidgetauthorizedialog.ui" line="52"/>
+        <source>Username:</source>
+        <translation>Имя пользователя:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidgetauthorizedialog.ui" line="69"/>
+        <source>Password:</source>
+        <translation>Пароль:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewidgetauthorizedialog.ui" line="105"/>
+        <source>PROGRESS</source>
+        <translation>Прогресс</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerHardwareDeviceWizard</name>
+    <message>
+        <location filename="merhardwaredevicewizard.cpp" line="39"/>
+        <source>New Sailfish OS Hardware Device Setup</source>
+        <translation>Добавление нового устройства Sailfish OS</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerHardwareDeviceWizardSelectionPage</name>
+    <message>
+        <location filename="merhardwaredevicewizardselectionpage.ui" line="20"/>
+        <source>WizardPage</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardselectionpage.ui" line="26"/>
+        <source>Device Selection</source>
+        <translation>Выбор устройства</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardselectionpage.ui" line="35"/>
+        <source>Hostname or IP address:</source>
+        <translation>Имя хоста или IP-адрес:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardselectionpage.ui" line="48"/>
+        <source>Username</source>
+        <translation>Имя пользователя</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardselectionpage.ui" line="65"/>
+        <source>SSH port:</source>
+        <translation>SSH-порт:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardselectionpage.ui" line="85"/>
+        <source>SSH timeout:</source>
+        <translation>Время ожидания SSH:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardselectionpage.ui" line="101"/>
+        <source>s</source>
+        <translation>с</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardselectionpage.ui" line="124"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;ul&gt;&lt;li&gt;Please connect your device and activate the developer mode.&lt;/li&gt;&lt;li&gt;In &quot;Developer Mode Settings&quot; select &quot;Remote connection&quot; and generate the ssh password.&lt;/li&gt;&lt;li&gt;Type the generated password in the form below.&lt;/li&gt;&lt;/ul&gt;&lt;p/&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;ul&gt;&lt;li&gt;Подключите устройство и активируйте режим разработчика.&lt;/li&gt;&lt;li&gt;В разделе &quot;Средства разработчика&quot; выберите &quot;Удаленное подключение&quot; и сгенерируйте SSH-пароль.&lt;/li&gt;&lt;li&gt;Введите пароль в форму ниже .&lt;/li&gt;&lt;/ul&gt;&lt;p/&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardselectionpage.ui" line="136"/>
+        <source>&amp;Password: </source>
+        <translation>&amp;Пароль: </translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardselectionpage.ui" line="161"/>
+        <source>Test Connection</source>
+        <translation>Проверка подключения</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardselectionpage.ui" line="174"/>
+        <source>none</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardpages.cpp" line="56"/>
+        <source>Select Device</source>
+        <translation>Выбор устройства</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardpages.cpp" line="69"/>
+        <source>Not connected</source>
+        <translation>Не подключено</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardpages.cpp" line="150"/>
+        <source>Connecting to machine %1 ...</source>
+        <translation>Подключение к устройству %1 ...</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardpages.cpp" line="156"/>
+        <source>Detecting device properties...</source>
+        <translation>Поиск настроек устройства...</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardpages.cpp" line="160"/>
+        <source>Could not autodetect device properties</source>
+        <translation>Не удалось автоматически определить настройки устройства</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardpages.cpp" line="164"/>
+        <source>Connected %1 device</source>
+        <translation>Подключено к %1 устройству</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerHardwareDeviceWizardSetupPage</name>
+    <message>
+        <location filename="merhardwaredevicewizardsetuppage.ui" line="20"/>
+        <source>WizardPage</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardsetuppage.ui" line="41"/>
+        <source>Config name:</source>
+        <translation>Конфигурация:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardsetuppage.ui" line="57"/>
+        <source>Connection</source>
+        <translation>Подключение</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardsetuppage.ui" line="66"/>
+        <source>Host:</source>
+        <translation>Адрес:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardsetuppage.ui" line="73"/>
+        <location filename="merhardwaredevicewizardsetuppage.ui" line="90"/>
+        <location filename="merhardwaredevicewizardsetuppage.ui" line="107"/>
+        <location filename="merhardwaredevicewizardsetuppage.ui" line="185"/>
+        <location filename="merhardwaredevicewizardsetuppage.ui" line="205"/>
+        <source>none</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardsetuppage.ui" line="83"/>
+        <source>Username:</source>
+        <translation>Имя пользователя:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardsetuppage.ui" line="100"/>
+        <source>SSH Port:</source>
+        <translation>SSH-порт:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardsetuppage.ui" line="117"/>
+        <source>Free ports:</source>
+        <translation>Свободные порты:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardsetuppage.ui" line="138"/>
+        <source>Note: For debugging, at least 2 free ports are required.</source>
+        <translation>Примечание: Для отладки необходимо наличие не менее двух свободных портов.</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardsetuppage.ui" line="150"/>
+        <source>SSH Key</source>
+        <translation>SSH-ключ</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardsetuppage.ui" line="158"/>
+        <source>Sailfish OS build engine:</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardsetuppage.ui" line="178"/>
+        <source>Public SSH key:</source>
+        <translation>Публичный SSH-ключ:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardsetuppage.ui" line="198"/>
+        <source>Private SSH key:</source>
+        <translation>Приватный SSH-ключ:</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardsetuppage.ui" line="220"/>
+        <source>Generate new SSH keys</source>
+        <translation>Сгенерировать новые SSH-ключи</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardpages.cpp" line="263"/>
+        <source>Configure Connection</source>
+        <translation>Настройки подключения</translation>
+    </message>
+    <message>
+        <location filename="merhardwaredevicewizardpages.cpp" line="269"/>
+        <source>Build Engine</source>
+        <translation></translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerLocalRsyncDeployStep</name>
+    <message>
+        <location filename="merdeploysteps.cpp" line="584"/>
+        <source>Cannot deploy: No active build configuration.</source>
+        <translation>Не удается развернуть: нет активной конфигурации сборки.</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="592"/>
+        <source>Cannot deploy: Missing Sailfish OS build-engine information in the kit</source>
+        <translation>Не удается развернуть: отсутствует информация о Sailfish OS Build Engine в комплекте</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="600"/>
+        <source>Cannot deploy: Missing Sailfish OS build-target information in the kit</source>
+        <translation>Не удается развернуть: отсутствует информация о цели сборки Sailfish OS в комплекте</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="627"/>
+        <source>Deploying binaries...</source>
+        <translation>Развертывание бинарных файлов...</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="635"/>
+        <source>Deploys with local installed rsync.</source>
+        <translation>Развертывание с помощью локально установленной rsync.</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="636"/>
+        <source>Deploy using local installed Rsync</source>
+        <translation>Развертывание с помощью локально установленной rsync</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerManagementWebView</name>
+    <message>
+        <location filename="mermanagementwebview.ui" line="14"/>
+        <source>Form</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="mermanagementwebview.ui" line="91"/>
+        <source>about:blank</source>
+        <translation></translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerManagementWebViewSdksModel</name>
+    <message>
+        <location filename="mermanagementwebview.cpp" line="135"/>
+        <source>&lt;no build engine&gt;</source>
+        <translation>&lt;Нет Build Engine&gt;</translation>
+    </message>
+    <message>
+        <location filename="mermanagementwebview.cpp" line="137"/>
+        <source>Configure a Sailfish OS build engine in Options</source>
+        <translation>Настройка Sailfish OS Build Engine в меню &quot;Параметры&quot;</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerMb2RpmBuildConfiguration</name>
+    <message>
+        <location filename="merdeployconfiguration.cpp" line="204"/>
+        <source>Build RPM Package For Manual Deployment</source>
+        <translation>Собрать RPM пакет для установки вручную</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerMb2RpmBuildStep</name>
+    <message>
+        <location filename="merdeploysteps.cpp" line="729"/>
+        <source>Building RPM package...</source>
+        <translation>Сборка RPM-пакета...</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="751"/>
+        <source>Builds RPM package.</source>
+        <translation>Сборка RPM-пакета.</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerMb2RpmDeployStep</name>
+    <message>
+        <location filename="merdeploysteps.cpp" line="673"/>
+        <source>Deploying RPM package...</source>
+        <translation>Развертывание RPM-пакета...</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="681"/>
+        <source>Deploys RPM package.</source>
+        <translation>Разворачивает RPM-пакет.</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerMb2RsyncDeployStep</name>
+    <message>
+        <location filename="merdeploysteps.cpp" line="547"/>
+        <source>Deploying binaries...</source>
+        <translation>Развертывание бинарных файлов...</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="555"/>
+        <source>Deploys with rsync.</source>
+        <translation>Развертывается с помощью rsync.</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerMode</name>
+    <message>
+        <location filename="mermode.cpp" line="49"/>
+        <source>Sailfish OS</source>
+        <translation></translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerNamedCommandDeployService</name>
+    <message>
+        <location filename="merdeploysteps.cpp" line="1105"/>
+        <source>Remote process failed to start.</source>
+        <translation>Не удалось запустить удаленный процесс.</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="1107"/>
+        <source>Remote process was killed by a signal.</source>
+        <translation>Удаленный процесс был остановлен по сигналу.</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="1109"/>
+        <source>Remote process finished with exit code %1.</source>
+        <translation>Удаленный процесс завершился с кодом %1.</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="1112"/>
+        <source>Remote command finished successfully.</source>
+        <translation>Удаленная команда успешно завершена.</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerOptionsWidget</name>
+    <message>
+        <location filename="meroptionswidget.ui" line="14"/>
+        <source>Form</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.ui" line="24"/>
+        <source>Virtua&amp;l Machine:</source>
+        <translation>Виртуальная &amp;машина:</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.ui" line="60"/>
+        <source>&amp;Add...</source>
+        <translation>&amp;Добавить...</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.ui" line="67"/>
+        <source>&amp;Remove</source>
+        <translation>&amp;Удалить</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.ui" line="84"/>
+        <source>&amp;Start Virtual Machine</source>
+        <translation>&amp;Запустить виртуальную машину</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.ui" line="91"/>
+        <source>Sto&amp;p Virtual Machine</source>
+        <translation>Остановить виртуальную машину</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="60"/>
+        <source>Not connected.</source>
+        <translation>Не подключено.</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="140"/>
+        <source>Abort</source>
+        <translation>Прервать</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="158"/>
+        <source>Applying virtual machine settings: &apos;%1&apos;</source>
+        <translation>Применение параметров виртуальной машины: &apos;%1&apos;</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="231"/>
+        <source>Some changes could not be saved!</source>
+        <translation>Некоторые настройки не могут быть сохранены!</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="232"/>
+        <source>Failed to apply some of the changes to virtual machines</source>
+        <translation>Не удалось применить некоторые изменения к виртуальным машинам</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="285"/>
+        <location filename="meroptionswidget.cpp" line="458"/>
+        <source>Close Virtual Machine</source>
+        <translation>Остановить виртуальную машину</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="286"/>
+        <location filename="meroptionswidget.cpp" line="459"/>
+        <source>Close the &quot;%1&quot; virtual machine?</source>
+        <translation>Остановить виртуальную машину &quot;%1&quot;?</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="290"/>
+        <source>Some of the changes require stopping the virtual machine before they can be applied.</source>
+        <translation>Некоторые изменения требуют остановки виртуальной машины перед их применением.</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="325"/>
+        <source>Not tested.</source>
+        <translation>Не проверено.</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="333"/>
+        <source>Add a Sailfish OS Build Engine</source>
+        <translation>Добавить Sailfish OS Build Engine</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="380"/>
+        <source>Connecting to machine %1 ...</source>
+        <translation>Подключение к устройству %1 ...</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="386"/>
+        <source>Virtual machine %1 is not running.</source>
+        <translation>Виртуальная машина %1 не запущена.</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="403"/>
+        <source>Cannot Authorize Keys</source>
+        <translation>Не удалось авторизовать ключ</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="405"/>
+        <source>Key Authorized </source>
+        <translation>Ключ авторизован </translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="406"/>
+        <source>Key %1 added to 
+ %2</source>
+        <translation>Ключ %1 добавлен в 
+ %2</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="426"/>
+        <source>Could not generate key.</source>
+        <translation>Не удалось сгенерировать ключ.</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="428"/>
+        <source>Key generated</source>
+        <translation>Ключ сгенерирован</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="429"/>
+        <source>Key pair generated 
+ %1 
+ You should authorize key now.</source>
+        <translation>Пара ключей сгенерирована 
+ %1 
+ Теперь необходимо авторизовать ключ.</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="450"/>
+        <source>Choose a new folder</source>
+        <translation>Выбор новой папки</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="451"/>
+        <source>The given folder (%1) is the current alternative source folder. Please choose another folder if you want to change it.</source>
+        <translation>Данная папка (%1) является текущей альтернативной исходной папкой. Пожалуйста, выберите другую папку, если вы хотите изменить ее.</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="463"/>
+        <source>Virtual machine must be closed before the source folder can be changed.</source>
+        <translation>Виртуальная машина должна быть закрыта перед изменением папки.</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="472"/>
+        <source>Failed</source>
+        <translation>Ошибка</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="473"/>
+        <source>Alternative source folder not changed</source>
+        <translation>Исходная папка не изменена</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="489"/>
+        <source>Success!</source>
+        <translation>Успешно!</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="490"/>
+        <source>Alternative source folder for %1 changed to %2.
+
+Do you want to start %1 now?</source>
+        <translation>Альтернативная исходная папка для %1 изменена на %2.
+
+Вы хотите запустить %1 прямо сейчас?</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="497"/>
+        <source>Changing the source folder failed!</source>
+        <translation>Не удалось изменить исходную папку!</translation>
+    </message>
+    <message>
+        <location filename="meroptionswidget.cpp" line="498"/>
+        <source>Unable to change the alternative source folder to %1</source>
+        <translation>Невозможно изменить альтернативную исходную папку на %1</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerPlugin</name>
+    <message>
+        <location filename="merplugin.cpp" line="162"/>
+        <source>&amp;Sailfish OS</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merplugin.cpp" line="172"/>
+        <source>Start &amp;QmlLive Bench...</source>
+        <translation>Запустить &amp;QmlLive Bench...</translation>
+    </message>
+    <message>
+        <location filename="merplugin.cpp" line="198"/>
+        <source>Close Virtual Machine</source>
+        <translation>Остановить виртуальную машину</translation>
+    </message>
+    <message>
+        <location filename="merplugin.cpp" line="199"/>
+        <source>The headless virtual machine &quot;%1&quot; is still running.
+
+Close the virtual machine now?</source>
+        <translation>Фоновая виртуальная машина &quot;%1&quot; все еще запущена.
+
+Остановить виртуальную машину сейчас?</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerPrepareTargetStep</name>
+    <message>
+        <location filename="merdeploysteps.cpp" line="450"/>
+        <source>Prepare Target</source>
+        <translation>Подготовка цели</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerPrepareTargetStepConfigWidget</name>
+    <message>
+        <location filename="merdeploysteps.cpp" line="119"/>
+        <source>Prepares target device for deployment</source>
+        <translation>Подготовка целевого устройства для развертывания</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerProcessStep</name>
+    <message>
+        <location filename="merdeploysteps.cpp" line="238"/>
+        <source>Cannot deploy: No active build configuration.</source>
+        <translation>Не удается развернуть: нет активной конфигурации сборки.</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="246"/>
+        <source>Cannot deploy: Missing Sailfish OS build-engine information in the kit</source>
+        <translation>Не удается развернуть: отсутствует информация о Sailfish OS Build Engine в комплекте</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="254"/>
+        <source>Cannot deploy: Missing Sailfish OS build-target information in the kit</source>
+        <translation>Не удается развернуть: отсутствует информация о цели сборки Sailfish OS в комплекте</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="263"/>
+        <source>Cannot deploy: Missing Sailfish OS device information in the kit</source>
+        <translation>Не удается развернуть: отсутствует информация об устройстве Sailfish OS в комплекте</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerQmlLiveBenchManager</name>
+    <message>
+        <location filename="merqmllivebenchmanager.cpp" line="143"/>
+        <source>Start QmlLive Bench</source>
+        <translation>Запустить QmlLive Bench</translation>
+    </message>
+    <message>
+        <location filename="merqmllivebenchmanager.cpp" line="144"/>
+        <source>&lt;p&gt;QmlLive Bench is not running. Do you want to start it now?&lt;/p&gt;&lt;p&gt;&lt;a href=&apos;%1&apos;&gt;Learn more&lt;/a&gt; on using QmlLive with Sailfish OS devices.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;QmlLive Bench не запущен. Запустить сейчас?&lt;/p&gt;&lt;p&gt;&lt;a href=&apos;%1&apos;&gt;Подробнее&lt;/a&gt; про использование QmlLive на устройствах Sailfish OS.&lt;/p&gt;</translation>
+    </message>
+    <message>
+        <location filename="merqmllivebenchmanager.cpp" line="185"/>
+        <source>Cannot start QmlLive Bench</source>
+        <translation>Не удается запустить QmlLive Bench</translation>
+    </message>
+    <message>
+        <location filename="merqmllivebenchmanager.cpp" line="186"/>
+        <source>Location of QmlLive Bench application is either not set or invalid</source>
+        <translation>Расположение QmlLive Bench не установлено или недоступно</translation>
+    </message>
+    <message>
+        <location filename="merqmllivebenchmanager.cpp" line="189"/>
+        <source>Configure now...</source>
+        <translation>Настроить сейчас...</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerQmlRunConfiguration</name>
+    <message>
+        <location filename="merqmlrunconfiguration.cpp" line="79"/>
+        <source>This deployment method does not support run configuration</source>
+        <translation>Данный метод развертывания не поддерживает конфигурацию запуска</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerQmlRunConfigurationWidget</name>
+    <message>
+        <location filename="merqmlrunconfigurationwidget.cpp" line="82"/>
+        <source>Command:</source>
+        <translation>Команда:</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerResetAmbienceDeployStep</name>
+    <message>
+        <location filename="merdeploysteps.cpp" line="1156"/>
+        <source>Starting remote command to reset ambience &apos;%1&apos;...</source>
+        <translation>Запуск удаленной команды для сброса окружения &quot;%1&quot;...</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="1166"/>
+        <source>Reset Sailfish OS Ambience</source>
+        <translation>Сбросить Sailfish OS Ambience</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerRpmBuildDeployConfiguration</name>
+    <message>
+        <location filename="merdeployconfiguration.cpp" line="239"/>
+        <source>Deploy As RPM Package (RPMBUILD)</source>
+        <translation>Развернуть, используя RPM-пакет (RPMBUILD)</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerRpmDeployConfiguration</name>
+    <message>
+        <location filename="merdeployconfiguration.cpp" line="134"/>
+        <source>Deploy As RPM Package</source>
+        <translation>Развернуть, используя RPM-пакет</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerRpmInfo</name>
+    <message>
+        <location filename="merrpminfo.ui" line="14"/>
+        <source>RPM Packages Created</source>
+        <translation>RPM-пакет создан</translation>
+    </message>
+    <message>
+        <location filename="merrpminfo.ui" line="23"/>
+        <source>The following RPM packages have been created:</source>
+        <translation>Были созданы следующие RPM-пакеты:</translation>
+    </message>
+    <message>
+        <location filename="merrpminfo.ui" line="45"/>
+        <source>&amp;Copy files to clipboard</source>
+        <translation>&amp;Скопировать файлы в буфер обмена</translation>
+    </message>
+    <message>
+        <location filename="merrpminfo.ui" line="52"/>
+        <source>O&amp;pen containing folder</source>
+        <translation>Открыть папку</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerRpmPackagingStep</name>
+    <message>
+        <location filename="merrpmpackagingstep.cpp" line="82"/>
+        <source>No Qt build configuration</source>
+        <translation>Нет конфигурации сборки Qt</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingstep.cpp" line="88"/>
+        <source>Packaging failed: No Qt version.</source>
+        <translation>Ошибка создания пакета: нет версии Qt.</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingstep.cpp" line="99"/>
+        <source>Packaging failed: No Sailfish OS build target set.</source>
+        <translation>Ошибка создания пакета: отсутствует цель сборки Sailfish OS.</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingstep.cpp" line="118"/>
+        <source>Package up to date.</source>
+        <translation>Пакет в актуальном состоянии.</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingstep.cpp" line="136"/>
+        <source>Package created.</source>
+        <translation>Пакет создан.</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingstep.cpp" line="191"/>
+        <source>Packaging failed: Foreign rpmbuild directory detected. %1Qt Creator will not overwrite that directory. Please remove it</source>
+        <translation>Ошибка создания пакета: обнаружен внешний каталог rpmbuild. %1Qt Creator не перезапишет этот каталог. Пожалуйста, удалите его</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingstep.cpp" line="199"/>
+        <source>Packaging failed: Could not remove directory &quot;%1&quot;: %2</source>
+        <translation>Ошибка создания пакета: не удалось удалить каталог &quot;%1&quot;: %2</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingstep.cpp" line="206"/>
+        <source>Could not create rpmbuild directory &quot;%1&quot;.</source>
+        <translation>Не удалось создать папку rpmbuild &quot;%1&quot;.</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingstep.cpp" line="212"/>
+        <location filename="merrpmpackagingstep.cpp" line="227"/>
+        <source>Error: Could not create file &quot;%1&quot;.</source>
+        <translation>Ошибка: не удалось создать файл &quot;%1&quot;.</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingstep.cpp" line="222"/>
+        <source>Creating spec file...</source>
+        <translation>Создание spec-файла...</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingstep.cpp" line="263"/>
+        <source>Creating package file...</source>
+        <translation>Создание файла пакета...</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingstep.cpp" line="268"/>
+        <source>Package Creation: Running command &quot;%1 %2&quot; .</source>
+        <translation>Создание пакета: запуск команды &quot;%1 %2&quot; .</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingstep.cpp" line="275"/>
+        <source>Packaging failed: Could not start command &quot;%1&quot;. Reason: %2</source>
+        <translation>Ошибка создания пакета: не удалось запустить команду &quot;%1&quot;. Причина: %2</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingstep.cpp" line="281"/>
+        <source>Packaging Error: Command &quot;%1&quot;  failed.</source>
+        <translation>Ошибка создания пакета: Команда &quot;%1&quot; не выполнена.</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingstep.cpp" line="284"/>
+        <source> Reason: %1</source>
+        <translation> Причина: %1</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingstep.cpp" line="286"/>
+        <source>Exit code: %1</source>
+        <translation>Код завершения: %1</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingstep.cpp" line="304"/>
+        <source>Build RPM Package Locally</source>
+        <translation>Сборка RPM-пакета локально</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerRpmPackagingWidget</name>
+    <message>
+        <location filename="merrpmpackagingwidget.ui" line="28"/>
+        <source>Package name:</source>
+        <translation>Имя пакета:</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingwidget.ui" line="50"/>
+        <source>Package version:</source>
+        <translation>Версия пакета:</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingwidget.ui" line="65"/>
+        <source>Major:</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingwidget.ui" line="91"/>
+        <source>Minor:</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingwidget.ui" line="117"/>
+        <source>Patch:</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingwidget.ui" line="152"/>
+        <source>Short package description:</source>
+        <translation>Краткое описание пакета:</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingwidget.ui" line="166"/>
+        <source>Summary</source>
+        <translation>Описание</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingwidget.ui" line="186"/>
+        <source>Edit spec file</source>
+        <translation>Редактировать spec файл</translation>
+    </message>
+    <message>
+        <location filename="merrpmpackagingwidget.cpp" line="74"/>
+        <source>&lt;b&gt;Create RPM Package:&lt;/b&gt; Makes rpmbuild</source>
+        <translation>&lt;b&gt;Создание RPM-пакета:&lt;/b&gt; Создает rpmbuild</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerRpmValidationParser</name>
+    <message>
+        <location filename="merrpmvalidationparser.cpp" line="65"/>
+        <location filename="merrpmvalidationparser.cpp" line="73"/>
+        <source>RPM Validation: %1: %2</source>
+        <translation>Валидация RPM-пакета: %1: %2</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerRpmValidationStep</name>
+    <message>
+        <location filename="merdeploysteps.cpp" line="846"/>
+        <source>Cannot validate: No previous &quot;%1&quot; step found</source>
+        <translation>Не удается проверить: предыдущий шаг &quot;%1&quot; не найден</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="865"/>
+        <source>No RPM validation suite is available for the current Sailfish OS build target, the package will not be validated</source>
+        <translation>Недоступен набор валидации RPM-пакетов для текущей цели сборки Sailfish OS, пакет не будет проверен</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="871"/>
+        <source>Disable the RPM Validation deploy step to avoid this error</source>
+        <translation>Отключите шаг валидации RPM-пакетов, чтобы избежать этой ошибки</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="876"/>
+        <source>No RPM validation suite is selected in deployment settings, the package will not be validated</source>
+        <translation>В настройках установки не выбран набор валидации RPM-пакетов, пакет не будет проверен</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="882"/>
+        <source>Either select at least one suite or disable the RPM Validation deploy step to avoid this error</source>
+        <translation>Чтобы избежать этой ошибки, выберите хотя бы один комплект RPM Validation или отключите шаг RPM Validation</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="888"/>
+        <source>Validating RPM package...</source>
+        <translation>Проверка RPM пакета...</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="892"/>
+        <source>No package to validate found in %1</source>
+        <translation>Пакет для проверки не найден в %1</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerRpmValidationStepConfigWidget</name>
+    <message>
+        <location filename="merrpmvalidationstepconfigwidget.ui" line="14"/>
+        <source>Form</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merrpmvalidationstepconfigwidget.ui" line="20"/>
+        <source>Suites:</source>
+        <translation>Комплекты:</translation>
+    </message>
+    <message>
+        <location filename="merrpmvalidationstepconfigwidget.ui" line="58"/>
+        <source>Name</source>
+        <translation>Имя</translation>
+    </message>
+    <message>
+        <location filename="merrpmvalidationstepconfigwidget.ui" line="63"/>
+        <source>Website</source>
+        <translation>Веб-сайт</translation>
+    </message>
+    <message>
+        <location filename="merrpmvalidationstepconfigwidget.ui" line="68"/>
+        <source>Essential</source>
+        <translation>Обязательные</translation>
+    </message>
+    <message>
+        <location filename="merrpmvalidationstepconfigwidget.ui" line="78"/>
+        <source>W</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merrpmvalidationstepconfigwidget.ui" line="91"/>
+        <source>Warning</source>
+        <translation>Предупреждение</translation>
+    </message>
+    <message>
+        <location filename="merrpmvalidationstepconfigwidget.ui" line="103"/>
+        <source>Command:</source>
+        <translation>Команда:</translation>
+    </message>
+    <message>
+        <location filename="merrpmvalidationstepconfigwidget.ui" line="110"/>
+        <source>rpmvalidation</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merrpmvalidationstepconfigwidget.ui" line="117"/>
+        <source>Arguments:</source>
+        <translation>Аргументы:</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="144"/>
+        <source>Essential</source>
+        <comment>RPM validation suite</comment>
+        <translation>Обязательные</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="145"/>
+        <source>Optional</source>
+        <comment>RPM validation suite</comment>
+        <translation>Необязательные</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="170"/>
+        <source>Validates RPM package.</source>
+        <translation>Проверки RPM пакета.</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="201"/>
+        <source>No RPM validation suite is available for the current Sailfish OS build target</source>
+        <translation>Не доступен ни один комплект валидации RPM для текущей цели сборки Sailfish OS</translation>
+    </message>
+    <message>
+        <location filename="merdeploysteps.cpp" line="206"/>
+        <source>At least one RPM validation suite must be selected</source>
+        <translation>Необходимо выбрать хотя бы один комплект проверки RPM-пакета</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerRsyncDeployConfiguration</name>
+    <message>
+        <location filename="merdeployconfiguration.cpp" line="169"/>
+        <source>Deploy By Copying Binaries</source>
+        <translation>Развертывание копированием бинарных файлов</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerRunConfigWidget</name>
+    <message>
+        <location filename="merrunconfigurationaspect.cpp" line="83"/>
+        <source>Enable receiving updates with Qt QmlLive</source>
+        <translation>Включить получение обновлений Qt QmlLive</translation>
+    </message>
+    <message>
+        <location filename="merrunconfigurationaspect.cpp" line="95"/>
+        <source>Help</source>
+        <translation>Помощь</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerRunConfiguration</name>
+    <message>
+        <location filename="merrunconfiguration.cpp" line="67"/>
+        <source>This deployment method does not support run configuration</source>
+        <translation>Данный метод развертывания не поддерживает конфигурацию запуска</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerRunConfigurationAspect</name>
+    <message>
+        <location filename="merrunconfigurationaspect.cpp" line="244"/>
+        <source>Sailfish OS Application Settings</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerSdkDetailsWidget</name>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="14"/>
+        <source>Dialog</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="53"/>
+        <source>Virtual machine</source>
+        <translation>Виртуальная машина</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="59"/>
+        <source>Name:</source>
+        <translation>Имя:</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="82"/>
+        <source>Host:</source>
+        <translation>Хост:</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="95"/>
+        <source>localhost</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="105"/>
+        <source>SSH port:</source>
+        <translation>SSH-порт:</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="151"/>
+        <source>Web port:</source>
+        <translation>Web порт:</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="197"/>
+        <source>Web proxy:</source>
+        <translation>Web прокси:</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="209"/>
+        <source>Excludes:</source>
+        <translation>Исключения:</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="219"/>
+        <source>Disabled</source>
+        <translation>Выключен</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="226"/>
+        <location filename="mersdkdetailswidget.cpp" line="310"/>
+        <source>Servers:</source>
+        <translation>Серверы:</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="233"/>
+        <source>Manual</source>
+        <translation>Ручной</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="240"/>
+        <source>Automatic</source>
+        <translation>Автоматический</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="249"/>
+        <source>Build targets:</source>
+        <translation>Цели сборки:</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="262"/>
+        <source>None</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="272"/>
+        <source>No win&amp;dow:</source>
+        <translation>В фоне:</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="282"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If enabled the virtual machine will be run in a windowless mode (default).&lt;/p&gt;&lt;p&gt;Changing this setting requires restarting the virtual machine.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;При включении данного параметра виртуальная машина будет работать в фоновом режиме (по умолчанию).&lt;/p&gt;&lt;p&gt;Изменение этого параметра требует перезагрузки виртуальной машины.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="295"/>
+        <source>Shared folders</source>
+        <translation>Общие папки</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="307"/>
+        <source>Alt source folder:</source>
+        <translation>Альтернативная папка исходных файлов:</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="320"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;The alternative source folder path.&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Your projects can be located under your home folder or under this folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Альтернативная папка исходных файлов.&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Проекты могут быть расположены в этой или домашней папке.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="342"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Change the alternative source location folder.&lt;/span&gt;&lt;/p&gt;&lt;p&gt;By default Sailfish OS build engine can read project sources only from your home directory. You can specify here another location for your projects. You will need to stop the build engine before this setting can be changed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Изменение расположения альтернативной папки исходников.&lt;/span&gt;&lt;/p&gt;&lt;p&gt;По умолчанию Sailfish OS Build Engine может читать источники проекта только из вашего домашнего каталога. Здесь можно указать другое место для ваших проектов. Перед внесением изменений необходимо остановить Build Engine.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="345"/>
+        <source>Change</source>
+        <translation>Изменить</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="357"/>
+        <source>Home folder:</source>
+        <translation>Домашняя папка:</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="389"/>
+        <source>Build targets folder:</source>
+        <translation>Папка целей сборки:</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="421"/>
+        <source>Ssh folder:</source>
+        <translation>Папка SSH-клчюей:</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="453"/>
+        <source>Config folder:</source>
+        <translation>Папка настроек:</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="485"/>
+        <source>Connection</source>
+        <translation>Подключение</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="497"/>
+        <source>Username:</source>
+        <translation>Имя пользователя:</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="514"/>
+        <source>SSH key: </source>
+        <translation>SSH-ключ: </translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="546"/>
+        <source>Generate Key</source>
+        <translation>Сгенерировать ключ</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="553"/>
+        <source>Authorize Key</source>
+        <translation>Ключи авторизации</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="562"/>
+        <source>SSH t&amp;imeout:</source>
+        <translation>Время ожидания SSH:</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="578"/>
+        <source>s</source>
+        <translation>с</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="591"/>
+        <source>Status:</source>
+        <translation>Статус:</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="606"/>
+        <source>Not Connected</source>
+        <translation>Не подключено</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="613"/>
+        <source>Test Connection</source>
+        <translation>Проверка подключения</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.ui" line="625"/>
+        <source>System</source>
+        <translation>Система</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.cpp" line="53"/>
+        <location filename="mersdkdetailswidget.cpp" line="59"/>
+        <source>Stop the virtual machine to unlock this field for editing.</source>
+        <translation>Необходимо остановить виртуальную машину для изменения значения.</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.cpp" line="100"/>
+        <source>Select SSH Key</source>
+        <translation>Выберете SSH-ключ</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.cpp" line="134"/>
+        <source>No build targets installed</source>
+        <translation>Цели сборки не установлены</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.cpp" line="138"/>
+        <source>Complete adding the build engine to see its build targets</source>
+        <translation>Завершите добавление Build Engine, чтобы увидеть его цели сборки</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.cpp" line="143"/>
+        <source>Add public key to %1</source>
+        <translation>Добавить публичный ключ в %1</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.cpp" line="240"/>
+        <source>Invalid path</source>
+        <translation>Неверный путь</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.cpp" line="241"/>
+        <source>Not a valid source folder path: %1</source>
+        <translation>Недопустимый путь к исходной папке: %1</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.cpp" line="289"/>
+        <source>URL:</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.cpp" line="294"/>
+        <source>Leave empty for asking the network, otherwise insert a proxy autoconfiguration URL.</source>
+        <translation>Оставьте поле для запроса сети пустым . При необходимости  укажите URL-адрес автоконфигурации прокси.</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.cpp" line="315"/>
+        <source>Insert a list of proxies. E.g. &quot;proxy1.example.com 1.2.3.4:8080&quot;</source>
+        <translation>Введите список прокси. Например: &quot;proxy1.example.com 1.2.3.4:8080&quot;</translation>
+    </message>
+    <message>
+        <location filename="mersdkdetailswidget.cpp" line="321"/>
+        <source>Insert a list of addresses excluded from the proxy. E.g. &quot;internal.example.com 10.0.0.0/8&quot;</source>
+        <translation>Перечислите адреса, исключенные из прокси. Например: &quot;internal.example.com 10.0.0.0/8&quot;</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerSdkKitInformation</name>
+    <message>
+        <location filename="mersdkkitinformation.cpp" line="95"/>
+        <source>Sailfish OS build engine</source>
+        <translation></translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerSdkKitInformationWidget</name>
+    <message>
+        <location filename="mersdkkitinformation.cpp" line="153"/>
+        <source>Manage...</source>
+        <translation>Управление...</translation>
+    </message>
+    <message>
+        <location filename="mersdkkitinformation.cpp" line="166"/>
+        <source>Sailfish OS build engine:</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="mersdkkitinformation.cpp" line="171"/>
+        <source>Name of the virtual machine used as a Sailfish OS build engine.</source>
+        <translation>Имя виртуальной машины, используемой в качестве Sailfish OS Build Engine.</translation>
+    </message>
+    <message>
+        <location filename="mersdkkitinformation.cpp" line="215"/>
+        <source>None</source>
+        <translation></translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerSdkManager</name>
+    <message>
+        <location filename="mersdkmanager.cpp" line="417"/>
+        <source>Error: File %1 is missing.</source>
+        <translation>Ошибка: файл %1 отстутствует.</translation>
+    </message>
+    <message>
+        <location filename="mersdkmanager.cpp" line="424"/>
+        <location filename="mersdkmanager.cpp" line="444"/>
+        <location filename="mersdkmanager.cpp" line="453"/>
+        <location filename="mersdkmanager.cpp" line="467"/>
+        <source>Error: %1</source>
+        <translation>Ошибка: %1</translation>
+    </message>
+    <message>
+        <location filename="mersdkmanager.cpp" line="432"/>
+        <source>Error: Could not create directory %1</source>
+        <translation>Ошибка: не удалось создать каталог %1</translation>
+    </message>
+    <message>
+        <location filename="mersdkmanager.cpp" line="458"/>
+        <source>Key already authorized!
+ %1 already in %2</source>
+        <translation>Ключ уже авторизован!
+ %1 уже в %2</translation>
+    </message>
+    <message>
+        <location filename="mersdkmanager.cpp" line="578"/>
+        <source>Error: Key Path is empty.
+</source>
+        <translation>Ошибка: пустой путь к ключу.
+</translation>
+    </message>
+    <message>
+        <location filename="mersdkmanager.cpp" line="585"/>
+        <source>Error: File &quot;%1&quot; exists.
+</source>
+        <translation>Ошибка: файл &quot;%1&quot; существует.
+</translation>
+    </message>
+    <message>
+        <location filename="mersdkmanager.cpp" line="599"/>
+        <location filename="mersdkmanager.cpp" line="607"/>
+        <location filename="mersdkmanager.cpp" line="623"/>
+        <source>Error: %1
+</source>
+        <translation>Ошибка: %1
+</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerSdkSelectionDialog</name>
+    <message>
+        <location filename="mersdkselectiondialog.ui" line="14"/>
+        <source>WizardPage</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="mersdkselectiondialog.ui" line="20"/>
+        <source>Available Virtual Machines:</source>
+        <translation>Доступные виртуальные машины:</translation>
+    </message>
+    <message>
+        <location filename="mersdkselectiondialog.cpp" line="50"/>
+        <source>Add</source>
+        <translation>Добавить</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerSdkStartStep</name>
+    <message>
+        <location filename="merbuildsteps.cpp" line="46"/>
+        <source>Cannot start SDK: Missing Sailfish OS build-engine information in the kit</source>
+        <translation>Не удается запустить SDK: отсутствует информация о Sailfish OS Build Engine в комплекте</translation>
+    </message>
+    <message>
+        <location filename="merbuildsteps.cpp" line="63"/>
+        <source>Start Build Engine</source>
+        <translation>Запустить Build Engine</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerSettings</name>
+    <message>
+        <location filename="mersettings.cpp" line="79"/>
+        <source>Sailfish OS Emulator: Device model &quot;%1&quot; renamed to &quot;%2&quot;.</source>
+        <translation>Эмулятор Sailfish OS: модель устройства &quot;%1&quot; переименована в &quot;%2&quot;.</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerSshKeyDeploymentDialog</name>
+    <message>
+        <location filename="mersshkeydeploymentdialog.cpp" line="38"/>
+        <source>Deploying...</source>
+        <translation>Развертывание...</translation>
+    </message>
+    <message>
+        <location filename="mersshkeydeploymentdialog.cpp" line="65"/>
+        <source>Deployment finished successfully.</source>
+        <translation>Развертывание завершено успешно.</translation>
+    </message>
+    <message>
+        <location filename="mersshkeydeploymentdialog.cpp" line="72"/>
+        <source>Close</source>
+        <translation>Закрыть</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerTarget</name>
+    <message>
+        <location filename="mertarget.cpp" line="178"/>
+        <source>pkg-config is not available. Ensure it is installed and available from PATH</source>
+        <translation>pkg-config недоступен. Убедитесь, что он установлен и доступен из PATH</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerTargetKitInformation</name>
+    <message>
+        <location filename="mertargetkitinformation.cpp" line="100"/>
+        <source>Sailfish OS build target</source>
+        <translation>Цель сборки Sailfish OS</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerTargetKitInformationWidget</name>
+    <message>
+        <location filename="mertargetkitinformation.cpp" line="132"/>
+        <source>Manage...</source>
+        <translation>Управление...</translation>
+    </message>
+    <message>
+        <location filename="mertargetkitinformation.cpp" line="145"/>
+        <source>Sailfish OS build target:</source>
+        <translation>Цель сборки Sailfish OS:</translation>
+    </message>
+    <message>
+        <location filename="mertargetkitinformation.cpp" line="150"/>
+        <source>Name of an sb2 build target.</source>
+        <translation>Имя цели сборки sb2.</translation>
+    </message>
+    <message>
+        <location filename="mertargetkitinformation.cpp" line="177"/>
+        <source>None</source>
+        <translation></translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerToolChainFactory</name>
+    <message>
+        <location filename="mertoolchain.cpp" line="169"/>
+        <source>Sailfish OS</source>
+        <translation></translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerUploadAndInstallRpmStep</name>
+    <message>
+        <location filename="meruploadandinstallrpmsteps.cpp" line="98"/>
+        <source>No previous &quot;%1&quot; step found.</source>
+        <translation>Предыдущий шаг &quot;%1&quot; не найден.</translation>
+    </message>
+    <message>
+        <location filename="meruploadandinstallrpmsteps.cpp" line="112"/>
+        <source>Deploy Local RPM package via SFTP upload</source>
+        <translation>Развертывание локального пакета RPM через загрузку SFTP</translation>
+    </message>
+    <message>
+        <location filename="meruploadandinstallrpmsteps.cpp" line="119"/>
+        <source>No package to deploy found in %1</source>
+        <translation>Пакет для развертывания не найден в %1</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::Internal::MerVirtualMachineSettingsWidget</name>
+    <message>
+        <location filename="mervirtualmachinesettingswidget.ui" line="14"/>
+        <source>Form</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="mervirtualmachinesettingswidget.ui" line="32"/>
+        <source>Memory:</source>
+        <translation>Память:</translation>
+    </message>
+    <message>
+        <location filename="mervirtualmachinesettingswidget.ui" line="50"/>
+        <source> MB</source>
+        <translation> МБ</translation>
+    </message>
+    <message>
+        <location filename="mervirtualmachinesettingswidget.ui" line="66"/>
+        <source>Processor(s):</source>
+        <translation>Процессор(ы):</translation>
+    </message>
+    <message>
+        <location filename="mervirtualmachinesettingswidget.ui" line="76"/>
+        <source>VDI capacity:</source>
+        <translation>Размер VDI:</translation>
+    </message>
+    <message>
+        <location filename="mervirtualmachinesettingswidget.ui" line="115"/>
+        <source>The size of the virtual disk image - it is only possible to increase the value here!</source>
+        <translation>Размер образа виртуального диска - здесь можно только увеличить значение!</translation>
+    </message>
+    <message>
+        <location filename="mervirtualmachinesettingswidget.ui" line="118"/>
+        <source> GB</source>
+        <translation> ГБ</translation>
+    </message>
+    <message>
+        <location filename="mervirtualmachinesettingswidget.cpp" line="90"/>
+        <location filename="mervirtualmachinesettingswidget.cpp" line="96"/>
+        <location filename="mervirtualmachinesettingswidget.cpp" line="102"/>
+        <source>Stop the virtual machine to unlock this field for editing.</source>
+        <translation>Необходимо остановить виртуальную машину для изменения значения.</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::MerConnection</name>
+    <message>
+        <location filename="merconnection.cpp" line="591"/>
+        <source>Failed to start virtual machine &quot;%1&quot;</source>
+        <translation>Не удалось запустить виртуальную машину &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="603"/>
+        <source>Failed to establish SSH conection with virtual machine &quot;%1&quot;: %2 %3</source>
+        <translation>Не удалось установить SSH-соединение с виртуальной машиной &quot;%1&quot;: %2 %3</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="610"/>
+        <source>Consider increasing SSH connection timeout in options.</source>
+        <translation>Попробуйте увеличить времени ожидания соединения SSH в параметрах.</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="625"/>
+        <source>SSH conection with virtual machine &quot;%1&quot; has been lost: %2 %3</source>
+        <translation>SSH-соединение с виртуальной машиной &quot;%1&quot; потеряно: %2 %3</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::MerConnectionWidgetUi</name>
+    <message>
+        <location filename="merconnection.cpp" line="1384"/>
+        <source>Already Connecting to Virtual Machine</source>
+        <translation>Уже выполняется подключение к виртуальной машине</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="1385"/>
+        <source>Already connecting to the &quot;%1&quot; virtual machine - please repeat later.</source>
+        <translation>Уже выполняется подключение к виртуальной машине &quot;%1&quot; - пожалуйста, повторите позже.</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="1389"/>
+        <source>Already Disconnecting from Virtual Machine</source>
+        <translation>Уже выполняется отключение от виртуальной машины</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="1390"/>
+        <source>Already disconnecting from the &quot;%1&quot; virtual machine - please repeat later.</source>
+        <translation>Уже выполняется отключение от виртуальной машины &quot;%1&quot; - пожалуйста, повторите позже.</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="1396"/>
+        <source>Unable to Close Virtual Machine</source>
+        <translation>Не удается остановить виртуальную машину</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="1397"/>
+        <source>Timeout waiting for the &quot;%1&quot; virtual machine to close.</source>
+        <translation>Время ожидания закрытия виртуальной машины &quot;%1&quot;.</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="1400"/>
+        <source>Virtual Machine Not Found</source>
+        <translation>Виртуальная машина не найдена</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="1401"/>
+        <source>No virtual machine with the name &quot;%1&quot; found. Check your installation.</source>
+        <translation>Виртуальная машина &quot;%1&quot; не найдена. Проверьте корректность установки.</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="1437"/>
+        <source>Start Virtual Machine</source>
+        <translation>Запустить виртуальную машину</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="1438"/>
+        <source>The &quot;%1&quot; virtual machine is not running. Do you want to start it now?</source>
+        <translation>Виртуальная машина &quot;%1&quot; не запущена. Запустить прямо сейчас?</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="1450"/>
+        <source>Reset Virtual Machine</source>
+        <translation>Сбросить виртуальную машину</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="1451"/>
+        <source>Connection to the &quot;%1&quot; virtual machine failed recently. Do you want to reset the virtual machine first?</source>
+        <translation>Произошел сбой подключения к виртуальной машине &quot;%1&quot;. Вы хотите перезапустить виртуальную машину?</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="1454"/>
+        <source>This virtual machine has been started outside of this Qt Creator session.</source>
+        <translation>Эта виртуальная машина была запущена вне этого сеанса Qt Creator.</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="1461"/>
+        <source>Close Virtual Machine</source>
+        <translation>Остановить виртуальную машину</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="1462"/>
+        <source>Do you really want to close the &quot;%1&quot; virtual machine?</source>
+        <translation>Вы действительно хотите остановить виртуальную машину &quot;%1&quot;?</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="1463"/>
+        <source>This virtual machine has been started outside of this Qt Creator session. Answer &quot;No&quot; to disconnect and leave the virtual machine running.</source>
+        <translation>Данная виртуальная машина была запущена вне текущего сеанса Qt Creator. Ответьте &quot;Нет&quot;, чтобы отключить виртуальную машину от текущего сеанса Qt Creator, но оставить ее работающей.</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="1470"/>
+        <source>Connecting to Virtual Machine</source>
+        <translation>Подключение к виртуальной машине</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="1471"/>
+        <source>Connecting to the &quot;%1&quot; virtual machine…</source>
+        <translation>Подключение к виртуальной машине &quot;%1&quot;...</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="1477"/>
+        <source>Closing Virtual Machine</source>
+        <translation>Остановка виртуальной машины</translation>
+    </message>
+    <message>
+        <location filename="merconnection.cpp" line="1478"/>
+        <source>Waiting for the &quot;%1&quot; virtual machine to close…</source>
+        <translation>Ожидание остановки виртуальной машины &quot;%1&quot;…</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::MerEmulatorDevice</name>
+    <message>
+        <location filename="meremulatordevice.cpp" line="248"/>
+        <source>Regenerate SSH Keys</source>
+        <translation>Обновить SSH-ключи</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="250"/>
+        <source>Start Emulator</source>
+        <translation>Запустить эмулятор</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="252"/>
+        <source>Stop Emulator</source>
+        <translation>Остановить эмулятор</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="256"/>
+        <source>Factory Reset...</source>
+        <translation>Сброс к заводским настройкам...</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="294"/>
+        <source>No factory snapshot set</source>
+        <translation>Не найден снимок заводского состояния</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="295"/>
+        <source>No factory snapshot is configured. Cannot reset to the factory state</source>
+        <translation>Снимок заводского состояния не настроен. Не удается восстановить заводское состояние</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="299"/>
+        <source>Reset emulator?</source>
+        <translation>Сбросить эмулятор?</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="300"/>
+        <source>Do you really want to reset &apos;%1&apos; to the factory state?</source>
+        <translation>Вы действительно хотите сбросить &apos;%1&apos; до заводского состояния?</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="543"/>
+        <source>Restoring &apos;%1&apos; to factory state...</source>
+        <translation>Сброс &quot;%1&quot; в заводское состояние...</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="544"/>
+        <source>Abort</source>
+        <translation>Прервать</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="550"/>
+        <location filename="meremulatordevice.cpp" line="561"/>
+        <source>Failed</source>
+        <translation>Ошибка</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="551"/>
+        <source>Failed to close the virtual machine. Factory state cannot be restored.</source>
+        <translation>Не удалось остановить виртуальную машину. Заводское состояние не может быть восстановлено.</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="561"/>
+        <source>Failed to restore factory state.</source>
+        <translation>Не удалось сбросить к заводскому состоянию.</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="587"/>
+        <source>Factory state restored</source>
+        <translation>Заводское состояние восстановлено</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="588"/>
+        <source>Successfully restored &apos;%1&apos; to the factory state</source>
+        <translation>&quot;%1&quot; успешна сброшена до заводского состояния</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::MerEmulatorDeviceManager</name>
+    <message>
+        <location filename="meremulatordevice.cpp" line="937"/>
+        <source>Abort</source>
+        <translation>Прервать</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="963"/>
+        <source>Applying virtual machine settings: &apos;%1&apos;</source>
+        <translation>Применение параметров виртуальной машины: &apos;%1&apos;</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="1044"/>
+        <source>Some changes could not be saved!</source>
+        <translation>Некоторые настройки не могут быть сохранены!</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="1045"/>
+        <source>Failed to apply some of the changes to virtual machines</source>
+        <translation>Не удалось применить некоторые изменения виртуальных машин</translation>
+    </message>
+</context>
+<context>
+    <name>Mer::PublicKeyDeploymentDialog</name>
+    <message>
+        <location filename="meremulatordevice.cpp" line="89"/>
+        <source>Generating new ssh key for %1</source>
+        <translation>Генерация нового SSH-ключа для %1</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="103"/>
+        <source>Removing old keys for %1 ...</source>
+        <translation>Удаление старых ключей для %1 ...</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="104"/>
+        <location filename="meremulatordevice.cpp" line="150"/>
+        <location filename="meremulatordevice.cpp" line="159"/>
+        <source>Close</source>
+        <translation>Закрыть</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="111"/>
+        <source>Generating ssh key for %1 ...</source>
+        <translation>Генерация SSH-ключа для %1 ...</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="126"/>
+        <source>Deploying key for %1 ...</source>
+        <translation>Установка ключа для %1 ...</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="140"/>
+        <source>SharedPath for emulator not found for this device</source>
+        <translation>Общая папка для эмулятора не найдена</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="149"/>
+        <source>Deployed</source>
+        <translation>Установлен</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="156"/>
+        <source>Cannot Authorize Keys</source>
+        <translation>Не удалось авторизовать ключи</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevice.cpp" line="158"/>
+        <source>Error occured</source>
+        <translation>Произошла ошибка</translation>
+    </message>
+</context>
+<context>
+    <name>MerRunConfigurationAspectQmlLiveDetailsWidget</name>
+    <message>
+        <location filename="merrunconfigurationaspectqmllivedetailswidget.ui" line="14"/>
+        <source>Form</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merrunconfigurationaspectqmllivedetailswidget.ui" line="61"/>
+        <source>QmlLive Bench location is not configured.</source>
+        <translation>Расположение QmlLive Bench не настроено.</translation>
+    </message>
+    <message>
+        <location filename="merrunconfigurationaspectqmllivedetailswidget.ui" line="68"/>
+        <source>Controlling QmlLive Bench&apos;s workspace is disabled.</source>
+        <translation>Управление рабочим пространством QmlLive Bench отключено.</translation>
+    </message>
+    <message>
+        <location filename="merrunconfigurationaspectqmllivedetailswidget.ui" line="81"/>
+        <location filename="merrunconfigurationaspectqmllivedetailswidget.ui" line="88"/>
+        <source>ICON</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="merrunconfigurationaspectqmllivedetailswidget.ui" line="103"/>
+        <source>CONFIGURE...</source>
+        <translation>НАСТРОИТЬ...</translation>
+    </message>
+    <message>
+        <location filename="merrunconfigurationaspectqmllivedetailswidget.ui" line="119"/>
+        <source>Restore Defaults</source>
+        <translation>Восстановить значения по умолчанию</translation>
+    </message>
+    <message>
+        <location filename="merrunconfigurationaspectqmllivedetailswidget.ui" line="128"/>
+        <source>Port:</source>
+        <translation>Порт:</translation>
+    </message>
+    <message>
+        <location filename="merrunconfigurationaspectqmllivedetailswidget.ui" line="153"/>
+        <source>Custom</source>
+        <translation>Особый</translation>
+    </message>
+    <message>
+        <location filename="merrunconfigurationaspectqmllivedetailswidget.ui" line="162"/>
+        <source>Bench workspace:</source>
+        <translation>Расположение:</translation>
+    </message>
+    <message>
+        <location filename="merrunconfigurationaspectqmllivedetailswidget.ui" line="172"/>
+        <source>Target workspace:</source>
+        <translation>Рабочая среда цели:</translation>
+    </message>
+    <message>
+        <location filename="merrunconfigurationaspectqmllivedetailswidget.ui" line="179"/>
+        <source>Defaults to application&apos;s shared data directory. Relative path will be resolved relative to application&apos;s shared data directory with SailfishApp::pathTo().</source>
+        <translation>По умолчанию используется общий каталог. Относительный путь формируется относительно общего каталога с помощью SailfishApp::pathTo().</translation>
+    </message>
+    <message>
+        <location filename="merrunconfigurationaspectqmllivedetailswidget.ui" line="182"/>
+        <source>Default</source>
+        <translation>По умолчанию</translation>
+    </message>
+    <message>
+        <location filename="merrunconfigurationaspectqmllivedetailswidget.ui" line="189"/>
+        <source>Update on connect:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="merrunconfigurationaspectqmllivedetailswidget.ui" line="203"/>
+        <source>Updates as overlay:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="merrunconfigurationaspectqmllivedetailswidget.ui" line="224"/>
+        <source>Load dummy data:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="merrunconfigurationaspectqmllivedetailswidget.ui" line="238"/>
+        <source>Allow to create missing:</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>MerSdk</name>
+    <message>
+        <location filename="mersdkkitinformation.cpp" line="71"/>
+        <source>No valid Sailfish OS build engine &quot;%1&quot; found</source>
+        <translation>Не найден Sailfish OS Build Engine: &quot;%1&quot;</translation>
+    </message>
+</context>
+<context>
+    <name>MerTarget</name>
+    <message>
+        <location filename="mertargetkitinformation.cpp" line="65"/>
+        <source>No valid build target found for %1</source>
+        <translation>Не найдена цель сборки для %1</translation>
+    </message>
+</context>
+<context>
+    <name>ProjectExplorer::MerToolChain</name>
+    <message>
+        <location filename="mertoolchain.cpp" line="132"/>
+        <source>Toolchain &quot;%1&quot; can not be used for device with %2 architecture</source>
+        <translation>Toolchain &quot;%1&quot; не может быть использован для устройства с архитектурой %2</translation>
+    </message>
+    <message>
+        <location filename="mertoolchain.cpp" line="143"/>
+        <source>No available Qt version found which can be used with toolchain &quot;%1&quot;.</source>
+        <translation>Не найдена доступная версия Qt, которую можно использовать с toolchain &quot;%1&quot;.</translation>
+    </message>
+    <message>
+        <location filename="mertoolchain.cpp" line="151"/>
+        <source>The toolchain &quot;%1&quot; does not match Sailfish OS build engine or Qt version</source>
+        <translation>Toolchain &quot;%1&quot; не соответствует Sailfish OS Build Engine или версии Qt</translation>
+    </message>
+</context>
+<context>
+    <name>ProjectExplorer::RunConfiguration</name>
+    <message>
+        <location filename="merqmlrunconfigurationfactory.cpp" line="48"/>
+        <source>QML Scene</source>
+        <translation></translation>
+    </message>
+</context>
+<context>
+    <name>QObject</name>
+    <message>
+        <location filename="merdevicexmlparser.cpp" line="78"/>
+        <location filename="mertargetsxmlparser.cpp" line="59"/>
+        <source>Error %1:%2:%3 %4</source>
+        <translation>Ошибка %1:%2:%3 %4</translation>
+    </message>
+    <message>
+        <location filename="meremulatordevicewizardpages.cpp" line="49"/>
+        <source>none</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="mertarget.cpp" line="286"/>
+        <source>GDB (%1)</source>
+        <translation></translation>
+    </message>
+</context>
+<context>
+    <name>QtVersion</name>
+    <message>
+        <location filename="merqtversion.cpp" line="103"/>
+        <source>Sailfish OS </source>
+        <comment>Qt Version is meant for Sailfish OS</comment>
+        <translatorcomment>Версия Qt предназначена для Sailfish OS</translatorcomment>
+        <translation>Sailfish OS </translation>
+    </message>
+    <message>
+        <location filename="merqtversion.cpp" line="139"/>
+        <source>No available toolchains found to build for Qt version &quot;%1&quot;.</source>
+        <translation>Не найдено доступных toolchain для сборки для версии Qt &quot;%1&quot;.</translation>
+    </message>
+    <message>
+        <location filename="merqtversion.cpp" line="146"/>
+        <source>This Qt version &quot;%1&quot; does not match Sailfish SDK or toolchain.</source>
+        <translation>Версия Qt &quot;%1 &quot; не соответствует Sailfish SDK или toolchain.</translation>
+    </message>
+    <message>
+        <location filename="merqtversion.cpp" line="163"/>
+        <source>Qt version &quot;%1&quot; is missing Sailfish SDK</source>
+        <translation>Версия Qt &quot;%1&quot; отсутствует в Sailfish SDK</translation>
+    </message>
+    <message>
+        <location filename="merqtversion.cpp" line="199"/>
+        <source>Project is outside of Sailfish SDK workspace</source>
+        <translation>Проект находится за пределами рабочей области Sailfish SDK</translation>
+    </message>
+    <message>
+        <location filename="merqtversion.cpp" line="201"/>
+        <source>Project is outside of Sailfish SDK shared home &quot;%1&quot; and shared src &quot;%2&quot;</source>
+        <translation>Проект находится за пределами общей домашней папки Sailfish SDK &quot;%1&quot; и общего каталога src &quot;%2&quot;</translation>
+    </message>
+    <message>
+        <location filename="merqtversion.cpp" line="205"/>
+        <source>Project is outside of shared home &quot;%1&quot;</source>
+        <translation>Проект находится за пределами общей домашней папки &quot;%1&quot;</translation>
+    </message>
+</context>
 </TS>
