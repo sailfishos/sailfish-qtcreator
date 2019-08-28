@@ -30,7 +30,7 @@
 #include "mersdk.h"
 #include "mersdkkitinformation.h"
 
-#include <sfdk/vmconnection.h>
+#include <sfdk/virtualmachine.h>
 
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/icore.h>
@@ -185,9 +185,9 @@ void MerBuildConfiguration::updateExtraParserArguments()
 {
     const MerSdk *const merSdk = MerSdkKitInformation::sdk(target()->kit());
     QTC_ASSERT(merSdk, return);
-    QTC_ASSERT(merSdk->connection(), return);
+    QTC_ASSERT(merSdk->virtualMachine(), return);
 
-    if (merSdk->connection()->state() != VmConnection::Connected) {
+    if (merSdk->virtualMachine()->state() != VirtualMachine::Connected) {
         BuildStepList *steps = stepList(Core::Id(ProjectExplorer::Constants::BUILDSTEPS_BUILD));
         QTC_ASSERT(steps, return);
         Mer::Internal::MerSdkStartStep *sdkStartStep = steps->firstOfType<Mer::Internal::MerSdkStartStep>();

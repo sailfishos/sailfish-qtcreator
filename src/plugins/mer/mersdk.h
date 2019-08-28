@@ -37,7 +37,7 @@ class Kit;
 }
 
 namespace Sfdk {
-class VmConnection;
+class VirtualMachine;
 }
 
 namespace Utils {
@@ -129,7 +129,7 @@ public:
     void detach();
 #endif // MER_LIBRARY
 
-    Sfdk::VmConnection *connection() const;
+    Sfdk::VirtualMachine *virtualMachine() const;
 
 signals:
     void targetsChanged(const QStringList &targets);
@@ -143,7 +143,7 @@ private slots:
 #ifdef MER_LIBRARY
     void updateTargets();
     void handleTargetsFileChanged(const QString &file);
-    void onConnectionStateChanged();
+    void onVmStateChanged();
 #endif // MER_LIBRARY
 
 private:
@@ -157,7 +157,7 @@ private:
 
 private:
     bool m_autoDetected;
-    Sfdk::VmConnection *m_connection;
+    std::unique_ptr<Sfdk::VirtualMachine> m_vm;
     QString m_sharedHomePath;
     QString m_sharedTargetsPath;
     QString m_sharedSshPath;

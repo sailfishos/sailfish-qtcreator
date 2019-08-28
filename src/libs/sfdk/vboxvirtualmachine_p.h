@@ -1,6 +1,5 @@
 /****************************************************************************
 **
-** Copyright (C) 2014-2015,2019 Jolla Ltd.
 ** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
@@ -21,45 +20,49 @@
 **
 ****************************************************************************/
 
-#ifndef MERABSTRACTVMSTARTSTEP_H
-#define MERABSTRACTVMSTARTSTEP_H
+#pragma once
 
-#include <projectexplorer/buildstep.h>
-
-#include <QPointer>
+#include "virtualmachine_p.h"
 
 namespace Sfdk {
-class VirtualMachine;
-}
 
-namespace Mer {
-namespace Internal {
-
-class MerAbstractVmStartStep : public ProjectExplorer::BuildStep
+class VBoxVirtualMachinePrivate;
+// FIXME internal
+class SFDK_EXPORT VBoxVirtualMachine : public VirtualMachine
 {
     Q_OBJECT
 
 public:
-    explicit MerAbstractVmStartStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
+    explicit VBoxVirtualMachine(QObject *parent = nullptr); // FIXME factory
+    ~VBoxVirtualMachine() override;
 
-    bool init() override;
-    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
-
-    Sfdk::VirtualMachine *virtualMachine() const;
-
-protected:
-    void doRun() override;
-    void doCancel() override;
-    void setVirtualMachine(Sfdk::VirtualMachine *virtualMachine);
-
-private slots:
-    void onStateChanged();
+    static QStringList usedVirtualMachines();
 
 private:
-    QPointer<Sfdk::VirtualMachine> m_virtualMachine;
+    Q_DISABLE_COPY(VBoxVirtualMachine)
+    Q_DECLARE_PRIVATE(VBoxVirtualMachine)
 };
 
-} // namespace Internal
-} // namespace Mer
+class VBoxVirtualMachinePrivate : public VirtualMachinePrivate
+{
+    Q_DECLARE_PUBLIC(VBoxVirtualMachine)
 
-#endif // MERABSTRACTVMSTARTSTEP_H
+public:
+    using VirtualMachinePrivate::VirtualMachinePrivate;
+
+    void start() override;
+    void stop() override;
+    void isRunning(QObject *context, std::function<void(bool,bool)> slot) const override;
+    bool isHeadlessEffectively() const override;
+
+protected:
+    void prepareForNameChange() override;
+
+private:
+    void onNameChanged();
+
+private:
+    static QMap<QString, int> s_usedVmNames;
+};
+
+} // namespace Sfdk

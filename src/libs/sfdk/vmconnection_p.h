@@ -25,6 +25,8 @@
 
 #include "sfdkglobal.h"
 
+#include "virtualmachine.h"
+
 #include <ssh/sshconnection.h>
 
 #include <QBasicTimer>
@@ -38,11 +40,9 @@
 namespace Sfdk {
 
 class VmConnectionRemoteShutdownProcess;
-
-class SFDK_EXPORT VmConnection : public QObject
+class VmConnection : public QObject
 {
     Q_OBJECT
-    Q_ENUMS(State)
 
     enum VmState {
         VmOff,
@@ -66,62 +66,20 @@ class SFDK_EXPORT VmConnection : public QObject
     };
 
 public:
-    enum State {
-        Disconnected,
-        StartingVm,
-        Connecting,
-        Error,
-        Connected,
-        Disconnecting,
-        ClosingVm
-    };
-
-    enum ConnectOption {
-        NoConnectOption = 0x00,
-        AskStartVm = 0x01,
-        Block = 0x02,
-    };
-    Q_DECLARE_FLAGS(ConnectOptions, ConnectOption)
-
-    enum Synchronization {
-        Asynchronous,
-        Synchronous
-    };
-
-    class Ui;
-
-    explicit VmConnection(QObject *parent = 0);
+    explicit VmConnection(VirtualMachine *parent);
     ~VmConnection() override;
 
-    void setVirtualMachine(const QString &virtualMachine);
-    void setSshParameters(const QSsh::SshConnectionParameters &sshParameters);
-    void setHeadless(bool headless);
+    VirtualMachine *virtualMachine() const;
 
-    QSsh::SshConnectionParameters sshParameters() const;
-    bool isHeadless() const;
-    QString virtualMachine() const;
-
-    State state() const;
+    VirtualMachine::State state() const;
     QString errorString() const;
-
-    bool isAutoConnectEnabled() const;
-    void setAutoConnectEnabled(bool autoConnectEnabled);
 
     bool isVirtualMachineOff(bool *runningHeadless = 0, bool *startedOutside = 0) const;
     bool lockDown(bool lockDown);
 
-    static QStringList usedVirtualMachines();
-
-    template<typename ConcreteUi>
-    static void registerUi()
-    {
-        Q_ASSERT(!s_uiCreator);
-        s_uiCreator = [](VmConnection *parent) { return new ConcreteUi(parent); };
-    }
-
 public slots:
-    void refresh(Sfdk::VmConnection::Synchronization synchronization = Asynchronous);
-    bool connectTo(Sfdk::VmConnection::ConnectOptions options = NoConnectOption);
+    void refresh(Sfdk::VirtualMachine::Synchronization synchronization = VirtualMachine::Asynchronous);
+    bool connectTo(Sfdk::VirtualMachine::ConnectOptions options = VirtualMachine::NoConnectOption);
     void disconnectFrom();
 
 signals:
@@ -152,13 +110,18 @@ private:
 
     void createConnection();
     void vmWantFastPollState(bool want);
-    void vmPollState(Synchronization synchronization);
+    void vmPollState(VirtualMachine::Synchronization synchronization);
     void waitForVmPollStateFinish();
     void sshTryConnect();
 
-    static const char *str(State state);
+    static const char *str(VirtualMachine::State state);
     static const char *str(VmState vmState);
     static const char *str(SshState sshState);
+
+    using Ui = VirtualMachine::ConnectionUi;
+    VirtualMachine::ConnectionUi *ui() const;
+    void ask(Ui::Question which, void (VmConnection::*onStatusChanged)(),
+            std::function<void()> ifYes, std::function<void()> ifNo);
 
 private slots:
     void vmStmScheduleExec();
@@ -169,17 +132,11 @@ private slots:
     void onRemoteShutdownProcessFinished();
 
 private:
-    using UiCreator = std::function<Ui *(VmConnection *)>;
-    static UiCreator s_uiCreator;
-    static QMap<QString, int> s_usedVmNames;
-
+    const QPointer<VirtualMachine> m_vm;
     QPointer<QSsh::SshConnection> m_connection;
-    QString m_vmName;
-    QSsh::SshConnectionParameters m_params;
-    bool m_headless;
 
     // state
-    State m_state;
+    VirtualMachine::State m_state;
     QString m_errorString;
     VmState m_vmState;
     QTime m_vmStateEntryTime;
@@ -194,11 +151,10 @@ private:
     // m_lockDownRequested compared to m_{dis,}connectRequested!)
     bool m_lockDownRequested;
     bool m_lockDownFailed;
-    bool m_autoConnectEnabled;
     bool m_connectRequested;
     bool m_disconnectRequested;
     bool m_connectLaterRequested;
-    ConnectOptions m_connectOptions;
+    VirtualMachine::ConnectOptions m_connectOptions;
     bool m_cachedVmExists;
     bool m_cachedVmRunning;
     bool m_cachedSshConnected;
@@ -224,56 +180,7 @@ private:
     // auto invoke reset after properties are changed
     QBasicTimer m_resetTimer;
 
-    Ui *m_ui;
     QPointer<VmConnectionRemoteShutdownProcess> m_remoteShutdownProcess;
-};
-
-Q_DECLARE_OPERATORS_FOR_FLAGS(VmConnection::ConnectOptions)
-
-class SFDK_EXPORT VmConnection::Ui : public QObject
-{
-    Q_OBJECT
-
-public:
-    enum Warning {
-        AlreadyConnecting,
-        AlreadyDisconnecting,
-        UnableToCloseVm,
-        VmNotRegistered,
-    };
-
-    enum Question {
-        StartVm,
-        ResetVm,
-        CloseVm,
-        CancelConnecting,
-        CancelLockingDown,
-    };
-
-    enum QuestionStatus {
-        NotAsked,
-        Asked,
-        Yes,
-        No,
-    };
-
-    using OnStatusChanged = void (VmConnection::*)();
-
-    using QObject::QObject;
-
-    virtual void warn(Warning which) = 0;
-    virtual void dismissWarning(Warning which) = 0;
-
-    virtual bool shouldAsk(Question which) const = 0;
-    virtual void ask(Question which, OnStatusChanged onStatusChanged) = 0;
-    virtual void dismissQuestion(Question which) = 0;
-    virtual QuestionStatus status(Question which) const = 0;
-
-    void ask(Question which, OnStatusChanged onStatusChanged,
-            std::function<void()> ifYes, std::function<void()> ifNo);
-
-protected:
-    VmConnection *connection() const { return static_cast<VmConnection *>(parent()); }
 };
 
 } // namespace Sfdk

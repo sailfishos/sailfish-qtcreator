@@ -68,6 +68,7 @@ public:
     QStringList snapshots;
 };
 
+// FIXME internal
 // TODO Errors should be reported in the UI
 // TODO Use UUIDs instead of names - names may not be unique
 class SFDK_EXPORT VirtualBoxManager : public QObject

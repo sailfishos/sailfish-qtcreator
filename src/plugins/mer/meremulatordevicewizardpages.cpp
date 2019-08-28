@@ -29,7 +29,7 @@
 #include "meremulatordevice.h"
 #include "meremulatordevicewizard.h"
 
-#include <sfdk/vmconnection.h>
+#include <sfdk/vboxvirtualmachine_p.h>
 #include <sfdk/virtualboxmanager_p.h>
 
 #include <projectexplorer/devicesupport/devicemanager.h>
@@ -64,7 +64,7 @@ MerEmualtorVMPage::MerEmualtorVMPage(QWidget *parent): QWizardPage(parent),
 
     static QRegExp regExp(tr("Emulator"));
 
-    const QSet<QString> usedVMs = VmConnection::usedVirtualMachines().toSet();
+    const QSet<QString> usedVMs = VBoxVirtualMachine::usedVirtualMachines().toSet();
     const QStringList registeredVMs = VirtualBoxManager::fetchRegisteredVirtualMachines();
     foreach (const QString &vm, registeredVMs) {
         // add only unused machines

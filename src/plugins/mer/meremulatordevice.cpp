@@ -31,7 +31,7 @@
 #include "mersettings.h"
 #include "meremulatormodedialog.h"
 
-#include <sfdk/vmconnection.h>
+#include <sfdk/vboxvirtualmachine_p.h>
 #include <sfdk/virtualboxmanager_p.h>
 
 #include <coreplugin/icore.h>
@@ -186,7 +186,7 @@ IDevice::Ptr MerEmulatorDevice::clone() const
 }
 
 MerEmulatorDevice::MerEmulatorDevice()
-    : m_connection(new VmConnection(0 /* not bug */))
+    : m_vm(new VBoxVirtualMachine(0 /* not bug */))
     , m_orientation(Qt::Vertical)
     , m_viewScaled(false)
     , m_memorySizeMb(0)
@@ -200,7 +200,7 @@ MerEmulatorDevice::MerEmulatorDevice()
 
 MerEmulatorDevice::MerEmulatorDevice(const MerEmulatorDevice &other):
     MerDevice(other)
-    , m_connection(other.m_connection)
+    , m_vm(other.m_vm)
     , m_factorySnapshot(other.m_factorySnapshot)
     , m_mac(other.m_mac)
     , m_subnet(other.m_subnet)
@@ -248,12 +248,12 @@ void MerEmulatorDevice::init()
 
     addAction(tr("Start Emulator"), [](const MerEmulatorDevice::Ptr &device, QWidget *parent) {
         Q_UNUSED(parent);
-        device->m_connection->connectTo();
+        device->m_vm->connectTo();
     });
 
     addAction(tr("Stop Emulator"), [](const MerEmulatorDevice::Ptr &device, QWidget *parent) {
         Q_UNUSED(parent);
-        device->m_connection->disconnectFrom();
+        device->m_vm->disconnectFrom();
     });
 
     addAction(tr(Constants::MER_EMULATOR_MODE_ACTION_NAME), [](const MerEmulatorDevice::Ptr &device, QWidget *parent) {
@@ -280,7 +280,8 @@ void MerEmulatorDevice::init()
         }
         QMessageBox::StandardButton button = QMessageBox::question(parent,
                 tr("Reset emulator?"),
-                tr("Do you really want to reset '%1' to the factory state?").arg(device->virtualMachine()),
+                tr("Do you really want to reset '%1' to the factory state?")
+                    .arg(device->virtualMachineName()),
                 QMessageBox::Yes | QMessageBox::No);
         if (button == QMessageBox::Yes)
             device->doFactoryReset(parent);
@@ -295,8 +296,7 @@ DeviceTester *MerEmulatorDevice::createDeviceTester() const
 void MerEmulatorDevice::fromMap(const QVariantMap &map)
 {
     MerDevice::fromMap(map);
-    m_connection->setVirtualMachine(
-            map.value(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE)).toString());
+    m_vm->setName(map.value(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE)).toString());
     m_factorySnapshot = map.value(QLatin1String(Constants::MER_DEVICE_FACTORY_SNAPSHOT)).toString();
     m_mac = map.value(QLatin1String(Constants::MER_DEVICE_MAC)).toString();
     m_subnet = map.value(QLatin1String(Constants::MER_DEVICE_SUBNET)).toString();
@@ -323,8 +323,7 @@ void MerEmulatorDevice::fromMap(const QVariantMap &map)
 QVariantMap MerEmulatorDevice::toMap() const
 {
     QVariantMap map = MerDevice::toMap();
-    map.insert(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE),
-            m_connection->virtualMachine());
+    map.insert(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE), m_vm->name());
     map.insert(QLatin1String(Constants::MER_DEVICE_FACTORY_SNAPSHOT), m_factorySnapshot);
     map.insert(QLatin1String(Constants::MER_DEVICE_MAC), m_mac);
     map.insert(QLatin1String(Constants::MER_DEVICE_SUBNET), m_subnet);
@@ -393,14 +392,14 @@ int MerEmulatorDevice::cpuCount() const
     return m_cpuCount;
 }
 
-void MerEmulatorDevice::setVirtualMachine(const QString& machineName)
+void MerEmulatorDevice::setVirtualMachineName(const QString& machineName)
 {
-    m_connection->setVirtualMachine(machineName);
+    m_vm->setName(machineName);
 }
 
-QString MerEmulatorDevice::virtualMachine() const
+QString MerEmulatorDevice::virtualMachineName() const
 {
-    return m_connection->virtualMachine();
+    return m_vm->name();
 }
 
 void MerEmulatorDevice::setFactorySnapshot(const QString &snapshotName)
@@ -427,12 +426,12 @@ void MerEmulatorDevice::generateSshKey(const QString& user) const
 {
     const QString privateKeyFile = this->privateKeyFile(user);
     QTC_ASSERT(!privateKeyFile.isEmpty(), return);
-    PublicKeyDeploymentDialog dialog(privateKeyFile, virtualMachine(),
+    PublicKeyDeploymentDialog dialog(privateKeyFile, virtualMachineName(),
                                      user, sharedSshPath(), ICore::dialogParent());
 
-    connection()->setAutoConnectEnabled(false);
+    virtualMachine()->setAutoConnectEnabled(false);
     dialog.exec();
-    connection()->setAutoConnectEnabled(true);
+    virtualMachine()->setAutoConnectEnabled(true);
 }
 
 SshConnectionParameters MerEmulatorDevice::sshParametersForUser(const SshConnectionParameters &sshParams, const QLatin1String &user) const
@@ -452,7 +451,7 @@ QString MerEmulatorDevice::deviceModel() const
 void MerEmulatorDevice::setDeviceModel(const QString &deviceModel)
 {
     QTC_CHECK(MerSettings::deviceModels().contains(deviceModel));
-    QTC_CHECK(!virtualMachine().isEmpty());
+    QTC_CHECK(!virtualMachineName().isEmpty());
 
     // Intentionally do not check for equal value - better for synchronization
     // with VB settings
@@ -493,27 +492,27 @@ void MerEmulatorDevice::setViewScaled(bool viewScaled)
     scheduleSetVideoMode();
 }
 
-VmConnection *MerEmulatorDevice::connection() const
+Sfdk::VirtualMachine *MerEmulatorDevice::virtualMachine() const
 {
-    return m_connection.data();
+    return m_vm.data();
 }
 
 void MerEmulatorDevice::addPortForwarding(const QString &ruleName, const QString &protocol, quint16 hostPort,
                                           quint16 emulatorVmPort) const
 {
-    VirtualBoxManager::updatePortForwardingRule(m_connection->virtualMachine(), ruleName,
+    VirtualBoxManager::updatePortForwardingRule(m_vm->name(), ruleName,
                                                    protocol, hostPort, emulatorVmPort);
 }
 
 bool MerEmulatorDevice::removePortForwarding(const QString &ruleName)
 {
-    return VirtualBoxManager::deletePortForwardingRule(m_connection->virtualMachine(), ruleName);
+    return VirtualBoxManager::deletePortForwardingRule(m_vm->name(), ruleName);
 }
 
 bool MerEmulatorDevice::hasPortForwarding(quint16 hostPort, QString *ruleName) const
 {
     QList<QMap<QString, quint16>> rules = VirtualBoxManager::fetchPortForwardingRules(
-                m_connection->virtualMachine());
+                m_vm->name());
     for (int i = 0; i < rules.size(); i++) {
         if (rules[i].values().contains(hostPort)) {
             if (ruleName)
@@ -524,20 +523,20 @@ bool MerEmulatorDevice::hasPortForwarding(quint16 hostPort, QString *ruleName) c
     return false;
 }
 
-// Hack, all clones share the connection
-void MerEmulatorDevice::updateConnection() const
+// Hack, all clones share the VM
+void MerEmulatorDevice::updateVmState() const
 {
-    m_connection->setSshParameters(sshParameters());
+    m_vm->setSshParameters(sshParameters());
 }
 
 void MerEmulatorDevice::doFactoryReset(QWidget *parent)
 {
-    QProgressDialog progress(tr("Restoring '%1' to factory state...").arg(virtualMachine()),
+    QProgressDialog progress(tr("Restoring '%1' to factory state...").arg(virtualMachineName()),
             tr("Abort"), 0, 0, parent);
     progress.setMinimumDuration(2000);
     progress.setWindowModality(Qt::WindowModal);
 
-    if (!m_connection->lockDown(true)) {
+    if (!m_vm->lockDown(true)) {
         progress.cancel();
         QMessageBox::warning(parent, tr("Failed"),
                 tr("Failed to close the virtual machine. Factory state cannot be restored."));
@@ -545,7 +544,7 @@ void MerEmulatorDevice::doFactoryReset(QWidget *parent)
     }
 
     QEventLoop loop;
-    VirtualBoxManager::restoreSnapshot(virtualMachine(), factorySnapshot(), &loop, [&loop](bool ok) {
+    VirtualBoxManager::restoreSnapshot(virtualMachineName(), factorySnapshot(), &loop, [&loop](bool ok) {
         loop.exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
     });
     if (loop.exec() != EXIT_SUCCESS) {
@@ -556,7 +555,7 @@ void MerEmulatorDevice::doFactoryReset(QWidget *parent)
 
     // VDI capacity never changes solely as a result of factory reset, since the capacities of the
     // base image and all its snapshots are managed equal.
-    const VirtualMachineInfo info = VirtualBoxManager::fetchVirtualMachineInfo(virtualMachine());
+    const VirtualMachineInfo info = VirtualBoxManager::fetchVirtualMachineInfo(virtualMachineName());
 
     QSsh::SshConnectionParameters nowSshParameters = sshParameters();
     nowSshParameters.setPort(info.sshPort);
@@ -572,12 +571,12 @@ void MerEmulatorDevice::doFactoryReset(QWidget *parent)
 
     MerEmulatorDeviceManager::cachedPropertiesUpdated(sharedFromThis().staticCast<MerEmulatorDevice>());
 
-    m_connection->lockDown(false);
+    m_vm->lockDown(false);
 
     progress.cancel();
 
     QMessageBox::information(parent, tr("Factory state restored"),
-            tr("Successfully restored '%1' to the factory state").arg(virtualMachine()));
+            tr("Successfully restored '%1' to the factory state").arg(virtualMachineName()));
 }
 
 void MerEmulatorDevice::scheduleSetVideoMode()
@@ -607,7 +606,7 @@ void MerEmulatorDevice::setVideoMode()
         realResolution /= SCALE_DOWN_FACTOR;
     }
 
-    VirtualBoxManager::setVideoMode(virtualMachine(), realResolution, VIDEO_MODE_DEPTH);
+    VirtualBoxManager::setVideoMode(virtualMachineName(), realResolution, VIDEO_MODE_DEPTH);
 
     //! \todo Does not support multiple emulators (not supported at other places anyway).
     QTC_ASSERT(!sharedConfigPath().isEmpty(), return);
@@ -837,7 +836,7 @@ bool MerEmulatorDeviceManager::cachedPropertiesUpdated(const MerEmulatorDevice::
     if (!isStored(device))
         return false;
 
-    device->updateConnection();
+    device->updateVmState();
 
     // Update caches to avoid applying VBox settings again
     s_instance->m_deviceSshPortCache.insert(device->id(), device->sshParameters().port());
@@ -872,7 +871,7 @@ void MerEmulatorDeviceManager::onDeviceCreated(const ProjectExplorer::IDevice::P
     if (!merEmulator)
         return;
 
-    merEmulator->updateConnection();
+    merEmulator->updateVmState();
 }
 
 void MerEmulatorDeviceManager::onDeviceAdded(Core::Id id)
@@ -882,7 +881,7 @@ void MerEmulatorDeviceManager::onDeviceAdded(Core::Id id)
     if (!merEmulator)
         return;
 
-    merEmulator->updateConnection();
+    merEmulator->updateVmState();
 
     QTC_CHECK(!m_deviceSshPortCache.contains(id));
     m_deviceSshPortCache.insert(id, merEmulator->sshParameters().port());
@@ -957,13 +956,14 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         if (!merEmulator)
             continue;
 
-        progress.setLabelText(tr("Applying virtual machine settings: '%1'").arg(merEmulator->virtualMachine()));
+        progress.setLabelText(tr("Applying virtual machine settings: '%1'")
+                .arg(merEmulator->virtualMachineName()));
 
         quint16 nowSshPort = merEmulator->sshParameters().port();
         if (oldSshPortsCache.contains(merEmulator->id())
                 && nowSshPort != oldSshPortsCache.value(merEmulator->id())) {
-            if (VirtualBoxManager::updateEmulatorSshPort(merEmulator->virtualMachine(), nowSshPort)) {
-                merEmulator->updateConnection();
+            if (VirtualBoxManager::updateEmulatorSshPort(merEmulator->virtualMachineName(), nowSshPort)) {
+                merEmulator->updateVmState();
             } else {
                 nowSshPort = oldSshPortsCache.value(merEmulator->id());
                 QSsh::SshConnectionParameters nowShhParameters = merEmulator->sshParameters();
@@ -990,8 +990,8 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         Utils::PortList nowQmlLivePorts = merEmulator->qmlLivePorts();
         if (oldQmlLivePortsCache.contains(merEmulator->id())
                 && !isPortListEqual(nowQmlLivePorts, oldQmlLivePortsCache.value(merEmulator->id()))) {
-            Utils::PortList savedPorts = VirtualBoxManager::updateEmulatorQmlLivePorts(merEmulator->virtualMachine(),
-                    merEmulator->qmlLivePortsList());
+            Utils::PortList savedPorts = VirtualBoxManager::updateEmulatorQmlLivePorts(
+                    merEmulator->virtualMachineName(), merEmulator->qmlLivePortsList());
 
             if (!isPortListEqual(savedPorts, nowQmlLivePorts)) {
                 nowQmlLivePorts = savedPorts;
@@ -1004,7 +1004,7 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         int nowMemorySize = merEmulator->memorySizeMb();
         if (oldMemorySizeCache.contains(merEmulator->id())
                 && nowMemorySize != oldMemorySizeCache.value(merEmulator->id())) {
-            if (!VirtualBoxManager::setMemorySizeMb(merEmulator->virtualMachine(), nowMemorySize)) {
+            if (!VirtualBoxManager::setMemorySizeMb(merEmulator->virtualMachineName(), nowMemorySize)) {
                 nowMemorySize = oldMemorySizeCache.value(merEmulator->id());
                 merEmulator.constCast<MerEmulatorDevice>()->setMemorySizeMb(nowMemorySize);
                 ok = false;
@@ -1015,7 +1015,7 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         int nowCpuCount = merEmulator->cpuCount();
         if (oldCpuCountCache.contains(merEmulator->id())
                 && nowCpuCount != oldCpuCountCache.value(merEmulator->id())) {
-            if (!VirtualBoxManager::setCpuCount(merEmulator->virtualMachine(), nowCpuCount)) {
+            if (!VirtualBoxManager::setCpuCount(merEmulator->virtualMachineName(), nowCpuCount)) {
                   nowCpuCount = oldCpuCountCache.value(merEmulator->id());
                 merEmulator.constCast<MerEmulatorDevice>()->setCpuCount(nowCpuCount);
                 ok = false;
@@ -1028,7 +1028,8 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         if (oldVdiInfoCache.contains(merEmulator->id())
                 && nowVdiCapacityMb != oldVdiInfoCache.value(merEmulator->id())) {
             QEventLoop loop;
-            VirtualBoxManager::setVdiCapacityMb(merEmulator->virtualMachine(), nowVdiCapacityMb, &loop, [&loop] (bool ok) {
+            VirtualBoxManager::setVdiCapacityMb(merEmulator->virtualMachineName(), nowVdiCapacityMb,
+                    &loop, [&loop] (bool ok) {
                 loop.exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
             });
 

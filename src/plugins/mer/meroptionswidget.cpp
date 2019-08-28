@@ -30,8 +30,8 @@
 #include "mersdkselectiondialog.h"
 #include "ui_meroptionswidget.h"
 
-#include <sfdk/vmconnection.h>
 #include <sfdk/virtualboxmanager_p.h>
+#include <sfdk/virtualmachine.h>
 
 #include <coreplugin/icore.h>
 #include <ssh/sshconnection.h>
@@ -41,6 +41,7 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QMessageBox>
+#include <QPointer>
 #include <QProgressDialog>
 #include <QPushButton>
 #include <QStandardItem>
@@ -223,7 +224,7 @@ void MerOptionsWidget::store()
     }
 
     foreach (MerSdk *sdk, lockedDownSdks)
-        sdk->connection()->lockDown(false);
+        sdk->virtualMachine()->lockDown(false);
 
     onSdksUpdated();
     m_sdksUpdatedConnection = connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
@@ -283,7 +284,7 @@ bool MerOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<MerSdk
             continue;
         }
 
-        if (!sdk->connection()->isVirtualMachineOff()) {
+        if (!sdk->virtualMachine()->isOff()) {
             QPointer<QMessageBox> questionBox = new QMessageBox(QMessageBox::Question,
                     tr("Close Virtual Machine"),
                     tr("Close the \"%1\" virtual machine?").arg(m_virtualMachine),
@@ -297,7 +298,7 @@ bool MerOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<MerSdk
             }
         }
 
-        if (!sdk->connection()->lockDown(true)) {
+        if (!sdk->virtualMachine()->lockDown(true)) {
             failed.append(sdk);
             continue;
         }
@@ -374,8 +375,8 @@ void MerOptionsWidget::onRemoveButtonClicked()
 void MerOptionsWidget::onTestConnectionButtonClicked()
 {
     MerSdk *sdk = m_sdks[m_virtualMachine];
-    if (!sdk->connection()->isVirtualMachineOff()) {
-        SshConnectionParameters params = sdk->connection()->sshParameters();
+    if (!sdk->virtualMachine()->isOff()) {
+        SshConnectionParameters params = sdk->virtualMachine()->sshParameters();
         if (m_sshPrivKeys.contains(sdk))
             params.privateKeyFile = m_sshPrivKeys[sdk];
         if (m_sshPort.contains(sdk))
@@ -413,13 +414,13 @@ void MerOptionsWidget::onAuthorizeSshKey(const QString &file)
 void MerOptionsWidget::onStartVirtualMachineButtonClicked()
 {
     const MerSdk *sdk = m_sdks[m_virtualMachine];
-    sdk->connection()->connectTo();
+    sdk->virtualMachine()->connectTo();
 }
 
 void MerOptionsWidget::onStopVirtualMachineButtonClicked()
 {
     const MerSdk *sdk = m_sdks[m_virtualMachine];
-    sdk->connection()->disconnectFrom();
+    sdk->virtualMachine()->disconnectFrom();
 }
 
 void MerOptionsWidget::onGenerateSshKey(const QString &privKeyPath)
@@ -456,7 +457,7 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
         return;
     }
 
-    if (!sdk->connection()->isVirtualMachineOff()) {
+    if (!sdk->virtualMachine()->isOff()) {
         QPointer<QMessageBox> questionBox = new QMessageBox(QMessageBox::Question,
                 tr("Close Virtual Machine"),
                 tr("Close the \"%1\" virtual machine?").arg(m_virtualMachine),
@@ -471,7 +472,7 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
         }
     }
 
-    if (!sdk->connection()->lockDown(true)) {
+    if (!sdk->virtualMachine()->lockDown(true)) {
         QMessageBox::warning(this, tr("Failed"),
                 tr("Alternative source folder not changed"));
         // reset the path in the chooser
@@ -482,7 +483,7 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
     bool ok = VirtualBoxManager::updateSharedFolder(m_virtualMachine,
             QLatin1String("src1"), newFolder);
 
-    sdk->connection()->lockDown(false);
+    sdk->virtualMachine()->lockDown(false);
 
     if (ok) {
         // remember to update this value
@@ -494,7 +495,7 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
                                      "Do you want to start %1 now?").arg(m_virtualMachine).arg(newFolder),
                                   QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
         if (response == QMessageBox::Yes)
-            sdk->connection()->connectTo();
+            sdk->virtualMachine()->connectTo();
     }
     else {
         QMessageBox::warning(this, tr("Changing the source folder failed!"),
@@ -560,8 +561,8 @@ void MerOptionsWidget::update()
         else
             m_ui->sdkDetailsWidget->setVdiCapacityMb(sdk->vdiCapacityMb());
 
-        onVmOffChanged(sdk->connection()->isVirtualMachineOff());
-        m_vmOffConnection = connect(sdk->connection(), &VmConnection::virtualMachineOffChanged,
+        onVmOffChanged(sdk->virtualMachine()->isOff());
+        m_vmOffConnection = connect(sdk->virtualMachine(), &VirtualMachine::virtualMachineOffChanged,
                 this, &MerOptionsWidget::onVmOffChanged);
 
         int index = m_ui->sdkComboBox->findText(m_virtualMachine);

@@ -24,10 +24,11 @@
 #include "sdkmanager.h"
 
 #include <QDir>
+#include <QPointer>
 #include <QRegularExpression>
 
 #include <sfdk/sfdk.h>
-#include <sfdk/vmconnection.h>
+#include <sfdk/virtualmachine.h>
 
 #include <mer/merconstants.h>
 #include <mer/mersdkmanager.h>
@@ -52,12 +53,12 @@ using namespace Sfdk;
 
 namespace Sfdk {
 
-class VmConnectionUi : public VmConnection::Ui
+class VmConnectionUi : public VirtualMachine::ConnectionUi
 {
     Q_OBJECT
 
 public:
-    using VmConnection::Ui::Ui;
+    using VirtualMachine::ConnectionUi::ConnectionUi;
 
     void warn(Warning which) override
     {
@@ -70,11 +71,11 @@ public:
             break;
         case UnableToCloseVm:
             qerr() << tr("Timeout waiting for the \"%1\" virtual machine to close.")
-                .arg(connection()->virtualMachine());
+                .arg(virtualMachine()->name());
             break;
         case VmNotRegistered:
             qerr() << tr("No virtual machine with the name \"%1\" found. Check your installation.")
-                .arg(connection()->virtualMachine());
+                .arg(virtualMachine()->name());
             break;
         }
     }
@@ -90,7 +91,7 @@ public:
         return false;
     }
 
-    void ask(Question which, OnStatusChanged onStatusChanged) override
+    void ask(Question which, std::function<void()> onStatusChanged) override
     {
         switch (which) {
         case StartVm:
@@ -106,13 +107,13 @@ public:
             QTC_CHECK(!m_cancelConnectingTimer);
             m_cancelConnectingTimer = startTimer(CONNECT_TIMEOUT_MS, onStatusChanged,
                 tr("Timeout connecting to the \"%1\" virtual machine.")
-                    .arg(connection()->virtualMachine()));
+                    .arg(virtualMachine()->name()));
             break;
         case CancelLockingDown:
             QTC_CHECK(!m_cancelLockingDownTimer);
             m_cancelLockingDownTimer = startTimer(LOCK_DOWN_TIMEOUT_MS, onStatusChanged,
                 tr("Timeout waiting for the \"%1\" virtual machine to close.")
-                    .arg(connection()->virtualMachine()));
+                    .arg(virtualMachine()->name()));
             break;
         }
 }
@@ -156,12 +157,12 @@ public:
     }
 
 private:
-    QTimer *startTimer(int timeout, OnStatusChanged onStatusChanged, const QString &timeoutMessage)
+    QTimer *startTimer(int timeout, std::function<void()> onStatusChanged, const QString &timeoutMessage)
     {
         QTimer *timer = new QTimer(this);
         connect(timer, &QTimer::timeout, [=] {
             qerr() << timeoutMessage << endl;
-            (connection()->*onStatusChanged)();
+            onStatusChanged();
         });
         timer->setSingleShot(true);
         timer->start(timeout);
@@ -202,7 +203,7 @@ SdkManager::SdkManager()
     m_merSettings = std::make_unique<MerSettings>();
 
     sfdkInit();
-    VmConnection::registerUi<VmConnectionUi>();
+    VirtualMachine::registerConnectionUi<VmConnectionUi>();
 
     m_merSdkManager = std::make_unique<MerSdkManager>();
 
@@ -234,22 +235,22 @@ QString SdkManager::installationPath()
 bool SdkManager::startEngine()
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    s_instance->m_merSdk->connection()->refresh(VmConnection::Synchronous);
-    return s_instance->m_merSdk->connection()->connectTo(VmConnection::Block);
+    s_instance->m_merSdk->virtualMachine()->refresh(VirtualMachine::Synchronous);
+    return s_instance->m_merSdk->virtualMachine()->connectTo(VirtualMachine::Block);
 }
 
 bool SdkManager::stopEngine()
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    s_instance->m_merSdk->connection()->refresh(VmConnection::Synchronous);
-    return s_instance->m_merSdk->connection()->lockDown(true);
+    s_instance->m_merSdk->virtualMachine()->refresh(VirtualMachine::Synchronous);
+    return s_instance->m_merSdk->virtualMachine()->lockDown(true);
 }
 
 bool SdkManager::isEngineRunning()
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    s_instance->m_merSdk->connection()->refresh(VmConnection::Synchronous);
-    return !s_instance->m_merSdk->connection()->isVirtualMachineOff();
+    s_instance->m_merSdk->virtualMachine()->refresh(VirtualMachine::Synchronous);
+    return !s_instance->m_merSdk->virtualMachine()->isOff();
 }
 
 int SdkManager::runOnEngine(const QString &program, const QStringList &arguments,
@@ -261,7 +262,7 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     // before for the engine to fully start, so no need to wait for connectTo again
     if (!isEngineRunning()) {
         qCInfo(sfdk).noquote() << tr("Starting the build engine…");
-        if (!s_instance->m_merSdk->connection()->connectTo(VmConnection::Block)) {
+        if (!s_instance->m_merSdk->virtualMachine()->connectTo(VirtualMachine::Block)) {
             qerr() << tr("Failed to start the build engine") << endl;
             return EXIT_FAILURE;
         }
@@ -277,7 +278,7 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
         return Constants::EXIT_ABNORMAL;
 
     RemoteProcess process;
-    process.setSshParameters(s_instance->m_merSdk->connection()->sshParameters());
+    process.setSshParameters(s_instance->m_merSdk->virtualMachine()->sshParameters());
     process.setProgram(program_);
     process.setArguments(arguments_);
     process.setWorkingDirectory(workingDirectory);

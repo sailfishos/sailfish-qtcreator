@@ -23,7 +23,7 @@
 
 #include "meremulatordevicetester.h"
 
-#include <sfdk/vmconnection.h>
+#include <sfdk/virtualmachine.h>
 
 #include <utils/qtcassert.h>
 
@@ -48,13 +48,13 @@ void MerEmulatorDeviceTester::testDevice(const IDevice::Ptr &deviceConfiguration
     m_device = deviceConfiguration.dynamicCast<MerEmulatorDevice>();
     QTC_ASSERT(m_device, { emit finished(TestFailure); return; });
 
-    if (m_device->connection()->state() == VmConnection::Connected) {
+    if (m_device->virtualMachine()->state() == VirtualMachine::Connected) {
         m_pastVmStart = true;
         GenericLinuxDeviceTester::testDevice(m_device.staticCast<IDevice>());
     } else {
-        connect(m_device->connection(), &VmConnection::stateChanged,
+        connect(m_device->virtualMachine(), &VirtualMachine::stateChanged,
                 this, &MerEmulatorDeviceTester::onConnectionStateChanged);
-        m_device->connection()->connectTo(VmConnection::AskStartVm);
+        m_device->virtualMachine()->connectTo(VirtualMachine::AskStartVm);
     }
 }
 
@@ -65,7 +65,7 @@ void MerEmulatorDeviceTester::stopTest()
     if (m_pastVmStart) {
         GenericLinuxDeviceTester::stopTest();
     } else {
-        m_device->connection()->disconnect(this);
+        m_device->virtualMachine()->disconnect(this);
         emit finished(TestFailure);
     }
 }
@@ -74,20 +74,20 @@ void MerEmulatorDeviceTester::onConnectionStateChanged()
 {
     bool ok = false;
 
-    switch (m_device->connection()->state()) {
-    case VmConnection::Disconnected:
+    switch (m_device->virtualMachine()->state()) {
+    case VirtualMachine::Disconnected:
         emit errorMessage(tr("Virtual machine could not be started: User aborted"));
         break;
 
-    case VmConnection::Error:
-        emit errorMessage(m_device->connection()->errorString());
+    case VirtualMachine::Error:
+        emit errorMessage(m_device->virtualMachine()->errorString());
         break;
 
-    case VmConnection::Connected:
+    case VirtualMachine::Connected:
         ok = true;
         break;
 
-    case VmConnection::StartingVm:
+    case VirtualMachine::Starting:
         emit progressMessage(tr("Starting virtual machine..."));
         return;
 
@@ -95,7 +95,7 @@ void MerEmulatorDeviceTester::onConnectionStateChanged()
         return;
     }
 
-    m_device->connection()->disconnect(this);
+    m_device->virtualMachine()->disconnect(this);
 
     if (!ok) {
         emit finished(TestFailure);

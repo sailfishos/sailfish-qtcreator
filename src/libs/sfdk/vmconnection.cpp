@@ -21,9 +21,10 @@
 **
 ****************************************************************************/
 
-#include "vmconnection.h"
+#include "vmconnection_p.h"
 
 #include "virtualboxmanager_p.h"
+#include "virtualmachine_p.h"
 
 #include <ssh/sshremoteprocessrunner.h>
 #include <utils/qtcassert.h>
@@ -33,7 +34,7 @@
 #include <QTime>
 #include <QTimerEvent>
 
-#define DBG qCDebug(vms) << m_vmName << QTime::currentTime()
+#define DBG qCDebug(vms) << m_vm->name() << QTime::currentTime()
 
 using namespace QSsh;
 
@@ -167,13 +168,10 @@ private:
     bool m_finished;
 };
 
-VmConnection::UiCreator VmConnection::s_uiCreator;
-QMap<QString, int> VmConnection::s_usedVmNames;
-
-VmConnection::VmConnection(QObject *parent)
+VmConnection::VmConnection(VirtualMachine *parent)
     : QObject(parent)
-    , m_headless(false)
-    , m_state(Disconnected)
+    , m_vm(parent)
+    , m_state(VirtualMachine::Disconnected)
     , m_vmState(VmOff)
     , m_vmStartedOutside(false)
     , m_sshState(SshNotConnected)
@@ -181,94 +179,49 @@ VmConnection::VmConnection(QObject *parent)
     , m_sshStmTransition(false) // intentionally do not execute ON_ENTRY during initialization
     , m_lockDownRequested(false)
     , m_lockDownFailed(false)
-    , m_autoConnectEnabled(true)
     , m_connectRequested(false)
     , m_disconnectRequested(false)
     , m_connectLaterRequested(false)
-    , m_connectOptions(NoConnectOption)
+    , m_connectOptions(VirtualMachine::NoConnectOption)
     , m_cachedVmExists(true)
     , m_cachedVmRunning(false)
     , m_cachedSshConnected(false)
     , m_cachedSshErrorOccured(false)
     , m_vmWantFastPollState(0)
     , m_pollingVmState(false)
-    , m_ui(s_uiCreator(this))
 {
     m_vmStateEntryTime.start();
-    m_ui->setParent(this);
+
+    connect(m_vm, &VirtualMachine::nameChanged, this, [this] () {
+        scheduleReset();
+        // Do this right now to prevent unexpected behavior
+        m_cachedVmExists = true;
+        m_cachedVmRunning = false;
+        m_vmStatePollTimer.stop();
+    });
+
+    // Notice how SshConnectionParameters::timeout is treated!
+    connect(m_vm, &VirtualMachine::sshParametersChanged, this, &VmConnection::scheduleReset);
+
+    connect(m_vm, &VirtualMachine::headlessChanged, this, &VmConnection::scheduleReset);
+
+    connect(m_vm, &VirtualMachine::autoConnectEnabledChanged, this, [this] () {
+        vmStmScheduleExec();
+        sshStmScheduleExec();
+    });
 }
 
 VmConnection::~VmConnection()
 {
     waitForVmPollStateFinish();
-
-    if (!m_vmName.isEmpty()) {
-        if (--s_usedVmNames[m_vmName] == 0)
-            s_usedVmNames.remove(m_vmName);
-    }
 }
 
-void VmConnection::setVirtualMachine(const QString &virtualMachine)
+VirtualMachine *VmConnection::virtualMachine() const
 {
-    if (m_vmName == virtualMachine)
-        return;
-
-    if (!m_vmName.isEmpty()) {
-        if (--s_usedVmNames[m_vmName] == 0)
-            s_usedVmNames.remove(m_vmName);
-    }
-
-    m_vmName = virtualMachine;
-    scheduleReset();
-
-    // Do this right now to prevent unexpected behavior
-    m_cachedVmExists = true;
-    m_cachedVmRunning = false;
-    m_vmStatePollTimer.stop();
-
-    if (!m_vmName.isEmpty()) {
-        if (++s_usedVmNames[m_vmName] != 1)
-            qCWarning(lib) << "VmConnection: Another instance for VM" << m_vmName << "already exists";
-    }
-
-    emit virtualMachineChanged();
+    return m_vm;
 }
 
-void VmConnection::setSshParameters(const SshConnectionParameters &sshParameters)
-{
-    if (m_params == sshParameters)
-        return;
-
-    // Notice how m_params.timeout is treated!
-    m_params = sshParameters;
-    scheduleReset();
-}
-
-void VmConnection::setHeadless(bool headless)
-{
-    if (m_headless == headless)
-        return;
-
-    m_headless = headless;
-    scheduleReset();
-}
-
-SshConnectionParameters VmConnection::sshParameters() const
-{
-    return m_params;
-}
-
-bool VmConnection::isHeadless() const
-{
-    return m_headless;
-}
-
-QString VmConnection::virtualMachine() const
-{
-    return m_vmName;
-}
-
-VmConnection::State VmConnection::state() const
+VirtualMachine::State VmConnection::state() const
 {
     return m_state;
 }
@@ -278,28 +231,13 @@ QString VmConnection::errorString() const
     return m_errorString;
 }
 
-bool VmConnection::isAutoConnectEnabled() const
-{
-    return m_autoConnectEnabled;
-}
-
-void VmConnection::setAutoConnectEnabled(bool autoConnectEnabled)
-{
-    QTC_ASSERT(m_autoConnectEnabled != autoConnectEnabled, return);
-
-    m_autoConnectEnabled = autoConnectEnabled;
-
-    vmStmScheduleExec();
-    sshStmScheduleExec();
-}
-
 bool VmConnection::isVirtualMachineOff(bool *runningHeadless, bool *startedOutside) const
 {
     if (runningHeadless) {
         if (m_cachedVmRunning)
-            *runningHeadless = VirtualBoxManager::fetchVirtualMachineInfo(m_vmName).headless;
+            *runningHeadless = VirtualMachinePrivate::get(m_vm)->isHeadlessEffectively();
         else if (m_vmState == VmStarting) // try to be accurate
-            *runningHeadless = m_headless;
+            *runningHeadless = m_vm->isHeadless();
         else
             *runningHeadless = false;
     }
@@ -319,7 +257,7 @@ bool VmConnection::lockDown(bool lockDown)
     if (m_lockDownRequested) {
         DBG << "Lockdown begin";
         m_connectLaterRequested = false;
-        vmPollState(Synchronous);
+        vmPollState(VirtualMachine::Synchronous);
         vmStmScheduleExec();
         sshStmScheduleExec();
 
@@ -344,24 +282,14 @@ bool VmConnection::lockDown(bool lockDown)
         }
     } else {
         DBG << "Lockdown end";
-        vmPollState(Asynchronous);
+        vmPollState(VirtualMachine::Asynchronous);
         vmStmScheduleExec();
         sshStmScheduleExec();
         return true;
     }
 }
 
-// Rationale: Consider the use case of adding a new SDK/emulator. User should
-// be presented with the list of all _unused_ VMs. It is not enough to simply
-// collect VMs associated with all MerSdkManager::sdks and
-// DeviceManager::devices of type MerEmulatorDevice - until the button Apply/OK
-// is clicked, some instances may exist not reachable this way.
-QStringList VmConnection::usedVirtualMachines()
-{
-    return s_usedVmNames.keys();
-}
-
-void VmConnection::refresh(Synchronization synchronization)
+void VmConnection::refresh(VirtualMachine::Synchronization synchronization)
 {
     DBG << "Refresh requested; synchronization:" << synchronization;
 
@@ -370,21 +298,21 @@ void VmConnection::refresh(Synchronization synchronization)
 
 // Returns false when blocking connection request failed or when did not connect
 // immediatelly with non-blocking connection request.
-bool VmConnection::connectTo(ConnectOptions options)
+bool VmConnection::connectTo(VirtualMachine::ConnectOptions options)
 {
-    if (options & Block) {
-        if (connectTo(options & ~Block))
+    if (options & VirtualMachine::Block) {
+        if (connectTo(options & ~VirtualMachine::Block))
             return true;
 
         QEventLoop loop;
         connect(this, &VmConnection::stateChanged, &loop, [this, &loop] {
             switch (m_state) {
-            case VmConnection::Disconnected:
-            case VmConnection::Error:
+            case VirtualMachine::Disconnected:
+            case VirtualMachine::Error:
                 loop.exit(EXIT_FAILURE);
                 break;
 
-            case VmConnection::Connected:
+            case VirtualMachine::Connected:
                 loop.exit(EXIT_SUCCESS);
                 break;
 
@@ -398,34 +326,34 @@ bool VmConnection::connectTo(ConnectOptions options)
 
     DBG << "Connect requested";
 
-    if (!m_ui->shouldAsk(Ui::StartVm))
-        options &= ~AskStartVm;
+    if (!ui()->shouldAsk(Ui::StartVm))
+        options &= ~VirtualMachine::AskStartVm;
 
     // Turning AskStartVm off always overrides
-    if ((m_connectOptions & AskStartVm) && !(options & AskStartVm))
-        m_connectOptions &= ~AskStartVm;
+    if ((m_connectOptions & VirtualMachine::AskStartVm) && !(options & VirtualMachine::AskStartVm))
+        m_connectOptions &= ~VirtualMachine::AskStartVm;
 
-    vmPollState(Asynchronous);
+    vmPollState(VirtualMachine::Asynchronous);
     vmStmScheduleExec();
     sshStmScheduleExec();
 
     if (m_lockDownRequested) {
-        qCWarning(lib) << "VmConnection: connect request for" << m_vmName << "ignored: lockdown active";
+        qCWarning(lib) << "VmConnection: connect request for" << m_vm->name() << "ignored: lockdown active";
         return false;
-    } else if (m_state == Connected) {
+    } else if (m_state == VirtualMachine::Connected) {
         return true;
     } else if (m_connectRequested || m_connectLaterRequested) {
         return false;
     } else if (m_disconnectRequested) {
-        m_ui->warn(Ui::AlreadyDisconnecting);
+        ui()->warn(Ui::AlreadyDisconnecting);
         return false;
     }
 
-    if (m_state == Error) {
+    if (m_state == VirtualMachine::Error) {
         m_disconnectRequested = true;
         m_connectLaterRequested = true;
-        const ConnectOptions reconnectOptionsMask =
-            AskStartVm;
+        const VirtualMachine::ConnectOptions reconnectOptionsMask =
+            VirtualMachine::AskStartVm;
         m_connectOptions = options & ~reconnectOptionsMask;
     } else {
         m_connectRequested = true;
@@ -441,12 +369,12 @@ void VmConnection::disconnectFrom()
 
     if (m_lockDownRequested) {
         return;
-    } else if (m_state == Disconnected) {
+    } else if (m_state == VirtualMachine::Disconnected) {
         return;
     } else if (m_disconnectRequested && !m_connectLaterRequested) {
         return;
     } else if (m_connectRequested || m_connectLaterRequested) {
-        m_ui->warn(Ui::AlreadyConnecting);
+        ui()->warn(Ui::AlreadyConnecting);
         return;
     }
 
@@ -471,7 +399,7 @@ void VmConnection::timerEvent(QTimerEvent *event)
         m_vmHardClosingTimeoutTimer.stop();
         vmStmScheduleExec();
     } else if (event->timerId() == m_vmStatePollTimer.timerId()) {
-        vmPollState(Asynchronous);
+        vmPollState(VirtualMachine::Asynchronous);
     } else if (event->timerId() == m_sshTryConnectTimer.timerId()) {
         sshTryConnect();
     } else if (event->timerId() == m_vmStmExecTimer.timerId()) {
@@ -499,9 +427,9 @@ void VmConnection::reset()
     if (m_sshState == SshConnectingError || m_sshState == SshConnectionLost)
         delete m_connection; // see sshTryConnect()
 
-    if (!m_vmName.isEmpty() && !m_vmStatePollTimer.isActive()) {
+    if (m_vm && !m_vmStatePollTimer.isActive()) {
         m_vmStatePollTimer.start(VM_STATE_POLLING_INTERVAL_NORMAL, this);
-        vmPollState(Asynchronous);
+        vmPollState(VirtualMachine::Asynchronous);
     }
 
     vmStmScheduleExec();
@@ -510,68 +438,68 @@ void VmConnection::reset()
 
 void VmConnection::updateState()
 {
-    State oldState = m_state;
+    VirtualMachine::State oldState = m_state;
 
     switch (m_vmState) {
         case VmOff:
-            m_state = Disconnected;
+            m_state = VirtualMachine::Disconnected;
             break;
 
         case VmAskBeforeStarting:
         case VmStarting:
-            m_state = StartingVm;
+            m_state = VirtualMachine::Starting;
             break;
 
         case VmStartingError:
-            m_state = Error;
-            m_errorString = tr("Failed to start virtual machine \"%1\"").arg(m_vmName);
+            m_state = VirtualMachine::Error;
+            m_errorString = tr("Failed to start virtual machine \"%1\"").arg(m_vm->name());
             break;
 
         case VmRunning:
             switch (m_sshState) {
                 case SshNotConnected:
                 case SshConnecting:
-                    m_state = Connecting;
+                    m_state = VirtualMachine::Connecting;
                     break;
 
                 case SshConnectingError:
-                    m_state = Error;
+                    m_state = VirtualMachine::Error;
                     m_errorString = tr("Failed to establish SSH conection with virtual machine "
                             "\"%1\": %2")
-                        .arg(m_vmName)
+                        .arg(m_vm->name())
                         .arg(m_cachedSshErrorString);
-                    if (m_vmStateEntryTime.elapsed() > (m_params.timeout * 1000)) {
+                    if (m_vmStateEntryTime.elapsed() > (m_vm->sshParameters().timeout * 1000)) {
                         m_errorString += QString::fromLatin1(" (%1)")
                             .arg(tr("Consider increasing SSH connection timeout in options."));
                     }
                     break;
 
                 case SshConnected:
-                    m_state = Connected;
+                    m_state = VirtualMachine::Connected;
                     break;
 
                 case SshDisconnecting:
                 case SshDisconnected:
-                    m_state = Disconnecting;
+                    m_state = VirtualMachine::Disconnecting;
                     break;
 
                 case SshConnectionLost:
-                    m_state = Error;
+                    m_state = VirtualMachine::Error;
                     m_errorString = tr("SSH conection with virtual machine \"%1\" has been "
                             "lost: %2")
-                        .arg(m_vmName)
+                        .arg(m_vm->name())
                         .arg(m_cachedSshErrorString);
                     break;
             }
             break;
 
         case VmZombie:
-            m_state = Disconnected;
+            m_state = VirtualMachine::Disconnected;
             break;
 
         case VmSoftClosing:
         case VmHardClosing:
-            m_state = ClosingVm;
+            m_state = VirtualMachine::Closing;
             break;
     }
 
@@ -579,23 +507,23 @@ void VmConnection::updateState()
         return;
     }
 
-    if (m_state != Error) {
+    if (m_state != VirtualMachine::Error) {
         m_errorString.clear();
     }
 
-    if (m_state == Disconnected && m_connectLaterRequested) {
-        m_state = StartingVm; // important
+    if (m_state == VirtualMachine::Disconnected && m_connectLaterRequested) {
+        m_state = VirtualMachine::Starting; // important
         m_connectLaterRequested = false;
         m_connectRequested = true;
         QTC_CHECK(m_disconnectRequested == false);
 
-        vmPollState(Asynchronous);
+        vmPollState(VirtualMachine::Asynchronous);
         vmStmScheduleExec();
         sshStmScheduleExec();
     }
 
     DBG << "***" << str(oldState) << "-->" << str(m_state);
-    if (m_state == Error)
+    if (m_state == VirtualMachine::Error)
         qCWarning(lib) << "VmConnection:" << m_errorString;
 
     emit stateChanged();
@@ -655,7 +583,7 @@ bool VmConnection::vmStmStep()
         } else if (m_lockDownRequested) {
             // noop
         } else if (m_connectRequested) {
-            if (m_connectOptions & AskStartVm) {
+            if (m_connectOptions & VirtualMachine::AskStartVm) {
                 vmStmTransition(VmAskBeforeStarting, "connect requested&ask before start VM");
             } else {
                 vmStmTransition(VmStarting, "connect requested");
@@ -678,19 +606,19 @@ bool VmConnection::vmStmStep()
         } else if (m_lockDownRequested) {
             vmStmTransition(VmOff, "lock down requested");
         } else {
-            m_ui->ask(Ui::StartVm, &VmConnection::vmStmScheduleExec,
+            ask(Ui::StartVm, &VmConnection::vmStmScheduleExec,
                     [=] {
                         vmStmTransition(VmStarting, "start VM allowed");
                     },
                     [=] {
                         m_connectRequested = false;
-                        m_connectOptions = NoConnectOption;
+                        m_connectOptions = VirtualMachine::NoConnectOption;
                         vmStmTransition(VmOff, "start VM denied");
                     });
         }
 
         ON_EXIT {
-            m_ui->dismissQuestion(Ui::StartVm);
+            ui()->dismissQuestion(Ui::StartVm);
         }
         break;
 
@@ -699,13 +627,13 @@ bool VmConnection::vmStmStep()
             vmWantFastPollState(true);
             m_vmStartingTimeoutTimer.start(VM_START_TIMEOUT, this);
 
-            VirtualBoxManager::startVirtualMachine(m_vmName, m_headless);
+            VirtualMachinePrivate::get(m_vm)->start();
         }
 
         if (m_cachedVmRunning) {
             vmStmTransition(VmRunning, "successfully started");
         } else if (!m_cachedVmExists) {
-            m_ui->warn(Ui::VmNotRegistered);
+            ui()->warn(Ui::VmNotRegistered);
             vmStmTransition(VmStartingError, "VM does not exist");
         } else if (!m_vmStartingTimeoutTimer.isActive()) {
             vmStmTransition(VmStartingError, "timeout waiting to start");
@@ -720,7 +648,7 @@ bool VmConnection::vmStmStep()
     case VmStartingError:
         ON_ENTRY {
             m_connectRequested = false;
-            m_connectOptions = NoConnectOption;
+            m_connectOptions = VirtualMachine::NoConnectOption;
         }
 
         if (m_cachedVmRunning) {
@@ -754,24 +682,24 @@ bool VmConnection::vmStmStep()
                 if (!m_vmStartedOutside && !m_connectLaterRequested) {
                     vmStmTransition(VmSoftClosing, "disconnect requested");
                 } else if (m_connectLaterRequested) {
-                    m_ui->ask(Ui::ResetVm, &VmConnection::vmStmScheduleExec,
+                    ask(Ui::ResetVm, &VmConnection::vmStmScheduleExec,
                             [=] { vmStmTransition(VmSoftClosing, "disconnect&connect later requested+reset allowed"); },
                             [=] { vmStmTransition(VmZombie, "disconnect&connect later requested+reset denied"); });
                 } else {
-                    m_ui->ask(Ui::CloseVm, &VmConnection::vmStmScheduleExec,
+                    ask(Ui::CloseVm, &VmConnection::vmStmScheduleExec,
                             [=] { vmStmTransition(VmSoftClosing, "disconnect requested+close allowed"); },
                             [=] { vmStmTransition(VmZombie, "disconnect requested+close denied"); });
                 }
             }
-        } else if (m_vmStartedOutside && !m_autoConnectEnabled) {
+        } else if (m_vmStartedOutside && !m_vm->isAutoConnectEnabled()) {
             if (m_sshState == SshNotConnected || m_sshState == SshDisconnected) {
                 vmStmTransition(VmZombie, "started outside+auto connect disabled");
             }
         }
 
         ON_EXIT {
-            m_ui->dismissQuestion(Ui::ResetVm);
-            m_ui->dismissQuestion(Ui::CloseVm);
+            ui()->dismissQuestion(Ui::ResetVm);
+            ui()->dismissQuestion(Ui::CloseVm);
             sshStmScheduleExec();
         }
         break;
@@ -793,7 +721,7 @@ bool VmConnection::vmStmStep()
         }
 
         ON_EXIT {
-            m_ui->dismissWarning(Ui::UnableToCloseVm);
+            ui()->dismissWarning(Ui::UnableToCloseVm);
         }
         break;
 
@@ -819,11 +747,11 @@ bool VmConnection::vmStmStep()
         } else if (m_remoteShutdownProcess->isError()) {
             // be quiet - no message box
             if (m_remoteShutdownProcess->isConnectionError()) {
-                qCWarning(lib) << "VmConnection: could not connect to the" << m_vmName
+                qCWarning(lib) << "VmConnection: could not connect to the" << m_vm->name()
                     << "virtual machine to soft-close it. Connection error:"
                     << m_remoteShutdownProcess->connectionErrorString();
             } else /* if (m_remoteShutdownProcess->isProcessError()) */ {
-                qCWarning(lib) << "VmConnection: failed to soft-close the" << m_vmName
+                qCWarning(lib) << "VmConnection: failed to soft-close the" << m_vm->name()
                     << "virtual machine. Command output:\n"
                     << "\tSTDOUT [[[" << m_remoteShutdownProcess->readAllStandardOutput() << "]]]\n"
                     << "\tSTDERR [[[" << m_remoteShutdownProcess->readAllStandardError() << "]]]";
@@ -831,7 +759,7 @@ bool VmConnection::vmStmStep()
             vmStmTransition(VmHardClosing, "failed to soft-close");
         } else if (!m_vmSoftClosingTimeoutTimer.isActive()) {
             // be quiet - no message box
-            qCWarning(lib) << "VmConnection: timeout waiting for the" << m_vmName
+            qCWarning(lib) << "VmConnection: timeout waiting for the" << m_vm->name()
                 << "virtual machine to soft-close";
             vmStmTransition(VmHardClosing, "timeout waiting to soft-close");
         }
@@ -848,16 +776,16 @@ bool VmConnection::vmStmStep()
             vmWantFastPollState(true);
             m_vmHardClosingTimeoutTimer.start(VM_HARD_CLOSE_TIMEOUT, this);
 
-            VirtualBoxManager::shutVirtualMachine(m_vmName);
+            VirtualBoxManager::shutVirtualMachine(m_vm->name());
         }
 
         if (!m_cachedVmRunning) {
             vmStmTransition(VmOff, "successfully closed");
         } else if (!m_vmHardClosingTimeoutTimer.isActive()) {
-            qCWarning(lib) << "VmConnection: timeout waiting for the" << m_vmName
+            qCWarning(lib) << "VmConnection: timeout waiting for the" << m_vm->name()
                 << "virtual machine to hard-close.";
             if (m_lockDownRequested) {
-                m_ui->ask(Ui::CancelLockingDown, &VmConnection::vmStmScheduleExec,
+                ask(Ui::CancelLockingDown, &VmConnection::vmStmScheduleExec,
                         [=] {
                             m_lockDownFailed = true;
                             emit lockDownFailed();
@@ -867,7 +795,7 @@ bool VmConnection::vmStmStep()
                             vmStmTransition(VmHardClosing, "lock down error+retry allowed");
                         });
             } else {
-                m_ui->warn(Ui::UnableToCloseVm); // Keep open until leaving VmZombie
+                ui()->warn(Ui::UnableToCloseVm); // Keep open until leaving VmZombie
                 vmStmTransition(VmZombie, "timeout waiting to hard-close");
             }
         }
@@ -875,7 +803,7 @@ bool VmConnection::vmStmStep()
         ON_EXIT {
             vmWantFastPollState(false);
             m_vmHardClosingTimeoutTimer.stop();
-            m_ui->dismissQuestion(Ui::CancelLockingDown);
+            ui()->dismissQuestion(Ui::CancelLockingDown);
         }
         break;
     }
@@ -935,11 +863,11 @@ bool VmConnection::sshStmStep()
 
         if (m_lockDownRequested) {
             m_connectRequested = false;
-            m_connectOptions = NoConnectOption;
+            m_connectOptions = VirtualMachine::NoConnectOption;
         } else if (m_vmState == VmRunning) {
             if (m_connectRequested) {
                 sshStmTransition(SshConnecting, "VM running&connect requested");
-            } else if (m_autoConnectEnabled) {
+            } else if (m_vm->isAutoConnectEnabled()) {
                 sshStmTransition(SshConnecting, "VM running&auto connect enabled");
             }
         }
@@ -962,17 +890,17 @@ bool VmConnection::sshStmStep()
 
         if (m_vmState != VmRunning) { // intentionally give precedence over m_cachedSshConnected
             sshStmTransition(SshNotConnected, "VM not running");
-        } else if (!m_connectRequested && !m_autoConnectEnabled) {
+        } else if (!m_connectRequested && !m_vm->isAutoConnectEnabled()) {
             sshStmTransition(SshNotConnected, "auto connect disabled while auto connecting");
         } else if (m_cachedSshConnected) {
             sshStmTransition(SshConnected, "successfully connected");
         } else if (m_cachedSshErrorOccured) {
             if (m_vmStartedOutside && !m_connectRequested) {
                 sshStmTransition(SshConnectingError, "connecting error+connect not requested");
-            } else if (m_vmStateEntryTime.elapsed() < (m_params.timeout * 1000)) {
+            } else if (m_vmStateEntryTime.elapsed() < (m_vm->sshParameters().timeout * 1000)) {
                 ; // Do not report possibly recoverable boot-time failure
             } else {
-                m_ui->ask(Ui::CancelConnecting, &VmConnection::sshStmScheduleExec,
+                ask(Ui::CancelConnecting, &VmConnection::sshStmScheduleExec,
                         [=] { sshStmTransition(SshConnectingError, "connecting error+retry denied"); },
                         [=] { sshStmTransition(SshConnecting, "connecting error+retry allowed"); });
             }
@@ -980,14 +908,14 @@ bool VmConnection::sshStmStep()
 
         ON_EXIT {
             m_sshTryConnectTimer.stop();
-            m_ui->dismissQuestion(Ui::CancelConnecting);
+            ui()->dismissQuestion(Ui::CancelConnecting);
         }
         break;
 
     case SshConnectingError:
         ON_ENTRY {
             m_connectRequested = false;
-            m_connectOptions = NoConnectOption;
+            m_connectOptions = VirtualMachine::NoConnectOption;
             m_sshTryConnectTimer.start(SSH_TRY_CONNECT_INTERVAL_SLOW, this);
         }
 
@@ -1009,7 +937,7 @@ bool VmConnection::sshStmStep()
     case SshConnected:
         ON_ENTRY {
             m_connectRequested = false;
-            m_connectOptions = NoConnectOption;
+            m_connectOptions = VirtualMachine::NoConnectOption;
         }
 
         if (m_vmState != VmRunning) {
@@ -1091,7 +1019,7 @@ void VmConnection::createConnection()
 {
     QTC_CHECK(m_connection == 0);
 
-    SshConnectionParameters params(m_params);
+    SshConnectionParameters params(m_vm->sshParameters());
     params.timeout = SSH_TRY_CONNECT_TIMEOUT / 1000;
     m_connection = new SshConnection(params, this);
     connect(m_connection.data(), &SshConnection::connected,
@@ -1120,10 +1048,10 @@ void VmConnection::vmWantFastPollState(bool want)
     }
 }
 
-void VmConnection::vmPollState(Synchronization synchronization)
+void VmConnection::vmPollState(VirtualMachine::Synchronization synchronization)
 {
     if (m_pollingVmState) {
-        if (synchronization == Synchronous) {
+        if (synchronization == VirtualMachine::Synchronous) {
             DBG << "Already polling - waiting";
             waitForVmPollStateFinish();
         } else {
@@ -1135,7 +1063,7 @@ void VmConnection::vmPollState(Synchronization synchronization)
     m_pollingVmState = true;
 
     QEventLoop *loop = 0;
-    if (synchronization == Synchronous)
+    if (synchronization == VirtualMachine::Synchronous)
         loop = new QEventLoop(this);
 
     auto handler = [this, loop](bool vmRunning, bool vmExists) {
@@ -1163,9 +1091,9 @@ void VmConnection::vmPollState(Synchronization synchronization)
             loop->quit();
     };
 
-    VirtualBoxManager::isVirtualMachineRunning(m_vmName, this, handler);
+    VirtualMachinePrivate::get(m_vm)->isRunning(this, handler);
 
-    if (synchronization == Synchronous) {
+    if (synchronization == VirtualMachine::Synchronous) {
         loop->exec();
         delete loop, loop = 0;
     }
@@ -1193,16 +1121,16 @@ void VmConnection::sshTryConnect()
     }
 }
 
-const char *VmConnection::str(State state)
+const char *VmConnection::str(VirtualMachine::State state)
 {
     static const char *strings[] = {
         "Disconnected",
-        "StartingVm",
+        "Starting",
         "Connecting",
         "Error",
         "Connected",
         "Disconnecting",
-        "ClosingVm",
+        "Closing",
     };
 
     return strings[state];
@@ -1262,7 +1190,7 @@ void VmConnection::onSshDisconnected()
 {
     DBG << "SSH disconnected";
     m_cachedSshConnected = false;
-    vmPollState(Asynchronous);
+    vmPollState(VirtualMachine::Asynchronous);
     sshStmScheduleExec();
 }
 
@@ -1272,7 +1200,7 @@ void VmConnection::onSshErrorOccured()
     m_cachedSshErrorOccured = true;
     m_cachedSshErrorString = m_connection->errorString();
     m_cachedSshErrorOrigin = m_connection;
-    vmPollState(Asynchronous);
+    vmPollState(VirtualMachine::Asynchronous);
     sshStmScheduleExec();
 }
 
@@ -1282,12 +1210,18 @@ void VmConnection::onRemoteShutdownProcessFinished()
     vmStmScheduleExec();
 }
 
-void VmConnection::Ui::ask(Question which, OnStatusChanged onStatusChanged,
+VirtualMachine::ConnectionUi *VmConnection::ui() const
+{
+    return VirtualMachinePrivate::get(m_vm)->connectionUi();
+}
+
+void VmConnection::ask(Ui::Question which,
+        void (VmConnection::*onStatusChanged)(),
         std::function<void()> ifYes, std::function<void()> ifNo)
 {
-    switch (status(which)) {
+    switch (ui()->status(which)) {
     case Ui::NotAsked:
-        ask(which, onStatusChanged);
+        ui()->ask(which, [=] { (this->*onStatusChanged)(); });
         break;
     case Ui::Asked:
         break;

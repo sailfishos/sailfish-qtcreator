@@ -36,7 +36,7 @@ class QTimer;
 QT_END_NAMESPACE
 
 namespace Sfdk {
-class VmConnection;
+class VirtualMachine;
 }
 
 namespace Mer {
@@ -105,8 +105,8 @@ public:
     void setSharedConfigPath(const QString &configPath);
     QString sharedConfigPath() const;
 
-    void setVirtualMachine(const QString& machineName);
-    QString virtualMachine() const;
+    void setVirtualMachineName(const QString& machineName);
+    QString virtualMachineName() const; // FIXME use or not?
 
     void setFactorySnapshot(const QString &snapshotName);
     QString factorySnapshot() const;
@@ -137,7 +137,7 @@ public:
     bool isViewScaled() const;
     void setViewScaled(bool viewScaled);
 
-    Sfdk::VmConnection *connection() const;
+    Sfdk::VirtualMachine *virtualMachine() const;
 
     void addPortForwarding(const QString &ruleName, const QString &protocol, quint16 hostPort,
                            quint16 emulatorVmPort) const;
@@ -152,7 +152,7 @@ private:
     void init();
 
     friend class MerEmulatorDeviceManager;
-    void updateConnection() const;
+    void updateVmState() const;
 
     void doFactoryReset(QWidget *parent);
 
@@ -163,7 +163,7 @@ private:
     QString privateKeyFile(const QString &user) const;
 
 private:
-    QSharedPointer<Sfdk::VmConnection> m_connection; // all clones share the connection
+    QSharedPointer<Sfdk::VirtualMachine> m_vm; // all clones share the VM
     QString m_factorySnapshot;
     QString m_mac;
     QString m_subnet;

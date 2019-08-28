@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2014-2015,2017-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -48,7 +49,7 @@ bool MerSdkStartStep::init()
         return false;
     }
 
-    setConnection(merSdk->connection());
+    setVirtualMachine(merSdk->virtualMachine());
 
     return MerAbstractVmStartStep::init();
 }

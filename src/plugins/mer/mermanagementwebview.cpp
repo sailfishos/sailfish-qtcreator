@@ -28,7 +28,7 @@
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
 
-#include <sfdk/vmconnection.h>
+#include <sfdk/virtualmachine.h>
 
 #include <projectexplorer/project.h>
 #include <projectexplorer/session.h>
@@ -269,7 +269,7 @@ void MerManagementWebView::resetWebView()
     if (m_selectedSdk) {
         disconnect(m_selectedSdk, &MerSdk::wwwPortChanged,
                 this, &MerManagementWebView::resetWebView);
-        disconnect(m_selectedSdk->connection(), &VmConnection::virtualMachineOffChanged,
+        disconnect(m_selectedSdk->virtualMachine(), &VirtualMachine::virtualMachineOffChanged,
                 this, &MerManagementWebView::resetWebView);
     }
 
@@ -280,7 +280,7 @@ void MerManagementWebView::resetWebView()
         url.setPort(m_selectedSdk->wwwPort());
         connect(m_selectedSdk, &MerSdk::wwwPortChanged,
                 this, &MerManagementWebView::resetWebView);
-        connect(m_selectedSdk->connection(), &VmConnection::virtualMachineOffChanged,
+        connect(m_selectedSdk->virtualMachine(), &VirtualMachine::virtualMachineOffChanged,
                 this, &MerManagementWebView::resetWebView);
     } else {
         url = QLatin1String("about:blank");
@@ -318,7 +318,7 @@ void MerManagementWebView::handleLoadFinished(bool success)
         QString vmStatus = QLatin1String("<h2>The Build Engine is not Ready</h2>");
         if (m_selectedSdk) { // one cannot be sure here
             QString vmName = m_selectedSdk->virtualMachineName();
-            if (m_selectedSdk->connection()->isVirtualMachineOff()) {
+            if (m_selectedSdk->virtualMachine()->isOff()) {
                 vmStatus = QString::fromLatin1(
                         "<h2>The Build Engine is not Running</h2>"
                         "<p><a href=\"%2\">Start the build engine!</a></p>"
@@ -361,7 +361,7 @@ void MerManagementWebView::handleLoadFinished(bool success)
             QTimer::singleShot(AUTO_RELOAD_TIMEOUT_MS, this, &MerManagementWebView::reloadPage);
     } else if (ui->webView->url() == QUrl(QLatin1String(START_VM_URL))) {
         if (m_selectedSdk) {
-            m_selectedSdk->connection()->connectTo();
+            m_selectedSdk->virtualMachine()->connectTo();
         }
         QTimer::singleShot(AUTO_RELOAD_TIMEOUT_MS, this, &MerManagementWebView::reloadPage);
     } else if (ui->webView->url().toString() != QLatin1String("about:blank")) {

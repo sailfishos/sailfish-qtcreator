@@ -50,7 +50,7 @@
 #include "meremulatormodeoptionspage.h"
 
 #include <sfdk/sfdk.h>
-#include <sfdk/vmconnection.h>
+#include <sfdk/virtualmachine.h>
 
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -135,7 +135,7 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     using namespace ProjectExplorer::Constants;
 
     sfdkInit();
-    VmConnection::registerUi<MerVmConnectionUi>();
+    VirtualMachine::registerConnectionUi<MerVmConnectionUi>();
 
     new MerSettings(this);
 
@@ -197,21 +197,21 @@ IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
     m_stopList.clear();
     QList<MerSdk*> sdks = MerSdkManager::sdks();
     foreach(const MerSdk* sdk, sdks) {
-        VmConnection *connection = sdk->connection();
+        VirtualMachine *virtualMachine = sdk->virtualMachine();
         bool headless = false;
-        if (!connection->isVirtualMachineOff(&headless) && headless) {
+        if (!virtualMachine->isOff(&headless) && headless) {
             QMessageBox *prompt = new QMessageBox(
                     QMessageBox::Question,
                     tr("Close Virtual Machine"),
                     tr("The headless virtual machine \"%1\" is still running.\n\n"
-                        "Close the virtual machine now?").arg(connection->virtualMachine()),
+                        "Close the virtual machine now?").arg(virtualMachine->name()),
                     QMessageBox::Yes | QMessageBox::No,
                     ICore::mainWindow());
             prompt->setCheckBox(new QCheckBox(CheckableMessageBox::msgDoNotAskAgain()));
-            prompt->setProperty(VM_NAME_PROPERTY, connection->virtualMachine());
+            prompt->setProperty(VM_NAME_PROPERTY, virtualMachine->name());
             connect(prompt, &QMessageBox::finished,
                     this, &MerPlugin::handlePromptClosed);
-            m_stopList.insert(connection->virtualMachine(), connection);
+            m_stopList.insert(virtualMachine->name(), virtualMachine);
             if (MerSettings::isAskBeforeClosingVmEnabled()) {
                 prompt->open();
             } else {
@@ -236,12 +236,12 @@ void MerPlugin::handlePromptClosed(int result)
         MerSettings::setAskBeforeClosingVmEnabled(false);
 
     if (result == QMessageBox::Yes) {
-        VmConnection *connection = m_stopList.value(vm);
-        connect(connection, &VmConnection::stateChanged,
+        VirtualMachine *virtualMachine = m_stopList.value(vm);
+        connect(virtualMachine, &VirtualMachine::stateChanged,
                 this, &MerPlugin::handleConnectionStateChanged);
-        connect(connection, &VmConnection::lockDownFailed,
+        connect(virtualMachine, &VirtualMachine::lockDownFailed,
                 this, &MerPlugin::handleLockDownFailed);
-        connection->lockDown(true);
+        virtualMachine->lockDown(true);
     } else {
         m_stopList.remove(vm);
     }
@@ -253,10 +253,10 @@ void MerPlugin::handlePromptClosed(int result)
 
 void MerPlugin::handleConnectionStateChanged()
 {
-    VmConnection *connection = qobject_cast<VmConnection *>(sender());
+    VirtualMachine *virtualMachine = qobject_cast<VirtualMachine *>(sender());
 
-    if (connection->state() == VmConnection::Disconnected) {
-        m_stopList.remove(connection->virtualMachine());
+    if (virtualMachine->state() == VirtualMachine::Disconnected) {
+        m_stopList.remove(virtualMachine->name());
 
         if (m_stopList.isEmpty()) {
             emit asynchronousShutdownFinished();
@@ -266,9 +266,9 @@ void MerPlugin::handleConnectionStateChanged()
 
 void MerPlugin::handleLockDownFailed()
 {
-    VmConnection *connection = qobject_cast<VmConnection *>(sender());
+    VirtualMachine *virtualMachine = qobject_cast<VirtualMachine *>(sender());
 
-    m_stopList.remove(connection->virtualMachine());
+    m_stopList.remove(virtualMachine->name());
 
     if (m_stopList.isEmpty()) {
         emit asynchronousShutdownFinished();

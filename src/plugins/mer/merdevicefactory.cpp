@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2017-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -106,7 +107,7 @@ IDevice::Ptr MerDeviceFactory::create() const
         //hardcoded values requested by customer;
         MerEmulatorDevice::Ptr device = MerEmulatorDevice::create();
         device->setupId(IDevice::ManuallyAdded, wizard.emulatorId());
-        device->setVirtualMachine(wizard.emulatorVm());
+        device->setVirtualMachineName(wizard.emulatorVm());
         device->setFactorySnapshot(wizard.factorySnapshot());
         device->setMac(wizard.mac());
         device->setSubnet(QLatin1String("10.220.220"));

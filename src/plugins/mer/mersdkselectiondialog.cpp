@@ -24,7 +24,7 @@
 #include "mersdkselectiondialog.h"
 #include "ui_mersdkselectiondialog.h"
 
-#include <sfdk/vmconnection.h>
+#include <sfdk/vboxvirtualmachine_p.h>
 #include <sfdk/virtualboxmanager_p.h>
 
 #include <QListWidgetItem>
@@ -41,7 +41,7 @@ MerSdkSelectionDialog::MerSdkSelectionDialog(QWidget *parent)
 {
     m_ui->setupUi(this);
 
-    const QSet<QString> usedVMs = VmConnection::usedVirtualMachines().toSet();
+    const QSet<QString> usedVMs = VBoxVirtualMachine::usedVirtualMachines().toSet();
     const QStringList registeredVMs = VirtualBoxManager::fetchRegisteredVirtualMachines();
     foreach (const QString &vm, registeredVMs) {
         // add only unused machines

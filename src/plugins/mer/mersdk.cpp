@@ -31,7 +31,7 @@
 #include "mertargetsxmlparser.h"
 #include "mertoolchain.h"
 
-#include <sfdk/vmconnection.h>
+#include <sfdk/vboxvirtualmachine_p.h>
 
 #include <coreplugin/icore.h>
 #include <projectexplorer/buildmanager.h>
@@ -59,21 +59,21 @@ namespace Internal {
 
 MerSdk::MerSdk(QObject *parent) : QObject(parent)
     , m_autoDetected(false)
-    , m_connection(new VmConnection(this))
+    , m_vm(std::make_unique<VBoxVirtualMachine>(this))
     , m_wwwPort(-1)
     , m_wwwProxy(MER_SDK_PROXY_DISABLED)
     , m_memorySizeMb(0)
     , m_cpuCount(0)
     , m_vdiCapacityMb(0)
 {
-    SshConnectionParameters params = m_connection->sshParameters();
+    SshConnectionParameters params = m_vm->sshParameters();
     params.timeout = 30;
     params.hostKeyCheckingMode = SshHostKeyCheckingNone;
     params.authenticationType = SshConnectionParameters::AuthenticationTypeSpecificKey;
-    m_connection->setSshParameters(params);
+    m_vm->setSshParameters(params);
 #ifdef MER_LIBRARY
-    connect(m_connection, &VmConnection::stateChanged,
-            this, &MerSdk::onConnectionStateChanged);
+    connect(m_vm.get(), &VirtualMachine::stateChanged,
+            this, &MerSdk::onVmStateChanged);
 
     connect(&m_watcher, &QFileSystemWatcher::fileChanged,
             this, &MerSdk::handleTargetsFileChanged);
@@ -99,15 +99,15 @@ MerSdk::~MerSdk()
 
 void MerSdk::setHeadless(bool enabled)
 {
-    if (m_connection->isHeadless() != enabled) {
-        m_connection->setHeadless(enabled);
+    if (m_vm->isHeadless() != enabled) {
+        m_vm->setHeadless(enabled);
         emit headlessChanged(enabled);
     }
 }
 
 bool MerSdk::isHeadless() const
 {
-    return m_connection->isHeadless();
+    return m_vm->isHeadless();
 }
 
 void MerSdk::setMemorySizeMb(int sizeMb)
@@ -152,12 +152,12 @@ void MerSdk::setAutodetect(bool autoDetected)
 
 void MerSdk::setVirtualMachineName(const QString &name)
 {
-    m_connection->setVirtualMachine(name);
+    m_vm->setName(name);
 }
 
 QString MerSdk::virtualMachineName() const
 {
-    return m_connection->virtualMachine();
+    return m_vm->name();
 }
 
 void MerSdk::setSharedHomePath(const QString &homePath)
@@ -242,18 +242,18 @@ QString MerSdk::sharedSrcPath() const
 
 void MerSdk::setSshPort(quint16 port)
 {
-    SshConnectionParameters params = m_connection->sshParameters();
+    SshConnectionParameters params = m_vm->sshParameters();
     if (port == params.port())
         return;
 
     params.setPort(port);
-    m_connection->setSshParameters(params);
+    m_vm->setSshParameters(params);
     emit sshPortChanged(port);
 }
 
 quint16 MerSdk::sshPort() const
 {
-    return m_connection->sshParameters().port();
+    return m_vm->sshParameters().port();
 }
 
 void MerSdk::setWwwPort(quint16 port)
@@ -280,7 +280,7 @@ void MerSdk::setWwwProxy(const QString &type, const QString &servers, const QStr
     m_wwwProxyExcludes = excludes;
 
 #ifdef MER_LIBRARY
-    if (m_connection->state() == VmConnection::Connected)
+    if (m_vm->state() == VirtualMachine::Connected)
         syncWwwProxy();
 #endif // MER_LIBRARY
 
@@ -327,53 +327,53 @@ QString MerSdk::wwwProxyExcludes() const
 
 void MerSdk::setPrivateKeyFile(const QString &file)
 {
-    SshConnectionParameters params = m_connection->sshParameters();
+    SshConnectionParameters params = m_vm->sshParameters();
     if (params.privateKeyFile != file) {
         params.privateKeyFile = file;
-        m_connection->setSshParameters(params);
+        m_vm->setSshParameters(params);
         emit privateKeyChanged(file);
     }
 }
 
 QString MerSdk::privateKeyFile() const
 {
-    return m_connection->sshParameters().privateKeyFile;
+    return m_vm->sshParameters().privateKeyFile;
 }
 
 void MerSdk::setHost(const QString &host)
 {
-    SshConnectionParameters params = m_connection->sshParameters();
+    SshConnectionParameters params = m_vm->sshParameters();
     params.setHost(host);
-    m_connection->setSshParameters(params);
+    m_vm->setSshParameters(params);
 }
 
 QString MerSdk::host() const
 {
-    return m_connection->sshParameters().host();
+    return m_vm->sshParameters().host();
 }
 
 void MerSdk::setUserName(const QString &username)
 {
-    SshConnectionParameters params = m_connection->sshParameters();
+    SshConnectionParameters params = m_vm->sshParameters();
     params.setUserName(username);
-    m_connection->setSshParameters(params);
+    m_vm->setSshParameters(params);
 }
 
 QString MerSdk::userName() const
 {
-    return m_connection->sshParameters().userName();
+    return m_vm->sshParameters().userName();
 }
 
 void MerSdk::setTimeout(int timeout)
 {
-    SshConnectionParameters params = m_connection->sshParameters();
+    SshConnectionParameters params = m_vm->sshParameters();
     params.timeout = timeout;
-    m_connection->setSshParameters(params);
+    m_vm->setSshParameters(params);
 }
 
 int MerSdk::timeout() const
 {
-    return m_connection->sshParameters().timeout;
+    return m_vm->sshParameters().timeout;
 }
 
 #ifdef MER_LIBRARY
@@ -408,9 +408,9 @@ void MerSdk::detach()
 }
 #endif // MER_LIBRARY
 
-VmConnection *MerSdk::connection() const
+Sfdk::VirtualMachine *MerSdk::virtualMachine() const
 {
-    return m_connection;
+    return m_vm.get();
 }
 
 QVariantMap MerSdk::toMap() const
@@ -498,7 +498,7 @@ bool MerSdk::fromMap(const QVariantMap &data)
 
 bool MerSdk::isValid() const
 {
-    return !m_connection->virtualMachine().isEmpty()
+    return !m_vm->name().isEmpty()
             && !m_sharedHomePath.isEmpty()
             && !m_sharedSshPath.isEmpty()
             && !m_sharedTargetsPath.isEmpty();
@@ -537,9 +537,9 @@ void MerSdk::handleTargetsFileChanged(const QString &file)
     m_updateTargetsTimer.start();
 }
 
-void MerSdk::onConnectionStateChanged()
+void MerSdk::onVmStateChanged()
 {
-    if (m_connection->state() == VmConnection::Connected)
+    if (m_vm->state() == VirtualMachine::Connected)
         syncWwwProxy();
 }
 #endif // MER_LIBRARY
@@ -628,7 +628,7 @@ bool MerSdk::removeTarget(const MerTarget &target)
         }
         if (tc->typeId() == Constants::MER_TOOLCHAIN_ID) {
             MerToolChain *mertoolchain = static_cast<MerToolChain*>(tc);
-            if (mertoolchain->virtualMachineName() == m_connection->virtualMachine() &&
+            if (mertoolchain->virtualMachineName() == m_vm->name() &&
                     mertoolchain->targetName() == target.name()) {
                  BaseQtVersion *v = QtKitInformation::qtVersion(kit);
                  KitManager::deregisterKit(kit);

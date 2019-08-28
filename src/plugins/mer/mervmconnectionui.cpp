@@ -95,7 +95,7 @@ bool MerVmConnectionUi::shouldAsk(Question which) const
     }
 }
 
-void MerVmConnectionUi::ask(Question which, OnStatusChanged onStatusChanged)
+void MerVmConnectionUi::ask(Question which, std::function<void()> onStatusChanged)
 {
     switch (which) {
     case StartVm:
@@ -112,7 +112,7 @@ void MerVmConnectionUi::ask(Question which, OnStatusChanged onStatusChanged)
     case ResetVm:
         QTC_CHECK(!m_resetVmQuestionBox);
         bool startedOutside;
-        connection()->isVirtualMachineOff(0, &startedOutside);
+        virtualMachine()->isOff(0, &startedOutside);
         m_resetVmQuestionBox = openQuestionBox(
                 onStatusChanged,
                 tr("Reset Virtual Machine"),
@@ -169,7 +169,7 @@ void MerVmConnectionUi::dismissQuestion(Question which)
     }
 }
 
-VmConnection::Ui::QuestionStatus MerVmConnectionUi::status(Question which) const
+VirtualMachine::ConnectionUi::QuestionStatus MerVmConnectionUi::status(Question which) const
 {
     switch (which) {
     case StartVm:
@@ -198,7 +198,7 @@ QMessageBox *MerVmConnectionUi::openWarningBox(const QString &title, const QStri
     QMessageBox *box = new QMessageBox(
             QMessageBox::Warning,
             title,
-            text.arg(connection()->virtualMachine()),
+            text.arg(virtualMachine()->name()),
             QMessageBox::Ok,
             ICore::mainWindow());
     box->show();
@@ -206,14 +206,14 @@ QMessageBox *MerVmConnectionUi::openWarningBox(const QString &title, const QStri
     return box;
 }
 
-QMessageBox *MerVmConnectionUi::openQuestionBox(OnStatusChanged onStatusChanged,
+QMessageBox *MerVmConnectionUi::openQuestionBox(std::function<void()> onStatusChanged,
         const QString &title, const QString &text, const QString &informativeText,
         std::function<void()> setDoNotAskAgain)
 {
     QMessageBox *box = new QMessageBox(
             QMessageBox::Question,
             title,
-            text.arg(connection()->virtualMachine()),
+            text.arg(virtualMachine()->name()),
             QMessageBox::Yes | QMessageBox::No,
             ICore::mainWindow());
     box->setInformativeText(informativeText);
@@ -226,21 +226,21 @@ QMessageBox *MerVmConnectionUi::openQuestionBox(OnStatusChanged onStatusChanged,
     }
     box->setEscapeButton(QMessageBox::No);
     connect(box, &QMessageBox::finished,
-            connection(), onStatusChanged);
+            virtualMachine(), onStatusChanged);
     box->show();
     box->raise();
     return box;
 }
 
-QProgressDialog *MerVmConnectionUi::openProgressDialog(OnStatusChanged onStatusChanged,
+QProgressDialog *MerVmConnectionUi::openProgressDialog(std::function<void()> onStatusChanged,
         const QString &title, const QString &text)
 {
     QProgressDialog *dialog = new QProgressDialog(ICore::mainWindow());
     dialog->setMaximum(0);
     dialog->setWindowTitle(title);
-    dialog->setLabelText(text.arg(connection()->virtualMachine()));
+    dialog->setLabelText(text.arg(virtualMachine()->name()));
     connect(dialog, &QDialog::finished,
-            connection(), onStatusChanged);
+            virtualMachine(), onStatusChanged);
     dialog->show();
     dialog->raise();
     return dialog;
@@ -262,7 +262,7 @@ void MerVmConnectionUi::deleteDialog(QPointer<Dialog> &dialog)
     }
 }
 
-VmConnection::Ui::QuestionStatus MerVmConnectionUi::status(QMessageBox *box) const
+VirtualMachine::ConnectionUi::QuestionStatus MerVmConnectionUi::status(QMessageBox *box) const
 {
     if (!box)
         return NotAsked;
@@ -272,7 +272,7 @@ VmConnection::Ui::QuestionStatus MerVmConnectionUi::status(QMessageBox *box) con
         return Asked;
 }
 
-VmConnection::Ui::QuestionStatus MerVmConnectionUi::status(QProgressDialog *dialog) const
+VirtualMachine::ConnectionUi::QuestionStatus MerVmConnectionUi::status(QProgressDialog *dialog) const
 {
     if (!dialog)
         return NotAsked;

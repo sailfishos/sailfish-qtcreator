@@ -23,7 +23,9 @@
 
 #pragma once
 
-#include <sfdk/vmconnection.h>
+#include <sfdk/virtualmachine.h>
+
+#include <QPointer>
 
 QT_BEGIN_NAMESPACE
 class QMessageBox;
@@ -33,28 +35,28 @@ QT_END_NAMESPACE
 namespace Mer {
 namespace Internal {
 
-class MerVmConnectionUi : public Sfdk::VmConnection::Ui
+class MerVmConnectionUi : public Sfdk::VirtualMachine::ConnectionUi
 {
     Q_OBJECT
 
 public:
-    using Sfdk::VmConnection::Ui::Ui;
+    using Sfdk::VirtualMachine::ConnectionUi::ConnectionUi;
 
     void warn(Warning which) override;
     void dismissWarning(Warning which) override;
 
     bool shouldAsk(Question which) const override;
-    void ask(Question which, OnStatusChanged onStatusChanged) override;
+    void ask(Question which, std::function<void()> onStatusChanged) override;
     void dismissQuestion(Question which) override;
     QuestionStatus status(Question which) const override;
 
 private:
     QMessageBox *openWarningBox(const QString &title, const QString &text);
-    QMessageBox *openQuestionBox(OnStatusChanged onStatusChanged,
+    QMessageBox *openQuestionBox(std::function<void()> onStatusChanged,
             const QString &title, const QString &text,
             const QString &informativeText = QString(),
             std::function<void()> setDoNotAskAgain = nullptr);
-    QProgressDialog *openProgressDialog(OnStatusChanged onStatusChanged,
+    QProgressDialog *openProgressDialog(std::function<void()> onStatusChanged,
             const QString &title, const QString &text);
     template<class Dialog>
     void deleteDialog(QPointer<Dialog> &dialog);

@@ -30,8 +30,8 @@
 #include "mervirtualmachinesettingswidget.h"
 
 #include <sfdk/sfdkconstants.h>
-#include <sfdk/vmconnection.h>
 #include <sfdk/virtualboxmanager_p.h>
+#include <sfdk/virtualmachine.h>
 
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <ssh/sshconnection.h>
@@ -94,12 +94,12 @@ void MerEmulatorDeviceWidget::selectFactorySnapshot()
     auto device = this->device().dynamicCast<MerEmulatorDevice>();
     QTC_ASSERT(device, return);
 
-    VirtualMachineInfo info = VirtualBoxManager::fetchVirtualMachineInfo(device->virtualMachine(),
+    VirtualMachineInfo info = VirtualBoxManager::fetchVirtualMachineInfo(device->virtualMachineName(),
             VirtualBoxManager::SnapshotInfo);
     if (info.snapshots.isEmpty()) {
         QMessageBox::warning(this, tr("No snapshot found"),
                 tr("No snapshot exists for the '%1' virtual machine.")
-                .arg(device->connection()->virtualMachine()));
+                .arg(device->virtualMachine()->name()));
         return;
     }
 
@@ -141,7 +141,7 @@ void MerEmulatorDeviceWidget::updatePortInputsEnabledState()
     const auto device = this->device().dynamicCast<const MerEmulatorDevice>();
     QTC_ASSERT(device, return);
 
-    bool vmOff = device->connection()->isVirtualMachineOff();
+    bool vmOff = device->virtualMachine()->isOff();
     bool isStored = MerEmulatorDeviceManager::isStored(device);
 
     QString message = tr("Stop emulator to unlock this field for editing.");
@@ -297,7 +297,7 @@ void MerEmulatorDeviceWidget::initGui()
     m_ui->sshPortSpinBox->setValue(sshParams.port());
     m_ui->portsLineEdit->setText(device->freePorts().toString());
     m_ui->qmlLivePortsLineEdit->setText(device->qmlLivePorts().toString());
-    m_ui->emulatorVmLabelEdit->setText(device->virtualMachine());
+    m_ui->emulatorVmLabelEdit->setText(device->virtualMachineName());
     m_ui->factorySnapshotLineEdit->setText(device->factorySnapshot());
     if(!device->sharedConfigPath().isEmpty())
         m_ui->configFolderLabelEdit->setText(QDir::toNativeSeparators(device->sharedConfigPath()));
@@ -339,8 +339,8 @@ void MerEmulatorDeviceWidget::initGui()
     updatePortsWarningLabel();
     updateQmlLivePortsWarningLabel();
 
-    onVirtualMachineOffChanged(device->connection()->isVirtualMachineOff());
-    connect(device->connection(), &VmConnection::virtualMachineOffChanged,
+    onVirtualMachineOffChanged(device->virtualMachine()->isOff());
+    connect(device->virtualMachine(), &VirtualMachine::virtualMachineOffChanged,
             this, &MerEmulatorDeviceWidget::onVirtualMachineOffChanged);
 
     connect(MerEmulatorDeviceManager::instance(), &MerEmulatorDeviceManager::storedDevicesChanged,

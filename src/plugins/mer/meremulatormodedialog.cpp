@@ -35,7 +35,7 @@
 #include "merconstants.h"
 #include "meremulatordevice.h"
 
-#include <sfdk/vmconnection.h>
+#include <sfdk/virtualmachine.h>
 
 #include <coreplugin/icore.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
@@ -217,7 +217,7 @@ bool MerEmulatorModeDialog::execDialog()
     m_ui->contentWrapper->setEnabled(supportsMultipleModels);
     m_ui->buttonBox->button(QDialogButtonBox::Ok)->setEnabled(supportsMultipleModels);
 
-    if (m_emulator.data()->connection()->isVirtualMachineOff() || !supportsMultipleModels) {
+    if (m_emulator.data()->virtualMachine()->isOff() || !supportsMultipleModels) {
         m_ui->restartEmulatorCheckBox->setChecked(false);
         m_ui->restartEmulatorCheckBox->setEnabled(false);
     }
@@ -226,9 +226,9 @@ bool MerEmulatorModeDialog::execDialog()
     if (!result)
         goto end;
 
-    if (!m_emulator.data()->connection()->isVirtualMachineOff()
+    if (!m_emulator.data()->virtualMachine()->isOff()
         && m_ui->restartEmulatorCheckBox->isChecked()) {
-        m_emulator.data()->connection()->lockDown(true);
+        m_emulator.data()->virtualMachine()->lockDown(true);
     }
 
     m_emulator.data()->setDeviceModel(m_ui->deviceModelComboBox->currentDeviceModel());
@@ -237,10 +237,10 @@ bool MerEmulatorModeDialog::execDialog()
                                : Qt::Horizontal);
     m_emulator.data()->setViewScaled(m_ui->scaledViewModeRadioButton->isChecked());
 
-    if (m_emulator.data()->connection()->isVirtualMachineOff()
+    if (m_emulator.data()->virtualMachine()->isOff()
             && m_ui->restartEmulatorCheckBox->isChecked()) {
-        m_emulator.data()->connection()->lockDown(false);
-        m_emulator.data()->connection()->connectTo();
+        m_emulator.data()->virtualMachine()->lockDown(false);
+        m_emulator.data()->virtualMachine()->connectTo();
     }
 
 end:
