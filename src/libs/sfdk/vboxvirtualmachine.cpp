@@ -55,24 +55,21 @@ QStringList VBoxVirtualMachine::usedVirtualMachines()
 
 QMap<QString, int> VBoxVirtualMachinePrivate::s_usedVmNames;
 
-void VBoxVirtualMachinePrivate::start()
+void VBoxVirtualMachinePrivate::start(const QObject *context, const Functor<bool> &functor)
 {
-    VirtualBoxManager::startVirtualMachine(q_func()->name(), q_func()->isHeadless());
+    VirtualBoxManager::startVirtualMachine(q_func()->name(), q_func()->isHeadless(), context,
+            functor);
 }
 
-void VBoxVirtualMachinePrivate::stop()
+void VBoxVirtualMachinePrivate::stop(const QObject *context, const Functor<bool> &functor)
 {
-    VirtualBoxManager::shutVirtualMachine(q_func()->name());
+    VirtualBoxManager::shutVirtualMachine(q_func()->name(), context, functor);
 }
 
-void VBoxVirtualMachinePrivate::isRunning(QObject *context, std::function<void(bool,bool)> slot) const
+void VBoxVirtualMachinePrivate::probe(const QObject *context,
+        const Functor<BasicState, bool> &functor) const
 {
-    VirtualBoxManager::isVirtualMachineRunning(q_func()->name(), context, slot);
-}
-
-bool VBoxVirtualMachinePrivate::isHeadlessEffectively() const
-{
-    return VirtualBoxManager::fetchVirtualMachineInfo(q_func()->name()).headless;
+    VirtualBoxManager::probe(q_func()->name(), context, functor);
 }
 
 void VBoxVirtualMachinePrivate::prepareForNameChange()

@@ -157,6 +157,7 @@ private:
     VirtualMachine::ConnectOptions m_connectOptions;
     bool m_cachedVmExists;
     bool m_cachedVmRunning;
+    bool m_cachedVmRunningHeadless;
     bool m_cachedSshConnected;
     bool m_cachedSshErrorOccured;
     QString m_cachedSshErrorString;

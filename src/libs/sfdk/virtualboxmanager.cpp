@@ -32,6 +32,7 @@
 #include <QBasicTimer>
 #include <QDebug>
 #include <QDir>
+#include <QEventLoop>
 #include <QProcess>
 #include <QQueue>
 #include <QRegularExpression>
@@ -44,8 +45,7 @@
 #include <QThread>
 #include <QUuid>
 
-#include <algorithm>
-#include <memory>
+#include <deque>
 
 using namespace Utils;
 
@@ -102,12 +102,10 @@ const int TERMINATE_TIMEOUT_MS = 3000;
 namespace Sfdk {
 
 static VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output);
-static void fetchVdiInfo(VirtualMachineInfo *virtualMachineInfo);
 static void vdiInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo);
-static void fetchSnapshotInfo(const QString &vmName, VirtualMachineInfo *virtualMachineInfo);
 static void snapshotInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo);
 static int ramSizeFromOutput(const QString &output, bool *matched);
-static bool isVirtualMachineRunningFromInfo(const QString &vmInfo);
+static bool isVirtualMachineRunningFromInfo(const QString &vmInfo, bool *headless);
 static QStringList listedVirtualMachines(const QString &output);
 
 static QString vBoxManagePath()
@@ -161,47 +159,67 @@ public:
     explicit CommandSerializer(QObject *parent)
         : QObject(parent)
     {
-        QTC_ASSERT(!s_instance, return);
-        s_instance = this;
     }
 
     ~CommandSerializer() override
     {
-        s_instance = 0;
+        QTC_CHECK(m_queue.empty());
     }
 
-    static bool runSynchronous(QProcess *process)
+    void wait()
     {
-        qCDebug(vmsQueue) << "Enqueued" << (void*)process << "(synchronous)"
-            << process->program() << process->arguments();
-
-        // Currently runnning an asynchronous process?
-        if (s_instance->m_current) {
-            if (!s_instance->m_current->waitForFinished()) {
-                if (s_instance->m_current) {
-                    qCWarning(vms) << "Failed to wait for current asynchronous process"
-                        << s_instance->m_current->program() << s_instance->m_current->arguments()
-                        << "Error:" << s_instance->m_current->error();
-                    return false;
-                }
-            }
-            QTC_CHECK(!s_instance->m_current);
+        if (!m_queue.empty()) {
+            QEventLoop loop;
+            connect(this, &CommandSerializer::empty, &loop, &QEventLoop::quit);
+            loop.exec();
         }
-
-        s_instance->m_queue.prepend(process);
-        s_instance->dequeue();
-        QTC_CHECK(s_instance->m_current == process);
-
-        return s_instance->m_current->waitForFinished();
     }
 
-    static void runAsynchronous(QProcess *process)
+    using BatchId = int;
+    BatchId beginBatch()
     {
-        qCDebug(vmsQueue) << "Enqueued" << (void*)process << "(asynchronous)"
-            << process->program() << process->arguments();
-        s_instance->m_queue.enqueue(process);
-        s_instance->scheduleDequeue();
+        m_lastBatchId++;
+        if (m_lastBatchId < 0)
+            m_lastBatchId = 1;
+        m_currentBatchId = m_lastBatchId;
+        return m_currentBatchId;
     }
+
+    void endBatch()
+    {
+        m_currentBatchId = -1;
+    }
+
+    void cancelBatch(BatchId batchId)
+    {
+        while (!m_queue.empty() && m_queue.front().first == batchId) {
+            QProcess *process = m_queue.front().second.get();
+            qCDebug(vmsQueue) << "Canceled" << (void*)process
+                << process->program() << process->arguments();
+            m_queue.pop_front();
+        }
+    }
+
+    void enqueue(std::unique_ptr<QProcess> &&process)
+    {
+        QTC_ASSERT(process, return);
+        qCDebug(vmsQueue) << "Enqueued" << (void*)process.get()
+            << process->program() << process->arguments();
+        m_queue.emplace_back(m_currentBatchId, std::move(process));
+        scheduleDequeue();
+    }
+
+    void enqueueImmediate(std::unique_ptr<QProcess> &&process)
+    {
+        QTC_ASSERT(process, return);
+        qCDebug(vmsQueue) << "Enqueued (immediate)" << (void*)process.get()
+            << process->program() << process->arguments();
+        m_queue.emplace_front(m_currentBatchId, std::move(process));
+        scheduleDequeue();
+    }
+
+signals:
+    void empty();
 
 protected:
     void timerEvent(QTimerEvent *event) override
@@ -224,16 +242,19 @@ private:
     {
         if (m_current)
             return;
-        if (m_queue.isEmpty())
+        if (m_queue.empty()) {
+            emit empty();
             return;
+        }
 
-        m_current = m_queue.dequeue();
+        m_current = std::move(m_queue.front().second);
+        m_queue.pop_front();
 
-        qCDebug(vmsQueue) << "Dequeued" << (void*)m_current;
+        qCDebug(vmsQueue) << "Dequeued" << (void*)m_current.get();
 
-        connect(m_current, &QProcess::errorOccurred,
+        connect(m_current.get(), &QProcess::errorOccurred,
                 this, &CommandSerializer::finalize);
-        connect(m_current, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+        connect(m_current.get(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &CommandSerializer::finalize);
 
         m_current->start(QIODevice::ReadWrite | QIODevice::Text);
@@ -242,57 +263,46 @@ private:
 private slots:
     void finalize()
     {
-        qCDebug(vmsQueue) << "Finished" << (void*)sender() << "current:" << (void*)m_current;
-        QTC_ASSERT(sender() == m_current, return);
+        qCDebug(vmsQueue) << "Finished" << (void*)sender()
+            << "current:" << (void*)m_current.get();
+        QTC_ASSERT(sender() == m_current.get(), return);
 
         m_current->disconnect(this);
-        m_current = 0;
+        m_current->deleteLater();
+        m_current.release();
 
         scheduleDequeue();
     }
 
 private:
-    static CommandSerializer *s_instance;
-    QQueue<QProcess *> m_queue;
-    QProcess *m_current{};
+    std::deque<std::pair<BatchId, std::unique_ptr<QProcess>>> m_queue;
+    BatchId m_lastBatchId = 0;
+    BatchId m_currentBatchId = -1;
+    std::unique_ptr<QProcess> m_current;
     QBasicTimer m_dequeueTimer;
 };
-
-CommandSerializer *CommandSerializer::s_instance = 0;
 
 class VBoxManageProcess : public QProcess
 {
     Q_OBJECT
 
 public:
-    explicit VBoxManageProcess(QObject *parent = 0)
+    explicit VBoxManageProcess(const QStringList &arguments, QObject *parent = 0)
         : QProcess(parent)
     {
         setProcessChannelMode(QProcess::ForwardedErrorChannel);
         setProgram(vBoxManagePath());
-        connect(this, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this]() { m_terminateTimeoutTimer.stop(); });
-    }
-
-    bool runSynchronously(const QStringList &arguments)
-    {
         setArguments(arguments);
-        bool finished = CommandSerializer::runSynchronous(this);
-        return finished && exitStatus() == QProcess::NormalExit && exitCode() == 0;
-    }
-
-    void runAsynchronously(const QStringList &arguments)
-    {
-        setArguments(arguments);
-        CommandSerializer::runAsynchronous(this);
-    }
-
-    void setDeleteOnFinished()
-    {
         connect(this, &QProcess::errorOccurred,
-                this, &QObject::deleteLater);
+                this, &VBoxManageProcess::onErrorOccured);
         connect(this, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-                this, &QObject::deleteLater);
+                this, &VBoxManageProcess::onFinished);
+    }
+
+    QList<int> expectedExitCodes() const { return m_expectedExitCodes; }
+    void setExpectedExitCodes(const QList<int> &expectedExitCodes)
+    {
+        m_expectedExitCodes = expectedExitCodes;
     }
 
 public slots:
@@ -302,10 +312,17 @@ public slots:
         if (state() == NotRunning)
             return;
 
+        m_crashExpected = true;
+
         terminate();
         if (!m_terminateTimeoutTimer.isActive())
             m_terminateTimeoutTimer.start(TERMINATE_TIMEOUT_MS, this);
     }
+
+signals:
+    void success();
+    void failure();
+    void done(bool ok);
 
 protected:
     void timerEvent(QTimerEvent *event) override
@@ -320,69 +337,121 @@ protected:
         }
     }
 
+private slots:
+    void onErrorOccured(QProcess::ProcessError error)
+    {
+        if (error == QProcess::FailedToStart) {
+            qCWarning(vms) << "VBoxManage failed to start";
+            emit failure();
+            emit done(false);
+        }
+    }
+
+    void onFinished(int exitCode, QProcess::ExitStatus exitStatus)
+    {
+        m_terminateTimeoutTimer.stop();
+
+        if (exitStatus != QProcess::NormalExit) {
+            if (m_crashExpected) {
+                qCDebug(vms) << "VBoxManage crashed as expected. Arguments:" << arguments();
+                emit success();
+                emit done(true);
+                return;
+            }
+            qCWarning(vms) << "VBoxManage crashed. Arguments:" << arguments();
+            emit failure();
+            emit done(false);
+        } else if (!m_expectedExitCodes.contains(exitCode)) {
+            qCWarning(vms) << "VBoxManage exited with unexpected exit code" << exitCode
+                << ". Arguments:" << arguments();
+            emit failure();
+            emit done(false);
+        } else {
+            emit success();
+            emit done(true);
+        }
+    }
+
 private:
+    QList<int> m_expectedExitCodes = {0};
+    bool m_crashExpected = false;
     QBasicTimer m_terminateTimeoutTimer;
 };
 
-VirtualBoxManager *VirtualBoxManager::m_instance = 0;
+VirtualBoxManager *VirtualBoxManager::s_instance = 0;
 
-VirtualBoxManager::VirtualBoxManager(QObject *parent):
-    QObject(parent)
+VirtualBoxManager::VirtualBoxManager(QObject *parent)
+    : QObject(parent)
+    , m_serializer(std::make_unique<CommandSerializer>(this))
 {
-    m_instance = this;
-    new CommandSerializer(this);
+    s_instance = this;
 }
 
 VirtualBoxManager::~VirtualBoxManager()
 {
-    m_instance = 0;
+    m_serializer->wait();
+    s_instance = 0;
 }
 
 VirtualBoxManager *VirtualBoxManager::instance()
 {
-    QTC_CHECK(m_instance);
-    return m_instance;
+    QTC_CHECK(s_instance);
+    return s_instance;
 }
 
-// accepts void slot(bool running, bool exists)
-void VirtualBoxManager::isVirtualMachineRunning(const QString &vmName, QObject *context,
-                                                   std::function<void(bool, bool)> slot)
+void VirtualBoxManager::probe(const QString &vmName, const QObject *context,
+        const Functor<VirtualMachinePrivate::BasicState, bool> &functor)
 {
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
     QStringList arguments;
     arguments.append(QLatin1String(SHOWVMINFO));
     arguments.append(vmName);
 
-    VBoxManageProcess *process = new VBoxManageProcess(instance());
+    auto process = std::make_unique<VBoxManageProcess>(arguments);
+    connect(process.get(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), context,
+            [=, process = process.get()](int exitCode, QProcess::ExitStatus exitStatus) {
+                VirtualMachinePrivate::BasicState state;
+                if (exitStatus != QProcess::NormalExit) {
+                    functor(state, false);
+                    return;
+                }
+                if (exitCode != 0) {
+                    // Not critical to be very accurate here
+                    functor(state, true);
+                    return;
+                }
+                state |= VirtualMachinePrivate::Existing;
 
-    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), context,
-            [process, vmName, slot](int exitCode, QProcess::ExitStatus exitStatus) {
-                Q_UNUSED(exitCode);
-                Q_UNUSED(exitStatus);
+                bool isHeadless;
                 bool isRunning = isVirtualMachineRunningFromInfo(
-                    QString::fromLocal8Bit(process->readAllStandardOutput()));
-                bool exists = exitCode == 0;
-                slot(isRunning, exists);
+                    QString::fromLocal8Bit(process->readAllStandardOutput()), &isHeadless);
+                if (isRunning)
+                    state |= VirtualMachinePrivate::Running;
+                if (isHeadless)
+                    state |= VirtualMachinePrivate::Headless;
+                functor(state, true);
             });
 
-    process->setDeleteOnFinished();
-    process->runAsynchronously(arguments);
+    s_instance->m_serializer->enqueue(std::move(process));
 }
 
 // It is an error to call this function when the VM vmName is running
-bool VirtualBoxManager::updateSharedFolder(const QString &vmName, const QString &mountName, const QString &newFolder)
+void VirtualBoxManager::updateSharedFolder(const QString &vmName, const QString &mountName,
+            const QString &newFolder, const QObject *context, const Functor<bool> &functor)
 {
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
+    const QPointer<const QObject> context_{context};
+
     QStringList rargs;
     rargs.append(QLatin1String(SHAREDFOLDER));
     rargs.append(QLatin1String(REMOVE_SHARED));
     rargs.append(vmName);
     rargs.append(QLatin1String(SHARE_NAME));
     rargs.append(mountName);
-
-    VBoxManageProcess rproc;
-    if (!rproc.runSynchronously(rargs)) {
-        qWarning() << "VBoxManage failed to remove " << mountName;
-        return false;
-    }
 
     QStringList aargs;
     aargs.append(QLatin1String(SHAREDFOLDER));
@@ -393,30 +462,39 @@ bool VirtualBoxManager::updateSharedFolder(const QString &vmName, const QString 
     aargs.append(QLatin1String(HOSTPATH));
     aargs.append(newFolder);
 
-    VBoxManageProcess aproc;
-    if (!aproc.runSynchronously(aargs)) {
-        qWarning() << "VBoxManage failed to add " << mountName;
-        return false;
-    }
-
     QStringList sargs;
     sargs.append(QLatin1String(SETEXTRADATA));
     sargs.append(vmName);
     sargs.append(QString::fromLatin1(ENABLE_SYMLINKS).arg(mountName));
     sargs.append(QLatin1String(YES_ARG));
 
-    VBoxManageProcess sproc;
-    if (!sproc.runSynchronously(sargs)) {
-        qWarning() << "VBoxManage failed to enable symlinks under " << mountName;
-        return false;
-    }
+    auto enqueue = [=](const QStringList &args, CommandSerializer::BatchId batch) {
+        auto process = std::make_unique<VBoxManageProcess>(args);
+        connect(process.get(), &VBoxManageProcess::failure, s_instance, [=]() {
+            s_instance->m_serializer->cancelBatch(batch);
+            callIf(context_, functor, false);
+        });
+        VBoxManageProcess *process_ = process.get();
+        s_instance->m_serializer->enqueue(std::move(process));
+        return process_;
+    };
 
-    return true;
+    CommandSerializer::BatchId batch = s_instance->m_serializer->beginBatch();
+    enqueue(rargs, batch);
+    enqueue(aargs, batch);
+    VBoxManageProcess *last = enqueue(sargs, batch);
+    s_instance->m_serializer->endBatch();
+
+    connect(last, &VBoxManageProcess::success, context, std::bind(functor, true));
 }
 
 // It is an error to call this function when the VM vmName is running
-bool VirtualBoxManager::updateSdkSshPort(const QString &vmName, quint16 port)
+void VirtualBoxManager::updateSdkSshPort(const QString &vmName, quint16 port,
+        const QObject *context, const Functor<bool> &functor)
 {
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
     qCDebug(vms) << "Setting SSH port forwarding for" << vmName << "to" << port;
 
     QStringList arguments;
@@ -428,23 +506,18 @@ bool VirtualBoxManager::updateSdkSshPort(const QString &vmName, quint16 port)
     arguments.append(QLatin1String(NATPF1));
     arguments.append(QString::fromLatin1(SDK_SSH_NATPF_RULE_TEMPLATE).arg(port));
 
-    QTime timer;
-    timer.start();
-
-    VBoxManageProcess process;
-    if (!process.runSynchronously(arguments)) {
-        qWarning() << "VBoxManage failed to" << MODIFYVM;
-        return false;
-    }
-
-    qCDebug(vms) << "Setting SSH port forwarding took" << timer.elapsed() << "milliseconds";
-
-    return true;
+    auto process = std::make_unique<VBoxManageProcess>(arguments);
+    connect(process.get(), &VBoxManageProcess::done, context, functor);
+    s_instance->m_serializer->enqueue(std::move(process));
 }
 
 // It is an error to call this function when the VM vmName is running
-bool VirtualBoxManager::updateSdkWwwPort(const QString &vmName, quint16 port)
+void VirtualBoxManager::updateSdkWwwPort(const QString &vmName, quint16 port,
+        const QObject *context, const Functor<bool> &functor)
 {
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
     qCDebug(vms) << "Setting WWW port forwarding for" << vmName << "to" << port;
 
     QStringList arguments;
@@ -456,23 +529,18 @@ bool VirtualBoxManager::updateSdkWwwPort(const QString &vmName, quint16 port)
     arguments.append(QLatin1String(NATPF1));
     arguments.append(QString::fromLatin1(SDK_WWW_NATPF_RULE_TEMPLATE).arg(port));
 
-    QTime timer;
-    timer.start();
-
-    VBoxManageProcess process;
-    if (!process.runSynchronously(arguments)) {
-        qWarning() << "VBoxManage failed to" << MODIFYVM;
-        return false;
-    }
-
-    qCDebug(vms) << "Setting WWW port forwarding took" << timer.elapsed() << "milliseconds";
-
-    return true;
+    auto process = std::make_unique<VBoxManageProcess>(arguments);
+    connect(process.get(), &VBoxManageProcess::done, context, functor);
+    s_instance->m_serializer->enqueue(std::move(process));
 }
 
 // It is an error to call this function when the VM vmName is running
-bool VirtualBoxManager::updateEmulatorSshPort(const QString &vmName, quint16 port)
+void VirtualBoxManager::updateEmulatorSshPort(const QString &vmName, quint16 port,
+        const QObject *context, const Functor<bool> &functor)
 {
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
     qCDebug(vms) << "Setting SSH port forwarding for" << vmName << "to" << port;
 
     QStringList arguments;
@@ -484,46 +552,83 @@ bool VirtualBoxManager::updateEmulatorSshPort(const QString &vmName, quint16 por
     arguments.append(QLatin1String(NATPF1));
     arguments.append(QString::fromLatin1(EMULATOR_SSH_NATPF_RULE_TEMPLATE).arg(port));
 
-    QTime timer;
-    timer.start();
-
-    VBoxManageProcess process;
-    if (!process.runSynchronously(arguments)) {
-        qWarning() << "VBoxManage failed to" << MODIFYVM;
-        return false;
-    }
-
-    qCDebug(vms) << "Setting SSH port forwarding took" << timer.elapsed() << "milliseconds";
-
-    return true;
+    auto process = std::make_unique<VBoxManageProcess>(arguments);
+    connect(process.get(), &VBoxManageProcess::done, context, functor);
+    s_instance->m_serializer->enqueue(std::move(process));
 }
 
-VirtualMachineInfo VirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName,
-        ExtraInfos extraInfo)
+void VirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName, ExtraInfos extraInfo,
+        const QObject *context, const Functor<const VirtualMachineInfo &, bool> &functor)
 {
-    VirtualMachineInfo info;
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
+    const QPointer<const QObject> context_{context};
+
+    auto enqueue = [=](const QStringList &arguments, CommandSerializer::BatchId batch, auto onSuccess) {
+        auto process = std::make_unique<VBoxManageProcess>(arguments);
+        connect(process.get(), &VBoxManageProcess::failure, s_instance, [=]() {
+            s_instance->m_serializer->cancelBatch(batch);
+            callIf(context_, functor, VirtualMachineInfo{}, false);
+        });
+        connect(process.get(), &VBoxManageProcess::success,
+                context, std::bind(onSuccess, process.get()));
+        VBoxManageProcess *process_ = process.get();
+        s_instance->m_serializer->enqueue(std::move(process));
+        return process_;
+    };
+
+    CommandSerializer::BatchId batch = s_instance->m_serializer->beginBatch();
+
+    auto info = std::make_shared<VirtualMachineInfo>();
+    VBoxManageProcess *last;
+
     QStringList arguments;
     arguments.append(QLatin1String(SHOWVMINFO));
     arguments.append(vmName);
     arguments.append(QLatin1String(MACHINE_READABLE));
-    VBoxManageProcess process;
-    if (!process.runSynchronously(arguments))
-        return info;
 
-    info = virtualMachineInfoFromOutput(QString::fromLocal8Bit(process.readAllStandardOutput()));
+    last = enqueue(arguments, batch, [=](VBoxManageProcess *process) {
+        // FIXME return by argument
+        *info = virtualMachineInfoFromOutput(
+                QString::fromLocal8Bit(process->readAllStandardOutput()));
+    });
 
-    if (extraInfo & VdiInfo)
-        fetchVdiInfo(&info);
+    if (extraInfo & VdiInfo) {
+        QStringList arguments;
+        arguments.append(QLatin1String(LIST));
+        arguments.append(QLatin1String(HDDS));
 
-    if (extraInfo & SnapshotInfo)
-        fetchSnapshotInfo(vmName, &info);
+        last = enqueue(arguments, batch, [=](VBoxManageProcess *process) {
+            vdiInfoFromOutput(QString::fromLocal8Bit(process->readAllStandardOutput()), info.get());
+        });
+    }
 
-    return info;
+    if (extraInfo & SnapshotInfo) {
+        QStringList arguments;
+        arguments.append(QLatin1String(SNAPSHOT));
+        arguments.append(vmName);
+        arguments.append(QLatin1String(LIST));
+        arguments.append(QLatin1String(MACHINE_READABLE));
+
+        last = enqueue(arguments, batch, [=](VBoxManageProcess *process) {
+            snapshotInfoFromOutput(QString::fromLocal8Bit(process->readAllStandardOutput()),
+                    info.get());
+        });
+    }
+
+    s_instance->m_serializer->endBatch();
+
+    connect(last, &VBoxManageProcess::success, context, [=]() { functor(*info, true); });
 }
 
 // It is an error to call this function when the VM vmName is running
-void VirtualBoxManager::startVirtualMachine(const QString &vmName,bool headless)
+void VirtualBoxManager::startVirtualMachine(const QString &vmName, bool headless,
+        const QObject *context, const Functor<bool> &functor)
 {
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
     QStringList arguments;
     arguments.append(QLatin1String(STARTVM));
     arguments.append(vmName);
@@ -532,135 +637,169 @@ void VirtualBoxManager::startVirtualMachine(const QString &vmName,bool headless)
         arguments.append(QLatin1String(HEADLESS));
     }
 
-    VBoxManageProcess *process = new VBoxManageProcess(instance());
-    process->setDeleteOnFinished();
-    process->runAsynchronously(arguments);
+    auto process = std::make_unique<VBoxManageProcess>(arguments);
+    connect(process.get(), &VBoxManageProcess::done, context, functor);
+    s_instance->m_serializer->enqueue(std::move(process));
 }
 
 // It is an error to call this function when the VM vmName is not running
-void VirtualBoxManager::shutVirtualMachine(const QString &vmName)
+void VirtualBoxManager::shutVirtualMachine(const QString &vmName, const QObject *context,
+            const Functor<bool> &functor)
 {
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
     QStringList arguments;
     arguments.append(QLatin1String(CONTROLVM));
     arguments.append(vmName);
     arguments.append(QLatin1String(ACPI_POWER_BUTTON));
 
-    VBoxManageProcess *process = new VBoxManageProcess(instance());
-    process->setDeleteOnFinished();
-    process->runAsynchronously(arguments);
+    auto process = std::make_unique<VBoxManageProcess>(arguments);
+    connect(process.get(), &VBoxManageProcess::done, context, functor);
+    s_instance->m_serializer->enqueue(std::move(process));
 }
 
 // accepts void slot(bool ok)
 void VirtualBoxManager::restoreSnapshot(const QString &vmName, const QString &snapshotName,
-            QObject *context, std::function<void(bool)> slot)
+            const QObject *context, const Functor<bool> &functor)
 {
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
     QStringList arguments;
     arguments.append(QLatin1String(SNAPSHOT));
     arguments.append(vmName);
     arguments.append(QLatin1String(RESTORE));
     arguments.append(snapshotName);
 
-    VBoxManageProcess *process = new VBoxManageProcess(instance());
-
-    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), context,
-            [process, vmName, slot](int exitCode, QProcess::ExitStatus exitStatus) {
-                slot(exitStatus == QProcess::NormalExit && exitCode == 0);
-            });
-
-    process->setDeleteOnFinished();
-    process->runAsynchronously(arguments);
+    auto process = std::make_unique<VBoxManageProcess>(arguments);
+    connect(process.get(), &VBoxManageProcess::done, context, functor);
+    s_instance->m_serializer->enqueue(std::move(process));
 }
 
-QStringList VirtualBoxManager::fetchRegisteredVirtualMachines()
+void VirtualBoxManager::fetchRegisteredVirtualMachines(const QObject *context,
+        const Functor<const QStringList &, bool> &functor)
 {
-    QStringList vms;
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
     QStringList arguments;
     arguments.append(QLatin1String(LIST));
     arguments.append(QLatin1String(VMS));
-    VBoxManageProcess process;
-    if (!process.runSynchronously(arguments))
-        return vms;
 
-    return listedVirtualMachines(QString::fromLocal8Bit(process.readAllStandardOutput()));
+    auto process = std::make_unique<VBoxManageProcess>(arguments);
+    connect(process.get(), &VBoxManageProcess::done,
+            context, [=, process = process.get()](bool ok) {
+        if (!ok) {
+            functor({}, false);
+            return;
+        }
+        QStringList vms = listedVirtualMachines(QString::fromLocal8Bit(
+                process->readAllStandardOutput()));
+        functor(vms, true);
+    });
+    s_instance->m_serializer->enqueue(std::move(process));
 }
 
 // It is an error to call this function when the VM vmName is running
-void VirtualBoxManager::setVideoMode(const QString &vmName, const QSize &size, int depth)
+void VirtualBoxManager::setVideoMode(const QString &vmName, const QSize &size, int depth,
+        const QObject *context, const Functor<bool> &functor)
 {
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
+    const QPointer<const QObject> context_{context};
+
     QString videoMode = QStringLiteral("%1x%2x%3")
         .arg(size.width())
         .arg(size.height())
         .arg(depth);
-    setExtraData(vmName, QLatin1String(CUSTOM_VIDEO_MODE1), videoMode);
-
     QString hint = QStringLiteral("%1,%2")
         .arg(size.width())
         .arg(size.height());
-    setExtraData(vmName, QLatin1String(LAST_GUEST_SIZE_HINT), hint);
-    setExtraData(vmName, QLatin1String(AUTORESIZE_GUEST), QLatin1Literal("false"));
-}
-
-void VirtualBoxManager::setVdiCapacityMb(const QString &vmName, int sizeMb, QObject *context, std::function<void(bool)> slot)
-{
-    qCDebug(vms) << "Changing vdi size of" << vmName << "to" << sizeMb << "MB";
-
-    const VirtualMachineInfo virtualMachineInfo = fetchVirtualMachineInfo(vmName, VdiInfo);
-    if (sizeMb < virtualMachineInfo.vdiCapacityMb) {
-        qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << virtualMachineInfo.vdiUuid << RESIZE << sizeMb
-                   << "for VM" << vmName << ". Can't reduce VDI. Current size:" << virtualMachineInfo.vdiCapacityMb;
-        QTimer::singleShot(0, context, [slot]() { slot(false); });
-        return;
-    } else if (sizeMb == virtualMachineInfo.vdiCapacityMb) {
-        QTimer::singleShot(0, context, [slot]() { slot(true); });
-        return;
-    }
-
-    if (virtualMachineInfo.allRelatedVdiUuids.isEmpty()) {
-        // Something went wrong, an error message should have been already issued
-        QTimer::singleShot(0, context, [slot]() { slot(false); });
-        return;
-    }
-
-    QStringList toResize = virtualMachineInfo.allRelatedVdiUuids;
-    qCDebug(vms) << "About to resize these VDIs (in order):" << toResize;
-
-    QTime timer;
-    timer.start();
 
     auto allOk = std::make_shared<bool>(true);
-    while (!toResize.isEmpty()) {
-        const QString vdiUuid = toResize.takeFirst();
-        const bool isLast = toResize.isEmpty();
+    auto enqueue = [=](const QString &key, const QString &value, bool isLast = false) {
+        setExtraData(vmName, key, value, s_instance, [=](bool ok) {
+            if (!ok)
+                *allOk = false;
+            if (isLast)
+                callIf(context_, functor, *allOk);
+        });
+    };
 
-        QStringList arguments;
-        arguments.append(QLatin1String(MODIFYMEDIUM));
-        arguments.append(vdiUuid);
-        arguments.append(QLatin1String(RESIZE));
-        arguments.append(QString::number(sizeMb));
+    enqueue(QLatin1String(CUSTOM_VIDEO_MODE1), videoMode);
+    enqueue(QLatin1String(LAST_GUEST_SIZE_HINT), hint);
+    enqueue(QLatin1String(AUTORESIZE_GUEST), QLatin1Literal("false"), true /* mind me! */);
+}
 
-        VBoxManageProcess *process = new VBoxManageProcess(instance());
+void VirtualBoxManager::setVdiCapacityMb(const QString &vmName, int sizeMb, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
 
-        connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), context,
-                    [timer, vdiUuid, isLast, allOk, slot](int exitCode, QProcess::ExitStatus exitStatus) {
-                        const bool ok = exitStatus == QProcess::NormalExit && exitCode == 0;
-                        if (!ok) {
-                            qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << vdiUuid << RESIZE;
-                            *allOk = false;
-                        }
-                        if (isLast) {
-                            qCDebug(vms) << "Resizing VDIs took" << timer.elapsed() << "milliseconds";
-                            slot(*allOk);
-                        }
-                    });
+    qCDebug(vms) << "Changing vdi size of" << vmName << "to" << sizeMb << "MB";
 
-        process->setDeleteOnFinished();
-        process->runAsynchronously(arguments);
-    }
+    const QPointer<const QObject> context_{context};
+    fetchVirtualMachineInfo(vmName, VdiInfo, s_instance,
+            [=](const VirtualMachineInfo &virtualMachineInfo, bool ok) {
+        if (!ok) {
+            callIf(context_, functor, false);
+            return;
+        }
+        if (sizeMb < virtualMachineInfo.vdiCapacityMb) {
+            qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << virtualMachineInfo.vdiUuid << RESIZE << sizeMb
+                       << "for VM" << vmName << ". Can't reduce VDI. Current size:" << virtualMachineInfo.vdiCapacityMb;
+            callIf(context_, functor, false);
+            return;
+        } else if (sizeMb == virtualMachineInfo.vdiCapacityMb) {
+            callIf(context_, functor, true);
+            return;
+        }
+
+        if (virtualMachineInfo.allRelatedVdiUuids.isEmpty()) {
+            // Something went wrong, an error message should have been already issued
+            callIf(context_, functor, false);
+            return;
+        }
+
+        QStringList toResize = virtualMachineInfo.allRelatedVdiUuids;
+        qCDebug(vms) << "About to resize these VDIs (in order):" << toResize;
+
+        auto allOk = std::make_shared<bool>(true);
+        while (!toResize.isEmpty()) {
+            // take last - enqueueImmediate reverses the actual order of execution
+            const QString vdiUuid = toResize.takeLast();
+            const bool isLast = toResize.isEmpty();
+
+            QStringList arguments;
+            arguments.append(QLatin1String(MODIFYMEDIUM));
+            arguments.append(vdiUuid);
+            arguments.append(QLatin1String(RESIZE));
+            arguments.append(QString::number(sizeMb));
+
+            auto process = std::make_unique<VBoxManageProcess>(arguments);
+            connect(process.get(), &VBoxManageProcess::done, s_instance, [=](bool ok) {
+                if (!ok) {
+                    qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << vdiUuid << RESIZE;
+                    *allOk = false;
+                }
+                if (isLast)
+                    callIf(context_, functor, *allOk);
+            });
+            s_instance->m_serializer->enqueueImmediate(std::move(process));
+        }
+    });
 }
 
 // It is an error to call this function when the VM vmName is running
-bool VirtualBoxManager::setMemorySizeMb(const QString &vmName, int sizeMb)
+void VirtualBoxManager::setMemorySizeMb(const QString &vmName, int sizeMb, const QObject *context,
+        const Functor<bool> &functor)
 {
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
     qCDebug(vms) << "Changing memory size of" << vmName << "to" << sizeMb << "MB";
 
     QStringList arguments;
@@ -669,22 +808,17 @@ bool VirtualBoxManager::setMemorySizeMb(const QString &vmName, int sizeMb)
     arguments.append(QLatin1String(MEMORY));
     arguments.append(QString::number(sizeMb));
 
-    QTime timer;
-    timer.start();
-
-    VBoxManageProcess process;
-    if (!process.runSynchronously(arguments)) {
-        qWarning() << "VBoxManage failed to" << MODIFYVM << vmName << MEMORY << sizeMb;
-        return false;
-    }
-
-    qCDebug(vms) << "Resizing memory took" << timer.elapsed() << "milliseconds";
-
-    return true;
+    auto process = std::make_unique<VBoxManageProcess>(arguments);
+    connect(process.get(), &VBoxManageProcess::done, context, functor);
+    s_instance->m_serializer->enqueue(std::move(process));
 }
 
-bool VirtualBoxManager::setCpuCount(const QString &vmName, int count)
+void VirtualBoxManager::setCpuCount(const QString &vmName, int count, const QObject *context,
+        const Functor<bool> &functor)
 {
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
     qCDebug(vms) << "Changing CPU count of" << vmName << "to" << count;
 
     QStringList arguments;
@@ -693,37 +827,41 @@ bool VirtualBoxManager::setCpuCount(const QString &vmName, int count)
     arguments.append(QLatin1String(CPUS));
     arguments.append(QString::number(count));
 
-    QTime timer;
-    timer.start();
-
-    VBoxManageProcess process;
-    if (!process.runSynchronously(arguments)) {
-        qWarning() << "VBoxManage failed to" << MODIFYVM << vmName << CPUS << count;
-        return false;
-    }
-
-    qCDebug(vms) << "Changing CPU count took" << timer.elapsed() << "milliseconds";
-
-    return true;
+    auto process = std::make_unique<VBoxManageProcess>(arguments);
+    connect(process.get(), &VBoxManageProcess::done, context, functor);
+    s_instance->m_serializer->enqueue(std::move(process));
 }
 
-QString VirtualBoxManager::getExtraData(const QString &vmName, const QString &key)
+void VirtualBoxManager::fetchExtraData(const QString &vmName, const QString &key,
+        const QObject *context, const Functor<QString, bool> &functor)
 {
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
     QStringList arguments;
     arguments.append(QLatin1String(GETEXTRADATA));
     arguments.append(vmName);
     arguments.append(key);
-    VBoxManageProcess process;
-    if (!process.runSynchronously(arguments)) {
-        qWarning() << "VBoxManage failed to getextradata";
-        return QString();
-    }
 
-    return QString::fromLocal8Bit(process.readAllStandardOutput());
+    auto process = std::make_unique<VBoxManageProcess>(arguments);
+    connect(process.get(), &VBoxManageProcess::done,
+            context, [=, process = process.get()](bool ok) {
+        if (!ok) {
+            functor({}, false);
+            return;
+        }
+        auto data = QString::fromLocal8Bit(process->readAllStandardOutput());
+        functor(data, true);
+    });
+    s_instance->m_serializer->enqueue(std::move(process));
 }
 
-void VirtualBoxManager::getHostTotalMemorySizeMb(QObject *context, std::function<void(int)> slot)
+void VirtualBoxManager::fetchHostTotalMemorySizeMb(const QObject *context,
+            const Functor<int, bool> &functor)
 {
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
     QStringList arguments;
     arguments.clear();
     arguments.append(QLatin1String(METRICS));
@@ -731,22 +869,25 @@ void VirtualBoxManager::getHostTotalMemorySizeMb(QObject *context, std::function
     arguments.append(QLatin1String("host"));
     arguments.append(QLatin1String(TOTAL_RAM));
 
-    auto process = new VBoxManageProcess(instance());
-    connect(process, &QProcess::readyReadStandardOutput, context, [process, slot](){
+    auto process = std::make_unique<VBoxManageProcess>(arguments);
+    QMetaObject::Connection failureConnection = connect(process.get(), &VBoxManageProcess::failure,
+            context, std::bind(functor, 0, false));
+    connect(process.get(), &QProcess::readyReadStandardOutput,
+            context, [=, process = process.get()](){
         bool matched;
         auto memSizeKb = ramSizeFromOutput(QString::fromLocal8Bit(process->readAllStandardOutput()),
                 &matched);
         if (!matched)
             return;
+        QObject::disconnect(failureConnection);
         process->closeReadChannel(QProcess::StandardOutput);
         process->reallyTerminate();
-        slot(memSizeKb / 1024);
+        functor(memSizeKb / 1024, true);
     });
 
-    connect(context, &QObject::destroyed, process, &VBoxManageProcess::reallyTerminate);
+    connect(context, &QObject::destroyed, process.get(), &VBoxManageProcess::reallyTerminate);
 
-    process->setDeleteOnFinished();
-    process->runAsynchronously(arguments);
+    s_instance->m_serializer->enqueue(std::move(process));
 }
 
 int VirtualBoxManager::getHostTotalCpuCount()
@@ -754,82 +895,96 @@ int VirtualBoxManager::getHostTotalCpuCount()
     return QThread::idealThreadCount();
 }
 
-void VirtualBoxManager::setExtraData(const QString &vmName, const QString &keyword, const QString &data)
+void VirtualBoxManager::setExtraData(const QString &vmName, const QString &keyword,
+        const QString &data, const QObject *context, const Functor<bool> &functor)
 {
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
     QStringList args;
     args.append(QLatin1String(SETEXTRADATA));
     args.append(vmName);
     args.append(keyword);
     args.append(data);
 
-    VBoxManageProcess *process = new VBoxManageProcess(instance());
-    process->setDeleteOnFinished();
-    process->runAsynchronously(args);
+    auto process = std::make_unique<VBoxManageProcess>(args);
+    connect(process.get(), &VBoxManageProcess::done, context, functor);
+    s_instance->m_serializer->enqueue(std::move(process));
 }
 
 // It is an error to call this function when the VM vmName is running
-bool VirtualBoxManager::deletePortForwardingRule(const QString &vmName, const QString &ruleName)
+void VirtualBoxManager::deletePortForwardingRule(const QString &vmName, const QString &ruleName,
+        const QObject *context, const Functor<bool> &functor)
 {
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
     qCDebug(vms) << "Deleting port forwarding rule" << ruleName << "from" << vmName;
+
     QStringList arguments;
     arguments.append(QLatin1String(MODIFYVM));
     arguments.append(vmName);
     arguments.append(QLatin1String(NATPF1));
     arguments.append(QLatin1String(DELETE));
     arguments.append(ruleName);
-    QTime timer;
-    timer.start();
-    VBoxManageProcess process;
-    if (!process.runSynchronously(arguments)) {
-        qWarning() << "VBoxManage failed to" << MODIFYVM;
-        return false;
-    }
-    qCDebug(vms) << "Deleting port forwarding for rule" << ruleName
-                      <<  "took" << timer.elapsed() << "milliseconds";
-    return true;
+
+    auto process = std::make_unique<VBoxManageProcess>(arguments);
+    connect(process.get(), &VBoxManageProcess::done, context, functor);
+    s_instance->m_serializer->enqueue(std::move(process));
 }
 
 // It is an error to call this function when the VM vmName is running
-bool VirtualBoxManager::updatePortForwardingRule(const QString &vmName, const QString &ruleName,
-                                                    const QString &protocol, quint16 newHostPort,
-                                                    quint16 newVmPort)
+void VirtualBoxManager::updatePortForwardingRule(const QString &vmName, const QString &protocol,
+        const QString &ruleName, quint16 hostPort, quint16 vmPort,
+        const QObject *context, const Functor<bool> &functor)
 {
-    if (deletePortForwardingRule(vmName, ruleName))
-        return false;
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
+    deletePortForwardingRule(vmName, ruleName, s_instance, [](bool) {/* noop */});
+
     qCDebug(vms) << "Setting port forwarding for" << vmName << "from"
-                          << newHostPort << "to" << newVmPort;
+        << hostPort << "to" << vmPort;
+
     QStringList arguments;
     arguments.append(QLatin1String(MODIFYVM));
     arguments.append(vmName);
     arguments.append(QLatin1String(NATPF1));
     arguments.append(QString::fromLatin1("%1,%2,,%3,,%4")
-                     .arg(ruleName).arg(protocol).arg(newHostPort).arg(newVmPort));
-    QTime timer;
-    timer.start();
-    VBoxManageProcess process;
-    if (!process.runSynchronously(arguments)) {
-        qWarning() << "VBoxManage failed to" << MODIFYVM;
-        return false;
-    }
-    qCDebug(vms) << "Setting port forwarding for rule" << ruleName
-                      <<  "took" << timer.elapsed() << "milliseconds";
-    return true;
+                     .arg(ruleName).arg(protocol).arg(hostPort).arg(vmPort));
+
+    auto process = std::make_unique<VBoxManageProcess>(arguments);
+    connect(process.get(), &VBoxManageProcess::done, context, functor);
+    s_instance->m_serializer->enqueueImmediate(std::move(process));
 }
 
-QList<QMap<QString, quint16> > VirtualBoxManager::fetchPortForwardingRules(
-        const QString &vmName) {
-    VirtualMachineInfo vmInfo = fetchVirtualMachineInfo(vmName);
-    return QList<QMap<QString, quint16>>({vmInfo.otherPorts, vmInfo.qmlLivePorts,
-                                          vmInfo.freePorts});
+void VirtualBoxManager::fetchPortForwardingRules(const QString &vmName, const QObject *context,
+        const Functor<const QList<QMap<QString, quint16>> &, bool> &functor)
+{
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
+    fetchVirtualMachineInfo(vmName, VdiInfo,
+            context, [=](const VirtualMachineInfo &vmInfo, bool ok) {
+        if (!ok) {
+            functor({}, false);
+            return;
+        }
+        auto rules = QList<QMap<QString, quint16>>({vmInfo.otherPorts, vmInfo.qmlLivePorts,
+                vmInfo.freePorts});
+        functor(rules, true);
+    });
 }
 
 // It is an error to call this function when the VM vmName is running
-Utils::PortList VirtualBoxManager::updateEmulatorQmlLivePorts(const QString &vmName, const QList<Utils::Port> &ports)
+void VirtualBoxManager::updateEmulatorQmlLivePorts(const QString &vmName,
+        const QList<Utils::Port> &ports, const QObject *context,
+        const Functor<const Utils::PortList &, bool> &functor)
 {
-    qCDebug(vms) << "Setting QmlLive port forwarding for" << vmName << "to" << ports;
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
 
-    QTime timer;
-    timer.start();
+    qCDebug(vms) << "Setting QmlLive port forwarding for" << vmName << "to" << ports;
 
     for (int i = 1; i <= Constants::MAX_QML_LIVE_PORTS; ++i) {
         QStringList arguments;
@@ -839,17 +994,20 @@ Utils::PortList VirtualBoxManager::updateEmulatorQmlLivePorts(const QString &vmN
         arguments.append(QLatin1String(DELETE));
         arguments.append(QString::fromLatin1(QML_LIVE_NATPF_RULE_NAME_TEMPLATE).arg(i));
 
-        VBoxManageProcess process;
-        if (!process.runSynchronously(arguments))
+        auto process = std::make_unique<VBoxManageProcess>(arguments);
+        connect(process.get(), &VBoxManageProcess::failure, [=]() {
             qWarning() << "VBoxManage failed to delete QmlLive port #" << QString::number(i);
+        });
+        s_instance->m_serializer->enqueue(std::move(process));
     }
 
-    Utils::PortList savedPorts;
+    auto savedPorts = std::make_shared<Utils::PortList>();
 
     auto ports_ = ports;
     std::sort(ports_.begin(), ports_.end());
 
     int i = 1;
+    VBoxManageProcess *lastSetProcess = nullptr;
     foreach (const Utils::Port &port, ports_) {
         QStringList arguments;
         arguments.append(QLatin1String(MODIFYVM));
@@ -857,26 +1015,45 @@ Utils::PortList VirtualBoxManager::updateEmulatorQmlLivePorts(const QString &vmN
         arguments.append(QLatin1String(NATPF1));
         arguments.append(QString::fromLatin1(QML_LIVE_NATPF_RULE_TEMPLATE).arg(i).arg(port.number()));
 
-        VBoxManageProcess process;
-        if (!process.runSynchronously(arguments)) {
-            qWarning() << "VBoxManage failed to set QmlLive port" << port.toString();
-            continue;
-        }
-
-        savedPorts.addPort(port);
+        auto process = std::make_unique<VBoxManageProcess>(arguments);
+        connect(process.get(), &VBoxManageProcess::done, s_instance, [=](bool ok) {
+            if (ok)
+                savedPorts->addPort(port);
+            else
+                qWarning() << "VBoxManage failed to set QmlLive port" << port.toString();
+        });
+        s_instance->m_serializer->enqueue(std::move(process));
         ++i;
+        lastSetProcess = process.get();
     }
 
-    qCDebug(vms) << "Setting QmlLive port forwarding took" << timer.elapsed() << "milliseconds";
+    connect(lastSetProcess, &VBoxManageProcess::done, context, [=](bool ok) {
+        Q_UNUSED(ok);
 
-    return savedPorts;
+        auto isPortListEqual = [] (Utils::PortList l1, const QList<Utils::Port> &l2) {
+            if (l1.count() != l2.count())
+                return false;
+
+            while (l1.hasMore()) {
+                const Port current = l1.getNext();
+                if (!l2.contains(current))
+                    return false;
+            }
+            return true;
+        };
+
+        functor(*savedPorts, isPortListEqual(*savedPorts, ports_));
+    });
 }
 
-bool isVirtualMachineRunningFromInfo(const QString &vmInfo)
+bool isVirtualMachineRunningFromInfo(const QString &vmInfo, bool *headless)
 {
+    Q_ASSERT(headless);
     // VBox 4.x says "type", 5.x says "name"
-    QRegularExpression re(QStringLiteral("^Session (name|type):"), QRegularExpression::MultilineOption);
-    return re.match(vmInfo).hasMatch();
+    QRegularExpression re(QStringLiteral("^Session (name|type):\\s*(\\w+)"), QRegularExpression::MultilineOption);
+    QRegularExpressionMatch match = re.match(vmInfo);
+    *headless = match.captured(2) == QLatin1String("headless");
+    return match.hasMatch();
 }
 
 QStringList listedVirtualMachines(const QString &output)
@@ -976,18 +1153,6 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
     return info;
 }
 
-void fetchVdiInfo(VirtualMachineInfo *virtualMachineInfo)
-{
-    QStringList arguments;
-    arguments.append(QLatin1String(LIST));
-    arguments.append(QLatin1String(HDDS));
-    VBoxManageProcess process;
-    if (!process.runSynchronously(arguments))
-        return;
-
-    vdiInfoFromOutput(QString::fromLocal8Bit(process.readAllStandardOutput()), virtualMachineInfo);
-}
-
 void vdiInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo)
 {
     // 1 UUID
@@ -1072,20 +1237,6 @@ int ramSizeFromOutput(const QString &output, bool *matched)
         return memSize;
     }
     return 0;
-}
-
-void fetchSnapshotInfo(const QString &vmName, VirtualMachineInfo *virtualMachineInfo)
-{
-    QStringList arguments;
-    arguments.append(QLatin1String(SNAPSHOT));
-    arguments.append(vmName);
-    arguments.append(QLatin1String(LIST));
-    arguments.append(QLatin1String(MACHINE_READABLE));
-    VBoxManageProcess process;
-    if (!process.runSynchronously(arguments))
-        return;
-
-    snapshotInfoFromOutput(QString::fromLocal8Bit(process.readAllStandardOutput()), virtualMachineInfo);
 }
 
 void snapshotInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo)

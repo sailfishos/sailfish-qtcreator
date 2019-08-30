@@ -65,7 +65,11 @@ MerEmualtorVMPage::MerEmualtorVMPage(QWidget *parent): QWizardPage(parent),
     static QRegExp regExp(tr("Emulator"));
 
     const QSet<QString> usedVMs = VBoxVirtualMachine::usedVirtualMachines().toSet();
-    const QStringList registeredVMs = VirtualBoxManager::fetchRegisteredVirtualMachines();
+    QStringList registeredVMs;
+    bool ok;
+    execAsynchronous(std::tie(registeredVMs, ok),
+            VirtualBoxManager::fetchRegisteredVirtualMachines);
+    QTC_CHECK(ok);
     foreach (const QString &vm, registeredVMs) {
         // add only unused machines
         if (!usedVMs.contains(vm)) {
@@ -160,8 +164,12 @@ void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
         tryName = vmName + QString::number(++i);
     m_ui->configNameLineEdit->setText(tryName);
 
-    VirtualMachineInfo info = VirtualBoxManager::fetchVirtualMachineInfo(vmName,
+    VirtualMachineInfo info;
+    bool ok;
+    execAsynchronous(std::tie(info, ok), VirtualBoxManager::fetchVirtualMachineInfo, vmName,
             VirtualBoxManager::VdiInfo | VirtualBoxManager::SnapshotInfo);
+    QTC_CHECK(ok);
+
     if (info.sshPort == 0)
         m_ui->sshPortLabelEdit->setText(tr("none"));
     else

@@ -27,6 +27,8 @@
 #include <sfdk/vboxvirtualmachine_p.h>
 #include <sfdk/virtualboxmanager_p.h>
 
+#include <utils/qtcassert.h>
+
 #include <QListWidgetItem>
 #include <QPushButton>
 
@@ -42,7 +44,11 @@ MerSdkSelectionDialog::MerSdkSelectionDialog(QWidget *parent)
     m_ui->setupUi(this);
 
     const QSet<QString> usedVMs = VBoxVirtualMachine::usedVirtualMachines().toSet();
-    const QStringList registeredVMs = VirtualBoxManager::fetchRegisteredVirtualMachines();
+    QStringList registeredVMs;
+    bool ok;
+    execAsynchronous(std::tie(registeredVMs, ok),
+            VirtualBoxManager::fetchRegisteredVirtualMachines);
+    QTC_CHECK(ok);
     foreach (const QString &vm, registeredVMs) {
         // add only unused machines
         if (!usedVMs.contains(vm)) {

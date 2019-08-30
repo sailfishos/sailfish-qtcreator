@@ -22,29 +22,36 @@
 
 #pragma once
 
-#include <QLoggingCategory>
+#include "sfdkglobal.h"
 
-#include <memory>
+#include <QEventLoop>
+#include <QPointer>
 
-#if defined(SFDK_LIBRARY)
-#  define SFDK_EXPORT Q_DECL_EXPORT
-#else
-#  define SFDK_EXPORT Q_DECL_IMPORT
-#endif
-
-QT_BEGIN_NAMESPACE
-#if QT_VERSION < QT_VERSION_CHECK(5, 12, 0)
-// Allow using Qt's own PIMPL related macros with std::unique_ptr
-template <typename T> static inline T *qGetPtrHelper(const std::unique_ptr<T> &p) { return p.get(); }
-#endif
-QT_END_NAMESPACE
+#include <tuple>
+#include <utility>
 
 namespace Sfdk {
-inline namespace Log {
 
-Q_DECLARE_LOGGING_CATEGORY(lib)
-Q_DECLARE_LOGGING_CATEGORY(vms)
-Q_DECLARE_LOGGING_CATEGORY(vmsQueue)
+template<typename... Ts>
+using Functor = std::function<void(Ts...)>;
 
-} // namespace Log
+template<typename Fn, typename... Args>
+void callIf(const QPointer<const QObject> &context, const Fn &fn, Args&&... args)
+{
+    if (context)
+        fn(std::forward<Args>(args)...);
+}
+
+template<typename Fn, typename... InArgs, typename... OutArgs>
+void execAsynchronous(std::tuple<OutArgs&...> outArgs, const Fn &fn, InArgs&&... inArgs)
+{
+	QEventLoop loop;
+	auto whenDone = [&loop, &outArgs](OutArgs...as) {
+		loop.quit();
+		outArgs = std::tie(as...);
+	};
+	fn(std::forward<InArgs>(inArgs)..., &loop, whenDone);
+	loop.exec();
+}
+
 } // namespace Sfdk

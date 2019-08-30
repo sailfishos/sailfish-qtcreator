@@ -185,6 +185,7 @@ VmConnection::VmConnection(VirtualMachine *parent)
     , m_connectOptions(VirtualMachine::NoConnectOption)
     , m_cachedVmExists(true)
     , m_cachedVmRunning(false)
+    , m_cachedVmRunningHeadless(false)
     , m_cachedSshConnected(false)
     , m_cachedSshErrorOccured(false)
     , m_vmWantFastPollState(0)
@@ -197,6 +198,7 @@ VmConnection::VmConnection(VirtualMachine *parent)
         // Do this right now to prevent unexpected behavior
         m_cachedVmExists = true;
         m_cachedVmRunning = false;
+        m_cachedVmRunningHeadless = false;
         m_vmStatePollTimer.stop();
     });
 
@@ -235,7 +237,7 @@ bool VmConnection::isVirtualMachineOff(bool *runningHeadless, bool *startedOutsi
 {
     if (runningHeadless) {
         if (m_cachedVmRunning)
-            *runningHeadless = VirtualMachinePrivate::get(m_vm)->isHeadlessEffectively();
+            *runningHeadless = m_cachedVmRunningHeadless;
         else if (m_vmState == VmStarting) // try to be accurate
             *runningHeadless = m_vm->isHeadless();
         else
@@ -627,7 +629,7 @@ bool VmConnection::vmStmStep()
             vmWantFastPollState(true);
             m_vmStartingTimeoutTimer.start(VM_START_TIMEOUT, this);
 
-            VirtualMachinePrivate::get(m_vm)->start();
+            VirtualMachinePrivate::get(m_vm)->start(this, [](bool) { /* ignore */ });
         }
 
         if (m_cachedVmRunning) {
@@ -776,7 +778,7 @@ bool VmConnection::vmStmStep()
             vmWantFastPollState(true);
             m_vmHardClosingTimeoutTimer.start(VM_HARD_CLOSE_TIMEOUT, this);
 
-            VirtualBoxManager::shutVirtualMachine(m_vm->name());
+            VirtualMachinePrivate::get(m_vm)->stop(this, [](bool) { /* ignore */ });
         }
 
         if (!m_cachedVmRunning) {
@@ -1066,12 +1068,24 @@ void VmConnection::vmPollState(VirtualMachine::Synchronization synchronization)
     if (synchronization == VirtualMachine::Synchronous)
         loop = new QEventLoop(this);
 
-    auto handler = [this, loop](bool vmRunning, bool vmExists) {
+    auto handler = [this, loop](VirtualMachinePrivate::BasicState state, bool success) {
+        if (!success) {
+            m_pollingVmState = false;
+            if (loop)
+                loop->quit();
+            return;
+        }
+
+        const bool vmExists = state & VirtualMachinePrivate::Existing;
+        const bool vmRunning = state & VirtualMachinePrivate::Running;
+        const bool vmHeadless = state & VirtualMachinePrivate::Headless;
+
         bool changed = false;
 
         if (vmRunning != m_cachedVmRunning) {
             DBG << "VM running:" << m_cachedVmRunning << "-->" << vmRunning;
             m_cachedVmRunning = vmRunning;
+            m_cachedVmRunningHeadless = vmHeadless;
             emit virtualMachineOffChanged(!m_cachedVmRunning);
             changed = true;
         }
@@ -1091,7 +1105,7 @@ void VmConnection::vmPollState(VirtualMachine::Synchronization synchronization)
             loop->quit();
     };
 
-    VirtualMachinePrivate::get(m_vm)->isRunning(this, handler);
+    VirtualMachinePrivate::get(m_vm)->probe(this, handler);
 
     if (synchronization == VirtualMachine::Synchronous) {
         loop->exec();

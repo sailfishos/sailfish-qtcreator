@@ -50,10 +50,10 @@ class VBoxVirtualMachinePrivate : public VirtualMachinePrivate
 public:
     using VirtualMachinePrivate::VirtualMachinePrivate;
 
-    void start() override;
-    void stop() override;
-    void isRunning(QObject *context, std::function<void(bool,bool)> slot) const override;
-    bool isHeadlessEffectively() const override;
+    void start(const QObject *context, const Functor<bool> &functor) override;
+    void stop(const QObject *context, const Functor<bool> &functor) override;
+    void probe(const QObject *context,
+            const Functor<BasicState, bool> &functor) const override;
 
 protected:
     void prepareForNameChange() override;

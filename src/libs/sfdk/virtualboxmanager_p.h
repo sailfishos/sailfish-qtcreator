@@ -25,7 +25,9 @@
 
 #pragma once
 
+#include "asynchronous.h"
 #include "sfdkglobal.h"
+#include "virtualmachine_p.h"
 
 #include <QMap>
 #include <QObject>
@@ -71,6 +73,7 @@ public:
 // FIXME internal
 // TODO Errors should be reported in the UI
 // TODO Use UUIDs instead of names - names may not be unique
+class CommandSerializer;
 class SFDK_EXPORT VirtualBoxManager : public QObject
 {
     Q_OBJECT
@@ -85,37 +88,65 @@ public:
     VirtualBoxManager(QObject *parent = 0);
     static VirtualBoxManager* instance();
     ~VirtualBoxManager() override;
-    static void isVirtualMachineRunning(const QString &vmName, QObject *context,
-                                        std::function<void(bool,bool)> slot);
-    static QStringList fetchRegisteredVirtualMachines();
-    static VirtualMachineInfo fetchVirtualMachineInfo(const QString &vmName,
-            ExtraInfos extraInfo = NoExtraInfo);
-    static void startVirtualMachine(const QString &vmName, bool headless);
-    static void shutVirtualMachine(const QString &vmName);
+
+    static void probe(const QString &vmName, const QObject *context,
+            const Functor<VirtualMachinePrivate::BasicState, bool> &functor);
+    static void fetchRegisteredVirtualMachines(const QObject *context,
+            const Functor<const QStringList &, bool> &functor);
+    static void fetchVirtualMachineInfo(const QString &vmName, ExtraInfos extraInfo,
+            const QObject *context, const Functor<const VirtualMachineInfo &, bool> &functor);
+
+    static void startVirtualMachine(const QString &vmName, bool headless,
+            const QObject *context, const Functor<bool> &functor);
+    static void shutVirtualMachine(const QString &vmName, const QObject *context,
+            const Functor<bool> &functor);
+
     static void restoreSnapshot(const QString &vmName, const QString &snapshotName,
-            QObject *context, std::function<void(bool)> slot);
-    static bool updateSharedFolder(const QString &vmName, const QString &mountName, const QString &newFolder);
-    static bool updateSdkSshPort(const QString &vmName, quint16 port);
-    static bool updateSdkWwwPort(const QString &vmName, quint16 port);
-    static bool updateEmulatorSshPort(const QString &vmName, quint16 port);
-    static Utils::PortList updateEmulatorQmlLivePorts(const QString &vmName, const QList<Utils::Port> &ports);
-    static void setVideoMode(const QString &vmName, const QSize &size, int depth);
-    static void setVdiCapacityMb(const QString &vmName, int sizeMb, QObject *context, std::function<void(bool)> slot);
-    static bool setMemorySizeMb(const QString &vmName, int sizeMb);
-    static bool setCpuCount(const QString &vmName, int count);
+            const QObject *context, const Functor<bool> &functor);
 
-    static bool deletePortForwardingRule(const QString &vmName, const QString &ruleName);
-    static bool updatePortForwardingRule(const QString &vmName, const QString &protocol,
-                                         const QString &ruleName, quint16 hostPort, quint16 vmPort);
-    static QList<QMap<QString, quint16>> fetchPortForwardingRules(const QString &vmName);
+    static void updateSharedFolder(const QString &vmName, const QString &mountName,
+            const QString &newFolder, const QObject *context, const Functor<bool> &functor);
 
-    static QString getExtraData(const QString &vmName, const QString &key);
-    static void getHostTotalMemorySizeMb(QObject *context, std::function<void(int)> slot);
+    static void updateSdkSshPort(const QString &vmName, quint16 port, const QObject *context,
+            const Functor<bool> &functor);
+    static void updateSdkWwwPort(const QString &vmName, quint16 port, const QObject *context,
+            const Functor<bool> &functor);
+    static void updateEmulatorSshPort(const QString &vmName, quint16 port, const QObject *context,
+            const Functor<bool> &functor);
+    static void updateEmulatorQmlLivePorts(const QString &vmName, const QList<Utils::Port> &ports,
+            const QObject *context, const Functor<const Utils::PortList &, bool> &functor);
+
+    static void setVideoMode(const QString &vmName, const QSize &size, int depth,
+            const QObject *context, const Functor<bool> &functor);
+
+    static void setVdiCapacityMb(const QString &vmName, int sizeMb, const QObject *context,
+            const Functor<bool> &functor);
+    static void setMemorySizeMb(const QString &vmName, int sizeMb, const QObject *context,
+            const Functor<bool> &functor);
+    static void setCpuCount(const QString &vmName, int count, const QObject *context,
+            const Functor<bool> &functor);
+
+    static void deletePortForwardingRule(const QString &vmName, const QString &ruleName,
+            const QObject *context, const Functor<bool> &functor);
+    static void updatePortForwardingRule(const QString &vmName, const QString &protocol,
+            const QString &ruleName, quint16 hostPort, quint16 vmPort,
+            const QObject *context, const Functor<bool> &functor);
+    static void fetchPortForwardingRules(const QString &vmName, const QObject *context,
+            const Functor<const QList<QMap<QString, quint16>> &, bool> &functor);
+
+    static void fetchExtraData(const QString &vmName, const QString &key, const QObject *context,
+            const Functor<QString, bool> &functor);
+
+    static void fetchHostTotalMemorySizeMb(const QObject *context,
+            const Functor<int, bool> &functor);
     static int getHostTotalCpuCount();
-private:
-    static void setExtraData(const QString& vmName, const QString& keyword, const QString& data);
 
-    static VirtualBoxManager *m_instance;
+private:
+    static void setExtraData(const QString &vmName, const QString &keyword, const QString &data,
+            const QObject *context, const Functor<bool> &functor);
+
+    static VirtualBoxManager *s_instance;
+    std::unique_ptr<CommandSerializer> m_serializer;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(VirtualBoxManager::ExtraInfos)

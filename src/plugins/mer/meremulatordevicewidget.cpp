@@ -91,11 +91,15 @@ void MerEmulatorDeviceWidget::onStoredDevicesChanged()
 
 void MerEmulatorDeviceWidget::selectFactorySnapshot()
 {
+    bool ok;
+
     auto device = this->device().dynamicCast<MerEmulatorDevice>();
     QTC_ASSERT(device, return);
 
-    VirtualMachineInfo info = VirtualBoxManager::fetchVirtualMachineInfo(device->virtualMachineName(),
-            VirtualBoxManager::SnapshotInfo);
+    VirtualMachineInfo info;
+    execAsynchronous(std::tie(info, ok), VirtualBoxManager::fetchVirtualMachineInfo,
+            device->virtualMachineName(), VirtualBoxManager::SnapshotInfo);
+    QTC_CHECK(ok);
     if (info.snapshots.isEmpty()) {
         QMessageBox::warning(this, tr("No snapshot found"),
                 tr("No snapshot exists for the '%1' virtual machine.")
@@ -104,7 +108,6 @@ void MerEmulatorDeviceWidget::selectFactorySnapshot()
     }
 
     const bool editable = false;
-    bool ok;
     QString selected = QInputDialog::getItem(this, tr("Select factory snapshot"),
             tr("Select the virtual machine snapshot to be used as the factory snapshot for '%1'")
             .arg(device->displayName()),

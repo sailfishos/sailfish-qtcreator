@@ -166,7 +166,10 @@ void MerOptionsWidget::store()
         if (m_sshTimeout.contains(sdk))
             sdk->setTimeout(m_sshTimeout[sdk]);
         if (m_sshPort.contains(sdk)) {
-            if (VirtualBoxManager::updateSdkSshPort(sdk->virtualMachineName(), m_sshPort[sdk])) {
+            bool stepOk;
+            execAsynchronous(std::tie(stepOk), VirtualBoxManager::updateSdkSshPort,
+                    sdk->virtualMachineName(), m_sshPort[sdk]);
+            if (stepOk) {
                 sdk->setSshPort(m_sshPort[sdk]);
             } else {
                 m_ui->sdkDetailsWidget->setSshPort(sdk->sshPort());
@@ -177,7 +180,10 @@ void MerOptionsWidget::store()
         if (m_headless.contains(sdk))
             sdk->setHeadless(m_headless[sdk]);
         if (m_wwwPort.contains(sdk)) {
-            if (VirtualBoxManager::updateSdkWwwPort(sdk->virtualMachineName(), m_wwwPort[sdk])) {
+            bool stepOk;
+            execAsynchronous(std::tie(stepOk), VirtualBoxManager::updateSdkWwwPort,
+                    sdk->virtualMachineName(), m_wwwPort[sdk]);
+            if (stepOk) {
                 sdk->setWwwPort(m_wwwPort[sdk]);
             } else {
                 m_ui->sdkDetailsWidget->setWwwPort(sdk->wwwPort());
@@ -189,7 +195,10 @@ void MerOptionsWidget::store()
             sdk->setWwwProxy(m_wwwProxy[sdk], m_wwwProxyServers[sdk], m_wwwProxyExcludes[sdk]);
 
         if (m_memorySizeMb.contains(sdk)) {
-            if (VirtualBoxManager::setMemorySizeMb(sdk->virtualMachineName(), m_memorySizeMb[sdk])) {
+            bool stepOk;
+            execAsynchronous(std::tie(stepOk), VirtualBoxManager::setMemorySizeMb,
+                    sdk->virtualMachineName(), m_memorySizeMb[sdk]);
+            if (stepOk) {
                 sdk->setMemorySizeMb(m_memorySizeMb[sdk]);
             } else {
                 m_ui->sdkDetailsWidget->setMemorySizeMb(sdk->memorySizeMb());
@@ -198,7 +207,10 @@ void MerOptionsWidget::store()
             }
         }
         if (m_cpuCount.contains(sdk)) {
-            if (VirtualBoxManager::setCpuCount(sdk->virtualMachineName(), m_cpuCount[sdk])) {
+            bool stepOk;
+            execAsynchronous(std::tie(stepOk), VirtualBoxManager::setCpuCount,
+                    sdk->virtualMachineName(), m_cpuCount[sdk]);
+            if (stepOk) {
                 sdk->setCpuCount(m_cpuCount[sdk]);
             } else {
                 m_ui->sdkDetailsWidget->setCpuCount(sdk->cpuCount());
@@ -208,12 +220,10 @@ void MerOptionsWidget::store()
         }
         if (m_vdiCapacityMb.contains(sdk)) {
             const int newVdiCapacityMb = m_vdiCapacityMb[sdk];
-            QEventLoop loop;
-            VirtualBoxManager::setVdiCapacityMb(sdk->virtualMachineName(), newVdiCapacityMb, &loop, [&loop] (bool ok) {
-                loop.exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
-            });
-
-            if (loop.exec() == EXIT_SUCCESS) {
+            bool stepOk;
+            execAsynchronous(std::tie(stepOk), VirtualBoxManager::setVdiCapacityMb,
+                    sdk->virtualMachineName(), newVdiCapacityMb);
+            if (stepOk) {
                 sdk->setVdiCapacityMb(newVdiCapacityMb);
             } else {
                 m_vdiCapacityMb.remove(sdk);
@@ -480,7 +490,8 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
         return;
     }
 
-    bool ok = VirtualBoxManager::updateSharedFolder(m_virtualMachine,
+    bool ok;
+    execAsynchronous(std::tie(ok), VirtualBoxManager::updateSharedFolder, m_virtualMachine,
             QLatin1String("src1"), newFolder);
 
     sdk->virtualMachine()->lockDown(false);

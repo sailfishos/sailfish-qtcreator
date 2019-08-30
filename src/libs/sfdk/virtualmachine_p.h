@@ -25,6 +25,7 @@
 
 #include "virtualmachine.h"
 
+#include "asynchronous.h"
 #include "vmconnection_p.h"
 
 #include <ssh/sshconnection.h>
@@ -36,14 +37,22 @@ class VirtualMachinePrivate
     Q_DECLARE_PUBLIC(VirtualMachine)
 
 public:
+    enum BasicStateFlag {
+        NullState = 0x0,
+        Existing = 0x1,
+        Running = 0x2,
+        Headless = 0x4,
+    };
+    Q_DECLARE_FLAGS(BasicState, BasicStateFlag)
+
     VirtualMachinePrivate(VirtualMachine *q) : q_ptr(q) {}
 
     static VirtualMachinePrivate *get(VirtualMachine *q) { return q->d_func(); }
 
-    virtual void start() = 0;
-    virtual void stop() = 0;
-    virtual void isRunning(QObject *context, std::function<void(bool,bool)> slot) const = 0;
-    virtual bool isHeadlessEffectively() const = 0;
+    virtual void start(const QObject *context, const Functor<bool> &functor) = 0;
+    virtual void stop(const QObject *context, const Functor<bool> &functor) = 0;
+    virtual void probe(const QObject *context,
+            const Functor<BasicState, bool> &functor) const = 0;
 
     VirtualMachine::ConnectionUi *connectionUi() const { return connectionUi_.get(); }
 
@@ -60,5 +69,7 @@ private:
     bool headless = false;
     bool autoConnectEnabled = true;
 };
+
+Q_DECLARE_OPERATORS_FOR_FLAGS(VirtualMachinePrivate::BasicState);
 
 } // namespace Sfdk

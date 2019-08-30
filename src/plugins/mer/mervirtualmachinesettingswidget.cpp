@@ -22,9 +22,14 @@
 ****************************************************************************/
 
 #include "mervirtualmachinesettingswidget.h"
-#include <sfdk/virtualboxmanager_p.h>
-#include <utils/utilsicons.h>
+
 #include "ui_mervirtualmachinesettingswidget.h"
+
+#include <sfdk/virtualboxmanager_p.h>
+
+#include <utils/qtcassert.h>
+#include <utils/utilsicons.h>
+
 #include <QFormLayout>
 
 using namespace Sfdk;
@@ -93,7 +98,8 @@ QFormLayout *MerVirtualMachineSettingsWidget::formLayout() const
 void MerVirtualMachineSettingsWidget::initGui()
 {
     ui->memorySpinBox->setRange(MIN_VIRTUALBOX_MEMORY_SIZE_MB, DEFAULT_MAX_MEMORY_SIZE_MB);
-    VirtualBoxManager::getHostTotalMemorySizeMb(this, [this] (int sizeMb) {
+    VirtualBoxManager::fetchHostTotalMemorySizeMb(this, [this](int sizeMb, bool ok) {
+        QTC_ASSERT(ok, return);
         int maxMemorySizeMb = ui->memorySpinBox->value() > sizeMb ? ui->memorySpinBox->value() : sizeMb;
         ui->memorySpinBox->setRange(MIN_VIRTUALBOX_MEMORY_SIZE_MB, maxMemorySizeMb);
     });

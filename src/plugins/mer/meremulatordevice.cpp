@@ -497,30 +497,38 @@ Sfdk::VirtualMachine *MerEmulatorDevice::virtualMachine() const
     return m_vm.data();
 }
 
-void MerEmulatorDevice::addPortForwarding(const QString &ruleName, const QString &protocol, quint16 hostPort,
-                                          quint16 emulatorVmPort) const
+void MerEmulatorDevice::addPortForwarding(const QString &ruleName, const QString &protocol,
+        quint16 hostPort, quint16 emulatorVmPort,
+        const QObject *context, const Functor<bool> &functor) const
 {
     VirtualBoxManager::updatePortForwardingRule(m_vm->name(), ruleName,
-                                                   protocol, hostPort, emulatorVmPort);
+            protocol, hostPort, emulatorVmPort, context, functor);
 }
 
-bool MerEmulatorDevice::removePortForwarding(const QString &ruleName)
+void MerEmulatorDevice::removePortForwarding(const QString &ruleName, const QObject *context,
+        const Functor<bool> &functor)
 {
-    return VirtualBoxManager::deletePortForwardingRule(m_vm->name(), ruleName);
+    return VirtualBoxManager::deletePortForwardingRule(m_vm->name(), ruleName, context, functor);
 }
 
-bool MerEmulatorDevice::hasPortForwarding(quint16 hostPort, QString *ruleName) const
+void MerEmulatorDevice::hasPortForwarding(quint16 hostPort, const QObject *context,
+        const Functor<bool, const QString &, bool> &functor) const
 {
-    QList<QMap<QString, quint16>> rules = VirtualBoxManager::fetchPortForwardingRules(
-                m_vm->name());
-    for (int i = 0; i < rules.size(); i++) {
-        if (rules[i].values().contains(hostPort)) {
-            if (ruleName)
-                *ruleName = rules[i].key(hostPort);
-            return true;
+    VirtualBoxManager::fetchPortForwardingRules(
+            m_vm->name(), context, [=](const QList<QMap<QString, quint16>> &rules, bool ok) {
+        if (!ok) {
+            functor({}, {}, false);
+            return;
         }
-    }
-    return false;
+        for (int i = 0; i < rules.size(); i++) {
+            if (rules[i].values().contains(hostPort)) {
+                const QString ruleName = rules[i].key(hostPort);
+                functor(true, ruleName, true);
+                return;
+            }
+        }
+        functor(false, {}, true);
+    });
 }
 
 // Hack, all clones share the VM
@@ -543,11 +551,11 @@ void MerEmulatorDevice::doFactoryReset(QWidget *parent)
         return;
     }
 
-    QEventLoop loop;
-    VirtualBoxManager::restoreSnapshot(virtualMachineName(), factorySnapshot(), &loop, [&loop](bool ok) {
-        loop.exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
-    });
-    if (loop.exec() != EXIT_SUCCESS) {
+    bool ok;
+    execAsynchronous(std::tie(ok), VirtualBoxManager::restoreSnapshot, virtualMachineName(),
+            factorySnapshot());
+    if (!ok) {
+        m_vm->lockDown(false);
         progress.cancel();
         QMessageBox::warning(parent, tr("Failed"), tr("Failed to restore factory state."));
         return;
@@ -555,7 +563,10 @@ void MerEmulatorDevice::doFactoryReset(QWidget *parent)
 
     // VDI capacity never changes solely as a result of factory reset, since the capacities of the
     // base image and all its snapshots are managed equal.
-    const VirtualMachineInfo info = VirtualBoxManager::fetchVirtualMachineInfo(virtualMachineName());
+    VirtualMachineInfo info;
+    execAsynchronous(std::tie(info, ok), VirtualBoxManager::fetchVirtualMachineInfo,
+            virtualMachineName(), VirtualBoxManager::NoExtraInfo);
+    QTC_CHECK(ok);
 
     QSsh::SshConnectionParameters nowSshParameters = sshParameters();
     nowSshParameters.setPort(info.sshPort);
@@ -595,6 +606,8 @@ void MerEmulatorDevice::scheduleSetVideoMode()
 
 void MerEmulatorDevice::setVideoMode()
 {
+    bool ok;
+
     const MerEmulatorDeviceModel deviceModel = MerSettings::deviceModels().value(m_deviceModel);
     QTC_ASSERT(!deviceModel.isNull(), return);
     QSize realResolution = deviceModel.displayResolution();
@@ -606,7 +619,9 @@ void MerEmulatorDevice::setVideoMode()
         realResolution /= SCALE_DOWN_FACTOR;
     }
 
-    VirtualBoxManager::setVideoMode(virtualMachineName(), realResolution, VIDEO_MODE_DEPTH);
+    execAsynchronous(std::tie(ok), VirtualBoxManager::setVideoMode, virtualMachineName(),
+            realResolution, VIDEO_MODE_DEPTH);
+    QTC_CHECK(ok);
 
     //! \todo Does not support multiple emulators (not supported at other places anyway).
     QTC_ASSERT(!sharedConfigPath().isEmpty(), return);
@@ -624,7 +639,7 @@ void MerEmulatorDevice::setVideoMode()
         << "QT_QPA_EGLFS_PHYSICAL_WIDTH=" << deviceModel.displaySize().width() << endl
         << "QT_QPA_EGLFS_PHYSICAL_HEIGHT=" << deviceModel.displaySize().height() << endl;
 
-    bool ok = saver.finalize();
+    ok = saver.finalize();
     QTC_CHECK(ok);
 }
 
@@ -962,7 +977,10 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         quint16 nowSshPort = merEmulator->sshParameters().port();
         if (oldSshPortsCache.contains(merEmulator->id())
                 && nowSshPort != oldSshPortsCache.value(merEmulator->id())) {
-            if (VirtualBoxManager::updateEmulatorSshPort(merEmulator->virtualMachineName(), nowSshPort)) {
+            bool stepOk;
+            execAsynchronous(std::tie(stepOk), VirtualBoxManager::updateEmulatorSshPort,
+                    merEmulator->virtualMachineName(), nowSshPort);
+            if (stepOk) {
                 merEmulator->updateVmState();
             } else {
                 nowSshPort = oldSshPortsCache.value(merEmulator->id());
@@ -974,7 +992,7 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         }
         m_deviceSshPortCache.insert(merEmulator->id(), nowSshPort);
 
-
+        // TODO duplicate, another version exists in VirtualBoxManager
         auto isPortListEqual = [] (Utils::PortList l1, Utils::PortList l2) {
             if (l1.count() != l2.count())
                 return false;
@@ -990,10 +1008,12 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         Utils::PortList nowQmlLivePorts = merEmulator->qmlLivePorts();
         if (oldQmlLivePortsCache.contains(merEmulator->id())
                 && !isPortListEqual(nowQmlLivePorts, oldQmlLivePortsCache.value(merEmulator->id()))) {
-            Utils::PortList savedPorts = VirtualBoxManager::updateEmulatorQmlLivePorts(
+            Utils::PortList savedPorts;
+            bool stepOk;
+            execAsynchronous(std::tie(savedPorts, stepOk),
+                    VirtualBoxManager::updateEmulatorQmlLivePorts,
                     merEmulator->virtualMachineName(), merEmulator->qmlLivePortsList());
-
-            if (!isPortListEqual(savedPorts, nowQmlLivePorts)) {
+            if (!stepOk) {
                 nowQmlLivePorts = savedPorts;
                 merEmulator.constCast<MerEmulatorDevice>()->setQmlLivePorts(nowQmlLivePorts);
                 ok = false;
@@ -1004,7 +1024,10 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         int nowMemorySize = merEmulator->memorySizeMb();
         if (oldMemorySizeCache.contains(merEmulator->id())
                 && nowMemorySize != oldMemorySizeCache.value(merEmulator->id())) {
-            if (!VirtualBoxManager::setMemorySizeMb(merEmulator->virtualMachineName(), nowMemorySize)) {
+            bool stepOk;
+            execAsynchronous(std::tie(stepOk), VirtualBoxManager::setMemorySizeMb,
+                    merEmulator->virtualMachineName(), nowMemorySize);
+            if (!stepOk) {
                 nowMemorySize = oldMemorySizeCache.value(merEmulator->id());
                 merEmulator.constCast<MerEmulatorDevice>()->setMemorySizeMb(nowMemorySize);
                 ok = false;
@@ -1015,25 +1038,24 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         int nowCpuCount = merEmulator->cpuCount();
         if (oldCpuCountCache.contains(merEmulator->id())
                 && nowCpuCount != oldCpuCountCache.value(merEmulator->id())) {
-            if (!VirtualBoxManager::setCpuCount(merEmulator->virtualMachineName(), nowCpuCount)) {
-                  nowCpuCount = oldCpuCountCache.value(merEmulator->id());
+            bool stepOk;
+            execAsynchronous(std::tie(stepOk), VirtualBoxManager::setCpuCount,
+                    merEmulator->virtualMachineName(), nowCpuCount);
+            if (!stepOk) {
+                nowCpuCount = oldCpuCountCache.value(merEmulator->id());
                 merEmulator.constCast<MerEmulatorDevice>()->setCpuCount(nowCpuCount);
                 ok = false;
             }
         }
         m_deviceCpuCountCache.insert(merEmulator->id(), nowCpuCount);
 
-
         int nowVdiCapacityMb = merEmulator->vdiCapacityMb();
         if (oldVdiInfoCache.contains(merEmulator->id())
                 && nowVdiCapacityMb != oldVdiInfoCache.value(merEmulator->id())) {
-            QEventLoop loop;
-            VirtualBoxManager::setVdiCapacityMb(merEmulator->virtualMachineName(), nowVdiCapacityMb,
-                    &loop, [&loop] (bool ok) {
-                loop.exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
-            });
-
-            if (loop.exec() != EXIT_SUCCESS) {
+            bool stepOk;
+            execAsynchronous(std::tie(stepOk), VirtualBoxManager::setVdiCapacityMb,
+                    merEmulator->virtualMachineName(), nowVdiCapacityMb);
+            if (!stepOk) {
                 nowVdiCapacityMb = oldVdiInfoCache.value(merEmulator->id());
                 merEmulator.constCast<MerEmulatorDevice>()->setVdiCapacityMb(nowVdiCapacityMb);
                 ok = false;
