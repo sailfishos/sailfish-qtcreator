@@ -497,40 +497,6 @@ Sfdk::VirtualMachine *MerEmulatorDevice::virtualMachine() const
     return m_vm.data();
 }
 
-void MerEmulatorDevice::addPortForwarding(const QString &ruleName, const QString &protocol,
-        quint16 hostPort, quint16 emulatorVmPort,
-        const QObject *context, const Functor<bool> &functor) const
-{
-    VirtualBoxManager::updatePortForwardingRule(m_vm->name(), ruleName,
-            protocol, hostPort, emulatorVmPort, context, functor);
-}
-
-void MerEmulatorDevice::removePortForwarding(const QString &ruleName, const QObject *context,
-        const Functor<bool> &functor)
-{
-    return VirtualBoxManager::deletePortForwardingRule(m_vm->name(), ruleName, context, functor);
-}
-
-void MerEmulatorDevice::hasPortForwarding(quint16 hostPort, const QObject *context,
-        const Functor<bool, const QString &, bool> &functor) const
-{
-    VirtualBoxManager::fetchPortForwardingRules(
-            m_vm->name(), context, [=](const QList<QMap<QString, quint16>> &rules, bool ok) {
-        if (!ok) {
-            functor({}, {}, false);
-            return;
-        }
-        for (int i = 0; i < rules.size(); i++) {
-            if (rules[i].values().contains(hostPort)) {
-                const QString ruleName = rules[i].key(hostPort);
-                functor(true, ruleName, true);
-                return;
-            }
-        }
-        functor(false, {}, true);
-    });
-}
-
 // Hack, all clones share the VM
 void MerEmulatorDevice::updateVmState() const
 {

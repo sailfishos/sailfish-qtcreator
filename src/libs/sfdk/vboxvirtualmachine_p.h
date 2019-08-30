@@ -36,6 +36,14 @@ public:
     explicit VBoxVirtualMachine(QObject *parent = nullptr); // FIXME factory
     ~VBoxVirtualMachine() override;
 
+    void hasPortForwarding(quint16 hostPort, const QObject *context,
+            const Functor<bool, const QString &, bool> &functor) const override;
+    void addPortForwarding(const QString &ruleName, const QString &protocol,
+            quint16 hostPort, quint16 emulatorVmPort, const QObject *context,
+            const Functor<bool> &functor) override;
+    void removePortForwarding(const QString &ruleName, const QObject *context,
+            const Functor<bool> &functor) override;
+
     static QStringList usedVirtualMachines();
 
 private:

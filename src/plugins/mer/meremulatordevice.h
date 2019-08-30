@@ -141,14 +141,6 @@ public:
 
     Sfdk::VirtualMachine *virtualMachine() const;
 
-    void addPortForwarding(const QString &ruleName, const QString &protocol, quint16 hostPort,
-            quint16 emulatorVmPort, const QObject *context,
-            const Sfdk::Functor<bool> &functor) const;
-    void removePortForwarding(const QString &ruleName, const QObject *context,
-            const Sfdk::Functor<bool> &functor);
-    void hasPortForwarding(quint16 hostPort, const QObject *context,
-            const Sfdk::Functor<bool, const QString &, bool> &functor) const;
-
     static QString privateKeyFile(Core::Id emulatorId, const QString &user);
 
 private:

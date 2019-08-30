@@ -24,6 +24,7 @@
 #pragma once
 
 #include "sfdkglobal.h"
+#include "asynchronous.h"
 
 #include <memory>
 
@@ -84,6 +85,14 @@ public:
 
     bool isOff(bool *runningHeadless = 0, bool *startedOutside = 0) const;
     bool lockDown(bool lockDown);
+
+    virtual void hasPortForwarding(quint16 hostPort, const QObject *context,
+            const Functor<bool, const QString &, bool> &functor) const = 0;
+    virtual void addPortForwarding(const QString &ruleName, const QString &protocol,
+            quint16 hostPort, quint16 emulatorVmPort, const QObject *context,
+            const Functor<bool> &functor) = 0;
+    virtual void removePortForwarding(const QString &ruleName, const QObject *context,
+            const Functor<bool> &functor) = 0;
 
     template<typename ConcreteUi>
     static void registerConnectionUi()

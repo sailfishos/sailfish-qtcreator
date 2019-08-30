@@ -41,6 +41,40 @@ VBoxVirtualMachine::~VBoxVirtualMachine()
     d_func()->prepareForNameChange();
 }
 
+void VBoxVirtualMachine::hasPortForwarding(quint16 hostPort, const QObject *context,
+        const Functor<bool, const QString &, bool> &functor) const
+{
+    VirtualBoxManager::fetchPortForwardingRules(name(), context,
+            [=](const QList<QMap<QString, quint16>> &rules, bool ok) {
+        if (!ok) {
+            functor({}, {}, false);
+            return;
+        }
+        for (int i = 0; i < rules.size(); i++) {
+            if (rules[i].values().contains(hostPort)) {
+                const QString ruleName = rules[i].key(hostPort);
+                functor(true, ruleName, true);
+                return;
+            }
+        }
+        functor(false, {}, true);
+    });
+}
+
+void VBoxVirtualMachine::addPortForwarding(const QString &ruleName, const QString &protocol,
+        quint16 hostPort, quint16 emulatorVmPort,
+        const QObject *context, const Functor<bool> &functor)
+{
+    VirtualBoxManager::updatePortForwardingRule(name(), ruleName, protocol, hostPort,
+            emulatorVmPort, context, functor);
+}
+
+void VBoxVirtualMachine::removePortForwarding(const QString &ruleName, const QObject *context,
+        const Functor<bool> &functor)
+{
+    return VirtualBoxManager::deletePortForwardingRule(name(), ruleName, context, functor);
+}
+
 // Provides list of all used VMs, that is valid also during configuration of new build
 // engines/emulators, before the changes are applied.
 QStringList VBoxVirtualMachine::usedVirtualMachines()
