@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include "virtualboxmanager_p.h"
 #include "virtualmachine_p.h"
 
 namespace Sfdk {
@@ -36,13 +37,14 @@ public:
     explicit VBoxVirtualMachine(QObject *parent = nullptr); // FIXME factory
     ~VBoxVirtualMachine() override;
 
-    void hasPortForwarding(quint16 hostPort, const QObject *context,
-            const Functor<bool, const QString &, bool> &functor) const override;
+    bool hasPortForwarding(quint16 hostPort, QString *ruleName = nullptr) const override;
     void addPortForwarding(const QString &ruleName, const QString &protocol,
             quint16 hostPort, quint16 emulatorVmPort, const QObject *context,
             const Functor<bool> &functor) override;
     void removePortForwarding(const QString &ruleName, const QObject *context,
             const Functor<bool> &functor) override;
+
+    void refreshConfiguration(const QObject *context, const Functor<bool> &functor) override;
 
     static QStringList usedVirtualMachines();
 
@@ -71,6 +73,7 @@ private:
 
 private:
     static QMap<QString, int> s_usedVmNames;
+    QList<QMap<QString, quint16>> portForwardingRules;
 };
 
 } // namespace Sfdk

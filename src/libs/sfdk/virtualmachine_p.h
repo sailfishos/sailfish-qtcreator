@@ -58,11 +58,14 @@ public:
 
 protected:
     virtual void prepareForNameChange() {};
+    bool initialized() const { return initialized_; }
+    void setInitialized() { initialized_ = true; }
 
     VirtualMachine *const q_ptr;
 
 private:
     QString name;
+    bool initialized_ = false;
     std::unique_ptr<VirtualMachine::ConnectionUi> connectionUi_;
     std::unique_ptr<VmConnection> connection;
     QSsh::SshConnectionParameters sshParameters;

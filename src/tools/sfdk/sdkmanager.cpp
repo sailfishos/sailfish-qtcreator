@@ -235,21 +235,21 @@ QString SdkManager::installationPath()
 bool SdkManager::startEngine()
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    s_instance->m_merSdk->virtualMachine()->refresh(VirtualMachine::Synchronous);
+    s_instance->m_merSdk->virtualMachine()->refreshState(VirtualMachine::Synchronous);
     return s_instance->m_merSdk->virtualMachine()->connectTo(VirtualMachine::Block);
 }
 
 bool SdkManager::stopEngine()
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    s_instance->m_merSdk->virtualMachine()->refresh(VirtualMachine::Synchronous);
+    s_instance->m_merSdk->virtualMachine()->refreshState(VirtualMachine::Synchronous);
     return s_instance->m_merSdk->virtualMachine()->lockDown(true);
 }
 
 bool SdkManager::isEngineRunning()
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    s_instance->m_merSdk->virtualMachine()->refresh(VirtualMachine::Synchronous);
+    s_instance->m_merSdk->virtualMachine()->refreshState(VirtualMachine::Synchronous);
     return !s_instance->m_merSdk->virtualMachine()->isOff();
 }
 

@@ -22,7 +22,7 @@
 
 #include "vboxvirtualmachine_p.h"
 
-#include "virtualboxmanager_p.h"
+#include <utils/qtcassert.h>
 
 namespace Sfdk {
 
@@ -41,38 +41,82 @@ VBoxVirtualMachine::~VBoxVirtualMachine()
     d_func()->prepareForNameChange();
 }
 
-void VBoxVirtualMachine::hasPortForwarding(quint16 hostPort, const QObject *context,
-        const Functor<bool, const QString &, bool> &functor) const
+bool VBoxVirtualMachine::hasPortForwarding(quint16 hostPort, QString *ruleName) const
 {
-    VirtualBoxManager::fetchPortForwardingRules(name(), context,
-            [=](const QList<QMap<QString, quint16>> &rules, bool ok) {
-        if (!ok) {
-            functor({}, {}, false);
-            return;
+    Q_D(const VBoxVirtualMachine);
+    QTC_ASSERT(d->initialized(), return false);
+
+    for (int i = 0; i < d->portForwardingRules.size(); i++) {
+        if (d->portForwardingRules[i].values().contains(hostPort)) {
+            if (ruleName)
+                *ruleName = d->portForwardingRules[i].key(hostPort);
+            return true;
         }
-        for (int i = 0; i < rules.size(); i++) {
-            if (rules[i].values().contains(hostPort)) {
-                const QString ruleName = rules[i].key(hostPort);
-                functor(true, ruleName, true);
-                return;
-            }
-        }
-        functor(false, {}, true);
-    });
+    }
+    return false;
 }
 
 void VBoxVirtualMachine::addPortForwarding(const QString &ruleName, const QString &protocol,
         quint16 hostPort, quint16 emulatorVmPort,
         const QObject *context, const Functor<bool> &functor)
 {
+    Q_D(VBoxVirtualMachine);
+
+    const QPointer<const QObject> context_{context};
     VirtualBoxManager::updatePortForwardingRule(name(), ruleName, protocol, hostPort,
-            emulatorVmPort, context, functor);
+            emulatorVmPort, this, [=](bool ok) {
+        if (ok) {
+            QTC_ASSERT(!d->portForwardingRules.isEmpty(), return);
+            // FIXME magic number
+            d->portForwardingRules[0].insert(ruleName, emulatorVmPort);
+            emit portForwardingChanged();
+        }
+        if (context_)
+            functor(ok);
+    });
 }
 
 void VBoxVirtualMachine::removePortForwarding(const QString &ruleName, const QObject *context,
         const Functor<bool> &functor)
 {
-    return VirtualBoxManager::deletePortForwardingRule(name(), ruleName, context, functor);
+    Q_D(VBoxVirtualMachine);
+
+    const QPointer<const QObject> context_{context};
+    VirtualBoxManager::deletePortForwardingRule(name(), ruleName, this, [=](bool ok) {
+        if (ok) {
+            QTC_ASSERT(!d->portForwardingRules.isEmpty(), return);
+            d->portForwardingRules[0].remove(ruleName);
+            emit portForwardingChanged();
+        }
+        if (context_)
+            functor(ok);
+    });
+}
+
+void VBoxVirtualMachine::refreshConfiguration(const QObject *context, const Functor<bool> &functor)
+{
+    Q_D(VBoxVirtualMachine);
+
+    const QPointer<const QObject> context_{context};
+
+    VirtualBoxManager::fetchPortForwardingRules(name(), this,
+            [=](const QList<QMap<QString, quint16>> &rules, bool ok) {
+        if (!ok) {
+            if (context_)
+                functor(false);
+            return;
+        }
+
+        const bool changed = d->portForwardingRules != rules;
+        d->portForwardingRules = rules;
+        if (changed)
+            emit portForwardingChanged();
+
+        d->setInitialized();
+
+        if (context_)
+            functor(true);
+    });
 }
 
 // Provides list of all used VMs, that is valid also during configuration of new build
@@ -122,6 +166,12 @@ void VBoxVirtualMachinePrivate::onNameChanged()
         if (++s_usedVmNames[q->name()] != 1)
             qCWarning(lib) << "VirtualMachine: Another instance for VM" << q->name() << "already exists";
     }
+
+    // FIXME add an external entity responsible for this
+    // FIXME when changing name is disallowed, this should be invoked immediately during class construction
+    q->refreshConfiguration(q, [=](bool ok) {
+        QTC_CHECK(ok);
+    });
 }
 
 } // namespace Sfdk

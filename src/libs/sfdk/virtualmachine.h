@@ -86,13 +86,16 @@ public:
     bool isOff(bool *runningHeadless = 0, bool *startedOutside = 0) const;
     bool lockDown(bool lockDown);
 
-    virtual void hasPortForwarding(quint16 hostPort, const QObject *context,
-            const Functor<bool, const QString &, bool> &functor) const = 0;
+    virtual bool hasPortForwarding(quint16 hostPort, QString *ruleName = nullptr) const = 0;
     virtual void addPortForwarding(const QString &ruleName, const QString &protocol,
             quint16 hostPort, quint16 emulatorVmPort, const QObject *context,
             const Functor<bool> &functor) = 0;
     virtual void removePortForwarding(const QString &ruleName, const QObject *context,
             const Functor<bool> &functor) = 0;
+
+    virtual void refreshConfiguration(const QObject *context, const Functor<bool> &functor) = 0;
+    // FIXME API style?
+    void refreshState(Sfdk::VirtualMachine::Synchronization synchronization = Asynchronous);
 
     template<typename ConcreteUi>
     static void registerConnectionUi()
@@ -102,7 +105,6 @@ public:
     }
 
 public slots:
-    void refresh(Sfdk::VirtualMachine::Synchronization synchronization = Asynchronous);
     bool connectTo(Sfdk::VirtualMachine::ConnectOptions options = NoConnectOption);
     void disconnectFrom();
 
@@ -114,6 +116,7 @@ signals:
     void autoConnectEnabledChanged(bool autoConnectEnabled);
     void virtualMachineOffChanged(bool vmOff);
     void lockDownFailed();
+    void portForwardingChanged();
 
 protected:
     VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, QObject *parent);

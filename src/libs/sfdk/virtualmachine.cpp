@@ -131,7 +131,7 @@ bool VirtualMachine::lockDown(bool lockDown)
     return d_func()->connection->lockDown(lockDown);
 }
 
-void VirtualMachine::refresh(Sfdk::VirtualMachine::Synchronization synchronization)
+void VirtualMachine::refreshState(Sfdk::VirtualMachine::Synchronization synchronization)
 {
     d_func()->connection->refresh(synchronization);
 }
