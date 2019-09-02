@@ -89,10 +89,12 @@ public:
     virtual int memorySizeMb() const = 0;
     virtual void setMemorySizeMb(int memorySizeMb, const QObject *context,
             const Functor<bool> &functor) = 0;
+    static int availableMemorySizeMb();
 
     virtual int cpuCount() const = 0;
     virtual void setCpuCount(int cpuCount, const QObject *context,
             const Functor<bool> &functor) = 0;
+    static int availableCpuCount();
 
     // FIXME rename as storageCapacityMb
     virtual int vdiCapacityMb() const = 0;

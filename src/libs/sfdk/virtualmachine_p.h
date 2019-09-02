@@ -64,6 +64,7 @@ protected:
     VirtualMachine *const q_ptr;
 
 private:
+    static int s_availableMemmorySizeMb;
     QString name;
     bool initialized_ = false;
     std::unique_ptr<VirtualMachine::ConnectionUi> connectionUi_;

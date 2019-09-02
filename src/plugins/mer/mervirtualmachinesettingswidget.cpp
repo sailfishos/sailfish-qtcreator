@@ -25,7 +25,7 @@
 
 #include "ui_mervirtualmachinesettingswidget.h"
 
-#include <sfdk/virtualboxmanager_p.h>
+#include <sfdk/virtualmachine.h>
 
 #include <utils/qtcassert.h>
 #include <utils/utilsicons.h>
@@ -40,7 +40,7 @@ namespace Internal {
 namespace {
 const int DEFAULT_MAX_MEMORY_SIZE_MB = 3584;
 const int MAX_VDI_SIZE_INCREMENT_GB = 10;
-const int MIN_VIRTUALBOX_MEMORY_SIZE_MB = 512;
+const int MIN_MEMORY_SIZE_MB = 512;
 
 } // namespace anonymous
 
@@ -60,7 +60,7 @@ MerVirtualMachineSettingsWidget::~MerVirtualMachineSettingsWidget()
 void MerVirtualMachineSettingsWidget::setMemorySizeMb(int sizeMb)
 {
     if (ui->memorySpinBox->maximum() < sizeMb)
-        ui->memorySpinBox->setRange(MIN_VIRTUALBOX_MEMORY_SIZE_MB, sizeMb);
+        ui->memorySpinBox->setRange(MIN_MEMORY_SIZE_MB, sizeMb);
 
     ui->memorySpinBox->setValue(sizeMb);
 }
@@ -97,15 +97,11 @@ QFormLayout *MerVirtualMachineSettingsWidget::formLayout() const
 
 void MerVirtualMachineSettingsWidget::initGui()
 {
-    ui->memorySpinBox->setRange(MIN_VIRTUALBOX_MEMORY_SIZE_MB, DEFAULT_MAX_MEMORY_SIZE_MB);
-    VirtualBoxManager::fetchHostTotalMemorySizeMb(this, [this](int sizeMb, bool ok) {
-        QTC_ASSERT(ok, return);
-        int maxMemorySizeMb = ui->memorySpinBox->value() > sizeMb ? ui->memorySpinBox->value() : sizeMb;
-        ui->memorySpinBox->setRange(MIN_VIRTUALBOX_MEMORY_SIZE_MB, maxMemorySizeMb);
-    });
-
-    const int maxCpuCount = VirtualBoxManager::getHostTotalCpuCount();
-    ui->cpuCountSpinBox->setRange(1, maxCpuCount);
+    int maxMemorySizeMb = VirtualMachine::availableMemorySizeMb() > 0
+        ? VirtualMachine::availableMemorySizeMb()
+        : DEFAULT_MAX_MEMORY_SIZE_MB;
+    ui->memorySpinBox->setRange(MIN_MEMORY_SIZE_MB, maxMemorySizeMb);
+    ui->cpuCountSpinBox->setRange(1, VirtualMachine::availableCpuCount());
 
     connect(ui->memorySpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &MerVirtualMachineSettingsWidget::memorySizeMbChanged);

@@ -139,7 +139,6 @@ public:
 
     static void fetchHostTotalMemorySizeMb(const QObject *context,
             const Functor<int, bool> &functor);
-    static int getHostTotalCpuCount();
 
 private:
     static void setExtraData(const QString &vmName, const QString &keyword, const QString &data,

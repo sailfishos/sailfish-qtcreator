@@ -23,6 +23,12 @@
 #include "virtualmachine_p.h"
 
 #include "vmconnection_p.h"
+#include "virtualboxmanager_p.h"
+
+#include <utils/qtcassert.h>
+
+#include <QCoreApplication>
+#include <QThread>
 
 namespace Sfdk {
 
@@ -44,6 +50,17 @@ VirtualMachine::VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, QObj
     connect(d->connection.get(), &VmConnection::virtualMachineOffChanged,
             this, &VirtualMachine::virtualMachineOffChanged);
     connect(d->connection.get(), &VmConnection::lockDownFailed, this, &VirtualMachine::lockDownFailed);
+
+    // FIXME add an external entity responsible for this initialization
+    static bool once = true;
+    if (once) {
+        once = false;
+        VirtualBoxManager::fetchHostTotalMemorySizeMb(QCoreApplication::instance(),
+                [](int availableMemorySizeMb, bool ok) {
+            QTC_ASSERT(ok, return);
+            VirtualMachinePrivate::s_availableMemmorySizeMb = availableMemorySizeMb;
+        });
+    }
 }
 
 VirtualMachine::~VirtualMachine()
@@ -131,6 +148,17 @@ bool VirtualMachine::lockDown(bool lockDown)
     return d_func()->connection->lockDown(lockDown);
 }
 
+int VirtualMachine::availableMemorySizeMb()
+{
+    QTC_CHECK(VirtualMachinePrivate::s_availableMemmorySizeMb > 0);
+    return VirtualMachinePrivate::s_availableMemmorySizeMb;
+}
+
+int VirtualMachine::availableCpuCount()
+{
+    return QThread::idealThreadCount();
+}
+
 void VirtualMachine::refreshState(Sfdk::VirtualMachine::Synchronization synchronization)
 {
     d_func()->connection->refresh(synchronization);
@@ -150,5 +178,7 @@ void VirtualMachine::disconnectFrom()
  * \class VirtualMachinePrivate
  * \internal
  */
+
+int VirtualMachinePrivate::s_availableMemmorySizeMb = 0;
 
 } // namespace Sfdk

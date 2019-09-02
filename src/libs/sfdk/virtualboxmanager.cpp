@@ -42,7 +42,6 @@
 #include <QTime>
 #include <QTimer>
 #include <QTimerEvent>
-#include <QThread>
 #include <QUuid>
 
 #include <deque>
@@ -888,11 +887,6 @@ void VirtualBoxManager::fetchHostTotalMemorySizeMb(const QObject *context,
     connect(context, &QObject::destroyed, process.get(), &VBoxManageProcess::reallyTerminate);
 
     s_instance->m_serializer->enqueue(std::move(process));
-}
-
-int VirtualBoxManager::getHostTotalCpuCount()
-{
-    return QThread::idealThreadCount();
 }
 
 void VirtualBoxManager::setExtraData(const QString &vmName, const QString &keyword,
