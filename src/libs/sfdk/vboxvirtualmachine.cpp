@@ -41,6 +41,74 @@ VBoxVirtualMachine::~VBoxVirtualMachine()
     d_func()->prepareForNameChange();
 }
 
+int VBoxVirtualMachine::memorySizeMb() const
+{
+    Q_D(const VBoxVirtualMachine);
+    QTC_ASSERT(d->initialized(), return false);
+    return d->virtualMachineInfo.memorySizeMb;
+}
+
+void VBoxVirtualMachine::setMemorySizeMb(int memorySizeMb, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_D(VBoxVirtualMachine);
+
+    const QPointer<const QObject> context_{context};
+    VirtualBoxManager::setMemorySizeMb(name(), memorySizeMb, this, [=](bool ok) {
+        if (ok && d->virtualMachineInfo.memorySizeMb != memorySizeMb) {
+            d->virtualMachineInfo.memorySizeMb = memorySizeMb;
+            emit memorySizeMbChanged(memorySizeMb);
+        }
+        if (context_)
+            functor(ok);
+    });
+}
+
+int VBoxVirtualMachine::cpuCount() const
+{
+    Q_D(const VBoxVirtualMachine);
+    QTC_ASSERT(d->initialized(), return false);
+    return d->virtualMachineInfo.cpuCount;
+}
+
+void VBoxVirtualMachine::setCpuCount(int cpuCount, const QObject *context, const Functor<bool> &functor)
+{
+    Q_D(VBoxVirtualMachine);
+
+    const QPointer<const QObject> context_{context};
+    VirtualBoxManager::setCpuCount(name(), cpuCount, this, [=](bool ok) {
+        if (ok && d->virtualMachineInfo.cpuCount != cpuCount) {
+            d->virtualMachineInfo.cpuCount = cpuCount;
+            emit cpuCountChanged(cpuCount);
+        }
+        if (context_)
+            functor(ok);
+    });
+}
+
+int VBoxVirtualMachine::vdiCapacityMb() const
+{
+    Q_D(const VBoxVirtualMachine);
+    QTC_ASSERT(d->initialized(), return false);
+    return d->virtualMachineInfo.vdiCapacityMb;
+}
+
+void VBoxVirtualMachine::setVdiCapacityMb(int vdiCapacityMb, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_D(VBoxVirtualMachine);
+
+    const QPointer<const QObject> context_{context};
+    VirtualBoxManager::setVdiCapacityMb(name(), vdiCapacityMb, this, [=](bool ok) {
+        if (ok && d->virtualMachineInfo.vdiCapacityMb != vdiCapacityMb) {
+            d->virtualMachineInfo.vdiCapacityMb = vdiCapacityMb;
+            emit vdiCapacityMbChanged(vdiCapacityMb);
+        }
+        if (context_)
+            functor(ok);
+    });
+}
+
 bool VBoxVirtualMachine::hasPortForwarding(quint16 hostPort, QString *ruleName) const
 {
     Q_D(const VBoxVirtualMachine);
@@ -98,10 +166,30 @@ void VBoxVirtualMachine::refreshConfiguration(const QObject *context, const Func
     Q_D(VBoxVirtualMachine);
 
     const QPointer<const QObject> context_{context};
+    auto allOk = std::make_shared<bool>(true);
+
+    VirtualBoxManager::fetchVirtualMachineInfo(name(), VirtualBoxManager::VdiInfo, this,
+            [=](const VirtualMachineInfo &info, bool ok) {
+        if (!ok) {
+            *allOk = false;
+            return;
+        }
+
+        VirtualMachineInfo oldInfo = d->virtualMachineInfo;
+        d->virtualMachineInfo = info;
+
+        if (oldInfo.memorySizeMb != info.memorySizeMb)
+            emit memorySizeMbChanged(info.memorySizeMb);
+        if (oldInfo.cpuCount != info.cpuCount)
+            emit cpuCountChanged(info.cpuCount);
+        if (oldInfo.vdiCapacityMb != info.vdiCapacityMb)
+            emit vdiCapacityMbChanged(info.vdiCapacityMb);
+    });
 
     VirtualBoxManager::fetchPortForwardingRules(name(), this,
             [=](const QList<QMap<QString, quint16>> &rules, bool ok) {
         if (!ok) {
+            *allOk = false;
             if (context_)
                 functor(false);
             return;
@@ -115,7 +203,7 @@ void VBoxVirtualMachine::refreshConfiguration(const QObject *context, const Func
         d->setInitialized();
 
         if (context_)
-            functor(true);
+            functor(*allOk);
     });
 }
 

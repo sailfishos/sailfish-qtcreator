@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2017-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -25,6 +26,8 @@
 
 #include "merconstants.h"
 #include "mersdkmanager.h"
+
+#include <sfdk/virtualmachine.h>
 
 #include <utils/hostosinfo.h>
 #include <utils/utilsicons.h>
@@ -144,9 +147,9 @@ void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
 
     m_ui->userNameLabelText->setText(sdk->userName());
 
-    m_ui->virtualMachineSettingsWidget->setMemorySizeMb(sdk->memorySizeMb());
-    m_ui->virtualMachineSettingsWidget->setCpuCount(sdk->cpuCount());
-    m_ui->virtualMachineSettingsWidget->setVdiCapacityMb(sdk->vdiCapacityMb());
+    m_ui->virtualMachineSettingsWidget->setMemorySizeMb(sdk->virtualMachine()->memorySizeMb());
+    m_ui->virtualMachineSettingsWidget->setCpuCount(sdk->virtualMachine()->cpuCount());
+    m_ui->virtualMachineSettingsWidget->setVdiCapacityMb(sdk->virtualMachine()->vdiCapacityMb());
 }
 
 void MerSdkDetailsWidget::setTestButtonEnabled(bool enabled)

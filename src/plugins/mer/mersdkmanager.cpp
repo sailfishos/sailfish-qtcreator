@@ -585,9 +585,6 @@ MerSdk* MerSdkManager::createSdk(const QString &vmName)
     sdk->setSharedConfigPath(info.sharedConfig);
     sdk->setSharedSrcPath(info.sharedSrc);
     sdk->setSharedSshPath(info.sharedSsh);
-    sdk->setMemorySizeMb(info.memorySizeMb);
-    sdk->setCpuCount(info.cpuCount);
-    sdk->setVdiCapacityMb(info.vdiCapacityMb);
     return sdk;
 }
 

@@ -196,24 +196,20 @@ void MerOptionsWidget::store()
 
         if (m_memorySizeMb.contains(sdk)) {
             bool stepOk;
-            execAsynchronous(std::tie(stepOk), VirtualBoxManager::setMemorySizeMb,
-                    sdk->virtualMachineName(), m_memorySizeMb[sdk]);
-            if (stepOk) {
-                sdk->setMemorySizeMb(m_memorySizeMb[sdk]);
-            } else {
-                m_ui->sdkDetailsWidget->setMemorySizeMb(sdk->memorySizeMb());
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&VirtualMachine::setMemorySizeMb),
+                    sdk->virtualMachine(), m_memorySizeMb[sdk]);
+            if (!stepOk) {
+                m_ui->sdkDetailsWidget->setMemorySizeMb(sdk->virtualMachine()->memorySizeMb());
                 m_memorySizeMb.remove(sdk);
                 ok = false;
             }
         }
         if (m_cpuCount.contains(sdk)) {
             bool stepOk;
-            execAsynchronous(std::tie(stepOk), VirtualBoxManager::setCpuCount,
-                    sdk->virtualMachineName(), m_cpuCount[sdk]);
-            if (stepOk) {
-                sdk->setCpuCount(m_cpuCount[sdk]);
-            } else {
-                m_ui->sdkDetailsWidget->setCpuCount(sdk->cpuCount());
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&VirtualMachine::setCpuCount),
+                    sdk->virtualMachine(), m_cpuCount[sdk]);
+            if (!stepOk) {
+                m_ui->sdkDetailsWidget->setCpuCount(sdk->virtualMachine()->cpuCount());
                 m_cpuCount.remove(sdk);
                 ok = false;
             }
@@ -221,15 +217,13 @@ void MerOptionsWidget::store()
         if (m_vdiCapacityMb.contains(sdk)) {
             const int newVdiCapacityMb = m_vdiCapacityMb[sdk];
             bool stepOk;
-            execAsynchronous(std::tie(stepOk), VirtualBoxManager::setVdiCapacityMb,
-                    sdk->virtualMachineName(), newVdiCapacityMb);
-            if (stepOk) {
-                sdk->setVdiCapacityMb(newVdiCapacityMb);
-            } else {
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&VirtualMachine::setVdiCapacityMb),
+                    sdk->virtualMachine(), newVdiCapacityMb);
+            if (!stepOk) {
                 m_vdiCapacityMb.remove(sdk);
                 ok = false;
             }
-            m_ui->sdkDetailsWidget->setVdiCapacityMb(sdk->vdiCapacityMb());
+            m_ui->sdkDetailsWidget->setVdiCapacityMb(sdk->virtualMachine()->vdiCapacityMb());
         }
     }
 
@@ -279,11 +273,11 @@ bool MerOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<MerSdk
             m_sshPort.remove(sdk);
         if (m_wwwPort.value(sdk) == sdk->wwwPort())
             m_wwwPort.remove(sdk);
-        if (m_memorySizeMb.value(sdk) == sdk->memorySizeMb())
+        if (m_memorySizeMb.value(sdk) == sdk->virtualMachine()->memorySizeMb())
             m_memorySizeMb.remove(sdk);
-        if (m_cpuCount.value(sdk) == sdk->cpuCount())
+        if (m_cpuCount.value(sdk) == sdk->virtualMachine()->cpuCount())
             m_cpuCount.remove(sdk);
-        if (m_vdiCapacityMb.value(sdk) == sdk->vdiCapacityMb())
+        if (m_vdiCapacityMb.value(sdk) == sdk->virtualMachine()->vdiCapacityMb())
             m_vdiCapacityMb.remove(sdk);
 
         if (!m_sshPort.contains(sdk)
@@ -321,11 +315,11 @@ bool MerOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<MerSdk
         m_sshPort.remove(sdk);
         m_ui->sdkDetailsWidget->setWwwPort(sdk->wwwPort());
         m_wwwPort.remove(sdk);
-        m_ui->sdkDetailsWidget->setMemorySizeMb(sdk->memorySizeMb());
+        m_ui->sdkDetailsWidget->setMemorySizeMb(sdk->virtualMachine()->memorySizeMb());
         m_memorySizeMb.remove(sdk);
-        m_ui->sdkDetailsWidget->setCpuCount(sdk->cpuCount());
+        m_ui->sdkDetailsWidget->setCpuCount(sdk->virtualMachine()->cpuCount());
         m_cpuCount.remove(sdk);
-        m_ui->sdkDetailsWidget->setVdiCapacityMb(sdk->vdiCapacityMb());
+        m_ui->sdkDetailsWidget->setVdiCapacityMb(sdk->virtualMachine()->vdiCapacityMb());
         m_vdiCapacityMb.remove(sdk);
     }
 
@@ -560,17 +554,17 @@ void MerOptionsWidget::update()
         if (m_memorySizeMb.contains(sdk))
             m_ui->sdkDetailsWidget->setMemorySizeMb(m_memorySizeMb[sdk]);
         else
-            m_ui->sdkDetailsWidget->setMemorySizeMb(sdk->memorySizeMb());
+            m_ui->sdkDetailsWidget->setMemorySizeMb(sdk->virtualMachine()->memorySizeMb());
 
         if (m_cpuCount.contains(sdk))
             m_ui->sdkDetailsWidget->setCpuCount(m_cpuCount[sdk]);
         else
-            m_ui->sdkDetailsWidget->setCpuCount(sdk->cpuCount());
+            m_ui->sdkDetailsWidget->setCpuCount(sdk->virtualMachine()->cpuCount());
 
         if (m_vdiCapacityMb.contains(sdk))
             m_ui->sdkDetailsWidget->setVdiCapacityMb(m_vdiCapacityMb[sdk]);
         else
-            m_ui->sdkDetailsWidget->setVdiCapacityMb(sdk->vdiCapacityMb());
+            m_ui->sdkDetailsWidget->setVdiCapacityMb(sdk->virtualMachine()->vdiCapacityMb());
 
         onVmOffChanged(sdk->virtualMachine()->isOff());
         m_vmOffConnection = connect(sdk->virtualMachine(), &VirtualMachine::virtualMachineOffChanged,
@@ -650,11 +644,11 @@ void MerOptionsWidget::onVmOffChanged(bool vmOff)
         m_sshPort.remove(sdk);
         m_ui->sdkDetailsWidget->setWwwPort(sdk->wwwPort());
         m_wwwPort.remove(sdk);
-        m_ui->sdkDetailsWidget->setMemorySizeMb(sdk->memorySizeMb());
+        m_ui->sdkDetailsWidget->setMemorySizeMb(sdk->virtualMachine()->memorySizeMb());
         m_memorySizeMb.remove(sdk);
-        m_ui->sdkDetailsWidget->setCpuCount(sdk->cpuCount());
+        m_ui->sdkDetailsWidget->setCpuCount(sdk->virtualMachine()->cpuCount());
         m_cpuCount.remove(sdk);
-        m_ui->sdkDetailsWidget->setVdiCapacityMb(sdk->vdiCapacityMb());
+        m_ui->sdkDetailsWidget->setVdiCapacityMb(sdk->virtualMachine()->vdiCapacityMb());
         m_vdiCapacityMb.remove(sdk);
     }
 

@@ -86,6 +86,19 @@ public:
     bool isOff(bool *runningHeadless = 0, bool *startedOutside = 0) const;
     bool lockDown(bool lockDown);
 
+    virtual int memorySizeMb() const = 0;
+    virtual void setMemorySizeMb(int memorySizeMb, const QObject *context,
+            const Functor<bool> &functor) = 0;
+
+    virtual int cpuCount() const = 0;
+    virtual void setCpuCount(int cpuCount, const QObject *context,
+            const Functor<bool> &functor) = 0;
+
+    // FIXME rename as storageCapacityMb
+    virtual int vdiCapacityMb() const = 0;
+    virtual void setVdiCapacityMb(int vdiCapacityMb, const QObject *context,
+            const Functor<bool> &functor) = 0;
+
     virtual bool hasPortForwarding(quint16 hostPort, QString *ruleName = nullptr) const = 0;
     virtual void addPortForwarding(const QString &ruleName, const QString &protocol,
             quint16 hostPort, quint16 emulatorVmPort, const QObject *context,
@@ -116,6 +129,9 @@ signals:
     void autoConnectEnabledChanged(bool autoConnectEnabled);
     void virtualMachineOffChanged(bool vmOff);
     void lockDownFailed();
+    void memorySizeMbChanged(int sizeMb);
+    void cpuCountChanged(int cpuCount);
+    void vdiCapacityMbChanged(int vdiCapacityMb);
     void portForwardingChanged();
 
 protected:

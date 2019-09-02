@@ -37,6 +37,17 @@ public:
     explicit VBoxVirtualMachine(QObject *parent = nullptr); // FIXME factory
     ~VBoxVirtualMachine() override;
 
+    int memorySizeMb() const override;
+    void setMemorySizeMb(int memorySizeMb, const QObject *context,
+            const Functor<bool> &functor) override;
+
+    int cpuCount() const override;
+    void setCpuCount(int cpuCount, const QObject *context, const Functor<bool> &functor) override;
+
+    int vdiCapacityMb() const override;
+    void setVdiCapacityMb(int vdiCapacityMb, const QObject *context,
+            const Functor<bool> &functor) override;
+
     bool hasPortForwarding(quint16 hostPort, QString *ruleName = nullptr) const override;
     void addPortForwarding(const QString &ruleName, const QString &protocol,
             quint16 hostPort, quint16 emulatorVmPort, const QObject *context,
@@ -73,6 +84,7 @@ private:
 
 private:
     static QMap<QString, int> s_usedVmNames;
+    VirtualMachineInfo virtualMachineInfo;
     QList<QMap<QString, quint16>> portForwardingRules;
 };
 

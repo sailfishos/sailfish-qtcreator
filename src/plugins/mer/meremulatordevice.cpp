@@ -932,7 +932,7 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
     m_deviceMemorySizeCache.clear();
     const auto oldCpuCountCache = m_deviceCpuCountCache;
     m_deviceCpuCountCache.clear();
-    const auto oldVdiInfoCache = m_vdiCapacityCache;
+    const auto oldVdiCapacityCache = m_vdiCapacityCache;
     m_vdiCapacityCache.clear();
 
     bool ok = true;
@@ -997,8 +997,8 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         if (oldMemorySizeCache.contains(merEmulator->id())
                 && nowMemorySize != oldMemorySizeCache.value(merEmulator->id())) {
             bool stepOk;
-            execAsynchronous(std::tie(stepOk), VirtualBoxManager::setMemorySizeMb,
-                    merEmulator->virtualMachineName(), nowMemorySize);
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&VirtualMachine::setMemorySizeMb),
+                    merEmulator->virtualMachine(), nowMemorySize);
             if (!stepOk) {
                 nowMemorySize = oldMemorySizeCache.value(merEmulator->id());
                 merEmulator.constCast<MerEmulatorDevice>()->setMemorySizeMb(nowMemorySize);
@@ -1011,8 +1011,8 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         if (oldCpuCountCache.contains(merEmulator->id())
                 && nowCpuCount != oldCpuCountCache.value(merEmulator->id())) {
             bool stepOk;
-            execAsynchronous(std::tie(stepOk), VirtualBoxManager::setCpuCount,
-                    merEmulator->virtualMachineName(), nowCpuCount);
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&VirtualMachine::setCpuCount),
+                    merEmulator->virtualMachine(), nowCpuCount);
             if (!stepOk) {
                 nowCpuCount = oldCpuCountCache.value(merEmulator->id());
                 merEmulator.constCast<MerEmulatorDevice>()->setCpuCount(nowCpuCount);
@@ -1022,13 +1022,13 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         m_deviceCpuCountCache.insert(merEmulator->id(), nowCpuCount);
 
         int nowVdiCapacityMb = merEmulator->vdiCapacityMb();
-        if (oldVdiInfoCache.contains(merEmulator->id())
-                && nowVdiCapacityMb != oldVdiInfoCache.value(merEmulator->id())) {
+        if (oldVdiCapacityCache.contains(merEmulator->id())
+                && nowVdiCapacityMb != oldVdiCapacityCache.value(merEmulator->id())) {
             bool stepOk;
-            execAsynchronous(std::tie(stepOk), VirtualBoxManager::setVdiCapacityMb,
-                    merEmulator->virtualMachineName(), nowVdiCapacityMb);
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&VirtualMachine::setVdiCapacityMb),
+                    merEmulator->virtualMachine(), nowVdiCapacityMb);
             if (!stepOk) {
-                nowVdiCapacityMb = oldVdiInfoCache.value(merEmulator->id());
+                nowVdiCapacityMb = oldVdiCapacityCache.value(merEmulator->id());
                 merEmulator.constCast<MerEmulatorDevice>()->setVdiCapacityMb(nowVdiCapacityMb);
                 ok = false;
             }

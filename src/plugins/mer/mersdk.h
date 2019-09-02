@@ -107,15 +107,6 @@ public:
     void setHeadless(bool enabled);
     bool isHeadless() const;
 
-    void setMemorySizeMb(int sizeMb);
-    int memorySizeMb() const;
-
-    void setCpuCount(int count);
-    int cpuCount() const;
-
-    void setVdiCapacityMb(int sizeMb);
-    int vdiCapacityMb() const;
-
     QStringList targetNames() const;
     QList<MerTarget> targets() const;
     MerTarget target(const QString &name) const;
