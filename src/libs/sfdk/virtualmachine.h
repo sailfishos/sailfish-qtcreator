@@ -106,6 +106,10 @@ public:
     virtual void removePortForwarding(const QString &ruleName, const QObject *context,
             const Functor<bool> &functor) = 0;
 
+    virtual QStringList snapshots() const = 0;
+    virtual void restoreSnapshot(const QString &snapshotName, const QObject *context,
+            const Functor<bool> &functor) = 0;
+
     virtual void refreshConfiguration(const QObject *context, const Functor<bool> &functor) = 0;
     // FIXME API style?
     void refreshState(Sfdk::VirtualMachine::Synchronization synchronization = Asynchronous);
@@ -133,6 +137,7 @@ signals:
     void cpuCountChanged(int cpuCount);
     void vdiCapacityMbChanged(int vdiCapacityMb);
     void portForwardingChanged();
+    void snapshotsChanged();
 
 protected:
     VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, QObject *parent);

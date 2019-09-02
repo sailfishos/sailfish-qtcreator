@@ -161,6 +161,25 @@ void VBoxVirtualMachine::removePortForwarding(const QString &ruleName, const QOb
     });
 }
 
+QStringList VBoxVirtualMachine::snapshots() const
+{
+    Q_D(const VBoxVirtualMachine);
+    QTC_ASSERT(d->initialized(), return {});
+    return d->virtualMachineInfo.snapshots;
+}
+
+void VBoxVirtualMachine::restoreSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor)
+{
+    const QPointer<const QObject> context_{context};
+    VirtualBoxManager::restoreSnapshot(name(), snapshotName, this, [=](bool restoreOk) {
+        refreshConfiguration(this, [=](bool refreshOk) {
+            if (context_)
+                functor(restoreOk && refreshOk);
+        });
+    });
+}
+
 void VBoxVirtualMachine::refreshConfiguration(const QObject *context, const Functor<bool> &functor)
 {
     Q_D(VBoxVirtualMachine);
@@ -168,7 +187,8 @@ void VBoxVirtualMachine::refreshConfiguration(const QObject *context, const Func
     const QPointer<const QObject> context_{context};
     auto allOk = std::make_shared<bool>(true);
 
-    VirtualBoxManager::fetchVirtualMachineInfo(name(), VirtualBoxManager::VdiInfo, this,
+    VirtualBoxManager::fetchVirtualMachineInfo(name(),
+            VirtualBoxManager::VdiInfo | VirtualBoxManager::SnapshotInfo, this,
             [=](const VirtualMachineInfo &info, bool ok) {
         if (!ok) {
             *allOk = false;
@@ -184,6 +204,8 @@ void VBoxVirtualMachine::refreshConfiguration(const QObject *context, const Func
             emit cpuCountChanged(info.cpuCount);
         if (oldInfo.vdiCapacityMb != info.vdiCapacityMb)
             emit vdiCapacityMbChanged(info.vdiCapacityMb);
+        if (oldInfo.snapshots != info.snapshots)
+            emit snapshotsChanged();
     });
 
     VirtualBoxManager::fetchPortForwardingRules(name(), this,

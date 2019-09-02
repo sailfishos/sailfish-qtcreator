@@ -518,7 +518,7 @@ void MerEmulatorDevice::doFactoryReset(QWidget *parent)
     }
 
     bool ok;
-    execAsynchronous(std::tie(ok), VirtualBoxManager::restoreSnapshot, virtualMachineName(),
+    execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::restoreSnapshot), virtualMachine(),
             factorySnapshot());
     if (!ok) {
         m_vm->lockDown(false);
@@ -526,12 +526,6 @@ void MerEmulatorDevice::doFactoryReset(QWidget *parent)
         QMessageBox::warning(parent, tr("Failed"), tr("Failed to restore factory state."));
         return;
     }
-
-    // FIXME when snapshot restoring is available throuhg VirtualMachine, this should be part of the
-    // restore snapshot step
-    execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::refreshConfiguration),
-            virtualMachine());
-    QTC_CHECK(ok);
 
     // VDI capacity never changes solely as a result of factory reset, since the capacities of the
     // base image and all its snapshots are managed equal.

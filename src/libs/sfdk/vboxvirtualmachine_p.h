@@ -55,6 +55,10 @@ public:
     void removePortForwarding(const QString &ruleName, const QObject *context,
             const Functor<bool> &functor) override;
 
+    QStringList snapshots() const override;
+    void restoreSnapshot(const QString &snapshotName, const QObject *context, const Functor<bool>
+            &functor) override;
+
     void refreshConfiguration(const QObject *context, const Functor<bool> &functor) override;
 
     static QStringList usedVirtualMachines();
