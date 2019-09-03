@@ -34,10 +34,7 @@ SOURCES += \
     settings.cpp \
     addmerdevicemodeloperation.cpp \
     rmmerdevicemodeloperation.cpp \
-    addmertargetoperation.cpp \
-    rmmertargetoperation.cpp \
     addmersdkoperation.cpp \
-    ../../plugins/mer/mertargetsxmlparser.cpp \
     rmmersdkoperation.cpp \
     $$UTILS/fileutils.cpp \
     $$UTILS/hostosinfo.cpp \
@@ -68,10 +65,7 @@ HEADERS += \
     settings.h \
     addmerdevicemodeloperation.h \
     rmmerdevicemodeloperation.h \
-    addmertargetoperation.h \
-    rmmertargetoperation.h \
     addmersdkoperation.h \
-    ../../plugins/mer/mertargetsxmlparser.h \
     rmmersdkoperation.h \
     $$UTILS/fileutils.h \
     $$UTILS/hostosinfo.h \

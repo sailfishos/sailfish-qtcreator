@@ -47,8 +47,6 @@
 #include "rmtoolchainoperation.h"
 #include "addmerdevicemodeloperation.h"
 #include "rmmerdevicemodeloperation.h"
-#include "addmertargetoperation.h"
-#include "rmmertargetoperation.h"
 #include "addmersdkoperation.h"
 #include "rmmersdkoperation.h"
 
@@ -216,8 +214,6 @@ int main(int argc, char *argv[])
 
     operations.emplace_back(std::make_unique<AddMerDeviceModelOperation>());
     operations.emplace_back(std::make_unique<RmMerDeviceModelOperation>());
-    operations.emplace_back(std::make_unique<AddMerTargetOperation>());
-    operations.emplace_back(std::make_unique<RmMerTargetOperation>());
     operations.emplace_back(std::make_unique<AddMerSdkOperation>());
     operations.emplace_back(std::make_unique<RmMerSdkOperation>());
 
