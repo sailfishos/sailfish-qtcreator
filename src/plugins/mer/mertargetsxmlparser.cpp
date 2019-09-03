@@ -32,7 +32,6 @@
 #include <QXmlQuery>
 #include <QXmlSchema>
 #include <QXmlSchemaValidator>
-#include <QXmlStreamWriter>
 
 using namespace Utils;
 
@@ -317,71 +316,6 @@ void MerTargetData::clear()
     gccDumpIncludes.clear();
     qmakeQuery.clear();
     rpmValidationSuites.clear();
-}
-
-class MerTargetsXmlWriterPrivate
-{
-public:
-    MerTargetsXmlWriterPrivate(const QString &fileName) : fileSaver(fileName, QIODevice::WriteOnly) {}
-
-    FileSaver fileSaver;
-};
-
-MerTargetsXmlWriter::MerTargetsXmlWriter(const QString &fileName, int version,
-                                         const QList<MerTargetData> &targetData, QObject *parent)
-    : QObject(parent),
-      d(new MerTargetsXmlWriterPrivate(fileName))
-{
-    QByteArray data;
-    QXmlStreamWriter writer(&data);
-    writer.setAutoFormatting(true);
-    writer.writeStartDocument();
-    writer.writeStartElement(QLatin1String(TARGETS));
-    writer.writeAttribute(QLatin1String(VERSION), QString::number(version));
-    foreach (const MerTargetData &d, targetData) {
-        writer.writeStartElement(QLatin1String(TARGET));
-        writer.writeAttribute(QLatin1String(NAME), d.name);
-        writer.writeStartElement(QLatin1String(OUTPUT));
-        writer.writeAttribute(QLatin1String(NAME), QLatin1String(GCCDUMPMACHINE));
-        writer.writeCharacters(d.gccDumpMachine);
-        writer.writeEndElement(); // output
-        writer.writeStartElement(QLatin1String(OUTPUT));
-        writer.writeAttribute(QLatin1String(NAME), QLatin1String(GCCDUMPMACROS));
-        writer.writeCharacters(d.gccDumpMacros);
-        writer.writeEndElement(); // output
-        writer.writeStartElement(QLatin1String(OUTPUT));
-        writer.writeAttribute(QLatin1String(NAME), QLatin1String(GCCDUMPINCLUDES));
-        writer.writeCharacters(d.gccDumpIncludes);
-        writer.writeEndElement(); // output
-        writer.writeStartElement(QLatin1String(OUTPUT));
-        writer.writeAttribute(QLatin1String(NAME), QLatin1String(QMAKEQUERY));
-        writer.writeCharacters(d.qmakeQuery);
-        writer.writeEndElement(); // output
-        writer.writeStartElement(QLatin1String(OUTPUT));
-        writer.writeAttribute(QLatin1String(NAME), QLatin1String(RPMVALIDATIONSUITES));
-        writer.writeCharacters(d.rpmValidationSuites);
-        writer.writeEndElement(); // output
-        writer.writeEndElement(); // target
-    }
-    writer.writeEndElement(); // targets
-    writer.writeEndDocument();
-    d->fileSaver.write(data);
-    d->fileSaver.finalize();
-}
-
-MerTargetsXmlWriter::~MerTargetsXmlWriter()
-{
-    delete d;
-}
-
-bool MerTargetsXmlWriter::hasError() const
-{
-    return d->fileSaver.hasError();
-}
-
-QString MerTargetsXmlWriter::errorString() const
-{
-    return d->fileSaver.errorString();
 }
 
 } // Mer

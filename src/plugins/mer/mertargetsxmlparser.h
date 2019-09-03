@@ -48,21 +48,6 @@ private:
     MerTargetsXmlReaderPrivate *d;
 };
 
-class MerTargetsXmlWriterPrivate;
-class MerTargetsXmlWriter : public QObject
-{
-public:
-    MerTargetsXmlWriter(const QString &fileName, int version,
-                        const QList<MerTargetData> &targetData, QObject *parent = 0);
-    ~MerTargetsXmlWriter() override;
-
-    bool hasError() const;
-    QString errorString() const;
-
-private:
-    MerTargetsXmlWriterPrivate *d;
-};
-
 class MerTargetData
 {
 public:
