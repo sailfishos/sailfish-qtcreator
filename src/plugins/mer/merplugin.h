@@ -48,6 +48,8 @@ public:
     void extensionsInitialized() override;
     ShutdownFlag aboutToShutdown() override;
 
+    static void saveSettings();
+
 private slots:
     void handlePromptClosed(int result);
     void handleConnectionStateChanged();

@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -87,6 +88,8 @@ void initQSsh()
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
+    app.setOrganizationName(QLatin1String(Core::Constants::IDE_SETTINGSVARIANT_STR));
+    app.setApplicationName(Constants::APP_ID);
 
     qSetMessagePattern(
             "%{if-category}%{category}: %{endif}"
@@ -106,6 +109,11 @@ int main(int argc, char **argv)
     QTextCodec::setCodecForLocale(QTextCodec::codecForName("UTF-8"));
 #endif
 
+    const QString resourcePath = QDir::cleanPath(app.applicationDirPath() + '/'
+            + RELATIVE_DATA_PATH);
+
+    QSettings::setPath(QSettings::IniFormat, QSettings::SystemScope, resourcePath);
+
 #ifdef Q_OS_WIN
     {
         // See Qt Creator's main
@@ -120,9 +128,6 @@ int main(int argc, char **argv)
     initQSsh();
 
     TaskManager taskManager;
-
-    const QString resourcePath = QDir::cleanPath(app.applicationDirPath() + '/'
-            + RELATIVE_DATA_PATH);
 
     // TODO Qt Creator uses a more advanced approach, maybe worth to follow parts of it
     const QString translationsPath = QDir::cleanPath(resourcePath + "/translations");
@@ -244,6 +249,7 @@ int main(int argc, char **argv)
             return;
 
         case Worker::NormalExit:
+            SdkManager::saveSettings();
             app.exit(exitCode);
             return;
         }

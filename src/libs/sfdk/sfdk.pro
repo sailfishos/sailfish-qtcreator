@@ -7,6 +7,7 @@ QT += network
 SOURCES += \
     sfdkglobal.cpp \
     sdk.cpp \
+    usersettings.cpp \
     vboxvirtualmachine.cpp \
     virtualboxmanager.cpp \
     virtualmachine.cpp \
@@ -17,6 +18,7 @@ HEADERS += \
     sfdkglobal.h \
     sdk.h \
     sdk_p.h \
+    usersettings_p.h \
     vboxvirtualmachine_p.h \
     virtualboxmanager_p.h \
     virtualmachine.h \

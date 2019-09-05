@@ -86,6 +86,11 @@ const char *VM_NAME_PROPERTY = "merVmName";
 class MerPluginPrivate
 {
 public:
+    MerPluginPrivate()
+        : sdk(Sdk::VersionedSettings)
+    {
+    }
+
     Sdk sdk;
     MerSdkManager sdkManager;
     MerConnectionManager connectionManager;
@@ -150,9 +155,9 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     RunControl::registerWorker<RemoteLinuxQmlProfilerSupport>(QML_PROFILER_RUN_MODE, constraint);
     //RunControl::registerWorker<RemoteLinuxPerfSupport>(PERFPROFILER_RUN_MODE, constraint);
 
-    dd = new MerPluginPrivate;
-
     VirtualMachine::registerConnectionUi<MerVmConnectionUi>();
+
+    dd = new MerPluginPrivate;
 
     Command *emulatorConnectionCommand =
         ActionManager::command(Constants::MER_EMULATOR_CONNECTON_ACTION_ID);
@@ -190,6 +195,9 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
 
 void MerPlugin::extensionsInitialized()
 {
+    QTimer::singleShot(0, this, []() { Sdk::enableUpdates(); });
+
+    connect(ICore::instance(), &ICore::saveSettingsRequested, this, &MerPlugin::saveSettings);
 }
 
 IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
@@ -223,6 +231,18 @@ IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
         return SynchronousShutdown;
     else
         return AsynchronousShutdown;
+}
+
+void MerPlugin::saveSettings()
+{
+    QStringList errorStrings;
+    Sdk::saveSettings(&errorStrings);
+    for (const QString &errorString : errorStrings) {
+        // See Utils::PersistentSettingsWriter::save()
+        QMessageBox::critical(ICore::dialogParent(),
+                QCoreApplication::translate("Utils::FileSaverBase", "File Error"),
+                errorString);
+    }
 }
 
 void MerPlugin::handlePromptClosed(int result)

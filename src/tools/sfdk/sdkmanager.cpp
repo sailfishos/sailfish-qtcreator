@@ -303,6 +303,14 @@ void SdkManager::setEnableReversePathMapping(bool enable)
     s_instance->m_enableReversePathMapping = enable;
 }
 
+void SdkManager::saveSettings()
+{
+    QStringList errorStrings;
+    s_instance->m_sdk->saveSettings(&errorStrings);
+    for (const QString &errorString : errorStrings)
+        qCWarning(sfdk) << "Error saving settings:" << errorString;
+}
+
 bool SdkManager::hasEngine() const
 {
     return m_merSdk != nullptr;

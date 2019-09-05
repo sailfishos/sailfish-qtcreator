@@ -60,6 +60,8 @@ public:
 
     static void setEnableReversePathMapping(bool enable);
 
+    static void saveSettings();
+
 private:
     bool hasEngine() const;
     QString cleanSharedHome() const;

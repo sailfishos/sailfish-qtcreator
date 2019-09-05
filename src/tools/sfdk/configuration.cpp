@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -32,7 +33,6 @@
 #include <QSettings>
 #include <QStandardPaths>
 
-#include <app/app_version.h>
 #include <utils/algorithm.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
@@ -407,8 +407,8 @@ QString Configuration::globalConfigurationPath()
 {
     // QStandardPaths does not give the same locations
     QSettings settings(QSettings::IniFormat, QSettings::UserScope,
-            QLatin1String(Core::Constants::IDE_SETTINGSVARIANT_STR),
-            Constants::APP_ID);
+            QCoreApplication::organizationName(),
+            QCoreApplication::applicationName());
     QFileInfo info(settings.fileName());
     return info.dir().absoluteFilePath(info.completeBaseName() + CONFIGURATION_SUFFIX);
 }

@@ -34,13 +34,26 @@ class SFDK_EXPORT Sdk : public QObject
     Q_OBJECT
 
 public:
-    Sdk();
+    enum Option {
+        NoOption = 0x0,
+        VersionedSettings = 0x1,
+    };
+    Q_DECLARE_FLAGS(Options, Option)
+    Q_FLAG(Options)
+
+    Sdk(Options options = NoOption);
     ~Sdk() override;
 
+    static void enableUpdates();
+    static bool saveSettings(QStringList *errorStrings);
+
 private:
+    static Sdk *s_instance;
     std::unique_ptr<SdkPrivate> d_ptr;
     Q_DISABLE_COPY(Sdk)
     Q_DECLARE_PRIVATE(Sdk)
 };
+
+Q_DECLARE_OPERATORS_FOR_FLAGS(Sdk::Options);
 
 } // namespace Sfdk

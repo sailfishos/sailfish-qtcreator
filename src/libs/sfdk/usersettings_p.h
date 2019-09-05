@@ -22,46 +22,56 @@
 
 #pragma once
 
-#include "sdk.h"
+#include <utils/optional.h>
+
+#include <QObject>
+
+#include <memory>
 
 namespace Utils {
 class FileName;
+class FileSystemWatcher;
 }
 
 namespace Sfdk {
 
-class VirtualBoxManager;
-
-class SdkPrivate : public QObject
+class UserSettings : public QObject
 {
     Q_OBJECT
-    friend class Sdk;
+
+    class LockFile;
+
+    enum State {
+        NotLoaded,
+        Loaded,
+        UpdatesEnabled
+    };
 
 public:
-    enum SettingsScope {
-        SystemScope,
-        UserScope,
-        SessionScope,
-    };
-    Q_ENUM(SettingsScope)
+    explicit UserSettings(const QString &baseName, const QString &docType, QObject *parent);
+    ~UserSettings() override;
 
-    SdkPrivate(Sdk *q);
-    ~SdkPrivate();
-
-    static bool isVersionedSettingsEnabled() { return instance()->options_ & Sdk::VersionedSettings; }
-    static bool isUpdatesEnabled() { return instance()->updatesEnabled; }
-
-    static Utils::FileName settingsFile(SettingsScope scope, const QString &basename);
-    static Utils::FileName settingsLocation(SettingsScope scope);
+    Utils::optional<QVariantMap> load();
+    void enableUpdates();
+    bool save(const QVariantMap &data, QString *errorString);
 
 signals:
-    void enableUpdatesRequested();
-    void saveSettingsRequested(QStringList *errorStrings);
+    void updated(const QVariantMap &data);
 
 private:
-    Sdk::Options options_;
-    bool updatesEnabled = false;
-    std::unique_ptr<VirtualBoxManager> virtualBoxManager;
+    void checkUpdates();
+    std::tuple<int, QVariantMap> load(const Utils::FileName &fileName) const;
+    bool save(const Utils::FileName &fileName, const QVariantMap &data,
+            QString *errorString) const;
+    Utils::FileName sessionScopeFile() const;
+    Utils::FileName userScopeFile() const;
+
+private:
+    State m_state = NotLoaded;
+    const QString m_baseName;
+    const QString m_docType;
+    std::unique_ptr<Utils::FileSystemWatcher> m_watcher;
+    int m_baseVersion = 0;
 };
 
 } // namespace Sfdk
