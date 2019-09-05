@@ -49,7 +49,7 @@
 #include "mervmconnectionui.h"
 #include "meremulatormodeoptionspage.h"
 
-#include <sfdk/sfdk.h>
+#include <sfdk/sdk.h>
 #include <sfdk/virtualmachine.h>
 
 #include <coreplugin/actionmanager/actioncontainer.h>
@@ -86,6 +86,7 @@ const char *VM_NAME_PROPERTY = "merVmName";
 class MerPluginPrivate
 {
 public:
+    Sdk sdk;
     MerSdkManager sdkManager;
     MerConnectionManager connectionManager;
     MerOptionsPage optionsPage;
@@ -134,9 +135,6 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
 
     using namespace ProjectExplorer::Constants;
 
-    sfdkInit();
-    VirtualMachine::registerConnectionUi<MerVmConnectionUi>();
-
     new MerSettings(this);
 
     RunConfiguration::registerAspect<MerRunConfigurationAspect>();
@@ -153,6 +151,8 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     //RunControl::registerWorker<RemoteLinuxPerfSupport>(PERFPROFILER_RUN_MODE, constraint);
 
     dd = new MerPluginPrivate;
+
+    VirtualMachine::registerConnectionUi<MerVmConnectionUi>();
 
     Command *emulatorConnectionCommand =
         ActionManager::command(Constants::MER_EMULATOR_CONNECTON_ACTION_ID);

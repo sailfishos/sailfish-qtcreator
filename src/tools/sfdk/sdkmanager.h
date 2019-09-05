@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -38,6 +39,8 @@ namespace Internal {
 
 namespace Sfdk {
 
+class Sdk;
+
 class SdkManager
 {
     Q_DECLARE_TR_FUNCTIONS(Sfdk::SdkManager)
@@ -70,6 +73,7 @@ private:
     static SdkManager *s_instance;
     bool m_enableReversePathMapping = true;
     std::unique_ptr<Mer::Internal::MerSettings> m_merSettings;
+    std::unique_ptr<Sdk> m_sdk;
     std::unique_ptr<Mer::Internal::MerSdkManager> m_merSdkManager;
     Mer::Internal::MerSdk *m_merSdk = nullptr;
 };

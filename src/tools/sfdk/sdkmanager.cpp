@@ -27,7 +27,7 @@
 #include <QPointer>
 #include <QRegularExpression>
 
-#include <sfdk/sfdk.h>
+#include <sfdk/sdk.h>
 #include <sfdk/virtualmachine.h>
 
 #include <mer/merconstants.h>
@@ -202,8 +202,8 @@ SdkManager::SdkManager()
 
     m_merSettings = std::make_unique<MerSettings>();
 
-    sfdkInit();
     VirtualMachine::registerConnectionUi<VmConnectionUi>();
+    m_sdk = std::make_unique<Sdk>();
 
     m_merSdkManager = std::make_unique<MerSdkManager>();
 

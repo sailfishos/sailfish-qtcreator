@@ -20,15 +20,27 @@
 **
 ****************************************************************************/
 
-#include "sfdk.h"
+#pragma once
 
-#include "virtualboxmanager_p.h"
+#include "sfdkglobal.h"
+
+#include <QObject>
 
 namespace Sfdk {
 
-void sfdkInit()
+class SdkPrivate;
+class SFDK_EXPORT Sdk : public QObject
 {
-    static VirtualBoxManager virtualBoxManager;
-}
+    Q_OBJECT
+
+public:
+    Sdk();
+    ~Sdk() override;
+
+private:
+    std::unique_ptr<SdkPrivate> d_ptr;
+    Q_DISABLE_COPY(Sdk)
+    Q_DECLARE_PRIVATE(Sdk)
+};
 
 } // namespace Sfdk

@@ -5,17 +5,18 @@ DEFINES += SFDK_LIBRARY
 QT += network
 
 SOURCES += \
-    sfdk.cpp \
     sfdkglobal.cpp \
+    sdk.cpp \
     vboxvirtualmachine.cpp \
     virtualboxmanager.cpp \
     virtualmachine.cpp \
     vmconnection.cpp \
 
 HEADERS += \
-    sfdk.h \
     sfdkconstants.h \
     sfdkglobal.h \
+    sdk.h \
+    sdk_p.h \
     vboxvirtualmachine_p.h \
     virtualboxmanager_p.h \
     virtualmachine.h \

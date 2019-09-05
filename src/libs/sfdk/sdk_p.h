@@ -22,10 +22,23 @@
 
 #pragma once
 
-#include "sfdkglobal.h"
+#include "sdk.h"
 
 namespace Sfdk {
 
-SFDK_EXPORT void sfdkInit();
+class VirtualBoxManager;
+
+class SdkPrivate : public QObject
+{
+    Q_OBJECT
+    friend class Sdk;
+
+public:
+    SdkPrivate(Sdk *q);
+    ~SdkPrivate();
+
+private:
+    std::unique_ptr<VirtualBoxManager> virtualBoxManager;
+};
 
 } // namespace Sfdk
