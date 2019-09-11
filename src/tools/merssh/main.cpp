@@ -34,6 +34,7 @@
 
 #include <app/app_version.h>
 #include <mer/merconstants.h>
+#include <sfdk/sfdkconstants.h>
 #include <ssh/sshsettings.h>
 #include <utils/algorithm.h>
 #include <utils/environment.h>
@@ -57,18 +58,18 @@ void printUsage()
             << "commands:" << endl
             << CommandFactory::commands().join(' ') << endl
             << "environment variables - project parameters:" << endl
-            << Mer::Constants::MER_SSH_TARGET_NAME << endl
-            << Mer::Constants::MER_SSH_SHARED_HOME << endl
-            << Mer::Constants::MER_SSH_SHARED_TARGET << endl
-            << Mer::Constants::MER_SSH_SHARED_SRC << endl
-            << Mer::Constants::MER_SSH_SDK_TOOLS << endl
-            << Mer::Constants::MER_SSH_DEVICE_NAME << endl
+            << Sfdk::Constants::MER_SSH_TARGET_NAME << endl
+            << Sfdk::Constants::MER_SSH_SHARED_HOME << endl
+            << Sfdk::Constants::MER_SSH_SHARED_TARGET << endl
+            << Sfdk::Constants::MER_SSH_SHARED_SRC << endl
+            << Sfdk::Constants::MER_SSH_SDK_TOOLS << endl
+            << Sfdk::Constants::MER_SSH_DEVICE_NAME << endl
             << "evironment variables - connection parameters:" << endl
-            << Mer::Constants::MER_SSH_USERNAME << endl
-            << Mer::Constants::MER_SSH_PORT << endl
-            << Mer::Constants::MER_SSH_PRIVATE_KEY << endl
+            << Sfdk::Constants::MER_SSH_USERNAME << endl
+            << Sfdk::Constants::MER_SSH_PORT << endl
+            << Sfdk::Constants::MER_SSH_PRIVATE_KEY << endl
             << "evironment variables - used by enginectl only:" << endl
-            << Mer::Constants::MER_SSH_ENGINE_NAME << endl;
+            << Sfdk::Constants::MER_SSH_ENGINE_NAME << endl;
 }
 
 QStringList unquoteArguments(QStringList args) {
@@ -167,16 +168,16 @@ int main(int argc, char *argv[])
     // Allow to pass variable on command line instead of in environment. Used by installer where
     // environment variables cannot be set.
     const QSet<QString> environmentVariables{
-        QLatin1String(Mer::Constants::MER_SSH_TARGET_NAME),
-        QLatin1String(Mer::Constants::MER_SSH_SHARED_HOME),
-        QLatin1String(Mer::Constants::MER_SSH_SHARED_TARGET),
-        QLatin1String(Mer::Constants::MER_SSH_SHARED_SRC),
-        QLatin1String(Mer::Constants::MER_SSH_SDK_TOOLS),
-        QLatin1String(Mer::Constants::MER_SSH_DEVICE_NAME),
-        QLatin1String(Mer::Constants::MER_SSH_ENGINE_NAME),
-        QLatin1String(Mer::Constants::MER_SSH_USERNAME),
-        QLatin1String(Mer::Constants::MER_SSH_PORT),
-        QLatin1String(Mer::Constants::MER_SSH_PRIVATE_KEY),
+        QLatin1String(Sfdk::Constants::MER_SSH_TARGET_NAME),
+        QLatin1String(Sfdk::Constants::MER_SSH_SHARED_HOME),
+        QLatin1String(Sfdk::Constants::MER_SSH_SHARED_TARGET),
+        QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC),
+        QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS),
+        QLatin1String(Sfdk::Constants::MER_SSH_DEVICE_NAME),
+        QLatin1String(Sfdk::Constants::MER_SSH_ENGINE_NAME),
+        QLatin1String(Sfdk::Constants::MER_SSH_USERNAME),
+        QLatin1String(Sfdk::Constants::MER_SSH_PORT),
+        QLatin1String(Sfdk::Constants::MER_SSH_PRIVATE_KEY),
     };
     while (!arguments.isEmpty()) {
         const int equalPosition = arguments.first().indexOf('=');
@@ -209,19 +210,19 @@ int main(int argc, char *argv[])
         arguments = unquoteArguments(arguments);
 
     const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
-    command->setTargetName(environment.value(QLatin1String(Mer::Constants::MER_SSH_TARGET_NAME)));
-    command->setSharedHomePath(environment.value(QLatin1String(Mer::Constants::MER_SSH_SHARED_HOME)));
-    command->setSharedTargetPath(environment.value(QLatin1String(Mer::Constants::MER_SSH_SHARED_TARGET)));
-    command->setSharedSourcePath(environment.value(QLatin1String(Mer::Constants::MER_SSH_SHARED_SRC)));
-    command->setSdkToolsPath(environment.value(QLatin1String(Mer::Constants::MER_SSH_SDK_TOOLS)));
-    command->setDeviceName(environment.value(QLatin1String(Mer::Constants::MER_SSH_DEVICE_NAME)));
-    command->setEngineName(environment.value(QLatin1String(Mer::Constants::MER_SSH_ENGINE_NAME)));
+    command->setTargetName(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_TARGET_NAME)));
+    command->setSharedHomePath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_HOME)));
+    command->setSharedTargetPath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_TARGET)));
+    command->setSharedSourcePath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC)));
+    command->setSdkToolsPath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS)));
+    command->setDeviceName(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_DEVICE_NAME)));
+    command->setEngineName(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_ENGINE_NAME)));
 
     QSsh::SshConnectionParameters parameters;
-    parameters.setHost(QLatin1String(Mer::Constants::MER_SDK_DEFAULTHOST));
-    parameters.setUserName(environment.value(QLatin1String(Mer::Constants::MER_SSH_USERNAME)));
-    parameters.setPort(environment.value(QLatin1String(Mer::Constants::MER_SSH_PORT)).toInt());
-    parameters.privateKeyFile = environment.value(QLatin1String(Mer::Constants::MER_SSH_PRIVATE_KEY));
+    parameters.setHost(QLatin1String(Sfdk::Constants::BUILD_ENGINE_DEFAULT_HOST));
+    parameters.setUserName(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_USERNAME)));
+    parameters.setPort(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_PORT)).toInt());
+    parameters.privateKeyFile = environment.value(QLatin1String(Sfdk::Constants::MER_SSH_PRIVATE_KEY));
     parameters.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypeSpecificKey;
     parameters.timeout = 10;
     command->setSshParameters(parameters);

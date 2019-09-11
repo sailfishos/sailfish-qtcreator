@@ -23,13 +23,15 @@
 
 #include "merbuildsteps.h"
 
-#include "mersdk.h"
 #include "mersdkkitinformation.h"
+
+#include <sfdk/buildengine.h>
 
 #include <projectexplorer/target.h>
 #include <utils/qtcassert.h>
 
 using namespace ProjectExplorer;
+using namespace Sfdk;
 
 namespace Mer {
 namespace Internal {
@@ -42,14 +44,14 @@ MerSdkStartStep::MerSdkStartStep(BuildStepList *bsl)
 
 bool MerSdkStartStep::init()
 {
-    const MerSdk *const merSdk = MerSdkKitInformation::sdk(target()->kit());
-    if (!merSdk) {
+    const BuildEngine *const engine = MerSdkKitInformation::buildEngine(target()->kit());
+    if (!engine) {
         addOutput(tr("Cannot start SDK: Missing Sailfish OS build-engine information in the kit"),
                 OutputFormat::ErrorMessage);
         return false;
     }
 
-    setVirtualMachine(merSdk->virtualMachine());
+    setVirtualMachine(engine->virtualMachine());
 
     return MerAbstractVmStartStep::init();
 }

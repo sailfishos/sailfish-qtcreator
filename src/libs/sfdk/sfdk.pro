@@ -2,11 +2,13 @@ include(../../qtcreatorlibrary.pri)
 
 DEFINES += SFDK_LIBRARY
 
-QT += network
+QT += network xmlpatterns
 
 SOURCES += \
+    buildengine.cpp \
     sfdkglobal.cpp \
     sdk.cpp \
+    targetsxmlreader.cpp \
     usersettings.cpp \
     vboxvirtualmachine.cpp \
     virtualboxmanager.cpp \
@@ -14,10 +16,13 @@ SOURCES += \
     vmconnection.cpp \
 
 HEADERS += \
+    buildengine.h \
+    buildengine_p.h \
     sfdkconstants.h \
     sfdkglobal.h \
     sdk.h \
     sdk_p.h \
+    targetsxmlreader_p.h \
     usersettings_p.h \
     vboxvirtualmachine_p.h \
     virtualboxmanager_p.h \

@@ -89,7 +89,7 @@ public:
     bool isComplete() const override;
 
 private slots:
-    void handleSdkVmChanged(const QString &vmName);
+    void handleBuildEngineChanged(const QString &name);
 
 private:
     Ui::MerHardwareDeviceWizardSetupPage *m_ui;

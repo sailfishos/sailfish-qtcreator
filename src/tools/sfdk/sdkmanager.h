@@ -31,14 +31,13 @@
 
 namespace Mer {
 namespace Internal {
-    class MerSdk;
-    class MerSdkManager;
     class MerSettings;
 }
 }
 
 namespace Sfdk {
 
+class BuildEngine;
 class Sdk;
 
 class SdkManager
@@ -76,8 +75,7 @@ private:
     bool m_enableReversePathMapping = true;
     std::unique_ptr<Mer::Internal::MerSettings> m_merSettings;
     std::unique_ptr<Sdk> m_sdk;
-    std::unique_ptr<Mer::Internal::MerSdkManager> m_merSdkManager;
-    Mer::Internal::MerSdk *m_merSdk = nullptr;
+    BuildEngine *m_buildEngine = nullptr;
 };
 
 } // namespace Sfdk

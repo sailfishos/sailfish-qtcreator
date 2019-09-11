@@ -33,7 +33,8 @@
 #include "ui_merdeploystep.h"
 #include "merabstractvmstartstep.h"
 #include "merconstants.h"
-#include "mertarget.h"
+
+#include <sfdk/buildengine.h>
 
 #include <projectexplorer/abstractprocessstep.h>
 #include <projectexplorer/buildsteplist.h>
@@ -217,7 +218,7 @@ public:
     bool init() override;
     bool fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
-    MerTarget merTarget() const;
+    QList<Sfdk::RpmValidationSuiteData> suites() const;
     QStringList defaultSuites() const;
     QStringList selectedSuites() const;
     void setSelectedSuites(const QStringList &selectedSuites);
@@ -229,7 +230,7 @@ protected:
     void doRun() override;
 private:
     MerMb2RpmBuildStep *m_packagingStep;
-    MerTarget m_merTarget;
+    Sfdk::BuildTargetData m_target;
     QStringList m_selectedSuites;
     QString m_fixedArguments;
 };

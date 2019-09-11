@@ -23,14 +23,16 @@
 #ifndef MERSDKDETAILSWIDGET_H
 #define MERSDKDETAILSWIDGET_H
 
-#include "mersdk.h"
-
 #include <QIcon>
 #include <QWidget>
 
 QT_BEGIN_NAMESPACE
 class QListWidgetItem;
 QT_END_NAMESPACE
+
+namespace Sfdk {
+class BuildEngine;
+}
 
 namespace Mer {
 namespace Internal {
@@ -52,7 +54,7 @@ public:
     ~MerSdkDetailsWidget() override;
 
     QString searchKeyWordMatchString() const;
-    void setSdk(const MerSdk *sdk);
+    void setSdk(const Sfdk::BuildEngine *sdk);
     void setStatus(const QString &status);
     void setVmOffStatus(bool vmOff);
     void setPrivateKeyFile(const QString &path);

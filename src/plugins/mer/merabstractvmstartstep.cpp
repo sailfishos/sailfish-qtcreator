@@ -25,7 +25,6 @@
 
 #include "merconnectionmanager.h"
 #include "merconstants.h"
-#include "mersdk.h"
 #include "mersdkkitinformation.h"
 
 #include <sfdk/virtualmachine.h>

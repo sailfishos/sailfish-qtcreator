@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -23,7 +24,7 @@
 #ifndef MERCONSTANTS_H
 #define MERCONSTANTS_H
 
-#include <qglobal.h> // for Q_OS_*
+#include <qglobal.h>
 
 namespace Mer {
 namespace Constants {
@@ -42,33 +43,14 @@ const char MER_EMULATOR_MODE_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "Emulator
 const char MER_EMULATOR_MODE_ACTION_NAME[] = QT_TRANSLATE_NOOP("Mer", "&Emulator mode...");
 
 const char MER_DEVICE_TYPE[] = "Mer.Device.Type";
-const char MER_i486_IDENTIFIER[] = "i486";
-const char MER_ARM_IDENTIFIER[] = "arm";
 
 const char MER_TOOLS_MENU[] = "Mer.Tools.Menu";
 const char MER_EMULATOR_MODE_ACTION_ID[] = "Mer.Emulator.Mode.Action";
 const char MER_START_QML_LIVE_BENCH_ACTION_ID[] = "Mer.StartQmlLiveBench.Action";
 
-#ifdef Q_OS_WIN
-#define SCRIPT_EXTENSION ".cmd"
-#else // Q_OS_WIN
-#define SCRIPT_EXTENSION ""
-#endif // Q_OS_WIN
-
-const char MER_WRAPPER_RPMBUILD[] = "rpmbuild" SCRIPT_EXTENSION;
-const char MER_WRAPPER_QMAKE[] = "qmake" SCRIPT_EXTENSION;
-const char MER_WRAPPER_MAKE[] = "make" SCRIPT_EXTENSION;
-const char MER_WRAPPER_GCC[] = "gcc" SCRIPT_EXTENSION;
-const char MER_WRAPPER_DEPLOY[] = "deploy" SCRIPT_EXTENSION;
-const char MER_WRAPPER_RPM[] = "rpm" SCRIPT_EXTENSION;
-const char MER_WRAPPER_RPMVALIDATION[] = "rpmvalidation" SCRIPT_EXTENSION;
-const char MER_WRAPPER_LUPDATE[] = "lupdate" SCRIPT_EXTENSION;
-const char MER_WRAPPER_PKG_CONFIG[] = "pkg-config" SCRIPT_EXTENSION;
-
-const char MER_SDK_DEFAULTUSER[] = "mersdk";
 const char MER_DEVICE_DEFAULTUSER[] = "nemo";
 const char MER_DEVICE_ROOTUSER[] = "root";
-const char MER_SDK_DEFAULTHOST[] = "localhost";
+
 const char MER_SDK_PROXY_DISABLED[] = "direct";
 const char MER_SDK_PROXY_AUTOMATIC[] = "auto";
 const char MER_SDK_PROXY_MANUAL[] = "manual";
@@ -118,7 +100,7 @@ const char SYSROOT[] = "Sysroot";
 const char TOOL_CHAINS[] = "ToolChains";
 const char QT_VERSIONS[] = "QtVersions";
 const char AUTO_DETECTED[] = "AutoDetected";
-const char VIRTUAL_MACHINE[] = "VirtualMachine";
+const char BUILD_ENGINE[] = "BuildEngine";
 const char SB2_TARGET_NAME[] = "SB2.TargetName";
 
 const char MER_RUNCONFIGURATION_PREFIX[] = "QmakeProjectManager.MerRunConfiguration:";
@@ -131,46 +113,16 @@ const char MER_SDK_CONNECTON_ACTION_ID[] = "Mer.SdkConnectionAction";
 const char MER_WIZARD_FEATURE_SAILFISHOS[] = "Mer.Wizard.Feature.SailfishOS";
 const char MER_WIZARD_FEATURE_EMULATOR[] = "Mer.Wizard.Feature.Emulator";
 
-const char MER_SDK_FILENAME[] = "/qtcreator/mersdk.xml";
-const char MER_TARGETS_FILENAME[] = "/targets.xml";
 const char MER_DEVICES_FILENAME[] = "/devices.xml";
 const char MER_DEVICE_MODELS_FILENAME[] = "/qtcreator/mersdk-device-models.xml";
 const char MER_COMPOSITOR_CONFIG_FILENAME[] = "65-emul-wayland-ui-scale.conf";
 const char MER_EMULATOR_DCONF_DB_FILENAME[] = "device-model.txt";
-const char MER_DEBUGGER_i486_FILENAME[] = "gdb-i486-meego-linux-gnu";
-const char MER_DEBUGGER_ARM_FILENAME[] = "gdb-armv7hl-meego-linux-gnueabi";
-const char MER_DEBUGGER_FILENAME_PREFIX[] = "gdb-";
 
 const char MER_SDK_SHARED_HOME_MOUNT_POINT[] = "/home/mersdk/share";
 const char MER_SDK_SHARED_SRC_MOUNT_POINT[] = "/home/src1";
 
-const char MER_TARGET_NAME[] = "MerTarget.Name";
-const char MER_TARGET_QMAKE_DUMP[] = "MerTarget.QmakeQuery";
-const char MER_TARGET_GCC_DUMP_MACHINE[] = "MerTarget.GccDumpMachine";
-const char MER_TARGET_GCC_DUMP_MACROS[] = "MerTarget.GccDumpMacros";
-const char MER_TARGET_GCC_DUMP_INCLUDES[] = "MerTarget.GccDumpIncludes";
-const char MER_TARGET_RPMVALIDATION_DUMP[] = "MerTarget.RpmValidationSuites";
-const char MER_TARGET_DEFAULT_DEBUGGER[] = "MerTarget.DefaultDebugger";
-
-const char QMAKE_QUERY[] = "qmake.query";
-const char QMAKE_VERSION[] = "qmake.version";
-const char GCC_DUMPMACHINE[] = "gcc.dumpmachine";
-const char GCC_DUMPVERSION[] = "gcc.dumpversion";
-const char GCC_DUMPMACROS[] = "gcc.dumpmacros";
-const char GCC_DUMPINCLUDES[] = "gcc.dumpincludes";
-
 const char MER_AUTHORIZEDKEYS_FOLDER[] = "authorized_keys";
 
-const char MER_SSH_SHARED_HOME[] = "MER_SSH_SHARED_HOME";
-const char MER_SSH_SHARED_TARGET[] = "MER_SSH_SHARED_TARGET";
-const char MER_SSH_SHARED_SRC[] = "MER_SSH_SHARED_SRC";
-const char MER_SSH_SDK_TOOLS[] = "MER_SSH_SDK_TOOLS";
-const char MER_SSH_USERNAME[] = "MER_SSH_USERNAME";
-const char MER_SSH_PRIVATE_KEY[] = "MER_SSH_PRIVATE_KEY";
-const char MER_SSH_TARGET_NAME[] = "MER_SSH_TARGET_NAME";
-const char MER_SSH_DEVICE_NAME[] = "MER_SSH_DEVICE_NAME";
-const char MER_SSH_PORT[] = "MER_SSH_PORT";
-const char MER_SSH_ENGINE_NAME[] = "MER_SSH_ENGINE_NAME";
 const char SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED[] = "SAILFISH_OS_SDK_ENVIRONMENT_FILTER";
 const char SAILFISH_SDK_ENVIRONMENT_FILTER[] = "SAILFISH_SDK_ENVIRONMENT_FILTER";
 const char SAILFISH_SDK_FRONTEND[] = "SAILFISH_SDK_FRONTEND";

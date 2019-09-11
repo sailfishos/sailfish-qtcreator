@@ -25,9 +25,11 @@
 #include "merconstants.h"
 #include "merdevicefactory.h"
 #include "meroptionspage.h"
-#include "mersdk.h"
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
+
+#include <sfdk/buildengine.h>
+#include <sfdk/sfdkconstants.h>
 
 #include <coreplugin/icore.h>
 #include <extensionsystem/pluginmanager.h>
@@ -40,6 +42,7 @@
 using namespace Core;
 using namespace ExtensionSystem;
 using namespace ProjectExplorer;
+using namespace Sfdk;
 using namespace Utils;
 
 namespace Mer {
@@ -59,12 +62,12 @@ QVariant MerTargetKitInformation::defaultValue(const Kit *kit) const
 QList<Task> MerTargetKitInformation::validate(const Kit *kit) const
 {
     if (DeviceTypeKitInformation::deviceTypeId(kit) == Constants::MER_DEVICE_TYPE) {
-        const MerSdk *sdk = MerSdkKitInformation::sdk(kit);
+        BuildEngine *const sdk = MerSdkKitInformation::buildEngine(kit);
         const QString &target = kit->value(MerTargetKitInformation::id()).toString();
-        if (sdk && !sdk->targetNames().contains(target)) {
+        if (sdk && !sdk->buildTargetNames().contains(target)) {
             const QString message = QCoreApplication::translate("MerTarget",
                     "No valid build target found for %1")
-                .arg(sdk->virtualMachineName());
+                .arg(sdk->name());
             return QList<Task>() << Task(Task::Error, message, FileName(), -1,
                                          Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
         }
@@ -78,18 +81,18 @@ QString MerTargetKitInformation::targetName(const Kit *kit)
     return kit->value(MerTargetKitInformation::id()).toString();
 }
 
-MerTarget MerTargetKitInformation::target(const Kit *kit)
+Sfdk::BuildTargetData MerTargetKitInformation::target(const Kit *kit)
 {
-    QTC_ASSERT(kit, return MerTarget());
+    QTC_ASSERT(kit, return {});
 
-    QString targetName = MerTargetKitInformation::targetName(kit);
+    const QString targetName = MerTargetKitInformation::targetName(kit);
     if (targetName.isEmpty())
-        return MerTarget();
+        return {};
 
-    const MerSdk *const merSdk = MerSdkKitInformation::sdk(kit);
-    QTC_ASSERT(merSdk, return MerTarget());
+    BuildEngine *const buildEngine = MerSdkKitInformation::buildEngine(kit);
+    QTC_ASSERT(buildEngine, return {});
 
-    return merSdk->target(targetName);
+    return buildEngine->buildTarget(targetName);
 }
 
 KitInformation::ItemList MerTargetKitInformation::toUserOutput(const Kit *kit) const
@@ -120,7 +123,7 @@ void MerTargetKitInformation::setTargetName(Kit *kit, const QString& targetName)
 void MerTargetKitInformation::addToEnvironment(const Kit *kit, Environment &env) const
 {
     const QString targetName = MerTargetKitInformation::targetName(kit);
-        env.appendOrSet(QLatin1String(Constants::MER_SSH_TARGET_NAME),targetName);
+        env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_TARGET_NAME), targetName);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -131,13 +134,21 @@ MerTargetKitInformationWidget::MerTargetKitInformationWidget(Kit *kit,
       m_combo(new QComboBox),
       m_manageButton(new QPushButton(tr("Manage...")))
 {
+    if (!visibleInKit())
+        return;
+
     refresh();
     connect(m_combo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this, &MerTargetKitInformationWidget::handleCurrentIndexChanged);
     connect(m_manageButton, &QPushButton::clicked,
             this, &MerTargetKitInformationWidget::handleManageClicked);
-    connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
-            this, &MerTargetKitInformationWidget::handleSdksUpdated);
+
+    BuildEngine *const sdk = MerSdkKitInformation::buildEngine(m_kit);
+    QTC_CHECK(sdk);
+    connect(sdk, &BuildEngine::buildTargetAdded,
+            this, &MerTargetKitInformationWidget::refresh);
+    connect(sdk, &BuildEngine::aboutToRemoveBuildTarget,
+            this, &MerTargetKitInformationWidget::refresh, Qt::QueuedConnection);
 }
 
 QString MerTargetKitInformationWidget::displayName() const
@@ -157,13 +168,13 @@ void MerTargetKitInformationWidget::makeReadOnly()
 
 void MerTargetKitInformationWidget::refresh()
 {
-    const MerSdk* sdk = MerSdkKitInformation::sdk(m_kit);
-    QString targetName = MerTargetKitInformation::targetName(m_kit);
+    BuildEngine *const sdk = MerSdkKitInformation::buildEngine(m_kit);
+    const QString targetName = MerTargetKitInformation::targetName(m_kit);
     int i = -1;
     m_combo->blockSignals(true);
     m_combo->clear();
     if (sdk && !targetName.isEmpty()) {
-        foreach (const QString& targetName, sdk->targetNames()) {
+        foreach (const QString &targetName, sdk->buildTargetNames()) {
             m_combo->addItem(targetName);        
         }
     }
@@ -201,7 +212,7 @@ void MerTargetKitInformationWidget::handleManageClicked()
 {
     MerOptionsPage *page = PluginManager::getObject<MerOptionsPage>();
     if (page) {
-        const MerSdk* sdk = MerSdkKitInformation::sdk(m_kit);
+        BuildEngine *const sdk = MerSdkKitInformation::buildEngine(m_kit);
         if(sdk)
             page->setSdk(m_combo->currentText());
     }
@@ -210,14 +221,9 @@ void MerTargetKitInformationWidget::handleManageClicked()
 
 void MerTargetKitInformationWidget::handleCurrentIndexChanged()
 {
-    const MerSdk* sdk = MerSdkKitInformation::sdk(m_kit);
-    if (sdk && sdk->targetNames().contains(m_combo->currentText()))
+    BuildEngine *const sdk = MerSdkKitInformation::buildEngine(m_kit);
+    if (sdk && sdk->buildTargetNames().contains(m_combo->currentText()))
         MerTargetKitInformation::setTargetName(m_kit,m_combo->currentText());
-}
-
-void MerTargetKitInformationWidget::handleSdksUpdated()
-{
-    refresh();
 }
 
 }

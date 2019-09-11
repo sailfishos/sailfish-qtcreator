@@ -23,7 +23,7 @@
 #ifndef MERTARGETKITINFORMATION_H
 #define MERTARGETKITINFORMATION_H
 
-#include "mertarget.h"
+#include <sfdk/buildengine.h>
 
 #include <projectexplorer/kitconfigwidget.h>
 #include <projectexplorer/kitinformation.h>
@@ -55,7 +55,6 @@ public:
 private slots:
     void handleManageClicked();
     void handleCurrentIndexChanged();
-    void handleSdksUpdated();
 
 private:
     QComboBox *m_combo;
@@ -75,7 +74,7 @@ public:
     static Core::Id id();
     static void setTargetName(ProjectExplorer::Kit *kit, const QString& targetName);
     static QString targetName(const ProjectExplorer::Kit *kit);
-    static MerTarget target(const ProjectExplorer::Kit *kit);
+    static Sfdk::BuildTargetData target(const ProjectExplorer::Kit *kit);
 };
 
 }

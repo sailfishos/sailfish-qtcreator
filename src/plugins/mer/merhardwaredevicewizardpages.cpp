@@ -27,7 +27,9 @@
 #include "merconnectionmanager.h"
 #include "merconstants.h"
 #include "merhardwaredevicewizard.h"
-#include "mersdkmanager.h"
+
+#include <sfdk/buildengine.h>
+#include <sfdk/sdk.h>
 
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <ssh/sshremoteprocessrunner.h>
@@ -38,6 +40,7 @@
 
 using namespace ProjectExplorer;
 using namespace QSsh;
+using namespace Sfdk;
 using namespace Utils;
 
 namespace Mer {
@@ -247,11 +250,11 @@ MerHardwareDeviceWizardSetupPage::MerHardwareDeviceWizardSetupPage(QWidget *pare
     m_ui->sshCheckBox->setChecked(true);
 
     static QRegExp regExp(tr("Build Engine"));
-    QList<MerSdk*> sdks = MerSdkManager::sdks();
-    foreach (const MerSdk *s, sdks) {
-        m_ui->merSdkComboBox->addItem(s->virtualMachineName());
-        if (regExp.indexIn(s->virtualMachineName()) != -1) {
-            //preselect sdk
+    const QList<BuildEngine *> engines = Sdk::buildEngines();
+    for (BuildEngine *const engine : engines) {
+        m_ui->merSdkComboBox->addItem(engine->name());
+        if (regExp.indexIn(engine->name()) != -1) {
+            // Preselect
             m_ui->merSdkComboBox->setCurrentIndex(m_ui->merSdkComboBox->count()-1);
         }
     }
@@ -261,7 +264,7 @@ MerHardwareDeviceWizardSetupPage::MerHardwareDeviceWizardSetupPage(QWidget *pare
     connect(m_ui->merSdkComboBox,
             static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::currentIndexChanged),
             this,
-            &MerHardwareDeviceWizardSetupPage::handleSdkVmChanged);
+            &MerHardwareDeviceWizardSetupPage::handleBuildEngineChanged);
 }
 
 void MerHardwareDeviceWizardSetupPage::initializePage()
@@ -281,7 +284,7 @@ void MerHardwareDeviceWizardSetupPage::initializePage()
    m_ui->hostLabelEdit->setText(wizard->hostName());
    m_ui->usernameLabelEdit->setText(wizard->userName());
    m_ui->sshPortLabelEdit->setText(QString::number(wizard->sshPort()));
-   handleSdkVmChanged(m_ui->merSdkComboBox->currentText());
+   handleBuildEngineChanged(m_ui->merSdkComboBox->currentText());
 }
 
 QString MerHardwareDeviceWizardSetupPage::configName() const
@@ -294,15 +297,15 @@ QString MerHardwareDeviceWizardSetupPage::freePorts() const
     return m_ui->freePortsLineEdit->text().trimmed();
 }
 
-void MerHardwareDeviceWizardSetupPage::handleSdkVmChanged(const QString &vmName)
+void MerHardwareDeviceWizardSetupPage::handleBuildEngineChanged(const QString &name)
 {
-    MerSdk* sdk = MerSdkManager::sdk(vmName);
-    QTC_ASSERT(sdk,return);
+    BuildEngine *const engine = Sdk::buildEngine(name);
+    QTC_ASSERT(engine, return);
     const MerHardwareDeviceWizard* wizard = qobject_cast<MerHardwareDeviceWizard*>(this->wizard());
     QTC_ASSERT(wizard,return);
     QString index(QLatin1String("/ssh/private_keys/%1/"));
     //TODO: fix me
-    QString sshKeyPath(QDir::toNativeSeparators(sdk->sharedConfigPath() +
+    QString sshKeyPath(QDir::toNativeSeparators(engine->sharedConfigPath().toString() +
                        index.arg(wizard->configurationName()).replace(QLatin1Char(' '),QLatin1Char('_')) +
                        wizard->userName()));
     m_ui->privateSshKeyLabelEdit->setText(sshKeyPath);
@@ -326,9 +329,9 @@ bool MerHardwareDeviceWizardSetupPage::isNewSshKeysRquired() const
 
 QString MerHardwareDeviceWizardSetupPage::sharedSshPath() const
 {
-    MerSdk* sdk = MerSdkManager::sdk(m_ui->merSdkComboBox->currentText());
-    QTC_ASSERT(sdk,return QString());
-    return sdk->sharedConfigPath();
+    BuildEngine *const engine = Sdk::buildEngine(m_ui->merSdkComboBox->currentText());
+    QTC_ASSERT(engine, return {});
+    return engine->sharedConfigPath().toString();
 }
 
 bool MerHardwareDeviceWizardSetupPage::isComplete() const

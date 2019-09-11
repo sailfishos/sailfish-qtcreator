@@ -74,7 +74,6 @@ SOURCES += \
     merrunconfiguration.cpp \
     merrunconfigurationaspect.cpp \
     merrunconfigurationfactory.cpp \
-    mersdk.cpp \
     mersdkdetailswidget.cpp \
     mersdkkitinformation.cpp \
     mersdkmanager.cpp \
@@ -82,9 +81,7 @@ SOURCES += \
     mersettings.cpp \
     mersshkeydeploymentdialog.cpp \
     mersshparser.cpp \
-    mertarget.cpp \
     mertargetkitinformation.cpp \
-    mertargetsxmlparser.cpp \
     mertoolchain.cpp \
     mervmconnectionui.cpp \
     merdevicemodelcombobox.cpp \
@@ -135,7 +132,6 @@ HEADERS += \
     merrunconfiguration.h \
     merrunconfigurationaspect.h \
     merrunconfigurationfactory.h \
-    mersdk.h \
     mersdkdetailswidget.h \
     mersdkkitinformation.h \
     mersdkmanager.h \
@@ -143,9 +139,7 @@ HEADERS += \
     mersettings.h \
     mersshkeydeploymentdialog.h \
     mersshparser.h \
-    mertarget.h \
     mertargetkitinformation.h \
-    mertargetsxmlparser.h \
     mertoolchain.h \
     mertoolchainfactory.h \
     mervmconnectionui.h \

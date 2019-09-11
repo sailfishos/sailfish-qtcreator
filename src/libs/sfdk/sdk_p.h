@@ -30,6 +30,7 @@ class FileName;
 
 namespace Sfdk {
 
+class BuildEngineManager;
 class VirtualBoxManager;
 
 class SdkPrivate : public QObject
@@ -48,9 +49,12 @@ public:
     SdkPrivate(Sdk *q);
     ~SdkPrivate();
 
+    static SdkPrivate *instance() { return Sdk::s_instance->d_func(); }
+
     static bool isVersionedSettingsEnabled() { return instance()->options_ & Sdk::VersionedSettings; }
     static bool isUpdatesEnabled() { return instance()->updatesEnabled; }
 
+    static Utils::FileName libexecPath();
     static Utils::FileName settingsFile(SettingsScope scope, const QString &basename);
     static Utils::FileName settingsLocation(SettingsScope scope);
 
@@ -62,6 +66,7 @@ private:
     Sdk::Options options_;
     bool updatesEnabled = false;
     std::unique_ptr<VirtualBoxManager> virtualBoxManager;
+    std::unique_ptr<BuildEngineManager> buildEngineManager;
 };
 
 } // namespace Sfdk

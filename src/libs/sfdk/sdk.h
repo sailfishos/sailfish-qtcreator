@@ -24,9 +24,13 @@
 
 #include "sfdkglobal.h"
 
+#include "asynchronous.h"
+
 #include <QObject>
 
 namespace Sfdk {
+
+class BuildEngine;
 
 class SdkPrivate;
 class SFDK_EXPORT Sdk : public QObject
@@ -43,9 +47,26 @@ public:
 
     Sdk(Options options = NoOption);
     ~Sdk() override;
+    static Sdk *instance();
 
     static void enableUpdates();
     static bool saveSettings(QStringList *errorStrings);
+
+    static QString installationPath();
+
+    static void unusedVirtualMachines(const QObject *context,
+            const Functor<const QStringList &, bool> &&functor);
+
+    static QList<BuildEngine *> buildEngines();
+    static BuildEngine *buildEngine(const QString &name);
+    static void createBuildEngine(const QString &vmName, const QObject *context,
+        const Functor<std::unique_ptr<BuildEngine> &&> &functor);
+    static int addBuildEngine(std::unique_ptr<BuildEngine> &&buildEngine);
+    static void removeBuildEngine(const QString &name);
+
+signals:
+    void buildEngineAdded(int index);
+    void aboutToRemoveBuildEngine(int index);
 
 private:
     static Sdk *s_instance;

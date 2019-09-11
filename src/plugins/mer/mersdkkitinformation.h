@@ -29,13 +29,16 @@
 QT_FORWARD_DECLARE_CLASS(QComboBox);
 QT_FORWARD_DECLARE_CLASS(QPushButton);
 
+namespace Sfdk {
+class BuildEngine;
+}
+
 namespace Mer {
 namespace Internal {
 
-class MerSdk;
 class MerSdkKitInformation;
 
-class  MerSdkKitInformationWidget : public ProjectExplorer::KitConfigWidget
+class MerSdkKitInformationWidget : public ProjectExplorer::KitConfigWidget
 {
     Q_OBJECT
 public:
@@ -61,11 +64,14 @@ private:
 };
 
 
+// FIXME Merge MerTargetKitInformation with MerSdkKitInformation
 class MerSdkKitInformation : public ProjectExplorer::KitInformation
 {
     Q_OBJECT
 public:
     explicit MerSdkKitInformation();
+    ~MerSdkKitInformation() override;
+
     QVariant defaultValue(const ProjectExplorer::Kit *kit) const override;
     QList<ProjectExplorer::Task> validate(const ProjectExplorer::Kit *kit) const override;
     ItemList toUserOutput(const ProjectExplorer::Kit *kit) const override;
@@ -73,11 +79,18 @@ public:
     void addToEnvironment(const ProjectExplorer::Kit *kit, Utils::Environment &env) const override;
 
     static Core::Id id();
-    static void setSdk(ProjectExplorer::Kit *kit, const MerSdk* sdk);
-    static MerSdk* sdk(const ProjectExplorer::Kit *kit);
+    static void setBuildEngine(ProjectExplorer::Kit *kit, const Sfdk::BuildEngine* buildEngine);
+    static Sfdk::BuildEngine *buildEngine(const ProjectExplorer::Kit *kit);
+    static void notifyAboutUpdate(const Sfdk::BuildEngine *buildEngine);
+
+protected:
+    using KitInformation::notifyAboutUpdate;
 
 private:
-    void onUpdated();
+    void notifyAllUpdated();
+
+private:
+    static MerSdkKitInformation *s_instance;
 };
 
 }

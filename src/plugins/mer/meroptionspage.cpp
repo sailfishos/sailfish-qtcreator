@@ -24,6 +24,7 @@
 
 #include "merconstants.h"
 #include "meroptionswidget.h"
+#include "merplugin.h"
 #include "mericons.h"
 
 #include <utils/qtcassert.h>
@@ -62,6 +63,9 @@ void MerOptionsPage::apply()
     QTC_CHECK(m_widget);
 
     m_widget->store();
+
+    // ICore::saveSettingsRequested seems to be only emitted when the Options dialog is closed
+    MerPlugin::saveSettings();
 }
 
 void MerOptionsPage::finish()

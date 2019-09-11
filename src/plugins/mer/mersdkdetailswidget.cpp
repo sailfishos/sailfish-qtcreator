@@ -27,8 +27,12 @@
 #include "merconstants.h"
 #include "mersdkmanager.h"
 
+#include <sfdk/buildengine.h>
+#include <sfdk/sdk.h>
 #include <sfdk/virtualmachine.h>
 
+#include <ssh/sshconnection.h>
+#include <utils/algorithm.h>
 #include <utils/hostosinfo.h>
 #include <utils/utilsicons.h>
 
@@ -36,6 +40,7 @@
 #include <QMessageBox>
 
 using namespace Utils;
+using namespace Sfdk;
 using namespace Mer::Constants;
 
 namespace Mer {
@@ -120,32 +125,32 @@ void MerSdkDetailsWidget::setSrcFolderChooserPath(const QString& path)
     m_ui->srcFolderPathChooser->setPath(QDir::toNativeSeparators(path));
 }
 
-void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
+void MerSdkDetailsWidget::setSdk(const Sfdk::BuildEngine *sdk)
 {
-    m_ui->nameLabelText->setText(sdk->virtualMachineName());
-    m_ui->homeFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedHomePath()));
-    m_ui->targetFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedTargetsPath()));
-    m_ui->sshFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedSshPath()));
-    m_ui->configFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedConfigPath()));
-    m_ui->srcFolderPathChooser->setPath(QDir::toNativeSeparators(sdk->sharedSrcPath()));
+    m_ui->nameLabelText->setText(sdk->name());
+    m_ui->homeFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedHomePath().toString()));
+    m_ui->targetFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedTargetsPath().toString()));
+    m_ui->sshFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedSshPath().toString()));
+    m_ui->configFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedConfigPath().toString()));
+    m_ui->srcFolderPathChooser->setPath(QDir::toNativeSeparators(sdk->sharedSrcPath().toString()));
 
-    if (MerSdkManager::hasSdk(sdk)) {
-        const QStringList &targets = sdk->targetNames();
+    if (Sdk::buildEngines().contains(const_cast<BuildEngine *>(sdk))) {
+        const QStringList targets = sdk->buildTargetNames();
         if (targets.isEmpty())
             m_ui->targetsListLabel->setText(tr("No build targets installed"));
         else
-            m_ui->targetsListLabel->setText(sdk->targetNames().join(QLatin1String(", ")));
+            m_ui->targetsListLabel->setText(targets.join(QLatin1String(", ")));
     } else {
         m_ui->targetsListLabel->setText(tr("Complete adding the build engine to see its build targets"));
     }
 
     if (!sdk->sharedSshPath().isEmpty()) {
-        const QString authorized_keys = QDir::fromNativeSeparators(sdk->sharedSshPath());
+        const QString authorized_keys = QDir::fromNativeSeparators(sdk->sharedSshPath().toString());
         m_ui->authorizeSshKeyPushButton->setToolTip(tr("Add public key to %1").arg(
                                                         QDir::toNativeSeparators(authorized_keys)));
     }
 
-    m_ui->userNameLabelText->setText(sdk->userName());
+    m_ui->userNameLabelText->setText(sdk->virtualMachine()->sshParameters().userName());
 
     m_ui->virtualMachineSettingsWidget->setMemorySizeMb(sdk->virtualMachine()->memorySizeMb());
     m_ui->virtualMachineSettingsWidget->setCpuCount(sdk->virtualMachine()->cpuCount());

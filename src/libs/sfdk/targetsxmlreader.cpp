@@ -20,7 +20,9 @@
 **
 ****************************************************************************/
 
-#include "mertargetsxmlparser.h"
+#include "targetsxmlreader_p.h"
+
+#include "buildengine_p.h"
 
 #include <utils/fileutils.h>
 
@@ -35,6 +37,10 @@
 
 using namespace Utils;
 
+namespace Sfdk {
+
+namespace {
+
 const char TARGET[] = "target";
 const char TARGETS[] = "targets";
 const char OUTPUT[] = "output";
@@ -45,10 +51,6 @@ const char GCCDUMPMACROS[] = "GccDumpMacros";
 const char GCCDUMPINCLUDES[] = "GccDumpIncludes";
 const char QMAKEQUERY[] = "QmakeQuery";
 const char RPMVALIDATIONSUITES[] = "RpmValidationSuites";
-
-namespace Mer {
-
-namespace {
 
 class MessageHandler : public QAbstractMessageHandler
 {
@@ -86,7 +88,7 @@ public:
         return m_version;
     }
 
-    QList<MerTargetData> targetData() const
+    QList<BuildTargetDump> targets() const
     {
         return m_targets;
     }
@@ -96,7 +98,7 @@ protected:
     {
         const QString element = name.localName(m_namePool);
         if (element == QLatin1String(TARGET))
-            m_currentTarget.clear();
+            m_currentTarget = {};
         m_currentElementStack.push(element);
     }
 
@@ -173,8 +175,8 @@ protected:
 private:
     QXmlNamePool m_namePool;
     QStack<QString> m_currentElementStack;
-    QList<MerTargetData> m_targets;
-    MerTargetData m_currentTarget;
+    QList<BuildTargetDump> m_targets;
+    BuildTargetDump m_currentTarget;
     QString m_attributeValue;
     int m_version;
 };
@@ -211,17 +213,17 @@ static inline QDir sharedDir()
     return retv;
 }
 
-} // Anonymous
+} // namespace anonymous
 
-class MerTargetsXmlReaderPrivate
+class TargetsXmlReaderPrivate
 {
 public:
-    MerTargetsXmlReaderPrivate()
+    TargetsXmlReaderPrivate()
         : receiver(new XmlReceiver(query.namePool())),
           error(false)
     {}
 
-    ~MerTargetsXmlReaderPrivate()
+    ~TargetsXmlReaderPrivate()
     {
         delete receiver;
     }
@@ -233,10 +235,12 @@ public:
     QString errorString;
 };
 
-MerTargetsXmlReader::MerTargetsXmlReader(const QString &fileName, QObject *parent)
+TargetsXmlReader::TargetsXmlReader(const QString &fileName, QObject *parent)
     : QObject(parent),
-      d(new MerTargetsXmlReaderPrivate)
+      d_ptr(std::make_unique<TargetsXmlReaderPrivate>())
 {
+    Q_D(TargetsXmlReader);
+
     FileReader reader;
     d->error = !reader.fetch(fileName, QIODevice::ReadOnly);
     if (d->error) {
@@ -283,39 +287,26 @@ MerTargetsXmlReader::MerTargetsXmlReader(const QString &fileName, QObject *paren
         d->errorString = d->messageHandler.errorString();
 }
 
-MerTargetsXmlReader::~MerTargetsXmlReader()
+TargetsXmlReader::~TargetsXmlReader() = default;
+
+bool TargetsXmlReader::hasError() const
 {
-    delete d;
+    return d_func()->error;
 }
 
-bool MerTargetsXmlReader::hasError() const
+QString TargetsXmlReader::errorString() const
 {
-    return d->error;
+    return d_func()->errorString;
 }
 
-QString MerTargetsXmlReader::errorString() const
+QList<BuildTargetDump> TargetsXmlReader::targets() const
 {
-    return d->errorString;
+    return d_func()->receiver->targets();
 }
 
-QList<MerTargetData> MerTargetsXmlReader::targetData() const
+int TargetsXmlReader::version() const
 {
-    return d->receiver->targetData();
+    return d_func()->receiver->version();
 }
 
-int MerTargetsXmlReader::version() const
-{
-    return d->receiver->version();
-}
-
-void MerTargetData::clear()
-{
-    name.clear();
-    gccDumpMachine.clear();
-    gccDumpMacros.clear();
-    gccDumpIncludes.clear();
-    qmakeQuery.clear();
-    rpmValidationSuites.clear();
-}
-
-} // Mer
+} // namespace Sfdk

@@ -26,9 +26,10 @@
 #include "merdeployconfiguration.h"
 #include "merqmlrunconfigurationwidget.h"
 #include "merrunconfigurationaspect.h"
-#include "mersdk.h"
 #include "mersdkkitinformation.h"
 #include "mertargetkitinformation.h"
+
+#include <sfdk/buildengine.h>
 
 #include <debugger/debuggerrunconfigurationaspect.h>
 #include <projectexplorer/deployconfiguration.h>
@@ -43,6 +44,7 @@ using namespace Debugger;
 using namespace ProjectExplorer;
 using namespace QmakeProjectManager;
 using namespace RemoteLinux;
+using namespace Sfdk;
 using namespace Utils;
 
 namespace Mer {
@@ -118,13 +120,11 @@ QWidget *MerQmlRunConfiguration::createConfigurationWidget()
 
 QString MerQmlRunConfiguration::localExecutableFilePath() const
 {
-    const MerSdk *const merSdk = MerSdkKitInformation::sdk(target()->kit());
-    QTC_ASSERT(merSdk, return {});
-    const QString merTargetName = MerTargetKitInformation::targetName(target()->kit());
-    QTC_ASSERT(!merTargetName.isEmpty(), return {});
+    const BuildTargetData buildTarget = MerTargetKitInformation::target(target()->kit());
+    QTC_ASSERT(buildTarget.isValid(), return {});
 
-    const QString path = merSdk->sharedTargetsPath() + QLatin1Char('/') + merTargetName +
-        QLatin1String(Constants::SAILFISH_QML_LAUNCHER);
+    const QString path =
+        FileName(buildTarget.sysRoot).appendPath(Constants::SAILFISH_QML_LAUNCHER).toString();
     return QDir::cleanPath(path);
 }
 

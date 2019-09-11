@@ -56,6 +56,7 @@
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/modemanager.h>
+#include <projectexplorer/kitmanager.h>
 #include <remotelinux/remotelinuxcustomrunconfiguration.h>
 #include <remotelinux/remotelinuxqmltoolingsupport.h>
 #include <remotelinux/remotelinuxrunconfiguration.h>
@@ -191,7 +192,10 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
 
 void MerPlugin::extensionsInitialized()
 {
-    QTimer::singleShot(0, this, []() { Sdk::enableUpdates(); });
+    // Do not enable updates untils devices and kits are loaded. We know devices
+    // are loaded prior to kits.
+    connect(KitManager::instance(), &KitManager::kitsLoaded,
+            Sdk::instance(), Sdk::enableUpdates);
 
     connect(ICore::instance(), &ICore::saveSettingsRequested, this, &MerPlugin::saveSettings);
 }
@@ -199,9 +203,8 @@ void MerPlugin::extensionsInitialized()
 IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
 {
     m_stopList.clear();
-    QList<MerSdk*> sdks = MerSdkManager::sdks();
-    foreach(const MerSdk* sdk, sdks) {
-        VirtualMachine *virtualMachine = sdk->virtualMachine();
+    for (BuildEngine *const engine : Sdk::buildEngines()) {
+        VirtualMachine *const virtualMachine = engine->virtualMachine();
         bool headless = false;
         if (!virtualMachine->isOff(&headless) && headless) {
             QMessageBox *prompt = new QMessageBox(

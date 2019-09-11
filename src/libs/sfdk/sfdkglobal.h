@@ -45,6 +45,7 @@ inline namespace Log {
 Q_DECLARE_LOGGING_CATEGORY(lib)
 Q_DECLARE_LOGGING_CATEGORY(vms)
 Q_DECLARE_LOGGING_CATEGORY(vmsQueue)
+Q_DECLARE_LOGGING_CATEGORY(engine)
 
 } // namespace Log
 } // namespace Sfdk

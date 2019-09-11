@@ -28,6 +28,8 @@
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
 
+#include <sfdk/buildengine.h>
+#include <sfdk/sdk.h>
 #include <sfdk/virtualmachine.h>
 
 #include <projectexplorer/project.h>
@@ -56,7 +58,7 @@ class MerManagementWebViewSdksModel : public QAbstractListModel
 public:
     MerManagementWebViewSdksModel(QObject *parent);
 
-    MerSdk *sdkAt(int row) const;
+    BuildEngine *sdkAt(int row) const;
     int activeSdkIndex() const;
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -73,10 +75,10 @@ private slots:
     void endReset();
 
 private:
-    QList<MerSdk *> m_sdks;
+    QList<BuildEngine *> m_sdks;
     QTimer *const m_endResetTimer;
     Project *m_startupProject;
-    MerSdk *m_activeSdk;
+    BuildEngine *m_activeSdk;
 };
 
 MerManagementWebViewSdksModel::MerManagementWebViewSdksModel(QObject *parent)
@@ -91,8 +93,10 @@ MerManagementWebViewSdksModel::MerManagementWebViewSdksModel(QObject *parent)
 
     connect(MerSdkManager::instance(), &MerSdkManager::initialized,
             this, &MerManagementWebViewSdksModel::onSdksUpdated);
-    connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
+    connect(Sdk::instance(), &Sdk::buildEngineAdded,
             this, &MerManagementWebViewSdksModel::onSdksUpdated);
+    connect(Sdk::instance(), &Sdk::aboutToRemoveBuildEngine,
+            this, &MerManagementWebViewSdksModel::onSdksUpdated, Qt::QueuedConnection);
 
     connect(SessionManager::instance(),
             &SessionManager::startupProjectChanged,
@@ -100,7 +104,7 @@ MerManagementWebViewSdksModel::MerManagementWebViewSdksModel(QObject *parent)
             &MerManagementWebViewSdksModel::onStartupProjectChanged);
 }
 
-MerSdk *MerManagementWebViewSdksModel::sdkAt(int row) const
+BuildEngine *MerManagementWebViewSdksModel::sdkAt(int row) const
 {
     // generosity for easier use with respect to the "<no build engine>" row
     if (m_sdks.count() == 0 && row == 0)
@@ -109,7 +113,7 @@ MerSdk *MerManagementWebViewSdksModel::sdkAt(int row) const
         return 0;
     QTC_ASSERT(row >= 0 && row < m_sdks.count(), return 0);
 
-    return static_cast<MerSdk *>(m_sdks.at(row));
+    return m_sdks.at(row);
 }
 
 int MerManagementWebViewSdksModel::activeSdkIndex() const
@@ -142,12 +146,12 @@ QVariant MerManagementWebViewSdksModel::data(const QModelIndex &index, int role)
             return QVariant();
         }
     } else {
-        MerSdk *sdk = m_sdks.at(index.row());
+        BuildEngine *const sdk = m_sdks.at(index.row());
 
         switch (role) {
         case Qt::DisplayRole:
         case Qt::ToolTipRole:
-            return sdk->virtualMachineName();
+            return sdk->name();
         default:
             return QVariant();
         }
@@ -177,7 +181,7 @@ void MerManagementWebViewSdksModel::onActiveTargetChanged(Target *target)
     int oldActiveSdkIndex = activeSdkIndex();
 
     if (target && MerSdkManager::isMerKit(target->kit())) {
-        m_activeSdk = MerSdkKitInformation::sdk(target->kit());
+        m_activeSdk = MerSdkKitInformation::buildEngine(target->kit());
         QTC_CHECK(m_activeSdk);
     } else {
         m_activeSdk = 0;
@@ -190,9 +194,9 @@ void MerManagementWebViewSdksModel::onActiveTargetChanged(Target *target)
 
 void MerManagementWebViewSdksModel::onSdksUpdated()
 {
-    QList<MerSdk *> oldSdks = m_sdks;
+    QList<BuildEngine *> oldSdks = m_sdks;
 
-    m_sdks = MerSdkManager::sdks();
+    m_sdks = Sdk::buildEngines();
 
     if (m_sdks != oldSdks) {
         beginReset();
@@ -267,7 +271,7 @@ void MerManagementWebView::resetWebView()
     QUrl url;
 
     if (m_selectedSdk) {
-        disconnect(m_selectedSdk, &MerSdk::wwwPortChanged,
+        disconnect(m_selectedSdk, &BuildEngine::wwwPortChanged,
                 this, &MerManagementWebView::resetWebView);
         disconnect(m_selectedSdk->virtualMachine(), &VirtualMachine::virtualMachineOffChanged,
                 this, &MerManagementWebView::resetWebView);
@@ -278,7 +282,7 @@ void MerManagementWebView::resetWebView()
     if (m_selectedSdk) {
         url = QUrl(QLatin1String(CONTROLCENTER_URL_BASE));
         url.setPort(m_selectedSdk->wwwPort());
-        connect(m_selectedSdk, &MerSdk::wwwPortChanged,
+        connect(m_selectedSdk, &BuildEngine::wwwPortChanged,
                 this, &MerManagementWebView::resetWebView);
         connect(m_selectedSdk->virtualMachine(), &VirtualMachine::virtualMachineOffChanged,
                 this, &MerManagementWebView::resetWebView);
@@ -317,7 +321,6 @@ void MerManagementWebView::handleLoadFinished(bool success)
         bool autoReloadHint = false;
         QString vmStatus = QLatin1String("<h2>The Build Engine is not Ready</h2>");
         if (m_selectedSdk) { // one cannot be sure here
-            QString vmName = m_selectedSdk->virtualMachineName();
             if (m_selectedSdk->virtualMachine()->isOff()) {
                 vmStatus = QString::fromLatin1(
                         "<h2>The Build Engine is not Running</h2>"

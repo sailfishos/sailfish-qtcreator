@@ -23,8 +23,6 @@
 #ifndef MERGENERALOPTIONSWIDGET_H
 #define MERGENERALOPTIONSWIDGET_H
 
-#include "mersdk.h"
-
 #include <QWidget>
 
 namespace Mer {

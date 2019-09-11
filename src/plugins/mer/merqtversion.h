@@ -36,8 +36,8 @@ public:
                  const QString &autodetectionSource = QString());
     ~MerQtVersion() override;
 
-    void setVirtualMachineName(const QString &name);
-    QString virtualMachineName() const;
+    void setBuildEngineName(const QString &name);
+    QString buildEngineName() const;
     void setTargetName(const QString &name);
     QString targetName() const;
 
@@ -64,7 +64,7 @@ protected:
     QSet<Core::Id> availableFeatures() const override;
 
 private:
-    QString m_vmName;
+    QString m_buildEngineName;
     QString m_targetName;
 };
 

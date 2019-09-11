@@ -23,14 +23,20 @@
 #ifndef MEROPTIONSWIDGET_H
 #define MEROPTIONSWIDGET_H
 
-#include "mersdk.h"
-
+#include <QMap>
 #include <QTimer>
 #include <QWidget>
+
+#include <memory>
+#include <vector>
 
 QT_BEGIN_NAMESPACE
 class QStandardItemModel;
 QT_END_NAMESPACE
+
+namespace Sfdk {
+class BuildEngine;
+}
 
 namespace Mer {
 namespace Internal {
@@ -39,6 +45,7 @@ namespace Ui {
 class MerOptionsWidget;
 }
 
+// FIXME sdk -> build engine
 class MerOptionsWidget : public QWidget
 {
     Q_OBJECT
@@ -54,11 +61,12 @@ signals:
     void updateSearchKeys();
 
 private:
-    bool lockDownConnectionsOrCancelChangesThatNeedIt(QList<MerSdk *> *lockedDownSdks);
+    bool lockDownConnectionsOrCancelChangesThatNeedIt(QList<Sfdk::BuildEngine *> *lockedDownSdks);
 
 private slots:
     // Ui
-    void onSdksUpdated();
+    void onBuildEngineAdded(int index);
+    void onAboutToRemoveBuildEngine(int index);
     void onSdkChanged(const QString &text);
     void onAddButtonClicked();
     void onRemoveButtonClicked();
@@ -85,20 +93,20 @@ private:
     Ui::MerOptionsWidget *m_ui;
     QString m_virtualMachine;
     QMetaObject::Connection m_vmOffConnection;
-    QMetaObject::Connection m_sdksUpdatedConnection;
     QString m_status;
-    QMap<QString, MerSdk*> m_sdks;
-    QMap<MerSdk*, QString> m_sshPrivKeys;
-    QMap<MerSdk*, int> m_sshTimeout;
-    QMap<MerSdk*, quint16> m_sshPort;
-    QMap<MerSdk*, bool> m_headless;
-    QMap<MerSdk*, quint16> m_wwwPort;
-    QMap<MerSdk*, QString> m_wwwProxy;
-    QMap<MerSdk*, QString> m_wwwProxyServers;
-    QMap<MerSdk*, QString> m_wwwProxyExcludes;
-    QMap<MerSdk*, int> m_vdiCapacityMb;
-    QMap<MerSdk*, int> m_memorySizeMb;
-    QMap<MerSdk*, int> m_cpuCount;
+    QMap<QString, Sfdk::BuildEngine *> m_sdks;
+    std::vector<std::unique_ptr<Sfdk::BuildEngine>> m_newSdks;
+    QMap<Sfdk::BuildEngine *, QString> m_sshPrivKeys;
+    QMap<Sfdk::BuildEngine *, int> m_sshTimeout;
+    QMap<Sfdk::BuildEngine *, quint16> m_sshPort;
+    QMap<Sfdk::BuildEngine *, bool> m_headless;
+    QMap<Sfdk::BuildEngine *, quint16> m_wwwPort;
+    QMap<Sfdk::BuildEngine *, QString> m_wwwProxy;
+    QMap<Sfdk::BuildEngine *, QString> m_wwwProxyServers;
+    QMap<Sfdk::BuildEngine *, QString> m_wwwProxyExcludes;
+    QMap<Sfdk::BuildEngine *, int> m_vdiCapacityMb;
+    QMap<Sfdk::BuildEngine *, int> m_memorySizeMb;
+    QMap<Sfdk::BuildEngine *, int> m_cpuCount;
 };
 
 } // Internal

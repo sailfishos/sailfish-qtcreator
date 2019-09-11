@@ -36,8 +36,8 @@ class MerToolChain : public ProjectExplorer::GccToolChain
 public:
     MerToolChain(Detection autodetect, Core::Id typeId = Constants::MER_TOOLCHAIN_ID);
 
-    void setVirtualMachine(const QString &name);
-    QString virtualMachineName() const;
+    void setBuildEngineName(const QString &name);
+    QString buildEngineName() const;
     void setTargetName(const QString &name);
     QString targetName() const;
 
@@ -55,7 +55,7 @@ public:
 
     void addToEnvironment(Utils::Environment &env) const override;
 private:
-    QString m_vmName;
+    QString m_buildEngineName;
     QString m_targetName;
     mutable ProjectExplorer::HeaderPaths m_headerPathsOnHost;
 };

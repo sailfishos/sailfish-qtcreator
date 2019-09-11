@@ -32,6 +32,8 @@
 #include "mersdkmanager.h"
 #include "mertoolchain.h"
 
+#include <sfdk/buildengine.h>
+
 #include <debugger/debuggerkitinformation.h>
 #include <debugger/debuggerplugin.h>
 #include <debugger/debuggerruncontrol.h>
@@ -49,6 +51,7 @@ using namespace QmakeProjectManager;
 using namespace Mer;
 using namespace Mer::Internal;
 using namespace RemoteLinux;
+using namespace Sfdk;
 
 namespace {
 const int GDB_SERVER_READY_TIMEOUT_MS = 10000;
@@ -143,12 +146,16 @@ void MerDeviceDebugSupport::start()
         });
     }
 
-    MerSdk* mersdk = MerSdkKitInformation::sdk(runConfig->target()->kit());
+    BuildEngine *const engine = MerSdkKitInformation::buildEngine(runConfig->target()->kit());
 
-    if (mersdk && !mersdk->sharedHomePath().isEmpty())
-        addSourcePathMap(Constants::MER_SDK_SHARED_HOME_MOUNT_POINT, mersdk->sharedHomePath());
-    if (mersdk && !mersdk->sharedSrcPath().isEmpty())
-        addSourcePathMap(Constants::MER_SDK_SHARED_SRC_MOUNT_POINT, mersdk->sharedSrcPath());
+    if (engine && !engine->sharedHomePath().isEmpty()) {
+        addSourcePathMap(Constants::MER_SDK_SHARED_HOME_MOUNT_POINT,
+                engine->sharedHomePath().toString());
+    }
+    if (engine && !engine->sharedSrcPath().isEmpty()) {
+        addSourcePathMap(Constants::MER_SDK_SHARED_SRC_MOUNT_POINT,
+                engine->sharedSrcPath().toString());
+    }
 
     DebuggerRunTool::start();
 }

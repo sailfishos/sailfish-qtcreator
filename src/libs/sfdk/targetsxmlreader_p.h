@@ -20,49 +20,38 @@
 **
 ****************************************************************************/
 
-#ifndef MERTARGETSXMLPARSER_H
-#define MERTARGETSXMLPARSER_H
+#pragma once
+
+#include "sfdkglobal.h"
 
 #include <QMetaType>
 #include <QObject>
 
+#include <memory>
+
 namespace Utils { class FileName; }
 
-namespace Mer {
+namespace Sfdk {
 
-class MerTargetData;
-class MerTargetsXmlReaderPrivate;
-class MerTargetsXmlReader : public QObject
+class BuildTargetDump;
+
+class TargetsXmlReaderPrivate;
+class TargetsXmlReader : public QObject
 {
 public:
-    MerTargetsXmlReader(const QString &fileName, QObject *parent = 0);
-    ~MerTargetsXmlReader() override;
+    explicit TargetsXmlReader(const QString &fileName, QObject *parent = nullptr);
+    ~TargetsXmlReader() override;
 
     bool hasError() const;
     QString errorString() const;
 
-    QList<MerTargetData> targetData() const;
+    QList<BuildTargetDump> targets() const;
     int version() const;
 
 private:
-    MerTargetsXmlReaderPrivate *d;
+    std::unique_ptr<TargetsXmlReaderPrivate> d_ptr;
+    Q_DECLARE_PRIVATE(TargetsXmlReader)
+    Q_DISABLE_COPY(TargetsXmlReader)
 };
 
-class MerTargetData
-{
-public:
-    void clear();
-
-    QString name;
-    QString gccDumpMachine;
-    QString gccDumpMacros;
-    QString gccDumpIncludes;
-    QString qmakeQuery;
-    QString rpmValidationSuites;
-};
-
-} // Mer
-
-Q_DECLARE_METATYPE(Mer::MerTargetData)
-
-#endif // MERTARGETSXMLPARSER_H
+} // namespace Sfdk

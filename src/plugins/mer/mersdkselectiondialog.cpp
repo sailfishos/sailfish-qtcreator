@@ -24,8 +24,7 @@
 #include "mersdkselectiondialog.h"
 #include "ui_mersdkselectiondialog.h"
 
-#include <sfdk/vboxvirtualmachine_p.h>
-#include <sfdk/virtualboxmanager_p.h>
+#include <sfdk/sdk.h>
 
 #include <utils/qtcassert.h>
 
@@ -43,18 +42,12 @@ MerSdkSelectionDialog::MerSdkSelectionDialog(QWidget *parent)
 {
     m_ui->setupUi(this);
 
-    const QSet<QString> usedVMs = VBoxVirtualMachine::usedVirtualMachines().toSet();
-    QStringList registeredVMs;
+    QStringList unusedVms;
     bool ok;
-    execAsynchronous(std::tie(registeredVMs, ok),
-            VirtualBoxManager::fetchRegisteredVirtualMachines);
+    execAsynchronous(std::tie(unusedVms, ok), Sdk::unusedVirtualMachines);
     QTC_CHECK(ok);
-    foreach (const QString &vm, registeredVMs) {
-        // add only unused machines
-        if (!usedVMs.contains(vm)) {
-            new QListWidgetItem(vm, m_ui->virtualMachineListWidget);
-        }
-    }
+    for (const QString &vm : unusedVms)
+        new QListWidgetItem(vm, m_ui->virtualMachineListWidget);
 
     m_ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Add"));
 

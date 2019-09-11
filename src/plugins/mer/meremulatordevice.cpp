@@ -31,6 +31,8 @@
 #include "mersettings.h"
 #include "meremulatormodedialog.h"
 
+#include <sfdk/buildengine.h>
+#include <sfdk/sdk.h>
 #include <sfdk/vboxvirtualmachine_p.h>
 #include <sfdk/virtualboxmanager_p.h>
 
@@ -632,10 +634,10 @@ void MerEmulatorDevice::updateDconfDb()
 QString MerEmulatorDevice::privateKeyFile(Core::Id emulatorId, const QString &user)
 {
     // FIXME multiple engines
-    QTC_ASSERT(MerSdkManager::sdks().count() == 1, return {});
+    QTC_ASSERT(Sdk::buildEngines().count() == 1, return {});
 
     return QString(PRIVATE_KEY_PATH_TEMPLATE)
-        .arg(MerSdkManager::sdks().first()->sharedConfigPath())
+        .arg(Sdk::buildEngines().first()->sharedConfigPath().toString())
         .arg(emulatorId.toString().replace(' ', '_'))
         .arg(user);
 }

@@ -27,6 +27,8 @@
 #include "mersshparser.h"
 #include "mertoolchainfactory.h"
 
+#include <sfdk/sfdkconstants.h>
+
 #include <projectexplorer/projectexplorerconstants.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtversionmanager.h>
@@ -51,14 +53,14 @@ MerToolChain::MerToolChain(Detection autodetected, Core::Id typeId)
 
 }
 
-void MerToolChain::setVirtualMachine(const QString &name)
+void MerToolChain::setBuildEngineName(const QString &name)
 {
-    m_vmName = name;
+    m_buildEngineName = name;
 }
 
-QString MerToolChain::virtualMachineName() const
+QString MerToolChain::buildEngineName() const
 {
-    return m_vmName;
+    return m_buildEngineName;
 }
 
 void MerToolChain::setTargetName(const QString &name)
@@ -73,7 +75,7 @@ QString MerToolChain::targetName() const
 
 QString MerToolChain::makeCommand(const Environment &environment) const
 {
-    const QString make = QLatin1String(Constants::MER_WRAPPER_MAKE);
+    const QString make = QLatin1String(Sfdk::Constants::WRAPPER_MAKE);
     const QString makePath = environment.searchInPath(make).toString();
     if (!makePath.isEmpty())
         return makePath;
@@ -104,7 +106,7 @@ IOutputParser *MerToolChain::outputParser() const
 QVariantMap MerToolChain::toMap() const
 {
     QVariantMap data = GccToolChain::toMap();
-    data.insert(QLatin1String(Constants::VIRTUAL_MACHINE), m_vmName);
+    data.insert(QLatin1String(Constants::BUILD_ENGINE), m_buildEngineName);
     data.insert(QLatin1String(Constants::SB2_TARGET_NAME), m_targetName);
     return data;
 }
@@ -114,9 +116,9 @@ bool MerToolChain::fromMap(const QVariantMap &data)
     if (!GccToolChain::fromMap(data))
         return false;
 
-    m_vmName = data.value(QLatin1String(Constants::VIRTUAL_MACHINE)).toString();
+    m_buildEngineName = data.value(QLatin1String(Constants::BUILD_ENGINE)).toString();
     m_targetName = data.value(QLatin1String(Constants::SB2_TARGET_NAME)).toString();
-    return !m_vmName.isEmpty() && !m_vmName.isEmpty();
+    return !m_buildEngineName.isEmpty() && !m_targetName.isEmpty();
 }
 
 QList<Task> MerToolChain::validateKit(const Kit *kit) const
@@ -160,8 +162,9 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
 void MerToolChain::addToEnvironment(Environment &env) const
 {
     GccToolChain::addToEnvironment(env);
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_TARGET_NAME),m_targetName);
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_SDK_TOOLS),compilerCommand().parentDir().toString());
+    env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_TARGET_NAME), m_targetName);
+    env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS),
+            compilerCommand().parentDir().toString());
 }
 
 MerToolChainFactory::MerToolChainFactory()
@@ -184,7 +187,7 @@ QList<ToolChain *> MerToolChainFactory::autoDetect()
             const QDir targetDir(target.absoluteFilePath());
             const QFileInfoList gcc =
                     targetDir.entryInfoList(QStringList() <<
-                                            QLatin1String(Constants::MER_WRAPPER_GCC),
+                                            QLatin1String(Sfdk::Constants::WRAPPER_GCC),
                                             QDir::Files);
             if (gcc.count()) {
                 MerToolChain *tc = new MerToolChain(true, FileName(gcc.first()));

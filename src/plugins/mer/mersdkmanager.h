@@ -23,29 +23,26 @@
 #ifndef MERSDKMANAGER_H
 #define MERSDKMANAGER_H
 
-#include "mersdk.h"
-
-#include <ssh/sshconnection.h>
-#include <utils/environment.h>
+#include <coreplugin/id.h>
 
 #include <QObject>
 
-QT_BEGIN_NAMESPACE
-class QSettings;
-QT_END_NAMESPACE
-
-namespace Utils {
-class PersistentSettingsWriter;
-class FileName;
-}
+#include <memory>
 
 namespace ProjectExplorer {
 class Kit;
 class Project;
 }
 
+namespace Sfdk {
+    class BuildEngine;
+}
+
 namespace Mer {
 namespace Internal {
+
+class MerToolChain;
+class MerQtVersion;
 
 class MerSdkManager : public QObject
 {
@@ -53,10 +50,8 @@ class MerSdkManager : public QObject
 public:
     MerSdkManager();
     ~MerSdkManager() override;
-#ifdef MER_LIBRARY
     static MerSdkManager *instance();
-    static QString sdkToolsDirectory();
-    static QString globalSdkToolsDirectory();
+
     static bool authorizePublicKey(const QString &authorizedKeysPath, const QString &publicKeyPath, QString &error);
     static bool isMerKit(const ProjectExplorer::Kit *kit);
     static QString targetNameForKit(const ProjectExplorer::Kit *kit);
@@ -64,50 +59,35 @@ public:
     static bool hasMerDevice(ProjectExplorer::Kit *kit);
     static bool validateKit(const ProjectExplorer::Kit* kit);
     static bool generateSshKey(const QString &privKeyPath, QString &error);
-#endif // MER_LIBRARY
-
-    static QString installDir() { return m_instance->m_installDir; }
-    static QList<MerSdk*> sdks();
-
-#ifdef MER_LIBRARY
-    static MerSdk* sdk(const QString &virtualMachineName);
-    static MerSdk* createSdk(const QString &vmName);
-    static void addSdk(MerSdk *sdk);
-    static void removeSdk(MerSdk *sdk);
-    static void restoreSdks();
-    static bool hasSdk(const MerSdk *sdk);
-
     static QList<ProjectExplorer::Kit*> merKits();
 
-public slots:
-    void storeSdks();
-
 signals:
-    void sdksUpdated();
     void initialized();
 
-private slots:
+private:
     void initialize();
     void updateDevices();
-#endif // MER_LIBRARY
-
-private:
-    void restore();
-    static QList<MerSdk*> restoreSdks(const Utils::FileName &fileName);
-#ifdef MER_LIBRARY
     static QList<MerToolChain*> merToolChains();
     static QList<MerQtVersion*> merQtVersions();
-#endif // MER_LIBRARY
-    Utils::FileName checkLocalConfig(const Utils::FileName &l, const Utils::FileName &g);
+    void onBuildEngineAdded(int index);
+    void onAboutToRemoveBuildEngine(int index);
+    static bool addKit(const Sfdk::BuildEngine *buildEngine, const QString &buildTargetName);
+    static bool removeKit(const Sfdk::BuildEngine *buildEngine, const QString &buildTargetName);
+    static ProjectExplorer::Kit *kit(const Sfdk::BuildEngine *buildEngine,
+            const QString &buildTargetName);
+    void checkPkgConfigAvailability();
+    static bool finalizeKitCreation(const Sfdk::BuildEngine *buildEngine,
+            const QString &buildTargetName, ProjectExplorer::Kit* k);
+    static void ensureDebuggerIsSet(ProjectExplorer::Kit *k, const Sfdk::BuildEngine *buildEngine,
+            const QString &buildTargetName);
+    static std::unique_ptr<MerQtVersion> createQtVersion(const Sfdk::BuildEngine *buildEngine,
+            const QString &buildTargetName);
+    static std::unique_ptr<MerToolChain> createToolChain(const Sfdk::BuildEngine *buildEngine,
+            const QString &buildTargetName, Core::Id language);
+
 private:
     static MerSdkManager *m_instance;
-    QMap<QString, MerSdk*> m_sdks;
     bool m_intialized;
-    Utils::PersistentSettingsWriter *m_writer;
-    QString m_installDir;
-    int m_version;
-    // For tests
-    friend class MerPlugin;
 };
 
 } // Internal

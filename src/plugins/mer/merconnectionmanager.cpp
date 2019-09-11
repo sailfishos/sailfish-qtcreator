@@ -29,6 +29,8 @@
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
 
+#include <sfdk/buildengine.h>
+#include <sfdk/sdk.h>
 #include <sfdk/virtualmachine.h>
 
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -278,8 +280,10 @@ MerConnectionManager::MerConnectionManager():
             this, &MerConnectionManager::handleKitUpdated);
     connect(SessionManager::instance(), &SessionManager::startupProjectChanged,
             this, &MerConnectionManager::handleStartupProjectChanged);
-    connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
+    connect(Sdk::instance(), &Sdk::buildEngineAdded,
             this, &MerConnectionManager::update);
+    connect(Sdk::instance(), &Sdk::aboutToRemoveBuildEngine,
+            this, &MerConnectionManager::update, Qt::QueuedConnection);
     connect(DeviceManager::instance(), &DeviceManager::updated,
             this, &MerConnectionManager::update);
 
@@ -357,9 +361,9 @@ void MerConnectionManager::update()
                 sdkRemoteButtonVisible = true;
                 if (t == activeTarget) {
                     sdkRemoteButtonEnabled = true;
-                    MerSdk* sdk = MerSdkKitInformation::sdk(t->kit());
-                    QTC_ASSERT(sdk, continue);
-                    m_sdkAction->setVirtualMachine(sdk->virtualMachine());
+                    BuildEngine *const engine = MerSdkKitInformation::buildEngine(t->kit());
+                    QTC_ASSERT(engine, continue);
+                    m_sdkAction->setVirtualMachine(engine->virtualMachine());
                 }
             }
 

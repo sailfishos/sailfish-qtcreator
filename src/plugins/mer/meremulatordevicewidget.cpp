@@ -29,6 +29,8 @@
 #include "mersdkmanager.h"
 #include "mervirtualmachinesettingswidget.h"
 
+#include <sfdk/buildengine.h>
+#include <sfdk/sdk.h>
 #include <sfdk/sfdkconstants.h>
 #include <sfdk/virtualboxmanager_p.h>
 #include <sfdk/virtualmachine.h>
@@ -171,7 +173,7 @@ void MerEmulatorDeviceWidget::timeoutEditingFinished()
 
 void MerEmulatorDeviceWidget::userNameEditingFinished()
 {
-    QTC_ASSERT(MerSdkManager::sdks().count() == 1, return);
+    QTC_ASSERT(Sdk::buildEngines().count() == 1, return);
 
     const auto device = this->device().dynamicCast<MerEmulatorDevice>();
     QTC_ASSERT(device, return);
@@ -181,7 +183,7 @@ void MerEmulatorDeviceWidget::userNameEditingFinished()
         SshConnectionParameters sshParams = device->sshParameters();
         const QString& user = m_ui->userLineEdit->text();
         //TODO fix me:
-        const QString privKey = MerSdkManager::sdks().first()->sharedConfigPath() +
+        const QString privKey = Sdk::buildEngines().first()->sharedConfigPath().toString() +
                 index.arg(device->id().toString()).replace(QLatin1Char(' '),QLatin1Char('_'))
                 + user;
 

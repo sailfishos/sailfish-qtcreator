@@ -24,12 +24,7 @@ HEADERS = \
     sfdkglobal.h \
     task.h \
     textutils.h \
-    ../../plugins/mer/merlogging.h \
-    ../../plugins/mer/mersdkmanager.h \
-    ../../plugins/mer/mersdk.h \
     ../../plugins/mer/mersettings.h \
-    ../../plugins/mer/mertarget.h \
-    ../../plugins/mer/mertargetsxmlparser.h \
 
 SOURCES = \
     command.cpp \
@@ -43,9 +38,4 @@ SOURCES = \
     sfdkglobal.cpp \
     task.cpp \
     textutils.cpp \
-    ../../plugins/mer/merlogging.cpp \
-    ../../plugins/mer/mersdkmanager.cpp \
-    ../../plugins/mer/mersdk.cpp \
     ../../plugins/mer/mersettings.cpp \
-    ../../plugins/mer/mertarget.cpp \
-    ../../plugins/mer/mertargetsxmlparser.cpp \

@@ -30,12 +30,14 @@
 #include "mersdkselectiondialog.h"
 #include "ui_meroptionswidget.h"
 
-#include <sfdk/virtualboxmanager_p.h>
+#include <sfdk/buildengine.h>
+#include <sfdk/sdk.h>
 #include <sfdk/virtualmachine.h>
 
 #include <coreplugin/icore.h>
 #include <ssh/sshconnection.h>
 #include <utils/fileutils.h>
+#include <utils/pointeralgorithm.h>
 #include <utils/qtcassert.h>
 
 #include <QDesktopServices>
@@ -64,8 +66,10 @@ MerOptionsWidget::MerOptionsWidget(QWidget *parent)
     , m_status(tr("Not connected."))
 {
     m_ui->setupUi(this);
-    m_sdksUpdatedConnection = connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
-            this, &MerOptionsWidget::onSdksUpdated);
+    connect(Sdk::instance(), &Sdk::buildEngineAdded,
+            this, &MerOptionsWidget::onBuildEngineAdded);
+    connect(Sdk::instance(), &Sdk::aboutToRemoveBuildEngine,
+            this, &MerOptionsWidget::onAboutToRemoveBuildEngine);
     connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::authorizeSshKey,
             this, &MerOptionsWidget::onAuthorizeSshKey);
     connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::generateSshKey,
@@ -102,26 +106,20 @@ MerOptionsWidget::MerOptionsWidget(QWidget *parent)
             this, &MerOptionsWidget::onCpuCountChanged);
     connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::vdiCapacityMbChnaged,
             this, &MerOptionsWidget::onVdiCapacityMbChnaged);
-    onSdksUpdated();
+    for (int i = 0; i < Sdk::buildEngines().count(); ++i)
+        onBuildEngineAdded(i);
+    update();
 }
 
 MerOptionsWidget::~MerOptionsWidget()
 {
     delete m_ui;
-
-    // Destroy newly created but not-applied SDKs
-    QSet<MerSdk *> currentSdks = MerSdkManager::sdks().toSet();
-    foreach (MerSdk *sdk, m_sdks) {
-        if (!currentSdks.contains(sdk)) {
-            delete sdk;
-        }
-    }
 }
 
-void MerOptionsWidget::setSdk(const QString &vmName)
+void MerOptionsWidget::setSdk(const QString &name)
 {
-    if (m_sdks.contains(vmName))
-        onSdkChanged(vmName);
+    if (m_sdks.contains(name))
+        onSdkChanged(name);
 }
 
 QString MerOptionsWidget::searchKeyWordMatchString() const
@@ -148,44 +146,41 @@ void MerOptionsWidget::store()
     progress.setMinimum(0);
     progress.setMaximum(0);
 
-    QMap<QString, MerSdk*> sdks = m_sdks;
-    QList<MerSdk*> currentSdks = MerSdkManager::sdks();
-
     bool ok = true;
 
-    disconnect(m_sdksUpdatedConnection);
-
-    QList<MerSdk*> lockedDownSdks;
+    QList<BuildEngine *> lockedDownSdks;
     ok &= lockDownConnectionsOrCancelChangesThatNeedIt(&lockedDownSdks);
 
-    foreach (MerSdk *sdk, sdks) {
-        progress.setLabelText(tr("Applying virtual machine settings: '%1'").arg(sdk->virtualMachineName()));
+    for (BuildEngine *const sdk : qAsConst(m_sdks)) {
+        progress.setLabelText(tr("Applying build engine settings: '%1'").arg(sdk->name()));
 
-        if (m_sshPrivKeys.contains(sdk))
-            sdk->setPrivateKeyFile(m_sshPrivKeys[sdk]);
-        if (m_sshTimeout.contains(sdk))
-            sdk->setTimeout(m_sshTimeout[sdk]);
+        if (m_sshPrivKeys.contains(sdk)) {
+            SshConnectionParameters sshParameters = sdk->virtualMachine()->sshParameters();
+            sshParameters.privateKeyFile = m_sshPrivKeys[sdk];
+            sdk->virtualMachine()->setSshParameters(sshParameters);
+        }
+        if (m_sshTimeout.contains(sdk)) {
+            SshConnectionParameters sshParameters = sdk->virtualMachine()->sshParameters();
+            sshParameters.timeout = m_sshTimeout[sdk];
+            sdk->virtualMachine()->setSshParameters(sshParameters);
+        }
         if (m_sshPort.contains(sdk)) {
             bool stepOk;
-            execAsynchronous(std::tie(stepOk), VirtualBoxManager::updateSdkSshPort,
-                    sdk->virtualMachineName(), m_sshPort[sdk]);
-            if (stepOk) {
-                sdk->setSshPort(m_sshPort[sdk]);
-            } else {
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&BuildEngine::setSshPort), sdk,
+                    m_sshPort[sdk]);
+            if (!stepOk) {
                 m_ui->sdkDetailsWidget->setSshPort(sdk->sshPort());
                 m_sshPort.remove(sdk);
                 ok = false;
             }
         }
         if (m_headless.contains(sdk))
-            sdk->setHeadless(m_headless[sdk]);
+            sdk->virtualMachine()->setHeadless(m_headless[sdk]);
         if (m_wwwPort.contains(sdk)) {
             bool stepOk;
-            execAsynchronous(std::tie(stepOk), VirtualBoxManager::updateSdkWwwPort,
-                    sdk->virtualMachineName(), m_wwwPort[sdk]);
-            if (stepOk) {
-                sdk->setWwwPort(m_wwwPort[sdk]);
-            } else {
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&BuildEngine::setWwwPort), sdk,
+                    m_wwwPort[sdk]);
+            if (!stepOk) {
                 m_ui->sdkDetailsWidget->setWwwPort(sdk->wwwPort());
                 m_wwwPort.remove(sdk);
                 ok = false;
@@ -227,30 +222,22 @@ void MerOptionsWidget::store()
         }
     }
 
-    foreach (MerSdk *sdk, lockedDownSdks)
+    for (BuildEngine *const sdk : lockedDownSdks)
         sdk->virtualMachine()->lockDown(false);
-
-    onSdksUpdated();
-    m_sdksUpdatedConnection = connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
-            this, &MerOptionsWidget::onSdksUpdated);
 
     if (!ok) {
         progress.cancel();
         QMessageBox::warning(this, tr("Some changes could not be saved!"),
-                             tr("Failed to apply some of the changes to virtual machines"));
+                             tr("Failed to apply some of the changes to build engines"));
     }
 
-    foreach (MerSdk *sdk, currentSdks) {
-        if (!sdks.contains(sdk->virtualMachineName())) {
-            MerSdkManager::removeSdk(sdk);
-            delete sdk;
-        } else {
-            sdks.remove(sdk->virtualMachineName());
-        }
+    for (BuildEngine *const engine : Sdk::buildEngines()) {
+        if (!m_sdks.contains(engine->name()))
+            Sdk::removeBuildEngine(engine->name());
     }
-
-    foreach (MerSdk *sdk,sdks)
-        MerSdkManager::addSdk(sdk);
+    for (std::unique_ptr<BuildEngine> &newSdk : m_newSdks)
+        Sdk::addBuildEngine(std::move(newSdk));
+    m_newSdks.clear();
 
     m_sshPrivKeys.clear();
     m_sshTimeout.clear();
@@ -262,13 +249,14 @@ void MerOptionsWidget::store()
     m_vdiCapacityMb.clear();
 }
 
-bool MerOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<MerSdk *> *lockedDownSdks)
+bool MerOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<BuildEngine *>
+        *lockedDownSdks)
 {
     QTC_ASSERT(lockedDownSdks, return false);
 
-    QList<MerSdk *> failed;
+    QList<BuildEngine *> failed;
 
-    for (MerSdk *sdk : qAsConst(m_sdks)) {
+    for (BuildEngine *const sdk : qAsConst(m_sdks)) {
         if (m_sshPort.value(sdk) == sdk->sshPort())
             m_sshPort.remove(sdk);
         if (m_wwwPort.value(sdk) == sdk->wwwPort())
@@ -310,7 +298,7 @@ bool MerOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<MerSdk
         lockedDownSdks->append(sdk);
     }
 
-    for (MerSdk *sdk : qAsConst(failed)) {
+    for (BuildEngine *const sdk : qAsConst(failed)) {
         m_ui->sdkDetailsWidget->setSshPort(sdk->sshPort());
         m_sshPort.remove(sdk);
         m_ui->sdkDetailsWidget->setWwwPort(sdk->wwwPort());
@@ -345,9 +333,26 @@ void MerOptionsWidget::onAddButtonClicked()
     if (m_sdks.contains(dialog.selectedSdkName()))
         return;
 
-    MerSdk* sdk = MerSdkManager::createSdk(dialog.selectedSdkName());
-    m_sdks[sdk->virtualMachineName()] = sdk;
-    m_virtualMachine = sdk->virtualMachineName();
+    std::unique_ptr<BuildEngine> sdk;
+    // FIXME overload execAsynchronous to support this
+    QEventLoop loop;
+    auto whenDone = [&loop, &sdk](std::unique_ptr<BuildEngine> &&newSdk) {
+        loop.quit();
+        sdk = std::move(newSdk);
+    };
+    Sdk::createBuildEngine(dialog.selectedSdkName(), &loop, whenDone);
+    loop.exec();
+    QTC_ASSERT(sdk, return);
+
+    // FIXME this should be already done in scope of Sdk::createBuildEngine
+    bool refreshedOk;
+    execAsynchronous(std::tie(refreshedOk), std::mem_fn(&VirtualMachine::refreshConfiguration),
+            sdk->virtualMachine());
+    QTC_CHECK(refreshedOk);
+
+    m_sdks[sdk->virtualMachine()->name()] = sdk.get();
+    m_virtualMachine = sdk->virtualMachine()->name();
+    m_newSdks.emplace_back(std::move(sdk));
     update();
 }
 
@@ -358,10 +363,8 @@ void MerOptionsWidget::onRemoveButtonClicked()
         return;
 
     if (m_sdks.contains(vmName)) {
-         MerSdk *removed = m_sdks.take(vmName);
-         QList<MerSdk *> currentSdks = MerSdkManager::sdks();
-         if (!currentSdks.contains(removed))
-             delete removed;
+         BuildEngine *const removed = m_sdks.take(vmName);
+         Utils::erase(m_newSdks, removed);
          if (!m_sdks.isEmpty())
              m_virtualMachine = m_sdks.keys().last();
          else
@@ -378,31 +381,33 @@ void MerOptionsWidget::onRemoveButtonClicked()
 
 void MerOptionsWidget::onTestConnectionButtonClicked()
 {
-    MerSdk *sdk = m_sdks[m_virtualMachine];
+    BuildEngine *const sdk = m_sdks[m_virtualMachine];
     if (!sdk->virtualMachine()->isOff()) {
         SshConnectionParameters params = sdk->virtualMachine()->sshParameters();
         if (m_sshPrivKeys.contains(sdk))
             params.privateKeyFile = m_sshPrivKeys[sdk];
         if (m_sshPort.contains(sdk))
             params.setPort(m_sshPort[sdk]);
-        m_ui->sdkDetailsWidget->setStatus(tr("Connecting to machine %1 ...").arg(sdk->virtualMachineName()));
+        m_ui->sdkDetailsWidget->setStatus(tr("Connecting to machine %1 ...")
+                .arg(sdk->virtualMachine()->name()));
         m_ui->sdkDetailsWidget->setTestButtonEnabled(false);
         m_status = MerConnectionManager::testConnection(params);
         m_ui->sdkDetailsWidget->setTestButtonEnabled(true);
         update();
     } else {
-        m_ui->sdkDetailsWidget->setStatus(tr("Virtual machine %1 is not running.").arg(sdk->virtualMachineName()));
+        m_ui->sdkDetailsWidget->setStatus(tr("Virtual machine %1 is not running.")
+                .arg(sdk->virtualMachine()->name()));
     }
 }
 
 void MerOptionsWidget::onAuthorizeSshKey(const QString &file)
 {
-    MerSdk *sdk = m_sdks[m_virtualMachine];
+    BuildEngine *const sdk = m_sdks[m_virtualMachine];
     const QString pubKeyPath = file + QLatin1String(".pub");
-    const QString sshDirectoryPath = sdk->sharedSshPath() + QLatin1Char('/');
+    const QString sshDirectoryPath = sdk->sharedSshPath().toString() + QLatin1Char('/');
     const QStringList authorizedKeysPaths = QStringList()
             << sshDirectoryPath + QLatin1String("root/") + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER)
-            << sshDirectoryPath + sdk->userName()
+            << sshDirectoryPath + sdk->virtualMachine()->sshParameters().userName()
                + QLatin1Char('/') + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER);
     foreach (const QString &path, authorizedKeysPaths) {
         QString error;
@@ -417,13 +422,13 @@ void MerOptionsWidget::onAuthorizeSshKey(const QString &file)
 
 void MerOptionsWidget::onStartVirtualMachineButtonClicked()
 {
-    const MerSdk *sdk = m_sdks[m_virtualMachine];
+    BuildEngine *const sdk = m_sdks[m_virtualMachine];
     sdk->virtualMachine()->connectTo();
 }
 
 void MerOptionsWidget::onStopVirtualMachineButtonClicked()
 {
-    const MerSdk *sdk = m_sdks[m_virtualMachine];
+    BuildEngine *const sdk = m_sdks[m_virtualMachine];
     sdk->virtualMachine()->disconnectFrom();
 }
 
@@ -439,25 +444,78 @@ void MerOptionsWidget::onGenerateSshKey(const QString &privKeyPath)
     }
 }
 
-void MerOptionsWidget::onSdksUpdated()
+void MerOptionsWidget::onBuildEngineAdded(int index)
 {
-    m_sdks.clear();
-    m_virtualMachine.clear();
-    foreach (MerSdk *sdk, MerSdkManager::sdks()) {
-        m_sdks[sdk->virtualMachineName()] = sdk;
-        m_virtualMachine = sdk->virtualMachineName();
+    BuildEngine *const sdk = Sdk::buildEngines().at(index);
+
+    m_sdks[sdk->name()] = sdk;
+    m_virtualMachine = sdk->name();
+
+    auto cleaner = [=](auto*... caches) {
+        return [=]() {
+#if __cplusplus < 201703L
+            using helper = int[];
+            helper{ (caches->remove(sdk), 0)... };
+#else
+            (caches->remove(sdk), ...);
+#endif
+            update();
+        };
+    };
+
+    connect(sdk->virtualMachine(), &VirtualMachine::sshParametersChanged,
+            this, cleaner(&m_sshPort, &m_sshPrivKeys, &m_sshTimeout));
+    connect(sdk->virtualMachine(), &VirtualMachine::headlessChanged,
+            this, cleaner(&m_headless));
+    connect(sdk, &BuildEngine::wwwPortChanged,
+            this, cleaner(&m_wwwPort));
+    connect(sdk, &BuildEngine::wwwProxyChanged,
+            this, cleaner(&m_wwwProxy, &m_wwwProxyServers, &m_wwwProxyExcludes));
+    connect(sdk->virtualMachine(), &VirtualMachine::vdiCapacityMbChanged,
+            this, cleaner(&m_vdiCapacityMb));
+    connect(sdk->virtualMachine(), &VirtualMachine::memorySizeMbChanged,
+            this, cleaner(&m_memorySizeMb));
+    connect(sdk->virtualMachine(), &VirtualMachine::cpuCountChanged,
+            this, cleaner(&m_cpuCount));
+
+    update();
+}
+
+void MerOptionsWidget::onAboutToRemoveBuildEngine(int index)
+{
+    BuildEngine *const sdk = Sdk::buildEngines().at(index);
+
+    m_sdks.remove(sdk->name());
+    if (m_virtualMachine == sdk->name()) {
+        m_virtualMachine.clear();
+        if (!m_sdks.isEmpty())
+            m_virtualMachine = m_sdks.first()->name();
     }
+
+    m_sshPrivKeys.remove(sdk);
+    m_sshTimeout.remove(sdk);
+    m_sshPort.remove(sdk);
+    m_headless.remove(sdk);
+    m_wwwPort.remove(sdk);
+    m_wwwProxy.remove(sdk);
+    m_wwwProxyServers.remove(sdk);
+    m_wwwProxyExcludes.remove(sdk);
+    m_vdiCapacityMb.remove(sdk);
+    m_memorySizeMb.remove(sdk);
+    m_cpuCount.remove(sdk);
+
     update();
 }
 
 void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
 {
-    MerSdk *sdk = m_sdks[m_virtualMachine];
+    BuildEngine *const sdk = m_sdks[m_virtualMachine];
 
-    if (newFolder == sdk->sharedSrcPath()) {
+    if (newFolder == sdk->sharedSrcPath().toString()) {
         QMessageBox::information(this, tr("Choose a new folder"),
                                  tr("The given folder (%1) is the current alternative source folder. "
-                                    "Please choose another folder if you want to change it.").arg(sdk->sharedSrcPath()));
+                                    "Please choose another folder if you want to change it.")
+                                 .arg(sdk->sharedSrcPath().toString()));
         return;
     }
 
@@ -471,7 +529,7 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
                 tr("Virtual machine must be closed before the source folder can be changed."));
         if (questionBox->exec() != QMessageBox::Yes) {
             // reset the path in the chooser
-            m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath());
+            m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath().toString());
             return;
         }
     }
@@ -480,20 +538,17 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
         QMessageBox::warning(this, tr("Failed"),
                 tr("Alternative source folder not changed"));
         // reset the path in the chooser
-        m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath());
+        m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath().toString());
         return;
     }
 
     bool ok;
-    execAsynchronous(std::tie(ok), VirtualBoxManager::updateSharedFolder, m_virtualMachine,
-            QLatin1String("src1"), newFolder);
+    execAsynchronous(std::tie(ok), std::mem_fn(&BuildEngine::setSharedSrcPath), sdk,
+            FileName::fromUserInput(newFolder));
 
     sdk->virtualMachine()->lockDown(false);
 
     if (ok) {
-        // remember to update this value
-        sdk->setSharedSrcPath(newFolder);
-
         const QMessageBox::StandardButton response =
             QMessageBox::question(this, tr("Success!"),
                                   tr("Alternative source folder for %1 changed to %2.\n\n"
@@ -506,7 +561,7 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
         QMessageBox::warning(this, tr("Changing the source folder failed!"),
                              tr("Unable to change the alternative source folder to %1").arg(newFolder));
         // reset the path in the chooser
-        m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath());
+        m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath().toString());
     }
 }
 
@@ -519,17 +574,18 @@ void MerOptionsWidget::update()
     disconnect(m_vmOffConnection);
 
     if (show && m_sdks.contains(m_virtualMachine)) {
-        MerSdk *sdk = m_sdks[m_virtualMachine];
+        BuildEngine *const sdk = m_sdks[m_virtualMachine];
+        const SshConnectionParameters sshParameters = sdk->virtualMachine()->sshParameters();
         m_ui->sdkDetailsWidget->setSdk(sdk);
         if (m_sshPrivKeys.contains(sdk))
             m_ui->sdkDetailsWidget->setPrivateKeyFile(m_sshPrivKeys[sdk]);
         else
-            m_ui->sdkDetailsWidget->setPrivateKeyFile(sdk->privateKeyFile());
+            m_ui->sdkDetailsWidget->setPrivateKeyFile(sshParameters.privateKeyFile);
 
         if (m_sshTimeout.contains(sdk))
             m_ui->sdkDetailsWidget->setSshTimeout(m_sshTimeout[sdk]);
         else
-            m_ui->sdkDetailsWidget->setSshTimeout(sdk->timeout());
+            m_ui->sdkDetailsWidget->setSshTimeout(sshParameters.timeout);
 
         if (m_sshPort.contains(sdk))
             m_ui->sdkDetailsWidget->setSshPort(m_sshPort[sdk]);
@@ -539,7 +595,7 @@ void MerOptionsWidget::update()
         if (m_headless.contains(sdk))
             m_ui->sdkDetailsWidget->setHeadless(m_headless[sdk]);
         else
-            m_ui->sdkDetailsWidget->setHeadless(sdk->isHeadless());
+            m_ui->sdkDetailsWidget->setHeadless(sdk->virtualMachine()->isHeadless());
 
         if (m_wwwPort.contains(sdk))
             m_ui->sdkDetailsWidget->setWwwPort(m_wwwPort[sdk]);
@@ -549,7 +605,7 @@ void MerOptionsWidget::update()
         if (m_wwwProxy.contains(sdk))
             m_ui->sdkDetailsWidget->setWwwProxy(m_wwwProxy[sdk], m_wwwProxyServers[sdk], m_wwwProxyExcludes[sdk]);
         else
-            m_ui->sdkDetailsWidget->setWwwProxy(sdk->wwwProxy(), sdk->wwwProxyServers(), sdk->wwwProxyExcludes());
+            m_ui->sdkDetailsWidget->setWwwProxy(sdk->wwwProxyType(), sdk->wwwProxyServers(), sdk->wwwProxyExcludes());
 
         if (m_memorySizeMb.contains(sdk))
             m_ui->sdkDetailsWidget->setMemorySizeMb(m_memorySizeMb[sdk]);
@@ -636,7 +692,7 @@ void MerOptionsWidget::onVdiCapacityMbChnaged(int sizeMb)
 
 void MerOptionsWidget::onVmOffChanged(bool vmOff)
 {
-    MerSdk *sdk = m_sdks[m_virtualMachine];
+    BuildEngine *const sdk = m_sdks[m_virtualMachine];
 
     // If the VM is started, cancel any unsaved changes to SSH/WWW ports to prevent inconsistencies
     if (!vmOff) {

@@ -26,12 +26,13 @@
 #include <QDir>
 #include <QPointer>
 #include <QRegularExpression>
+#include <QTimer>
 
+#include <sfdk/buildengine.h>
 #include <sfdk/sdk.h>
 #include <sfdk/virtualmachine.h>
 
 #include <mer/merconstants.h>
-#include <mer/mersdkmanager.h>
 #include <mer/mersettings.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
@@ -205,15 +206,11 @@ SdkManager::SdkManager()
     VirtualMachine::registerConnectionUi<VmConnectionUi>();
     m_sdk = std::make_unique<Sdk>();
 
-    m_merSdkManager = std::make_unique<MerSdkManager>();
-
-    QList<MerSdk *> merSdks = m_merSdkManager->sdks();
-    if (!merSdks.isEmpty()) {
-        m_merSdk = merSdks.first();
-        if (merSdks.count() > 1) {
-            qCWarning(sfdk) << "Multiple build engines found."
-                << "Using" << m_merSdk->virtualMachineName();
-        }
+    QList<BuildEngine *> buildEngines = Sdk::buildEngines();
+    if (!buildEngines.isEmpty()) {
+        m_buildEngine = buildEngines.first();
+        if (buildEngines.count() > 1)
+            qCWarning(sfdk) << "Multiple build engines found. Using" << m_buildEngine->name();
     }
 }
 
@@ -229,28 +226,28 @@ bool SdkManager::isValid()
 
 QString SdkManager::installationPath()
 {
-    return MerSdkManager::installDir();
+    return Sdk::installationPath();
 }
 
 bool SdkManager::startEngine()
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    s_instance->m_merSdk->virtualMachine()->refreshState(VirtualMachine::Synchronous);
-    return s_instance->m_merSdk->virtualMachine()->connectTo(VirtualMachine::Block);
+    s_instance->m_buildEngine->virtualMachine()->refreshState(VirtualMachine::Synchronous);
+    return s_instance->m_buildEngine->virtualMachine()->connectTo(VirtualMachine::Block);
 }
 
 bool SdkManager::stopEngine()
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    s_instance->m_merSdk->virtualMachine()->refreshState(VirtualMachine::Synchronous);
-    return s_instance->m_merSdk->virtualMachine()->lockDown(true);
+    s_instance->m_buildEngine->virtualMachine()->refreshState(VirtualMachine::Synchronous);
+    return s_instance->m_buildEngine->virtualMachine()->lockDown(true);
 }
 
 bool SdkManager::isEngineRunning()
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    s_instance->m_merSdk->virtualMachine()->refreshState(VirtualMachine::Synchronous);
-    return !s_instance->m_merSdk->virtualMachine()->isOff();
+    s_instance->m_buildEngine->virtualMachine()->refreshState(VirtualMachine::Synchronous);
+    return !s_instance->m_buildEngine->virtualMachine()->isOff();
 }
 
 int SdkManager::runOnEngine(const QString &program, const QStringList &arguments,
@@ -262,7 +259,7 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     // before for the engine to fully start, so no need to wait for connectTo again
     if (!isEngineRunning()) {
         qCInfo(sfdk).noquote() << tr("Starting the build engine…");
-        if (!s_instance->m_merSdk->virtualMachine()->connectTo(VirtualMachine::Block)) {
+        if (!s_instance->m_buildEngine->virtualMachine()->connectTo(VirtualMachine::Block)) {
             qerr() << tr("Failed to start the build engine") << endl;
             return EXIT_FAILURE;
         }
@@ -278,7 +275,7 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
         return Constants::EXIT_ABNORMAL;
 
     RemoteProcess process;
-    process.setSshParameters(s_instance->m_merSdk->virtualMachine()->sshParameters());
+    process.setSshParameters(s_instance->m_buildEngine->virtualMachine()->sshParameters());
     process.setProgram(program_);
     process.setArguments(arguments_);
     process.setWorkingDirectory(workingDirectory);
@@ -313,17 +310,17 @@ void SdkManager::saveSettings()
 
 bool SdkManager::hasEngine() const
 {
-    return m_merSdk != nullptr;
+    return m_buildEngine != nullptr;
 }
 
 QString SdkManager::cleanSharedHome() const
 {
-    return QDir(QDir::cleanPath(m_merSdk->sharedHomePath())).canonicalPath();
+    return QDir(QDir::cleanPath(m_buildEngine->sharedHomePath().toString())).canonicalPath();
 }
 
 QString SdkManager::cleanSharedSrc() const
 {
-    return QDir(QDir::cleanPath(m_merSdk->sharedSrcPath())).canonicalPath();
+    return QDir(QDir::cleanPath(m_buildEngine->sharedSrcPath().toString())).canonicalPath();
 }
 
 bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QString *workingDirectory,
@@ -338,8 +335,8 @@ bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QStrin
         qCDebug(sfdk) << "cleanSharedSrc:" << cleanSharedSrc;
         qerr() << tr("The command needs to be used under build engine's share home or shared "
                 "source directory, which are currently configured as \"%1\" and \"%2\"")
-            .arg(m_merSdk->sharedHomePath())
-            .arg(m_merSdk->sharedSrcPath()) << endl;
+            .arg(m_buildEngine->sharedHomePath().toString())
+            .arg(m_buildEngine->sharedSrcPath().toString()) << endl;
         return false;
     }
 
@@ -388,10 +385,10 @@ QByteArray SdkManager::maybeReverseMapEnginePaths(const QByteArray &commandOutpu
 
     QByteArray retv = commandOutput;
 
-    if (!m_merSdk->sharedSrcPath().isEmpty())
+    if (!m_buildEngine->sharedSrcPath().isEmpty())
       retv.replace(Mer::Constants::MER_SDK_SHARED_SRC_MOUNT_POINT, cleanSharedSrc.toUtf8());
 
-    if (!m_merSdk->sharedHomePath().isEmpty())
+    if (!m_buildEngine->sharedHomePath().isEmpty())
       retv.replace(Mer::Constants::MER_SDK_SHARED_HOME_MOUNT_POINT, cleanSharedHome.toUtf8());
 
     return retv;
@@ -422,7 +419,7 @@ QProcessEnvironment SdkManager::environmentToForwardToEngine() const
         if (key == Mer::Constants::SAILFISH_SDK_ENVIRONMENT_FILTER)
             continue;
         if (filter.match(key).hasMatch()) {
-            if (sfdk().isDebugEnabled()) {
+            if (Log::sfdk().isDebugEnabled()) {
                 if (retv.isEmpty())
                     qCDebug(sfdk) << "Environment to forward to build engine (subject to path mapping):";
                 const QString indent = Sfdk::indent(1);
