@@ -64,6 +64,10 @@
 #include <vector>
 #include <iterator>
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
 #ifdef ENABLE_QT_BREAKPAD
 #include <qtsystemexceptionhandler.h>
 #endif
@@ -445,8 +449,13 @@ int main(int argc, char **argv)
 #ifdef Q_OS_WIN
     else {
         // set the windows settings userdir to the install dir
-        QDir rootDir = QApplication::applicationDirPath();
+        // do not use QApplication::applicationDirPath() before create QApplication, because
+        // it return the launch dir, not the app dir
+        WCHAR path[MAX_PATH];
+        GetModuleFileName(NULL, path, MAX_PATH);
+        QDir rootDir = QFileInfo(QString::fromWCharArray(path)).dir();
         rootDir.cdUp();
+
         QString mySettingsPath = QDir::toNativeSeparators(rootDir.canonicalPath());
         mySettingsPath += QDir::separator() + QLatin1String("settings");
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, mySettingsPath);
