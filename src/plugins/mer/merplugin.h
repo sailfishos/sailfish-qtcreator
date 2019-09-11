@@ -59,13 +59,9 @@ private:
     QMap<QString, Sfdk::VirtualMachine *> m_stopList;
 
 #ifdef WITH_TESTS
-    void verifyTargets(const QString &vm, QStringList expectedKits, QStringList expectedToolChains, QStringList expectedQtVersion);
     void testMerSshOutputParsers_data();
     void testMerSshOutputParsers();
-    void testMerSdkManager_data();
-    void testMerSdkManager();
 #endif
-
 };
 
 } // Internal
