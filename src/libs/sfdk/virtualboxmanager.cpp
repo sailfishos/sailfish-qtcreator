@@ -446,11 +446,33 @@ void VirtualBoxManager::probe(const QString &vmName, const QObject *context,
 }
 
 // It is an error to call this function when the VM vmName is running
-void VirtualBoxManager::updateSharedFolder(const QString &vmName, const QString &mountName,
-            const QString &newFolder, const QObject *context, const Functor<bool> &functor)
+void VirtualBoxManager::updateSharedFolder(const QString &vmName,
+        VirtualMachinePrivate::SharedPath which, const QString &newFolder,
+        const QObject *context, const Functor<bool> &functor)
 {
     Q_ASSERT(context);
     Q_ASSERT(functor);
+
+    qCDebug(vms) << "Setting shared folder" << which << "for" << vmName << "to" << newFolder;
+
+    QString mountName;
+    switch (which) {
+    case VirtualMachinePrivate::SharedConfig:
+        mountName = "config";
+        break;
+    case VirtualMachinePrivate::SharedSsh:
+        mountName = "ssh";
+        break;
+    case VirtualMachinePrivate::SharedHome:
+        mountName = "home";
+        break;
+    case VirtualMachinePrivate::SharedTargets:
+        mountName = "targets";
+        break;
+    case VirtualMachinePrivate::SharedSrc:
+        mountName = "src1";
+        break;
+    }
 
     const QPointer<const QObject> context_{context};
 

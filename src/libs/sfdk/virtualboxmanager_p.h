@@ -70,7 +70,7 @@ public:
     static void restoreSnapshot(const QString &vmName, const QString &snapshotName,
             const QObject *context, const Functor<bool> &functor);
 
-    static void updateSharedFolder(const QString &vmName, const QString &mountName,
+    static void updateSharedFolder(const QString &vmName, VirtualMachinePrivate::SharedPath which,
             const QString &newFolder, const QObject *context, const Functor<bool> &functor);
 
     static void updateSdkSshPort(const QString &vmName, quint16 port, const QObject *context,

@@ -148,9 +148,9 @@ void BuildEngine::setSharedSrcPath(const FileName &sharedSrcPath, const QObject 
         const Functor<bool> &functor)
 {
     const QPointer<const QObject> context_{context};
-    // FIXME hardcoded string
-    VirtualBoxManager::updateSharedFolder(d_func()->virtualMachine->name(), "src1",
-            sharedSrcPath.toString(), this, [=](bool ok) {
+
+    VirtualMachinePrivate::get(virtualMachine())->setSharedPath(VirtualMachinePrivate::SharedSrc,
+            sharedSrcPath, this, [=](bool ok) {
         if (ok)
             d_func()->setSharedSrcPath(sharedSrcPath);
         if (context_)

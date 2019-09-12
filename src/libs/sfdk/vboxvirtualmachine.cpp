@@ -23,7 +23,10 @@
 #include "vboxvirtualmachine_p.h"
 #include "virtualboxmanager_p.h"
 
+#include <utils/fileutils.h>
 #include <utils/qtcassert.h>
+
+using namespace Utils;
 
 namespace Sfdk {
 
@@ -264,6 +267,12 @@ void VBoxVirtualMachinePrivate::probe(const QObject *context,
         const Functor<BasicState, bool> &functor) const
 {
     VirtualBoxManager::probe(q_func()->name(), context, functor);
+}
+
+void VBoxVirtualMachinePrivate::setSharedPath(SharedPath which, const FileName &path,
+        const QObject *context, const Functor<bool> &functor)
+{
+    VirtualBoxManager::updateSharedFolder(q_func()->name(), which, path.toString(), context, functor);
 }
 
 void VBoxVirtualMachinePrivate::prepareForNameChange()

@@ -30,6 +30,10 @@
 
 #include <ssh/sshconnection.h>
 
+namespace Utils {
+class FileName;
+}
+
 namespace Sfdk {
 
 // FIXME internal
@@ -69,6 +73,7 @@ public:
 
 class VirtualMachinePrivate
 {
+    Q_GADGET
     Q_DECLARE_PUBLIC(VirtualMachine)
 
 public:
@@ -79,6 +84,18 @@ public:
         Headless = 0x4,
     };
     Q_DECLARE_FLAGS(BasicState, BasicStateFlag)
+
+    enum SharedPath {
+        // Valid for both build engine and emulator kind of VMs
+        SharedConfig,
+        SharedSsh,
+
+        // Valid for build engine kind of VMs only
+        SharedHome,
+        SharedTargets,
+        SharedSrc,
+    };
+    Q_ENUM(SharedPath)
 
     VirtualMachinePrivate(VirtualMachine *q) : q_ptr(q) {}
 
@@ -91,6 +108,9 @@ public:
     virtual void stop(const QObject *context, const Functor<bool> &functor) = 0;
     virtual void probe(const QObject *context,
             const Functor<BasicState, bool> &functor) const = 0;
+
+    virtual void setSharedPath(SharedPath which, const Utils::FileName &path,
+            const QObject *context, const Functor<bool> &functor) = 0;
 
     VirtualMachine::ConnectionUi *connectionUi() const { return connectionUi_.get(); }
 

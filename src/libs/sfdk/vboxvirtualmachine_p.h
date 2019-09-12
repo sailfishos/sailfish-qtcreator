@@ -81,6 +81,9 @@ public:
     void probe(const QObject *context,
             const Functor<BasicState, bool> &functor) const override;
 
+    void setSharedPath(SharedPath which, const Utils::FileName &path, const QObject *context,
+            const Functor<bool> &functor) override;
+
 protected:
     void prepareForNameChange() override;
 
