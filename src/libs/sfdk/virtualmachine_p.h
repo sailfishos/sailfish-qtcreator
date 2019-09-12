@@ -32,6 +32,41 @@
 
 namespace Sfdk {
 
+// FIXME internal
+class SFDK_EXPORT VirtualMachineInfo
+{
+    Q_GADGET
+
+public:
+    enum ExtraInfo {
+        NoExtraInfo = 0x00,
+        VdiInfo = 0x01,
+        SnapshotInfo = 0x02,
+    };
+    Q_DECLARE_FLAGS(ExtraInfos, ExtraInfo)
+
+    QString sharedHome;
+    QString sharedTargets;
+    QString sharedConfig;
+    QString sharedSrc;
+    QString sharedSsh;
+    quint16 sshPort{0};
+    quint16 wwwPort{0};
+    QMap<QString, quint16> freePorts;
+    QMap<QString, quint16> qmlLivePorts;
+    QMap<QString, quint16> otherPorts;
+    QStringList macs;
+    bool headless{false};
+    int memorySizeMb{0};
+    int cpuCount{0};
+
+    // VdiInfo
+    int vdiCapacityMb{0};
+
+    // SnapshotInfo
+    QStringList snapshots;
+};
+
 class VirtualMachinePrivate
 {
     Q_DECLARE_PUBLIC(VirtualMachine)
@@ -48,6 +83,9 @@ public:
     VirtualMachinePrivate(VirtualMachine *q) : q_ptr(q) {}
 
     static VirtualMachinePrivate *get(VirtualMachine *q) { return q->d_func(); }
+
+    virtual void fetchInfo(VirtualMachineInfo::ExtraInfos extraInfo, const QObject *context,
+            const Functor<const VirtualMachineInfo &, bool> &functor) const = 0;
 
     virtual void start(const QObject *context, const Functor<bool> &functor) = 0;
     virtual void stop(const QObject *context, const Functor<bool> &functor) = 0;
@@ -74,6 +112,7 @@ private:
     bool autoConnectEnabled = true;
 };
 
+Q_DECLARE_OPERATORS_FOR_FLAGS(VirtualMachineInfo::ExtraInfos)
 Q_DECLARE_OPERATORS_FOR_FLAGS(VirtualMachinePrivate::BasicState);
 
 } // namespace Sfdk

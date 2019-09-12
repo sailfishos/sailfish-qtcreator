@@ -391,11 +391,7 @@ void BuildEnginePrivate::enableUpdates()
 
     virtualMachine->setAutoConnectEnabled(true);
 
-    VirtualBoxManager::fetchVirtualMachineInfo(virtualMachine->name(),
-            VirtualBoxManager::NoExtraInfo, q, [=](const VirtualMachineInfo &info, bool ok) {
-        QTC_ASSERT(ok, return);
-        updateVmProperties(info);
-    });
+    updateVmProperties(q, [](bool ok) { Q_UNUSED(ok) });
 
     targetsXmlWatcher = std::make_unique<FileSystemWatcher>(q);
     targetsXmlWatcher->addFile(targetsXmlFile().toString(), FileSystemWatcher::WatchModifiedDate);
@@ -411,33 +407,43 @@ void BuildEnginePrivate::updateOnce()
     virtualMachine->setAutoConnectEnabled(true);
 
     // FIXME Not ideal
-    VirtualMachineInfo info;
     bool ok;
-    execAsynchronous(std::tie(info, ok), VirtualBoxManager::fetchVirtualMachineInfo,
-            virtualMachine->name(), VirtualBoxManager::NoExtraInfo);
+    execAsynchronous(std::tie(ok), std::mem_fn(&BuildEnginePrivate::updateVmProperties), this);
     QTC_CHECK(ok);
-    if (ok)
-        updateVmProperties(info);
 
     updateBuildTargets();
 }
 
-void BuildEnginePrivate::updateVmProperties(const VirtualMachineInfo &info)
+void BuildEnginePrivate::updateVmProperties(const QObject *context, const Functor<bool> &functor)
 {
-    // FIXME extend VirtualMachine with API to query these
-    setSharedHomePath(FileName::fromString(info.sharedHome));
-    setSharedTargetsPath(FileName::fromString(info.sharedTargets));
-    // FIXME if sharedConfig changes, at least privateKeyFile path needs to be updated
-    setSharedConfigPath(FileName::fromString(info.sharedConfig));
-    setSharedSrcPath(FileName::fromString(info.sharedSrc));
-    setSharedSshPath(FileName::fromString(info.sharedSsh));
+    Q_Q(BuildEngine);
 
-    SshConnectionParameters sshParameters = virtualMachine->sshParameters();
-    sshParameters.setPort(info.sshPort);
-    setSshParameters(sshParameters);
+    const QPointer<const QObject> context_{context};
 
-    // FIXME expand VirtualMachine's port fwd API to allow query this and sshPort
-    setWwwPort(info.wwwPort);
+    VirtualMachinePrivate::get(virtualMachine.get())->fetchInfo(VirtualMachineInfo::NoExtraInfo, q,
+            [=](const VirtualMachineInfo &info, bool ok) {
+        if (!ok) {
+            if (context_)
+                functor(false);
+            return;
+        }
+
+        setSharedHomePath(FileName::fromString(info.sharedHome));
+        setSharedTargetsPath(FileName::fromString(info.sharedTargets));
+        // FIXME if sharedConfig changes, at least privateKeyFile path needs to be updated
+        setSharedConfigPath(FileName::fromString(info.sharedConfig));
+        setSharedSrcPath(FileName::fromString(info.sharedSrc));
+        setSharedSshPath(FileName::fromString(info.sharedSsh));
+
+        SshConnectionParameters sshParameters = virtualMachine->sshParameters();
+        sshParameters.setPort(info.sshPort);
+        setSshParameters(sshParameters);
+
+        setWwwPort(info.wwwPort);
+
+        if (context_)
+            functor(true);
+    });
 }
 
 void BuildEnginePrivate::setSharedHomePath(const Utils::FileName &sharedHomePath)
@@ -932,20 +938,28 @@ BuildEngine *BuildEngineManager::buildEngine(const QString &name)
 void BuildEngineManager::createBuildEngine(const QString &vmName, const QObject *context,
         const Functor<std::unique_ptr<BuildEngine> &&> &functor)
 {
-    VirtualBoxManager::fetchVirtualMachineInfo(vmName, VirtualBoxManager::NoExtraInfo, context,
-            [=](const VirtualMachineInfo &info, bool ok) {
+    // Needs to be captured by multiple lambdas and their copies
+    auto engine = std::make_shared<std::unique_ptr<BuildEngine>>(
+            std::make_unique<BuildEngine>(nullptr, BuildEngine::PrivateConstructorTag{}));
+
+    auto engine_d = BuildEnginePrivate::get(engine->get());
+    engine_d->initVirtualMachine(vmName);
+    engine_d->updateVmProperties(context, [=](bool ok) {
         QTC_CHECK(ok);
         if (!ok) {
             functor({});
             return;
         }
 
-        auto engine = std::make_unique<BuildEngine>(nullptr, BuildEngine::PrivateConstructorTag{});
-        auto engine_d = BuildEnginePrivate::get(engine.get());
-        engine_d->initVirtualMachine(vmName);
-        engine_d->updateVmProperties(info);
+        engine->get()->virtualMachine()->refreshConfiguration(context, [=](bool ok) {
+            QTC_CHECK(ok);
+            if (!ok) {
+                functor({});
+                return;
+            }
 
-        functor(std::move(engine));
+            functor(std::move(*engine));
+        });
     });
 }
 

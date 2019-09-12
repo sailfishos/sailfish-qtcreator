@@ -23,7 +23,6 @@
 
 #include "vmconnection_p.h"
 
-#include "virtualboxmanager_p.h"
 #include "virtualmachine_p.h"
 
 #include <ssh/sshremoteprocessrunner.h>

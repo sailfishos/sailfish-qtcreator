@@ -22,7 +22,6 @@
 
 #pragma once
 
-#include "virtualboxmanager_p.h"
 #include "virtualmachine_p.h"
 
 namespace Sfdk {
@@ -75,6 +74,8 @@ class VBoxVirtualMachinePrivate : public VirtualMachinePrivate
 public:
     using VirtualMachinePrivate::VirtualMachinePrivate;
 
+    void fetchInfo(VirtualMachineInfo::ExtraInfos extraInfo, const QObject *context,
+            const Functor<const VirtualMachineInfo &, bool> &functor) const override;
     void start(const QObject *context, const Functor<bool> &functor) override;
     void stop(const QObject *context, const Functor<bool> &functor) override;
     void probe(const QObject *context,

@@ -532,8 +532,8 @@ void MerEmulatorDevice::doFactoryReset(QWidget *parent)
     // VDI capacity never changes solely as a result of factory reset, since the capacities of the
     // base image and all its snapshots are managed equal.
     VirtualMachineInfo info;
-    execAsynchronous(std::tie(info, ok), VirtualBoxManager::fetchVirtualMachineInfo,
-            virtualMachineName(), VirtualBoxManager::NoExtraInfo);
+    execAsynchronous(std::tie(info, ok), std::mem_fn(&VirtualMachinePrivate::fetchInfo),
+            VirtualMachinePrivate::get(virtualMachine()), VirtualMachineInfo::NoExtraInfo);
     QTC_CHECK(ok);
 
     QSsh::SshConnectionParameters nowSshParameters = sshParameters();

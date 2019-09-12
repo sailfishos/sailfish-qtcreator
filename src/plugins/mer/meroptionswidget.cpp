@@ -344,12 +344,6 @@ void MerOptionsWidget::onAddButtonClicked()
     loop.exec();
     QTC_ASSERT(sdk, return);
 
-    // FIXME this should be already done in scope of Sdk::createBuildEngine
-    bool refreshedOk;
-    execAsynchronous(std::tie(refreshedOk), std::mem_fn(&VirtualMachine::refreshConfiguration),
-            sdk->virtualMachine());
-    QTC_CHECK(refreshedOk);
-
     m_sdks[sdk->virtualMachine()->name()] = sdk.get();
     m_virtualMachine = sdk->virtualMachine()->name();
     m_newSdks.emplace_back(std::move(sdk));

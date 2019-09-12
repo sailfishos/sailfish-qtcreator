@@ -31,7 +31,6 @@
 
 #include <sfdk/sdk.h>
 #include <sfdk/vboxvirtualmachine_p.h>
-#include <sfdk/virtualboxmanager_p.h>
 
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <utils/qtcassert.h>
@@ -160,10 +159,14 @@ void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
         tryName = vmName + QString::number(++i);
     m_ui->configNameLineEdit->setText(tryName);
 
+    VBoxVirtualMachine virtualMachine;
+    virtualMachine.setName(vmName);
+
     VirtualMachineInfo info;
     bool ok;
-    execAsynchronous(std::tie(info, ok), VirtualBoxManager::fetchVirtualMachineInfo, vmName,
-            VirtualBoxManager::VdiInfo | VirtualBoxManager::SnapshotInfo);
+    execAsynchronous(std::tie(info, ok), std::mem_fn(&VirtualMachinePrivate::fetchInfo),
+            VirtualMachinePrivate::get(&virtualMachine),
+            VirtualMachineInfo::VdiInfo | VirtualMachineInfo::SnapshotInfo);
     QTC_CHECK(ok);
 
     if (info.sshPort == 0)

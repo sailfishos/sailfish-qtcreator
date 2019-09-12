@@ -21,6 +21,7 @@
 ****************************************************************************/
 
 #include "vboxvirtualmachine_p.h"
+#include "virtualboxmanager_p.h"
 
 #include <utils/qtcassert.h>
 
@@ -187,8 +188,7 @@ void VBoxVirtualMachine::refreshConfiguration(const QObject *context, const Func
     const QPointer<const QObject> context_{context};
     auto allOk = std::make_shared<bool>(true);
 
-    VirtualBoxManager::fetchVirtualMachineInfo(name(),
-            VirtualBoxManager::VdiInfo | VirtualBoxManager::SnapshotInfo, this,
+    d->fetchInfo(VirtualMachineInfo::VdiInfo | VirtualMachineInfo::SnapshotInfo, this,
             [=](const VirtualMachineInfo &info, bool ok) {
         if (!ok) {
             *allOk = false;
@@ -242,6 +242,12 @@ QStringList VBoxVirtualMachine::usedVirtualMachines()
  */
 
 QMap<QString, int> VBoxVirtualMachinePrivate::s_usedVmNames;
+
+void VBoxVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extraInfo,
+        const QObject *context, const Functor<const VirtualMachineInfo &, bool> &functor) const
+{
+    VirtualBoxManager::fetchVirtualMachineInfo(q_func()->name(), extraInfo, context, functor);
+}
 
 void VBoxVirtualMachinePrivate::start(const QObject *context, const Functor<bool> &functor)
 {

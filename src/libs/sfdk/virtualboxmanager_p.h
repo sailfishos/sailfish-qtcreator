@@ -43,33 +43,6 @@ namespace Utils {
 
 namespace Sfdk {
 
-class SFDK_EXPORT VirtualMachineInfo
-{
-public:
-    QString sharedHome;
-    QString sharedTargets;
-    QString sharedConfig;
-    QString sharedSrc;
-    QString sharedSsh;
-    quint16 sshPort{0};
-    quint16 wwwPort{0};
-    QMap<QString, quint16> freePorts;
-    QMap<QString, quint16> qmlLivePorts;
-    QMap<QString, quint16> otherPorts;
-    QStringList macs;
-    bool headless{false};
-    int memorySizeMb{0};
-    int cpuCount{0};
-    QString vdiUuid;
-
-    // VdiInfo
-    int vdiCapacityMb{0};
-    QStringList allRelatedVdiUuids;
-
-    // SnapshotInfo
-    QStringList snapshots;
-};
-
 // FIXME internal
 // TODO Errors should be reported in the UI
 // TODO Use UUIDs instead of names - names may not be unique
@@ -78,13 +51,6 @@ class SFDK_EXPORT VirtualBoxManager : public QObject
 {
     Q_OBJECT
 public:
-    enum ExtraInfo {
-        NoExtraInfo = 0x00,
-        VdiInfo = 0x01,
-        SnapshotInfo = 0x02,
-    };
-    Q_DECLARE_FLAGS(ExtraInfos, ExtraInfo)
-
     VirtualBoxManager(QObject *parent = 0);
     static VirtualBoxManager* instance();
     ~VirtualBoxManager() override;
@@ -93,7 +59,7 @@ public:
             const Functor<VirtualMachinePrivate::BasicState, bool> &functor);
     static void fetchRegisteredVirtualMachines(const QObject *context,
             const Functor<const QStringList &, bool> &functor);
-    static void fetchVirtualMachineInfo(const QString &vmName, ExtraInfos extraInfo,
+    static void fetchVirtualMachineInfo(const QString &vmName, VirtualMachineInfo::ExtraInfos extraInfo,
             const QObject *context, const Functor<const VirtualMachineInfo &, bool> &functor);
 
     static void startVirtualMachine(const QString &vmName, bool headless,
@@ -147,7 +113,5 @@ private:
     static VirtualBoxManager *s_instance;
     std::unique_ptr<CommandSerializer> m_serializer;
 };
-
-Q_DECLARE_OPERATORS_FOR_FLAGS(VirtualBoxManager::ExtraInfos)
 
 } // Sfdk

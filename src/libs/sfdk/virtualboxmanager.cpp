@@ -100,9 +100,18 @@ const int TERMINATE_TIMEOUT_MS = 3000;
 
 namespace Sfdk {
 
-static VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output);
-static void vdiInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo);
-static void snapshotInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo);
+class VBoxVirtualMachineInfo : public VirtualMachineInfo
+{
+public:
+    QString vdiUuid;
+
+    // VdiInfo
+    QStringList allRelatedVdiUuids;
+};
+
+static VBoxVirtualMachineInfo virtualMachineInfoFromOutput(const QString &output);
+static void vdiInfoFromOutput(const QString &output, VBoxVirtualMachineInfo *virtualMachineInfo);
+static void snapshotInfoFromOutput(const QString &output, VBoxVirtualMachineInfo *virtualMachineInfo);
 static int ramSizeFromOutput(const QString &output, bool *matched);
 static bool isVirtualMachineRunningFromInfo(const QString &vmInfo, bool *headless);
 static QStringList listedVirtualMachines(const QString &output);
@@ -556,7 +565,8 @@ void VirtualBoxManager::updateEmulatorSshPort(const QString &vmName, quint16 por
     s_instance->m_serializer->enqueue(std::move(process));
 }
 
-void VirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName, ExtraInfos extraInfo,
+void VirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName,
+        VirtualMachineInfo::ExtraInfos extraInfo,
         const QObject *context, const Functor<const VirtualMachineInfo &, bool> &functor)
 {
     Q_ASSERT(context);
@@ -579,7 +589,7 @@ void VirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName, ExtraInfo
 
     CommandSerializer::BatchId batch = s_instance->m_serializer->beginBatch();
 
-    auto info = std::make_shared<VirtualMachineInfo>();
+    auto info = std::make_shared<VBoxVirtualMachineInfo>();
     VBoxManageProcess *last;
 
     QStringList arguments;
@@ -593,7 +603,7 @@ void VirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName, ExtraInfo
                 QString::fromLocal8Bit(process->readAllStandardOutput()));
     });
 
-    if (extraInfo & VdiInfo) {
+    if (extraInfo & VirtualMachineInfo::VdiInfo) {
         QStringList arguments;
         arguments.append(QLatin1String(LIST));
         arguments.append(QLatin1String(HDDS));
@@ -603,7 +613,7 @@ void VirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName, ExtraInfo
         });
     }
 
-    if (extraInfo & SnapshotInfo) {
+    if (extraInfo & VirtualMachineInfo::SnapshotInfo) {
         QStringList arguments;
         arguments.append(QLatin1String(SNAPSHOT));
         arguments.append(vmName);
@@ -741,12 +751,14 @@ void VirtualBoxManager::setVdiCapacityMb(const QString &vmName, int sizeMb, cons
     qCDebug(vms) << "Changing vdi size of" << vmName << "to" << sizeMb << "MB";
 
     const QPointer<const QObject> context_{context};
-    fetchVirtualMachineInfo(vmName, VdiInfo, s_instance,
-            [=](const VirtualMachineInfo &virtualMachineInfo, bool ok) {
+    fetchVirtualMachineInfo(vmName, VirtualMachineInfo::VdiInfo, s_instance,
+            [=](const VirtualMachineInfo &virtualMachineInfo_, bool ok) {
         if (!ok) {
             callIf(context_, functor, false);
             return;
         }
+        auto virtualMachineInfo = static_cast<const VBoxVirtualMachineInfo &>(virtualMachineInfo_);
+
         if (sizeMb < virtualMachineInfo.vdiCapacityMb) {
             qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << virtualMachineInfo.vdiUuid << RESIZE << sizeMb
                        << "for VM" << vmName << ". Can't reduce VDI. Current size:" << virtualMachineInfo.vdiCapacityMb;
@@ -958,7 +970,7 @@ void VirtualBoxManager::fetchPortForwardingRules(const QString &vmName, const QO
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    fetchVirtualMachineInfo(vmName, VdiInfo,
+    fetchVirtualMachineInfo(vmName, VirtualMachineInfo::VdiInfo,
             context, [=](const VirtualMachineInfo &vmInfo, bool ok) {
         if (!ok) {
             functor({}, false);
@@ -1063,9 +1075,9 @@ QStringList listedVirtualMachines(const QString &output)
     return vms;
 }
 
-VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
+VBoxVirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
 {
-    VirtualMachineInfo info;
+    VBoxVirtualMachineInfo info;
     info.sshPort = 0;
 
     // Get ssh port, shared home and shared targets
@@ -1147,7 +1159,7 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
     return info;
 }
 
-void vdiInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo)
+void vdiInfoFromOutput(const QString &output, VBoxVirtualMachineInfo *virtualMachineInfo)
 {
     // 1 UUID
     // 2 Parent UUID
@@ -1233,7 +1245,7 @@ int ramSizeFromOutput(const QString &output, bool *matched)
     return 0;
 }
 
-void snapshotInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo)
+void snapshotInfoFromOutput(const QString &output, VBoxVirtualMachineInfo *virtualMachineInfo)
 {
     // 1 name
     QRegExp rexp(QLatin1String("\\bSnapshotName[-0-9]*=\"(.+)\""));

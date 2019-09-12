@@ -69,7 +69,7 @@ public:
     void initVirtualMachine(const QString &vmName);
     void enableUpdates();
     void updateOnce();
-    void updateVmProperties(const VirtualMachineInfo &info);
+    void updateVmProperties(const QObject *context, const Functor<bool> &functor);
 
 private:
     void setSharedHomePath(const Utils::FileName &sharedHomePath);

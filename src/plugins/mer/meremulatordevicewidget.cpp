@@ -32,7 +32,6 @@
 #include <sfdk/buildengine.h>
 #include <sfdk/sdk.h>
 #include <sfdk/sfdkconstants.h>
-#include <sfdk/virtualboxmanager_p.h>
 #include <sfdk/virtualmachine.h>
 
 #include <projectexplorer/devicesupport/devicemanager.h>
