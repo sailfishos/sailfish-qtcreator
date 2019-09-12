@@ -60,9 +60,14 @@ const char BUILD_ENGINE_WWW_PROXY_EXCLUDES[] = "WwwProxyExcludes";
 const char BUILD_ENGINE_HEADLESS[] = "Headless";
 const char BUILD_ENGINE_TARGETS_COUNT_KEY[] = "BuildTargets.Count";
 const char BUILD_ENGINE_TARGET_DATA_KEY_PREFIX[] = "BuildTarget.";
-
+const char BUILD_ENGINE_HOST_TARGET_PATH_POSTFIX[] = "/mersdk/targets";
+const char BUILD_ENGINE_HOST_SSH_PATH_POSTFIX[] = "/mersdk/ssh";
+const char BUILD_ENGINE_HOST_CONFIG_PATH_POSTFIX[] = "/vmshare";
+const char BUILD_ENGINE_SHARED_CONFIG_MOUNT_POINT[] = "/etc/mersdk/share";
 const char BUILD_ENGINE_SHARED_HOME_MOUNT_POINT[] = "/home/mersdk/share";
 const char BUILD_ENGINE_SHARED_SRC_MOUNT_POINT[] = "/home/src1";
+const char BUILD_ENGINE_SHARED_TARGET_MOUNT_POINT[] = "/host_targets";
+const char BUILD_ENGINE_SHARED_SSH_MOUNT_POINT[] = "/etc/ssh/authorized_keys";
 
 const char BUILD_TARGET_NAME[] = "Name";
 const char BUILD_TARGET_GCC_DUMP_MACHINE[] = "GccDumpMachine";

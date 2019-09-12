@@ -11,6 +11,7 @@ SOURCES += \
     asynchronous.cpp \
     buildengine.cpp \
     device.cpp \
+    dockervirtualmachine.cpp \
     emulator.cpp \
     sfdkglobal.cpp \
     sdk.cpp \
@@ -28,6 +29,7 @@ HEADERS += \
     buildengine_p.h \
     device.h \
     device_p.h \
+    dockervirtualmachine_p.h \
     emulator.h \
     emulator_p.h \
     sfdkconstants.h \
