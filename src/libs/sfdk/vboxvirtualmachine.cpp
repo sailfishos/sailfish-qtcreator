@@ -288,6 +288,12 @@ void VBoxVirtualMachinePrivate::setReservedPortListForwarding(ReservedPortList w
     VirtualBoxManager::updateReservedPortListForwarding(q_func()->name(), which, ports, context, functor);
 }
 
+void VBoxVirtualMachinePrivate::setVideoMode(const QSize &size, int depth, const QObject *context,
+        const Functor<bool> &functor)
+{
+    VirtualBoxManager::setVideoMode(q_func()->name(), size, depth, context, functor);
+}
+
 void VBoxVirtualMachinePrivate::prepareForNameChange()
 {
     Q_Q(VBoxVirtualMachine);

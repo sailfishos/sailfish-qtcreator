@@ -133,6 +133,9 @@ public:
             const QList<Utils::Port> &ports, const QObject *context,
             const Functor<const Utils::PortList &, bool> &functor) = 0;
 
+    virtual void setVideoMode(const QSize &size, int depth, const QObject *context,
+            const Functor<bool> &functor) = 0;
+
     VirtualMachine::ConnectionUi *connectionUi() const { return connectionUi_.get(); }
 
 protected:

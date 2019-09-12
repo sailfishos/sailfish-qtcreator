@@ -89,6 +89,9 @@ public:
     void setReservedPortListForwarding(ReservedPortList which, const QList<Utils::Port> &ports,
             const QObject *context, const Functor<const Utils::PortList &, bool> &functor) override;
 
+    void setVideoMode(const QSize &size, int depth, const QObject *context,
+            const Functor<bool> &functor) override;
+
 protected:
     void prepareForNameChange() override;
 

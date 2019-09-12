@@ -34,7 +34,6 @@
 #include <sfdk/buildengine.h>
 #include <sfdk/sdk.h>
 #include <sfdk/vboxvirtualmachine_p.h>
-#include <sfdk/virtualboxmanager_p.h>
 
 #include <coreplugin/icore.h>
 #include <coreplugin/messagemanager.h>
@@ -587,8 +586,8 @@ void MerEmulatorDevice::setVideoMode()
         realResolution /= SCALE_DOWN_FACTOR;
     }
 
-    execAsynchronous(std::tie(ok), VirtualBoxManager::setVideoMode, virtualMachineName(),
-            realResolution, VIDEO_MODE_DEPTH);
+    execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachinePrivate::setVideoMode),
+            VirtualMachinePrivate::get(virtualMachine()), realResolution, VIDEO_MODE_DEPTH);
     QTC_CHECK(ok);
 
     //! \todo Does not support multiple emulators (not supported at other places anyway).

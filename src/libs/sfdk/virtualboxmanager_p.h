@@ -21,8 +21,6 @@
 **
 ****************************************************************************/
 
-// TODO make internal
-
 #pragma once
 
 #include "asynchronous.h"
@@ -43,11 +41,10 @@ namespace Utils {
 
 namespace Sfdk {
 
-// FIXME internal
 // TODO Errors should be reported in the UI
 // TODO Use UUIDs instead of names - names may not be unique
 class CommandSerializer;
-class SFDK_EXPORT VirtualBoxManager : public QObject
+class VirtualBoxManager : public QObject
 {
     Q_OBJECT
 public:
