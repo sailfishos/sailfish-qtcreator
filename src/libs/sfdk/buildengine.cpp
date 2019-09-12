@@ -166,8 +166,8 @@ quint16 BuildEngine::sshPort() const
 void BuildEngine::setSshPort(quint16 sshPort, const QObject *context, const Functor<bool> &functor)
 {
     const QPointer<const QObject> context_{context};
-    VirtualBoxManager::updateSdkSshPort(d_func()->virtualMachine->name(), sshPort, this,
-            [=](bool ok) {
+    VirtualMachinePrivate::get(virtualMachine())->setReservedPortForwarding(
+            VirtualMachinePrivate::SshPort, sshPort, this, [=](bool ok) {
         Q_D(BuildEngine);
         if (ok) {
             SshConnectionParameters sshParameters = d->virtualMachine->sshParameters();
@@ -187,8 +187,8 @@ quint16 BuildEngine::wwwPort() const
 void BuildEngine::setWwwPort(quint16 wwwPort, const QObject *context, const Functor<bool> &functor)
 {
     const QPointer<const QObject> context_{context};
-    VirtualBoxManager::updateSdkWwwPort(d_func()->virtualMachine->name(), wwwPort, this,
-            [=](bool ok) {
+    VirtualMachinePrivate::get(virtualMachine())->setReservedPortForwarding(
+            VirtualMachinePrivate::WwwPort, wwwPort, this, [=](bool ok) {
         if (ok)
             d_func()->setWwwPort(wwwPort);
         if (context_)

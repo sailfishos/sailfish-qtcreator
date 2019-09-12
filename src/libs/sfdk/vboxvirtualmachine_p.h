@@ -84,6 +84,11 @@ public:
     void setSharedPath(SharedPath which, const Utils::FileName &path, const QObject *context,
             const Functor<bool> &functor) override;
 
+    void setReservedPortForwarding(ReservedPort which, quint16 port,
+            const QObject *context, const Functor<bool> &functor) override;
+    void setReservedPortListForwarding(ReservedPortList which, const QList<Utils::Port> &ports,
+            const QObject *context, const Functor<const Utils::PortList &, bool> &functor) override;
+
 protected:
     void prepareForNameChange() override;
 

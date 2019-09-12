@@ -32,6 +32,8 @@
 
 namespace Utils {
 class FileName;
+class Port;
+class PortList;
 }
 
 namespace Sfdk {
@@ -97,6 +99,19 @@ public:
     };
     Q_ENUM(SharedPath)
 
+    enum ReservedPort {
+        SshPort,
+        // Valid for build engine kind of VMs only
+        WwwPort,
+    };
+    Q_ENUM(ReservedPort)
+
+    enum ReservedPortList {
+        // Valid for emulator kind of VMs only
+        QmlLivePortList,
+    };
+    Q_ENUM(ReservedPortList)
+
     VirtualMachinePrivate(VirtualMachine *q) : q_ptr(q) {}
 
     static VirtualMachinePrivate *get(VirtualMachine *q) { return q->d_func(); }
@@ -111,6 +126,12 @@ public:
 
     virtual void setSharedPath(SharedPath which, const Utils::FileName &path,
             const QObject *context, const Functor<bool> &functor) = 0;
+
+    virtual void setReservedPortForwarding(ReservedPort which, quint16 port,
+            const QObject *context, const Functor<bool> &functor) = 0;
+    virtual void setReservedPortListForwarding(ReservedPortList which,
+            const QList<Utils::Port> &ports, const QObject *context,
+            const Functor<const Utils::PortList &, bool> &functor) = 0;
 
     VirtualMachine::ConnectionUi *connectionUi() const { return connectionUi_.get(); }
 

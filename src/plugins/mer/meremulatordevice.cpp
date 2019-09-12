@@ -946,8 +946,10 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         if (oldSshPortsCache.contains(merEmulator->id())
                 && nowSshPort != oldSshPortsCache.value(merEmulator->id())) {
             bool stepOk;
-            execAsynchronous(std::tie(stepOk), VirtualBoxManager::updateEmulatorSshPort,
-                    merEmulator->virtualMachineName(), nowSshPort);
+            execAsynchronous(std::tie(stepOk),
+                    std::mem_fn(&VirtualMachinePrivate::setReservedPortForwarding),
+                    VirtualMachinePrivate::get(merEmulator->virtualMachine()),
+                    VirtualMachinePrivate::SshPort, nowSshPort);
             if (stepOk) {
                 merEmulator->updateVmState();
             } else {
@@ -979,8 +981,9 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
             Utils::PortList savedPorts;
             bool stepOk;
             execAsynchronous(std::tie(savedPorts, stepOk),
-                    VirtualBoxManager::updateEmulatorQmlLivePorts,
-                    merEmulator->virtualMachineName(), merEmulator->qmlLivePortsList());
+                    std::mem_fn(&VirtualMachinePrivate::setReservedPortListForwarding),
+                    VirtualMachinePrivate::get(merEmulator->virtualMachine()),
+                    VirtualMachinePrivate::QmlLivePortList, merEmulator->qmlLivePortsList());
             if (!stepOk) {
                 nowQmlLivePorts = savedPorts;
                 merEmulator.constCast<MerEmulatorDevice>()->setQmlLivePorts(nowQmlLivePorts);

@@ -73,13 +73,11 @@ public:
     static void updateSharedFolder(const QString &vmName, VirtualMachinePrivate::SharedPath which,
             const QString &newFolder, const QObject *context, const Functor<bool> &functor);
 
-    static void updateSdkSshPort(const QString &vmName, quint16 port, const QObject *context,
-            const Functor<bool> &functor);
-    static void updateSdkWwwPort(const QString &vmName, quint16 port, const QObject *context,
-            const Functor<bool> &functor);
-    static void updateEmulatorSshPort(const QString &vmName, quint16 port, const QObject *context,
-            const Functor<bool> &functor);
-    static void updateEmulatorQmlLivePorts(const QString &vmName, const QList<Utils::Port> &ports,
+    static void updateReservedPortForwarding(const QString &vmName,
+            VirtualMachinePrivate::ReservedPort which, quint16 port,
+            const QObject *context, const Functor<bool> &functor);
+    static void updateReservedPortListForwarding(const QString &vmName,
+            VirtualMachinePrivate::ReservedPortList which, const QList<Utils::Port> &ports,
             const QObject *context, const Functor<const Utils::PortList &, bool> &functor);
 
     static void setVideoMode(const QString &vmName, const QSize &size, int depth,

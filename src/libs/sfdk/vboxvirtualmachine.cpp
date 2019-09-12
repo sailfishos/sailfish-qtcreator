@@ -275,6 +275,19 @@ void VBoxVirtualMachinePrivate::setSharedPath(SharedPath which, const FileName &
     VirtualBoxManager::updateSharedFolder(q_func()->name(), which, path.toString(), context, functor);
 }
 
+void VBoxVirtualMachinePrivate::setReservedPortForwarding(ReservedPort which, quint16 port,
+        const QObject *context, const Functor<bool> &functor)
+{
+    VirtualBoxManager::updateReservedPortForwarding(q_func()->name(), which, port, context, functor);
+}
+
+void VBoxVirtualMachinePrivate::setReservedPortListForwarding(ReservedPortList which,
+        const QList<Utils::Port> &ports, const QObject *context,
+        const Functor<const Utils::PortList &, bool> &functor)
+{
+    VirtualBoxManager::updateReservedPortListForwarding(q_func()->name(), which, ports, context, functor);
+}
+
 void VBoxVirtualMachinePrivate::prepareForNameChange()
 {
     Q_Q(VBoxVirtualMachine);

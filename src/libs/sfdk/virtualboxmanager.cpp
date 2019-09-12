@@ -77,14 +77,10 @@ const char NATPF1[] = "--natpf1";
 const char DELETE[] = "delete";
 const char QML_LIVE_NATPF_RULE_NAME_MATCH[] = "qmllive_";
 const char FREE_PORT_NATPF_RULE_NAME_MATCH[] = "freeport_";
+const char NATPF_RULE_TEMPLATE[] = "%1,tcp,127.0.0.1,%2,,%3";
 const char QML_LIVE_NATPF_RULE_NAME_TEMPLATE[] = "qmllive_%1";
-const char QML_LIVE_NATPF_RULE_TEMPLATE[] = "qmllive_%1,tcp,127.0.0.1,%2,,%2";
-const char SDK_SSH_NATPF_RULE_NAME[] = "guestssh";
-const char SDK_SSH_NATPF_RULE_TEMPLATE[] = "guestssh,tcp,127.0.0.1,%1,,22";
-const char SDK_WWW_NATPF_RULE_NAME[] = "guestwww";
-const char SDK_WWW_NATPF_RULE_TEMPLATE[] = "guestwww,tcp,127.0.0.1,%1,,9292";
-const char EMULATOR_SSH_NATPF_RULE_NAME[] = "guestssh";
-const char EMULATOR_SSH_NATPF_RULE_TEMPLATE[] = "guestssh,tcp,127.0.0.1,%1,,22";
+const char SSH_NATPF_RULE_NAME[] = "guestssh";
+const char WWW_NATPF_RULE_NAME[] = "guestwww";
 const char MODIFYMEDIUM[] = "modifymedium";
 const char RESIZE[] = "--resize";
 const char MEMORY[] = "--memory";
@@ -519,68 +515,38 @@ void VirtualBoxManager::updateSharedFolder(const QString &vmName,
 }
 
 // It is an error to call this function when the VM vmName is running
-void VirtualBoxManager::updateSdkSshPort(const QString &vmName, quint16 port,
+void VirtualBoxManager::updateReservedPortForwarding(const QString &vmName,
+        VirtualMachinePrivate::ReservedPort which, quint16 port,
         const QObject *context, const Functor<bool> &functor)
 {
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    qCDebug(vms) << "Setting SSH port forwarding for" << vmName << "to" << port;
+    qCDebug(vms) << "Setting reserved port forwarding" << which << "for" << vmName << "to" << port;
+
+    QString ruleName;
+    int guestPort;
+    switch (which) {
+        case VirtualMachinePrivate::SshPort:
+            ruleName = QLatin1String(SSH_NATPF_RULE_NAME);
+            guestPort = 22;
+            break;
+        case VirtualMachinePrivate::WwwPort:
+            ruleName = QLatin1String(WWW_NATPF_RULE_NAME);
+            guestPort = 8080;
+            break;
+    }
+    const QString rule = QString::fromLatin1(NATPF_RULE_TEMPLATE)
+        .arg(ruleName).arg(port).arg(guestPort);
 
     QStringList arguments;
     arguments.append(QLatin1String(MODIFYVM));
     arguments.append(vmName);
     arguments.append(QLatin1String(NATPF1));
     arguments.append(QLatin1String(DELETE));
-    arguments.append(QLatin1String(SDK_SSH_NATPF_RULE_NAME));
+    arguments.append(ruleName);
     arguments.append(QLatin1String(NATPF1));
-    arguments.append(QString::fromLatin1(SDK_SSH_NATPF_RULE_TEMPLATE).arg(port));
-
-    auto process = std::make_unique<VBoxManageProcess>(arguments);
-    connect(process.get(), &VBoxManageProcess::done, context, functor);
-    s_instance->m_serializer->enqueue(std::move(process));
-}
-
-// It is an error to call this function when the VM vmName is running
-void VirtualBoxManager::updateSdkWwwPort(const QString &vmName, quint16 port,
-        const QObject *context, const Functor<bool> &functor)
-{
-    Q_ASSERT(context);
-    Q_ASSERT(functor);
-
-    qCDebug(vms) << "Setting WWW port forwarding for" << vmName << "to" << port;
-
-    QStringList arguments;
-    arguments.append(QLatin1String(MODIFYVM));
-    arguments.append(vmName);
-    arguments.append(QLatin1String(NATPF1));
-    arguments.append(QLatin1String(DELETE));
-    arguments.append(QLatin1String(SDK_WWW_NATPF_RULE_NAME));
-    arguments.append(QLatin1String(NATPF1));
-    arguments.append(QString::fromLatin1(SDK_WWW_NATPF_RULE_TEMPLATE).arg(port));
-
-    auto process = std::make_unique<VBoxManageProcess>(arguments);
-    connect(process.get(), &VBoxManageProcess::done, context, functor);
-    s_instance->m_serializer->enqueue(std::move(process));
-}
-
-// It is an error to call this function when the VM vmName is running
-void VirtualBoxManager::updateEmulatorSshPort(const QString &vmName, quint16 port,
-        const QObject *context, const Functor<bool> &functor)
-{
-    Q_ASSERT(context);
-    Q_ASSERT(functor);
-
-    qCDebug(vms) << "Setting SSH port forwarding for" << vmName << "to" << port;
-
-    QStringList arguments;
-    arguments.append(QLatin1String(MODIFYVM));
-    arguments.append(vmName);
-    arguments.append(QLatin1String(NATPF1));
-    arguments.append(QLatin1String(DELETE));
-    arguments.append(QLatin1String(EMULATOR_SSH_NATPF_RULE_NAME));
-    arguments.append(QLatin1String(NATPF1));
-    arguments.append(QString::fromLatin1(EMULATOR_SSH_NATPF_RULE_TEMPLATE).arg(port));
+    arguments.append(rule);
 
     auto process = std::make_unique<VBoxManageProcess>(arguments);
     connect(process.get(), &VBoxManageProcess::done, context, functor);
@@ -1005,14 +971,22 @@ void VirtualBoxManager::fetchPortForwardingRules(const QString &vmName, const QO
 }
 
 // It is an error to call this function when the VM vmName is running
-void VirtualBoxManager::updateEmulatorQmlLivePorts(const QString &vmName,
-        const QList<Utils::Port> &ports, const QObject *context,
-        const Functor<const Utils::PortList &, bool> &functor)
+void VirtualBoxManager::updateReservedPortListForwarding(const QString &vmName,
+        VirtualMachinePrivate::ReservedPortList which, const QList<Utils::Port> &ports,
+        const QObject *context, const Functor<const Utils::PortList &, bool> &functor)
 {
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    qCDebug(vms) << "Setting QmlLive port forwarding for" << vmName << "to" << ports;
+    qCDebug(vms) << "Setting reserved port forwarding" << which << "for" << vmName << "to" << ports;
+
+    QString ruleNameTemplate;
+    switch (which) {
+    case VirtualMachinePrivate::QmlLivePortList:
+        ruleNameTemplate = QLatin1String(QML_LIVE_NATPF_RULE_NAME_TEMPLATE);
+        break;
+    }
+    const QString ruleTemplate = QString::fromLatin1(NATPF_RULE_TEMPLATE).arg(ruleNameTemplate);
 
     for (int i = 1; i <= Constants::MAX_QML_LIVE_PORTS; ++i) {
         QStringList arguments;
@@ -1020,11 +994,11 @@ void VirtualBoxManager::updateEmulatorQmlLivePorts(const QString &vmName,
         arguments.append(vmName);
         arguments.append(QLatin1String(NATPF1));
         arguments.append(QLatin1String(DELETE));
-        arguments.append(QString::fromLatin1(QML_LIVE_NATPF_RULE_NAME_TEMPLATE).arg(i));
+        arguments.append(ruleNameTemplate.arg(i));
 
         auto process = std::make_unique<VBoxManageProcess>(arguments);
         connect(process.get(), &VBoxManageProcess::failure, [=]() {
-            qWarning() << "VBoxManage failed to delete QmlLive port #" << QString::number(i);
+            qWarning() << "VBoxManage failed to delete" << which << "port #" << QString::number(i);
         });
         s_instance->m_serializer->enqueue(std::move(process));
     }
@@ -1041,14 +1015,14 @@ void VirtualBoxManager::updateEmulatorQmlLivePorts(const QString &vmName,
         arguments.append(QLatin1String(MODIFYVM));
         arguments.append(vmName);
         arguments.append(QLatin1String(NATPF1));
-        arguments.append(QString::fromLatin1(QML_LIVE_NATPF_RULE_TEMPLATE).arg(i).arg(port.number()));
+        arguments.append(ruleTemplate.arg(i).arg(port.number()).arg(port.number()));
 
         auto process = std::make_unique<VBoxManageProcess>(arguments);
         connect(process.get(), &VBoxManageProcess::done, s_instance, [=](bool ok) {
             if (ok)
                 savedPorts->addPort(port);
             else
-                qWarning() << "VBoxManage failed to set QmlLive port" << port.toString();
+                qWarning() << "VBoxManage failed to set" << which << "port" << port.toString();
         });
         s_instance->m_serializer->enqueue(std::move(process));
         ++i;
@@ -1126,9 +1100,9 @@ VBoxVirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
         if (rexp.cap(0).startsWith(QLatin1String("Forwarding"))) {
             QString ruleName = rexp.cap(1);
             quint16 port = rexp.cap(4).toUInt();
-            if (ruleName.contains(QLatin1String(SDK_SSH_NATPF_RULE_NAME)))
+            if (ruleName.contains(QLatin1String(SSH_NATPF_RULE_NAME)))
                 info.sshPort = port;
-            else if (ruleName.contains(QLatin1String(SDK_WWW_NATPF_RULE_NAME)))
+            else if (ruleName.contains(QLatin1String(WWW_NATPF_RULE_NAME)))
                 info.wwwPort = port;
             else if (ruleName.contains(QLatin1String(QML_LIVE_NATPF_RULE_NAME_MATCH)))
                 info.qmlLivePorts[ruleName] = port;
