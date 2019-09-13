@@ -43,15 +43,9 @@ namespace Sfdk {
 
 // TODO Errors should be reported in the UI
 // TODO Use UUIDs instead of names - names may not be unique
-class CommandQueue;
 class VirtualBoxManager : public QObject
 {
-    Q_OBJECT
 public:
-    VirtualBoxManager(QObject *parent = 0);
-    static VirtualBoxManager* instance();
-    ~VirtualBoxManager() override;
-
     static void probe(const QString &vmName, const QObject *context,
             const Functor<VirtualMachinePrivate::BasicState, bool> &functor);
     static void fetchRegisteredVirtualMachines(const QObject *context,
@@ -102,9 +96,6 @@ public:
 private:
     static void setExtraData(const QString &vmName, const QString &keyword, const QString &data,
             const QObject *context, const Functor<bool> &functor);
-
-    static VirtualBoxManager *s_instance;
-    std::unique_ptr<CommandQueue> m_queue;
 };
 
 } // Sfdk

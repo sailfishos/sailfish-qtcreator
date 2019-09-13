@@ -22,6 +22,7 @@
 
 #include "sdk_p.h"
 
+#include "asynchronous_p.h"
 #include "buildengine_p.h"
 #include "sfdkconstants.h"
 #include "vboxvirtualmachine_p.h"
@@ -57,7 +58,7 @@ Sdk::Sdk(Options options)
     qCDebug(lib) << "Initializing SDK. Options:" << options;
 
     d->options_ = options;
-    d->virtualBoxManager = std::make_unique<VirtualBoxManager>(this);
+    d->commandQueue_ = std::make_unique<CommandQueue>(this);
     d->buildEngineManager = std::make_unique<BuildEngineManager>(this);
 
     connect(d->buildEngineManager.get(), &BuildEngineManager::buildEngineAdded,
@@ -68,6 +69,8 @@ Sdk::Sdk(Options options)
 
 Sdk::~Sdk()
 {
+    Q_D(Sdk);
+    d->commandQueue_->wait();
     s_instance = nullptr;
 }
 

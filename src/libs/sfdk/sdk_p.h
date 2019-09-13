@@ -31,7 +31,7 @@ class FileName;
 namespace Sfdk {
 
 class BuildEngineManager;
-class VirtualBoxManager;
+class CommandQueue;
 
 class SdkPrivate : public QObject
 {
@@ -54,6 +54,8 @@ public:
     static bool isVersionedSettingsEnabled() { return instance()->options_ & Sdk::VersionedSettings; }
     static bool isUpdatesEnabled() { return instance()->updatesEnabled; }
 
+    static CommandQueue *commandQueue() { return instance()->commandQueue_.get(); }
+
     static Utils::FileName libexecPath();
     static Utils::FileName settingsFile(SettingsScope scope, const QString &basename);
     static Utils::FileName settingsLocation(SettingsScope scope);
@@ -65,7 +67,7 @@ signals:
 private:
     Sdk::Options options_;
     bool updatesEnabled = false;
-    std::unique_ptr<VirtualBoxManager> virtualBoxManager;
+    std::unique_ptr<CommandQueue> commandQueue_;
     std::unique_ptr<BuildEngineManager> buildEngineManager;
 };
 

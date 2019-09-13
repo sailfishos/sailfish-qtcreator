@@ -5,6 +5,7 @@ DEFINES += SFDK_LIBRARY
 QT += network xmlpatterns
 
 SOURCES += \
+    asynchronous.cpp \
     buildengine.cpp \
     sfdkglobal.cpp \
     sdk.cpp \
@@ -16,6 +17,8 @@ SOURCES += \
     vmconnection.cpp \
 
 HEADERS += \
+    asynchronous.h \
+    asynchronous_p.h \
     buildengine.h \
     buildengine_p.h \
     sfdkconstants.h \
