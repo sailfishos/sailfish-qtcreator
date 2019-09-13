@@ -961,7 +961,6 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         }
         m_deviceSshPortCache.insert(merEmulator->id(), nowSshPort);
 
-        // TODO duplicate, another version exists in VirtualBoxManager
         auto isPortListEqual = [] (Utils::PortList l1, Utils::PortList l2) {
             if (l1.count() != l2.count())
                 return false;
@@ -977,14 +976,17 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         Utils::PortList nowQmlLivePorts = merEmulator->qmlLivePorts();
         if (oldQmlLivePortsCache.contains(merEmulator->id())
                 && !isPortListEqual(nowQmlLivePorts, oldQmlLivePortsCache.value(merEmulator->id()))) {
-            Utils::PortList savedPorts;
+            QMap<QString, quint16> savedPorts;
             bool stepOk;
             execAsynchronous(std::tie(savedPorts, stepOk),
                     std::mem_fn(&VirtualMachinePrivate::setReservedPortListForwarding),
                     VirtualMachinePrivate::get(merEmulator->virtualMachine()),
                     VirtualMachinePrivate::QmlLivePortList, merEmulator->qmlLivePortsList());
             if (!stepOk) {
-                nowQmlLivePorts = savedPorts;
+                Utils::PortList savedPorts_;
+                for (quint16 port : savedPorts)
+                    savedPorts_.addPort(Utils::Port(port));
+                nowQmlLivePorts = savedPorts_;
                 merEmulator.constCast<MerEmulatorDevice>()->setQmlLivePorts(nowQmlLivePorts);
                 ok = false;
             }

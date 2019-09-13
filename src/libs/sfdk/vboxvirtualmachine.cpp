@@ -45,185 +45,6 @@ VBoxVirtualMachine::~VBoxVirtualMachine()
     d_func()->prepareForNameChange();
 }
 
-int VBoxVirtualMachine::memorySizeMb() const
-{
-    Q_D(const VBoxVirtualMachine);
-    QTC_ASSERT(d->initialized(), return false);
-    return d->virtualMachineInfo.memorySizeMb;
-}
-
-void VBoxVirtualMachine::setMemorySizeMb(int memorySizeMb, const QObject *context,
-        const Functor<bool> &functor)
-{
-    Q_D(VBoxVirtualMachine);
-
-    const QPointer<const QObject> context_{context};
-    VirtualBoxManager::setMemorySizeMb(name(), memorySizeMb, this, [=](bool ok) {
-        if (ok && d->virtualMachineInfo.memorySizeMb != memorySizeMb) {
-            d->virtualMachineInfo.memorySizeMb = memorySizeMb;
-            emit memorySizeMbChanged(memorySizeMb);
-        }
-        if (context_)
-            functor(ok);
-    });
-}
-
-int VBoxVirtualMachine::cpuCount() const
-{
-    Q_D(const VBoxVirtualMachine);
-    QTC_ASSERT(d->initialized(), return false);
-    return d->virtualMachineInfo.cpuCount;
-}
-
-void VBoxVirtualMachine::setCpuCount(int cpuCount, const QObject *context, const Functor<bool> &functor)
-{
-    Q_D(VBoxVirtualMachine);
-
-    const QPointer<const QObject> context_{context};
-    VirtualBoxManager::setCpuCount(name(), cpuCount, this, [=](bool ok) {
-        if (ok && d->virtualMachineInfo.cpuCount != cpuCount) {
-            d->virtualMachineInfo.cpuCount = cpuCount;
-            emit cpuCountChanged(cpuCount);
-        }
-        if (context_)
-            functor(ok);
-    });
-}
-
-int VBoxVirtualMachine::vdiCapacityMb() const
-{
-    Q_D(const VBoxVirtualMachine);
-    QTC_ASSERT(d->initialized(), return false);
-    return d->virtualMachineInfo.vdiCapacityMb;
-}
-
-void VBoxVirtualMachine::setVdiCapacityMb(int vdiCapacityMb, const QObject *context,
-        const Functor<bool> &functor)
-{
-    Q_D(VBoxVirtualMachine);
-
-    const QPointer<const QObject> context_{context};
-    VirtualBoxManager::setVdiCapacityMb(name(), vdiCapacityMb, this, [=](bool ok) {
-        if (ok && d->virtualMachineInfo.vdiCapacityMb != vdiCapacityMb) {
-            d->virtualMachineInfo.vdiCapacityMb = vdiCapacityMb;
-            emit vdiCapacityMbChanged(vdiCapacityMb);
-        }
-        if (context_)
-            functor(ok);
-    });
-}
-
-bool VBoxVirtualMachine::hasPortForwarding(quint16 hostPort, QString *ruleName) const
-{
-    Q_D(const VBoxVirtualMachine);
-    QTC_ASSERT(d->initialized(), return false);
-
-    const QList<const QMap<QString, quint16> *> ruleset{
-        &d->virtualMachineInfo.otherPorts,
-        &d->virtualMachineInfo.qmlLivePorts,
-        &d->virtualMachineInfo.freePorts
-    };
-    for (auto *const rules : ruleset) {
-        if (rules->values().contains(hostPort)) {
-            if (ruleName)
-                *ruleName = rules->key(hostPort);
-            return true;
-        }
-    }
-    return false;
-}
-
-void VBoxVirtualMachine::addPortForwarding(const QString &ruleName, const QString &protocol,
-        quint16 hostPort, quint16 emulatorVmPort,
-        const QObject *context, const Functor<bool> &functor)
-{
-    Q_D(VBoxVirtualMachine);
-
-    const QPointer<const QObject> context_{context};
-    VirtualBoxManager::updatePortForwardingRule(name(), ruleName, protocol, hostPort,
-            emulatorVmPort, this, [=](bool ok) {
-        if (ok) {
-            d->virtualMachineInfo.otherPorts.insert(ruleName, emulatorVmPort);
-            emit portForwardingChanged();
-        }
-        if (context_)
-            functor(ok);
-    });
-}
-
-void VBoxVirtualMachine::removePortForwarding(const QString &ruleName, const QObject *context,
-        const Functor<bool> &functor)
-{
-    Q_D(VBoxVirtualMachine);
-
-    const QPointer<const QObject> context_{context};
-    VirtualBoxManager::deletePortForwardingRule(name(), ruleName, this, [=](bool ok) {
-        if (ok) {
-            d->virtualMachineInfo.otherPorts.remove(ruleName);
-            emit portForwardingChanged();
-        }
-        if (context_)
-            functor(ok);
-    });
-}
-
-QStringList VBoxVirtualMachine::snapshots() const
-{
-    Q_D(const VBoxVirtualMachine);
-    QTC_ASSERT(d->initialized(), return {});
-    return d->virtualMachineInfo.snapshots;
-}
-
-void VBoxVirtualMachine::restoreSnapshot(const QString &snapshotName, const QObject *context,
-        const Functor<bool> &functor)
-{
-    const QPointer<const QObject> context_{context};
-    VirtualBoxManager::restoreSnapshot(name(), snapshotName, this, [=](bool restoreOk) {
-        refreshConfiguration(this, [=](bool refreshOk) {
-            if (context_)
-                functor(restoreOk && refreshOk);
-        });
-    });
-}
-
-void VBoxVirtualMachine::refreshConfiguration(const QObject *context, const Functor<bool> &functor)
-{
-    Q_D(VBoxVirtualMachine);
-
-    const QPointer<const QObject> context_{context};
-
-    d->fetchInfo(VirtualMachineInfo::VdiInfo | VirtualMachineInfo::SnapshotInfo, this,
-            [=](const VirtualMachineInfo &info, bool ok) {
-        if (!ok) {
-            if (context_)
-                functor(false);
-            return;
-        }
-
-        VirtualMachineInfo oldInfo = d->virtualMachineInfo;
-        d->virtualMachineInfo = info;
-
-        if (oldInfo.memorySizeMb != info.memorySizeMb)
-            emit memorySizeMbChanged(info.memorySizeMb);
-        if (oldInfo.cpuCount != info.cpuCount)
-            emit cpuCountChanged(info.cpuCount);
-        if (oldInfo.vdiCapacityMb != info.vdiCapacityMb)
-            emit vdiCapacityMbChanged(info.vdiCapacityMb);
-        if (oldInfo.snapshots != info.snapshots)
-            emit snapshotsChanged();
-        if (oldInfo.otherPorts != info.otherPorts
-                || oldInfo.qmlLivePorts != info.qmlLivePorts
-                || oldInfo.freePorts != info.freePorts) {
-            emit portForwardingChanged();
-        }
-
-        d->setInitialized();
-
-        if (context_)
-            functor(true);
-    });
-}
-
 // Provides list of all used VMs, that is valid also during configuration of new build
 // engines/emulators, before the changes are applied.
 QStringList VBoxVirtualMachine::usedVirtualMachines()
@@ -261,23 +82,61 @@ void VBoxVirtualMachinePrivate::probe(const QObject *context,
     VirtualBoxManager::probe(q_func()->name(), context, functor);
 }
 
-void VBoxVirtualMachinePrivate::setSharedPath(SharedPath which, const FileName &path,
+void VBoxVirtualMachinePrivate::doSetMemorySizeMb(int memorySizeMb, const QObject *context,
+        const Functor<bool> &functor)
+{
+    VirtualBoxManager::setMemorySizeMb(q_func()->name(), memorySizeMb, context, functor);
+}
+
+void VBoxVirtualMachinePrivate::doSetCpuCount(int cpuCount, const QObject *context,
+        const Functor<bool> &functor)
+{
+    VirtualBoxManager::setCpuCount(q_func()->name(), cpuCount, context, functor);
+}
+
+void VBoxVirtualMachinePrivate::doSetVdiCapacityMb(int vdiCapacityMb, const QObject *context,
+        const Functor<bool> &functor)
+{
+    VirtualBoxManager::setVdiCapacityMb(q_func()->name(), vdiCapacityMb, context, functor);
+}
+
+void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FileName &path,
         const QObject *context, const Functor<bool> &functor)
 {
     VirtualBoxManager::updateSharedFolder(q_func()->name(), which, path.toString(), context, functor);
 }
 
-void VBoxVirtualMachinePrivate::setReservedPortForwarding(ReservedPort which, quint16 port,
+void VBoxVirtualMachinePrivate::doAddPortForwarding(const QString &ruleName,
+        const QString &protocol, quint16 hostPort, quint16 emulatorVmPort,
+        const QObject *context, const Functor<bool> &functor)
+{
+    VirtualBoxManager::updatePortForwardingRule(q_func()->name(), ruleName, protocol, hostPort,
+            emulatorVmPort, context, functor);
+}
+
+void VBoxVirtualMachinePrivate::doRemovePortForwarding(const QString &ruleName,
+        const QObject *context, const Functor<bool> &functor)
+{
+    VirtualBoxManager::deletePortForwardingRule(q_func()->name(), ruleName, context, functor);
+}
+
+void VBoxVirtualMachinePrivate::doSetReservedPortForwarding(ReservedPort which, quint16 port,
         const QObject *context, const Functor<bool> &functor)
 {
     VirtualBoxManager::updateReservedPortForwarding(q_func()->name(), which, port, context, functor);
 }
 
-void VBoxVirtualMachinePrivate::setReservedPortListForwarding(ReservedPortList which,
+void VBoxVirtualMachinePrivate::doSetReservedPortListForwarding(ReservedPortList which,
         const QList<Utils::Port> &ports, const QObject *context,
-        const Functor<const Utils::PortList &, bool> &functor)
+        const Functor<const QMap<QString, quint16> &, bool> &functor)
 {
     VirtualBoxManager::updateReservedPortListForwarding(q_func()->name(), which, ports, context, functor);
+}
+
+void VBoxVirtualMachinePrivate::doRestoreSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor)
+{
+    VirtualBoxManager::restoreSnapshot(q_func()->name(), snapshotName, context, functor);
 }
 
 void VBoxVirtualMachinePrivate::setVideoMode(const QSize &size, int depth, const QObject *context,
@@ -302,12 +161,6 @@ void VBoxVirtualMachinePrivate::onNameChanged()
         if (++s_usedVmNames[q->name()] != 1)
             qCWarning(lib) << "VirtualMachine: Another instance for VM" << q->name() << "already exists";
     }
-
-    // FIXME add an external entity responsible for this
-    // FIXME when changing name is disallowed, this should be invoked immediately during class construction
-    q->refreshConfiguration(q, [=](bool ok) {
-        QTC_CHECK(ok);
-    });
 }
 
 } // namespace Sfdk

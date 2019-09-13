@@ -75,7 +75,7 @@ public:
             const QObject *context, const Functor<bool> &functor);
     static void updateReservedPortListForwarding(const QString &vmName,
             VirtualMachinePrivate::ReservedPortList which, const QList<Utils::Port> &ports,
-            const QObject *context, const Functor<const Utils::PortList &, bool> &functor);
+            const QObject *context, const Functor<const QMap<QString, quint16> &, bool> &functor);
 
     static void setVideoMode(const QString &vmName, const QSize &size, int depth,
             const QObject *context, const Functor<bool> &functor);

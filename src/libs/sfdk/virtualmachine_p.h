@@ -73,7 +73,7 @@ public:
     QStringList snapshots;
 };
 
-class VirtualMachinePrivate
+class SFDK_EXPORT VirtualMachinePrivate
 {
     Q_GADGET
     Q_DECLARE_PUBLIC(VirtualMachine)
@@ -124,14 +124,14 @@ public:
     virtual void probe(const QObject *context,
             const Functor<BasicState, bool> &functor) const = 0;
 
-    virtual void setSharedPath(SharedPath which, const Utils::FileName &path,
-            const QObject *context, const Functor<bool> &functor) = 0;
+    void setSharedPath(SharedPath which, const Utils::FileName &path,
+            const QObject *context, const Functor<bool> &functor);
 
-    virtual void setReservedPortForwarding(ReservedPort which, quint16 port,
-            const QObject *context, const Functor<bool> &functor) = 0;
-    virtual void setReservedPortListForwarding(ReservedPortList which,
+    void setReservedPortForwarding(ReservedPort which, quint16 port,
+            const QObject *context, const Functor<bool> &functor);
+    void setReservedPortListForwarding(ReservedPortList which,
             const QList<Utils::Port> &ports, const QObject *context,
-            const Functor<const Utils::PortList &, bool> &functor) = 0;
+            const Functor<const QMap<QString, quint16> &, bool> &functor);
 
     virtual void setVideoMode(const QSize &size, int depth, const QObject *context,
             const Functor<bool> &functor) = 0;
@@ -139,15 +139,39 @@ public:
     VirtualMachine::ConnectionUi *connectionUi() const { return connectionUi_.get(); }
 
 protected:
+    virtual void doSetMemorySizeMb(int memorySizeMb, const QObject *context,
+            const Functor<bool> &functor) = 0;
+    virtual void doSetCpuCount(int cpuCount, const QObject *context,
+            const Functor<bool> &functor) = 0;
+    virtual void doSetVdiCapacityMb(int vdiCapacityMb, const QObject *context,
+            const Functor<bool> &functor) = 0;
+
+    virtual void doSetSharedPath(SharedPath which, const Utils::FileName &path,
+            const QObject *context, const Functor<bool> &functor) = 0;
+
+    virtual void doAddPortForwarding(const QString &ruleName,
+        const QString &protocol, quint16 hostPort, quint16 emulatorVmPort,
+        const QObject *context, const Functor<bool> &functor) = 0;
+    virtual void doRemovePortForwarding(const QString &ruleName,
+        const QObject *context, const Functor<bool> &functor) = 0;
+    virtual void doSetReservedPortForwarding(ReservedPort which, quint16 port,
+            const QObject *context, const Functor<bool> &functor) = 0;
+    virtual void doSetReservedPortListForwarding(ReservedPortList which,
+            const QList<Utils::Port> &ports, const QObject *context,
+            const Functor<const QMap<QString, quint16> &, bool> &functor) = 0;
+
+    virtual void doRestoreSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor) = 0;
+
     virtual void prepareForNameChange() {};
     bool initialized() const { return initialized_; }
-    void setInitialized() { initialized_ = true; }
 
     VirtualMachine *const q_ptr;
 
 private:
     static int s_availableMemmorySizeMb;
     QString name;
+    VirtualMachineInfo virtualMachineInfo;
     bool initialized_ = false;
     std::unique_ptr<VirtualMachine::ConnectionUi> connectionUi_;
     std::unique_ptr<VmConnection> connection;

@@ -25,6 +25,7 @@
 
 #include "sfdkconstants.h"
 
+#include <utils/algorithm.h>
 #include <utils/hostosinfo.h>
 #include <utils/portlist.h>
 #include <utils/qtcassert.h>
@@ -955,7 +956,7 @@ void VirtualBoxManager::updatePortForwardingRule(const QString &vmName, const QS
 // It is an error to call this function when the VM vmName is running
 void VirtualBoxManager::updateReservedPortListForwarding(const QString &vmName,
         VirtualMachinePrivate::ReservedPortList which, const QList<Utils::Port> &ports,
-        const QObject *context, const Functor<const Utils::PortList &, bool> &functor)
+        const QObject *context, const Functor<const QMap<QString, quint16> &, bool> &functor)
 {
     Q_ASSERT(context);
     Q_ASSERT(functor);
@@ -985,26 +986,26 @@ void VirtualBoxManager::updateReservedPortListForwarding(const QString &vmName,
         s_instance->m_serializer->enqueue(std::move(process));
     }
 
-    auto savedPorts = std::make_shared<Utils::PortList>();
+    auto savedPorts = std::make_shared<QMap<QString, quint16>>();
 
-    auto ports_ = ports;
+    QList<quint16> ports_ = Utils::transform(ports, &Port::number);
     std::sort(ports_.begin(), ports_.end());
 
     int i = 1;
     VBoxManageProcess *lastSetProcess = nullptr;
-    foreach (const Utils::Port &port, ports_) {
+    foreach (quint16 port, ports_) {
         QStringList arguments;
         arguments.append(QLatin1String(MODIFYVM));
         arguments.append(vmName);
         arguments.append(QLatin1String(NATPF1));
-        arguments.append(ruleTemplate.arg(i).arg(port.number()).arg(port.number()));
+        arguments.append(ruleTemplate.arg(i).arg(port).arg(port));
 
         auto process = std::make_unique<VBoxManageProcess>(arguments);
         connect(process.get(), &VBoxManageProcess::done, s_instance, [=](bool ok) {
             if (ok)
-                savedPorts->addPort(port);
+                savedPorts->insert(ruleNameTemplate.arg(i), port);
             else
-                qWarning() << "VBoxManage failed to set" << which << "port" << port.toString();
+                qWarning() << "VBoxManage failed to set" << which << "port" << port;
         });
         s_instance->m_serializer->enqueue(std::move(process));
         ++i;
@@ -1013,20 +1014,7 @@ void VirtualBoxManager::updateReservedPortListForwarding(const QString &vmName,
 
     connect(lastSetProcess, &VBoxManageProcess::done, context, [=](bool ok) {
         Q_UNUSED(ok);
-
-        auto isPortListEqual = [] (Utils::PortList l1, const QList<Utils::Port> &l2) {
-            if (l1.count() != l2.count())
-                return false;
-
-            while (l1.hasMore()) {
-                const Port current = l1.getNext();
-                if (!l2.contains(current))
-                    return false;
-            }
-            return true;
-        };
-
-        functor(*savedPorts, isPortListEqual(*savedPorts, ports_));
+        functor(*savedPorts, savedPorts->values() == ports_);
     });
 }
 

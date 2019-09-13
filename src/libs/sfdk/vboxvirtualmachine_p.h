@@ -36,30 +36,6 @@ public:
     explicit VBoxVirtualMachine(QObject *parent = nullptr); // FIXME factory
     ~VBoxVirtualMachine() override;
 
-    int memorySizeMb() const override;
-    void setMemorySizeMb(int memorySizeMb, const QObject *context,
-            const Functor<bool> &functor) override;
-
-    int cpuCount() const override;
-    void setCpuCount(int cpuCount, const QObject *context, const Functor<bool> &functor) override;
-
-    int vdiCapacityMb() const override;
-    void setVdiCapacityMb(int vdiCapacityMb, const QObject *context,
-            const Functor<bool> &functor) override;
-
-    bool hasPortForwarding(quint16 hostPort, QString *ruleName = nullptr) const override;
-    void addPortForwarding(const QString &ruleName, const QString &protocol,
-            quint16 hostPort, quint16 emulatorVmPort, const QObject *context,
-            const Functor<bool> &functor) override;
-    void removePortForwarding(const QString &ruleName, const QObject *context,
-            const Functor<bool> &functor) override;
-
-    QStringList snapshots() const override;
-    void restoreSnapshot(const QString &snapshotName, const QObject *context, const Functor<bool>
-            &functor) override;
-
-    void refreshConfiguration(const QObject *context, const Functor<bool> &functor) override;
-
     static QStringList usedVirtualMachines();
 
 private:
@@ -76,23 +52,40 @@ public:
 
     void fetchInfo(VirtualMachineInfo::ExtraInfos extraInfo, const QObject *context,
             const Functor<const VirtualMachineInfo &, bool> &functor) const override;
+
     void start(const QObject *context, const Functor<bool> &functor) override;
     void stop(const QObject *context, const Functor<bool> &functor) override;
     void probe(const QObject *context,
             const Functor<BasicState, bool> &functor) const override;
 
-    void setSharedPath(SharedPath which, const Utils::FileName &path, const QObject *context,
-            const Functor<bool> &functor) override;
-
-    void setReservedPortForwarding(ReservedPort which, quint16 port,
-            const QObject *context, const Functor<bool> &functor) override;
-    void setReservedPortListForwarding(ReservedPortList which, const QList<Utils::Port> &ports,
-            const QObject *context, const Functor<const Utils::PortList &, bool> &functor) override;
-
     void setVideoMode(const QSize &size, int depth, const QObject *context,
             const Functor<bool> &functor) override;
 
 protected:
+    void doSetMemorySizeMb(int memorySizeMb, const QObject *context,
+            const Functor<bool> &functor) override;
+    void doSetCpuCount(int cpuCount, const QObject *context,
+            const Functor<bool> &functor) override;
+    void doSetVdiCapacityMb(int vdiCapacityMb, const QObject *context,
+            const Functor<bool> &functor) override;
+
+    void doSetSharedPath(SharedPath which, const Utils::FileName &path, const QObject *context,
+            const Functor<bool> &functor) override;
+
+    void doAddPortForwarding(const QString &ruleName,
+        const QString &protocol, quint16 hostPort, quint16 emulatorVmPort,
+        const QObject *context, const Functor<bool> &functor) override;
+    void doRemovePortForwarding(const QString &ruleName,
+        const QObject *context, const Functor<bool> &functor) override;
+    void doSetReservedPortForwarding(ReservedPort which, quint16 port,
+            const QObject *context, const Functor<bool> &functor) override;
+    void doSetReservedPortListForwarding(ReservedPortList which, const QList<Utils::Port> &ports,
+            const QObject *context, const Functor<const QMap<QString, quint16> &, bool> &functor)
+        override;
+
+    void doRestoreSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor) override;
+
     void prepareForNameChange() override;
 
 private:
@@ -100,7 +93,6 @@ private:
 
 private:
     static QMap<QString, int> s_usedVmNames;
-    VirtualMachineInfo virtualMachineInfo;
 };
 
 } // namespace Sfdk

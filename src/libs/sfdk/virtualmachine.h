@@ -86,33 +86,33 @@ public:
     bool isOff(bool *runningHeadless = 0, bool *startedOutside = 0) const;
     bool lockDown(bool lockDown);
 
-    virtual int memorySizeMb() const = 0;
-    virtual void setMemorySizeMb(int memorySizeMb, const QObject *context,
-            const Functor<bool> &functor) = 0;
+    int memorySizeMb() const;
+    void setMemorySizeMb(int memorySizeMb, const QObject *context,
+            const Functor<bool> &functor);
     static int availableMemorySizeMb();
 
-    virtual int cpuCount() const = 0;
-    virtual void setCpuCount(int cpuCount, const QObject *context,
-            const Functor<bool> &functor) = 0;
+    int cpuCount() const;
+    void setCpuCount(int cpuCount, const QObject *context,
+            const Functor<bool> &functor);
     static int availableCpuCount();
 
     // FIXME rename as storageCapacityMb
-    virtual int vdiCapacityMb() const = 0;
-    virtual void setVdiCapacityMb(int vdiCapacityMb, const QObject *context,
-            const Functor<bool> &functor) = 0;
+    int vdiCapacityMb() const;
+    void setVdiCapacityMb(int vdiCapacityMb, const QObject *context,
+            const Functor<bool> &functor);
 
-    virtual bool hasPortForwarding(quint16 hostPort, QString *ruleName = nullptr) const = 0;
-    virtual void addPortForwarding(const QString &ruleName, const QString &protocol,
+    bool hasPortForwarding(quint16 hostPort, QString *ruleName = nullptr) const;
+    void addPortForwarding(const QString &ruleName, const QString &protocol,
             quint16 hostPort, quint16 emulatorVmPort, const QObject *context,
-            const Functor<bool> &functor) = 0;
-    virtual void removePortForwarding(const QString &ruleName, const QObject *context,
-            const Functor<bool> &functor) = 0;
+            const Functor<bool> &functor);
+    void removePortForwarding(const QString &ruleName, const QObject *context,
+            const Functor<bool> &functor);
 
-    virtual QStringList snapshots() const = 0;
-    virtual void restoreSnapshot(const QString &snapshotName, const QObject *context,
-            const Functor<bool> &functor) = 0;
+    QStringList snapshots() const;
+    void restoreSnapshot(const QString &snapshotName, const QObject *context,
+            const Functor<bool> &functor);
 
-    virtual void refreshConfiguration(const QObject *context, const Functor<bool> &functor) = 0;
+    void refreshConfiguration(const QObject *context, const Functor<bool> &functor);
     // FIXME API style?
     void refreshState(Sfdk::VirtualMachine::Synchronization synchronization = Asynchronous);
 
