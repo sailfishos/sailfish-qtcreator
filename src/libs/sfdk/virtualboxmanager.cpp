@@ -699,7 +699,6 @@ void VirtualBoxManager::fetchRegisteredVirtualMachines(const QObject *context,
     s_instance->m_serializer->enqueue(std::move(process));
 }
 
-// It is an error to call this function when the VM vmName is running
 void VirtualBoxManager::setVideoMode(const QString &vmName, const QSize &size, int depth,
         const QObject *context, const Functor<bool> &functor)
 {
