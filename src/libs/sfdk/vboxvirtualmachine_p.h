@@ -101,7 +101,6 @@ private:
 private:
     static QMap<QString, int> s_usedVmNames;
     VirtualMachineInfo virtualMachineInfo;
-    QList<QMap<QString, quint16>> portForwardingRules;
 };
 
 } // namespace Sfdk

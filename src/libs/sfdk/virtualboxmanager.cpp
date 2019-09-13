@@ -952,24 +952,6 @@ void VirtualBoxManager::updatePortForwardingRule(const QString &vmName, const QS
     s_instance->m_serializer->enqueueImmediate(std::move(process));
 }
 
-void VirtualBoxManager::fetchPortForwardingRules(const QString &vmName, const QObject *context,
-        const Functor<const QList<QMap<QString, quint16>> &, bool> &functor)
-{
-    Q_ASSERT(context);
-    Q_ASSERT(functor);
-
-    fetchVirtualMachineInfo(vmName, VirtualMachineInfo::VdiInfo,
-            context, [=](const VirtualMachineInfo &vmInfo, bool ok) {
-        if (!ok) {
-            functor({}, false);
-            return;
-        }
-        auto rules = QList<QMap<QString, quint16>>({vmInfo.otherPorts, vmInfo.qmlLivePorts,
-                vmInfo.freePorts});
-        functor(rules, true);
-    });
-}
-
 // It is an error to call this function when the VM vmName is running
 void VirtualBoxManager::updateReservedPortListForwarding(const QString &vmName,
         VirtualMachinePrivate::ReservedPortList which, const QList<Utils::Port> &ports,

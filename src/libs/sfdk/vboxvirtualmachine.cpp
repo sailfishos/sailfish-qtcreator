@@ -118,10 +118,15 @@ bool VBoxVirtualMachine::hasPortForwarding(quint16 hostPort, QString *ruleName) 
     Q_D(const VBoxVirtualMachine);
     QTC_ASSERT(d->initialized(), return false);
 
-    for (int i = 0; i < d->portForwardingRules.size(); i++) {
-        if (d->portForwardingRules[i].values().contains(hostPort)) {
+    const QList<const QMap<QString, quint16> *> ruleset{
+        &d->virtualMachineInfo.otherPorts,
+        &d->virtualMachineInfo.qmlLivePorts,
+        &d->virtualMachineInfo.freePorts
+    };
+    for (auto *const rules : ruleset) {
+        if (rules->values().contains(hostPort)) {
             if (ruleName)
-                *ruleName = d->portForwardingRules[i].key(hostPort);
+                *ruleName = rules->key(hostPort);
             return true;
         }
     }
@@ -138,9 +143,7 @@ void VBoxVirtualMachine::addPortForwarding(const QString &ruleName, const QStrin
     VirtualBoxManager::updatePortForwardingRule(name(), ruleName, protocol, hostPort,
             emulatorVmPort, this, [=](bool ok) {
         if (ok) {
-            QTC_ASSERT(!d->portForwardingRules.isEmpty(), return);
-            // FIXME magic number
-            d->portForwardingRules[0].insert(ruleName, emulatorVmPort);
+            d->virtualMachineInfo.otherPorts.insert(ruleName, emulatorVmPort);
             emit portForwardingChanged();
         }
         if (context_)
@@ -156,8 +159,7 @@ void VBoxVirtualMachine::removePortForwarding(const QString &ruleName, const QOb
     const QPointer<const QObject> context_{context};
     VirtualBoxManager::deletePortForwardingRule(name(), ruleName, this, [=](bool ok) {
         if (ok) {
-            QTC_ASSERT(!d->portForwardingRules.isEmpty(), return);
-            d->portForwardingRules[0].remove(ruleName);
+            d->virtualMachineInfo.otherPorts.remove(ruleName);
             emit portForwardingChanged();
         }
         if (context_)
@@ -189,12 +191,12 @@ void VBoxVirtualMachine::refreshConfiguration(const QObject *context, const Func
     Q_D(VBoxVirtualMachine);
 
     const QPointer<const QObject> context_{context};
-    auto allOk = std::make_shared<bool>(true);
 
     d->fetchInfo(VirtualMachineInfo::VdiInfo | VirtualMachineInfo::SnapshotInfo, this,
             [=](const VirtualMachineInfo &info, bool ok) {
         if (!ok) {
-            *allOk = false;
+            if (context_)
+                functor(false);
             return;
         }
 
@@ -209,26 +211,16 @@ void VBoxVirtualMachine::refreshConfiguration(const QObject *context, const Func
             emit vdiCapacityMbChanged(info.vdiCapacityMb);
         if (oldInfo.snapshots != info.snapshots)
             emit snapshotsChanged();
-    });
-
-    VirtualBoxManager::fetchPortForwardingRules(name(), this,
-            [=](const QList<QMap<QString, quint16>> &rules, bool ok) {
-        if (!ok) {
-            *allOk = false;
-            if (context_)
-                functor(false);
-            return;
-        }
-
-        const bool changed = d->portForwardingRules != rules;
-        d->portForwardingRules = rules;
-        if (changed)
+        if (oldInfo.otherPorts != info.otherPorts
+                || oldInfo.qmlLivePorts != info.qmlLivePorts
+                || oldInfo.freePorts != info.freePorts) {
             emit portForwardingChanged();
+        }
 
         d->setInitialized();
 
         if (context_)
-            functor(*allOk);
+            functor(true);
     });
 }
 

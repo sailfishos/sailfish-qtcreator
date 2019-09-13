@@ -92,8 +92,6 @@ public:
     static void updatePortForwardingRule(const QString &vmName, const QString &protocol,
             const QString &ruleName, quint16 hostPort, quint16 vmPort,
             const QObject *context, const Functor<bool> &functor);
-    static void fetchPortForwardingRules(const QString &vmName, const QObject *context,
-            const Functor<const QList<QMap<QString, quint16>> &, bool> &functor);
 
     static void fetchExtraData(const QString &vmName, const QString &key, const QObject *context,
             const Functor<QString, bool> &functor);
