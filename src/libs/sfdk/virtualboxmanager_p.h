@@ -43,7 +43,7 @@ namespace Sfdk {
 
 // TODO Errors should be reported in the UI
 // TODO Use UUIDs instead of names - names may not be unique
-class CommandSerializer;
+class CommandQueue;
 class VirtualBoxManager : public QObject
 {
     Q_OBJECT
@@ -104,7 +104,7 @@ private:
             const QObject *context, const Functor<bool> &functor);
 
     static VirtualBoxManager *s_instance;
-    std::unique_ptr<CommandSerializer> m_serializer;
+    std::unique_ptr<CommandQueue> m_queue;
 };
 
 } // Sfdk

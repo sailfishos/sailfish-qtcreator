@@ -156,17 +156,39 @@ static QString vBoxManagePath()
     return path;
 }
 
-class CommandSerializer : public QObject
+class CommandRunner : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit CommandSerializer(QObject *parent)
-        : QObject(parent)
-    {
-    }
+    using QObject::QObject;
 
-    ~CommandSerializer() override
+    virtual void run() = 0;
+
+    virtual QDebug print(QDebug debug) const = 0;
+
+public slots:
+    virtual void terminate() = 0;
+
+signals:
+    void success();
+    void failure();
+    void done(bool ok);
+};
+
+QDebug operator<<(QDebug debug, const CommandRunner *runner)
+{
+    debug << (void*)runner;
+    return runner->print(debug);
+}
+
+class CommandQueue : public QObject
+{
+    Q_OBJECT
+
+public:
+    using QObject::QObject;
+    ~CommandQueue() override
     {
         QTC_CHECK(m_queue.empty());
     }
@@ -175,7 +197,7 @@ public:
     {
         if (!m_queue.empty()) {
             QEventLoop loop;
-            connect(this, &CommandSerializer::empty, &loop, &QEventLoop::quit);
+            connect(this, &CommandQueue::empty, &loop, &QEventLoop::quit);
             loop.exec();
         }
     }
@@ -198,28 +220,25 @@ public:
     void cancelBatch(BatchId batchId)
     {
         while (!m_queue.empty() && m_queue.front().first == batchId) {
-            QProcess *process = m_queue.front().second.get();
-            qCDebug(vmsQueue) << "Canceled" << (void*)process
-                << process->program() << process->arguments();
+            CommandRunner *runner = m_queue.front().second.get();
+            qCDebug(vmsQueue) << "Canceled" << runner;
             m_queue.pop_front();
         }
     }
 
-    void enqueue(std::unique_ptr<QProcess> &&process)
+    void enqueue(std::unique_ptr<CommandRunner> &&runner)
     {
-        QTC_ASSERT(process, return);
-        qCDebug(vmsQueue) << "Enqueued" << (void*)process.get()
-            << process->program() << process->arguments();
-        m_queue.emplace_back(m_currentBatchId, std::move(process));
+        QTC_ASSERT(runner, return);
+        qCDebug(vmsQueue) << "Enqueued" << runner.get();
+        m_queue.emplace_back(m_currentBatchId, std::move(runner));
         scheduleDequeue();
     }
 
-    void enqueueImmediate(std::unique_ptr<QProcess> &&process)
+    void enqueueImmediate(std::unique_ptr<CommandRunner> &&runner)
     {
-        QTC_ASSERT(process, return);
-        qCDebug(vmsQueue) << "Enqueued (immediate)" << (void*)process.get()
-            << process->program() << process->arguments();
-        m_queue.emplace_front(m_currentBatchId, std::move(process));
+        QTC_ASSERT(runner, return);
+        qCDebug(vmsQueue) << "Enqueued (immediate)" << runner.get();
+        m_queue.emplace_front(m_currentBatchId, std::move(runner));
         scheduleDequeue();
     }
 
@@ -255,22 +274,19 @@ private:
         m_current = std::move(m_queue.front().second);
         m_queue.pop_front();
 
-        qCDebug(vmsQueue) << "Dequeued" << (void*)m_current.get();
+        qCDebug(vmsQueue) << "Dequeued" << m_current.get();
 
-        connect(m_current.get(), &QProcess::errorOccurred,
-                this, &CommandSerializer::finalize);
-        connect(m_current.get(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-                this, &CommandSerializer::finalize);
+        connect(m_current.get(), &CommandRunner::done,
+                this, &CommandQueue::finalize);
 
-        m_current->start(QIODevice::ReadWrite | QIODevice::Text);
+        m_current->run();
     }
 
 private slots:
     void finalize()
     {
-        qCDebug(vmsQueue) << "Finished" << (void*)sender()
-            << "current:" << (void*)m_current.get();
         QTC_ASSERT(sender() == m_current.get(), return);
+        qCDebug(vmsQueue) << "Finished" << m_current.get();
 
         m_current->disconnect(this);
         m_current->deleteLater();
@@ -280,29 +296,33 @@ private slots:
     }
 
 private:
-    std::deque<std::pair<BatchId, std::unique_ptr<QProcess>>> m_queue;
+    std::deque<std::pair<BatchId, std::unique_ptr<CommandRunner>>> m_queue;
     BatchId m_lastBatchId = 0;
     BatchId m_currentBatchId = -1;
-    std::unique_ptr<QProcess> m_current;
+    std::unique_ptr<CommandRunner> m_current;
     QBasicTimer m_dequeueTimer;
 };
 
-class VBoxManageProcess : public QProcess
+class ProcessRunner : public CommandRunner
 {
     Q_OBJECT
 
 public:
-    explicit VBoxManageProcess(const QStringList &arguments, QObject *parent = 0)
-        : QProcess(parent)
+    explicit ProcessRunner(const QString &program, const QStringList &arguments,
+            QObject *parent = 0)
+        : CommandRunner(parent)
+        , m_process(std::make_unique<QProcess>(this))
     {
-        setProcessChannelMode(QProcess::ForwardedErrorChannel);
-        setProgram(vBoxManagePath());
-        setArguments(arguments);
-        connect(this, &QProcess::errorOccurred,
-                this, &VBoxManageProcess::onErrorOccured);
-        connect(this, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-                this, &VBoxManageProcess::onFinished);
+        m_process->setProcessChannelMode(QProcess::ForwardedErrorChannel);
+        m_process->setProgram(program);
+        m_process->setArguments(arguments);
+        connect(m_process.get(), &QProcess::errorOccurred,
+                this, &ProcessRunner::onErrorOccured);
+        connect(m_process.get(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this, &ProcessRunner::onFinished);
     }
+
+    QProcess *process() const { return m_process.get(); }
 
     QList<int> expectedExitCodes() const { return m_expectedExitCodes; }
     void setExpectedExitCodes(const QList<int> &expectedExitCodes)
@@ -310,24 +330,30 @@ public:
         m_expectedExitCodes = expectedExitCodes;
     }
 
-public slots:
-    void reallyTerminate()
+    void run() override
     {
-        QTC_CHECK(state() != Starting);
-        if (state() == NotRunning)
+        m_process->start(QIODevice::ReadWrite | QIODevice::Text);
+    }
+
+    QDebug print(QDebug debug) const override
+    {
+        debug << m_process->program() << m_process->arguments();
+        return debug.maybeSpace();
+    }
+
+public slots:
+    void terminate() override
+    {
+        QTC_CHECK(m_process->state() != QProcess::Starting);
+        if (m_process->state() == QProcess::NotRunning)
             return;
 
         m_crashExpected = true;
 
-        terminate();
+        m_process->terminate();
         if (!m_terminateTimeoutTimer.isActive())
             m_terminateTimeoutTimer.start(TERMINATE_TIMEOUT_MS, this);
     }
-
-signals:
-    void success();
-    void failure();
-    void done(bool ok);
 
 protected:
     void timerEvent(QTimerEvent *event) override
@@ -336,9 +362,9 @@ protected:
             m_terminateTimeoutTimer.stop();
             // Note that on Windows it always ends here as terminate() has no
             // effect on VBoxManage there
-            kill();
+            m_process->kill();
         } else {
-            QProcess::timerEvent(event);
+            QObject::timerEvent(event);
         }
     }
 
@@ -358,17 +384,17 @@ private slots:
 
         if (exitStatus != QProcess::NormalExit) {
             if (m_crashExpected) {
-                qCDebug(vms) << "VBoxManage crashed as expected. Arguments:" << arguments();
+                qCDebug(vms) << "VBoxManage crashed as expected. Arguments:" << m_process->arguments();
                 emit success();
                 emit done(true);
                 return;
             }
-            qCWarning(vms) << "VBoxManage crashed. Arguments:" << arguments();
+            qCWarning(vms) << "VBoxManage crashed. Arguments:" << m_process->arguments();
             emit failure();
             emit done(false);
         } else if (!m_expectedExitCodes.contains(exitCode)) {
             qCWarning(vms) << "VBoxManage exited with unexpected exit code" << exitCode
-                << ". Arguments:" << arguments();
+                << ". Arguments:" << m_process->arguments();
             emit failure();
             emit done(false);
         } else {
@@ -378,23 +404,35 @@ private slots:
     }
 
 private:
+    const std::unique_ptr<QProcess> m_process;
     QList<int> m_expectedExitCodes = {0};
     bool m_crashExpected = false;
     QBasicTimer m_terminateTimeoutTimer;
+};
+
+class VBoxManageRunner : public ProcessRunner
+{
+    Q_OBJECT
+
+public:
+    explicit VBoxManageRunner(const QStringList &arguments, QObject *parent = 0)
+        : ProcessRunner(vBoxManagePath(), arguments, parent)
+    {
+    }
 };
 
 VirtualBoxManager *VirtualBoxManager::s_instance = 0;
 
 VirtualBoxManager::VirtualBoxManager(QObject *parent)
     : QObject(parent)
-    , m_serializer(std::make_unique<CommandSerializer>(this))
+    , m_queue(std::make_unique<CommandQueue>(this))
 {
     s_instance = this;
 }
 
 VirtualBoxManager::~VirtualBoxManager()
 {
-    m_serializer->wait();
+    m_queue->wait();
     s_instance = 0;
 }
 
@@ -414,9 +452,9 @@ void VirtualBoxManager::probe(const QString &vmName, const QObject *context,
     arguments.append(QLatin1String(SHOWVMINFO));
     arguments.append(vmName);
 
-    auto process = std::make_unique<VBoxManageProcess>(arguments);
-    connect(process.get(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), context,
-            [=, process = process.get()](int exitCode, QProcess::ExitStatus exitStatus) {
+    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    connect(runner->process(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), context,
+            [=, runner = runner.get()](int exitCode, QProcess::ExitStatus exitStatus) {
                 VirtualMachinePrivate::BasicState state;
                 if (exitStatus != QProcess::NormalExit) {
                     functor(state, false);
@@ -431,7 +469,7 @@ void VirtualBoxManager::probe(const QString &vmName, const QObject *context,
 
                 bool isHeadless;
                 bool isRunning = isVirtualMachineRunningFromInfo(
-                    QString::fromLocal8Bit(process->readAllStandardOutput()), &isHeadless);
+                    QString::fromLocal8Bit(runner->process()->readAllStandardOutput()), &isHeadless);
                 if (isRunning)
                     state |= VirtualMachinePrivate::Running;
                 if (isHeadless)
@@ -439,7 +477,7 @@ void VirtualBoxManager::probe(const QString &vmName, const QObject *context,
                 functor(state, true);
             });
 
-    s_instance->m_serializer->enqueue(std::move(process));
+    s_instance->m_queue->enqueue(std::move(runner));
 }
 
 // It is an error to call this function when the VM vmName is running
@@ -495,24 +533,24 @@ void VirtualBoxManager::updateSharedFolder(const QString &vmName,
     sargs.append(QString::fromLatin1(ENABLE_SYMLINKS).arg(mountName));
     sargs.append(QLatin1String(YES_ARG));
 
-    auto enqueue = [=](const QStringList &args, CommandSerializer::BatchId batch) {
-        auto process = std::make_unique<VBoxManageProcess>(args);
-        connect(process.get(), &VBoxManageProcess::failure, s_instance, [=]() {
-            s_instance->m_serializer->cancelBatch(batch);
+    auto enqueue = [=](const QStringList &args, CommandQueue::BatchId batch) {
+        auto runner = std::make_unique<VBoxManageRunner>(args);
+        connect(runner.get(), &VBoxManageRunner::failure, s_instance, [=]() {
+            s_instance->m_queue->cancelBatch(batch);
             callIf(context_, functor, false);
         });
-        VBoxManageProcess *process_ = process.get();
-        s_instance->m_serializer->enqueue(std::move(process));
-        return process_;
+        VBoxManageRunner *runner_ = runner.get();
+        s_instance->m_queue->enqueue(std::move(runner));
+        return runner_;
     };
 
-    CommandSerializer::BatchId batch = s_instance->m_serializer->beginBatch();
+    CommandQueue::BatchId batch = s_instance->m_queue->beginBatch();
     enqueue(rargs, batch);
     enqueue(aargs, batch);
-    VBoxManageProcess *last = enqueue(sargs, batch);
-    s_instance->m_serializer->endBatch();
+    VBoxManageRunner *last = enqueue(sargs, batch);
+    s_instance->m_queue->endBatch();
 
-    connect(last, &VBoxManageProcess::success, context, std::bind(functor, true));
+    connect(last, &VBoxManageRunner::success, context, std::bind(functor, true));
 }
 
 // It is an error to call this function when the VM vmName is running
@@ -549,9 +587,9 @@ void VirtualBoxManager::updateReservedPortForwarding(const QString &vmName,
     arguments.append(QLatin1String(NATPF1));
     arguments.append(rule);
 
-    auto process = std::make_unique<VBoxManageProcess>(arguments);
-    connect(process.get(), &VBoxManageProcess::done, context, functor);
-    s_instance->m_serializer->enqueue(std::move(process));
+    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    connect(runner.get(), &VBoxManageRunner::done, context, functor);
+    s_instance->m_queue->enqueue(std::move(runner));
 }
 
 void VirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName,
@@ -563,33 +601,33 @@ void VirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName,
 
     const QPointer<const QObject> context_{context};
 
-    auto enqueue = [=](const QStringList &arguments, CommandSerializer::BatchId batch, auto onSuccess) {
-        auto process = std::make_unique<VBoxManageProcess>(arguments);
-        connect(process.get(), &VBoxManageProcess::failure, s_instance, [=]() {
-            s_instance->m_serializer->cancelBatch(batch);
+    auto enqueue = [=](const QStringList &arguments, CommandQueue::BatchId batch, auto onSuccess) {
+        auto runner = std::make_unique<VBoxManageRunner>(arguments);
+        connect(runner.get(), &VBoxManageRunner::failure, s_instance, [=]() {
+            s_instance->m_queue->cancelBatch(batch);
             callIf(context_, functor, VirtualMachineInfo{}, false);
         });
-        connect(process.get(), &VBoxManageProcess::success,
-                context, std::bind(onSuccess, process.get()));
-        VBoxManageProcess *process_ = process.get();
-        s_instance->m_serializer->enqueue(std::move(process));
-        return process_;
+        connect(runner.get(), &VBoxManageRunner::success,
+                context, std::bind(onSuccess, runner.get()));
+        VBoxManageRunner *runner_ = runner.get();
+        s_instance->m_queue->enqueue(std::move(runner));
+        return runner_;
     };
 
-    CommandSerializer::BatchId batch = s_instance->m_serializer->beginBatch();
+    CommandQueue::BatchId batch = s_instance->m_queue->beginBatch();
 
     auto info = std::make_shared<VBoxVirtualMachineInfo>();
-    VBoxManageProcess *last;
+    VBoxManageRunner *last;
 
     QStringList arguments;
     arguments.append(QLatin1String(SHOWVMINFO));
     arguments.append(vmName);
     arguments.append(QLatin1String(MACHINE_READABLE));
 
-    last = enqueue(arguments, batch, [=](VBoxManageProcess *process) {
+    last = enqueue(arguments, batch, [=](VBoxManageRunner *runner) {
         // FIXME return by argument
         *info = virtualMachineInfoFromOutput(
-                QString::fromLocal8Bit(process->readAllStandardOutput()));
+                QString::fromLocal8Bit(runner->process()->readAllStandardOutput()));
     });
 
     if (extraInfo & VirtualMachineInfo::VdiInfo) {
@@ -597,8 +635,8 @@ void VirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName,
         arguments.append(QLatin1String(LIST));
         arguments.append(QLatin1String(HDDS));
 
-        last = enqueue(arguments, batch, [=](VBoxManageProcess *process) {
-            vdiInfoFromOutput(QString::fromLocal8Bit(process->readAllStandardOutput()), info.get());
+        last = enqueue(arguments, batch, [=](VBoxManageRunner *runner) {
+            vdiInfoFromOutput(QString::fromLocal8Bit(runner->process()->readAllStandardOutput()), info.get());
         });
     }
 
@@ -609,15 +647,15 @@ void VirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName,
         arguments.append(QLatin1String(LIST));
         arguments.append(QLatin1String(MACHINE_READABLE));
 
-        last = enqueue(arguments, batch, [=](VBoxManageProcess *process) {
-            snapshotInfoFromOutput(QString::fromLocal8Bit(process->readAllStandardOutput()),
+        last = enqueue(arguments, batch, [=](VBoxManageRunner *runner) {
+            snapshotInfoFromOutput(QString::fromLocal8Bit(runner->process()->readAllStandardOutput()),
                     info.get());
         });
     }
 
-    s_instance->m_serializer->endBatch();
+    s_instance->m_queue->endBatch();
 
-    connect(last, &VBoxManageProcess::success, context, [=]() { functor(*info, true); });
+    connect(last, &VBoxManageRunner::success, context, [=]() { functor(*info, true); });
 }
 
 // It is an error to call this function when the VM vmName is running
@@ -635,9 +673,9 @@ void VirtualBoxManager::startVirtualMachine(const QString &vmName, bool headless
         arguments.append(QLatin1String(HEADLESS));
     }
 
-    auto process = std::make_unique<VBoxManageProcess>(arguments);
-    connect(process.get(), &VBoxManageProcess::done, context, functor);
-    s_instance->m_serializer->enqueue(std::move(process));
+    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    connect(runner.get(), &VBoxManageRunner::done, context, functor);
+    s_instance->m_queue->enqueue(std::move(runner));
 }
 
 // It is an error to call this function when the VM vmName is not running
@@ -652,9 +690,9 @@ void VirtualBoxManager::shutVirtualMachine(const QString &vmName, const QObject 
     arguments.append(vmName);
     arguments.append(QLatin1String(ACPI_POWER_BUTTON));
 
-    auto process = std::make_unique<VBoxManageProcess>(arguments);
-    connect(process.get(), &VBoxManageProcess::done, context, functor);
-    s_instance->m_serializer->enqueue(std::move(process));
+    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    connect(runner.get(), &VBoxManageRunner::done, context, functor);
+    s_instance->m_queue->enqueue(std::move(runner));
 }
 
 // accepts void slot(bool ok)
@@ -670,9 +708,9 @@ void VirtualBoxManager::restoreSnapshot(const QString &vmName, const QString &sn
     arguments.append(QLatin1String(RESTORE));
     arguments.append(snapshotName);
 
-    auto process = std::make_unique<VBoxManageProcess>(arguments);
-    connect(process.get(), &VBoxManageProcess::done, context, functor);
-    s_instance->m_serializer->enqueue(std::move(process));
+    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    connect(runner.get(), &VBoxManageRunner::done, context, functor);
+    s_instance->m_queue->enqueue(std::move(runner));
 }
 
 void VirtualBoxManager::fetchRegisteredVirtualMachines(const QObject *context,
@@ -685,18 +723,18 @@ void VirtualBoxManager::fetchRegisteredVirtualMachines(const QObject *context,
     arguments.append(QLatin1String(LIST));
     arguments.append(QLatin1String(VMS));
 
-    auto process = std::make_unique<VBoxManageProcess>(arguments);
-    connect(process.get(), &VBoxManageProcess::done,
-            context, [=, process = process.get()](bool ok) {
+    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    connect(runner.get(), &VBoxManageRunner::done,
+            context, [=, runner = runner.get()](bool ok) {
         if (!ok) {
             functor({}, false);
             return;
         }
         QStringList vms = listedVirtualMachines(QString::fromLocal8Bit(
-                process->readAllStandardOutput()));
+                runner->process()->readAllStandardOutput()));
         functor(vms, true);
     });
-    s_instance->m_serializer->enqueue(std::move(process));
+    s_instance->m_queue->enqueue(std::move(runner));
 }
 
 void VirtualBoxManager::setVideoMode(const QString &vmName, const QSize &size, int depth,
@@ -778,8 +816,8 @@ void VirtualBoxManager::setVdiCapacityMb(const QString &vmName, int sizeMb, cons
             arguments.append(QLatin1String(RESIZE));
             arguments.append(QString::number(sizeMb));
 
-            auto process = std::make_unique<VBoxManageProcess>(arguments);
-            connect(process.get(), &VBoxManageProcess::done, s_instance, [=](bool ok) {
+            auto runner = std::make_unique<VBoxManageRunner>(arguments);
+            connect(runner.get(), &VBoxManageRunner::done, s_instance, [=](bool ok) {
                 if (!ok) {
                     qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << vdiUuid << RESIZE;
                     *allOk = false;
@@ -787,7 +825,7 @@ void VirtualBoxManager::setVdiCapacityMb(const QString &vmName, int sizeMb, cons
                 if (isLast)
                     callIf(context_, functor, *allOk);
             });
-            s_instance->m_serializer->enqueueImmediate(std::move(process));
+            s_instance->m_queue->enqueueImmediate(std::move(runner));
         }
     });
 }
@@ -807,9 +845,9 @@ void VirtualBoxManager::setMemorySizeMb(const QString &vmName, int sizeMb, const
     arguments.append(QLatin1String(MEMORY));
     arguments.append(QString::number(sizeMb));
 
-    auto process = std::make_unique<VBoxManageProcess>(arguments);
-    connect(process.get(), &VBoxManageProcess::done, context, functor);
-    s_instance->m_serializer->enqueue(std::move(process));
+    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    connect(runner.get(), &VBoxManageRunner::done, context, functor);
+    s_instance->m_queue->enqueue(std::move(runner));
 }
 
 void VirtualBoxManager::setCpuCount(const QString &vmName, int count, const QObject *context,
@@ -826,9 +864,9 @@ void VirtualBoxManager::setCpuCount(const QString &vmName, int count, const QObj
     arguments.append(QLatin1String(CPUS));
     arguments.append(QString::number(count));
 
-    auto process = std::make_unique<VBoxManageProcess>(arguments);
-    connect(process.get(), &VBoxManageProcess::done, context, functor);
-    s_instance->m_serializer->enqueue(std::move(process));
+    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    connect(runner.get(), &VBoxManageRunner::done, context, functor);
+    s_instance->m_queue->enqueue(std::move(runner));
 }
 
 void VirtualBoxManager::fetchExtraData(const QString &vmName, const QString &key,
@@ -842,17 +880,17 @@ void VirtualBoxManager::fetchExtraData(const QString &vmName, const QString &key
     arguments.append(vmName);
     arguments.append(key);
 
-    auto process = std::make_unique<VBoxManageProcess>(arguments);
-    connect(process.get(), &VBoxManageProcess::done,
-            context, [=, process = process.get()](bool ok) {
+    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    connect(runner.get(), &VBoxManageRunner::done,
+            context, [=, runner = runner.get()](bool ok) {
         if (!ok) {
             functor({}, false);
             return;
         }
-        auto data = QString::fromLocal8Bit(process->readAllStandardOutput());
+        auto data = QString::fromLocal8Bit(runner->process()->readAllStandardOutput());
         functor(data, true);
     });
-    s_instance->m_serializer->enqueue(std::move(process));
+    s_instance->m_queue->enqueue(std::move(runner));
 }
 
 void VirtualBoxManager::fetchHostTotalMemorySizeMb(const QObject *context,
@@ -868,25 +906,25 @@ void VirtualBoxManager::fetchHostTotalMemorySizeMb(const QObject *context,
     arguments.append(QLatin1String("host"));
     arguments.append(QLatin1String(TOTAL_RAM));
 
-    auto process = std::make_unique<VBoxManageProcess>(arguments);
-    QMetaObject::Connection failureConnection = connect(process.get(), &VBoxManageProcess::failure,
+    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    QMetaObject::Connection failureConnection = connect(runner.get(), &VBoxManageRunner::failure,
             context, std::bind(functor, 0, false));
-    connect(process.get(), &QProcess::readyReadStandardOutput,
-            context, [=, process = process.get()](){
+    connect(runner->process(), &QProcess::readyReadStandardOutput,
+            context, [=, runner = runner.get()](){
         bool matched;
-        auto memSizeKb = ramSizeFromOutput(QString::fromLocal8Bit(process->readAllStandardOutput()),
+        auto memSizeKb = ramSizeFromOutput(QString::fromLocal8Bit(runner->process()->readAllStandardOutput()),
                 &matched);
         if (!matched)
             return;
         QObject::disconnect(failureConnection);
-        process->closeReadChannel(QProcess::StandardOutput);
-        process->reallyTerminate();
+        runner->process()->closeReadChannel(QProcess::StandardOutput);
+        runner->terminate();
         functor(memSizeKb / 1024, true);
     });
 
-    connect(context, &QObject::destroyed, process.get(), &VBoxManageProcess::reallyTerminate);
+    connect(context, &QObject::destroyed, runner.get(), &VBoxManageRunner::terminate);
 
-    s_instance->m_serializer->enqueue(std::move(process));
+    s_instance->m_queue->enqueue(std::move(runner));
 }
 
 void VirtualBoxManager::setExtraData(const QString &vmName, const QString &keyword,
@@ -901,9 +939,9 @@ void VirtualBoxManager::setExtraData(const QString &vmName, const QString &keywo
     args.append(keyword);
     args.append(data);
 
-    auto process = std::make_unique<VBoxManageProcess>(args);
-    connect(process.get(), &VBoxManageProcess::done, context, functor);
-    s_instance->m_serializer->enqueue(std::move(process));
+    auto runner = std::make_unique<VBoxManageRunner>(args);
+    connect(runner.get(), &VBoxManageRunner::done, context, functor);
+    s_instance->m_queue->enqueue(std::move(runner));
 }
 
 // It is an error to call this function when the VM vmName is running
@@ -922,9 +960,9 @@ void VirtualBoxManager::deletePortForwardingRule(const QString &vmName, const QS
     arguments.append(QLatin1String(DELETE));
     arguments.append(ruleName);
 
-    auto process = std::make_unique<VBoxManageProcess>(arguments);
-    connect(process.get(), &VBoxManageProcess::done, context, functor);
-    s_instance->m_serializer->enqueue(std::move(process));
+    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    connect(runner.get(), &VBoxManageRunner::done, context, functor);
+    s_instance->m_queue->enqueue(std::move(runner));
 }
 
 // It is an error to call this function when the VM vmName is running
@@ -947,9 +985,9 @@ void VirtualBoxManager::updatePortForwardingRule(const QString &vmName, const QS
     arguments.append(QString::fromLatin1("%1,%2,,%3,,%4")
                      .arg(ruleName).arg(protocol).arg(hostPort).arg(vmPort));
 
-    auto process = std::make_unique<VBoxManageProcess>(arguments);
-    connect(process.get(), &VBoxManageProcess::done, context, functor);
-    s_instance->m_serializer->enqueueImmediate(std::move(process));
+    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    connect(runner.get(), &VBoxManageRunner::done, context, functor);
+    s_instance->m_queue->enqueueImmediate(std::move(runner));
 }
 
 // It is an error to call this function when the VM vmName is running
@@ -978,11 +1016,11 @@ void VirtualBoxManager::updateReservedPortListForwarding(const QString &vmName,
         arguments.append(QLatin1String(DELETE));
         arguments.append(ruleNameTemplate.arg(i));
 
-        auto process = std::make_unique<VBoxManageProcess>(arguments);
-        connect(process.get(), &VBoxManageProcess::failure, [=]() {
+        auto runner = std::make_unique<VBoxManageRunner>(arguments);
+        connect(runner.get(), &VBoxManageRunner::failure, [=]() {
             qWarning() << "VBoxManage failed to delete" << which << "port #" << QString::number(i);
         });
-        s_instance->m_serializer->enqueue(std::move(process));
+        s_instance->m_queue->enqueue(std::move(runner));
     }
 
     auto savedPorts = std::make_shared<QMap<QString, quint16>>();
@@ -991,7 +1029,7 @@ void VirtualBoxManager::updateReservedPortListForwarding(const QString &vmName,
     std::sort(ports_.begin(), ports_.end());
 
     int i = 1;
-    VBoxManageProcess *lastSetProcess = nullptr;
+    VBoxManageRunner *lastSetRunner = nullptr;
     foreach (quint16 port, ports_) {
         QStringList arguments;
         arguments.append(QLatin1String(MODIFYVM));
@@ -999,19 +1037,19 @@ void VirtualBoxManager::updateReservedPortListForwarding(const QString &vmName,
         arguments.append(QLatin1String(NATPF1));
         arguments.append(ruleTemplate.arg(i).arg(port).arg(port));
 
-        auto process = std::make_unique<VBoxManageProcess>(arguments);
-        connect(process.get(), &VBoxManageProcess::done, s_instance, [=](bool ok) {
+        auto runner = std::make_unique<VBoxManageRunner>(arguments);
+        connect(runner.get(), &VBoxManageRunner::done, s_instance, [=](bool ok) {
             if (ok)
                 savedPorts->insert(ruleNameTemplate.arg(i), port);
             else
                 qWarning() << "VBoxManage failed to set" << which << "port" << port;
         });
-        s_instance->m_serializer->enqueue(std::move(process));
+        s_instance->m_queue->enqueue(std::move(runner));
         ++i;
-        lastSetProcess = process.get();
+        lastSetRunner = runner.get();
     }
 
-    connect(lastSetProcess, &VBoxManageProcess::done, context, [=](bool ok) {
+    connect(lastSetRunner, &VBoxManageRunner::done, context, [=](bool ok) {
         Q_UNUSED(ok);
         functor(*savedPorts, savedPorts->values() == ports_);
     });
