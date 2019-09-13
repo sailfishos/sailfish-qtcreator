@@ -82,6 +82,12 @@ void VBoxVirtualMachinePrivate::probe(const QObject *context,
     VirtualBoxManager::probe(q_func()->name(), context, functor);
 }
 
+void VBoxVirtualMachinePrivate::setVideoMode(const QSize &size, int depth, const QObject *context,
+        const Functor<bool> &functor)
+{
+    VirtualBoxManager::setVideoMode(q_func()->name(), size, depth, context, functor);
+}
+
 void VBoxVirtualMachinePrivate::doSetMemorySizeMb(int memorySizeMb, const QObject *context,
         const Functor<bool> &functor)
 {
@@ -137,12 +143,6 @@ void VBoxVirtualMachinePrivate::doRestoreSnapshot(const QString &snapshotName, c
         const Functor<bool> &functor)
 {
     VirtualBoxManager::restoreSnapshot(q_func()->name(), snapshotName, context, functor);
-}
-
-void VBoxVirtualMachinePrivate::setVideoMode(const QSize &size, int depth, const QObject *context,
-        const Functor<bool> &functor)
-{
-    VirtualBoxManager::setVideoMode(q_func()->name(), size, depth, context, functor);
 }
 
 void VBoxVirtualMachinePrivate::prepareForNameChange()
