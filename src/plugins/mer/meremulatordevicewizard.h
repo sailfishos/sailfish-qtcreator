@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2013-2015,2018-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -48,7 +49,7 @@ public:
     int timeout() const;
     QString userPrivateKey() const;
     QString rootPrivateKey() const;
-    QString emulatorVm() const;
+    QUrl emulatorVm() const;
     QString factorySnapshot() const;
     QString freePorts() const;
     QString qmlLivePorts() const;

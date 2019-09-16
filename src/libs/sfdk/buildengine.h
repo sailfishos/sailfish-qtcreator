@@ -72,6 +72,7 @@ public:
     BuildEngine(QObject *parent, const PrivateConstructorTag &);
     ~BuildEngine() override;
 
+    QUrl uri() const;
     QString name() const;
 
     VirtualMachine *virtualMachine() const;

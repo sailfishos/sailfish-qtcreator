@@ -27,7 +27,7 @@
 #include "sdk_p.h"
 #include "targetsxmlreader_p.h"
 #include "usersettings_p.h"
-#include "vboxvirtualmachine_p.h"
+#include "virtualmachine_p.h"
 
 #include <ssh/sshconnection.h>
 #include <utils/algorithm.h>
@@ -39,6 +39,7 @@
 #include <QDir>
 #include <QPointer>
 #include <QProcess>
+#include <QTimer>
 
 using namespace QSsh;
 using namespace Utils;
@@ -102,6 +103,11 @@ BuildEngine::BuildEngine(QObject *parent, const PrivateConstructorTag &)
 }
 
 BuildEngine::~BuildEngine() = default;
+
+QUrl BuildEngine::uri() const
+{
+    return d_func()->virtualMachine->uri();
+}
 
 QString BuildEngine::name() const
 {
@@ -265,7 +271,7 @@ QVariantMap BuildEnginePrivate::toMap() const
 {
     QVariantMap data;
 
-    data.insert(Constants::BUILD_ENGINE_VM_NAME, virtualMachine->name());
+    data.insert(Constants::BUILD_ENGINE_VM_URI, virtualMachine->uri());
     data.insert(Constants::BUILD_ENGINE_AUTODETECTED, autodetected);
 
     data.insert(Constants::BUILD_ENGINE_SHARED_HOME, sharedHomePath.toString());
@@ -306,12 +312,14 @@ bool BuildEnginePrivate::fromMap(const QVariantMap &data)
 {
     Q_Q(BuildEngine);
 
-    const QString vmName = data.value(Constants::BUILD_ENGINE_VM_NAME).toString();
-    QTC_ASSERT(!vmName.isEmpty(), return false);
-    QTC_ASSERT(!virtualMachine || virtualMachine->name() == vmName, return false);
+    const QUrl vmUri = data.value(Constants::BUILD_ENGINE_VM_URI).toUrl();
+    QTC_ASSERT(vmUri.isValid(), return false);
+    QTC_ASSERT(!virtualMachine || virtualMachine->uri() == vmUri, return false);
 
-    if (!virtualMachine)
-        initVirtualMachine(vmName);
+    if (!virtualMachine) {
+        if (!initVirtualMachine(vmUri))
+            return false;
+    }
 
     autodetected = data.value(Constants::BUILD_ENGINE_AUTODETECTED).toBool();
 
@@ -357,12 +365,13 @@ bool BuildEnginePrivate::fromMap(const QVariantMap &data)
     return true;
 }
 
-void BuildEnginePrivate::initVirtualMachine(const QString &vmName)
+bool BuildEnginePrivate::initVirtualMachine(const QUrl &vmUri)
 {
     Q_Q(BuildEngine);
     Q_ASSERT(!virtualMachine);
 
-    virtualMachine = std::make_unique<VBoxVirtualMachine>(q);
+    virtualMachine = VirtualMachineFactory::create(vmUri);
+    QTC_ASSERT(virtualMachine, return false);
 
     SshConnectionParameters sshParameters;
     sshParameters.setUserName(Constants::BUILD_ENGINE_DEFAULT_USER_NAME);
@@ -379,7 +388,8 @@ void BuildEnginePrivate::initVirtualMachine(const QString &vmName)
 
     // Do not attempt to auto-connect until the settings from UserScope is applied
     virtualMachine->setAutoConnectEnabled(false);
-    virtualMachine->setName(vmName);
+
+    return true;
 }
 
 void BuildEnginePrivate::enableUpdates()
@@ -547,7 +557,7 @@ void BuildEnginePrivate::updateBuildTargets()
 {
     Q_Q(BuildEngine);
     const QString targetsXml = targetsXmlFile().toString();
-    qCDebug(engine) << "Updating build targets for" << q->name() << "from" << targetsXml;
+    qCDebug(engine) << "Updating build targets for" << q->uri().toString() << "from" << targetsXml;
     TargetsXmlReader reader(targetsXml);
     QTC_ASSERT(!reader.hasError(), return);
     QTC_ASSERT(reader.version() > 0, return);
@@ -929,12 +939,12 @@ QList<BuildEngine *> BuildEngineManager::buildEngines()
     return Utils::toRawPointer<QList>(s_instance->m_buildEngines);
 }
 
-BuildEngine *BuildEngineManager::buildEngine(const QString &name)
+BuildEngine *BuildEngineManager::buildEngine(const QUrl &uri)
 {
-    return Utils::findOrDefault(s_instance->m_buildEngines, Utils::equal(&BuildEngine::name, name));
+    return Utils::findOrDefault(s_instance->m_buildEngines, Utils::equal(&BuildEngine::uri, uri));
 }
 
-void BuildEngineManager::createBuildEngine(const QString &vmName, const QObject *context,
+void BuildEngineManager::createBuildEngine(const QUrl &virtualMachineUri, const QObject *context,
         const Functor<std::unique_ptr<BuildEngine> &&> &functor)
 {
     // Needs to be captured by multiple lambdas and their copies
@@ -942,7 +952,14 @@ void BuildEngineManager::createBuildEngine(const QString &vmName, const QObject 
             std::make_unique<BuildEngine>(nullptr, BuildEngine::PrivateConstructorTag{}));
 
     auto engine_d = BuildEnginePrivate::get(engine->get());
-    engine_d->initVirtualMachine(vmName);
+    if (!engine_d->initVirtualMachine(virtualMachineUri)) {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 12, 0) // just guessing, not sure when it was fixed
+        QTimer::singleShot(0, context, std::bind(functor, nullptr));
+#else
+        QTimer::singleShot(0, const_cast<QObject *>(context), std::bind(functor, nullptr));
+#endif
+        return;
+    }
     engine_d->updateVmProperties(context, [=](bool ok) {
         QTC_CHECK(ok);
         if (!ok) {
@@ -979,9 +996,9 @@ int BuildEngineManager::addBuildEngine(std::unique_ptr<BuildEngine> &&buildEngin
     return index;
 }
 
-void BuildEngineManager::removeBuildEngine(const QString &name)
+void BuildEngineManager::removeBuildEngine(const QUrl &uri)
 {
-    int index = Utils::indexOf(s_instance->m_buildEngines, Utils::equal(&BuildEngine::name, name));
+    int index = Utils::indexOf(s_instance->m_buildEngines, Utils::equal(&BuildEngine::uri, uri));
     QTC_ASSERT(index >= 0, return);
 
     emit s_instance->aboutToRemoveBuildEngine(index);
@@ -1017,44 +1034,44 @@ void BuildEngineManager::fromMap(const QVariantMap &data)
     QTC_ASSERT(!m_installDir.isEmpty(), return);
 
     const int newCount = data.value(Constants::BUILD_ENGINES_COUNT_KEY, 0).toInt();
-    auto forEachNewEngine = [=](const std::function<void(const QString &, const QVariantMap &)> &fn) {
+    auto forEachNewEngine = [=](const std::function<void(const QUrl &, const QVariantMap &)> &fn) {
         for (int i = 0; i < newCount; ++i) {
             const QString key = QString::fromLatin1(Constants::BUILD_ENGINES_DATA_KEY_PREFIX)
                 + QString::number(i);
             QTC_ASSERT(data.contains(key), return);
 
             const QVariantMap engineData = data.value(key).toMap();
-            const QString vmName = engineData.value(Constants::BUILD_ENGINE_VM_NAME).toString();
-            QTC_ASSERT(!vmName.isEmpty(), return);
+            const QUrl vmUri = engineData.value(Constants::BUILD_ENGINE_VM_URI).toUrl();
+            QTC_ASSERT(!vmUri.isEmpty(), return);
 
-            fn(vmName, engineData);
+            fn(vmUri, engineData);
         }
     };
 
     // Remove engines missing from the updated configuration and index the
-    // preserved ones by VM name
-    QMap<QString, BuildEngine *> existingBuildEngines;
+    // preserved ones by VM URI
+    QMap<QUrl, BuildEngine *> existingBuildEngines;
     if (!m_buildEngines.empty()) {
-        QSet<QString> newVmNames;
-        forEachNewEngine([&newVmNames](const QString &vmName, const QVariantMap &engineData) {
+        QSet<QUrl> newVmUris;
+        forEachNewEngine([&newVmUris](const QUrl &vmUri, const QVariantMap &engineData) {
             Q_UNUSED(engineData);
-            QTC_CHECK(!newVmNames.contains(vmName));
-            newVmNames.insert(vmName);
+            QTC_CHECK(!newVmUris.contains(vmUri));
+            newVmUris.insert(vmUri);
         });
         for (auto it = m_buildEngines.cbegin(); it != m_buildEngines.cend(); ) {
-            if (!newVmNames.contains(it->get()->virtualMachine()->name())) {
+            if (!newVmUris.contains(it->get()->virtualMachine()->uri())) {
                 emit aboutToRemoveBuildEngine(it - m_buildEngines.cbegin());
                 it = m_buildEngines.erase(it);
             } else {
-                existingBuildEngines.insert(it->get()->virtualMachine()->name(), it->get());
+                existingBuildEngines.insert(it->get()->virtualMachine()->uri(), it->get());
                 ++it;
             }
         }
     }
 
     // Update existing/add new engines
-    forEachNewEngine([=](const QString &vmName, const QVariantMap &engineData) {
-        BuildEngine *engine = existingBuildEngines.value(vmName);
+    forEachNewEngine([=](const QUrl &vmUri, const QVariantMap &engineData) {
+        BuildEngine *engine = existingBuildEngines.value(vmUri);
         std::unique_ptr<BuildEngine> newEngine;
         if (!engine) {
             newEngine = std::make_unique<BuildEngine>(this, BuildEngine::PrivateConstructorTag{});

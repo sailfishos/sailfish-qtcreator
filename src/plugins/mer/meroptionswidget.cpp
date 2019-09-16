@@ -76,7 +76,7 @@ MerOptionsWidget::MerOptionsWidget(QWidget *parent)
             this, &MerOptionsWidget::onGenerateSshKey);
     connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::sshKeyChanged,
             this, &MerOptionsWidget::onSshKeyChanged);
-    connect(m_ui->sdkComboBox, static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::activated),
+    connect(m_ui->sdkComboBox, QOverload<int>::of(&QComboBox::activated),
             this, &MerOptionsWidget::onSdkChanged);
     connect(m_ui->addButton, &QPushButton::clicked,
             this, &MerOptionsWidget::onAddButtonClicked);
@@ -116,10 +116,17 @@ MerOptionsWidget::~MerOptionsWidget()
     delete m_ui;
 }
 
-void MerOptionsWidget::setSdk(const QString &name)
+void MerOptionsWidget::setSdk(const QUrl &uri)
 {
-    if (m_sdks.contains(name))
-        onSdkChanged(name);
+    QTC_ASSERT(uri.isValid(), return);
+    QTC_ASSERT(m_sdks.contains(uri), return);
+
+    if (m_virtualMachine == uri)
+        return;
+
+    m_virtualMachine = uri;
+    m_status = tr("Not tested.");
+    update();
 }
 
 QString MerOptionsWidget::searchKeyWordMatchString() const
@@ -232,8 +239,8 @@ void MerOptionsWidget::store()
     }
 
     for (BuildEngine *const engine : Sdk::buildEngines()) {
-        if (!m_sdks.contains(engine->name()))
-            Sdk::removeBuildEngine(engine->name());
+        if (!m_sdks.contains(engine->uri()))
+            Sdk::removeBuildEngine(engine->uri());
     }
     for (std::unique_ptr<BuildEngine> &newSdk : m_newSdks)
         Sdk::addBuildEngine(std::move(newSdk));
@@ -279,7 +286,7 @@ bool MerOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<BuildE
         if (!sdk->virtualMachine()->isOff()) {
             QPointer<QMessageBox> questionBox = new QMessageBox(QMessageBox::Question,
                     tr("Close Virtual Machine"),
-                    tr("Close the \"%1\" virtual machine?").arg(m_virtualMachine),
+                    tr("Close the \"%1\" virtual machine?").arg(sdk->virtualMachine()->name()),
                     QMessageBox::Yes | QMessageBox::No,
                     this);
             questionBox->setInformativeText(
@@ -314,13 +321,9 @@ bool MerOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<BuildE
     return failed.isEmpty();
 }
 
-void MerOptionsWidget::onSdkChanged(const QString &sdkName)
+void MerOptionsWidget::onSdkChanged(int index)
 {
-   if (m_virtualMachine != sdkName) {
-       m_virtualMachine = sdkName;
-       m_status = tr("Not tested.");
-       update();
-   }
+    setSdk(m_ui->sdkComboBox->itemData(index).toUrl());
 }
 
 void MerOptionsWidget::onAddButtonClicked()
@@ -330,7 +333,7 @@ void MerOptionsWidget::onAddButtonClicked()
     if (dialog.exec() != QDialog::Accepted)
         return;
 
-    if (m_sdks.contains(dialog.selectedSdkName()))
+    if (m_sdks.contains(dialog.selectedSdkUri()))
         return;
 
     std::unique_ptr<BuildEngine> sdk;
@@ -340,24 +343,24 @@ void MerOptionsWidget::onAddButtonClicked()
         loop.quit();
         sdk = std::move(newSdk);
     };
-    Sdk::createBuildEngine(dialog.selectedSdkName(), &loop, whenDone);
+    Sdk::createBuildEngine(dialog.selectedSdkUri(), &loop, whenDone);
     loop.exec();
     QTC_ASSERT(sdk, return);
 
-    m_sdks[sdk->virtualMachine()->name()] = sdk.get();
-    m_virtualMachine = sdk->virtualMachine()->name();
+    m_sdks[sdk->virtualMachine()->uri()] = sdk.get();
+    m_virtualMachine = sdk->virtualMachine()->uri();
     m_newSdks.emplace_back(std::move(sdk));
     update();
 }
 
 void MerOptionsWidget::onRemoveButtonClicked()
 {
-    const QString &vmName = m_ui->sdkComboBox->itemData(m_ui->sdkComboBox->currentIndex(), Qt::DisplayRole).toString();
-    if (vmName.isEmpty())
-        return;
+    const QUrl vmUri = m_ui->sdkComboBox->itemData(m_ui->sdkComboBox->currentIndex(),
+            Qt::UserRole).toUrl();
+    QTC_ASSERT(vmUri.isValid(), return);
 
-    if (m_sdks.contains(vmName)) {
-         BuildEngine *const removed = m_sdks.take(vmName);
+    if (m_sdks.contains(vmUri)) {
+         BuildEngine *const removed = m_sdks.take(vmUri);
          Utils::erase(m_newSdks, removed);
          if (!m_sdks.isEmpty())
              m_virtualMachine = m_sdks.keys().last();
@@ -442,8 +445,8 @@ void MerOptionsWidget::onBuildEngineAdded(int index)
 {
     BuildEngine *const sdk = Sdk::buildEngines().at(index);
 
-    m_sdks[sdk->name()] = sdk;
-    m_virtualMachine = sdk->name();
+    m_sdks[sdk->uri()] = sdk;
+    m_virtualMachine = sdk->uri();
 
     auto cleaner = [=](auto*... caches) {
         return [=]() {
@@ -479,11 +482,11 @@ void MerOptionsWidget::onAboutToRemoveBuildEngine(int index)
 {
     BuildEngine *const sdk = Sdk::buildEngines().at(index);
 
-    m_sdks.remove(sdk->name());
-    if (m_virtualMachine == sdk->name()) {
+    m_sdks.remove(sdk->uri());
+    if (m_virtualMachine == sdk->uri()) {
         m_virtualMachine.clear();
         if (!m_sdks.isEmpty())
-            m_virtualMachine = m_sdks.first()->name();
+            m_virtualMachine = m_sdks.first()->uri();
     }
 
     m_sshPrivKeys.remove(sdk);
@@ -516,7 +519,7 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
     if (!sdk->virtualMachine()->isOff()) {
         QPointer<QMessageBox> questionBox = new QMessageBox(QMessageBox::Question,
                 tr("Close Virtual Machine"),
-                tr("Close the \"%1\" virtual machine?").arg(m_virtualMachine),
+                tr("Close the \"%1\" virtual machine?").arg(sdk->name()),
                 QMessageBox::Yes | QMessageBox::No,
                 this);
         questionBox->setInformativeText(
@@ -546,7 +549,7 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
         const QMessageBox::StandardButton response =
             QMessageBox::question(this, tr("Success!"),
                                   tr("Alternative source folder for %1 changed to %2.\n\n"
-                                     "Do you want to start %1 now?").arg(m_virtualMachine).arg(newFolder),
+                                     "Do you want to start %1 now?").arg(sdk->name()).arg(newFolder),
                                   QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
         if (response == QMessageBox::Yes)
             sdk->virtualMachine()->connectTo();
@@ -562,7 +565,8 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
 void MerOptionsWidget::update()
 {
     m_ui->sdkComboBox->clear();
-    m_ui->sdkComboBox->addItems(m_sdks.keys());
+    for (BuildEngine *const sdk : m_sdks)
+        m_ui->sdkComboBox->addItem(sdk->name(), sdk->uri());
     bool show = !m_virtualMachine.isEmpty();
 
     disconnect(m_vmOffConnection);
@@ -620,7 +624,7 @@ void MerOptionsWidget::update()
         m_vmOffConnection = connect(sdk->virtualMachine(), &VirtualMachine::virtualMachineOffChanged,
                 this, &MerOptionsWidget::onVmOffChanged);
 
-        int index = m_ui->sdkComboBox->findText(m_virtualMachine);
+        int index = m_ui->sdkComboBox->findData(m_virtualMachine);
         m_ui->sdkComboBox->setCurrentIndex(index);
         m_ui->sdkDetailsWidget->setStatus(m_status);
     }

@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2018-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -43,7 +44,7 @@ public:
     QString configName() const;
     int sshPort() const;
     int timeout() const;
-    QString emulatorVm() const;
+    QUrl emulatorVm() const;
     QString factorySnapshot() const { return m_factorySnapshot; }
     QString freePorts() const;
     QString qmlLivePorts() const;
@@ -55,7 +56,7 @@ public:
     int vdiCapacityMb() const;
     bool isComplete() const override;
 private slots:
-    void handleEmulatorVmChanged(const QString &vmName);
+    void handleEmulatorVmChanged(int index);
 private:
      Ui::MerEmulatorDeviceWizardVMPage *m_ui;
      QString m_factorySnapshot;

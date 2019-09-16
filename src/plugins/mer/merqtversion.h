@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2016 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -36,8 +37,8 @@ public:
                  const QString &autodetectionSource = QString());
     ~MerQtVersion() override;
 
-    void setBuildEngineName(const QString &name);
-    QString buildEngineName() const;
+    void setBuildEngineUri(const QUrl &uri);
+    QUrl buildEngineUri() const;
     void setTargetName(const QString &name);
     QString targetName() const;
 
@@ -64,7 +65,7 @@ protected:
     QSet<Core::Id> availableFeatures() const override;
 
 private:
-    QString m_buildEngineName;
+    QUrl m_buildEngineUri;
     QString m_targetName;
 };
 

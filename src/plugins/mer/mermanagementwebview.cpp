@@ -287,7 +287,7 @@ void MerManagementWebView::resetWebView()
         connect(m_selectedSdk->virtualMachine(), &VirtualMachine::virtualMachineOffChanged,
                 this, &MerManagementWebView::resetWebView);
     } else {
-        url = QLatin1String("about:blank");
+        url = QUrl("about:blank");
     }
 
     ui->webView->setUrl(url);

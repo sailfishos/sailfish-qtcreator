@@ -163,13 +163,15 @@ protected:
     virtual void doRestoreSnapshot(const QString &snapshotName, const QObject *context,
         const Functor<bool> &functor) = 0;
 
-    virtual void prepareForNameChange() {};
     bool initialized() const { return initialized_; }
+    void setDisplayType(const QString &displayType) { this->displayType = displayType; }
 
     VirtualMachine *const q_ptr;
 
 private:
     static int s_availableMemmorySizeMb;
+    QString type;
+    QString displayType;
     QString name;
     VirtualMachineInfo virtualMachineInfo;
     bool initialized_ = false;
@@ -182,5 +184,53 @@ private:
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(VirtualMachineInfo::ExtraInfos)
 Q_DECLARE_OPERATORS_FOR_FLAGS(VirtualMachinePrivate::BasicState);
+
+// FIXME internal
+class SFDK_EXPORT VirtualMachineFactory : public QObject
+{
+    class Meta
+    {
+    public:
+        Meta() {};
+
+        template<typename T>
+        Meta(T *)
+            : type(T::staticType())
+            , displayType(T::staticDisplayType())
+            , fetchRegisteredVirtualMachines(T::fetchRegisteredVirtualMachines)
+            , create([](const QString &name) { return std::make_unique<T>(name); })
+        {
+        }
+
+        bool isNull() const { return type.isNull(); }
+
+        QString type;
+        QString displayType;
+        void (*fetchRegisteredVirtualMachines)(const QObject *,
+                const Functor<const QStringList &, bool> &) = nullptr;
+        std::function<std::unique_ptr<VirtualMachine>(const QString &)> create = {};
+    };
+
+public:
+    explicit VirtualMachineFactory(QObject *parent = nullptr);
+    ~VirtualMachineFactory() override;
+
+    template<typename T>
+    static void registerType() { s_instance->m_metas.emplace_back(static_cast<T *>(nullptr)); }
+
+    static void unusedVirtualMachines(const QObject *context,
+            const Functor<const QList<VirtualMachineDescriptor> &, bool> &functor);
+    static std::unique_ptr<VirtualMachine> create(const QUrl &uri);
+
+    // FIXME use UUID instead of name
+    static QUrl makeUri(const QString &type, const QString &name);
+    static QString typeFromUri(const QUrl &uri);
+    static QString nameFromUri(const QUrl &uri);
+
+private:
+    static VirtualMachineFactory *s_instance;
+    std::vector<Meta> m_metas;
+    QMap<QUrl, int> m_used;
+};
 
 } // namespace Sfdk

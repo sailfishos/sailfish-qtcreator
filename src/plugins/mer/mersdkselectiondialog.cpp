@@ -25,6 +25,7 @@
 #include "ui_mersdkselectiondialog.h"
 
 #include <sfdk/sdk.h>
+#include <sfdk/virtualmachine.h>
 
 #include <utils/qtcassert.h>
 
@@ -42,12 +43,14 @@ MerSdkSelectionDialog::MerSdkSelectionDialog(QWidget *parent)
 {
     m_ui->setupUi(this);
 
-    QStringList unusedVms;
+    QList<VirtualMachineDescriptor> unusedVms;
     bool ok;
     execAsynchronous(std::tie(unusedVms, ok), Sdk::unusedVirtualMachines);
     QTC_CHECK(ok);
-    for (const QString &vm : unusedVms)
-        new QListWidgetItem(vm, m_ui->virtualMachineListWidget);
+    for (const VirtualMachineDescriptor &vm : unusedVms) {
+        auto item = new QListWidgetItem(vm.name, m_ui->virtualMachineListWidget);
+        item->setData(Qt::UserRole, vm.uri);
+    }
 
     m_ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Add"));
 
@@ -79,12 +82,12 @@ void MerSdkSelectionDialog::handleItemDoubleClicked()
     accept();
 }
 
-QString MerSdkSelectionDialog::selectedSdkName() const
+QUrl MerSdkSelectionDialog::selectedSdkUri() const
 {
     QList<QListWidgetItem *> selected = m_ui->virtualMachineListWidget->selectedItems();
     if (selected.isEmpty())
-        return QString();
-    return selected.at(0)->data(Qt::DisplayRole).toString();
+        return {};
+    return selected.at(0)->data(Qt::UserRole).toUrl();
 }
 
 } // Internal

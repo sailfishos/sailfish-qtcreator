@@ -33,10 +33,11 @@ class SFDK_EXPORT VBoxVirtualMachine : public VirtualMachine
     Q_OBJECT
 
 public:
-    explicit VBoxVirtualMachine(QObject *parent = nullptr); // FIXME factory
+    explicit VBoxVirtualMachine(const QString &name, QObject *parent = nullptr);
     ~VBoxVirtualMachine() override;
 
-    static QStringList usedVirtualMachines();
+    static QString staticType();
+    static QString staticDisplayType();
     static void fetchRegisteredVirtualMachines(const QObject *context,
             const Functor<const QStringList &, bool> &functor);
     static void fetchHostTotalMemorySizeMb(const QObject *context,
@@ -91,11 +92,7 @@ protected:
     void doRestoreSnapshot(const QString &snapshotName, const QObject *context,
         const Functor<bool> &functor) override;
 
-    void prepareForNameChange() override;
-
 private:
-    void onNameChanged();
-
     void fetchExtraData(const QString &key, const QObject *context,
             const Functor<QString, bool> &functor) const;
     void setExtraData(const QString &keyword, const QString &data, const QObject *context,
@@ -109,9 +106,6 @@ private:
     static int ramSizeFromOutput(const QString &output, bool *matched);
     static void snapshotInfoFromOutput(const QString &output,
             VBoxVirtualMachineInfo *virtualMachineInfo);
-
-private:
-    static QMap<QString, int> s_usedVmNames;
 };
 
 } // namespace Sfdk

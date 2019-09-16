@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2018-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -25,6 +26,7 @@
 
 #include <QMap>
 #include <QTimer>
+#include <QUrl>
 #include <QWidget>
 
 #include <memory>
@@ -54,7 +56,7 @@ public:
     ~MerOptionsWidget() override;
 
     QString searchKeyWordMatchString() const;
-    void setSdk(const QString &vmName);
+    void setSdk(const QUrl &uri);
     void store();
 
 signals:
@@ -67,7 +69,7 @@ private slots:
     // Ui
     void onBuildEngineAdded(int index);
     void onAboutToRemoveBuildEngine(int index);
-    void onSdkChanged(const QString &text);
+    void onSdkChanged(int index);
     void onAddButtonClicked();
     void onRemoveButtonClicked();
     void onTestConnectionButtonClicked();
@@ -91,10 +93,10 @@ private slots:
 
 private:
     Ui::MerOptionsWidget *m_ui;
-    QString m_virtualMachine;
+    QUrl m_virtualMachine;
     QMetaObject::Connection m_vmOffConnection;
     QString m_status;
-    QMap<QString, Sfdk::BuildEngine *> m_sdks;
+    QMap<QUrl, Sfdk::BuildEngine *> m_sdks;
     std::vector<std::unique_ptr<Sfdk::BuildEngine>> m_newSdks;
     QMap<Sfdk::BuildEngine *, QString> m_sshPrivKeys;
     QMap<Sfdk::BuildEngine *, int> m_sshTimeout;

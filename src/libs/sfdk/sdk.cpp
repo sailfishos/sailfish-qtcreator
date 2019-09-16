@@ -57,7 +57,12 @@ Sdk::Sdk(Options options)
     qCDebug(lib) << "Initializing SDK. Options:" << options;
 
     d->options_ = options;
+
     d->commandQueue_ = std::make_unique<CommandQueue>(this);
+
+    d->virtualMachineFactory = std::make_unique<VirtualMachineFactory>(this);
+    d->virtualMachineFactory->registerType<VBoxVirtualMachine>();
+
     d->buildEngineManager = std::make_unique<BuildEngineManager>(this);
 
     connect(d->buildEngineManager.get(), &BuildEngineManager::buildEngineAdded,
@@ -103,23 +108,9 @@ QString Sdk::installationPath()
 }
 
 void Sdk::unusedVirtualMachines(const QObject *context,
-        const Functor<const QStringList &, bool> &&functor)
+        const Functor<const QList<VirtualMachineDescriptor> &, bool> &functor)
 {
-    const QPointer<const QObject> context_{context};
-
-    VBoxVirtualMachine::fetchRegisteredVirtualMachines(context,
-            [=](const QStringList &registeredVms, bool ok) {
-        if (!ok) {
-            functor({}, false);
-            return;
-        }
-
-        const QSet<QString> usedVms = VBoxVirtualMachine::usedVirtualMachines().toSet();
-        const QStringList unusedVms = Utils::filtered(registeredVms,
-                [&usedVms](const QString &vm) { return !usedVms.contains(vm); });
-
-        functor(unusedVms, true);
-    });
+    VirtualMachineFactory::unusedVirtualMachines(context, functor);
 }
 
 QList<BuildEngine *> Sdk::buildEngines()
@@ -127,15 +118,15 @@ QList<BuildEngine *> Sdk::buildEngines()
     return BuildEngineManager::buildEngines();
 }
 
-BuildEngine *Sdk::buildEngine(const QString &name)
+BuildEngine *Sdk::buildEngine(const QUrl &uri)
 {
-    return BuildEngineManager::buildEngine(name);
+    return BuildEngineManager::buildEngine(uri);
 }
 
-void Sdk::createBuildEngine(const QString &vmName, const QObject *context,
+void Sdk::createBuildEngine(const QUrl &virtualMachineUri, const QObject *context,
     const Functor<std::unique_ptr<BuildEngine> &&> &functor)
 {
-    BuildEngineManager::createBuildEngine(vmName, context, functor);
+    BuildEngineManager::createBuildEngine(virtualMachineUri, context, functor);
 }
 
 int Sdk::addBuildEngine(std::unique_ptr<BuildEngine> &&buildEngine)
@@ -143,9 +134,9 @@ int Sdk::addBuildEngine(std::unique_ptr<BuildEngine> &&buildEngine)
     return BuildEngineManager::addBuildEngine(std::move(buildEngine));
 }
 
-void Sdk::removeBuildEngine(const QString &name)
+void Sdk::removeBuildEngine(const QUrl &uri)
 {
-    BuildEngineManager::removeBuildEngine(name);
+    BuildEngineManager::removeBuildEngine(uri);
 }
 
 /*!

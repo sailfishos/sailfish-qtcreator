@@ -297,7 +297,7 @@ void MerEmulatorDeviceWidget::initGui()
     m_ui->sshPortSpinBox->setValue(sshParams.port());
     m_ui->portsLineEdit->setText(device->freePorts().toString());
     m_ui->qmlLivePortsLineEdit->setText(device->qmlLivePorts().toString());
-    m_ui->emulatorVmLabelEdit->setText(device->virtualMachineName());
+    m_ui->emulatorVmLabelEdit->setText(device->virtualMachine()->name());
     m_ui->factorySnapshotLineEdit->setText(device->factorySnapshot());
     if(!device->sharedConfigPath().isEmpty())
         m_ui->configFolderLabelEdit->setText(QDir::toNativeSeparators(device->sharedConfigPath()));

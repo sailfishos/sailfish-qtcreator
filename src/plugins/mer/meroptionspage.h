@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -42,7 +43,7 @@ public:
     void finish() override;
     bool matches(const QString &key) const override;
 
-    void setSdk(const QString &vmName);
+    void setSdk(const QUrl &vmUri);
 
 private slots:
     void onUpdateSearchKeys();

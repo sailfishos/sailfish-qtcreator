@@ -100,7 +100,7 @@ const char SYSROOT[] = "Sysroot";
 const char TOOL_CHAINS[] = "ToolChains";
 const char QT_VERSIONS[] = "QtVersions";
 const char AUTO_DETECTED[] = "AutoDetected";
-const char BUILD_ENGINE[] = "BuildEngine";
+const char BUILD_ENGINE_URI[] = "BuildEngineUri";
 const char SB2_TARGET_NAME[] = "SB2.TargetName";
 
 const char MER_RUNCONFIGURATION_PREFIX[] = "QmakeProjectManager.MerRunConfiguration:";
@@ -127,7 +127,7 @@ const char SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED[] = "SAILFISH_OS_SDK_EN
 const char SAILFISH_SDK_ENVIRONMENT_FILTER[] = "SAILFISH_SDK_ENVIRONMENT_FILTER";
 const char SAILFISH_SDK_FRONTEND[] = "SAILFISH_SDK_FRONTEND";
 const char SAILFISH_SDK_FRONTEND_ID[] = "qtcreator";
-const char MER_DEVICE_VIRTUAL_MACHINE[] = "MER_DEVICE_VIRTUAL_MACHINE";
+const char MER_DEVICE_VIRTUAL_MACHINE_URI[] = "MER_DEVICE_VIRTUAL_MACHINE_URI";
 const char MER_DEVICE_FACTORY_SNAPSHOT[] = "MER_DEVICE_FACTORY_SNAPSHOT";
 const char MER_DEVICE_MAC[] = "MER_DEVICE_MAC";
 const char MER_DEVICE_SUBNET[] = "MER_DEVICE_SUBNET";

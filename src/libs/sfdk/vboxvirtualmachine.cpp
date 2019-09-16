@@ -172,22 +172,25 @@ CommandQueue *commandQueue()
  * \class VBoxVirtualMachine
  */
 
-VBoxVirtualMachine::VBoxVirtualMachine(QObject *parent)
-    : VirtualMachine(std::make_unique<VBoxVirtualMachinePrivate>(this), parent)
+VBoxVirtualMachine::VBoxVirtualMachine(const QString &name, QObject *parent)
+    : VirtualMachine(std::make_unique<VBoxVirtualMachinePrivate>(this), staticType(), name, parent)
 {
-    connect(this, &VirtualMachine::nameChanged, this, [this]() { d_func()->onNameChanged(); });
+    Q_D(VBoxVirtualMachine);
+    d->setDisplayType(staticDisplayType());
 }
 
 VBoxVirtualMachine::~VBoxVirtualMachine()
 {
-    d_func()->prepareForNameChange();
 }
 
-// Provides list of all used VMs, that is valid also during configuration of new build
-// engines/emulators, before the changes are applied.
-QStringList VBoxVirtualMachine::usedVirtualMachines()
+QString VBoxVirtualMachine::staticType()
 {
-    return VBoxVirtualMachinePrivate::s_usedVmNames.keys();
+    return "VirtualBox";
+}
+
+QString VBoxVirtualMachine::staticDisplayType()
+{
+    return tr("VirtualBox");
 }
 
 void VBoxVirtualMachine::fetchRegisteredVirtualMachines(const QObject *context,
@@ -254,8 +257,6 @@ void VBoxVirtualMachine::fetchHostTotalMemorySizeMb(const QObject *context,
  * \class VBoxVirtualMachinePrivate
  * \internal
  */
-
-QMap<QString, int> VBoxVirtualMachinePrivate::s_usedVmNames;
 
 void VBoxVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extraInfo,
         const QObject *context, const Functor<const VirtualMachineInfo &, bool> &functor) const
@@ -327,6 +328,8 @@ void VBoxVirtualMachinePrivate::start(const QObject *context, const Functor<bool
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
+    qCDebug(vms) << "Starting" << q->uri().toString();
+
     QStringList arguments;
     arguments.append(QLatin1String(STARTVM));
     arguments.append(q->name());
@@ -345,6 +348,8 @@ void VBoxVirtualMachinePrivate::stop(const QObject *context, const Functor<bool>
     Q_Q(VBoxVirtualMachine);
     Q_ASSERT(context);
     Q_ASSERT(functor);
+
+    qCDebug(vms) << "Stopping" << q->uri().toString();
 
     QStringList arguments;
     arguments.append(QLatin1String(CONTROLVM));
@@ -402,6 +407,9 @@ void VBoxVirtualMachinePrivate::setVideoMode(const QSize &size, int depth, const
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
+    qCDebug(vms) << "Setting video mode for" << q->uri().toString() << "to size" << size
+        << "depth" << depth;
+
     const QPointer<const QObject> context_{context};
 
     QString videoMode = QStringLiteral("%1x%2x%3")
@@ -430,7 +438,7 @@ void VBoxVirtualMachinePrivate::doSetMemorySizeMb(int memorySizeMb, const QObjec
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    qCDebug(vms) << "Changing memory size of" << q->name() << "to" << memorySizeMb << "MB";
+    qCDebug(vms) << "Changing memory size of" << q->uri().toString() << "to" << memorySizeMb << "MB";
 
     QStringList arguments;
     arguments.append(QLatin1String(MODIFYVM));
@@ -450,7 +458,7 @@ void VBoxVirtualMachinePrivate::doSetCpuCount(int cpuCount, const QObject *conte
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    qCDebug(vms) << "Changing CPU count of" << q->name() << "to" << cpuCount;
+    qCDebug(vms) << "Changing CPU count of" << q->uri().toString() << "to" << cpuCount;
 
     QStringList arguments;
     arguments.append(QLatin1String(MODIFYVM));
@@ -470,7 +478,7 @@ void VBoxVirtualMachinePrivate::doSetVdiCapacityMb(int vdiCapacityMb, const QObj
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    qCDebug(vms) << "Changing vdi size of" << q->name() << "to" << vdiCapacityMb << "MB";
+    qCDebug(vms) << "Changing vdi size of" << q->uri().toString() << "to" << vdiCapacityMb << "MB";
 
     const QPointer<const QObject> context_{context};
     fetchInfo(VirtualMachineInfo::VdiInfo, Sdk::instance(),
@@ -534,7 +542,7 @@ void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FileName
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    qCDebug(vms) << "Setting shared folder" << which << "for" << q->name() << "to" << path;
+    qCDebug(vms) << "Setting shared folder" << which << "for" << q->uri().toString() << "to" << path;
 
     QString mountName;
     switch (which) {
@@ -608,7 +616,7 @@ void VBoxVirtualMachinePrivate::doAddPortForwarding(const QString &ruleName,
 
     doRemovePortForwarding(ruleName, Sdk::instance(), [](bool) {/* noop */});
 
-    qCDebug(vms) << "Setting port forwarding for" << q->name() << "from"
+    qCDebug(vms) << "Setting port forwarding for" << q->uri().toString() << "from"
         << hostPort << "to" << emulatorVmPort;
 
     QStringList arguments;
@@ -630,7 +638,7 @@ void VBoxVirtualMachinePrivate::doRemovePortForwarding(const QString &ruleName,
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    qCDebug(vms) << "Deleting port forwarding rule" << ruleName << "from" << q->name();
+    qCDebug(vms) << "Deleting port forwarding rule" << ruleName << "from" << q->uri().toString();
 
     QStringList arguments;
     arguments.append(QLatin1String(MODIFYVM));
@@ -651,7 +659,8 @@ void VBoxVirtualMachinePrivate::doSetReservedPortForwarding(ReservedPort which, 
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    qCDebug(vms) << "Setting reserved port forwarding" << which << "for" << q->name() << "to" << port;
+    qCDebug(vms) << "Setting reserved port forwarding" << which << "for" << q->uri().toString()
+        << "to" << port;
 
     QString ruleName;
     int guestPort{};
@@ -690,7 +699,8 @@ void VBoxVirtualMachinePrivate::doSetReservedPortListForwarding(ReservedPortList
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    qCDebug(vms) << "Setting reserved port forwarding" << which << "for" << q->name() << "to" << ports;
+    qCDebug(vms) << "Setting reserved port forwarding" << which << "for" << q->uri().toString()
+        << "to" << ports;
 
     QString ruleNameTemplate;
     switch (which) {
@@ -751,6 +761,8 @@ void VBoxVirtualMachinePrivate::doRestoreSnapshot(const QString &snapshotName, c
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
+    qCDebug(vms) << "Restoring snapshot" << snapshotName << "of" << q->uri().toString();
+
     QStringList arguments;
     arguments.append(QLatin1String(SNAPSHOT));
     arguments.append(q->name());
@@ -760,24 +772,6 @@ void VBoxVirtualMachinePrivate::doRestoreSnapshot(const QString &snapshotName, c
     auto runner = std::make_unique<VBoxManageRunner>(arguments);
     QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
     commandQueue()->enqueue(std::move(runner));
-}
-
-void VBoxVirtualMachinePrivate::prepareForNameChange()
-{
-    Q_Q(VBoxVirtualMachine);
-    if (!q->name().isEmpty()) {
-        if (--s_usedVmNames[q->name()] == 0)
-            s_usedVmNames.remove(q->name());
-    }
-}
-
-void VBoxVirtualMachinePrivate::onNameChanged()
-{
-    Q_Q(VBoxVirtualMachine);
-    if (!q->name().isEmpty()) {
-        if (++s_usedVmNames[q->name()] != 1)
-            qCWarning(lib) << "VirtualMachine: Another instance for VM" << q->name() << "already exists";
-    }
 }
 
 void VBoxVirtualMachinePrivate::fetchExtraData(const QString &key,

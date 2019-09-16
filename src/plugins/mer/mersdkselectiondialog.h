@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -39,7 +40,7 @@ public:
     explicit MerSdkSelectionDialog(QWidget *parent = 0);
     ~MerSdkSelectionDialog() override;
 
-    QString selectedSdkName() const;
+    QUrl selectedSdkUri() const;
 
 private slots:
     void handleItemSelectionChanged();

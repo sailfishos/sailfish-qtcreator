@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2016,2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -36,8 +37,8 @@ class MerToolChain : public ProjectExplorer::GccToolChain
 public:
     MerToolChain(Detection autodetect, Core::Id typeId = Constants::MER_TOOLCHAIN_ID);
 
-    void setBuildEngineName(const QString &name);
-    QString buildEngineName() const;
+    void setBuildEngineUri(const QUrl &uri);
+    QUrl buildEngineUri() const;
     void setTargetName(const QString &name);
     QString targetName() const;
 
@@ -55,7 +56,7 @@ public:
 
     void addToEnvironment(Utils::Environment &env) const override;
 private:
-    QString m_buildEngineName;
+    QUrl m_buildEngineUri;
     QString m_targetName;
     mutable ProjectExplorer::HeaderPaths m_headerPathsOnHost;
 };

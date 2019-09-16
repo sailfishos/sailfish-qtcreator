@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -64,7 +65,7 @@ BaseQtVersion *MerQtVersionFactory::restore(const QString &type,
 
     // Check if the qtVersion is still valid
     QFileInfo fi = v->qmakeCommand().toFileInfo();
-    if (!fi.exists() || v->buildEngineName().isEmpty() || v->targetName().isEmpty()) {
+    if (!fi.exists() || v->buildEngineUri().isEmpty() || v->targetName().isEmpty()) {
         delete v;
         return 0;
     }

@@ -33,7 +33,7 @@
 #include <QTime>
 #include <QTimerEvent>
 
-#define DBG qCDebug(vms) << m_vm->name() << QTime::currentTime()
+#define DBG qCDebug(vms) << m_vm->uri().toString() << QTime::currentTime()
 
 using namespace QSsh;
 
@@ -192,15 +192,6 @@ VmConnection::VmConnection(VirtualMachine *parent)
 {
     m_vmStateEntryTime.start();
 
-    connect(m_vm, &VirtualMachine::nameChanged, this, [this] () {
-        scheduleReset();
-        // Do this right now to prevent unexpected behavior
-        m_cachedVmExists = true;
-        m_cachedVmRunning = false;
-        m_cachedVmRunningHeadless = false;
-        m_vmStatePollTimer.stop();
-    });
-
     // Notice how SshConnectionParameters::timeout is treated!
     connect(m_vm, &VirtualMachine::sshParametersChanged, this, &VmConnection::scheduleReset);
 
@@ -339,7 +330,8 @@ bool VmConnection::connectTo(VirtualMachine::ConnectOptions options)
     sshStmScheduleExec();
 
     if (m_lockDownRequested) {
-        qCWarning(lib) << "VmConnection: connect request for" << m_vm->name() << "ignored: lockdown active";
+        qCWarning(lib) << "VmConnection: connect request for" << m_vm->uri().toString()
+            << "ignored: lockdown active";
         return false;
     } else if (m_state == VirtualMachine::Connected) {
         return true;
@@ -748,11 +740,11 @@ bool VmConnection::vmStmStep()
         } else if (m_remoteShutdownProcess->isError()) {
             // be quiet - no message box
             if (m_remoteShutdownProcess->isConnectionError()) {
-                qCWarning(lib) << "VmConnection: could not connect to the" << m_vm->name()
+                qCWarning(lib) << "VmConnection: could not connect to the" << m_vm->uri().toString()
                     << "virtual machine to soft-close it. Connection error:"
                     << m_remoteShutdownProcess->connectionErrorString();
             } else /* if (m_remoteShutdownProcess->isProcessError()) */ {
-                qCWarning(lib) << "VmConnection: failed to soft-close the" << m_vm->name()
+                qCWarning(lib) << "VmConnection: failed to soft-close the" << m_vm->uri().toString()
                     << "virtual machine. Command output:\n"
                     << "\tSTDOUT [[[" << m_remoteShutdownProcess->readAllStandardOutput() << "]]]\n"
                     << "\tSTDERR [[[" << m_remoteShutdownProcess->readAllStandardError() << "]]]";
@@ -760,7 +752,7 @@ bool VmConnection::vmStmStep()
             vmStmTransition(VmHardClosing, "failed to soft-close");
         } else if (!m_vmSoftClosingTimeoutTimer.isActive()) {
             // be quiet - no message box
-            qCWarning(lib) << "VmConnection: timeout waiting for the" << m_vm->name()
+            qCWarning(lib) << "VmConnection: timeout waiting for the" << m_vm->uri().toString()
                 << "virtual machine to soft-close";
             vmStmTransition(VmHardClosing, "timeout waiting to soft-close");
         }
@@ -783,7 +775,7 @@ bool VmConnection::vmStmStep()
         if (!m_cachedVmRunning) {
             vmStmTransition(VmOff, "successfully closed");
         } else if (!m_vmHardClosingTimeoutTimer.isActive()) {
-            qCWarning(lib) << "VmConnection: timeout waiting for the" << m_vm->name()
+            qCWarning(lib) << "VmConnection: timeout waiting for the" << m_vm->uri().toString()
                 << "virtual machine to hard-close.";
             if (m_lockDownRequested) {
                 ask(Ui::CancelLockingDown, &VmConnection::vmStmScheduleExec,

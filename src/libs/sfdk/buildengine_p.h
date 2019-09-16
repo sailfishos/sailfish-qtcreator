@@ -66,7 +66,7 @@ public:
     QVariantMap toMap() const;
     bool fromMap(const QVariantMap &data);
 
-    void initVirtualMachine(const QString &vmName);
+    bool initVirtualMachine(const QUrl &vmUri);
     void enableUpdates();
     void updateOnce();
     void updateVmProperties(const QObject *context, const Functor<bool> &functor);
@@ -130,11 +130,11 @@ public:
     static QString installDir();
 
     static QList<BuildEngine *> buildEngines();
-    static BuildEngine *buildEngine(const QString &name);
-    static void createBuildEngine(const QString &vmName, const QObject *context,
+    static BuildEngine *buildEngine(const QUrl &uri);
+    static void createBuildEngine(const QUrl &virtualMachineUri, const QObject *context,
         const Functor<std::unique_ptr<BuildEngine> &&> &functor);
     static int addBuildEngine(std::unique_ptr<BuildEngine> &&buildEngine);
-    static void removeBuildEngine(const QString &name);
+    static void removeBuildEngine(const QUrl &uri);
 
 signals:
     void buildEngineAdded(int index);

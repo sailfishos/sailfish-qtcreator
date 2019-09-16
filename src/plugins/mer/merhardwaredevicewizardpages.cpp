@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -252,7 +253,7 @@ MerHardwareDeviceWizardSetupPage::MerHardwareDeviceWizardSetupPage(QWidget *pare
     static QRegExp regExp(tr("Build Engine"));
     const QList<BuildEngine *> engines = Sdk::buildEngines();
     for (BuildEngine *const engine : engines) {
-        m_ui->merSdkComboBox->addItem(engine->name());
+        m_ui->merSdkComboBox->addItem(engine->name(), engine->uri());
         if (regExp.indexIn(engine->name()) != -1) {
             // Preselect
             m_ui->merSdkComboBox->setCurrentIndex(m_ui->merSdkComboBox->count()-1);
@@ -262,7 +263,7 @@ MerHardwareDeviceWizardSetupPage::MerHardwareDeviceWizardSetupPage(QWidget *pare
     connect(m_ui->configLineEdit, &QLineEdit::textChanged,
             this, &MerHardwareDeviceWizardSetupPage::completeChanged);
     connect(m_ui->merSdkComboBox,
-            static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::currentIndexChanged),
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
             &MerHardwareDeviceWizardSetupPage::handleBuildEngineChanged);
 }
@@ -284,7 +285,7 @@ void MerHardwareDeviceWizardSetupPage::initializePage()
    m_ui->hostLabelEdit->setText(wizard->hostName());
    m_ui->usernameLabelEdit->setText(wizard->userName());
    m_ui->sshPortLabelEdit->setText(QString::number(wizard->sshPort()));
-   handleBuildEngineChanged(m_ui->merSdkComboBox->currentText());
+   handleBuildEngineChanged();
 }
 
 QString MerHardwareDeviceWizardSetupPage::configName() const
@@ -297,9 +298,9 @@ QString MerHardwareDeviceWizardSetupPage::freePorts() const
     return m_ui->freePortsLineEdit->text().trimmed();
 }
 
-void MerHardwareDeviceWizardSetupPage::handleBuildEngineChanged(const QString &name)
+void MerHardwareDeviceWizardSetupPage::handleBuildEngineChanged()
 {
-    BuildEngine *const engine = Sdk::buildEngine(name);
+    BuildEngine *const engine = Sdk::buildEngine(m_ui->merSdkComboBox->currentData().toUrl());
     QTC_ASSERT(engine, return);
     const MerHardwareDeviceWizard* wizard = qobject_cast<MerHardwareDeviceWizard*>(this->wizard());
     QTC_ASSERT(wizard,return);
@@ -329,7 +330,7 @@ bool MerHardwareDeviceWizardSetupPage::isNewSshKeysRquired() const
 
 QString MerHardwareDeviceWizardSetupPage::sharedSshPath() const
 {
-    BuildEngine *const engine = Sdk::buildEngine(m_ui->merSdkComboBox->currentText());
+    BuildEngine *const engine = Sdk::buildEngine(m_ui->merSdkComboBox->currentData().toUrl());
     QTC_ASSERT(engine, return {});
     return engine->sharedConfigPath().toString();
 }

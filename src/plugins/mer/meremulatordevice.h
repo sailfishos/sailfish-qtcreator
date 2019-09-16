@@ -107,8 +107,7 @@ public:
     void setSharedConfigPath(const QString &configPath);
     QString sharedConfigPath() const;
 
-    void setVirtualMachineName(const QString& machineName);
-    QString virtualMachineName() const; // FIXME use or not?
+    void setVirtualMachine(const QUrl &vmUri);
 
     void setFactorySnapshot(const QString &snapshotName);
     QString factorySnapshot() const;
@@ -160,7 +159,7 @@ private:
     QString privateKeyFile(const QString &user) const;
 
 private:
-    QSharedPointer<Sfdk::VirtualMachine> m_vm; // all clones share the VM
+    std::shared_ptr<Sfdk::VirtualMachine> m_vm; // all clones share the VM
     QString m_factorySnapshot;
     QString m_mac;
     QString m_subnet;

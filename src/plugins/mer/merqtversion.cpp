@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -67,14 +68,14 @@ MerQtVersion::~MerQtVersion()
 {
 }
 
-void MerQtVersion::setBuildEngineName(const QString &name)
+void MerQtVersion::setBuildEngineUri(const QUrl &uri)
 {
-    m_buildEngineName = name;
+    m_buildEngineUri = uri;
 }
 
-QString MerQtVersion::buildEngineName() const
+QUrl MerQtVersion::buildEngineUri() const
 {
-    return m_buildEngineName;
+    return m_buildEngineUri;
 }
 
 void MerQtVersion::setTargetName(const QString &name)
@@ -115,7 +116,7 @@ QSet<Core::Id> MerQtVersion::targetDeviceTypes() const
 QVariantMap MerQtVersion::toMap() const
 {
     QVariantMap data = BaseQtVersion::toMap();
-    data.insert(QLatin1String(Constants::BUILD_ENGINE), m_buildEngineName);
+    data.insert(QLatin1String(Constants::BUILD_ENGINE_URI), m_buildEngineUri);
     data.insert(QLatin1String(Constants::SB2_TARGET_NAME), m_targetName);
     return data;
 }
@@ -123,7 +124,7 @@ QVariantMap MerQtVersion::toMap() const
 void MerQtVersion::fromMap(const QVariantMap &data)
 {
     BaseQtVersion::fromMap(data);
-    m_buildEngineName = data.value(QLatin1String(Constants::BUILD_ENGINE)).toString();
+    m_buildEngineUri = data.value(QLatin1String(Constants::BUILD_ENGINE_URI)).toUrl();
     m_targetName = data.value(QLatin1String(Constants::SB2_TARGET_NAME)).toString();
 }
 
@@ -160,7 +161,7 @@ QList<Task> MerQtVersion::reportIssuesImpl(const QString &proFile,
 {
     QList<Task> results;
 
-    BuildEngine* buildEngine = Sdk::buildEngine(m_buildEngineName);
+    BuildEngine* buildEngine = Sdk::buildEngine(m_buildEngineUri);
 
     if(!buildEngine) {
         Task task(Task::Error,

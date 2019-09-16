@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -214,7 +215,7 @@ void MerTargetKitInformationWidget::handleManageClicked()
     if (page) {
         BuildEngine *const sdk = MerSdkKitInformation::buildEngine(m_kit);
         if(sdk)
-            page->setSdk(m_combo->currentText());
+            page->setSdk(sdk->uri());
     }
     ICore::showOptionsDialog(Constants::MER_OPTIONS_ID);
 }

@@ -26,6 +26,8 @@
 #include "sfdkglobal.h"
 #include "asynchronous.h"
 
+#include <QUrl>
+
 #include <memory>
 
 namespace QSsh {
@@ -33,6 +35,14 @@ class SshConnectionParameters;
 }
 
 namespace Sfdk {
+
+class SFDK_EXPORT VirtualMachineDescriptor
+{
+public:
+    QUrl uri;
+    QString displayType;
+    QString name;
+};
 
 class VirtualMachinePrivate;
 class SFDK_EXPORT VirtualMachine : public QObject
@@ -68,8 +78,11 @@ public:
 
     ~VirtualMachine() override;
 
-    QString name() const; // FIXME uuid
-    void setName(const QString &name); // FIXME disallow
+    QUrl uri() const;
+    QString type() const;
+    QString displayType() const;
+    // FIXME add qualifiedName() that would include type information?
+    QString name() const;
 
     State state() const;
     QString errorString() const;
@@ -128,7 +141,6 @@ public slots:
     void disconnectFrom();
 
 signals:
-    void nameChanged(const QString &name);
     void stateChanged();
     void sshParametersChanged();
     void headlessChanged(bool headless);
@@ -142,7 +154,8 @@ signals:
     void snapshotsChanged();
 
 protected:
-    VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, QObject *parent);
+    VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, const QString &type,
+            const QString &name, QObject *parent);
     std::unique_ptr<VirtualMachinePrivate> d_ptr;
 
 private:

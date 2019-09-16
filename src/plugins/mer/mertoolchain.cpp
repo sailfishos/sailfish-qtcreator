@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2018 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -53,14 +54,14 @@ MerToolChain::MerToolChain(Detection autodetected, Core::Id typeId)
 
 }
 
-void MerToolChain::setBuildEngineName(const QString &name)
+void MerToolChain::setBuildEngineUri(const QUrl &uri)
 {
-    m_buildEngineName = name;
+    m_buildEngineUri = uri;
 }
 
-QString MerToolChain::buildEngineName() const
+QUrl MerToolChain::buildEngineUri() const
 {
-    return m_buildEngineName;
+    return m_buildEngineUri;
 }
 
 void MerToolChain::setTargetName(const QString &name)
@@ -106,7 +107,7 @@ IOutputParser *MerToolChain::outputParser() const
 QVariantMap MerToolChain::toMap() const
 {
     QVariantMap data = GccToolChain::toMap();
-    data.insert(QLatin1String(Constants::BUILD_ENGINE), m_buildEngineName);
+    data.insert(QLatin1String(Constants::BUILD_ENGINE_URI), m_buildEngineUri);
     data.insert(QLatin1String(Constants::SB2_TARGET_NAME), m_targetName);
     return data;
 }
@@ -116,9 +117,9 @@ bool MerToolChain::fromMap(const QVariantMap &data)
     if (!GccToolChain::fromMap(data))
         return false;
 
-    m_buildEngineName = data.value(QLatin1String(Constants::BUILD_ENGINE)).toString();
+    m_buildEngineUri = data.value(QLatin1String(Constants::BUILD_ENGINE_URI)).toUrl();
     m_targetName = data.value(QLatin1String(Constants::SB2_TARGET_NAME)).toString();
-    return !m_buildEngineName.isEmpty() && !m_targetName.isEmpty();
+    return !m_buildEngineUri.isEmpty() && !m_targetName.isEmpty();
 }
 
 QList<Task> MerToolChain::validateKit(const Kit *kit) const

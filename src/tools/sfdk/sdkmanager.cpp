@@ -209,8 +209,10 @@ SdkManager::SdkManager()
     QList<BuildEngine *> buildEngines = Sdk::buildEngines();
     if (!buildEngines.isEmpty()) {
         m_buildEngine = buildEngines.first();
-        if (buildEngines.count() > 1)
-            qCWarning(sfdk) << "Multiple build engines found. Using" << m_buildEngine->name();
+        if (buildEngines.count() > 1) {
+            qCWarning(sfdk) << "Multiple build engines found. Using"
+                << m_buildEngine->uri().toString();
+        }
     }
 }
 

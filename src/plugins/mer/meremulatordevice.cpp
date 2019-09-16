@@ -33,7 +33,7 @@
 
 #include <sfdk/buildengine.h>
 #include <sfdk/sdk.h>
-#include <sfdk/vboxvirtualmachine_p.h>
+#include <sfdk/virtualmachine_p.h>
 
 #include <coreplugin/icore.h>
 #include <coreplugin/messagemanager.h>
@@ -77,12 +77,11 @@ class PublicKeyDeploymentDialog : public QProgressDialog
     };
 
 public:
-    explicit PublicKeyDeploymentDialog(const QString &privKeyPath, const QString& vmName, const QString& user, const QString& sharedPath,
+    explicit PublicKeyDeploymentDialog(const QString &privKeyPath, const QString& user, const QString& sharedPath,
                                        QWidget *parent = 0)
         : QProgressDialog(parent)
         , m_state(Init)
         , m_privKeyPath(privKeyPath)
-        , m_vmName(vmName)
         , m_user(user)
         , m_sharedPath(sharedPath)
     {
@@ -174,7 +173,6 @@ private:
     QTimer m_timer;
     int m_state;
     QString m_privKeyPath;
-    QString m_vmName;
     QString m_error;
     QString m_user;
     QString m_sharedPath;
@@ -187,8 +185,7 @@ IDevice::Ptr MerEmulatorDevice::clone() const
 }
 
 MerEmulatorDevice::MerEmulatorDevice()
-    : m_vm(new VBoxVirtualMachine(0 /* not bug */))
-    , m_orientation(Qt::Vertical)
+    : m_orientation(Qt::Vertical)
     , m_viewScaled(false)
     , m_memorySizeMb(0)
     , m_cpuCount(0)
@@ -282,7 +279,7 @@ void MerEmulatorDevice::init()
         QMessageBox::StandardButton button = QMessageBox::question(parent,
                 tr("Reset emulator?"),
                 tr("Do you really want to reset '%1' to the factory state?")
-                    .arg(device->virtualMachineName()),
+                    .arg(device->virtualMachine()->name()),
                 QMessageBox::Yes | QMessageBox::No);
         if (button == QMessageBox::Yes)
             device->doFactoryReset(parent);
@@ -297,7 +294,12 @@ DeviceTester *MerEmulatorDevice::createDeviceTester() const
 void MerEmulatorDevice::fromMap(const QVariantMap &map)
 {
     MerDevice::fromMap(map);
-    m_vm->setName(map.value(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE)).toString());
+
+    const QUrl vmUri = map.value(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE_URI)).toString();
+    QTC_ASSERT(vmUri.isValid(), return);
+    m_vm = VirtualMachineFactory::create(vmUri);
+    QTC_ASSERT(m_vm, return);
+
     m_factorySnapshot = map.value(QLatin1String(Constants::MER_DEVICE_FACTORY_SNAPSHOT)).toString();
     m_mac = map.value(QLatin1String(Constants::MER_DEVICE_MAC)).toString();
     m_subnet = map.value(QLatin1String(Constants::MER_DEVICE_SUBNET)).toString();
@@ -324,7 +326,7 @@ void MerEmulatorDevice::fromMap(const QVariantMap &map)
 QVariantMap MerEmulatorDevice::toMap() const
 {
     QVariantMap map = MerDevice::toMap();
-    map.insert(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE), m_vm->name());
+    map.insert(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE_URI), m_vm->uri().toString());
     map.insert(QLatin1String(Constants::MER_DEVICE_FACTORY_SNAPSHOT), m_factorySnapshot);
     map.insert(QLatin1String(Constants::MER_DEVICE_MAC), m_mac);
     map.insert(QLatin1String(Constants::MER_DEVICE_SUBNET), m_subnet);
@@ -393,14 +395,9 @@ int MerEmulatorDevice::cpuCount() const
     return m_cpuCount;
 }
 
-void MerEmulatorDevice::setVirtualMachineName(const QString& machineName)
+void MerEmulatorDevice::setVirtualMachine(const QUrl &vmUri)
 {
-    m_vm->setName(machineName);
-}
-
-QString MerEmulatorDevice::virtualMachineName() const
-{
-    return m_vm->name();
+    m_vm = VirtualMachineFactory::create(vmUri);
 }
 
 void MerEmulatorDevice::setFactorySnapshot(const QString &snapshotName)
@@ -427,8 +424,7 @@ void MerEmulatorDevice::generateSshKey(const QString& user) const
 {
     const QString privateKeyFile = this->privateKeyFile(user);
     QTC_ASSERT(!privateKeyFile.isEmpty(), return);
-    PublicKeyDeploymentDialog dialog(privateKeyFile, virtualMachineName(),
-                                     user, sharedSshPath(), ICore::dialogParent());
+    PublicKeyDeploymentDialog dialog(privateKeyFile, user, sharedSshPath(), ICore::dialogParent());
 
     virtualMachine()->setAutoConnectEnabled(false);
     dialog.exec();
@@ -452,7 +448,6 @@ QString MerEmulatorDevice::deviceModel() const
 void MerEmulatorDevice::setDeviceModel(const QString &deviceModel)
 {
     QTC_CHECK(MerSettings::deviceModels().contains(deviceModel));
-    QTC_CHECK(!virtualMachineName().isEmpty());
 
     // Intentionally do not check for equal value - better for synchronization
     // with VB settings
@@ -495,7 +490,7 @@ void MerEmulatorDevice::setViewScaled(bool viewScaled)
 
 Sfdk::VirtualMachine *MerEmulatorDevice::virtualMachine() const
 {
-    return m_vm.data();
+    return m_vm.get();
 }
 
 // Hack, all clones share the VM
@@ -506,7 +501,7 @@ void MerEmulatorDevice::updateVmState() const
 
 void MerEmulatorDevice::doFactoryReset(QWidget *parent)
 {
-    QProgressDialog progress(tr("Restoring '%1' to factory state...").arg(virtualMachineName()),
+    QProgressDialog progress(tr("Restoring '%1' to factory state...").arg(m_vm->name()),
             tr("Abort"), 0, 0, parent);
     progress.setMinimumDuration(2000);
     progress.setWindowModality(Qt::WindowModal);
@@ -554,7 +549,7 @@ void MerEmulatorDevice::doFactoryReset(QWidget *parent)
     progress.cancel();
 
     QMessageBox::information(parent, tr("Factory state restored"),
-            tr("Successfully restored '%1' to the factory state").arg(virtualMachineName()));
+            tr("Successfully restored '%1' to the factory state").arg(m_vm->name()));
 }
 
 void MerEmulatorDevice::scheduleSetVideoMode()
@@ -939,7 +934,7 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
             continue;
 
         progress.setLabelText(tr("Applying virtual machine settings: '%1'")
-                .arg(merEmulator->virtualMachineName()));
+                .arg(merEmulator->virtualMachine()->name()));
 
         quint16 nowSshPort = merEmulator->sshParameters().port();
         if (oldSshPortsCache.contains(merEmulator->id())

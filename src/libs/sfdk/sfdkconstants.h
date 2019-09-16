@@ -30,6 +30,8 @@ const char LIB_ID[] = "libsfdk";
 const int DEFAULT_QML_LIVE_PORT = 10234;
 const int MAX_QML_LIVE_PORTS = 10;
 
+const char VIRTUAL_MACHINE_URI_SCHEME[] = "sfdkvm";
+
 const char BUILD_ENGINES_SETTINGS_FILE_NAME[] = "buildengines.xml";
 // "QtCreator" prefix is enforced by sdktool
 const char BUILD_ENGINES_SETTINGS_DOC_TYPE[] = "QtCreatorSfdkBuildEngines";
@@ -37,7 +39,7 @@ const char BUILD_ENGINES_VERSION_KEY[] = "BuildEngines.Version";
 const char BUILD_ENGINES_INSTALL_DIR_KEY[] = "BuildEngines.InstallDir";
 const char BUILD_ENGINES_COUNT_KEY[] = "BuildEngines.Count";
 const char BUILD_ENGINES_DATA_KEY_PREFIX[] = "BuildEngine.";
-const char BUILD_ENGINE_VM_NAME[] = "VirtualMachineName";
+const char BUILD_ENGINE_VM_URI[] = "VirtualMachineUri";
 const char BUILD_ENGINE_AUTODETECTED[] = "Autodetected";
 const char BUILD_ENGINE_SHARED_HOME[] = "SharedHome";
 const char BUILD_ENGINE_SHARED_TARGET[] = "SharedTarget";

@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -73,17 +74,17 @@ QVariant MerSdkKitInformation::defaultValue(const Kit *kit) const
 {
     BuildEngine *const engine = MerSdkKitInformation::buildEngine(kit);
     if (engine)
-        return engine->name();
-    return QString();
+        return engine->uri();
+    return QUrl();
 }
 
 QList<Task> MerSdkKitInformation::validate(const Kit *kit) const
 {
     if (DeviceTypeKitInformation::deviceTypeId(kit) == Constants::MER_DEVICE_TYPE) {
-        const QString name = kit->value(MerSdkKitInformation::id()).toString();
-        if (!Sdk::buildEngine(name)) {
+        const QUrl uri = kit->value(MerSdkKitInformation::id()).toUrl();
+        if (!Sdk::buildEngine(uri)) {
             const QString message = QCoreApplication::translate("MerSdk",
-                    "No valid Sailfish OS build engine \"%1\" found").arg(name);
+                    "No valid Sailfish OS build engine found for kit \"%1\"").arg(kit->displayName());
             return QList<Task>() << Task(Task::Error, message, FileName(), -1,
                                          Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
         }
@@ -95,7 +96,7 @@ BuildEngine* MerSdkKitInformation::buildEngine(const Kit *kit)
 {
     if (!kit)
         return 0;
-    return Sdk::buildEngine(kit->value(MerSdkKitInformation::id()).toString());
+    return Sdk::buildEngine(kit->value(MerSdkKitInformation::id()).toUrl());
 }
 
 KitInformation::ItemList MerSdkKitInformation::toUserOutput(const Kit *kit) const
@@ -123,8 +124,8 @@ Core::Id MerSdkKitInformation::id()
 
 void MerSdkKitInformation::setBuildEngine(Kit *kit, const BuildEngine *buildEngine)
 {
-    if(kit->value(MerSdkKitInformation::id()) != buildEngine->name())
-        kit->setValue(MerSdkKitInformation::id(), buildEngine->name());
+    if(kit->value(MerSdkKitInformation::id()) != buildEngine->uri())
+        kit->setValue(MerSdkKitInformation::id(), buildEngine->uri());
 }
 
 void MerSdkKitInformation::addToEnvironment(const Kit *kit, Environment &env) const
@@ -211,7 +212,7 @@ void MerSdkKitInformationWidget::refresh()
     int i;
     if (engine) {
         for (i = m_combo->count() - 1; i >= 0; --i) {
-            if (engine->name() == m_combo->itemText(i))
+            if (engine->uri() == m_combo->itemData(i))
                 break;
         }
     } else {
@@ -244,7 +245,7 @@ void MerSdkKitInformationWidget::handleSdksUpdated()
         m_combo->addItem(tr("None"));
     } else {
         for (BuildEngine *const engine : engines)
-            m_combo->addItem(engine->name());
+            m_combo->addItem(engine->name(), engine->uri());
     }
     m_combo->blockSignals(false);
     refresh();
@@ -254,13 +255,13 @@ void MerSdkKitInformationWidget::handleManageClicked()
 {
     MerOptionsPage *page = PluginManager::getObject<MerOptionsPage>();
     if (page)
-        page->setSdk(m_combo->currentText());
+        page->setSdk(m_combo->currentData().toUrl());
     ICore::showOptionsDialog(Constants::MER_OPTIONS_ID);
 }
 
 void MerSdkKitInformationWidget::handleCurrentIndexChanged()
 {
-    BuildEngine *const engine = Sdk::buildEngine(m_combo->currentText());
+    BuildEngine *const engine = Sdk::buildEngine(m_combo->currentData().toUrl());
     if (engine)
         MerSdkKitInformation::setBuildEngine(m_kit, engine);
 }

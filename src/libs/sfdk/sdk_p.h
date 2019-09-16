@@ -32,6 +32,7 @@ namespace Sfdk {
 
 class BuildEngineManager;
 class CommandQueue;
+class VirtualMachineFactory;
 
 class SdkPrivate : public QObject
 {
@@ -68,6 +69,7 @@ private:
     Sdk::Options options_;
     bool updatesEnabled = false;
     std::unique_ptr<CommandQueue> commandQueue_;
+    std::unique_ptr<VirtualMachineFactory> virtualMachineFactory;
     std::unique_ptr<BuildEngineManager> buildEngineManager;
 };
 

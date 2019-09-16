@@ -1,6 +1,7 @@
 include(../../qtcreatorlibrary.pri)
 
 DEFINES += SFDK_LIBRARY
+DEFINES += QT_NO_URL_CAST_FROM_STRING
 
 QT += network xmlpatterns
 

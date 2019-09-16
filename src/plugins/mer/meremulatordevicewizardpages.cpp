@@ -30,7 +30,7 @@
 #include "meremulatordevicewizard.h"
 
 #include <sfdk/sdk.h>
-#include <sfdk/vboxvirtualmachine_p.h>
+#include <sfdk/virtualmachine_p.h>
 
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <utils/qtcassert.h>
@@ -64,24 +64,22 @@ MerEmualtorVMPage::MerEmualtorVMPage(QWidget *parent): QWizardPage(parent),
 
     static QRegExp regExp(tr("Emulator"));
 
-    QStringList unusedVms;
+    QList<VirtualMachineDescriptor> unusedVms;
     bool ok;
     execAsynchronous(std::tie(unusedVms, ok), Sdk::unusedVirtualMachines);
     QTC_CHECK(ok);
-    for (const QString &vm : unusedVms) {
-        m_ui->emulatorComboBox->addItem(vm);
-        if (regExp.indexIn(vm) != -1) {
+    for (const VirtualMachineDescriptor &vm : unusedVms) {
+        m_ui->emulatorComboBox->addItem(vm.name, vm.uri);
+        if (regExp.indexIn(vm.name) != -1) {
             //preselect emulator
             m_ui->emulatorComboBox->setCurrentIndex(m_ui->emulatorComboBox->count()-1);
         }
     }
-    connect(m_ui->emulatorComboBox,
-            static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::currentIndexChanged),
-            this,
-            &MerEmualtorVMPage::handleEmulatorVmChanged);
+    connect(m_ui->emulatorComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MerEmualtorVMPage::handleEmulatorVmChanged);
     connect(m_ui->configNameLineEdit, &QLineEdit::textChanged,
             this, &MerEmualtorVMPage::completeChanged);
-    handleEmulatorVmChanged(m_ui->emulatorComboBox->currentText());
+    handleEmulatorVmChanged(m_ui->emulatorComboBox->currentIndex());
 }
 
 MerEmualtorVMPage::~MerEmualtorVMPage()
@@ -104,9 +102,9 @@ int MerEmualtorVMPage::timeout() const
     return m_ui->timeoutSpinBox->value();
 }
 
-QString MerEmualtorVMPage::emulatorVm() const
+QUrl MerEmualtorVMPage::emulatorVm() const
 {
-    return m_ui->emulatorComboBox->currentText();
+    return m_ui->emulatorComboBox->currentData().toUrl();
 }
 
 QString MerEmualtorVMPage::freePorts() const
@@ -151,21 +149,25 @@ int MerEmualtorVMPage::vdiCapacityMb() const
     return vdiCapacityMbStr.toInt();
 }
 
-void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
+void MerEmualtorVMPage::handleEmulatorVmChanged(int index)
 {
+    QTC_ASSERT(index >= 0, return); // FIXME
+
+    const QString vmName = m_ui->emulatorComboBox->itemText(index);
+    const QUrl vmUri = m_ui->emulatorComboBox->itemData(index).toUrl();
+
     int i = 1;
     QString tryName = vmName;
     while (DeviceManager::instance()->hasDevice(tryName))
         tryName = vmName + QString::number(++i);
     m_ui->configNameLineEdit->setText(tryName);
 
-    VBoxVirtualMachine virtualMachine;
-    virtualMachine.setName(vmName);
+    std::unique_ptr<VirtualMachine> virtualMachine = VirtualMachineFactory::create(vmUri);
 
     VirtualMachineInfo info;
     bool ok;
     execAsynchronous(std::tie(info, ok), std::mem_fn(&VirtualMachinePrivate::fetchInfo),
-            VirtualMachinePrivate::get(&virtualMachine),
+            VirtualMachinePrivate::get(virtualMachine.get()),
             VirtualMachineInfo::VdiInfo | VirtualMachineInfo::SnapshotInfo);
     QTC_CHECK(ok);
 

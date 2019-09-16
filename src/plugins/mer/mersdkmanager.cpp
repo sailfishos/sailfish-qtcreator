@@ -117,7 +117,7 @@ void MerSdkManager::initialize()
         QList<MerQtVersion*> qtversions = merQtVersions();
         //cleanup
         foreach (MerToolChain *toolchain, toolchains) {
-            BuildEngine *const engine = Sdk::buildEngine(toolchain->buildEngineName());
+            BuildEngine *const engine = Sdk::buildEngine(toolchain->buildEngineUri());
             // FIXME targetName -> buildTargetName
             if (engine && engine->buildTargetNames().contains(toolchain->targetName()))
                 continue;
@@ -126,7 +126,7 @@ void MerSdkManager::initialize()
         }
 
         foreach (MerQtVersion *version, qtversions) {
-            BuildEngine *const engine = Sdk::buildEngine(version->buildEngineName());
+            BuildEngine *const engine = Sdk::buildEngine(version->buildEngineUri());
             // FIXME targetName -> buildTargetName
             if (engine && engine->buildTargetNames().contains(version->targetName()))
                 continue;
@@ -338,8 +338,8 @@ bool MerSdkManager::validateKit(const Kit *kit)
     MerToolChain* mertoolchain = static_cast<MerToolChain*>(toolchain);
     MerQtVersion* merqtversion = static_cast<MerQtVersion*>(version);
 
-    return  engine->name() ==  mertoolchain->buildEngineName()
-            && engine->name() ==  merqtversion->buildEngineName()
+    return  engine->uri() ==  mertoolchain->buildEngineUri()
+            && engine->uri() ==  merqtversion->buildEngineUri()
             && mertoolchain->targetName() == merqtversion->targetName();
 }
 
@@ -495,7 +495,8 @@ void MerSdkManager::onAboutToRemoveBuildEngine(int index)
 
 bool MerSdkManager::addKit(const BuildEngine *buildEngine, const QString &buildTargetName)
 {
-    qCDebug(Log::sdks) << "Adding kit for" << buildTargetName << "inside" << buildEngine->name();
+    qCDebug(Log::sdks) << "Adding kit for" << buildTargetName << "inside"
+        << buildEngine->uri().toString();
 
     std::unique_ptr<MerToolChain> toolchain = createToolChain(buildEngine, buildTargetName,
             ProjectExplorer::Constants::CXX_LANGUAGE_ID);
@@ -536,7 +537,8 @@ bool MerSdkManager::addKit(const BuildEngine *buildEngine, const QString &buildT
 
 bool MerSdkManager::removeKit(const BuildEngine *buildEngine, const QString &buildTargetName)
 {
-    qCDebug(Log::sdks) << "Removing kit for" << buildTargetName << "inside" << buildEngine->name();
+    qCDebug(Log::sdks) << "Removing kit for" << buildTargetName << "inside"
+        << buildEngine->uri().toString();
 
     //delete kit
     foreach (Kit *kit, KitManager::kits()) {
@@ -549,7 +551,7 @@ bool MerSdkManager::removeKit(const BuildEngine *buildEngine, const QString &bui
         }
         if (tc->typeId() == Constants::MER_TOOLCHAIN_ID) {
             MerToolChain *mertoolchain = static_cast<MerToolChain*>(tc);
-            if (mertoolchain->buildEngineName() == buildEngine->name() &&
+            if (mertoolchain->buildEngineUri() == buildEngine->uri() &&
                     mertoolchain->targetName() == buildTargetName) {
                  BaseQtVersion *v = QtKitInformation::qtVersion(kit);
                  KitManager::deregisterKit(kit);
@@ -646,7 +648,7 @@ std::unique_ptr<MerQtVersion> MerSdkManager::createQtVersion(const BuildEngine *
     QTC_CHECK(!QtVersionManager::qtVersionForQMakeBinary(qmake));
     auto qtVersion = std::make_unique<MerQtVersion>(qmake, true, buildTarget.toolsPath.toString());
 
-    qtVersion->setBuildEngineName(buildEngine->name());
+    qtVersion->setBuildEngineUri(buildEngine->uri());
     qtVersion->setTargetName(buildTargetName);
     qtVersion->setUnexpandedDisplayName(
                 QString::fromLatin1("Qt %1 for %2 in %3").arg(qtVersion->qtVersionString(),
@@ -667,7 +669,7 @@ std::unique_ptr<MerToolChain> MerSdkManager::createToolChain(const BuildEngine *
     auto mertoolchain = std::make_unique<MerToolChain>(ToolChain::AutoDetection);
     mertoolchain->setDisplayName(QString::fromLatin1("GCC (%1 in %2)")
             .arg(buildTargetName, buildEngine->name()));
-    mertoolchain->setBuildEngineName(buildEngine->name());
+    mertoolchain->setBuildEngineUri(buildEngine->uri());
     mertoolchain->setTargetName(buildTargetName);
     mertoolchain->setLanguage(language);
     mertoolchain->resetToolChain(gcc);

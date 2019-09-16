@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2013-2015,2017-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,9 +23,15 @@
 
 #include "meremulatordevicewizard.h"
 
+#include <sfdk/virtualmachine_p.h>
+#include <sfdk/vboxvirtualmachine_p.h>
+
 #include <coreplugin/id.h>
+#include <utils/qtcassert.h>
 
 #include "mersdkmanager.h"
+
+using namespace Sfdk;
 
 namespace Mer {
 namespace Internal {
@@ -39,7 +46,10 @@ MerEmulatorDeviceWizard::MerEmulatorDeviceWizard(QWidget *parent): QWizard(paren
 
 Core::Id MerEmulatorDeviceWizard::emulatorId() const
 {
-    return Core::Id::fromString(m_vmPage.emulatorVm());
+    const QUrl uri = m_vmPage.emulatorVm();
+    // We know we do not have other than VirtualBox based emulators
+    QTC_CHECK(VirtualMachineFactory::typeFromUri(uri) == VBoxVirtualMachine::staticType());
+    return Core::Id::fromString(VirtualMachineFactory::nameFromUri(uri));
 }
 
 QString MerEmulatorDeviceWizard::configName() const
@@ -77,7 +87,7 @@ QString MerEmulatorDeviceWizard::rootPrivateKey() const
     return m_sshPage.rootPrivateKey();
 }
 
-QString MerEmulatorDeviceWizard::emulatorVm() const
+QUrl MerEmulatorDeviceWizard::emulatorVm() const
 {
     return m_vmPage.emulatorVm();
 }

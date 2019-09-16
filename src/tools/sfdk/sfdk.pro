@@ -12,6 +12,8 @@ QT -= gui
 
 *-g++*:QMAKE_CXXFLAGS += -Wall -Werror
 
+DEFINES += QT_NO_URL_CAST_FROM_STRING
+
 HEADERS = \
     command.h \
     commandlineparser.h \

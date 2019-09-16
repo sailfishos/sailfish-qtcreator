@@ -31,6 +31,7 @@
 namespace Sfdk {
 
 class BuildEngine;
+class VirtualMachineDescriptor;
 
 class SdkPrivate;
 class SFDK_EXPORT Sdk : public QObject
@@ -55,14 +56,14 @@ public:
     static QString installationPath();
 
     static void unusedVirtualMachines(const QObject *context,
-            const Functor<const QStringList &, bool> &&functor);
+            const Functor<const QList<VirtualMachineDescriptor> &, bool> &functor);
 
     static QList<BuildEngine *> buildEngines();
-    static BuildEngine *buildEngine(const QString &name);
-    static void createBuildEngine(const QString &vmName, const QObject *context,
-        const Functor<std::unique_ptr<BuildEngine> &&> &functor);
+    static BuildEngine *buildEngine(const QUrl &uri);
+    static void createBuildEngine(const QUrl &virtualMachineUri, const QObject *context,
+            const Functor<std::unique_ptr<BuildEngine> &&> &functor);
     static int addBuildEngine(std::unique_ptr<BuildEngine> &&buildEngine);
-    static void removeBuildEngine(const QString &name);
+    static void removeBuildEngine(const QUrl &uri);
 
 signals:
     void buildEngineAdded(int index);
