@@ -282,14 +282,13 @@ void VBoxVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extraIn
     CommandQueue::BatchId batch = commandQueue()->beginBatch();
 
     auto info = std::make_shared<VBoxVirtualMachineInfo>();
-    VBoxManageRunner *last;
 
     QStringList arguments;
     arguments.append(QLatin1String(SHOWVMINFO));
     arguments.append(q->name());
     arguments.append(QLatin1String(MACHINE_READABLE));
 
-    last = enqueue(arguments, batch, [=](VBoxManageRunner *runner) {
+    enqueue(arguments, batch, [=](VBoxManageRunner *runner) {
         // FIXME return by argument
         *info = virtualMachineInfoFromOutput(
                 QString::fromLocal8Bit(runner->process()->readAllStandardOutput()));
@@ -300,7 +299,7 @@ void VBoxVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extraIn
         arguments.append(QLatin1String(LIST));
         arguments.append(QLatin1String(HDDS));
 
-        last = enqueue(arguments, batch, [=](VBoxManageRunner *runner) {
+        enqueue(arguments, batch, [=](VBoxManageRunner *runner) {
             vdiInfoFromOutput(QString::fromLocal8Bit(runner->process()->readAllStandardOutput()), info.get());
         });
     }
@@ -312,15 +311,14 @@ void VBoxVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extraIn
         arguments.append(QLatin1String(LIST));
         arguments.append(QLatin1String(MACHINE_READABLE));
 
-        last = enqueue(arguments, batch, [=](VBoxManageRunner *runner) {
+        enqueue(arguments, batch, [=](VBoxManageRunner *runner) {
             snapshotInfoFromOutput(QString::fromLocal8Bit(runner->process()->readAllStandardOutput()),
                     info.get());
         });
     }
 
+    commandQueue()->enqueueCheckPoint(context, [=]() { functor(*info, true); });
     commandQueue()->endBatch();
-
-    QObject::connect(last, &VBoxManageRunner::success, context, [=]() { functor(*info, true); });
 }
 
 void VBoxVirtualMachinePrivate::start(const QObject *context, const Functor<bool> &functor)
@@ -415,19 +413,14 @@ void VBoxVirtualMachinePrivate::setVideoMode(const QSize &size, int depth, const
         .arg(size.height());
 
     auto allOk = std::make_shared<bool>(true);
-    auto enqueue = [=, name = q->name()](const QString &key, const QString &value,
-            bool isLast = false) {
-        setExtraData(key, value, Sdk::instance(), [=](bool ok) {
-            if (!ok)
-                *allOk = false;
-            if (isLast)
-                callIf(context_, functor, *allOk);
-        });
+    auto enqueue = [=, name = q->name()](const QString &key, const QString &value) {
+        setExtraData(key, value, Sdk::instance(), [=](bool ok) { *allOk &= ok; });
     };
 
     enqueue(QLatin1String(CUSTOM_VIDEO_MODE1), videoMode);
     enqueue(QLatin1String(LAST_GUEST_SIZE_HINT), hint);
-    enqueue(QLatin1String(AUTORESIZE_GUEST), QLatin1Literal("false"), true /* mind me! */);
+    enqueue(QLatin1String(AUTORESIZE_GUEST), QLatin1Literal("false"));
+    commandQueue()->enqueueCheckPoint(context, [=]() { functor(*allOk); });
 }
 
 void VBoxVirtualMachinePrivate::doSetMemorySizeMb(int memorySizeMb, const QObject *context,
@@ -512,7 +505,6 @@ void VBoxVirtualMachinePrivate::doSetVdiCapacityMb(int vdiCapacityMb, const QObj
         while (!toResize.isEmpty()) {
             // take last - enqueueImmediate reverses the actual order of execution
             const QString vdiUuid = toResize.takeLast();
-            const bool isLast = toResize.isEmpty();
 
             QStringList arguments;
             arguments.append(QLatin1String(MODIFYMEDIUM));
@@ -526,11 +518,12 @@ void VBoxVirtualMachinePrivate::doSetVdiCapacityMb(int vdiCapacityMb, const QObj
                     qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << vdiUuid << RESIZE;
                     *allOk = false;
                 }
-                if (isLast)
-                    callIf(context_, functor, *allOk);
             });
             commandQueue()->enqueueImmediate(std::move(runner));
         }
+
+        if (context_)
+            commandQueue()->enqueueImmediateCheckPoint(context_.data(), [=]() { functor(*allOk); });
     });
 }
 
@@ -600,10 +593,9 @@ void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FileName
     CommandQueue::BatchId batch = commandQueue()->beginBatch();
     enqueue(rargs, batch);
     enqueue(aargs, batch);
-    VBoxManageRunner *last = enqueue(sargs, batch);
+    enqueue(sargs, batch);
+    commandQueue()->enqueueCheckPoint(context, std::bind(functor, true));
     commandQueue()->endBatch();
-
-    QObject::connect(last, &VBoxManageRunner::success, context, std::bind(functor, true));
 }
 
 void VBoxVirtualMachinePrivate::doAddPortForwarding(const QString &ruleName,
@@ -729,7 +721,6 @@ void VBoxVirtualMachinePrivate::doSetReservedPortListForwarding(ReservedPortList
     std::sort(ports_.begin(), ports_.end());
 
     int i = 1;
-    VBoxManageRunner *lastSetRunner = nullptr;
     foreach (quint16 port, ports_) {
         QStringList arguments;
         arguments.append(QLatin1String(MODIFYVM));
@@ -746,11 +737,9 @@ void VBoxVirtualMachinePrivate::doSetReservedPortListForwarding(ReservedPortList
         });
         commandQueue()->enqueue(std::move(runner));
         ++i;
-        lastSetRunner = runner.get();
     }
 
-    QObject::connect(lastSetRunner, &VBoxManageRunner::done, context, [=](bool ok) {
-        Q_UNUSED(ok);
+    commandQueue()->enqueueCheckPoint(context, [=]() {
         functor(*savedPorts, savedPorts->values() == ports_);
     });
 }

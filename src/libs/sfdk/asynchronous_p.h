@@ -78,6 +78,8 @@ public:
     void cancelBatch(BatchId batchId);
     void enqueue(std::unique_ptr<CommandRunner> &&runner);
     void enqueueImmediate(std::unique_ptr<CommandRunner> &&runner);
+    void enqueueCheckPoint(const QObject *context, const Functor<> &functor);
+    void enqueueImmediateCheckPoint(const QObject *context, const Functor<> &functor);
 
 signals:
     void empty();

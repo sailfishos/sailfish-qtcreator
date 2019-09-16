@@ -25,10 +25,50 @@
 
 #include <utils/qtcassert.h>
 
+#include <QTimer>
+
 namespace Sfdk {
 
 namespace {
 const int TERMINATE_TIMEOUT_MS = 3000;
+
+class CheckPointRunner : public CommandRunner
+{
+    Q_OBJECT
+
+public:
+    explicit CheckPointRunner(const QObject *context, const Functor<> &functor, QObject *parent = 0)
+        : CommandRunner(parent)
+        , m_context(context)
+        , m_functor(functor)
+    {
+    }
+
+    void run() override
+    {
+        QTimer::singleShot(0, this, [=]() {
+            if (m_context)
+                m_functor();
+            emit success();
+            emit done(true);
+        });
+    }
+
+    QDebug print(QDebug debug) const override
+    {
+        return debug;
+    }
+
+public slots:
+    void terminate() override
+    {
+    }
+
+private:
+    const QPointer<const QObject> m_context;
+    const Functor<> m_functor;
+};
+
 } // namespace anonymous
 
 /*!
@@ -90,6 +130,26 @@ void CommandQueue::enqueueImmediate(std::unique_ptr<CommandRunner> &&runner)
 {
     QTC_ASSERT(runner, return);
     qCDebug(vmsQueue) << "Enqueued (immediate)" << runner.get();
+    m_queue.emplace_front(m_currentBatchId, std::move(runner));
+    scheduleDequeue();
+}
+
+void CommandQueue::enqueueCheckPoint(const QObject *context, const Functor<> &functor)
+{
+    QTC_ASSERT(context, return);
+    QTC_ASSERT(functor, return);
+    auto runner = std::make_unique<CheckPointRunner>(context, functor, this);
+    qCDebug(vmsQueue) << "Enqueued check point" << runner.get();
+    m_queue.emplace_back(m_currentBatchId, std::move(runner));
+    scheduleDequeue();
+}
+
+void CommandQueue::enqueueImmediateCheckPoint(const QObject *context, const Functor<> &functor)
+{
+    QTC_ASSERT(context, return);
+    QTC_ASSERT(functor, return);
+    auto runner = std::make_unique<CheckPointRunner>(context, functor, this);
+    qCDebug(vmsQueue) << "Enqueued check point (immediate)" << runner.get();
     m_queue.emplace_front(m_currentBatchId, std::move(runner));
     scheduleDequeue();
 }
@@ -230,3 +290,5 @@ void ProcessRunner::onFinished(int exitCode, QProcess::ExitStatus exitStatus)
 }
 
 } // namespace Sfdk
+
+#include "asynchronous.moc"
