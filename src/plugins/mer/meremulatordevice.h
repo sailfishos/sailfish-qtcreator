@@ -129,8 +129,6 @@ public:
 
     void generateSshKey(const QString& user) const;
 
-    QSsh::SshConnectionParameters sshParametersForUser(const QSsh::SshConnectionParameters &sshParams, const QLatin1String &user) const;
-
     QString deviceModel() const;
     void setDeviceModel(const QString &deviceModel);
     Qt::Orientation orientation() const;

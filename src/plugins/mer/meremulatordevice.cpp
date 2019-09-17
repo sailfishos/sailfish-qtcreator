@@ -431,15 +431,6 @@ void MerEmulatorDevice::generateSshKey(const QString& user) const
     virtualMachine()->setAutoConnectEnabled(true);
 }
 
-SshConnectionParameters MerEmulatorDevice::sshParametersForUser(const SshConnectionParameters &sshParams, const QLatin1String &user) const
-{
-    SshConnectionParameters m_sshParams = sshParams;
-    m_sshParams.setUserName(user);
-    m_sshParams.privateKeyFile = privateKeyFile(user);
-
-    return m_sshParams;
-}
-
 QString MerEmulatorDevice::deviceModel() const
 {
     return m_deviceModel;
