@@ -108,6 +108,7 @@ public:
 
     enum ReservedPortList {
         // Valid for emulator kind of VMs only
+        FreePortList,
         QmlLivePortList,
     };
     Q_ENUM(ReservedPortList)

@@ -81,6 +81,7 @@ const char DELETE[] = "delete";
 const char QML_LIVE_NATPF_RULE_NAME_MATCH[] = "qmllive_";
 const char FREE_PORT_NATPF_RULE_NAME_MATCH[] = "freeport_";
 const char NATPF_RULE_TEMPLATE[] = "%1,tcp,127.0.0.1,%2,,%3";
+const char FREE_PORT_NATPF_RULE_NAME_TEMPLATE[] = "freeport_%1";
 const char QML_LIVE_NATPF_RULE_NAME_TEMPLATE[] = "qmllive_%1";
 const char SSH_NATPF_RULE_NAME[] = "guestssh";
 const char WWW_NATPF_RULE_NAME[] = "guestwww";
@@ -698,19 +699,23 @@ void VBoxVirtualMachinePrivate::doSetReservedPortListForwarding(ReservedPortList
     Q_Q(VBoxVirtualMachine);
     Q_ASSERT(context);
     Q_ASSERT(functor);
+    QTC_CHECK(ports.count() <= Constants::MAX_PORT_LIST_PORTS);
 
     qCDebug(vms) << "Setting reserved port forwarding" << which << "for" << q->uri().toString()
         << "to" << ports;
 
     QString ruleNameTemplate;
     switch (which) {
+    case VirtualMachinePrivate::FreePortList:
+        ruleNameTemplate = QLatin1String(FREE_PORT_NATPF_RULE_NAME_TEMPLATE);
+        break;
     case VirtualMachinePrivate::QmlLivePortList:
         ruleNameTemplate = QLatin1String(QML_LIVE_NATPF_RULE_NAME_TEMPLATE);
         break;
     }
     const QString ruleTemplate = QString::fromLatin1(NATPF_RULE_TEMPLATE).arg(ruleNameTemplate);
 
-    for (int i = 1; i <= Constants::MAX_QML_LIVE_PORTS; ++i) {
+    for (int i = 1; i <= Constants::MAX_PORT_LIST_PORTS; ++i) {
         QStringList arguments;
         arguments.append(QLatin1String(MODIFYVM));
         arguments.append(q->name());

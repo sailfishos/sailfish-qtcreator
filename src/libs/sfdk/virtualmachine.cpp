@@ -442,6 +442,9 @@ void VirtualMachinePrivate::setReservedPortListForwarding(ReservedPortList which
         // FIXME Currently there is no user of these cached values - the other classes do
         // fetchInfo unnecessary
         switch (which) {
+        case FreePortList:
+            virtualMachineInfo.freePorts = savedPorts;
+            break;
         case QmlLivePortList:
             virtualMachineInfo.qmlLivePorts = savedPorts;
             break;

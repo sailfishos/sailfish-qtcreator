@@ -221,7 +221,8 @@ void MerHardwareDeviceWidget::updatePortsWarningLabel()
 void MerHardwareDeviceWidget::updateQmlLivePortsWarningLabel()
 {
     const int count = device().staticCast<MerDevice>()->qmlLivePorts().count();
-    m_ui->qmlLivePortsWarningLabel->setVisible(count < 1 || count > Sfdk::Constants::MAX_QML_LIVE_PORTS);
+    m_ui->qmlLivePortsWarningLabel->setVisible(count < 1
+            || count > Sfdk::Constants::MAX_PORT_LIST_PORTS);
 }
 
 void MerHardwareDeviceWidget::updatePrivateKeyWarningLabel()
@@ -239,7 +240,8 @@ void MerHardwareDeviceWidget::initGui()
     m_ui->qmlLivePortsWarningLabel->setPixmap(Utils::Icons::WARNING.pixmap());
     m_ui->qmlLivePortsWarningLabel->setToolTip(
             QLatin1String("<font color=\"red\">")
-            + tr("You will need at least one and at most %1 ports for QmlLive use.").arg(Sfdk::Constants::MAX_QML_LIVE_PORTS)
+            + tr("You will need at least one and at most %1 ports for QmlLive use.")
+                .arg(Sfdk::Constants::MAX_PORT_LIST_PORTS)
             + QLatin1String("</font>"));
     m_ui->privateKeyWarningLabel->setPixmap(Utils::Icons::WARNING.pixmap());
     m_ui->privateKeyWarningLabel->setToolTip(QLatin1String("<font color=\"red\">")

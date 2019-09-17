@@ -204,7 +204,7 @@ QString MerQmlLiveBenchManager::qmlLiveHostName(const QString &merDeviceName, Ut
     if (port == Utils::Port(Sfdk::Constants::DEFAULT_QML_LIVE_PORT)) {
         return merDeviceName;
     } else if (port > Utils::Port(Sfdk::Constants::DEFAULT_QML_LIVE_PORT)
-            && port < Utils::Port(Sfdk::Constants::DEFAULT_QML_LIVE_PORT + Sfdk::Constants::MAX_QML_LIVE_PORTS)) {
+            && port < Utils::Port(Sfdk::Constants::DEFAULT_QML_LIVE_PORT + Sfdk::Constants::MAX_PORT_LIST_PORTS)) {
         return merDeviceName + QLatin1Char('_') + QString::number(port.number() - Sfdk::Constants::DEFAULT_QML_LIVE_PORT);
     } else {
         return merDeviceName + QLatin1Char(':') + QString::number(port.number());

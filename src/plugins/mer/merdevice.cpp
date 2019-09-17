@@ -94,7 +94,7 @@ QList<Utils::Port> MerDevice::qmlLivePortsList() const
 {
     Utils::PortList ports(m_qmlLivePorts);
     QList<Utils::Port> retv;
-    while (ports.hasMore() && retv.count() < Sfdk::Constants::MAX_QML_LIVE_PORTS)
+    while (ports.hasMore() && retv.count() < Sfdk::Constants::MAX_PORT_LIST_PORTS)
         retv.append(ports.getNext());
     QTC_CHECK(!ports.hasMore());
     return retv;

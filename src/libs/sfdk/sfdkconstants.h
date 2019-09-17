@@ -28,7 +28,7 @@ namespace Constants {
 const char LIB_ID[] = "libsfdk";
 
 const int DEFAULT_QML_LIVE_PORT = 10234;
-const int MAX_QML_LIVE_PORTS = 10;
+const int MAX_PORT_LIST_PORTS = 10;
 
 const char VIRTUAL_MACHINE_URI_SCHEME[] = "sfdkvm";
 

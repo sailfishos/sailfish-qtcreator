@@ -252,7 +252,7 @@ void MerEmulatorDeviceWidget::updateQmlLivePortsWarningLabel()
     QTC_ASSERT(device, return);
 
     const int count = device->qmlLivePorts().count();
-    m_ui->qmlLivePortsWarningLabel->setVisible(count < 1 || count > Sfdk::Constants::MAX_QML_LIVE_PORTS);
+    m_ui->qmlLivePortsWarningLabel->setVisible(count < 1 || count > Sfdk::Constants::MAX_PORT_LIST_PORTS);
 }
 
 void MerEmulatorDeviceWidget::updateSystemParameters()
@@ -276,7 +276,8 @@ void MerEmulatorDeviceWidget::initGui()
     m_ui->qmlLivePortsWarningLabel->setPixmap(Utils::Icons::WARNING.pixmap());
     m_ui->qmlLivePortsWarningLabel->setToolTip(
             QLatin1String("<font color=\"red\">")
-            + tr("You will need at least one and at most %1 ports for QmlLive use.").arg(Sfdk::Constants::MAX_QML_LIVE_PORTS)
+            + tr("You will need at least one and at most %1 ports for QmlLive use.")
+                .arg(Sfdk::Constants::MAX_PORT_LIST_PORTS)
             + QLatin1String("</font>"));
     m_ui->sshPortInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
     QRegExpValidator * const portsValidator
