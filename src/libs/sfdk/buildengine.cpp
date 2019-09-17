@@ -1034,43 +1034,35 @@ void BuildEngineManager::fromMap(const QVariantMap &data)
     QTC_ASSERT(!m_installDir.isEmpty(), return);
 
     const int newCount = data.value(Constants::BUILD_ENGINES_COUNT_KEY, 0).toInt();
-    auto forEachNewEngine = [=](const std::function<void(const QUrl &, const QVariantMap &)> &fn) {
-        for (int i = 0; i < newCount; ++i) {
-            const QString key = QString::fromLatin1(Constants::BUILD_ENGINES_DATA_KEY_PREFIX)
-                + QString::number(i);
-            QTC_ASSERT(data.contains(key), return);
+    QMap<QUrl, QVariantMap> newEnginesData;
+    for (int i = 0; i < newCount; ++i) {
+        const QString key = QString::fromLatin1(Constants::BUILD_ENGINES_DATA_KEY_PREFIX)
+            + QString::number(i);
+        QTC_ASSERT(data.contains(key), return);
 
-            const QVariantMap engineData = data.value(key).toMap();
-            const QUrl vmUri = engineData.value(Constants::BUILD_ENGINE_VM_URI).toUrl();
-            QTC_ASSERT(!vmUri.isEmpty(), return);
+        const QVariantMap engineData = data.value(key).toMap();
+        const QUrl vmUri = engineData.value(Constants::BUILD_ENGINE_VM_URI).toUrl();
+        QTC_ASSERT(!vmUri.isEmpty(), return);
 
-            fn(vmUri, engineData);
-        }
-    };
+        newEnginesData.insert(vmUri, engineData);
+    }
 
     // Remove engines missing from the updated configuration and index the
     // preserved ones by VM URI
     QMap<QUrl, BuildEngine *> existingBuildEngines;
-    if (!m_buildEngines.empty()) {
-        QSet<QUrl> newVmUris;
-        forEachNewEngine([&newVmUris](const QUrl &vmUri, const QVariantMap &engineData) {
-            Q_UNUSED(engineData);
-            QTC_CHECK(!newVmUris.contains(vmUri));
-            newVmUris.insert(vmUri);
-        });
-        for (auto it = m_buildEngines.cbegin(); it != m_buildEngines.cend(); ) {
-            if (!newVmUris.contains(it->get()->virtualMachine()->uri())) {
-                emit aboutToRemoveBuildEngine(it - m_buildEngines.cbegin());
-                it = m_buildEngines.erase(it);
-            } else {
-                existingBuildEngines.insert(it->get()->virtualMachine()->uri(), it->get());
-                ++it;
-            }
+    for (auto it = m_buildEngines.cbegin(); it != m_buildEngines.cend(); ) {
+        if (!newEnginesData.contains(it->get()->virtualMachine()->uri())) {
+            emit aboutToRemoveBuildEngine(it - m_buildEngines.cbegin());
+            it = m_buildEngines.erase(it);
+        } else {
+            existingBuildEngines.insert(it->get()->virtualMachine()->uri(), it->get());
+            ++it;
         }
     }
 
     // Update existing/add new engines
-    forEachNewEngine([=](const QUrl &vmUri, const QVariantMap &engineData) {
+    for (const QUrl &vmUri : newEnginesData.keys()) {
+        const QVariantMap engineData = newEnginesData.value(vmUri);
         BuildEngine *engine = existingBuildEngines.value(vmUri);
         std::unique_ptr<BuildEngine> newEngine;
         if (!engine) {
@@ -1085,7 +1077,7 @@ void BuildEngineManager::fromMap(const QVariantMap &data)
             m_buildEngines.emplace_back(std::move(newEngine));
             emit buildEngineAdded(m_buildEngines.size() - 1);
         }
-    });
+    }
 }
 
 void BuildEngineManager::enableUpdates()
