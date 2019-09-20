@@ -27,7 +27,7 @@
 #include "merconstants.h"
 #include "mersdkdetailswidget.h"
 #include "mersdkmanager.h"
-#include "mersdkselectiondialog.h"
+#include "mervmselectiondialog.h"
 #include "ui_meroptionswidget.h"
 
 #include <sfdk/buildengine.h>
@@ -328,12 +328,12 @@ void MerOptionsWidget::onSdkChanged(int index)
 
 void MerOptionsWidget::onAddButtonClicked()
 {
-    MerSdkSelectionDialog dialog(this);
+    MerVmSelectionDialog dialog(this);
     dialog.setWindowTitle(tr("Add a Sailfish OS Build Engine"));
     if (dialog.exec() != QDialog::Accepted)
         return;
 
-    if (m_sdks.contains(dialog.selectedSdkUri()))
+    if (m_sdks.contains(dialog.selectedVmUri()))
         return;
 
     std::unique_ptr<BuildEngine> sdk;
@@ -343,7 +343,7 @@ void MerOptionsWidget::onAddButtonClicked()
         loop.quit();
         sdk = std::move(newSdk);
     };
-    Sdk::createBuildEngine(dialog.selectedSdkUri(), &loop, whenDone);
+    Sdk::createBuildEngine(dialog.selectedVmUri(), &loop, whenDone);
     loop.exec();
     QTC_ASSERT(sdk, return);
 

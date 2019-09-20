@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>Mer::Internal::MerSdkSelectionDialog</class>
- <widget class="QDialog" name="Mer::Internal::MerSdkSelectionDialog">
+ <class>Mer::Internal::MerVmSelectionDialog</class>
+ <widget class="QDialog" name="Mer::Internal::MerVmSelectionDialog">
   <property name="geometry">
    <rect>
     <x>0</x>

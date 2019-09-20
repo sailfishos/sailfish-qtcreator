@@ -30,10 +30,10 @@ FORMS += \
     merrpmvalidationstepconfigwidget.ui \
     merrunconfigurationaspectqmllivedetailswidget.ui \
     mersdkdetailswidget.ui \
-    mersdkselectiondialog.ui \
     meremulatormodeoptionswidget.ui \
     meremulatormodedetailswidget.ui \
     mervirtualmachinesettingswidget.ui \
+    mervmselectiondialog.ui \
 
 SOURCES += \
     merabstractvmstartstep.cpp \
@@ -78,13 +78,13 @@ SOURCES += \
     mersdkdetailswidget.cpp \
     mersdkkitinformation.cpp \
     mersdkmanager.cpp \
-    mersdkselectiondialog.cpp \
     mersettings.cpp \
     mersshkeydeploymentdialog.cpp \
     mersshparser.cpp \
     mertargetkitinformation.cpp \
     mertoolchain.cpp \
     mervmconnectionui.cpp \
+    mervmselectiondialog.cpp \
     merdevicemodelcombobox.cpp \
     meremulatormodeoptionspage.cpp \
     meremulatormodeoptionswidget.cpp \
@@ -136,7 +136,6 @@ HEADERS += \
     mersdkdetailswidget.h \
     mersdkkitinformation.h \
     mersdkmanager.h \
-    mersdkselectiondialog.h \
     mersettings.h \
     mersshkeydeploymentdialog.h \
     mersshparser.h \
@@ -144,6 +143,7 @@ HEADERS += \
     mertoolchain.h \
     mertoolchainfactory.h \
     mervmconnectionui.h \
+    mervmselectiondialog.h \
     merdevicemodelcombobox.h \
     meremulatormodeoptionspage.h \
     meremulatormodeoptionswidget.h \

@@ -21,8 +21,8 @@
 **
 ****************************************************************************/
 
-#include "mersdkselectiondialog.h"
-#include "ui_mersdkselectiondialog.h"
+#include "mervmselectiondialog.h"
+#include "ui_mervmselectiondialog.h"
 
 #include <sfdk/sdk.h>
 #include <sfdk/virtualmachine.h>
@@ -37,9 +37,9 @@ using namespace Sfdk;
 namespace Mer {
 namespace Internal {
 
-MerSdkSelectionDialog::MerSdkSelectionDialog(QWidget *parent)
+MerVmSelectionDialog::MerVmSelectionDialog(QWidget *parent)
     : QDialog(parent)
-    , m_ui(new Ui::MerSdkSelectionDialog)
+    , m_ui(new Ui::MerVmSelectionDialog)
 {
     m_ui->setupUi(this);
 
@@ -55,34 +55,34 @@ MerSdkSelectionDialog::MerSdkSelectionDialog(QWidget *parent)
     m_ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Add"));
 
     connect(m_ui->virtualMachineListWidget, &QListWidget::itemSelectionChanged,
-            this, &MerSdkSelectionDialog::handleItemSelectionChanged);
+            this, &MerVmSelectionDialog::handleItemSelectionChanged);
     connect(m_ui->virtualMachineListWidget, &QListWidget::itemDoubleClicked,
-            this, &MerSdkSelectionDialog::handleItemDoubleClicked);
+            this, &MerVmSelectionDialog::handleItemDoubleClicked);
     handleItemSelectionChanged();
 
     connect(m_ui->buttonBox, &QDialogButtonBox::accepted,
-            this, &MerSdkSelectionDialog::accept);
+            this, &MerVmSelectionDialog::accept);
     connect(m_ui->buttonBox, &QDialogButtonBox::rejected,
-            this, &MerSdkSelectionDialog::reject);
+            this, &MerVmSelectionDialog::reject);
 }
 
-MerSdkSelectionDialog::~MerSdkSelectionDialog()
+MerVmSelectionDialog::~MerVmSelectionDialog()
 {
     delete m_ui;
 }
 
-void MerSdkSelectionDialog::handleItemSelectionChanged()
+void MerVmSelectionDialog::handleItemSelectionChanged()
 {
     m_ui->buttonBox->button(QDialogButtonBox::Ok)->setEnabled(
                 !m_ui->virtualMachineListWidget->selectedItems().isEmpty());
 }
 
-void MerSdkSelectionDialog::handleItemDoubleClicked()
+void MerVmSelectionDialog::handleItemDoubleClicked()
 {
     accept();
 }
 
-QUrl MerSdkSelectionDialog::selectedSdkUri() const
+QUrl MerVmSelectionDialog::selectedVmUri() const
 {
     QList<QListWidgetItem *> selected = m_ui->virtualMachineListWidget->selectedItems();
     if (selected.isEmpty())

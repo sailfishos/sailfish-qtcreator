@@ -21,8 +21,8 @@
 **
 ****************************************************************************/
 
-#ifndef MERSDKSELECTIONDIALOG_H
-#define MERSDKSELECTIONDIALOG_H
+#ifndef MERVMSELECTIONDIALOG_H
+#define MERVMSELECTIONDIALOG_H
 
 #include <QDialog>
 
@@ -30,27 +30,27 @@ namespace Mer {
 namespace Internal {
 
 namespace Ui {
-class MerSdkSelectionDialog;
+class MerVmSelectionDialog;
 }
 
-class MerSdkSelectionDialog : public QDialog
+class MerVmSelectionDialog : public QDialog
 {
     Q_OBJECT
 public:
-    explicit MerSdkSelectionDialog(QWidget *parent = 0);
-    ~MerSdkSelectionDialog() override;
+    explicit MerVmSelectionDialog(QWidget *parent = 0);
+    ~MerVmSelectionDialog() override;
 
-    QUrl selectedSdkUri() const;
+    QUrl selectedVmUri() const;
 
 private slots:
     void handleItemSelectionChanged();
     void handleItemDoubleClicked();
 
 private:
-    Ui::MerSdkSelectionDialog *m_ui;
+    Ui::MerVmSelectionDialog *m_ui;
 };
 
 } // Internal
 } // Mer
 
-#endif // MER_SDKSELECTIONDIALOG_H
+#endif // MER_VMSELECTIONDIALOG_H
