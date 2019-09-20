@@ -705,30 +705,39 @@ void VBoxVirtualMachinePrivate::doSetReservedPortListForwarding(ReservedPortList
         << "to" << ports;
 
     QString ruleNameTemplate;
+    QMap<QString, quint16> VirtualMachineInfo::*ruleMap = nullptr;
     switch (which) {
     case VirtualMachinePrivate::FreePortList:
         ruleNameTemplate = QLatin1String(FREE_PORT_NATPF_RULE_NAME_TEMPLATE);
+        ruleMap = &VirtualMachineInfo::freePorts;
         break;
     case VirtualMachinePrivate::QmlLivePortList:
         ruleNameTemplate = QLatin1String(QML_LIVE_NATPF_RULE_NAME_TEMPLATE);
+        ruleMap = &VirtualMachineInfo::qmlLivePorts;
         break;
     }
     const QString ruleTemplate = QString::fromLatin1(NATPF_RULE_TEMPLATE).arg(ruleNameTemplate);
 
-    for (int i = 1; i <= Constants::MAX_PORT_LIST_PORTS; ++i) {
-        QStringList arguments;
-        arguments.append(QLatin1String(MODIFYVM));
-        arguments.append(q->name());
-        arguments.append(QLatin1String(NATPF1));
-        arguments.append(QLatin1String(DELETE));
-        arguments.append(ruleNameTemplate.arg(i));
+    fetchInfo(VirtualMachineInfo::NoExtraInfo, Sdk::instance(),
+            [=](const VirtualMachineInfo &info, bool ok) {
+        QTC_ASSERT(ok, return);
 
-        auto runner = std::make_unique<VBoxManageRunner>(arguments);
-        QObject::connect(runner.get(), &VBoxManageRunner::failure, [=]() {
-            qWarning() << "VBoxManage failed to delete" << which << "port #" << QString::number(i);
-        });
-        commandQueue()->enqueue(std::move(runner));
-    }
+        const QStringList rulesToDelete = (info.*ruleMap).keys();
+        for (const QString &ruleToDelete : rulesToDelete) {
+            QStringList arguments;
+            arguments.append(QLatin1String(MODIFYVM));
+            arguments.append(q->name());
+            arguments.append(QLatin1String(NATPF1));
+            arguments.append(QLatin1String(DELETE));
+            arguments.append(ruleToDelete);
+
+            auto runner = std::make_unique<VBoxManageRunner>(arguments);
+            QObject::connect(runner.get(), &VBoxManageRunner::failure, [=]() {
+                qWarning() << "VBoxManage failed to delete port forwarding rule" << ruleToDelete;
+            });
+            commandQueue()->enqueueImmediate(std::move(runner));
+        }
+    });
 
     auto savedPorts = std::make_shared<QMap<QString, quint16>>();
 
