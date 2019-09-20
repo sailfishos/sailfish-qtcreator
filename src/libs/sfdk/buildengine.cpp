@@ -1025,7 +1025,7 @@ QVariantMap BuildEngineManager::toMap() const
     return data;
 }
 
-void BuildEngineManager::fromMap(const QVariantMap &data)
+void BuildEngineManager::fromMap(const QVariantMap &data, bool merge)
 {
     m_version = data.value(Constants::BUILD_ENGINES_VERSION_KEY).toInt();
     QTC_ASSERT(m_version > 0, return);
@@ -1047,14 +1047,16 @@ void BuildEngineManager::fromMap(const QVariantMap &data)
         newEnginesData.insert(vmUri, engineData);
     }
 
-    // Remove engines missing from the updated configuration and index the
-    // preserved ones by VM URI
+    // Unless 'merge' is true, remove engines missing from the updated configuration.
+    // Index the preserved ones by VM URI
     QMap<QUrl, BuildEngine *> existingBuildEngines;
     for (auto it = m_buildEngines.cbegin(); it != m_buildEngines.cend(); ) {
-        if (!newEnginesData.contains(it->get()->virtualMachine()->uri())) {
+        if (!merge && !newEnginesData.contains(it->get()->virtualMachine()->uri())) {
             emit aboutToRemoveBuildEngine(it - m_buildEngines.cbegin());
             it = m_buildEngines.erase(it);
         } else {
+            // we know 'merge' is only used to preserve manually added
+            QTC_CHECK(!merge || !it->get()->isAutodetected());
             existingBuildEngines.insert(it->get()->virtualMachine()->uri(), it->get());
             ++it;
         }
@@ -1087,7 +1089,7 @@ void BuildEngineManager::enableUpdates()
     qCDebug(engine) << "Enabling updates";
 
     connect(m_userSettings.get(), &UserSettings::updated,
-            this, &BuildEngineManager::fromMap);
+            this, [=](const QVariantMap &data) { fromMap(data); });
     m_userSettings->enableUpdates();
 
     checkSystemSettings();
@@ -1130,12 +1132,17 @@ void BuildEngineManager::checkSystemSettings()
         return;
     }
 
-    for (int i = m_buildEngines.size() - 1; i >= 0; --i) {
-        emit aboutToRemoveBuildEngine(i);
-        m_buildEngines.pop_back();
+    for (auto it = m_buildEngines.cbegin(); it != m_buildEngines.cend(); ) {
+        if (it->get()->isAutodetected()) {
+            emit aboutToRemoveBuildEngine(it - m_buildEngines.cbegin());
+            it = m_buildEngines.erase(it);
+        } else {
+            ++it;
+        }
     }
 
-    fromMap(systemData);
+    const bool merge = true;
+    fromMap(systemData, merge);
 }
 
 void BuildEngineManager::saveSettings(QStringList *errorStrings) const

@@ -142,7 +142,7 @@ signals:
 
 private:
     QVariantMap toMap() const;
-    void fromMap(const QVariantMap &data);
+    void fromMap(const QVariantMap &data, bool merge = false);
     void enableUpdates();
     void updateOnce();
     void checkSystemSettings();
