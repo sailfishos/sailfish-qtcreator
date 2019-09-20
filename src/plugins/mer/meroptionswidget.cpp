@@ -391,15 +391,13 @@ void MerOptionsWidget::onTestConnectionButtonClicked()
             params.privateKeyFile = m_sshPrivKeys[sdk];
         if (m_sshPort.contains(sdk))
             params.setPort(m_sshPort[sdk]);
-        m_ui->sdkDetailsWidget->setStatus(tr("Connecting to machine %1 ...")
-                .arg(sdk->virtualMachine()->name()));
+        m_ui->sdkDetailsWidget->setStatus(tr("Connecting…"));
         m_ui->sdkDetailsWidget->setTestButtonEnabled(false);
         m_status = MerConnectionManager::testConnection(params);
         m_ui->sdkDetailsWidget->setTestButtonEnabled(true);
         update();
     } else {
-        m_ui->sdkDetailsWidget->setStatus(tr("Virtual machine %1 is not running.")
-                .arg(sdk->virtualMachine()->name()));
+        m_ui->sdkDetailsWidget->setStatus(tr("Virtual machine is not running."));
     }
 }
 
