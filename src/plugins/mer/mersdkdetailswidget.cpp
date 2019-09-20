@@ -128,6 +128,7 @@ void MerSdkDetailsWidget::setSrcFolderChooserPath(const QString& path)
 void MerSdkDetailsWidget::setSdk(const Sfdk::BuildEngine *sdk)
 {
     m_ui->nameLabelText->setText(sdk->name());
+    m_ui->autodetectedLabelText->setText(sdk->isAutodetected() ? tr("Yes") : tr("No"));
     m_ui->homeFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedHomePath().toString()));
     m_ui->targetFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedTargetsPath().toString()));
     m_ui->sshFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedSshPath().toString()));

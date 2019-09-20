@@ -573,12 +573,14 @@ void MerOptionsWidget::update()
     m_ui->sdkComboBox->clear();
     for (BuildEngine *const sdk : m_sdks)
         m_ui->sdkComboBox->addItem(sdk->name(), sdk->uri());
+
     bool show = !m_virtualMachine.isEmpty();
+    BuildEngine *const sdk = m_sdks.value(m_virtualMachine);
+    QTC_ASSERT(!show || sdk, show = false);
 
     disconnect(m_vmOffConnection);
 
-    if (show && m_sdks.contains(m_virtualMachine)) {
-        BuildEngine *const sdk = m_sdks[m_virtualMachine];
+    if (show) {
         const SshConnectionParameters sshParameters = sdk->virtualMachine()->sshParameters();
         m_ui->sdkDetailsWidget->setSdk(sdk);
         if (m_sshPrivKeys.contains(sdk))
@@ -636,7 +638,7 @@ void MerOptionsWidget::update()
     }
 
     m_ui->sdkDetailsWidget->setVisible(show);
-    m_ui->removeButton->setEnabled(show);
+    m_ui->removeButton->setEnabled(show && !sdk->isAutodetected());
     m_ui->startVirtualMachineButton->setEnabled(show);
     m_ui->stopVirtualMachineButton->setEnabled(show);
 }
