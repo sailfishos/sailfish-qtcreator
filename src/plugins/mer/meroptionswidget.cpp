@@ -372,6 +372,12 @@ void MerOptionsWidget::onRemoveButtonClicked()
          m_sshPort.remove(removed);
          m_headless.remove(removed);
          m_wwwPort.remove(removed);
+         m_wwwProxy.remove(removed);
+         m_wwwProxyServers.remove(removed);
+         m_wwwProxyExcludes.remove(removed);
+         m_vdiCapacityMb.remove(removed);
+         m_memorySizeMb.remove(removed);
+         m_cpuCount.remove(removed);
     }
     update();
 }
@@ -692,7 +698,8 @@ void MerOptionsWidget::onVmOffChanged(bool vmOff)
 {
     BuildEngine *const sdk = m_sdks[m_virtualMachine];
 
-    // If the VM is started, cancel any unsaved changes to SSH/WWW ports to prevent inconsistencies
+    // If the VM is started, cancel any unsaved changes to values that cannot be changed online to
+    // prevent inconsistencies
     if (!vmOff) {
         m_ui->sdkDetailsWidget->setSshPort(sdk->sshPort());
         m_sshPort.remove(sdk);
