@@ -26,6 +26,7 @@
 #include "merconstants.h"
 #include "merdevicefactory.h"
 #include "meroptionspage.h"
+#include "merplugin.h"
 #include "mersettings.h"
 
 #include <sfdk/buildengine.h>
@@ -253,9 +254,7 @@ void MerSdkKitInformationWidget::handleSdksUpdated()
 
 void MerSdkKitInformationWidget::handleManageClicked()
 {
-    MerOptionsPage *page = PluginManager::getObject<MerOptionsPage>();
-    if (page)
-        page->setSdk(m_combo->currentData().toUrl());
+    MerPlugin::optionsPage()->setSdk(m_combo->currentData().toUrl());
     ICore::showOptionsDialog(Constants::MER_OPTIONS_ID);
 }
 

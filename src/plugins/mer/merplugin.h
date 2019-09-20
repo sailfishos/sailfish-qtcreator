@@ -35,6 +35,7 @@ class VirtualMachine;
 namespace Mer {
 namespace Internal {
 
+class MerOptionsPage;
 class MerPlugin : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
@@ -49,6 +50,8 @@ public:
     ShutdownFlag aboutToShutdown() override;
 
     static void saveSettings();
+
+    static MerOptionsPage *optionsPage();
 
 private slots:
     void handlePromptClosed(int result);

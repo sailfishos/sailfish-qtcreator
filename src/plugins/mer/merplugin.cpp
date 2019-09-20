@@ -244,6 +244,11 @@ void MerPlugin::saveSettings()
     }
 }
 
+MerOptionsPage *MerPlugin::optionsPage()
+{
+    return &dd->optionsPage;
+}
+
 void MerPlugin::handlePromptClosed(int result)
 {
     QMessageBox *prompt = qobject_cast<QMessageBox *>(sender());

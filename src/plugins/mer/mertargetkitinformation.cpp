@@ -26,6 +26,7 @@
 #include "merconstants.h"
 #include "merdevicefactory.h"
 #include "meroptionspage.h"
+#include "merplugin.h"
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
 
@@ -211,12 +212,9 @@ QWidget *MerTargetKitInformationWidget::buttonWidget() const
 
 void MerTargetKitInformationWidget::handleManageClicked()
 {
-    MerOptionsPage *page = PluginManager::getObject<MerOptionsPage>();
-    if (page) {
-        BuildEngine *const sdk = MerSdkKitInformation::buildEngine(m_kit);
-        if(sdk)
-            page->setSdk(sdk->uri());
-    }
+    BuildEngine *const sdk = MerSdkKitInformation::buildEngine(m_kit);
+    if(sdk)
+        MerPlugin::optionsPage()->setSdk(sdk->uri());
     ICore::showOptionsDialog(Constants::MER_OPTIONS_ID);
 }
 
