@@ -49,7 +49,6 @@ namespace Internal {
 MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
     : QWidget(parent)
     , m_ui(new Ui::MerSdkDetailsWidget)
-    , m_updateConnection(false)
 {
     m_ui->setupUi(this);
 

@@ -41,9 +41,9 @@
       <property name="geometry">
        <rect>
         <x>0</x>
-        <y>-46</y>
-        <width>459</width>
-        <height>739</height>
+        <y>0</y>
+        <width>451</width>
+        <height>842</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="scrollAreaContentsLayout">
@@ -69,7 +69,7 @@
              </sizepolicy>
             </property>
             <property name="text">
-             <string/>
+             <string>none</string>
             </property>
             <property name="textInteractionFlags">
              <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
@@ -275,6 +275,9 @@
             <property name="text">
              <string>None</string>
             </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
             <property name="textInteractionFlags">
              <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
             </property>
@@ -364,9 +367,6 @@
           </item>
           <item row="2" column="0">
            <widget class="QLabel" name="homeFolderLabel">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
             <property name="text">
              <string>Home folder:</string>
             </property>
@@ -374,9 +374,6 @@
           </item>
           <item row="2" column="1">
            <widget class="QLabel" name="homeFolderPathLabel">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
               <horstretch>0</horstretch>
@@ -384,7 +381,7 @@
              </sizepolicy>
             </property>
             <property name="text">
-             <string/>
+             <string>none</string>
             </property>
             <property name="wordWrap">
              <bool>true</bool>
@@ -396,9 +393,6 @@
           </item>
           <item row="3" column="0">
            <widget class="QLabel" name="targetFolderLabel">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
             <property name="text">
              <string>Build targets folder:</string>
             </property>
@@ -406,9 +400,6 @@
           </item>
           <item row="3" column="1">
            <widget class="QLabel" name="targetFolderPathLabel">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
               <horstretch>0</horstretch>
@@ -416,7 +407,7 @@
              </sizepolicy>
             </property>
             <property name="text">
-             <string/>
+             <string>none</string>
             </property>
             <property name="wordWrap">
              <bool>true</bool>
@@ -428,9 +419,6 @@
           </item>
           <item row="4" column="0">
            <widget class="QLabel" name="sshFolderLabel">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
             <property name="text">
              <string>Ssh folder:</string>
             </property>
@@ -438,9 +426,6 @@
           </item>
           <item row="4" column="1">
            <widget class="QLabel" name="sshFolderPathLabel">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
               <horstretch>0</horstretch>
@@ -448,7 +433,7 @@
              </sizepolicy>
             </property>
             <property name="text">
-             <string/>
+             <string>none</string>
             </property>
             <property name="wordWrap">
              <bool>true</bool>
@@ -460,9 +445,6 @@
           </item>
           <item row="5" column="0">
            <widget class="QLabel" name="configFolderLabel">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
             <property name="text">
              <string>Config folder:</string>
             </property>
@@ -470,9 +452,6 @@
           </item>
           <item row="5" column="1">
            <widget class="QLabel" name="configFolderPathLabel">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
               <horstretch>0</horstretch>
@@ -480,7 +459,7 @@
              </sizepolicy>
             </property>
             <property name="text">
-             <string/>
+             <string>none</string>
             </property>
             <property name="wordWrap">
              <bool>true</bool>
@@ -515,7 +494,7 @@
           <item row="0" column="1">
            <widget class="QLabel" name="userNameLabelText">
             <property name="text">
-             <string/>
+             <string>none</string>
             </property>
             <property name="textInteractionFlags">
              <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
@@ -651,6 +630,19 @@
           </item>
          </layout>
         </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
        </item>
       </layout>
      </widget>

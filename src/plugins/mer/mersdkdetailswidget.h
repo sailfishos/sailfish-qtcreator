@@ -97,7 +97,6 @@ private slots:
 
 private:
     Ui::MerSdkDetailsWidget *m_ui;
-    bool m_updateConnection;
     QString m_wwwProxy;
     QString m_wwwProxyServerUrl;
     QString m_wwwProxyServerList;
