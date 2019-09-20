@@ -77,59 +77,59 @@ MerDeviceFactory::~MerDeviceFactory()
 
 IDevice::Ptr MerDeviceFactory::create() const
 {
-        MerHardwareDeviceWizard wizard(ICore::dialogParent());
-        if (wizard.exec() != QDialog::Accepted)
-            return IDevice::Ptr();
+    MerHardwareDeviceWizard wizard(ICore::dialogParent());
+    if (wizard.exec() != QDialog::Accepted)
+        return IDevice::Ptr();
 
-        if(wizard.isNewSshKeysRquired() && !wizard.privateKeyFilePath().isEmpty()) {
+    if(wizard.isNewSshKeysRquired() && !wizard.privateKeyFilePath().isEmpty()) {
 
-            QString privKeyPath = wizard.privateKeyFilePath();
+        QString privKeyPath = wizard.privateKeyFilePath();
 
-            if(QFileInfo(privKeyPath).exists()) {
-                QFile(privKeyPath).remove();
-            }
-
-            QString error;
-
-            if (!MerSdkManager::generateSshKey(privKeyPath, error)) {
-                QMessageBox::critical(ICore::dialogParent(), tr("Could not generate key."), error);
-            }
+        if(QFileInfo(privKeyPath).exists()) {
+            QFile(privKeyPath).remove();
         }
 
-        {
-            SshConnectionParameters sshParams;
-            sshParams.setHost(wizard.hostName());
-            sshParams.setUserName(wizard.userName());
-            sshParams.setPort(wizard.sshPort());
-            sshParams.timeout = wizard.timeout();
-            sshParams.authenticationType = SshConnectionParameters::AuthenticationTypeAll;
-            MerSshKeyDeploymentDialog dlg(ICore::dialogParent());
-            dlg.setSShParameters(sshParams);
-            dlg.setPublicKeyPath(wizard.publicKeyFilePath());
-            if (dlg.exec() == QDialog::Rejected) {
-                return IDevice::Ptr();
-            }
-        }
+        QString error;
 
+        if (!MerSdkManager::generateSshKey(privKeyPath, error)) {
+            QMessageBox::critical(ICore::dialogParent(), tr("Could not generate key."), error);
+        }
+    }
+
+    {
         SshConnectionParameters sshParams;
-        //sshParams.options &= ~SshConnectionOptions(SshEnableStrictConformanceChecks); // For older SSH servers.
         sshParams.setHost(wizard.hostName());
         sshParams.setUserName(wizard.userName());
         sshParams.setPort(wizard.sshPort());
         sshParams.timeout = wizard.timeout();
-        sshParams.authenticationType = SshConnectionParameters::AuthenticationTypeSpecificKey;
-        sshParams.privateKeyFile = wizard.privateKeyFilePath();
+        sshParams.authenticationType = SshConnectionParameters::AuthenticationTypeAll;
+        MerSshKeyDeploymentDialog dlg(ICore::dialogParent());
+        dlg.setSShParameters(sshParams);
+        dlg.setPublicKeyPath(wizard.publicKeyFilePath());
+        if (dlg.exec() == QDialog::Rejected) {
+            return IDevice::Ptr();
+        }
+    }
 
-        MerHardwareDevice::Ptr device = MerHardwareDevice::create();
-        device->setupId(IDevice::ManuallyAdded, Core::Id());
-        device->setDisplayName(wizard.configurationName());
-        device->setArchitecture(wizard.architecture());
-        device->setSharedSshPath(wizard.sharedSshPath());
-        device->setFreePorts(PortList::fromString(wizard.freePorts()));
-        //device->setFreePorts(PortList::fromString(QLatin1String("10000-10100")));
-        device->setSshParameters(sshParams);
+    SshConnectionParameters sshParams;
+    //sshParams.options &= ~SshConnectionOptions(SshEnableStrictConformanceChecks); // For older SSH servers.
+    sshParams.setHost(wizard.hostName());
+    sshParams.setUserName(wizard.userName());
+    sshParams.setPort(wizard.sshPort());
+    sshParams.timeout = wizard.timeout();
+    sshParams.authenticationType = SshConnectionParameters::AuthenticationTypeSpecificKey;
+    sshParams.privateKeyFile = wizard.privateKeyFilePath();
 
-        return device;
+    MerHardwareDevice::Ptr device = MerHardwareDevice::create();
+    device->setupId(IDevice::ManuallyAdded, Core::Id());
+    device->setDisplayName(wizard.configurationName());
+    device->setArchitecture(wizard.architecture());
+    device->setSharedSshPath(wizard.sharedSshPath());
+    device->setFreePorts(PortList::fromString(wizard.freePorts()));
+    //device->setFreePorts(PortList::fromString(QLatin1String("10000-10100")));
+    device->setSshParameters(sshParams);
+
+    return device;
 }
 
 bool MerDeviceFactory::canRestore(const QVariantMap &map) const
