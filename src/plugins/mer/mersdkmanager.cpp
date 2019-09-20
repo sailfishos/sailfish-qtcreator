@@ -424,10 +424,12 @@ void MerSdkManager::updateDevices()
                 const MerEmulatorDevice* device = static_cast<const MerEmulatorDevice*>(d.data());
                 //TODO: fix me
                 QString mac = device->mac();
-                xmlData.m_index = mac.at(mac.count()-1);
+                QTC_CHECK(!mac.isEmpty());
+                if (!mac.isEmpty())
+                    xmlData.m_index = mac.at(mac.count()-1);
                 xmlData.m_subNet = device->subnet();
                 xmlData.m_name = device->displayName();
-                xmlData.m_mac = device->mac();
+                xmlData.m_mac = mac;
                 xmlData.m_type = QLatin1String ("vbox");
                 const FileName sharedConfigPath = Sdk::buildEngines().first()->sharedConfigPath();
                 if (!sharedConfigPath.isEmpty()) {
