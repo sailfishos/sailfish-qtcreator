@@ -36,10 +36,10 @@ const char MER_OPTIONS_CATEGORY[] = "W.Mer";
 const char MER_OPTIONS_CATEGORY_TR[] = QT_TRANSLATE_NOOP("Mer", "Sailfish OS");
 const char MER_OPTIONS_ID[] = "A.Mer";
 const char MER_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "Build Engine");
-const char MER_GENERAL_OPTIONS_ID[] = "A.MerGeneral";
+const char MER_GENERAL_OPTIONS_ID[] = "Z.MerGeneral";
 const char MER_GENERAL_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "General");
-const char MER_EMULATOR_MODE_OPTIONS_ID[] = "A.MerEmulatorMode";
-const char MER_EMULATOR_MODE_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "Emulator Modes");
+const char MER_EMULATOR_MODE_OPTIONS_ID[] = "C.MerEmulatorMode";
+const char MER_EMULATOR_MODE_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "Emulator Mode");
 const char MER_EMULATOR_MODE_ACTION_NAME[] = QT_TRANSLATE_NOOP("Mer", "&Emulator mode...");
 
 const char MER_DEVICE_TYPE[] = "Mer.Device.Type";
