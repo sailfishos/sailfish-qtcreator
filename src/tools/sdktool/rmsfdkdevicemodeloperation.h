@@ -1,6 +1,7 @@
 /****************************************************************************
  **
  ** Copyright (C) 2016 Jolla Ltd.
+ ** Copyright (C) 2019 Open Mobile Platform LLC.
  ** Contact: http://jolla.com/
  **
  ** This file is part of Qt Creator.
@@ -20,17 +21,15 @@
  **
  ****************************************************************************/
 
-#ifndef ADDMERDEVICEMODELOPERATION_H
-#define ADDMERDEVICEMODELOPERATION_H
+#pragma once
 
 #include "operation.h"
 
-class AddMerDeviceModelOperation : public Operation
+class RmSfdkDeviceModelOperation: public Operation
 {
-
-
 public:
-    AddMerDeviceModelOperation();
+    RmSfdkDeviceModelOperation();
+public:
     QString name() const;
     QString helpText() const;
     QString argumentsHelpText() const;
@@ -42,19 +41,8 @@ public:
 #ifdef WITH_TESTS
     bool test() const;
 #endif
-
-    static QVariantMap addDeviceModel(const QVariantMap &map, const QString &name,
-                                      int hres, int vres, int hsize, int vsize,
-                                      const QString &dconfDb);
-    static QVariantMap initializeDeviceModels();
+    static QVariantMap removeDeviceModel(const QVariantMap &map, const QString &name);
 
 private:
     QString m_name;
-    int m_hres{0};
-    int m_vres{0};
-    int m_hsize{0};
-    int m_vsize{0};
-    QString m_dconfDb;
 };
-
-#endif

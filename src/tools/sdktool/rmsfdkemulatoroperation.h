@@ -1,7 +1,8 @@
 /****************************************************************************
 **
 ** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
-** Copyright (C) 2013-2014,2017,2019 Jolla Ltd.
+** Copyright (C) 2013-2014 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -28,16 +29,17 @@
 **
 ****************************************************************************/
 
-#ifndef ADDMERSDKOPERATION_H
-#define ADDMERSDKOPERATION_H
+#pragma once
+
 #include "operation.h"
 
-class AddMerSdkOperation : public Operation
+#include <QUrl>
+
+class RmSfdkEmulatorOperation: public Operation
 {
-
-
 public:
-    AddMerSdkOperation();
+    RmSfdkEmulatorOperation();
+public:
     QString name() const;
     QString helpText() const;
     QString argumentsHelpText() const;
@@ -49,44 +51,8 @@ public:
 #ifdef WITH_TESTS
     bool test() const;
 #endif
-
-    static QVariantMap addSdk(const QVariantMap &map,
-           const QString &sdkName,
-           bool autodetected,
-           const QString &sharedHomePath,
-           const QString &sharedTargetsPath,
-           const QString &sharedSshPath,
-           const QString &sharedSrcPath,
-           const QString &sharedConfigPath,
-           const QString &host,
-           const QString &userName,
-           const QString &privateKeyFile,
-           quint16 sshPort,
-           quint16 wwwPort,
-           bool headless,
-           int memorySizeMb,
-           int cpuCount,
-           int vdiCapacityMb);
-    static QVariantMap initializeSdks(int version);
+    static QVariantMap removeEmulator(const QVariantMap &map, const QUrl &vmUri);
 
 private:
-    QString m_installDir;
-    QString m_name;
-    int m_version;
-    bool m_autoDetected;
-    QString m_sharedHomePath;
-    QString m_sharedTargetsPath;
-    QString m_sharedSshPath;
-    QString m_sharedSrcPath;
-    QString m_sharedConfigPath;
-    QString m_host;
-    QString m_userName;
-    QString m_privateKeyFile;
-    quint16 m_sshPort;
-    quint16 m_wwwPort;
-    bool m_headless;
-    int m_memorySizeMb;
-    int m_cpuCount;
-    int m_vdiCapacityMb;
+    QUrl m_vmUri;
 };
-#endif

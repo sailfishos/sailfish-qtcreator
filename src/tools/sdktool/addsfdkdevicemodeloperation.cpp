@@ -1,6 +1,7 @@
 /****************************************************************************
  **
  ** Copyright (C) 2016 Jolla Ltd.
+ ** Copyright (C) 2019 Open Mobile Platform LLC.
  ** Contact: http://jolla.com/
  **
  ** This file is part of Qt Creator.
@@ -20,12 +21,13 @@
  **
  ****************************************************************************/
 
-#include "addmerdevicemodeloperation.h"
+#include "addsfdkdevicemodeloperation.h"
 #include "addkeysoperation.h"
 #include "findvalueoperation.h"
 #include "rmkeysoperation.h"
 #include "getoperation.h"
-#include "../../plugins/mer/merconstants.h"
+#include "sfdkutils.h"
+#include "../../libs/sfdk/sfdkconstants.h"
 #include <QRect>
 #include <iostream>
 
@@ -36,21 +38,23 @@ const char MER_PARAM_HSIZE_MM[] = "--hsize-mm";
 const char MER_PARAM_VSIZE_MM[] = "--vsize-mm";
 const char MER_PARAM_DCONF_DB[] = "--dconf-db";
 
-AddMerDeviceModelOperation::AddMerDeviceModelOperation()
+namespace C = Sfdk::Constants;
+
+AddSfdkDeviceModelOperation::AddSfdkDeviceModelOperation()
 {
 }
 
-QString AddMerDeviceModelOperation::name() const
+QString AddSfdkDeviceModelOperation::name() const
 {
-    return QLatin1String("addMerDeviceModel");
+    return QLatin1String("addSfdkDeviceModel");
 }
 
-QString AddMerDeviceModelOperation::helpText() const
+QString AddSfdkDeviceModelOperation::helpText() const
 {
-    return QLatin1String("add Mer emulator device model to Qt Creator configuration");
+    return QLatin1String("add an Sfdk emulator device model");
 }
 
-QString AddMerDeviceModelOperation::argumentsHelpText() const
+QString AddSfdkDeviceModelOperation::argumentsHelpText() const
 {
     const QString indent = QLatin1String("    ");
     return indent + QLatin1String(MER_PARAM_NAME) + QLatin1String(" <STRING>        name of this device model (required).\n")
@@ -61,7 +65,7 @@ QString AddMerDeviceModelOperation::argumentsHelpText() const
          + indent + QLatin1String(MER_PARAM_DCONF_DB) + QLatin1String(" <STRING>    dconf bits specific to this device model (required).\n");
 }
 
-bool AddMerDeviceModelOperation::setArguments(const QStringList &args)
+bool AddSfdkDeviceModelOperation::setArguments(const QStringList &args)
 {
 
     for (int i = 0; i < args.count(); ++i) {
@@ -147,9 +151,11 @@ bool AddMerDeviceModelOperation::setArguments(const QStringList &args)
     return !error;
 }
 
-int AddMerDeviceModelOperation::execute() const
+int AddSfdkDeviceModelOperation::execute() const
 {
-    QVariantMap map = load(QLatin1String("mersdk-device-models"));
+    useSfdkSettingsPath();
+
+    QVariantMap map = load(QLatin1String("SfdkEmulators"));
     if (map.isEmpty())
         map = initializeDeviceModels();
 
@@ -158,18 +164,21 @@ int AddMerDeviceModelOperation::execute() const
     if (result.isEmpty() || map == result)
         return 2;
 
-    return save(result, QLatin1String("mersdk-device-models")) ? 0 : 3;
+    return save(result, QLatin1String("SfdkEmulators")) ? 0 : 3;
 }
 
-QVariantMap AddMerDeviceModelOperation::initializeDeviceModels()
+QVariantMap AddSfdkDeviceModelOperation::initializeDeviceModels()
 {
     QVariantMap map;
-    map.insert(QLatin1String(Mer::Constants::MER_DEVICE_MODELS_FILE_VERSION_KEY), 1);
-    map.insert(QLatin1String(Mer::Constants::MER_DEVICE_MODELS_COUNT_KEY), 0);
+    // Version and install dir should be initialized by AddSfdkEmulatorOperation
+    map.insert(QLatin1String(C::EMULATORS_VERSION_KEY), -1);
+    map.insert(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY), QLatin1String("/dev/null"));
+    map.insert(QLatin1String(C::EMULATORS_COUNT_KEY), 0);
+    map.insert(QLatin1String(C::DEVICE_MODELS_COUNT_KEY), 0);
     return map;
 }
 
-QVariantMap AddMerDeviceModelOperation::addDeviceModel(const QVariantMap &map,
+QVariantMap AddSfdkDeviceModelOperation::addDeviceModel(const QVariantMap &map,
                                                        const QString &name,
                                                        int hres,
                                                        int vres,
@@ -180,7 +189,7 @@ QVariantMap AddMerDeviceModelOperation::addDeviceModel(const QVariantMap &map,
     QStringList valueKeys = FindValueOperation::findValue(map, QVariant(name));
     bool hasModel = false;
     foreach (const QString &t, valueKeys) {
-        if (t.endsWith(QLatin1Char('/') + QLatin1String(Mer::Constants::MER_DEVICE_MODEL_NAME))) {
+        if (t.endsWith(QLatin1Char('/') + QLatin1String(C::DEVICE_MODEL_NAME))) {
             hasModel = true;
             break;
         }
@@ -191,64 +200,78 @@ QVariantMap AddMerDeviceModelOperation::addDeviceModel(const QVariantMap &map,
     }
 
     bool ok;
-    const int count = GetOperation::get(map, QLatin1String(Mer::Constants::MER_DEVICE_MODELS_COUNT_KEY)).toInt(&ok);
+    const int count = GetOperation::get(map, QLatin1String(C::DEVICE_MODELS_COUNT_KEY)).toInt(&ok);
     if (!ok || count < 0) {
         std::cerr << "Error: Could not read device models count, file seems wrong." << std::endl;
         return QVariantMap();
     }
 
-    const QString model = QString::fromLatin1(Mer::Constants::MER_DEVICE_MODELS_DATA_KEY) + QString::number(count);
+    const QString model = QString::fromLatin1(C::DEVICE_MODELS_DATA_KEY_PREFIX) + QString::number(count);
 
     // remove old count
-    QVariantMap cleaned = RmKeysOperation::rmKeys(map,  QStringList() << QLatin1String(Mer::Constants::MER_DEVICE_MODELS_COUNT_KEY));
+    QVariantMap cleaned = RmKeysOperation::rmKeys(map, QStringList()
+            << QLatin1String(C::DEVICE_MODELS_COUNT_KEY));
 
     KeyValuePairList data;
-    data << KeyValuePair(QStringList() << model << QLatin1String(Mer::Constants::MER_DEVICE_MODEL_NAME), QVariant(name));
-    data << KeyValuePair(QStringList() << model << QLatin1String(Mer::Constants::MER_DEVICE_MODEL_DISPLAY_RESOLUTION),
-                         QVariant(QRect(0, 0, hres, vres)));
-    data << KeyValuePair(QStringList() << model << QLatin1String(Mer::Constants::MER_DEVICE_MODEL_DISPLAY_SIZE),
-                         QVariant(QRect(0, 0, hsize, vsize)));
-    data << KeyValuePair(QStringList() << model << QLatin1String(Mer::Constants::MER_DEVICE_MODEL_DCONF_DB),
-                         QVariant(dconfDb));
-    data << KeyValuePair(QStringList() << QLatin1String(Mer::Constants::MER_DEVICE_MODELS_COUNT_KEY), QVariant(count + 1));
+    auto addPrefix = [&](const QString &key, const QVariant &value) {
+        return KeyValuePair(QStringList{model, key}, value);
+    };
+    data << addPrefix(QLatin1String(C::DEVICE_MODEL_NAME), QVariant(name));
+    data << addPrefix(QLatin1String(C::DEVICE_MODEL_AUTODETECTED), QVariant(true));
+    data << addPrefix(QLatin1String(C::DEVICE_MODEL_DISPLAY_RESOLUTION), QVariant(QRect(0, 0, hres, vres)));
+    data << addPrefix(QLatin1String(C::DEVICE_MODEL_DISPLAY_SIZE), QVariant(QRect(0, 0, hsize, vsize)));
+    data << addPrefix(QLatin1String(C::DEVICE_MODEL_DCONF), QVariant(dconfDb));
+    data << KeyValuePair(QLatin1String(C::DEVICE_MODELS_COUNT_KEY), QVariant(count + 1));
 
     return AddKeysOperation::addKeys(cleaned, data);
 }
 
 #ifdef WITH_TESTS
-bool AddMerDeviceModelOperation::test() const
+bool AddSfdkDeviceModelOperation::test() const
 {
     QVariantMap map = initializeDeviceModels();
 
-    if (map.count() != 2
-            || !map.contains(QLatin1String(Mer::Constants::MER_DEVICE_MODELS_FILE_VERSION_KEY))
-            || map.value(QLatin1String(Mer::Constants::MER_DEVICE_MODELS_FILE_VERSION_KEY)).toInt() != 1
-            || !map.contains(QLatin1String(Mer::Constants::MER_DEVICE_MODELS_COUNT_KEY))
-            || map.value(QLatin1String(Mer::Constants::MER_DEVICE_MODELS_COUNT_KEY)).toInt() != 0)
+    if (map.count() != 4
+            || !map.contains(QLatin1String(C::EMULATORS_VERSION_KEY))
+            || map.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != -1
+            || !map.contains(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY))
+            || map.value(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY)).toString()
+                != QLatin1String("/dev/null")
+            || !map.contains(QLatin1String(C::EMULATORS_COUNT_KEY))
+            || map.value(QLatin1String(C::EMULATORS_COUNT_KEY)).toInt() != 0
+            || !map.contains(QLatin1String(C::DEVICE_MODELS_COUNT_KEY))
+            || map.value(QLatin1String(C::DEVICE_MODELS_COUNT_KEY)).toInt() != 0)
         return false;
 
     map = addDeviceModel(map, QLatin1String("Test Device"), 500, 1000, 50, 100, QLatin1String("Test dconf"));
 
-    const QString model = QString::fromLatin1(Mer::Constants::MER_DEVICE_MODELS_DATA_KEY) + QString::number(0);
+    const QString model = QString::fromLatin1(C::DEVICE_MODELS_DATA_KEY_PREFIX) + QString::number(0);
 
-    if (map.count() != 3
-            || !map.contains(QLatin1String(Mer::Constants::MER_DEVICE_MODELS_FILE_VERSION_KEY))
-            || map.value(QLatin1String(Mer::Constants::MER_DEVICE_MODELS_FILE_VERSION_KEY)).toInt() != 1
-            || !map.contains(QLatin1String(Mer::Constants::MER_DEVICE_MODELS_COUNT_KEY))
-            || map.value(QLatin1String(Mer::Constants::MER_DEVICE_MODELS_COUNT_KEY)).toInt() != 1
+    if (map.count() != 5
+            || !map.contains(QLatin1String(C::EMULATORS_VERSION_KEY))
+            || map.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != -1
+            || !map.contains(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY))
+            || map.value(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY)).toString()
+                != QLatin1String("/dev/null")
+            || !map.contains(QLatin1String(C::EMULATORS_COUNT_KEY))
+            || map.value(QLatin1String(C::EMULATORS_COUNT_KEY)).toInt() != 0
+            || !map.contains(QLatin1String(C::DEVICE_MODELS_COUNT_KEY))
+            || map.value(QLatin1String(C::DEVICE_MODELS_COUNT_KEY)).toInt() != 1
             || !map.contains(model))
         return false;
 
-    QVariantMap modelMap= map.value(model).toMap();
-    if (modelMap.count() != 13
-            || !modelMap.contains(QLatin1String(Mer::Constants::MER_DEVICE_MODEL_NAME))
-            || modelMap.value(QLatin1String(Mer::Constants::MER_DEVICE_MODEL_NAME)).toString() != QLatin1String("Test Device")
-            || !modelMap.contains(QLatin1String(Mer::Constants::MER_DEVICE_MODEL_DISPLAY_RESOLUTION))
-            || modelMap.value(QLatin1String(Mer::Constants::MER_DEVICE_MODEL_DISPLAY_RESOLUTION)).toSize() != QSize(500, 1000)
-            || !modelMap.contains(QLatin1String(Mer::Constants::MER_DEVICE_MODEL_DISPLAY_SIZE))
-            || modelMap.value(QLatin1String(Mer::Constants::MER_DEVICE_MODEL_DISPLAY_SIZE)).toSize() != QSize(50, 100)
-            || !modelMap.contains(QLatin1String(Mer::Constants::MER_DEVICE_MODEL_DCONF_DB))
-            || modelMap.value(QLatin1String(Mer::Constants::MER_DEVICE_MODEL_DCONF_DB)).toString() != QLatin1String("Test dconf"))
+    QVariantMap modelMap = map.value(model).toMap();
+    if (modelMap.count() != 5
+            || !modelMap.contains(QLatin1String(C::DEVICE_MODEL_NAME))
+            || modelMap.value(QLatin1String(C::DEVICE_MODEL_NAME)).toString() != QLatin1String("Test Device")
+            || !modelMap.contains(QLatin1String(C::DEVICE_MODEL_AUTODETECTED))
+            || modelMap.value(QLatin1String(C::DEVICE_MODEL_AUTODETECTED)).toBool() != true
+            || !modelMap.contains(QLatin1String(C::DEVICE_MODEL_DISPLAY_RESOLUTION))
+            || modelMap.value(QLatin1String(C::DEVICE_MODEL_DISPLAY_RESOLUTION)).toRect() != QRect(0, 0, 500, 1000)
+            || !modelMap.contains(QLatin1String(C::DEVICE_MODEL_DISPLAY_SIZE))
+            || modelMap.value(QLatin1String(C::DEVICE_MODEL_DISPLAY_SIZE)).toRect() != QRect(0, 0, 50, 100)
+            || !modelMap.contains(QLatin1String(C::DEVICE_MODEL_DCONF))
+            || modelMap.value(QLatin1String(C::DEVICE_MODEL_DCONF)).toString() != QLatin1String("Test dconf"))
         return false;
 
     return true;

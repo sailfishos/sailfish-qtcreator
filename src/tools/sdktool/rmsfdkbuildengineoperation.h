@@ -2,6 +2,7 @@
 **
 ** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
 ** Copyright (C) 2013-2014 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -28,15 +29,16 @@
 **
 ****************************************************************************/
 
-#ifndef RMMERSDKOPERATION_H
-#define RMMERSDKOPERATION_H
+#pragma once
 
 #include "operation.h"
 
-class RmMerSdkOperation: public Operation
+#include <QUrl>
+
+class RmSfdkBuildEngineOperation: public Operation
 {
 public:
-    RmMerSdkOperation();
+    RmSfdkBuildEngineOperation();
 public:
     QString name() const;
     QString helpText() const;
@@ -49,10 +51,8 @@ public:
 #ifdef WITH_TESTS
     bool test() const;
 #endif
-    static QVariantMap removeSdk(const QVariantMap &map, const QString &Sdk_name);
+    static QVariantMap removeBuildEngine(const QVariantMap &map, const QUrl &vmUri);
 
 private:
-    QString m_vmName;
+    QUrl m_vmUri;
 };
-
-#endif // RMMERSDKOPERATION_H

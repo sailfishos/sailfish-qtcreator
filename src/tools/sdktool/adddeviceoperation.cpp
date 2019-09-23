@@ -33,8 +33,6 @@
 
 #include "settings.h"
 
-#include "../../plugins/mer/merconstants.h"
-
 #include <iostream>
 
 const char DEVICEMANAGER_ID[] = "DeviceManager";
@@ -74,7 +72,6 @@ QString AddDeviceOperation::argumentsHelpText() const
                          "    --sshPort <INT>                            ssh port.\n"
                          "    --timeout <INT>                            timeout.\n"
                          "    --uname <STRING>                           uname.\n"
-                         "    --version <INT>                            version.\n"
                          "    <KEY> <TYPE:VALUE>                         extra key value pairs\n");
 }
 
@@ -236,44 +233,10 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
             continue;
         }
 
-        if (current == QLatin1String("--version")) {
-            if (next.isNull())
-                return false;
-            ++i; // skip next;
-            bool ok;
-            m_version = next.toInt(&ok);
-            if (!ok)
-                return false;
-            continue;
-        }
-
         if (next.isNull())
             return false;
         ++i; // skip next;
-        QString k = current;
-        // TODO revert these additions, it already allows setting custom keys
-        if (current == QLatin1String("--virtualMachine"))
-            k = QString::fromStdString(Mer::Constants::MER_DEVICE_VIRTUAL_MACHINE);
-        else if (current == QLatin1String("--factorySnapshot"))
-            k = QString::fromStdString(Mer::Constants::MER_DEVICE_FACTORY_SNAPSHOT);
-        else if (current == QLatin1String("--merMac"))
-            k = QString::fromStdString(Mer::Constants::MER_DEVICE_MAC);
-        else if (current == QLatin1String("--merSubnet"))
-            k = QString::fromStdString(Mer::Constants::MER_DEVICE_SUBNET);
-        else if (current == QLatin1String("--merSharedSsh"))
-            k = QString::fromStdString(Mer::Constants::MER_DEVICE_SHARED_SSH);
-        else if (current == QLatin1String("--merSharedConfig"))
-            k = QString::fromStdString(Mer::Constants::MER_DEVICE_SHARED_CONFIG);
-        else if (current == QLatin1String("--merDeviceModel"))
-            k = QString::fromStdString(Mer::Constants::MER_DEVICE_DEVICE_MODEL);
-        else if (current == QLatin1String("--merVmMemorySize"))
-            k = QString::fromStdString(Mer::Constants::MEMORY_SIZE_MB);
-        else if (current == QLatin1String("--merVmCpuCount"))
-            k = QString::fromStdString(Mer::Constants::CPU_COUNT);
-        else if (current == QLatin1String("--merVmVdiCapacity"))
-            k = QString::fromStdString(Mer::Constants::VDI_CAPACITY_MB);
-
-        KeyValuePair pair(k, next);
+        KeyValuePair pair(current, next);
         if (!pair.value.isValid())
             return false;
         m_extra << pair;
