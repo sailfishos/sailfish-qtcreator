@@ -716,11 +716,6 @@ bool BuildEnginePrivate::createCacheFile(const FileName &fileName, const QString
 bool BuildEnginePrivate::createSimpleWrapper(const QString &targetName, const FileName &toolsPath,
         const QString &wrapperName) const
 {
-    // FIXME contants? does Utils lib help?
-    const auto rwrw = QFile::ReadOwner|QFile::ReadUser|QFile::ReadGroup
-            |QFile::WriteOwner|QFile::WriteUser|QFile::WriteGroup;
-    const auto rwxrwx = rwrw|QFile::ExeOwner|QFile::ExeUser|QFile::ExeGroup;
-
     const QString commandName = HostOsInfo::isWindowsHost()
 #if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
         ? wrapperName.chopped(4) // remove the ".cmd"
@@ -772,7 +767,9 @@ exec "{wrapperBinaryPath}" {commandName} ${ARGUMENTS}
     ok = saver.finalize();
     QTC_ASSERT(ok, qCCritical(engine) << saver.errorString(); return false);
 
-    ok = QFile::setPermissions(scriptCopyPath, rwxrwx);
+    QFileInfo info(scriptCopyPath);
+    ok = QFile::setPermissions(scriptCopyPath,
+            info.permissions() | QFile::ExeOwner | QFile::ExeUser | QFile::ExeGroup);
     QTC_ASSERT(ok, return false);
 
     return ok;
@@ -781,10 +778,6 @@ exec "{wrapperBinaryPath}" {commandName} ${ARGUMENTS}
 bool BuildEnginePrivate::createPkgConfigWrapper(const FileName &toolsPath, const FileName &sysRoot)
     const
 {
-    const QFile::Permissions rwrw = QFile::ReadOwner|QFile::ReadUser|QFile::ReadGroup
-            |QFile::WriteOwner|QFile::WriteUser|QFile::WriteGroup;
-    const QFile::Permissions rwxrwx = rwrw|QFile::ExeOwner|QFile::ExeUser|QFile::ExeGroup;
-
     auto nativeSysRooted = [=](const QString &path) {
         return QDir::toNativeSeparators(FileName(sysRoot).appendPath(path).toString());
     };
@@ -826,7 +819,9 @@ exec ${real?} "$@"
     ok = saver.finalize();
     QTC_ASSERT(ok, qCCritical(engine) << saver.errorString(); return false);
 
-    ok = QFile::setPermissions(fileName, rwxrwx);
+    QFileInfo info(fileName);
+    ok = QFile::setPermissions(fileName,
+            info.permissions() | QFile::ExeOwner | QFile::ExeUser | QFile::ExeGroup);
     QTC_ASSERT(ok, return false);
 
     return true;
