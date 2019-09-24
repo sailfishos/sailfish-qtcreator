@@ -239,7 +239,7 @@ Worker::ExitStatus BuiltinWorker::runEngine(const QStringList &arguments, int *e
         qerr() << P::missingArgumentMessage() << endl;
         return BadUsage;
     }
-    if (arguments.count() > 1) {
+    if (arguments.count() > 1 && arguments.first() != "exec") {
         qerr() << P::unexpectedArgumentMessage(arguments.at(1));
         return BadUsage;
     }
@@ -252,6 +252,19 @@ Worker::ExitStatus BuiltinWorker::runEngine(const QStringList &arguments, int *e
         bool running = SdkManager::isEngineRunning();
         qout() << tr("Running: %1").arg(running ? tr("Yes") : tr("No")) << endl;
         *exitCode = EXIT_SUCCESS;
+    } else if (arguments.first() == "exec") {
+        QString program;
+        QStringList programArguments;
+        if (arguments.count() > 1) {
+            program = arguments.at(1);
+            if (arguments.count() > 2)
+                programArguments = arguments.mid(2);
+        } else {
+            program = "/bin/bash";
+            programArguments << "--login";
+        }
+        *exitCode = SdkManager::runOnEngine(program, programArguments, QProcess::ForwardedInputChannel);
+        return NormalExit;
     } else {
         qerr() << P::unrecognizedCommandMessage(arguments.first()) << endl;
         return BadUsage;

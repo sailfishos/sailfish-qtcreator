@@ -15,9 +15,9 @@
     [
         {
             "name": "engine",
-            "trSynopsis": "{start|stop|status}",
+            "trSynopsis": "{start|stop|status}\nexec [<command> [<arg>...]]",
             "trBrief": "Control the build engine",
-            "trDescription": "The 'start' and 'stop' commands allow to control the build engine virtual machine conveniently. Starting the build engine explicitly is usually not required - commands that need build engine running will ensure it is running. The 'status' command prints status information."
+            "trDescription": "The 'start' and 'stop' commands allow to control the build engine virtual machine conveniently. Starting the build engine explicitly is usually not required - commands that need build engine running will ensure it is running. The 'status' command prints status information.\n\nThe 'exec' command allows executing an arbitrary <command> inside the build engine. If no <command> is specified, an interactive shell is executed."
         }
     ],
 
