@@ -545,10 +545,12 @@ EmulatorManager::EmulatorManager(QObject *parent)
     Q_ASSERT(!s_instance);
     s_instance = this;
 
-    // FIXME ugly
-    const optional<QVariantMap> userData = m_userSettings->load();
-    if (userData)
-        fromMap(userData.value());
+    if (!SdkPrivate::useSystemSettingsOnly()) {
+        // FIXME ugly
+        const optional<QVariantMap> userData = m_userSettings->load();
+        if (userData)
+            fromMap(userData.value());
+    }
 
     if (SdkPrivate::isVersionedSettingsEnabled()) {
         connect(SdkPrivate::instance(), &SdkPrivate::enableUpdatesRequested,

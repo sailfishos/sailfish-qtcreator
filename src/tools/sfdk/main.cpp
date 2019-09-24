@@ -162,9 +162,6 @@ int main(int argc, char **argv)
 
     Session session;
 
-    if (!configuration.load())
-        return EXIT_FAILURE;
-
     bool showVersion = false;
 
     CommandLineParser parser(app.arguments());
@@ -182,7 +179,12 @@ int main(int argc, char **argv)
         showVersion = true;
     }
 
-    SdkManager sdkManager;
+    if (!parser.useSystemSettingsOnly()) {
+        if (!configuration.load())
+            return EXIT_FAILURE;
+    }
+
+    SdkManager sdkManager(parser.useSystemSettingsOnly());
     if (!sdkManager.isValid())
         return EXIT_FAILURE;
 
@@ -249,7 +251,8 @@ int main(int argc, char **argv)
             return;
 
         case Worker::NormalExit:
-            SdkManager::saveSettings();
+            if (!parser.useSystemSettingsOnly())
+                SdkManager::saveSettings();
             app.exit(exitCode);
             return;
         }

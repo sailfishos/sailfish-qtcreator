@@ -54,6 +54,7 @@ Sdk::Sdk(Options options)
     s_instance = this;
 
     Q_D(Sdk);
+    QTC_ASSERT(!(options & VersionedSettings) || !(options & SystemSettingsOnly), return);
 
     qCDebug(lib) << "Initializing SDK. Options:" << options;
 
@@ -105,6 +106,7 @@ void Sdk::enableUpdates()
 bool Sdk::saveSettings(QStringList *errorStrings)
 {
     QTC_ASSERT(errorStrings, return false);
+    QTC_ASSERT(!SdkPrivate::useSystemSettingsOnly(), return false);
     qCDebug(lib) << "Begin save settings";
     emit s_instance->d_func()->saveSettingsRequested(errorStrings);
     qCDebug(lib) << "End save settings. Success:" << errorStrings->isEmpty();

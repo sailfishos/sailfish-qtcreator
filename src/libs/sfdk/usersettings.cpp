@@ -78,6 +78,7 @@ UserSettings::~UserSettings() = default;
 
 Utils::optional<QVariantMap> UserSettings::load()
 {
+    QTC_ASSERT(!SdkPrivate::useSystemSettingsOnly(), return {});
     QTC_ASSERT(m_state == NotLoaded, return {});
     m_state = Loaded;
 
@@ -100,6 +101,7 @@ Utils::optional<QVariantMap> UserSettings::load()
 
 void UserSettings::enableUpdates()
 {
+    QTC_ASSERT(SdkPrivate::isVersionedSettingsEnabled(), return);
     QTC_ASSERT(m_state == Loaded, return);
     m_state = UpdatesEnabled;
 
@@ -124,6 +126,7 @@ void UserSettings::enableUpdates()
 
 bool UserSettings::save(const QVariantMap &data, QString *errorString)
 {
+    QTC_ASSERT(!SdkPrivate::useSystemSettingsOnly(), return false);
     QTC_ASSERT(m_state != NotLoaded, return false);
 
     qCDebug(lib) << "Saving" << m_baseName;

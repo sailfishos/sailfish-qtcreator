@@ -193,7 +193,7 @@ private:
 
 SdkManager *SdkManager::s_instance = nullptr;
 
-SdkManager::SdkManager()
+SdkManager::SdkManager(bool useSystemSettingsOnly)
 {
     Q_ASSERT(!s_instance);
     s_instance = this;
@@ -204,7 +204,11 @@ SdkManager::SdkManager()
     m_merSettings = std::make_unique<MerSettings>();
 
     VirtualMachine::registerConnectionUi<VmConnectionUi>();
-    m_sdk = std::make_unique<Sdk>();
+
+    Sdk::Options sdkOptions = Sdk::NoOption;
+    if (useSystemSettingsOnly)
+        sdkOptions |= Sdk::SystemSettingsOnly;
+    m_sdk = std::make_unique<Sdk>(sdkOptions);
 
     QList<BuildEngine *> buildEngines = Sdk::buildEngines();
     if (!buildEngines.isEmpty()) {

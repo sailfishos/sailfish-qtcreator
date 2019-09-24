@@ -295,7 +295,14 @@ bool Configuration::load()
             ok &= s_instance->m_sessionScope->load(sessionFile.filePath());
     }
 
+    s_instance->m_loaded = ok;
+
     return ok;
+}
+
+bool Configuration::isLoaded()
+{
+    return s_instance->m_loaded;
 }
 
 bool Configuration::push(Scope scope, const OptionOccurence &occurence)

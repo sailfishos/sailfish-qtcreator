@@ -44,6 +44,7 @@ public:
     enum Option {
         NoOption = 0x0,
         VersionedSettings = 0x1,
+        SystemSettingsOnly = 0x2,
     };
     Q_DECLARE_FLAGS(Options, Option)
     Q_FLAG(Options)

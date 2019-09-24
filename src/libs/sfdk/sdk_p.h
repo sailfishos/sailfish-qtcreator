@@ -55,6 +55,7 @@ public:
 
     static bool isVersionedSettingsEnabled() { return instance()->options_ & Sdk::VersionedSettings; }
     static bool isUpdatesEnabled() { return instance()->updatesEnabled; }
+    static bool useSystemSettingsOnly() { return instance()->options_ & Sdk::SystemSettingsOnly; }
 
     static CommandQueue *commandQueue() { return instance()->commandQueue_.get(); }
 

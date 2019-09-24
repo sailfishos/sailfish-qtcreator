@@ -45,7 +45,7 @@ class SdkManager
     Q_DECLARE_TR_FUNCTIONS(Sfdk::SdkManager)
 
 public:
-    SdkManager();
+    SdkManager(bool useSystemSettingsOnly);
     ~SdkManager();
 
     static bool isValid();

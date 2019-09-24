@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -123,6 +124,11 @@ std::unique_ptr<Worker> BuiltinWorker::fromMap(const QVariantMap &data, int vers
 Worker::ExitStatus BuiltinWorker::runConfig(const QStringList &arguments0) const
 {
     using P = CommandLineParser;
+
+    if (!Configuration::isLoaded()) {
+        qerr() << P::commandNotAvailableMessage(arguments0.first()) << endl;
+        return BadUsage;
+    }
 
     QCommandLineParser parser;
     QCommandLineOption showOption("show");

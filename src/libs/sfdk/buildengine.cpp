@@ -578,7 +578,8 @@ void BuildEnginePrivate::updateBuildTargets(QList<BuildTargetDump> newTargets)
     Utils::reverseForeach(toRemove, [=](int i) {
         qCDebug(engine) << "Removing build target" << buildTargets.at(i).name;
         emit q->aboutToRemoveBuildTarget(i);
-        deinitBuildTargetAt(i);
+        if (!SdkPrivate::useSystemSettingsOnly())
+            deinitBuildTargetAt(i);
         buildTargets.removeAt(i);
         buildTargetsData.removeAt(i);
     });
@@ -587,7 +588,8 @@ void BuildEnginePrivate::updateBuildTargets(QList<BuildTargetDump> newTargets)
         qCDebug(engine) << "Adding build target" << target.name;
         buildTargets.append(target);
         buildTargetsData.append(createTargetData(target));
-        initBuildTargetAt(buildTargets.count() - 1);
+        if (!SdkPrivate::useSystemSettingsOnly())
+            initBuildTargetAt(buildTargets.count() - 1);
         emit q->buildTargetAdded(buildTargets.count() - 1);
     }
 }
@@ -656,6 +658,8 @@ QString BuildEnginePrivate::rpmValidationSuitesToString(const QList<RpmValidatio
 
 void BuildEnginePrivate::initBuildTargetAt(int index) const
 {
+    QTC_ASSERT(!SdkPrivate::useSystemSettingsOnly(), return);
+
     const BuildTargetDump *dump = &buildTargets[index];
     const BuildTargetData *data = &buildTargetsData[index];
 
@@ -698,6 +702,7 @@ void BuildEnginePrivate::initBuildTargetAt(int index) const
 
 void BuildEnginePrivate::deinitBuildTargetAt(int index) const
 {
+    QTC_ASSERT(!SdkPrivate::useSystemSettingsOnly(), return);
     QTC_ASSERT(index < buildTargets.count(), return);
     FileUtils::removeRecursively(toolsPathForTarget(buildTargets.at(index).name));
 }
@@ -896,10 +901,12 @@ BuildEngineManager::BuildEngineManager(QObject *parent)
     Q_ASSERT(!s_instance);
     s_instance = this;
 
-    // FIXME ugly
-    const optional<QVariantMap> userData = m_userSettings->load();
-    if (userData)
-        fromMap(userData.value());
+    if (!SdkPrivate::useSystemSettingsOnly()) {
+        // FIXME ugly
+        const optional<QVariantMap> userData = m_userSettings->load();
+        if (userData)
+            fromMap(userData.value());
+    }
 
     if (SdkPrivate::isVersionedSettingsEnabled()) {
         connect(SdkPrivate::instance(), &SdkPrivate::enableUpdatesRequested,
