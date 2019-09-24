@@ -253,7 +253,7 @@ Worker::ExitStatus BuiltinWorker::runEngine(const QStringList &arguments, int *e
         qout() << tr("Running: %1").arg(running ? tr("Yes") : tr("No")) << endl;
         *exitCode = EXIT_SUCCESS;
     } else {
-        qerr() << P::unrecognizedCommandMessage(arguments.first());
+        qerr() << P::unrecognizedCommandMessage(arguments.first()) << endl;
         return BadUsage;
     }
 
