@@ -415,10 +415,11 @@ void MerSdkManager::updateDevices()
                 xmlData.m_name = device->displayName();
                 xmlData.m_type = QLatin1String("real");
                 xmlData.m_sshPort.setNum(device->sshParameters().port());
-                if (!device->sharedSshPath().isEmpty()) {
+                const FileName sharedConfigPath = Sdk::buildEngines().first()->sharedConfigPath();
+                if (!sharedConfigPath.isEmpty()) {
                     xmlData.m_sshKeyPath =
                         FileName::fromString(device->sshParameters().privateKeyFile).parentDir()
-                        .relativeChildPath(FileName::fromString(device->sharedSshPath())).toString();
+                        .relativeChildPath(sharedConfigPath).toString();
                 }
             } else {
                 Q_ASSERT(dynamic_cast<const MerEmulatorDevice*>(d.data()) != 0);

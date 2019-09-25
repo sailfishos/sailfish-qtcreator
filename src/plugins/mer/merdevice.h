@@ -42,15 +42,9 @@ public:
 
     QString displayType() const override;
 
-    void fromMap(const QVariantMap &map) override;
-    QVariantMap toMap() const override;
-
     virtual ProjectExplorer::Abi::Architecture architecture() const = 0;
 
     static MachineType workaround_machineTypeFromMap(const QVariantMap &map);
-
-    void setSharedSshPath(const QString &sshPath);
-    QString sharedSshPath() const;
 
     virtual Utils::PortList qmlLivePorts() const = 0;
     QList<Utils::Port> qmlLivePortsList() const;
@@ -58,9 +52,6 @@ public:
 protected:
     MerDevice();
     ~MerDevice() override = 0;
-
-private:
-    QString m_sharedSshPath;
 };
 
 }

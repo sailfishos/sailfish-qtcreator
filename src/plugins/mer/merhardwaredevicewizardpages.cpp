@@ -300,13 +300,12 @@ QString MerHardwareDeviceWizardSetupPage::freePorts() const
 
 void MerHardwareDeviceWizardSetupPage::handleBuildEngineChanged()
 {
-    BuildEngine *const engine = Sdk::buildEngine(m_ui->merSdkComboBox->currentData().toUrl());
-    QTC_ASSERT(engine, return);
+    QTC_ASSERT(buildEngine(), return);
     const MerHardwareDeviceWizard* wizard = qobject_cast<MerHardwareDeviceWizard*>(this->wizard());
     QTC_ASSERT(wizard,return);
     QString index(QLatin1String("/ssh/private_keys/%1/"));
     //TODO: fix me
-    QString sshKeyPath(QDir::toNativeSeparators(engine->sharedConfigPath().toString() +
+    QString sshKeyPath(QDir::toNativeSeparators(buildEngine()->sharedConfigPath().toString() +
                        index.arg(wizard->configurationName()).replace(QLatin1Char(' '),QLatin1Char('_')) +
                        wizard->userName()));
     m_ui->privateSshKeyLabelEdit->setText(sshKeyPath);
@@ -328,11 +327,9 @@ bool MerHardwareDeviceWizardSetupPage::isNewSshKeysRquired() const
     return m_ui->sshCheckBox->isChecked();
 }
 
-QString MerHardwareDeviceWizardSetupPage::sharedSshPath() const
+Sfdk::BuildEngine *MerHardwareDeviceWizardSetupPage::buildEngine() const
 {
-    BuildEngine *const engine = Sdk::buildEngine(m_ui->merSdkComboBox->currentData().toUrl());
-    QTC_ASSERT(engine, return {});
-    return engine->sharedConfigPath().toString();
+    return Sdk::buildEngine(m_ui->merSdkComboBox->currentData().toUrl());
 }
 
 bool MerHardwareDeviceWizardSetupPage::isComplete() const

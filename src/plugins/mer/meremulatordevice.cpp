@@ -379,7 +379,6 @@ void MerEmulatorDeviceManager::onEmulatorAdded(int index)
     device->setupId(IDevice::AutoDetected, MerEmulatorDevice::idFor(*emulator));
     device->setDisplayName(emulator->name());
     device->setSshParameters(emulator->virtualMachine()->sshParameters());
-    device->setSharedSshPath(emulator->sharedSshPath().toString());
     device->setFreePorts(emulator->freePorts());
     startWatching(emulator);
 
@@ -412,10 +411,6 @@ void MerEmulatorDeviceManager::startWatching(Emulator *emulator)
     connect(emulator->virtualMachine(), &VirtualMachine::sshParametersChanged,
             this, withDevice([](MerEmulatorDevice *device) {
         device->setSshParameters(device->emulator()->virtualMachine()->sshParameters());
-    }));
-    connect(emulator, &Emulator::sharedSshPathChanged,
-            this, withDevice([](MerEmulatorDevice *device) {
-        device->setSharedSshPath(device->emulator()->sharedSshPath().toString());
     }));
     connect(emulator, &Emulator::freePortsChanged,
             this, withDevice([](MerEmulatorDevice *device) {

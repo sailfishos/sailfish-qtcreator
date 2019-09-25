@@ -124,7 +124,6 @@ IDevice::Ptr MerDeviceFactory::create() const
     device->setupId(IDevice::ManuallyAdded, Core::Id());
     device->setDisplayName(wizard.configurationName());
     device->setArchitecture(wizard.architecture());
-    device->setSharedSshPath(wizard.sharedSshPath());
     device->setFreePorts(PortList::fromString(wizard.freePorts()));
     //device->setFreePorts(PortList::fromString(QLatin1String("10000-10100")));
     device->setSshParameters(sshParams);

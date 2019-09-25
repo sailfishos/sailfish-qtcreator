@@ -46,34 +46,11 @@ QString MerDevice::displayType() const
     return tr("Sailfish OS Device");
 }
 
-void MerDevice::fromMap(const QVariantMap &map)
-{
-    IDevice::fromMap(map);
-    m_sharedSshPath = map.value(QLatin1String(Constants::MER_DEVICE_SHARED_SSH)).toString();
-}
-
-QVariantMap MerDevice::toMap() const
-{
-    QVariantMap map = IDevice::toMap();
-    map.insert(QLatin1String(Constants::MER_DEVICE_SHARED_SSH), m_sharedSshPath);
-    return map;
-}
-
 IDevice::MachineType
     MerDevice::workaround_machineTypeFromMap(const QVariantMap &map)
 {
     return static_cast<MachineType>(
             map.value(QLatin1String(workaround_MachineTypeKey), Hardware).toInt());
-}
-
-void MerDevice::setSharedSshPath(const QString &sshPath)
-{
-    m_sharedSshPath = sshPath;
-}
-
-QString MerDevice::sharedSshPath() const
-{
-    return m_sharedSshPath;
 }
 
 QList<Utils::Port> MerDevice::qmlLivePortsList() const

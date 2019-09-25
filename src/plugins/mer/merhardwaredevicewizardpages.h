@@ -32,6 +32,10 @@ namespace QSsh {
     class SshConnectionParameters;
 }
 
+namespace Sfdk {
+    class BuildEngine;
+}
+
 namespace Mer {
 namespace Internal {
 
@@ -85,7 +89,7 @@ public:
     QString publicKeyFilePath() const;
     QString privateKeyFilePath() const;
     bool isNewSshKeysRquired() const;
-    QString sharedSshPath() const;
+    Sfdk::BuildEngine *buildEngine() const;
 
     bool isComplete() const override;
 
