@@ -355,7 +355,7 @@ void MerEmulatorOptionsWidget::onEmulatorChanged(int index)
 void MerEmulatorOptionsWidget::onAddButtonClicked()
 {
     MerVmSelectionDialog dialog(this);
-    dialog.setWindowTitle(tr("Add a Sailfish OS Emulator"));
+    dialog.setWindowTitle(tr("Add a %1 Emulator").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)));
     if (dialog.exec() != QDialog::Accepted)
         return;
 

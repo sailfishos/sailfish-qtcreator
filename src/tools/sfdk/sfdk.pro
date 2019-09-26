@@ -6,6 +6,7 @@ QTC_LIB_DEPENDS += \
 CONFIG += qtc_human_user_tool
 
 include(../../qtcreatortool.pri)
+include(../../plugins/mer/mer_branding.pri)
 
 QT += network xmlpatterns
 QT -= gui

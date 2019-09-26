@@ -62,7 +62,7 @@ QVariantMap MerDevice::toMap() const
 
 QString MerDevice::displayType() const
 {
-    return tr("Sailfish OS Device");
+    return tr("%1 Device").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME));
 }
 
 Abi::Architecture MerDevice::architecture() const

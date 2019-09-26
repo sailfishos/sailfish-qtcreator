@@ -1,5 +1,6 @@
 
 include(../../qtcreatorplugin.pri)
+include(../mer/mer_branding.pri)
 
 SOURCES += welcomeplugin.cpp \
     introductionwidget.cpp

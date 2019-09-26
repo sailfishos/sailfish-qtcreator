@@ -6,6 +6,7 @@ include(jsonwizard/jsonwizard.pri)
 
 include(../../shared/clang/clang_installation.pri)
 include(../../shared/clang/clang_defines.pri)
+include(../mer/mer_branding.pri)
 
 HEADERS += projectexplorer.h \
     abi.h \

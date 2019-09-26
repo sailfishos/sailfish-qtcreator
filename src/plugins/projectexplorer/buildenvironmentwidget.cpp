@@ -54,8 +54,8 @@ BuildEnvironmentWidget::BuildEnvironmentWidget(BuildConfiguration *bc) :
 
     QLabel *filterInfoLabel = new QLabel(this);
     filterInfoLabel->setWordWrap(true);
-    filterInfoLabel->setText(tr("Not all variables will be forwarded to a Sailfish OS build engine. "
-                "<a href='environment-filter'>Configure…</a>"));
+    filterInfoLabel->setText(tr("Not all variables will be forwarded to a %1 build engine. "
+                "<a href='environment-filter'>Configure…</a>").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)));
     filterInfoLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
     connect(filterInfoLabel, &QLabel::linkActivated, [] {
         Core::ICore::showOptionsDialog(Mer::Constants::MER_GENERAL_OPTIONS_ID, Core::ICore::dialogParent());

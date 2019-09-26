@@ -24,6 +24,7 @@
 
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/task.h>
+#include "merconstants.h"
 
 using namespace ProjectExplorer;
 using namespace Utils;
@@ -40,7 +41,7 @@ void MerSshParser::stdError(const QString &line)
                           description,
                           FileName() /* filename */,
                           -1 /* linenumber */,
-                          Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM)));
+                          Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM)));
         return;
     }
     IOutputParser::stdError(line);
@@ -63,7 +64,7 @@ using namespace Mer::Internal;
 
 void MerPlugin::testMerSshOutputParsers_data()
 {
-    const Core::Id categoryBuildSystem = Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM);
+    const Core::Id categoryBuildSystem = Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM);
     QTest::addColumn<QString>("input");
     QTest::addColumn<OutputParserTester::Channel>("inputChannel");
     QTest::addColumn<QString>("childStdOutLines");
@@ -84,12 +85,12 @@ void MerPlugin::testMerSshOutputParsers_data()
             << QString();
 
     QTest::newRow("merssh error")
-            << QString::fromLatin1("Project ERROR: Sailfish OS build engine is not running.")
+            << QString::fromLatin1("Project ERROR: %1 build engine is not running.").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME))
             << OutputParserTester::STDERR
             << QString() << QString()
             << (QList<Task>()
                 << Task(Task::Error,
-                        QLatin1String("Sailfish OS build engine is not running."),
+                        QString::fromLatin1("%1 build engine is not running.").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)),
                         FileName(), -1,
                         categoryBuildSystem))
             << QString();

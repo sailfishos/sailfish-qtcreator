@@ -25,6 +25,7 @@
 
 #include "introductionwidget.h"
 
+#include <mer/merconstants.h>
 #include <utils/algorithm.h>
 #include <utils/checkablemessagebox.h>
 #include <utils/qtcassert.h>
@@ -37,6 +38,7 @@
 #include <QPainter>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <mer/merconstants.h>
 
 using namespace Utils;
 
@@ -120,9 +122,9 @@ IntroductionWidget::IntroductionWidget(QWidget *parent)
             "<tr><td>Debug:</td><td>Analyze your application with a debugger or other "
             "analyzers.</td></tr>"
             "<tr><td>Projects:</td><td>Manage project settings.</td></tr>"
-            "<tr><td>Sailfish OS:</td><td>Control the Sailfish SDK.</td></tr>"
+            "<tr><td>%1:</td><td>Control the %2.</td></tr>"
             "<tr><td>Help:</td><td>Browse the help database.</td></tr>"
-            "</table></p>")},
+            "</table></p>").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)).arg(QCoreApplication::translate("Mer", Mer::Constants::MER_SDK_NAME))},
         {QLatin1String("KitSelector.Button"),
          tr("Kit Selector"),
          tr("Select the active project or project configuration."),

@@ -22,6 +22,7 @@
 ****************************************************************************/
 
 #include "merhardwaredevicewizard.h"
+#include "mer/merconstants.h"
 
 #include <ssh/sshconnection.h>
 
@@ -37,7 +38,7 @@ MerHardwareDeviceWizard::MerHardwareDeviceWizard(QWidget *parent)
       m_setupPage(this),
       m_finalPage(this)
 {
-    setWindowTitle(tr("New Sailfish OS Hardware Device Setup"));
+    setWindowTitle(tr("New %1 Hardware Device Setup").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)));
     addPage(&m_selectionPage);
     addPage(&m_setupPage);
     addPage(&m_finalPage);

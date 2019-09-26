@@ -3,6 +3,7 @@ QTC_LIB_DEPENDS += \
  utils
 
 include(../../qtcreatortool.pri)
+include(../../plugins/mer/mer_branding.pri)
 
 QT += network
 QT -= gui

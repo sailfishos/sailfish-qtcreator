@@ -105,7 +105,7 @@ QList<Abi> MerQtVersion::detectQtAbis() const
 
 QString MerQtVersion::description() const
 {
-    return QCoreApplication::translate("QtVersion", "Sailfish OS ", "Qt Version is meant for Sailfish OS");
+    return QCoreApplication::translate("QtVersion", "Sailfish OS ", "Qt Version is meant for %1 ").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME));
 }
 
 QSet<Core::Id> MerQtVersion::targetDeviceTypes() const
@@ -148,8 +148,8 @@ QList<Task> MerQtVersion::validateKit(const Kit *kit)
 
     } else if (!MerSdkManager::validateKit(kit)) {
         const QString message =
-                QCoreApplication::translate("QtVersion", "This Qt version \"%1\" does not match Sailfish SDK or toolchain.").
-                arg(version->displayName());
+                QCoreApplication::translate("QtVersion", "This Qt version \"%1\" does not match %2 or toolchain.").
+                arg(version->displayName()).arg(QCoreApplication::translate("Mer", Mer::Constants::MER_SDK_NAME));
         result << Task(Task::Error, message, FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     }
@@ -201,9 +201,10 @@ QList<Task> MerQtVersion::reportIssuesImpl(const QString &proFile,
         }
 
         if (!proFileClean.startsWith(sharedHomeClean) && !proFileClean.startsWith(sharedSrcClean)) {
-            QString message =  QCoreApplication::translate("QtVersion", "Project is outside of Sailfish SDK workspace");
+            QString message =  QCoreApplication::translate("QtVersion", "Project is outside of %1 workspace").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_SDK_NAME));
             if(!buildEngine->sharedHomePath().isEmpty() && !buildEngine->sharedSrcPath().isEmpty())
-              message = QCoreApplication::translate("QtVersion", "Project is outside of Sailfish SDK shared home \"%1\" and shared src \"%2\"")
+              message = QCoreApplication::translate("QtVersion", "Project is outside of %1 shared home \"%2\" and shared src \"%3\"")
+                      .arg(QCoreApplication::translate("Mer", Mer::Constants::MER_SDK_NAME))
                       .arg(QDir::toNativeSeparators(buildEngine->sharedHomePath().toString()))
                       .arg(QDir::toNativeSeparators(buildEngine->sharedSrcPath().toString()));
             else if(!buildEngine->sharedHomePath().isEmpty())

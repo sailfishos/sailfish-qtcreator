@@ -47920,27 +47920,27 @@ What do you want to do?</source>
 <context>
     <name>Mer</name>
     <message>
-        <location filename="merconstants.h" line="35"/>
+        <location filename="merconstants.h" line="36"/>
         <source>Sailfish OS</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="merconstants.h" line="37"/>
+        <location filename="merconstants.h" line="46"/>
         <source>Build Engine</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="merconstants.h" line="39"/>
+        <location filename="merconstants.h" line="50"/>
         <source>General</source>
         <translation>Общее</translation>
     </message>
     <message>
-        <location filename="merconstants.h" line="41"/>
+        <location filename="merconstants.h" line="52"/>
         <source>Emulator Modes</source>
         <translation>Режимы эмулятора</translation>
     </message>
     <message>
-        <location filename="merconstants.h" line="42"/>
+        <location filename="merconstants.h" line="54"/>
         <source>&amp;Emulator mode...</source>
         <translation>Режим эмулятора...</translation>
     </message>
@@ -47988,8 +47988,8 @@ What do you want to do?</source>
     <name>Mer::Internal::MerConnectionManager</name>
     <message>
         <location filename="merconnectionmanager.cpp" line="251"/>
-        <source>Start/Stop a Sailfish OS Emulator</source>
-        <translation>Запуск/остановка эмулятора Sailfish OS</translation>
+        <source>Start/Stop a %1 Emulator</source>
+        <translation>Запуск/остановка эмулятора %1</translation>
     </message>
     <message>
         <location filename="merconnectionmanager.cpp" line="255"/>
@@ -48029,8 +48029,8 @@ What do you want to do?</source>
     </message>
     <message>
         <location filename="merconnectionmanager.cpp" line="263"/>
-        <source>Start/Stop a Sailfish OS Build Engine</source>
-        <translation>Запуск/остановка Sailfish OS Build Engine</translation>
+        <source>Start/Stop a %1 Build Engine</source>
+        <translation>Запуск/остановка %1 Build Engine</translation>
     </message>
     <message>
         <location filename="merconnectionmanager.cpp" line="402"/>
@@ -48086,8 +48086,8 @@ What do you want to do?</source>
     <name>Mer::Internal::MerDevice</name>
     <message>
         <location filename="merdevice.cpp" line="42"/>
-        <source>Sailfish OS Device</source>
-        <translation>Устройство Sailfish OS</translation>
+        <source>%1 Device</source>
+        <translation>Устройство %1</translation>
     </message>
     <message>
         <location filename="merhardwaredevice.cpp" line="123"/>
@@ -48099,8 +48099,8 @@ What do you want to do?</source>
     <name>Mer::Internal::MerDeviceFactory</name>
     <message>
         <location filename="merdevicefactory.cpp" line="76"/>
-        <source>Sailfish OS Device</source>
-        <translation>Устройство Sailfish OS</translation>
+        <source>%1 Device</source>
+        <translation>Устройство %1</translation>
     </message>
     <message>
         <location filename="merdevicefactory.cpp" line="105"/>
@@ -48114,8 +48114,8 @@ What do you want to do?</source>
     </message>
     <message>
         <location filename="merdevicefactory.cpp" line="108"/>
-        <source>Create a Sailfish OS Device</source>
-        <translation>Создать устройство Sailfish OS</translation>
+        <source>Create a %1 Device</source>
+        <translation>Создать устройство %1</translation>
     </message>
     <message>
         <location filename="merdevicefactory.cpp" line="109"/>
@@ -48340,8 +48340,8 @@ What do you want to do?</source>
     <name>Mer::Internal::MerEmulatorDeviceWizard</name>
     <message>
         <location filename="meremulatordevicewizard.cpp" line="34"/>
-        <source>New Sailfish OS Emulator Device Setup</source>
-        <translation>Добавление нового эмулятора Sailfish OS</translation>
+        <source>New %1 Emulator Device Setup</source>
+        <translation>Добавление нового эмулятора %1</translation>
     </message>
 </context>
 <context>
@@ -49032,8 +49032,8 @@ What do you want to do?</source>
     <name>Mer::Internal::MerHardwareDeviceWizard</name>
     <message>
         <location filename="merhardwaredevicewizard.cpp" line="39"/>
-        <source>New Sailfish OS Hardware Device Setup</source>
-        <translation>Добавление нового устройства Sailfish OS</translation>
+        <source>New %1 Hardware Device Setup</source>
+        <translation>Добавление нового устройства %1</translation>
     </message>
 </context>
 <context>
@@ -49182,7 +49182,7 @@ What do you want to do?</source>
     </message>
     <message>
         <location filename="merhardwaredevicewizardsetuppage.ui" line="158"/>
-        <source>Sailfish OS build engine:</source>
+        <source>Build engine:</source>
         <translation></translation>
     </message>
     <message>
@@ -49220,13 +49220,13 @@ What do you want to do?</source>
     </message>
     <message>
         <location filename="merdeploysteps.cpp" line="592"/>
-        <source>Cannot deploy: Missing Sailfish OS build-engine information in the kit</source>
-        <translation>Не удается развернуть: отсутствует информация о Sailfish OS Build Engine в комплекте</translation>
+        <source>Cannot deploy: Missing %1 build-engine information in the kit</source>
+        <translation>Не удается развернуть: отсутствует информация о %1 Build Engine в комплекте</translation>
     </message>
     <message>
         <location filename="merdeploysteps.cpp" line="600"/>
-        <source>Cannot deploy: Missing Sailfish OS build-target information in the kit</source>
-        <translation>Не удается развернуть: отсутствует информация о цели сборки Sailfish OS в комплекте</translation>
+        <source>Cannot deploy: Missing %1 build-target information in the kit</source>
+        <translation>Не удается развернуть: отсутствует информация о цели сборки %1 в комплекте</translation>
     </message>
     <message>
         <location filename="merdeploysteps.cpp" line="627"/>
@@ -49266,8 +49266,8 @@ What do you want to do?</source>
     </message>
     <message>
         <location filename="mermanagementwebview.cpp" line="137"/>
-        <source>Configure a Sailfish OS build engine in Options</source>
-        <translation>Настройка Sailfish OS Build Engine в меню &quot;Параметры&quot;</translation>
+        <source>Configure a %1 build engine in Options</source>
+        <translation>Настройка %1 Build Engine в меню &quot;Параметры&quot;</translation>
     </message>
 </context>
 <context>
@@ -49315,14 +49315,6 @@ What do you want to do?</source>
         <location filename="merdeploysteps.cpp" line="555"/>
         <source>Deploys with rsync.</source>
         <translation>Развертывается с помощью rsync.</translation>
-    </message>
-</context>
-<context>
-    <name>Mer::Internal::MerMode</name>
-    <message>
-        <location filename="mermode.cpp" line="49"/>
-        <source>Sailfish OS</source>
-        <translation></translation>
     </message>
 </context>
 <context>
@@ -49429,8 +49421,8 @@ What do you want to do?</source>
     </message>
     <message>
         <location filename="meroptionswidget.cpp" line="333"/>
-        <source>Add a Sailfish OS Build Engine</source>
-        <translation>Добавить Sailfish OS Build Engine</translation>
+        <source>Add a %1 Build Engine</source>
+        <translation>Добавить %1 Build Engine</translation>
     </message>
     <message>
         <location filename="meroptionswidget.cpp" line="380"/>
@@ -49580,18 +49572,18 @@ Close the virtual machine now?</source>
     </message>
     <message>
         <location filename="merdeploysteps.cpp" line="246"/>
-        <source>Cannot deploy: Missing Sailfish OS build-engine information in the kit</source>
-        <translation>Не удается развернуть: отсутствует информация о Sailfish OS Build Engine в комплекте</translation>
+        <source>Cannot deploy: Missing %1 build-engine information in the kit</source>
+        <translation>Не удается развернуть: отсутствует информация о %1 Build Engine в комплекте</translation>
     </message>
     <message>
         <location filename="merdeploysteps.cpp" line="254"/>
-        <source>Cannot deploy: Missing Sailfish OS build-target information in the kit</source>
-        <translation>Не удается развернуть: отсутствует информация о цели сборки Sailfish OS в комплекте</translation>
+        <source>Cannot deploy: Missing %1 build-target information in the kit</source>
+        <translation>Не удается развернуть: отсутствует информация о цели сборки %1 в комплекте</translation>
     </message>
     <message>
         <location filename="merdeploysteps.cpp" line="263"/>
-        <source>Cannot deploy: Missing Sailfish OS device information in the kit</source>
-        <translation>Не удается развернуть: отсутствует информация об устройстве Sailfish OS в комплекте</translation>
+        <source>Cannot deploy: Missing %1 device information in the kit</source>
+        <translation>Не удается развернуть: отсутствует информация об устройстве %1 в комплекте</translation>
     </message>
 </context>
 <context>
@@ -49603,8 +49595,8 @@ Close the virtual machine now?</source>
     </message>
     <message>
         <location filename="merqmllivebenchmanager.cpp" line="144"/>
-        <source>&lt;p&gt;QmlLive Bench is not running. Do you want to start it now?&lt;/p&gt;&lt;p&gt;&lt;a href=&apos;%1&apos;&gt;Learn more&lt;/a&gt; on using QmlLive with Sailfish OS devices.&lt;/p&gt;</source>
-        <translation>&lt;p&gt;QmlLive Bench не запущен. Запустить сейчас?&lt;/p&gt;&lt;p&gt;&lt;a href=&apos;%1&apos;&gt;Подробнее&lt;/a&gt; про использование QmlLive на устройствах Sailfish OS.&lt;/p&gt;</translation>
+        <source>&lt;p&gt;QmlLive Bench is not running. Do you want to start it now?&lt;/p&gt;&lt;p&gt;&lt;a href=&apos;%1&apos;&gt;Learn more&lt;/a&gt; on using QmlLive with %2 devices.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;QmlLive Bench не запущен. Запустить сейчас?&lt;/p&gt;&lt;p&gt;&lt;a href=&apos;%1&apos;&gt;Подробнее&lt;/a&gt; про использование QmlLive на устройствах %2.&lt;/p&gt;</translation>
     </message>
     <message>
         <location filename="merqmllivebenchmanager.cpp" line="185"/>
@@ -49646,9 +49638,9 @@ Close the virtual machine now?</source>
         <translation>Запуск удаленной команды для сброса окружения &quot;%1&quot;...</translation>
     </message>
     <message>
-        <location filename="merdeploysteps.cpp" line="1166"/>
-        <source>Reset Sailfish OS Ambience</source>
-        <translation>Сбросить Sailfish OS Ambience</translation>
+        <location filename="merdeploysteps.cpp" line="1075"/>
+        <source>Reset %1 Ambience</source>
+        <translation>Сбросить %1 Ambience</translation>
     </message>
 </context>
 <context>
@@ -49704,8 +49696,8 @@ Close the virtual machine now?</source>
     </message>
     <message>
         <location filename="merrpmpackagingstep.cpp" line="99"/>
-        <source>Packaging failed: No Sailfish OS build target set.</source>
-        <translation>Ошибка создания пакета: отсутствует цель сборки Sailfish OS.</translation>
+        <source>Packaging failed: No %1 build target set.</source>
+        <translation>Ошибка создания пакета: отсутствует цель сборки %1.</translation>
     </message>
     <message>
         <location filename="merrpmpackagingstep.cpp" line="118"/>
@@ -49845,8 +49837,8 @@ Close the virtual machine now?</source>
     </message>
     <message>
         <location filename="merdeploysteps.cpp" line="865"/>
-        <source>No RPM validation suite is available for the current Sailfish OS build target, the package will not be validated</source>
-        <translation>Недоступен набор валидации RPM-пакетов для текущей цели сборки Sailfish OS, пакет не будет проверен</translation>
+        <source>No RPM validation suite is available for the current %1 build target, the package will not be validated</source>
+        <translation>Недоступен набор валидации RPM-пакетов для текущей цели сборки %1, пакет не будет проверен</translation>
     </message>
     <message>
         <location filename="merdeploysteps.cpp" line="871"/>
@@ -49945,8 +49937,8 @@ Close the virtual machine now?</source>
     </message>
     <message>
         <location filename="merdeploysteps.cpp" line="201"/>
-        <source>No RPM validation suite is available for the current Sailfish OS build target</source>
-        <translation>Не доступен ни один комплект валидации RPM для текущей цели сборки Sailfish OS</translation>
+        <source>No RPM validation suite is available for the current %1 build target</source>
+        <translation>Не доступен ни один комплект валидации RPM для текущей цели сборки %1</translation>
     </message>
     <message>
         <location filename="merdeploysteps.cpp" line="206"/>
@@ -49987,7 +49979,7 @@ Close the virtual machine now?</source>
     <name>Mer::Internal::MerRunConfigurationAspect</name>
     <message>
         <location filename="merrunconfigurationaspect.cpp" line="244"/>
-        <source>Sailfish OS Application Settings</source>
+        <source>%1 Application Settings</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -50240,8 +50232,8 @@ Close the virtual machine now?</source>
     <name>Mer::Internal::MerSdkKitInformation</name>
     <message>
         <location filename="mersdkkitinformation.cpp" line="95"/>
-        <source>Sailfish OS build engine</source>
-        <translation></translation>
+        <source>%1 build engine</source>
+        <translation>%1 build engine</translation>
     </message>
 </context>
 <context>
@@ -50258,8 +50250,8 @@ Close the virtual machine now?</source>
     </message>
     <message>
         <location filename="mersdkkitinformation.cpp" line="171"/>
-        <source>Name of the virtual machine used as a Sailfish OS build engine.</source>
-        <translation>Имя виртуальной машины, используемой в качестве Sailfish OS Build Engine.</translation>
+        <source>Name of the virtual machine used as a %1 build engine.</source>
+        <translation>Имя виртуальной машины, используемой в качестве %1 Build Engine.</translation>
     </message>
     <message>
         <location filename="mersdkkitinformation.cpp" line="215"/>
@@ -50340,8 +50332,8 @@ Close the virtual machine now?</source>
     <name>Mer::Internal::MerSdkStartStep</name>
     <message>
         <location filename="merbuildsteps.cpp" line="46"/>
-        <source>Cannot start SDK: Missing Sailfish OS build-engine information in the kit</source>
-        <translation>Не удается запустить SDK: отсутствует информация о Sailfish OS Build Engine в комплекте</translation>
+        <source>Cannot start SDK: Missing %1 build-engine information in the kit</source>
+        <translation>Не удается запустить SDK: отсутствует информация о %1 Build Engine в комплекте</translation>
     </message>
     <message>
         <location filename="merbuildsteps.cpp" line="63"/>
@@ -50353,8 +50345,8 @@ Close the virtual machine now?</source>
     <name>Mer::Internal::MerSettings</name>
     <message>
         <location filename="mersettings.cpp" line="79"/>
-        <source>Sailfish OS Emulator: Device model &quot;%1&quot; renamed to &quot;%2&quot;.</source>
-        <translation>Эмулятор Sailfish OS: модель устройства &quot;%1&quot; переименована в &quot;%2&quot;.</translation>
+        <source>%1 Emulator: Device model &quot;%2&quot; renamed to &quot;%3&quot;.</source>
+        <translation>Эмулятор %1: модель устройства &quot;%1&quot; переименована в &quot;%2&quot;.</translation>
     </message>
 </context>
 <context>
@@ -50387,8 +50379,8 @@ Close the virtual machine now?</source>
     <name>Mer::Internal::MerTargetKitInformation</name>
     <message>
         <location filename="mertargetkitinformation.cpp" line="100"/>
-        <source>Sailfish OS build target</source>
-        <translation>Цель сборки Sailfish OS</translation>
+        <source>%1 build target</source>
+        <translation>Цель сборки %1</translation>
     </message>
 </context>
 <context>
@@ -50400,8 +50392,8 @@ Close the virtual machine now?</source>
     </message>
     <message>
         <location filename="mertargetkitinformation.cpp" line="145"/>
-        <source>Sailfish OS build target:</source>
-        <translation>Цель сборки Sailfish OS:</translation>
+        <source>%1 build target:</source>
+        <translation>Цель сборки %1:</translation>
     </message>
     <message>
         <location filename="mertargetkitinformation.cpp" line="150"/>
@@ -50851,8 +50843,8 @@ Close the virtual machine now?</source>
     <name>MerSdk</name>
     <message>
         <location filename="mersdkkitinformation.cpp" line="71"/>
-        <source>No valid Sailfish OS build engine &quot;%1&quot; found</source>
-        <translation>Не найден Sailfish OS Build Engine: &quot;%1&quot;</translation>
+        <source>No valid %1 build engine &quot;%2&quot; found</source>
+        <translation>Не найден %1 Build Engine: &quot;%2&quot;</translation>
     </message>
 </context>
 <context>
@@ -50877,8 +50869,8 @@ Close the virtual machine now?</source>
     </message>
     <message>
         <location filename="mertoolchain.cpp" line="151"/>
-        <source>The toolchain &quot;%1&quot; does not match Sailfish OS build engine or Qt version</source>
-        <translation>Toolchain &quot;%1&quot; не соответствует Sailfish OS Build Engine или версии Qt</translation>
+        <source>The toolchain &quot;%1&quot; does not match %2 build engine or Qt version</source>
+        <translation>Toolchain &quot;%1&quot; не соответствует %2 Build Engine или версии Qt</translation>
     </message>
 </context>
 <context>
@@ -50913,8 +50905,8 @@ Close the virtual machine now?</source>
     <message>
         <location filename="merqtversion.cpp" line="103"/>
         <source>Sailfish OS </source>
-        <comment>Qt Version is meant for Sailfish OS</comment>
-        <translatorcomment>Версия Qt предназначена для Sailfish OS</translatorcomment>
+        <comment>Qt Version is meant for %1</comment>
+        <translatorcomment>Версия Qt предназначена для %1</translatorcomment>
         <translation>Sailfish OS </translation>
     </message>
     <message>
@@ -50924,23 +50916,23 @@ Close the virtual machine now?</source>
     </message>
     <message>
         <location filename="merqtversion.cpp" line="146"/>
-        <source>This Qt version &quot;%1&quot; does not match Sailfish SDK or toolchain.</source>
-        <translation>Версия Qt &quot;%1 &quot; не соответствует Sailfish SDK или toolchain.</translation>
+        <source>This Qt version &quot;%1&quot; does not match %2 or toolchain.</source>
+        <translation>Версия Qt &quot;%1 &quot; не соответствует %2 или toolchain.</translation>
     </message>
     <message>
         <location filename="merqtversion.cpp" line="163"/>
-        <source>Qt version &quot;%1&quot; is missing Sailfish SDK</source>
-        <translation>Версия Qt &quot;%1&quot; отсутствует в Sailfish SDK</translation>
+        <source>Qt version &quot;%1&quot; is missing %2</source>
+        <translation>Версия Qt &quot;%1&quot; отсутствует в %2</translation>
     </message>
     <message>
         <location filename="merqtversion.cpp" line="199"/>
-        <source>Project is outside of Sailfish SDK workspace</source>
-        <translation>Проект находится за пределами рабочей области Sailfish SDK</translation>
+        <source>Project is outside of %1 workspace</source>
+        <translation>Проект находится за пределами рабочей области %1</translation>
     </message>
     <message>
         <location filename="merqtversion.cpp" line="201"/>
-        <source>Project is outside of Sailfish SDK shared home &quot;%1&quot; and shared src &quot;%2&quot;</source>
-        <translation>Проект находится за пределами общей домашней папки Sailfish SDK &quot;%1&quot; и общего каталога src &quot;%2&quot;</translation>
+        <source>Project is outside of %1 shared home &quot;%2&quot; and shared src &quot;%3&quot;</source>
+        <translation>Проект находится за пределами общей домашней папки %1 &quot;%2&quot; и общего каталога src &quot;%3&quot;</translation>
     </message>
     <message>
         <location filename="merqtversion.cpp" line="205"/>

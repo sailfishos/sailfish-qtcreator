@@ -5,6 +5,7 @@ PROVIDER = MerProject
 QT += gui xmlpatterns
 
 include(../../qtcreatorplugin.pri)
+include(mer_branding.pri)
 
 DEFINES += MER_LIBRARY
 DEFINES += QT_NO_URL_CAST_FROM_STRING

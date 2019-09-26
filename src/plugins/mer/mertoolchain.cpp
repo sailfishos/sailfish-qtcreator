@@ -152,8 +152,8 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
     } else if (!Internal::MerSdkManager::validateKit(kit)) {
         const QString message =
                 QCoreApplication::translate("ProjectExplorer::MerToolChain",
-                                            "The toolchain \"%1\" does not match Sailfish OS build engine or Qt version").
-                                                                arg(displayName());
+                                            "The toolchain \"%1\" does not match %2 build engine or Qt version").
+                                                                arg(displayName()).arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME));
         result << Task(Task::Error, message, FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     }
@@ -170,7 +170,7 @@ void MerToolChain::addToEnvironment(Environment &env) const
 
 MerToolChainFactory::MerToolChainFactory()
 {
-    setDisplayName(tr("Sailfish OS"));
+    setDisplayName(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME));
 }
 
 /*

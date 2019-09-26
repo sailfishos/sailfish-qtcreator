@@ -32,6 +32,7 @@
 #include <utils/icon.h>
 
 #include <QDebug>
+#include <QCoreApplication>
 
 using namespace Core;
 
@@ -46,7 +47,7 @@ MerMode::MerMode()
     setWidget(new QWidget);
 #endif
     setContext(Context("Mer.MerMode"));
-    setDisplayName(tr("Sailfish OS"));
+    setDisplayName(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME));
     setIcon(Utils::Icon::modeIcon(Icons::MER_MODE_CLASSIC,
                                 Icons::MER_MODE_FLAT, Icons::MER_MODE_FLAT_ACTIVE));
     setPriority(80); // between "Projects" and "Analyze" modes

@@ -142,8 +142,9 @@ void MerQmlLiveBenchManager::offerToStartBenchIfNotRunning()
                 QMessageBox::Question,
                 tr("Start QmlLive Bench"),
                 tr("<p>QmlLive Bench is not running. Do you want to start it now?</p>"
-                   "<p><a href='%1'>Learn more</a> on using QmlLive with Sailfish OS devices.</p>")
-                .arg(QLatin1String(Constants::QML_LIVE_HELP_URL)),
+                   "<p><a href='%1'>Learn more</a> on using QmlLive with %2 devices.</p>")
+                .arg(QLatin1String(Constants::QML_LIVE_HELP_URL))
+                .arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)),
                 QMessageBox::Yes | QMessageBox::No,
                 ICore::mainWindow()};
         question->setAttribute(Qt::WA_DeleteOnClose);

@@ -12,12 +12,12 @@
                     \"Alternatively, this file may be used in accordance with the terms and conditions contained in a signed written agreement between you and Digia.\"
     ],
     \"Category\" : \"Device Support\",
-    \"Description\" : \"Support for development for Sailfish OS devices.\",
+    \"Description\" : \"Support for development for $${BASE_OS_NAME} OS devices.\",
     \"Url\" : \"https://github.com/sailfishos/sailfish-qtcreator\",
     \"Arguments\" : [
         {
             \"Name\" : \"-mer-verbose\",
-            \"Description\" : \"Verbose loading of Sailfish SDKs\"
+            \"Description\" : \"Verbose loading of $${BASE_OS_NAME} SDKs\"
         }
     ],
     $$dependencyList,
@@ -26,12 +26,12 @@
     <?xml version=\'1.0\'?>
     <mime-info xmlns=\'http://www.freedesktop.org/standards/shared-mime-info\'>
         <mime-type type=\'application/vnd.jolla.sailfish.ambience-definition\'>
-            <comment>Sailfish OS ambience definition</comment>
+            <comment>$${BASE_OS_NAME} OS ambience definition</comment>
             <sub-class-of type=\'application/json\'/>
             <glob pattern=\'*.ambience\'/>
         </mime-type>
         <mime-type type=\'application/vnd.jolla.sailfish.ambience-sounds-index\'>
-            <comment>Sound index file for Sailfish OS ambience</comment>
+            <comment>Sound index file for $${BASE_OS_NAME} OS ambience</comment>
             <sub-class-of type=\'application/json\'/>
             <glob pattern=\'sounds.index\'/>
         </mime-type>

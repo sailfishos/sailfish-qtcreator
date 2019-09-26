@@ -24,6 +24,7 @@
 #include "merbuildsteps.h"
 
 #include "mersdkkitinformation.h"
+#include "mer/merconstants.h"
 
 #include <sfdk/buildengine.h>
 
@@ -46,7 +47,7 @@ bool MerSdkStartStep::init()
 {
     const BuildEngine *const engine = MerSdkKitInformation::buildEngine(target()->kit());
     if (!engine) {
-        addOutput(tr("Cannot start SDK: Missing Sailfish OS build-engine information in the kit"),
+        addOutput(tr("Cannot start SDK: Missing %1 build-engine information in the kit").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)),
                 OutputFormat::ErrorMessage);
         return false;
     }

@@ -62,7 +62,7 @@ MerDeviceFactory::MerDeviceFactory()
     QTC_CHECK(!s_instance);
     s_instance = this;
     setObjectName(QLatin1String("MerDeviceFactory"));
-    setDisplayName(tr("Sailfish OS Device"));
+    setDisplayName(tr("%1 Device").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)));
     setIcon(Utils::creatorTheme()->flag(Utils::Theme::FlatSideBarIcons)
             ? Utils::Icon::combinedIcon({Icons::MER_DEVICE_FLAT,
                                          Icons::MER_DEVICE_FLAT_SMALL})

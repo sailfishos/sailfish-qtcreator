@@ -95,18 +95,21 @@ QList<Task> MerSdkKitInformation::validate(const Kit *kit) const
         QString buildTargetName;
         if (!fromMap(data, &buildEngineUri, &buildTargetName)) {
             return {error(QCoreApplication::translate("MerSdk",
-                    "No Sailfish SDK information in kit \"%1\"")
+                    "No %1 information in kit \"%2\"")
+                    .arg(QCoreApplication::translate("Mer", Mer::Constants::MER_SDK_NAME))
                     .arg(kit->displayName()))};
         }
         BuildEngine *const engine = Sdk::buildEngine(buildEngineUri);
         if (!engine) {
             return {error(QCoreApplication::translate("MerSdk",
-                    "Unknown Sailfish OS build engine referred by kit \"%1\"")
+                    "Unknown %1 build engine referred by kit \"%2\"")
+                    .arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME))
                     .arg(kit->displayName()))};
         }
         if (!engine->buildTarget(buildTargetName).isValid()) {
             return {error(QCoreApplication::translate("MerSdk",
-                    "Unknown Sailfish OS build target referred by kit \"%1\"")
+                    "Unknown %1 build target referred by kit \"%2\"")
+                    .arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME))
                     .arg(kit->displayName()))};
         }
     }
@@ -163,8 +166,8 @@ KitInformation::ItemList MerSdkKitInformation::toUserOutput(const Kit *kit) cons
         const QString buildTargetName = MerSdkKitInformation::buildTargetName(kit);
 
         return KitInformation::ItemList()
-                << qMakePair(tr("Sailfish OS build engine"), buildEngineName)
-                << qMakePair(tr("Sailfish OS build target"), buildTargetName);
+                << qMakePair(tr("%1 build engine").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)), buildEngineName)
+                << qMakePair(tr("%1 build target").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)), buildTargetName);
     }
     return KitInformation::ItemList();
 }
@@ -297,12 +300,12 @@ MerSdkKitInformationWidget::MerSdkKitInformationWidget(Kit *kit,
 
 QString MerSdkKitInformationWidget::displayName() const
 {
-    return tr("Sailfish SDK");
+    return tr("%1").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_SDK_NAME));
 }
 
 QString MerSdkKitInformationWidget::toolTip() const
 {
-    return tr("Sailfish OS build engine and build target.");
+    return tr("%1 build engine and build target.").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME));
 }
 
 void MerSdkKitInformationWidget::makeReadOnly()

@@ -192,7 +192,7 @@ private:
     {
         if (!hasSuite) {
             m_ui.warningLabel->setText(tr("No RPM validation suite is available for the current "
-                        "Sailfish OS build target"));
+                        "%1 build target").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)));
             m_ui.warningLabelIcon->setVisible(true);
             m_ui.warningLabel->setVisible(true);
         } else if (!hasSelectedSuite) {
@@ -235,7 +235,7 @@ bool MerProcessStep::init(InitOptions options)
     const BuildEngine *const engine = MerSdkKitInformation::buildEngine(target()->kit());
 
     if (!engine) {
-        addOutput(tr("Cannot deploy: Missing Sailfish OS build-engine information in the kit"),
+        addOutput(tr("Cannot deploy: Missing %1 build-engine information in the kit").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)),
                 OutputFormat::ErrorMessage);
         return false;
     }
@@ -243,7 +243,7 @@ bool MerProcessStep::init(InitOptions options)
     const QString target = MerSdkKitInformation::buildTargetName(this->target()->kit());
 
     if (target.isEmpty()) {
-        addOutput(tr("Cannot deploy: Missing Sailfish OS build-target information in the kit"),
+        addOutput(tr("Cannot deploy: Missing %1 build-target information in the kit").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)),
                 OutputFormat::ErrorMessage);
         return false;
     }
@@ -252,7 +252,7 @@ bool MerProcessStep::init(InitOptions options)
 
     //TODO: HACK
     if (device.isNull() && !(options & DoNotNeedDevice)) {
-        addOutput(tr("Cannot deploy: Missing Sailfish OS device information in the kit"),
+        addOutput(tr("Cannot deploy: Missing %1 device information in the kit").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)),
                 OutputFormat::ErrorMessage);
         return false;
     }
@@ -535,7 +535,7 @@ bool MerLocalRsyncDeployStep::init()
     BuildEngine *const engine = MerSdkKitInformation::buildEngine(target()->kit());
 
     if (!engine) {
-        addOutput(tr("Cannot deploy: Missing Sailfish OS build-engine information in the kit"),
+        addOutput(tr("Cannot deploy: Missing %1 build-engine information in the kit").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)),
                 OutputFormat::ErrorMessage);
         return false;
     }
@@ -543,7 +543,7 @@ bool MerLocalRsyncDeployStep::init()
     const QString target = MerSdkKitInformation::buildTargetName(this->target()->kit());
 
     if (target.isEmpty()) {
-        addOutput(tr("Cannot deploy: Missing Sailfish OS build-target information in the kit"),
+        addOutput(tr("Cannot deploy: Missing %1 build-target information in the kit").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)),
                 OutputFormat::ErrorMessage);
         return false;
     }
@@ -786,7 +786,7 @@ void MerRpmValidationStep::doRun()
 {
     if (m_target.rpmValidationSuites.isEmpty()) {
         const QString message(tr("No RPM validation suite is available for the current "
-                    "Sailfish OS build target, the package will not be validated"));
+                    "%1 build target, the package will not be validated").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)));
         emit addOutput(message, OutputFormat::ErrorMessage);
         emit addTask(Task(Task::Error, message, Utils::FileName(), -1,
                     ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM),
@@ -1072,7 +1072,7 @@ Core::Id MerResetAmbienceDeployStep::stepId()
 
 QString MerResetAmbienceDeployStep::displayName()
 {
-    return tr("Reset Sailfish OS Ambience");
+    return tr("Reset %1 Ambience").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME));
 }
 
 } // Internal

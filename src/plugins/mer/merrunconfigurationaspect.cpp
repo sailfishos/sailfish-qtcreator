@@ -245,7 +245,7 @@ MerRunConfigurationAspect::MerRunConfigurationAspect(Target *target)
     , m_qmlLiveOptions(DEFAULT_QML_LIVE_OPTIONS)
 {
     setId(Constants::MER_RUN_CONFIGURATION_ASPECT);
-    setDisplayName(tr("Sailfish OS Application Settings"));
+    setDisplayName(tr("%1 Application Settings").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)));
     setConfigWidgetCreator([this] { return new MerRunConfigWidget(this); });
 }
 

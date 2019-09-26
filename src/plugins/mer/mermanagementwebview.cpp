@@ -24,6 +24,7 @@
 #include "mermanagementwebview.h"
 #include "ui_mermanagementwebview.h"
 
+#include "merconstants.h"
 #include "mericons.h"
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
@@ -141,7 +142,7 @@ QVariant MerManagementWebViewSdksModel::data(const QModelIndex &index, int role)
         case Qt::DisplayRole:
             return tr("<no build engine>");
         case Qt::ToolTipRole:
-            return tr("Configure a Sailfish OS build engine in Options");
+            return tr("Configure a %1 build engine in Options").arg(Mer::Constants::MER_VENDOR_OS_NAME);
         default:
             return QVariant();
         }
@@ -347,10 +348,10 @@ void MerManagementWebView::handleLoadFinished(bool success)
                     "  %3"
                     "  </div>"
                     "  <div style='padding-left: 24px; padding-right: 24px; font-size: small;'>"
-                    "    <p>A Sailfish OS build engine can be controlled with the "
+                    "    <p>A %5 build engine can be controlled with the "
                     "    <img src='qrc%4' style='vertical-align: middle;'/>"
                     "    button &ndash; available on the lower left side <em>when "
-                    "    a&nbsp;Sailfish&nbsp;OS project is open</em>.</p>"
+                    "    a&nbsp;%5&nbsp; project is open</em>.</p>"
                     "  </div>"
                     "</body>"
                     "</html>")
@@ -358,6 +359,7 @@ void MerManagementWebView::handleLoadFinished(bool success)
                 .arg(qApp->font().lastResortFamily())
                 .arg(vmStatus)
                 .arg(Icons::MER_SDK_RUN.imageFileName())
+                .arg(Mer::Constants::MER_VENDOR_OS_NAME)
                 );
         m_loaded = false;
         if (m_autoFailReload && autoReloadHint)

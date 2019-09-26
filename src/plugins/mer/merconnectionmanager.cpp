@@ -253,7 +253,7 @@ MerConnectionManager::MerConnectionManager():
     m_emulatorAction(new MerConnectionAction(this)),
     m_sdkAction(new MerConnectionAction(this))
 {
-    m_emulatorAction->setName(tr("Start/Stop a Sailfish OS Emulator"));
+    m_emulatorAction->setName(tr("Start/Stop a %1 Emulator").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)));
     m_emulatorAction->setId(Constants::MER_EMULATOR_CONNECTON_ACTION_ID);
     m_emulatorAction->setIconOff(Icons::MER_EMULATOR_RUN.icon());
     m_emulatorAction->setIconOn(Icons::MER_EMULATOR_STOP.icon());
@@ -265,7 +265,7 @@ MerConnectionManager::MerConnectionManager():
     m_emulatorAction->setStartingTip(tr("Starting..."));
     m_emulatorAction->initialize();
 
-    m_sdkAction->setName(tr("Start/Stop a Sailfish OS Build Engine"));
+    m_sdkAction->setName(tr("Start/Stop a %1 Build Engine").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)));
     m_sdkAction->setId(Constants::MER_SDK_CONNECTON_ACTION_ID);
     m_sdkAction->setIconOff(Icons::MER_SDK_RUN.icon());
     m_sdkAction->setIconOn(Icons::MER_SDK_STOP.icon());
