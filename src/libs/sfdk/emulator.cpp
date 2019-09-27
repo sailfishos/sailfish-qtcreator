@@ -556,7 +556,8 @@ EmulatorManager::EmulatorManager(QObject *parent)
         connect(SdkPrivate::instance(), &SdkPrivate::enableUpdatesRequested,
                 this, &EmulatorManager::enableUpdates);
     } else {
-        updateOnce();
+        connect(SdkPrivate::instance(), &SdkPrivate::updateOnceRequested,
+                this, &EmulatorManager::updateOnce);
     }
 
     connect(SdkPrivate::instance(), &SdkPrivate::saveSettingsRequested,

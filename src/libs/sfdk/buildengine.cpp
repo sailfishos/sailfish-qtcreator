@@ -912,7 +912,8 @@ BuildEngineManager::BuildEngineManager(QObject *parent)
         connect(SdkPrivate::instance(), &SdkPrivate::enableUpdatesRequested,
                 this, &BuildEngineManager::enableUpdates);
     } else {
-        updateOnce();
+        connect(SdkPrivate::instance(), &SdkPrivate::updateOnceRequested,
+                this, &BuildEngineManager::updateOnce);
     }
 
     connect(SdkPrivate::instance(), &SdkPrivate::saveSettingsRequested,

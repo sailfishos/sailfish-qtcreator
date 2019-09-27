@@ -65,6 +65,7 @@ public:
 
 signals:
     void enableUpdatesRequested();
+    void updateOnceRequested();
     void saveSettingsRequested(QStringList *errorStrings);
 
 private:

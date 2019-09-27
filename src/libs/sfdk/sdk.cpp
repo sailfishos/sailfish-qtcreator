@@ -80,6 +80,9 @@ Sdk::Sdk(Options options)
             this, &Sdk::aboutToRemoveEmulator);
     connect(d->emulatorManager.get(), &EmulatorManager::deviceModelsChanged,
             this, &Sdk::deviceModelsChanged);
+
+    if (!d->isVersionedSettingsEnabled())
+        emit d->updateOnceRequested();
 }
 
 Sdk::~Sdk()
