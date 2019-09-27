@@ -33,6 +33,7 @@ namespace Sfdk {
 class BuildEngineManager;
 class CommandQueue;
 class EmulatorManager;
+class DeviceManager;
 class VirtualMachineFactory;
 
 class SdkPrivate : public QObject
@@ -75,6 +76,7 @@ private:
     std::unique_ptr<VirtualMachineFactory> virtualMachineFactory;
     std::unique_ptr<BuildEngineManager> buildEngineManager;
     std::unique_ptr<EmulatorManager> emulatorManager;
+    std::unique_ptr<DeviceManager> deviceManager;
 };
 
 } // namespace Sfdk

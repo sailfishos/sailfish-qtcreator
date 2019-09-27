@@ -31,6 +31,7 @@
 
 namespace Sfdk {
 class Emulator;
+class EmulatorDevice;
 }
 
 namespace Mer {
@@ -52,12 +53,15 @@ public:
 
     void fromMap(const QVariantMap &map) override;
 
+    Sfdk::EmulatorDevice *sdkDevice() const;
+    void setSdkDevice(Sfdk::EmulatorDevice *sdkDevice);
     Sfdk::Emulator *emulator() const;
-    void setEmulator(Sfdk::Emulator *emulator);
 
     static void generateSshKey(Sfdk::Emulator *emulator, const QString& user);
 
+    static Core::Id idFor(const Sfdk::EmulatorDevice &sdkDevice);
     static Core::Id idFor(const Sfdk::Emulator &emulator);
+    static QString toSdkId(const Core::Id &id);
     static QString privateKeyFile(Core::Id emulatorId, const QString &user);
     static void doFactoryReset(Sfdk::Emulator *emulator, QWidget *parent);
 
@@ -67,7 +71,7 @@ private:
     void init();
 
 private:
-    QPointer<Sfdk::Emulator> m_emulator;
+    QPointer<Sfdk::EmulatorDevice> m_sdkDevice;
 };
 
 class MerEmulatorDeviceManager : public QObject
@@ -80,10 +84,10 @@ public:
     ~MerEmulatorDeviceManager() override;
 
 private:
-    void onEmulatorAdded(int index);
-    void onAboutToRemoveEmulator(int index);
-    void startWatching(Sfdk::Emulator *emulator);
-    void stopWatching(Sfdk::Emulator *emulator);
+    void onSdkDeviceAdded(int index);
+    void onSdkAboutToRemoveDevice(int index);
+    void startWatching(Sfdk::EmulatorDevice *sdkDevice);
+    void stopWatching(Sfdk::EmulatorDevice *sdkDevice);
 
 private:
     static MerEmulatorDeviceManager *s_instance;

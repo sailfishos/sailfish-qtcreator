@@ -24,6 +24,7 @@
 
 #include "asynchronous_p.h"
 #include "buildengine_p.h"
+#include "device_p.h"
 #include "emulator_p.h"
 #include "sfdkconstants.h"
 #include "vboxvirtualmachine_p.h"
@@ -80,6 +81,13 @@ Sdk::Sdk(Options options)
             this, &Sdk::aboutToRemoveEmulator);
     connect(d->emulatorManager.get(), &EmulatorManager::deviceModelsChanged,
             this, &Sdk::deviceModelsChanged);
+
+    d->deviceManager = std::make_unique<DeviceManager>(this);
+
+    connect(d->deviceManager.get(), &DeviceManager::deviceAdded,
+            this, &Sdk::deviceAdded);
+    connect(d->deviceManager.get(), &DeviceManager::aboutToRemoveDevice,
+            this, &Sdk::aboutToRemoveDevice);
 
     if (!d->isVersionedSettingsEnabled())
         emit d->updateOnceRequested();
@@ -194,6 +202,26 @@ void Sdk::setDeviceModels(const QList<DeviceModelData> &deviceModels,
         const QObject *context, const Functor<bool> &functor)
 {
     EmulatorManager::setDeviceModels(deviceModels, context, functor);
+}
+
+QList<Device *> Sdk::devices()
+{
+    return DeviceManager::devices();
+}
+
+Device *Sdk::device(const QString &id)
+{
+    return DeviceManager::device(id);
+}
+
+int Sdk::addDevice(std::unique_ptr<Device> &&device)
+{
+    return DeviceManager::addDevice(std::move(device));
+}
+
+void Sdk::removeDevice(const QString &id)
+{
+    DeviceManager::removeDevice(id);
 }
 
 /*!

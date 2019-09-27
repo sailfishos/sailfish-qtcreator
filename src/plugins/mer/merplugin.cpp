@@ -35,6 +35,7 @@
 #include "meremulatormodedialog.h"
 #include "meremulatoroptionspage.h"
 #include "mergeneraloptionspage.h"
+#include "merhardwaredevice.h"
 #include "mermode.h"
 #include "meroptionspage.h"
 #include "merqmllivebenchmanager.h"
@@ -100,6 +101,7 @@ public:
     MerGeneralOptionsPage generalOptionsPage;
     MerDeviceFactory deviceFactory;
     MerEmulatorDeviceManager emulatorDeviceManager;
+    MerHardwareDeviceManager hardwareDeviceManager;
     MerQtVersionFactory qtVersionFactory;
     MerToolChainFactory toolChainFactory;
     MerMb2RpmBuildConfigurationFactory mb2RpmBuildConfigurationFactory;

@@ -156,5 +156,29 @@ const char VIRTUAL_BOX_VIRTUAL_SUBNET[] = "10.220.220";
 const char EMULATOR_COMPOSITOR_CONFIG_FILENAME[] = "65-emul-wayland-ui-scale.conf";
 const char EMULATOR_DCONF_DB_FILENAME[] = "device-model.txt";
 
+const char DEVICES_SETTINGS_FILE_NAME[] = "devices.xml";
+// Here "QtCreator" prefix is used just for consistency with other doc types,
+// where it is enforced by sdktool
+const char DEVICES_SETTINGS_DOC_TYPE[] = "QtCreatorSfdkDevices";
+const char DEVICES_COUNT_KEY[] = "Devices.Count";
+const char DEVICES_DATA_KEY_PREFIX[] = "Device.";
+const char DEVICE_ID[] = "Id";
+const char DEVICE_NAME[] = "Name";
+const char DEVICE_AUTODETECTED[] = "Autodetected";
+const char DEVICE_ARCHITECTURE[] = "Architecture";
+const char DEVICE_MACHINE_TYPE[] = "MachineType";
+
+const char HARDWARE_DEVICE_HOST[] = "Host";
+const char HARDWARE_DEVICE_PORT[] = "Port";
+const char HARDWARE_DEVICE_USER_NAME[] = "UserName";
+const char HARDWARE_DEVICE_AUTHENTICATION_TYPE[] = "AuthenticationType";
+const char HARDWARE_DEVICE_PRIVATE_KEY_FILE[] = "PrivateKeyFile";
+const char HARDWARE_DEVICE_TIMEOUT[] = "Timeout";
+const char HARDWARE_DEVICE_HOST_KEY_CHECKING[] = "HostKeyChecking";
+const char HARDWARE_DEVICE_FREE_PORTS[] = "FreePorts";
+const char HARDWARE_DEVICE_QML_LIVE_PORTS[] = "QmlLivePorts";
+
+const char EMULATOR_DEVICE_EMULATOR_URI[] = "EmulatorUri";
+
 } // namespace Constants
 } // namespace Sfdk

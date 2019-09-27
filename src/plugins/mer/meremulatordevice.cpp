@@ -33,8 +33,10 @@
 #include "meremulatormodedialog.h"
 
 #include <sfdk/buildengine.h>
+#include <sfdk/device.h>
 #include <sfdk/emulator.h>
 #include <sfdk/sdk.h>
+#include <sfdk/sfdkconstants.h>
 #include <sfdk/virtualmachine.h>
 
 #include <coreplugin/icore.h>
@@ -196,7 +198,7 @@ MerEmulatorDevice::MerEmulatorDevice()
 
 MerEmulatorDevice::MerEmulatorDevice(const MerEmulatorDevice &other)
     : MerDevice(other)
-    , m_emulator(other.m_emulator)
+    , m_sdkDevice(other.m_sdkDevice)
 {
 }
 
@@ -221,17 +223,17 @@ void MerEmulatorDevice::init()
 
     addAction(tr("Start Emulator"), [](const MerEmulatorDevice::Ptr &device, QWidget *parent) {
         Q_UNUSED(parent);
-        device->m_emulator->virtualMachine()->connectTo();
+        device->emulator()->virtualMachine()->connectTo();
     });
 
     addAction(tr("Stop Emulator"), [](const MerEmulatorDevice::Ptr &device, QWidget *parent) {
         Q_UNUSED(parent);
-        device->m_emulator->virtualMachine()->disconnectFrom();
+        device->emulator()->virtualMachine()->disconnectFrom();
     });
 
     addAction(tr("Configure Emulator..."), [](const MerEmulatorDevice::Ptr &device, QWidget *parent) {
         Q_UNUSED(parent);
-        MerPlugin::emulatorOptionsPage()->setEmulator(device->m_emulator->uri());
+        MerPlugin::emulatorOptionsPage()->setEmulator(device->emulator()->uri());
         ICore::showOptionsDialog(Constants::MER_EMULATOR_OPTIONS_ID);
     });
 }
@@ -245,29 +247,28 @@ void MerEmulatorDevice::fromMap(const QVariantMap &map)
 {
     MerDevice::fromMap(map);
 
-    const QUrl emulatorUri = map.value(Constants::MER_EMULATOR_DEVICE_EMULATOR_URI).toUrl();
-    QTC_ASSERT(emulatorUri.isValid(), return);
-    m_emulator = Sdk::emulator(emulatorUri);
-    QTC_ASSERT(m_emulator, return);
+    const QString sdkId = toSdkId(id());
+    Device *const sdkDevice = Sdk::device(sdkId);
+    QTC_ASSERT(sdkDevice, return);
+    m_sdkDevice = qobject_cast<EmulatorDevice *>(sdkDevice);
+    QTC_ASSERT(m_sdkDevice, return);
 }
 
-QVariantMap MerEmulatorDevice::toMap() const
+Sfdk::EmulatorDevice *MerEmulatorDevice::sdkDevice() const
 {
-    QVariantMap map = MerDevice::toMap();
-    map.insert(Constants::MER_EMULATOR_DEVICE_EMULATOR_URI, m_emulator->uri().toString());
-    return map;
+    return m_sdkDevice;
+}
+
+void MerEmulatorDevice::setSdkDevice(Sfdk::EmulatorDevice *sdkDevice)
+{
+    QTC_CHECK(sdkDevice);
+    QTC_CHECK(!m_sdkDevice);
+    m_sdkDevice = sdkDevice;
 }
 
 Sfdk::Emulator *MerEmulatorDevice::emulator() const
 {
-    return m_emulator;
-}
-
-void MerEmulatorDevice::setEmulator(Sfdk::Emulator *emulator)
-{
-    QTC_CHECK(emulator);
-    QTC_CHECK(!m_emulator);
-    m_emulator = emulator;
+    return m_sdkDevice->emulator();
 }
 
 void MerEmulatorDevice::generateSshKey(Sfdk::Emulator *emulator, const QString& user)
@@ -313,11 +314,29 @@ void MerEmulatorDevice::doFactoryReset(Sfdk::Emulator *emulator, QWidget *parent
             tr("Successfully restored '%1' to the factory state").arg(emulator->name()));
 }
 
+Core::Id MerEmulatorDevice::idFor(const Sfdk::EmulatorDevice &sdkDevice)
+{
+    QTC_CHECK(sdkDevice.id() == sdkDevice.emulator()->uri().toString());
+    return idFor(*sdkDevice.emulator());
+}
+
 Core::Id MerEmulatorDevice::idFor(const Sfdk::Emulator &emulator)
 {
     // HACK: We know we do not have other than VirtualBox based emulators
     QTC_CHECK(emulator.uri().path() == "VirtualBox");
+    QTC_CHECK(emulator.uri().fragment() == emulator.name());
     return Core::Id::fromString(emulator.name());
+}
+
+QString MerEmulatorDevice::toSdkId(const Core::Id &id)
+{
+    // HACK
+    const QString emulatorName = id.toString();
+    QUrl emulatorUri;
+    emulatorUri.setScheme(Sfdk::Constants::VIRTUAL_MACHINE_URI_SCHEME);
+    emulatorUri.setPath("VirtualBox");
+    emulatorUri.setFragment(emulatorName);
+    return emulatorUri.toString();
 }
 
 QString MerEmulatorDevice::privateKeyFile(Core::Id emulatorId, const QString &user)
@@ -341,12 +360,16 @@ MerEmulatorDeviceManager::MerEmulatorDeviceManager(QObject *parent)
     : QObject(parent)
 {
     s_instance = this;
-    for (Emulator *const emulator : Sdk::emulators())
-        startWatching(emulator);
-    connect(Sdk::instance(), &Sdk::emulatorAdded,
-            this, &MerEmulatorDeviceManager::onEmulatorAdded);
-    connect(Sdk::instance(), &Sdk::aboutToRemoveEmulator,
-            this, &MerEmulatorDeviceManager::onAboutToRemoveEmulator);
+
+    for (Device *const sdkDevice : Sdk::devices()) {
+        if (auto *const sdkEmulatorDevice = qobject_cast<EmulatorDevice *>(sdkDevice))
+            startWatching(sdkEmulatorDevice);
+    }
+
+    connect(Sdk::instance(), &Sdk::deviceAdded,
+            this, &MerEmulatorDeviceManager::onSdkDeviceAdded);
+    connect(Sdk::instance(), &Sdk::aboutToRemoveDevice,
+            this, &MerEmulatorDeviceManager::onSdkAboutToRemoveDevice);
 }
 
 MerEmulatorDeviceManager *MerEmulatorDeviceManager::instance()
@@ -360,35 +383,47 @@ MerEmulatorDeviceManager::~MerEmulatorDeviceManager()
     s_instance = 0;
 }
 
-void MerEmulatorDeviceManager::onEmulatorAdded(int index)
+void MerEmulatorDeviceManager::onSdkDeviceAdded(int index)
 {
-    Emulator *const emulator = Sdk::emulators().at(index);
+    auto *const sdkDevice = qobject_cast<EmulatorDevice *>(Sdk::devices().at(index));
+    if (!sdkDevice)
+        return;
+
+    const Core::Id id = MerEmulatorDevice::idFor(*sdkDevice);
+    QTC_ASSERT(!DeviceManager::instance()->find(id), return);
 
     const MerEmulatorDevice::Ptr device = MerEmulatorDevice::create();
-    device->setEmulator(emulator);
-    device->setupId(IDevice::AutoDetected, MerEmulatorDevice::idFor(*emulator));
-    device->setDisplayName(emulator->name());
-    device->setSshParameters(emulator->virtualMachine()->sshParameters());
-    device->setFreePorts(emulator->freePorts());
-    device->setQmlLivePorts(emulator->qmlLivePorts());
-    startWatching(emulator);
+    device->setSdkDevice(sdkDevice);
+    device->setupId(IDevice::AutoDetected, id);
+    device->setDisplayName(sdkDevice->name());
+    device->setSshParameters(sdkDevice->sshParameters());
+    device->setFreePorts(sdkDevice->freePorts());
+    device->setQmlLivePorts(sdkDevice->qmlLivePorts());
+    startWatching(sdkDevice);
 
     DeviceManager::instance()->addDevice(device);
 }
 
-void MerEmulatorDeviceManager::onAboutToRemoveEmulator(int index)
+void MerEmulatorDeviceManager::onSdkAboutToRemoveDevice(int index)
 {
-    Emulator *const emulator = Sdk::emulators().at(index);
-    stopWatching(emulator);
-    DeviceManager::instance()->removeDevice(MerEmulatorDevice::idFor(*emulator));
+    auto *const sdkDevice = qobject_cast<EmulatorDevice *>(Sdk::devices().at(index));
+    if (!sdkDevice)
+        return;
+
+    stopWatching(sdkDevice);
+
+    const Core::Id id = MerEmulatorDevice::idFor(*sdkDevice);
+    QTC_ASSERT(DeviceManager::instance()->find(id), return);
+
+    DeviceManager::instance()->removeDevice(id);
 }
 
-void MerEmulatorDeviceManager::startWatching(Emulator *emulator)
+void MerEmulatorDeviceManager::startWatching(Sfdk::EmulatorDevice *sdkDevice)
 {
     auto withDevice = [=](const std::function<void(MerEmulatorDevice *device)> &function) {
         return [=]() {
             const auto manager = DeviceManager::instance();
-            const IDevice::ConstPtr device = manager->find(MerEmulatorDevice::idFor(*emulator));
+            const IDevice::ConstPtr device = manager->find(MerEmulatorDevice::idFor(*sdkDevice));
             QTC_ASSERT(device, return);
             QTC_ASSERT(device.dynamicCast<const MerEmulatorDevice>(), return);
             const IDevice::Ptr clone = device->clone();
@@ -399,24 +434,27 @@ void MerEmulatorDeviceManager::startWatching(Emulator *emulator)
         };
     };
 
-    connect(emulator->virtualMachine(), &VirtualMachine::sshParametersChanged,
+    connect(sdkDevice, &EmulatorDevice::nameChanged,
             this, withDevice([](MerEmulatorDevice *device) {
-        device->setSshParameters(device->emulator()->virtualMachine()->sshParameters());
+        device->setDisplayName(device->sdkDevice()->name());
     }));
-    connect(emulator, &Emulator::freePortsChanged,
+    connect(sdkDevice, &EmulatorDevice::sshParametersChanged,
             this, withDevice([](MerEmulatorDevice *device) {
-        device->setFreePorts(device->emulator()->freePorts());
+        device->setSshParameters(device->sdkDevice()->sshParameters());
     }));
-    connect(emulator, &Emulator::qmlLivePortsChanged,
+    connect(sdkDevice, &EmulatorDevice::freePortsChanged,
             this, withDevice([](MerEmulatorDevice *device) {
-        device->setQmlLivePorts(device->emulator()->qmlLivePorts());
+        device->setFreePorts(device->sdkDevice()->freePorts());
+    }));
+    connect(sdkDevice, &EmulatorDevice::qmlLivePortsChanged,
+            this, withDevice([](MerEmulatorDevice *device) {
+        device->setQmlLivePorts(device->sdkDevice()->qmlLivePorts());
     }));
 }
 
-void MerEmulatorDeviceManager::stopWatching(Emulator *emulator)
+void MerEmulatorDeviceManager::stopWatching(Sfdk::EmulatorDevice *sdkDevice)
 {
-    emulator->disconnect(this);
-    emulator->virtualMachine()->disconnect(this);
+    sdkDevice->disconnect(this);
 }
 
 #include "meremulatordevice.moc"

@@ -8,6 +8,7 @@ QT += network xmlpatterns
 SOURCES += \
     asynchronous.cpp \
     buildengine.cpp \
+    device.cpp \
     emulator.cpp \
     sfdkglobal.cpp \
     sdk.cpp \
@@ -23,6 +24,8 @@ HEADERS += \
     asynchronous_p.h \
     buildengine.h \
     buildengine_p.h \
+    device.h \
+    device_p.h \
     emulator.h \
     emulator_p.h \
     sfdkconstants.h \

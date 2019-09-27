@@ -31,6 +31,7 @@
 namespace Sfdk {
 
 class BuildEngine;
+class Device;
 class DeviceModelData;
 class Emulator;
 class VirtualMachineDescriptor;
@@ -80,12 +81,19 @@ public:
     static void setDeviceModels(const QList<DeviceModelData> &deviceModels,
             const QObject *context, const Functor<bool> &functor);
 
+    static QList<Device *> devices();
+    static Device *device(const QString &id);
+    static int addDevice(std::unique_ptr<Device> &&device);
+    static void removeDevice(const QString &id);
+
 signals:
     void buildEngineAdded(int index);
     void aboutToRemoveBuildEngine(int index);
     void emulatorAdded(int index);
     void aboutToRemoveEmulator(int index);
     void deviceModelsChanged();
+    void deviceAdded(int index);
+    void aboutToRemoveDevice(int index);
 
 private:
     static Sdk *s_instance;

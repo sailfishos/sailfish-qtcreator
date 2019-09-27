@@ -26,6 +26,10 @@
 
 #include "merdevice.h"
 
+namespace Sfdk {
+class HardwareDevice;
+}
+
 namespace Mer {
 namespace Internal {
 
@@ -42,8 +46,34 @@ public:
 
     ProjectExplorer::IDeviceWidget* createWidget() override;
 
+    static Core::Id idFor(const Sfdk::HardwareDevice &sdkDevice);
+    static QString toSdkId(const Core::Id &id);
+
 protected:
     MerHardwareDevice();
+};
+
+class MerHardwareDeviceManager : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit MerHardwareDeviceManager(QObject *parent = nullptr);
+    static MerHardwareDeviceManager *instance();
+    ~MerHardwareDeviceManager() override;
+
+private:
+    void onSdkDeviceAdded(int index);
+    void onSdkAboutToRemoveDevice(int index);
+    void startWatching(Sfdk::HardwareDevice *sdkDevice);
+    void stopWatching(Sfdk::HardwareDevice *sdkDevice);
+    void onDeviceAddedOrUpdated(Core::Id id);
+    void onDeviceRemoved(Core::Id id);
+    void onDeviceListReplaced();
+
+private:
+    static MerHardwareDeviceManager *s_instance;
+    Core::Id m_removingDeviceId;
 };
 
 }
