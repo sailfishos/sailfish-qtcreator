@@ -250,7 +250,8 @@ bool SdkManager::isEngineRunning()
     return !s_instance->m_merSdk->connection()->isVirtualMachineOff();
 }
 
-int SdkManager::runOnEngine(const QString &program, const QStringList &arguments)
+int SdkManager::runOnEngine(const QString &program, const QStringList &arguments,
+        QProcess::InputChannelMode inputChannelMode)
 {
     QTC_ASSERT(s_instance->hasEngine(), return Constants::EXIT_ABNORMAL);
 
@@ -279,6 +280,7 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     process.setArguments(arguments_);
     process.setWorkingDirectory(workingDirectory);
     process.setExtraEnvironment(extraEnvironment);
+    process.setInputChannelMode(inputChannelMode);
 
     QObject::connect(&process, &RemoteProcess::standardOutput, [&](const QByteArray &data) {
         qout() << s_instance->maybeReverseMapEnginePaths(data) << flush;

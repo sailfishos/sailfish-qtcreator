@@ -8,10 +8,11 @@
     "worker":
     {
         "type": "engine-command",
-        "version": 1,
+        "version": 2,
         "program": "sdk-assistant",
         "initialArguments": ["--non-interactive"],
-        "omitSubcommand": true
+        "omitSubcommand": true,
+        "directTerminalInput": true
     },
 
     "commands":

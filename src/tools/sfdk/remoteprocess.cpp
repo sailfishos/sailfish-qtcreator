@@ -97,9 +97,9 @@ void RemoteProcess::setExtraEnvironment(const QProcessEnvironment &extraEnvironm
     m_extraEnvironment = extraEnvironment;
 }
 
-void RemoteProcess::setInteractive(bool enabled)
+void RemoteProcess::setInputChannelMode(QProcess::InputChannelMode inputChannelMode)
 {
-    m_interactive = enabled;
+    m_inputChannelMode = inputChannelMode;
 }
 
 int RemoteProcess::exec()
@@ -123,7 +123,7 @@ int RemoteProcess::exec()
         fullCommand.append(' ');
     fullCommand.append(Utils::QtcProcess::joinArgs(m_arguments, Utils::OsTypeLinux));
 
-    m_runner->runInTerminal(fullCommand.toUtf8(), m_sshConnectionParams);
+    m_runner->runInTerminal(fullCommand.toUtf8(), m_sshConnectionParams, m_inputChannelMode);
 
     started();
 
@@ -226,13 +226,13 @@ QString RemoteProcess::environmentString(const QProcessEnvironment &environment)
 
 void RemoteProcess::onProcessStarted()
 {
-    if (m_interactive) {
-        m_stdin = new QFile();
+    if (m_inputChannelMode == QProcess::ManagedInputChannel) {
+        m_stdin = std::make_unique<QFile>(this);
         if (!m_stdin->open(stdin, QIODevice::ReadOnly | QIODevice::Unbuffered)) {
             qCWarning(sfdk) << "Unable to read from standard input while interactive mode is requested";
             return;
         }
-        QSocketNotifier * const notifier = new QSocketNotifier(0, QSocketNotifier::Read, this);
+        QSocketNotifier *const notifier = new QSocketNotifier(0, QSocketNotifier::Read, m_stdin.get());
         connect(notifier, &QSocketNotifier::activated,
                 this, &RemoteProcess::handleStdin);
     }
@@ -252,8 +252,9 @@ void RemoteProcess::onReadyReadStandardOutput()
     QByteArray data = m_stdoutBuffer.flush(true);
     int cut = data.indexOf('\n');
     QTC_ASSERT(cut != -1, { emit standardOutput(data); return; });
-    m_processId = data.left(cut).toLongLong();
-    qCDebug(sfdk) << "Remote process ID:" << m_processId;
+    // ssh with input connected to terminal translates LF to CRLF, hence the need to trim
+    m_processId = data.left(cut).trimmed().toLongLong();
+    qCDebug(sfdk) << "Remote process ID:" << m_processId << "all data:" << data;
     data.remove(0, cut + 1);
     if (!data.isEmpty())
         emit standardOutput(data);

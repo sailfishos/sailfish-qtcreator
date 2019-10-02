@@ -53,7 +53,8 @@ public:
     static bool startEngine();
     static bool stopEngine();
     static bool isEngineRunning();
-    static int runOnEngine(const QString &program, const QStringList &arguments);
+    static int runOnEngine(const QString &program, const QStringList &arguments,
+            QProcess::InputChannelMode inputChannelMode = QProcess::ManagedInputChannel);
 
     static void setEnableReversePathMapping(bool enable);
 
