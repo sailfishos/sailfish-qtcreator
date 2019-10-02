@@ -103,6 +103,11 @@ MerBuildEngineDetailsWidget::MerBuildEngineDetailsWidget(QWidget *parent)
 
     m_ui->privateKeyPathChooser->setExpectedKind(PathChooser::File);
     m_ui->privateKeyPathChooser->setPromptDialogTitle(tr("Select SSH Key"));
+
+    m_ui->srcFolderApplyButton->setToolTip(tr("<html><head/><body><p><span style=\" font-weight:600;\">Change the alternative source location folder.\
+        </span></p><p>By default %1 build engine can read project sources only from your home directory. \
+        You can specify here another location for your projects. You will need to stop the build engine before this setting can be changed.</p></body></html>")
+                                              .arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)));
 }
 
 MerBuildEngineDetailsWidget::~MerBuildEngineDetailsWidget()

@@ -63,6 +63,19 @@ MerGeneralOptionsWidget::MerGeneralOptionsWidget(QWidget *parent)
     m_ui->benchLocationPathChooser->setExpectedKind(PathChooser::ExistingCommand);
     m_ui->benchLocationPathChooser->setPath(MerSettings::qmlLiveBenchLocation());
     m_ui->benchSyncWorkspaceCheckBox->setChecked(MerSettings::isSyncQmlLiveWorkspaceEnabled());
+
+    m_ui->askImportQmakeVariablesCheckBox->setToolTip(tr("With this option disabled, qmake will be run without notice but you still may be prompted to start the\
+        %1 build engine depending on the other options.").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)));
+    m_ui->askBeforeStartingVmCheckBox->setToolTip(tr("Applies to starting a %1 build engine or emulator virtual machine during build,\
+        deploy or run step execution.").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)));
+    m_ui->askBeforeClosingVmCheckBox->setToolTip(tr("Applies to closing a headless %1 build engine virtual machine when \
+        Qt Creator is about to quit.").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)));
+
+    m_ui->rpmValidationInfoLabel->setText(tr("<html><head/><body><p><span style=\" font-style:italic;\">"
+                      "Use the RPM Validator tool to do a quick quality criteria check for your %1 application package before publishing it. "
+                      "The tool runs checks similar to the </span><a href=\"https://harbour.jolla.com/faq\"><span style=\" text-decoration: underline; color:#0000ff;\">"
+                      "Jolla Harbour</span></a><span style=\" font-style:italic;\"> package validation process.</span></p></body></html>")
+                      .arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)));
 }
 
 MerGeneralOptionsWidget::~MerGeneralOptionsWidget()

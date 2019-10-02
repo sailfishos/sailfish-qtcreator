@@ -155,7 +155,7 @@
         <item row="0" column="0">
          <widget class="QLabel" name="merSdkLabel">
           <property name="text">
-           <string>Sailfish OS build engine:</string>
+           <string>Build engine:</string>
           </property>
           <property name="buddy">
            <cstring>merSdkComboBox</cstring>

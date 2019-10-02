@@ -355,9 +355,6 @@
             </item>
             <item>
              <widget class="QPushButton" name="srcFolderApplyButton">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Change the alternative source location folder.&lt;/span&gt;&lt;/p&gt;&lt;p&gt;By default Sailfish OS build engine can read project sources only from your home directory. You can specify here another location for your projects. You will need to stop the build engine before this setting can be changed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
               <property name="text">
                <string>Change</string>
               </property>

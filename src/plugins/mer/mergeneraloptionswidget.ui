@@ -67,7 +67,7 @@
         <item>
          <widget class="QLabel" name="rpmValidationInfoLabel">
           <property name="text">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-style:italic;&quot;&gt;Use the RPM Validator tool to do a quick quality criteria check for your Sailfish OS application package before publishing it. The tool runs checks similar to the &lt;/span&gt;&lt;a href=&quot;https://harbour.jolla.com/faq&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Jolla Harbour&lt;/span&gt;&lt;/a&gt;&lt;span style=&quot; font-style:italic;&quot;&gt; package validation process.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
           <property name="wordWrap">
            <bool>true</bool>
@@ -136,9 +136,6 @@
           </property>
           <item>
            <widget class="QCheckBox" name="askImportQmakeVariablesCheckBox">
-            <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;With this option disabled, qmake will be run without notice but you still may be prompted to start the Sailfish OS build engine depending on the other options.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-            </property>
             <property name="text">
              <string>Ask before running qmake</string>
             </property>
@@ -157,9 +154,6 @@
        <layout class="QVBoxLayout" name="verticalLayout_4">
         <item>
          <widget class="QCheckBox" name="askBeforeStartingVmCheckBox">
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Applies to starting a Sailfish OS build engine or emulator virtual machine during build, deploy or run step execution.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
           <property name="text">
            <string>Ask before starting a virtual machine</string>
           </property>
@@ -167,9 +161,6 @@
         </item>
         <item>
          <widget class="QCheckBox" name="askBeforeClosingVmCheckBox">
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Applies to closing a headless Sailfish OS build engine virtual machine when Qt Creator is about to quit.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
           <property name="text">
            <string>Ask before closing a virtual machine</string>
           </property>

@@ -266,6 +266,8 @@ MerHardwareDeviceWizardSetupPage::MerHardwareDeviceWizardSetupPage(QWidget *pare
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
             &MerHardwareDeviceWizardSetupPage::handleBuildEngineChanged);
+
+    m_ui->merSdkLabel->setText(tr("%1 build engine:").arg(QCoreApplication::translate("Mer", Mer::Constants::MER_OS_NAME)));
 }
 
 void MerHardwareDeviceWizardSetupPage::initializePage()

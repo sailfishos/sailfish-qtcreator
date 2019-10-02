@@ -48823,19 +48823,9 @@ What do you want to do?</source>
         <translation>Виртуальные машины</translation>
     </message>
     <message>
-        <location filename="mergeneraloptionswidget.ui" line="123"/>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Applies to starting a Sailfish OS build engine or emulator virtual machine during build, deploy or run step execution.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Применяется для запуска Sailfish OS Build Engine или виртуальной машины эмулятора во время выполнения шага сборки, развертывания или запуска.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
         <location filename="mergeneraloptionswidget.ui" line="126"/>
         <source>Ask before starting a virtual machine</source>
         <translation>Спросить перед запуском виртуальной машины</translation>
-    </message>
-    <message>
-        <location filename="mergeneraloptionswidget.ui" line="133"/>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Applies to closing a headless Sailfish OS build engine virtual machine when Qt Creator is about to quit.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Применяется для остановки виртуальной машины Sailfish OS Build Engine перед закрытием Qt Creator.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <location filename="mergeneraloptionswidget.ui" line="136"/>
@@ -48861,6 +48851,26 @@ What do you want to do?</source>
         <location filename="mergeneraloptionswidget.ui" line="174"/>
         <source>Control workspace</source>
         <translation>Контролировать рабочее пространство</translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.cpp" line="67"/>
+        <source>With this option disabled, qmake will be run without notice but you still may be prompted to start the        %1 build engine depending on the other options.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.cpp" line="69"/>
+        <source>Applies to starting a %1 build engine or emulator virtual machine during build,        deploy or run step execution.</source>
+        <translation>Применяется для запуска %1 Build Engine или виртуальной машины эмулятора во время выполнения шага сборки, развертывания или запуска.</translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.cpp" line="71"/>
+        <source>Applies to closing a headless %1 build engine virtual machine when         Qt Creator is about to quit.</source>
+        <translation>Применяется для остановки виртуальной машины %1 Build Engine перед закрытием Qt Creator.</translation>
+    </message>
+    <message>
+        <location filename="mergeneraloptionswidget.cpp" line="74"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-style:italic;&quot;&gt;Use the RPM Validator tool to do a quick quality criteria check for your %1 application package before publishing it. The tool runs checks similar to the &lt;/span&gt;&lt;a href=&quot;https://harbour.jolla.com/faq&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Jolla Harbour&lt;/span&gt;&lt;/a&gt;&lt;span style=&quot; font-style:italic;&quot;&gt; package validation process.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-style:italic;&quot;&gt;Используйте инструмент RPM Validator для быстрой проверки критериев качества пакета приложений %1 перед его публикацией. Инструмент выполняет проверки, аналогичные &lt;/span&gt;&lt;a href=&quot;https://harbour.jolla.com/faq&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Jolla Harbour&lt;/span&gt;&lt;/a&gt;&lt;span style=&quot; font-style:italic;&quot;&gt; package validation.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
 </context>
 <context>
@@ -50087,11 +50097,6 @@ Close the virtual machine now?</source>
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Альтернативная папка исходных файлов.&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Проекты могут быть расположены в этой или домашней папке.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
-        <location filename="mersdkdetailswidget.ui" line="342"/>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Change the alternative source location folder.&lt;/span&gt;&lt;/p&gt;&lt;p&gt;By default Sailfish OS build engine can read project sources only from your home directory. You can specify here another location for your projects. You will need to stop the build engine before this setting can be changed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Изменение расположения альтернативной папки исходников.&lt;/span&gt;&lt;/p&gt;&lt;p&gt;По умолчанию Sailfish OS Build Engine может читать источники проекта только из вашего домашнего каталога. Здесь можно указать другое место для ваших проектов. Перед внесением изменений необходимо остановить Build Engine.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
         <location filename="mersdkdetailswidget.ui" line="345"/>
         <source>Change</source>
         <translation>Изменить</translation>
@@ -50226,6 +50231,11 @@ Close the virtual machine now?</source>
         <location filename="mersdkdetailswidget.cpp" line="321"/>
         <source>Insert a list of addresses excluded from the proxy. E.g. &quot;internal.example.com 10.0.0.0/8&quot;</source>
         <translation>Перечислите адреса, исключенные из прокси. Например: &quot;internal.example.com 10.0.0.0/8&quot;</translation>
+    </message>
+    <message>
+        <location filename="merbuildenginedetailswidget.cpp" line="108"/>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Change the alternative source location folder.        &lt;/span&gt;&lt;/p&gt;&lt;p&gt;By default %1 build engine can read project sources only from your home directory.         You can specify here another location for your projects. You will need to stop the build engine before this setting can be changed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Изменение расположения альтернативной папки исходников.&lt;/span&gt;&lt;/p&gt;&lt;p&gt;По умолчанию %1 Build Engine может читать источники проекта только из вашего домашнего каталога. Здесь можно указать другое место для ваших проектов. Перед внесением изменений необходимо остановить Build Engine.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
 </context>
 <context>
