@@ -58,56 +58,12 @@ const char MER_SDK_PROXY_DISABLED[] = "direct";
 const char MER_SDK_PROXY_AUTOMATIC[] = "auto";
 const char MER_SDK_PROXY_MANUAL[] = "manual";
 
-// Keys used for ini files
-const char MER_SDK_TOOLS[] = "/mer-sdk-tools/";
-const char MER_SDK_DATA_KEY[] = "MerSDK.";
-const char MER_TARGET_KEY[] = "MerTarget.Target";
-const char MER_TARGET_DATA_KEY[] = "MerTarget.";
-const char MER_SDK_COUNT_KEY[] = "MerSDK.Count";
-const char MER_TARGET_COUNT_KEY[] = "MerTarget.Count";
-const char MER_SDK_FILE_VERSION_KEY[] = "MerSDK.Version";
-const char MER_TARGET_FILE_VERSION_KEY[] = "MerTarget.Version";
-const char MER_SDK_INSTALLDIR[] = "MerSDK.InstallDir";
-const char MER_DEVICE_MODELS_FILE_VERSION_KEY[] = "MerDeviceModels.Version";
-const char MER_DEVICE_MODELS_COUNT_KEY[] = "MerDeviceModels.Count";
-const char MER_DEVICE_MODELS_DATA_KEY[] = "MerDeviceModels.";
-const char MER_DEVICE_MODEL_NAME[] = "MerDeviceModel.Name";
-const char MER_DEVICE_MODEL_DISPLAY_RESOLUTION[] = "MerDeviceModel.DisplayResolution";
-const char MER_DEVICE_MODEL_DISPLAY_SIZE[] = "MerDeviceModel.DisplaySize";
-const char MER_DEVICE_MODEL_DCONF_DB[] = "MerDeviceModel.DconfDb";
-const char VM_NAME[] = "VirtualMachineName";
-const char SHARED_HOME[] = "SharedHome";
-const char SHARED_TARGET[] = "SharedTarget";
-const char SHARED_CONFIG[] = "SharedConfig";
-const char SHARED_SRC[] = "SharedSrc";
-const char SHARED_SSH[] = "SharedSsh";
-const char AUTHENTICATION_TYPE[] = "AuthenticationType";
-const char HOST[] = "Host";
-const char USERNAME[] = "Username";
-const char KEY[] = "Key";
-const char PRIVATE_KEY_FILE[] = "PrivateKeyFile";
-const char SSH_PORT[] = "SshPort";
-const char SSH_TIMEOUT[] = "SshTimeout";
-const char WWW_PORT[] = "WwwPort";
-const char WWW_PROXY[] = "WwwProxy";
-const char WWW_PROXY_SERVERS[] = "WwwProxyServers";
-const char WWW_PROXY_EXCLUDES[] = "WwwProxyExcludes";
-const char HEADLESS[] = "Headless";
-const char MEMORY_SIZE_MB[] = "MemorySize";
-const char CPU_COUNT[] = "CpuCount";
-const char VDI_CAPACITY_MB[] = "VdiCapacity";
-const char ID[] = "Id";
-const char NAME[] = "Name";
-const char KITS[] = "Kits";
-const char SYSROOT[] = "Sysroot";
-const char TOOL_CHAINS[] = "ToolChains";
-const char QT_VERSIONS[] = "QtVersions";
-const char AUTO_DETECTED[] = "AutoDetected";
 const char BUILD_ENGINE_URI[] = "BuildEngineUri";
 const char SB2_TARGET_NAME[] = "SB2.TargetName";
 
 const char MER_RUNCONFIGURATION_PREFIX[] = "QmakeProjectManager.MerRunConfiguration:";
 const char MER_QMLRUNCONFIGURATION[] = "QmakeProjectManager.MerQmlRunConfiguration";
+
 const char SAILFISH_QML_LAUNCHER[] = "/usr/bin/sailfish-qml";
 
 const char MER_EMULATOR_CONNECTON_ACTION_ID[] = "Mer.EmulatorConnecitonAction";
