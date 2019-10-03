@@ -190,6 +190,7 @@ IDevice::Ptr MerEmulatorDevice::clone() const
 MerEmulatorDevice::MerEmulatorDevice()
 {
     setMachineType(IDevice::Emulator);
+    setArchitecture(Abi::X86Architecture);
     init();
 }
 
@@ -255,17 +256,6 @@ QVariantMap MerEmulatorDevice::toMap() const
     QVariantMap map = MerDevice::toMap();
     map.insert(Constants::MER_EMULATOR_DEVICE_EMULATOR_URI, m_emulator->uri().toString());
     return map;
-}
-
-Abi::Architecture MerEmulatorDevice::architecture() const
-{
-    return Abi::X86Architecture;
-}
-
-Utils::PortList MerEmulatorDevice::qmlLivePorts() const
-{
-    QTC_ASSERT(m_emulator, return {});
-    return m_emulator->qmlLivePorts();
 }
 
 Sfdk::Emulator *MerEmulatorDevice::emulator() const
@@ -380,6 +370,7 @@ void MerEmulatorDeviceManager::onEmulatorAdded(int index)
     device->setDisplayName(emulator->name());
     device->setSshParameters(emulator->virtualMachine()->sshParameters());
     device->setFreePorts(emulator->freePorts());
+    device->setQmlLivePorts(emulator->qmlLivePorts());
     startWatching(emulator);
 
     DeviceManager::instance()->addDevice(device);
@@ -418,8 +409,7 @@ void MerEmulatorDeviceManager::startWatching(Emulator *emulator)
     }));
     connect(emulator, &Emulator::qmlLivePortsChanged,
             this, withDevice([](MerEmulatorDevice *device) {
-        // notify only
-        Q_UNUSED(device);
+        device->setQmlLivePorts(device->emulator()->qmlLivePorts());
     }));
 }
 

@@ -40,23 +40,10 @@ public:
 
     ProjectExplorer::IDevice::Ptr clone() const override;
 
-    void fromMap(const QVariantMap &map) override;
-    QVariantMap toMap() const override;
-
-    ProjectExplorer::Abi::Architecture architecture() const override;
-    void setArchitecture(const ProjectExplorer::Abi::Architecture &architecture);
-
     ProjectExplorer::IDeviceWidget* createWidget() override;
-
-    Utils::PortList qmlLivePorts() const override;
-    void setQmlLivePorts(const Utils::PortList &qmlLivePorts);
 
 protected:
     MerHardwareDevice();
-
-private:
-    ProjectExplorer::Abi::Architecture m_architecture;
-    Utils::PortList m_qmlLivePorts;
 };
 
 }

@@ -51,10 +51,12 @@ namespace Mer {
 namespace Internal {
 
 MerHardwareDevice::MerHardwareDevice()
-    : m_architecture(ProjectExplorer::Abi::UnknownArchitecture)
 {
     setMachineType(IDevice::Hardware);
-    m_qmlLivePorts.addPort(Utils::Port(Sfdk::Constants::DEFAULT_QML_LIVE_PORT));
+
+    PortList defaultQmlLivePorts;
+    defaultQmlLivePorts.addPort(Utils::Port(Sfdk::Constants::DEFAULT_QML_LIVE_PORT));
+    setQmlLivePorts(defaultQmlLivePorts);
 }
 
 IDevice::Ptr MerHardwareDevice::clone() const
@@ -62,48 +64,9 @@ IDevice::Ptr MerHardwareDevice::clone() const
     return Ptr(new MerHardwareDevice(*this));
 }
 
-void MerHardwareDevice::fromMap(const QVariantMap &map)
-{
-    MerDevice::fromMap(map);
-    m_architecture = static_cast<Abi::Architecture>(
-            map.value(QLatin1String(Constants::MER_DEVICE_ARCHITECTURE),
-                Abi::UnknownArchitecture).toInt());
-    m_qmlLivePorts = Utils::PortList::fromString(map.value(QLatin1String(Constants::MER_DEVICE_QML_LIVE_PORTS),
-                                                           QString::number(Sfdk::Constants::DEFAULT_QML_LIVE_PORT))
-                                                 .toString());
-}
-
-QVariantMap MerHardwareDevice::toMap() const
-{
-    QVariantMap map = MerDevice::toMap();
-    map.insert(QLatin1String(Constants::MER_DEVICE_ARCHITECTURE), m_architecture);
-    map.insert(QLatin1String(Constants::MER_DEVICE_QML_LIVE_PORTS), m_qmlLivePorts.toString());
-    return map;
-}
-
-Abi::Architecture MerHardwareDevice::architecture() const
-{
-    return m_architecture;
-}
-
-void MerHardwareDevice::setArchitecture(const Abi::Architecture &architecture)
-{
-    m_architecture = architecture;
-}
-
 IDeviceWidget *MerHardwareDevice::createWidget()
 {
     return new MerHardwareDeviceWidget(sharedFromThis());
-}
-
-Utils::PortList MerHardwareDevice::qmlLivePorts() const
-{
-    return m_qmlLivePorts;
-}
-
-void MerHardwareDevice::setQmlLivePorts(const Utils::PortList &qmlLivePorts)
-{
-    m_qmlLivePorts = qmlLivePorts;
 }
 
 } // Internal

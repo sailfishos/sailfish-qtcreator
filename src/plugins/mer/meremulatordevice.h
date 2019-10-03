@@ -51,11 +51,6 @@ public:
     ProjectExplorer::DeviceTester *createDeviceTester() const override;
 
     void fromMap(const QVariantMap &map) override;
-    QVariantMap toMap() const override;
-
-    ProjectExplorer::Abi::Architecture architecture() const override;
-
-    Utils::PortList qmlLivePorts() const override;
 
     Sfdk::Emulator *emulator() const;
     void setEmulator(Sfdk::Emulator *emulator);

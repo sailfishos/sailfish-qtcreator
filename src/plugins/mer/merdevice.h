@@ -40,18 +40,27 @@ public:
     typedef QSharedPointer<MerDevice> Ptr;
     typedef QSharedPointer<const MerDevice> ConstPtr;
 
+    void fromMap(const QVariantMap &map) override;
+    QVariantMap toMap() const override;
+
     QString displayType() const override;
 
-    virtual ProjectExplorer::Abi::Architecture architecture() const = 0;
+    ProjectExplorer::Abi::Architecture architecture() const;
+    void setArchitecture(const ProjectExplorer::Abi::Architecture &architecture);
 
     static MachineType workaround_machineTypeFromMap(const QVariantMap &map);
 
-    virtual Utils::PortList qmlLivePorts() const = 0;
+    Utils::PortList qmlLivePorts() const;
     QList<Utils::Port> qmlLivePortsList() const;
+    void setQmlLivePorts(const Utils::PortList &qmlLivePorts);
 
 protected:
     MerDevice();
     ~MerDevice() override = 0;
+
+private:
+    ProjectExplorer::Abi::Architecture m_architecture;
+    Utils::PortList m_qmlLivePorts;
 };
 
 }

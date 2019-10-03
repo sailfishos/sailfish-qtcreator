@@ -41,9 +41,38 @@ namespace {
     const char workaround_MachineTypeKey[] = "Type";
 }
 
+void MerDevice::fromMap(const QVariantMap &map)
+{
+    LinuxDevice::fromMap(map);
+    m_architecture = static_cast<Abi::Architecture>(
+            map.value(QLatin1String(Constants::MER_DEVICE_ARCHITECTURE),
+                Abi::UnknownArchitecture).toInt());
+    m_qmlLivePorts = Utils::PortList::fromString(map.value(QLatin1String(Constants::MER_DEVICE_QML_LIVE_PORTS),
+                                                           QString::number(Sfdk::Constants::DEFAULT_QML_LIVE_PORT))
+                                                 .toString());
+}
+
+QVariantMap MerDevice::toMap() const
+{
+    QVariantMap map = LinuxDevice::toMap();
+    map.insert(QLatin1String(Constants::MER_DEVICE_ARCHITECTURE), m_architecture);
+    map.insert(QLatin1String(Constants::MER_DEVICE_QML_LIVE_PORTS), m_qmlLivePorts.toString());
+    return map;
+}
+
 QString MerDevice::displayType() const
 {
     return tr("Sailfish OS Device");
+}
+
+Abi::Architecture MerDevice::architecture() const
+{
+    return m_architecture;
+}
+
+void MerDevice::setArchitecture(const Abi::Architecture &architecture)
+{
+    m_architecture = architecture;
 }
 
 IDevice::MachineType
@@ -53,9 +82,14 @@ IDevice::MachineType
             map.value(QLatin1String(workaround_MachineTypeKey), Hardware).toInt());
 }
 
+Utils::PortList MerDevice::qmlLivePorts() const
+{
+    return m_qmlLivePorts;
+}
+
 QList<Utils::Port> MerDevice::qmlLivePortsList() const
 {
-    Utils::PortList ports(qmlLivePorts());
+    Utils::PortList ports(m_qmlLivePorts);
     QList<Utils::Port> retv;
     while (ports.hasMore() && retv.count() < Sfdk::Constants::MAX_PORT_LIST_PORTS)
         retv.append(ports.getNext());
@@ -63,7 +97,13 @@ QList<Utils::Port> MerDevice::qmlLivePortsList() const
     return retv;
 }
 
+void MerDevice::setQmlLivePorts(const Utils::PortList &qmlLivePorts)
+{
+    m_qmlLivePorts = qmlLivePorts;
+}
+
 MerDevice::MerDevice()
+    : m_architecture(ProjectExplorer::Abi::UnknownArchitecture)
 {
     setType(Core::Id(Constants::MER_DEVICE_TYPE));
     setDeviceState(IDevice::DeviceStateUnknown);
