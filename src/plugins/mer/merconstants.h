@@ -44,11 +44,6 @@ const char MER_EMULATOR_MODE_ACTION_NAME[] = QT_TRANSLATE_NOOP("Mer", "&Emulator
 const char MER_DEVICE_TYPE[] = "Mer.Device.Type";
 const char MER_i486_IDENTIFIER[] = "i486";
 const char MER_ARM_IDENTIFIER[] = "arm";
-const char MER_SAILFISH_MENU[] = "Mer.Sailfish.Menu";
-const char MER_SAILFISH_START_MENU[] = "Mer.Sailfish.Start.Menu";
-const char MER_SAILFISH_STOP_MENU[] = "Mer.Sailfish.Stop.Menu";
-const char MER_SAILFISH_VM_GROUP_MENU[] = "Mer.Sailfish.Vm.Group.Menu";
-const char MER_SAILFISH_OTHER_GROUP_MENU[] = "Mer.Sailfish.Other.Group.Menu";
 
 const char MER_TOOLS_MENU[] = "Mer.Tools.Menu";
 const char MER_EMULATOR_MODE_ACTION_ID[] = "Mer.Emulator.Mode.Action";
