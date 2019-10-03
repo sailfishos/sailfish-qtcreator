@@ -39,13 +39,11 @@
 #include "merqmllivebenchmanager.h"
 #include "merqmlrunconfigurationfactory.h"
 #include "merqtversionfactory.h"
-#include "merrpmpackagingstep.h"
 #include "merrunconfigurationaspect.h"
 #include "merrunconfigurationfactory.h"
 #include "mersdkmanager.h"
 #include "mersettings.h"
 #include "mertoolchainfactory.h"
-#include "meruploadandinstallrpmsteps.h"
 #include "mervmconnectionui.h"
 #include "meremulatormodeoptionspage.h"
 
@@ -112,9 +110,7 @@ public:
     MerDeployStepFactory<MerMb2RsyncDeployStep> mb2RsyncDeployStepFactory;
     MerDeployStepFactory<MerMb2RpmDeployStep> mb2RpmDeployStepFactory;
     MerDeployStepFactory<MerMb2RpmBuildStep> mb2RpmBuildStepFactory;
-    MerDeployStepFactory<MerRpmPackagingStep> rpmPackagingStepFactory;
     MerDeployStepFactory<MerRpmValidationStep> rpmValidationStepFactory;
-    MerDeployStepFactory<MerUploadAndInstallRpmStep> uploadAndInstallRpmStepFactory;
     MerDeployStepFactory<MerLocalRsyncDeployStep> localRsyncDeployStepFactory;
     MerDeployStepFactory<MerResetAmbienceDeployStep> resetAmbienceDeployStepFactory;
     MerQmlLiveBenchManager qmlLiveBenchManager;

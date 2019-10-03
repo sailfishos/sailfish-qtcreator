@@ -108,16 +108,6 @@ public:
     static Core::Id configurationId();
 };
 
-class MerRpmBuildDeployConfigurationFactory
-    : public MerDeployConfigurationFactory<MerRpmBuildDeployConfigurationFactory>
-{
-public:
-    MerRpmBuildDeployConfigurationFactory();
-
-    static QString displayName();
-    static Core::Id configurationId();
-};
-
 class MerAddRemoveSpecialDeployStepsProjectListener : public MerProjectListener
 {
     Q_OBJECT
