@@ -42,9 +42,7 @@ QString QMakeCommand::name() const
 
 int QMakeCommand::execute()
 {
-    if (arguments().contains(QLatin1String("-version")))
-        m_cacheFile = QLatin1String(Mer::Constants::QMAKE_VERSION);
-    else if (arguments().contains(QLatin1String("-query")))
+    if (arguments().contains(QLatin1String("-query")))
         m_cacheFile = QLatin1String(Mer::Constants::QMAKE_QUERY);
 
     if (!m_cacheFile.isEmpty()) {
