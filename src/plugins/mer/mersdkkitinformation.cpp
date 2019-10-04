@@ -194,7 +194,7 @@ MerSdkKitInformationWidget::MerSdkKitInformationWidget(Kit *kit,
 
 QString MerSdkKitInformationWidget::displayName() const
 {
-    return tr("Sailfish OS build engine:");
+    return tr("Sailfish OS build engine");
 }
 
 QString MerSdkKitInformationWidget::toolTip() const

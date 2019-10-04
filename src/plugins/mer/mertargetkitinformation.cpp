@@ -155,7 +155,7 @@ MerTargetKitInformationWidget::MerTargetKitInformationWidget(Kit *kit,
 
 QString MerTargetKitInformationWidget::displayName() const
 {
-    return tr("Sailfish OS build target:");
+    return tr("Sailfish OS build target");
 }
 
 QString MerTargetKitInformationWidget::toolTip() const
