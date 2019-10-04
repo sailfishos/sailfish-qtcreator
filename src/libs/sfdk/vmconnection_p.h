@@ -76,6 +76,7 @@ public:
 
     bool isVirtualMachineOff(bool *runningHeadless = 0, bool *startedOutside = 0) const;
     bool lockDown(bool lockDown);
+    bool isLockedDown() const;
 
 public slots:
     void refresh(Sfdk::VirtualMachine::Synchronization synchronization = VirtualMachine::Asynchronous);

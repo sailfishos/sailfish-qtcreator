@@ -128,6 +128,8 @@ quint16 Emulator::sshPort() const
 
 void Emulator::setSshPort(quint16 sshPort, const QObject *context, const Functor<bool> &functor)
 {
+    QTC_CHECK(virtualMachine()->isLockedDown());
+
     const QPointer<const QObject> context_{context};
     VirtualMachinePrivate::get(virtualMachine())->setReservedPortForwarding(
             VirtualMachinePrivate::SshPort, sshPort, this, [=](bool ok) {
@@ -150,6 +152,8 @@ Utils::PortList Emulator::freePorts() const
 void Emulator::setFreePorts(const Utils::PortList &freePorts, const QObject *context,
         const Functor<bool> &functor)
 {
+    QTC_CHECK(virtualMachine()->isLockedDown());
+
     const QPointer<const QObject> context_{context};
     VirtualMachinePrivate::get(virtualMachine())->setReservedPortListForwarding(
             VirtualMachinePrivate::FreePortList, toList(freePorts), this,
@@ -169,6 +173,8 @@ Utils::PortList Emulator::qmlLivePorts() const
 void Emulator::setQmlLivePorts(const Utils::PortList &qmlLivePorts, const QObject *context,
         const Functor<bool> &functor)
 {
+    QTC_CHECK(virtualMachine()->isLockedDown());
+
     const QPointer<const QObject> context_{context};
     VirtualMachinePrivate::get(virtualMachine())->setReservedPortListForwarding(
             VirtualMachinePrivate::QmlLivePortList, toList(qmlLivePorts), this,
@@ -196,6 +202,8 @@ void Emulator::setFactorySnapshot(const QString &snapshotName)
 
 void Emulator::restoreFactoryState(const QObject *context, const Functor<bool> &functor)
 {
+    QTC_CHECK(virtualMachine()->isLockedDown());
+
     const QPointer<const QObject> context_{context};
     VirtualMachinePrivate::get(virtualMachine())->restoreSnapshot(factorySnapshot(), this,
             [=](bool restoredOk) {

@@ -160,6 +160,11 @@ bool VirtualMachine::lockDown(bool lockDown)
     return d_func()->connection->lockDown(lockDown);
 }
 
+bool VirtualMachine::isLockedDown() const
+{
+    return d_func()->connection->isLockedDown();
+}
+
 int VirtualMachine::memorySizeMb() const
 {
     Q_D(const VirtualMachine);
@@ -171,6 +176,7 @@ void VirtualMachine::setMemorySizeMb(int memorySizeMb, const QObject *context,
         const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
+    QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
     d->doSetMemorySizeMb(memorySizeMb, this, [=](bool ok) {
@@ -199,6 +205,7 @@ int VirtualMachine::cpuCount() const
 void VirtualMachine::setCpuCount(int cpuCount, const QObject *context, const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
+    QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
     d->doSetCpuCount(cpuCount, this, [=](bool ok) {
@@ -227,6 +234,7 @@ void VirtualMachine::setVdiCapacityMb(int vdiCapacityMb, const QObject *context,
         const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
+    QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
     d->doSetVdiCapacityMb(vdiCapacityMb, this, [=](bool ok) {
@@ -264,6 +272,7 @@ void VirtualMachine::addPortForwarding(const QString &ruleName, const QString &p
         const QObject *context, const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
+    QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
     d->doAddPortForwarding(ruleName, protocol, hostPort,
@@ -281,6 +290,7 @@ void VirtualMachine::removePortForwarding(const QString &ruleName, const QObject
         const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
+    QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
     d->doRemovePortForwarding(ruleName, this, [=](bool ok) {
@@ -451,6 +461,7 @@ void VirtualMachinePrivate::restoreSnapshot(const QString &snapshotName, const Q
         const Functor<bool> &functor)
 {
     Q_Q(VirtualMachine);
+    QTC_CHECK(q->isLockedDown());
 
     const QPointer<const QObject> context_{context};
     doRestoreSnapshot(snapshotName, q, [=](bool restoreOk) {

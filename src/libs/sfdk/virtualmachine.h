@@ -98,6 +98,7 @@ public:
 
     bool isOff(bool *runningHeadless = 0, bool *startedOutside = 0) const;
     bool lockDown(bool lockDown);
+    bool isLockedDown() const;
 
     int memorySizeMb() const;
     void setMemorySizeMb(int memorySizeMb, const QObject *context,

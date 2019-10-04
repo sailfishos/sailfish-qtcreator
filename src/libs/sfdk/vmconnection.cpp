@@ -281,6 +281,12 @@ bool VmConnection::lockDown(bool lockDown)
     }
 }
 
+bool VmConnection::isLockedDown() const
+{
+    // Not accurate during lockDown() call, but that should not be an issue
+    return m_lockDownRequested;
+}
+
 void VmConnection::refresh(VirtualMachine::Synchronization synchronization)
 {
     DBG << "Refresh requested; synchronization:" << synchronization;

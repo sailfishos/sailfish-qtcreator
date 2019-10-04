@@ -152,6 +152,8 @@ Utils::FileName BuildEngine::sharedSshPath() const
 void BuildEngine::setSharedSrcPath(const FileName &sharedSrcPath, const QObject *context,
         const Functor<bool> &functor)
 {
+    QTC_CHECK(virtualMachine()->isLockedDown());
+
     const QPointer<const QObject> context_{context};
 
     VirtualMachinePrivate::get(virtualMachine())->setSharedPath(VirtualMachinePrivate::SharedSrc,
@@ -170,6 +172,8 @@ quint16 BuildEngine::sshPort() const
 
 void BuildEngine::setSshPort(quint16 sshPort, const QObject *context, const Functor<bool> &functor)
 {
+    QTC_CHECK(virtualMachine()->isLockedDown());
+
     const QPointer<const QObject> context_{context};
     VirtualMachinePrivate::get(virtualMachine())->setReservedPortForwarding(
             VirtualMachinePrivate::SshPort, sshPort, this, [=](bool ok) {
@@ -191,6 +195,8 @@ quint16 BuildEngine::wwwPort() const
 
 void BuildEngine::setWwwPort(quint16 wwwPort, const QObject *context, const Functor<bool> &functor)
 {
+    QTC_CHECK(virtualMachine()->isLockedDown());
+
     const QPointer<const QObject> context_{context};
     VirtualMachinePrivate::get(virtualMachine())->setReservedPortForwarding(
             VirtualMachinePrivate::WwwPort, wwwPort, this, [=](bool ok) {
