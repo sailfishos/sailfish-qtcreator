@@ -39,8 +39,8 @@ public:
 
     void setBuildEngineUri(const QUrl &uri);
     QUrl buildEngineUri() const;
-    void setTargetName(const QString &name);
-    QString targetName() const;
+    void setBuildTargetName(const QString &name);
+    QString buildTargetName() const;
 
     MerQtVersion *clone() const override;
 
@@ -66,7 +66,7 @@ protected:
 
 private:
     QUrl m_buildEngineUri;
-    QString m_targetName;
+    QString m_buildTargetName;
 };
 
 } // Internal

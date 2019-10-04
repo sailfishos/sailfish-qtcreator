@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -54,8 +55,8 @@ public:
 
     static bool authorizePublicKey(const QString &authorizedKeysPath, const QString &publicKeyPath, QString &error);
     static bool isMerKit(const ProjectExplorer::Kit *kit);
-    static QString targetNameForKit(const ProjectExplorer::Kit *kit);
-    static QList<ProjectExplorer::Kit *> kitsForTarget(const QString &targetName);
+    static QString buildTargetNameForKit(const ProjectExplorer::Kit *kit);
+    static QList<ProjectExplorer::Kit *> kitsForTarget(const QString &buildTargetName);
     static bool hasMerDevice(ProjectExplorer::Kit *kit);
     static bool validateKit(const ProjectExplorer::Kit* kit);
     static bool generateSshKey(const QString &privKeyPath, QString &error);

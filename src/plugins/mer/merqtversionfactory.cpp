@@ -65,7 +65,7 @@ BaseQtVersion *MerQtVersionFactory::restore(const QString &type,
 
     // Check if the qtVersion is still valid
     QFileInfo fi = v->qmakeCommand().toFileInfo();
-    if (!fi.exists() || v->buildEngineUri().isEmpty() || v->targetName().isEmpty()) {
+    if (!fi.exists() || v->buildEngineUri().isEmpty() || v->buildTargetName().isEmpty()) {
         delete v;
         return 0;
     }

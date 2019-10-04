@@ -78,14 +78,14 @@ QUrl MerQtVersion::buildEngineUri() const
     return m_buildEngineUri;
 }
 
-void MerQtVersion::setTargetName(const QString &name)
+void MerQtVersion::setBuildTargetName(const QString &name)
 {
-    m_targetName = name;
+    m_buildTargetName = name;
 }
 
-QString MerQtVersion::targetName() const
+QString MerQtVersion::buildTargetName() const
 {
-    return m_targetName;
+    return m_buildTargetName;
 }
 
 QString MerQtVersion::type() const
@@ -117,7 +117,7 @@ QVariantMap MerQtVersion::toMap() const
 {
     QVariantMap data = BaseQtVersion::toMap();
     data.insert(QLatin1String(Constants::BUILD_ENGINE_URI), m_buildEngineUri);
-    data.insert(QLatin1String(Constants::SB2_TARGET_NAME), m_targetName);
+    data.insert(QLatin1String(Constants::BUILD_TARGET_NAME), m_buildTargetName);
     return data;
 }
 
@@ -125,7 +125,7 @@ void MerQtVersion::fromMap(const QVariantMap &data)
 {
     BaseQtVersion::fromMap(data);
     m_buildEngineUri = data.value(QLatin1String(Constants::BUILD_ENGINE_URI)).toUrl();
-    m_targetName = data.value(QLatin1String(Constants::SB2_TARGET_NAME)).toString();
+    m_buildTargetName = data.value(QLatin1String(Constants::BUILD_TARGET_NAME)).toString();
 }
 
 QList<Task> MerQtVersion::validateKit(const Kit *kit)
@@ -238,7 +238,7 @@ QSet<Core::Id> MerQtVersion::availableFeatures() const
 Environment MerQtVersion::qmakeRunEnvironment() const
 {
     Environment env = BaseQtVersion::qmakeRunEnvironment();
-    env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_TARGET_NAME), m_targetName);
+    env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_TARGET_NAME), m_buildTargetName);
     env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS),
             qmakeCommand().parentDir().toString());
     return env;

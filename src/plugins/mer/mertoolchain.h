@@ -39,8 +39,8 @@ public:
 
     void setBuildEngineUri(const QUrl &uri);
     QUrl buildEngineUri() const;
-    void setTargetName(const QString &name);
-    QString targetName() const;
+    void setBuildTargetName(const QString &name);
+    QString buildTargetName() const;
 
     QVariantMap toMap() const override;
     bool fromMap(const QVariantMap &data) override;
@@ -57,7 +57,7 @@ public:
     void addToEnvironment(Utils::Environment &env) const override;
 private:
     QUrl m_buildEngineUri;
-    QString m_targetName;
+    QString m_buildTargetName;
     mutable ProjectExplorer::HeaderPaths m_headerPathsOnHost;
 };
 

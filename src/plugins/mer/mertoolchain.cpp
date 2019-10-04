@@ -64,14 +64,14 @@ QUrl MerToolChain::buildEngineUri() const
     return m_buildEngineUri;
 }
 
-void MerToolChain::setTargetName(const QString &name)
+void MerToolChain::setBuildTargetName(const QString &name)
 {
-    m_targetName = name;
+    m_buildTargetName = name;
 }
 
-QString MerToolChain::targetName() const
+QString MerToolChain::buildTargetName() const
 {
-    return m_targetName;
+    return m_buildTargetName;
 }
 
 QString MerToolChain::makeCommand(const Environment &environment) const
@@ -108,7 +108,7 @@ QVariantMap MerToolChain::toMap() const
 {
     QVariantMap data = GccToolChain::toMap();
     data.insert(QLatin1String(Constants::BUILD_ENGINE_URI), m_buildEngineUri);
-    data.insert(QLatin1String(Constants::SB2_TARGET_NAME), m_targetName);
+    data.insert(QLatin1String(Constants::BUILD_TARGET_NAME), m_buildTargetName);
     return data;
 }
 
@@ -118,8 +118,8 @@ bool MerToolChain::fromMap(const QVariantMap &data)
         return false;
 
     m_buildEngineUri = data.value(QLatin1String(Constants::BUILD_ENGINE_URI)).toUrl();
-    m_targetName = data.value(QLatin1String(Constants::SB2_TARGET_NAME)).toString();
-    return !m_buildEngineUri.isEmpty() && !m_targetName.isEmpty();
+    m_buildTargetName = data.value(QLatin1String(Constants::BUILD_TARGET_NAME)).toString();
+    return !m_buildEngineUri.isEmpty() && !m_buildTargetName.isEmpty();
 }
 
 QList<Task> MerToolChain::validateKit(const Kit *kit) const
@@ -163,7 +163,7 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
 void MerToolChain::addToEnvironment(Environment &env) const
 {
     GccToolChain::addToEnvironment(env);
-    env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_TARGET_NAME), m_targetName);
+    env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_TARGET_NAME), m_buildTargetName);
     env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS),
             compilerCommand().parentDir().toString());
 }

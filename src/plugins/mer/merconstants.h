@@ -59,7 +59,7 @@ const char MER_SDK_PROXY_AUTOMATIC[] = "auto";
 const char MER_SDK_PROXY_MANUAL[] = "manual";
 
 const char BUILD_ENGINE_URI[] = "BuildEngineUri";
-const char SB2_TARGET_NAME[] = "SB2.TargetName";
+const char BUILD_TARGET_NAME[] = "BuildTargetName";
 
 const char MER_RUNCONFIGURATION_PREFIX[] = "QmakeProjectManager.MerRunConfiguration:";
 const char MER_QMLRUNCONFIGURATION[] = "QmakeProjectManager.MerQmlRunConfiguration";
