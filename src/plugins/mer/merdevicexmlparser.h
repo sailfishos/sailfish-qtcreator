@@ -32,24 +32,6 @@ namespace Mer {
 
 class MerDeviceData;
 class MerEngineData;
-class MerDevicesXmlReaderPrivate;
-class MerDevicesXmlReader : public QObject
-{
-public:
-    MerDevicesXmlReader(const QString &fileName, QObject *parent = 0);
-    ~MerDevicesXmlReader() override;
-
-    bool hasError() const;
-    QString errorString() const;
-
-    QList<MerDeviceData> deviceData() const;
-    MerEngineData engineData() const;
-
-private:
-    MerDevicesXmlReaderPrivate *d;
-
-};
-
 class MerDevicesXmlWriterPrivate;
 class MerDevicesXmlWriter : public QObject
 {
