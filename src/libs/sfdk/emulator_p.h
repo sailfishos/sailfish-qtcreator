@@ -38,8 +38,7 @@ namespace Sfdk {
 
 class VirtualMachineInfo;
 
-// FIXME internal
-class SFDK_EXPORT EmulatorPrivate
+class EmulatorPrivate
 {
     Q_DECLARE_PUBLIC(Emulator)
 

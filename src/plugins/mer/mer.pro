@@ -43,7 +43,6 @@ SOURCES += \
     merdevice.cpp \
     merdevicedebugsupport.cpp \
     merdevicefactory.cpp \
-    merdevicexmlparser.cpp \
     meremulatordetailswidget.cpp \
     meremulatordevice.cpp \
     meremulatordevicetester.cpp \
@@ -101,7 +100,6 @@ HEADERS += \
     merdevice.h \
     merdevicedebugsupport.h \
     merdevicefactory.h \
-    merdevicexmlparser.h \
     meremulatordetailswidget.h \
     meremulatordevice.h \
     meremulatordevicetester.h \

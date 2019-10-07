@@ -1,5 +1,6 @@
 /****************************************************************************
 **
+** Copyright (C) 2019 Jolla Ltd.
 ** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
@@ -22,6 +23,7 @@
 
 #include "device_p.h"
 
+#include "buildengine.h"
 #include "emulator_p.h"
 #include "sdk_p.h"
 #include "sfdkconstants.h"
@@ -35,6 +37,25 @@ using namespace QSsh;
 using namespace Utils;
 
 namespace Sfdk {
+
+namespace {
+
+const char DEVICES_XML_FILE_NAME[] = "devices.xml";
+const char DEVICE[] = "device";
+const char DEVICES[] = "devices";
+const char NAME[] = "name";
+const char TYPE[] = "type";
+const char TYPE_REAL[] = "real";
+const char TYPE_VBOX[] = "vbox";
+const char ENGINE[] = "engine";
+const char IP[] = "ip";
+const char SSH_PATH[] = "sshkeypath";
+const char SUBNET[] = "subnet";
+const char MAC[] = "mac";
+const char INDEX[] = "index";
+const char SSH_PORT[] = "sshport";
+
+} // namespace anonymous
 
 /*!
  * \class Device
@@ -338,6 +359,13 @@ DeviceManager::DeviceManager(QObject *parent)
             this, &DeviceManager::onEmulatorAdded);
     connect(EmulatorManager::instance(), &EmulatorManager::aboutToRemoveEmulator,
             this, &DeviceManager::onAboutToRemoveEmulator);
+
+    auto scheduleUpdateDeviceXmlIfPrimary = [=]() {
+        if (!SdkPrivate::isVersionedSettingsEnabled() || !Sdk::isApplyingUpdates())
+            m_updateDevicesXmlTimer.start(0, this);
+    };
+    connect(this, &DeviceManager::deviceAdded, this, scheduleUpdateDeviceXmlIfPrimary);
+    connect(this, &DeviceManager::aboutToRemoveDevice, this, scheduleUpdateDeviceXmlIfPrimary);
 }
 
 DeviceManager::~DeviceManager()
@@ -378,6 +406,16 @@ void DeviceManager::removeDevice(const QString &id)
 
     emit s_instance->aboutToRemoveDevice(index);
     s_instance->m_devices.erase(s_instance->m_devices.cbegin() + index);
+}
+
+void DeviceManager::timerEvent(QTimerEvent *event)
+{
+    if (event->timerId() == m_updateDevicesXmlTimer.timerId()) {
+        m_updateDevicesXmlTimer.stop();
+        updateDevicesXml();
+    } else  {
+        QObject::timerEvent(event);
+    }
 }
 
 QVariantMap DeviceManager::toMap() const
@@ -513,6 +551,179 @@ void DeviceManager::onAboutToRemoveEmulator(int index)
     QTC_ASSERT(deviceIndex >= 0, return);
     emit aboutToRemoveDevice(deviceIndex);
     m_devices.erase(m_devices.cbegin() + deviceIndex);
+}
+
+// TODO multiple build engines
+void DeviceManager::updateDevicesXml() const
+{
+    QList<DeviceData> devices;
+    QList<FileName> emulatorConfigPaths;
+
+    for (const std::unique_ptr<Device> &device : m_devices) {
+        DeviceData xmlData;
+        if (device->machineType() == Device::HardwareMachine) {
+            xmlData.m_ip = device->sshParameters().host();
+            xmlData.m_name = device->name();
+            xmlData.m_type = TYPE_REAL;
+            xmlData.m_sshPort.setNum(device->sshParameters().port());
+            const FileName sharedConfigPath = Sdk::buildEngines().first()->sharedConfigPath();
+            if (!sharedConfigPath.isEmpty()) {
+                xmlData.m_sshKeyPath =
+                    FileName::fromString(device->sshParameters().privateKeyFile).parentDir()
+                    .relativeChildPath(sharedConfigPath).toString();
+            }
+        } else {
+            EmulatorDevice *const emulatorDevice = static_cast<EmulatorDevice *>(device.get());
+            QString mac = EmulatorPrivate::get(emulatorDevice->emulator())->mac();
+            QTC_CHECK(!mac.isEmpty());
+            if (!mac.isEmpty())
+                xmlData.m_index = mac.at(mac.count() - 1);
+            xmlData.m_subNet = EmulatorPrivate::get(emulatorDevice->emulator())->subnet();
+            xmlData.m_name = device->name();
+            xmlData.m_mac = mac;
+            xmlData.m_type = TYPE_VBOX;
+            const FileName sharedConfigPath = Sdk::buildEngines().first()->sharedConfigPath();
+            if (!sharedConfigPath.isEmpty()) {
+                xmlData.m_sshKeyPath =
+                    FileName::fromString(device->sshParameters().privateKeyFile).parentDir()
+                    .relativeChildPath(sharedConfigPath).toString();
+                emulatorConfigPaths << emulatorDevice->emulator()->sharedConfigPath();
+            }
+        }
+        devices << xmlData;
+    }
+
+    for (BuildEngine *const engine : Sdk::buildEngines()) {
+        EngineData xmlData;
+        xmlData.m_name = engine->name();
+        xmlData.m_type =  TYPE_VBOX;
+        xmlData.m_subNet = Constants::VIRTUAL_BOX_VIRTUAL_SUBNET;
+
+        const QString file =
+            engine->sharedConfigPath().appendPath(DEVICES_XML_FILE_NAME).toString();
+        if (!file.isEmpty())
+            writeDevicesXml(file, devices, xmlData);
+
+        // The emulators only seek their own data in the XML
+        for (const FileName &emulatorConfigPath : emulatorConfigPaths) {
+            const QString file =
+                FileName(emulatorConfigPath).appendPath(DEVICES_XML_FILE_NAME).toString();
+            writeDevicesXml(file, devices, xmlData);
+        }
+    }
+}
+
+// Example output:
+//
+//<devices>
+// <engine name="Sailfish OS Build Engine" type="vbox">
+//  <subnet>10.220.220</subnet
+// </engine>
+// <device name="Nemo N9" type="real">
+//  <ip>192.168.0.12</ip>
+//  <sshkeypath></sshkeypath>
+// </device>
+// <device name="Sailfish OS Emulator" type="vbox">
+//  <index>2</index>
+//  <subnet>10.220.220</subnet>
+//  <sshkeypath></sshkeypath>
+//  <mac>08:00:27:7C:A1:AF</mac>
+// </device>
+//</devices>
+void DeviceManager::writeDevicesXml(const QString &fileName, const QList<DeviceData> &devices,
+        const EngineData &engine)
+{
+    QByteArray data;
+    QXmlStreamWriter writer(&data);
+    writer.setAutoFormatting(true);
+    writer.writeStartDocument();
+    writer.writeStartElement(QLatin1String(DEVICES));
+    writer.writeStartElement(QLatin1String(ENGINE));
+    writer.writeAttribute(QLatin1String(NAME), engine.m_name);
+    writer.writeAttribute(QLatin1String(TYPE), engine.m_type);
+    writer.writeStartElement(QLatin1String(SUBNET));
+    writer.writeCharacters(engine.m_subNet);
+    writer.writeEndElement(); // subnet
+    writer.writeEndElement(); // eninge
+    for (const DeviceData &data : devices) {
+        writer.writeStartElement(QLatin1String(DEVICE));
+        writer.writeAttribute(QLatin1String(NAME), data.m_name);
+        writer.writeAttribute(QLatin1String(TYPE), data.m_type);
+        if(!data.m_index.isEmpty()) {
+            writer.writeStartElement(QLatin1String(INDEX));
+            writer.writeCharacters(data.m_index);
+            writer.writeEndElement(); // index
+        }
+        if(!data.m_ip.isEmpty()) {
+            writer.writeStartElement(QLatin1String(IP));
+            writer.writeCharacters(data.m_ip);
+            writer.writeEndElement(); // ip
+        }
+        if(!data.m_subNet.isEmpty()) {
+            writer.writeStartElement(QLatin1String(SUBNET));
+            writer.writeCharacters(data.m_subNet);
+            writer.writeEndElement(); // subnet
+        }
+        if(!data.m_sshKeyPath.isEmpty()) {
+            writer.writeStartElement(QLatin1String(SSH_PATH));
+            writer.writeCharacters(data.m_sshKeyPath);
+            writer.writeEndElement(); // ssh
+        }
+        if(!data.m_mac.isEmpty()) {
+            writer.writeStartElement(QLatin1String(MAC));
+            writer.writeCharacters(data.m_mac);
+            writer.writeEndElement(); // mac
+        }
+        if(!data.m_sshPort.isEmpty()) {
+            writer.writeStartElement(QLatin1String(SSH_PORT));
+            writer.writeCharacters(data.m_sshPort);
+            writer.writeEndElement(); // sshport
+        }
+        writer.writeEndElement(); // device
+    }
+    {
+        // This is a hack. This hack allows external modifications to the xml file for devices
+        // Only devices that are of type=vbox are overwritten.
+        // REMOVE THESE LINES
+        // STARTS HERE
+        FileReader fileReader;
+        if (fileReader.fetch(fileName)) {
+            QXmlStreamReader xmlReader(fileReader.data());
+            while (!xmlReader.atEnd()) {
+                xmlReader.readNext();
+                if (xmlReader.isStartElement() && xmlReader.name() == QLatin1String(DEVICE)) {
+                    QXmlStreamAttributes attributes = xmlReader.attributes();
+                    if (attributes.value(QLatin1String(TYPE)) == QLatin1String("custom")) {
+                        writer.writeStartElement(QLatin1String(DEVICE));
+                        writer.writeAttributes(attributes);
+                        while (xmlReader.readNext()) {
+                            if (xmlReader.isStartElement()) {
+                                writer.writeStartElement(xmlReader.name().toString());
+                                attributes = xmlReader.attributes();
+                                writer.writeAttributes(attributes);
+                            } else if (xmlReader.isEndElement()) {
+                                writer.writeEndElement();
+                                if (xmlReader.name() == QLatin1String(DEVICE))
+                                    break;
+                            } else if (xmlReader.isCharacters()) {
+                                writer.writeCharacters(xmlReader.text().toString());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // ENDS HERE
+    }
+    writer.writeEndElement(); // devices
+    writer.writeEndDocument();
+
+    FileSaver fileSaver(fileName, QIODevice::WriteOnly);
+    fileSaver.write(data);
+    if (fileSaver.finalize())
+        qCDebug(Log::device) << "Updated" << fileName;
+    else
+        qCWarning(Log::device) << "Error updating" << fileName << fileSaver.errorString();
 }
 
 } // namespace Sfdk

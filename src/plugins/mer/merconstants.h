@@ -72,8 +72,6 @@ const char MER_SDK_CONNECTON_ACTION_ID[] = "Mer.SdkConnectionAction";
 const char MER_WIZARD_FEATURE_SAILFISHOS[] = "Mer.Wizard.Feature.SailfishOS";
 const char MER_WIZARD_FEATURE_EMULATOR[] = "Mer.Wizard.Feature.Emulator";
 
-const char MER_DEVICES_FILENAME[] = "/devices.xml";
-
 const char MER_SDK_SHARED_HOME_MOUNT_POINT[] = "/home/mersdk/share";
 const char MER_SDK_SHARED_SRC_MOUNT_POINT[] = "/home/src1";
 

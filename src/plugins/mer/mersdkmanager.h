@@ -67,7 +67,6 @@ signals:
 
 private:
     void initialize();
-    void updateDevices();
     static QList<MerToolChain*> merToolChains();
     static QList<MerQtVersion*> merQtVersions();
     void onBuildEngineAdded(int index);

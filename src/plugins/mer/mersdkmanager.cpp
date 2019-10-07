@@ -26,7 +26,6 @@
 #include "merconnectionmanager.h"
 #include "merconstants.h"
 #include "merdevicefactory.h"
-#include "merdevicexmlparser.h"
 #include "meremulatordevice.h"
 #include "merhardwaredevice.h"
 #include "merlogging.h"
@@ -37,7 +36,6 @@
 #include "mertoolchain.h"
 
 #include <sfdk/buildengine.h>
-#include <sfdk/emulator_p.h>
 #include <sfdk/sdk.h>
 #include <sfdk/sfdkconstants.h>
 #include <sfdk/virtualmachine.h>
@@ -91,10 +89,6 @@ MerSdkManager::MerSdkManager()
     m_instance = this;
     connect(KitManager::instance(), &KitManager::kitsLoaded,
             this, &MerSdkManager::initialize);
-    connect(DeviceManager::instance(), &DeviceManager::devicesLoaded,
-            this, &MerSdkManager::updateDevices);
-    connect(DeviceManager::instance(), &DeviceManager::updated,
-            this, &MerSdkManager::updateDevices);
     KitManager::registerKitInformation<MerSdkKitInformation>();
     KitManager::registerKitInformation<MerTargetKitInformation>();
 
@@ -154,7 +148,6 @@ void MerSdkManager::initialize()
         checkPkgConfigAvailability();
 
         m_intialized = true;
-        updateDevices();
         emit initialized();
     }
 }
@@ -386,82 +379,6 @@ bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)
     }
 
     return true;
-}
-
-// this method updates the Mer devices.xml, nothing else
-void MerSdkManager::updateDevices()
-{
-    if (Sdk::buildEngines().isEmpty())
-        return;
-
-    // FIXME emulator devices should have set the build engine as the hardware devices
-    // do. See e.g. MerHardwareDeviceWizardSetupPage::handleSdkVmChanged
-    QTC_ASSERT(Sdk::buildEngines().count() == 1, return);
-
-    QList<MerDeviceData> devices;
-    QStringList emulatorConfigPaths;
-
-    int count = DeviceManager::instance()->deviceCount();
-    for(int i = 0 ;  i < count; ++i) {
-        IDevice::ConstPtr d = DeviceManager::instance()->deviceAt(i);
-        if (d->type() == Constants::MER_DEVICE_TYPE) {
-            MerDeviceData xmlData;
-            if (d->machineType() == IDevice::Hardware) {
-                Q_ASSERT(dynamic_cast<const MerHardwareDevice*>(d.data()) != 0);
-                const MerHardwareDevice* device = static_cast<const MerHardwareDevice*>(d.data());
-                xmlData.m_ip = device->sshParameters().host();
-                xmlData.m_name = device->displayName();
-                xmlData.m_type = QLatin1String("real");
-                xmlData.m_sshPort.setNum(device->sshParameters().port());
-                const FileName sharedConfigPath = Sdk::buildEngines().first()->sharedConfigPath();
-                if (!sharedConfigPath.isEmpty()) {
-                    xmlData.m_sshKeyPath =
-                        FileName::fromString(device->sshParameters().privateKeyFile).parentDir()
-                        .relativeChildPath(sharedConfigPath).toString();
-                }
-            } else {
-                Q_ASSERT(dynamic_cast<const MerEmulatorDevice*>(d.data()) != 0);
-                const MerEmulatorDevice* device = static_cast<const MerEmulatorDevice*>(d.data());
-                auto emulator_d = EmulatorPrivate::get(device->emulator());
-                //TODO: fix me
-                QString mac = emulator_d->mac();
-                QTC_CHECK(!mac.isEmpty());
-                if (!mac.isEmpty())
-                    xmlData.m_index = mac.at(mac.count()-1);
-                xmlData.m_subNet = emulator_d->subnet();
-                xmlData.m_name = device->displayName();
-                xmlData.m_mac = mac;
-                xmlData.m_type = QLatin1String ("vbox");
-                const FileName sharedConfigPath = Sdk::buildEngines().first()->sharedConfigPath();
-                if (!sharedConfigPath.isEmpty()) {
-                    xmlData.m_sshKeyPath =
-                        FileName::fromString(device->sshParameters().privateKeyFile).parentDir()
-                        .relativeChildPath(sharedConfigPath).toString();
-                    emulatorConfigPaths << device->emulator()->sharedConfigPath().toString();
-                }
-            }
-            devices << xmlData;
-        }
-    }
-
-    for (BuildEngine *const engine : Sdk::buildEngines()) {
-        const QString file =
-            engine->sharedConfigPath().appendPath(Constants::MER_DEVICES_FILENAME).toString();
-        MerEngineData xmlData;
-        xmlData.m_name = engine->name();
-        xmlData.m_type =  QLatin1String("vbox");
-        //hardcoded/magic values on customer request
-        xmlData.m_subNet = QLatin1String("10.220.220");
-        if (!file.isEmpty()) {
-            MerDevicesXmlWriter writer(file, devices, xmlData);
-        }
-
-        // The emulators only seek their own data in the XML
-        foreach (const QString &emulatorConfigPath, emulatorConfigPaths) {
-            const QString file = emulatorConfigPath + QLatin1String(Constants::MER_DEVICES_FILENAME);
-            MerDevicesXmlWriter writer(file, devices, xmlData);
-        }
-    }
 }
 
 void MerSdkManager::onBuildEngineAdded(int index)

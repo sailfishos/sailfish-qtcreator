@@ -27,6 +27,7 @@
 #include <ssh/sshconnection.h>
 #include <utils/portlist.h>
 
+#include <QBasicTimer>
 #include <QPointer>
 
 namespace Sfdk {
@@ -96,6 +97,27 @@ class DeviceManager : public QObject
 {
     Q_OBJECT
 
+    class DeviceData
+    {
+    public:
+        QString m_ip;
+        QString m_sshKeyPath;
+        QString m_mac;
+        QString m_subNet;
+        QString m_name;
+        QString m_type;
+        QString m_index;
+        QString m_sshPort;
+    };
+
+    class EngineData
+    {
+    public:
+        QString m_name;
+        QString m_type;
+        QString m_subNet;
+    };
+
 public:
     explicit DeviceManager(QObject *parent);
     ~DeviceManager() override;
@@ -110,6 +132,9 @@ signals:
     void deviceAdded(int index);
     void aboutToRemoveDevice(int index);
 
+protected:
+    void timerEvent(QTimerEvent *event) override;
+
 private:
     QVariantMap toMap() const;
     void fromMap(const QVariantMap &data);
@@ -119,11 +144,15 @@ private:
     void saveSettings(QStringList *errorStrings) const;
     void onEmulatorAdded(int index);
     void onAboutToRemoveEmulator(int index);
+    void updateDevicesXml() const;
+    static void writeDevicesXml(const QString &fileName, const QList<DeviceData> &devices,
+            const EngineData &engine);
 
 private:
     static DeviceManager *s_instance;
     const std::unique_ptr<UserSettings> m_userSettings;
     std::vector<std::unique_ptr<Device>> m_devices;
+    QBasicTimer m_updateDevicesXmlTimer;
 };
 
 } // namespace Sfdk
