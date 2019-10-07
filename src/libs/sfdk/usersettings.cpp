@@ -67,6 +67,8 @@ private:
  * \internal
  */
 
+UserSettings *UserSettings::s_instanceApplyingUpdates = nullptr;
+
 UserSettings::UserSettings(const QString &baseName, const QString &docType, QObject *parent)
     : QObject(parent)
     , m_baseName(baseName)
@@ -180,6 +182,11 @@ bool UserSettings::save(const QVariantMap &data, QString *errorString)
     return true;
 }
 
+bool UserSettings::isApplyingUpdates()
+{
+    return s_instanceApplyingUpdates != nullptr;
+}
+
 void UserSettings::checkUpdates()
 {
     qCDebug(lib) << "Checking for updates to" << m_baseName;
@@ -194,7 +201,10 @@ void UserSettings::checkUpdates()
     if (m_baseVersion < version) {
         qCDebug(lib) << "Updates available to" << m_baseName << "version:" << version;
         m_baseVersion = version;
+        QTC_CHECK(!s_instanceApplyingUpdates);
+        s_instanceApplyingUpdates = this;
         emit updated(data);
+        s_instanceApplyingUpdates = nullptr;
     }
 }
 

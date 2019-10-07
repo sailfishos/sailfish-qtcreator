@@ -55,6 +55,7 @@ public:
     static Sdk *instance();
 
     static void enableUpdates();
+    static bool isApplyingUpdates();
     static bool saveSettings(QStringList *errorStrings);
 
     static QString installationPath();

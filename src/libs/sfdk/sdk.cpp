@@ -27,6 +27,7 @@
 #include "device_p.h"
 #include "emulator_p.h"
 #include "sfdkconstants.h"
+#include "usersettings_p.h"
 #include "vboxvirtualmachine_p.h"
 
 #include <utils/algorithm.h>
@@ -112,6 +113,12 @@ void Sdk::enableUpdates()
     s_instance->d_func()->updatesEnabled = true;
     emit s_instance->d_func()->enableUpdatesRequested();
     qCDebug(lib) << "End enable updates";
+}
+
+bool Sdk::isApplyingUpdates()
+{
+    QTC_ASSERT(SdkPrivate::isVersionedSettingsEnabled(), return false);
+    return UserSettings::isApplyingUpdates();
 }
 
 bool Sdk::saveSettings(QStringList *errorStrings)

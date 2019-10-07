@@ -55,6 +55,8 @@ public:
     void enableUpdates();
     bool save(const QVariantMap &data, QString *errorString);
 
+    static bool isApplyingUpdates();
+
 signals:
     void updated(const QVariantMap &data);
 
@@ -67,6 +69,7 @@ private:
     Utils::FileName userScopeFile() const;
 
 private:
+    static UserSettings *s_instanceApplyingUpdates;
     State m_state = NotLoaded;
     const QString m_baseName;
     const QString m_docType;
