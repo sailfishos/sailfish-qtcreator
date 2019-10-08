@@ -637,45 +637,45 @@ void DeviceManager::writeDevicesXml(const QString &fileName, const QList<DeviceD
     QXmlStreamWriter writer(&data);
     writer.setAutoFormatting(true);
     writer.writeStartDocument();
-    writer.writeStartElement(QLatin1String(DEVICES));
-    writer.writeStartElement(QLatin1String(ENGINE));
-    writer.writeAttribute(QLatin1String(NAME), engine.m_name);
-    writer.writeAttribute(QLatin1String(TYPE), engine.m_type);
-    writer.writeStartElement(QLatin1String(SUBNET));
+    writer.writeStartElement(DEVICES);
+    writer.writeStartElement(ENGINE);
+    writer.writeAttribute(NAME, engine.m_name);
+    writer.writeAttribute(TYPE, engine.m_type);
+    writer.writeStartElement(SUBNET);
     writer.writeCharacters(engine.m_subNet);
     writer.writeEndElement(); // subnet
-    writer.writeEndElement(); // eninge
+    writer.writeEndElement(); // engine
     for (const DeviceData &data : devices) {
-        writer.writeStartElement(QLatin1String(DEVICE));
-        writer.writeAttribute(QLatin1String(NAME), data.m_name);
-        writer.writeAttribute(QLatin1String(TYPE), data.m_type);
-        if(!data.m_index.isEmpty()) {
-            writer.writeStartElement(QLatin1String(INDEX));
+        writer.writeStartElement(DEVICE);
+        writer.writeAttribute(NAME, data.m_name);
+        writer.writeAttribute(TYPE, data.m_type);
+        if (!data.m_index.isEmpty()) {
+            writer.writeStartElement(INDEX);
             writer.writeCharacters(data.m_index);
             writer.writeEndElement(); // index
         }
-        if(!data.m_ip.isEmpty()) {
-            writer.writeStartElement(QLatin1String(IP));
+        if (!data.m_ip.isEmpty()) {
+            writer.writeStartElement(IP);
             writer.writeCharacters(data.m_ip);
             writer.writeEndElement(); // ip
         }
-        if(!data.m_subNet.isEmpty()) {
-            writer.writeStartElement(QLatin1String(SUBNET));
+        if (!data.m_subNet.isEmpty()) {
+            writer.writeStartElement(SUBNET);
             writer.writeCharacters(data.m_subNet);
             writer.writeEndElement(); // subnet
         }
-        if(!data.m_sshKeyPath.isEmpty()) {
-            writer.writeStartElement(QLatin1String(SSH_PATH));
+        if (!data.m_sshKeyPath.isEmpty()) {
+            writer.writeStartElement(SSH_PATH);
             writer.writeCharacters(data.m_sshKeyPath);
             writer.writeEndElement(); // ssh
         }
-        if(!data.m_mac.isEmpty()) {
-            writer.writeStartElement(QLatin1String(MAC));
+        if (!data.m_mac.isEmpty()) {
+            writer.writeStartElement(MAC);
             writer.writeCharacters(data.m_mac);
             writer.writeEndElement(); // mac
         }
-        if(!data.m_sshPort.isEmpty()) {
-            writer.writeStartElement(QLatin1String(SSH_PORT));
+        if (!data.m_sshPort.isEmpty()) {
+            writer.writeStartElement(SSH_PORT);
             writer.writeCharacters(data.m_sshPort);
             writer.writeEndElement(); // sshport
         }
@@ -691,10 +691,10 @@ void DeviceManager::writeDevicesXml(const QString &fileName, const QList<DeviceD
             QXmlStreamReader xmlReader(fileReader.data());
             while (!xmlReader.atEnd()) {
                 xmlReader.readNext();
-                if (xmlReader.isStartElement() && xmlReader.name() == QLatin1String(DEVICE)) {
+                if (xmlReader.isStartElement() && xmlReader.name() == DEVICE) {
                     QXmlStreamAttributes attributes = xmlReader.attributes();
-                    if (attributes.value(QLatin1String(TYPE)) == QLatin1String("custom")) {
-                        writer.writeStartElement(QLatin1String(DEVICE));
+                    if (attributes.value(TYPE) == "custom") {
+                        writer.writeStartElement(DEVICE);
                         writer.writeAttributes(attributes);
                         while (xmlReader.readNext()) {
                             if (xmlReader.isStartElement()) {
@@ -703,7 +703,7 @@ void DeviceManager::writeDevicesXml(const QString &fileName, const QList<DeviceD
                                 writer.writeAttributes(attributes);
                             } else if (xmlReader.isEndElement()) {
                                 writer.writeEndElement();
-                                if (xmlReader.name() == QLatin1String(DEVICE))
+                                if (xmlReader.name() == DEVICE)
                                     break;
                             } else if (xmlReader.isCharacters()) {
                                 writer.writeCharacters(xmlReader.text().toString());
