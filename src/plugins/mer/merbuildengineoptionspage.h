@@ -31,12 +31,12 @@
 namespace Mer {
 namespace Internal {
 
-class MerOptionsWidget;
-class MerOptionsPage : public Core::IOptionsPage
+class MerBuildEngineOptionsWidget;
+class MerBuildEngineOptionsPage : public Core::IOptionsPage
 {
     Q_OBJECT
 public:
-    explicit MerOptionsPage(QObject *parent = 0);
+    explicit MerBuildEngineOptionsPage(QObject *parent = 0);
 
     QWidget *widget() override;
     void apply() override;
@@ -49,7 +49,7 @@ private slots:
     void onUpdateSearchKeys();
 
 private:
-    QPointer<MerOptionsWidget> m_widget;
+    QPointer<MerBuildEngineOptionsWidget> m_widget;
     QString m_searchKeyWords;
 };
 

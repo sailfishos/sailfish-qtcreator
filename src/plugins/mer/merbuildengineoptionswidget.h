@@ -44,17 +44,16 @@ namespace Mer {
 namespace Internal {
 
 namespace Ui {
-class MerOptionsWidget;
+class MerBuildEngineOptionsWidget;
 }
 
-// FIXME MerOptionsWidget -> MerBuildEngineOptionsWidget
 // FIXME update to match MerEmulatorOptionsWidget and MerEmulatorDetailsWidget more
-class MerOptionsWidget : public QWidget
+class MerBuildEngineOptionsWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit MerOptionsWidget(QWidget *parent = 0);
-    ~MerOptionsWidget() override;
+    explicit MerBuildEngineOptionsWidget(QWidget *parent = 0);
+    ~MerBuildEngineOptionsWidget() override;
 
     QString searchKeyWordMatchString() const;
     void setBuildEngine(const QUrl &uri);
@@ -93,7 +92,7 @@ private slots:
     void update();
 
 private:
-    Ui::MerOptionsWidget *m_ui;
+    Ui::MerBuildEngineOptionsWidget *m_ui;
     QUrl m_virtualMachine;
     QMetaObject::Connection m_vmOffConnection;
     QString m_status;

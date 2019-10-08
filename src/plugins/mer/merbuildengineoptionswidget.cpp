@@ -21,14 +21,14 @@
 **
 ****************************************************************************/
 
-#include "meroptionswidget.h"
+#include "merbuildengineoptionswidget.h"
 
 #include "merbuildenginedetailswidget.h"
 #include "merconnectionmanager.h"
 #include "merconstants.h"
 #include "mersdkmanager.h"
 #include "mervmselectiondialog.h"
-#include "ui_meroptionswidget.h"
+#include "ui_merbuildengineoptionswidget.h"
 
 #include <sfdk/buildengine.h>
 #include <sfdk/sdk.h>
@@ -60,63 +60,63 @@ namespace Internal {
 
 const char CONTROLCENTER_URL[] = "http://127.0.0.1:8080/";
 
-MerOptionsWidget::MerOptionsWidget(QWidget *parent)
+MerBuildEngineOptionsWidget::MerBuildEngineOptionsWidget(QWidget *parent)
     : QWidget(parent)
-    , m_ui(new Ui::MerOptionsWidget)
+    , m_ui(new Ui::MerBuildEngineOptionsWidget)
     , m_status(tr("Not connected."))
 {
     m_ui->setupUi(this);
     connect(Sdk::instance(), &Sdk::buildEngineAdded,
-            this, &MerOptionsWidget::onBuildEngineAdded);
+            this, &MerBuildEngineOptionsWidget::onBuildEngineAdded);
     connect(Sdk::instance(), &Sdk::aboutToRemoveBuildEngine,
-            this, &MerOptionsWidget::onAboutToRemoveBuildEngine);
+            this, &MerBuildEngineOptionsWidget::onAboutToRemoveBuildEngine);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::authorizeSshKey,
-            this, &MerOptionsWidget::onAuthorizeSshKey);
+            this, &MerBuildEngineOptionsWidget::onAuthorizeSshKey);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::generateSshKey,
-            this, &MerOptionsWidget::onGenerateSshKey);
+            this, &MerBuildEngineOptionsWidget::onGenerateSshKey);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::sshKeyChanged,
-            this, &MerOptionsWidget::onSshKeyChanged);
+            this, &MerBuildEngineOptionsWidget::onSshKeyChanged);
     connect(m_ui->buildEngineComboBox, QOverload<int>::of(&QComboBox::activated),
-            this, &MerOptionsWidget::onBuildEngineChanged);
+            this, &MerBuildEngineOptionsWidget::onBuildEngineChanged);
     connect(m_ui->addButton, &QPushButton::clicked,
-            this, &MerOptionsWidget::onAddButtonClicked);
+            this, &MerBuildEngineOptionsWidget::onAddButtonClicked);
     connect(m_ui->removeButton, &QPushButton::clicked,
-            this, &MerOptionsWidget::onRemoveButtonClicked);
+            this, &MerBuildEngineOptionsWidget::onRemoveButtonClicked);
     connect(m_ui->startVirtualMachineButton, &QPushButton::clicked,
-            this, &MerOptionsWidget::onStartVirtualMachineButtonClicked);
+            this, &MerBuildEngineOptionsWidget::onStartVirtualMachineButtonClicked);
     connect(m_ui->stopVirtualMachineButton, &QPushButton::clicked,
-            this, &MerOptionsWidget::onStopVirtualMachineButtonClicked);
+            this, &MerBuildEngineOptionsWidget::onStopVirtualMachineButtonClicked);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::testConnectionButtonClicked,
-            this, &MerOptionsWidget::onTestConnectionButtonClicked);
+            this, &MerBuildEngineOptionsWidget::onTestConnectionButtonClicked);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::sshTimeoutChanged,
-            this, &MerOptionsWidget::onSshTimeoutChanged);
+            this, &MerBuildEngineOptionsWidget::onSshTimeoutChanged);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::sshPortChanged,
-            this, &MerOptionsWidget::onSshPortChanged);
+            this, &MerBuildEngineOptionsWidget::onSshPortChanged);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::headlessCheckBoxToggled,
-            this, &MerOptionsWidget::onHeadlessCheckBoxToggled);
+            this, &MerBuildEngineOptionsWidget::onHeadlessCheckBoxToggled);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::srcFolderApplyButtonClicked,
-            this, &MerOptionsWidget::onSrcFolderApplyButtonClicked);
+            this, &MerBuildEngineOptionsWidget::onSrcFolderApplyButtonClicked);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::wwwPortChanged,
-            this, &MerOptionsWidget::onWwwPortChanged);
+            this, &MerBuildEngineOptionsWidget::onWwwPortChanged);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::wwwProxyChanged,
-            this, &MerOptionsWidget::onWwwProxyChanged);
+            this, &MerBuildEngineOptionsWidget::onWwwProxyChanged);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::memorySizeMbChanged,
-            this, &MerOptionsWidget::onMemorySizeMbChanged);
+            this, &MerBuildEngineOptionsWidget::onMemorySizeMbChanged);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::cpuCountChanged,
-            this, &MerOptionsWidget::onCpuCountChanged);
+            this, &MerBuildEngineOptionsWidget::onCpuCountChanged);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::vdiCapacityMbChnaged,
-            this, &MerOptionsWidget::onVdiCapacityMbChnaged);
+            this, &MerBuildEngineOptionsWidget::onVdiCapacityMbChnaged);
     for (int i = 0; i < Sdk::buildEngines().count(); ++i)
         onBuildEngineAdded(i);
     update();
 }
 
-MerOptionsWidget::~MerOptionsWidget()
+MerBuildEngineOptionsWidget::~MerBuildEngineOptionsWidget()
 {
     delete m_ui;
 }
 
-void MerOptionsWidget::setBuildEngine(const QUrl &uri)
+void MerBuildEngineOptionsWidget::setBuildEngine(const QUrl &uri)
 {
     QTC_ASSERT(uri.isValid(), return);
     QTC_ASSERT(m_buildEngines.contains(uri), return);
@@ -129,7 +129,7 @@ void MerOptionsWidget::setBuildEngine(const QUrl &uri)
     update();
 }
 
-QString MerOptionsWidget::searchKeyWordMatchString() const
+QString MerBuildEngineOptionsWidget::searchKeyWordMatchString() const
 {
     const QChar blank = QLatin1Char(' ');
     QString keys;
@@ -142,7 +142,7 @@ QString MerOptionsWidget::searchKeyWordMatchString() const
     return keys.trimmed();
 }
 
-void MerOptionsWidget::store()
+void MerBuildEngineOptionsWidget::store()
 {
     QProgressDialog progress(this);
     progress.setWindowModality(Qt::WindowModal);
@@ -261,7 +261,7 @@ void MerOptionsWidget::store()
     m_vdiCapacityMb.clear();
 }
 
-bool MerOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<BuildEngine *>
+bool MerBuildEngineOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<BuildEngine *>
         *lockedDownBuildEngines)
 {
     QTC_ASSERT(lockedDownBuildEngines, return false);
@@ -330,12 +330,12 @@ bool MerOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<BuildE
     return failed.isEmpty();
 }
 
-void MerOptionsWidget::onBuildEngineChanged(int index)
+void MerBuildEngineOptionsWidget::onBuildEngineChanged(int index)
 {
     setBuildEngine(m_ui->buildEngineComboBox->itemData(index).toUrl());
 }
 
-void MerOptionsWidget::onAddButtonClicked()
+void MerBuildEngineOptionsWidget::onAddButtonClicked()
 {
     MerVmSelectionDialog dialog(this);
     dialog.setWindowTitle(tr("Add a Sailfish OS Build Engine"));
@@ -362,7 +362,7 @@ void MerOptionsWidget::onAddButtonClicked()
     update();
 }
 
-void MerOptionsWidget::onRemoveButtonClicked()
+void MerBuildEngineOptionsWidget::onRemoveButtonClicked()
 {
     const QUrl vmUri = m_ui->buildEngineComboBox->itemData(
             m_ui->buildEngineComboBox->currentIndex(), Qt::UserRole).toUrl();
@@ -391,7 +391,7 @@ void MerOptionsWidget::onRemoveButtonClicked()
     update();
 }
 
-void MerOptionsWidget::onTestConnectionButtonClicked()
+void MerBuildEngineOptionsWidget::onTestConnectionButtonClicked()
 {
     BuildEngine *const buildEngine = m_buildEngines[m_virtualMachine];
     if (!buildEngine->virtualMachine()->isOff()) {
@@ -410,7 +410,7 @@ void MerOptionsWidget::onTestConnectionButtonClicked()
     }
 }
 
-void MerOptionsWidget::onAuthorizeSshKey(const QString &file)
+void MerBuildEngineOptionsWidget::onAuthorizeSshKey(const QString &file)
 {
     BuildEngine *const buildEngine = m_buildEngines[m_virtualMachine];
     const QString pubKeyPath = file + QLatin1String(".pub");
@@ -431,19 +431,19 @@ void MerOptionsWidget::onAuthorizeSshKey(const QString &file)
     }
 }
 
-void MerOptionsWidget::onStartVirtualMachineButtonClicked()
+void MerBuildEngineOptionsWidget::onStartVirtualMachineButtonClicked()
 {
     BuildEngine *const buildEngine = m_buildEngines[m_virtualMachine];
     buildEngine->virtualMachine()->connectTo();
 }
 
-void MerOptionsWidget::onStopVirtualMachineButtonClicked()
+void MerBuildEngineOptionsWidget::onStopVirtualMachineButtonClicked()
 {
     BuildEngine *const buildEngine = m_buildEngines[m_virtualMachine];
     buildEngine->virtualMachine()->disconnectFrom();
 }
 
-void MerOptionsWidget::onGenerateSshKey(const QString &privKeyPath)
+void MerBuildEngineOptionsWidget::onGenerateSshKey(const QString &privKeyPath)
 {
     QString error;
     if (!MerSdkManager::generateSshKey(privKeyPath, error)) {
@@ -455,7 +455,7 @@ void MerOptionsWidget::onGenerateSshKey(const QString &privKeyPath)
     }
 }
 
-void MerOptionsWidget::onBuildEngineAdded(int index)
+void MerBuildEngineOptionsWidget::onBuildEngineAdded(int index)
 {
     BuildEngine *const buildEngine = Sdk::buildEngines().at(index);
 
@@ -492,7 +492,7 @@ void MerOptionsWidget::onBuildEngineAdded(int index)
     update();
 }
 
-void MerOptionsWidget::onAboutToRemoveBuildEngine(int index)
+void MerBuildEngineOptionsWidget::onAboutToRemoveBuildEngine(int index)
 {
     BuildEngine *const buildEngine = Sdk::buildEngines().at(index);
 
@@ -518,7 +518,7 @@ void MerOptionsWidget::onAboutToRemoveBuildEngine(int index)
     update();
 }
 
-void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
+void MerBuildEngineOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
 {
     BuildEngine *const buildEngine = m_buildEngines[m_virtualMachine];
 
@@ -581,7 +581,7 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
     }
 }
 
-void MerOptionsWidget::update()
+void MerBuildEngineOptionsWidget::update()
 {
     m_ui->buildEngineComboBox->clear();
     for (BuildEngine *const buildEngine : m_buildEngines)
@@ -651,7 +651,7 @@ void MerOptionsWidget::update()
         onVmOffChanged(buildEngine->virtualMachine()->isOff());
         m_vmOffConnection = connect(buildEngine->virtualMachine(),
                 &VirtualMachine::virtualMachineOffChanged, this,
-                &MerOptionsWidget::onVmOffChanged);
+                &MerBuildEngineOptionsWidget::onVmOffChanged);
 
         int index = m_ui->buildEngineComboBox->findData(m_virtualMachine);
         m_ui->buildEngineComboBox->setCurrentIndex(index);
@@ -664,37 +664,37 @@ void MerOptionsWidget::update()
     m_ui->stopVirtualMachineButton->setEnabled(show);
 }
 
-void MerOptionsWidget::onSshKeyChanged(const QString &file)
+void MerBuildEngineOptionsWidget::onSshKeyChanged(const QString &file)
 {
     //store keys to be saved on save click
     m_sshPrivKeys[m_buildEngines[m_virtualMachine]] = file;
 }
 
-void MerOptionsWidget::onSshTimeoutChanged(int timeout)
+void MerBuildEngineOptionsWidget::onSshTimeoutChanged(int timeout)
 {
     //store keys to be saved on save click
     m_sshTimeout[m_buildEngines[m_virtualMachine]] = timeout;
 }
 
-void MerOptionsWidget::onSshPortChanged(quint16 port)
+void MerBuildEngineOptionsWidget::onSshPortChanged(quint16 port)
 {
     //store keys to be saved on save click
     m_sshPort[m_buildEngines[m_virtualMachine]] = port;
 }
 
-void MerOptionsWidget::onHeadlessCheckBoxToggled(bool checked)
+void MerBuildEngineOptionsWidget::onHeadlessCheckBoxToggled(bool checked)
 {
     //store keys to be saved on save click
     m_headless[m_buildEngines[m_virtualMachine]] = checked;
 }
 
-void MerOptionsWidget::onWwwPortChanged(quint16 port)
+void MerBuildEngineOptionsWidget::onWwwPortChanged(quint16 port)
 {
     //store keys to be saved on save click
     m_wwwPort[m_buildEngines[m_virtualMachine]] = port;
 }
 
-void MerOptionsWidget::onWwwProxyChanged(const QString &type, const QString &servers,
+void MerBuildEngineOptionsWidget::onWwwProxyChanged(const QString &type, const QString &servers,
         const QString &excludes)
 {
     //store keys to be saved on save click
@@ -703,22 +703,22 @@ void MerOptionsWidget::onWwwProxyChanged(const QString &type, const QString &ser
     m_wwwProxyExcludes[m_buildEngines[m_virtualMachine]] = excludes;
 }
 
-void MerOptionsWidget::onMemorySizeMbChanged(int sizeMb)
+void MerBuildEngineOptionsWidget::onMemorySizeMbChanged(int sizeMb)
 {
     m_memorySizeMb[m_buildEngines[m_virtualMachine]] = sizeMb;
 }
 
-void MerOptionsWidget::onCpuCountChanged(int count)
+void MerBuildEngineOptionsWidget::onCpuCountChanged(int count)
 {
     m_cpuCount[m_buildEngines[m_virtualMachine]] = count;
 }
 
-void MerOptionsWidget::onVdiCapacityMbChnaged(int sizeMb)
+void MerBuildEngineOptionsWidget::onVdiCapacityMbChnaged(int sizeMb)
 {
     m_vdiCapacityMb[m_buildEngines[m_virtualMachine]] = sizeMb;
 }
 
-void MerOptionsWidget::onVmOffChanged(bool vmOff)
+void MerBuildEngineOptionsWidget::onVmOffChanged(bool vmOff)
 {
     BuildEngine *const buildEngine = m_buildEngines[m_virtualMachine];
 

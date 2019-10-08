@@ -34,8 +34,8 @@ const char MER_TOOLCHAIN_ID[] = "QmakeProjectManager.ToolChain.Mer";
 
 const char MER_OPTIONS_CATEGORY[] = "W.Mer";
 const char MER_OPTIONS_CATEGORY_TR[] = QT_TRANSLATE_NOOP("Mer", "Sailfish OS");
-const char MER_OPTIONS_ID[] = "A.Mer";
-const char MER_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "Build Engine");
+const char MER_BUILD_ENGINE_OPTIONS_ID[] = "A.Mer";
+const char MER_BUILD_ENGINE_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "Build Engine");
 const char MER_EMULATOR_OPTIONS_ID[] = "B.MerEmulator";
 const char MER_EMULATOR_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "Emulator");
 const char MER_GENERAL_OPTIONS_ID[] = "Z.MerGeneral";

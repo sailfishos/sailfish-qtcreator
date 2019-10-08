@@ -16,6 +16,7 @@ RESOURCES += \
 
 FORMS += \
     merbuildenginedetailswidget.ui \
+    merbuildengineoptionswidget.ui \
     merdeploystep.ui \
     meremulatordetailswidget.ui \
     meremulatormodedialog.ui \
@@ -25,7 +26,6 @@ FORMS += \
     merhardwaredevicewidgetauthorizedialog.ui \
     merhardwaredevicewizardselectionpage.ui \
     merhardwaredevicewizardsetuppage.ui \
-    meroptionswidget.ui \
     merrpminfo.ui \
     merrpmvalidationstepconfigwidget.ui \
     merrunconfigurationaspectqmllivedetailswidget.ui \
@@ -37,6 +37,8 @@ FORMS += \
 SOURCES += \
     merabstractvmstartstep.cpp \
     merbuildenginedetailswidget.cpp \
+    merbuildengineoptionspage.cpp \
+    merbuildengineoptionswidget.cpp \
     merbuildsteps.cpp \
     merconnectionmanager.cpp \
     merdeployconfiguration.cpp \
@@ -59,8 +61,6 @@ SOURCES += \
     mericons.cpp \
     merlogging.cpp \
     mermode.cpp \
-    meroptionspage.cpp \
-    meroptionswidget.cpp \
     merplugin.cpp \
     merprojectlistener.cpp \
     merqmllivebenchmanager.cpp \
@@ -92,6 +92,8 @@ SOURCES += \
 HEADERS += \
     merabstractvmstartstep.h \
     merbuildenginedetailswidget.h \
+    merbuildengineoptionspage.h \
+    merbuildengineoptionswidget.h \
     merbuildsteps.h \
     merconnectionmanager.h \
     merconstants.h \
@@ -115,8 +117,6 @@ HEADERS += \
     mericons.h \
     merlogging.h \
     mermode.h \
-    meroptionspage.h \
-    meroptionswidget.h \
     merplugin.h \
     merprojectlistener.h \
     merqmllivebenchmanager.h \

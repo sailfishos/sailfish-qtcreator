@@ -24,6 +24,7 @@
 #include "merplugin.h"
 
 #include "merbuildconfiguration.h"
+#include "merbuildengineoptionspage.h"
 #include "merbuildsteps.h"
 #include "merconnectionmanager.h"
 #include "merconstants.h"
@@ -37,7 +38,6 @@
 #include "mergeneraloptionspage.h"
 #include "merhardwaredevice.h"
 #include "mermode.h"
-#include "meroptionspage.h"
 #include "merqmllivebenchmanager.h"
 #include "merqmlrunconfigurationfactory.h"
 #include "merqtversionfactory.h"
@@ -95,7 +95,7 @@ public:
     Sdk sdk;
     MerSdkManager sdkManager;
     MerConnectionManager connectionManager;
-    MerOptionsPage optionsPage;
+    MerBuildEngineOptionsPage buildEngineOptionsPage;
     MerEmulatorOptionsPage emulatorOptionsPage;
     MerEmulatorModeOptionsPage emulatorModeOptionsPage;
     MerGeneralOptionsPage generalOptionsPage;
@@ -248,9 +248,9 @@ void MerPlugin::saveSettings()
     }
 }
 
-MerOptionsPage *MerPlugin::optionsPage()
+MerBuildEngineOptionsPage *MerPlugin::buildEngineOptionsPage()
 {
-    return &dd->optionsPage;
+    return &dd->buildEngineOptionsPage;
 }
 
 MerEmulatorOptionsPage *MerPlugin::emulatorOptionsPage()

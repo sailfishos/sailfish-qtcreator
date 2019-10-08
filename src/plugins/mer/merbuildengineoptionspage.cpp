@@ -21,10 +21,10 @@
 **
 ****************************************************************************/
 
-#include "meroptionspage.h"
+#include "merbuildengineoptionspage.h"
 
+#include "merbuildengineoptionswidget.h"
 #include "merconstants.h"
-#include "meroptionswidget.h"
 #include "merplugin.h"
 #include "mericons.h"
 
@@ -37,29 +37,29 @@ using namespace Core;
 namespace Mer {
 namespace Internal {
 
-MerOptionsPage::MerOptionsPage(QObject *parent)
+MerBuildEngineOptionsPage::MerBuildEngineOptionsPage(QObject *parent)
     : IOptionsPage(parent)
 {
     setCategory(Core::Id(Constants::MER_OPTIONS_CATEGORY));
     setDisplayCategory(QCoreApplication::translate("Mer", Constants::MER_OPTIONS_CATEGORY_TR));
     setCategoryIcon(Icons::MER_OPTIONS_CATEGORY);
-    setId(Core::Id(Constants::MER_OPTIONS_ID));
-    setDisplayName(QCoreApplication::translate("Mer", Constants::MER_OPTIONS_NAME));
+    setId(Core::Id(Constants::MER_BUILD_ENGINE_OPTIONS_ID));
+    setDisplayName(QCoreApplication::translate("Mer", Constants::MER_BUILD_ENGINE_OPTIONS_NAME));
 }
 
-QWidget *MerOptionsPage::widget()
+QWidget *MerBuildEngineOptionsPage::widget()
 {
     if (m_widget)
       return m_widget;
 
-    m_widget = new MerOptionsWidget();
-    connect(m_widget.data(), &MerOptionsWidget::updateSearchKeys,
-            this, &MerOptionsPage::onUpdateSearchKeys);
+    m_widget = new MerBuildEngineOptionsWidget();
+    connect(m_widget.data(), &MerBuildEngineOptionsWidget::updateSearchKeys,
+            this, &MerBuildEngineOptionsPage::onUpdateSearchKeys);
     m_searchKeyWords = m_widget->searchKeyWordMatchString();
     return m_widget;
 }
 
-void MerOptionsPage::apply()
+void MerBuildEngineOptionsPage::apply()
 {
     QTC_CHECK(m_widget);
 
@@ -69,22 +69,22 @@ void MerOptionsPage::apply()
     MerPlugin::saveSettings();
 }
 
-void MerOptionsPage::finish()
+void MerBuildEngineOptionsPage::finish()
 {
     delete m_widget;
 }
 
-bool MerOptionsPage::matches(const QString &key) const
+bool MerBuildEngineOptionsPage::matches(const QString &key) const
 {
     return m_searchKeyWords.contains(key, Qt::CaseInsensitive);
 }
 
-void MerOptionsPage::onUpdateSearchKeys()
+void MerBuildEngineOptionsPage::onUpdateSearchKeys()
 {
     m_searchKeyWords = m_widget->searchKeyWordMatchString();
 }
 
-void MerOptionsPage::setBuildEngine(const QUrl &vmUri)
+void MerBuildEngineOptionsPage::setBuildEngine(const QUrl &vmUri)
 {
     if (m_widget)
         m_widget->setBuildEngine(vmUri);

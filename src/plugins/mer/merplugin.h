@@ -35,7 +35,7 @@ class VirtualMachine;
 namespace Mer {
 namespace Internal {
 
-class MerOptionsPage;
+class MerBuildEngineOptionsPage;
 class MerEmulatorOptionsPage;
 
 class MerPlugin : public ExtensionSystem::IPlugin
@@ -53,7 +53,7 @@ public:
 
     static void saveSettings();
 
-    static MerOptionsPage *optionsPage();
+    static MerBuildEngineOptionsPage *buildEngineOptionsPage();
     static MerEmulatorOptionsPage *emulatorOptionsPage();
 
 private slots:

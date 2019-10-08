@@ -23,9 +23,9 @@
 
 #include "mersdkkitinformation.h"
 
+#include "merbuildengineoptionspage.h"
 #include "merconstants.h"
 #include "merdevicefactory.h"
-#include "meroptionspage.h"
 #include "merplugin.h"
 #include "mersettings.h"
 
@@ -359,8 +359,9 @@ void MerSdkKitInformationWidget::handleSdksUpdated()
 
 void MerSdkKitInformationWidget::handleManageClicked()
 {
-    MerPlugin::optionsPage()->setBuildEngine(m_buildEngineComboBox->currentData().toUrl());
-    ICore::showOptionsDialog(Constants::MER_OPTIONS_ID);
+    MerPlugin::buildEngineOptionsPage()->setBuildEngine(
+            m_buildEngineComboBox->currentData().toUrl());
+    ICore::showOptionsDialog(Constants::MER_BUILD_ENGINE_OPTIONS_ID);
 }
 
 void MerSdkKitInformationWidget::handleCurrentEngineIndexChanged()
