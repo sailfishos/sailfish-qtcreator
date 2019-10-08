@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Jolla Ltd.
+** Copyright (C) 2014-2015,2018 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
