@@ -359,7 +359,7 @@ void MerSdkKitInformationWidget::handleSdksUpdated()
 
 void MerSdkKitInformationWidget::handleManageClicked()
 {
-    MerPlugin::optionsPage()->setSdk(m_buildEngineComboBox->currentData().toUrl());
+    MerPlugin::optionsPage()->setBuildEngine(m_buildEngineComboBox->currentData().toUrl());
     ICore::showOptionsDialog(Constants::MER_OPTIONS_ID);
 }
 

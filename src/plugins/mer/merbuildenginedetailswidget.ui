@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>Mer::Internal::MerSdkDetailsWidget</class>
- <widget class="QWidget" name="Mer::Internal::MerSdkDetailsWidget">
+ <class>Mer::Internal::MerBuildEngineDetailsWidget</class>
+ <widget class="QWidget" name="Mer::Internal::MerBuildEngineDetailsWidget">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -13,7 +13,7 @@
   <property name="windowTitle">
    <string>Dialog</string>
   </property>
-  <layout class="QVBoxLayout" name="sdkDetailsWidgetLayout">
+  <layout class="QVBoxLayout" name="buildEngineDetailsWidgetLayout">
    <property name="leftMargin">
     <number>0</number>
    </property>

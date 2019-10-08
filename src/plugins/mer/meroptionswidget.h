@@ -47,7 +47,8 @@ namespace Ui {
 class MerOptionsWidget;
 }
 
-// FIXME sdk -> build engine
+// FIXME MerOptionsWidget -> MerBuildEngineOptionsWidget
+// FIXME update to match MerEmulatorOptionsWidget and MerEmulatorDetailsWidget more
 class MerOptionsWidget : public QWidget
 {
     Q_OBJECT
@@ -56,20 +57,20 @@ public:
     ~MerOptionsWidget() override;
 
     QString searchKeyWordMatchString() const;
-    void setSdk(const QUrl &uri);
+    void setBuildEngine(const QUrl &uri);
     void store();
 
 signals:
     void updateSearchKeys();
 
 private:
-    bool lockDownConnectionsOrCancelChangesThatNeedIt(QList<Sfdk::BuildEngine *> *lockedDownSdks);
+    bool lockDownConnectionsOrCancelChangesThatNeedIt(QList<Sfdk::BuildEngine *> *lockedDownBuildEngines);
 
 private slots:
     // Ui
     void onBuildEngineAdded(int index);
     void onAboutToRemoveBuildEngine(int index);
-    void onSdkChanged(int index);
+    void onBuildEngineChanged(int index);
     void onAddButtonClicked();
     void onRemoveButtonClicked();
     void onTestConnectionButtonClicked();
@@ -96,8 +97,8 @@ private:
     QUrl m_virtualMachine;
     QMetaObject::Connection m_vmOffConnection;
     QString m_status;
-    QMap<QUrl, Sfdk::BuildEngine *> m_sdks;
-    std::vector<std::unique_ptr<Sfdk::BuildEngine>> m_newSdks;
+    QMap<QUrl, Sfdk::BuildEngine *> m_buildEngines;
+    std::vector<std::unique_ptr<Sfdk::BuildEngine>> m_newBuildEngines;
     QMap<Sfdk::BuildEngine *, QString> m_sshPrivKeys;
     QMap<Sfdk::BuildEngine *, int> m_sshTimeout;
     QMap<Sfdk::BuildEngine *, quint16> m_sshPort;

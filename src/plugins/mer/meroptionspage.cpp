@@ -84,10 +84,10 @@ void MerOptionsPage::onUpdateSearchKeys()
     m_searchKeyWords = m_widget->searchKeyWordMatchString();
 }
 
-void MerOptionsPage::setSdk(const QUrl &vmUri)
+void MerOptionsPage::setBuildEngine(const QUrl &vmUri)
 {
     if (m_widget)
-        m_widget->setSdk(vmUri);
+        m_widget->setBuildEngine(vmUri);
 }
 
 } // Internal

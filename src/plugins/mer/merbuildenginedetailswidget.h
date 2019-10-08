@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2018-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -38,10 +39,10 @@ namespace Mer {
 namespace Internal {
 
 namespace Ui {
-class MerSdkDetailsWidget;
+class MerBuildEngineDetailsWidget;
 }
 
-class MerSdkDetailsWidget : public QWidget
+class MerBuildEngineDetailsWidget : public QWidget
 {
     Q_OBJECT
 public:
@@ -50,11 +51,11 @@ public:
         InstallRole
     };
 
-    explicit MerSdkDetailsWidget(QWidget *parent = 0);
-    ~MerSdkDetailsWidget() override;
+    explicit MerBuildEngineDetailsWidget(QWidget *parent = 0);
+    ~MerBuildEngineDetailsWidget() override;
 
     QString searchKeyWordMatchString() const;
-    void setSdk(const Sfdk::BuildEngine *sdk);
+    void setBuildEngine(const Sfdk::BuildEngine *buildEngine);
     void setStatus(const QString &status);
     void setVmOffStatus(bool vmOff);
     void setPrivateKeyFile(const QString &path);
@@ -96,7 +97,7 @@ private slots:
     void onWwwProxyExcludesEdited(const QString &excludes);
 
 private:
-    Ui::MerSdkDetailsWidget *m_ui;
+    Ui::MerBuildEngineDetailsWidget *m_ui;
     QString m_wwwProxy;
     QString m_wwwProxyServerUrl;
     QString m_wwwProxyServerList;

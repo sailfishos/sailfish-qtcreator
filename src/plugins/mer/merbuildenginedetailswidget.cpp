@@ -21,8 +21,8 @@
 **
 ****************************************************************************/
 
-#include "mersdkdetailswidget.h"
-#include "ui_mersdkdetailswidget.h"
+#include "merbuildenginedetailswidget.h"
+#include "ui_merbuildenginedetailswidget.h"
 
 #include "merconstants.h"
 #include "mersdkmanager.h"
@@ -46,9 +46,9 @@ using namespace Mer::Constants;
 namespace Mer {
 namespace Internal {
 
-MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
+MerBuildEngineDetailsWidget::MerBuildEngineDetailsWidget(QWidget *parent)
     : QWidget(parent)
-    , m_ui(new Ui::MerSdkDetailsWidget)
+    , m_ui(new Ui::MerBuildEngineDetailsWidget)
 {
     m_ui->setupUi(this);
 
@@ -65,52 +65,52 @@ MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
             + QLatin1String("</font>"));
 
     connect(m_ui->authorizeSshKeyPushButton, &QPushButton::clicked,
-            this, &MerSdkDetailsWidget::onAuthorizeSshKeyButtonClicked);
+            this, &MerBuildEngineDetailsWidget::onAuthorizeSshKeyButtonClicked);
     connect(m_ui->generateSshKeyPushButton, &QPushButton::clicked,
-            this, &MerSdkDetailsWidget::onGenerateSshKeyButtonClicked);
+            this, &MerBuildEngineDetailsWidget::onGenerateSshKeyButtonClicked);
     connect(m_ui->privateKeyPathChooser, &PathChooser::editingFinished,
-            this, &MerSdkDetailsWidget::onPathChooserEditingFinished);
+            this, &MerBuildEngineDetailsWidget::onPathChooserEditingFinished);
     connect(m_ui->privateKeyPathChooser, &PathChooser::browsingFinished,
-            this, &MerSdkDetailsWidget::onPathChooserEditingFinished);
+            this, &MerBuildEngineDetailsWidget::onPathChooserEditingFinished);
     connect(m_ui->testConnectionPushButton, &QPushButton::clicked,
-            this, &MerSdkDetailsWidget::testConnectionButtonClicked);
+            this, &MerBuildEngineDetailsWidget::testConnectionButtonClicked);
     connect(m_ui->sshPortSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-            this, &MerSdkDetailsWidget::sshPortChanged);
+            this, &MerBuildEngineDetailsWidget::sshPortChanged);
     connect(m_ui->sshTimeoutSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-            this, &MerSdkDetailsWidget::sshTimeoutChanged);
+            this, &MerBuildEngineDetailsWidget::sshTimeoutChanged);
     connect(m_ui->headlessCheckBox, &QCheckBox::toggled,
-            this, &MerSdkDetailsWidget::headlessCheckBoxToggled);
+            this, &MerBuildEngineDetailsWidget::headlessCheckBoxToggled);
     connect(m_ui->srcFolderApplyButton, &QPushButton::clicked,
-            this, &MerSdkDetailsWidget::onSrcFolderApplyButtonClicked);
+            this, &MerBuildEngineDetailsWidget::onSrcFolderApplyButtonClicked);
     connect(m_ui->wwwPortSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-            this, &MerSdkDetailsWidget::wwwPortChanged);
+            this, &MerBuildEngineDetailsWidget::wwwPortChanged);
     connect(m_ui->virtualMachineSettingsWidget, &MerVirtualMachineSettingsWidget::memorySizeMbChanged,
-            this, &MerSdkDetailsWidget::memorySizeMbChanged);
+            this, &MerBuildEngineDetailsWidget::memorySizeMbChanged);
     connect(m_ui->virtualMachineSettingsWidget, &MerVirtualMachineSettingsWidget::cpuCountChanged,
-            this, &MerSdkDetailsWidget::cpuCountChanged);
+            this, &MerBuildEngineDetailsWidget::cpuCountChanged);
     connect(m_ui->virtualMachineSettingsWidget, &MerVirtualMachineSettingsWidget::vdiCapacityMbChnaged,
-            this, &MerSdkDetailsWidget::vdiCapacityMbChnaged);
+            this, &MerBuildEngineDetailsWidget::vdiCapacityMbChnaged);
     connect(m_ui->wwwProxyDisabledButton, &QRadioButton::toggled,
-            this, &MerSdkDetailsWidget::onWwwProxyDisabledToggled);
+            this, &MerBuildEngineDetailsWidget::onWwwProxyDisabledToggled);
     connect(m_ui->wwwProxyAutomaticButton, &QRadioButton::toggled,
-            this, &MerSdkDetailsWidget::onWwwProxyAutomaticToggled);
+            this, &MerBuildEngineDetailsWidget::onWwwProxyAutomaticToggled);
     connect(m_ui->wwwProxyManualButton, &QRadioButton::toggled,
-            this, &MerSdkDetailsWidget::onWwwProxyManualToggled);
+            this, &MerBuildEngineDetailsWidget::onWwwProxyManualToggled);
     connect(m_ui->wwwProxyServersLine, &QLineEdit::textEdited,
-            this, &MerSdkDetailsWidget::onWwwProxyServersEdited);
+            this, &MerBuildEngineDetailsWidget::onWwwProxyServersEdited);
     connect(m_ui->wwwProxyExcludesLine, &QLineEdit::textEdited,
-            this, &MerSdkDetailsWidget::onWwwProxyExcludesEdited);
+            this, &MerBuildEngineDetailsWidget::onWwwProxyExcludesEdited);
 
     m_ui->privateKeyPathChooser->setExpectedKind(PathChooser::File);
     m_ui->privateKeyPathChooser->setPromptDialogTitle(tr("Select SSH Key"));
 }
 
-MerSdkDetailsWidget::~MerSdkDetailsWidget()
+MerBuildEngineDetailsWidget::~MerBuildEngineDetailsWidget()
 {
     delete m_ui;
 }
 
-QString MerSdkDetailsWidget::searchKeyWordMatchString() const
+QString MerBuildEngineDetailsWidget::searchKeyWordMatchString() const
 {
     const QChar blank = QLatin1Char(' ');
     return  m_ui->privateKeyPathChooser->path() + blank
@@ -119,23 +119,23 @@ QString MerSdkDetailsWidget::searchKeyWordMatchString() const
             + m_ui->sshFolderPathLabel->text();
 }
 
-void MerSdkDetailsWidget::setSrcFolderChooserPath(const QString& path)
+void MerBuildEngineDetailsWidget::setSrcFolderChooserPath(const QString& path)
 {
     m_ui->srcFolderPathChooser->setPath(QDir::toNativeSeparators(path));
 }
 
-void MerSdkDetailsWidget::setSdk(const Sfdk::BuildEngine *sdk)
+void MerBuildEngineDetailsWidget::setBuildEngine(const Sfdk::BuildEngine *buildEngine)
 {
-    m_ui->nameLabelText->setText(sdk->name());
-    m_ui->autodetectedLabelText->setText(sdk->isAutodetected() ? tr("Yes") : tr("No"));
-    m_ui->homeFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedHomePath().toString()));
-    m_ui->targetFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedTargetsPath().toString()));
-    m_ui->sshFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedSshPath().toString()));
-    m_ui->configFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedConfigPath().toString()));
-    m_ui->srcFolderPathChooser->setPath(QDir::toNativeSeparators(sdk->sharedSrcPath().toString()));
+    m_ui->nameLabelText->setText(buildEngine->name());
+    m_ui->autodetectedLabelText->setText(buildEngine->isAutodetected() ? tr("Yes") : tr("No"));
+    m_ui->homeFolderPathLabel->setText(QDir::toNativeSeparators(buildEngine->sharedHomePath().toString()));
+    m_ui->targetFolderPathLabel->setText(QDir::toNativeSeparators(buildEngine->sharedTargetsPath().toString()));
+    m_ui->sshFolderPathLabel->setText(QDir::toNativeSeparators(buildEngine->sharedSshPath().toString()));
+    m_ui->configFolderPathLabel->setText(QDir::toNativeSeparators(buildEngine->sharedConfigPath().toString()));
+    m_ui->srcFolderPathChooser->setPath(QDir::toNativeSeparators(buildEngine->sharedSrcPath().toString()));
 
-    if (Sdk::buildEngines().contains(const_cast<BuildEngine *>(sdk))) {
-        const QStringList targets = sdk->buildTargetNames();
+    if (Sdk::buildEngines().contains(const_cast<BuildEngine *>(buildEngine))) {
+        const QStringList targets = buildEngine->buildTargetNames();
         if (targets.isEmpty())
             m_ui->targetsListLabel->setText(tr("No build targets installed"));
         else
@@ -144,37 +144,37 @@ void MerSdkDetailsWidget::setSdk(const Sfdk::BuildEngine *sdk)
         m_ui->targetsListLabel->setText(tr("Complete adding the build engine to see its build targets"));
     }
 
-    if (!sdk->sharedSshPath().isEmpty()) {
-        const QString authorized_keys = QDir::fromNativeSeparators(sdk->sharedSshPath().toString());
+    if (!buildEngine->sharedSshPath().isEmpty()) {
+        const QString authorized_keys = QDir::fromNativeSeparators(buildEngine->sharedSshPath().toString());
         m_ui->authorizeSshKeyPushButton->setToolTip(tr("Add public key to %1").arg(
                                                         QDir::toNativeSeparators(authorized_keys)));
     }
 
-    m_ui->userNameLabelText->setText(sdk->virtualMachine()->sshParameters().userName());
+    m_ui->userNameLabelText->setText(buildEngine->virtualMachine()->sshParameters().userName());
 
-    m_ui->virtualMachineSettingsWidget->setMemorySizeMb(sdk->virtualMachine()->memorySizeMb());
-    m_ui->virtualMachineSettingsWidget->setCpuCount(sdk->virtualMachine()->cpuCount());
-    m_ui->virtualMachineSettingsWidget->setVdiCapacityMb(sdk->virtualMachine()->vdiCapacityMb());
+    m_ui->virtualMachineSettingsWidget->setMemorySizeMb(buildEngine->virtualMachine()->memorySizeMb());
+    m_ui->virtualMachineSettingsWidget->setCpuCount(buildEngine->virtualMachine()->cpuCount());
+    m_ui->virtualMachineSettingsWidget->setVdiCapacityMb(buildEngine->virtualMachine()->vdiCapacityMb());
 }
 
-void MerSdkDetailsWidget::setTestButtonEnabled(bool enabled)
+void MerBuildEngineDetailsWidget::setTestButtonEnabled(bool enabled)
 {
     m_ui->testConnectionPushButton->setEnabled(enabled);
 }
 
-void MerSdkDetailsWidget::setPrivateKeyFile(const QString &path)
+void MerBuildEngineDetailsWidget::setPrivateKeyFile(const QString &path)
 {
     m_ui->privateKeyPathChooser->setPath(path);
     m_ui->privateKeyPathChooser->triggerChanged();
     onPathChooserEditingFinished();
 }
 
-void MerSdkDetailsWidget::setStatus(const QString &status)
+void MerBuildEngineDetailsWidget::setStatus(const QString &status)
 {
     m_ui->statusLabelText->setText(status);
 }
 
-void MerSdkDetailsWidget::setVmOffStatus(bool vmOff)
+void MerBuildEngineDetailsWidget::setVmOffStatus(bool vmOff)
 {
     m_ui->sshPortSpinBox->setEnabled(vmOff);
     m_ui->sshPortInfoLabel->setVisible(!vmOff);
@@ -183,42 +183,42 @@ void MerSdkDetailsWidget::setVmOffStatus(bool vmOff)
     m_ui->virtualMachineSettingsWidget->setVmOff(vmOff);
 }
 
-void MerSdkDetailsWidget::setSshTimeout(int timeout)
+void MerBuildEngineDetailsWidget::setSshTimeout(int timeout)
 {
     m_ui->sshTimeoutSpinBox->setValue(timeout);
 }
 
-void MerSdkDetailsWidget::setSshPort(quint16 port)
+void MerBuildEngineDetailsWidget::setSshPort(quint16 port)
 {
     m_ui->sshPortSpinBox->setValue(port);
 }
 
-void MerSdkDetailsWidget::setHeadless(bool enabled)
+void MerBuildEngineDetailsWidget::setHeadless(bool enabled)
 {
     m_ui->headlessCheckBox->setChecked(enabled);
 }
 
-void MerSdkDetailsWidget::setWwwPort(quint16 port)
+void MerBuildEngineDetailsWidget::setWwwPort(quint16 port)
 {
     m_ui->wwwPortSpinBox->setValue(port);
 }
 
-void MerSdkDetailsWidget::setMemorySizeMb(int sizeMb)
+void MerBuildEngineDetailsWidget::setMemorySizeMb(int sizeMb)
 {
     m_ui->virtualMachineSettingsWidget->setMemorySizeMb(sizeMb);
 }
 
-void MerSdkDetailsWidget::setCpuCount(int count)
+void MerBuildEngineDetailsWidget::setCpuCount(int count)
 {
     m_ui->virtualMachineSettingsWidget->setCpuCount(count);
 }
 
-void MerSdkDetailsWidget::setVdiCapacityMb(int capacityMb)
+void MerBuildEngineDetailsWidget::setVdiCapacityMb(int capacityMb)
 {
     m_ui->virtualMachineSettingsWidget->setVdiCapacityMb(capacityMb);
 }
 
-void MerSdkDetailsWidget::setWwwProxy(const QString &type, const QString &servers, const QString &excludes)
+void MerBuildEngineDetailsWidget::setWwwProxy(const QString &type, const QString &servers, const QString &excludes)
 {
     if (type == MER_SDK_PROXY_AUTOMATIC) {
         m_wwwProxyServerUrl = servers;
@@ -232,7 +232,7 @@ void MerSdkDetailsWidget::setWwwProxy(const QString &type, const QString &server
     }
 }
 
-void MerSdkDetailsWidget::onSrcFolderApplyButtonClicked()
+void MerBuildEngineDetailsWidget::onSrcFolderApplyButtonClicked()
 {
     if (m_ui->srcFolderPathChooser->isValid()) {
         QString path = m_ui->srcFolderPathChooser->path();
@@ -248,24 +248,24 @@ void MerSdkDetailsWidget::onSrcFolderApplyButtonClicked()
     }
 }
 
-void MerSdkDetailsWidget::onAuthorizeSshKeyButtonClicked()
+void MerBuildEngineDetailsWidget::onAuthorizeSshKeyButtonClicked()
 {
     if (m_ui->privateKeyPathChooser->isValid())
         emit authorizeSshKey(m_ui->privateKeyPathChooser->path());
 }
 
-void MerSdkDetailsWidget::onGenerateSshKeyButtonClicked()
+void MerBuildEngineDetailsWidget::onGenerateSshKeyButtonClicked()
 {
     emit generateSshKey(m_ui->privateKeyPathChooser->path());
 }
 
-void MerSdkDetailsWidget::onPathChooserEditingFinished()
+void MerBuildEngineDetailsWidget::onPathChooserEditingFinished()
 {
     if (m_ui->privateKeyPathChooser->isValid())
         emit sshKeyChanged(m_ui->privateKeyPathChooser->path());
 }
 
-void MerSdkDetailsWidget::onWwwProxyDisabledToggled(bool checked)
+void MerBuildEngineDetailsWidget::onWwwProxyDisabledToggled(bool checked)
 {
     if (!checked)
         return;
@@ -285,7 +285,7 @@ void MerSdkDetailsWidget::onWwwProxyDisabledToggled(bool checked)
     emit wwwProxyChanged(m_wwwProxy, QString(), QString());
 }
 
-void MerSdkDetailsWidget::onWwwProxyAutomaticToggled(bool checked)
+void MerBuildEngineDetailsWidget::onWwwProxyAutomaticToggled(bool checked)
 {
     if (!checked || m_wwwProxy == MER_SDK_PROXY_AUTOMATIC)
         return;
@@ -306,7 +306,7 @@ void MerSdkDetailsWidget::onWwwProxyAutomaticToggled(bool checked)
     emit wwwProxyChanged(m_wwwProxy, m_wwwProxyServerUrl, QString());
 }
 
-void MerSdkDetailsWidget::onWwwProxyManualToggled(bool checked)
+void MerBuildEngineDetailsWidget::onWwwProxyManualToggled(bool checked)
 {
     if (!checked || m_wwwProxy == MER_SDK_PROXY_MANUAL)
         return;
@@ -329,7 +329,7 @@ void MerSdkDetailsWidget::onWwwProxyManualToggled(bool checked)
     emit wwwProxyChanged(m_wwwProxy, m_wwwProxyServerList, m_wwwProxyExcludes);
 }
 
-void MerSdkDetailsWidget::onWwwProxyServersEdited(const QString &s)
+void MerBuildEngineDetailsWidget::onWwwProxyServersEdited(const QString &s)
 {
     QString proxies = s;
     QRegularExpression reg;
@@ -362,7 +362,7 @@ void MerSdkDetailsWidget::onWwwProxyServersEdited(const QString &s)
     }
 }
 
-void MerSdkDetailsWidget::onWwwProxyExcludesEdited(const QString &s)
+void MerBuildEngineDetailsWidget::onWwwProxyExcludesEdited(const QString &s)
 {
     QString excludes = s;
     QRegularExpression reg;

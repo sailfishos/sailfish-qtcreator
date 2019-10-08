@@ -15,6 +15,7 @@ RESOURCES += \
     mer.qrc
 
 FORMS += \
+    merbuildenginedetailswidget.ui \
     merdeploystep.ui \
     meremulatordetailswidget.ui \
     meremulatormodedialog.ui \
@@ -28,7 +29,6 @@ FORMS += \
     merrpminfo.ui \
     merrpmvalidationstepconfigwidget.ui \
     merrunconfigurationaspectqmllivedetailswidget.ui \
-    mersdkdetailswidget.ui \
     meremulatormodeoptionswidget.ui \
     meremulatormodedetailswidget.ui \
     mervirtualmachinesettingswidget.ui \
@@ -36,6 +36,7 @@ FORMS += \
 
 SOURCES += \
     merabstractvmstartstep.cpp \
+    merbuildenginedetailswidget.cpp \
     merbuildsteps.cpp \
     merconnectionmanager.cpp \
     merdeployconfiguration.cpp \
@@ -73,7 +74,6 @@ SOURCES += \
     merrunconfiguration.cpp \
     merrunconfigurationaspect.cpp \
     merrunconfigurationfactory.cpp \
-    mersdkdetailswidget.cpp \
     mersdkkitinformation.cpp \
     mersdkmanager.cpp \
     mersettings.cpp \
@@ -91,6 +91,7 @@ SOURCES += \
 
 HEADERS += \
     merabstractvmstartstep.h \
+    merbuildenginedetailswidget.h \
     merbuildsteps.h \
     merconnectionmanager.h \
     merconstants.h \
@@ -129,7 +130,6 @@ HEADERS += \
     merrunconfiguration.h \
     merrunconfigurationaspect.h \
     merrunconfigurationfactory.h \
-    mersdkdetailswidget.h \
     mersdkkitinformation.h \
     mersdkmanager.h \
     mersettings.h \

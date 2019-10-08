@@ -43,7 +43,7 @@ public:
     void finish() override;
     bool matches(const QString &key) const override;
 
-    void setSdk(const QUrl &vmUri);
+    void setBuildEngine(const QUrl &vmUri);
 
 private slots:
     void onUpdateSearchKeys();

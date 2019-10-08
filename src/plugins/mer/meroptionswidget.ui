@@ -19,17 +19,17 @@
      <item>
       <layout class="QFormLayout" name="formLayout">
        <item row="0" column="0">
-        <widget class="QLabel" name="sdkLabel">
+        <widget class="QLabel" name="buildEngineLabel">
          <property name="text">
           <string>Virtua&amp;l Machine:</string>
          </property>
          <property name="buddy">
-          <cstring>sdkComboBox</cstring>
+          <cstring>buildEngineComboBox</cstring>
          </property>
         </widget>
        </item>
        <item row="0" column="1">
-        <widget class="QComboBox" name="sdkComboBox">
+        <widget class="QComboBox" name="buildEngineComboBox">
          <property name="sizePolicy">
           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
            <horstretch>0</horstretch>
@@ -41,7 +41,7 @@
       </layout>
      </item>
      <item>
-      <widget class="Mer::Internal::MerSdkDetailsWidget" name="sdkDetailsWidget" native="true">
+      <widget class="Mer::Internal::MerBuildEngineDetailsWidget" name="buildEngineDetailsWidget" native="true">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
          <horstretch>0</horstretch>
@@ -111,9 +111,9 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>Mer::Internal::MerSdkDetailsWidget</class>
+   <class>Mer::Internal::MerBuildEngineDetailsWidget</class>
    <extends>QWidget</extends>
-   <header location="global">mer/mersdkdetailswidget.h</header>
+   <header location="global">mer/merbuildenginedetailswidget.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
