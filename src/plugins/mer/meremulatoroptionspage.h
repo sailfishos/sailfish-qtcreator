@@ -1,6 +1,5 @@
 /****************************************************************************
 **
-** Copyright (C) 2012-2015,2019 Jolla Ltd.
 ** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
@@ -21,56 +20,39 @@
 **
 ****************************************************************************/
 
-#ifndef MERPLUGIN_H
-#define MERPLUGIN_H
+#ifndef MEREMULATOROPTIONSPAGE_H
+#define MEREMULATOROPTIONSPAGE_H
 
-#include <extensionsystem/iplugin.h>
+#include <coreplugin/dialogs/ioptionspage.h>
 
-#include <QMap>
-
-namespace Sfdk {
-class VirtualMachine;
-}
+#include <QtCore/QPointer>
 
 namespace Mer {
 namespace Internal {
 
-class MerOptionsPage;
-class MerEmulatorOptionsPage;
-
-class MerPlugin : public ExtensionSystem::IPlugin
+class MerEmulatorOptionsWidget;
+class MerEmulatorOptionsPage : public Core::IOptionsPage
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "plugins/mer/SailfishOS.json")
-
 public:
-    MerPlugin();
-    ~MerPlugin() override;
+    explicit MerEmulatorOptionsPage(QObject *parent = 0);
 
-    bool initialize(const QStringList &arguments, QString *errorMessage) override;
-    void extensionsInitialized() override;
-    ShutdownFlag aboutToShutdown() override;
+    QWidget *widget() override;
+    void apply() override;
+    void finish() override;
+    bool matches(const QString &key) const override;
 
-    static void saveSettings();
-
-    static MerOptionsPage *optionsPage();
-    static MerEmulatorOptionsPage *emulatorOptionsPage();
+    void setEmulator(const QUrl &vmUri);
 
 private slots:
-    void handlePromptClosed(int result);
-    void handleConnectionStateChanged();
-    void handleLockDownFailed();
+    void onUpdateSearchKeys();
 
 private:
-    QMap<QString, Sfdk::VirtualMachine *> m_stopList;
-
-#ifdef WITH_TESTS
-    void testMerSshOutputParsers_data();
-    void testMerSshOutputParsers();
-#endif
+    QPointer<MerEmulatorOptionsWidget> m_widget;
+    QString m_searchKeyWords;
 };
 
 } // Internal
 } // Mer
 
-#endif // MERPLUGIN_H
+#endif // MEREMULATOROPTIONSPAGE_H

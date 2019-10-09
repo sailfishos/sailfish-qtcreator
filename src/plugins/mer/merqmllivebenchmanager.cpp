@@ -94,10 +94,6 @@ MerQmlLiveBenchManager::MerQmlLiveBenchManager(QObject *parent)
             this, &MerQmlLiveBenchManager::onDeviceRemoved);
     connect(DeviceManager::instance(), &DeviceManager::deviceListReplaced,
             this, &MerQmlLiveBenchManager::onDeviceListReplaced);
-    connect(MerEmulatorDeviceManager::instance(),
-            &MerEmulatorDeviceManager::hack_cachedPropertiesUpdated,
-            this,
-            &MerQmlLiveBenchManager::onDeviceListReplaced);
 
     onStartupProjectChanged(SessionManager::startupProject());
     connect(SessionManager::instance(), &SessionManager::startupProjectChanged,

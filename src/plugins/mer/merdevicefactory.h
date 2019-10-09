@@ -40,9 +40,6 @@ public:
     ProjectExplorer::IDevice::Ptr create() const override;
     bool canRestore(const QVariantMap &map) const override;
 
-signals:
-    void deviceCreated(const ProjectExplorer::IDevice::Ptr &device);
-
 private:
     static MerDeviceFactory *s_instance;
 };

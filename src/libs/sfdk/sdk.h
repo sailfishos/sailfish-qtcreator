@@ -31,6 +31,8 @@
 namespace Sfdk {
 
 class BuildEngine;
+class DeviceModelData;
+class Emulator;
 class VirtualMachineDescriptor;
 
 class SdkPrivate;
@@ -65,9 +67,24 @@ public:
     static int addBuildEngine(std::unique_ptr<BuildEngine> &&buildEngine);
     static void removeBuildEngine(const QUrl &uri);
 
+    static QList<Emulator *> emulators();
+    static Emulator *emulator(const QUrl &uri);
+    static void createEmulator(const QUrl &virtualMachineUri, const QObject *context,
+        const Functor<std::unique_ptr<Emulator> &&> &functor);
+    static int addEmulator(std::unique_ptr<Emulator> &&emulator);
+    static void removeEmulator(const QUrl &uri);
+
+    static QList<DeviceModelData> deviceModels();
+    static DeviceModelData deviceModel(const QString &name);
+    static void setDeviceModels(const QList<DeviceModelData> &deviceModels,
+            const QObject *context, const Functor<bool> &functor);
+
 signals:
     void buildEngineAdded(int index);
     void aboutToRemoveBuildEngine(int index);
+    void emulatorAdded(int index);
+    void aboutToRemoveEmulator(int index);
+    void deviceModelsChanged();
 
 private:
     static Sdk *s_instance;

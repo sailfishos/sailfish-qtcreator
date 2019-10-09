@@ -26,63 +26,14 @@
 
 #include "merdevice.h"
 
-#include <sfdk/asynchronous.h>
-
-#include <QCoreApplication>
-#include <QPointer>
 #include <QSharedPointer>
-#include <QSize>
-
-QT_BEGIN_NAMESPACE
-class QTimer;
-QT_END_NAMESPACE
+#include <QPointer>
 
 namespace Sfdk {
-class VirtualMachine;
+class Emulator;
 }
 
 namespace Mer {
-
-class MerEmulatorDeviceModel
-{
-public:
-    MerEmulatorDeviceModel()
-        : d(new Data)
-    {}
-    MerEmulatorDeviceModel(bool isSdkProvided);
-    MerEmulatorDeviceModel(const QString &name, const QSize &displayResolution, const QSize &displaySize,
-                           const QString &dconf = QString(), bool isSdkProvided = false);
-
-    using Map = QMap<QString, MerEmulatorDeviceModel>;
-
-    bool isNull() const { return d->name.isNull() || d->displayResolution.isNull() || d->displaySize.isNull(); }
-    bool isSdkProvided() const { return d->isSdkProvided; }
-
-    QString name() const { return d->name; }
-    void setName(const QString &name) { d->name = name; }
-    QSize displayResolution() const { return d->displayResolution; }
-    QSize displaySize() const { return d->displaySize; }
-    QString dconf() const { return d->dconf; }
-
-    void fromMap(const QVariantMap &map);
-    QVariantMap toMap() const;
-
-    bool operator==(const MerEmulatorDeviceModel &other) const;
-    bool operator!=(const MerEmulatorDeviceModel &other) const;
-
-    static QString uniqueName(const QString &baseName, const QSet<QString> &existingNames);
-
-private:
-    struct Data : QSharedData
-    {
-        QString name;
-        QSize displayResolution;
-        QSize displaySize;
-        QString dconf;
-        bool isSdkProvided{false};
-    };
-    QSharedDataPointer<Data> d;
-};
 
 class Q_DECL_EXPORT MerEmulatorDevice : public MerDevice
 {
@@ -104,71 +55,24 @@ public:
 
     ProjectExplorer::Abi::Architecture architecture() const override;
 
-    void setSharedConfigPath(const QString &configPath);
-    QString sharedConfigPath() const;
+    Utils::PortList qmlLivePorts() const override;
 
-    void setVirtualMachine(const QUrl &vmUri);
+    Sfdk::Emulator *emulator() const;
+    void setEmulator(Sfdk::Emulator *emulator);
 
-    void setFactorySnapshot(const QString &snapshotName);
-    QString factorySnapshot() const;
+    static void generateSshKey(Sfdk::Emulator *emulator, const QString& user);
 
-    void setMac(const QString& mac);
-    QString mac() const;
-
-    void setSubnet(const QString& subnet);
-    QString subnet() const;
-
-    void setMemorySizeMb(int sizeMb);
-    int memorySizeMb() const;
-
-    void setVdiCapacityMb(int value);
-    int vdiCapacityMb() const;
-
-    void setCpuCount(int count);
-    int cpuCount() const;
-
-    void generateSshKey(const QString& user) const;
-
-    QString deviceModel() const;
-    void setDeviceModel(const QString &deviceModel);
-    Qt::Orientation orientation() const;
-    void setOrientation(Qt::Orientation orientation);
-    bool isViewScaled() const;
-    void setViewScaled(bool viewScaled);
-
-    Sfdk::VirtualMachine *virtualMachine() const;
-
+    static Core::Id idFor(const Sfdk::Emulator &emulator);
     static QString privateKeyFile(Core::Id emulatorId, const QString &user);
+    static void doFactoryReset(Sfdk::Emulator *emulator, QWidget *parent);
 
 private:
     MerEmulatorDevice();
     MerEmulatorDevice(const MerEmulatorDevice &other);
     void init();
 
-    friend class MerEmulatorDeviceManager;
-    void updateVmState() const;
-
-    void doFactoryReset(QWidget *parent);
-
-    void scheduleSetVideoMode();
-    void setVideoMode();
-    void updateDconfDb();
-
-    QString privateKeyFile(const QString &user) const;
-
 private:
-    std::shared_ptr<Sfdk::VirtualMachine> m_vm; // all clones share the VM
-    QString m_factorySnapshot;
-    QString m_mac;
-    QString m_subnet;
-    QString m_sharedConfigPath;
-    QString m_deviceModel;
-    Qt::Orientation m_orientation;
-    bool m_viewScaled;
-    QPointer<QTimer> m_setVideoModeTimer;
-    int m_memorySizeMb;
-    int m_cpuCount;
-    int m_vdiCapacityMb;
+    QPointer<Sfdk::Emulator> m_emulator;
 };
 
 class MerEmulatorDeviceManager : public QObject
@@ -180,30 +84,14 @@ public:
     static MerEmulatorDeviceManager *instance();
     ~MerEmulatorDeviceManager() override;
 
-    static bool isStored(const MerEmulatorDevice::ConstPtr &device);
-    static bool restoreSystemSettings(const MerEmulatorDevice::Ptr &device);
-    static bool cachedPropertiesUpdated(const MerEmulatorDevice::ConstPtr &device);
-
-signals:
-    void storedDevicesChanged();
-    void hack_cachedPropertiesUpdated();
-
-private slots:
-    void onDeviceCreated(const ProjectExplorer::IDevice::Ptr &device);
-    void onDeviceAdded(Core::Id id);
-    void onDeviceRemoved(Core::Id id);
-    void onDeviceListReplaced();
+private:
+    void onEmulatorAdded(int index);
+    void onAboutToRemoveEmulator(int index);
+    void startWatching(Sfdk::Emulator *emulator);
+    void stopWatching(Sfdk::Emulator *emulator);
 
 private:
-    static void onDeviceModelsChanged(const QSet<QString> &deviceModelNames);
-
     static MerEmulatorDeviceManager *s_instance;
-    QHash<Core::Id, quint16> m_deviceSshPortCache;
-    QHash<Core::Id, Utils::PortList> m_deviceQmlLivePortsCache;
-    QSet<QString> m_editedDeviceModels;
-    QHash<Core::Id, int> m_deviceMemorySizeCache;
-    QHash<Core::Id, int> m_deviceCpuCountCache;
-    QHash<Core::Id, int> m_vdiCapacityCache;
 };
 
 }

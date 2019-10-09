@@ -38,8 +38,7 @@ class PortList;
 
 namespace Sfdk {
 
-// FIXME internal
-class SFDK_EXPORT VirtualMachineInfo
+class VirtualMachineInfo
 {
     Q_GADGET
 
@@ -73,7 +72,7 @@ public:
     QStringList snapshots;
 };
 
-class SFDK_EXPORT VirtualMachinePrivate
+class VirtualMachinePrivate
 {
     Q_GADGET
     Q_DECLARE_PUBLIC(VirtualMachine)
@@ -132,10 +131,13 @@ public:
             const QObject *context, const Functor<bool> &functor);
     void setReservedPortListForwarding(ReservedPortList which,
             const QList<Utils::Port> &ports, const QObject *context,
-            const Functor<const QMap<QString, quint16> &, bool> &functor);
+            const Functor<const QList<Utils::Port> &, bool> &functor);
 
     virtual void setVideoMode(const QSize &size, int depth, const QObject *context,
             const Functor<bool> &functor) = 0;
+
+    void restoreSnapshot(const QString &snapshotName, const QObject *context,
+            const Functor<bool> &functor);
 
     VirtualMachine::ConnectionUi *connectionUi() const { return connectionUi_.get(); }
 
@@ -186,8 +188,7 @@ private:
 Q_DECLARE_OPERATORS_FOR_FLAGS(VirtualMachineInfo::ExtraInfos)
 Q_DECLARE_OPERATORS_FOR_FLAGS(VirtualMachinePrivate::BasicState);
 
-// FIXME internal
-class SFDK_EXPORT VirtualMachineFactory : public QObject
+class VirtualMachineFactory : public QObject
 {
     class Meta
     {

@@ -115,5 +115,47 @@ const char BUILD_ENGINE_DEFAULT_HOST[] = "localhost";
 const char BUILD_ENGINE_DEFAULT_USER_NAME[] = "mersdk";
 const int BUILD_ENGINE_DEFAULT_SSH_TIMEOUT = 30;
 
+const char EMULATORS_SETTINGS_FILE_NAME[] = "emulators.xml";
+// "QtCreator" prefix is enforced by sdktool
+const char EMULATORS_SETTINGS_DOC_TYPE[] = "QtCreatorSfdkEmulators";
+const char EMULATORS_VERSION_KEY[] = "Emulators.Version";
+const char EMULATORS_INSTALL_DIR_KEY[] = "Emulators.InstallDir";
+const char EMULATORS_COUNT_KEY[] = "Emulators.Count";
+const char EMULATORS_DATA_KEY_PREFIX[] = "Emulator.";
+const char EMULATOR_VM_URI[] = "VirtualMachineUri";
+const char EMULATOR_AUTODETECTED[] = "Autodetected";
+const char EMULATOR_SHARED_CONFIG[] = "SharedConfig";
+const char EMULATOR_SHARED_SSH[] = "SharedSsh";
+const char EMULATOR_HOST[] = "Host";
+const char EMULATOR_USER_NAME[] = "UserName";
+const char EMULATOR_PRIVATE_KEY_FILE[] = "PrivateKeyFile";
+const char EMULATOR_SSH_PORT[] = "SshPort";
+const char EMULATOR_SSH_TIMEOUT[] = "SshTimeout";
+const char EMULATOR_FREE_PORTS[] = "FreePorts";
+const char EMULATOR_QML_LIVE_PORTS[] = "QmlLivePorts";
+const char EMULATOR_FACTORY_SNAPSHOT[] = "FactorySnapshot";
+const char EMULATOR_MAC[] = "Mac";
+const char EMULATOR_SUBNET[] = "Subnet";
+const char EMULATOR_DEVICE_MODEL[] = "DeviceModel";
+const char EMULATOR_ORIENTATION[] = "Orientation";
+const char EMULATOR_VIEW_SCALED[] = "ViewScaled";
+
+const char DEVICE_MODELS_COUNT_KEY[] = "DeviceModels.Count";
+const char DEVICE_MODELS_DATA_KEY_PREFIX[] = "DeviceModel.";
+const char DEVICE_MODEL_NAME[] = "Name";
+const char DEVICE_MODEL_AUTODETECTED[] = "Autodetected";
+const char DEVICE_MODEL_DISPLAY_RESOLUTION[] = "DisplayResolution";
+const char DEVICE_MODEL_DISPLAY_SIZE[] = "DisplaySize";
+const char DEVICE_MODEL_DCONF[] = "Dconf";
+
+const char EMULATOR_DEFAULT_HOST[] = "localhost";
+const char EMULATOR_DEFAULT_USER_NAME[] = "nemo";
+const int EMULATOR_DEFAULT_SSH_TIMEOUT = 30;
+
+const char VIRTUAL_BOX_VIRTUAL_SUBNET[] = "10.220.220";
+
+const char EMULATOR_COMPOSITOR_CONFIG_FILENAME[] = "65-emul-wayland-ui-scale.conf";
+const char EMULATOR_DCONF_DB_FILENAME[] = "device-model.txt";
+
 } // namespace Constants
 } // namespace Sfdk

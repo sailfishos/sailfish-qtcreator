@@ -28,6 +28,8 @@ namespace Log {
 Q_LOGGING_CATEGORY(lib, "sfdk.lib", QtInfoMsg)
 Q_LOGGING_CATEGORY(vms, "sfdk.vms", QtInfoMsg)
 Q_LOGGING_CATEGORY(vmsQueue, "sfdk.vms.queue", QtInfoMsg)
+Q_LOGGING_CATEGORY(device, "sfdk.device", QtInfoMsg)
+Q_LOGGING_CATEGORY(emulator, "sfdk.emulator", QtInfoMsg)
 Q_LOGGING_CATEGORY(engine, "sfdk.engine", QtInfoMsg)
 
 } // namespace Log

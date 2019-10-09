@@ -123,7 +123,8 @@ void MerHardwareDeviceWidget::handleFreePortsChanged()
 
 void MerHardwareDeviceWidget::handleQmlLivePortsChanged()
 {
-    device().staticCast<MerDevice>()->setQmlLivePorts(PortList::fromString(m_ui->qmlLivePortsLineEdit->text()));
+    device().staticCast<MerHardwareDevice>()
+        ->setQmlLivePorts(PortList::fromString(m_ui->qmlLivePortsLineEdit->text()));
     updateQmlLivePortsWarningLabel();
 }
 

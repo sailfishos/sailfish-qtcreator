@@ -37,6 +37,7 @@
 #include "mertoolchain.h"
 
 #include <sfdk/buildengine.h>
+#include <sfdk/emulator_p.h>
 #include <sfdk/sdk.h>
 #include <sfdk/sfdkconstants.h>
 #include <sfdk/virtualmachine.h>
@@ -422,12 +423,13 @@ void MerSdkManager::updateDevices()
             } else {
                 Q_ASSERT(dynamic_cast<const MerEmulatorDevice*>(d.data()) != 0);
                 const MerEmulatorDevice* device = static_cast<const MerEmulatorDevice*>(d.data());
+                auto emulator_d = EmulatorPrivate::get(device->emulator());
                 //TODO: fix me
-                QString mac = device->mac();
+                QString mac = emulator_d->mac();
                 QTC_CHECK(!mac.isEmpty());
                 if (!mac.isEmpty())
                     xmlData.m_index = mac.at(mac.count()-1);
-                xmlData.m_subNet = device->subnet();
+                xmlData.m_subNet = emulator_d->subnet();
                 xmlData.m_name = device->displayName();
                 xmlData.m_mac = mac;
                 xmlData.m_type = QLatin1String ("vbox");
@@ -436,7 +438,7 @@ void MerSdkManager::updateDevices()
                     xmlData.m_sshKeyPath =
                         FileName::fromString(device->sshParameters().privateKeyFile).parentDir()
                         .relativeChildPath(sharedConfigPath).toString();
-                    emulatorConfigPaths << device->sharedConfigPath();
+                    emulatorConfigPaths << device->emulator()->sharedConfigPath().toString();
                 }
             }
             devices << xmlData;

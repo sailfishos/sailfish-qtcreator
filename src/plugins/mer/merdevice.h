@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2015-2017 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -51,8 +52,7 @@ public:
     void setSharedSshPath(const QString &sshPath);
     QString sharedSshPath() const;
 
-    Utils::PortList qmlLivePorts() const;
-    void setQmlLivePorts(const Utils::PortList &qmlLivePorts);
+    virtual Utils::PortList qmlLivePorts() const = 0;
     QList<Utils::Port> qmlLivePortsList() const;
 
 protected:
@@ -61,7 +61,6 @@ protected:
 
 private:
     QString m_sharedSshPath;
-    Utils::PortList m_qmlLivePorts;
 };
 
 }

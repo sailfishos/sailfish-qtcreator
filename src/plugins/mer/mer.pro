@@ -16,10 +16,9 @@ RESOURCES += \
 
 FORMS += \
     merdeploystep.ui \
-    meremulatordevicewidget.ui \
-    meremulatordevicewizardsshpage.ui \
-    meremulatordevicewizardvmpage.ui \
+    meremulatordetailswidget.ui \
     meremulatormodedialog.ui \
+    meremulatoroptionswidget.ui \
     mergeneraloptionswidget.ui \
     merhardwaredevicewidget.ui \
     merhardwaredevicewidgetauthorizedialog.ui \
@@ -45,12 +44,12 @@ SOURCES += \
     merdevicedebugsupport.cpp \
     merdevicefactory.cpp \
     merdevicexmlparser.cpp \
+    meremulatordetailswidget.cpp \
     meremulatordevice.cpp \
     meremulatordevicetester.cpp \
-    meremulatordevicewidget.cpp \
-    meremulatordevicewizard.cpp \
-    meremulatordevicewizardpages.cpp \
     meremulatormodedialog.cpp \
+    meremulatoroptionspage.cpp \
+    meremulatoroptionswidget.cpp \
     mergeneraloptionspage.cpp \
     mergeneraloptionswidget.cpp \
     merhardwaredevice.cpp \
@@ -103,12 +102,12 @@ HEADERS += \
     merdevicedebugsupport.h \
     merdevicefactory.h \
     merdevicexmlparser.h \
+    meremulatordetailswidget.h \
     meremulatordevice.h \
     meremulatordevicetester.h \
-    meremulatordevicewidget.h \
-    meremulatordevicewizard.h \
-    meremulatordevicewizardpages.h \
     meremulatormodedialog.h \
+    meremulatoroptionspage.h \
+    meremulatoroptionswidget.h \
     mergeneraloptionspage.h \
     mergeneraloptionswidget.h \
     merhardwaredevice.h \

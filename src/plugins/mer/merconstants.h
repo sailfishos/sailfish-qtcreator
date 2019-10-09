@@ -36,10 +36,13 @@ const char MER_OPTIONS_CATEGORY[] = "W.Mer";
 const char MER_OPTIONS_CATEGORY_TR[] = QT_TRANSLATE_NOOP("Mer", "Sailfish OS");
 const char MER_OPTIONS_ID[] = "A.Mer";
 const char MER_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "Build Engine");
+const char MER_EMULATOR_OPTIONS_ID[] = "B.MerEmulator";
+const char MER_EMULATOR_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "Emulator");
 const char MER_GENERAL_OPTIONS_ID[] = "Z.MerGeneral";
 const char MER_GENERAL_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "General");
 const char MER_EMULATOR_MODE_OPTIONS_ID[] = "C.MerEmulatorMode";
 const char MER_EMULATOR_MODE_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "Emulator Mode");
+
 const char MER_EMULATOR_MODE_ACTION_NAME[] = QT_TRANSLATE_NOOP("Mer", "&Emulator mode...");
 
 const char MER_DEVICE_TYPE[] = "Mer.Device.Type";
@@ -114,9 +117,6 @@ const char MER_WIZARD_FEATURE_SAILFISHOS[] = "Mer.Wizard.Feature.SailfishOS";
 const char MER_WIZARD_FEATURE_EMULATOR[] = "Mer.Wizard.Feature.Emulator";
 
 const char MER_DEVICES_FILENAME[] = "/devices.xml";
-const char MER_DEVICE_MODELS_FILENAME[] = "/qtcreator/mersdk-device-models.xml";
-const char MER_COMPOSITOR_CONFIG_FILENAME[] = "65-emul-wayland-ui-scale.conf";
-const char MER_EMULATOR_DCONF_DB_FILENAME[] = "device-model.txt";
 
 const char MER_SDK_SHARED_HOME_MOUNT_POINT[] = "/home/mersdk/share";
 const char MER_SDK_SHARED_SRC_MOUNT_POINT[] = "/home/src1";
@@ -127,17 +127,11 @@ const char SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED[] = "SAILFISH_OS_SDK_EN
 const char SAILFISH_SDK_ENVIRONMENT_FILTER[] = "SAILFISH_SDK_ENVIRONMENT_FILTER";
 const char SAILFISH_SDK_FRONTEND[] = "SAILFISH_SDK_FRONTEND";
 const char SAILFISH_SDK_FRONTEND_ID[] = "qtcreator";
-const char MER_DEVICE_VIRTUAL_MACHINE_URI[] = "MER_DEVICE_VIRTUAL_MACHINE_URI";
-const char MER_DEVICE_FACTORY_SNAPSHOT[] = "MER_DEVICE_FACTORY_SNAPSHOT";
-const char MER_DEVICE_MAC[] = "MER_DEVICE_MAC";
-const char MER_DEVICE_SUBNET[] = "MER_DEVICE_SUBNET";
+
+const char MER_EMULATOR_DEVICE_EMULATOR_URI[] = "EmulatorUri";
 const char MER_DEVICE_SHARED_SSH[] = "MER_DEVICE_SHARED_SSH";
 const char MER_DEVICE_QML_LIVE_PORTS[] = "MER_DEVICE_QML_LIVE_PORTS";
-const char MER_DEVICE_SHARED_CONFIG[]= "MER_DEVICE_SHARED_CONFIG";
 const char MER_DEVICE_ARCHITECTURE[]= "MER_DEVICE_ARCHITECTURE";
-const char MER_DEVICE_DEVICE_MODEL[]= "MER_DEVICE_DEVICE_MODEL";
-const char MER_DEVICE_ORIENTATION[]= "MER_DEVICE_ORIENTATION";
-const char MER_DEVICE_VIEW_SCALED[]= "MER_DEVICE_VIEW_SCALED";
 
 const char MER_RUN_CONFIGURATION_ASPECT[] = "Mer.RunConfigurationAspect";
 

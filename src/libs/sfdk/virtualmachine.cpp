@@ -30,10 +30,13 @@
 
 #include <utils/algorithm.h>
 #include <utils/fileutils.h>
+#include <utils/port.h>
 #include <utils/qtcassert.h>
 
 #include <QCoreApplication>
 #include <QThread>
+
+using namespace Utils;
 
 namespace Sfdk {
 
@@ -297,20 +300,6 @@ QStringList VirtualMachine::snapshots() const
     return d->virtualMachineInfo.snapshots;
 }
 
-void VirtualMachine::restoreSnapshot(const QString &snapshotName, const QObject *context,
-        const Functor<bool> &functor)
-{
-    Q_D(VirtualMachine);
-
-    const QPointer<const QObject> context_{context};
-    d->doRestoreSnapshot(snapshotName, this, [=](bool restoreOk) {
-        refreshConfiguration(this, [=](bool refreshOk) {
-            if (context_)
-                functor(restoreOk && refreshOk);
-        });
-    });
-}
-
 void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
@@ -430,7 +419,7 @@ void VirtualMachinePrivate::setReservedPortForwarding(ReservedPort which, quint1
 
 void VirtualMachinePrivate::setReservedPortListForwarding(ReservedPortList which,
         const QList<Utils::Port> &ports, const QObject *context,
-        const Functor<const QMap<QString, quint16> &, bool> &functor)
+        const Functor<const QList<Utils::Port> &, bool> &functor)
 {
     const QPointer<const QObject> context_{context};
     doSetReservedPortListForwarding(which, ports, q_func(),
@@ -449,10 +438,28 @@ void VirtualMachinePrivate::setReservedPortListForwarding(ReservedPortList which
             virtualMachineInfo.qmlLivePorts = savedPorts;
             break;
         }
+        auto toPorts = [](const QList<quint16> &numbers) {
+            return Utils::transform(numbers, [](quint16 number) { return Port(number); });
+        };
         if (context_)
-            functor(savedPorts, true);
+            functor(toPorts(savedPorts.values()), true);
     });
 
+}
+
+void VirtualMachinePrivate::restoreSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_Q(VirtualMachine);
+
+    const QPointer<const QObject> context_{context};
+    doRestoreSnapshot(snapshotName, q, [=](bool restoreOk) {
+        Q_Q(VirtualMachine);
+        q->refreshConfiguration(q, [=](bool refreshOk) {
+            if (context_)
+                functor(restoreOk && refreshOk);
+        });
+    });
 }
 
 /*!

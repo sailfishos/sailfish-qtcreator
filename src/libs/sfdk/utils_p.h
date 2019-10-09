@@ -22,32 +22,19 @@
 
 #pragma once
 
-#include <QLoggingCategory>
+#include "sfdkglobal.h"
 
-#include <memory>
+#include <QList>
 
-#if defined(SFDK_LIBRARY)
-#  define SFDK_EXPORT Q_DECL_EXPORT
-#else
-#  define SFDK_EXPORT Q_DECL_IMPORT
-#endif
-
-QT_BEGIN_NAMESPACE
-#if QT_VERSION < QT_VERSION_CHECK(5, 12, 0)
-// Allow using Qt's own PIMPL related macros with std::unique_ptr
-template <typename T> static inline T *qGetPtrHelper(const std::unique_ptr<T> &p) { return p.get(); }
-#endif
-QT_END_NAMESPACE
+namespace Utils {
+class Port;
+class PortList;
+}
 
 namespace Sfdk {
-inline namespace Log {
 
-Q_DECLARE_LOGGING_CATEGORY(lib)
-Q_DECLARE_LOGGING_CATEGORY(vms)
-Q_DECLARE_LOGGING_CATEGORY(vmsQueue)
-Q_DECLARE_LOGGING_CATEGORY(device)
-Q_DECLARE_LOGGING_CATEGORY(emulator)
-Q_DECLARE_LOGGING_CATEGORY(engine)
+QList<Utils::Port> toList(const Utils::PortList &portList);
+Utils::PortList toPortList(const QList<Utils::Port> &portList);
+Utils::PortList toPortList(const QList<quint16> &portList);
 
-} // namespace Log
 } // namespace Sfdk

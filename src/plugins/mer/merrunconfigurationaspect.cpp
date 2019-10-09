@@ -43,6 +43,7 @@
 #include <sfdk/sfdkconstants.h>
 
 #include "merconstants.h"
+#include "merdevice.h"
 #include "merqmllivebenchmanager.h"
 #include "mersettings.h"
 #include "ui_merrunconfigurationaspectqmllivedetailswidget.h"

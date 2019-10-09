@@ -122,8 +122,6 @@ public:
             const Functor<bool> &functor);
 
     QStringList snapshots() const;
-    void restoreSnapshot(const QString &snapshotName, const QObject *context,
-            const Functor<bool> &functor);
 
     void refreshConfiguration(const QObject *context, const Functor<bool> &functor);
     // FIXME API style?

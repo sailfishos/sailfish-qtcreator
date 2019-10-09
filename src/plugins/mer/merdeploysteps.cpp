@@ -41,6 +41,7 @@
 #include "ui_merrpminfo.h"
 #include "ui_merrpmvalidationstepconfigwidget.h"
 
+#include <sfdk/emulator.h>
 #include <sfdk/sfdkconstants.h>
 
 #include <coreplugin/fileutils.h>
@@ -314,7 +315,7 @@ bool MerEmulatorStartStep::init()
         return false;
     }
 
-    setVirtualMachine(device->virtualMachine());
+    setVirtualMachine(device->emulator()->virtualMachine());
 
     return MerAbstractVmStartStep::init();
 }

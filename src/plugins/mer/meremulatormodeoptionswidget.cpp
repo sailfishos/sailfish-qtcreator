@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -25,9 +26,15 @@
 
 #include "mersettings.h"
 
+#include <sfdk/emulator.h>
+#include <sfdk/sdk.h>
+
 #include <utils/qtcassert.h>
+#include <utils/stringutils.h>
 
 #include <QMessageBox>
+
+using namespace Sfdk;
 
 namespace Mer {
 namespace Internal {
@@ -35,7 +42,7 @@ namespace Internal {
 MerEmulatorModeOptionsWidget::MerEmulatorModeOptionsWidget(QWidget *parent)
     : QWidget(parent)
     , m_ui(new Ui::MerEmulatorModeOptionsWidget)
-    , m_deviceModels(MerSettings::deviceModels())
+    , m_deviceModels(toMap(Sdk::deviceModels()))
 {
     m_ui->setupUi(this);
     m_ui->optionsWidget->setDeviceModelsNames(m_deviceModels.uniqueKeys());
@@ -62,7 +69,10 @@ MerEmulatorModeOptionsWidget::~MerEmulatorModeOptionsWidget()
 
 void MerEmulatorModeOptionsWidget::store()
 {
-    MerSettings::setDeviceModels(m_deviceModels);
+    // FIXME progress bar
+    bool ok;
+    execAsynchronous(std::tie(ok), Sdk::setDeviceModels, m_deviceModels.values());
+    QTC_CHECK(ok);
 
     m_ui->optionsWidget->setDeviceModelsNames(m_deviceModels.uniqueKeys());
     m_ui->deviceModelComboBox->setDeviceModels(m_deviceModels.values());
@@ -82,11 +92,11 @@ QString MerEmulatorModeOptionsWidget::searchKeywords() const
     return keywords;
 }
 
-bool MerEmulatorModeOptionsWidget::updateDeviceModel(const MerEmulatorDeviceModel &model)
+bool MerEmulatorModeOptionsWidget::updateDeviceModel(const DeviceModelData &model)
 {
-    QTC_ASSERT(!model.isSdkProvided(), return false);
+    QTC_ASSERT(!model.autodetected, return false);
 
-    m_deviceModels.insert(model.name(), model);
+    m_deviceModels.insert(model.name, model);
 
     m_ui->deviceModelComboBox->setDeviceModels(m_deviceModels.values());
 
@@ -99,11 +109,11 @@ bool MerEmulatorModeOptionsWidget::renameDeviceModel(const QString &name, const 
     QTC_ASSERT(m_deviceModels.count(name) == 1, return false);
     QTC_ASSERT(!m_deviceModels.contains(newName), return false);
 
-    MerEmulatorDeviceModel model = m_deviceModels.value(name);
-    QTC_ASSERT(!model.isSdkProvided(), return false);
+    DeviceModelData model = m_deviceModels.value(name);
+    QTC_ASSERT(!model.autodetected, return false);
 
     m_deviceModels.remove(name);
-    model.setName(newName);
+    model.name = newName;
     m_deviceModels.insert(newName, model);
 
     m_ui->deviceModelComboBox->setDeviceModels(m_deviceModels.values());
@@ -117,8 +127,11 @@ bool MerEmulatorModeOptionsWidget::addDeviceModel(const QString &name)
 {
     QTC_ASSERT(!m_deviceModels.contains(name), return false);
 
-    MerEmulatorDeviceModel emulatorProfile(name, QSize(500, 900), QSize(50, 90));
-    m_deviceModels.insert(name, emulatorProfile);
+    DeviceModelData model;
+    model.name = name;
+    model.displayResolution = QSize(500, 900);
+    model.displaySize = QSize(50, 90);
+    m_deviceModels.insert(name, model);
 
     m_ui->deviceModelComboBox->setDeviceModels(m_deviceModels.values());
     m_ui->deviceModelComboBox->setCurrentDeviceModel(name);
@@ -130,7 +143,7 @@ bool MerEmulatorModeOptionsWidget::addDeviceModel(const QString &name)
 bool MerEmulatorModeOptionsWidget::removeDeviceModel(const QString &name)
 {
     QTC_ASSERT(m_deviceModels.contains(name), return false);
-    QTC_ASSERT(!m_deviceModels.value(name).isSdkProvided(), return false);
+    QTC_ASSERT(!m_deviceModels.value(name).autodetected, return false);
 
     m_deviceModels.remove(name);
 
@@ -150,53 +163,47 @@ void MerEmulatorModeOptionsWidget::deviceModelNameChanged(const QString &newName
 void MerEmulatorModeOptionsWidget::deviceModelDconfChanged(const QString &value)
 {
     const QString name = m_ui->deviceModelComboBox->currentDeviceModel();
-    const MerEmulatorDeviceModel model = m_deviceModels.value(name);
+    const DeviceModelData model = m_deviceModels.value(name);
     QTC_ASSERT(!model.isNull(), return);
 
-    if (model.dconf() != value) {
-        updateDeviceModel(MerEmulatorDeviceModel(name,
-                                                 model.displayResolution(),
-                                                 model.displaySize(),
-                                                 value,
-                                                 model.isSdkProvided()));
+    if (model.dconf != value) {
+        auto copy = model;
+        copy.dconf = value;
+        updateDeviceModel(copy);
     }
 }
 
 void MerEmulatorModeOptionsWidget::deviceModelScreenResolutionChanged(const QSize &resolution)
 {
     const auto name = m_ui->deviceModelComboBox->currentDeviceModel();
-    const MerEmulatorDeviceModel model = m_deviceModels.value(name);
+    const DeviceModelData model = m_deviceModels.value(name);
     QTC_ASSERT(!model.isNull(), return);
 
-    if (model.displayResolution() != resolution) {
-        updateDeviceModel(MerEmulatorDeviceModel(name,
-                                                 resolution,
-                                                 model.displaySize(),
-                                                 model.dconf(),
-                                                 model.isSdkProvided()));
+    if (model.displayResolution != resolution) {
+        auto copy = model;
+        copy.displayResolution = resolution;
+        updateDeviceModel(copy);
     }
 }
 
 void MerEmulatorModeOptionsWidget::deviceModelScreenSizeChanged(const QSize &size)
 {
     const auto name = m_ui->deviceModelComboBox->currentDeviceModel();
-    const MerEmulatorDeviceModel model = m_deviceModels.value(name);
+    const DeviceModelData model = m_deviceModels.value(name);
     QTC_ASSERT(!model.isNull(), return);
 
-    if (model.displaySize() != size) {
-        updateDeviceModel(MerEmulatorDeviceModel(name,
-                                                 model.displayResolution(),
-                                                 size,
-                                                 model.dconf(),
-                                                 model.isSdkProvided()));
+    if (model.displaySize != size) {
+        auto copy = model;
+        copy.displaySize = size;
+        updateDeviceModel(copy);
     }
 }
 
 void MerEmulatorModeOptionsWidget::updateGui()
 {
     const QString name = m_ui->deviceModelComboBox->currentDeviceModel();
-    const MerEmulatorDeviceModel model = m_deviceModels.value(name);
-    m_ui->removeProfileButton->setDisabled(model.isSdkProvided());
+    const DeviceModelData model = m_deviceModels.value(name);
+    m_ui->removeProfileButton->setDisabled(model.autodetected);
     m_ui->optionsWidget->setCurrentDeviceModel(model);
 }
 
@@ -207,7 +214,7 @@ void MerEmulatorModeOptionsWidget::on_addProfileButton_clicked()
 
     // Find number for new device model
     const QSet<QString> names = m_deviceModels.keys().toSet();
-    const QString name = MerEmulatorDeviceModel::uniqueName(tr("Unnamed"), names);
+    const QString name = Utils::makeUniquelyNumbered(tr("Unnamed"), names);
     addDeviceModel(name);
 }
 
@@ -215,6 +222,15 @@ void MerEmulatorModeOptionsWidget::on_removeProfileButton_clicked()
 {
     const QString name = m_ui->deviceModelComboBox->currentDeviceModel();
     removeDeviceModel(name);
+}
+
+QMap<QString, Sfdk::DeviceModelData> MerEmulatorModeOptionsWidget::toMap(
+        const QList<Sfdk::DeviceModelData> &deviceModels)
+{
+    QMap<QString, DeviceModelData> map;
+    for (const DeviceModelData &deviceModel : deviceModels)
+        map.insert(deviceModel.name, deviceModel);
+    return map;
 }
 
 } // Internal

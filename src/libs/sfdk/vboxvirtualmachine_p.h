@@ -27,8 +27,7 @@
 namespace Sfdk {
 
 class VBoxVirtualMachinePrivate;
-// FIXME internal
-class SFDK_EXPORT VBoxVirtualMachine : public VirtualMachine
+class VBoxVirtualMachine : public VirtualMachine
 {
     Q_OBJECT
 

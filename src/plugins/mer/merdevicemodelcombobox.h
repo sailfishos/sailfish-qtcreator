@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -28,6 +29,10 @@
 #include <QComboBox>
 #include <QStandardItemModel>
 
+namespace Sfdk {
+class DeviceModelData;
+}
+
 namespace Mer {
 namespace Internal {
 
@@ -39,7 +44,7 @@ public:
     ~MerDeviceModelComboBox();
 
     QString currentDeviceModel() const;
-    void setDeviceModels(const QList<MerEmulatorDeviceModel> &models);
+    void setDeviceModels(const QList<Sfdk::DeviceModelData> &models);
 
 public slots:
     void setCurrentDeviceModel(const QString &name);
@@ -48,7 +53,7 @@ private slots:
     void updateToolTip();
 
 private:
-    static QString deviceModelInfo(const MerEmulatorDeviceModel &model);
+    static QString deviceModelInfo(const Sfdk::DeviceModelData &model);
 
     QStandardItemModel m_model;
 };

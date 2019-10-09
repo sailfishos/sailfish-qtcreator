@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -47,11 +48,15 @@ public:
 
     ProjectExplorer::IDeviceWidget* createWidget() override;
 
+    Utils::PortList qmlLivePorts() const override;
+    void setQmlLivePorts(const Utils::PortList &qmlLivePorts);
+
 protected:
     MerHardwareDevice();
 
 private:
     ProjectExplorer::Abi::Architecture m_architecture;
+    Utils::PortList m_qmlLivePorts;
 };
 
 }

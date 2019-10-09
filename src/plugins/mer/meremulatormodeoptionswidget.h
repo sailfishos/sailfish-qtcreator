@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -26,6 +27,10 @@
 #include "meremulatordevice.h"
 
 #include <QWidget>
+
+namespace Sfdk {
+class DeviceModelData;
+}
 
 namespace Mer {
 namespace Internal {
@@ -55,13 +60,16 @@ private slots:
     void on_removeProfileButton_clicked();
 
 private:
-    bool updateDeviceModel(const MerEmulatorDeviceModel &model);
+    bool updateDeviceModel(const Sfdk::DeviceModelData &model);
     bool addDeviceModel(const QString &name);
     bool removeDeviceModel(const QString &name);
     bool renameDeviceModel(const QString &name, const QString &newName);
 
+    static QMap<QString, Sfdk::DeviceModelData> toMap(
+            const QList<Sfdk::DeviceModelData> &deviceModels);
+
     Ui::MerEmulatorModeOptionsWidget *m_ui;
-    QMap<QString, MerEmulatorDeviceModel> m_deviceModels;
+    QMap<QString, Sfdk::DeviceModelData> m_deviceModels;
 };
 
 } // Internal

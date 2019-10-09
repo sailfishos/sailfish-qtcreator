@@ -24,6 +24,7 @@
 
 #include "asynchronous_p.h"
 #include "buildengine_p.h"
+#include "emulator_p.h"
 #include "sfdkconstants.h"
 #include "vboxvirtualmachine_p.h"
 
@@ -69,6 +70,15 @@ Sdk::Sdk(Options options)
             this, &Sdk::buildEngineAdded);
     connect(d->buildEngineManager.get(), &BuildEngineManager::aboutToRemoveBuildEngine,
             this, &Sdk::aboutToRemoveBuildEngine);
+
+    d->emulatorManager = std::make_unique<EmulatorManager>(this);
+
+    connect(d->emulatorManager.get(), &EmulatorManager::emulatorAdded,
+            this, &Sdk::emulatorAdded);
+    connect(d->emulatorManager.get(), &EmulatorManager::aboutToRemoveEmulator,
+            this, &Sdk::aboutToRemoveEmulator);
+    connect(d->emulatorManager.get(), &EmulatorManager::deviceModelsChanged,
+            this, &Sdk::deviceModelsChanged);
 }
 
 Sdk::~Sdk()
@@ -137,6 +147,48 @@ int Sdk::addBuildEngine(std::unique_ptr<BuildEngine> &&buildEngine)
 void Sdk::removeBuildEngine(const QUrl &uri)
 {
     BuildEngineManager::removeBuildEngine(uri);
+}
+
+QList<Emulator *> Sdk::emulators()
+{
+    return EmulatorManager::emulators();
+}
+
+Emulator *Sdk::emulator(const QUrl &uri)
+{
+    return EmulatorManager::emulator(uri);
+}
+
+void Sdk::createEmulator(const QUrl &virtualMachineUri, const QObject *context,
+    const Functor<std::unique_ptr<Emulator> &&> &functor)
+{
+    EmulatorManager::createEmulator(virtualMachineUri, context, functor);
+}
+
+int Sdk::addEmulator(std::unique_ptr<Emulator> &&emulator)
+{
+    return EmulatorManager::addEmulator(std::move(emulator));
+}
+
+void Sdk::removeEmulator(const QUrl &uri)
+{
+    EmulatorManager::removeEmulator(uri);
+}
+
+QList<DeviceModelData> Sdk::deviceModels()
+{
+    return EmulatorManager::deviceModels();
+}
+
+DeviceModelData Sdk::deviceModel(const QString &name)
+{
+    return EmulatorManager::deviceModel(name);
+}
+
+void Sdk::setDeviceModels(const QList<DeviceModelData> &deviceModels,
+        const QObject *context, const Functor<bool> &functor)
+{
+    EmulatorManager::setDeviceModels(deviceModels, context, functor);
 }
 
 /*!

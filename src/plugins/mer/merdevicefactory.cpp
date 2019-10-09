@@ -25,7 +25,6 @@
 
 #include "merconstants.h"
 #include "meremulatordevice.h"
-#include "meremulatordevicewizard.h"
 #include "merhardwaredevice.h"
 #include "merhardwaredevicewizard.h"
 #include "mericons.h"
@@ -40,7 +39,6 @@
 
 #include <QFileInfo>
 #include <QIcon>
-#include <QInputDialog>
 #include <QMessageBox>
 
 using namespace Core;
@@ -79,61 +77,6 @@ MerDeviceFactory::~MerDeviceFactory()
 
 IDevice::Ptr MerDeviceFactory::create() const
 {
-    QStringList choices = QStringList() << tr("Emulator") << tr("Physical device");
-    bool ok;
-    QString machineType = QInputDialog::getItem(ICore::dialogParent(),
-            tr("Create a Sailfish OS Device"),
-            tr("Add an emulator or physical device?"),
-            choices, 0, false, &ok);
-    if (!ok)
-        return IDevice::Ptr();
-
-    if (machineType == choices.first()) {
-        QTC_ASSERT(MerSettings::deviceModels().count(), return IDevice::Ptr());
-
-        MerEmulatorDeviceWizard wizard(ICore::dialogParent());
-        if (wizard.exec() != QDialog::Accepted)
-            return IDevice::Ptr();
-
-        SshConnectionParameters sshParams;
-        sshParams.setHost(QLatin1String("localhost"));
-        sshParams.setUserName(wizard.userName());
-        sshParams.setPort(wizard.sshPort());
-        sshParams.timeout = wizard.timeout();
-        sshParams.authenticationType = SshConnectionParameters::AuthenticationTypeSpecificKey;
-        sshParams.hostKeyCheckingMode = SshHostKeyCheckingNone;
-        sshParams.privateKeyFile = wizard.userPrivateKey();
-
-        //hardcoded values requested by customer;
-        MerEmulatorDevice::Ptr device = MerEmulatorDevice::create();
-        device->setupId(IDevice::ManuallyAdded, wizard.emulatorId());
-        device->setVirtualMachine(wizard.emulatorVm());
-        device->setFactorySnapshot(wizard.factorySnapshot());
-        device->setMac(wizard.mac());
-        device->setSubnet(QLatin1String("10.220.220"));
-        device->setDisplayName(wizard.configName());
-        device->setFreePorts(PortList::fromString(wizard.freePorts()));
-        device->setQmlLivePorts(PortList::fromString(wizard.qmlLivePorts()));
-        device->setSshParameters(sshParams);
-        device->setSharedConfigPath(wizard.sharedConfigPath());
-        device->setSharedSshPath(wizard.sharedSshPath());
-        device->setDeviceModel(MerSettings::deviceModels().first().name());
-        device->setMemorySizeMb(wizard.memorySizeMb());
-        device->setCpuCount(wizard.cpuCount());
-        device->setVdiCapacityMb(wizard.vdiCapacityMb());
-
-        if(wizard.isUserNewSshKeysRquired() && !wizard.userPrivateKey().isEmpty()) {
-            device->generateSshKey(wizard.userName());
-        }
-
-        if(wizard.isRootNewSshKeysRquired() && !wizard.rootPrivateKey().isEmpty()) {
-            device->generateSshKey(wizard.rootName());
-        }
-
-        emit const_cast<MerDeviceFactory *>(this)->deviceCreated(device);
-
-        return device;
-    } else {
         MerHardwareDeviceWizard wizard(ICore::dialogParent());
         if (wizard.exec() != QDialog::Accepted)
             return IDevice::Ptr();
@@ -186,12 +129,7 @@ IDevice::Ptr MerDeviceFactory::create() const
         //device->setFreePorts(PortList::fromString(QLatin1String("10000-10100")));
         device->setSshParameters(sshParams);
 
-        emit const_cast<MerDeviceFactory *>(this)->deviceCreated(device);
-
         return device;
-    }
-
-    return IDevice::Ptr();
 }
 
 bool MerDeviceFactory::canRestore(const QVariantMap &map) const

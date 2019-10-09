@@ -8,9 +8,11 @@ QT += network xmlpatterns
 SOURCES += \
     asynchronous.cpp \
     buildengine.cpp \
+    emulator.cpp \
     sfdkglobal.cpp \
     sdk.cpp \
     targetsxmlreader.cpp \
+    utils.cpp \
     usersettings.cpp \
     vboxvirtualmachine.cpp \
     virtualmachine.cpp \
@@ -21,11 +23,14 @@ HEADERS += \
     asynchronous_p.h \
     buildengine.h \
     buildengine_p.h \
+    emulator.h \
+    emulator_p.h \
     sfdkconstants.h \
     sfdkglobal.h \
     sdk.h \
     sdk_p.h \
     targetsxmlreader_p.h \
+    utils_p.h \
     usersettings_p.h \
     vboxvirtualmachine_p.h \
     virtualmachine.h \

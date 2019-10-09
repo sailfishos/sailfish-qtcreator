@@ -30,6 +30,7 @@
 #include "mersdkmanager.h"
 
 #include <sfdk/buildengine.h>
+#include <sfdk/emulator.h>
 #include <sfdk/sdk.h>
 #include <sfdk/virtualmachine.h>
 
@@ -374,7 +375,7 @@ void MerConnectionManager::update()
                     if (emu) {
                           emulatorRemoteButtonVisible = true;
                           emulatorRemoteButtonEnabled = true;
-                          m_emulatorAction->setVirtualMachine(emu->virtualMachine());
+                          m_emulatorAction->setVirtualMachine(emu->emulator()->virtualMachine());
                     }
                 }
             }

@@ -33,6 +33,7 @@
 #include "merdevicefactory.h"
 #include "meremulatordevice.h"
 #include "meremulatormodedialog.h"
+#include "meremulatoroptionspage.h"
 #include "mergeneraloptionspage.h"
 #include "mermode.h"
 #include "meroptionspage.h"
@@ -94,6 +95,7 @@ public:
     MerSdkManager sdkManager;
     MerConnectionManager connectionManager;
     MerOptionsPage optionsPage;
+    MerEmulatorOptionsPage emulatorOptionsPage;
     MerEmulatorModeOptionsPage emulatorModeOptionsPage;
     MerGeneralOptionsPage generalOptionsPage;
     MerDeviceFactory deviceFactory;
@@ -247,6 +249,11 @@ void MerPlugin::saveSettings()
 MerOptionsPage *MerPlugin::optionsPage()
 {
     return &dd->optionsPage;
+}
+
+MerEmulatorOptionsPage *MerPlugin::emulatorOptionsPage()
+{
+    return &dd->emulatorOptionsPage;
 }
 
 void MerPlugin::handlePromptClosed(int result)

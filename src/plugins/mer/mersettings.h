@@ -23,10 +23,6 @@
 #ifndef MERSETTINGS_H
 #define MERSETTINGS_H
 
-#ifdef MER_LIBRARY
-#include "meremulatordevice.h"
-#endif // MER_LIBRARY
-
 #include <QtCore/QObject>
 
 namespace Mer {
@@ -65,25 +61,7 @@ public:
     static bool isAskImportQmakeVariablesEnabled();
     static void setAskImportQmakeVariablesEnabled(bool enabled);
 
-#ifdef MER_LIBRARY
-    static Utils::FileName deviceModelsFileName();
-    static Utils::FileName globalDeviceModelsFileName();
-
-    enum EmulatorDeviceModelType {
-        EmulatorDeviceModelSdkProvided,
-        EmulatorDeviceModelUserProvided,
-        EmulatorDeviceModelAll
-    };
-    static MerEmulatorDeviceModel::Map deviceModels(EmulatorDeviceModelType type
-                                                    = EmulatorDeviceModelType::EmulatorDeviceModelAll);
-    static bool isDeviceModelStored(const MerEmulatorDeviceModel &model);
-    static void setDeviceModels(const MerEmulatorDeviceModel::Map &deviceModels);
-#endif // MER_LIBRARY
-
 signals:
-#ifdef MER_LIBRARY
-    void deviceModelsChanged(const QSet<QString> &deviceModelNames);
-#endif // MER_LIBRARY
     void environmentFilterChanged(const QString &filter);
     void rpmValidationByDefaultChanged(bool byDefault);
     void qmlLiveBenchLocationChanged(const QString &location);
@@ -97,9 +75,6 @@ private:
     void read();
 #ifdef MER_LIBRARY
     void save();
-    static MerEmulatorDeviceModel::Map deviceModelsRead(const Utils::FileName &fileName);
-    static void deviceModelsWrite(const Utils::FileName &fileName,
-                                  const MerEmulatorDeviceModel::Map &deviceModels);
 #endif // MER_LIBRARY
 
 private:
@@ -113,9 +88,6 @@ private:
     bool m_askBeforeClosingVmEnabled;
     bool m_importQmakeVariablesEnabled;
     bool m_askImportQmakeVariablesEnabled;
-#ifdef MER_LIBRARY
-    QMap<QString, MerEmulatorDeviceModel> m_deviceModels;
-#endif // MER_LIBRARY
 };
 
 } // Internal

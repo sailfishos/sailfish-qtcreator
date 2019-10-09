@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -28,6 +29,8 @@
 #include "merhardwaredevicewizardpages.h"
 #include "mersdkmanager.h"
 
+#include <sfdk/sfdkconstants.h>
+
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <remotelinux/remotelinux_constants.h>
 #include <ssh/sshconnection.h>
@@ -51,6 +54,7 @@ MerHardwareDevice::MerHardwareDevice()
     : m_architecture(ProjectExplorer::Abi::UnknownArchitecture)
 {
     setMachineType(IDevice::Hardware);
+    m_qmlLivePorts.addPort(Utils::Port(Sfdk::Constants::DEFAULT_QML_LIVE_PORT));
 }
 
 IDevice::Ptr MerHardwareDevice::clone() const
@@ -64,12 +68,16 @@ void MerHardwareDevice::fromMap(const QVariantMap &map)
     m_architecture = static_cast<Abi::Architecture>(
             map.value(QLatin1String(Constants::MER_DEVICE_ARCHITECTURE),
                 Abi::UnknownArchitecture).toInt());
+    m_qmlLivePorts = Utils::PortList::fromString(map.value(QLatin1String(Constants::MER_DEVICE_QML_LIVE_PORTS),
+                                                           QString::number(Sfdk::Constants::DEFAULT_QML_LIVE_PORT))
+                                                 .toString());
 }
 
 QVariantMap MerHardwareDevice::toMap() const
 {
     QVariantMap map = MerDevice::toMap();
     map.insert(QLatin1String(Constants::MER_DEVICE_ARCHITECTURE), m_architecture);
+    map.insert(QLatin1String(Constants::MER_DEVICE_QML_LIVE_PORTS), m_qmlLivePorts.toString());
     return map;
 }
 
@@ -86,6 +94,16 @@ void MerHardwareDevice::setArchitecture(const Abi::Architecture &architecture)
 IDeviceWidget *MerHardwareDevice::createWidget()
 {
     return new MerHardwareDeviceWidget(sharedFromThis());
+}
+
+Utils::PortList MerHardwareDevice::qmlLivePorts() const
+{
+    return m_qmlLivePorts;
+}
+
+void MerHardwareDevice::setQmlLivePorts(const Utils::PortList &qmlLivePorts)
+{
+    m_qmlLivePorts = qmlLivePorts;
 }
 
 } // Internal
