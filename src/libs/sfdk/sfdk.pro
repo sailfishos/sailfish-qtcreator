@@ -12,7 +12,6 @@ SOURCES += \
     targetsxmlreader.cpp \
     usersettings.cpp \
     vboxvirtualmachine.cpp \
-    virtualboxmanager.cpp \
     virtualmachine.cpp \
     vmconnection.cpp \
 
@@ -28,7 +27,6 @@ HEADERS += \
     targetsxmlreader_p.h \
     usersettings_p.h \
     vboxvirtualmachine_p.h \
-    virtualboxmanager_p.h \
     virtualmachine.h \
     virtualmachine_p.h \
     vmconnection_p.h \

@@ -27,7 +27,6 @@
 #include "sdk_p.h"
 #include "targetsxmlreader_p.h"
 #include "usersettings_p.h"
-#include "virtualboxmanager_p.h"
 #include "vboxvirtualmachine_p.h"
 
 #include <ssh/sshconnection.h>

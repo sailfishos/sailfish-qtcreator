@@ -22,8 +22,8 @@
 
 #include "virtualmachine_p.h"
 
+#include "vboxvirtualmachine_p.h"
 #include "vmconnection_p.h"
-#include "virtualboxmanager_p.h"
 
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
@@ -56,7 +56,7 @@ VirtualMachine::VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, QObj
     static bool once = true;
     if (once) {
         once = false;
-        VirtualBoxManager::fetchHostTotalMemorySizeMb(QCoreApplication::instance(),
+        VBoxVirtualMachine::fetchHostTotalMemorySizeMb(QCoreApplication::instance(),
                 [](int availableMemorySizeMb, bool ok) {
             QTC_ASSERT(ok, return);
             VirtualMachinePrivate::s_availableMemmorySizeMb = availableMemorySizeMb;

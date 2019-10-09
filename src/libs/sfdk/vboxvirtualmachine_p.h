@@ -37,12 +37,17 @@ public:
     ~VBoxVirtualMachine() override;
 
     static QStringList usedVirtualMachines();
+    static void fetchRegisteredVirtualMachines(const QObject *context,
+            const Functor<const QStringList &, bool> &functor);
+    static void fetchHostTotalMemorySizeMb(const QObject *context,
+            const Functor<int, bool> &functor);
 
 private:
     Q_DISABLE_COPY(VBoxVirtualMachine)
     Q_DECLARE_PRIVATE(VBoxVirtualMachine)
 };
 
+class VBoxVirtualMachineInfo;
 class VBoxVirtualMachinePrivate : public VirtualMachinePrivate
 {
     Q_DECLARE_PUBLIC(VBoxVirtualMachine)
@@ -90,6 +95,20 @@ protected:
 
 private:
     void onNameChanged();
+
+    void fetchExtraData(const QString &key, const QObject *context,
+            const Functor<QString, bool> &functor) const;
+    void setExtraData(const QString &keyword, const QString &data, const QObject *context,
+            const Functor<bool> &functor);
+
+    static bool isVirtualMachineRunningFromInfo(const QString &vmInfo, bool *headless);
+    static QStringList listedVirtualMachines(const QString &output);
+    static VBoxVirtualMachineInfo virtualMachineInfoFromOutput(const QString &output);
+    static void vdiInfoFromOutput(const QString &output,
+            VBoxVirtualMachineInfo *virtualMachineInfo);
+    static int ramSizeFromOutput(const QString &output, bool *matched);
+    static void snapshotInfoFromOutput(const QString &output,
+            VBoxVirtualMachineInfo *virtualMachineInfo);
 
 private:
     static QMap<QString, int> s_usedVmNames;

@@ -26,7 +26,6 @@
 #include "buildengine_p.h"
 #include "sfdkconstants.h"
 #include "vboxvirtualmachine_p.h"
-#include "virtualboxmanager_p.h"
 
 #include <utils/algorithm.h>
 #include <utils/fileutils.h>
@@ -108,7 +107,7 @@ void Sdk::unusedVirtualMachines(const QObject *context,
 {
     const QPointer<const QObject> context_{context};
 
-    VirtualBoxManager::fetchRegisteredVirtualMachines(context,
+    VBoxVirtualMachine::fetchRegisteredVirtualMachines(context,
             [=](const QStringList &registeredVms, bool ok) {
         if (!ok) {
             functor({}, false);
