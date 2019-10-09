@@ -38,9 +38,12 @@
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <ssh/sshconnection.h>
+#include <utils/qtcassert.h>
 
 #include <QComboBox>
 #include <QDir>
+#include <QGridLayout>
+#include <QLabel>
 #include <QPushButton>
 
 using namespace Core;
@@ -74,41 +77,94 @@ MerSdkKitInformation::~MerSdkKitInformation()
 QVariant MerSdkKitInformation::defaultValue(const Kit *kit) const
 {
     BuildEngine *const engine = MerSdkKitInformation::buildEngine(kit);
-    if (engine)
-        return engine->uri();
-    return QUrl();
+    if (!engine || engine->buildTargets().isEmpty())
+        return {};
+    return toMap(engine->uri(), engine->buildTargets().first().name);
 }
 
 QList<Task> MerSdkKitInformation::validate(const Kit *kit) const
 {
     if (DeviceTypeKitInformation::deviceTypeId(kit) == Constants::MER_DEVICE_TYPE) {
-        const QUrl uri = kit->value(MerSdkKitInformation::id()).toUrl();
-        if (!Sdk::buildEngine(uri)) {
-            const QString message = QCoreApplication::translate("MerSdk",
-                    "No valid Sailfish OS build engine found for kit \"%1\"").arg(kit->displayName());
-            return QList<Task>() << Task(Task::Error, message, FileName(), -1,
-                                         Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
+        auto error = [](const QString &message) {
+            return Task(Task::Error, message, FileName(), -1,
+                    Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
+        };
+
+        QVariantMap data = kit->value(MerSdkKitInformation::id()).toMap();
+        QUrl buildEngineUri;
+        QString buildTargetName;
+        if (!fromMap(data, &buildEngineUri, &buildTargetName)) {
+            return {error(QCoreApplication::translate("MerSdk",
+                    "No Sailfish SDK information in kit \"%1\"")
+                    .arg(kit->displayName()))};
+        }
+        BuildEngine *const engine = Sdk::buildEngine(buildEngineUri);
+        if (!engine) {
+            return {error(QCoreApplication::translate("MerSdk",
+                    "Unknown Sailfish OS build engine referred by kit \"%1\"")
+                    .arg(kit->displayName()))};
+        }
+        if (!engine->buildTarget(buildTargetName).isValid()) {
+            return {error(QCoreApplication::translate("MerSdk",
+                    "Unknown Sailfish OS build target referred by kit \"%1\"")
+                    .arg(kit->displayName()))};
         }
     }
-    return QList<Task>();
+    return {};
 }
 
 BuildEngine* MerSdkKitInformation::buildEngine(const Kit *kit)
 {
     if (!kit)
-        return 0;
-    return Sdk::buildEngine(kit->value(MerSdkKitInformation::id()).toUrl());
+        return nullptr;
+    QVariantMap data = kit->value(MerSdkKitInformation::id()).toMap();
+    QUrl buildEngineUri;
+    QString buildTargetName;
+    if (!fromMap(data, &buildEngineUri, &buildTargetName))
+        return nullptr;
+    return Sdk::buildEngine(buildEngineUri);
+}
+
+Sfdk::BuildTargetData MerSdkKitInformation::buildTarget(const Kit *kit)
+{
+    if (!kit)
+        return {};
+    QVariantMap data = kit->value(MerSdkKitInformation::id()).toMap();
+    QUrl buildEngineUri;
+    QString buildTargetName;
+    if (!fromMap(data, &buildEngineUri, &buildTargetName))
+        return {};
+    BuildEngine *const buildEngine = Sdk::buildEngine(buildEngineUri);
+    if (!buildEngine)
+        return {};
+    return buildEngine->buildTarget(buildTargetName);
+}
+
+QString MerSdkKitInformation::buildTargetName(const Kit *kit)
+{
+    if (!kit)
+        return {};
+    QVariantMap data = kit->value(MerSdkKitInformation::id()).toMap();
+    QUrl buildEngineUri;
+    QString buildTargetName;
+    if (!fromMap(data, &buildEngineUri, &buildTargetName))
+        return {};
+    return buildTargetName;
 }
 
 KitInformation::ItemList MerSdkKitInformation::toUserOutput(const Kit *kit) const
 {
     if (DeviceTypeKitInformation::deviceTypeId(kit) == Constants::MER_DEVICE_TYPE) {
-        QString name;
+        QString buildEngineName;
         BuildEngine *const engine = MerSdkKitInformation::buildEngine(kit);
         if (engine)
-            name = engine->name();
+            buildEngineName = engine->name();
+
+        const QString buildTargetName = MerSdkKitInformation::buildTargetName(kit);
+
         return KitInformation::ItemList()
-                << qMakePair(tr("Sailfish OS build engine"), name);
+                << qMakePair(tr("Sailfish OS build engine"), buildEngineName)
+                << qMakePair(tr("Sailfish OS build target"), buildTargetName);
     }
     return KitInformation::ItemList();
 }
@@ -123,15 +179,21 @@ Core::Id MerSdkKitInformation::id()
     return "Mer.Sdk.Kit.Information";
 }
 
-void MerSdkKitInformation::setBuildEngine(Kit *kit, const BuildEngine *buildEngine)
+void MerSdkKitInformation::setBuildTarget(Kit *kit, const BuildEngine *buildEngine,
+        const QString &buildTargetName)
 {
-    if(kit->value(MerSdkKitInformation::id()) != buildEngine->uri())
-        kit->setValue(MerSdkKitInformation::id(), buildEngine->uri());
+    QTC_ASSERT(buildEngine, return);
+    QTC_ASSERT(buildEngine->buildTargetNames().contains(buildTargetName), return);
+
+    QVariantMap data = toMap(buildEngine->uri(), buildTargetName);
+    if (kit->value(MerSdkKitInformation::id()) != data)
+        kit->setValue(MerSdkKitInformation::id(), data);
 }
 
 void MerSdkKitInformation::addToEnvironment(const Kit *kit, Environment &env) const
 {
     const BuildEngine *engine = MerSdkKitInformation::buildEngine(kit);
+    const QString targetName = MerSdkKitInformation::buildTargetName(kit);
     if (engine) {
         const QString sshPort = QString::number(engine->sshPort());
         const QString sharedHome = QDir::fromNativeSeparators(engine->sharedHomePath().toString());
@@ -152,6 +214,7 @@ void MerSdkKitInformation::addToEnvironment(const Kit *kit, Environment &env) co
             env.appendOrSet(QLatin1String(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER),
                     MerSettings::environmentFilter());
         }
+        env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_TARGET_NAME), targetName);
     }
 }
 
@@ -170,41 +233,82 @@ void MerSdkKitInformation::notifyAllUpdated()
         notifyAboutUpdate(k);
 }
 
+QVariantMap MerSdkKitInformation::toMap(const QUrl &buildEngineUri, const QString &buildTargetName)
+{
+    QVariantMap data;
+    data.insert(Constants::BUILD_ENGINE_URI, buildEngineUri);
+    data.insert(Constants::BUILD_TARGET_NAME, buildTargetName);
+    return data;
+}
+
+bool MerSdkKitInformation::fromMap(const QVariantMap &data, QUrl *buildEngineUri,
+        QString *buildTargetName)
+{
+    Q_ASSERT(buildEngineUri);
+    Q_ASSERT(buildTargetName);
+    *buildEngineUri = data.value(Constants::BUILD_ENGINE_URI).toUrl();
+    *buildTargetName = data.value(Constants::BUILD_TARGET_NAME).toString();
+    return buildEngineUri->isValid() && !buildTargetName->isEmpty();
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////
 
 MerSdkKitInformationWidget::MerSdkKitInformationWidget(Kit *kit,
         const MerSdkKitInformation *kitInformation)
-    : KitConfigWidget(kit, kitInformation),
-      m_combo(new QComboBox),
-      m_manageButton(new QPushButton(tr("Manage...")))
+    : KitConfigWidget(kit, kitInformation)
 {
     if (!visibleInKit())
         return;
 
-    handleSdksUpdated();
-    connect(m_combo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            this, &MerSdkKitInformationWidget::handleCurrentIndexChanged);
+    m_mainWidget = new QWidget;
+    m_mainWidget->setContentsMargins(0, 0, 0, 0);
+
+    auto *const layout = new QGridLayout(m_mainWidget);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setColumnStretch(1, 2);
+
+    layout->addWidget(new QLabel(tr("Build engine:")), 0, 0);
+    m_buildEngineComboBox = new QComboBox;
+    m_buildEngineComboBox->setSizePolicy(QSizePolicy::Ignored,
+            m_buildEngineComboBox->sizePolicy().verticalPolicy());
+    layout->addWidget(m_buildEngineComboBox, 0, 1);
+
+    layout->addWidget(new QLabel(tr("Build target:")), 1, 0);
+    m_buildTargetComboBox = new QComboBox;
+    m_buildTargetComboBox->setSizePolicy(QSizePolicy::Ignored,
+            m_buildTargetComboBox->sizePolicy().verticalPolicy());
+    layout->addWidget(m_buildTargetComboBox, 1, 1);
+
+    m_manageButton = new QPushButton(KitConfigWidget::msgManage());
+    m_manageButton->setContentsMargins(0, 0, 0, 0);
+
+    connect(m_buildEngineComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MerSdkKitInformationWidget::handleCurrentEngineIndexChanged);
+    connect(m_buildTargetComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MerSdkKitInformationWidget::handleCurrentTargetIndexChanged);
     connect(Sdk::instance(), &Sdk::buildEngineAdded,
             this, &MerSdkKitInformationWidget::handleSdksUpdated);
     connect(Sdk::instance(), &Sdk::aboutToRemoveBuildEngine,
             this, &MerSdkKitInformationWidget::handleSdksUpdated, Qt::QueuedConnection);
     connect(m_manageButton, &QPushButton::clicked,
             this, &MerSdkKitInformationWidget::handleManageClicked);
+    handleSdksUpdated();
 }
 
 QString MerSdkKitInformationWidget::displayName() const
 {
-    return tr("Sailfish OS build engine");
+    return tr("Sailfish SDK");
 }
 
 QString MerSdkKitInformationWidget::toolTip() const
 {
-    return tr("Name of the virtual machine used as a Sailfish OS build engine.");
+    return tr("Sailfish OS build engine and build target.");
 }
 
 void MerSdkKitInformationWidget::makeReadOnly()
 {
-    m_combo->setEnabled(false);
+    m_buildEngineComboBox->setEnabled(false);
+    m_buildTargetComboBox->setEnabled(false);
 }
 
 void MerSdkKitInformationWidget::refresh()
@@ -212,14 +316,15 @@ void MerSdkKitInformationWidget::refresh()
     const BuildEngine* engine = MerSdkKitInformation::buildEngine(m_kit);
     int i;
     if (engine) {
-        for (i = m_combo->count() - 1; i >= 0; --i) {
-            if (engine->uri() == m_combo->itemData(i))
+        for (i = m_buildEngineComboBox->count() - 1; i >= 0; --i) {
+            if (engine->uri() == m_buildEngineComboBox->itemData(i))
                 break;
         }
     } else {
         i = 0;
     }
-    m_combo->setCurrentIndex(i);
+
+    m_buildEngineComboBox->setCurrentIndex(i);
 }
 
 bool MerSdkKitInformationWidget::visibleInKit()
@@ -229,7 +334,7 @@ bool MerSdkKitInformationWidget::visibleInKit()
 
 QWidget *MerSdkKitInformationWidget::mainWidget() const
 {
-    return m_combo;
+    return m_mainWidget;
 }
 
 QWidget *MerSdkKitInformationWidget::buttonWidget() const
@@ -240,29 +345,57 @@ QWidget *MerSdkKitInformationWidget::buttonWidget() const
 void MerSdkKitInformationWidget::handleSdksUpdated()
 {
     const QList<BuildEngine *> engines = Sdk::buildEngines();
-    m_combo->blockSignals(true);
-    m_combo->clear();
+    m_buildEngineComboBox->blockSignals(true);
+    m_buildEngineComboBox->clear();
     if (engines.isEmpty()) {
-        m_combo->addItem(tr("None"));
+        m_buildEngineComboBox->addItem(tr("None"));
     } else {
         for (BuildEngine *const engine : engines)
-            m_combo->addItem(engine->name(), engine->uri());
+            m_buildEngineComboBox->addItem(engine->name(), engine->uri());
     }
-    m_combo->blockSignals(false);
+    m_buildEngineComboBox->blockSignals(false);
     refresh();
 }
 
 void MerSdkKitInformationWidget::handleManageClicked()
 {
-    MerPlugin::optionsPage()->setSdk(m_combo->currentData().toUrl());
+    MerPlugin::optionsPage()->setSdk(m_buildEngineComboBox->currentData().toUrl());
     ICore::showOptionsDialog(Constants::MER_OPTIONS_ID);
 }
 
-void MerSdkKitInformationWidget::handleCurrentIndexChanged()
+void MerSdkKitInformationWidget::handleCurrentEngineIndexChanged()
 {
-    BuildEngine *const engine = Sdk::buildEngine(m_combo->currentData().toUrl());
+    BuildEngine *const engine = Sdk::buildEngine(m_buildEngineComboBox->currentData().toUrl());
+
+    m_buildTargetComboBox->blockSignals(true);
+    m_buildTargetComboBox->clear();
+    if (!engine || engine->buildTargets().isEmpty()) {
+        m_buildTargetComboBox->addItem(tr("None"));
+    } else {
+        for (const QString &targetName : engine->buildTargetNames())
+            m_buildTargetComboBox->addItem(targetName);
+    }
+    m_buildTargetComboBox->blockSignals(false);
+
+    const QString targetName = MerSdkKitInformation::buildTargetName(m_kit);
+    int i;
+    if (!targetName.isEmpty()) {
+        for (i = m_buildTargetComboBox->count() - 1; i >= 0; --i) {
+            if (targetName == m_buildTargetComboBox->itemText(i))
+                break;
+        }
+    } else {
+        i = 0;
+    }
+    m_buildTargetComboBox->setCurrentIndex(i);
+}
+
+void MerSdkKitInformationWidget::handleCurrentTargetIndexChanged()
+{
+    BuildEngine *const engine = Sdk::buildEngine(m_buildEngineComboBox->currentData().toUrl());
+    const QString targetName = m_buildTargetComboBox->currentText();
     if (engine)
-        MerSdkKitInformation::setBuildEngine(m_kit, engine);
+        MerSdkKitInformation::setBuildTarget(m_kit, engine, targetName);
 }
 
 }

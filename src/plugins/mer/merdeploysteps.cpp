@@ -37,7 +37,6 @@
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
 #include "mersettings.h"
-#include "mertargetkitinformation.h"
 #include "ui_merrpminfo.h"
 #include "ui_merrpmvalidationstepconfigwidget.h"
 
@@ -241,7 +240,7 @@ bool MerProcessStep::init(InitOptions options)
         return false;
     }
 
-    const QString target = MerTargetKitInformation::targetName(this->target()->kit());
+    const QString target = MerSdkKitInformation::buildTargetName(this->target()->kit());
 
     if (target.isEmpty()) {
         addOutput(tr("Cannot deploy: Missing Sailfish OS build-target information in the kit"),
@@ -541,7 +540,7 @@ bool MerLocalRsyncDeployStep::init()
         return false;
     }
 
-    const QString target = MerTargetKitInformation::targetName(this->target()->kit());
+    const QString target = MerSdkKitInformation::buildTargetName(this->target()->kit());
 
     if (target.isEmpty()) {
         addOutput(tr("Cannot deploy: Missing Sailfish OS build-target information in the kit"),
@@ -760,7 +759,7 @@ MerRpmValidationStep::MerRpmValidationStep(BuildStepList *bsl)
     setEnabled(MerSettings::rpmValidationByDefault());
     setDefaultDisplayName(displayName());
 
-    m_target = MerTargetKitInformation::target(target()->kit());
+    m_target = MerSdkKitInformation::buildTarget(target()->kit());
     m_selectedSuites = defaultSuites();
 }
 

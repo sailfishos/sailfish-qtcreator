@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2016,2018 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -31,6 +32,7 @@ QT_FORWARD_DECLARE_CLASS(QPushButton);
 
 namespace Sfdk {
 class BuildEngine;
+class BuildTargetData;
 }
 
 namespace Mer {
@@ -56,15 +58,17 @@ public:
 private slots:
     void handleSdksUpdated();
     void handleManageClicked();
-    void handleCurrentIndexChanged();
+    void handleCurrentEngineIndexChanged();
+    void handleCurrentTargetIndexChanged();
 
 private:
-    QComboBox *m_combo;
-    QPushButton *m_manageButton;
+    QWidget *m_mainWidget = nullptr;
+    QComboBox *m_buildEngineComboBox = nullptr;
+    QComboBox *m_buildTargetComboBox = nullptr;
+    QPushButton *m_manageButton = nullptr;
 };
 
 
-// FIXME Merge MerTargetKitInformation with MerSdkKitInformation
 class MerSdkKitInformation : public ProjectExplorer::KitInformation
 {
     Q_OBJECT
@@ -79,8 +83,13 @@ public:
     void addToEnvironment(const ProjectExplorer::Kit *kit, Utils::Environment &env) const override;
 
     static Core::Id id();
-    static void setBuildEngine(ProjectExplorer::Kit *kit, const Sfdk::BuildEngine* buildEngine);
+
+    static void setBuildTarget(ProjectExplorer::Kit *kit, const Sfdk::BuildEngine* buildEngine,
+            const QString &buildTargetName);
     static Sfdk::BuildEngine *buildEngine(const ProjectExplorer::Kit *kit);
+    static Sfdk::BuildTargetData buildTarget(const ProjectExplorer::Kit *kit);
+    static QString buildTargetName(const ProjectExplorer::Kit *kit);
+
     static void notifyAboutUpdate(const Sfdk::BuildEngine *buildEngine);
 
 protected:
@@ -88,6 +97,8 @@ protected:
 
 private:
     void notifyAllUpdated();
+    static QVariantMap toMap(const QUrl &buildEngineUri, const QString &buildTargetName);
+    static bool fromMap(const QVariantMap &data, QUrl *buildEngineUri, QString *buildTargetName);
 
 private:
     static MerSdkKitInformation *s_instance;

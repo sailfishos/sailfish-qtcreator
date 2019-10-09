@@ -32,7 +32,6 @@
 #include "merplugin.h"
 #include "merqtversion.h"
 #include "mersdkkitinformation.h"
-#include "mertargetkitinformation.h"
 #include "mertoolchain.h"
 
 #include <sfdk/buildengine.h>
@@ -90,7 +89,6 @@ MerSdkManager::MerSdkManager()
     connect(KitManager::instance(), &KitManager::kitsLoaded,
             this, &MerSdkManager::initialize);
     KitManager::registerKitInformation<MerSdkKitInformation>();
-    KitManager::registerKitInformation<MerTargetKitInformation>();
 
     connect(Sdk::instance(), &Sdk::buildEngineAdded,
             this, &MerSdkManager::onBuildEngineAdded);
@@ -514,8 +512,7 @@ bool MerSdkManager::finalizeKitCreation(const BuildEngine *buildEngine,
 
     ensureDebuggerIsSet(k, buildEngine, buildTargetName);
 
-    MerSdkKitInformation::setBuildEngine(k, buildEngine);
-    MerTargetKitInformation::setTargetName(k, buildTargetName);
+    MerSdkKitInformation::setBuildTarget(k, buildEngine, buildTargetName);
     return true;
 }
 

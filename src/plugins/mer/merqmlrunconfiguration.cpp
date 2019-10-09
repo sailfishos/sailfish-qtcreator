@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2016-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -27,7 +28,6 @@
 #include "merqmlrunconfigurationwidget.h"
 #include "merrunconfigurationaspect.h"
 #include "mersdkkitinformation.h"
-#include "mertargetkitinformation.h"
 
 #include <sfdk/buildengine.h>
 
@@ -120,7 +120,7 @@ QWidget *MerQmlRunConfiguration::createConfigurationWidget()
 
 QString MerQmlRunConfiguration::localExecutableFilePath() const
 {
-    const BuildTargetData buildTarget = MerTargetKitInformation::target(target()->kit());
+    const BuildTargetData buildTarget = MerSdkKitInformation::buildTarget(target()->kit());
     QTC_ASSERT(buildTarget.isValid(), return {});
 
     const QString path =

@@ -79,7 +79,6 @@ SOURCES += \
     mersettings.cpp \
     mersshkeydeploymentdialog.cpp \
     mersshparser.cpp \
-    mertargetkitinformation.cpp \
     mertoolchain.cpp \
     mervmconnectionui.cpp \
     mervmselectiondialog.cpp \
@@ -136,7 +135,6 @@ HEADERS += \
     mersettings.h \
     mersshkeydeploymentdialog.h \
     mersshparser.h \
-    mertargetkitinformation.h \
     mertoolchain.h \
     mertoolchainfactory.h \
     mervmconnectionui.h \
