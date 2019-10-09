@@ -118,16 +118,6 @@ void Command::setDeviceName(const QString& device)
     m_deviceName = device;
 }
 
-QString Command::engineName() const
-{
-    return m_engineName;
-}
-
-void Command::setEngineName(const QString& name)
-{
-    m_engineName = name;
-}
-
 QString Command::shellSafeArgument(const QString &argument) const
 {
     //unix style

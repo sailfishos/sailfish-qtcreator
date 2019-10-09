@@ -52,8 +52,6 @@ public:
     void setSshParameters(const QSsh::SshConnectionParameters& params);
     QString deviceName() const;
     void setDeviceName(const QString& device);
-    QString engineName() const;
-    void setEngineName(const QString& name);
 
     //helpers
     QString shellSafeArgument(const QString &argument) const;
@@ -71,7 +69,6 @@ private:
     QString m_sharedTargetPath;
     QString m_toolsPath;
     QString m_deviceName;
-    QString m_engineName;
     QSsh::SshConnectionParameters m_sshConnectionParams;
 };
 

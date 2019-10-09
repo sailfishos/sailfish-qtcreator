@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2016,2018-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,7 +23,6 @@
 
 #include "commandfactory.h"
 #include "deploycommand.h"
-#include "enginectlcommand.h"
 #include "gcccommand.h"
 #include "generatekeyscommand.h"
 #include "lupdatecommand.h"
@@ -67,9 +67,7 @@ void printUsage()
             << "evironment variables - connection parameters:" << endl
             << Sfdk::Constants::MER_SSH_USERNAME << endl
             << Sfdk::Constants::MER_SSH_PORT << endl
-            << Sfdk::Constants::MER_SSH_PRIVATE_KEY << endl
-            << "evironment variables - used by enginectl only:" << endl
-            << Sfdk::Constants::MER_SSH_ENGINE_NAME << endl;
+            << Sfdk::Constants::MER_SSH_PRIVATE_KEY << endl;
 }
 
 QStringList unquoteArguments(QStringList args) {
@@ -156,7 +154,6 @@ int main(int argc, char *argv[])
     CommandFactory::registerCommand<RpmCommand>(QLatin1String("rpm"));
     CommandFactory::registerCommand<RpmValidationCommand>(QLatin1String("rpmvalidation"));
     CommandFactory::registerCommand<GenerateKeysCommand>(QLatin1String("generatesshkeys"));
-    CommandFactory::registerCommand<EngineCtlCommand>(QLatin1String("enginectl"));
     CommandFactory::registerCommand<LUpdateCommand>(QLatin1String("lupdate"));
     CommandFactory::registerCommand<WwwProxyCommand>(QLatin1String("wwwproxy"));
 
@@ -174,7 +171,6 @@ int main(int argc, char *argv[])
         QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC),
         QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS),
         QLatin1String(Sfdk::Constants::MER_SSH_DEVICE_NAME),
-        QLatin1String(Sfdk::Constants::MER_SSH_ENGINE_NAME),
         QLatin1String(Sfdk::Constants::MER_SSH_USERNAME),
         QLatin1String(Sfdk::Constants::MER_SSH_PORT),
         QLatin1String(Sfdk::Constants::MER_SSH_PRIVATE_KEY),
@@ -205,8 +201,7 @@ int main(int argc, char *argv[])
          return 1;
     }
 
-    if (!qobject_cast<EngineCtlCommand *>(command.data())
-            && !qobject_cast<WwwProxyCommand *>(command.data()))
+    if (!qobject_cast<WwwProxyCommand *>(command.data()))
         arguments = unquoteArguments(arguments);
 
     const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
@@ -216,7 +211,6 @@ int main(int argc, char *argv[])
     command->setSharedSourcePath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC)));
     command->setSdkToolsPath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS)));
     command->setDeviceName(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_DEVICE_NAME)));
-    command->setEngineName(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_ENGINE_NAME)));
 
     QSsh::SshConnectionParameters parameters;
     parameters.setHost(QLatin1String(Sfdk::Constants::BUILD_ENGINE_DEFAULT_HOST));
@@ -226,7 +220,7 @@ int main(int argc, char *argv[])
     parameters.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypeSpecificKey;
     parameters.timeout = 10;
     command->setSshParameters(parameters);
-    command->setArguments(arguments);
+    command->setArguments(unquoteArguments(arguments));
 
     if (!command->isValid()) {
        qCritical() << "Invalid command arguments" << endl;

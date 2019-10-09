@@ -10,7 +10,6 @@ QT -= gui
 SOURCES = \
     main.cpp \
     command.cpp \
-    enginectlcommand.cpp \
     qmakecommand.cpp \
     generatekeyscommand.cpp \
     gcccommand.cpp \
@@ -21,14 +20,10 @@ SOURCES = \
     rpmvalidationcommand.cpp \
     lupdatecommand.cpp \
     wwwproxycommand.cpp \
-    ../../plugins/mer/merconnection.cpp \
-    ../../plugins/mer/merlogging.cpp \
-    ../../plugins/mer/mervirtualboxmanager.cpp
 
 HEADERS += \
     command.h \
     commandfactory.h \
-    enginectlcommand.h \
     qmakecommand.h \
     generatekeyscommand.h \
     gcccommand.h \
@@ -39,6 +34,3 @@ HEADERS += \
     rpmvalidationcommand.h \
     lupdatecommand.h \
     wwwproxycommand.h \
-    ../../plugins/mer/merconnection.h \
-    ../../plugins/mer/merlogging.h \
-    ../../plugins/mer/mervirtualboxmanager_p.h
