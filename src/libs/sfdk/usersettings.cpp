@@ -56,7 +56,9 @@ public:
 private:
     static QString lockFileName(const FileName &file, LockType type)
     {
-        const QString suffix = type == ReadLock ? ".rlock" : ".wlock";
+        const QString suffix = type == ReadLock
+		? QStringLiteral(".rlock")
+		: QStringLiteral(".wlock");
         const QString dotFile = file.parentDir().appendPath("." + file.fileName()).toString();
         return dotFile + suffix;
     }
@@ -219,7 +221,11 @@ std::tuple<int, QVariantMap> UserSettings::load(const Utils::FileName &fileName)
     QVariantMap data = reader.restoreValues();
     const int version = data.take(VERSION_KEY).toInt();
     QTC_CHECK(m_baseVersion <= version || version == 0);
+#if Q_CC_GNU && Q_CC_GNU < 600
+    return std::tuple<int, QVariantMap>{version, data};
+#else
     return {version, data};
+#endif
 }
 
 bool UserSettings::save(const Utils::FileName &fileName, const QVariantMap &data,

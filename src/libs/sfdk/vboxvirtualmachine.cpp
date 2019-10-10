@@ -186,7 +186,7 @@ VBoxVirtualMachine::~VBoxVirtualMachine()
 
 QString VBoxVirtualMachine::staticType()
 {
-    return "VirtualBox";
+    return QStringLiteral("VirtualBox");
 }
 
 QString VBoxVirtualMachine::staticDisplayType()

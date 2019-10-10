@@ -192,6 +192,15 @@ class VirtualMachineFactory : public QObject
 {
     class Meta
     {
+// Not idea which version fixes it
+#if Q_CC_MSVC && Q_CC_MSVC <= 1900
+        template<typename T>
+        static std::unique_ptr<VirtualMachine> creator(const QString &name)
+        {
+            return std::make_unique<T>(name);
+        }
+#endif
+
     public:
         Meta() {};
 
@@ -200,7 +209,11 @@ class VirtualMachineFactory : public QObject
             : type(T::staticType())
             , displayType(T::staticDisplayType())
             , fetchRegisteredVirtualMachines(T::fetchRegisteredVirtualMachines)
+#if Q_CC_MSVC && Q_CC_MSVC <= 1900
+            , create(creator<T>)
+#else
             , create([](const QString &name) { return std::make_unique<T>(name); })
+#endif
         {
         }
 
