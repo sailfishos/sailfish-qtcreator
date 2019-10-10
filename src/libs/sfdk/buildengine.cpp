@@ -435,13 +435,15 @@ void BuildEnginePrivate::updateVmProperties(const QObject *context, const Functo
 
     const QPointer<const QObject> context_{context};
 
-    VirtualMachinePrivate::get(virtualMachine.get())->fetchInfo(VirtualMachineInfo::NoExtraInfo, q,
-            [=](const VirtualMachineInfo &info, bool ok) {
+    virtualMachine->refreshConfiguration(q, [=](bool ok) {
         if (!ok) {
             if (context_)
                 functor(false);
             return;
         }
+
+        const VirtualMachineInfo info =
+            VirtualMachinePrivate::get(virtualMachine.get())->cachedInfo();
 
         setSharedHomePath(FileName::fromString(info.sharedHome));
         setSharedTargetsPath(FileName::fromString(info.sharedTargets));
@@ -976,15 +978,7 @@ void BuildEngineManager::createBuildEngine(const QUrl &virtualMachineUri, const 
             return;
         }
 
-        engine->get()->virtualMachine()->refreshConfiguration(context, [=](bool ok) {
-            QTC_CHECK(ok);
-            if (!ok) {
-                functor({});
-                return;
-            }
-
-            functor(std::move(*engine));
-        });
+        functor(std::move(*engine));
     });
 }
 

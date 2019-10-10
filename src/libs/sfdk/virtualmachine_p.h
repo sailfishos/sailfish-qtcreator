@@ -118,6 +118,7 @@ public:
 
     virtual void fetchInfo(VirtualMachineInfo::ExtraInfos extraInfo, const QObject *context,
             const Functor<const VirtualMachineInfo &, bool> &functor) const = 0;
+    VirtualMachineInfo cachedInfo() const { return virtualMachineInfo; }
 
     virtual void start(const QObject *context, const Functor<bool> &functor) = 0;
     virtual void stop(const QObject *context, const Functor<bool> &functor) = 0;

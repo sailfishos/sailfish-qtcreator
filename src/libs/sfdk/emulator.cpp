@@ -401,13 +401,15 @@ void EmulatorPrivate::updateVmProperties(const QObject *context, const Functor<b
 
     const QPointer<const QObject> context_{context};
 
-    VirtualMachinePrivate::get(virtualMachine.get())->fetchInfo(VirtualMachineInfo::SnapshotInfo, q,
-            [=](const VirtualMachineInfo &info, bool ok) {
+    virtualMachine->refreshConfiguration(q, [=](bool ok) {
         if (!ok) {
             if (context_)
                 functor(false);
             return;
         }
+
+        const VirtualMachineInfo info =
+            VirtualMachinePrivate::get(virtualMachine.get())->cachedInfo();
 
         if (factorySnapshot.isEmpty() && !info.snapshots.isEmpty())
             q->setFactorySnapshot(info.snapshots.first());
@@ -608,7 +610,6 @@ void EmulatorManager::createEmulator(const QUrl &virtualMachineUri, const QObjec
 #endif
         return;
     }
-    // FIXME the VM info is fetched twice unnecessary
     emulator_d->updateVmProperties(context, [=](bool ok) {
         QTC_CHECK(ok);
         if (!ok) {
@@ -616,15 +617,7 @@ void EmulatorManager::createEmulator(const QUrl &virtualMachineUri, const QObjec
             return;
         }
 
-        emulator->get()->virtualMachine()->refreshConfiguration(context, [=](bool ok) {
-            QTC_CHECK(ok);
-            if (!ok) {
-                functor({});
-                return;
-            }
-
-            functor(std::move(*emulator));
-        });
+        functor(std::move(*emulator));
     });
 }
 

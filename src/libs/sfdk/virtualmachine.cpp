@@ -380,8 +380,6 @@ void VirtualMachinePrivate::setSharedPath(SharedPath which, const Utils::FileNam
             if (context_)
                 functor(false);
         }
-        // FIXME Currently there is no user of these cached values - the other classes do
-        // fetchInfo unnecessary
         switch (which) {
         case SharedConfig:
             virtualMachineInfo.sharedConfig = path.toString();
@@ -413,8 +411,6 @@ void VirtualMachinePrivate::setReservedPortForwarding(ReservedPort which, quint1
             if (context_)
                 functor(false);
         }
-        // FIXME Currently there is no user of these cached values - the other classes do
-        // fetchInfo unnecessary
         switch (which) {
         case SshPort:
             virtualMachineInfo.sshPort = port;
@@ -439,8 +435,6 @@ void VirtualMachinePrivate::setReservedPortListForwarding(ReservedPortList which
             if (context_)
                 functor({}, false);
         }
-        // FIXME Currently there is no user of these cached values - the other classes do
-        // fetchInfo unnecessary
         switch (which) {
         case FreePortList:
             virtualMachineInfo.freePorts = savedPorts;
@@ -549,11 +543,6 @@ std::unique_ptr<VirtualMachine> VirtualMachineFactory::create(const QUrl &uri)
     }
 
     std::unique_ptr<VirtualMachine> vm = meta.create(name);
-
-    // FIXME add an external entity responsible for this
-    vm->refreshConfiguration(vm.get(), [=](bool ok) {
-        QTC_CHECK(ok);
-    });
 
     connect(vm.get(), &QObject::destroyed, s_instance, [=]() {
         if (--s_instance->m_used[uri] == 0)
