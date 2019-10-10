@@ -219,41 +219,6 @@ void VBoxVirtualMachine::fetchRegisteredVirtualMachines(const QObject *context,
     commandQueue()->enqueue(std::move(runner));
 }
 
-void VBoxVirtualMachine::fetchHostTotalMemorySizeMb(const QObject *context,
-        const Functor<int, bool> &functor)
-{
-    using D = VBoxVirtualMachinePrivate;
-    Q_ASSERT(context);
-    Q_ASSERT(functor);
-
-    QStringList arguments;
-    arguments.clear();
-    arguments.append(QLatin1String(METRICS));
-    arguments.append(QLatin1String(COLLECT));
-    arguments.append(QLatin1String("host"));
-    arguments.append(QLatin1String(TOTAL_RAM));
-
-    auto runner = std::make_unique<VBoxManageRunner>(arguments);
-    QMetaObject::Connection failureConnection = QObject::connect(runner.get(), &VBoxManageRunner::failure,
-            context, std::bind(functor, 0, false));
-    QObject::connect(runner->process(), &QProcess::readyReadStandardOutput,
-            context, [=, runner = runner.get()](){
-        bool matched;
-        auto memSizeKb = D::ramSizeFromOutput(QString::fromLocal8Bit(runner->process()->readAllStandardOutput()),
-                &matched);
-        if (!matched)
-            return;
-        QObject::disconnect(failureConnection);
-        runner->process()->closeReadChannel(QProcess::StandardOutput);
-        runner->terminate();
-        functor(memSizeKb / 1024, true);
-    });
-
-    QObject::connect(context, &QObject::destroyed, runner.get(), &VBoxManageRunner::terminate);
-
-    commandQueue()->enqueue(std::move(runner));
-}
-
 /*!
  * \class VBoxVirtualMachinePrivate
  * \internal

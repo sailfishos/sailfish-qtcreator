@@ -36,6 +36,12 @@
 #include <QCoreApplication>
 #include <QThread>
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
 using namespace Utils;
 
 namespace Sfdk {
@@ -61,17 +67,6 @@ VirtualMachine::VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, cons
     connect(d->connection.get(), &VmConnection::virtualMachineOffChanged,
             this, &VirtualMachine::virtualMachineOffChanged);
     connect(d->connection.get(), &VmConnection::lockDownFailed, this, &VirtualMachine::lockDownFailed);
-
-    // FIXME add an external entity responsible for this initialization
-    static bool once = true;
-    if (once) {
-        once = false;
-        VBoxVirtualMachine::fetchHostTotalMemorySizeMb(QCoreApplication::instance(),
-                [](int availableMemorySizeMb, bool ok) {
-            QTC_ASSERT(ok, return);
-            VirtualMachinePrivate::s_availableMemmorySizeMb = availableMemorySizeMb;
-        });
-    }
 }
 
 VirtualMachine::~VirtualMachine()
@@ -191,8 +186,16 @@ void VirtualMachine::setMemorySizeMb(int memorySizeMb, const QObject *context,
 
 int VirtualMachine::availableMemorySizeMb()
 {
-    QTC_CHECK(VirtualMachinePrivate::s_availableMemmorySizeMb > 0);
-    return VirtualMachinePrivate::s_availableMemmorySizeMb;
+#ifdef Q_OS_WIN
+    MEMORYSTATUSEX status;
+    status.dwLength = sizeof(status);
+    GlobalMemoryStatusEx(&status);
+    return static_cast<int>(status.ullTotalPhys >> 20);
+#else
+    long pages = sysconf(_SC_PHYS_PAGES);
+    long page_size = sysconf(_SC_PAGE_SIZE);
+    return static_cast<int>((pages * page_size) >> 20);
+#endif
 }
 
 int VirtualMachine::cpuCount() const
@@ -367,8 +370,6 @@ void VirtualMachine::disconnectFrom()
  * \class VirtualMachinePrivate
  * \internal
  */
-
-int VirtualMachinePrivate::s_availableMemmorySizeMb = 0;
 
 void VirtualMachinePrivate::setSharedPath(SharedPath which, const Utils::FileName &path,
         const QObject *context, const Functor<bool> &functor)

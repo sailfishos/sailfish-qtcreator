@@ -39,8 +39,6 @@ public:
     static QString staticDisplayType();
     static void fetchRegisteredVirtualMachines(const QObject *context,
             const Functor<const QStringList &, bool> &functor);
-    static void fetchHostTotalMemorySizeMb(const QObject *context,
-            const Functor<int, bool> &functor);
 
 private:
     Q_DISABLE_COPY(VBoxVirtualMachine)

@@ -172,7 +172,6 @@ protected:
     VirtualMachine *const q_ptr;
 
 private:
-    static int s_availableMemmorySizeMb;
     QString type;
     QString displayType;
     QString name;
