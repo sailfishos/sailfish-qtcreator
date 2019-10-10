@@ -57,12 +57,17 @@ public:
     static bool isVersionedSettingsEnabled() { return instance()->options_ & Sdk::VersionedSettings; }
     static bool isUpdatesEnabled() { return instance()->updatesEnabled; }
     static bool useSystemSettingsOnly() { return instance()->options_ & Sdk::SystemSettingsOnly; }
+    static bool useCachedVmInfo() { return instance()->options_ & Sdk::CachedVmInfo; }
+
+    static QDateTime lastMaintained();
 
     static CommandQueue *commandQueue() { return instance()->commandQueue_.get(); }
 
     static Utils::FileName libexecPath();
     static Utils::FileName settingsFile(SettingsScope scope, const QString &basename);
     static Utils::FileName settingsLocation(SettingsScope scope);
+    static Utils::FileName cacheFile(const QString &basename);
+    static Utils::FileName cacheLocation();
 
 signals:
     void enableUpdatesRequested();

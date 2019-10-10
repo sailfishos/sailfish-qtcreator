@@ -38,10 +38,15 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QSettings>
+#include <QStandardPaths>
 
 using namespace Utils;
 
 namespace Sfdk {
+
+namespace {
+const char SDK_MAINTENANCE_TOOL_DATA_FILE[] = "SDKMaintenanceTool.dat";
+}
 
 /*!
  * \class Sdk
@@ -57,6 +62,8 @@ Sdk::Sdk(Options options)
 
     Q_D(Sdk);
     QTC_ASSERT(!(options & VersionedSettings) || !(options & SystemSettingsOnly), return);
+    QTC_ASSERT(!(options & SystemSettingsOnly) || !(options & CachedVmInfo),
+            options &= ~CachedVmInfo);
 
     qCDebug(lib) << "Initializing SDK. Options:" << options;
 
@@ -242,6 +249,19 @@ SdkPrivate::SdkPrivate(Sdk *q)
 
 SdkPrivate::~SdkPrivate() = default;
 
+QDateTime SdkPrivate::lastMaintained()
+{
+    // It is not available initially, in which case it is verbose, so keep quiet here.
+    const QString installationPath = Sdk::installationPath();
+    if (installationPath.isEmpty())
+        return QDateTime::currentDateTime();
+
+    QFileInfo maintenanceDataInfo(installationPath + '/' + SDK_MAINTENANCE_TOOL_DATA_FILE);
+    QTC_ASSERT(maintenanceDataInfo.exists(), return QDateTime::currentDateTime());
+
+    return maintenanceDataInfo.lastModified();
+}
+
 Utils::FileName SdkPrivate::libexecPath()
 {
     // See ICore::libexecPath()
@@ -302,6 +322,38 @@ Utils::FileName SdkPrivate::settingsLocation(SettingsScope scope)
     qCDebug(lib) << "Settings location" << scope << *location;
 
     return *location;
+}
+
+Utils::FileName SdkPrivate::cacheFile(const QString &basename)
+{
+    return cacheLocation().appendPath(basename);
+}
+
+Utils::FileName SdkPrivate::cacheLocation()
+{
+    static FileName cacheLocation;
+    if (!cacheLocation.isEmpty())
+        return cacheLocation;
+
+    QTC_CHECK(!QCoreApplication::organizationName().isEmpty());
+    QTC_CHECK(!QCoreApplication::applicationName().isEmpty());
+
+    const QString genericCacheLocation =
+        QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation);
+
+    QTC_CHECK(!genericCacheLocation.isEmpty());
+    if (!genericCacheLocation.isEmpty()) {
+        cacheLocation = FileName::fromString(genericCacheLocation)
+            .appendPath(QCoreApplication::organizationName())
+            .appendPath(Constants::LIB_ID);
+    } else {
+        cacheLocation = FileName::fromString(
+                QStandardPaths::writableLocation(QStandardPaths::CacheLocation));
+    }
+
+    qCDebug(lib) << "Cache location" << cacheLocation;
+
+    return cacheLocation;
 }
 
 } // namespace Sfdk

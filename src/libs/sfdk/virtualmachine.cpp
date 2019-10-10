@@ -31,9 +31,12 @@
 #include <utils/algorithm.h>
 #include <utils/fileutils.h>
 #include <utils/port.h>
+#include <utils/persistentsettings.h>
 #include <utils/qtcassert.h>
 
 #include <QCoreApplication>
+#include <QDir>
+#include <QLockFile>
 #include <QThread>
 
 #ifdef Q_OS_WIN
@@ -45,6 +48,42 @@
 using namespace Utils;
 
 namespace Sfdk {
+
+namespace {
+const char VM_INFO_CACHE_FILE[] = "vminfo.xml";
+const char VM_INFO_CACHE_DOC_TYPE[] = "SfdkVmInfo";
+const char VM_INFO_MAP[] = "VmInfos";
+
+const char VM_INFO_SHARED_HOME[] = "SharedHome";
+const char VM_INFO_SHARED_TARGETS[] = "SharedTargets";
+const char VM_INFO_SHARED_CONFIG[] = "SharedConfig";
+const char VM_INFO_SHARED_SRC[] = "SharedSrc";
+const char VM_INFO_SHARED_SSH[] = "SharedSsh";
+const char VM_INFO_SSH_PORT[] = "SshPort";
+const char VM_INFO_WWW_PORT[] = "WwwPort";
+const char VM_INFO_FREE_PORTS[] = "FreePorts";
+const char VM_INFO_QML_LIVE_PORTS[] = "QmlLivePorts";
+const char VM_INFO_OTHER_PORTS[] = "OtherPorts";
+const char VM_INFO_MACS[] = "Macs";
+const char VM_INFO_HEADLESS[] = "Headless";
+const char VM_INFO_MEMORY_SIZE_MB[] = "MemorySizeMb";
+const char VM_INFO_CPU_COUNT[] = "CpuCount";
+const char VM_INFO_VDI_CAPACITY_MB[] = "VdiCapacityMb";
+const char VM_INFO_SNAPSHOTS[] = "Snapshots";
+
+class VirtualMachineInfoCache
+{
+public:
+    static Utils::optional<VirtualMachineInfo> info(const QUrl &vmUri);
+    static void insert(const QUrl &vmUri, const VirtualMachineInfo &info);
+
+private:
+    static Utils::FileName cacheFileName();
+    static QString lockFileName(const Utils::FileName &file);
+    static QString docType();
+};
+
+} // namespace anonymous
 
 /*!
  * \class VirtualMachine
@@ -177,6 +216,7 @@ void VirtualMachine::setMemorySizeMb(int memorySizeMb, const QObject *context,
     d->doSetMemorySizeMb(memorySizeMb, this, [=](bool ok) {
         if (ok && d->virtualMachineInfo.memorySizeMb != memorySizeMb) {
             d->virtualMachineInfo.memorySizeMb = memorySizeMb;
+            VirtualMachineInfoCache::insert(uri(), d->virtualMachineInfo);
             emit memorySizeMbChanged(memorySizeMb);
         }
         if (context_)
@@ -214,6 +254,7 @@ void VirtualMachine::setCpuCount(int cpuCount, const QObject *context, const Fun
     d->doSetCpuCount(cpuCount, this, [=](bool ok) {
         if (ok && d->virtualMachineInfo.cpuCount != cpuCount) {
             d->virtualMachineInfo.cpuCount = cpuCount;
+            VirtualMachineInfoCache::insert(uri(), d->virtualMachineInfo);
             emit cpuCountChanged(cpuCount);
         }
         if (context_)
@@ -243,6 +284,7 @@ void VirtualMachine::setVdiCapacityMb(int vdiCapacityMb, const QObject *context,
     d->doSetVdiCapacityMb(vdiCapacityMb, this, [=](bool ok) {
         if (ok && d->virtualMachineInfo.vdiCapacityMb != vdiCapacityMb) {
             d->virtualMachineInfo.vdiCapacityMb = vdiCapacityMb;
+            VirtualMachineInfoCache::insert(uri(), d->virtualMachineInfo);
             emit vdiCapacityMbChanged(vdiCapacityMb);
         }
         if (context_)
@@ -282,6 +324,7 @@ void VirtualMachine::addPortForwarding(const QString &ruleName, const QString &p
             emulatorVmPort, this, [=](bool ok) {
         if (ok) {
             d->virtualMachineInfo.otherPorts.insert(ruleName, emulatorVmPort);
+            VirtualMachineInfoCache::insert(uri(), d->virtualMachineInfo);
             emit portForwardingChanged();
         }
         if (context_)
@@ -299,6 +342,7 @@ void VirtualMachine::removePortForwarding(const QString &ruleName, const QObject
     d->doRemovePortForwarding(ruleName, this, [=](bool ok) {
         if (ok) {
             d->virtualMachineInfo.otherPorts.remove(ruleName);
+            VirtualMachineInfoCache::insert(uri(), d->virtualMachineInfo);
             emit portForwardingChanged();
         }
         if (context_)
@@ -319,8 +363,7 @@ void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<
 
     const QPointer<const QObject> context_{context};
 
-    d->fetchInfo(VirtualMachineInfo::VdiInfo | VirtualMachineInfo::SnapshotInfo, this,
-            [=](const VirtualMachineInfo &info, bool ok) {
+    auto refresh = [=](const VirtualMachineInfo &info, bool ok) {
         if (!ok) {
             if (context_)
                 functor(false);
@@ -348,6 +391,23 @@ void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<
 
         if (context_)
             functor(true);
+    };
+
+    if (SdkPrivate::useCachedVmInfo()) {
+        Utils::optional<VirtualMachineInfo> info = VirtualMachineInfoCache::info(uri());
+        if (info) {
+            SdkPrivate::commandQueue()->enqueueCheckPoint(this, [=]() {
+                refresh(*info, true);
+            });
+            return;
+        }
+    }
+
+    d->fetchInfo(VirtualMachineInfo::VdiInfo | VirtualMachineInfo::SnapshotInfo, this,
+            [=](const VirtualMachineInfo &info, bool ok) {
+        if (ok)
+            VirtualMachineInfoCache::insert(uri(), info);
+        refresh(info, ok);
     });
 }
 
@@ -376,6 +436,7 @@ void VirtualMachinePrivate::setSharedPath(SharedPath which, const Utils::FileNam
 {
     const QPointer<const QObject> context_{context};
     doSetSharedPath(which, path, q_func(), [=](bool ok) {
+        Q_Q(VirtualMachine);
         if (!ok) {
             if (context_)
                 functor(false);
@@ -397,6 +458,7 @@ void VirtualMachinePrivate::setSharedPath(SharedPath which, const Utils::FileNam
             virtualMachineInfo.sharedSrc = path.toString();
             break;
         }
+        VirtualMachineInfoCache::insert(q->uri(), virtualMachineInfo);
         if (context_)
             functor(true);
     });
@@ -407,6 +469,7 @@ void VirtualMachinePrivate::setReservedPortForwarding(ReservedPort which, quint1
 {
     const QPointer<const QObject> context_{context};
     doSetReservedPortForwarding(which, port, q_func(), [=](bool ok) {
+        Q_Q(VirtualMachine);
         if (!ok) {
             if (context_)
                 functor(false);
@@ -419,6 +482,7 @@ void VirtualMachinePrivate::setReservedPortForwarding(ReservedPort which, quint1
             virtualMachineInfo.wwwPort = port;
             break;
         }
+        VirtualMachineInfoCache::insert(q->uri(), virtualMachineInfo);
         if (context_)
             functor(true);
     });
@@ -431,6 +495,7 @@ void VirtualMachinePrivate::setReservedPortListForwarding(ReservedPortList which
     const QPointer<const QObject> context_{context};
     doSetReservedPortListForwarding(which, ports, q_func(),
             [=](const QMap<QString, quint16> &savedPorts, bool ok) {
+        Q_Q(VirtualMachine);
         if (!ok) {
             if (context_)
                 functor({}, false);
@@ -443,6 +508,7 @@ void VirtualMachinePrivate::setReservedPortListForwarding(ReservedPortList which
             virtualMachineInfo.qmlLivePorts = savedPorts;
             break;
         }
+        VirtualMachineInfoCache::insert(q->uri(), virtualMachineInfo);
         auto toPorts = [](const QList<quint16> &numbers) {
             return Utils::transform(numbers, [](quint16 number) { return Port(number); });
         };
@@ -575,6 +641,158 @@ QString VirtualMachineFactory::nameFromUri(const QUrl &uri)
     QTC_ASSERT(uri.scheme() == Constants::VIRTUAL_MACHINE_URI_SCHEME, return {});
     QTC_CHECK(!uri.fragment().isEmpty());
     return uri.fragment();
+}
+
+/*!
+ * \class VirtualMachineInfoCache
+ * \internal
+ */
+
+Utils::optional<VirtualMachineInfo> VirtualMachineInfoCache::info(const QUrl &vmUri)
+{
+    const FileName fileName = cacheFileName();
+    if (!fileName.exists())
+        return {};
+
+    QLockFile lockFile(lockFileName(fileName));
+    if (!lockFile.lock()) {
+        qCWarning(vms) << "Failed to acquire access to VM info cache file:" << lockFile.error();
+        return {};
+    }
+
+    if (!FileUtils::isFileNewerThan(fileName, SdkPrivate::lastMaintained())) {
+        qCDebug(vms) << "Dropping possibly outdated VM info cache";
+        QFile::remove(fileName.toString());
+        return {};
+    }
+
+    PersistentSettingsReader reader;
+    if (!reader.load(fileName))
+        return {};
+    QVariantMap data = reader.restoreValues();
+    QVariantMap vmInfos = data.value(VM_INFO_MAP).toMap();
+
+    QVariantMap vmData = vmInfos.value(vmUri.toString()).toMap();
+    if (vmData.isEmpty())
+        return {};
+
+    Utils::optional<VirtualMachineInfo> info(Utils::in_place);
+    info->fromMap(vmData);
+
+    qCDebug(vms) << "Using cached VM info for" << vmUri.toString();
+    return info;
+}
+
+void VirtualMachineInfoCache::insert(const QUrl &vmUri, const VirtualMachineInfo &info)
+{
+    const FileName fileName = cacheFileName();
+
+    const bool mkpathOk = QDir(fileName.parentDir().toString()).mkpath(".");
+    QTC_CHECK(mkpathOk);
+
+    QLockFile lockFile(lockFileName(fileName));
+    if (!lockFile.lock()) {
+        qCWarning(vms) << "Failed to acquire access to VM info cache file:" << lockFile.error();
+        return;
+    }
+
+    QVariantMap data;
+
+    if (fileName.exists()) {
+        PersistentSettingsReader reader;
+        if (!reader.load(fileName))
+            return;
+        data = reader.restoreValues();
+    }
+
+    QVariantMap vmInfos = data.value(VM_INFO_MAP).toMap();
+    vmInfos.insert(vmUri.toString(), info.toMap());
+    data.insert(VM_INFO_MAP, vmInfos);
+
+    PersistentSettingsWriter writer(fileName, docType());
+    QString errorString;
+    if (!writer.save(data, &errorString))
+        qCWarning(vms) << "Failed to write VM info cache:" << errorString;
+}
+
+Utils::FileName VirtualMachineInfoCache::cacheFileName()
+{
+    return SdkPrivate::cacheFile(VM_INFO_CACHE_FILE);
+}
+
+QString VirtualMachineInfoCache::lockFileName(const Utils::FileName &file)
+{
+    const QString dotFile = file.parentDir().appendPath("." + file.fileName()).toString();
+    return dotFile + ".lock";
+}
+
+QString VirtualMachineInfoCache::docType()
+{
+    return VM_INFO_CACHE_DOC_TYPE;
+}
+
+/*!
+ * \class VirtualMachineInfo
+ * \internal
+ */
+
+void VirtualMachineInfo::fromMap(const QVariantMap &data)
+{
+    sharedHome = data.value(VM_INFO_SHARED_HOME).toString();
+    sharedTargets = data.value(VM_INFO_SHARED_TARGETS).toString();
+    sharedConfig = data.value(VM_INFO_SHARED_CONFIG).toString();
+    sharedSrc = data.value(VM_INFO_SHARED_SRC).toString();
+    sharedSsh = data.value(VM_INFO_SHARED_SSH).toString();
+    sshPort = data.value(VM_INFO_SSH_PORT).toUInt();
+    wwwPort = data.value(VM_INFO_WWW_PORT).toUInt();
+
+    auto portsFromMap = [](QMap<QString, quint16> *ports, const QVariantMap &portsData) {
+        ports->clear();
+        for (auto it = portsData.cbegin(); it != portsData.cend(); ++it)
+            ports->insert(it.key(), it.value().toUInt());
+    };
+    portsFromMap(&freePorts, data.value(VM_INFO_FREE_PORTS).toMap());
+    portsFromMap(&qmlLivePorts, data.value(VM_INFO_QML_LIVE_PORTS).toMap());
+    portsFromMap(&otherPorts, data.value(VM_INFO_OTHER_PORTS).toMap());
+
+    macs = data.value(VM_INFO_MACS).toStringList();
+    headless = data.value(VM_INFO_HEADLESS).toBool();
+    memorySizeMb = data.value(VM_INFO_MEMORY_SIZE_MB).toInt();
+    cpuCount = data.value(VM_INFO_CPU_COUNT).toInt();
+    vdiCapacityMb = data.value(VM_INFO_VDI_CAPACITY_MB).toInt();
+    snapshots = data.value(VM_INFO_SNAPSHOTS).toStringList();
+}
+
+QVariantMap VirtualMachineInfo::toMap() const
+{
+    QVariantMap data;
+
+    data.insert(VM_INFO_SHARED_HOME, sharedHome);
+    data.insert(VM_INFO_SHARED_TARGETS, sharedTargets);
+    data.insert(VM_INFO_SHARED_CONFIG, sharedConfig);
+    data.insert(VM_INFO_SHARED_SRC, sharedSrc);
+    data.insert(VM_INFO_SHARED_SSH, sharedSsh);
+    data.insert(VM_INFO_SSH_PORT, sshPort);
+    data.insert(VM_INFO_WWW_PORT, wwwPort);
+
+    auto portsToMap = [](const QMap<QString, quint16> &ports) {
+        QVariantMap data;
+        for (auto it = ports.cbegin(); it != ports.cend(); ++it)
+            data.insert(it.key(), it.value());
+        return data;
+    };
+    data.insert(VM_INFO_FREE_PORTS, portsToMap(freePorts));
+    data.insert(VM_INFO_QML_LIVE_PORTS, portsToMap(qmlLivePorts));
+    data.insert(VM_INFO_OTHER_PORTS, portsToMap(otherPorts));
+
+    data.insert(VM_INFO_MACS, macs);
+    data.insert(VM_INFO_HEADLESS, headless);
+    data.insert(VM_INFO_MEMORY_SIZE_MB, memorySizeMb);
+    data.insert(VM_INFO_CPU_COUNT, cpuCount);
+    data.insert(VM_INFO_VDI_CAPACITY_MB, vdiCapacityMb);
+    data.insert(VM_INFO_SNAPSHOTS, snapshots);
+
+    return data;
 }
 
 } // namespace Sfdk

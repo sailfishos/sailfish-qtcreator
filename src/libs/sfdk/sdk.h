@@ -46,6 +46,7 @@ public:
         NoOption = 0x0,
         VersionedSettings = 0x1,
         SystemSettingsOnly = 0x2,
+        CachedVmInfo = 0x4,
     };
     Q_DECLARE_FLAGS(Options, Option)
     Q_FLAG(Options)

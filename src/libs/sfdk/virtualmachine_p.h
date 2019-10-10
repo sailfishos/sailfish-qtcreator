@@ -29,6 +29,7 @@
 #include "vmconnection_p.h"
 
 #include <ssh/sshconnection.h>
+#include <utils/optional.h>
 
 namespace Utils {
 class FileName;
@@ -49,6 +50,9 @@ public:
         SnapshotInfo = 0x02,
     };
     Q_DECLARE_FLAGS(ExtraInfos, ExtraInfo)
+
+    void fromMap(const QVariantMap &data);
+    QVariantMap toMap() const;
 
     QString sharedHome;
     QString sharedTargets;

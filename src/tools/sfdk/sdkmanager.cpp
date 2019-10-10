@@ -206,8 +206,12 @@ SdkManager::SdkManager(bool useSystemSettingsOnly)
     VirtualMachine::registerConnectionUi<VmConnectionUi>();
 
     Sdk::Options sdkOptions = Sdk::NoOption;
-    if (useSystemSettingsOnly)
+    if (qEnvironmentVariableIsEmpty(Constants::DISABLE_VM_INFO_CACHE_ENV_VAR))
+        sdkOptions |= Sdk::CachedVmInfo;
+    if (useSystemSettingsOnly) {
+        sdkOptions &= ~Sdk::CachedVmInfo;
         sdkOptions |= Sdk::SystemSettingsOnly;
+    }
     m_sdk = std::make_unique<Sdk>(sdkOptions);
 
     QList<BuildEngine *> buildEngines = Sdk::buildEngines();
