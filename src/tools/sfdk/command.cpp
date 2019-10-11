@@ -32,7 +32,9 @@
 #include <utils/qtcprocess.h>
 
 #include <sfdk/device.h>
+#include <sfdk/emulator.h>
 #include <sfdk/sdk.h>
+#include <sfdk/virtualmachine.h>
 
 #include "commandlineparser.h"
 #include "configuration.h"
@@ -103,6 +105,8 @@ Worker::ExitStatus BuiltinWorker::run(const Command *command, const QStringList 
         return runConfig(arguments0);
     else if (command->name == "device")
         return runDevice(arguments, exitCode);
+    else if (command->name == "emulator")
+        return runEmulator(arguments, exitCode);
     else if (command->name == "engine")
         return runEngine(arguments, exitCode);
     else if (command->name == "maintain")
@@ -306,6 +310,102 @@ Worker::ExitStatus BuiltinWorker::runDevice(const QStringList &arguments, int *e
     return BadUsage;
 }
 
+Worker::ExitStatus BuiltinWorker::runEmulator(const QStringList &arguments, int *exitCode) const
+{
+    using P = CommandLineParser;
+
+    if (arguments.count() < 1) {
+        qerr() << P::missingArgumentMessage() << endl;
+        return BadUsage;
+    }
+
+    if (arguments.first() == "list") {
+        if (arguments.count() > 1) {
+            qerr() << P::unexpectedArgumentMessage(arguments.at(1)) << endl;
+            return BadUsage;
+        }
+        listEmulators();
+        *exitCode = EXIT_SUCCESS;
+        return NormalExit;
+    }
+
+    QString errorString;
+    QString emulatorNameOrIndex;
+    Emulator *emulator;
+    if (arguments.count() < 2 || arguments.at(1) == "--") {
+        emulator = emulatorForNameOrIndex("0", &errorString);
+    } else {
+        emulatorNameOrIndex = arguments.at(1);
+        emulator = emulatorForNameOrIndex(emulatorNameOrIndex, &errorString);
+        // It was not the emulator name/idx but a command name
+        if (!emulator && arguments.first() == "exec"
+                && (arguments.count() < 3 || arguments.at(2) != "--")) {
+            emulatorNameOrIndex.clear();
+            emulator = emulatorForNameOrIndex("0", &errorString);
+        }
+    }
+    if (!emulator) {
+        qerr() << errorString << endl;
+        *exitCode = Constants::EXIT_ABNORMAL;
+        return NormalExit;
+    }
+
+    if (arguments.first() == "start") {
+        if (arguments.count() > 2) {
+            qerr() << P::unexpectedArgumentMessage(arguments.at(2)) << endl;
+            return BadUsage;
+        }
+        *exitCode = SdkManager::startEmulator(*emulator) ? EXIT_SUCCESS : EXIT_FAILURE;
+        return NormalExit;
+    }
+
+    if (arguments.first() == "stop") {
+        if (arguments.count() > 2) {
+            qerr() << P::unexpectedArgumentMessage(arguments.at(2)) << endl;
+            return BadUsage;
+        }
+        *exitCode = SdkManager::stopEmulator(*emulator) ? EXIT_SUCCESS : EXIT_FAILURE;
+        return NormalExit;
+    }
+
+    if (arguments.first() == "status") {
+        if (arguments.count() > 2) {
+            qerr() << P::unexpectedArgumentMessage(arguments.at(2)) << endl;
+            return BadUsage;
+        }
+        bool running = SdkManager::isEmulatorRunning(*emulator);
+        qout() << runningYesNoMessage(running) << endl;
+        *exitCode = EXIT_SUCCESS;
+        return NormalExit;
+    }
+
+    if (arguments.first() == "exec") {
+        QStringList command = arguments.mid(1);
+        if (!command.isEmpty() && command.first() == emulatorNameOrIndex)
+            command.removeFirst();
+        if (!command.isEmpty() && command.first() == "--")
+            command.removeFirst();
+
+        QString program;
+        QStringList programArguments;
+        if (!command.isEmpty()) {
+            program = command.first();
+            if (command.count() > 1)
+                programArguments = command.mid(1);
+        } else {
+            program = "/bin/bash";
+            programArguments << "--login";
+        }
+
+        *exitCode = SdkManager::runOnEmulator(*emulator, program, programArguments,
+                QProcess::ForwardedInputChannel);
+        return NormalExit;
+    }
+
+    qerr() << P::unrecognizedCommandMessage(arguments.first()) << endl;
+    return BadUsage;
+}
+
 Worker::ExitStatus BuiltinWorker::runEngine(const QStringList &arguments, int *exitCode) const
 {
     using P = CommandLineParser;
@@ -339,7 +439,7 @@ Worker::ExitStatus BuiltinWorker::runEngine(const QStringList &arguments, int *e
             return BadUsage;
         }
         bool running = SdkManager::isEngineRunning();
-        qout() << tr("Running: %1").arg(running ? tr("Yes") : tr("No")) << endl;
+        qout() << runningYesNoMessage(running) << endl;
         *exitCode = EXIT_SUCCESS;
         return NormalExit;
     }
@@ -429,6 +529,56 @@ Device *BuiltinWorker::deviceForNameOrIndex(const QString &deviceNameOrIndex,
     } else {
         return SdkManager::deviceByName(deviceNameOrIndex, errorString);
     }
+}
+
+void BuiltinWorker::listEmulators()
+{
+    auto maxLength = [](const QStringList &strings) {
+        const QList<int> lengths = Utils::transform(strings, &QString::length);
+        return *std::max_element(lengths.begin(), lengths.end());
+    };
+
+    const QString autodetected = SdkManager::stateAutodetectedMessage();
+    const QString userDefined = SdkManager::stateUserDefinedMessage();
+    const int autodetectedFieldWidth = maxLength({autodetected, userDefined});
+
+    int index = 0;
+    for (Emulator *const emulator : SdkManager::sortedEmulators()) {
+        const QString autodetection = emulator->isAutodetected()
+            ? autodetected
+            : userDefined;
+        const QString privateKeyFile = FileUtils::shortNativePath(
+                FileName::fromString(emulator->virtualMachine()->sshParameters().privateKeyFile));
+
+        qout() << '#' << index << ' ' << '"' << emulator->name() << '"' << endl;
+        qout() << indent(1) << qSetFieldWidth(autodetectedFieldWidth) << left << autodetection
+            << qSetFieldWidth(0) << "  "
+            << emulator->virtualMachine()->sshParameters().url.authority() << endl;
+        qout() << indent(1) << tr("private-key:") << ' ' << privateKeyFile << endl;
+
+        ++index;
+    }
+}
+
+Emulator *BuiltinWorker::emulatorForNameOrIndex(const QString &emulatorNameOrIndex,
+        QString *errorString)
+{
+    bool isInt;
+    const int emulatorIndex = emulatorNameOrIndex.toInt(&isInt);
+    if (isInt) {
+        if (emulatorIndex < 0 || emulatorIndex > Sdk::emulators().count() - 1) {
+            *errorString = tr("Invalid emulator index: %1").arg(emulatorNameOrIndex);
+            return nullptr;
+        }
+        return SdkManager::sortedEmulators().at(emulatorIndex);
+    } else {
+        return SdkManager::emulatorByName(emulatorNameOrIndex, errorString);
+    }
+}
+
+QString BuiltinWorker::runningYesNoMessage(bool running)
+{
+    return tr("Running: %1").arg(running ? tr("Yes") : tr("No"));
 }
 
 /*!

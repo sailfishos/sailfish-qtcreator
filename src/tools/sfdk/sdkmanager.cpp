@@ -36,6 +36,7 @@
 
 #include <mer/merconstants.h>
 #include <mer/mersettings.h>
+#include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
@@ -246,22 +247,19 @@ QString SdkManager::installationPath()
 bool SdkManager::startEngine()
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    s_instance->m_buildEngine->virtualMachine()->refreshState(VirtualMachine::Synchronous);
-    return s_instance->m_buildEngine->virtualMachine()->connectTo(VirtualMachine::Block);
+    return startReliably(s_instance->m_buildEngine->virtualMachine());
 }
 
 bool SdkManager::stopEngine()
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    s_instance->m_buildEngine->virtualMachine()->refreshState(VirtualMachine::Synchronous);
-    return s_instance->m_buildEngine->virtualMachine()->lockDown(true);
+    return stopReliably(s_instance->m_buildEngine->virtualMachine());
 }
 
 bool SdkManager::isEngineRunning()
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    s_instance->m_buildEngine->virtualMachine()->refreshState(VirtualMachine::Synchronous);
-    return !s_instance->m_buildEngine->virtualMachine()->isOff();
+    return isRunningReliably(s_instance->m_buildEngine->virtualMachine());
 }
 
 int SdkManager::runOnEngine(const QString &program, const QStringList &arguments,
@@ -393,6 +391,81 @@ int SdkManager::runOnDevice(const Device &device, const QString &program,
     });
 
     return process.exec();
+}
+
+QList<Emulator *> SdkManager::sortedEmulators()
+{
+    QList<Emulator *> emulators = Sdk::emulators();
+    Utils::sort(emulators, [](Emulator *e1, Emulator *e2) {
+            return e1->name() > e2->name();
+    });
+    return emulators;
+}
+
+Emulator *SdkManager::emulatorByName(const QString &emulatorName, QString *errorMessage)
+{
+    Q_ASSERT(errorMessage);
+
+    Emulator *emulator = nullptr;
+    for (Emulator *const emulator_ : Sdk::emulators()) {
+        if (emulator_->name() == emulatorName) {
+            if (emulator) {
+                *errorMessage = tr("Ambiguous emulator name \"%1\". Please fix your configuration.")
+                    .arg(emulatorName);
+                return nullptr;
+            }
+            emulator = emulator_;
+        }
+    }
+
+    if (!emulator)
+        *errorMessage = emulatorName + ": " + tr("No such emulator");
+
+    return emulator;
+}
+
+bool SdkManager::startEmulator(const Emulator &emulator)
+{
+    return startReliably(emulator.virtualMachine());
+}
+
+bool SdkManager::stopEmulator(const Emulator &emulator)
+{
+    return stopReliably(emulator.virtualMachine());
+}
+
+bool SdkManager::isEmulatorRunning(const Emulator &emulator)
+{
+    return isRunningReliably(emulator.virtualMachine());
+}
+
+int SdkManager::runOnEmulator(const Emulator &emulator, const QString &program,
+        const QStringList &arguments, QProcess::InputChannelMode inputChannelMode)
+{
+    Device *const emulatorDevice = Sdk::device(emulator);
+    QTC_ASSERT(emulatorDevice, return Constants::EXIT_ABNORMAL);
+    return runOnDevice(*emulatorDevice, program, arguments, inputChannelMode);
+}
+
+bool SdkManager::startReliably(VirtualMachine *virtualMachine)
+{
+    QTC_ASSERT(virtualMachine, return false);
+    virtualMachine->refreshState(VirtualMachine::Synchronous);
+    return virtualMachine->connectTo(VirtualMachine::Block);
+}
+
+bool SdkManager::stopReliably(VirtualMachine *virtualMachine)
+{
+    QTC_ASSERT(virtualMachine, return false);
+    virtualMachine->refreshState(VirtualMachine::Synchronous);
+    return virtualMachine->lockDown(true);
+}
+
+bool SdkManager::isRunningReliably(VirtualMachine *virtualMachine)
+{
+    QTC_ASSERT(virtualMachine, return false);
+    virtualMachine->refreshState(VirtualMachine::Synchronous);
+    return !virtualMachine->isOff();
 }
 
 void SdkManager::saveSettings()

@@ -228,6 +228,11 @@ Device *Sdk::device(const QString &id)
     return DeviceManager::device(id);
 }
 
+Device *Sdk::device(const Emulator &emulator)
+{
+    return DeviceManager::device(emulator);
+}
+
 int Sdk::addDevice(std::unique_ptr<Device> &&device)
 {
     return DeviceManager::addDevice(std::move(device));
