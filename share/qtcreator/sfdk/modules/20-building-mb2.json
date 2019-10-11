@@ -64,12 +64,6 @@
             "trSynopsis": "--list-suites\n[-l|--levels [+|-]<level>...] [-s|--suites [+|-]<suite>...] [<artefact>]...",
             "trBrief": "Perform quality checks",
             "trDescription": "Perform quality checks.\n\nBy default, test suites operate on the artefacts associated with build tree under CWD. Alternatively, single path to a source tree and/or one or more package files may be specified as <artefact> on command line (build tree is always looked for under CWD).\n\nEach test suite realizes testing on one or more of the four recognized test levels. This is indicated in the output produced with the '--list-suites' option, using the keywords found in the first column of the following table.\n\n| Level          | Tested art. | Executed at   | Default |\n|----------------+-------------+---------------+---------|\n|    static      |             |               |         |\n| 1. ├── source  | Sources     | Build host    | +       |\n| 2. └── package | Packages    | Build host    | +       |\n|    dynamic     |             |               |         |\n| 3. ├── unit    | Build tree  | Build host    | -       |\n| 4. └── system  | Packages    | Target device | -       |\n\n(See also QUALITY ASSURANCE in the domain help.)\n\n-l, --levels [+|-]<level>...\n    Select testing levels. Levels are selected using the keywords 'source', 'package', 'static', 'unit', 'system' and 'dynamic' as described before.\n\n--list-suites\n    List available test suites.\n\n-s, --suites [+|-]<suite>...\n    Select test suites to use. By default all and only the essential suites are selected. See '--list-suites'.\n\nThe '--levels' and '--suites' options may be passed multiple values, separated with comma. If a name is prefixed with '+' or '-', the effect is cumulative and persists until overriden with later name prefixed with the opposite operator."
-        },
-        {
-            "name": "deploy",
-            "trSynopsis": "{--pkcon|--rsync|--sdk|--zypper}",
-            "trBrief": "Execute the deploy step",
-            "trDescription": "Deploy build results to the configured device. This implies also the 'make-install' step and except for the --rsync method it will include also the 'package' step. See the 'device' configuration option.\n\nThe following deployment methods are available, corresponding to the single mandatory option:\n\n--pkcon\n    Uses 'pkcon' to install RPM package(s). Requires the \"Allow untrusted software\" option enabled in Settings, does not require root access to the device.\n\n--rsync\n    Uses 'rsync' to copy the installed files under '/opt/sdk/<name>' without building/installing RPM package(s).  Does not require root access to the device.\n\n--sdk\n    Uses the method native to the SDK to install RPM package(s). Requires developer mode enabled on the device, does not require root access.\n\n--zypper\n    Uses 'zypper' to install RPM package(s).  Requires 'zypper' installed on the device, requires root access to the device."
         }
     ],
 
@@ -85,11 +79,6 @@
             "name": "target",
             "trArgument": "<name>",
             "trDescription": "Select the sb2 target to use"
-        },
-        {
-            "name": "device",
-            "trArgument": "<name>",
-            "trDescription": "Select the device to use"
         },
         {
             "name": "output-dir",
