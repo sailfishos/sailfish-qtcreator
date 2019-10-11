@@ -1,0 +1,27 @@
+{
+    "version": 1,
+    "domain": "devices",
+    "trBrief": "Working with devices",
+
+    "trDescription": "WORKING WITH DEVICES\n\nAvailable devices can be listed with the 'device list' command. Additional devices may be defined using Sailfish IDE (Qt Creator). Packages can be deployed to a device with the 'deploy' command. The device to deploy to is determined by the 'device' configuration option.",
+
+    "worker":
+    {
+        "type": "builtin",
+        "version": 1
+    },
+
+    "commands":
+    [
+        {
+            "name": "device",
+            "trSynopsis": "list\nexec [<name-or-idx>] [--] [<command> [<arg>...]]",
+            "trBrief": "Maintain and control registered devices",
+            "trDescription": "Registered devices can be listed with the 'list' command.\n\nThe 'exec' command allows executing an arbitrary <command> on the device specified with name or index as reported by the 'list' command. If no <name-or-idx> is passed, the device selected with the 'device' configuration option will be used. If no <command> is specified, an interactive shell is executed."
+        }
+    ],
+
+    "options":
+    [
+    ]
+}

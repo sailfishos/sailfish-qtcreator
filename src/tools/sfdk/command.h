@@ -43,6 +43,7 @@ namespace QSsh {
 
 namespace Sfdk {
 
+class Device;
 class Domain;
 class Module;
 
@@ -98,8 +99,13 @@ public:
 
 private:
     ExitStatus runConfig(const QStringList &arguments0) const;
+    ExitStatus runDevice(const QStringList &arguments, int *exitCode) const;
     ExitStatus runEngine(const QStringList &arguments, int *exitCode) const;
     ExitStatus runMaintain(const QStringList &arguments, int *exitCode) const;
+
+    static void listDevices();
+    static Device *deviceForNameOrIndex(const QString &deviceNameOrIndex,
+            QString *errorString);
 };
 
 class EngineWorker : public Worker

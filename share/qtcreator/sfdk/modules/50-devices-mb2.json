@@ -25,7 +25,7 @@
         {
             "name": "device",
             "trArgument": "<name>",
-            "trDescription": "Select the device to use"
+            "trDescription": "Select the device to use with commands that need to access a device. Registered devices can be listed with the 'device list' command."
         }
     ]
 }

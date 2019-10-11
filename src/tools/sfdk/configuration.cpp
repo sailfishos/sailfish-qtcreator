@@ -348,6 +348,15 @@ QList<OptionEffectiveOccurence> Configuration::effectiveState()
     return s_instance->m_commandScope->effectiveState();
 }
 
+Utils::optional<OptionEffectiveOccurence> Configuration::effectiveState(const Option *option)
+{
+    for (const OptionEffectiveOccurence &occurence : effectiveState()) {
+        if (!occurence.isMasked() && occurence.option() == option)
+            return occurence;
+    }
+    return {};
+}
+
 QStringList Configuration::toArguments(const Module *module)
 {
     QStringList retv;
