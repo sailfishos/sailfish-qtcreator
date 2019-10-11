@@ -239,38 +239,55 @@ Worker::ExitStatus BuiltinWorker::runEngine(const QStringList &arguments, int *e
         qerr() << P::missingArgumentMessage() << endl;
         return BadUsage;
     }
-    if (arguments.count() > 1 && arguments.first() != "exec") {
-        qerr() << P::unexpectedArgumentMessage(arguments.at(1));
-        return BadUsage;
-    }
 
     if (arguments.first() == "start") {
+        if (arguments.count() > 1) {
+            qerr() << P::unexpectedArgumentMessage(arguments.at(1)) << endl;
+            return BadUsage;
+        }
         *exitCode = SdkManager::startEngine() ? EXIT_SUCCESS : EXIT_FAILURE;
-    } else if (arguments.first() == "stop") {
+        return NormalExit;
+    }
+
+    if (arguments.first() == "stop") {
+        if (arguments.count() > 1) {
+            qerr() << P::unexpectedArgumentMessage(arguments.at(1)) << endl;
+            return BadUsage;
+        }
         *exitCode = SdkManager::stopEngine() ? EXIT_SUCCESS : EXIT_FAILURE;
-    } else if (arguments.first() == "status") {
+        return NormalExit;
+    }
+
+    if (arguments.first() == "status") {
+        if (arguments.count() > 1) {
+            qerr() << P::unexpectedArgumentMessage(arguments.at(1)) << endl;
+            return BadUsage;
+        }
         bool running = SdkManager::isEngineRunning();
         qout() << tr("Running: %1").arg(running ? tr("Yes") : tr("No")) << endl;
         *exitCode = EXIT_SUCCESS;
-    } else if (arguments.first() == "exec") {
+        return NormalExit;
+    }
+
+    if (arguments.first() == "exec") {
+        const QStringList command = arguments.mid(1);
+
         QString program;
         QStringList programArguments;
-        if (arguments.count() > 1) {
-            program = arguments.at(1);
-            if (arguments.count() > 2)
-                programArguments = arguments.mid(2);
+        if (!command.isEmpty()) {
+            program = command.at(0);
+            if (command.count() > 1)
+                programArguments = command.mid(1);
         } else {
             program = "/bin/bash";
             programArguments << "--login";
         }
         *exitCode = SdkManager::runOnEngine(program, programArguments, QProcess::ForwardedInputChannel);
         return NormalExit;
-    } else {
-        qerr() << P::unrecognizedCommandMessage(arguments.first()) << endl;
-        return BadUsage;
     }
 
-    return NormalExit;
+    qerr() << P::unrecognizedCommandMessage(arguments.first()) << endl;
+    return BadUsage;
 }
 
 Worker::ExitStatus BuiltinWorker::runMaintain(const QStringList &arguments, int *exitCode) const
