@@ -193,11 +193,19 @@ VmConnection::VmConnection(VirtualMachine *parent)
     m_vmStateEntryTime.start();
 
     // Notice how SshConnectionParameters::timeout is treated!
-    connect(m_vm, &VirtualMachine::sshParametersChanged, this, &VmConnection::scheduleReset);
+    connect(m_vm, &VirtualMachine::sshParametersChanged, this, [this]() {
+        if (m_vm->isAutoConnectEnabled())
+            scheduleReset();
+    });
 
-    connect(m_vm, &VirtualMachine::headlessChanged, this, &VmConnection::scheduleReset);
+    connect(m_vm, &VirtualMachine::headlessChanged, this, [this]() {
+        if (m_vm->isAutoConnectEnabled())
+            scheduleReset();
+    });
 
     connect(m_vm, &VirtualMachine::autoConnectEnabledChanged, this, [this] () {
+        if (!m_vm->isAutoConnectEnabled())
+            m_resetTimer.stop();
         vmStmScheduleExec();
         sshStmScheduleExec();
     });
