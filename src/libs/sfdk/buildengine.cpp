@@ -99,6 +99,7 @@ BuildEngine::BuildEngine(QObject *parent, const PrivateConstructorTag &)
 {
     Q_D(BuildEngine);
 
+    d->creationTime = QDateTime::currentDateTime();
     d->wwwProxyType = Constants::WWW_PROXY_DISABLED;
 }
 
@@ -278,6 +279,7 @@ QVariantMap BuildEnginePrivate::toMap() const
     QVariantMap data;
 
     data.insert(Constants::BUILD_ENGINE_VM_URI, virtualMachine->uri());
+    data.insert(Constants::BUILD_ENGINE_CREATION_TIME, creationTime);
     data.insert(Constants::BUILD_ENGINE_AUTODETECTED, autodetected);
 
     data.insert(Constants::BUILD_ENGINE_SHARED_HOME, sharedHomePath.toString());
@@ -327,6 +329,7 @@ bool BuildEnginePrivate::fromMap(const QVariantMap &data)
             return false;
     }
 
+    creationTime = data.value(Constants::BUILD_ENGINE_CREATION_TIME).toDateTime();
     autodetected = data.value(Constants::BUILD_ENGINE_AUTODETECTED).toBool();
 
     auto toFileName = [](const QVariant &v) { return FileName::fromString(v.toString()); };
@@ -1011,7 +1014,7 @@ void BuildEngineManager::removeBuildEngine(const QUrl &uri)
 QVariantMap BuildEngineManager::toMap() const
 {
     QVariantMap data;
-    data.insert(Constants::BUILD_ENGINES_VERSION_KEY, m_version);
+    data.insert(Constants::BUILD_ENGINES_VERSION_KEY, 1);
     data.insert(Constants::BUILD_ENGINES_INSTALL_DIR_KEY, m_installDir);
 
     int count = 0;
@@ -1028,10 +1031,10 @@ QVariantMap BuildEngineManager::toMap() const
     return data;
 }
 
-void BuildEngineManager::fromMap(const QVariantMap &data, bool merge)
+void BuildEngineManager::fromMap(const QVariantMap &data, bool fromSystemSettings)
 {
-    m_version = data.value(Constants::BUILD_ENGINES_VERSION_KEY).toInt();
-    QTC_ASSERT(m_version > 0, return);
+    const int version = data.value(Constants::BUILD_ENGINES_VERSION_KEY).toInt();
+    QTC_ASSERT(version == 1, return);
 
     m_installDir = data.value(Constants::BUILD_ENGINES_INSTALL_DIR_KEY).toString();
     QTC_ASSERT(!m_installDir.isEmpty(), return);
@@ -1050,16 +1053,25 @@ void BuildEngineManager::fromMap(const QVariantMap &data, bool merge)
         newEnginesData.insert(vmUri, engineData);
     }
 
-    // Unless 'merge' is true, remove engines missing from the updated configuration.
-    // Index the preserved ones by VM URI
     QMap<QUrl, BuildEngine *> existingBuildEngines;
     for (auto it = m_buildEngines.cbegin(); it != m_buildEngines.cend(); ) {
-        if (!merge && !newEnginesData.contains(it->get()->virtualMachine()->uri())) {
+        const bool autodetected = it->get()->isAutodetected();
+        const QUrl vmUri = it->get()->virtualMachine()->uri();
+        const QDateTime creationTime = BuildEnginePrivate::get(it->get())->creationTime_();
+        QTC_CHECK(creationTime.isValid());
+        const bool inNewData = newEnginesData.contains(vmUri)
+            && newEnginesData.value(vmUri)
+                .value(Constants::BUILD_ENGINE_CREATION_TIME).toDateTime() == creationTime;
+        if (!inNewData && (!fromSystemSettings || autodetected)) {
+            qCDebug(engine) << "Dropping build engine" << vmUri.toString();
             emit aboutToRemoveBuildEngine(it - m_buildEngines.cbegin());
             it = m_buildEngines.erase(it);
+        } else if (autodetected && fromSystemSettings) {
+            qCDebug(engine) << "Preserving user configuration of build engine" << vmUri.toString();
+            QTC_CHECK(inNewData);
+            newEnginesData.remove(vmUri);
+            ++it;
         } else {
-            // we know 'merge' is only used to preserve manually added
-            QTC_CHECK(!merge || !it->get()->isAutodetected());
             existingBuildEngines.insert(it->get()->virtualMachine()->uri(), it->get());
             ++it;
         }
@@ -1071,10 +1083,14 @@ void BuildEngineManager::fromMap(const QVariantMap &data, bool merge)
         BuildEngine *engine = existingBuildEngines.value(vmUri);
         std::unique_ptr<BuildEngine> newEngine;
         if (!engine) {
+            qCDebug(Log::engine) << "Adding build engine" << vmUri.toString();
             newEngine = std::make_unique<BuildEngine>(this, BuildEngine::PrivateConstructorTag{});
             engine = newEngine.get();
+        } else {
+            qCDebug(Log::engine) << "Updating build engine" << vmUri.toString();
         }
 
+        QTC_ASSERT(!fromSystemSettings || newEngine || engine->isAutodetected(), return);
         const bool ok = BuildEnginePrivate::get(engine)->fromMap(engineData);
         QTC_ASSERT(ok, return);
 
@@ -1124,28 +1140,8 @@ void BuildEngineManager::checkSystemSettings()
 
     const QVariantMap systemData = systemReader.restoreValues();
 
-    if (m_version == 0)
-        qCDebug(engine) << "No user configuration => using system-wide configuration";
-    else if (m_version != systemData.value(Constants::BUILD_ENGINES_VERSION_KEY).toInt()) {
-        qCDebug(engine) << "Version changed => forget user configuration";
-    } else if (m_installDir != systemData.value(Constants::BUILD_ENGINES_INSTALL_DIR_KEY)) {
-        qCDebug(engine) << "Install dir changed => forget user configuration";
-    } else {
-        qCDebug(engine) << "Using user configuration";
-        return;
-    }
-
-    for (auto it = m_buildEngines.cbegin(); it != m_buildEngines.cend(); ) {
-        if (it->get()->isAutodetected()) {
-            emit aboutToRemoveBuildEngine(it - m_buildEngines.cbegin());
-            it = m_buildEngines.erase(it);
-        } else {
-            ++it;
-        }
-    }
-
-    const bool merge = true;
-    fromMap(systemData, merge);
+    const bool fromSystemSettings = true;
+    fromMap(systemData, fromSystemSettings);
 }
 
 void BuildEngineManager::saveSettings(QStringList *errorStrings) const

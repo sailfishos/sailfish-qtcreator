@@ -26,6 +26,8 @@
 
 #include <utils/portlist.h>
 
+#include <QDateTime>
+
 namespace QSsh {
 class SshConnectionParameters;
 }
@@ -59,6 +61,8 @@ public:
     void updateOnce();
     void updateVmProperties(const QObject *context, const Functor<bool> &functor);
 
+    QDateTime creationTime_() const { return creationTime; }
+
 private:
     void setSharedConfigPath(const Utils::FileName &sharedConfigPath);
     void setSharedSshPath(const Utils::FileName &sharedSshPath);
@@ -74,6 +78,7 @@ private:
 
 private:
     Emulator *const q_ptr;
+    QDateTime creationTime;
     std::unique_ptr<VirtualMachine> virtualMachine;
     bool autodetected = false;
     Utils::FileName sharedConfigPath;
@@ -121,7 +126,7 @@ signals:
 
 private:
     QVariantMap toMap() const;
-    void fromMap(const QVariantMap &data, bool merge = false);
+    void fromMap(const QVariantMap &data, bool fromSystemSettings = false);
     void enableUpdates();
     void updateOnce();
     void checkSystemSettings();

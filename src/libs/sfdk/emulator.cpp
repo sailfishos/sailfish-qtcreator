@@ -279,6 +279,7 @@ QVariantMap EmulatorPrivate::toMap() const
     QVariantMap data;
 
     data.insert(Constants::EMULATOR_VM_URI, virtualMachine->uri());
+    data.insert(Constants::EMULATOR_CREATION_TIME, creationTime);
     data.insert(Constants::EMULATOR_AUTODETECTED, autodetected);
 
     data.insert(Constants::EMULATOR_SHARED_CONFIG, sharedConfigPath.toString());
@@ -320,6 +321,7 @@ bool EmulatorPrivate::fromMap(const QVariantMap &data)
             return false;
     }
 
+    creationTime = data.value(Constants::EMULATOR_CREATION_TIME).toDateTime();
     autodetected = data.value(Constants::EMULATOR_AUTODETECTED).toBool();
 
     auto toFileName = [](const QVariant &v) { return FileName::fromString(v.toString()); };
@@ -710,7 +712,7 @@ void EmulatorManager::fromMap(DeviceModelData *deviceModel, const QVariantMap &d
 QVariantMap EmulatorManager::toMap() const
 {
     QVariantMap data;
-    data.insert(Constants::EMULATORS_VERSION_KEY, m_version);
+    data.insert(Constants::EMULATORS_VERSION_KEY, 1);
     data.insert(Constants::EMULATORS_INSTALL_DIR_KEY, m_installDir);
 
     int count = 0;
@@ -738,10 +740,10 @@ QVariantMap EmulatorManager::toMap() const
     return data;
 }
 
-void EmulatorManager::fromMap(const QVariantMap &data, bool merge)
+void EmulatorManager::fromMap(const QVariantMap &data, bool fromSystemSettings)
 {
-    m_version = data.value(Constants::EMULATORS_VERSION_KEY).toInt();
-    QTC_ASSERT(m_version > 0, return);
+    const int version = data.value(Constants::EMULATORS_VERSION_KEY).toInt();
+    QTC_ASSERT(version == 1, return);
 
     m_installDir = data.value(Constants::EMULATORS_INSTALL_DIR_KEY).toString();
     QTC_ASSERT(!m_installDir.isEmpty(), return);
@@ -760,16 +762,25 @@ void EmulatorManager::fromMap(const QVariantMap &data, bool merge)
         newEmulatorsData.insert(vmUri, emulatorData);
     }
 
-    // Unles 'merge' is true, remove emulators missing from the updated configuration.
-    // Index the preserved ones by VM URI
     QMap<QUrl, Emulator *> existingEmulators;
     for (auto it = m_emulators.cbegin(); it != m_emulators.cend(); ) {
-        if (!merge && !newEmulatorsData.contains(it->get()->virtualMachine()->uri())) {
+        const bool autodetected = it->get()->isAutodetected();
+        const QUrl vmUri = it->get()->virtualMachine()->uri();
+        const QDateTime creationTime = EmulatorPrivate::get(it->get())->creationTime_();
+        QTC_CHECK(creationTime.isValid());
+        const bool inNewData = newEmulatorsData.contains(vmUri)
+            && newEmulatorsData.value(vmUri)
+                .value(Constants::EMULATOR_CREATION_TIME).toDateTime() == creationTime;
+        if (!inNewData && (!fromSystemSettings || autodetected)) {
+            qCDebug(Log::emulator) << "Dropping emulator" << vmUri.toString();
             emit aboutToRemoveEmulator(it - m_emulators.cbegin());
             it = m_emulators.erase(it);
+        } else if (autodetected && fromSystemSettings) {
+            qCDebug(Log::emulator) << "Preserving user configuration of emulator" << vmUri.toString();
+            QTC_CHECK(inNewData);
+            newEmulatorsData.remove(vmUri);
+            ++it;
         } else {
-            // we know 'merge' is only used to preserve manually added
-            QTC_CHECK(!merge || !it->get()->isAutodetected());
             existingEmulators.insert(it->get()->virtualMachine()->uri(), it->get());
             ++it;
         }
@@ -781,10 +792,14 @@ void EmulatorManager::fromMap(const QVariantMap &data, bool merge)
         Emulator *emulator = existingEmulators.value(vmUri);
         std::unique_ptr<Emulator> newEmulator;
         if (!emulator) {
+            qCDebug(Log::emulator) << "Adding emulator" << vmUri.toString();
             newEmulator = std::make_unique<Emulator>(this, Emulator::PrivateConstructorTag{});
             emulator = newEmulator.get();
+        } else {
+            qCDebug(Log::emulator) << "Updating emulator" << vmUri.toString();
         }
 
+        QTC_ASSERT(!fromSystemSettings || newEmulator || emulator->isAutodetected(), return);
         const bool ok = EmulatorPrivate::get(emulator)->fromMap(emulatorData);
         QTC_ASSERT(ok, return);
 
@@ -809,11 +824,20 @@ void EmulatorManager::fromMap(const QVariantMap &data, bool merge)
     }
 
     bool deviceModelsChanged = false;
-    if (!merge) {
+    if (!fromSystemSettings) {
         deviceModelsChanged = m_deviceModels != newDeviceModels;
         m_deviceModels = newDeviceModels;
     } else {
         deviceModelsChanged = true; // Do not take it too seriously
+
+        for (auto it = m_deviceModels.begin(); it != m_deviceModels.end(); ) {
+            if (it->autodetected) {
+                it = m_deviceModels.erase(it);
+            } else {
+                ++it;
+            }
+        }
+
         for (auto it = newDeviceModels.cbegin(); it != newDeviceModels.cend(); ++it) {
             QTC_CHECK(it.value().autodetected);
             DeviceModelData existing = m_deviceModels.value(it.key());
@@ -876,37 +900,8 @@ void EmulatorManager::checkSystemSettings()
 
     const QVariantMap systemData = systemReader.restoreValues();
 
-    if (m_version == 0)
-        qCDebug(Log::emulator) << "No user configuration => using system-wide configuration";
-    else if (m_version != systemData.value(Constants::EMULATORS_VERSION_KEY).toInt()) {
-        qCDebug(Log::emulator) << "Version changed => forget user configuration";
-    } else if (m_installDir != systemData.value(Constants::EMULATORS_INSTALL_DIR_KEY)) {
-        qCDebug(Log::emulator) << "Install dir changed => forget user configuration";
-    } else {
-        qCDebug(Log::emulator) << "Using user configuration";
-        return;
-    }
-
-    for (auto it = m_emulators.cbegin(); it != m_emulators.cend(); ) {
-        if (it->get()->isAutodetected()) {
-            emit aboutToRemoveEmulator(it - m_emulators.cbegin());
-            it = m_emulators.erase(it);
-        } else {
-            ++it;
-        }
-    }
-
-    for (auto it = m_deviceModels.begin(); it != m_deviceModels.end(); ) {
-        if (it->autodetected) {
-            // deviceModelsChanged will be emitted later from fromMap()
-            it = m_deviceModels.erase(it);
-        } else {
-            ++it;
-        }
-    }
-
-    const bool merge = true;
-    fromMap(systemData, merge);
+    const bool fromSystemSettings = true;
+    fromMap(systemData, fromSystemSettings);
 }
 
 void EmulatorManager::saveSettings(QStringList *errorStrings) const

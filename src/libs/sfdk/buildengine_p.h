@@ -25,6 +25,8 @@
 
 #include "buildengine.h"
 
+#include <QDateTime>
+
 namespace QSsh {
 class SshConnectionParameters;
 }
@@ -71,6 +73,8 @@ public:
     void updateOnce();
     void updateVmProperties(const QObject *context, const Functor<bool> &functor);
 
+    QDateTime creationTime_() const { return creationTime; }
+
 private:
     void setSharedHomePath(const Utils::FileName &sharedHomePath);
     void setSharedTargetsPath(const Utils::FileName &sharedTargetsPath);
@@ -101,6 +105,7 @@ private:
 
 private:
     BuildEngine *const q_ptr;
+    QDateTime creationTime;
     std::unique_ptr<VirtualMachine> virtualMachine;
     bool autodetected = false;
     Utils::FileName sharedHomePath;
@@ -142,7 +147,7 @@ signals:
 
 private:
     QVariantMap toMap() const;
-    void fromMap(const QVariantMap &data, bool merge = false);
+    void fromMap(const QVariantMap &data, bool fromSystemSettings = false);
     void enableUpdates();
     void updateOnce();
     void checkSystemSettings();
