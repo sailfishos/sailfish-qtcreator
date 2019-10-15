@@ -29,8 +29,10 @@
 #include <ssh/sshremoteprocessrunner.h>
 #include <utils/algorithm.h>
 #include <utils/fileutils.h>
+#include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
+#include <sfdk/buildengine.h>
 #include <sfdk/device.h>
 #include <sfdk/emulator.h>
 #include <sfdk/sdk.h>
@@ -42,6 +44,7 @@
 #include "sdkmanager.h"
 #include "sfdkconstants.h"
 #include "sfdkglobal.h"
+#include "task.h"
 #include "textutils.h"
 
 using namespace Sfdk;
@@ -59,7 +62,309 @@ const char SDK_MAINTENANCE_TOOL[] = "SDKMaintenanceTool.app/Contents/MacOS/SDKMa
 const char SDK_MAINTENANCE_TOOL[] = "SDKMaintenanceTool" QTC_HOST_EXE_SUFFIX;
 #endif
 
-}
+const char VM_MEMORY_SIZE_MB[] = "vm.memorySize";
+const char VM_CPU_COUNT[] = "vm.cpuCount";
+// FIXME vdi -> storage
+const char VM_VDI_CAPACITY_MB[] = "vm.storageSize";
+
+} // namespace anonymous
+
+namespace Sfdk {
+
+/*!
+ * \class PropertiesAccessor
+ */
+
+class PropertiesAccessor
+{
+    Q_DECLARE_TR_FUNCTIONS(Sfdk::PropertiesAccessor)
+
+public:
+    virtual QMap<QString, QString> get() const = 0;
+    virtual bool prepareSet(const QString &name, const QString &value, bool *needsVmOff,
+            QString *errorString) = 0;
+    virtual bool set() = 0;
+
+protected:
+    static bool parsePositiveInt(int *out, const QString &string, QString *errorString)
+    {
+        bool ok;
+        *out = string.toInt(&ok);
+        if (!ok || *out <= 0) {
+            *errorString = tr("Positive integer expected: \"%1\"").arg(string);
+            return false;
+        }
+
+        return true;
+    }
+
+    static QString valueTooBigMessage()
+    {
+        return tr("Value too big");
+    }
+    static QString valueCannotBeDecreasedMessage()
+    {
+        return tr("Value cannot be decreased");
+    }
+
+    static QString unknownPropertyMessage(const QString &name)
+    {
+        return tr("Unrecognized property \"%1\"").arg(name);
+    }
+};
+
+/*!
+ * \class SetPropertiesTask
+ */
+
+class SetPropertiesTask : public Task
+{
+    Q_OBJECT
+
+public:
+    SetPropertiesTask(std::unique_ptr<PropertiesAccessor> &&accessor,
+            VirtualMachine *virtualMachine, const QString &stopVmMessage)
+        : m_accessor(std::move(accessor))
+        , m_virtualMachine(virtualMachine)
+        , m_stopVmMessage(stopVmMessage)
+    {
+    }
+
+    QMap<QString, QString> get() const
+    {
+        return m_accessor->get();
+    }
+
+    bool prepareSet(const QString &name, const QString &value, QString *errorString)
+    {
+        bool needsVmOff = false;
+
+        if (!m_accessor->prepareSet(name, value, &needsVmOff, errorString))
+            return false;
+
+        m_needsVmOff |= needsVmOff;
+        return true;
+    }
+
+    bool set(QString *errorString)
+    {
+        started();
+
+        bool ok = false;
+        bool lockDownOk = false;
+
+        if (m_needsVmOff) {
+            if (SdkManager::isRunningReliably(m_virtualMachine)) {
+                *errorString = m_stopVmMessage;
+            } else {
+                lockDownOk = m_virtualMachine->lockDown(true);
+                QTC_CHECK(lockDownOk);
+            }
+        }
+
+        if (!m_needsVmOff || lockDownOk) {
+            ok = m_accessor->set();
+            if (!ok)
+                *errorString = tr("Failed to set some of the properties");
+        }
+
+        if (lockDownOk)
+            m_virtualMachine->lockDown(false);
+
+        exited();
+
+        return ok;
+    }
+
+protected:
+    void beginTerminate() override
+    {
+        qerr() << tr("Wait please...");
+        endTerminate(true);
+    }
+
+    void beginStop() override
+    {
+        endStop(true);
+    }
+
+    void beginContinue() override
+    {
+        endContinue(true);
+    }
+
+private:
+    const std::unique_ptr<PropertiesAccessor> m_accessor;
+    const QPointer<VirtualMachine> m_virtualMachine;
+    const QString m_stopVmMessage;
+    bool m_needsVmOff = false;
+};
+
+/*!
+ * \class VirtualMachinePropertiesAccessor
+ */
+
+class VirtualMachinePropertiesAccessor : public PropertiesAccessor
+{
+public:
+    VirtualMachinePropertiesAccessor(VirtualMachine *virtualMachine)
+        : m_vm(virtualMachine)
+    {
+        m_memorySizeMb = m_vm->memorySizeMb();
+        m_cpuCount = m_vm->cpuCount();
+        m_vdiCapacityMb = m_vm->vdiCapacityMb();
+    }
+
+    QMap<QString, QString> get() const override
+    {
+        QMap<QString, QString> values;
+        values.insert(VM_MEMORY_SIZE_MB, QString::number(m_memorySizeMb));
+        values.insert(VM_CPU_COUNT, QString::number(m_cpuCount));
+        values.insert(VM_VDI_CAPACITY_MB, QString::number(m_vdiCapacityMb));
+        return values;
+    }
+
+    bool prepareSet(const QString &name, const QString &value, bool *needsVmOff,
+            QString *errorString) override
+    {
+        *needsVmOff = true;
+
+        if (name == VM_MEMORY_SIZE_MB) {
+            if (!parsePositiveInt(&m_memorySizeMb, value, errorString))
+                return false;
+            if (m_memorySizeMb > VirtualMachine::availableMemorySizeMb()) {
+                *errorString = valueTooBigMessage();
+                return false;
+            }
+            return true;
+        } else if (name == VM_CPU_COUNT) {
+            if (!parsePositiveInt(&m_cpuCount, value, errorString))
+                return false;
+            if (m_cpuCount > VirtualMachine::availableCpuCount()) {
+                *errorString = valueTooBigMessage();
+                return false;
+            }
+            return true;
+        } else if (name == VM_VDI_CAPACITY_MB) {
+            if (!parsePositiveInt(&m_vdiCapacityMb, value, errorString))
+                return false;
+            if (m_vdiCapacityMb < m_vm->vdiCapacityMb()) {
+                *errorString = valueCannotBeDecreasedMessage();
+                return false;
+            }
+            return true;
+        } else {
+            *errorString = unknownPropertyMessage(name);
+            return false;
+        }
+    }
+
+    bool set() override
+    {
+        bool ok = true;
+
+        if (m_memorySizeMb != m_vm->memorySizeMb()) {
+            bool stepOk;
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&VirtualMachine::setMemorySizeMb),
+                    m_vm.data(), m_memorySizeMb);
+            ok &= stepOk;
+        }
+
+        if (m_cpuCount != m_vm->cpuCount()) {
+            bool stepOk;
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&VirtualMachine::setCpuCount),
+                    m_vm.data(), m_cpuCount);
+            ok &= stepOk;
+        }
+
+        if (m_vdiCapacityMb != m_vm->vdiCapacityMb()) {
+            bool stepOk;
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&VirtualMachine::setVdiCapacityMb),
+                    m_vm.data(), m_vdiCapacityMb);
+            ok &= stepOk;
+        }
+
+        return ok;
+    }
+
+private:
+    QPointer<VirtualMachine> m_vm;
+    int m_memorySizeMb = 0;
+    int m_cpuCount = 0;
+    int m_vdiCapacityMb = 0;
+};
+
+/*!
+ * \class EmulatorPropertiesAccessor
+ */
+
+class EmulatorPropertiesAccessor : public PropertiesAccessor
+{
+public:
+    EmulatorPropertiesAccessor(Emulator *emulator)
+        : m_emulator(emulator)
+        , m_vmAccessor(std::make_unique<VirtualMachinePropertiesAccessor>(
+                    emulator->virtualMachine()))
+    {
+    }
+
+    QMap<QString, QString> get() const override
+    {
+        return m_vmAccessor->get();
+    }
+
+    bool prepareSet(const QString &name, const QString &value, bool *needsVmOff,
+            QString *errorString) override
+    {
+        return m_vmAccessor->prepareSet(name, value, needsVmOff, errorString);
+    }
+
+    bool set() override
+    {
+        return m_vmAccessor->set();
+    }
+
+private:
+    QPointer<Emulator> m_emulator;
+    std::unique_ptr<VirtualMachinePropertiesAccessor> m_vmAccessor;
+};
+
+/*!
+ * \class BuildEnginePropertiesAccessor
+ */
+
+class BuildEnginePropertiesAccessor : public PropertiesAccessor
+{
+public:
+    BuildEnginePropertiesAccessor(BuildEngine *engine)
+        : m_engine(engine)
+        , m_vmAccessor(std::make_unique<VirtualMachinePropertiesAccessor>(
+                    engine->virtualMachine()))
+    {
+    }
+
+    QMap<QString, QString> get() const override
+    {
+        return m_vmAccessor->get();
+    }
+
+    bool prepareSet(const QString &name, const QString &value, bool *needsVmOff,
+            QString *errorString) override
+    {
+        return m_vmAccessor->prepareSet(name, value, needsVmOff, errorString);
+    }
+
+    bool set() override
+    {
+        return m_vmAccessor->set();
+    }
+
+private:
+    QPointer<BuildEngine> m_engine;
+    std::unique_ptr<VirtualMachinePropertiesAccessor> m_vmAccessor;
+};
+
+} // namespace Sfdk
 
 /*!
  * \class Command
@@ -338,7 +643,7 @@ Worker::ExitStatus BuiltinWorker::runEmulator(const QStringList &arguments, int 
         emulatorNameOrIndex = arguments.at(1);
         emulator = emulatorForNameOrIndex(emulatorNameOrIndex, &errorString);
         // It was not the emulator name/idx but a command name
-        if (!emulator && arguments.first() == "exec"
+        if (!emulator && (arguments.first() == "exec" || arguments.first() == "set")
                 && (arguments.count() < 3 || arguments.at(2) != "--")) {
             emulatorNameOrIndex.clear();
             emulator = emulatorForNameOrIndex("0", &errorString);
@@ -377,6 +682,36 @@ Worker::ExitStatus BuiltinWorker::runEmulator(const QStringList &arguments, int 
         qout() << runningYesNoMessage(running) << endl;
         *exitCode = EXIT_SUCCESS;
         return NormalExit;
+    }
+
+    if (arguments.first() == "show") {
+        if (arguments.count() > 2) {
+            qerr() << P::unexpectedArgumentMessage(arguments.at(2)) << endl;
+            return BadUsage;
+        }
+        printProperties(EmulatorPropertiesAccessor(emulator));
+        *exitCode = EXIT_SUCCESS;
+        return NormalExit;
+    }
+
+    if (arguments.first() == "set") {
+        QStringList assignments = arguments.mid(1);
+        if (!assignments.isEmpty() && assignments.first() == emulatorNameOrIndex)
+            assignments.removeFirst();
+        if (!assignments.isEmpty() && assignments.first() == "--")
+            assignments.removeFirst();
+
+        if (assignments.isEmpty()) {
+            qerr() << P::missingArgumentMessage() << endl;
+            return BadUsage;
+        }
+
+        SetPropertiesTask task(
+                std::make_unique<EmulatorPropertiesAccessor>(emulator),
+                emulator->virtualMachine(),
+                tr("Some of the changes cannot be applied while the emulator is running."
+                    " Please stop the emulator."));
+        return setProperties(&task, assignments, exitCode);
     }
 
     if (arguments.first() == "exec") {
@@ -442,6 +777,32 @@ Worker::ExitStatus BuiltinWorker::runEngine(const QStringList &arguments, int *e
         qout() << runningYesNoMessage(running) << endl;
         *exitCode = EXIT_SUCCESS;
         return NormalExit;
+    }
+
+    if (arguments.first() == "show") {
+        if (arguments.count() > 1) {
+            qerr() << P::unexpectedArgumentMessage(arguments.at(1)) << endl;
+            return BadUsage;
+        }
+        printProperties(BuildEnginePropertiesAccessor(SdkManager::engine()));
+        *exitCode = EXIT_SUCCESS;
+        return NormalExit;
+    }
+
+    if (arguments.first() == "set") {
+        const QStringList assignments = arguments.mid(1);
+
+        if (assignments.isEmpty()) {
+            qerr() << P::missingArgumentMessage() << endl;
+            return BadUsage;
+        }
+
+        SetPropertiesTask task(
+                std::make_unique<BuildEnginePropertiesAccessor>(SdkManager::engine()),
+                SdkManager::engine()->virtualMachine(),
+                tr("Some of the changes cannot be applied while the build engine is running."
+                    " Please stop the build engine."));
+        return setProperties(&task, assignments, exitCode);
     }
 
     if (arguments.first() == "exec") {
@@ -576,6 +937,43 @@ Emulator *BuiltinWorker::emulatorForNameOrIndex(const QString &emulatorNameOrInd
     }
 }
 
+void BuiltinWorker::printProperties(const PropertiesAccessor &accessor)
+{
+    QMap<QString, QString> properties = accessor.get();
+    for (auto it = properties.cbegin(); it != properties.cend(); ++it)
+        qout() << it.key() << ':' << ' ' << it.value() << endl;
+}
+
+Worker::ExitStatus BuiltinWorker::setProperties(SetPropertiesTask *task,
+        const QStringList &assignments, int *exitCode)
+{
+    for (const QString &assignment : assignments) {
+        const int splitAt = assignment.indexOf('=');
+        if (splitAt <= 0 || splitAt == assignment.length() - 1) {
+            qerr() << tr("Assignment expected: \"%1\"").arg(assignment) << endl;
+            return BadUsage;
+        }
+        const QString property = assignment.left(splitAt);
+        const QString value = assignment.mid(splitAt + 1);
+        QString errorString;
+        if (!task->prepareSet(property, value, &errorString)) {
+            *exitCode = EXIT_FAILURE;
+            qerr() << errorString << endl;
+            return NormalExit;
+        }
+    }
+
+    QString errorString;
+    if (!task->set(&errorString)) {
+        *exitCode = EXIT_FAILURE;
+        qerr() << errorString << endl;
+        return NormalExit;
+    }
+
+    *exitCode = EXIT_SUCCESS;
+    return NormalExit;
+}
+
 QString BuiltinWorker::runningYesNoMessage(bool running)
 {
     return tr("Running: %1").arg(running ? tr("Yes") : tr("No"));
@@ -647,3 +1045,5 @@ std::unique_ptr<Worker> EngineWorker::fromMap(const QVariantMap &data, int versi
     return worker;
 #endif
 }
+
+#include "command.moc"

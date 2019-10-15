@@ -244,6 +244,12 @@ QString SdkManager::installationPath()
     return Sdk::installationPath();
 }
 
+BuildEngine *SdkManager::engine()
+{
+    QTC_ASSERT(s_instance->hasEngine(), return nullptr);
+    return s_instance->m_buildEngine;
+}
+
 bool SdkManager::startEngine()
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);

@@ -15,9 +15,9 @@
     [
         {
             "name": "engine",
-            "trSynopsis": "{start|stop|status}\nexec [<command> [<arg>...]]",
-            "trBrief": "Control the build engine",
-            "trDescription": "The 'start' and 'stop' commands allow to control the build engine virtual machine conveniently. Starting the build engine explicitly is usually not required - commands that need build engine running will ensure it is running. The 'status' command prints status information.\n\nThe 'exec' command allows executing an arbitrary <command> inside the build engine. If no <command> is specified, an interactive shell is executed."
+            "trSynopsis": "{start|stop|status}\nset <property>=<value>...\nshow\nexec [<command> [<arg>...]]",
+            "trBrief": "Maintain and control the build engine",
+            "trDescription": "The 'start' and 'stop' commands allow to control the build engine virtual machine conveniently. Starting the build engine explicitly is usually not required - commands that need build engine running will ensure it is running. The 'status' command prints status information.\n\nBuild engine properties can be set with the 'set' command and queried with the 'show' command. Known properties are described further below.\n\nThe 'exec' command allows executing an arbitrary <command> inside the build engine. If no <command> is specified, an interactive shell is executed.\n\n\nBuild engine properties:\n\nvm.cpuCount <number>\n    The number of virtual CPUs inside the build engine virtual machine. The maximum is limited by the number of CPUs available on the host.\n\nvm.memorySize <megabytes>\n    The amount of memory (RAM) available to the build engine virtual machine. The maximum is limited by the size of the physical memory available on the host.\n\nvm.storageSize <megabytes>\n    The amount of storage (disk) space available to the build engine virtual machine. Storage size can only grow; shrinking is not possible."
         }
     ],
 
