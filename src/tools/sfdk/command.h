@@ -106,6 +106,7 @@ private:
     ExitStatus runEmulator(const QStringList &arguments, int *exitCode) const;
     ExitStatus runEngine(const QStringList &arguments, int *exitCode) const;
     ExitStatus runMaintain(const QStringList &arguments, int *exitCode) const;
+    ExitStatus runMisc(const QStringList &arguments, int *exitCode) const;
 
     static void listDevices();
     static Device *deviceForNameOrIndex(const QString &deviceNameOrIndex,
@@ -113,6 +114,7 @@ private:
     static void listEmulators();
     static Emulator *emulatorForNameOrIndex(const QString &emulatorNameOrIndex,
             QString *errorString);
+    static bool stopVirtualMachines();
 
     static void printProperties(const PropertiesAccessor &accessor);
     static ExitStatus setProperties(SetPropertiesTask *task, const QStringList &assignments,

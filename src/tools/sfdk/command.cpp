@@ -36,6 +36,7 @@
 #include <sfdk/device.h>
 #include <sfdk/emulator.h>
 #include <sfdk/sdk.h>
+#include <sfdk/sfdkconstants.h>
 #include <sfdk/virtualmachine.h>
 
 #include "commandlineparser.h"
@@ -62,6 +63,10 @@ const char SDK_MAINTENANCE_TOOL[] = "SDKMaintenanceTool.app/Contents/MacOS/SDKMa
 const char SDK_MAINTENANCE_TOOL[] = "SDKMaintenanceTool" QTC_HOST_EXE_SUFFIX;
 #endif
 
+const char WWW_PROXY_TYPE[] = "proxy";
+const char WWW_PROXY_SERVERS[] = "proxy.servers";
+const char WWW_PROXY_EXCLUDES[] = "proxy.excludes";
+
 const char VM_MEMORY_SIZE_MB[] = "vm.memorySize";
 const char VM_CPU_COUNT[] = "vm.cpuCount";
 // FIXME vdi -> storage
@@ -83,6 +88,7 @@ public:
     virtual QMap<QString, QString> get() const = 0;
     virtual bool prepareSet(const QString &name, const QString &value, bool *needsVmOff,
             QString *errorString) = 0;
+    virtual bool canSet(QString *errorString) const { Q_UNUSED(errorString); return true; }
     virtual bool set() = 0;
 
 protected:
@@ -148,6 +154,9 @@ public:
 
     bool set(QString *errorString)
     {
+        if (!m_accessor->canSet(errorString))
+            return false;
+
         started();
 
         bool ok = false;
@@ -295,6 +304,103 @@ private:
 };
 
 /*!
+ * \class SdkPropertiesAccessor
+ */
+
+class SdkPropertiesAccessor : public PropertiesAccessor
+{
+public:
+    SdkPropertiesAccessor()
+    {
+        QTC_ASSERT(SdkManager::engine(), return);
+        m_wwwProxyType = SdkManager::engine()->wwwProxyType();
+        m_wwwProxyServers = SdkManager::engine()->wwwProxyServers();
+        m_wwwProxyExcludes = SdkManager::engine()->wwwProxyExcludes();
+    }
+
+    QMap<QString, QString> get() const override
+    {
+        QMap<QString, QString> values;
+        values.insert(WWW_PROXY_TYPE, m_wwwProxyType);
+        values.insert(WWW_PROXY_SERVERS, m_wwwProxyServers);
+        values.insert(WWW_PROXY_EXCLUDES, m_wwwProxyExcludes);
+        return values;
+    }
+
+    bool prepareSet(const QString &name, const QString &value, bool *needsVmOff,
+            QString *errorString) override
+    {
+        *needsVmOff = false;
+
+        auto validateUrls = [](const QString &urls, QString *errorString) {
+            for (const QString &url : urls.split(' ', QString::SkipEmptyParts)) {
+                if (!QUrl::fromUserInput(url).isValid()) {
+                    *errorString = tr("Not a valid URL: \"%1\"").arg(url);
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        if (name == WWW_PROXY_TYPE) {
+            if (value != Constants::WWW_PROXY_DISABLED
+                    && value != Constants::WWW_PROXY_AUTOMATIC
+                    && value != Constants::WWW_PROXY_MANUAL) {
+                *errorString = tr("Invalid proxy type: \"%1\"").arg(value);
+                return false;
+            }
+            m_wwwProxyType = value;
+            return true;
+        } else if (name == WWW_PROXY_SERVERS) {
+            if (!validateUrls(value, errorString))
+                return false;
+            m_wwwProxyServers = value.trimmed();
+            return true;
+        } else if (name == WWW_PROXY_EXCLUDES) {
+            if (!validateUrls(value, errorString))
+                return false;
+            m_wwwProxyExcludes = value.trimmed();
+            return true;
+        } else {
+            *errorString = unknownPropertyMessage(name);
+            return false;
+        }
+    }
+
+    bool canSet(QString *errorString) const override
+    {
+        if (m_wwwProxyType == Constants::WWW_PROXY_MANUAL
+                && m_wwwProxyServers.isEmpty()) {
+            *errorString = tr("The value of \"%1\" must not be empty when \"%2\" is set to \"%3\"")
+                .arg(WWW_PROXY_SERVERS)
+                .arg(WWW_PROXY_TYPE)
+                .arg(Constants::WWW_PROXY_MANUAL);
+            return false;
+        }
+
+        return true;
+    }
+
+    bool set() override
+    {
+        BuildEngine *const engine = SdkManager::engine();
+
+        if (m_wwwProxyType != engine->wwwProxyType()
+                || m_wwwProxyServers != engine->wwwProxyServers()
+                || m_wwwProxyExcludes != engine->wwwProxyExcludes()) {
+            engine->setWwwProxy(m_wwwProxyType, m_wwwProxyServers, m_wwwProxyExcludes);
+        }
+
+        return true;
+    }
+
+private:
+    QString m_wwwProxyType;
+    QString m_wwwProxyServers;
+    QString m_wwwProxyExcludes;
+};
+
+/*!
  * \class EmulatorPropertiesAccessor
  */
 
@@ -416,6 +522,8 @@ Worker::ExitStatus BuiltinWorker::run(const Command *command, const QStringList 
         return runEngine(arguments, exitCode);
     else if (command->name == "maintain")
         return runMaintain(arguments, exitCode);
+    else if (command->name == "misc")
+        return runMisc(arguments, exitCode);
 
     qCCritical(sfdk) << "No such builtin:" << command->name << endl;
     return NoSuchCommand;
@@ -840,6 +948,54 @@ Worker::ExitStatus BuiltinWorker::runMaintain(const QStringList &arguments, int 
     return NormalExit;
 }
 
+Worker::ExitStatus BuiltinWorker::runMisc(const QStringList &arguments, int *exitCode) const
+{
+    using P = CommandLineParser;
+
+    if (arguments.count() < 1) {
+        qerr() << P::missingArgumentMessage() << endl;
+        return BadUsage;
+    }
+
+    if (arguments.first() == "stop-vms") {
+        if (arguments.count() > 1) {
+            qerr() << P::unexpectedArgumentMessage(arguments.at(1)) << endl;
+            return BadUsage;
+        }
+        *exitCode = stopVirtualMachines() ? EXIT_SUCCESS : EXIT_FAILURE;
+        return NormalExit;
+    }
+
+    if (arguments.first() == "show") {
+        if (arguments.count() > 1) {
+            qerr() << P::unexpectedArgumentMessage(arguments.at(1)) << endl;
+            return BadUsage;
+        }
+        printProperties(SdkPropertiesAccessor());
+        *exitCode = EXIT_SUCCESS;
+        return NormalExit;
+    }
+
+    if (arguments.first() == "set") {
+        const QStringList assignments = arguments.mid(1);
+
+        if (assignments.isEmpty()) {
+            qerr() << P::missingArgumentMessage() << endl;
+            return BadUsage;
+        }
+
+        SetPropertiesTask task(
+                std::make_unique<SdkPropertiesAccessor>(),
+                SdkManager::engine()->virtualMachine(),
+                tr("Some of the changes cannot be applied while the build engine is running."
+                    " Please stop the build engine."));
+        return setProperties(&task, assignments, exitCode);
+    }
+
+    qerr() << P::unrecognizedCommandMessage(arguments.first()) << endl;
+    return BadUsage;
+}
+
 void BuiltinWorker::listDevices()
 {
     auto maxLength = [](const QStringList &strings) {
@@ -935,6 +1091,25 @@ Emulator *BuiltinWorker::emulatorForNameOrIndex(const QString &emulatorNameOrInd
     } else {
         return SdkManager::emulatorByName(emulatorNameOrIndex, errorString);
     }
+}
+
+bool BuiltinWorker::stopVirtualMachines()
+{
+    for (BuildEngine *const engine : Sdk::buildEngines()) {
+        if (!SdkManager::stopReliably(engine->virtualMachine())) {
+            qerr() << tr("Failed to stop the build engine \"%1\"").arg(engine->name()) << endl;
+            return false;
+        }
+    }
+
+    for (Emulator *const emulator : Sdk::emulators()) {
+        if (!SdkManager::stopReliably(emulator->virtualMachine())) {
+            qerr() << tr("Failed to stop the emulator \"%1\"").arg(emulator->name()) << endl;
+            return false;
+        }
+    }
+
+    return true;
 }
 
 void BuiltinWorker::printProperties(const PropertiesAccessor &accessor)
