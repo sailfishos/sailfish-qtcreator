@@ -185,8 +185,6 @@ int main(int argc, char **argv)
     }
 
     SdkManager sdkManager(parser.useSystemSettingsOnly());
-    if (!sdkManager.isValid())
-        return SFDK_EXIT_ABNORMAL;
 
     if (showVersion) {
         QString versionFile = SdkManager::installationPath() + '/' + VERSION_FILE_PATH;

@@ -306,7 +306,7 @@ class SdkPropertiesAccessor : public PropertiesAccessor
 public:
     SdkPropertiesAccessor()
     {
-        QTC_ASSERT(SdkManager::engine(), return);
+        QTC_ASSERT(SdkManager::hasEngine(), return);
         m_wwwProxyType = SdkManager::engine()->wwwProxyType();
         m_wwwProxyServers = SdkManager::engine()->wwwProxyServers();
         m_wwwProxyExcludes = SdkManager::engine()->wwwProxyExcludes();
@@ -377,6 +377,7 @@ public:
 
     bool set() override
     {
+        QTC_ASSERT(SdkManager::hasEngine(), return false);
         BuildEngine *const engine = SdkManager::engine();
 
         if (m_wwwProxyType != engine->wwwProxyType()
@@ -879,6 +880,12 @@ Worker::ExitStatus BuiltinWorker::runEngine(const QStringList &arguments, int *e
 {
     using P = CommandLineParser;
 
+    if (!SdkManager::hasEngine()) {
+        qerr() << SdkManager::noEngineFoundMessage() << endl;
+        *exitCode = SFDK_EXIT_ABNORMAL;
+        return NormalExit;
+    }
+
     if (arguments.count() < 1) {
         qerr() << P::missingArgumentMessage() << endl;
         return BadUsage;
@@ -994,6 +1001,12 @@ Worker::ExitStatus BuiltinWorker::runMisc(const QStringList &arguments, int *exi
     }
 
     if (arguments.first() == "show") {
+        if (!SdkManager::hasEngine()) {
+            qerr() << SdkManager::noEngineFoundMessage() << endl;
+            *exitCode = SFDK_EXIT_ABNORMAL;
+            return NormalExit;
+        }
+
         if (arguments.count() > 1) {
             qerr() << P::unexpectedArgumentMessage(arguments.at(1)) << endl;
             return BadUsage;
@@ -1004,6 +1017,12 @@ Worker::ExitStatus BuiltinWorker::runMisc(const QStringList &arguments, int *exi
     }
 
     if (arguments.first() == "set") {
+        if (!SdkManager::hasEngine()) {
+            qerr() << SdkManager::noEngineFoundMessage() << endl;
+            *exitCode = SFDK_EXIT_ABNORMAL;
+            return NormalExit;
+        }
+
         const QStringList assignments = arguments.mid(1);
 
         if (assignments.isEmpty()) {
@@ -1026,6 +1045,12 @@ Worker::ExitStatus BuiltinWorker::runMisc(const QStringList &arguments, int *exi
 Worker::ExitStatus BuiltinWorker::runTools(const QStringList &arguments_, int *exitCode) const
 {
     using P = CommandLineParser;
+
+    if (!SdkManager::hasEngine()) {
+        qerr() << SdkManager::noEngineFoundMessage() << endl;
+        *exitCode = SFDK_EXIT_ABNORMAL;
+        return NormalExit;
+    }
 
     // Process the optional tooling|target keyword first...
     QStringList arguments = arguments_;
@@ -1427,6 +1452,12 @@ Worker::ExitStatus EngineWorker::run(const Command *command, const QStringList &
         int *exitCode) const
 {
     Q_ASSERT(exitCode != nullptr);
+
+    if (!SdkManager::hasEngine()) {
+        qerr() << SdkManager::noEngineFoundMessage() << endl;
+        *exitCode = SFDK_EXIT_ABNORMAL;
+        return NormalExit;
+    }
 
     QStringList allArguments;
     allArguments += m_initialArguments;

@@ -944,11 +944,6 @@ SdkManager::~SdkManager()
     s_instance = nullptr;
 }
 
-bool SdkManager::isValid()
-{
-    return s_instance->hasEngine();
-}
-
 QString SdkManager::installationPath()
 {
     return Sdk::installationPath();
@@ -957,6 +952,16 @@ QString SdkManager::installationPath()
 QString SdkManager::sdkMaintenanceToolPath()
 {
     return Sdk::installationPath() + '/' + SDK_MAINTENANCE_TOOL;
+}
+
+bool SdkManager::hasEngine()
+{
+    return s_instance->m_buildEngine != nullptr;
+}
+
+QString SdkManager::noEngineFoundMessage()
+{
+    return tr("No build engine found");
 }
 
 BuildEngine *SdkManager::engine()
@@ -1038,33 +1043,39 @@ void SdkManager::setEnableReversePathMapping(bool enable)
 
 bool SdkManager::listTools(ListToolsOptions options, QList<ToolsInfo> *info)
 {
+    QTC_ASSERT(s_instance->hasEngine(), return false);
     return ToolsPackageManager().listTools(options, info);
 }
 
 bool SdkManager::updateTools(const QString &name, ToolsTypeHint typeHint)
 {
+    QTC_ASSERT(s_instance->hasEngine(), return false);
     return ToolsPackageManager().updateTools(name, typeHint);
 }
 
 bool SdkManager::registerTools(const QString &maybeName, ToolsTypeHint typeHint,
         const QString &maybeUserName, const QString &maybePassword)
 {
+    QTC_ASSERT(s_instance->hasEngine(), return false);
     return ToolsPackageManager().registerTools(maybeName, typeHint, maybeUserName, maybePassword);
 }
 
 bool SdkManager::addTools(const QString &name, ToolsTypeHint typeHint)
 {
+    QTC_ASSERT(s_instance->hasEngine(), return false);
     return ToolsPackageManager().addTools(name, typeHint);
 }
 
 bool SdkManager::createTools(const QString &name, const QString &imageFileOrUrl,
         ToolsTypeHint typeHint)
 {
+    QTC_ASSERT(s_instance->hasEngine(), return false);
     return ToolsPackageManager().createTools(name, imageFileOrUrl, typeHint);
 }
 
 bool SdkManager::removeTools(const QString &name, ToolsTypeHint typeHint)
 {
+    QTC_ASSERT(s_instance->hasEngine(), return false);
     return ToolsPackageManager().removeTools(name, typeHint);
 }
 
@@ -1253,24 +1264,23 @@ void SdkManager::saveSettings()
         qCWarning(sfdk) << "Error saving settings:" << errorString;
 }
 
-bool SdkManager::hasEngine() const
-{
-    return m_buildEngine != nullptr;
-}
-
 QString SdkManager::cleanSharedHome() const
 {
+    QTC_ASSERT(hasEngine(), return {});
     return QDir(QDir::cleanPath(m_buildEngine->sharedHomePath().toString())).canonicalPath();
 }
 
 QString SdkManager::cleanSharedSrc() const
 {
+    QTC_ASSERT(hasEngine(), return {});
     return QDir(QDir::cleanPath(m_buildEngine->sharedSrcPath().toString())).canonicalPath();
 }
 
 bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QString *workingDirectory,
         QProcessEnvironment *environment) const
 {
+    QTC_ASSERT(hasEngine(), return false);
+
     const QString cleanSharedHome = this->cleanSharedHome();
     const QString cleanSharedSrc = this->cleanSharedSrc();
 
@@ -1322,6 +1332,8 @@ bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QStrin
 
 QByteArray SdkManager::maybeReverseMapEnginePaths(const QByteArray &commandOutput) const
 {
+    QTC_ASSERT(hasEngine(), return {});
+
     if (!m_enableReversePathMapping)
         return commandOutput;
 
