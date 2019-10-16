@@ -36,7 +36,11 @@
 #include "rmkeysoperation.h"
 #include "addkeysoperation.h"
 #include "sfdkutils.h"
+
 #include "../../libs/sfdk/sfdkconstants.h"
+
+#include <QDateTime>
+
 #include <iostream>
 
 namespace C = Sfdk::Constants;
@@ -157,6 +161,8 @@ QVariantMap RmSfdkEmulatorOperation::removeEmulator(const QVariantMap &map, cons
 #ifdef WITH_TESTS
 bool RmSfdkEmulatorOperation::test() const
 {
+    const auto now = QDateTime::currentDateTime();
+
     QVariantMap map = AddSfdkEmulatorOperation::initializeEmulators(2, QLatin1String("/dir"));
 
     map = AddSfdkDeviceModelOperation::addDeviceModel(map,
@@ -164,6 +170,7 @@ bool RmSfdkEmulatorOperation::test() const
 
     map = AddSfdkEmulatorOperation::addEmulator(map,
                  QUrl("sfdkvm:VirtualBox#testEmulator"),
+                 now,
                  QLatin1String("testSnapshot"),
                  true,
                  QLatin1String("/test/sharedSshPath"),
@@ -181,6 +188,7 @@ bool RmSfdkEmulatorOperation::test() const
 
     map = AddSfdkEmulatorOperation::addEmulator(map,
                  QUrl("sfdkvm:VirtualBox#testEmulator2"),
+                 now,
                  QLatin1String("testSnapshot"),
                  true,
                  QLatin1String("/test/sharedSshPath"),

@@ -35,7 +35,11 @@
 #include "rmkeysoperation.h"
 #include "getoperation.h"
 #include "sfdkutils.h"
+
 #include "../../libs/sfdk/sfdkconstants.h"
+
+#include <QDateTime>
+
 #include <iostream>
 
 // FIXME most of these should be possible to detect at first run
@@ -55,7 +59,6 @@ const char MER_PARAM_SUBNET[] = "--subnet";
 const char MER_PARAM_DEVICE_MODEL[] = "--device-model";
 const char MER_PARAM_VIEW_SCALED[] = "--view-scaled";
 const char MER_PARAM_INSTALLDIR[] = "--installdir";
-const char MER_PARAM_VERSION[] = "--version";
 
 using namespace Utils;
 namespace C = Sfdk::Constants;
@@ -80,7 +83,6 @@ QString AddSfdkEmulatorOperation::argumentsHelpText() const
     return indent + QLatin1String(MER_PARAM_INSTALLDIR) + QLatin1String(" <DIR>            SDK installation directory (required).\n")
          + indent + QLatin1String(MER_PARAM_VM_URI) + QLatin1String(" <URI>                virtual machine URI (required).\n")
          + indent + QLatin1String(MER_PARAM_VM_FACTORY_SNAPSHOT) + QLatin1String(" <NAME>  virtual machine factory snapshot (required).\n")
-         + indent + QLatin1String(MER_PARAM_VERSION) + QLatin1String(" <NUMBER>            configuration version (required).\n")
          + indent + QLatin1String(MER_PARAM_AUTODETECTED) + QLatin1String(" <BOOL>         is emulator autodetected.\n")
          + indent + QLatin1String(MER_PARAM_SHARED_SSH) + QLatin1String(" <PATH>           shared \"ssh\" folder (required).\n")
          + indent + QLatin1String(MER_PARAM_SHARED_CONFIG) + QLatin1String(" <PATH>        shared \"config\" folder (required).\n")
@@ -124,14 +126,6 @@ bool AddSfdkEmulatorOperation::setArguments(const QStringList &args)
                 return false;
             ++i; // skip next;
             m_vmFactorySnapshot = next;
-            continue;
-        }
-
-        if (current == QLatin1String(MER_PARAM_VERSION)) {
-            if (next.isNull())
-                return false;
-            ++i; // skip next;
-            m_version = next.toInt();
             continue;
         }
 
@@ -254,10 +248,6 @@ bool AddSfdkEmulatorOperation::setArguments(const QStringList &args)
         std::cerr << MER_PARAM_VM_FACTORY_SNAPSHOT << MISSING << std::endl << std::endl;
         error = true;
     }
-    if (m_version == 0) {
-        std::cerr << MER_PARAM_VERSION << MISSING << std::endl << std::endl;
-        error = true;
-    }
     if (m_sharedSshPath.isEmpty()) {
         std::cerr << MER_PARAM_SHARED_SSH << MISSING << std::endl << std::endl;
         error = true;
@@ -312,7 +302,7 @@ int AddSfdkEmulatorOperation::execute() const
 
     QVariantMap map = load(QLatin1String("SfdkEmulators"));
     if (map.isEmpty())
-        map = initializeEmulators(m_version, m_installDir);
+        map = initializeEmulators(1, m_installDir);
 
     QVariantMap deviceModelMap;
     const int deviceModelsCount = map.value(QLatin1String(C::DEVICE_MODELS_COUNT_KEY)).toInt();
@@ -330,11 +320,14 @@ int AddSfdkEmulatorOperation::execute() const
         return 2;
     };
 
-    map.insert(QLatin1String(C::EMULATORS_VERSION_KEY), m_version);
+    // These are initialized from AddSfdkDeviceModelOperation to invalid values
+    map.insert(QLatin1String(C::EMULATORS_VERSION_KEY), 1);
     map.insert(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY), m_installDir);
-    const QVariantMap result = addEmulator(map, m_vmUri, m_vmFactorySnapshot, m_autodetected, m_sharedSshPath,
-                                      m_sharedConfigPath, m_host, m_userName, m_privateKeyFile, m_sshPort,
-                                      m_qmlLivePorts, m_freePorts, m_mac, m_subnet, deviceModelMap, m_viewScaled);
+
+    const QVariantMap result = addEmulator(map, m_vmUri, QDateTime::currentDateTime(),
+            m_vmFactorySnapshot, m_autodetected, m_sharedSshPath, m_sharedConfigPath, m_host,
+            m_userName, m_privateKeyFile, m_sshPort, m_qmlLivePorts, m_freePorts, m_mac, m_subnet,
+            deviceModelMap, m_viewScaled);
 
     if (result.isEmpty() || map == result)
         return 2;
@@ -355,6 +348,7 @@ QVariantMap AddSfdkEmulatorOperation::initializeEmulators(int version,
 
 QVariantMap AddSfdkEmulatorOperation::addEmulator(const QVariantMap &map,
                                           const QUrl &vmUri,
+                                          const QDateTime &creationTime,
                                           const QString &vmFactorySnapshot,
                                           bool autodetected,
                                           const QString &sharedSshPath,
@@ -401,6 +395,7 @@ QVariantMap AddSfdkEmulatorOperation::addEmulator(const QVariantMap &map,
         return KeyValuePair(QStringList{emulator, key}, value);
     };
     data << addPrefix(QLatin1String(C::EMULATOR_VM_URI), QVariant(vmUri));
+    data << addPrefix(QLatin1String(C::EMULATOR_CREATION_TIME), QVariant(creationTime));
     data << addPrefix(QLatin1String(C::EMULATOR_FACTORY_SNAPSHOT), QVariant(vmFactorySnapshot));
     data << addPrefix(QLatin1String(C::EMULATOR_AUTODETECTED), QVariant(autodetected));
     data << addPrefix(QLatin1String(C::EMULATOR_SHARED_SSH), QVariant(sharedSshPath));
@@ -437,8 +432,11 @@ bool AddSfdkEmulatorOperation::test() const
             || map.value(QLatin1String(C::DEVICE_MODELS_COUNT_KEY)).toInt() != 0)
         return false;
 
+    const auto now = QDateTime::currentDateTime();
+
     map = addEmulator(map,
                  QUrl("sfdkvm:VirtualBox#testEmulator"),
+                 now,
                  QLatin1String("testSnapshot"),
                  true,
                  QLatin1String("/test/sharedSshPath"),
@@ -470,9 +468,11 @@ bool AddSfdkEmulatorOperation::test() const
         return false;
 
     const QVariantMap emulatorMap = map.value(emulator).toMap();
-    if (emulatorMap.count() != 15
+    if (emulatorMap.count() != 16
             || !emulatorMap.contains(QLatin1String(C::EMULATOR_VM_URI))
             || emulatorMap.value(QLatin1String(C::EMULATOR_VM_URI)).toUrl() != QUrl("sfdkvm:VirtualBox#testEmulator")
+            || !emulatorMap.contains(QLatin1String(C::EMULATOR_CREATION_TIME))
+            || emulatorMap.value(QLatin1String(C::EMULATOR_CREATION_TIME)).toDateTime() != now
             || !emulatorMap.contains(QLatin1String(C::EMULATOR_FACTORY_SNAPSHOT))
             || emulatorMap.value(QLatin1String(C::EMULATOR_FACTORY_SNAPSHOT)).toString() != QLatin1String("testSnapshot")
             || !emulatorMap.contains(QLatin1String(C::EMULATOR_AUTODETECTED))

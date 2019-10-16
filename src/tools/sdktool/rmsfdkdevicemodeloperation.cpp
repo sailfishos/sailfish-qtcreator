@@ -28,7 +28,11 @@
 #include "rmkeysoperation.h"
 #include "addkeysoperation.h"
 #include "sfdkutils.h"
+
 #include "../../libs/sfdk/sfdkconstants.h"
+
+#include <QDateTime>
+
 #include <iostream>
 
 namespace C = Sfdk::Constants;
@@ -156,8 +160,11 @@ bool RmSfdkDeviceModelOperation::test() const
     map = AddSfdkDeviceModelOperation::addDeviceModel(map, QLatin1String("Test Device 2"), 250, 500, 25, 50,
                                                      QLatin1String("Test dconf content 2"));
 
+    const auto now = QDateTime::currentDateTime();
+
     map = AddSfdkEmulatorOperation::addEmulator(map,
                  QUrl("sfdkvm:VirtualBox#testEmulator"),
+                 now,
                  QLatin1String("testSnapshot"),
                  true,
                  QLatin1String("/test/sharedSshPath"),

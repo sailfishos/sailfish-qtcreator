@@ -55,6 +55,7 @@ public:
 
     static QVariantMap addEmulator(const QVariantMap &map,
            const QUrl &vmUri,
+           const QDateTime &creationTime,
            const QString &vmFactorySnapshot,
            bool autodetected,
            const QString &sharedSshPath,
@@ -75,7 +76,6 @@ private:
     QString m_installDir;
     QUrl m_vmUri;
     QString m_vmFactorySnapshot;
-    int m_version = 0;
     bool m_autodetected = true;
     QString m_sharedSshPath;
     QString m_sharedConfigPath;

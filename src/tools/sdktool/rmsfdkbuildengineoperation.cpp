@@ -35,7 +35,11 @@
 #include "rmkeysoperation.h"
 #include "addkeysoperation.h"
 #include "sfdkutils.h"
+
 #include "../../libs/sfdk/sfdkconstants.h"
+
+#include <QDateTime>
+
 #include <iostream>
 
 namespace C = Sfdk::Constants;
@@ -144,9 +148,11 @@ QVariantMap RmSfdkBuildEngineOperation::removeBuildEngine(const QVariantMap &map
 #ifdef WITH_TESTS
 bool RmSfdkBuildEngineOperation::test() const
 {
+    const auto now = QDateTime::currentDateTime();
+
     QVariantMap map = AddSfdkBuildEngineOperation::initializeBuildEngines(2, QLatin1String("/dir"));
     map = AddSfdkBuildEngineOperation::addBuildEngine(map,
-                                                 QUrl("sfdkvm:VirtualBox#testBuildEngine"), true,
+                                                 QUrl("sfdkvm:VirtualBox#testBuildEngine"), now, true,
                                                  QLatin1String("/test/sharedHomePath"),
                                                  QLatin1String("/test/sharedTargetPath"),
                                                  QLatin1String("/test/sharedSshPath"),
@@ -156,7 +162,7 @@ bool RmSfdkBuildEngineOperation::test() const
                                                  QLatin1String("/test/privateKey"),22,80,false);
 
     map = AddSfdkBuildEngineOperation::addBuildEngine(map,
-                                     QUrl("sfdkvm:VirtualBox#testBuildEngine2"), true,
+                                     QUrl("sfdkvm:VirtualBox#testBuildEngine2"), now, true,
                                      QLatin1String("/test/sharedHomePath"),
                                      QLatin1String("/test/sharedTargetPath"),
                                      QLatin1String("/test/sharedSshPath"),

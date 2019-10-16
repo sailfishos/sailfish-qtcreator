@@ -35,7 +35,11 @@
 #include "rmkeysoperation.h"
 #include "getoperation.h"
 #include "sfdkutils.h"
+
 #include "../../libs/sfdk/sfdkconstants.h"
+
+#include <QDateTime>
+
 #include <iostream>
 
 // FIXME most of these should be possible to detect at first run
@@ -53,7 +57,6 @@ const char MER_PARAM_SSH_PORT[] = "--ssh-port";
 const char MER_PARAM_WWW_PORT[] = "--www-port";
 const char MER_PARAM_HEADLESS[] = "--headless";
 const char MER_PARAM_INSTALLDIR[] = "--installdir";
-const char MER_PARAM_VERSION[] = "--version";
 
 using namespace Utils;
 namespace C = Sfdk::Constants;
@@ -77,7 +80,6 @@ QString AddSfdkBuildEngineOperation::argumentsHelpText() const
     const QString indent = QLatin1String("    ");
     return indent + QLatin1String(MER_PARAM_INSTALLDIR) + QLatin1String(" <DIR>            SDK installation directory (required).\n")
          + indent + QLatin1String(MER_PARAM_VM_URI) + QLatin1String(" <URI>                virtual machine URI (required).\n")
-         + indent + QLatin1String(MER_PARAM_VERSION) + QLatin1String(" <NUMBER>            configuration version (required).\n")
          + indent + QLatin1String(MER_PARAM_AUTODETECTED) + QLatin1String(" <BOOL>         is build engine autodetected.\n")
          + indent + QLatin1String(MER_PARAM_SHARED_HOME) + QLatin1String(" <PATH>          shared \"home\" folder (required).\n")
          + indent + QLatin1String(MER_PARAM_SHARED_TARGETS) + QLatin1String(" <PATH>       shared \"targets\" folder (required).\n")
@@ -112,14 +114,6 @@ bool AddSfdkBuildEngineOperation::setArguments(const QStringList &args)
                 return false;
             ++i; // skip next;
             m_vmUri = QUrl(next);
-            continue;
-        }
-
-        if (current == QLatin1String(MER_PARAM_VERSION)) {
-            if (next.isNull())
-                return false;
-            ++i; // skip next;
-            m_version = next.toInt();
             continue;
         }
 
@@ -163,7 +157,6 @@ bool AddSfdkBuildEngineOperation::setArguments(const QStringList &args)
             m_sharedSrcPath = next;
             continue;
         }
-
 
         if (current == QLatin1String(MER_PARAM_SHARED_CONFIG)) {
             if (next.isNull())
@@ -229,10 +222,6 @@ bool AddSfdkBuildEngineOperation::setArguments(const QStringList &args)
         std::cerr << MER_PARAM_VM_URI << MISSING << std::endl << std::endl;
         error = true;
     }
-    if (m_version == 0) {
-        std::cerr << MER_PARAM_VERSION << MISSING << std::endl << std::endl;
-        error = true;
-    }
     if (m_sharedHomePath.isEmpty()) {
         std::cerr << MER_PARAM_SHARED_HOME << MISSING << std::endl << std::endl;
         error = true;
@@ -283,13 +272,12 @@ int AddSfdkBuildEngineOperation::execute() const
 
     QVariantMap map = load(QLatin1String("SfdkBuildEngines"));
     if (map.isEmpty())
-        map = initializeBuildEngines(m_version, m_installDir);
+        map = initializeBuildEngines(1, m_installDir);
 
-    map.insert(QLatin1String(C::BUILD_ENGINES_VERSION_KEY), m_version);
-    map.insert(QLatin1String(C::BUILD_ENGINES_INSTALL_DIR_KEY), m_installDir);
-    const QVariantMap result = addBuildEngine(map, m_vmUri, m_autodetected, m_sharedHomePath, m_sharedTargetsPath, m_sharedSshPath,
-                                      m_sharedSrcPath, m_sharedConfigPath, m_host, m_userName, m_privateKeyFile, m_sshPort,
-                                      m_wwwPort, m_headless);
+    const QVariantMap result = addBuildEngine(map, m_vmUri, QDateTime::currentDateTime(),
+            m_autodetected, m_sharedHomePath, m_sharedTargetsPath, m_sharedSshPath, m_sharedSrcPath,
+            m_sharedConfigPath, m_host, m_userName, m_privateKeyFile, m_sshPort, m_wwwPort,
+            m_headless);
 
     if (result.isEmpty() || map == result)
         return 2;
@@ -309,6 +297,7 @@ QVariantMap AddSfdkBuildEngineOperation::initializeBuildEngines(int version,
 
 QVariantMap AddSfdkBuildEngineOperation::addBuildEngine(const QVariantMap &map,
                                           const QUrl &vmUri,
+                                          const QDateTime &creationTime,
                                           bool autodetected,
                                           const QString &sharedHomePath,
                                           const QString &sharedTargetsPath,
@@ -353,6 +342,7 @@ QVariantMap AddSfdkBuildEngineOperation::addBuildEngine(const QVariantMap &map,
         return KeyValuePair(QStringList{engine, key}, value);
     };
     data << addPrefix(QLatin1String(C::BUILD_ENGINE_VM_URI), QVariant(vmUri));
+    data << addPrefix(QLatin1String(C::BUILD_ENGINE_CREATION_TIME), QVariant(creationTime));
     data << addPrefix(QLatin1String(C::BUILD_ENGINE_AUTODETECTED), QVariant(autodetected));
     data << addPrefix(QLatin1String(C::BUILD_ENGINE_SHARED_HOME), QVariant(sharedHomePath));
     data << addPrefix(QLatin1String(C::BUILD_ENGINE_SHARED_TARGET), QVariant(sharedTargetsPath));
@@ -385,7 +375,9 @@ bool AddSfdkBuildEngineOperation::test() const
             || map.value(QLatin1String(C::BUILD_ENGINES_COUNT_KEY)).toInt() != 0)
         return false;
 
-    map = addBuildEngine(map, QUrl("sfdkvm:VirtualBox#testBuildEngine"), true,
+    const auto now = QDateTime::currentDateTime();
+
+    map = addBuildEngine(map, QUrl("sfdkvm:VirtualBox#testBuildEngine"), now, true,
                  QLatin1String("/test/sharedHomePath"),
                  QLatin1String("/test/sharedTargetPath"),
                  QLatin1String("/test/sharedSshPath"),
@@ -396,7 +388,6 @@ bool AddSfdkBuildEngineOperation::test() const
                  QLatin1String("/test/privateKey"),22,80,false);
 
     const QString sdk = QString::fromLatin1(C::BUILD_ENGINES_DATA_KEY_PREFIX) + QString::number(0);
-
 
     if (map.count() != 4
             || !map.contains(QLatin1String(C::BUILD_ENGINES_VERSION_KEY))
@@ -410,9 +401,11 @@ bool AddSfdkBuildEngineOperation::test() const
         return false;
 
     QVariantMap sdkMap= map.value(sdk).toMap();
-    if (sdkMap.count() != 13
+    if (sdkMap.count() != 14
             || !sdkMap.contains(QLatin1String(C::BUILD_ENGINE_VM_URI))
             || sdkMap.value(QLatin1String(C::BUILD_ENGINE_VM_URI)).toString() != QLatin1String("sfdkvm:VirtualBox#testBuildEngine")
+            || !sdkMap.contains(QLatin1String(C::BUILD_ENGINE_CREATION_TIME))
+            || sdkMap.value(QLatin1String(C::BUILD_ENGINE_CREATION_TIME)).toDateTime() != now
             || !sdkMap.contains(QLatin1String(C::BUILD_ENGINE_AUTODETECTED))
             || sdkMap.value(QLatin1String(C::BUILD_ENGINE_AUTODETECTED)).toBool() != true
             || !sdkMap.contains(QLatin1String(C::BUILD_ENGINE_SHARED_HOME))

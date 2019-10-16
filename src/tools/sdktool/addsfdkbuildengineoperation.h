@@ -57,6 +57,7 @@ public:
 
     static QVariantMap addBuildEngine(const QVariantMap &map,
            const QUrl &vmUri,
+           const QDateTime &creationTime,
            bool autodetected,
            const QString &sharedHomePath,
            const QString &sharedTargetsPath,
@@ -74,7 +75,6 @@ public:
 private:
     QString m_installDir;
     QUrl m_vmUri;
-    int m_version = 0;
     bool m_autodetected = true;
     QString m_sharedHomePath;
     QString m_sharedTargetsPath;
