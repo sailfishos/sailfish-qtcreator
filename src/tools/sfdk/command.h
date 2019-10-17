@@ -74,7 +74,6 @@ public:
     enum ExitStatus {
         NoSuchCommand,
         BadUsage,
-        CrashExit,
         NormalExit
     };
 

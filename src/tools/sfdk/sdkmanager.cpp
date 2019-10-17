@@ -271,7 +271,7 @@ bool SdkManager::isEngineRunning()
 int SdkManager::runOnEngine(const QString &program, const QStringList &arguments,
         QProcess::InputChannelMode inputChannelMode)
 {
-    QTC_ASSERT(s_instance->hasEngine(), return Constants::EXIT_ABNORMAL);
+    QTC_ASSERT(s_instance->hasEngine(), return SFDK_EXIT_ABNORMAL);
 
     // Assumption to minimize the time spent here: if the VM is running, we must have been waiting
     // before for the engine to fully start, so no need to wait for connectTo again
@@ -279,7 +279,7 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
         qCInfo(sfdk).noquote() << tr("Starting the build engine…");
         if (!s_instance->m_buildEngine->virtualMachine()->connectTo(VirtualMachine::Block)) {
             qerr() << tr("Failed to start the build engine") << endl;
-            return EXIT_FAILURE;
+            return SFDK_EXIT_ABNORMAL;
         }
     }
 
@@ -290,7 +290,7 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     extraEnvironment.insert(Mer::Constants::SAILFISH_SDK_FRONTEND, Constants::SDK_FRONTEND_ID);
 
     if (!s_instance->mapEnginePaths(&program_, &arguments_, &workingDirectory, &extraEnvironment))
-        return Constants::EXIT_ABNORMAL;
+        return SFDK_EXIT_ABNORMAL;
 
     RemoteProcess process;
     process.setSshParameters(s_instance->m_buildEngine->virtualMachine()->sshParameters());
@@ -308,6 +308,9 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     });
     QObject::connect(&process, &RemoteProcess::connectionError, [&](const QString &errorString) {
         qerr() << tr("Error connecting to the build engine: ") << errorString << endl;
+    });
+    QObject::connect(&process, &RemoteProcess::processError, [&](const QString &errorString) {
+        qerr() << tr("Error running command on the build engine: ") << errorString << endl;
     });
 
     return process.exec();
@@ -372,7 +375,7 @@ int SdkManager::runOnDevice(const Device &device, const QString &program,
             qCInfo(sfdk).noquote() << tr("Starting the emulator…");
             if (!emulator->virtualMachine()->connectTo(VirtualMachine::Block)) {
                 qerr() << tr("Failed to start the emulator") << endl;
-                return EXIT_FAILURE;
+                return SFDK_EXIT_ABNORMAL;
             }
         }
     }
@@ -394,6 +397,12 @@ int SdkManager::runOnDevice(const Device &device, const QString &program,
             qerr() << tr("Error connecting to the emulator: ") << errorString << endl;
         else
             qerr() << tr("Error connecting to the device: ") << errorString << endl;
+    });
+    QObject::connect(&process, &RemoteProcess::processError, [&](const QString &errorString) {
+        if (device.machineType() == Device::EmulatorMachine)
+            qerr() << tr("Error running command on the emulator: ") << errorString << endl;
+        else
+            qerr() << tr("Error running command on the device: ") << errorString << endl;
     });
 
     return process.exec();
@@ -449,7 +458,7 @@ int SdkManager::runOnEmulator(const Emulator &emulator, const QString &program,
         const QStringList &arguments, QProcess::InputChannelMode inputChannelMode)
 {
     Device *const emulatorDevice = Sdk::device(emulator);
-    QTC_ASSERT(emulatorDevice, return Constants::EXIT_ABNORMAL);
+    QTC_ASSERT(emulatorDevice, return SFDK_EXIT_ABNORMAL);
     return runOnDevice(*emulatorDevice, program, arguments, inputChannelMode);
 }
 

@@ -692,7 +692,7 @@ Worker::ExitStatus BuiltinWorker::runDevice(const QStringList &arguments, int *e
     }
     if (!device) {
         qerr() << errorString << endl;
-        *exitCode = Constants::EXIT_ABNORMAL;
+        *exitCode = SFDK_EXIT_ABNORMAL;
         return NormalExit;
     }
 
@@ -759,7 +759,7 @@ Worker::ExitStatus BuiltinWorker::runEmulator(const QStringList &arguments, int 
     }
     if (!emulator) {
         qerr() << errorString << endl;
-        *exitCode = Constants::EXIT_ABNORMAL;
+        *exitCode = SFDK_EXIT_ABNORMAL;
         return NormalExit;
     }
 

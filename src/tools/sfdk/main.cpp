@@ -148,16 +148,16 @@ int main(int argc, char **argv)
     const QFileInfoList modules = modulesDir.entryInfoList({"*.json"}, QDir::Files, QDir::Name);
     if (modules.isEmpty()) {
         qCCritical(sfdk) << "No module found. Check your installation.";
-        return EXIT_FAILURE;
+        return SFDK_EXIT_ABNORMAL;
     }
     for (const QFileInfo &module : modules) {
         if (!dispatcher.load(module.filePath()))
-            return EXIT_FAILURE;
+            return SFDK_EXIT_ABNORMAL;
     }
     if (Dispatcher::domain(Constants::GENERAL_DOMAIN_NAME) == nullptr) {
         qCCritical(sfdk) << "No module in the" << QLatin1String(Constants::GENERAL_DOMAIN_NAME)
             << "domain. Check your installation.";
-        return EXIT_FAILURE;
+        return SFDK_EXIT_ABNORMAL;
     }
 
     Session session;
@@ -167,7 +167,7 @@ int main(int argc, char **argv)
     CommandLineParser parser(app.arguments());
     switch (parser.result()) {
     case CommandLineParser::BadUsage:
-        return EXIT_FAILURE;
+        return SFDK_EXIT_ABNORMAL;
 
     case CommandLineParser::Dispatch:
         break;
@@ -181,12 +181,12 @@ int main(int argc, char **argv)
 
     if (!parser.useSystemSettingsOnly()) {
         if (!configuration.load())
-            return EXIT_FAILURE;
+            return SFDK_EXIT_ABNORMAL;
     }
 
     SdkManager sdkManager(parser.useSystemSettingsOnly());
     if (!sdkManager.isValid())
-        return EXIT_FAILURE;
+        return SFDK_EXIT_ABNORMAL;
 
     if (showVersion) {
         QString versionFile = SdkManager::installationPath() + '/' + VERSION_FILE_PATH;
@@ -195,7 +195,7 @@ int main(int argc, char **argv)
         if (!reader.fetch(versionFile, &errorString)) {
             qCCritical(sfdk) << "Error reading version file" << versionFile << ":"
                 << qPrintable(errorString);
-            return EXIT_FAILURE;
+            return SFDK_EXIT_ABNORMAL;
         }
 
         qout() << reader.data();
@@ -238,16 +238,13 @@ int main(int argc, char **argv)
         int exitCode;
         switch (worker->run(parser.command(), parser.commandArguments(), &exitCode)) {
         case Worker::NoSuchCommand:
-            app.exit(EXIT_FAILURE);
+            // The worker is responsible for printing an error message in this case
+            app.exit(SFDK_EXIT_ABNORMAL);
             return;
 
         case Worker::BadUsage:
             parser.commandBriefUsage(qerr(), parser.command());
-            app.exit(EXIT_FAILURE);
-            return;
-
-        case Worker::CrashExit:
-            app.exit(EXIT_FAILURE);
+            app.exit(SFDK_EXIT_ABNORMAL);
             return;
 
         case Worker::NormalExit:
@@ -258,7 +255,7 @@ int main(int argc, char **argv)
         }
 
         Q_ASSERT(false);
-        app.exit(EXIT_FAILURE);
+        app.exit(SFDK_EXIT_ABNORMAL);
     });
 
     return app.exec();

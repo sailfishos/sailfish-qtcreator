@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -35,8 +36,8 @@ const char DISABLE_REVERSE_PATH_MAPPING_ENV_VAR[] = "SFDK_NO_REVERSE_PATH_MAP";
 const char MSYS_DETECTION_ENV_VAR[] = "MSYSTEM";
 const char NO_WARN_ABOUT_WINPTY_ENV_VAR[] = "SFDK_NO_WINPTY";
 const char DISABLE_VM_INFO_CACHE_ENV_VAR[] = "SFDK_NO_VM_INFO_CACHE";
-
-const int EXIT_ABNORMAL = -1;
+const char EXIT_ABNORMAL_ENV_VAR[] = "SFDK_EXIT_ABNORMAL";
+const int EXIT_ABNORMAL_DEFAULT_CODE = 120;
 
 } // namespace Constants
 } // namespace Sfdk
