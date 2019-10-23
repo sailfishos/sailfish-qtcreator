@@ -50,7 +50,14 @@
 namespace {
 const int CONNECT_TIMEOUT_MS = 60000;
 const int LOCK_DOWN_TIMEOUT_MS = 60000;
-}
+
+#ifdef Q_OS_MACOS
+const char SDK_MAINTENANCE_TOOL[] = "SDKMaintenanceTool.app/Contents/MacOS/SDKMaintenanceTool";
+#else
+const char SDK_MAINTENANCE_TOOL[] = "SDKMaintenanceTool" QTC_HOST_EXE_SUFFIX;
+#endif
+
+} // namespace anonymous
 
 using namespace Mer;
 using namespace Mer::Internal;
@@ -242,6 +249,11 @@ bool SdkManager::isValid()
 QString SdkManager::installationPath()
 {
     return Sdk::installationPath();
+}
+
+QString SdkManager::sdkMaintenanceToolPath()
+{
+    return Sdk::installationPath() + '/' + SDK_MAINTENANCE_TOOL;
 }
 
 BuildEngine *SdkManager::engine()

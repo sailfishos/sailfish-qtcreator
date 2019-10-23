@@ -57,11 +57,6 @@ const char PROGRAM_KEY[] = "program";
 const char INITIAL_ARGUMENTS_KEY[] = "initialArguments";
 const char OMIT_SUBCOMMAND_KEY[] = "omitSubcommand";
 const char DIRECT_TERMINAL_INPUT_KEY[] = "directTerminalInput";
-#ifdef Q_OS_MACOS
-const char SDK_MAINTENANCE_TOOL[] = "SDKMaintenanceTool.app/Contents/MacOS/SDKMaintenanceTool";
-#else
-const char SDK_MAINTENANCE_TOOL[] = "SDKMaintenanceTool" QTC_HOST_EXE_SUFFIX;
-#endif
 
 const char WWW_PROXY_TYPE[] = "proxy";
 const char WWW_PROXY_SERVERS[] = "proxy.servers";
@@ -943,8 +938,9 @@ Worker::ExitStatus BuiltinWorker::runMaintain(const QStringList &arguments, int 
         return BadUsage;
     }
 
-    QString tool = SdkManager::installationPath() + '/' + SDK_MAINTENANCE_TOOL;
-    *exitCode = QProcess::startDetached(tool, {}) ? EXIT_SUCCESS : EXIT_FAILURE;
+    *exitCode = QProcess::startDetached(SdkManager::sdkMaintenanceToolPath(), {})
+        ? EXIT_SUCCESS
+        : EXIT_FAILURE;
     return NormalExit;
 }
 

@@ -54,6 +54,7 @@ public:
     static bool isValid();
 
     static QString installationPath();
+    static QString sdkMaintenanceToolPath();
 
     static BuildEngine *engine();
     static bool startEngine();
