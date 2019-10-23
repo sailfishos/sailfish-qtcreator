@@ -5,6 +5,8 @@ DEFINES += QT_NO_URL_CAST_FROM_STRING
 
 QT += network xmlpatterns
 
+*-g++*:QMAKE_CXXFLAGS += -Wall -Werror
+
 SOURCES += \
     asynchronous.cpp \
     buildengine.cpp \
