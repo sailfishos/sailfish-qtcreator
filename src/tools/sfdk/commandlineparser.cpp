@@ -449,6 +449,21 @@ bool CommandLineParser::checkExclusiveOption(const QCommandLineParser &parser,
     return true;
 }
 
+bool CommandLineParser::checkPositionalArgumentsCount(const QStringList &arguments, int min,
+        int max)
+{
+    if (arguments.count() < min) {
+        qerr() << missingArgumentMessage() << endl;
+        return false;
+    }
+    if (arguments.count() > max) {
+        qerr() << unexpectedArgumentMessage(arguments.at(max)) << endl;
+        return false;
+    }
+
+    return true;
+}
+
 QString CommandLineParser::summary()
 {
     return tr("%1 is the command line frontend of the Sailfish SDK.").arg(EXE_NAME);

@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -25,6 +26,9 @@
 #include <QCoreApplication>
 #include <QRegularExpression>
 
+#include <utils/algorithm.h>
+#include <utils/qtcassert.h>
+
 #include "sfdkglobal.h"
 
 namespace Sfdk {
@@ -33,7 +37,14 @@ namespace {
 const int SHIFT_WIDTH = 4;
 const int WRAP_MARGIN = 78;
 const char PAGER[] = "less";
-}
+
+const int TREE_SHIFT_WIDTH = 4;
+const QString TREE_LAST_ITEM_PREFIX = "└── ";
+const QString TREE_LAST_DESCENDANTS_PREFIX = "    ";
+const QString TREE_ITEM_PREFIX = "├── ";
+const QString TREE_DESCENDANTS_PREFIX = "│   ";
+const QString TREE_COLUMN_SEPARATOR = "  ";
+} // namespace anonymous
 
 QTextStream &qout()
 {
@@ -173,6 +184,110 @@ void wrapLines(QTextStream &out, int indentLevel, const QStringList &prefix1,
                 line.trimmed());
         prefix1_ = QString(prefix1_.length(), ' ');
     }
+}
+
+TreePrinter::Tree TreePrinter::build(const QList<QStringList> &table, int idColumn,
+        int parentIdColumn)
+{
+    Tree tree;
+
+    for (const QStringList &row : table) {
+        QTC_ASSERT(row.count() > idColumn, return {});
+        QTC_ASSERT(row.count() > parentIdColumn, return {});
+        const QString id = row.at(idColumn);
+        QTC_ASSERT(!findItem(tree, id, idColumn), return {});
+        const QString parentId = row.at(parentIdColumn);
+
+        std::vector<Item> *siblinks;
+        if (!parentId.isEmpty()) {
+            Item *const parent = findItem(tree, parentId, idColumn);
+            QTC_ASSERT(parent, return {});
+            siblinks = &parent->children;
+        } else {
+            siblinks = &tree;
+        }
+
+        siblinks->emplace_back(row);
+    }
+
+    return tree;
+}
+
+void TreePrinter::sort(Tree *tree, int level, int column, bool ascending)
+{
+    QTC_ASSERT(tree, return);
+    QTC_ASSERT(level >= 0, return);
+    QTC_ASSERT(column >= 0, return);
+
+    if (level == 0) {
+        Utils::sort(*tree, [=](const Item &i1, const Item &i2) -> bool {
+            QTC_ASSERT(i1.columns.count() > column, return {});
+            QTC_ASSERT(i2.columns.count() > column, return {});
+            return ascending
+                ? i1.columns.at(column) < i2.columns.at(column)
+                : i1.columns.at(column) > i2.columns.at(column);
+        });
+    } else {
+        for (auto it = tree->begin(); it != tree->end(); ++it)
+            sort(&it->children, level - 1, column, ascending);
+    }
+}
+
+void TreePrinter::print(QTextStream &out, const Tree &tree, const QList<int> &columns)
+{
+    QList<int> widths;
+    bool first = true;
+    for (int column : columns) {
+        widths << walk<int>(tree, 0, [=](int maxWidth, int depth, const Item &item) {
+            int myWidth = item.columns.at(column).length();
+            if (first)
+                myWidth += depth * TREE_SHIFT_WIDTH;
+            return qMax(maxWidth, myWidth);
+        });
+        first = false;
+    }
+
+    for (const Item &item : tree)
+        print(out, item, {}, columns, widths);
+}
+
+void TreePrinter::print(QTextStream &out, const Item &item, const QString &linePrefix,
+        const QList<int> &columns, const QList<int> &widths)
+{
+    for (int i = 0; i < columns.count(); ++i) {
+        if (i != 0)
+            out << TREE_COLUMN_SEPARATOR;
+        const QString content = item.columns.at(columns.at(i));
+        out << content;
+        int pad = widths.at(i) - content.length();
+        if (i == 0)
+            pad -= linePrefix.length();
+        out << QString(pad, ' ');
+    }
+    out << endl;
+
+    for (auto it = item.children.cbegin(); it != item.children.cend(); ++it) {
+        if (it + 1 == item.children.cend()) {
+            out << linePrefix << TREE_LAST_ITEM_PREFIX;
+            print(out, *it, linePrefix + TREE_LAST_DESCENDANTS_PREFIX, columns, widths);
+        } else {
+            out << linePrefix << TREE_ITEM_PREFIX;
+            print(out, *it, linePrefix + TREE_DESCENDANTS_PREFIX, columns, widths);
+        }
+    }
+}
+
+TreePrinter::Item *TreePrinter::findItem(Tree &tree, const QString &id,
+        int idColumn)
+{
+    for (auto it = tree.begin(); it != tree.end(); ++it) {
+        QTC_ASSERT(it->columns.count() > idColumn, return {});
+        if (it->columns.at(idColumn) == id)
+            return &*it;
+        if (Item *descendant = findItem(it->children, id, idColumn))
+            return descendant;
+    }
+    return nullptr;
 }
 
 } // namespace Sfdk

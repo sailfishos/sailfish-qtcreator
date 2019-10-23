@@ -79,6 +79,7 @@ public:
     static bool checkExclusiveOption(const QCommandLineParser &parser,
             const QList<const QCommandLineOption *> &options,
             const QCommandLineOption **out = nullptr);
+    static bool checkPositionalArgumentsCount(const QStringList &arguments, int min, int max);
 
     static QString summary();
     static QString usageMessage();

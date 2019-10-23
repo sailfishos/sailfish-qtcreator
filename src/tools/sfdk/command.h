@@ -28,6 +28,8 @@
 #include <QList>
 #include <QString>
 
+#include "sdkmanager.h"
+
 QT_BEGIN_NAMESPACE
 class QCommandLineParser;
 class QCommandLineOption;
@@ -106,6 +108,7 @@ private:
     ExitStatus runEngine(const QStringList &arguments, int *exitCode) const;
     ExitStatus runMaintain(const QStringList &arguments, int *exitCode) const;
     ExitStatus runMisc(const QStringList &arguments, int *exitCode) const;
+    ExitStatus runTools(const QStringList &arguments, int *exitCode) const;
 
     static void listDevices();
     static Device *deviceForNameOrIndex(const QString &deviceNameOrIndex,
@@ -113,6 +116,8 @@ private:
     static void listEmulators();
     static Emulator *emulatorForNameOrIndex(const QString &emulatorNameOrIndex,
             QString *errorString);
+    static bool listTools(SdkManager::ListToolsOptions options, bool listToolings,
+            bool listTargets);
     static bool stopVirtualMachines();
 
     static void printProperties(const PropertiesAccessor &accessor);
@@ -120,6 +125,7 @@ private:
             int *exitCode);
 
     static QString runningYesNoMessage(bool running);
+    static QString toString(ToolsInfo::Flags flags, bool saySdkProvided);
 };
 
 class EngineWorker : public Worker

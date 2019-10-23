@@ -42,7 +42,6 @@
 #include "commandlineparser.h"
 #include "configuration.h"
 #include "dispatch.h"
-#include "sdkmanager.h"
 #include "sfdkconstants.h"
 #include "sfdkglobal.h"
 #include "task.h"
@@ -519,6 +518,8 @@ Worker::ExitStatus BuiltinWorker::run(const Command *command, const QStringList 
         return runMaintain(arguments, exitCode);
     else if (command->name == "misc")
         return runMisc(arguments, exitCode);
+    else if (command->name == "tools")
+        return runTools(arguments, exitCode);
 
     qCCritical(sfdk) << "No such builtin:" << command->name << endl;
     return NoSuchCommand;
@@ -992,6 +993,143 @@ Worker::ExitStatus BuiltinWorker::runMisc(const QStringList &arguments, int *exi
     return BadUsage;
 }
 
+Worker::ExitStatus BuiltinWorker::runTools(const QStringList &arguments_, int *exitCode) const
+{
+    using P = CommandLineParser;
+
+    // Process the optional tooling|target keyword first...
+    QStringList arguments = arguments_;
+
+    if (arguments.count() < 1) {
+        qerr() << P::missingArgumentMessage() << endl;
+        return BadUsage;
+    }
+
+    const SdkManager::ToolsTypeHint typeHint =
+        arguments.first() == "tooling"
+        ? SdkManager::ToolingHint
+        : arguments.first() == "target"
+            ? SdkManager::TargetHint
+            : SdkManager::NoToolsHint;
+    if (typeHint != SdkManager::NoToolsHint)
+        arguments.removeFirst();
+
+    // ...then the atual command
+    if (arguments.count() < 1) {
+        qerr() << P::missingArgumentMessage() << endl;
+        return BadUsage;
+    }
+
+    if (arguments.first() == "list") {
+        QCommandLineParser parser;
+        QCommandLineOption availableOption(QStringList{"available", "a"});
+        QCommandLineOption slowOption("slow");
+        parser.addOptions({availableOption, slowOption});
+
+        if (!parser.parse(arguments)) {
+            qerr() << parser.errorText() << endl;
+            return BadUsage;
+        }
+
+        SdkManager::ListToolsOptions options = SdkManager::InstalledTools;
+        if (parser.isSet(availableOption))
+            options = options | SdkManager::AvailableTools;
+        else
+            options = options | SdkManager::UserDefinedTools | SdkManager::SnapshotTools;
+
+        if (parser.isSet(slowOption))
+            options = options | SdkManager::CheckSnapshots;
+
+        const bool listToolings = typeHint == SdkManager::NoToolsHint || typeHint == SdkManager::ToolingHint;
+        const bool listTargets = typeHint == SdkManager::NoToolsHint || typeHint == SdkManager::TargetHint;
+
+        *exitCode = listTools(options, listToolings, listTargets) ? EXIT_SUCCESS : EXIT_FAILURE;
+        return NormalExit;
+    }
+
+    if (arguments.first() == "update") {
+        if (!P::checkPositionalArgumentsCount(arguments, 2, 2))
+            return BadUsage;
+
+        const QString name = arguments.at(1);
+
+        *exitCode = SdkManager::updateTools(name, typeHint) ? EXIT_SUCCESS : EXIT_FAILURE;
+        return NormalExit;
+    }
+
+    if (arguments.first() == "register") {
+        QCommandLineParser parser;
+        QCommandLineOption allOption("all");
+        QCommandLineOption userOption("user", QString(), "name");
+        QCommandLineOption passwordOption("password", QString(), "password");
+
+        parser.addOptions({allOption, userOption, passwordOption});
+        parser.addPositionalArgument("name", QString(), "[name]");
+
+        if (!parser.parse(arguments)) {
+            qerr() << parser.errorText() << endl;
+            return BadUsage;
+        }
+        if (!(parser.isSet(allOption) == parser.positionalArguments().isEmpty())) {
+            qerr() << tr("Exactly one of '%1' or '%2' expected")
+                .arg(allOption.names().first())
+                .arg("name") << endl;
+            return BadUsage;
+        }
+        if (parser.positionalArguments().count() > 1) {
+            qerr() << P::unexpectedArgumentMessage(parser.positionalArguments().at(1)) << endl;
+            return BadUsage;
+        }
+
+        const QString maybeName = parser.isSet(allOption)
+            ? QString()
+            : parser.positionalArguments().first();
+        const QString maybeUserName = parser.value(userOption);
+        const QString maybePassword = parser.value(passwordOption);
+
+        *exitCode = SdkManager::registerTools(maybeName, typeHint, maybeUserName, maybePassword)
+            ? EXIT_SUCCESS
+            : EXIT_FAILURE;
+        return NormalExit;
+    }
+
+    if (arguments.first() == "install") {
+        if (!P::checkPositionalArgumentsCount(arguments, 2, 2))
+            return BadUsage;
+
+        const QString name = arguments.at(1);
+
+        *exitCode = SdkManager::addTools(name, typeHint) ? EXIT_SUCCESS : EXIT_FAILURE;
+        return NormalExit;
+    }
+
+    if (arguments.first() == "create") {
+        if (!P::checkPositionalArgumentsCount(arguments, 3, 3))
+            return BadUsage;
+
+        const QString name = arguments.at(1);
+        const QString imageFileOrUrl = arguments.at(2);
+
+        *exitCode = SdkManager::createTools(name, imageFileOrUrl, typeHint)
+            ? EXIT_SUCCESS
+            : EXIT_FAILURE;
+        return NormalExit;
+    }
+
+    if (arguments.first() == "remove") {
+        if (!P::checkPositionalArgumentsCount(arguments, 2, 2))
+            return BadUsage;
+
+        const QString name = arguments.at(1);
+
+        *exitCode = SdkManager::removeTools(name, typeHint) ? EXIT_SUCCESS : EXIT_FAILURE;
+        return NormalExit;
+    }
+
+    qerr() << P::unrecognizedCommandMessage(arguments.first()) << endl;
+    return BadUsage;
+}
+
 void BuiltinWorker::listDevices()
 {
     auto maxLength = [](const QStringList &strings) {
@@ -1089,6 +1227,44 @@ Emulator *BuiltinWorker::emulatorForNameOrIndex(const QString &emulatorNameOrInd
     }
 }
 
+bool BuiltinWorker::listTools(SdkManager::ListToolsOptions options, bool listToolings,
+        bool listTargets)
+{
+    QList<ToolsInfo> infoList;
+    const bool ok = SdkManager::listTools(options, &infoList);
+    if (!ok)
+        return false;
+
+    const bool saySdkProvided = !(options & SdkManager::AvailableTools);
+
+    QList<QStringList> table;
+    for (const ToolsInfo &info : infoList) {
+        const QString flags = toString(info.flags, saySdkProvided);
+        if (info.flags & ToolsInfo::Tooling) {
+            if (!listToolings)
+                continue;
+            table << QStringList{info.name, info.parentName, flags};
+        } else {
+            if (!listTargets)
+                continue;
+            if (info.flags & ToolsInfo::Snapshot)
+                table << QStringList{info.name, info.parentName, flags};
+            else if (listToolings)
+                table << QStringList{info.name, info.parentName, flags};
+            else
+                table << QStringList{info.name, {}, flags};
+        }
+    }
+
+    TreePrinter::Tree tree = TreePrinter::build(table, 0, 1);
+    TreePrinter::sort(&tree, 0, 0, true);
+    TreePrinter::sort(&tree, 1, 0, true);
+    TreePrinter::sort(&tree, 2, 0, true);
+    TreePrinter::print(qout(), tree, {0, 2});
+
+    return true;
+}
+
 bool BuiltinWorker::stopVirtualMachines()
 {
     for (BuildEngine *const engine : Sdk::buildEngines()) {
@@ -1148,6 +1324,34 @@ Worker::ExitStatus BuiltinWorker::setProperties(SetPropertiesTask *task,
 QString BuiltinWorker::runningYesNoMessage(bool running)
 {
     return tr("Running: %1").arg(running ? tr("Yes") : tr("No"));
+}
+
+QString BuiltinWorker::toString(ToolsInfo::Flags flags, bool saySdkProvided)
+{
+    QStringList keywords;
+
+    // The order matters.
+    // The two flags Tooling and Target are intentionally not reflected in the output
+    if (flags & ToolsInfo::Available)
+        keywords << SdkManager::stateAvailableMessage();
+    if (flags & ToolsInfo::Installed) {
+        if (saySdkProvided)
+            keywords << SdkManager::stateSdkProvidedMessage();
+        else
+            keywords << SdkManager::stateInstalledMessage();
+    }
+    if (flags & ToolsInfo::UserDefined)
+        keywords << SdkManager::stateUserDefinedMessage();
+    if (flags & ToolsInfo::Snapshot)
+        keywords << tr("snapshot");
+    if (flags & ToolsInfo::Outdated)
+        keywords << tr("outdated");
+    if (flags & ToolsInfo::Latest)
+        keywords << SdkManager::stateLatestMessage();
+    if (flags & ToolsInfo::EarlyAccess)
+        keywords << SdkManager::stateEarlyAccessMessage();
+
+    return keywords.join(',');
 }
 
 /*!
