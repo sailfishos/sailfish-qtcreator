@@ -70,6 +70,25 @@ public:
     Flags flags = NoFlag;
 };
 
+class AvailableEmulatorInfo
+{
+    Q_GADGET
+
+public:
+    enum Flag {
+        NoFlag = 0x0,
+        Available = 0x1,
+        Installed = 0x2,
+        Latest = 0x4,
+        EarlyAccess = 0x8
+    };
+    Q_DECLARE_FLAGS(Flags, Flag)
+    Q_FLAG(Flags)
+
+    QString name;
+    Flags flags = NoFlag;
+};
+
 class SdkManager
 {
     Q_GADGET
@@ -132,6 +151,9 @@ public:
     static int runOnEmulator(const Emulator &emulator, const QString &program,
             const QStringList &arguments,
             QProcess::InputChannelMode inputChannelMode = QProcess::ManagedInputChannel);
+    static bool listAvailableEmulators(QList<AvailableEmulatorInfo> *info);
+    static bool addEmulator(const QString &name);
+    static bool removeEmulator(const QString &name);
 
     static bool startReliably(VirtualMachine *virtualMachine);
     static bool stopReliably(VirtualMachine *virtualMachine);

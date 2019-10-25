@@ -729,12 +729,42 @@ Worker::ExitStatus BuiltinWorker::runEmulator(const QStringList &arguments, int 
     }
 
     if (arguments.first() == "list") {
-        if (arguments.count() > 1) {
-            qerr() << P::unexpectedArgumentMessage(arguments.at(1)) << endl;
+        QCommandLineParser parser;
+        QCommandLineOption availableOption(QStringList{"available", "a"});
+        parser.addOptions({availableOption});
+
+        if (!parser.parse(arguments)) {
+            qerr() << parser.errorText() << endl;
             return BadUsage;
         }
-        listEmulators();
-        *exitCode = EXIT_SUCCESS;
+
+        if (!parser.isSet(availableOption)) {
+            listEmulators();
+            *exitCode = EXIT_SUCCESS;
+        } else {
+            *exitCode = listAvailableEmulators() ? EXIT_SUCCESS : EXIT_FAILURE;
+        }
+
+        return NormalExit;
+    }
+
+    if (arguments.first() == "install") {
+        if (!P::checkPositionalArgumentsCount(arguments, 2, 2))
+            return BadUsage;
+
+        const QString name = arguments.at(1);
+
+        *exitCode = SdkManager::addEmulator(name) ? EXIT_SUCCESS : EXIT_FAILURE;
+        return NormalExit;
+    }
+
+    if (arguments.first() == "remove") {
+        if (!P::checkPositionalArgumentsCount(arguments, 2, 2))
+            return BadUsage;
+
+        const QString name = arguments.at(1);
+
+        *exitCode = SdkManager::removeEmulator(name) ? EXIT_SUCCESS : EXIT_FAILURE;
         return NormalExit;
     }
 
@@ -1189,20 +1219,20 @@ void BuiltinWorker::listEmulators()
         return *std::max_element(lengths.begin(), lengths.end());
     };
 
-    const QString autodetected = SdkManager::stateAutodetectedMessage();
+    const QString sdkProvided = SdkManager::stateSdkProvidedMessage();
     const QString userDefined = SdkManager::stateUserDefinedMessage();
-    const int autodetectedFieldWidth = maxLength({autodetected, userDefined});
+    const int stateFieldWidth = maxLength({sdkProvided, userDefined});
 
     int index = 0;
     for (Emulator *const emulator : SdkManager::sortedEmulators()) {
-        const QString autodetection = emulator->isAutodetected()
-            ? autodetected
+        const QString state = emulator->isAutodetected()
+            ? sdkProvided
             : userDefined;
         const QString privateKeyFile = FileUtils::shortNativePath(
                 FileName::fromString(emulator->virtualMachine()->sshParameters().privateKeyFile));
 
         qout() << '#' << index << ' ' << '"' << emulator->name() << '"' << endl;
-        qout() << indent(1) << qSetFieldWidth(autodetectedFieldWidth) << left << autodetection
+        qout() << indent(1) << qSetFieldWidth(stateFieldWidth) << left << state
             << qSetFieldWidth(0) << "  "
             << emulator->virtualMachine()->sshParameters().url.authority() << endl;
         qout() << indent(1) << tr("private-key:") << ' ' << privateKeyFile << endl;
@@ -1225,6 +1255,24 @@ Emulator *BuiltinWorker::emulatorForNameOrIndex(const QString &emulatorNameOrInd
     } else {
         return SdkManager::emulatorByName(emulatorNameOrIndex, errorString);
     }
+}
+
+bool BuiltinWorker::listAvailableEmulators()
+{
+    QList<AvailableEmulatorInfo> infoList;
+    const bool ok = SdkManager::listAvailableEmulators(&infoList);
+    if (!ok)
+        return false;
+
+    QList<QStringList> table;
+    for (const AvailableEmulatorInfo &info : infoList)
+        table << QStringList{info.name, {}, toString(info.flags)};
+
+    TreePrinter::Tree tree = TreePrinter::build(table, 0, 1);
+    TreePrinter::sort(&tree, 0, 0, true);
+    TreePrinter::print(qout(), tree, {0, 2});
+
+    return true;
 }
 
 bool BuiltinWorker::listTools(SdkManager::ListToolsOptions options, bool listToolings,
@@ -1349,6 +1397,23 @@ QString BuiltinWorker::toString(ToolsInfo::Flags flags, bool saySdkProvided)
     if (flags & ToolsInfo::Latest)
         keywords << SdkManager::stateLatestMessage();
     if (flags & ToolsInfo::EarlyAccess)
+        keywords << SdkManager::stateEarlyAccessMessage();
+
+    return keywords.join(',');
+}
+
+QString BuiltinWorker::toString(AvailableEmulatorInfo::Flags flags)
+{
+    QStringList keywords;
+
+    // The order matters.
+    if (flags & AvailableEmulatorInfo::Available)
+        keywords << SdkManager::stateAvailableMessage();
+    if (flags & AvailableEmulatorInfo::Installed)
+        keywords << SdkManager::stateInstalledMessage();
+    if (flags & AvailableEmulatorInfo::Latest)
+        keywords << SdkManager::stateLatestMessage();
+    if (flags & AvailableEmulatorInfo::EarlyAccess)
         keywords << SdkManager::stateEarlyAccessMessage();
 
     return keywords.join(',');
