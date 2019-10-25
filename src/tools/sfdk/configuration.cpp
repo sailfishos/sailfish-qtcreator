@@ -23,6 +23,16 @@
 
 #include "configuration.h"
 
+#include "dispatch.h"
+#include "session.h"
+#include "sfdkconstants.h"
+#include "sfdkglobal.h"
+#include "textutils.h"
+
+#include <utils/algorithm.h>
+#include <utils/fileutils.h>
+#include <utils/qtcassert.h>
+
 #include <QDateTime>
 #include <QDebug>
 #include <QDir>
@@ -32,16 +42,6 @@
 #include <QRegularExpression>
 #include <QSettings>
 #include <QStandardPaths>
-
-#include <utils/algorithm.h>
-#include <utils/fileutils.h>
-#include <utils/qtcassert.h>
-
-#include "dispatch.h"
-#include "session.h"
-#include "sfdkconstants.h"
-#include "sfdkglobal.h"
-#include "textutils.h"
 
 using namespace Sfdk;
 

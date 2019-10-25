@@ -23,13 +23,13 @@
 
 #pragma once
 
+#include "configuration.h"
+#include "command.h"
+
 #include <QCommandLineOption>
 #include <QCoreApplication>
 #include <QString>
 #include <QStringList>
-
-#include "configuration.h"
-#include "command.h"
 
 QT_BEGIN_NAMESPACE
 class QCommandLineParser;

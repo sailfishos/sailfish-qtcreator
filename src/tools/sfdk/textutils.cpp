@@ -23,13 +23,13 @@
 
 #include "textutils.h"
 
-#include <QCoreApplication>
-#include <QRegularExpression>
+#include "sfdkglobal.h"
 
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
-#include "sfdkglobal.h"
+#include <QCoreApplication>
+#include <QRegularExpression>
 
 namespace Sfdk {
 

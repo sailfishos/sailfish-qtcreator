@@ -23,13 +23,13 @@
 
 #pragma once
 
-#include <memory>
+#include "textutils.h"
 
 #include <QCoreApplication>
 #include <QProcessEnvironment>
 #include <QString>
 
-#include "textutils.h"
+#include <memory>
 
 namespace Mer {
 namespace Internal {

@@ -23,21 +23,6 @@
 
 #include "command.h"
 
-#include <QCoreApplication>
-#include <QDebug>
-#include <QDirIterator>
-#include <QFile>
-#include <QSettings>
-#include <QTextCodec>
-#include <QTimer>
-#include <QTranslator>
-
-#include <app/app_version.h>
-#include <ssh/sshsettings.h>
-#include <utils/algorithm.h>
-#include <utils/environment.h>
-#include <utils/fileutils.h>
-
 #include "commandlineparser.h"
 #include "configuration.h"
 #include "dispatch.h"
@@ -47,6 +32,21 @@
 #include "sfdkglobal.h"
 #include "task.h"
 #include "textutils.h"
+
+#include <app/app_version.h>
+#include <ssh/sshsettings.h>
+#include <utils/algorithm.h>
+#include <utils/environment.h>
+#include <utils/fileutils.h>
+
+#include <QCoreApplication>
+#include <QDebug>
+#include <QDirIterator>
+#include <QFile>
+#include <QSettings>
+#include <QTextCodec>
+#include <QTimer>
+#include <QTranslator>
 
 using namespace Sfdk;
 

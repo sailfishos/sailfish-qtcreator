@@ -22,6 +22,17 @@
 
 #include "session.h"
 
+#include "sfdkconstants.h"
+#include "sfdkglobal.h"
+#include "textutils.h"
+
+#include <utils/hostosinfo.h>
+#include <utils/qtcassert.h>
+
+#include <QDebug>
+#include <QProcess>
+#include <QRegularExpression>
+
 #ifdef Q_OS_WIN
 # include <windows.h>
 # include <tlhelp32.h>
@@ -30,17 +41,6 @@
 #ifdef Q_OS_UNIX
 # include <unistd.h>
 #endif
-
-#include <QDebug>
-#include <QProcess>
-#include <QRegularExpression>
-
-#include <utils/hostosinfo.h>
-#include <utils/qtcassert.h>
-
-#include "sfdkconstants.h"
-#include "sfdkglobal.h"
-#include "textutils.h"
 
 using namespace Sfdk;
 using namespace Utils;

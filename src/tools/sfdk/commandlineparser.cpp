@@ -23,16 +23,16 @@
 
 #include "commandlineparser.h"
 
-#include <QCommandLineParser>
-
-#include <utils/algorithm.h>
-#include <utils/qtcassert.h>
-
 #include "command.h"
 #include "configuration.h"
 #include "dispatch.h"
 #include "sfdkconstants.h"
 #include "textutils.h"
+
+#include <utils/algorithm.h>
+#include <utils/qtcassert.h>
+
+#include <QCommandLineParser>
 
 using namespace Sfdk;
 

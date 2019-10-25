@@ -22,21 +22,21 @@
 
 #include "dispatch.h"
 
+#include "command.h"
+#include "configuration.h"
+#include "sfdkconstants.h"
+#include "sfdkglobal.h"
+#include "textutils.h"
+
+#include <utils/pointeralgorithm.h>
+#include <utils/qtcassert.h>
+
 #include <QDebug>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonParseError>
 #include <QJsonValue>
-
-#include <utils/pointeralgorithm.h>
-#include <utils/qtcassert.h>
-
-#include "command.h"
-#include "configuration.h"
-#include "sfdkconstants.h"
-#include "sfdkglobal.h"
-#include "textutils.h"
 
 using namespace Sfdk;
 
