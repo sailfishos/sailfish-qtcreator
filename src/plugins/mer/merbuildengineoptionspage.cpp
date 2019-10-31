@@ -52,6 +52,8 @@ QWidget *MerBuildEngineOptionsPage::widget()
     if (m_widget)
       return m_widget;
 
+    MerPlugin::workaround_ensureVirtualMachinesAreInitialized();
+
     m_widget = new MerBuildEngineOptionsWidget();
     connect(m_widget.data(), &MerBuildEngineOptionsWidget::updateSearchKeys,
             this, &MerBuildEngineOptionsPage::onUpdateSearchKeys);

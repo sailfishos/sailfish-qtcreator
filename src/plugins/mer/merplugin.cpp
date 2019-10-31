@@ -258,6 +258,30 @@ MerEmulatorOptionsPage *MerPlugin::emulatorOptionsPage()
     return &dd->emulatorOptionsPage;
 }
 
+// FIXME VM info is not immediately available
+//
+// VM info initialization is only started during Sdk::enableUpdates and it is
+// done asynchronously, so it still takes some time after Sdk::enableUpdates
+// returns before the info becomes available.  It is not clear yet how to fix it
+// properly and at the same time it is known to only become an issue when
+// Options dialog is opened very soon (<3 secs) after application startup,
+// hence this workaround.
+void MerPlugin::workaround_ensureVirtualMachinesAreInitialized()
+{
+    // We do Sdk::enableUpdates on KitManager::kitsLoaded
+    QTC_ASSERT(KitManager::isLoaded(), return);
+
+    static bool first = true;
+    if (!first)
+        return;
+    first = false;
+
+    QList<VirtualMachineDescriptor> unusedVms;
+    bool ok;
+    execAsynchronous(std::tie(unusedVms, ok), Sdk::unusedVirtualMachines);
+    QTC_CHECK(ok);
+}
+
 void MerPlugin::handlePromptClosed(int result)
 {
     QMessageBox *prompt = qobject_cast<QMessageBox *>(sender());

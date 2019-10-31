@@ -51,6 +51,8 @@ QWidget *MerEmulatorOptionsPage::widget()
     if (m_widget)
       return m_widget;
 
+    MerPlugin::workaround_ensureVirtualMachinesAreInitialized();
+
     m_widget = new MerEmulatorOptionsWidget();
     connect(m_widget.data(), &MerEmulatorOptionsWidget::updateSearchKeys,
             this, &MerEmulatorOptionsPage::onUpdateSearchKeys);
