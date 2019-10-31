@@ -1,6 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012-2015 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -24,8 +25,9 @@
 
 #include "merconstants.h"
 #include "merqtversion.h"
-#include "mersdk.h"
 #include "mersdkmanager.h"
+
+#include <sfdk/buildengine.h>
 
 #include <utils/qtcassert.h>
 
@@ -34,6 +36,7 @@
 #include <QFileInfo>
 
 using namespace QtSupport;
+using namespace Sfdk;
 using namespace Utils;
 
 namespace Mer {
@@ -62,7 +65,7 @@ BaseQtVersion *MerQtVersionFactory::restore(const QString &type,
 
     // Check if the qtVersion is still valid
     QFileInfo fi = v->qmakeCommand().toFileInfo();
-    if (!fi.exists() || v->virtualMachineName().isEmpty() || v->targetName().isEmpty()) {
+    if (!fi.exists() || v->buildEngineUri().isEmpty() || v->buildTargetName().isEmpty()) {
         delete v;
         return 0;
     }
@@ -85,10 +88,7 @@ BaseQtVersion *MerQtVersionFactory::create(const FileName &qmakeCommand,
         return 0;
 
     // Check for the location of qmake
-    bool found = qmakeCommand.toString().contains(MerSdkManager::globalSdkToolsDirectory());
-    if (!found)
-        found = qmakeCommand.toString().contains(MerSdkManager::sdkToolsDirectory());
-    if (!found)
+    if (!qmakeCommand.toString().contains(BuildTargetData::toolsPathCommonPrefix().toString()))
         return 0;
     return new MerQtVersion(qmakeCommand, isAutoDetected, autoDetectionSource);
 }

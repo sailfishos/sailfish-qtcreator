@@ -1,6 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -23,8 +24,8 @@
 #include "merplugin.h"
 
 #include "merbuildconfiguration.h"
+#include "merbuildengineoptionspage.h"
 #include "merbuildsteps.h"
-#include "merconnection.h"
 #include "merconnectionmanager.h"
 #include "merconstants.h"
 #include "merdeployconfiguration.h"
@@ -33,21 +34,23 @@
 #include "merdevicefactory.h"
 #include "meremulatordevice.h"
 #include "meremulatormodedialog.h"
+#include "meremulatoroptionspage.h"
 #include "mergeneraloptionspage.h"
+#include "merhardwaredevice.h"
 #include "mermode.h"
-#include "meroptionspage.h"
 #include "merqmllivebenchmanager.h"
 #include "merqmlrunconfigurationfactory.h"
 #include "merqtversionfactory.h"
-#include "merrpmpackagingstep.h"
 #include "merrunconfigurationaspect.h"
 #include "merrunconfigurationfactory.h"
 #include "mersdkmanager.h"
 #include "mersettings.h"
 #include "mertoolchainfactory.h"
-#include "meruploadandinstallrpmsteps.h"
-#include "mervirtualboxmanager.h"
+#include "mervmconnectionui.h"
 #include "meremulatormodeoptionspage.h"
+
+#include <sfdk/sdk.h>
+#include <sfdk/virtualmachine.h>
 
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -55,6 +58,7 @@
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/modemanager.h>
+#include <projectexplorer/kitmanager.h>
 #include <remotelinux/remotelinuxcustomrunconfiguration.h>
 #include <remotelinux/remotelinuxqmltoolingsupport.h>
 #include <remotelinux/remotelinuxrunconfiguration.h>
@@ -70,6 +74,7 @@ using namespace Core;
 using namespace ExtensionSystem;
 using namespace ProjectExplorer;
 using namespace RemoteLinux;
+using namespace Sfdk;
 using Utils::CheckableMessageBox;
 
 namespace Mer {
@@ -82,14 +87,21 @@ const char *VM_NAME_PROPERTY = "merVmName";
 class MerPluginPrivate
 {
 public:
+    MerPluginPrivate()
+        : sdk(Sdk::VersionedSettings)
+    {
+    }
+
+    Sdk sdk;
     MerSdkManager sdkManager;
-    MerVirtualBoxManager virtualBoxManager;
     MerConnectionManager connectionManager;
-    MerOptionsPage optionsPage;
+    MerBuildEngineOptionsPage buildEngineOptionsPage;
+    MerEmulatorOptionsPage emulatorOptionsPage;
     MerEmulatorModeOptionsPage emulatorModeOptionsPage;
     MerGeneralOptionsPage generalOptionsPage;
     MerDeviceFactory deviceFactory;
     MerEmulatorDeviceManager emulatorDeviceManager;
+    MerHardwareDeviceManager hardwareDeviceManager;
     MerQtVersionFactory qtVersionFactory;
     MerToolChainFactory toolChainFactory;
     MerMb2RpmBuildConfigurationFactory mb2RpmBuildConfigurationFactory;
@@ -103,9 +115,7 @@ public:
     MerDeployStepFactory<MerMb2RsyncDeployStep> mb2RsyncDeployStepFactory;
     MerDeployStepFactory<MerMb2RpmDeployStep> mb2RpmDeployStepFactory;
     MerDeployStepFactory<MerMb2RpmBuildStep> mb2RpmBuildStepFactory;
-    MerDeployStepFactory<MerRpmPackagingStep> rpmPackagingStepFactory;
     MerDeployStepFactory<MerRpmValidationStep> rpmValidationStepFactory;
-    MerDeployStepFactory<MerUploadAndInstallRpmStep> uploadAndInstallRpmStepFactory;
     MerDeployStepFactory<MerLocalRsyncDeployStep> localRsyncDeployStepFactory;
     MerDeployStepFactory<MerResetAmbienceDeployStep> resetAmbienceDeployStepFactory;
     MerQmlLiveBenchManager qmlLiveBenchManager;
@@ -131,8 +141,6 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
 
     using namespace ProjectExplorer::Constants;
 
-    MerConnection::registerUi<MerConnectionWidgetUi>();
-
     new MerSettings(this);
 
     RunConfiguration::registerAspect<MerRunConfigurationAspect>();
@@ -147,6 +155,8 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     RunControl::registerWorker<MerDeviceDebugSupport>(DEBUG_RUN_MODE, constraint);
     RunControl::registerWorker<RemoteLinuxQmlProfilerSupport>(QML_PROFILER_RUN_MODE, constraint);
     //RunControl::registerWorker<RemoteLinuxPerfSupport>(PERFPROFILER_RUN_MODE, constraint);
+
+    VirtualMachine::registerConnectionUi<MerVmConnectionUi>();
 
     dd = new MerPluginPrivate;
 
@@ -186,28 +196,33 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
 
 void MerPlugin::extensionsInitialized()
 {
+    // Do not enable updates untils devices and kits are loaded. We know devices
+    // are loaded prior to kits.
+    connect(KitManager::instance(), &KitManager::kitsLoaded,
+            Sdk::instance(), Sdk::enableUpdates);
+
+    connect(ICore::instance(), &ICore::saveSettingsRequested, this, &MerPlugin::saveSettings);
 }
 
 IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
 {
     m_stopList.clear();
-    QList<MerSdk*> sdks = MerSdkManager::sdks();
-    foreach(const MerSdk* sdk, sdks) {
-        MerConnection *connection = sdk->connection();
+    for (BuildEngine *const engine : Sdk::buildEngines()) {
+        VirtualMachine *const virtualMachine = engine->virtualMachine();
         bool headless = false;
-        if (!connection->isVirtualMachineOff(&headless) && headless) {
+        if (!virtualMachine->isOff(&headless) && headless) {
             QMessageBox *prompt = new QMessageBox(
                     QMessageBox::Question,
                     tr("Close Virtual Machine"),
                     tr("The headless virtual machine \"%1\" is still running.\n\n"
-                        "Close the virtual machine now?").arg(connection->virtualMachine()),
+                        "Close the virtual machine now?").arg(virtualMachine->name()),
                     QMessageBox::Yes | QMessageBox::No,
                     ICore::mainWindow());
             prompt->setCheckBox(new QCheckBox(CheckableMessageBox::msgDoNotAskAgain()));
-            prompt->setProperty(VM_NAME_PROPERTY, connection->virtualMachine());
+            prompt->setProperty(VM_NAME_PROPERTY, virtualMachine->name());
             connect(prompt, &QMessageBox::finished,
                     this, &MerPlugin::handlePromptClosed);
-            m_stopList.insert(connection->virtualMachine(), connection);
+            m_stopList.insert(virtualMachine->name(), virtualMachine);
             if (MerSettings::isAskBeforeClosingVmEnabled()) {
                 prompt->open();
             } else {
@@ -221,6 +236,28 @@ IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
         return AsynchronousShutdown;
 }
 
+void MerPlugin::saveSettings()
+{
+    QStringList errorStrings;
+    Sdk::saveSettings(&errorStrings);
+    for (const QString &errorString : errorStrings) {
+        // See Utils::PersistentSettingsWriter::save()
+        QMessageBox::critical(ICore::dialogParent(),
+                QCoreApplication::translate("Utils::FileSaverBase", "File Error"),
+                errorString);
+    }
+}
+
+MerBuildEngineOptionsPage *MerPlugin::buildEngineOptionsPage()
+{
+    return &dd->buildEngineOptionsPage;
+}
+
+MerEmulatorOptionsPage *MerPlugin::emulatorOptionsPage()
+{
+    return &dd->emulatorOptionsPage;
+}
+
 void MerPlugin::handlePromptClosed(int result)
 {
     QMessageBox *prompt = qobject_cast<QMessageBox *>(sender());
@@ -232,12 +269,12 @@ void MerPlugin::handlePromptClosed(int result)
         MerSettings::setAskBeforeClosingVmEnabled(false);
 
     if (result == QMessageBox::Yes) {
-        MerConnection *connection = m_stopList.value(vm);
-        connect(connection, &MerConnection::stateChanged,
+        VirtualMachine *virtualMachine = m_stopList.value(vm);
+        connect(virtualMachine, &VirtualMachine::stateChanged,
                 this, &MerPlugin::handleConnectionStateChanged);
-        connect(connection, &MerConnection::lockDownFailed,
+        connect(virtualMachine, &VirtualMachine::lockDownFailed,
                 this, &MerPlugin::handleLockDownFailed);
-        connection->lockDown(true);
+        virtualMachine->lockDown(true);
     } else {
         m_stopList.remove(vm);
     }
@@ -249,10 +286,10 @@ void MerPlugin::handlePromptClosed(int result)
 
 void MerPlugin::handleConnectionStateChanged()
 {
-    MerConnection *connection = qobject_cast<MerConnection *>(sender());
+    VirtualMachine *virtualMachine = qobject_cast<VirtualMachine *>(sender());
 
-    if (connection->state() == MerConnection::Disconnected) {
-        m_stopList.remove(connection->virtualMachine());
+    if (virtualMachine->state() == VirtualMachine::Disconnected) {
+        m_stopList.remove(virtualMachine->name());
 
         if (m_stopList.isEmpty()) {
             emit asynchronousShutdownFinished();
@@ -262,9 +299,9 @@ void MerPlugin::handleConnectionStateChanged()
 
 void MerPlugin::handleLockDownFailed()
 {
-    MerConnection *connection = qobject_cast<MerConnection *>(sender());
+    VirtualMachine *virtualMachine = qobject_cast<VirtualMachine *>(sender());
 
-    m_stopList.remove(connection->virtualMachine());
+    m_stopList.remove(virtualMachine->name());
 
     if (m_stopList.isEmpty()) {
         emit asynchronousShutdownFinished();

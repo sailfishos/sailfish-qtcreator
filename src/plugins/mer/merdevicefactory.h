@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012-2015,2018-2019 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -39,9 +39,6 @@ public:
 
     ProjectExplorer::IDevice::Ptr create() const override;
     bool canRestore(const QVariantMap &map) const override;
-
-signals:
-    void deviceCreated(const ProjectExplorer::IDevice::Ptr &device);
 
 private:
     static MerDeviceFactory *s_instance;

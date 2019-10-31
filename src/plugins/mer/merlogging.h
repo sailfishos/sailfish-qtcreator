@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2016 Jolla Ltd.
+** Copyright (C) 2016-2017,2019 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -31,8 +31,6 @@ namespace Log {
 Q_DECLARE_LOGGING_CATEGORY(qmakeArgs)
 Q_DECLARE_LOGGING_CATEGORY(qmlLive)
 Q_DECLARE_LOGGING_CATEGORY(sdks)
-Q_DECLARE_LOGGING_CATEGORY(vms)
-Q_DECLARE_LOGGING_CATEGORY(vmsQueue)
 
 } // namespace Log
 } // namespace Mer

@@ -1,6 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012-2015,2017-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,13 +23,16 @@
 
 #include "merconnectionmanager.h"
 
-#include "merconnection.h"
 #include "merconstants.h"
 #include "meremulatordevice.h"
 #include "mericons.h"
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
-#include "mervirtualboxmanager.h"
+
+#include <sfdk/buildengine.h>
+#include <sfdk/emulator.h>
+#include <sfdk/sdk.h>
+#include <sfdk/virtualmachine.h>
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
@@ -50,6 +54,7 @@
 
 using namespace Core;
 using namespace ProjectExplorer;
+using namespace Sfdk;
 using namespace QSsh;
 
 namespace Mer {
@@ -77,7 +82,7 @@ public:
 
     void initialize();
 
-    void setConnection(MerConnection *connection);
+    void setVirtualMachine(VirtualMachine *virtualMachine);
 
 public slots:
     void update();
@@ -89,7 +94,7 @@ private slots:
     void handleTriggered();
 
 private:
-    QPointer<MerConnection> m_connection;
+    QPointer<VirtualMachine> m_virtualMachine;
     Core::Id m_id;
     QAction *m_action;
     QIcon m_iconOff;
@@ -108,7 +113,7 @@ private:
 
 MerConnectionAction::MerConnectionAction(QObject *parent)
     : QObject(parent)
-    , m_connection(0)
+    , m_virtualMachine(0)
     , m_action(new QAction(this))
     , m_uiInitalized(false)
     , m_visible(false)
@@ -143,18 +148,18 @@ void MerConnectionAction::initialize()
     m_uiInitalized = true;
 }
 
-void MerConnectionAction::setConnection(MerConnection *connection)
+void MerConnectionAction::setVirtualMachine(VirtualMachine *virtualMachine)
 {
-    if (m_connection == connection)
+    if (m_virtualMachine == virtualMachine)
         return;
 
-    if (m_connection)
-        m_connection->disconnect(this);
+    if (m_virtualMachine)
+        m_virtualMachine->disconnect(this);
 
-    m_connection = connection;
+    m_virtualMachine = virtualMachine;
 
-    if (m_connection) {
-        connect(m_connection.data(), &MerConnection::stateChanged,
+    if (m_virtualMachine) {
+        connect(m_virtualMachine.data(), &VirtualMachine::stateChanged,
                 this, &MerConnectionAction::update);
     }
 
@@ -163,7 +168,7 @@ void MerConnectionAction::setConnection(MerConnection *connection)
 
 void MerConnectionAction::update()
 {
-    if (!m_connection) {
+    if (!m_virtualMachine) {
         setEnabled(false);
         return;
     }
@@ -172,41 +177,41 @@ void MerConnectionAction::update()
     QString toolTip;
     bool enabled = m_enabled;
 
-    switch (m_connection->state()) {
-    case MerConnection::Connected:
+    switch (m_virtualMachine->state()) {
+    case VirtualMachine::Connected:
         state = QIcon::On;
         toolTip = m_stopTip;
         break;
-    case MerConnection::Disconnected:
+    case VirtualMachine::Disconnected:
         toolTip = m_startTip;
         break;
-    case MerConnection::StartingVm:
+    case VirtualMachine::Starting:
         enabled = false;
         state = QIcon::On;
         toolTip = m_startingTip;
         break;
-    case MerConnection::Connecting:
+    case VirtualMachine::Connecting:
         enabled = false;
         state = QIcon::On;
         toolTip = m_connTip;
         break;
-    case MerConnection::Disconnecting:
+    case VirtualMachine::Disconnecting:
         enabled = false;
         toolTip = m_discoTip;
         break;
-    case MerConnection::ClosingVm:
+    case VirtualMachine::Closing:
         enabled = false;
         toolTip = m_closingTip;
         break;
-    case MerConnection::Error:
+    case VirtualMachine::Error:
         MessageManager::write(tr("Error connecting to \"%1\" virtual machine: %2")
-            .arg(m_connection->virtualMachine())
-            .arg(m_connection->errorString()),
+            .arg(m_virtualMachine->name())
+            .arg(m_virtualMachine->errorString()),
             MessageManager::Flash);
         toolTip = m_startTip;
         break;
     default:
-        qWarning() << "MerConnection::update() - unknown state";
+        qWarning() << "VirtualMachine::update() - unknown state";
         break;
     }
 
@@ -221,8 +226,8 @@ void MerConnectionAction::update()
 
 QString MerConnectionAction::vmName() const
 {
-    if (m_connection) {
-        return m_connection->virtualMachine();
+    if (m_virtualMachine) {
+        return m_virtualMachine->name();
     } else {
         return tr("<UNKNOWN>");
     }
@@ -230,14 +235,14 @@ QString MerConnectionAction::vmName() const
 
 void MerConnectionAction::handleTriggered()
 {
-    QTC_ASSERT(m_connection, return);
+    QTC_ASSERT(m_virtualMachine, return);
 
-    if (m_connection->state() == MerConnection::Disconnected) {
-        m_connection->connectTo();
-    } else if (m_connection->state() == MerConnection::Connected) {
-        m_connection->disconnectFrom();
-    } else if (m_connection->state() == MerConnection::Error) {
-        m_connection->connectTo();
+    if (m_virtualMachine->state() == VirtualMachine::Disconnected) {
+        m_virtualMachine->connectTo();
+    } else if (m_virtualMachine->state() == VirtualMachine::Connected) {
+        m_virtualMachine->disconnectFrom();
+    } else if (m_virtualMachine->state() == VirtualMachine::Error) {
+        m_virtualMachine->connectTo();
     }
 }
 
@@ -276,8 +281,10 @@ MerConnectionManager::MerConnectionManager():
             this, &MerConnectionManager::handleKitUpdated);
     connect(SessionManager::instance(), &SessionManager::startupProjectChanged,
             this, &MerConnectionManager::handleStartupProjectChanged);
-    connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
+    connect(Sdk::instance(), &Sdk::buildEngineAdded,
             this, &MerConnectionManager::update);
+    connect(Sdk::instance(), &Sdk::aboutToRemoveBuildEngine,
+            this, &MerConnectionManager::update, Qt::QueuedConnection);
     connect(DeviceManager::instance(), &DeviceManager::updated,
             this, &MerConnectionManager::update);
 
@@ -355,9 +362,9 @@ void MerConnectionManager::update()
                 sdkRemoteButtonVisible = true;
                 if (t == activeTarget) {
                     sdkRemoteButtonEnabled = true;
-                    MerSdk* sdk = MerSdkKitInformation::sdk(t->kit());
-                    QTC_ASSERT(sdk, continue);
-                    m_sdkAction->setConnection(sdk->connection());
+                    BuildEngine *const engine = MerSdkKitInformation::buildEngine(t->kit());
+                    QTC_ASSERT(engine, continue);
+                    m_sdkAction->setVirtualMachine(engine->virtualMachine());
                 }
             }
 
@@ -368,7 +375,7 @@ void MerConnectionManager::update()
                     if (emu) {
                           emulatorRemoteButtonVisible = true;
                           emulatorRemoteButtonEnabled = true;
-                          m_emulatorAction->setConnection(emu->connection());
+                          m_emulatorAction->setVirtualMachine(emu->emulator()->virtualMachine());
                     }
                 }
             }

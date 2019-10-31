@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012-2015,2017-2019 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -31,8 +31,6 @@
 
 #include "merconstants.h"
 #include "merdeploysteps.h"
-#include "merrpmpackagingstep.h"
-#include "meruploadandinstallrpmsteps.h"
 
 #include <coreplugin/idocument.h>
 #include <projectexplorer/project.h>
@@ -96,7 +94,6 @@ Core::Id MerRsyncDeployConfigurationFactory::configurationId()
 MerMb2RpmBuildConfigurationFactory::MerMb2RpmBuildConfigurationFactory()
 {
     addInitialStep(MerMb2RpmBuildStep::stepId());
-    //addInitialStep(MerUploadAndInstallRpmStep::stepId());
 }
 
 QString MerMb2RpmBuildConfigurationFactory::displayName()
@@ -107,24 +104,6 @@ QString MerMb2RpmBuildConfigurationFactory::displayName()
 Core::Id MerMb2RpmBuildConfigurationFactory::configurationId()
 {
     return Core::Id("QmakeProjectManager.MerMb2RpmBuildConfiguration");
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-
-MerRpmBuildDeployConfigurationFactory::MerRpmBuildDeployConfigurationFactory()
-{
-    addInitialStep(MerRpmPackagingStep::stepId());
-    addInitialStep(MerUploadAndInstallRpmStep::stepId());
-}
-
-QString MerRpmBuildDeployConfigurationFactory::displayName()
-{
-    return tr("Deploy As RPM Package (RPMBUILD)");
-}
-
-Core::Id MerRpmBuildDeployConfigurationFactory::configurationId()
-{
-    return Core::Id("QmakeProjectManager.MerRpmLocalDeployConfiguration");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

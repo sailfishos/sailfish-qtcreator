@@ -1,6 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2016 Jolla Ltd.
+** Copyright (C) 2016-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -39,13 +40,17 @@
 #include <utils/hostosinfo.h>
 #include <utils/utilsicons.h>
 
+#include <sfdk/sfdkconstants.h>
+
 #include "merconstants.h"
+#include "merdevice.h"
 #include "merqmllivebenchmanager.h"
 #include "mersettings.h"
 #include "ui_merrunconfigurationaspectqmllivedetailswidget.h"
 
 using namespace Core;
 using namespace ProjectExplorer;
+using namespace Sfdk;
 using namespace Utils;
 
 namespace Mer {
@@ -179,7 +184,7 @@ private:
                 this, [this](int state) {
                 m_aspect->setQmlLiveIpcPort(state != Qt::Checked
                         ? Port()
-                        : Port(Constants::DEFAULT_QML_LIVE_PORT));
+                        : Port(Sfdk::Constants::DEFAULT_QML_LIVE_PORT));
         });
 
         // Init benchWorkspace PathChooser

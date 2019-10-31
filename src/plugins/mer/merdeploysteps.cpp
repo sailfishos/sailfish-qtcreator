@@ -1,6 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -36,10 +37,11 @@
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
 #include "mersettings.h"
-#include "mertargetkitinformation.h"
-#include "mervirtualboxmanager.h"
 #include "ui_merrpminfo.h"
 #include "ui_merrpmvalidationstepconfigwidget.h"
+
+#include <sfdk/emulator.h>
+#include <sfdk/sfdkconstants.h>
 
 #include <coreplugin/fileutils.h>
 #include <coreplugin/icore.h>
@@ -74,6 +76,7 @@ using namespace ProjectExplorer;
 using namespace QmakeProjectManager;
 using namespace QSsh;
 using namespace RemoteLinux;
+using namespace Sfdk;
 using namespace Utils;
 
 namespace Mer {
@@ -129,7 +132,7 @@ public:
 
         bool hasSuite = false;
         bool hasSelectedSuite = false;
-        for (const MerRpmValidationSuiteData &suite : step->merTarget().rpmValidationSuites()) {
+        for (const RpmValidationSuiteData &suite : step->suites()) {
             hasSuite = true;
             hasSelectedSuite |= suite.essential;
             auto *item = new QTreeWidgetItem(m_ui.suitesTreeWidget);
@@ -229,15 +232,15 @@ bool MerProcessStep::init(InitOptions options)
         return false;
     }
 
-    const MerSdk *const merSdk = MerSdkKitInformation::sdk(target()->kit());
+    const BuildEngine *const engine = MerSdkKitInformation::buildEngine(target()->kit());
 
-    if (!merSdk) {
+    if (!engine) {
         addOutput(tr("Cannot deploy: Missing Sailfish OS build-engine information in the kit"),
                 OutputFormat::ErrorMessage);
         return false;
     }
 
-    const QString target = MerTargetKitInformation::targetName(this->target()->kit());
+    const QString target = MerSdkKitInformation::buildTargetName(this->target()->kit());
 
     if (target.isEmpty()) {
         addOutput(tr("Cannot deploy: Missing Sailfish OS build-target information in the kit"),
@@ -254,11 +257,10 @@ bool MerProcessStep::init(InitOptions options)
         return false;
     }
 
-
     const QString projectDirectory = bc->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory().toString();
-    const QString wrapperScriptsDir =  MerSdkManager::sdkToolsDirectory() + merSdk->virtualMachineName()
-            + QLatin1Char('/') + target;
-    const QString deployCommand = wrapperScriptsDir + QLatin1Char('/') + QLatin1String(Constants::MER_WRAPPER_DEPLOY);
+    const FileName toolsPath = engine->buildTarget(target).toolsPath;
+    const QString deployCommand =
+        FileName(toolsPath).appendPath(Sfdk::Constants::WRAPPER_DEPLOY).toString();
 
     ProcessParameters *pp = processParameters();
 
@@ -266,7 +268,7 @@ bool MerProcessStep::init(InitOptions options)
 
     //TODO HACK
     if(!device.isNull())
-        env.appendOrSet(QLatin1String(Constants::MER_SSH_DEVICE_NAME),device->displayName());
+        env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_DEVICE_NAME), device->displayName());
     pp->setMacroExpander(bc ? bc->macroExpander() : Utils::globalMacroExpander());
     pp->setEnvironment(env);
     pp->setWorkingDirectory(projectDirectory);
@@ -312,7 +314,7 @@ bool MerEmulatorStartStep::init()
         return false;
     }
 
-    setConnection(device->connection());
+    setVirtualMachine(device->emulator()->virtualMachine());
 
     return MerAbstractVmStartStep::init();
 }
@@ -530,15 +532,15 @@ bool MerLocalRsyncDeployStep::init()
         return false;
     }
 
-    const MerSdk *const merSdk = MerSdkKitInformation::sdk(target()->kit());
+    BuildEngine *const engine = MerSdkKitInformation::buildEngine(target()->kit());
 
-    if (!merSdk) {
+    if (!engine) {
         addOutput(tr("Cannot deploy: Missing Sailfish OS build-engine information in the kit"),
                 OutputFormat::ErrorMessage);
         return false;
     }
 
-    const QString target = MerTargetKitInformation::targetName(this->target()->kit());
+    const QString target = MerSdkKitInformation::buildTargetName(this->target()->kit());
 
     if (target.isEmpty()) {
         addOutput(tr("Cannot deploy: Missing Sailfish OS build-target information in the kit"),
@@ -639,14 +641,15 @@ bool MerMb2RpmBuildStep::init()
 {
     bool success = MerProcessStep::init(DoNotNeedDevice);
     m_packages.clear();
-    const MerSdk *const sdk = MerSdkKitInformation::sdk(target()->kit());
-    m_sharedHome = QDir::cleanPath(sdk->sharedHomePath());
-    m_sharedSrc = QDir::cleanPath(sdk->sharedSrcPath());
+    BuildEngine *const engine = MerSdkKitInformation::buildEngine(target()->kit());
+    m_sharedHome = QDir::cleanPath(engine->sharedHomePath().toString());
+    m_sharedSrc = QDir::cleanPath(engine->sharedSrcPath().toString());
 
     //hack
     ProcessParameters *pp = processParameters();
     QString deployCommand = pp->command();
-    deployCommand.replace(QLatin1String(Constants::MER_WRAPPER_DEPLOY),QLatin1String(Constants::MER_WRAPPER_RPM));
+    deployCommand.replace(QLatin1String(Sfdk::Constants::WRAPPER_DEPLOY),
+            QLatin1String(Sfdk::Constants::WRAPPER_RPM));
     pp->setCommand(deployCommand);
     return success;
 }
@@ -756,9 +759,7 @@ MerRpmValidationStep::MerRpmValidationStep(BuildStepList *bsl)
     setEnabled(MerSettings::rpmValidationByDefault());
     setDefaultDisplayName(displayName());
 
-    m_merTarget = MerTargetKitInformation::target(target()->kit());
-    QTC_CHECK(m_merTarget.isValid());
-
+    m_target = MerSdkKitInformation::buildTarget(target()->kit());
     m_selectedSuites = defaultSuites();
 }
 
@@ -783,7 +784,7 @@ bool MerRpmValidationStep::init()
 
 void MerRpmValidationStep::doRun()
 {
-    if (m_merTarget.rpmValidationSuites().isEmpty()) {
+    if (m_target.rpmValidationSuites.isEmpty()) {
         const QString message(tr("No RPM validation suite is available for the current "
                     "Sailfish OS build target, the package will not be validated"));
         emit addOutput(message, OutputFormat::ErrorMessage);
@@ -823,7 +824,8 @@ void MerRpmValidationStep::doRun()
     // hack
     ProcessParameters *pp = processParameters();
     QString deployCommand = pp->command();
-    deployCommand.replace(QLatin1String(Constants::MER_WRAPPER_DEPLOY),QLatin1String(Constants::MER_WRAPPER_RPMVALIDATION));
+    deployCommand.replace(QLatin1String(Sfdk::Constants::WRAPPER_DEPLOY),
+            QLatin1String(Sfdk::Constants::WRAPPER_RPMVALIDATION));
     pp->setCommand(deployCommand);
     QStringList arguments{ m_fixedArguments, this->arguments(), packageFile };
     pp->setArguments(arguments.join(' '));
@@ -851,15 +853,15 @@ QVariantMap MerRpmValidationStep::toMap() const
     return map;
 }
 
-MerTarget MerRpmValidationStep::merTarget() const
+QList<Sfdk::RpmValidationSuiteData> MerRpmValidationStep::suites() const
 {
-    return m_merTarget;
+    return m_target.rpmValidationSuites;
 }
 
 QStringList MerRpmValidationStep::defaultSuites() const
 {
     QStringList defaultSuites;
-    for (const MerRpmValidationSuiteData &suite : m_merTarget.rpmValidationSuites()) {
+    for (const RpmValidationSuiteData &suite : m_target.rpmValidationSuites) {
         if (suite.essential)
             defaultSuites.append(suite.id);
     }

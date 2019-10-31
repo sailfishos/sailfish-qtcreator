@@ -1,6 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012-2015,2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -27,11 +28,15 @@
 
 #include <QMap>
 
+namespace Sfdk {
+class VirtualMachine;
+}
+
 namespace Mer {
-
-class MerConnection;
-
 namespace Internal {
+
+class MerBuildEngineOptionsPage;
+class MerEmulatorOptionsPage;
 
 class MerPlugin : public ExtensionSystem::IPlugin
 {
@@ -46,22 +51,23 @@ public:
     void extensionsInitialized() override;
     ShutdownFlag aboutToShutdown() override;
 
+    static void saveSettings();
+
+    static MerBuildEngineOptionsPage *buildEngineOptionsPage();
+    static MerEmulatorOptionsPage *emulatorOptionsPage();
+
 private slots:
     void handlePromptClosed(int result);
     void handleConnectionStateChanged();
     void handleLockDownFailed();
 
 private:
-    QMap<QString, MerConnection *> m_stopList;
+    QMap<QString, Sfdk::VirtualMachine *> m_stopList;
 
 #ifdef WITH_TESTS
-    void verifyTargets(const QString &vm, QStringList expectedKits, QStringList expectedToolChains, QStringList expectedQtVersion);
     void testMerSshOutputParsers_data();
     void testMerSshOutputParsers();
-    void testMerSdkManager_data();
-    void testMerSdkManager();
 #endif
-
 };
 
 } // Internal

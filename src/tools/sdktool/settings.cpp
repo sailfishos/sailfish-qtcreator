@@ -60,7 +60,6 @@ Utils::FileName Settings::getPath(const QString &file)
     const QString lowerFile = file.toLower();
     const QStringList identical
             = QStringList({ "android", "cmaketools", "debuggers", "devices",
-                            "mersdk", "mersdk-device-models",
                             "profiles", "qtversions", "toolchains", "abi" });
     if (lowerFile == "cmake")
         result.appendPath("cmaketools");
@@ -68,6 +67,10 @@ Utils::FileName Settings::getPath(const QString &file)
         result.appendPath("profiles");
     else if (lowerFile == "qtversions")
         result.appendPath("qtversion");
+    else if (lowerFile == "sfdkbuildengines")
+        result.appendPath("buildengines");
+    else if (lowerFile == "sfdkemulators")
+        result.appendPath("emulators");
     else if (identical.contains(lowerFile))
         result.appendPath(lowerFile);
     else

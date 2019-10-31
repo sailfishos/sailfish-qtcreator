@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -30,21 +31,21 @@
 
 namespace Mer {
 namespace Internal {
-    class MerSdk;
-    class MerSdkManager;
     class MerSettings;
-    class MerVirtualBoxManager;
 }
 }
 
 namespace Sfdk {
+
+class BuildEngine;
+class Sdk;
 
 class SdkManager
 {
     Q_DECLARE_TR_FUNCTIONS(Sfdk::SdkManager)
 
 public:
-    SdkManager();
+    SdkManager(bool useSystemSettingsOnly);
     ~SdkManager();
 
     static bool isValid();
@@ -57,6 +58,8 @@ public:
             QProcess::InputChannelMode inputChannelMode = QProcess::ManagedInputChannel);
 
     static void setEnableReversePathMapping(bool enable);
+
+    static void saveSettings();
 
 private:
     bool hasEngine() const;
@@ -71,9 +74,8 @@ private:
     static SdkManager *s_instance;
     bool m_enableReversePathMapping = true;
     std::unique_ptr<Mer::Internal::MerSettings> m_merSettings;
-    std::unique_ptr<Mer::Internal::MerVirtualBoxManager> m_merVirtualBoxManager;
-    std::unique_ptr<Mer::Internal::MerSdkManager> m_merSdkManager;
-    Mer::Internal::MerSdk *m_merSdk = nullptr;
+    std::unique_ptr<Sdk> m_sdk;
+    BuildEngine *m_buildEngine = nullptr;
 };
 
 } // namespace Sfdk

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012-2014,2017-2019 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -103,16 +103,6 @@ class MerMb2RpmBuildConfigurationFactory
 {
 public:
     MerMb2RpmBuildConfigurationFactory();
-
-    static QString displayName();
-    static Core::Id configurationId();
-};
-
-class MerRpmBuildDeployConfigurationFactory
-    : public MerDeployConfigurationFactory<MerRpmBuildDeployConfigurationFactory>
-{
-public:
-    MerRpmBuildDeployConfigurationFactory();
 
     static QString displayName();
     static Core::Id configurationId();

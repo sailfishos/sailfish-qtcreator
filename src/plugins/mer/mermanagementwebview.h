@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012-2015 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -27,6 +27,10 @@
 #include <QUrl>
 #include <QWidget>
 
+namespace Sfdk {
+class BuildEngine;
+}
+
 namespace Mer {
 namespace Internal {
 
@@ -34,7 +38,6 @@ namespace Ui {
 class MerManagementWebView;
 }
 
-class MerSdk;
 class MerManagementWebViewSdksModel;
 
 class MerManagementWebView : public QWidget
@@ -62,7 +65,7 @@ private slots:
 private:
     Ui::MerManagementWebView *ui;
     MerManagementWebViewSdksModel *m_sdksModel;
-    QPointer<MerSdk> m_selectedSdk;
+    QPointer<Sfdk::BuildEngine> m_selectedSdk;
     bool m_loaded;
     bool m_autoFailReload;
 };

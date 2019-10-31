@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -101,6 +102,11 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
     cOption.setDescription(tr("Push the configuration option <name>. Omitting just <value> masks the option (see the 'config' subcommand). Omitting both <value> and '=' sets the option using the default value for its optional argument if any.\n\nSee the 'config' command for more details about configuration."));
     m_otherOptions.append(cOption);
 
+    QCommandLineOption systemConfigOnlyOption("system-config-only");
+    systemConfigOnlyOption.setDescription(tr("Enable the special purpose mode in which just the system-scope configuration is read and only read. The '-c' option handling is not affected by this mode. You want to enable this mode when invoking %1 during SDK installation or maintenance.")
+            .arg(QLatin1String(EXE_NAME)));
+    m_otherOptions.append(systemConfigOnlyOption);
+
     parser.addOptions(m_otherOptions);
 
     if (!parser.parse(arguments)) {
@@ -147,6 +153,10 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
         m_result = Version;
         return;
     }
+
+    // "config" is more in line with the UI, "settings" more with the code...
+    if (parser.isSet(systemConfigOnlyOption))
+        m_useSystemSettingsOnly = true;
 
     for (const QString &value : parser.values(cOption)) {
         OptionOccurence occurence = OptionOccurence::fromString(value);
@@ -443,6 +453,11 @@ QString CommandLineParser::usageMessage()
 QString CommandLineParser::unrecognizedCommandMessage(const QString &command)
 {
     return tr("Unrecognized command '%1'").arg(command);
+}
+
+QString CommandLineParser::commandNotAvailableMessage(const QString &command)
+{
+    return tr("The command '%1' is not available in this mode").arg(command);
 }
 
 QString CommandLineParser::unexpectedArgumentMessage(const QString &argument)

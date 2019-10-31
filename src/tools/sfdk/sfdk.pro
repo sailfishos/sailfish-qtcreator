@@ -1,4 +1,5 @@
 QTC_LIB_DEPENDS += \
+ sfdk \
  ssh \
  utils
 
@@ -10,6 +11,8 @@ QT += network xmlpatterns
 QT -= gui
 
 *-g++*:QMAKE_CXXFLAGS += -Wall -Werror
+
+DEFINES += QT_NO_URL_CAST_FROM_STRING
 
 HEADERS = \
     command.h \
@@ -23,14 +26,7 @@ HEADERS = \
     sfdkglobal.h \
     task.h \
     textutils.h \
-    ../../plugins/mer/merconnection.h \
-    ../../plugins/mer/merlogging.h \
-    ../../plugins/mer/mersdkmanager.h \
-    ../../plugins/mer/mersdk.h \
     ../../plugins/mer/mersettings.h \
-    ../../plugins/mer/mertarget.h \
-    ../../plugins/mer/mertargetsxmlparser.h \
-    ../../plugins/mer/mervirtualboxmanager.h \
 
 SOURCES = \
     command.cpp \
@@ -44,11 +40,4 @@ SOURCES = \
     sfdkglobal.cpp \
     task.cpp \
     textutils.cpp \
-    ../../plugins/mer/merconnection.cpp \
-    ../../plugins/mer/merlogging.cpp \
-    ../../plugins/mer/mersdkmanager.cpp \
-    ../../plugins/mer/mersdk.cpp \
     ../../plugins/mer/mersettings.cpp \
-    ../../plugins/mer/mertarget.cpp \
-    ../../plugins/mer/mertargetsxmlparser.cpp \
-    ../../plugins/mer/mervirtualboxmanager.cpp \

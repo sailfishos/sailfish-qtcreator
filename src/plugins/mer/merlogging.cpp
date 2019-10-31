@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2016 Jolla Ltd.
+** Copyright (C) 2016-2017,2019 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -28,8 +28,6 @@ namespace Log {
 Q_LOGGING_CATEGORY(qmakeArgs, "mer.qmakeArgs", QtWarningMsg)
 Q_LOGGING_CATEGORY(qmlLive, "mer.qmlLive", QtWarningMsg)
 Q_LOGGING_CATEGORY(sdks, "mer.sdks", QtWarningMsg)
-Q_LOGGING_CATEGORY(vms, "mer.vms", QtWarningMsg)
-Q_LOGGING_CATEGORY(vmsQueue, "mer.vms.queue", QtWarningMsg)
 
 } // namespace Log
 } // namespace Mer

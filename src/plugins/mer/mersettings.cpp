@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Jolla Ltd.
+** Copyright (C) 2014,2016,2018-2019 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -27,7 +27,6 @@
 
 #include <app/app_version.h>
 #include <coreplugin/icore.h>
-#include <coreplugin/messagemanager.h>
 #include <extensionsystem/pluginmanager.h>
 #include <utils/persistentsettings.h>
 #include <utils/algorithm.h>
@@ -65,30 +64,6 @@ MerSettings::MerSettings(QObject *parent)
     Q_ASSERT(s_instance == 0);
     s_instance = this;
 
-#ifdef MER_LIBRARY
-    // After SDK update device model name collisions might occur
-    const MerEmulatorDeviceModel::Map deviceModels = deviceModelsRead(globalDeviceModelsFileName());
-    MerEmulatorDeviceModel::Map userDeviceModels = deviceModelsRead(deviceModelsFileName());
-    const QSet<QString> existingUserDeviceModelsNames = userDeviceModels.keys().toSet();
-    const QSet<QString> collisions = deviceModels.keys().toSet()
-            .intersect(existingUserDeviceModelsNames);
-    if (collisions.size()) {
-        // Making device model names created by user unique
-        for (const QString &name : collisions) {
-            const QString uniqueName = MerEmulatorDeviceModel::uniqueName(name, existingUserDeviceModelsNames);
-
-            MerEmulatorDeviceModel model = userDeviceModels.take(name);
-            model.setName(uniqueName);
-            userDeviceModels.insert(model.name(), model);
-
-            const QString msg = QString(tr("Sailfish OS Emulator: Device model \"%1\" renamed to \"%2\"."))
-                    .arg(name).arg(model.name());
-            Core::MessageManager::write(msg, Core::MessageManager::Silent);
-        }
-        deviceModelsWrite(deviceModelsFileName(), userDeviceModels);
-    }
-#endif // MER_LIBRARY
-
     read();
 }
 
@@ -107,126 +82,6 @@ MerSettings *MerSettings::instance()
 
     return s_instance;
 }
-
-#ifdef MER_LIBRARY
-FileName MerSettings::globalDeviceModelsFileName()
-{
-    QSettings *globalSettings = PluginManager::globalSettings();
-    return FileName::fromString(QFileInfo(globalSettings->fileName()).absolutePath()
-                                + QLatin1String(MER_DEVICE_MODELS_FILENAME));
-}
-
-FileName MerSettings::deviceModelsFileName()
-{
-    const QFileInfo settingsLocation(PluginManager::settings()->fileName());
-    return FileName::fromString(settingsLocation.absolutePath() + QLatin1String(MER_DEVICE_MODELS_FILENAME));
-}
-
-MerEmulatorDeviceModel::Map MerSettings::deviceModels(EmulatorDeviceModelType type)
-{
-    Q_ASSERT(s_instance);
-
-    if (type == EmulatorDeviceModelAll)
-        return s_instance->m_deviceModels;
-
-    const std::map<QString, MerEmulatorDeviceModel> filteredModels
-            = Utils::filtered(s_instance->m_deviceModels.toStdMap(),
-                              [type](const auto &nameValuePair) {
-        return type == EmulatorDeviceModelSdkProvided
-                ? nameValuePair.second.isSdkProvided()
-                : !nameValuePair.second.isSdkProvided();
-    });
-
-    return MerEmulatorDeviceModel::Map(filteredModels);
-}
-
-MerEmulatorDeviceModel::Map MerSettings::deviceModelsRead(const Utils::FileName &fileName)
-{
-    MerEmulatorDeviceModel::Map result;
-    const bool isSdkProvided = (fileName == globalDeviceModelsFileName());
-
-    //! \todo Does not support multiple (different) emulators (not supported at other places anyway).
-    PersistentSettingsReader reader;
-    if (!reader.load(fileName))
-        return result;
-
-    const QVariantMap data = reader.restoreValues();
-
-    const int version = data.value(QLatin1String(MER_DEVICE_MODELS_FILE_VERSION_KEY), 0).toInt();
-    if (version < 1) {
-        qWarning() << "Invalid configuration version: " << version;
-        return result;
-    }
-
-    const int count = data.value(QLatin1String(MER_DEVICE_MODELS_COUNT_KEY), 0).toInt();
-    for (int i = 0; i < count; ++i) {
-        const QString key = QString::fromLatin1(MER_DEVICE_MODELS_DATA_KEY) + QString::number(i);
-        if (!data.contains(key))
-            break;
-
-        const QVariantMap deviceModelData = data.value(key).toMap();
-        MerEmulatorDeviceModel deviceModel(isSdkProvided);
-        deviceModel.fromMap(deviceModelData);
-
-        result.insert(deviceModel.name(), deviceModel);
-    }
-
-    return result;
-}
-
-bool MerSettings::isDeviceModelStored(const MerEmulatorDeviceModel &model)
-{
-    Q_ASSERT(s_instance);
-
-    if (!s_instance->m_deviceModels.contains(model.name()))
-        return false;
-
-    return s_instance->m_deviceModels.value(model.name()) == model;
-}
-
-void MerSettings::setDeviceModels(const MerEmulatorDeviceModel::Map &deviceModels)
-{
-    Q_ASSERT(s_instance);
-
-    if (s_instance->m_deviceModels == deviceModels)
-        return;
-
-    // TODO: use std::transform_reduce (C++17)
-    const std::map<QString, MerEmulatorDeviceModel> modelsChanged
-            = Utils::filtered(s_instance->m_deviceModels.toStdMap(),
-                              [&deviceModels](const auto &nameValuePair) {
-        const QString &name = nameValuePair.first;
-        return !deviceModels.contains(name) // device model removed
-                || deviceModels.value(name) != nameValuePair.second; // device model changed
-    });
-
-
-    s_instance->m_deviceModels = deviceModels;
-    emit s_instance->deviceModelsChanged(MerEmulatorDeviceModel::Map(modelsChanged).keys().toSet());
-}
-
-void MerSettings::deviceModelsWrite(const Utils::FileName &fileName,
-                                    const MerEmulatorDeviceModel::Map &deviceModels)
-{
-    PersistentSettingsWriter writer(fileName, QLatin1String("QtCreatorMersdk-device-models"));
-    QVariantMap data;
-
-    // Storing defined emulators
-    int count = 0;
-    for (const QString &name : deviceModels.uniqueKeys()) {
-        const MerEmulatorDeviceModel model = deviceModels.value(name);
-
-        Q_ASSERT(name == model.name());
-
-        const QString key = QString::fromLatin1(MER_DEVICE_MODELS_DATA_KEY) + QString::number(count++);
-        data.insert(key, model.toMap());
-    }
-
-    data.insert(QLatin1String(MER_DEVICE_MODELS_COUNT_KEY), count);
-    data.insert(QLatin1String(MER_DEVICE_MODELS_FILE_VERSION_KEY), 1);
-    writer.save(data, ICore::mainWindow());
-}
-#endif // MER_LIBRARY
 
 QString MerSettings::environmentFilter()
 {
@@ -430,16 +285,6 @@ void MerSettings::read()
 
     m_environmentFilterFromEnvironment =
         QProcessEnvironment::systemEnvironment().value(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER);
-
-#ifdef MER_LIBRARY
-    m_deviceModels = deviceModelsRead(globalDeviceModelsFileName());
-    const QMap<QString, MerEmulatorDeviceModel> userDeviceModels = deviceModelsRead(deviceModelsFileName());
-
-    QTC_CHECK(m_deviceModels.keys().toSet()
-              .intersects(userDeviceModels.keys().toSet()) == false);
-
-    m_deviceModels.unite(userDeviceModels);
-#endif // MER_LIBRARY
 }
 
 #ifdef MER_LIBRARY
@@ -460,8 +305,6 @@ void MerSettings::save()
     settings->setValue(QLatin1String(ASK_IMPORT_QMAKE_VARIABLES), m_askImportQmakeVariablesEnabled);
 
     settings->endGroup();
-
-    deviceModelsWrite(deviceModelsFileName(), deviceModels(EmulatorDeviceModelUserProvided));
 }
 #endif // MER_LIBRARY
 

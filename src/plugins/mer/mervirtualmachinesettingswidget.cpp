@@ -1,8 +1,38 @@
+/****************************************************************************
+**
+** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
+** Contact: http://jolla.com/
+**
+** This file is part of Qt Creator.
+**
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 as published by the Free Software
+** Foundation and appearing in the file LICENSE.LGPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU Lesser General Public License version 2.1 requirements
+** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Digia.
+**
+****************************************************************************/
+
 #include "mervirtualmachinesettingswidget.h"
-#include "mervirtualboxmanager.h"
-#include <utils/utilsicons.h>
+
 #include "ui_mervirtualmachinesettingswidget.h"
+
+#include <sfdk/virtualmachine.h>
+
+#include <utils/qtcassert.h>
+#include <utils/utilsicons.h>
+
 #include <QFormLayout>
+
+using namespace Sfdk;
 
 namespace Mer {
 namespace Internal {
@@ -10,7 +40,7 @@ namespace Internal {
 namespace {
 const int DEFAULT_MAX_MEMORY_SIZE_MB = 3584;
 const int MAX_VDI_SIZE_INCREMENT_GB = 10;
-const int MIN_VIRTUALBOX_MEMORY_SIZE_MB = 512;
+const int MIN_MEMORY_SIZE_MB = 512;
 
 } // namespace anonymous
 
@@ -30,7 +60,7 @@ MerVirtualMachineSettingsWidget::~MerVirtualMachineSettingsWidget()
 void MerVirtualMachineSettingsWidget::setMemorySizeMb(int sizeMb)
 {
     if (ui->memorySpinBox->maximum() < sizeMb)
-        ui->memorySpinBox->setRange(MIN_VIRTUALBOX_MEMORY_SIZE_MB, sizeMb);
+        ui->memorySpinBox->setRange(MIN_MEMORY_SIZE_MB, sizeMb);
 
     ui->memorySpinBox->setValue(sizeMb);
 }
@@ -67,14 +97,11 @@ QFormLayout *MerVirtualMachineSettingsWidget::formLayout() const
 
 void MerVirtualMachineSettingsWidget::initGui()
 {
-    ui->memorySpinBox->setRange(MIN_VIRTUALBOX_MEMORY_SIZE_MB, DEFAULT_MAX_MEMORY_SIZE_MB);
-    MerVirtualBoxManager::getHostTotalMemorySizeMb(this, [this] (int sizeMb) {
-        int maxMemorySizeMb = ui->memorySpinBox->value() > sizeMb ? ui->memorySpinBox->value() : sizeMb;
-        ui->memorySpinBox->setRange(MIN_VIRTUALBOX_MEMORY_SIZE_MB, maxMemorySizeMb);
-    });
-
-    const int maxCpuCount = MerVirtualBoxManager::getHostTotalCpuCount();
-    ui->cpuCountSpinBox->setRange(1, maxCpuCount);
+    int maxMemorySizeMb = VirtualMachine::availableMemorySizeMb() > 0
+        ? VirtualMachine::availableMemorySizeMb()
+        : DEFAULT_MAX_MEMORY_SIZE_MB;
+    ui->memorySpinBox->setRange(MIN_MEMORY_SIZE_MB, maxMemorySizeMb);
+    ui->cpuCountSpinBox->setRange(1, VirtualMachine::availableCpuCount());
 
     connect(ui->memorySpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &MerVirtualMachineSettingsWidget::memorySizeMbChanged);

@@ -1,6 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2018 Jolla Ltd.
+** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -23,7 +24,12 @@
 #include "merdevicemodelcombobox.h"
 #include "mersettings.h"
 
+#include <sfdk/emulator.h>
+#include <sfdk/sdk.h>
+
 #include <QCollator>
+
+using namespace Sfdk;
 
 namespace Mer {
 namespace Internal {
@@ -73,14 +79,13 @@ void MerDeviceModelComboBox::updateToolTip()
     setToolTip(currentData(Qt::ToolTipRole).toString());
 }
 
-QString MerDeviceModelComboBox::deviceModelInfo(const MerEmulatorDeviceModel &model)
+QString MerDeviceModelComboBox::deviceModelInfo(const Sfdk::DeviceModelData &model)
 {
-    const QSize resolution = model.displayResolution();
-    const bool isStored = MerSettings::isDeviceModelStored(model);
+    const bool isStored = Sdk::deviceModel(model.name) == model;
     return QStringLiteral("%1 (%2x%3)%4")
-            .arg(model.name())
-            .arg(resolution.width())
-            .arg(resolution.height())
+            .arg(model.name)
+            .arg(model.displayResolution.width())
+            .arg(model.displayResolution.height())
             .arg(isStored ? QString() : QString(" *"));
 }
 
@@ -95,20 +100,20 @@ void MerDeviceModelComboBox::setCurrentDeviceModel(const QString &name)
     setCurrentIndex(index);
 }
 
-void MerDeviceModelComboBox::setDeviceModels(const QList<MerEmulatorDeviceModel> &models)
+void MerDeviceModelComboBox::setDeviceModels(const QList<Sfdk::DeviceModelData> &models)
 {
     const bool state = blockSignals(true);
 
     const QString name = currentDeviceModel();
     clear();
-    for (const MerEmulatorDeviceModel &deviceModel : models) {
+    for (const DeviceModelData &deviceModel : models) {
         m_model.appendRow(new StandardItem(deviceModelInfo(deviceModel)));
         QFont f = font();
-        f.setItalic(!deviceModel.isSdkProvided());
+        f.setItalic(!deviceModel.autodetected);
         const int last = count() - 1;
-        setItemData(last, deviceModel.name(), deviceModelNameRole);
+        setItemData(last, deviceModel.name, deviceModelNameRole);
         setItemData(last, f, Qt::FontRole);
-        setItemData(last, deviceModel.isSdkProvided()
+        setItemData(last, deviceModel.autodetected
                     ? tr("SDK provided device model")
                     : tr("User defined device model"), Qt::ToolTipRole);
         updateToolTip();

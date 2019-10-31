@@ -7,6 +7,7 @@ QT += gui xmlpatterns
 include(../../qtcreatorplugin.pri)
 
 DEFINES += MER_LIBRARY
+DEFINES += QT_NO_URL_CAST_FROM_STRING
 
 *-g++*:QMAKE_CXXFLAGS += -Wall -Werror
 
@@ -14,44 +15,43 @@ RESOURCES += \
     mer.qrc
 
 FORMS += \
+    merbuildenginedetailswidget.ui \
+    merbuildengineoptionswidget.ui \
     merdeploystep.ui \
-    meremulatordevicewidget.ui \
-    meremulatordevicewizardsshpage.ui \
-    meremulatordevicewizardvmpage.ui \
+    meremulatordetailswidget.ui \
     meremulatormodedialog.ui \
+    meremulatoroptionswidget.ui \
     mergeneraloptionswidget.ui \
     merhardwaredevicewidget.ui \
     merhardwaredevicewidgetauthorizedialog.ui \
     merhardwaredevicewizardselectionpage.ui \
     merhardwaredevicewizardsetuppage.ui \
-    meroptionswidget.ui \
     merrpminfo.ui \
-    merrpmpackagingwidget.ui \
     merrpmvalidationstepconfigwidget.ui \
     merrunconfigurationaspectqmllivedetailswidget.ui \
-    mersdkdetailswidget.ui \
-    mersdkselectiondialog.ui \
     meremulatormodeoptionswidget.ui \
     meremulatormodedetailswidget.ui \
     mervirtualmachinesettingswidget.ui \
+    mervmselectiondialog.ui \
 
 SOURCES += \
     merabstractvmstartstep.cpp \
+    merbuildenginedetailswidget.cpp \
+    merbuildengineoptionspage.cpp \
+    merbuildengineoptionswidget.cpp \
     merbuildsteps.cpp \
-    merconnection.cpp \
     merconnectionmanager.cpp \
     merdeployconfiguration.cpp \
     merdeploysteps.cpp \
     merdevice.cpp \
     merdevicedebugsupport.cpp \
     merdevicefactory.cpp \
-    merdevicexmlparser.cpp \
+    meremulatordetailswidget.cpp \
     meremulatordevice.cpp \
     meremulatordevicetester.cpp \
-    meremulatordevicewidget.cpp \
-    meremulatordevicewizard.cpp \
-    meremulatordevicewizardpages.cpp \
     meremulatormodedialog.cpp \
+    meremulatoroptionspage.cpp \
+    meremulatoroptionswidget.cpp \
     mergeneraloptionspage.cpp \
     mergeneraloptionswidget.cpp \
     merhardwaredevice.cpp \
@@ -61,8 +61,6 @@ SOURCES += \
     mericons.cpp \
     merlogging.cpp \
     mermode.cpp \
-    meroptionspage.cpp \
-    meroptionswidget.cpp \
     merplugin.cpp \
     merprojectlistener.cpp \
     merqmllivebenchmanager.cpp \
@@ -72,26 +70,18 @@ SOURCES += \
     merqtversion.cpp \
     merqtversionfactory.cpp \
     merrpminstaller.cpp \
-    merrpmpackagingstep.cpp \
-    merrpmpackagingwidget.cpp \
     merrpmvalidationparser.cpp \
     merrunconfiguration.cpp \
     merrunconfigurationaspect.cpp \
     merrunconfigurationfactory.cpp \
-    mersdk.cpp \
-    mersdkdetailswidget.cpp \
     mersdkkitinformation.cpp \
     mersdkmanager.cpp \
-    mersdkselectiondialog.cpp \
     mersettings.cpp \
     mersshkeydeploymentdialog.cpp \
     mersshparser.cpp \
-    mertarget.cpp \
-    mertargetkitinformation.cpp \
-    mertargetsxmlparser.cpp \
     mertoolchain.cpp \
-    meruploadandinstallrpmsteps.cpp \
-    mervirtualboxmanager.cpp \
+    mervmconnectionui.cpp \
+    mervmselectiondialog.cpp \
     merdevicemodelcombobox.cpp \
     meremulatormodeoptionspage.cpp \
     meremulatormodeoptionswidget.cpp \
@@ -101,8 +91,10 @@ SOURCES += \
 
 HEADERS += \
     merabstractvmstartstep.h \
+    merbuildenginedetailswidget.h \
+    merbuildengineoptionspage.h \
+    merbuildengineoptionswidget.h \
     merbuildsteps.h \
-    merconnection.h \
     merconnectionmanager.h \
     merconstants.h \
     merdeployconfiguration.h \
@@ -110,13 +102,12 @@ HEADERS += \
     merdevice.h \
     merdevicedebugsupport.h \
     merdevicefactory.h \
-    merdevicexmlparser.h \
+    meremulatordetailswidget.h \
     meremulatordevice.h \
     meremulatordevicetester.h \
-    meremulatordevicewidget.h \
-    meremulatordevicewizard.h \
-    meremulatordevicewizardpages.h \
     meremulatormodedialog.h \
+    meremulatoroptionspage.h \
+    meremulatoroptionswidget.h \
     mergeneraloptionspage.h \
     mergeneraloptionswidget.h \
     merhardwaredevice.h \
@@ -126,8 +117,6 @@ HEADERS += \
     mericons.h \
     merlogging.h \
     mermode.h \
-    meroptionspage.h \
-    meroptionswidget.h \
     merplugin.h \
     merprojectlistener.h \
     merqmllivebenchmanager.h \
@@ -137,27 +126,19 @@ HEADERS += \
     merqtversion.h \
     merqtversionfactory.h \
     merrpminstaller.h \
-    merrpmpackagingstep.h \
-    merrpmpackagingwidget.h \
     merrpmvalidationparser.h \
     merrunconfiguration.h \
     merrunconfigurationaspect.h \
     merrunconfigurationfactory.h \
-    mersdk.h \
-    mersdkdetailswidget.h \
     mersdkkitinformation.h \
     mersdkmanager.h \
-    mersdkselectiondialog.h \
     mersettings.h \
     mersshkeydeploymentdialog.h \
     mersshparser.h \
-    mertarget.h \
-    mertargetkitinformation.h \
-    mertargetsxmlparser.h \
     mertoolchain.h \
     mertoolchainfactory.h \
-    meruploadandinstallrpmsteps.h \
-    mervirtualboxmanager.h \
+    mervmconnectionui.h \
+    mervmselectiondialog.h \
     merdevicemodelcombobox.h \
     meremulatormodeoptionspage.h \
     meremulatormodeoptionswidget.h \

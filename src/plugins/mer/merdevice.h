@@ -1,6 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 Jolla Ltd.
+** Copyright (C) 2015-2017 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -39,28 +40,26 @@ public:
     typedef QSharedPointer<MerDevice> Ptr;
     typedef QSharedPointer<const MerDevice> ConstPtr;
 
-    QString displayType() const override;
-
     void fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
 
-    virtual ProjectExplorer::Abi::Architecture architecture() const = 0;
+    QString displayType() const override;
+
+    ProjectExplorer::Abi::Architecture architecture() const;
+    void setArchitecture(const ProjectExplorer::Abi::Architecture &architecture);
 
     static MachineType workaround_machineTypeFromMap(const QVariantMap &map);
 
-    void setSharedSshPath(const QString &sshPath);
-    QString sharedSshPath() const;
-
     Utils::PortList qmlLivePorts() const;
-    void setQmlLivePorts(const Utils::PortList &qmlLivePorts);
     QList<Utils::Port> qmlLivePortsList() const;
+    void setQmlLivePorts(const Utils::PortList &qmlLivePorts);
 
 protected:
     MerDevice();
     ~MerDevice() override = 0;
 
 private:
-    QString m_sharedSshPath;
+    ProjectExplorer::Abi::Architecture m_architecture;
     Utils::PortList m_qmlLivePorts;
 };
 

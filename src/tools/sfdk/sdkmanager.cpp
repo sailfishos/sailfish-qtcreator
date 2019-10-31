@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -23,13 +24,16 @@
 #include "sdkmanager.h"
 
 #include <QDir>
+#include <QPointer>
 #include <QRegularExpression>
+#include <QTimer>
 
-#include <mer/merconnection.h>
+#include <sfdk/buildengine.h>
+#include <sfdk/sdk.h>
+#include <sfdk/virtualmachine.h>
+
 #include <mer/merconstants.h>
-#include <mer/mersdkmanager.h>
 #include <mer/mersettings.h>
-#include <mer/mervirtualboxmanager.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
@@ -50,29 +54,29 @@ using namespace Sfdk;
 
 namespace Sfdk {
 
-class ConnectionUi : public MerConnection::Ui
+class VmConnectionUi : public VirtualMachine::ConnectionUi
 {
     Q_OBJECT
 
 public:
-    using MerConnection::Ui::Ui;
+    using VirtualMachine::ConnectionUi::ConnectionUi;
 
     void warn(Warning which) override
     {
         switch (which) {
-        case Ui::AlreadyConnecting:
+        case AlreadyConnecting:
             QTC_CHECK(false);
             break;
-        case Ui::AlreadyDisconnecting:
+        case AlreadyDisconnecting:
             QTC_CHECK(false);
             break;
-        case Ui::UnableToCloseVm:
+        case UnableToCloseVm:
             qerr() << tr("Timeout waiting for the \"%1\" virtual machine to close.")
-                .arg(connection()->virtualMachine());
+                .arg(virtualMachine()->name());
             break;
-        case Ui::VmNotRegistered:
+        case VmNotRegistered:
             qerr() << tr("No virtual machine with the name \"%1\" found. Check your installation.")
-                .arg(connection()->virtualMachine());
+                .arg(virtualMachine()->name());
             break;
         }
     }
@@ -88,29 +92,29 @@ public:
         return false;
     }
 
-    void ask(Question which, OnStatusChanged onStatusChanged) override
+    void ask(Question which, std::function<void()> onStatusChanged) override
     {
         switch (which) {
-        case Ui::StartVm:
+        case StartVm:
             QTC_CHECK(false);
             break;
-        case Ui::ResetVm:
+        case ResetVm:
             QTC_CHECK(false);
             break;
-        case Ui::CloseVm:
+        case CloseVm:
             QTC_CHECK(false);
             break;
-        case Ui::CancelConnecting:
+        case CancelConnecting:
             QTC_CHECK(!m_cancelConnectingTimer);
             m_cancelConnectingTimer = startTimer(CONNECT_TIMEOUT_MS, onStatusChanged,
                 tr("Timeout connecting to the \"%1\" virtual machine.")
-                    .arg(connection()->virtualMachine()));
+                    .arg(virtualMachine()->name()));
             break;
-        case Ui::CancelLockingDown:
+        case CancelLockingDown:
             QTC_CHECK(!m_cancelLockingDownTimer);
             m_cancelLockingDownTimer = startTimer(LOCK_DOWN_TIMEOUT_MS, onStatusChanged,
                 tr("Timeout waiting for the \"%1\" virtual machine to close.")
-                    .arg(connection()->virtualMachine()));
+                    .arg(virtualMachine()->name()));
             break;
         }
 }
@@ -118,14 +122,14 @@ public:
     void dismissQuestion(Question which) override
     {
         switch (which) {
-        case Ui::StartVm:
-        case Ui::ResetVm:
-        case Ui::CloseVm:
+        case StartVm:
+        case ResetVm:
+        case CloseVm:
             break;
-        case Ui::CancelConnecting:
+        case CancelConnecting:
             delete m_cancelConnectingTimer;
             break;
-        case Ui::CancelLockingDown:
+        case CancelLockingDown:
             delete m_cancelLockingDownTimer;
             break;
         }
@@ -134,18 +138,18 @@ public:
     QuestionStatus status(Question which) const override
     {
         switch (which) {
-        case Ui::StartVm:
+        case StartVm:
             QTC_CHECK(false);
             return NotAsked;
-        case Ui::ResetVm:
+        case ResetVm:
             QTC_CHECK(false);
             return NotAsked;
-        case Ui::CloseVm:
+        case CloseVm:
             QTC_CHECK(false);
             return NotAsked;
-        case Ui::CancelConnecting:
+        case CancelConnecting:
             return status(m_cancelConnectingTimer);
-        case Ui::CancelLockingDown:
+        case CancelLockingDown:
             return status(m_cancelLockingDownTimer);
         }
 
@@ -154,12 +158,12 @@ public:
     }
 
 private:
-    QTimer *startTimer(int timeout, OnStatusChanged onStatusChanged, const QString &timeoutMessage)
+    QTimer *startTimer(int timeout, std::function<void()> onStatusChanged, const QString &timeoutMessage)
     {
         QTimer *timer = new QTimer(this);
         connect(timer, &QTimer::timeout, [=] {
             qerr() << timeoutMessage << endl;
-            (connection()->*onStatusChanged)();
+            onStatusChanged();
         });
         timer->setSingleShot(true);
         timer->start(timeout);
@@ -189,7 +193,7 @@ private:
 
 SdkManager *SdkManager::s_instance = nullptr;
 
-SdkManager::SdkManager()
+SdkManager::SdkManager(bool useSystemSettingsOnly)
 {
     Q_ASSERT(!s_instance);
     s_instance = this;
@@ -199,17 +203,23 @@ SdkManager::SdkManager()
 
     m_merSettings = std::make_unique<MerSettings>();
 
-    m_merVirtualBoxManager = std::make_unique<MerVirtualBoxManager>();
+    VirtualMachine::registerConnectionUi<VmConnectionUi>();
 
-    MerConnection::registerUi<ConnectionUi>();
-    m_merSdkManager = std::make_unique<MerSdkManager>();
+    Sdk::Options sdkOptions = Sdk::NoOption;
+    if (qEnvironmentVariableIsEmpty(Constants::DISABLE_VM_INFO_CACHE_ENV_VAR))
+        sdkOptions |= Sdk::CachedVmInfo;
+    if (useSystemSettingsOnly) {
+        sdkOptions &= ~Sdk::CachedVmInfo;
+        sdkOptions |= Sdk::SystemSettingsOnly;
+    }
+    m_sdk = std::make_unique<Sdk>(sdkOptions);
 
-    QList<MerSdk *> merSdks = m_merSdkManager->sdks();
-    if (!merSdks.isEmpty()) {
-        m_merSdk = merSdks.first();
-        if (merSdks.count() > 1) {
-            qCWarning(sfdk) << "Multiple build engines found."
-                << "Using" << m_merSdk->virtualMachineName();
+    QList<BuildEngine *> buildEngines = Sdk::buildEngines();
+    if (!buildEngines.isEmpty()) {
+        m_buildEngine = buildEngines.first();
+        if (buildEngines.count() > 1) {
+            qCWarning(sfdk) << "Multiple build engines found. Using"
+                << m_buildEngine->uri().toString();
         }
     }
 }
@@ -226,28 +236,28 @@ bool SdkManager::isValid()
 
 QString SdkManager::installationPath()
 {
-    return MerSdkManager::installDir();
+    return Sdk::installationPath();
 }
 
 bool SdkManager::startEngine()
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    s_instance->m_merSdk->connection()->refresh(MerConnection::Synchronous);
-    return s_instance->m_merSdk->connection()->connectTo(MerConnection::Block);
+    s_instance->m_buildEngine->virtualMachine()->refreshState(VirtualMachine::Synchronous);
+    return s_instance->m_buildEngine->virtualMachine()->connectTo(VirtualMachine::Block);
 }
 
 bool SdkManager::stopEngine()
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    s_instance->m_merSdk->connection()->refresh(MerConnection::Synchronous);
-    return s_instance->m_merSdk->connection()->lockDown(true);
+    s_instance->m_buildEngine->virtualMachine()->refreshState(VirtualMachine::Synchronous);
+    return s_instance->m_buildEngine->virtualMachine()->lockDown(true);
 }
 
 bool SdkManager::isEngineRunning()
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    s_instance->m_merSdk->connection()->refresh(MerConnection::Synchronous);
-    return !s_instance->m_merSdk->connection()->isVirtualMachineOff();
+    s_instance->m_buildEngine->virtualMachine()->refreshState(VirtualMachine::Synchronous);
+    return !s_instance->m_buildEngine->virtualMachine()->isOff();
 }
 
 int SdkManager::runOnEngine(const QString &program, const QStringList &arguments,
@@ -259,7 +269,7 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     // before for the engine to fully start, so no need to wait for connectTo again
     if (!isEngineRunning()) {
         qCInfo(sfdk).noquote() << tr("Starting the build engine…");
-        if (!s_instance->m_merSdk->connection()->connectTo(MerConnection::Block)) {
+        if (!s_instance->m_buildEngine->virtualMachine()->connectTo(VirtualMachine::Block)) {
             qerr() << tr("Failed to start the build engine") << endl;
             return EXIT_FAILURE;
         }
@@ -275,7 +285,7 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
         return Constants::EXIT_ABNORMAL;
 
     RemoteProcess process;
-    process.setSshParameters(s_instance->m_merSdk->connection()->sshParameters());
+    process.setSshParameters(s_instance->m_buildEngine->virtualMachine()->sshParameters());
     process.setProgram(program_);
     process.setArguments(arguments_);
     process.setWorkingDirectory(workingDirectory);
@@ -300,19 +310,27 @@ void SdkManager::setEnableReversePathMapping(bool enable)
     s_instance->m_enableReversePathMapping = enable;
 }
 
+void SdkManager::saveSettings()
+{
+    QStringList errorStrings;
+    s_instance->m_sdk->saveSettings(&errorStrings);
+    for (const QString &errorString : errorStrings)
+        qCWarning(sfdk) << "Error saving settings:" << errorString;
+}
+
 bool SdkManager::hasEngine() const
 {
-    return m_merSdk != nullptr;
+    return m_buildEngine != nullptr;
 }
 
 QString SdkManager::cleanSharedHome() const
 {
-    return QDir(QDir::cleanPath(m_merSdk->sharedHomePath())).canonicalPath();
+    return QDir(QDir::cleanPath(m_buildEngine->sharedHomePath().toString())).canonicalPath();
 }
 
 QString SdkManager::cleanSharedSrc() const
 {
-    return QDir(QDir::cleanPath(m_merSdk->sharedSrcPath())).canonicalPath();
+    return QDir(QDir::cleanPath(m_buildEngine->sharedSrcPath().toString())).canonicalPath();
 }
 
 bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QString *workingDirectory,
@@ -327,8 +345,8 @@ bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QStrin
         qCDebug(sfdk) << "cleanSharedSrc:" << cleanSharedSrc;
         qerr() << tr("The command needs to be used under build engine's share home or shared "
                 "source directory, which are currently configured as \"%1\" and \"%2\"")
-            .arg(m_merSdk->sharedHomePath())
-            .arg(m_merSdk->sharedSrcPath()) << endl;
+            .arg(m_buildEngine->sharedHomePath().toString())
+            .arg(m_buildEngine->sharedSrcPath().toString()) << endl;
         return false;
     }
 
@@ -377,10 +395,10 @@ QByteArray SdkManager::maybeReverseMapEnginePaths(const QByteArray &commandOutpu
 
     QByteArray retv = commandOutput;
 
-    if (!m_merSdk->sharedSrcPath().isEmpty())
+    if (!m_buildEngine->sharedSrcPath().isEmpty())
       retv.replace(Mer::Constants::MER_SDK_SHARED_SRC_MOUNT_POINT, cleanSharedSrc.toUtf8());
 
-    if (!m_merSdk->sharedHomePath().isEmpty())
+    if (!m_buildEngine->sharedHomePath().isEmpty())
       retv.replace(Mer::Constants::MER_SDK_SHARED_HOME_MOUNT_POINT, cleanSharedHome.toUtf8());
 
     return retv;
@@ -411,7 +429,7 @@ QProcessEnvironment SdkManager::environmentToForwardToEngine() const
         if (key == Mer::Constants::SAILFISH_SDK_ENVIRONMENT_FILTER)
             continue;
         if (filter.match(key).hasMatch()) {
-            if (sfdk().isDebugEnabled()) {
+            if (Log::sfdk().isDebugEnabled()) {
                 if (retv.isEmpty())
                     qCDebug(sfdk) << "Environment to forward to build engine (subject to path mapping):";
                 const QString indent = Sfdk::indent(1);

@@ -1,6 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2019 Jolla Ltd.
+** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,6 +23,10 @@
 
 #include "meremulatormodedetailswidget.h"
 #include "ui_meremulatormodedetailswidget.h"
+
+#include <sfdk/emulator.h>
+
+using namespace Sfdk;
 
 namespace Mer {
 namespace Internal {
@@ -125,27 +130,27 @@ void MerEmulatorModeDetailsWidget::setDeviceModelsNames(const QStringList &devic
     m_deviceModelsNames = deviceModelsNames;
 }
 
-void MerEmulatorModeDetailsWidget::setCurrentDeviceModel(const MerEmulatorDeviceModel &model)
+void MerEmulatorModeDetailsWidget::setCurrentDeviceModel(const Sfdk::DeviceModelData &model)
 {
     QTC_ASSERT(!model.isNull(), return);
 
-    m_deviceModelName = model.name();
-    const QSize resolution = model.displayResolution();
-    const QSize size = model.displaySize();
+    m_deviceModelName = model.name;
+    const QSize resolution = model.displayResolution;
+    const QSize size = model.displaySize;
 
-    ui->dconfTextEdit->setPlainText(model.dconf().isEmpty()
+    ui->dconfTextEdit->setPlainText(model.dconf.isEmpty()
                                       ? SCHEMA + "\n"
-                                      : model.dconf());
+                                      : model.dconf);
     if (ui->dconfWidget->currentIndex() == Simple)
         onAdvancedOptionsChanged();
 
-    const bool predefined = model.isSdkProvided();
+    const bool predefined = model.autodetected;
     ui->screenHeightSpinBox->setValue(size.height());
     ui->screenWidthSpinBox->setValue(size.width());
     ui->screenResolutionHeightSpinBox->setValue(resolution.height());
     ui->screenResolutionWidthSpinBox->setValue(resolution.width());
-    ui->nameLineEdit->setText(model.name());
-    ui->autoDetectionValueLabel->setText(model.isSdkProvided() ? tr("Yes") : tr("No"));
+    ui->nameLineEdit->setText(model.name);
+    ui->autoDetectionValueLabel->setText(model.autodetected ? tr("Yes") : tr("No"));
 
     ui->nameLineEdit->setDisabled(predefined);
     ui->screenResolutionWidthSpinBox->setDisabled(predefined);

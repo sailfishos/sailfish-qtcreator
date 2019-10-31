@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012-2015,2018-2019 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -116,16 +116,6 @@ QString Command::deviceName() const
 void Command::setDeviceName(const QString& device)
 {
     m_deviceName = device;
-}
-
-QString Command::engineName() const
-{
-    return m_engineName;
-}
-
-void Command::setEngineName(const QString& name)
-{
-    m_engineName = name;
 }
 
 QString Command::shellSafeArgument(const QString &argument) const

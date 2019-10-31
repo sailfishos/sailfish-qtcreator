@@ -6,5 +6,6 @@ QTC_PLUGIN_DEPENDS += \
  remotelinux \
  qmakeprojectmanager
 QTC_LIB_DEPENDS += \
+ sfdk \
  ssh \
  utils

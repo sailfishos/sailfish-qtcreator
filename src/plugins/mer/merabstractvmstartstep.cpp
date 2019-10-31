@@ -1,6 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Jolla Ltd.
+** Copyright (C) 2014-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,12 +23,11 @@
 
 #include "merabstractvmstartstep.h"
 
-#include "merconnection.h"
 #include "merconnectionmanager.h"
 #include "merconstants.h"
-#include "mersdk.h"
 #include "mersdkkitinformation.h"
-#include "mervirtualboxmanager.h"
+
+#include <sfdk/virtualmachine.h>
 
 #include <coreplugin/icore.h>
 #include <projectexplorer/target.h>
@@ -35,6 +35,7 @@
 
 using namespace Core;
 using namespace ProjectExplorer;
+using namespace Sfdk;
 
 namespace Mer {
 namespace Internal {
@@ -60,45 +61,45 @@ public:
 
 MerAbstractVmStartStep::MerAbstractVmStartStep(BuildStepList *bsl, Core::Id id)
     : BuildStep(bsl, id)
-    , m_connection(0)
+    , m_virtualMachine(0)
 {
     setWidgetExpandedByDefault(false);
 }
 
 bool MerAbstractVmStartStep::init()
 {
-    QTC_ASSERT(m_connection, return false);
+    QTC_ASSERT(m_virtualMachine, return false);
 
     return true;
 }
 
 void MerAbstractVmStartStep::doRun()
 {
-    if (!m_connection) {
+    if (!m_virtualMachine) {
         emit addOutput(tr("%1: Internal error.").arg(displayName()), OutputFormat::ErrorMessage);
         emit finished(false);
         return;
     }
 
-    if (m_connection->state() == MerConnection::Connected) {
+    if (m_virtualMachine->state() == VirtualMachine::Connected) {
         emit addOutput(tr("%1: The \"%2\" virtual machine is already running. Nothing to do.")
-            .arg(displayName()).arg(m_connection->virtualMachine()), OutputFormat::NormalMessage);
+            .arg(displayName()).arg(m_virtualMachine->name()), OutputFormat::NormalMessage);
         emit finished(true);
     } else {
         emit addOutput(tr("%1: Starting \"%2\" virtual machine...")
-                .arg(displayName()).arg(m_connection->virtualMachine()), OutputFormat::NormalMessage);
+                .arg(displayName()).arg(m_virtualMachine->name()), OutputFormat::NormalMessage);
 
-        connect(m_connection.data(), &MerConnection::stateChanged,
+        connect(m_virtualMachine.data(), &VirtualMachine::stateChanged,
                 this, &MerAbstractVmStartStep::onStateChanged);
-        m_connection->connectTo(MerConnection::AskStartVm);
+        m_virtualMachine->connectTo(VirtualMachine::AskStartVm);
     }
 }
 
 void MerAbstractVmStartStep::doCancel()
 {
-    QTC_ASSERT(m_connection, return);
-    m_connection->disconnect(this);
-    m_connection = 0;
+    QTC_ASSERT(m_virtualMachine, return);
+    m_virtualMachine->disconnect(this);
+    m_virtualMachine = 0;
 }
 
 BuildStepConfigWidget *MerAbstractVmStartStep::createConfigWidget()
@@ -106,25 +107,25 @@ BuildStepConfigWidget *MerAbstractVmStartStep::createConfigWidget()
     return new MerAbstractVmStartStepConfigWidget(this);
 }
 
-MerConnection *MerAbstractVmStartStep::connection() const
+VirtualMachine *MerAbstractVmStartStep::virtualMachine() const
 {
-    return m_connection;
+    return m_virtualMachine;
 }
 
-void MerAbstractVmStartStep::setConnection(MerConnection *connection)
+void MerAbstractVmStartStep::setVirtualMachine(VirtualMachine *virtualMachine)
 {
-    m_connection = connection;
+    m_virtualMachine = virtualMachine;
 }
 
 void MerAbstractVmStartStep::onStateChanged()
 {
     bool result = false;
-    switch (m_connection->state()) {
-    case MerConnection::Disconnected:
-    case MerConnection::Error:
+    switch (m_virtualMachine->state()) {
+    case VirtualMachine::Disconnected:
+    case VirtualMachine::Error:
         break;
 
-    case MerConnection::Connected:
+    case VirtualMachine::Connected:
         result = true;
         break;
 
@@ -132,8 +133,8 @@ void MerAbstractVmStartStep::onStateChanged()
         return;
     }
 
-    m_connection->disconnect(this);
-    m_connection = 0;
+    m_virtualMachine->disconnect(this);
+    m_virtualMachine = 0;
     emit finished(result);
 }
 

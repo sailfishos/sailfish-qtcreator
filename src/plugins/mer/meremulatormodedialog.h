@@ -1,6 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 Jolla Ltd.
+** Copyright (C) 2015-2016,2018-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -46,6 +47,10 @@ namespace ProjectExplorer {
     class Target;
 }
 
+namespace Sfdk {
+    class Emulator;
+}
+
 namespace Mer {
 namespace Internal {
 
@@ -59,16 +64,16 @@ class MerEmulatorModeDialog : public QObject
 
 public:
     MerEmulatorModeDialog(QObject *parent = 0);
-    MerEmulatorModeDialog(const MerEmulatorDevice::Ptr &emulator, QObject *parent = 0);
+    MerEmulatorModeDialog(Sfdk::Emulator *emulator, QObject *parent = 0);
     ~MerEmulatorModeDialog() override;
 
 public:
     QAction *action() const;
     bool exec();
-    MerEmulatorDevice::Ptr emulator() const;
+    Sfdk::Emulator *emulator() const;
 
 private:
-    void setEmulator(const MerEmulatorDevice::Ptr &emulator);
+    void setEmulator(Sfdk::Emulator *emulator);
 
 private slots:
     void onStartupProjectChanged(ProjectExplorer::Project *project);
@@ -86,7 +91,7 @@ private:
     QPointer<ProjectExplorer::Project> m_project;
     QPointer<ProjectExplorer::Target> m_target;
     ProjectExplorer::Kit *m_kit;
-    QWeakPointer<MerEmulatorDevice> m_emulator;
+    QPointer<Sfdk::Emulator> m_emulator;
 };
 
 } // namespace Internal

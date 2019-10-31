@@ -1,6 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2019 Jolla Ltd.
+** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -27,6 +28,10 @@
 
 #include <QWidget>
 
+namespace Sfdk {
+class DeviceModelData;
+}
+
 namespace Mer {
 namespace Internal {
 
@@ -42,7 +47,7 @@ public:
     explicit MerEmulatorModeDetailsWidget(QWidget *parent = nullptr);
     ~MerEmulatorModeDetailsWidget();
 
-    void setCurrentDeviceModel(const MerEmulatorDeviceModel &model);
+    void setCurrentDeviceModel(const Sfdk::DeviceModelData &model);
     void setDeviceModelsNames(const QStringList &deviceModelsNames);
 
 signals:

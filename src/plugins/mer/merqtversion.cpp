@@ -1,6 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -25,7 +26,10 @@
 #include "merconstants.h"
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
-#include "mervirtualboxmanager.h"
+
+#include <sfdk/buildengine.h>
+#include <sfdk/sdk.h>
+#include <sfdk/sfdkconstants.h>
 
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/toolchain.h>
@@ -42,6 +46,7 @@
 using namespace Core;
 using namespace ProjectExplorer;
 using namespace QtSupport;
+using namespace Sfdk;
 using namespace Utils;
 
 namespace Mer {
@@ -63,24 +68,24 @@ MerQtVersion::~MerQtVersion()
 {
 }
 
-void MerQtVersion::setVirtualMachineName(const QString &name)
+void MerQtVersion::setBuildEngineUri(const QUrl &uri)
 {
-    m_vmName = name;
+    m_buildEngineUri = uri;
 }
 
-QString MerQtVersion::virtualMachineName() const
+QUrl MerQtVersion::buildEngineUri() const
 {
-    return m_vmName;
+    return m_buildEngineUri;
 }
 
-void MerQtVersion::setTargetName(const QString &name)
+void MerQtVersion::setBuildTargetName(const QString &name)
 {
-    m_targetName = name;
+    m_buildTargetName = name;
 }
 
-QString MerQtVersion::targetName() const
+QString MerQtVersion::buildTargetName() const
 {
-    return m_targetName;
+    return m_buildTargetName;
 }
 
 QString MerQtVersion::type() const
@@ -111,16 +116,16 @@ QSet<Core::Id> MerQtVersion::targetDeviceTypes() const
 QVariantMap MerQtVersion::toMap() const
 {
     QVariantMap data = BaseQtVersion::toMap();
-    data.insert(QLatin1String(Constants::VIRTUAL_MACHINE), m_vmName);
-    data.insert(QLatin1String(Constants::SB2_TARGET_NAME), m_targetName);
+    data.insert(QLatin1String(Constants::BUILD_ENGINE_URI), m_buildEngineUri);
+    data.insert(QLatin1String(Constants::BUILD_TARGET_NAME), m_buildTargetName);
     return data;
 }
 
 void MerQtVersion::fromMap(const QVariantMap &data)
 {
     BaseQtVersion::fromMap(data);
-    m_vmName = data.value(QLatin1String(Constants::VIRTUAL_MACHINE)).toString();
-    m_targetName = data.value(QLatin1String(Constants::SB2_TARGET_NAME)).toString();
+    m_buildEngineUri = data.value(QLatin1String(Constants::BUILD_ENGINE_URI)).toUrl();
+    m_buildTargetName = data.value(QLatin1String(Constants::BUILD_TARGET_NAME)).toString();
 }
 
 QList<Task> MerQtVersion::validateKit(const Kit *kit)
@@ -156,12 +161,12 @@ QList<Task> MerQtVersion::reportIssuesImpl(const QString &proFile,
 {
     QList<Task> results;
 
-    MerSdk* sdk = MerSdkManager::sdk(m_vmName);
+    BuildEngine* buildEngine = Sdk::buildEngine(m_buildEngineUri);
 
-    if(!sdk) {
+    if(!buildEngine) {
         Task task(Task::Error,
                   QCoreApplication::translate("QtVersion",
-                                              "Qt version \"%1\" is missing Sailfish SDK").arg(displayName()),
+                                              "Qt version \"%1\" is missing build engine").arg(displayName()),
                   FileName(), -1, Core::Id());
         results.append(task);
     } 
@@ -177,13 +182,13 @@ QList<Task> MerQtVersion::reportIssuesImpl(const QString &proFile,
         // as they are
         if (proDir.canonicalPath().isEmpty()) {
             proFileClean = QDir::cleanPath(proFile);
-            sharedHomeClean = QDir::cleanPath(sdk->sharedHomePath());
-            sharedSrcClean = QDir::cleanPath(sdk->sharedSrcPath());
+            sharedHomeClean = QDir::cleanPath(buildEngine->sharedHomePath().toString());
+            sharedSrcClean = QDir::cleanPath(buildEngine->sharedSrcPath().toString());
         }
         else {
             // proDir is not empty, let's remove any symlinks from paths
-            QDir homeDir(sdk->sharedHomePath());
-            QDir srcDir(sdk->sharedSrcPath());
+            QDir homeDir(buildEngine->sharedHomePath().toString());
+            QDir srcDir(buildEngine->sharedSrcPath().toString());
             proFileClean = QDir::cleanPath(proDir.canonicalPath());
             sharedHomeClean = QDir::cleanPath(homeDir.canonicalPath());
             sharedSrcClean = QDir::cleanPath(srcDir.canonicalPath());
@@ -197,13 +202,13 @@ QList<Task> MerQtVersion::reportIssuesImpl(const QString &proFile,
 
         if (!proFileClean.startsWith(sharedHomeClean) && !proFileClean.startsWith(sharedSrcClean)) {
             QString message =  QCoreApplication::translate("QtVersion", "Project is outside of Sailfish SDK workspace");
-            if(!sdk->sharedHomePath().isEmpty() && !sdk->sharedSrcPath().isEmpty())
+            if(!buildEngine->sharedHomePath().isEmpty() && !buildEngine->sharedSrcPath().isEmpty())
               message = QCoreApplication::translate("QtVersion", "Project is outside of Sailfish SDK shared home \"%1\" and shared src \"%2\"")
-                      .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedHomePath())))
-                      .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedSrcPath())));
-            else if(!sdk->sharedHomePath().isEmpty())
+                      .arg(QDir::toNativeSeparators(buildEngine->sharedHomePath().toString()))
+                      .arg(QDir::toNativeSeparators(buildEngine->sharedSrcPath().toString()));
+            else if(!buildEngine->sharedHomePath().isEmpty())
               message = QCoreApplication::translate("QtVersion", "Project is outside of shared home \"%1\"")
-                      .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedHomePath())));
+                      .arg(QDir::toNativeSeparators(buildEngine->sharedHomePath().toString()));
             Task task(Task::Error,message,FileName(), -1, Core::Id());
             results.append(task);
         }
@@ -216,7 +221,8 @@ QList<Task> MerQtVersion::reportIssuesImpl(const QString &proFile,
 void MerQtVersion::addToEnvironment(const Kit *k, Environment &env) const
 {
     Q_UNUSED(k);
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_SDK_TOOLS),qmakeCommand().parentDir().toString());
+    env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS),
+            qmakeCommand().parentDir().toString());
 }
 
 
@@ -232,8 +238,9 @@ QSet<Core::Id> MerQtVersion::availableFeatures() const
 Environment MerQtVersion::qmakeRunEnvironment() const
 {
     Environment env = BaseQtVersion::qmakeRunEnvironment();
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_TARGET_NAME),m_targetName);
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_SDK_TOOLS),qmakeCommand().parentDir().toString());
+    env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_TARGET_NAME), m_buildTargetName);
+    env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS),
+            qmakeCommand().parentDir().toString());
     return env;
 }
 

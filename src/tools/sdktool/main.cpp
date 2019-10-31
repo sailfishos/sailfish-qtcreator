@@ -34,6 +34,9 @@
 #include "addkeysoperation.h"
 #include "addkitoperation.h"
 #include "addqtoperation.h"
+#include "addsfdkbuildengineoperation.h"
+#include "addsfdkdevicemodeloperation.h"
+#include "addsfdkemulatoroperation.h"
 #include "addtoolchainoperation.h"
 #include "findkeyoperation.h"
 #include "findvalueoperation.h"
@@ -44,13 +47,10 @@
 #include "rmkeysoperation.h"
 #include "rmkitoperation.h"
 #include "rmqtoperation.h"
+#include "rmsfdkbuildengineoperation.h"
+#include "rmsfdkdevicemodeloperation.h"
+#include "rmsfdkemulatoroperation.h"
 #include "rmtoolchainoperation.h"
-#include "addmerdevicemodeloperation.h"
-#include "rmmerdevicemodeloperation.h"
-#include "addmertargetoperation.h"
-#include "rmmertargetoperation.h"
-#include "addmersdkoperation.h"
-#include "rmmersdkoperation.h"
 
 #include <app/app_version.h>
 
@@ -197,6 +197,9 @@ int main(int argc, char *argv[])
     operations.emplace_back(std::make_unique<AddDebuggerOperation>());
     operations.emplace_back(std::make_unique<AddDeviceOperation>());
     operations.emplace_back(std::make_unique<AddQtOperation>());
+    operations.emplace_back(std::make_unique<AddSfdkBuildEngineOperation>());
+    operations.emplace_back(std::make_unique<AddSfdkDeviceModelOperation>());
+    operations.emplace_back(std::make_unique<AddSfdkEmulatorOperation>());
     operations.emplace_back(std::make_unique<AddToolChainOperation>());
 
     operations.emplace_back(std::make_unique<AddKitOperation>());
@@ -209,17 +212,13 @@ int main(int argc, char *argv[])
     operations.emplace_back(std::make_unique<RmDeviceOperation>());
     operations.emplace_back(std::make_unique<RmKeysOperation>());
     operations.emplace_back(std::make_unique<RmQtOperation>());
+    operations.emplace_back(std::make_unique<RmSfdkBuildEngineOperation>());
+    operations.emplace_back(std::make_unique<RmSfdkDeviceModelOperation>());
+    operations.emplace_back(std::make_unique<RmSfdkEmulatorOperation>());
     operations.emplace_back(std::make_unique<RmToolChainOperation>());
 
     operations.emplace_back(std::make_unique<FindKeyOperation>());
     operations.emplace_back(std::make_unique<FindValueOperation>());
-
-    operations.emplace_back(std::make_unique<AddMerDeviceModelOperation>());
-    operations.emplace_back(std::make_unique<RmMerDeviceModelOperation>());
-    operations.emplace_back(std::make_unique<AddMerTargetOperation>());
-    operations.emplace_back(std::make_unique<RmMerTargetOperation>());
-    operations.emplace_back(std::make_unique<AddMerSdkOperation>());
-    operations.emplace_back(std::make_unique<RmMerSdkOperation>());
 
 #ifdef WITH_TESTS
     if (argc == 2 && !strcmp(argv[1], "-test")) {

@@ -10,6 +10,8 @@ UTILS = $$PWD/../../libs/utils
 DEFINES += UTILS_LIBRARY
 win32: LIBS += -luser32 -lshell32
 
+DEFINES += QT_NO_URL_CAST_FROM_STRING
+
 SOURCES += \
     main.cpp \
     addabiflavor.cpp \
@@ -19,6 +21,9 @@ SOURCES += \
     addkeysoperation.cpp \
     addkitoperation.cpp \
     addqtoperation.cpp \
+    addsfdkbuildengineoperation.cpp \
+    addsfdkdevicemodeloperation.cpp \
+    addsfdkemulatoroperation.cpp \
     addtoolchainoperation.cpp \
     findkeyoperation.cpp \
     findvalueoperation.cpp \
@@ -30,15 +35,12 @@ SOURCES += \
     rmkeysoperation.cpp \
     rmkitoperation.cpp \
     rmqtoperation.cpp \
+    rmsfdkbuildengineoperation.cpp \
+    rmsfdkdevicemodeloperation.cpp \
+    rmsfdkemulatoroperation.cpp \
     rmtoolchainoperation.cpp \
     settings.cpp \
-    addmerdevicemodeloperation.cpp \
-    rmmerdevicemodeloperation.cpp \
-    addmertargetoperation.cpp \
-    rmmertargetoperation.cpp \
-    addmersdkoperation.cpp \
-    ../../plugins/mer/mertargetsxmlparser.cpp \
-    rmmersdkoperation.cpp \
+    sfdkutils.cpp \
     $$UTILS/fileutils.cpp \
     $$UTILS/hostosinfo.cpp \
     $$UTILS/persistentsettings.cpp \
@@ -53,6 +55,9 @@ HEADERS += \
     addkeysoperation.h \
     addkitoperation.h \
     addqtoperation.h \
+    addsfdkbuildengineoperation.h \
+    addsfdkdevicemodeloperation.h \
+    addsfdkemulatoroperation.h \
     addtoolchainoperation.h \
     findkeyoperation.h \
     findvalueoperation.h \
@@ -64,15 +69,12 @@ HEADERS += \
     rmkeysoperation.h \
     rmkitoperation.h \
     rmqtoperation.h \
+    rmsfdkbuildengineoperation.h \
+    rmsfdkdevicemodeloperation.h \
+    rmsfdkemulatoroperation.h \
     rmtoolchainoperation.h \
     settings.h \
-    addmerdevicemodeloperation.h \
-    rmmerdevicemodeloperation.h \
-    addmertargetoperation.h \
-    rmmertargetoperation.h \
-    addmersdkoperation.h \
-    ../../plugins/mer/mertargetsxmlparser.h \
-    rmmersdkoperation.h \
+    sfdkutils.h \
     $$UTILS/fileutils.h \
     $$UTILS/hostosinfo.h \
     $$UTILS/persistentsettings.h \

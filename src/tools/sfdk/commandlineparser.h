@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -63,6 +64,7 @@ public:
 
     Result result() const { return m_result; }
     Verbosity verbosity() const { return m_verbosity; }
+    bool useSystemSettingsOnly() const { return m_useSystemSettingsOnly; }
     const Command *command() const { return m_command; }
     QStringList commandArguments() const { return m_commandArguments; }
 
@@ -81,6 +83,7 @@ public:
     static QString summary();
     static QString usageMessage();
     static QString unrecognizedCommandMessage(const QString &command);
+    static QString commandNotAvailableMessage(const QString &command);
     static QString unexpectedArgumentMessage(const QString &argument);
     static QString missingArgumentMessage();
     static QString invalidArgumentToOptionMessage(const QString &problem, const QString &option);
@@ -113,6 +116,7 @@ private:
     QList<QCommandLineOption> m_otherOptions;
     QString m_errorString;
     Verbosity m_verbosity = Normal;
+    bool m_useSystemSettingsOnly = false;
     const Command *m_command = nullptr;
     QStringList m_commandArguments;
     const Domain *m_domain = nullptr;

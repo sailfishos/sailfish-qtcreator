@@ -1,6 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012-2015 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -29,6 +30,10 @@
 
 namespace QSsh {
     class SshConnectionParameters;
+}
+
+namespace Sfdk {
+    class BuildEngine;
 }
 
 namespace Mer {
@@ -84,12 +89,12 @@ public:
     QString publicKeyFilePath() const;
     QString privateKeyFilePath() const;
     bool isNewSshKeysRquired() const;
-    QString sharedSshPath() const;
+    Sfdk::BuildEngine *buildEngine() const;
 
     bool isComplete() const override;
 
 private slots:
-    void handleSdkVmChanged(const QString &vmName);
+    void handleBuildEngineChanged();
 
 private:
     Ui::MerHardwareDeviceWizardSetupPage *m_ui;

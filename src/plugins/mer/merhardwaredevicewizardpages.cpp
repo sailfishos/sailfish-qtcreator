@@ -1,6 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -27,8 +28,9 @@
 #include "merconnectionmanager.h"
 #include "merconstants.h"
 #include "merhardwaredevicewizard.h"
-#include "mersdkmanager.h"
-#include "mervirtualboxmanager.h"
+
+#include <sfdk/buildengine.h>
+#include <sfdk/sdk.h>
 
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <ssh/sshremoteprocessrunner.h>
@@ -39,6 +41,7 @@
 
 using namespace ProjectExplorer;
 using namespace QSsh;
+using namespace Sfdk;
 using namespace Utils;
 
 namespace Mer {
@@ -248,11 +251,11 @@ MerHardwareDeviceWizardSetupPage::MerHardwareDeviceWizardSetupPage(QWidget *pare
     m_ui->sshCheckBox->setChecked(true);
 
     static QRegExp regExp(tr("Build Engine"));
-    QList<MerSdk*> sdks = MerSdkManager::sdks();
-    foreach (const MerSdk *s, sdks) {
-        m_ui->merSdkComboBox->addItem(s->virtualMachineName());
-        if (regExp.indexIn(s->virtualMachineName()) != -1) {
-            //preselect sdk
+    const QList<BuildEngine *> engines = Sdk::buildEngines();
+    for (BuildEngine *const engine : engines) {
+        m_ui->merSdkComboBox->addItem(engine->name(), engine->uri());
+        if (regExp.indexIn(engine->name()) != -1) {
+            // Preselect
             m_ui->merSdkComboBox->setCurrentIndex(m_ui->merSdkComboBox->count()-1);
         }
     }
@@ -260,9 +263,9 @@ MerHardwareDeviceWizardSetupPage::MerHardwareDeviceWizardSetupPage(QWidget *pare
     connect(m_ui->configLineEdit, &QLineEdit::textChanged,
             this, &MerHardwareDeviceWizardSetupPage::completeChanged);
     connect(m_ui->merSdkComboBox,
-            static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::currentIndexChanged),
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
-            &MerHardwareDeviceWizardSetupPage::handleSdkVmChanged);
+            &MerHardwareDeviceWizardSetupPage::handleBuildEngineChanged);
 }
 
 void MerHardwareDeviceWizardSetupPage::initializePage()
@@ -282,7 +285,7 @@ void MerHardwareDeviceWizardSetupPage::initializePage()
    m_ui->hostLabelEdit->setText(wizard->hostName());
    m_ui->usernameLabelEdit->setText(wizard->userName());
    m_ui->sshPortLabelEdit->setText(QString::number(wizard->sshPort()));
-   handleSdkVmChanged(m_ui->merSdkComboBox->currentText());
+   handleBuildEngineChanged();
 }
 
 QString MerHardwareDeviceWizardSetupPage::configName() const
@@ -295,15 +298,14 @@ QString MerHardwareDeviceWizardSetupPage::freePorts() const
     return m_ui->freePortsLineEdit->text().trimmed();
 }
 
-void MerHardwareDeviceWizardSetupPage::handleSdkVmChanged(const QString &vmName)
+void MerHardwareDeviceWizardSetupPage::handleBuildEngineChanged()
 {
-    MerSdk* sdk = MerSdkManager::sdk(vmName);
-    QTC_ASSERT(sdk,return);
+    QTC_ASSERT(buildEngine(), return);
     const MerHardwareDeviceWizard* wizard = qobject_cast<MerHardwareDeviceWizard*>(this->wizard());
     QTC_ASSERT(wizard,return);
     QString index(QLatin1String("/ssh/private_keys/%1/"));
     //TODO: fix me
-    QString sshKeyPath(QDir::toNativeSeparators(sdk->sharedConfigPath() +
+    QString sshKeyPath(QDir::toNativeSeparators(buildEngine()->sharedConfigPath().toString() +
                        index.arg(wizard->configurationName()).replace(QLatin1Char(' '),QLatin1Char('_')) +
                        wizard->userName()));
     m_ui->privateSshKeyLabelEdit->setText(sshKeyPath);
@@ -325,11 +327,9 @@ bool MerHardwareDeviceWizardSetupPage::isNewSshKeysRquired() const
     return m_ui->sshCheckBox->isChecked();
 }
 
-QString MerHardwareDeviceWizardSetupPage::sharedSshPath() const
+Sfdk::BuildEngine *MerHardwareDeviceWizardSetupPage::buildEngine() const
 {
-    MerSdk* sdk = MerSdkManager::sdk(m_ui->merSdkComboBox->currentText());
-    QTC_ASSERT(sdk,return QString());
-    return sdk->sharedConfigPath();
+    return Sdk::buildEngine(m_ui->merSdkComboBox->currentData().toUrl());
 }
 
 bool MerHardwareDeviceWizardSetupPage::isComplete() const

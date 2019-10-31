@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012-2015,2018-2019 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -24,7 +24,7 @@
 
 #include "merremoteprocess.h"
 
-#include <mer/merconstants.h>
+#include <sfdk/sfdkconstants.h>
 
 #include <QDir>
 #include <QFile>
@@ -42,10 +42,8 @@ QString QMakeCommand::name() const
 
 int QMakeCommand::execute()
 {
-    if (arguments().contains(QLatin1String("-version")))
-        m_cacheFile = QLatin1String(Mer::Constants::QMAKE_VERSION);
-    else if (arguments().contains(QLatin1String("-query")))
-        m_cacheFile = QLatin1String(Mer::Constants::QMAKE_QUERY);
+    if (arguments().contains(QLatin1String("-query")))
+        m_cacheFile = QLatin1String(Sfdk::Constants::QMAKE_QUERY_CACHE);
 
     if (!m_cacheFile.isEmpty()) {
         m_cacheFile.prepend(sdkToolsPath() + QDir::separator());

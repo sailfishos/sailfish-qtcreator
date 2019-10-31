@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,13 +23,14 @@
 
 #include "merbuildconfiguration.h"
 
-#include "merconnection.h"
 #include "merconstants.h"
 #include "merbuildsteps.h"
 #include "merlogging.h"
 #include "mersettings.h"
-#include "mersdk.h"
 #include "mersdkkitinformation.h"
+
+#include <sfdk/buildengine.h>
+#include <sfdk/virtualmachine.h>
 
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/icore.h>
@@ -46,6 +48,7 @@
 using namespace Core;
 using namespace ProjectExplorer;
 using namespace QmakeProjectManager;
+using namespace Sfdk;
 using Utils::CheckableMessageBox;
 
 namespace {
@@ -180,11 +183,10 @@ void MerBuildConfiguration::maybeUpdateExtraParserArguments()
 
 void MerBuildConfiguration::updateExtraParserArguments()
 {
-    const MerSdk *const merSdk = MerSdkKitInformation::sdk(target()->kit());
-    QTC_ASSERT(merSdk, return);
-    QTC_ASSERT(merSdk->connection(), return);
+    const BuildEngine *const buildEngine = MerSdkKitInformation::buildEngine(target()->kit());
+    QTC_ASSERT(buildEngine, return);
 
-    if (merSdk->connection()->state() != Mer::MerConnection::Connected) {
+    if (buildEngine->virtualMachine()->state() != VirtualMachine::Connected) {
         BuildStepList *steps = stepList(Core::Id(ProjectExplorer::Constants::BUILDSTEPS_BUILD));
         QTC_ASSERT(steps, return);
         Mer::Internal::MerSdkStartStep *sdkStartStep = steps->firstOfType<Mer::Internal::MerSdkStartStep>();

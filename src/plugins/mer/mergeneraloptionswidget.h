@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Jolla Ltd.
+** Copyright (C) 2014-2015 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,8 +22,6 @@
 
 #ifndef MERGENERALOPTIONSWIDGET_H
 #define MERGENERALOPTIONSWIDGET_H
-
-#include "mersdk.h"
 
 #include <QWidget>
 

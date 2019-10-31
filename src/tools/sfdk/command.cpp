@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -124,6 +125,11 @@ Worker::ExitStatus BuiltinWorker::runConfig(const QStringList &arguments0) const
 {
     using P = CommandLineParser;
 
+    if (!Configuration::isLoaded()) {
+        qerr() << P::commandNotAvailableMessage(arguments0.first()) << endl;
+        return BadUsage;
+    }
+
     QCommandLineParser parser;
     QCommandLineOption showOption("show");
     QCommandLineOption globalOption("global");
@@ -233,7 +239,7 @@ Worker::ExitStatus BuiltinWorker::runEngine(const QStringList &arguments, int *e
         qerr() << P::missingArgumentMessage() << endl;
         return BadUsage;
     }
-    if (arguments.count() > 1) {
+    if (arguments.count() > 1 && arguments.first() != "exec") {
         qerr() << P::unexpectedArgumentMessage(arguments.at(1));
         return BadUsage;
     }
@@ -246,8 +252,21 @@ Worker::ExitStatus BuiltinWorker::runEngine(const QStringList &arguments, int *e
         bool running = SdkManager::isEngineRunning();
         qout() << tr("Running: %1").arg(running ? tr("Yes") : tr("No")) << endl;
         *exitCode = EXIT_SUCCESS;
+    } else if (arguments.first() == "exec") {
+        QString program;
+        QStringList programArguments;
+        if (arguments.count() > 1) {
+            program = arguments.at(1);
+            if (arguments.count() > 2)
+                programArguments = arguments.mid(2);
+        } else {
+            program = "/bin/bash";
+            programArguments << "--login";
+        }
+        *exitCode = SdkManager::runOnEngine(program, programArguments, QProcess::ForwardedInputChannel);
+        return NormalExit;
     } else {
-        qerr() << P::unrecognizedCommandMessage(arguments.first());
+        qerr() << P::unrecognizedCommandMessage(arguments.first()) << endl;
         return BadUsage;
     }
 

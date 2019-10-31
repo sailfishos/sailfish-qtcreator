@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -133,6 +134,7 @@ public:
     ~Configuration();
 
     static bool load();
+    static bool isLoaded();
 
     static bool push(Scope scope, const OptionOccurence &occurence);
     static bool push(Scope scope, const Option *option, const QString &argument = QString());
@@ -155,6 +157,7 @@ private:
 
 private:
     static Configuration *s_instance;
+    bool m_loaded = false;
     std::unique_ptr<ConfigurationScope> m_globalScope;
     std::unique_ptr<ConfigurationScope> m_sessionScope;
     std::unique_ptr<ConfigurationScope> m_commandScope;

@@ -1,6 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 Jolla Ltd.
+** Copyright (C) 2015-2016,2018-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -30,10 +31,13 @@
 #include "meremulatormodedialog.h"
 #include "ui_meremulatormodedialog.h"
 
-#include "merconnection.h"
 #include "mersettings.h"
 #include "merconstants.h"
 #include "meremulatordevice.h"
+
+#include <sfdk/emulator.h>
+#include <sfdk/sdk.h>
+#include <sfdk/virtualmachine.h>
 
 #include <coreplugin/icore.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
@@ -49,6 +53,7 @@
 
 using namespace Core;
 using namespace ProjectExplorer;
+using namespace Sfdk;
 
 using namespace Mer;
 using namespace Mer::Internal;
@@ -77,7 +82,7 @@ MerEmulatorModeDialog::MerEmulatorModeDialog(QObject *parent)
             this, &MerEmulatorModeDialog::onDeviceListReplaced);
 }
 
-MerEmulatorModeDialog::MerEmulatorModeDialog(const MerEmulatorDevice::Ptr &emulator, QObject *parent)
+MerEmulatorModeDialog::MerEmulatorModeDialog(Sfdk::Emulator *emulator, QObject *parent)
     : QObject(parent),
       m_action(new QAction(tr(MER_EMULATOR_MODE_ACTION_NAME), this)),
       m_ui(nullptr),
@@ -97,9 +102,9 @@ QAction *MerEmulatorModeDialog::action() const
     return m_action;
 }
 
-MerEmulatorDevice::Ptr MerEmulatorModeDialog::emulator() const
+Sfdk::Emulator *MerEmulatorModeDialog::emulator() const
 {
-    return m_emulator.toStrongRef();
+    return m_emulator;
 }
 
 bool MerEmulatorModeDialog::exec()
@@ -108,7 +113,7 @@ bool MerEmulatorModeDialog::exec()
     return execDialog();
 }
 
-void MerEmulatorModeDialog::setEmulator(const MerEmulatorDevice::Ptr &emulator)
+void MerEmulatorModeDialog::setEmulator(Sfdk::Emulator *emulator)
 {
     m_emulator = emulator;
     m_action->setEnabled(m_emulator != 0);
@@ -134,7 +139,7 @@ void MerEmulatorModeDialog::onActiveTargetChanged(Target *target)
 {
     if (m_target != 0) {
         m_target->disconnect(this);
-        setEmulator(MerEmulatorDevice::Ptr());
+        setEmulator(nullptr);
     }
 
     m_target = target;
@@ -151,7 +156,7 @@ void MerEmulatorModeDialog::onTargetKitChanged()
     Q_ASSERT(m_target != 0);
 
     if (m_kit != 0) {
-        setEmulator(MerEmulatorDevice::Ptr());
+        setEmulator(nullptr);
     }
 
     m_kit = m_target->kit();
@@ -170,7 +175,8 @@ void MerEmulatorModeDialog::onKitUpdated(Kit *kit)
     }
 
     auto device = DeviceKitInformation::device(m_kit);
-    setEmulator(device.dynamicCast<const MerEmulatorDevice>().constCast<MerEmulatorDevice>());
+    auto emulatorDevice = device.dynamicCast<const MerEmulatorDevice>();
+    setEmulator(emulatorDevice ? emulatorDevice->emulator() : nullptr);
 }
 
 void MerEmulatorModeDialog::onDeviceListReplaced()
@@ -179,7 +185,8 @@ void MerEmulatorModeDialog::onDeviceListReplaced()
         return;
 
     auto device = DeviceKitInformation::device(m_kit);
-    setEmulator(device.dynamicCast<const MerEmulatorDevice>().constCast<MerEmulatorDevice>());
+    auto emulatorDevice = device.dynamicCast<const MerEmulatorDevice>();
+    setEmulator(emulatorDevice ? emulatorDevice->emulator() : nullptr);
 }
 
 bool MerEmulatorModeDialog::execDialog()
@@ -190,18 +197,18 @@ bool MerEmulatorModeDialog::execDialog()
     m_dialog = new QDialog(ICore::dialogParent());
     m_ui = new Ui::MerEmulatorModeDialog;
     m_ui->setupUi(m_dialog);
-    m_ui->deviceNameLabel->setText(m_emulator.data()->displayName());
+    m_ui->deviceNameLabel->setText(m_emulator->name());
 
-    m_ui->deviceModelComboBox->setDeviceModels(MerSettings::deviceModels().values());
-    m_ui->deviceModelComboBox->setCurrentDeviceModel(m_emulator.data()->deviceModel());
+    m_ui->deviceModelComboBox->setDeviceModels(Sdk::deviceModels());
+    m_ui->deviceModelComboBox->setCurrentDeviceModel(m_emulator->deviceModel().name);
     const bool supportsMultipleModels = m_ui->deviceModelComboBox->count();
 
-    QRadioButton *orientationRadioButton = m_emulator.data()->orientation() == Qt::Vertical
+    QRadioButton *orientationRadioButton = m_emulator->orientation() == Qt::Vertical
         ? m_ui->portraitRadioButton
         : m_ui->landscapeRadioButton;
     orientationRadioButton->setChecked(true);
 
-    QRadioButton *viewModeRadioButton = m_emulator.data()->isViewScaled()
+    QRadioButton *viewModeRadioButton = m_emulator->isViewScaled()
         ? m_ui->scaledViewModeRadioButton
         : m_ui->originalViewModeRadioButton;
     viewModeRadioButton->setChecked(true);
@@ -215,30 +222,31 @@ bool MerEmulatorModeDialog::execDialog()
     m_ui->contentWrapper->setEnabled(supportsMultipleModels);
     m_ui->buttonBox->button(QDialogButtonBox::Ok)->setEnabled(supportsMultipleModels);
 
-    if (m_emulator.data()->connection()->isVirtualMachineOff() || !supportsMultipleModels) {
+    if (m_emulator->virtualMachine()->isOff() || !supportsMultipleModels) {
         m_ui->restartEmulatorCheckBox->setChecked(false);
         m_ui->restartEmulatorCheckBox->setEnabled(false);
     }
 
-    const bool result = (m_dialog->exec() == QDialog::Accepted);
+    bool result = (m_dialog->exec() == QDialog::Accepted);
     if (!result)
         goto end;
 
-    if (!m_emulator.data()->connection()->isVirtualMachineOff()
-        && m_ui->restartEmulatorCheckBox->isChecked()) {
-        m_emulator.data()->connection()->lockDown(true);
+    if (!m_emulator->virtualMachine()->isOff()
+            && m_ui->restartEmulatorCheckBox->isChecked()) {
+        m_emulator->virtualMachine()->lockDown(true);
     }
 
-    m_emulator.data()->setDeviceModel(m_ui->deviceModelComboBox->currentDeviceModel());
-    m_emulator.data()->setOrientation(m_ui->portraitRadioButton->isChecked()
-                               ? Qt::Vertical
-                               : Qt::Horizontal);
-    m_emulator.data()->setViewScaled(m_ui->scaledViewModeRadioButton->isChecked());
+    execAsynchronous(std::tie(result), std::mem_fn(&Emulator::setDisplayProperties),
+            m_emulator.data(),
+            Sdk::deviceModel(m_ui->deviceModelComboBox->currentDeviceModel()),
+            m_ui->portraitRadioButton->isChecked() ? Qt::Vertical : Qt::Horizontal,
+            m_ui->scaledViewModeRadioButton->isChecked());
+    QTC_CHECK(result);
 
-    if (m_emulator.data()->connection()->isVirtualMachineOff()
+    if (m_emulator->virtualMachine()->isOff()
             && m_ui->restartEmulatorCheckBox->isChecked()) {
-        m_emulator.data()->connection()->lockDown(false);
-        m_emulator.data()->connection()->connectTo();
+        m_emulator->virtualMachine()->lockDown(false);
+        m_emulator->virtualMachine()->connectTo();
     }
 
 end:
@@ -255,11 +263,11 @@ void MerEmulatorModeDialog::guessOptimalViewMode()
     // TODO use the word resolution instead of size
     const QSize desktopSize = qApp->desktop()->availableGeometry().size();
 
-    const QMap<QString, MerEmulatorDeviceModel> models = MerSettings::deviceModels();
-    auto selectedModel = models.value(m_ui->deviceModelComboBox->currentDeviceModel());
+    const DeviceModelData selectedModel =
+        Sdk::deviceModel(m_ui->deviceModelComboBox->currentDeviceModel());
     QTC_ASSERT(!selectedModel.isNull(), return);
 
-    QSize selectedSize = selectedModel.displayResolution();
+    QSize selectedSize = selectedModel.displayResolution;
     if (m_ui->landscapeRadioButton->isChecked()) {
         selectedSize.transpose();
     }

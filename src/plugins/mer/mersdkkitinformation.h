@@ -1,6 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012-2016,2018 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -29,13 +30,17 @@
 QT_FORWARD_DECLARE_CLASS(QComboBox);
 QT_FORWARD_DECLARE_CLASS(QPushButton);
 
+namespace Sfdk {
+class BuildEngine;
+class BuildTargetData;
+}
+
 namespace Mer {
 namespace Internal {
 
-class MerSdk;
 class MerSdkKitInformation;
 
-class  MerSdkKitInformationWidget : public ProjectExplorer::KitConfigWidget
+class MerSdkKitInformationWidget : public ProjectExplorer::KitConfigWidget
 {
     Q_OBJECT
 public:
@@ -53,11 +58,14 @@ public:
 private slots:
     void handleSdksUpdated();
     void handleManageClicked();
-    void handleCurrentIndexChanged();
+    void handleCurrentEngineIndexChanged();
+    void handleCurrentTargetIndexChanged();
 
 private:
-    QComboBox *m_combo;
-    QPushButton *m_manageButton;
+    QWidget *m_mainWidget = nullptr;
+    QComboBox *m_buildEngineComboBox = nullptr;
+    QComboBox *m_buildTargetComboBox = nullptr;
+    QPushButton *m_manageButton = nullptr;
 };
 
 
@@ -66,6 +74,8 @@ class MerSdkKitInformation : public ProjectExplorer::KitInformation
     Q_OBJECT
 public:
     explicit MerSdkKitInformation();
+    ~MerSdkKitInformation() override;
+
     QVariant defaultValue(const ProjectExplorer::Kit *kit) const override;
     QList<ProjectExplorer::Task> validate(const ProjectExplorer::Kit *kit) const override;
     ItemList toUserOutput(const ProjectExplorer::Kit *kit) const override;
@@ -73,11 +83,25 @@ public:
     void addToEnvironment(const ProjectExplorer::Kit *kit, Utils::Environment &env) const override;
 
     static Core::Id id();
-    static void setSdk(ProjectExplorer::Kit *kit, const MerSdk* sdk);
-    static MerSdk* sdk(const ProjectExplorer::Kit *kit);
+
+    static void setBuildTarget(ProjectExplorer::Kit *kit, const Sfdk::BuildEngine* buildEngine,
+            const QString &buildTargetName);
+    static Sfdk::BuildEngine *buildEngine(const ProjectExplorer::Kit *kit);
+    static Sfdk::BuildTargetData buildTarget(const ProjectExplorer::Kit *kit);
+    static QString buildTargetName(const ProjectExplorer::Kit *kit);
+
+    static void notifyAboutUpdate(const Sfdk::BuildEngine *buildEngine);
+
+protected:
+    using KitInformation::notifyAboutUpdate;
 
 private:
-    void onUpdated();
+    void notifyAllUpdated();
+    static QVariantMap toMap(const QUrl &buildEngineUri, const QString &buildTargetName);
+    static bool fromMap(const QVariantMap &data, QUrl *buildEngineUri, QString *buildTargetName);
+
+private:
+    static MerSdkKitInformation *s_instance;
 };
 
 }
