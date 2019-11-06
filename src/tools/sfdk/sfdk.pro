@@ -7,7 +7,7 @@ CONFIG += qtc_human_user_tool
 
 include(../../qtcreatortool.pri)
 
-QT += network xmlpatterns
+QT += network xmlpatterns qml
 QT -= gui
 
 *-g++*:QMAKE_CXXFLAGS += -Wall -Werror
@@ -21,6 +21,7 @@ HEADERS = \
     dispatch.h \
     sdkmanager.h \
     remoteprocess.h \
+    script.h \
     session.h \
     sfdkconstants.h \
     sfdkglobal.h \
@@ -35,6 +36,7 @@ SOURCES = \
     dispatch.cpp \
     main.cpp \
     remoteprocess.cpp \
+    script.cpp \
     sdkmanager.cpp \
     session.cpp \
     sfdkglobal.cpp \

@@ -164,7 +164,15 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
         OptionOccurence occurence = OptionOccurence::fromString(value);
         if (occurence.isNull()) {
             badUsage(invalidArgumentToOptionMessage(occurence.errorString(),
-                        cOption.names().first()));
+                        cOption.names().first(), value));
+            m_result = BadUsage;
+            return;
+        }
+
+        QString errorString;
+        if (occurence.type() == OptionOccurence::Push && !occurence.argument().isEmpty()
+                && !occurence.isArgumentValid(&errorString)) {
+            badUsage(invalidArgumentToOptionMessage(errorString, cOption.names().first(), value));
             m_result = BadUsage;
             return;
         }
@@ -182,7 +190,17 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
             m_result = BadUsage;
             return;
         }
-        Configuration::push(Configuration::Command, pair.second, argument);
+
+        const OptionOccurence occurence(pair.second, OptionOccurence::Push, argument);
+        QString errorString;
+        if (!occurence.isArgumentValid(&errorString)) {
+            badUsage(invalidArgumentToOptionMessage(errorString, pair.first.names().first(),
+                        argument));
+            m_result = BadUsage;
+            return;
+        }
+
+        Configuration::push(Configuration::Command, occurence);
     }
 
     QStringList positionalArguments = parser.positionalArguments();
@@ -509,10 +527,11 @@ QString CommandLineParser::missingArgumentMessage()
     return tr("Argument expected");
 }
 
-QString CommandLineParser::invalidArgumentToOptionMessage(const QString &problem, const QString
-        &option)
+QString CommandLineParser::invalidArgumentToOptionMessage(const QString &problem,
+        const QString &option, const QString &argument)
 {
-    return tr("Invalid argument to %1: %2").arg(dashOption(option)).arg(problem);
+    return tr("Invalid argument to %1: '%2': %3")
+        .arg(dashOption(option)).arg(argument).arg(problem);
 }
 
 QString CommandLineParser::invalidPositionalArgumentMessage(const QString &problem, const QString

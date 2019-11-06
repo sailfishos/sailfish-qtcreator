@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -28,6 +29,7 @@
 namespace Sfdk {
 
 class Domain;
+class JSEngine;
 class Worker;
 
 class Module
@@ -94,6 +96,8 @@ public:
             *errorString);
     static bool checkItems(const QVariantList &list, QVariant::Type type, QString *errorString);
 
+    static JSEngine *jsEngine();
+
 private:
     using WorkerCreator = std::function<std::unique_ptr<Worker> (const QVariantMap &, int, QString *)>;
     void registerWorkerType(const QString &name, const WorkerCreator &creator);
@@ -116,6 +120,7 @@ private:
     QHash<QString, Option *> m_optionByName;
     QHash<QString, WorkerCreator> m_workerCreators;
     Worker::ConstUniqueList m_workers;
+    std::unique_ptr<JSEngine> m_jsEngine;
 };
 
 } // namespace Sfdk
