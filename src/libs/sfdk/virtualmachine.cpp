@@ -732,7 +732,7 @@ QString VirtualMachineInfoCache::lockFileName(const Utils::FileName &file)
 
 QString VirtualMachineInfoCache::docType()
 {
-    return VM_INFO_CACHE_DOC_TYPE;
+    return {VM_INFO_CACHE_DOC_TYPE};
 }
 
 /*!
