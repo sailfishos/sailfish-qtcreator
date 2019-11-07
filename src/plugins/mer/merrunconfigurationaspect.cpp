@@ -27,6 +27,7 @@
 #include <QDesktopServices>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QStyle>
 #include <QToolButton>
 #include <QUrl>
 
