@@ -1181,6 +1181,16 @@ Worker::ExitStatus BuiltinWorker::runTools(const QStringList &arguments_, int *e
         return NormalExit;
     }
 
+    if (arguments.first() == "package-list"
+            || arguments.first() == "package-install"
+            || arguments.first() == "package-remove") {
+        QStringList allArguments = arguments_;
+        allArguments.prepend("--non-interactive");
+        *exitCode = SdkManager::runOnEngine("sdk-assistant", allArguments,
+                QProcess::ForwardedInputChannel);
+        return NormalExit;
+    }
+
     qerr() << P::unrecognizedCommandMessage(arguments.first()) << endl;
     return BadUsage;
 }
