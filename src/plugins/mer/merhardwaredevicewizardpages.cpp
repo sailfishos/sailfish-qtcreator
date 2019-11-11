@@ -39,6 +39,9 @@
 #include <utils/qtcassert.h>
 
 #include <QDir>
+#include <QInputDialog>
+#include <QMessageBox>
+#include <QVersionNumber>
 
 using namespace ProjectExplorer;
 using namespace QSsh;
@@ -86,7 +89,8 @@ bool MerHardwareDeviceWizardSelectionPage::isComplete() const
     return !hostName().isEmpty()
             && !userName().isEmpty()
             && m_isIdle
-            && m_connectionTestOk;
+            && m_connectionTestOk
+            && m_sdkClientToolsInstalled;
 }
 
 QString MerHardwareDeviceWizardSelectionPage::hostName() const
@@ -135,6 +139,7 @@ void MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked()
     sshParams.timeout = timeout();
     sshParams.authenticationType = SshConnectionParameters::AuthenticationTypeAll;
 
+    QString errorMessage;
     m_ui->connectionTestLabel->setText(tr("Connecting to machine %1 ...").arg(hostName()));
     m_ui->connectionTestLabel->setText(MerConnectionManager::testConnection(sshParams,
                 &m_connectionTestOk));
@@ -142,11 +147,39 @@ void MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked()
         goto end;
 
     m_ui->connectionTestLabel->setText(tr("Detecting device properties..."));
-    m_architecture = detectArchitecture(sshParams, &m_connectionTestOk);
-    m_deviceName = detectDeviceName(sshParams, &m_connectionTestOk);
+    m_architecture = detectArchitecture(sshParams, &m_connectionTestOk, &errorMessage);
+    m_deviceName = detectDeviceName(sshParams, &m_connectionTestOk, &errorMessage);
     if (!m_connectionTestOk) {
         m_ui->connectionTestLabel->setText(tr("Could not autodetect device properties"));
+        showErrorMessageDialog(tr("Could not autodetect device properties."), errorMessage);
         goto end;
+    }
+
+    m_ui->connectionTestLabel->setText(tr(
+        "Detecting software packages required for proper SDK operation..."));
+    m_sdkClientToolsInstalled = detectSdkClientTools(sshParams, &m_connectionTestOk, &errorMessage);
+    if (!m_connectionTestOk) {
+        m_ui->connectionTestLabel->setText(tr("Could not autodetect installed software packages"));
+        showErrorMessageDialog(tr(
+            "Could not autodetect installed software packages required for proper SDK operation."), errorMessage);
+        goto end;
+    }
+    if (!m_sdkClientToolsInstalled) {
+        m_ui->connectionTestLabel->setText(tr(
+            "Software packages required for proper SDK operation are missing"));
+        QString password;
+        if (askInstallSdkClientTools(&password)) {
+            m_ui->connectionTestLabel->setText(tr("Installing software packages..."));
+            m_sdkClientToolsInstalled = installSdkClientTools(sshParams, password, &errorMessage);
+            if (!m_sdkClientToolsInstalled) {
+                m_ui->connectionTestLabel->setText(tr("Software package installation failed"));
+                showErrorMessageDialog(
+                    tr("Installation of software packages required for proper SDK operation failed."), errorMessage);
+                goto end;
+            }
+        } else {
+            goto end;
+        }
     }
 
     m_ui->connectionTestLabel->setText(tr("Connected %1 device").arg(m_deviceName));
@@ -158,7 +191,7 @@ end:
 }
 
 Abi::Architecture MerHardwareDeviceWizardSelectionPage::detectArchitecture(
-        const SshConnectionParameters &sshParams, bool *ok)
+        const SshConnectionParameters &sshParams, bool *ok, QString *errorMessage)
 {
     if (!*ok) {
         return Abi::UnknownArchitecture;
@@ -177,14 +210,14 @@ Abi::Architecture MerHardwareDeviceWizardSelectionPage::detectArchitecture(
             || runner.processExitStatus() != SshRemoteProcess::NormalExit
             || runner.processExitCode() != 0) {
         *ok = false;
-        qCWarning(Log::mer) << "Failed to execute uname on target";
+        *errorMessage = tr("Failed to detect architecture: Command 'uname' could not be executed.");
         return Abi::UnknownArchitecture;
     }
 
     const QString output = QString::fromLatin1(runner.readAllStandardOutput()).trimmed();
     if (output.isEmpty()) {
         *ok = false;
-        qCWarning(Log::mer) << "Empty output from uname executed on target";
+        *errorMessage = tr("Failed to detect architecture: Empty output from 'uname' command.");
         return Abi::UnknownArchitecture;
     }
 
@@ -193,8 +226,8 @@ Abi::Architecture MerHardwareDeviceWizardSelectionPage::detectArchitecture(
         Abi::abiFromTargetTriplet(output).architecture();
     if (architecture == Abi::UnknownArchitecture) {
         *ok = false;
-        qCWarning(Log::mer) << "Could not parse architecture from uname executed on target (output:"
-            << output << ")";
+        *errorMessage = tr("Failed to detect architecture: "
+            "Could not parse architecture from 'uname' command, result: %1").arg(output);
         return Abi::UnknownArchitecture;
     }
 
@@ -203,7 +236,7 @@ Abi::Architecture MerHardwareDeviceWizardSelectionPage::detectArchitecture(
 }
 
 QString MerHardwareDeviceWizardSelectionPage::detectDeviceName(
-        const SshConnectionParameters &sshParams, bool *ok)
+        const SshConnectionParameters &sshParams, bool *ok, QString *errorMessage)
 {
     if (!*ok) {
         return QString();
@@ -223,19 +256,162 @@ QString MerHardwareDeviceWizardSelectionPage::detectDeviceName(
             || runner.processExitStatus() != SshRemoteProcess::NormalExit
             || runner.processExitCode() != 0) {
         *ok = false;
-        qCWarning(Log::mer) << "Failed to query device model name on target";
+        *errorMessage = tr("Failed to query device model name on device.");
         return QString();
     }
 
     const QString deviceName = QString::fromLatin1(runner.readAllStandardOutput()).trimmed();
     if (deviceName.isEmpty()) {
         *ok = false;
-        qCWarning(Log::mer) << "Empty output from querying device model name on target";
+        *errorMessage = tr("Failed to query device model name on device: Output was empty.");
         return QString();
     }
 
     *ok = true;
     return deviceName;
+}
+
+bool MerHardwareDeviceWizardSelectionPage::detectSdkClientTools(
+        const SshConnectionParameters &sshParams, bool *ok, QString *errorMessage)
+{
+    if (!*ok) {
+        return false;
+    }
+
+    SshRemoteProcessRunner runner;
+    QEventLoop loop;
+    connect(&runner, &SshRemoteProcessRunner::connectionError,
+            &loop, &QEventLoop::quit);
+    connect(&runner, &SshRemoteProcessRunner::processClosed,
+            &loop, &QEventLoop::quit);
+    runner.run("sed -n '/^VERSION_ID=/s/^VERSION_ID=\\([0-9]\\+\\.[0-9]\\+\\.[0-9]\\+\\).*/\\1/p'"
+               " /etc/os-release", sshParams);
+    loop.exec();
+
+    if (!runner.lastConnectionErrorString().isEmpty()
+            || runner.processExitStatus() != SshRemoteProcess::NormalExit
+            || runner.processExitCode() != 0) {
+        *ok = false;
+        *errorMessage = tr("Failed to query OS version.");
+        return false;
+    }
+
+    const QString osVersion = QString::fromLatin1(runner.readAllStandardOutput()).trimmed();
+    if (osVersion.isEmpty()) {
+        *ok = false;
+        *errorMessage = tr("Failed to query OS version: Output was empty.");
+        return false;
+    }
+
+    if (QVersionNumber::fromString(osVersion) < QVersionNumber(3, 2, 1)) {
+        *ok = true;
+        qCDebug(Log::mer) << "Sailfish OS" << osVersion << "assume that packages are installed";
+        return true;
+    }
+
+    runner.run("rpm -q patterns-sailfish-sdk-client-tools", sshParams);
+    loop.exec();
+
+    // rpm returns 0 if package is found and 1 if it is not found
+    if (!runner.lastConnectionErrorString().isEmpty()
+            || runner.processExitStatus() != SshRemoteProcess::NormalExit
+            || (runner.processExitCode() != 0 && runner.processExitCode() != 1)) {
+        *ok = false;
+        *errorMessage = tr("Failed to query install status of 'patterns-sailfish-sdk-client-tools'.");
+        return false;
+    }
+
+    if (runner.processExitCode() == 1) {
+        *ok = true;
+        qCDebug(Log::mer) << "patterns-sailfish-sdk-client-tools is not installed";
+        return false;
+    }
+
+    qCDebug(Log::mer) << "patterns-sailfish-sdk-client-tools is installed";
+    *ok = true;
+    return true;
+}
+
+bool MerHardwareDeviceWizardSelectionPage::askInstallSdkClientTools(QString *password)
+{
+    QInputDialog passwordDialog;
+    passwordDialog.setWindowTitle(tr("Software package installation needed"));
+    passwordDialog.setLabelText(tr("Enter developer mode password to install "
+                "software packages required for proper SDK operation."));
+    passwordDialog.setInputMode(QInputDialog::TextInput);
+    passwordDialog.setTextEchoMode(QLineEdit::Password);
+    passwordDialog.setCancelButtonText(tr("Abort"));
+    passwordDialog.setOkButtonText(tr("Install"));
+    passwordDialog.exec();
+    *password = passwordDialog.textValue();
+    return passwordDialog.result() == QInputDialog::Accepted;
+}
+
+bool MerHardwareDeviceWizardSelectionPage::installSdkClientTools(
+        const SshConnectionParameters &sshParams, const QString &password, QString *errorMessage)
+{
+    SshRemoteProcessRunner runner;
+    QEventLoop loop;
+    QByteArray passwordData(password.toLatin1());
+    passwordData.append("\n");
+    connect(&runner, &SshRemoteProcessRunner::connectionError,
+            &loop, &QEventLoop::quit);
+    connect(&runner, &SshRemoteProcessRunner::processClosed,
+            &loop, &QEventLoop::quit);
+    connect(&runner, &SshRemoteProcessRunner::processStarted,
+            [&runner, &passwordData] { runner.writeDataToProcess(passwordData); });
+
+    // Try to install
+    runner.run("devel-su pkcon --plain --noninteractive install "
+               "patterns-sailfish-sdk-client-tools", sshParams);
+    loop.exec();
+
+    if (runner.lastConnectionErrorString().isEmpty()
+            && runner.processExitStatus() == SshRemoteProcess::NormalExit
+            && runner.processExitCode() == 0) {
+        qCDebug(Log::mer) << "patterns-sailfish-sdk-client-tools was installed";
+        return true;
+    }
+
+    qCDebug(Log::mer) << "Failed to install patterns-sailfish-sdk-client-tools,"
+                      << "trying again after refreshing";
+
+    // Install failed, refresh and try again
+    runner.run("devel-su pkcon --plain --noninteractive refresh", sshParams);
+    loop.exec();
+
+    if (!runner.lastConnectionErrorString().isEmpty()
+            || runner.processExitStatus() != SshRemoteProcess::NormalExit
+            || runner.processExitCode() != 0) {
+        *errorMessage = tr("Refreshing list of packages failed. "
+                           "Check your password and internet connection on device and try again.");
+        return false;
+    }
+
+    runner.run("devel-su pkcon --plain --noninteractive install "
+               "patterns-sailfish-sdk-client-tools", sshParams);
+    loop.exec();
+
+    if (!runner.lastConnectionErrorString().isEmpty()
+            || runner.processExitStatus() != SshRemoteProcess::NormalExit
+            || runner.processExitCode() != 0) {
+        *errorMessage = tr("Installation of software packages failed. "
+                           "Check internet connection on device and try again.");
+        return false;
+    }
+
+    qCDebug(Log::mer) << "patterns-sailfish-sdk-client-tools was installed";
+    return true;
+}
+
+void MerHardwareDeviceWizardSelectionPage::showErrorMessageDialog(const QString &error, const QString &message)
+{
+    QMessageBox errorDialog(this);
+    errorDialog.setWindowTitle(tr("Connection test failed"));
+    errorDialog.setText(error);
+    errorDialog.setInformativeText(message);
+    errorDialog.setIcon(QMessageBox::Critical);
+    errorDialog.exec();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
