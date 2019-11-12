@@ -50486,29 +50486,6 @@ Close the virtual machine now?</source>
     </message>
 </context>
 <context>
-    <name>Mer::MerConnection</name>
-    <message>
-        <location filename="merconnection.cpp" line="591"/>
-        <source>Failed to start virtual machine &quot;%1&quot;</source>
-        <translation>Не удалось запустить виртуальную машину &quot;%1&quot;</translation>
-    </message>
-    <message>
-        <location filename="merconnection.cpp" line="603"/>
-        <source>Failed to establish SSH conection with virtual machine &quot;%1&quot;: %2 %3</source>
-        <translation>Не удалось установить SSH-соединение с виртуальной машиной &quot;%1&quot;: %2 %3</translation>
-    </message>
-    <message>
-        <location filename="merconnection.cpp" line="610"/>
-        <source>Consider increasing SSH connection timeout in options.</source>
-        <translation>Попробуйте увеличить времени ожидания соединения SSH в параметрах.</translation>
-    </message>
-    <message>
-        <location filename="merconnection.cpp" line="625"/>
-        <source>SSH conection with virtual machine &quot;%1&quot; has been lost: %2 %3</source>
-        <translation>SSH-соединение с виртуальной машиной &quot;%1&quot; потеряно: %2 %3</translation>
-    </message>
-</context>
-<context>
     <name>Mer::MerConnectionWidgetUi</name>
     <message>
         <location filename="merconnection.cpp" line="1384"/>
@@ -50890,13 +50867,6 @@ Close the virtual machine now?</source>
     </message>
 </context>
 <context>
-    <name>QObject</name>
-    <message>
-        <location filename="merdevicexmlparser.cpp" line="78"/>
-        <location filename="mertargetsxmlparser.cpp" line="59"/>
-        <source>Error %1:%2:%3 %4</source>
-        <translation>Ошибка %1:%2:%3 %4</translation>
-    </message>
     <message>
         <location filename="meremulatordevicewizardpages.cpp" line="49"/>
         <source>none</source>
@@ -50946,6 +50916,37 @@ Close the virtual machine now?</source>
         <location filename="merqtversion.cpp" line="205"/>
         <source>Project is outside of shared home &quot;%1&quot;</source>
         <translation>Проект находится за пределами общей домашней папки &quot;%1&quot;</translation>
+    </message>
+</context>
+<context>
+    <name>QObject</name>
+    <message>
+        <location filename="targetsxmlreader.cpp" line="60"/>
+        <source>Error %1:%2:%3 %4</source>
+        <translation>Ошибка %1:%2:%3 %4</translation>
+    </message>
+</context>
+<context>
+    <name>Sfdk::VmConnection</name>
+    <message>
+        <location filename="vmconnection.cpp" line="462"/>
+        <source>Failed to start virtual machine &quot;%1&quot;</source>
+        <translation>Не удалось запустить виртуальную машину &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <location filename="vmconnection.cpp" line="474"/>
+        <source>Failed to establish SSH conection with virtual machine &quot;%1&quot;: %2</source>
+        <translation>Не удалось установить SSH-соединение с виртуальной машиной &quot;%1&quot;: %2 %3</translation>
+    </message>
+    <message>
+        <location filename="vmconnection.cpp" line="480"/>
+        <source>Consider increasing SSH connection timeout in options.</source>
+        <translation>Попробуйте увеличить времени ожидания соединения SSH в параметрах.</translation>
+    </message>
+    <message>
+        <location filename="vmconnection.cpp" line="495"/>
+        <source>SSH conection with virtual machine &quot;%1&quot; has been lost: %2</source>
+        <translation>SSH-соединение с виртуальной машиной &quot;%1&quot; потеряно: %2 %3</translation>
     </message>
 </context>
 </TS>
