@@ -210,9 +210,6 @@ void MerConnectionAction::update()
             MessageManager::Flash);
         toolTip = m_startTip;
         break;
-    default:
-        qWarning() << "VirtualMachine::update() - unknown state";
-        break;
     }
 
     if (toolTip.contains(QLatin1String("%1")))

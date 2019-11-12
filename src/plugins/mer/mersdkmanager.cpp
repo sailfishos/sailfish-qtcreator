@@ -113,7 +113,7 @@ void MerSdkManager::initialize()
             BuildEngine *const engine = Sdk::buildEngine(toolchain->buildEngineUri());
             if (engine && engine->buildTargetNames().contains(toolchain->buildTargetName()))
                 continue;
-            qWarning() << "MerToolChain without target found. Removing toolchain.";
+            qCWarning(Log::mer) << "MerToolChain without target found. Removing toolchain.";
             ToolChainManager::deregisterToolChain(toolchain);
         }
 
@@ -121,14 +121,14 @@ void MerSdkManager::initialize()
             BuildEngine *const engine = Sdk::buildEngine(version->buildEngineUri());
             if (engine && engine->buildTargetNames().contains(version->buildTargetName()))
                 continue;
-            qWarning() << "MerQtVersion without target found. Removing qtversion.";
+            qCWarning(Log::mer) << "MerQtVersion without target found. Removing qtversion.";
             QtVersionManager::removeVersion(version);
         }
 
         //remove broken kits
         foreach (Kit *kit, kits) {
             if (!validateKit(kit)) {
-                qWarning() << "Broken Mer kit found! Removing kit.";
+                qCWarning(Log::mer) << "Broken Mer kit found! Removing kit.";
                 KitManager::deregisterKit(kit);
             }else{
                 kit->validate();
@@ -497,7 +497,7 @@ bool MerSdkManager::finalizeKitCreation(const BuildEngine *buildEngine,
 {
     const BuildTargetData buildTarget = buildEngine->buildTarget(buildTargetName);
     if (!buildTarget.sysRoot.exists()) {
-        qWarning() << "Sysroot does not exist" << buildTarget.sysRoot.toString();
+        qCWarning(Log::mer) << "Sysroot does not exist" << buildTarget.sysRoot.toString();
         return false;
     }
 

@@ -28,6 +28,7 @@
 #include "merconnectionmanager.h"
 #include "merconstants.h"
 #include "merhardwaredevicewizard.h"
+#include "merlogging.h"
 
 #include <sfdk/buildengine.h>
 #include <sfdk/sdk.h>
@@ -176,14 +177,14 @@ Abi::Architecture MerHardwareDeviceWizardSelectionPage::detectArchitecture(
             || runner.processExitStatus() != SshRemoteProcess::NormalExit
             || runner.processExitCode() != 0) {
         *ok = false;
-        qWarning() << "Failed to execute uname on target";
+        qCWarning(Log::mer) << "Failed to execute uname on target";
         return Abi::UnknownArchitecture;
     }
 
     const QString output = QString::fromLatin1(runner.readAllStandardOutput()).trimmed();
     if (output.isEmpty()) {
         *ok = false;
-        qWarning() << "Empty output from uname executed on target";
+        qCWarning(Log::mer) << "Empty output from uname executed on target";
         return Abi::UnknownArchitecture;
     }
 
@@ -192,7 +193,7 @@ Abi::Architecture MerHardwareDeviceWizardSelectionPage::detectArchitecture(
         Abi::abiFromTargetTriplet(output).architecture();
     if (architecture == Abi::UnknownArchitecture) {
         *ok = false;
-        qWarning() << "Could not parse architecture from uname executed on target (output:"
+        qCWarning(Log::mer) << "Could not parse architecture from uname executed on target (output:"
             << output << ")";
         return Abi::UnknownArchitecture;
     }
@@ -222,14 +223,14 @@ QString MerHardwareDeviceWizardSelectionPage::detectDeviceName(
             || runner.processExitStatus() != SshRemoteProcess::NormalExit
             || runner.processExitCode() != 0) {
         *ok = false;
-        qWarning() << "Failed to query device model name on target";
+        qCWarning(Log::mer) << "Failed to query device model name on target";
         return QString();
     }
 
     const QString deviceName = QString::fromLatin1(runner.readAllStandardOutput()).trimmed();
     if (deviceName.isEmpty()) {
         *ok = false;
-        qWarning() << "Empty output from querying device model name on target";
+        qCWarning(Log::mer) << "Empty output from querying device model name on target";
         return QString();
     }
 

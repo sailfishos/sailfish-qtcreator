@@ -33,6 +33,7 @@
 #include <utils/qtcassert.h>
 
 #include "merconstants.h"
+#include "merlogging.h"
 
 using Core::ICore;
 using namespace Utils;
@@ -273,7 +274,7 @@ void MerSettings::read()
     settings->endGroup();
 
     if (qEnvironmentVariableIsSet(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED)) {
-        qWarning() << "The environment variable"
+        qCWarning(Log::mer) << "The environment variable"
             << QLatin1String(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED)
             << "is deprecated. Use"
             << QLatin1String(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER)
