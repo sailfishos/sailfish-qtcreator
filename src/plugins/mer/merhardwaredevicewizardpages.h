@@ -65,13 +65,18 @@ private slots:
 
 private:
     static ProjectExplorer::Abi::Architecture detectArchitecture(
-            const QSsh::SshConnectionParameters &sshParams, bool *ok);
-    static QString detectDeviceName(const QSsh::SshConnectionParameters &sshParams, bool *ok);
+            const QSsh::SshConnectionParameters &sshParams, bool *ok, QString *errorMessage);
+    static QString detectDeviceName(const QSsh::SshConnectionParameters &sshParams, bool *ok, QString *errorMessage);
+    static bool detectSdkClientTools(const QSsh::SshConnectionParameters &sshParams, bool *ok, QString *errorMessage);
+    static bool askInstallSdkClientTools(QString *password);
+    static bool installSdkClientTools(const QSsh::SshConnectionParameters &sshParams, const QString &password, QString *errorMessage);
+    void showErrorMessageDialog(const QString &error, const QString &message);
 
 private:
     Ui::MerHardwareDeviceWizardSelectionPage *m_ui;
     ProjectExplorer::Abi::Architecture m_architecture;
     QString m_deviceName;
+    bool m_sdkClientToolsInstalled;
     bool m_isIdle;
     bool m_connectionTestOk;
 };

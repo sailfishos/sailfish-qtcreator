@@ -31,6 +31,7 @@ namespace Log {
 Q_DECLARE_LOGGING_CATEGORY(qmakeArgs)
 Q_DECLARE_LOGGING_CATEGORY(qmlLive)
 Q_DECLARE_LOGGING_CATEGORY(sdks)
+Q_DECLARE_LOGGING_CATEGORY(mer)
 
 } // namespace Log
 } // namespace Mer
