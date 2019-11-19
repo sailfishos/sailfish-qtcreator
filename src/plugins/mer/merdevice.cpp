@@ -23,6 +23,7 @@
 
 #include "merdevice.h"
 
+#include <sfdk/sdk.h>
 #include <sfdk/sfdkconstants.h>
 
 #include <utils/qtcassert.h>
@@ -62,7 +63,7 @@ QVariantMap MerDevice::toMap() const
 
 QString MerDevice::displayType() const
 {
-    return tr("Sailfish OS Device");
+    return tr("%1 Device").arg(Sdk::osVariant());
 }
 
 Abi::Architecture MerDevice::architecture() const

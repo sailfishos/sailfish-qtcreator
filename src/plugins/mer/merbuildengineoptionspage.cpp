@@ -28,11 +28,14 @@
 #include "merplugin.h"
 #include "mericons.h"
 
+#include <sfdk/sdk.h>
+
 #include <utils/qtcassert.h>
 
 #include <QCoreApplication>
 
 using namespace Core;
+using namespace Sfdk;
 
 namespace Mer {
 namespace Internal {
@@ -41,7 +44,7 @@ MerBuildEngineOptionsPage::MerBuildEngineOptionsPage(QObject *parent)
     : IOptionsPage(parent)
 {
     setCategory(Core::Id(Constants::MER_OPTIONS_CATEGORY));
-    setDisplayCategory(QCoreApplication::translate("Mer", Constants::MER_OPTIONS_CATEGORY_TR));
+    setDisplayCategory(Sdk::osVariant());
     setCategoryIcon(Icons::MER_OPTIONS_CATEGORY);
     setId(Core::Id(Constants::MER_BUILD_ENGINE_OPTIONS_ID));
     setDisplayName(QCoreApplication::translate("Mer", Constants::MER_BUILD_ENGINE_OPTIONS_NAME));

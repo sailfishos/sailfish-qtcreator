@@ -103,6 +103,8 @@ MerBuildEngineDetailsWidget::MerBuildEngineDetailsWidget(QWidget *parent)
 
     m_ui->privateKeyPathChooser->setExpectedKind(PathChooser::File);
     m_ui->privateKeyPathChooser->setPromptDialogTitle(tr("Select SSH Key"));
+
+    m_ui->srcFolderApplyButton->setToolTip(m_ui->srcFolderApplyButton->toolTip().arg(Sdk::osVariant()));
 }
 
 MerBuildEngineDetailsWidget::~MerBuildEngineDetailsWidget()

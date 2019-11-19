@@ -45,6 +45,7 @@
 
 using namespace Core;
 using namespace ProjectExplorer;
+using namespace Sfdk;
 using namespace QSsh;
 using namespace Sfdk;
 using namespace Utils;
@@ -65,7 +66,7 @@ MerDeviceFactory::MerDeviceFactory()
     QTC_CHECK(!s_instance);
     s_instance = this;
     setObjectName(QLatin1String("MerDeviceFactory"));
-    setDisplayName(tr("Sailfish OS Device"));
+    setDisplayName(tr("%1 Device").arg(Sdk::osVariant()));
     setIcon(Utils::creatorTheme()->flag(Utils::Theme::FlatSideBarIcons)
             ? Utils::Icon::combinedIcon({Icons::MER_DEVICE_FLAT,
                                          Icons::MER_DEVICE_FLAT_SMALL})
