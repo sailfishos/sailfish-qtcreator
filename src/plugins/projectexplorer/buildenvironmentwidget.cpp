@@ -29,8 +29,9 @@
 #include "environmentwidget.h"
 
 #include <coreplugin/icore.h>
-#include <projectexplorer/target.h>
 #include <mer/merconstants.h>
+#include <projectexplorer/target.h>
+#include <sfdk/sdk.h>
 #include <utils/utilsicons.h>
 
 #include <QLabel>
@@ -38,6 +39,7 @@
 #include <QCheckBox>
 
 using namespace ProjectExplorer;
+using namespace Sfdk;
 
 BuildEnvironmentWidget::BuildEnvironmentWidget(BuildConfiguration *bc) :
     m_buildConfiguration(nullptr)
@@ -54,8 +56,8 @@ BuildEnvironmentWidget::BuildEnvironmentWidget(BuildConfiguration *bc) :
 
     QLabel *filterInfoLabel = new QLabel(this);
     filterInfoLabel->setWordWrap(true);
-    filterInfoLabel->setText(tr("Not all variables will be forwarded to a Sailfish OS build engine. "
-                "<a href='environment-filter'>Configure…</a>"));
+    filterInfoLabel->setText(tr("Not all variables will be forwarded to a %1 build engine. "
+                "<a href='environment-filter'>Configure…</a>").arg(Sdk::osVariant()));
     filterInfoLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
     connect(filterInfoLabel, &QLabel::linkActivated, [] {
         Core::ICore::showOptionsDialog(Mer::Constants::MER_GENERAL_OPTIONS_ID, Core::ICore::dialogParent());
