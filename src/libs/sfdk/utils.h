@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,22 +22,13 @@
 
 #pragma once
 
-#include "sfdkglobal.h"
-#include "utils.h"
-
-#include <QList>
-
-namespace Utils {
-class Port;
-class PortList;
-}
-
 namespace Sfdk {
 
-QList<Utils::Port> toList(const Utils::PortList &portList);
-Utils::PortList toPortList(const QList<Utils::Port> &portList);
-Utils::PortList toPortList(const QList<quint16> &portList);
+enum class TextStyle
+{
+    Pretty,
+    CamelCase,
+    SnakeCase
+};
 
-QString separator(TextStyle textStyle);
-
-} // namespace Sfdk
+}

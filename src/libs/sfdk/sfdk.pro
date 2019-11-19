@@ -35,9 +35,16 @@ HEADERS += \
     sdk.h \
     sdk_p.h \
     targetsxmlreader_p.h \
+    utils.h \
     utils_p.h \
     usersettings_p.h \
     vboxvirtualmachine_p.h \
     virtualmachine.h \
     virtualmachine_p.h \
     vmconnection_p.h \
+
+isEmpty(SFDK_VARIANT):  SFDK_VARIANT = Sailfish
+
+DISTFILES += $$PWD/sfdk_version_p.h.in
+QMAKE_SUBSTITUTES += $$PWD/sfdk_version_p.h.in
+INCLUDEPATH += $$OUT_PWD

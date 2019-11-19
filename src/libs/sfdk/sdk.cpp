@@ -27,7 +27,9 @@
 #include "device_p.h"
 #include "emulator_p.h"
 #include "sfdkconstants.h"
+#include "sfdk_version_p.h"
 #include "usersettings_p.h"
+#include "utils_p.h"
 #include "vboxvirtualmachine_p.h"
 
 #include <utils/algorithm.h>
@@ -115,6 +117,21 @@ Sdk::~Sdk()
 Sdk *Sdk::instance()
 {
     return s_instance;
+}
+
+QString Sdk::osVariant(TextStyle textStyle)
+{
+    return tr(Constants::VARIANT_NAME) + separator(textStyle) + tr("OS");
+}
+
+QString Sdk::sdkVariant(TextStyle textStyle)
+{
+    return tr(Constants::VARIANT_NAME) + separator(textStyle) + tr("SDK");
+}
+
+QString Sdk::ideVariant(TextStyle textStyle)
+{
+    return tr(Constants::VARIANT_NAME) + separator(textStyle) + tr("IDE");
 }
 
 void Sdk::enableUpdates()

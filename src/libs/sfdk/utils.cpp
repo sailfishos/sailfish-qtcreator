@@ -88,4 +88,17 @@ Utils::PortList toPortList(const QList<quint16> &portList)
     return toPortList(Utils::transform(portList, [](quint16 port) { return Port(port); }));
 }
 
+QString separator(TextStyle textStyle)
+{
+    switch (textStyle) {
+    case TextStyle::Pretty:
+        return {QChar::Nbsp};
+    case TextStyle::CamelCase:
+        return {};
+    case TextStyle::SnakeCase:
+        return {'_'};
+    }
+    return {};
+}
+
 } // namespace Sfdk

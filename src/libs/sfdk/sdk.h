@@ -23,6 +23,7 @@
 #pragma once
 
 #include "sfdkglobal.h"
+#include "utils.h"
 
 #include "asynchronous.h"
 
@@ -54,6 +55,10 @@ public:
     Sdk(Options options = NoOption);
     ~Sdk() override;
     static Sdk *instance();
+
+    static QString osVariant(TextStyle textStyle = TextStyle::Pretty);
+    static QString sdkVariant(TextStyle textStyle = TextStyle::Pretty);
+    static QString ideVariant(TextStyle textStyle = TextStyle::Pretty);
 
     static void enableUpdates();
     static bool isApplyingUpdates();

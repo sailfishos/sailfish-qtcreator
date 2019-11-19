@@ -98,6 +98,7 @@ private:
     using WorkerCreator = std::function<std::unique_ptr<Worker> (const QVariantMap &, int, QString *)>;
     void registerWorkerType(const QString &name, const WorkerCreator &creator);
 
+    static QString brandedString(const QString &value);
     static QString localizedString(const QVariant &value);
     const Domain *ensureDomain(const QString &name);
     std::unique_ptr<Module> loadModule(const QVariantMap &data, QString *errorString);
