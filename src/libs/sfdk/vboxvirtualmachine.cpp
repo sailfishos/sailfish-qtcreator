@@ -52,6 +52,7 @@ namespace Sfdk {
 
 namespace {
 const char VBOXMANAGE[] = "VBoxManage";
+const char SAILFISH_SDK_SYSTEM_VBOXMANAGE[] = "SAILFISH_SDK_SYSTEM_VBOXMANAGE";
 const char LIST[] = "list";
 const char HDDS[] = "hdds";
 const char RUNNINGVMS[] = "runningvms";
@@ -75,6 +76,11 @@ const char LAST_GUEST_SIZE_HINT[] = "GUI/LastGuestSizeHint";
 const char AUTORESIZE_GUEST[] = "GUI/AutoresizeGuest";
 const char ENABLE_SYMLINKS[] = "VBoxInternal2/SharedFoldersEnableSymlinksCreate/%1";
 const char YES_ARG[] = "1";
+const char SAILFISH_SDK_DEVICE_MODEL[] = "SailfishSDK/DeviceModel";
+const char SAILFISH_SDK_ORIENTATION[] = "SailfishSDK/Orientation";
+const char SAILFISH_SDK_SCALE[] = "SailfishSDK/Scale";
+const char PORTRAIT[] = "portrait";
+const char LANDSCAPE[] = "landscape";
 const char MODIFYVM[] = "modifyvm";
 const char NATPF1[] = "--natpf1";
 const char DELETE[] = "delete";
@@ -157,8 +163,30 @@ class VBoxManageRunner : public ProcessRunner
 
 public:
     explicit VBoxManageRunner(const QStringList &arguments, QObject *parent = 0)
-        : ProcessRunner(vBoxManagePath(), arguments, parent)
+        : ProcessRunner(path(), arguments, parent)
     {
+        process()->setProcessEnvironment(environment());
+    }
+
+private:
+    static QString path()
+    {
+        QString path = vBoxManagePath();
+
+        if (!SdkPrivate::customVBoxManagePath().isEmpty())
+            path = SdkPrivate::customVBoxManagePath();
+
+        return path;
+    }
+
+    static QProcessEnvironment environment()
+    {
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+
+        if (!SdkPrivate::customVBoxManagePath().isEmpty())
+            env.insert(SAILFISH_SDK_SYSTEM_VBOXMANAGE, vBoxManagePath());
+
+        return env;
     }
 };
 
@@ -366,8 +394,9 @@ void VBoxVirtualMachinePrivate::probe(const QObject *context,
     commandQueue()->enqueue(std::move(runner));
 }
 
-void VBoxVirtualMachinePrivate::setVideoMode(const QSize &size, int depth, const QObject *context,
-        const Functor<bool> &functor)
+void VBoxVirtualMachinePrivate::setVideoMode(const QSize &size, int depth,
+        const QString &deviceModelName, Qt::Orientation orientation, int scaleDownFactor,
+        const QObject *context, const Functor<bool> &functor)
 {
     Q_Q(VBoxVirtualMachine);
     Q_ASSERT(context);
@@ -394,6 +423,14 @@ void VBoxVirtualMachinePrivate::setVideoMode(const QSize &size, int depth, const
     enqueue(QLatin1String(CUSTOM_VIDEO_MODE1), videoMode);
     enqueue(QLatin1String(LAST_GUEST_SIZE_HINT), hint);
     enqueue(QLatin1String(AUTORESIZE_GUEST), QLatin1Literal("false"));
+
+    // These may be used by the optional VBoxManage wrapper
+    enqueue(QLatin1String(SAILFISH_SDK_DEVICE_MODEL), deviceModelName);
+    enqueue(QLatin1String(SAILFISH_SDK_ORIENTATION), orientation == Qt::Horizontal
+            ? QLatin1String(LANDSCAPE)
+            : QLatin1String(PORTRAIT));
+    enqueue(QLatin1String(SAILFISH_SDK_SCALE), QString::number(scaleDownFactor));
+
     commandQueue()->enqueueCheckPoint(context, [=]() { functor(*allOk); });
 }
 

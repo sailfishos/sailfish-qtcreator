@@ -241,12 +241,13 @@ void Emulator::setDisplayProperties(const DeviceModelData &deviceModel, Qt::Orie
 
     bool allOk = true;
 
+    const int scaleDownFactor = viewScaled ? SCALE_DOWN_FACTOR : 1;
+
     QSize realResolution = d->deviceModel.displayResolution;
     if (d->orientation == Qt::Horizontal)
         realResolution.transpose();
     QSize virtualResolution = realResolution;
-    if (d->viewScaled)
-        realResolution /= SCALE_DOWN_FACTOR;
+    realResolution /= scaleDownFactor;
 
     const QString dconfDbFile = FileName(d->sharedConfigPath)
         .appendPath(Constants::EMULATOR_DCONF_DB_FILENAME).toString();
@@ -258,7 +259,8 @@ void Emulator::setDisplayProperties(const DeviceModelData &deviceModel, Qt::Orie
             virtualResolution, d->viewScaled);
 
     VirtualMachinePrivate::get(d->virtualMachine.get())
-        ->setVideoMode(realResolution, VIDEO_MODE_DEPTH, context, [=](bool ok) {
+        ->setVideoMode(realResolution, VIDEO_MODE_DEPTH, deviceModel.name, orientation,
+                scaleDownFactor, context, [=](bool ok) {
         functor(allOk && ok);
     });
 }

@@ -69,10 +69,15 @@ public:
     static Utils::FileName cacheFile(const QString &basename);
     static Utils::FileName cacheLocation();
 
+    static QString customVBoxManagePath() { return instance()->customVBoxManagePath_; }
+
 signals:
     void enableUpdatesRequested();
     void updateOnceRequested();
     void saveSettingsRequested(QStringList *errorStrings);
+
+private:
+    void readGeneralSettings();
 
 private:
     Sdk::Options options_;
@@ -82,6 +87,7 @@ private:
     std::unique_ptr<BuildEngineManager> buildEngineManager;
     std::unique_ptr<EmulatorManager> emulatorManager;
     std::unique_ptr<DeviceManager> deviceManager;
+    QString customVBoxManagePath_;
 };
 
 } // namespace Sfdk
