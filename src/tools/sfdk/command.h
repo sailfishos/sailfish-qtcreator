@@ -88,6 +88,8 @@ protected:
     static bool checkVersion(int version, int minSupported, int maxSupported, QString *errorMessage);
 };
 
+class PropertiesAccessor;
+class SetPropertiesTask;
 class BuiltinWorker : public Worker
 {
     Q_DECLARE_TR_FUNCTIONS(Sfdk::BuiltinWorker)
@@ -111,6 +113,10 @@ private:
     static void listEmulators();
     static Emulator *emulatorForNameOrIndex(const QString &emulatorNameOrIndex,
             QString *errorString);
+
+    static void printProperties(const PropertiesAccessor &accessor);
+    static ExitStatus setProperties(SetPropertiesTask *task, const QStringList &assignments,
+            int *exitCode);
 
     static QString runningYesNoMessage(bool running);
 };
