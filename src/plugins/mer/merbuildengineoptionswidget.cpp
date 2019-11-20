@@ -104,8 +104,8 @@ MerBuildEngineOptionsWidget::MerBuildEngineOptionsWidget(QWidget *parent)
             this, &MerBuildEngineOptionsWidget::onMemorySizeMbChanged);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::cpuCountChanged,
             this, &MerBuildEngineOptionsWidget::onCpuCountChanged);
-    connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::vdiCapacityMbChnaged,
-            this, &MerBuildEngineOptionsWidget::onVdiCapacityMbChnaged);
+    connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::storageSizeMbChnaged,
+            this, &MerBuildEngineOptionsWidget::onStorageSizeMbChnaged);
     for (int i = 0; i < Sdk::buildEngines().count(); ++i)
         onBuildEngineAdded(i);
     update();
@@ -220,17 +220,17 @@ void MerBuildEngineOptionsWidget::store()
                 ok = false;
             }
         }
-        if (m_vdiCapacityMb.contains(buildEngine)) {
-            const int newVdiCapacityMb = m_vdiCapacityMb[buildEngine];
+        if (m_storageSizeMb.contains(buildEngine)) {
+            const int newStorageSizeMb = m_storageSizeMb[buildEngine];
             bool stepOk;
-            execAsynchronous(std::tie(stepOk), std::mem_fn(&VirtualMachine::setVdiCapacityMb),
-                    buildEngine->virtualMachine(), newVdiCapacityMb);
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&VirtualMachine::setStorageSizeMb),
+                    buildEngine->virtualMachine(), newStorageSizeMb);
             if (!stepOk) {
-                m_vdiCapacityMb.remove(buildEngine);
+                m_storageSizeMb.remove(buildEngine);
                 ok = false;
             }
-            m_ui->buildEngineDetailsWidget->setVdiCapacityMb(
-                    buildEngine->virtualMachine()->vdiCapacityMb());
+            m_ui->buildEngineDetailsWidget->setStorageSizeMb(
+                    buildEngine->virtualMachine()->storageSizeMb());
         }
     }
 
@@ -258,7 +258,7 @@ void MerBuildEngineOptionsWidget::store()
     m_wwwPort.clear();
     m_memorySizeMb.clear();
     m_cpuCount.clear();
-    m_vdiCapacityMb.clear();
+    m_storageSizeMb.clear();
 }
 
 bool MerBuildEngineOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<BuildEngine *>
@@ -277,14 +277,14 @@ bool MerBuildEngineOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(Q
             m_memorySizeMb.remove(buildEngine);
         if (m_cpuCount.value(buildEngine) == buildEngine->virtualMachine()->cpuCount())
             m_cpuCount.remove(buildEngine);
-        if (m_vdiCapacityMb.value(buildEngine) == buildEngine->virtualMachine()->vdiCapacityMb())
-            m_vdiCapacityMb.remove(buildEngine);
+        if (m_storageSizeMb.value(buildEngine) == buildEngine->virtualMachine()->storageSizeMb())
+            m_storageSizeMb.remove(buildEngine);
 
         if (!m_sshPort.contains(buildEngine)
                 && !m_wwwPort.contains(buildEngine)
                 && !m_memorySizeMb.contains(buildEngine)
                 && !m_cpuCount.contains(buildEngine)
-                && !m_vdiCapacityMb.contains(buildEngine)) {
+                && !m_storageSizeMb.contains(buildEngine)) {
             continue;
         }
 
@@ -322,9 +322,9 @@ bool MerBuildEngineOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(Q
         m_memorySizeMb.remove(buildEngine);
         m_ui->buildEngineDetailsWidget->setCpuCount(buildEngine->virtualMachine()->cpuCount());
         m_cpuCount.remove(buildEngine);
-        m_ui->buildEngineDetailsWidget->setVdiCapacityMb(
-                buildEngine->virtualMachine()->vdiCapacityMb());
-        m_vdiCapacityMb.remove(buildEngine);
+        m_ui->buildEngineDetailsWidget->setStorageSizeMb(
+                buildEngine->virtualMachine()->storageSizeMb());
+        m_storageSizeMb.remove(buildEngine);
     }
 
     return failed.isEmpty();
@@ -384,7 +384,7 @@ void MerBuildEngineOptionsWidget::onRemoveButtonClicked()
          m_wwwProxy.remove(removed);
          m_wwwProxyServers.remove(removed);
          m_wwwProxyExcludes.remove(removed);
-         m_vdiCapacityMb.remove(removed);
+         m_storageSizeMb.remove(removed);
          m_memorySizeMb.remove(removed);
          m_cpuCount.remove(removed);
     }
@@ -482,8 +482,8 @@ void MerBuildEngineOptionsWidget::onBuildEngineAdded(int index)
             this, cleaner(&m_wwwPort));
     connect(buildEngine, &BuildEngine::wwwProxyChanged,
             this, cleaner(&m_wwwProxy, &m_wwwProxyServers, &m_wwwProxyExcludes));
-    connect(buildEngine->virtualMachine(), &VirtualMachine::vdiCapacityMbChanged,
-            this, cleaner(&m_vdiCapacityMb));
+    connect(buildEngine->virtualMachine(), &VirtualMachine::storageSizeMbChanged,
+            this, cleaner(&m_storageSizeMb));
     connect(buildEngine->virtualMachine(), &VirtualMachine::memorySizeMbChanged,
             this, cleaner(&m_memorySizeMb));
     connect(buildEngine->virtualMachine(), &VirtualMachine::cpuCountChanged,
@@ -511,7 +511,7 @@ void MerBuildEngineOptionsWidget::onAboutToRemoveBuildEngine(int index)
     m_wwwProxy.remove(buildEngine);
     m_wwwProxyServers.remove(buildEngine);
     m_wwwProxyExcludes.remove(buildEngine);
-    m_vdiCapacityMb.remove(buildEngine);
+    m_storageSizeMb.remove(buildEngine);
     m_memorySizeMb.remove(buildEngine);
     m_cpuCount.remove(buildEngine);
 
@@ -641,11 +641,11 @@ void MerBuildEngineOptionsWidget::update()
         else
             m_ui->buildEngineDetailsWidget->setCpuCount(buildEngine->virtualMachine()->cpuCount());
 
-        if (m_vdiCapacityMb.contains(buildEngine)) {
-            m_ui->buildEngineDetailsWidget->setVdiCapacityMb(m_vdiCapacityMb[buildEngine]);
+        if (m_storageSizeMb.contains(buildEngine)) {
+            m_ui->buildEngineDetailsWidget->setStorageSizeMb(m_storageSizeMb[buildEngine]);
         } else {
-            m_ui->buildEngineDetailsWidget->setVdiCapacityMb(
-                    buildEngine->virtualMachine()->vdiCapacityMb());
+            m_ui->buildEngineDetailsWidget->setStorageSizeMb(
+                    buildEngine->virtualMachine()->storageSizeMb());
         }
 
         onVmOffChanged(buildEngine->virtualMachine()->isOff());
@@ -713,9 +713,9 @@ void MerBuildEngineOptionsWidget::onCpuCountChanged(int count)
     m_cpuCount[m_buildEngines[m_virtualMachine]] = count;
 }
 
-void MerBuildEngineOptionsWidget::onVdiCapacityMbChnaged(int sizeMb)
+void MerBuildEngineOptionsWidget::onStorageSizeMbChnaged(int sizeMb)
 {
-    m_vdiCapacityMb[m_buildEngines[m_virtualMachine]] = sizeMb;
+    m_storageSizeMb[m_buildEngines[m_virtualMachine]] = sizeMb;
 }
 
 void MerBuildEngineOptionsWidget::onVmOffChanged(bool vmOff)
@@ -734,9 +734,9 @@ void MerBuildEngineOptionsWidget::onVmOffChanged(bool vmOff)
         m_memorySizeMb.remove(buildEngine);
         m_ui->buildEngineDetailsWidget->setCpuCount(buildEngine->virtualMachine()->cpuCount());
         m_cpuCount.remove(buildEngine);
-        m_ui->buildEngineDetailsWidget->setVdiCapacityMb(
-                buildEngine->virtualMachine()->vdiCapacityMb());
-        m_vdiCapacityMb.remove(buildEngine);
+        m_ui->buildEngineDetailsWidget->setStorageSizeMb(
+                buildEngine->virtualMachine()->storageSizeMb());
+        m_storageSizeMb.remove(buildEngine);
     }
 
     m_ui->buildEngineDetailsWidget->setVmOffStatus(vmOff);

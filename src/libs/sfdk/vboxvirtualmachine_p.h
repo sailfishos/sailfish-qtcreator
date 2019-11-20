@@ -70,7 +70,7 @@ protected:
             const Functor<bool> &functor) override;
     void doSetCpuCount(int cpuCount, const QObject *context,
             const Functor<bool> &functor) override;
-    void doSetVdiCapacityMb(int vdiCapacityMb, const QObject *context,
+    void doSetStorageSizeMb(int storageSizeMb, const QObject *context,
             const Functor<bool> &functor) override;
 
     void doSetSharedPath(SharedPath which, const Utils::FileName &path, const QObject *context,
@@ -99,7 +99,7 @@ private:
     static bool isVirtualMachineRunningFromInfo(const QString &vmInfo, bool *headless);
     static QStringList listedVirtualMachines(const QString &output);
     static VBoxVirtualMachineInfo virtualMachineInfoFromOutput(const QString &output);
-    static void vdiInfoFromOutput(const QString &output,
+    static void storageInfoFromOutput(const QString &output,
             VBoxVirtualMachineInfo *virtualMachineInfo);
     static int ramSizeFromOutput(const QString &output, bool *matched);
     static void snapshotInfoFromOutput(const QString &output,

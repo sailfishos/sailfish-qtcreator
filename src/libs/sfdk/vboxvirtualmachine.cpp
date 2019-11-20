@@ -106,10 +106,10 @@ const char RESTORE[] = "restore";
 class VBoxVirtualMachineInfo : public VirtualMachineInfo
 {
 public:
-    QString vdiUuid;
+    QString storageUuid;
 
-    // VdiInfo
-    QStringList allRelatedVdiUuids;
+    // StorageInfo
+    QStringList allRelatedStorageUuids;
 };
 
 namespace {
@@ -289,13 +289,14 @@ void VBoxVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extraIn
                 QString::fromLocal8Bit(runner->process()->readAllStandardOutput()));
     });
 
-    if (extraInfo & VirtualMachineInfo::VdiInfo) {
+    if (extraInfo & VirtualMachineInfo::StorageInfo) {
         QStringList arguments;
         arguments.append(QLatin1String(LIST));
         arguments.append(QLatin1String(HDDS));
 
         enqueue(arguments, batch, [=](VBoxManageRunner *runner) {
-            vdiInfoFromOutput(QString::fromLocal8Bit(runner->process()->readAllStandardOutput()), info.get());
+            storageInfoFromOutput(QString::fromLocal8Bit(runner->process()->readAllStandardOutput()),
+                    info.get());
         });
     }
 
@@ -474,17 +475,17 @@ void VBoxVirtualMachinePrivate::doSetCpuCount(int cpuCount, const QObject *conte
     commandQueue()->enqueue(std::move(runner));
 }
 
-void VBoxVirtualMachinePrivate::doSetVdiCapacityMb(int vdiCapacityMb, const QObject *context,
+void VBoxVirtualMachinePrivate::doSetStorageSizeMb(int storageSizeMb, const QObject *context,
         const Functor<bool> &functor)
 {
     Q_Q(VBoxVirtualMachine);
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    qCDebug(vms) << "Changing vdi size of" << q->uri().toString() << "to" << vdiCapacityMb << "MB";
+    qCDebug(vms) << "Changing storage size of" << q->uri().toString() << "to" << storageSizeMb << "MB";
 
     const QPointer<const QObject> context_{context};
-    fetchInfo(VirtualMachineInfo::VdiInfo, Sdk::instance(),
+    fetchInfo(VirtualMachineInfo::StorageInfo, Sdk::instance(),
             [=, name = q->name()](const VirtualMachineInfo &virtualMachineInfo_, bool ok) {
         if (!ok) {
             callIf(context_, functor, false);
@@ -492,41 +493,41 @@ void VBoxVirtualMachinePrivate::doSetVdiCapacityMb(int vdiCapacityMb, const QObj
         }
         auto virtualMachineInfo = static_cast<const VBoxVirtualMachineInfo &>(virtualMachineInfo_);
 
-        if (vdiCapacityMb < virtualMachineInfo.vdiCapacityMb) {
-            qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << virtualMachineInfo.vdiUuid
-                       << RESIZE << vdiCapacityMb << "for VM" << name << ":"
-                       << "Can't reduce VDI. Current size:" << virtualMachineInfo.vdiCapacityMb;
+        if (storageSizeMb < virtualMachineInfo.storageSizeMb) {
+            qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << virtualMachineInfo.storageUuid
+                       << RESIZE << storageSizeMb << "for VM" << name << ":"
+                       << "Can't reduce storage size. Current size:" << virtualMachineInfo.storageSizeMb;
             callIf(context_, functor, false);
             return;
-        } else if (vdiCapacityMb == virtualMachineInfo.vdiCapacityMb) {
+        } else if (storageSizeMb == virtualMachineInfo.storageSizeMb) {
             callIf(context_, functor, true);
             return;
         }
 
-        if (virtualMachineInfo.allRelatedVdiUuids.isEmpty()) {
+        if (virtualMachineInfo.allRelatedStorageUuids.isEmpty()) {
             // Something went wrong, an error message should have been already issued
             callIf(context_, functor, false);
             return;
         }
 
-        QStringList toResize = virtualMachineInfo.allRelatedVdiUuids;
-        qCDebug(vms) << "About to resize these VDIs (in order):" << toResize;
+        QStringList toResize = virtualMachineInfo.allRelatedStorageUuids;
+        qCDebug(vms) << "About to resize these storage images (in order):" << toResize;
 
         auto allOk = std::make_shared<bool>(true);
         while (!toResize.isEmpty()) {
             // take last - enqueueImmediate reverses the actual order of execution
-            const QString vdiUuid = toResize.takeLast();
+            const QString storageUuid = toResize.takeLast();
 
             QStringList arguments;
             arguments.append(QLatin1String(MODIFYMEDIUM));
-            arguments.append(vdiUuid);
+            arguments.append(storageUuid);
             arguments.append(QLatin1String(RESIZE));
-            arguments.append(QString::number(vdiCapacityMb));
+            arguments.append(QString::number(storageSizeMb));
 
             auto runner = std::make_unique<VBoxManageRunner>(arguments);
             QObject::connect(runner.get(), &VBoxManageRunner::done, Sdk::instance(), [=](bool ok) {
                 if (!ok) {
-                    qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << vdiUuid << RESIZE;
+                    qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << storageUuid << RESIZE;
                     *allOk = false;
                 }
             });
@@ -920,9 +921,9 @@ VBoxVirtualMachineInfo VBoxVirtualMachinePrivate::virtualMachineInfoFromOutput(c
         } else if (rexp.cap(0).startsWith(QLatin1String("Session"))) {
             info.headless = rexp.cap(11) == QLatin1String("headless");
         } else if (rexp.cap(0).startsWith(QLatin1String("\"SATA-ImageUUID"))) {
-            QString vdiUuid = rexp.cap(12);
-            if (!vdiUuid.isEmpty() && vdiUuid != QLatin1String("none")) {
-                info.vdiUuid = vdiUuid;
+            QString storageUuid = rexp.cap(12);
+            if (!storageUuid.isEmpty() && storageUuid != QLatin1String("none")) {
+                info.storageUuid = storageUuid;
             }
         } else if (rexp.cap(0).startsWith(QLatin1String("memory"))) {
             int memorySize = rexp.cap(13).toInt();
@@ -940,12 +941,12 @@ VBoxVirtualMachineInfo VBoxVirtualMachinePrivate::virtualMachineInfoFromOutput(c
     return info;
 }
 
-void VBoxVirtualMachinePrivate::vdiInfoFromOutput(const QString &output,
+void VBoxVirtualMachinePrivate::storageInfoFromOutput(const QString &output,
         VBoxVirtualMachineInfo *virtualMachineInfo)
 {
     // 1 UUID
     // 2 Parent UUID
-    // 3 VDI capacity
+    // 3 Storage capacity
     QRegExp rexp(QLatin1String("(?:UUID:\\s+([^\\s]+))"
                                "|(?:Parent UUID:\\s+([^\\s]+))"
                                "|(?:Capacity:\\s+(\\d+) MBytes)"
@@ -971,22 +972,22 @@ void VBoxVirtualMachinePrivate::vdiInfoFromOutput(const QString &output,
             parentAndChildrenUuids[currentUuid].first = parentUuid;
             parentAndChildrenUuids[parentUuid].second << currentUuid;
         } else if (rexp.cap(0).startsWith(QLatin1String("Capacity"))) {
-            if (currentUuid != virtualMachineInfo->vdiUuid)
+            if (currentUuid != virtualMachineInfo->storageUuid)
                 continue;
             QString capacityStr = rexp.cap(3);
             QTC_ASSERT(!capacityStr.isEmpty(), continue);
             bool ok;
             int capacity = capacityStr.toInt(&ok);
             QTC_CHECK(ok);
-            virtualMachineInfo->vdiCapacityMb = ok ? capacity : 0;
+            virtualMachineInfo->storageSizeMb = ok ? capacity : 0;
         }
     }
 
-    QTC_ASSERT(parentAndChildrenUuids.contains(virtualMachineInfo->vdiUuid), return);
+    QTC_ASSERT(parentAndChildrenUuids.contains(virtualMachineInfo->storageUuid), return);
 
     QSet<QString> relatedUuids;
     QStack<QString> uuidsToCheck;
-    uuidsToCheck.push(virtualMachineInfo->vdiUuid);
+    uuidsToCheck.push(virtualMachineInfo->storageUuid);
     while (!uuidsToCheck.isEmpty()) {
         QString uuid = uuidsToCheck.pop();
         auto parentAndChildrenUuidsIt = parentAndChildrenUuids.constFind(uuid);
@@ -1006,7 +1007,7 @@ void VBoxVirtualMachinePrivate::vdiInfoFromOutput(const QString &output,
         }
     }
 
-    virtualMachineInfo->allRelatedVdiUuids = relatedUuids.toList();
+    virtualMachineInfo->allRelatedStorageUuids = relatedUuids.toList();
 }
 
 int VBoxVirtualMachinePrivate::ramSizeFromOutput(const QString &output, bool *matched)

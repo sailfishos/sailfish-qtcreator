@@ -70,7 +70,7 @@ const char VM_INFO_MACS[] = "Macs";
 const char VM_INFO_HEADLESS[] = "Headless";
 const char VM_INFO_MEMORY_SIZE_MB[] = "MemorySizeMb";
 const char VM_INFO_CPU_COUNT[] = "CpuCount";
-const char VM_INFO_VDI_CAPACITY_MB[] = "VdiCapacityMb";
+const char VM_INFO_STORAGE_SIZE_MB[] = "StorageSizeMb";
 const char VM_INFO_SNAPSHOTS[] = "Snapshots";
 
 } // namespace anonymous
@@ -297,25 +297,25 @@ int VirtualMachine::availableCpuCount()
     return QThread::idealThreadCount();
 }
 
-int VirtualMachine::vdiCapacityMb() const
+int VirtualMachine::storageSizeMb() const
 {
     Q_D(const VirtualMachine);
     QTC_ASSERT(d->initialized(), return false);
-    return d->virtualMachineInfo.vdiCapacityMb;
+    return d->virtualMachineInfo.storageSizeMb;
 }
 
-void VirtualMachine::setVdiCapacityMb(int vdiCapacityMb, const QObject *context,
+void VirtualMachine::setStorageSizeMb(int storageSizeMb, const QObject *context,
         const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
     QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
-    d->doSetVdiCapacityMb(vdiCapacityMb, this, [=](bool ok) {
-        if (ok && d->virtualMachineInfo.vdiCapacityMb != vdiCapacityMb) {
-            d->virtualMachineInfo.vdiCapacityMb = vdiCapacityMb;
+    d->doSetStorageSizeMb(storageSizeMb, this, [=](bool ok) {
+        if (ok && d->virtualMachineInfo.storageSizeMb != storageSizeMb) {
+            d->virtualMachineInfo.storageSizeMb = storageSizeMb;
             VirtualMachineInfoCache::insert(uri(), d->virtualMachineInfo);
-            emit vdiCapacityMbChanged(vdiCapacityMb);
+            emit storageSizeMbChanged(storageSizeMb);
         }
         if (context_)
             functor(ok);
@@ -407,8 +407,8 @@ void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<
             emit memorySizeMbChanged(info.memorySizeMb);
         if (oldInfo.cpuCount != info.cpuCount)
             emit cpuCountChanged(info.cpuCount);
-        if (oldInfo.vdiCapacityMb != info.vdiCapacityMb)
-            emit vdiCapacityMbChanged(info.vdiCapacityMb);
+        if (oldInfo.storageSizeMb != info.storageSizeMb)
+            emit storageSizeMbChanged(info.storageSizeMb);
         if (oldInfo.snapshots != info.snapshots)
             emit snapshotsChanged();
         if (oldInfo.otherPorts != info.otherPorts
@@ -433,7 +433,7 @@ void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<
         }
     }
 
-    d->fetchInfo(VirtualMachineInfo::VdiInfo | VirtualMachineInfo::SnapshotInfo, this,
+    d->fetchInfo(VirtualMachineInfo::StorageInfo | VirtualMachineInfo::SnapshotInfo, this,
             [=](const VirtualMachineInfo &info, bool ok) {
         if (ok)
             VirtualMachineInfoCache::insert(uri(), info);
@@ -878,7 +878,7 @@ void VirtualMachineInfo::fromMap(const QVariantMap &data)
     headless = data.value(VM_INFO_HEADLESS).toBool();
     memorySizeMb = data.value(VM_INFO_MEMORY_SIZE_MB).toInt();
     cpuCount = data.value(VM_INFO_CPU_COUNT).toInt();
-    vdiCapacityMb = data.value(VM_INFO_VDI_CAPACITY_MB).toInt();
+    storageSizeMb = data.value(VM_INFO_STORAGE_SIZE_MB).toInt();
     snapshots = data.value(VM_INFO_SNAPSHOTS).toStringList();
 }
 
@@ -908,7 +908,7 @@ QVariantMap VirtualMachineInfo::toMap() const
     data.insert(VM_INFO_HEADLESS, headless);
     data.insert(VM_INFO_MEMORY_SIZE_MB, memorySizeMb);
     data.insert(VM_INFO_CPU_COUNT, cpuCount);
-    data.insert(VM_INFO_VDI_CAPACITY_MB, vdiCapacityMb);
+    data.insert(VM_INFO_STORAGE_SIZE_MB, storageSizeMb);
     data.insert(VM_INFO_SNAPSHOTS, snapshots);
 
     return data;

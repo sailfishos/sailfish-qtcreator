@@ -63,8 +63,7 @@ const char WWW_PROXY_EXCLUDES[] = "proxy.excludes";
 
 const char VM_MEMORY_SIZE_MB[] = "vm.memorySize";
 const char VM_CPU_COUNT[] = "vm.cpuCount";
-// FIXME vdi -> storage
-const char VM_VDI_CAPACITY_MB[] = "vm.storageSize";
+const char VM_STORAGE_SIZE_MB[] = "vm.storageSize";
 
 } // namespace anonymous
 
@@ -215,7 +214,7 @@ public:
     {
         m_memorySizeMb = m_vm->memorySizeMb();
         m_cpuCount = m_vm->cpuCount();
-        m_vdiCapacityMb = m_vm->vdiCapacityMb();
+        m_storageSizeMb = m_vm->storageSizeMb();
     }
 
     QMap<QString, QString> get() const override
@@ -223,7 +222,7 @@ public:
         QMap<QString, QString> values;
         values.insert(VM_MEMORY_SIZE_MB, QString::number(m_memorySizeMb));
         values.insert(VM_CPU_COUNT, QString::number(m_cpuCount));
-        values.insert(VM_VDI_CAPACITY_MB, QString::number(m_vdiCapacityMb));
+        values.insert(VM_STORAGE_SIZE_MB, QString::number(m_storageSizeMb));
         return values;
     }
 
@@ -248,10 +247,10 @@ public:
                 return false;
             }
             return true;
-        } else if (name == VM_VDI_CAPACITY_MB) {
-            if (!parsePositiveInt(&m_vdiCapacityMb, value, errorString))
+        } else if (name == VM_STORAGE_SIZE_MB) {
+            if (!parsePositiveInt(&m_storageSizeMb, value, errorString))
                 return false;
-            if (m_vdiCapacityMb < m_vm->vdiCapacityMb()) {
+            if (m_storageSizeMb < m_vm->storageSizeMb()) {
                 *errorString = valueCannotBeDecreasedMessage();
                 return false;
             }
@@ -280,10 +279,10 @@ public:
             ok &= stepOk;
         }
 
-        if (m_vdiCapacityMb != m_vm->vdiCapacityMb()) {
+        if (m_storageSizeMb != m_vm->storageSizeMb()) {
             bool stepOk;
-            execAsynchronous(std::tie(stepOk), std::mem_fn(&VirtualMachine::setVdiCapacityMb),
-                    m_vm.data(), m_vdiCapacityMb);
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&VirtualMachine::setStorageSizeMb),
+                    m_vm.data(), m_storageSizeMb);
             ok &= stepOk;
         }
 
@@ -294,7 +293,7 @@ private:
     QPointer<VirtualMachine> m_vm;
     int m_memorySizeMb = 0;
     int m_cpuCount = 0;
-    int m_vdiCapacityMb = 0;
+    int m_storageSizeMb = 0;
 };
 
 /*!

@@ -110,9 +110,8 @@ public:
             const Functor<bool> &functor);
     static int availableCpuCount();
 
-    // FIXME rename as storageCapacityMb
-    int vdiCapacityMb() const;
-    void setVdiCapacityMb(int vdiCapacityMb, const QObject *context,
+    int storageSizeMb() const;
+    void setStorageSizeMb(int storageSizeMb, const QObject *context,
             const Functor<bool> &functor);
 
     bool hasPortForwarding(quint16 hostPort, QString *ruleName = nullptr) const;
@@ -148,7 +147,7 @@ signals:
     void lockDownFailed();
     void memorySizeMbChanged(int sizeMb);
     void cpuCountChanged(int cpuCount);
-    void vdiCapacityMbChanged(int vdiCapacityMb);
+    void storageSizeMbChanged(int storageSizeMb);
     void portForwardingChanged();
     void snapshotsChanged();
 
