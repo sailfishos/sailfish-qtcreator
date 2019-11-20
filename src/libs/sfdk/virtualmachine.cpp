@@ -710,7 +710,17 @@ void VirtualMachineInfoCache::insert(const QUrl &vmUri, const VirtualMachineInfo
     }
 
     QVariantMap vmInfos = data.value(VM_INFO_MAP).toMap();
-    vmInfos.insert(vmUri.toString(), info.toMap());
+
+    const QVariantMap oldInfo = vmInfos.value(vmUri.toString()).toMap();
+    const QVariantMap info_ = info.toMap();
+    if (oldInfo == info_) {
+        qCDebug(vms) << "Already caching the same VM info. Not updating VM info cache";
+        return;
+    } else {
+        qCDebug(vms) << "Updating VM info cache";
+    }
+
+    vmInfos.insert(vmUri.toString(), info_);
     data.insert(VM_INFO_MAP, vmInfos);
 
     PersistentSettingsWriter writer(fileName, docType());
