@@ -37,7 +37,6 @@
 #include "meremulatoroptionspage.h"
 #include "mergeneraloptionspage.h"
 #include "merhardwaredevice.h"
-#include "mermode.h"
 #include "merqmllivebenchmanager.h"
 #include "merqmlrunconfigurationfactory.h"
 #include "merqtversionfactory.h"
@@ -119,7 +118,6 @@ public:
     MerDeployStepFactory<MerLocalRsyncDeployStep> localRsyncDeployStepFactory;
     MerDeployStepFactory<MerResetAmbienceDeployStep> resetAmbienceDeployStepFactory;
     MerQmlLiveBenchManager qmlLiveBenchManager;
-    MerMode mode;
     MerBuildConfigurationFactory buildConfigurationFactory;
 };
 

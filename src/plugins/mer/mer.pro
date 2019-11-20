@@ -60,7 +60,6 @@ SOURCES += \
     merhardwaredevicewizardpages.cpp \
     mericons.cpp \
     merlogging.cpp \
-    mermode.cpp \
     merplugin.cpp \
     merprojectlistener.cpp \
     merqmllivebenchmanager.cpp \
@@ -116,7 +115,6 @@ HEADERS += \
     merhardwaredevicewizardpages.h \
     mericons.h \
     merlogging.h \
-    mermode.h \
     merplugin.h \
     merprojectlistener.h \
     merqmllivebenchmanager.h \
@@ -145,13 +143,3 @@ HEADERS += \
     meremulatormodedetailswidget.h \
     mervirtualmachinesettingswidget.h \
     merbuildconfiguration.h
-
-contains(QT_CONFIG, webkit)|contains(QT_MODULES, webkit) {
-    QT += webkit
-    greaterThan(QT_MAJOR_VERSION, 4):QT += webkitwidgets
-    SOURCES += $$PWD/mermanagementwebview.cpp
-    HEADERS += $$PWD/mermanagementwebview.h
-    FORMS += $$PWD/mermanagementwebview.ui
-} else {
-    DEFINES += QT_NO_WEBKIT
-}
