@@ -29,6 +29,8 @@
 #include <QTimer>
 
 #include <sfdk/buildengine.h>
+#include <sfdk/device.h>
+#include <sfdk/emulator.h>
 #include <sfdk/sdk.h>
 #include <sfdk/virtualmachine.h>
 
@@ -37,6 +39,8 @@
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
+#include "configuration.h"
+#include "dispatch.h"
 #include "remoteprocess.h"
 #include "sfdkconstants.h"
 #include "sfdkglobal.h"
@@ -308,6 +312,87 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
 void SdkManager::setEnableReversePathMapping(bool enable)
 {
     s_instance->m_enableReversePathMapping = enable;
+}
+
+Device *SdkManager::configuredDevice(QString *errorMessage)
+{
+    Q_ASSERT(errorMessage);
+
+    const Option *const deviceOption = Dispatcher::option("device");
+    QTC_ASSERT(deviceOption, return nullptr);
+
+    const Utils::optional<OptionEffectiveOccurence> effectiveDeviceOption =
+        Configuration::effectiveState(deviceOption);
+    if (!effectiveDeviceOption) {
+        *errorMessage = tr("No device selected");
+        return nullptr;
+    }
+    QTC_ASSERT(!effectiveDeviceOption->isMasked(), return nullptr);
+
+    return deviceByName(effectiveDeviceOption->argument(), errorMessage);
+}
+
+Device *SdkManager::deviceByName(const QString &deviceName, QString *errorMessage)
+{
+    Q_ASSERT(errorMessage);
+
+    Device *device = nullptr;
+    for (Device *const device_ : Sdk::devices()) {
+        if (device_->name() == deviceName) {
+            if (device) {
+                *errorMessage = tr("Ambiguous device name \"%1\". Please fix your configuration.")
+                    .arg(deviceName);
+                return nullptr;
+            }
+            device = device_;
+        }
+    }
+
+    if (!device)
+        *errorMessage = deviceName + ": " + tr("No such device");
+
+    return device;
+}
+
+int SdkManager::runOnDevice(const Device &device, const QString &program,
+        const QStringList &arguments, QProcess::InputChannelMode inputChannelMode)
+{
+    if (device.machineType() == Device::EmulatorMachine) {
+        Emulator *const emulator = static_cast<const EmulatorDevice &>(device).emulator();
+
+        // Assumption to minimize the time spent here: if the VM is running, we must have been waiting
+        // before for the emulator to fully start, so no need to wait for connectTo again
+        emulator->virtualMachine()->refreshState(VirtualMachine::Synchronous);
+        const bool emulatorRunning = !emulator->virtualMachine()->isOff();
+        if (!emulatorRunning) {
+            qCInfo(sfdk).noquote() << tr("Starting the emulator…");
+            if (!emulator->virtualMachine()->connectTo(VirtualMachine::Block)) {
+                qerr() << tr("Failed to start the emulator") << endl;
+                return EXIT_FAILURE;
+            }
+        }
+    }
+
+    RemoteProcess process;
+    process.setSshParameters(device.sshParameters());
+    process.setProgram(program);
+    process.setArguments(arguments);
+    process.setInputChannelMode(inputChannelMode);
+
+    QObject::connect(&process, &RemoteProcess::standardOutput, [&](const QByteArray &data) {
+        qout() << data << flush;
+    });
+    QObject::connect(&process, &RemoteProcess::standardError, [&](const QByteArray &data) {
+        qerr() << data << flush;
+    });
+    QObject::connect(&process, &RemoteProcess::connectionError, [&](const QString &errorString) {
+        if (device.machineType() == Device::EmulatorMachine)
+            qerr() << tr("Error connecting to the emulator: ") << errorString << endl;
+        else
+            qerr() << tr("Error connecting to the device: ") << errorString << endl;
+    });
+
+    return process.exec();
 }
 
 void SdkManager::saveSettings()

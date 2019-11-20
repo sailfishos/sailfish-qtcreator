@@ -27,16 +27,23 @@
 #include <QDebug>
 
 #include <ssh/sshremoteprocessrunner.h>
+#include <utils/algorithm.h>
+#include <utils/fileutils.h>
 #include <utils/qtcprocess.h>
+
+#include <sfdk/device.h>
+#include <sfdk/sdk.h>
 
 #include "commandlineparser.h"
 #include "configuration.h"
 #include "dispatch.h"
 #include "sdkmanager.h"
+#include "sfdkconstants.h"
 #include "sfdkglobal.h"
 #include "textutils.h"
 
 using namespace Sfdk;
+using namespace Utils;
 
 namespace {
 
@@ -94,6 +101,8 @@ Worker::ExitStatus BuiltinWorker::run(const Command *command, const QStringList 
 
     if (command->name == "config")
         return runConfig(arguments0);
+    else if (command->name == "device")
+        return runDevice(arguments, exitCode);
     else if (command->name == "engine")
         return runEngine(arguments, exitCode);
     else if (command->name == "maintain")
@@ -231,6 +240,72 @@ Worker::ExitStatus BuiltinWorker::runConfig(const QStringList &arguments0) const
     }
 }
 
+Worker::ExitStatus BuiltinWorker::runDevice(const QStringList &arguments, int *exitCode) const
+{
+    using P = CommandLineParser;
+
+    if (arguments.count() < 1) {
+        qerr() << P::missingArgumentMessage() << endl;
+        return BadUsage;
+    }
+
+    if (arguments.first() == "list") {
+        if (arguments.count() > 1) {
+            qerr() << P::unexpectedArgumentMessage(arguments.at(1)) << endl;
+            return BadUsage;
+        }
+        listDevices();
+        *exitCode = EXIT_SUCCESS;
+        return NormalExit;
+    }
+
+    QString errorString;
+    QString deviceNameOrIndex;
+    Device *device;
+    if (arguments.count() < 2 || arguments.at(1) == "--") {
+        device = SdkManager::configuredDevice(&errorString);
+    } else {
+        deviceNameOrIndex = arguments.at(1);
+        device = deviceForNameOrIndex(deviceNameOrIndex, &errorString);
+        // It was not the device name/idx but a command name
+        if (!device && (arguments.count() < 3 || arguments.at(2) != "--")) {
+            deviceNameOrIndex.clear();
+            device = SdkManager::configuredDevice(&errorString);
+        }
+    }
+    if (!device) {
+        qerr() << errorString << endl;
+        *exitCode = Constants::EXIT_ABNORMAL;
+        return NormalExit;
+    }
+
+    if (arguments.first() == "exec") {
+        QStringList command = arguments.mid(1);
+        if (!command.isEmpty() && command.first() == deviceNameOrIndex)
+            command.removeFirst();
+        if (!command.isEmpty() && command.first() == "--")
+            command.removeFirst();
+
+        QString program;
+        QStringList programArguments;
+        if (!command.isEmpty()) {
+            program = command.first();
+            if (command.count() > 1)
+                programArguments = command.mid(1);
+        } else {
+            program = "/bin/bash";
+            programArguments << "--login";
+        }
+
+        *exitCode = SdkManager::runOnDevice(*device, program, programArguments,
+                QProcess::ForwardedInputChannel);
+        return NormalExit;
+    }
+
+    qerr() << P::unrecognizedCommandMessage(arguments.first()) << endl;
+    return BadUsage;
+}
+
 Worker::ExitStatus BuiltinWorker::runEngine(const QStringList &arguments, int *exitCode) const
 {
     using P = CommandLineParser;
@@ -239,38 +314,55 @@ Worker::ExitStatus BuiltinWorker::runEngine(const QStringList &arguments, int *e
         qerr() << P::missingArgumentMessage() << endl;
         return BadUsage;
     }
-    if (arguments.count() > 1 && arguments.first() != "exec") {
-        qerr() << P::unexpectedArgumentMessage(arguments.at(1));
-        return BadUsage;
-    }
 
     if (arguments.first() == "start") {
+        if (arguments.count() > 1) {
+            qerr() << P::unexpectedArgumentMessage(arguments.at(1)) << endl;
+            return BadUsage;
+        }
         *exitCode = SdkManager::startEngine() ? EXIT_SUCCESS : EXIT_FAILURE;
-    } else if (arguments.first() == "stop") {
+        return NormalExit;
+    }
+
+    if (arguments.first() == "stop") {
+        if (arguments.count() > 1) {
+            qerr() << P::unexpectedArgumentMessage(arguments.at(1)) << endl;
+            return BadUsage;
+        }
         *exitCode = SdkManager::stopEngine() ? EXIT_SUCCESS : EXIT_FAILURE;
-    } else if (arguments.first() == "status") {
+        return NormalExit;
+    }
+
+    if (arguments.first() == "status") {
+        if (arguments.count() > 1) {
+            qerr() << P::unexpectedArgumentMessage(arguments.at(1)) << endl;
+            return BadUsage;
+        }
         bool running = SdkManager::isEngineRunning();
         qout() << tr("Running: %1").arg(running ? tr("Yes") : tr("No")) << endl;
         *exitCode = EXIT_SUCCESS;
-    } else if (arguments.first() == "exec") {
+        return NormalExit;
+    }
+
+    if (arguments.first() == "exec") {
+        const QStringList command = arguments.mid(1);
+
         QString program;
         QStringList programArguments;
-        if (arguments.count() > 1) {
-            program = arguments.at(1);
-            if (arguments.count() > 2)
-                programArguments = arguments.mid(2);
+        if (!command.isEmpty()) {
+            program = command.at(0);
+            if (command.count() > 1)
+                programArguments = command.mid(1);
         } else {
             program = "/bin/bash";
             programArguments << "--login";
         }
         *exitCode = SdkManager::runOnEngine(program, programArguments, QProcess::ForwardedInputChannel);
         return NormalExit;
-    } else {
-        qerr() << P::unrecognizedCommandMessage(arguments.first()) << endl;
-        return BadUsage;
     }
 
-    return NormalExit;
+    qerr() << P::unrecognizedCommandMessage(arguments.first()) << endl;
+    return BadUsage;
 }
 
 Worker::ExitStatus BuiltinWorker::runMaintain(const QStringList &arguments, int *exitCode) const
@@ -285,6 +377,58 @@ Worker::ExitStatus BuiltinWorker::runMaintain(const QStringList &arguments, int 
     QString tool = SdkManager::installationPath() + '/' + SDK_MAINTENANCE_TOOL;
     *exitCode = QProcess::startDetached(tool, {}) ? EXIT_SUCCESS : EXIT_FAILURE;
     return NormalExit;
+}
+
+void BuiltinWorker::listDevices()
+{
+    auto maxLength = [](const QStringList &strings) {
+        const QList<int> lengths = Utils::transform(strings, &QString::length);
+        return *std::max_element(lengths.begin(), lengths.end());
+    };
+
+    const QString hardwareType = tr("hardware-device");
+    const QString emulatorType = tr("emulator");
+    const int typeFieldWidth = maxLength({hardwareType, emulatorType});
+
+    const QString autodetected = SdkManager::stateAutodetectedMessage();
+    const QString userDefined = SdkManager::stateUserDefinedMessage();
+    const int autodetectedFieldWidth = maxLength({autodetected, userDefined});
+
+    int index = 0;
+    for (Device *const device : Sdk::devices()) {
+        const QString type = device->machineType() == Device::HardwareMachine
+            ? hardwareType
+            : emulatorType;
+        const QString autodetection = device->isAutodetected()
+            ? autodetected
+            : userDefined;
+        const QString privateKeyFile = FileUtils::shortNativePath(
+                FileName::fromString(device->sshParameters().privateKeyFile));
+
+        qout() << '#' << index << ' ' << '"' << device->name() << '"' << endl;
+        qout() << indent(1) << qSetFieldWidth(typeFieldWidth) << left << type << qSetFieldWidth(0)
+            << "  " << qSetFieldWidth(autodetectedFieldWidth) << autodetection << qSetFieldWidth(0)
+            << "  " << device->sshParameters().url.authority() << endl;
+        qout() << indent(1) << tr("private-key:") << ' ' << privateKeyFile << endl;
+
+        ++index;
+    }
+}
+
+Device *BuiltinWorker::deviceForNameOrIndex(const QString &deviceNameOrIndex,
+        QString *errorString)
+{
+    bool isInt;
+    const int deviceIndex = deviceNameOrIndex.toInt(&isInt);
+    if (isInt) {
+        if (deviceIndex < 0 || deviceIndex > Sdk::devices().count() - 1) {
+            *errorString = tr("Invalid device index: %1").arg(deviceNameOrIndex);
+            return nullptr;
+        }
+        return Sdk::devices().at(deviceIndex);
+    } else {
+        return SdkManager::deviceByName(deviceNameOrIndex, errorString);
+    }
 }
 
 /*!

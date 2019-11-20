@@ -1,0 +1,31 @@
+{
+    "version": 1,
+    "domain": "devices",
+    "trBrief": "Working with devices",
+
+    "worker":
+    {
+        "type": "engine-command",
+        "version": 1,
+        "program": "mb2"
+    },
+
+    "commands":
+    [
+        {
+            "name": "deploy",
+            "trSynopsis": "{--pkcon|--rsync|--sdk|--zypper}",
+            "trBrief": "Deploy to a device",
+            "trDescription": "Deploy build results to the configured device (see the 'device' configuration option).\n\nThis command implies also the 'make-install' command and unless the '--rsync' method is used, it will include also the 'package' command. See the 'building' domain help for more information about the other commands.\n\nThe following deployment methods are available, corresponding to the single mandatory option:\n\n--pkcon\n    Uses 'pkcon' to install RPM package(s). Requires the \"Allow untrusted software\" option enabled in Settings, does not require root access to the device.\n\n--rsync\n    Uses 'rsync' to copy the installed files under '/opt/sdk/<name>' without building/installing RPM package(s).  Does not require root access to the device.\n\n--sdk\n    Uses the method native to the SDK to install RPM package(s). Requires developer mode enabled on the device, does not require root access.\n\n--zypper\n    Uses 'zypper' to install RPM package(s).  Requires 'zypper' installed on the device, requires root access to the device."
+        }
+    ],
+
+    "options":
+    [
+        {
+            "name": "device",
+            "trArgument": "<name>",
+            "trDescription": "Select the device to use with commands that need to access a device. Registered devices can be listed with the 'device list' command."
+        }
+    ]
+}

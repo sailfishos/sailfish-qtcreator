@@ -38,6 +38,7 @@ namespace Internal {
 namespace Sfdk {
 
 class BuildEngine;
+class Device;
 class Sdk;
 
 class SdkManager
@@ -59,7 +60,15 @@ public:
 
     static void setEnableReversePathMapping(bool enable);
 
+    static Device *configuredDevice(QString *errorMessage);
+    static Device *deviceByName(const QString &deviceName, QString *errorMessage);
+    static int runOnDevice(const Device &device, const QString &program,
+        const QStringList &arguments, QProcess::InputChannelMode inputChannelMode);
+
     static void saveSettings();
+
+    static QString stateUserDefinedMessage() { return tr("user-defined"); }
+    static QString stateAutodetectedMessage() { return tr("autodetected"); }
 
 private:
     bool hasEngine() const;

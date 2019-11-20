@@ -30,6 +30,8 @@
 #include <QString>
 #include <QStringList>
 
+#include <utils/optional.h>
+
 namespace Sfdk {
 
 class ConfigurationScope;
@@ -144,6 +146,7 @@ public:
     static QString scopeName(Scope scope);
 
     static QList<OptionEffectiveOccurence> effectiveState();
+    static Utils::optional<OptionEffectiveOccurence> effectiveState(const Option *option);
     static QStringList toArguments(const Module *module);
     static QString print();
 
