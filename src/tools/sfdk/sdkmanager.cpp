@@ -764,6 +764,142 @@ private:
     QHash<QString, QString> m_snapshotSourceNameByTargetPackage;
 };
 
+class EmulatorPackageManager
+{
+    Q_DECLARE_TR_FUNCTIONS(Sfdk::EmulatorPackageManager)
+
+public:
+    bool listAvailableEmulators(QList<AvailableEmulatorInfo> *info)
+    {
+        QTC_ASSERT(info, return false);
+
+        if (!fetchInfo())
+            return false;
+
+        for (auto it = m_flagsByPackage.cbegin(); it != m_flagsByPackage.cend(); ++it) {
+            if (!validate(*it))
+                qCWarning(sfdk) << "Invalid flags for emulator" << it.key() << *it;
+        }
+
+        for (const QString &name : m_packageByName.keys()) {
+            const QString package = m_packageByName.value(name);
+            const AvailableEmulatorInfo::Flags flags = m_flagsByPackage.value(package);
+#if defined(Q_CC_MSVC)
+            AvailableEmulatorInfo i;
+            i.name = name;
+            i.flags = flags;
+            *info << i;
+#else
+            *info << AvailableEmulatorInfo{name, flags};
+#endif
+        }
+
+        return true;
+    }
+
+    bool addEmulator(const QString &name)
+    {
+        if (!fetchInfo())
+            return false;
+
+        QString package;
+        AvailableEmulatorInfo::Flags flags;
+        if (!packageForName(name, &package, &flags))
+            return false;
+
+        if (flags & AvailableEmulatorInfo::Installed) {
+            qerr() << tr("Already installed: \"%1\"").arg(name) << endl;
+            return false;
+        }
+
+        return PackageManager().addPackage(package);
+    }
+
+    bool removeEmulator(const QString &name)
+    {
+        if (!fetchInfo())
+            return false;
+
+        QString package;
+        AvailableEmulatorInfo::Flags flags;
+        if (!packageForName(name, &package, &flags))
+            return false;
+
+        if (!(flags & AvailableEmulatorInfo::Installed)) {
+            qerr() << tr("Not installed: \"%1\"").arg(name) << endl;
+            return false;
+        }
+
+        return PackageManager().removePackage(package);
+    }
+
+private:
+    bool fetchInfo()
+    {
+        QList<PackageManager::PackageInfo> allPackageInfo;
+        const bool ok = PackageManager().fetchInfo(&allPackageInfo, [](const QString &package) {
+            return package.startsWith("org.merproject.emulators.")
+                && !package.contains("4qtcreator_");
+        });
+        if (!ok)
+            return false;
+
+        for (const PackageManager::PackageInfo &info : allPackageInfo) {
+            AvailableEmulatorInfo::Flags flags;
+
+            if (info.installed)
+                flags |= AvailableEmulatorInfo::Installed;
+            else
+                flags |= AvailableEmulatorInfo::Available;
+
+            if (info.symbolicVersion == PackageManager::PackageInfo::Latest)
+                flags |= AvailableEmulatorInfo::Latest;
+            else if (info.symbolicVersion == PackageManager::PackageInfo::EarlyAccess)
+                flags |= AvailableEmulatorInfo::EarlyAccess;
+
+            m_packageByName.insert(info.displayName, info.name);
+            m_nameByPackage.insert(info.name, info.displayName);
+            m_flagsByPackage.insert(info.name, flags);
+        }
+
+        return true;
+    }
+
+    bool packageForName(const QString &name, QString *package,
+            AvailableEmulatorInfo::Flags *flags) const
+    {
+        *package = m_packageByName.value(name);
+        if (package->isEmpty()) {
+            qerr() << tr("No such emulator: \"%1\".").arg(name) << endl;
+            return false;
+        }
+        *flags = m_flagsByPackage.value(*package);
+
+        return true;
+    }
+
+    static bool validate(AvailableEmulatorInfo::Flags flags)
+    {
+        using I = AvailableEmulatorInfo;
+
+        constexpr int maxFlags = std::numeric_limits<
+            std::underlying_type_t<I::Flags::enum_type>
+            >::digits;
+        static_assert(maxFlags > 0, "Limits error");
+        using BitSet = std::bitset<maxFlags>;
+
+        QTC_ASSERT(BitSet(flags & (I::Available|I::Installed)).count() == 1, return false);
+        QTC_ASSERT(BitSet(flags & (I::Latest|I::EarlyAccess)).count() <= 1, return false);
+
+        return true;
+    }
+
+private:
+    QHash<QString, QString> m_packageByName;
+    QHash<QString, QString> m_nameByPackage;
+    QHash<QString, AvailableEmulatorInfo::Flags> m_flagsByPackage;
+};
+
 } // namespace Sfdk
 
 /*!
@@ -1071,6 +1207,21 @@ int SdkManager::runOnEmulator(const Emulator &emulator, const QString &program,
     Device *const emulatorDevice = Sdk::device(emulator);
     QTC_ASSERT(emulatorDevice, return SFDK_EXIT_ABNORMAL);
     return runOnDevice(*emulatorDevice, program, arguments, inputChannelMode);
+}
+
+bool SdkManager::listAvailableEmulators(QList<AvailableEmulatorInfo> *info)
+{
+    return EmulatorPackageManager().listAvailableEmulators(info);
+}
+
+bool SdkManager::addEmulator(const QString &name)
+{
+    return EmulatorPackageManager().addEmulator(name);
+}
+
+bool SdkManager::removeEmulator(const QString &name)
+{
+    return EmulatorPackageManager().removeEmulator(name);
 }
 
 bool SdkManager::startReliably(VirtualMachine *virtualMachine)

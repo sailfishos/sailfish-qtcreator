@@ -116,6 +116,7 @@ private:
     static void listEmulators();
     static Emulator *emulatorForNameOrIndex(const QString &emulatorNameOrIndex,
             QString *errorString);
+    static bool listAvailableEmulators();
     static bool listTools(SdkManager::ListToolsOptions options, bool listToolings,
             bool listTargets);
     static bool stopVirtualMachines();
@@ -126,6 +127,7 @@ private:
 
     static QString runningYesNoMessage(bool running);
     static QString toString(ToolsInfo::Flags flags, bool saySdkProvided);
+    static QString toString(AvailableEmulatorInfo::Flags flags);
 };
 
 class EngineWorker : public Worker
