@@ -277,6 +277,7 @@ void CommandLineParser::usage(QTextStream &out) const
     out << endl;
 
     describe(out, 1, generalDomain->commands());
+    out << endl;
 
     out << globalOptionsHeading() << endl;
     out << endl;
@@ -289,6 +290,9 @@ void CommandLineParser::usage(QTextStream &out) const
         out << endl;
         describe(out, 1, generalDomainOptions);
     }
+    out << endl;
+
+    exitStatusSection(out);
 }
 
 void CommandLineParser::commandBriefUsage(QTextStream &out, const Command *command) const
@@ -361,6 +365,9 @@ void CommandLineParser::domainUsage(QTextStream &out, const Domain *domain) cons
         out << endl;
         describe(out, 1, domainOptions);
     }
+    out << endl;
+
+    exitStatusSection(out);
 }
 
 void CommandLineParser::allDomainsUsage(QTextStream &out) const
@@ -415,6 +422,8 @@ void CommandLineParser::allDomainsUsage(QTextStream &out) const
         describe(out, 2, domainOptions);
         out << endl;
     }
+
+    exitStatusSection(out);
 }
 
 bool CommandLineParser::checkExclusiveOption(const QCommandLineParser &parser,
@@ -626,4 +635,14 @@ void CommandLineParser::describeGlobalOptions(QTextStream &out, int indentLevel,
     });
 
     describe(out, indentLevel, globalOptions);
+}
+
+void CommandLineParser::exitStatusSection(QTextStream &out)
+{
+    out << tr("Exit Status").toUpper() << endl;
+    out << endl;
+    QString body = tr("sfdk exits with zero exit code on success, command-specific nonzero exit code on command failure, or the reserved exit code of %1 to indicate bad usage, internal error, (remote) command dispatching error and suchlike conditions, that either prevented command starting or resulted in premature or otherwise abnormal command termination (different exit code may be designated for this purpose through the '%2' environment variable).")
+        .arg(Constants::EXIT_ABNORMAL_DEFAULT_CODE)
+        .arg(Constants::EXIT_ABNORMAL_ENV_VAR);
+    wrapLines(out, 1, {}, {}, body);
 }

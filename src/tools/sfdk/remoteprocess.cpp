@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -104,9 +105,12 @@ void RemoteProcess::setInputChannelMode(QProcess::InputChannelMode inputChannelM
 
 int RemoteProcess::exec()
 {
+    bool startedOk = false;
     QEventLoop loop;
     connect(m_runner.get(), &SshRemoteProcessRunner::connectionError,
             &loop, &QEventLoop::quit);
+    connect(m_runner.get(), &SshRemoteProcessRunner::processStarted,
+            &loop, [&startedOk]() { startedOk = true; });
     connect(m_runner.get(), &SshRemoteProcessRunner::processClosed,
             &loop, &QEventLoop::quit);
 
@@ -129,9 +133,13 @@ int RemoteProcess::exec()
 
     loop.exec();
 
-    const int exitCode = m_runner->processExitStatus() == SshRemoteProcess::NormalExit
+    const int exitCode = startedOk && m_runner->processExitStatus() == SshRemoteProcess::NormalExit
+        && m_runner->processExitCode() != 255 // SSH error
         ? m_runner->processExitCode()
-        : Constants::EXIT_ABNORMAL;
+        : SFDK_EXIT_ABNORMAL;
+
+    if (exitCode == SFDK_EXIT_ABNORMAL)
+        emit processError(m_runner->processErrorString());
 
     while (m_killRunner != nullptr)
         QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);

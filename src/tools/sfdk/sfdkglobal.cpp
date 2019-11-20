@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,9 +21,37 @@
 **
 ****************************************************************************/
 
+#include "sfdkconstants.h"
 #include "sfdkglobal.h"
 
 namespace Sfdk {
+
+namespace {
+
+int exitAbnormalCode()
+{
+    if (qEnvironmentVariableIsEmpty(Constants::EXIT_ABNORMAL_ENV_VAR))
+        return Constants::EXIT_ABNORMAL_DEFAULT_CODE;
+
+    bool ok;
+    int code = qEnvironmentVariableIntValue(Constants::EXIT_ABNORMAL_ENV_VAR, &ok);
+    if (!ok) {
+        qWarning(sfdk) << "Value of" << Constants::EXIT_ABNORMAL_ENV_VAR
+            << "environment variable is not an integer";
+        return Constants::EXIT_ABNORMAL_DEFAULT_CODE;
+    }
+    if (code < 0 || code > 255) {
+        qWarning(sfdk) << "Value of" << Constants::EXIT_ABNORMAL_ENV_VAR
+            << "environment variable not in range 0..255";
+        return Constants::EXIT_ABNORMAL_DEFAULT_CODE;
+    }
+    return code;
+}
+
+} // namespace anonymous
+
+int SFDK_EXIT_ABNORMAL = exitAbnormalCode();
+
 namespace Log {
 
 /*

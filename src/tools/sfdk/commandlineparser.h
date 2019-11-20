@@ -107,6 +107,7 @@ private:
     void describe(QTextStream &out, int indentLevel, const Command::ConstList &commands) const;
     void describe(QTextStream &out, int indentLevel, const Option::ConstList &options) const;
     void describeGlobalOptions(QTextStream &out, int indentLevel, const Domain *domain) const;
+    static void exitStatusSection(QTextStream &out);
 
 private:
     Result m_result;
