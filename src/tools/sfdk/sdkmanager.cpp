@@ -23,6 +23,8 @@
 
 #include "sdkmanager.h"
 
+#include <bitset>
+
 #include <QDir>
 #include <QPointer>
 #include <QRegularExpression>
@@ -45,12 +47,19 @@
 #include "remoteprocess.h"
 #include "sfdkconstants.h"
 #include "sfdkglobal.h"
-#include "textutils.h"
 
 namespace {
 const int CONNECT_TIMEOUT_MS = 60000;
 const int LOCK_DOWN_TIMEOUT_MS = 60000;
-}
+
+#ifdef Q_OS_MACOS
+const char SDK_MAINTENANCE_TOOL[] = "SDKMaintenanceTool.app/Contents/MacOS/SDKMaintenanceTool";
+#else
+const char SDK_MAINTENANCE_TOOL[] = "SDKMaintenanceTool" QTC_HOST_EXE_SUFFIX;
+#endif
+
+const char CUSTOM_PACKAGES_PREFIX[] = "x.";
+} // namespace anonymous
 
 using namespace Mer;
 using namespace Mer::Internal;
@@ -190,6 +199,571 @@ private:
     QPointer<QTimer> m_cancelLockingDownTimer;
 };
 
+class PackageManager
+{
+    Q_DECLARE_TR_FUNCTIONS(Sfdk::PackageManager)
+
+public:
+    class PackageInfo
+    {
+    public:
+        enum SymbolicVersion {
+            NoSymbolicVersion,
+            Latest,
+            EarlyAccess
+        };
+
+        QString name;
+        QString displayName;
+        bool installed;
+        QStringList dependencies;
+        SymbolicVersion symbolicVersion = NoSymbolicVersion;
+    };
+
+    bool fetchInfo(QList<PackageInfo> *info, std::function<bool(const QString &)> filter)
+    {
+        QProcess listPackages;
+        listPackages.setProgram(SdkManager::sdkMaintenanceToolPath());
+        listPackages.setArguments({"-platform", "minimal", "--verbose", "--manage-packages",
+                "non-interactive=1", "accept-licenses=1", "list-packages=1"});
+        listPackages.start();
+        if (!listPackages.waitForFinished(-1)) {
+            qerr() << tr("Error listing installer-provided packages")
+                << ": " << listPackages.readAllStandardError() << endl;
+            return false;
+        }
+
+        QTextStream listing(listPackages.readAllStandardOutput());
+
+        // "SailfishOS-latest-i486 (1.2.3)" -> "SailfishOS-1.2.3-i486" + "latest"
+        auto parseDisplayName = [](const QString &displayName, QString *name,
+                PackageInfo::SymbolicVersion *symbolicVersion) {
+            QRegularExpression re(R"(^(\S+)-(ea|latest)(-\S+)? \((\S+)\)$)");
+            QRegularExpressionMatch match = re.match(displayName);
+            if (match.hasMatch()) {
+                const QString symbolicVersionString = match.captured(2);
+                *name = match.captured(1) + '-' + match.captured(4);
+                if (symbolicVersionString == "ea") {
+                    *symbolicVersion = PackageInfo::EarlyAccess;
+                    *name += "EA";
+                } else {
+                    *symbolicVersion = PackageInfo::Latest;
+                }
+                *name += match.captured(3);
+            } else {
+                *name = displayName;
+                *symbolicVersion = PackageInfo::NoSymbolicVersion;
+            }
+        };
+
+        QRegularExpression re(R"re(^.*list-packages:: (available|installed) (\S+) "(.+)" requires (\S+))re");
+        QString line;
+        while (listing.readLineInto(&line)) {
+            QRegularExpressionMatch match = re.match(line);
+            if (!match.hasMatch())
+                continue;
+
+            PackageInfo i;
+
+            i.name = match.captured(2);
+            if (!filter(i.name))
+                continue;
+
+            i.displayName = match.captured(3);
+            parseDisplayName(match.captured(3), &i.displayName, &i.symbolicVersion);
+
+            i.installed = match.captured(1) == "installed";
+            i.dependencies = match.captured(4).split(',');
+
+            *info << i;
+        }
+
+        return true;
+    }
+
+    bool addPackage(const QString &name)
+    {
+        QList<PackageInfo> info;
+        bool fetchOk = fetchInfo(&info, [name](const QString &packageName) {
+            return packageName == name;
+        });
+        if (!fetchOk)
+            return false;
+
+        QTC_ASSERT(!info.isEmpty(), return false);
+        QTC_ASSERT(!info.first().installed, return false);
+
+        QProcess addPackages;
+        addPackages.setProgram(SdkManager::sdkMaintenanceToolPath());
+        addPackages.setArguments({"-platform", "minimal", "--verbose", "--manage-packages",
+                "non-interactive=1", "accept-licenses=1", "add-packages=" + name});
+        addPackages.setProcessChannelMode(QProcess::ForwardedChannels);
+        addPackages.start();
+        if (!addPackages.waitForFinished(-1)) {
+            qerr() << tr("Error installing installer-provided packages")
+                << ": " << addPackages.readAllStandardError() << endl;
+            return false;
+        }
+
+        return true;
+    }
+
+    bool removePackage(const QString &name)
+    {
+        QList<PackageInfo> info;
+        bool fetchOk = fetchInfo(&info, [name](const QString &packageName) {
+            return packageName == name;
+        });
+        if (!fetchOk)
+            return false;
+
+        QTC_ASSERT(!info.isEmpty(), return false);
+        QTC_ASSERT(info.first().installed, return false);
+
+        QProcess removePackages;
+        removePackages.setProgram(SdkManager::sdkMaintenanceToolPath());
+        removePackages.setArguments({"-platform", "minimal", "--verbose", "--manage-packages",
+                "non-interactive=1", "accept-licenses=1", "remove-packages=" + name});
+        removePackages.setProcessChannelMode(QProcess::ForwardedChannels);
+        removePackages.start();
+        if (!removePackages.waitForFinished(-1)) {
+            qerr() << tr("Error uninstalling installer-provided packages")
+                << ": " << removePackages.readAllStandardError() << endl;
+            return false;
+        }
+
+        return true;
+    }
+};
+
+class ToolsPackageManager
+{
+    Q_DECLARE_TR_FUNCTIONS(Sfdk::ToolsPackageManager)
+
+public:
+    bool listTools(SdkManager::ListToolsOptions options, QList<ToolsInfo> *info)
+    {
+        QTC_ASSERT(options & SdkManager::InstalledTools, return false); // Cannot exclude these
+        QTC_ASSERT(info, return false);
+
+        if (!fetchInstallerProvidedToolsInfo(options & SdkManager::AvailableTools))
+            return false;
+
+        if (options & SdkManager::UserDefinedTools) {
+            if (!fetchCustomToolingsInfo())
+                return false;
+            if (!fetchCustomTargetsInfo(options & SdkManager::CheckSnapshots))
+                return false;
+        }
+
+        for (auto it = m_toolingFlagsByPackage.cbegin(); it != m_toolingFlagsByPackage.cend(); ++it) {
+            if (!validate(*it))
+                qCWarning(sfdk) << "Invalid flags for tooling" << it.key() << *it;
+        }
+
+        for (auto it = m_targetFlagsByPackage.cbegin(); it != m_targetFlagsByPackage.cend(); ++it) {
+            if (!validate(*it))
+                qCWarning(sfdk) << "Invalid flags for target" << it.key() << *it;
+        }
+
+        QList<ToolsInfo> toolingInfo;
+        QList<ToolsInfo> targetInfo;
+        QList<ToolsInfo> snapshotInfo;
+
+        for (const QString &name : m_toolingPackageByName.keys()) {
+            const QString package = m_toolingPackageByName.value(name);
+            const ToolsInfo::Flags flags = m_toolingFlagsByPackage.value(package);
+#if defined(Q_CC_MSVC)
+            ToolsInfo i;
+            i.name = name;
+            i.flags = flags;
+            toolingInfo << i;
+#else
+            toolingInfo << ToolsInfo{name, {}, flags};
+#endif
+        }
+
+        for (const QString &name : m_targetPackageByName.keys()) {
+            const QString package = m_targetPackageByName.value(name);
+            if (m_snapshotSourceNameByTargetPackage.contains(package)) {
+                if (!(options & SdkManager::SnapshotTools))
+                    continue;
+                const QString sourceTargetName = m_snapshotSourceNameByTargetPackage.value(package);
+                const ToolsInfo::Flags flags = m_targetFlagsByPackage.value(package);
+#if defined(Q_CC_MSVC)
+                ToolsInfo i;
+                i.name = name;
+                i.parentName = sourceTargetName;
+                i.flags = flags;
+                snapshotInfo << i;
+#else
+                snapshotInfo << ToolsInfo{name, sourceTargetName, flags};
+#endif
+            } else {
+                const QString toolingName =
+                    m_toolingNameByPackage.value(m_toolingPackageByTargetPackage.value(package));
+                const ToolsInfo::Flags flags = m_targetFlagsByPackage.value(package);
+#if defined(Q_CC_MSVC)
+                ToolsInfo i;
+                i.name = name;
+                i.parentName = toolingName;
+                i.flags = flags;
+                targetInfo << i;
+#else
+                targetInfo << ToolsInfo{name, toolingName, flags};
+#endif
+            }
+        }
+
+        // Partially order by parent-child relations to allow building tree with single pass
+        *info = toolingInfo + targetInfo + snapshotInfo;
+        return true;
+    }
+
+    bool updateTools(const QString &name, SdkManager::ToolsTypeHint typeHint)
+    {
+        QStringList args;
+        args += toArgs(typeHint);
+        args += "update";
+        args += name;
+
+        const int exitCode = SdkManager::runOnEngine("sdk-assistant", args,
+                QProcess::ManagedInputChannel);
+        return exitCode == EXIT_SUCCESS;
+    }
+
+    bool registerTools(const QString &maybeName, SdkManager::ToolsTypeHint typeHint,
+            const QString &maybeUserName, const QString &maybePassword)
+    {
+        QStringList args;
+        args += toArgs(typeHint);
+        args += "register";
+        if (!maybeName.isEmpty())
+            args += maybeName;
+        else
+            args += "--all";
+        if (!maybeUserName.isEmpty())
+            args += {"--user", maybeUserName};
+        if (!maybePassword.isEmpty())
+            args += {"--password", maybePassword};
+
+        const int exitCode = SdkManager::runOnEngine("sdk-assistant", args,
+                QProcess::ForwardedInputChannel);
+        return exitCode == EXIT_SUCCESS;
+    }
+
+    bool addTools(const QString &name, SdkManager::ToolsTypeHint typeHint)
+    {
+        if (!fetchInfo())
+            return false;
+
+        QString package;
+        ToolsInfo::Flags flags;
+        if (!packageForName(name, typeHint, &package, &flags))
+            return false;
+
+        if (flags & ToolsInfo::UserDefined) {
+            qerr() << tr("Name used by user-defined tools: \"%1\"").arg(name) << endl;
+            return false;
+        }
+
+        if (flags & ToolsInfo::Installed) {
+            qerr() << tr("Already installed: \"%1\"").arg(name) << endl;
+            return false;
+        }
+
+        if (!(flags & ToolsInfo::Available)) {
+            // Snapshot name used?
+            qerr() << tr("Invalid name: \"%1\"").arg(name) << endl;
+            return false;
+        }
+
+        return PackageManager().addPackage(package);
+    }
+
+    bool createTools(const QString &name, const QString &imageFileOrUrl,
+            SdkManager::ToolsTypeHint typeHint)
+    {
+        QStringList args;
+        args += toArgs(typeHint);
+        args += "create";
+        args += name;
+        args += imageFileOrUrl;
+        const int exitCode = SdkManager::runOnEngine("sdk-assistant", args,
+                QProcess::ManagedInputChannel);
+        return exitCode == EXIT_SUCCESS;
+    }
+
+    bool removeTools(const QString &name, SdkManager::ToolsTypeHint typeHint)
+    {
+        if (!fetchInfo())
+            return false;
+
+        QString package;
+        ToolsInfo::Flags flags;
+        if (!packageForName(name, typeHint, &package, &flags))
+            return false;
+
+        if (flags & ToolsInfo::UserDefined || flags & ToolsInfo::Snapshot) {
+            QStringList args;
+            args += toArgs(typeHint);
+            args += "remove";
+            args += name;
+            const int exitCode = SdkManager::runOnEngine("sdk-assistant", args,
+                    QProcess::ManagedInputChannel);
+            return exitCode == EXIT_SUCCESS;
+        }
+
+        if (!(flags & ToolsInfo::Installed)) {
+            qerr() << tr("Not installed: \"%1\"").arg(name) << endl;
+            return false;
+        }
+
+        return PackageManager().removePackage(package);
+    }
+
+private:
+    bool fetchInfo(bool checkSnapshots = false)
+    {
+        if (!fetchInstallerProvidedToolsInfo())
+            return false;
+        if (!fetchCustomToolingsInfo())
+            return false;
+        if (!fetchCustomTargetsInfo(checkSnapshots))
+            return false;
+
+        return true;
+    }
+
+    bool fetchInstallerProvidedToolsInfo(bool includeAvailable = true)
+    {
+        QList<PackageManager::PackageInfo> allPackageInfo;
+        const bool ok = PackageManager().fetchInfo(&allPackageInfo, [](const QString &package) {
+            return package.startsWith("org.merproject.targets.")
+                && package != "org.merproject.targets.toolings"
+                && package != "org.merproject.targets.user"
+                && !package.startsWith("org.merproject.targets.user.")
+                && !package.endsWith("4qtcreator");
+        });
+        if (!ok)
+            return false;
+
+        for (const PackageManager::PackageInfo &info : allPackageInfo) {
+            ToolsInfo::Flags flags;
+
+            if (!info.installed && !includeAvailable)
+                continue;
+
+            if (info.installed)
+                flags |= ToolsInfo::Installed;
+            else
+                flags |= ToolsInfo::Available;
+
+            if (info.symbolicVersion == PackageManager::PackageInfo::Latest)
+                flags |= ToolsInfo::Latest;
+            else if (info.symbolicVersion == PackageManager::PackageInfo::EarlyAccess)
+                flags |= ToolsInfo::EarlyAccess;
+
+            if (info.name.startsWith("org.merproject.targets.toolings.")) {
+                m_toolingPackageByName.insert(info.displayName, info.name);
+                m_toolingNameByPackage.insert(info.name, info.displayName);
+                m_toolingFlagsByPackage.insert(info.name, flags | ToolsInfo::Tooling);
+            } else {
+                m_targetPackageByName.insert(info.displayName, info.name);
+                m_targetNameByPackage.insert(info.name, info.displayName);
+                m_targetFlagsByPackage.insert(info.name, flags | ToolsInfo::Target);
+
+                QRegularExpression toolingRe(R"(^org\.merproject\.targets\.toolings\.)");
+                QStringList requiredToolings = info.dependencies.filter(toolingRe);
+                QTC_ASSERT(requiredToolings.count() == 1, continue);
+                m_toolingPackageByTargetPackage.insert(info.name, requiredToolings.first());
+            }
+        }
+
+        return true;
+    }
+
+    bool fetchCustomToolingsInfo()
+    {
+        QByteArray data;
+        QTextStream stream(&data);
+
+        QStringList listToolingsArgs = {"tooling", "list", "--long"};
+        const int exitCode = SdkManager::runOnEngine("sdk-manage", listToolingsArgs,
+                QProcess::ManagedInputChannel, stream);
+        if (exitCode != EXIT_SUCCESS)
+            return false;
+
+        stream.seek(0);
+
+        QString line;
+        while (stream.readLineInto(&line)) {
+            const QStringList splitted = line.split(' ', QString::SkipEmptyParts);
+            QTC_ASSERT(splitted.count() == 2, continue);
+            const QString name = splitted.at(0);
+            const QString mode = splitted.at(1);
+
+            if (mode != "user")
+                continue;
+
+            const QString package = CUSTOM_PACKAGES_PREFIX + name;
+            m_toolingPackageByName.insert(name, package);
+            m_toolingNameByPackage.insert(package, name);
+            m_toolingFlagsByPackage.insert(package,
+                    ToolsInfo::Flags(ToolsInfo::Tooling) | ToolsInfo::UserDefined);
+        }
+
+        return true;
+    }
+
+    bool fetchCustomTargetsInfo(bool checkSnapshots)
+    {
+        QByteArray data;
+        QTextStream stream(&data);
+
+        QStringList args = {"target", "list", "--long"};
+        if (checkSnapshots)
+            args += "--check-snapshots";
+        const int exitCode = SdkManager::runOnEngine("sdk-manage", args,
+                QProcess::ManagedInputChannel, stream);
+        if (exitCode != EXIT_SUCCESS)
+            return false;
+
+        stream.seek(0);
+
+        QString line;
+        while (stream.readLineInto(&line)) {
+            const QStringList splitted = line.split(' ', QString::SkipEmptyParts);
+            QTC_ASSERT(splitted.count() == 4, continue);
+            const QString name = splitted.at(0);
+            const QString tooling = splitted.at(1);
+            const QString mode = splitted.at(2);
+            const QString snapshotInfo = splitted.at(3);
+
+            if (mode != "user")
+                continue;
+
+            const QString package = CUSTOM_PACKAGES_PREFIX + name;
+
+            m_targetPackageByName.insert(name, package);
+            m_targetNameByPackage.insert(package, name);
+            m_toolingPackageByTargetPackage.insert(package, m_toolingPackageByName.value(tooling));
+
+            if (snapshotInfo != "-") {
+                QString sourceTargetName;
+                ToolsInfo::Flag snapshotFlag;
+                parseSnapshotInfo(snapshotInfo, &sourceTargetName, &snapshotFlag);
+
+                m_snapshotSourceNameByTargetPackage.insert(package, sourceTargetName);
+                m_targetFlagsByPackage.insert(package,
+                        ToolsInfo::Flags(ToolsInfo::Target) | ToolsInfo::Snapshot | snapshotFlag);
+            } else {
+                m_targetFlagsByPackage.insert(package,
+                        ToolsInfo::Flags(ToolsInfo::Target) | ToolsInfo::UserDefined);
+            }
+        }
+
+        return true;
+    }
+
+    bool packageForName(const QString &name, SdkManager::ToolsTypeHint typeHint, QString *package,
+            ToolsInfo::Flags *flags) const
+    {
+        switch (typeHint) {
+        case SdkManager::NoToolsHint:
+            *package = m_toolingPackageByName.value(name);
+            if (!package->isEmpty()) {
+                if (m_targetPackageByName.contains(name)) {
+                    qerr() << tr("Name \"%1\" matches both a tooling and a target. Choose one.")
+                        .arg(name) << endl;
+                    return false;
+                }
+                *flags = m_toolingFlagsByPackage.value(*package);
+            } else {
+                *package = m_targetPackageByName.value(name);
+                *flags = m_targetFlagsByPackage.value(*package);
+            }
+            break;
+        case SdkManager::ToolingHint:
+            *package = m_toolingPackageByName.value(name);
+            if (package->isEmpty()) {
+                qerr() << tr("No such tooling: \"%1\".").arg(name) << endl;
+                return false;
+            }
+            *flags = m_toolingFlagsByPackage.value(*package);
+            break;
+        case SdkManager::TargetHint:
+            *package = m_targetPackageByName.value(name);
+            if (package->isEmpty()) {
+                qerr() << tr("No such target: \"%1\".").arg(name) << endl;
+                return false;
+            }
+            *flags = m_targetFlagsByPackage.value(*package);
+            break;
+        }
+
+        return true;
+    }
+
+    static void parseSnapshotInfo(const QString &snapshotInfo, QString *sourceTargetName,
+            ToolsInfo::Flag *snapshotFlag)
+    {
+        *sourceTargetName = snapshotInfo;
+        *snapshotFlag = ToolsInfo::NoFlag;
+        if (sourceTargetName->endsWith('*')) {
+            sourceTargetName->chop(1);
+            *snapshotFlag = ToolsInfo::Outdated;
+        }
+    }
+
+    static QStringList toArgs(SdkManager::ToolsTypeHint typeHint)
+    {
+        switch (typeHint) {
+        case SdkManager::NoToolsHint:
+            return {};
+        case SdkManager::ToolingHint:
+            return {"tooling"};
+        case SdkManager::TargetHint:
+            return {"target"};
+        }
+        QTC_CHECK(false);
+        return {};
+    }
+
+    static bool validate(ToolsInfo::Flags flags)
+    {
+        using I = ToolsInfo;
+
+        constexpr int maxFlags = std::numeric_limits<
+            std::underlying_type_t<I::Flags::enum_type>
+            >::digits;
+        static_assert(maxFlags > 0, "Limits error");
+        using BitSet = std::bitset<maxFlags>;
+
+        QTC_ASSERT((flags & I::Tooling) != (flags & I::Target), return false);
+        QTC_ASSERT(BitSet(flags & (I::Available|I::Installed|I::UserDefined|I::Snapshot))
+                .count() <= 1, return false);
+        QTC_ASSERT(!(flags & I::Snapshot) || (flags & I::Target), return false);
+        QTC_ASSERT(!(flags & I::Outdated) || (flags & I::Snapshot), return false);
+        QTC_ASSERT(BitSet(flags & (I::Latest|I::EarlyAccess)).count() <= 1, return false);
+        QTC_ASSERT(!(flags & (I::Latest|I::EarlyAccess)) || (flags & (I::Available|I::Installed)),
+                return false);
+
+        return true;
+    }
+
+private:
+    QHash<QString, QString> m_toolingPackageByName;
+    QHash<QString, QString> m_toolingNameByPackage;
+    QHash<QString, ToolsInfo::Flags> m_toolingFlagsByPackage;
+
+    QHash<QString, QString> m_targetPackageByName;
+    QHash<QString, QString> m_targetNameByPackage;
+    QHash<QString, ToolsInfo::Flags> m_targetFlagsByPackage;
+    QHash<QString, QString> m_toolingPackageByTargetPackage;
+    QHash<QString, QString> m_snapshotSourceNameByTargetPackage;
+};
+
 } // namespace Sfdk
 
 /*!
@@ -244,6 +818,11 @@ QString SdkManager::installationPath()
     return Sdk::installationPath();
 }
 
+QString SdkManager::sdkMaintenanceToolPath()
+{
+    return Sdk::installationPath() + '/' + SDK_MAINTENANCE_TOOL;
+}
+
 BuildEngine *SdkManager::engine()
 {
     QTC_ASSERT(s_instance->hasEngine(), return nullptr);
@@ -269,7 +848,7 @@ bool SdkManager::isEngineRunning()
 }
 
 int SdkManager::runOnEngine(const QString &program, const QStringList &arguments,
-        QProcess::InputChannelMode inputChannelMode)
+        QProcess::InputChannelMode inputChannelMode, QTextStream &out, QTextStream &err)
 {
     QTC_ASSERT(s_instance->hasEngine(), return SFDK_EXIT_ABNORMAL);
 
@@ -301,10 +880,10 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     process.setInputChannelMode(inputChannelMode);
 
     QObject::connect(&process, &RemoteProcess::standardOutput, [&](const QByteArray &data) {
-        qout() << s_instance->maybeReverseMapEnginePaths(data) << flush;
+        out << s_instance->maybeReverseMapEnginePaths(data) << flush;
     });
     QObject::connect(&process, &RemoteProcess::standardError, [&](const QByteArray &data) {
-        qerr() << s_instance->maybeReverseMapEnginePaths(data) << flush;
+        err << s_instance->maybeReverseMapEnginePaths(data) << flush;
     });
     QObject::connect(&process, &RemoteProcess::connectionError, [&](const QString &errorString) {
         qerr() << tr("Error connecting to the build engine: ") << errorString << endl;
@@ -319,6 +898,38 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
 void SdkManager::setEnableReversePathMapping(bool enable)
 {
     s_instance->m_enableReversePathMapping = enable;
+}
+
+bool SdkManager::listTools(ListToolsOptions options, QList<ToolsInfo> *info)
+{
+    return ToolsPackageManager().listTools(options, info);
+}
+
+bool SdkManager::updateTools(const QString &name, ToolsTypeHint typeHint)
+{
+    return ToolsPackageManager().updateTools(name, typeHint);
+}
+
+bool SdkManager::registerTools(const QString &maybeName, ToolsTypeHint typeHint,
+        const QString &maybeUserName, const QString &maybePassword)
+{
+    return ToolsPackageManager().registerTools(maybeName, typeHint, maybeUserName, maybePassword);
+}
+
+bool SdkManager::addTools(const QString &name, ToolsTypeHint typeHint)
+{
+    return ToolsPackageManager().addTools(name, typeHint);
+}
+
+bool SdkManager::createTools(const QString &name, const QString &imageFileOrUrl,
+        ToolsTypeHint typeHint)
+{
+    return ToolsPackageManager().createTools(name, imageFileOrUrl, typeHint);
+}
+
+bool SdkManager::removeTools(const QString &name, ToolsTypeHint typeHint)
+{
+    return ToolsPackageManager().removeTools(name, typeHint);
 }
 
 Device *SdkManager::configuredDevice(QString *errorMessage)

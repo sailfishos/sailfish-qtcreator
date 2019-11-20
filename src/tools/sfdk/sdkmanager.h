@@ -29,6 +29,8 @@
 #include <QProcessEnvironment>
 #include <QString>
 
+#include "textutils.h"
+
 namespace Mer {
 namespace Internal {
     class MerSettings;
@@ -43,26 +45,79 @@ class Emulator;
 class Sdk;
 class VirtualMachine;
 
+class ToolsInfo
+{
+    Q_GADGET
+
+public:
+    enum Flag {
+        NoFlag = 0x0,
+        Tooling = 0x1,
+        Target = 0x2,
+        Available = 0x4,
+        Installed = 0x8,
+        UserDefined = 0x10,
+        Snapshot = 0x20,
+        Outdated = 0x40,
+        Latest = 0x80,
+        EarlyAccess = 0x100
+    };
+    Q_DECLARE_FLAGS(Flags, Flag)
+    Q_FLAG(Flags)
+
+    QString name;
+    QString parentName;
+    Flags flags = NoFlag;
+};
+
 class SdkManager
 {
+    Q_GADGET
     Q_DECLARE_TR_FUNCTIONS(Sfdk::SdkManager)
 
 public:
+    enum ToolsTypeHint {
+        NoToolsHint,
+        ToolingHint,
+        TargetHint
+    };
+
+    enum ListToolsOption {
+        NoListToolsOption = 0x0,
+        InstalledTools = 0x1,
+        AvailableTools = 0x2,
+        UserDefinedTools = 0x4,
+        SnapshotTools = 0x8,
+        CheckSnapshots = 0x10
+    };
+    Q_DECLARE_FLAGS(ListToolsOptions, ListToolsOption)
+    Q_FLAG(ListToolsOptions)
+
     SdkManager(bool useSystemSettingsOnly);
     ~SdkManager();
 
     static bool isValid();
 
     static QString installationPath();
+    static QString sdkMaintenanceToolPath();
 
     static BuildEngine *engine();
     static bool startEngine();
     static bool stopEngine();
     static bool isEngineRunning();
     static int runOnEngine(const QString &program, const QStringList &arguments,
-            QProcess::InputChannelMode inputChannelMode = QProcess::ManagedInputChannel);
+            QProcess::InputChannelMode inputChannelMode = QProcess::ManagedInputChannel,
+            QTextStream &out = qout(), QTextStream &err = qerr());
 
     static void setEnableReversePathMapping(bool enable);
+
+    static bool listTools(ListToolsOptions options, QList<ToolsInfo> *info);
+    static bool updateTools(const QString &name, ToolsTypeHint typeHint);
+    static bool registerTools(const QString &maybeName, ToolsTypeHint typeHint,
+            const QString &maybeUserName, const QString &maybePassword);
+    static bool addTools(const QString &name, ToolsTypeHint typeHint);
+    static bool createTools(const QString &name, const QString &imageFileOrUrl, ToolsTypeHint typeHint);
+    static bool removeTools(const QString &name, ToolsTypeHint typeHint);
 
     static Device *configuredDevice(QString *errorMessage);
     static Device *deviceByName(const QString &deviceName, QString *errorMessage);
@@ -84,8 +139,13 @@ public:
 
     static void saveSettings();
 
+    static QString stateAvailableMessage() { return tr("available"); }
+    static QString stateInstalledMessage() { return tr("installed"); }
+    static QString stateSdkProvidedMessage() { return tr("sdk-provided"); }
     static QString stateUserDefinedMessage() { return tr("user-defined"); }
     static QString stateAutodetectedMessage() { return tr("autodetected"); }
+    static QString stateLatestMessage() { return tr("latest"); }
+    static QString stateEarlyAccessMessage() { return tr("early-access"); }
 
 private:
     bool hasEngine() const;
