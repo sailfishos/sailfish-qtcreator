@@ -29,6 +29,7 @@
 #include "vmconnection_p.h"
 
 #include <utils/algorithm.h>
+#include <utils/filesystemwatcher.h>
 #include <utils/fileutils.h>
 #include <utils/port.h>
 #include <utils/persistentsettings.h>
@@ -52,6 +53,7 @@ namespace Sfdk {
 namespace {
 const char VM_INFO_CACHE_FILE[] = "vminfo.xml";
 const char VM_INFO_CACHE_DOC_TYPE[] = "SfdkVmInfo";
+const int  VM_INFO_CACHE_UPDATE_DELAY_MS = 2000;
 const char VM_INFO_MAP[] = "VmInfos";
 
 const char VM_INFO_SHARED_HOME[] = "SharedHome";
@@ -71,19 +73,38 @@ const char VM_INFO_CPU_COUNT[] = "CpuCount";
 const char VM_INFO_VDI_CAPACITY_MB[] = "VdiCapacityMb";
 const char VM_INFO_SNAPSHOTS[] = "Snapshots";
 
-class VirtualMachineInfoCache
+} // namespace anonymous
+
+class VirtualMachineInfoCache : public QObject
 {
+    Q_OBJECT
+
 public:
+    VirtualMachineInfoCache(QObject *parent);
+    ~VirtualMachineInfoCache() override;
+
+    static VirtualMachineInfoCache *instance() { return s_instance; }
+
     static Utils::optional<VirtualMachineInfo> info(const QUrl &vmUri);
     static void insert(const QUrl &vmUri, const VirtualMachineInfo &info);
 
+signals:
+    void updated();
+
+protected:
+    void timerEvent(QTimerEvent *event) override;
+
 private:
+    void enableUpdates();
     static Utils::FileName cacheFileName();
     static QString lockFileName(const Utils::FileName &file);
     static QString docType();
-};
 
-} // namespace anonymous
+private:
+    static VirtualMachineInfoCache *s_instance;
+    std::unique_ptr<FileSystemWatcher> m_watcher;
+    QBasicTimer m_updateTimer;
+};
 
 /*!
  * \class VirtualMachine
@@ -106,6 +127,15 @@ VirtualMachine::VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, cons
     connect(d->connection.get(), &VmConnection::virtualMachineOffChanged,
             this, &VirtualMachine::virtualMachineOffChanged);
     connect(d->connection.get(), &VmConnection::lockDownFailed, this, &VirtualMachine::lockDownFailed);
+
+    if (SdkPrivate::isVersionedSettingsEnabled()) {
+        if (SdkPrivate::isUpdatesEnabled()) {
+            d->enableUpdates();
+        } else {
+            connect(SdkPrivate::instance(), &SdkPrivate::enableUpdatesRequested,
+                    this, [=]() { d->enableUpdates(); });
+        }
+    }
 }
 
 VirtualMachine::~VirtualMachine()
@@ -534,6 +564,25 @@ void VirtualMachinePrivate::restoreSnapshot(const QString &snapshotName, const Q
     });
 }
 
+void VirtualMachinePrivate::enableUpdates()
+{
+    Q_Q(VirtualMachine);
+    QTC_ASSERT(SdkPrivate::isVersionedSettingsEnabled(), return);
+
+    QObject::connect(VirtualMachineInfoCache::instance(), &VirtualMachineInfoCache::updated,
+            q, [=]() {
+        // Even if the cached info is not used, the cache serves as a mean to to
+        // notify about changes to those VM properties that are not persisted by
+        // BuildEngine or Emulator classes.
+        qCDebug(vms) << "VM info cache updated. Refreshing configuration of" << q->uri().toString();
+
+        // FIXME Not ideal
+        bool ok;
+        execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::refreshConfiguration), q);
+        QTC_CHECK(ok);
+    });
+}
+
 /*!
  * \class VirtualMachineFactory
  * \internal
@@ -543,6 +592,7 @@ VirtualMachineFactory *VirtualMachineFactory::s_instance = nullptr;
 
 VirtualMachineFactory::VirtualMachineFactory(QObject *parent)
     : QObject(parent)
+    , m_vmInfoCache(std::make_unique<VirtualMachineInfoCache>(this))
 {
     Q_ASSERT(!s_instance);
     s_instance = this;
@@ -652,6 +702,25 @@ QString VirtualMachineFactory::nameFromUri(const QUrl &uri)
  * \internal
  */
 
+VirtualMachineInfoCache *VirtualMachineInfoCache::s_instance = nullptr;
+
+VirtualMachineInfoCache::VirtualMachineInfoCache(QObject *parent)
+    : QObject(parent)
+{
+    Q_ASSERT(!s_instance);
+    s_instance = this;
+
+    if (SdkPrivate::isVersionedSettingsEnabled()) {
+        connect(SdkPrivate::instance(), &SdkPrivate::enableUpdatesRequested,
+                this, &VirtualMachineInfoCache::enableUpdates);
+    }
+}
+
+VirtualMachineInfoCache::~VirtualMachineInfoCache()
+{
+    s_instance = nullptr;
+}
+
 Utils::optional<VirtualMachineInfo> VirtualMachineInfoCache::info(const QUrl &vmUri)
 {
     const FileName fileName = cacheFileName();
@@ -727,6 +796,42 @@ void VirtualMachineInfoCache::insert(const QUrl &vmUri, const VirtualMachineInfo
     QString errorString;
     if (!writer.save(data, &errorString))
         qCWarning(vms) << "Failed to write VM info cache:" << errorString;
+}
+
+void VirtualMachineInfoCache::timerEvent(QTimerEvent *event)
+{
+    if (event->timerId() == m_updateTimer.timerId()) {
+        m_updateTimer.stop();
+        emit updated();
+    } else  {
+        QObject::timerEvent(event);
+    }
+}
+
+void VirtualMachineInfoCache::enableUpdates()
+{
+    QTC_ASSERT(SdkPrivate::isVersionedSettingsEnabled(), return);
+
+    qCDebug(vms) << "Enabling receiving updates to VM info cache";
+
+    const FileName cacheFileName = this->cacheFileName();
+
+    // FileSystemWatcher needs them existing
+    const bool mkpathOk = QDir(cacheFileName.parentDir().toString()).mkpath(".");
+    QTC_CHECK(mkpathOk);
+    if (!cacheFileName.exists()) {
+        const bool createFileOk = QFile(cacheFileName.toString()).open(QIODevice::WriteOnly);
+        QTC_CHECK(createFileOk);
+    }
+
+    m_watcher = std::make_unique<FileSystemWatcher>(this);
+    m_watcher->addFile(cacheFileName.toString(), FileSystemWatcher::WatchModifiedDate);
+    connect(m_watcher.get(), &FileSystemWatcher::fileChanged, this, [this]() {
+        m_updateTimer.start(VM_INFO_CACHE_UPDATE_DELAY_MS, this);
+    });
+
+    // Do not emit updated() initially - there are other triggers for the
+    // initial refresh of VM properties.
 }
 
 Utils::FileName VirtualMachineInfoCache::cacheFileName()
@@ -810,3 +915,5 @@ QVariantMap VirtualMachineInfo::toMap() const
 }
 
 } // namespace Sfdk
+
+#include "virtualmachine.moc"

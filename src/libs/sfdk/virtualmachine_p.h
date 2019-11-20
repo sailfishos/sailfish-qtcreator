@@ -178,6 +178,9 @@ protected:
     VirtualMachine *const q_ptr;
 
 private:
+    void enableUpdates();
+
+private:
     QString type;
     QString displayType;
     QString name;
@@ -193,6 +196,7 @@ private:
 Q_DECLARE_OPERATORS_FOR_FLAGS(VirtualMachineInfo::ExtraInfos)
 Q_DECLARE_OPERATORS_FOR_FLAGS(VirtualMachinePrivate::BasicState);
 
+class VirtualMachineInfoCache;
 class VirtualMachineFactory : public QObject
 {
     class Meta
@@ -249,6 +253,7 @@ public:
 
 private:
     static VirtualMachineFactory *s_instance;
+    std::unique_ptr<VirtualMachineInfoCache> m_vmInfoCache;
     std::vector<Meta> m_metas;
     QMap<QUrl, int> m_used;
 };
