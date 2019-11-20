@@ -23,18 +23,18 @@
 
 #include "remoteprocess.h"
 
-#include <QEventLoop>
-#include <QFile>
-#include <QSocketNotifier>
-#include <QTimer>
+#include "sfdkconstants.h"
+#include "sfdkglobal.h"
+#include "textutils.h"
 
 #include <ssh/sshremoteprocessrunner.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
-#include "sfdkconstants.h"
-#include "sfdkglobal.h"
-#include "textutils.h"
+#include <QEventLoop>
+#include <QFile>
+#include <QSocketNotifier>
+#include <QTimer>
 
 namespace {
 const int KILL_RETRY_MS = 400;

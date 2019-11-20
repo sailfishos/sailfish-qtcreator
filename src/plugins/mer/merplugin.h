@@ -56,6 +56,8 @@ public:
     static MerBuildEngineOptionsPage *buildEngineOptionsPage();
     static MerEmulatorOptionsPage *emulatorOptionsPage();
 
+    static void workaround_ensureVirtualMachinesAreInitialized();
+
 private slots:
     void handlePromptClosed(int result);
     void handleConnectionStateChanged();

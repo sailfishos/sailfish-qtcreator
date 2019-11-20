@@ -23,15 +23,15 @@
 
 #pragma once
 
-#include <memory>
+#include "task.h"
+
+#include <ssh/sshconnection.h>
 
 #include <QByteArray>
 #include <QObject>
 #include <QProcessEnvironment>
 
-#include <ssh/sshconnection.h>
-
-#include "task.h"
+#include <memory>
 
 QT_BEGIN_NAMESPACE
 class QFile;

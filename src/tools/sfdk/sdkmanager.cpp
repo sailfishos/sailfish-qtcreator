@@ -23,12 +23,11 @@
 
 #include "sdkmanager.h"
 
-#include <bitset>
-
-#include <QDir>
-#include <QPointer>
-#include <QRegularExpression>
-#include <QTimer>
+#include "configuration.h"
+#include "dispatch.h"
+#include "remoteprocess.h"
+#include "sfdkconstants.h"
+#include "sfdkglobal.h"
 
 #include <sfdk/buildengine.h>
 #include <sfdk/device.h>
@@ -42,11 +41,12 @@
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
-#include "configuration.h"
-#include "dispatch.h"
-#include "remoteprocess.h"
-#include "sfdkconstants.h"
-#include "sfdkglobal.h"
+#include <QDir>
+#include <QPointer>
+#include <QRegularExpression>
+#include <QTimer>
+
+#include <bitset>
 
 namespace {
 const int CONNECT_TIMEOUT_MS = 60000;

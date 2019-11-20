@@ -23,14 +23,13 @@
 
 #include "command.h"
 
-#include <QCommandLineParser>
-#include <QDebug>
-
-#include <ssh/sshremoteprocessrunner.h>
-#include <utils/algorithm.h>
-#include <utils/fileutils.h>
-#include <utils/qtcassert.h>
-#include <utils/qtcprocess.h>
+#include "commandlineparser.h"
+#include "configuration.h"
+#include "dispatch.h"
+#include "sfdkconstants.h"
+#include "sfdkglobal.h"
+#include "task.h"
+#include "textutils.h"
 
 #include <sfdk/buildengine.h>
 #include <sfdk/device.h>
@@ -39,13 +38,14 @@
 #include <sfdk/sfdkconstants.h>
 #include <sfdk/virtualmachine.h>
 
-#include "commandlineparser.h"
-#include "configuration.h"
-#include "dispatch.h"
-#include "sfdkconstants.h"
-#include "sfdkglobal.h"
-#include "task.h"
-#include "textutils.h"
+#include <ssh/sshremoteprocessrunner.h>
+#include <utils/algorithm.h>
+#include <utils/fileutils.h>
+#include <utils/qtcassert.h>
+#include <utils/qtcprocess.h>
+
+#include <QCommandLineParser>
+#include <QDebug>
 
 using namespace Sfdk;
 using namespace Utils;

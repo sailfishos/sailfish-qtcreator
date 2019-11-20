@@ -22,23 +22,23 @@
 
 #include "task.h"
 
-#ifdef Q_OS_WIN
-# include <windows.h>
-#else
-# include <signal.h>
-# include <sys/socket.h>
-# include <unistd.h>
-# include <QSocketNotifier>
-#endif
-
-#include <QCoreApplication>
-#include <QScopedValueRollback>
+#include "sfdkglobal.h"
+#include "textutils.h"
 
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
-#include "sfdkglobal.h"
-#include "textutils.h"
+#include <QCoreApplication>
+#include <QScopedValueRollback>
+
+#ifdef Q_OS_WIN
+# include <windows.h>
+#else
+# include <QSocketNotifier>
+# include <signal.h>
+# include <sys/socket.h>
+# include <unistd.h>
+#endif
 
 using namespace Sfdk;
 

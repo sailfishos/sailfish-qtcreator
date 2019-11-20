@@ -23,14 +23,14 @@
 
 #pragma once
 
-#include <memory>
+#include <utils/optional.h>
 
 #include <QCoreApplication>
 #include <QList>
 #include <QString>
 #include <QStringList>
 
-#include <utils/optional.h>
+#include <memory>
 
 namespace Sfdk {
 

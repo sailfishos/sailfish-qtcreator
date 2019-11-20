@@ -22,13 +22,13 @@
 
 #pragma once
 
-#include <memory>
+#include "sdkmanager.h"
 
 #include <QCoreApplication>
 #include <QList>
 #include <QString>
 
-#include "sdkmanager.h"
+#include <memory>
 
 QT_BEGIN_NAMESPACE
 class QCommandLineParser;

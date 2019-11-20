@@ -22,10 +22,10 @@
 
 #pragma once
 
-#include <memory>
-
 #include <QObject>
 #include <QSet>
+
+#include <memory>
 
 namespace Sfdk {
 
