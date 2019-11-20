@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2014,2016,2018-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -274,11 +275,13 @@ void MerSettings::read()
     settings->endGroup();
 
     if (qEnvironmentVariableIsSet(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED)) {
+#ifdef MER_LIBRARY // Log::mer would be the missing symbol here
         qCWarning(Log::mer) << "The environment variable"
             << QLatin1String(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED)
             << "is deprecated. Use"
             << QLatin1String(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER)
             << "instead";
+#endif
         qputenv(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER,
                 qgetenv(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED));
         qunsetenv(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED);
