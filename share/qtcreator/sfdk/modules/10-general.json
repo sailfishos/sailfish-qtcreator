@@ -14,13 +14,19 @@
         {
             "name": "config",
             "trSynopsis": "[--show]\n[--<scope>] --push <name> [<value>]\n[--<scope>] --push-mask <name>\n[--<scope>] --drop <name>\n[--<scope>] <name>[=[<value>]]",
-            "trBrief": "Manage (persistent) configuration",
-            "trDescription": "Configuration is stack based. Options that occur higher on the stack may override earlier options, including those implied by the earlier options. (Note the analogy with command line - later options can override the earlier ones.) Pushing an option again moves it to the top of the stack.\n\nThree configuration <scope>s are managed separately: 'global' (outermost), 'session' and 'command'. Changes at the 'session' scope remain active for the rest of the current shell session. The 'command' scope is not persistent and can be modified only using the global '-c' option. Options pushed at an inner scope mask the same options pushed at an outer scope, which has the same effect as dropping the options pushed at the outer scope. Options can be masked without pushing them at the inner scope by using '--push-mask' instead of '--push'.\n\nThe default is to operate at the 'session' scope.\n\nThe shorthand syntax '<name>[=[<value>]]' can be used similarly to how the global '-c' option is used:\n\n    | Shorthand syntax | Equivalent to         |\n    |------------------+-----------------------|\n    | <name>=<value>   | --push <name> <value> |\n    | <name>           | --push <name>         |\n    | <name>=          | --push-mask <name>    |"
+            "trBrief": "Configure sfdk",
+            "trDescription": "Configure sfdk.\n\nConfiguration is stack based. Options that occur higher on the stack may override earlier options, including those implied by the earlier options. (Note the analogy with command line - later options can override the earlier ones.) Pushing an option again moves it to the top of the stack.\n\nThree configuration <scope>s are managed separately: 'global' (outermost), 'session' and 'command'. Changes at the 'session' scope remain active for the rest of the current shell session. The 'command' scope is not persistent and can be modified only using the global '-c' option. Options pushed at an inner scope mask the same options pushed at an outer scope, which has the same effect as dropping the options pushed at the outer scope. Options can be masked without pushing them at the inner scope by using '--push-mask' instead of '--push'.\n\nThe default is to operate at the 'session' scope.\n\nThe shorthand syntax '<name>[=[<value>]]' can be used similarly to how the global '-c' option is used:\n\n    | Shorthand syntax | Equivalent to         |\n    |------------------+-----------------------|\n    | <name>=<value>   | --push <name> <value> |\n    | <name>           | --push <name>         |\n    | <name>=          | --push-mask <name>    |"
+        },
+        {
+            "name": "misc",
+            "trSynopsis": "set <property>=<value>...\nshow\nstop-vms",
+            "trBrief": "Maintain and control miscellaneous SDK properties",
+            "trDescription": "Miscellaneous SDK maintenance and control commands that do not fit elsewhere.\n\nThe 'set' and 'show' commands can be used to set and query global SDK properties. Known global properties are described further below.\n\nThe 'stop-vms' command can be used to ensure that none of the virtual machines provided by the SDK is running.\n\nGlobal SDK properties:\n\nproxy {direct|auto|manual}\n    Network proxy configuration to be used throughout the SDK.\n\n    Attention: Currently this option is only effective for the build engine.\n\n    Setting this option to 'direct' enables direct access to the network.\n\n    Using the 'auto' keyword enables automatic discovery of network proxy configuration. In this case it is optional to provide proxy autoconfiguration URL via the 'proxy.servers' option. The 'proxy.excludes' option is ignored in this case.\n\n    When the 'manual' keyword is used, one or more 'proxy.servers' must be specified (example: \"proxy1.example.com 1.2.3.4:8080\") and optionally 'proxy.excludes' may be specified (example: \"internal.example.com 10.0.0.0/8\").\n\nproxy.servers [<url>...]\n    See 'proxy'.\n\nproxy.excludes [<url>...]\n    See 'proxy'."
         },
         {
             "name": "maintain",
-            "trBrief": "Launch the SDK Maintenance tool",
-            "trDescription": "Launch the SDK Maintenance tool"
+            "trBrief": "Launch the interactive SDK Maintenance tool",
+            "trDescription": "Launch the interactive SDK Maintenance tool"
         }
     ],
 
