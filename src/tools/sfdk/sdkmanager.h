@@ -120,6 +120,8 @@ public:
     static QString installationPath();
     static QString sdkMaintenanceToolPath();
 
+    static bool hasEngine();
+    static QString noEngineFoundMessage();
     static BuildEngine *engine();
     static bool startEngine();
     static bool stopEngine();
@@ -170,7 +172,6 @@ public:
     static QString stateEarlyAccessMessage() { return tr("early-access"); }
 
 private:
-    bool hasEngine() const;
     QString cleanSharedHome() const;
     QString cleanSharedSrc() const;
     bool mapEnginePaths(QString *program, QStringList *arguments, QString *workingDirectory,

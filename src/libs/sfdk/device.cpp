@@ -571,7 +571,9 @@ void DeviceManager::updateDevicesXml() const
             xmlData.m_name = device->name();
             xmlData.m_type = TYPE_REAL;
             xmlData.m_sshPort.setNum(device->sshParameters().port());
-            const FileName sharedConfigPath = Sdk::buildEngines().first()->sharedConfigPath();
+            const FileName sharedConfigPath = !Sdk::buildEngines().isEmpty()
+                ? Sdk::buildEngines().first()->sharedConfigPath()
+                : FileName();
             if (!sharedConfigPath.isEmpty()) {
                 xmlData.m_sshKeyPath =
                     FileName::fromString(device->sshParameters().privateKeyFile).parentDir()
@@ -587,7 +589,9 @@ void DeviceManager::updateDevicesXml() const
             xmlData.m_name = device->name();
             xmlData.m_mac = mac;
             xmlData.m_type = TYPE_VBOX;
-            const FileName sharedConfigPath = Sdk::buildEngines().first()->sharedConfigPath();
+            const FileName sharedConfigPath = !Sdk::buildEngines().isEmpty()
+                ? Sdk::buildEngines().first()->sharedConfigPath()
+                : FileName();
             if (!sharedConfigPath.isEmpty()) {
                 xmlData.m_sshKeyPath =
                     FileName::fromString(device->sshParameters().privateKeyFile).parentDir()

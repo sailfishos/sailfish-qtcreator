@@ -615,7 +615,11 @@ std::unique_ptr<VirtualMachine> VirtualMachineFactory::create(const QUrl &uri)
             s_instance->m_used.remove(uri);
     });
 
+#ifdef Q_OS_MACOS
     return std::move(vm);
+#else
+    return vm;
+#endif
 }
 
 QUrl VirtualMachineFactory::makeUri(const QString &type, const QString &name)
