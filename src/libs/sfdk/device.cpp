@@ -388,6 +388,11 @@ Device *DeviceManager::device(const QString &id)
     return Utils::findOrDefault(s_instance->m_devices, Utils::equal(&Device::id, id));
 }
 
+Device *DeviceManager::device(const Emulator &emulator)
+{
+    return device(emulator.uri().toString());
+}
+
 int DeviceManager::addDevice(std::unique_ptr<Device> &&device)
 {
     QTC_ASSERT(device, return -1);

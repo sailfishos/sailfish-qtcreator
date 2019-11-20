@@ -39,7 +39,9 @@ namespace Sfdk {
 
 class BuildEngine;
 class Device;
+class Emulator;
 class Sdk;
+class VirtualMachine;
 
 class SdkManager
 {
@@ -64,6 +66,19 @@ public:
     static Device *deviceByName(const QString &deviceName, QString *errorMessage);
     static int runOnDevice(const Device &device, const QString &program,
         const QStringList &arguments, QProcess::InputChannelMode inputChannelMode);
+
+    static QList<Emulator *> sortedEmulators();
+    static Emulator *emulatorByName(const QString &emulatorName, QString *errorMessage);
+    static bool startEmulator(const Emulator &emulator);
+    static bool stopEmulator(const Emulator &emulator);
+    static bool isEmulatorRunning(const Emulator &emulator);
+    static int runOnEmulator(const Emulator &emulator, const QString &program,
+            const QStringList &arguments,
+            QProcess::InputChannelMode inputChannelMode = QProcess::ManagedInputChannel);
+
+    static bool startReliably(VirtualMachine *virtualMachine);
+    static bool stopReliably(VirtualMachine *virtualMachine);
+    static bool isRunningReliably(VirtualMachine *virtualMachine);
 
     static void saveSettings();
 

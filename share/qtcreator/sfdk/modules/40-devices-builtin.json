@@ -3,7 +3,7 @@
     "domain": "devices",
     "trBrief": "Working with devices",
 
-    "trDescription": "WORKING WITH DEVICES\n\nAvailable devices can be listed with the 'device list' command. Additional devices may be defined using Sailfish IDE (Qt Creator). Packages can be deployed to a device with the 'deploy' command. The device to deploy to is determined by the 'device' configuration option.",
+    "trDescription": "WORKING WITH DEVICES\n\nAvailable devices can be listed with the 'device list' command. Additional devices may be defined using Sailfish IDE (Qt Creator). Devices corresponding to available Sailfish OS emulators are added automatically. Emulators can be managed and controlled using the 'emulator' command. Packages can be deployed to a device with the 'deploy' command. The device to deploy to is determined by the 'device' configuration option.",
 
     "worker":
     {
@@ -18,6 +18,12 @@
             "trSynopsis": "list\nexec [<name-or-idx>] [--] [<command> [<arg>...]]",
             "trBrief": "Maintain and control registered devices",
             "trDescription": "Registered devices can be listed with the 'list' command.\n\nThe 'exec' command allows executing an arbitrary <command> on the device specified with name or index as reported by the 'list' command. If no <name-or-idx> is passed, the device selected with the 'device' configuration option will be used. If no <command> is specified, an interactive shell is executed."
+        },
+        {
+            "name": "emulator",
+            "trSynopsis": "list\n{start|stop|status} [<name-or-idx>]\nexec [<name-or-idx>] [--] [<command> [<arg>...]]",
+            "trBrief": "Maintain and control emulators",
+            "trDescription": "Available emulators can be listed with the 'list' command. The other commands accept emulator name or index as reported by the 'list' command. If no <name-or-idx> is passed, the emulator on index '0' will be used.\n\nThe 'start' and 'stop' commands allow to control the emulator virtual machine conveniently. Starting an emulator explicitly is usually not required - commands that need the emulator running will ensure it is running. The 'status' command prints status information.\n\nThe 'exec' command allows executing an arbitrary <command> inside the emulator. If no <command> is specified, an interactive shell is executed."
         }
     ],
 

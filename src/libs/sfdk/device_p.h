@@ -125,6 +125,7 @@ public:
 
     static QList<Device *> devices();
     static Device *device(const QString &id);
+    static Device *device(const Emulator &emulator);
     static int addDevice(std::unique_ptr<Device> &&device);
     static void removeDevice(const QString &id);
 

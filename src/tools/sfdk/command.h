@@ -45,6 +45,7 @@ namespace Sfdk {
 
 class Device;
 class Domain;
+class Emulator;
 class Module;
 
 class Command
@@ -100,12 +101,18 @@ public:
 private:
     ExitStatus runConfig(const QStringList &arguments0) const;
     ExitStatus runDevice(const QStringList &arguments, int *exitCode) const;
+    ExitStatus runEmulator(const QStringList &arguments, int *exitCode) const;
     ExitStatus runEngine(const QStringList &arguments, int *exitCode) const;
     ExitStatus runMaintain(const QStringList &arguments, int *exitCode) const;
 
     static void listDevices();
     static Device *deviceForNameOrIndex(const QString &deviceNameOrIndex,
             QString *errorString);
+    static void listEmulators();
+    static Emulator *emulatorForNameOrIndex(const QString &emulatorNameOrIndex,
+            QString *errorString);
+
+    static QString runningYesNoMessage(bool running);
 };
 
 class EngineWorker : public Worker
