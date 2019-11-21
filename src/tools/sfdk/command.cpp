@@ -302,6 +302,8 @@ private:
 
 class SdkPropertiesAccessor : public PropertiesAccessor
 {
+    Q_DECLARE_TR_FUNCTIONS(Sfdk::SdkPropertiesAccessor)
+
 public:
     SdkPropertiesAccessor()
     {
