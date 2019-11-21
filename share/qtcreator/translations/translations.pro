@@ -79,6 +79,8 @@ shared_sources -= \
     src/shared/shared.pro
 sources = src/app src/libs $$plugin_sources $$shared_sources share/qtcreator/qmldesigner
 sources += src/tools/sfdk
+# Find translations under .mjs files. JSON files are handled by sfdk_modules_tr.pro
+sources += share/qtcreator/sfdk/modules
 
 for(path, INCLUDEPATH): include_options *= -I$$shell_quote($$path)
 
