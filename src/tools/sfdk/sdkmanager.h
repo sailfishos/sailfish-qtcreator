@@ -136,7 +136,7 @@ public:
     static bool updateTools(const QString &name, ToolsTypeHint typeHint);
     static bool registerTools(const QString &maybeName, ToolsTypeHint typeHint,
             const QString &maybeUserName, const QString &maybePassword);
-    static bool addTools(const QString &name, ToolsTypeHint typeHint);
+    static bool installTools(const QString &name, ToolsTypeHint typeHint);
     static bool createTools(const QString &name, const QString &imageFileOrUrl, ToolsTypeHint typeHint);
     static bool removeTools(const QString &name, ToolsTypeHint typeHint);
 
@@ -154,7 +154,7 @@ public:
             const QStringList &arguments,
             QProcess::InputChannelMode inputChannelMode = QProcess::ManagedInputChannel);
     static bool listAvailableEmulators(QList<AvailableEmulatorInfo> *info);
-    static bool addEmulator(const QString &name);
+    static bool installEmulator(const QString &name);
     static bool removeEmulator(const QString &name);
 
     static bool startReliably(VirtualMachine *virtualMachine);

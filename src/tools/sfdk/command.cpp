@@ -754,7 +754,7 @@ Worker::ExitStatus BuiltinWorker::runEmulator(const QStringList &arguments, int 
 
         const QString name = arguments.at(1);
 
-        *exitCode = SdkManager::addEmulator(name) ? EXIT_SUCCESS : EXIT_FAILURE;
+        *exitCode = SdkManager::installEmulator(name) ? EXIT_SUCCESS : EXIT_FAILURE;
         return NormalExit;
     }
 
@@ -1153,7 +1153,7 @@ Worker::ExitStatus BuiltinWorker::runTools(const QStringList &arguments_, int *e
 
         const QString name = arguments.at(1);
 
-        *exitCode = SdkManager::addTools(name, typeHint) ? EXIT_SUCCESS : EXIT_FAILURE;
+        *exitCode = SdkManager::installTools(name, typeHint) ? EXIT_SUCCESS : EXIT_FAILURE;
         return NormalExit;
     }
 
