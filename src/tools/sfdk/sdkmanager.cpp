@@ -481,7 +481,7 @@ public:
         return PackageManager().installPackage(package);
     }
 
-    bool createTools(const QString &name, const QString &imageFileOrUrl,
+    bool installCustomTools(const QString &name, const QString &imageFileOrUrl,
             SdkManager::ToolsTypeHint typeHint)
     {
         QStringList args;
@@ -1066,11 +1066,11 @@ bool SdkManager::installTools(const QString &name, ToolsTypeHint typeHint)
     return ToolsPackageManager().installTools(name, typeHint);
 }
 
-bool SdkManager::createTools(const QString &name, const QString &imageFileOrUrl,
+bool SdkManager::installCustomTools(const QString &name, const QString &imageFileOrUrl,
         ToolsTypeHint typeHint)
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    return ToolsPackageManager().createTools(name, imageFileOrUrl, typeHint);
+    return ToolsPackageManager().installCustomTools(name, imageFileOrUrl, typeHint);
 }
 
 bool SdkManager::removeTools(const QString &name, ToolsTypeHint typeHint)

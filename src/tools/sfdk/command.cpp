@@ -1158,13 +1158,18 @@ Worker::ExitStatus BuiltinWorker::runTools(const QStringList &arguments_, int *e
     }
 
     if (arguments.first() == "create") {
+        arguments.replace(0, "install-custom");
+        qerr() << P::commandDeprecatedMessage("create", "install-custom") << endl;
+    }
+
+    if (arguments.first() == "install-custom") {
         if (!P::checkPositionalArgumentsCount(arguments, 3, 3))
             return BadUsage;
 
         const QString name = arguments.at(1);
         const QString imageFileOrUrl = arguments.at(2);
 
-        *exitCode = SdkManager::createTools(name, imageFileOrUrl, typeHint)
+        *exitCode = SdkManager::installCustomTools(name, imageFileOrUrl, typeHint)
             ? EXIT_SUCCESS
             : EXIT_FAILURE;
         return NormalExit;
