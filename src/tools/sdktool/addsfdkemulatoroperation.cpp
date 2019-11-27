@@ -39,6 +39,7 @@
 #include "../../libs/sfdk/sfdkconstants.h"
 
 #include <QDateTime>
+#include <QDir>
 
 #include <iostream>
 
@@ -109,7 +110,7 @@ bool AddSfdkEmulatorOperation::setArguments(const QStringList &args)
             if (next.isNull())
                 return false;
             ++i; // skip next;
-            m_installDir = next;
+            m_installDir = QDir::fromNativeSeparators(next);
             continue;
         }
 
@@ -141,7 +142,7 @@ bool AddSfdkEmulatorOperation::setArguments(const QStringList &args)
             if (next.isNull())
                 return false;
             ++i; // skip next;
-            m_sharedSshPath = next;
+            m_sharedSshPath = QDir::fromNativeSeparators(next);
             continue;
         }
 
@@ -149,7 +150,7 @@ bool AddSfdkEmulatorOperation::setArguments(const QStringList &args)
             if (next.isNull())
                 return false;
             ++i; // skip next;
-            m_sharedConfigPath = next;
+            m_sharedConfigPath = QDir::fromNativeSeparators(next);
             continue;
         }
 
@@ -173,7 +174,7 @@ bool AddSfdkEmulatorOperation::setArguments(const QStringList &args)
             if (next.isNull())
                 return false;
             ++i; // skip next;
-            m_privateKeyFile = next;
+            m_privateKeyFile = QDir::fromNativeSeparators(next);
             continue;
         }
 

@@ -39,6 +39,7 @@
 #include "../../libs/sfdk/sfdkconstants.h"
 
 #include <QDateTime>
+#include <QDir>
 
 #include <iostream>
 
@@ -105,7 +106,7 @@ bool AddSfdkBuildEngineOperation::setArguments(const QStringList &args)
             if (next.isNull())
                 return false;
             ++i; // skip next;
-            m_installDir = next;
+            m_installDir = QDir::fromNativeSeparators(next);
             continue;
         }
 
@@ -129,7 +130,7 @@ bool AddSfdkBuildEngineOperation::setArguments(const QStringList &args)
             if (next.isNull())
                 return false;
             ++i; // skip next;
-            m_sharedHomePath = next;
+            m_sharedHomePath = QDir::fromNativeSeparators(next);
             continue;
         }
 
@@ -138,7 +139,7 @@ bool AddSfdkBuildEngineOperation::setArguments(const QStringList &args)
             if (next.isNull())
                 return false;
             ++i; // skip next;
-            m_sharedTargetsPath = next;
+            m_sharedTargetsPath = QDir::fromNativeSeparators(next);
             continue;
         }
 
@@ -146,7 +147,7 @@ bool AddSfdkBuildEngineOperation::setArguments(const QStringList &args)
             if (next.isNull())
                 return false;
             ++i; // skip next;
-            m_sharedSshPath = next;
+            m_sharedSshPath = QDir::fromNativeSeparators(next);
             continue;
         }
 
@@ -154,7 +155,7 @@ bool AddSfdkBuildEngineOperation::setArguments(const QStringList &args)
             if (next.isNull())
                 return false;
             ++i; // skip next;
-            m_sharedSrcPath = next;
+            m_sharedSrcPath = QDir::fromNativeSeparators(next);
             continue;
         }
 
@@ -162,7 +163,7 @@ bool AddSfdkBuildEngineOperation::setArguments(const QStringList &args)
             if (next.isNull())
                 return false;
             ++i; // skip next;
-            m_sharedConfigPath = next;
+            m_sharedConfigPath = QDir::fromNativeSeparators(next);
             continue;
         }
 
@@ -186,7 +187,7 @@ bool AddSfdkBuildEngineOperation::setArguments(const QStringList &args)
             if (next.isNull())
                 return false;
             ++i; // skip next;
-            m_privateKeyFile = next;
+            m_privateKeyFile = QDir::fromNativeSeparators(next);
             continue;
         }
 
