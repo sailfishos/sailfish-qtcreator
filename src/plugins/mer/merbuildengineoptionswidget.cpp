@@ -427,7 +427,9 @@ void MerBuildEngineOptionsWidget::onAuthorizeSshKey(const QString &file)
             QMessageBox::critical(this, tr("Cannot Authorize Keys"), error);
         else
             QMessageBox::information(this, tr("Key Authorized "),
-                    tr("Key %1 added to \n %2").arg(pubKeyPath).arg(path));
+                    tr("Key %1 added to \n %2")
+                    .arg(QDir::toNativeSeparators(pubKeyPath))
+                    .arg(QDir::toNativeSeparators(path)));
     }
 }
 
@@ -450,7 +452,8 @@ void MerBuildEngineOptionsWidget::onGenerateSshKey(const QString &privKeyPath)
        QMessageBox::critical(this, tr("Could not generate key."), error);
     } else {
        QMessageBox::information(this, tr("Key generated"),
-               tr("Key pair generated \n %1 \n You should authorize key now.").arg(privKeyPath));
+               tr("Key pair generated \n %1 \n You should authorize key now.")
+               .arg(QDir::toNativeSeparators(privKeyPath)));
        m_ui->buildEngineDetailsWidget->setPrivateKeyFile(privKeyPath);
     }
 }
@@ -522,11 +525,12 @@ void MerBuildEngineOptionsWidget::onSrcFolderApplyButtonClicked(const QString &n
 {
     BuildEngine *const buildEngine = m_buildEngines[m_virtualMachine];
 
-    if (newFolder == buildEngine->sharedSrcPath().toString()) {
+    if ((newFolder == buildEngine->sharedSrcPath().toString())
+        || (newFolder + QLatin1Char('/') == buildEngine->sharedSrcPath().toString())) {
         QMessageBox::information(this, tr("Choose a new folder"),
                                  tr("The given folder (%1) is the current alternative source folder. "
                                     "Please choose another folder if you want to change it.")
-                                 .arg(buildEngine->sharedSrcPath().toString()));
+                                 .arg(QDir::toNativeSeparators(buildEngine->sharedSrcPath().toString())));
         return;
     }
 
@@ -566,7 +570,7 @@ void MerBuildEngineOptionsWidget::onSrcFolderApplyButtonClicked(const QString &n
             QMessageBox::question(this, tr("Success!"),
                                   tr("Alternative source folder for %1 changed to %2.\n\n"
                                      "Do you want to start %1 now?")
-                                  .arg(buildEngine->name()).arg(newFolder),
+                                  .arg(buildEngine->name()).arg(QDir::toNativeSeparators(newFolder)),
                                   QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
         if (response == QMessageBox::Yes)
             buildEngine->virtualMachine()->connectTo();
@@ -574,7 +578,7 @@ void MerBuildEngineOptionsWidget::onSrcFolderApplyButtonClicked(const QString &n
     else {
         QMessageBox::warning(this, tr("Changing the source folder failed!"),
                              tr("Unable to change the alternative source folder to %1")
-                             .arg(newFolder));
+                             .arg(QDir::toNativeSeparators(newFolder)));
         // reset the path in the chooser
         m_ui->buildEngineDetailsWidget->setSrcFolderChooserPath(
                 buildEngine->sharedSrcPath().toString());
