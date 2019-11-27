@@ -46,7 +46,7 @@ class VirtualMachineInfo
 public:
     enum ExtraInfo {
         NoExtraInfo = 0x00,
-        VdiInfo = 0x01,
+        StorageInfo = 0x01,
         SnapshotInfo = 0x02,
     };
     Q_DECLARE_FLAGS(ExtraInfos, ExtraInfo)
@@ -69,8 +69,8 @@ public:
     int memorySizeMb{0};
     int cpuCount{0};
 
-    // VdiInfo
-    int vdiCapacityMb{0};
+    // StorageInfo
+    int storageSizeMb{0};
 
     // SnapshotInfo
     QStringList snapshots;
@@ -152,7 +152,7 @@ protected:
             const Functor<bool> &functor) = 0;
     virtual void doSetCpuCount(int cpuCount, const QObject *context,
             const Functor<bool> &functor) = 0;
-    virtual void doSetVdiCapacityMb(int vdiCapacityMb, const QObject *context,
+    virtual void doSetStorageSizeMb(int storageSizeMb, const QObject *context,
             const Functor<bool> &functor) = 0;
 
     virtual void doSetSharedPath(SharedPath which, const Utils::FileName &path,
@@ -178,6 +178,9 @@ protected:
     VirtualMachine *const q_ptr;
 
 private:
+    void enableUpdates();
+
+private:
     QString type;
     QString displayType;
     QString name;
@@ -193,6 +196,7 @@ private:
 Q_DECLARE_OPERATORS_FOR_FLAGS(VirtualMachineInfo::ExtraInfos)
 Q_DECLARE_OPERATORS_FOR_FLAGS(VirtualMachinePrivate::BasicState);
 
+class VirtualMachineInfoCache;
 class VirtualMachineFactory : public QObject
 {
     class Meta
@@ -249,6 +253,7 @@ public:
 
 private:
     static VirtualMachineFactory *s_instance;
+    std::unique_ptr<VirtualMachineInfoCache> m_vmInfoCache;
     std::vector<Meta> m_metas;
     QMap<QUrl, int> m_used;
 };

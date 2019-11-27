@@ -90,7 +90,7 @@ private:
     QMap<Sfdk::Emulator *, quint16> m_sshPort;
     QMap<Sfdk::Emulator *, Utils::PortList> m_qmlLivePorts;
     QMap<Sfdk::Emulator *, Utils::PortList> m_freePorts;
-    QMap<Sfdk::Emulator *, int> m_vdiCapacityMb;
+    QMap<Sfdk::Emulator *, int> m_storageSizeMb;
     QMap<Sfdk::Emulator *, int> m_memorySizeMb;
     QMap<Sfdk::Emulator *, int> m_cpuCount;
 };

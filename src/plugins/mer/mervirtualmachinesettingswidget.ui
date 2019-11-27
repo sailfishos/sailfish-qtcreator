@@ -71,12 +71,12 @@
     </widget>
    </item>
    <item row="2" column="0">
-    <widget class="QLabel" name="vdiCapacityLabel">
+    <widget class="QLabel" name="storageSizeLabel">
      <property name="text">
-      <string>VDI capacity:</string>
+      <string>Storage size:</string>
      </property>
      <property name="buddy">
-      <cstring>vdiCapacityGbSpinBox</cstring>
+      <cstring>storageSizeGbSpinBox</cstring>
      </property>
     </widget>
    </item>
@@ -104,7 +104,7 @@
    <item row="2" column="1">
     <layout class="QHBoxLayout" name="horizontalLayout_3">
      <item>
-      <widget class="QDoubleSpinBox" name="vdiCapacityGbSpinBox">
+      <widget class="QDoubleSpinBox" name="storageSizeGbSpinBox">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
          <horstretch>0</horstretch>
@@ -120,7 +120,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QLabel" name="vdiCapacityInfoLabel">
+      <widget class="QLabel" name="storageSizeInfoLabel">
        <property name="text">
         <string/>
        </property>

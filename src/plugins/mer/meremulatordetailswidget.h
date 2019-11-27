@@ -62,7 +62,7 @@ public:
     void setFreePorts(const Utils::PortList &ports);
     void setMemorySizeMb(int sizeMb);
     void setCpuCount(int count);
-    void setVdiCapacityMb(int capacityMb);
+    void setStorageSizeMb(int capacityMb);
 
 signals:
     void factorySnapshotChanged(const QString &snapshotName);
@@ -73,7 +73,7 @@ signals:
     void freePortsChanged(const Utils::PortList &ports);
     void memorySizeMbChanged(int sizeMb);
     void cpuCountChanged(int count);
-    void vdiCapacityMbChnaged(int value);
+    void storageSizeMbChnaged(int value);
 
 private:
     void selectFactorySnapshot();

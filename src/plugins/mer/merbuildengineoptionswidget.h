@@ -87,7 +87,7 @@ private slots:
     void onWwwProxyChanged(const QString &type, const QString &servers, const QString &excludes);
     void onMemorySizeMbChanged(int sizeMb);
     void onCpuCountChanged(int count);
-    void onVdiCapacityMbChnaged(int sizeMb);
+    void onStorageSizeMbChnaged(int sizeMb);
     void onVmOffChanged(bool vmOff);
     void update();
 
@@ -106,7 +106,7 @@ private:
     QMap<Sfdk::BuildEngine *, QString> m_wwwProxy;
     QMap<Sfdk::BuildEngine *, QString> m_wwwProxyServers;
     QMap<Sfdk::BuildEngine *, QString> m_wwwProxyExcludes;
-    QMap<Sfdk::BuildEngine *, int> m_vdiCapacityMb;
+    QMap<Sfdk::BuildEngine *, int> m_storageSizeMb;
     QMap<Sfdk::BuildEngine *, int> m_memorySizeMb;
     QMap<Sfdk::BuildEngine *, int> m_cpuCount;
 };

@@ -68,7 +68,7 @@ public:
     void setWwwProxy(const QString &type, const QString &servers, const QString &excludes);
     void setMemorySizeMb(int sizeMb);
     void setCpuCount(int count);
-    void setVdiCapacityMb(int capacityMb);
+    void setStorageSizeMb(int capacityMb);
 
 signals:
     void generateSshKey(const QString &key);
@@ -83,7 +83,7 @@ signals:
     void wwwProxyChanged(const QString &type, const QString &servers, const QString &excludes);
     void memorySizeMbChanged(int sizeMb);
     void cpuCountChanged(int count);
-    void vdiCapacityMbChnaged(int value);
+    void storageSizeMbChnaged(int value);
 
 private slots:
     void onAuthorizeSshKeyButtonClicked();

@@ -88,8 +88,8 @@ MerBuildEngineDetailsWidget::MerBuildEngineDetailsWidget(QWidget *parent)
             this, &MerBuildEngineDetailsWidget::memorySizeMbChanged);
     connect(m_ui->virtualMachineSettingsWidget, &MerVirtualMachineSettingsWidget::cpuCountChanged,
             this, &MerBuildEngineDetailsWidget::cpuCountChanged);
-    connect(m_ui->virtualMachineSettingsWidget, &MerVirtualMachineSettingsWidget::vdiCapacityMbChnaged,
-            this, &MerBuildEngineDetailsWidget::vdiCapacityMbChnaged);
+    connect(m_ui->virtualMachineSettingsWidget, &MerVirtualMachineSettingsWidget::storageSizeMbChnaged,
+            this, &MerBuildEngineDetailsWidget::storageSizeMbChnaged);
     connect(m_ui->wwwProxyDisabledButton, &QRadioButton::toggled,
             this, &MerBuildEngineDetailsWidget::onWwwProxyDisabledToggled);
     connect(m_ui->wwwProxyAutomaticButton, &QRadioButton::toggled,
@@ -154,7 +154,7 @@ void MerBuildEngineDetailsWidget::setBuildEngine(const Sfdk::BuildEngine *buildE
 
     m_ui->virtualMachineSettingsWidget->setMemorySizeMb(buildEngine->virtualMachine()->memorySizeMb());
     m_ui->virtualMachineSettingsWidget->setCpuCount(buildEngine->virtualMachine()->cpuCount());
-    m_ui->virtualMachineSettingsWidget->setVdiCapacityMb(buildEngine->virtualMachine()->vdiCapacityMb());
+    m_ui->virtualMachineSettingsWidget->setStorageSizeMb(buildEngine->virtualMachine()->storageSizeMb());
 }
 
 void MerBuildEngineDetailsWidget::setTestButtonEnabled(bool enabled)
@@ -213,9 +213,9 @@ void MerBuildEngineDetailsWidget::setCpuCount(int count)
     m_ui->virtualMachineSettingsWidget->setCpuCount(count);
 }
 
-void MerBuildEngineDetailsWidget::setVdiCapacityMb(int capacityMb)
+void MerBuildEngineDetailsWidget::setStorageSizeMb(int capacityMb)
 {
-    m_ui->virtualMachineSettingsWidget->setVdiCapacityMb(capacityMb);
+    m_ui->virtualMachineSettingsWidget->setStorageSizeMb(capacityMb);
 }
 
 void MerBuildEngineDetailsWidget::setWwwProxy(const QString &type, const QString &servers, const QString &excludes)

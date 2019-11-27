@@ -96,8 +96,8 @@ MerEmulatorDetailsWidget::MerEmulatorDetailsWidget(QWidget *parent)
             this, &MerEmulatorDetailsWidget::memorySizeMbChanged);
     connect(m_ui->virtualMachineSettingsWidget, &MerVirtualMachineSettingsWidget::cpuCountChanged,
             this, &MerEmulatorDetailsWidget::cpuCountChanged);
-    connect(m_ui->virtualMachineSettingsWidget, &MerVirtualMachineSettingsWidget::vdiCapacityMbChnaged,
-            this, &MerEmulatorDetailsWidget::vdiCapacityMbChnaged);
+    connect(m_ui->virtualMachineSettingsWidget, &MerVirtualMachineSettingsWidget::storageSizeMbChnaged,
+            this, &MerEmulatorDetailsWidget::storageSizeMbChnaged);
 }
 
 MerEmulatorDetailsWidget::~MerEmulatorDetailsWidget()
@@ -125,7 +125,7 @@ void MerEmulatorDetailsWidget::setEmulator(const Sfdk::Emulator *emulator)
     m_ui->configFolderPathLabel->setText(QDir::toNativeSeparators(emulator->sharedConfigPath().toString()));
     m_ui->virtualMachineSettingsWidget->setMemorySizeMb(emulator->virtualMachine()->memorySizeMb());
     m_ui->virtualMachineSettingsWidget->setCpuCount(emulator->virtualMachine()->cpuCount());
-    m_ui->virtualMachineSettingsWidget->setVdiCapacityMb(emulator->virtualMachine()->vdiCapacityMb());
+    m_ui->virtualMachineSettingsWidget->setStorageSizeMb(emulator->virtualMachine()->storageSizeMb());
 }
 
 void MerEmulatorDetailsWidget::setTestButtonEnabled(bool enabled)
@@ -184,9 +184,9 @@ void MerEmulatorDetailsWidget::setCpuCount(int count)
     m_ui->virtualMachineSettingsWidget->setCpuCount(count);
 }
 
-void MerEmulatorDetailsWidget::setVdiCapacityMb(int capacityMb)
+void MerEmulatorDetailsWidget::setStorageSizeMb(int capacityMb)
 {
-    m_ui->virtualMachineSettingsWidget->setVdiCapacityMb(capacityMb);
+    m_ui->virtualMachineSettingsWidget->setStorageSizeMb(capacityMb);
 }
 
 void MerEmulatorDetailsWidget::selectFactorySnapshot()

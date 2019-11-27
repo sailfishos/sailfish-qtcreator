@@ -120,9 +120,9 @@ MerEmulatorOptionsWidget::MerEmulatorOptionsWidget(QWidget *parent)
             this, [=](int count) {
         m_cpuCount[m_emulators[m_virtualMachine]] = count;
     });
-    connect(m_ui->emulatorDetailsWidget, &MerEmulatorDetailsWidget::vdiCapacityMbChnaged,
+    connect(m_ui->emulatorDetailsWidget, &MerEmulatorDetailsWidget::storageSizeMbChnaged,
             this, [=](int sizeMb) {
-        m_vdiCapacityMb[m_emulators[m_virtualMachine]] = sizeMb;
+        m_storageSizeMb[m_emulators[m_virtualMachine]] = sizeMb;
     });
 
     for (int i = 0; i < Sdk::emulators().count(); ++i)
@@ -237,16 +237,16 @@ void MerEmulatorOptionsWidget::store()
                 ok = false;
             }
         }
-        if (m_vdiCapacityMb.contains(emulator)) {
-            const int newVdiCapacityMb = m_vdiCapacityMb[emulator];
+        if (m_storageSizeMb.contains(emulator)) {
+            const int newStorageSizeMb = m_storageSizeMb[emulator];
             bool stepOk;
-            execAsynchronous(std::tie(stepOk), std::mem_fn(&VirtualMachine::setVdiCapacityMb),
-                    emulator->virtualMachine(), newVdiCapacityMb);
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&VirtualMachine::setStorageSizeMb),
+                    emulator->virtualMachine(), newStorageSizeMb);
             if (!stepOk) {
-                m_vdiCapacityMb.remove(emulator);
+                m_storageSizeMb.remove(emulator);
                 ok = false;
             }
-            m_ui->emulatorDetailsWidget->setVdiCapacityMb(emulator->virtualMachine()->vdiCapacityMb());
+            m_ui->emulatorDetailsWidget->setStorageSizeMb(emulator->virtualMachine()->storageSizeMb());
         }
     }
 
@@ -274,7 +274,7 @@ void MerEmulatorOptionsWidget::store()
     m_freePorts.clear();
     m_memorySizeMb.clear();
     m_cpuCount.clear();
-    m_vdiCapacityMb.clear();
+    m_storageSizeMb.clear();
 }
 
 bool MerEmulatorOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<Emulator *>
@@ -295,15 +295,15 @@ bool MerEmulatorOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QLis
             m_memorySizeMb.remove(emulator);
         if (m_cpuCount.value(emulator) == emulator->virtualMachine()->cpuCount())
             m_cpuCount.remove(emulator);
-        if (m_vdiCapacityMb.value(emulator) == emulator->virtualMachine()->vdiCapacityMb())
-            m_vdiCapacityMb.remove(emulator);
+        if (m_storageSizeMb.value(emulator) == emulator->virtualMachine()->storageSizeMb())
+            m_storageSizeMb.remove(emulator);
 
         if (!m_sshPort.contains(emulator)
                 && !m_qmlLivePorts.contains(emulator)
                 && !m_freePorts.contains(emulator)
                 && !m_memorySizeMb.contains(emulator)
                 && !m_cpuCount.contains(emulator)
-                && !m_vdiCapacityMb.contains(emulator)) {
+                && !m_storageSizeMb.contains(emulator)) {
             continue;
         }
 
@@ -340,8 +340,8 @@ bool MerEmulatorOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QLis
         m_memorySizeMb.remove(emulator);
         m_ui->emulatorDetailsWidget->setCpuCount(emulator->virtualMachine()->cpuCount());
         m_cpuCount.remove(emulator);
-        m_ui->emulatorDetailsWidget->setVdiCapacityMb(emulator->virtualMachine()->vdiCapacityMb());
-        m_vdiCapacityMb.remove(emulator);
+        m_ui->emulatorDetailsWidget->setStorageSizeMb(emulator->virtualMachine()->storageSizeMb());
+        m_storageSizeMb.remove(emulator);
     }
 
     return failed.isEmpty();
@@ -414,7 +414,7 @@ void MerEmulatorOptionsWidget::onRemoveButtonClicked()
         m_sshPort.remove(removed);
         m_qmlLivePorts.remove(removed);
         m_freePorts.remove(removed);
-        m_vdiCapacityMb.remove(removed);
+        m_storageSizeMb.remove(removed);
         m_memorySizeMb.remove(removed);
         m_cpuCount.remove(removed);
     }
@@ -508,8 +508,8 @@ void MerEmulatorOptionsWidget::onEmulatorAdded(int index)
             this, cleaner(&m_qmlLivePorts));
     connect(emulator, &Emulator::freePortsChanged,
             this, cleaner(&m_freePorts));
-    connect(emulator->virtualMachine(), &VirtualMachine::vdiCapacityMbChanged,
-            this, cleaner(&m_vdiCapacityMb));
+    connect(emulator->virtualMachine(), &VirtualMachine::storageSizeMbChanged,
+            this, cleaner(&m_storageSizeMb));
     connect(emulator->virtualMachine(), &VirtualMachine::memorySizeMbChanged,
             this, cleaner(&m_memorySizeMb));
     connect(emulator->virtualMachine(), &VirtualMachine::cpuCountChanged,
@@ -534,7 +534,7 @@ void MerEmulatorOptionsWidget::onAboutToRemoveEmulator(int index)
     m_sshPort.remove(emulator);
     m_qmlLivePorts.remove(emulator);
     m_freePorts.remove(emulator);
-    m_vdiCapacityMb.remove(emulator);
+    m_storageSizeMb.remove(emulator);
     m_memorySizeMb.remove(emulator);
     m_cpuCount.remove(emulator);
 
@@ -591,10 +591,10 @@ void MerEmulatorOptionsWidget::update()
         else
             m_ui->emulatorDetailsWidget->setCpuCount(emulator->virtualMachine()->cpuCount());
 
-        if (m_vdiCapacityMb.contains(emulator))
-            m_ui->emulatorDetailsWidget->setVdiCapacityMb(m_vdiCapacityMb[emulator]);
+        if (m_storageSizeMb.contains(emulator))
+            m_ui->emulatorDetailsWidget->setStorageSizeMb(m_storageSizeMb[emulator]);
         else
-            m_ui->emulatorDetailsWidget->setVdiCapacityMb(emulator->virtualMachine()->vdiCapacityMb());
+            m_ui->emulatorDetailsWidget->setStorageSizeMb(emulator->virtualMachine()->storageSizeMb());
 
         onVmOffChanged(emulator->virtualMachine()->isOff());
         m_vmOffConnection = connect(emulator->virtualMachine(), &VirtualMachine::virtualMachineOffChanged,
@@ -631,8 +631,8 @@ void MerEmulatorOptionsWidget::onVmOffChanged(bool vmOff)
         m_memorySizeMb.remove(emulator);
         m_ui->emulatorDetailsWidget->setCpuCount(emulator->virtualMachine()->cpuCount());
         m_cpuCount.remove(emulator);
-        m_ui->emulatorDetailsWidget->setVdiCapacityMb(emulator->virtualMachine()->vdiCapacityMb());
-        m_vdiCapacityMb.remove(emulator);
+        m_ui->emulatorDetailsWidget->setStorageSizeMb(emulator->virtualMachine()->storageSizeMb());
+        m_storageSizeMb.remove(emulator);
     }
 
     m_ui->emulatorDetailsWidget->setVmOffStatus(vmOff);

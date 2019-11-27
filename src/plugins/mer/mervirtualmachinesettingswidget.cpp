@@ -39,7 +39,7 @@ namespace Internal {
 
 namespace {
 const int DEFAULT_MAX_MEMORY_SIZE_MB = 3584;
-const int MAX_VDI_SIZE_INCREMENT_GB = 10;
+const int MAX_STORAGE_SIZE_INCREMENT_GB = 10;
 const int MIN_MEMORY_SIZE_MB = 512;
 
 } // namespace anonymous
@@ -70,24 +70,24 @@ void MerVirtualMachineSettingsWidget::setCpuCount(int count)
     ui->cpuCountSpinBox->setValue(count);
 }
 
-void MerVirtualMachineSettingsWidget::setVdiCapacityMb(int vdiCapacityMb)
+void MerVirtualMachineSettingsWidget::setStorageSizeMb(int storageSizeMb)
 {
-    const double vdiCapacityGb = vdiCapacityMb / 1024.0;
-    // Prohibit adding more than MAX_VDI_SIZE_INCREMENT_GB in one step, because there is no way to go back
+    const double storageSizeGb = storageSizeMb / 1024.0;
+    // Prohibit adding more than MAX_STORAGE_SIZE_INCREMENT_GB in one step, because there is no way to go back
     // the minimum size is the current size because VBoxManager can't reduce storage size
-    ui->vdiCapacityGbSpinBox->setRange(vdiCapacityGb, vdiCapacityGb + MAX_VDI_SIZE_INCREMENT_GB);
-    ui->vdiCapacityGbSpinBox->setValue(vdiCapacityGb);
+    ui->storageSizeGbSpinBox->setRange(storageSizeGb, storageSizeGb + MAX_STORAGE_SIZE_INCREMENT_GB);
+    ui->storageSizeGbSpinBox->setValue(storageSizeGb);
 }
 
 void MerVirtualMachineSettingsWidget::setVmOff(bool vmOff)
 {
     ui->memorySpinBox->setEnabled(vmOff);
     ui->cpuCountSpinBox->setEnabled(vmOff);
-    ui->vdiCapacityGbSpinBox->setEnabled(vmOff);
+    ui->storageSizeGbSpinBox->setEnabled(vmOff);
 
     ui->memoryInfoLabel->setVisible(!vmOff);
     ui->cpuInfoLabel->setVisible(!vmOff);
-    ui->vdiCapacityInfoLabel->setVisible(!vmOff);
+    ui->storageSizeInfoLabel->setVisible(!vmOff);
 }
 
 QFormLayout *MerVirtualMachineSettingsWidget::formLayout() const
@@ -107,8 +107,8 @@ void MerVirtualMachineSettingsWidget::initGui()
             this, &MerVirtualMachineSettingsWidget::memorySizeMbChanged);
     connect(ui->cpuCountSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &MerVirtualMachineSettingsWidget::cpuCountChanged);
-    connect(ui->vdiCapacityGbSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [this](double value) {
-        emit vdiCapacityMbChnaged(static_cast<int>(value * 1024));
+    connect(ui->storageSizeGbSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [this](double value) {
+        emit storageSizeMbChnaged(static_cast<int>(value * 1024));
     });
 
     ui->memoryInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
@@ -123,8 +123,8 @@ void MerVirtualMachineSettingsWidget::initGui()
             + tr("Stop the virtual machine to unlock this field for editing.")
             + QLatin1String("</font>"));
 
-    ui->vdiCapacityInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
-    ui->vdiCapacityInfoLabel->setToolTip(
+    ui->storageSizeInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
+    ui->storageSizeInfoLabel->setToolTip(
             QLatin1String("<font color=\"red\">")
             + tr("Stop the virtual machine to unlock this field for editing.")
             + QLatin1String("</font>"));

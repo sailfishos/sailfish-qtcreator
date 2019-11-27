@@ -29,6 +29,7 @@
 #include "vmconnection_p.h"
 
 #include <utils/algorithm.h>
+#include <utils/filesystemwatcher.h>
 #include <utils/fileutils.h>
 #include <utils/port.h>
 #include <utils/persistentsettings.h>
@@ -52,6 +53,7 @@ namespace Sfdk {
 namespace {
 const char VM_INFO_CACHE_FILE[] = "vminfo.xml";
 const char VM_INFO_CACHE_DOC_TYPE[] = "SfdkVmInfo";
+const int  VM_INFO_CACHE_UPDATE_DELAY_MS = 2000;
 const char VM_INFO_MAP[] = "VmInfos";
 
 const char VM_INFO_SHARED_HOME[] = "SharedHome";
@@ -68,22 +70,41 @@ const char VM_INFO_MACS[] = "Macs";
 const char VM_INFO_HEADLESS[] = "Headless";
 const char VM_INFO_MEMORY_SIZE_MB[] = "MemorySizeMb";
 const char VM_INFO_CPU_COUNT[] = "CpuCount";
-const char VM_INFO_VDI_CAPACITY_MB[] = "VdiCapacityMb";
+const char VM_INFO_STORAGE_SIZE_MB[] = "StorageSizeMb";
 const char VM_INFO_SNAPSHOTS[] = "Snapshots";
 
-class VirtualMachineInfoCache
+} // namespace anonymous
+
+class VirtualMachineInfoCache : public QObject
 {
+    Q_OBJECT
+
 public:
+    VirtualMachineInfoCache(QObject *parent);
+    ~VirtualMachineInfoCache() override;
+
+    static VirtualMachineInfoCache *instance() { return s_instance; }
+
     static Utils::optional<VirtualMachineInfo> info(const QUrl &vmUri);
     static void insert(const QUrl &vmUri, const VirtualMachineInfo &info);
 
+signals:
+    void updated();
+
+protected:
+    void timerEvent(QTimerEvent *event) override;
+
 private:
+    void enableUpdates();
     static Utils::FileName cacheFileName();
     static QString lockFileName(const Utils::FileName &file);
     static QString docType();
-};
 
-} // namespace anonymous
+private:
+    static VirtualMachineInfoCache *s_instance;
+    std::unique_ptr<FileSystemWatcher> m_watcher;
+    QBasicTimer m_updateTimer;
+};
 
 /*!
  * \class VirtualMachine
@@ -106,6 +127,15 @@ VirtualMachine::VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, cons
     connect(d->connection.get(), &VmConnection::virtualMachineOffChanged,
             this, &VirtualMachine::virtualMachineOffChanged);
     connect(d->connection.get(), &VmConnection::lockDownFailed, this, &VirtualMachine::lockDownFailed);
+
+    if (SdkPrivate::isVersionedSettingsEnabled()) {
+        if (SdkPrivate::isUpdatesEnabled()) {
+            d->enableUpdates();
+        } else {
+            connect(SdkPrivate::instance(), &SdkPrivate::enableUpdatesRequested,
+                    this, [=]() { d->enableUpdates(); });
+        }
+    }
 }
 
 VirtualMachine::~VirtualMachine()
@@ -267,25 +297,25 @@ int VirtualMachine::availableCpuCount()
     return QThread::idealThreadCount();
 }
 
-int VirtualMachine::vdiCapacityMb() const
+int VirtualMachine::storageSizeMb() const
 {
     Q_D(const VirtualMachine);
     QTC_ASSERT(d->initialized(), return false);
-    return d->virtualMachineInfo.vdiCapacityMb;
+    return d->virtualMachineInfo.storageSizeMb;
 }
 
-void VirtualMachine::setVdiCapacityMb(int vdiCapacityMb, const QObject *context,
+void VirtualMachine::setStorageSizeMb(int storageSizeMb, const QObject *context,
         const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
     QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
-    d->doSetVdiCapacityMb(vdiCapacityMb, this, [=](bool ok) {
-        if (ok && d->virtualMachineInfo.vdiCapacityMb != vdiCapacityMb) {
-            d->virtualMachineInfo.vdiCapacityMb = vdiCapacityMb;
+    d->doSetStorageSizeMb(storageSizeMb, this, [=](bool ok) {
+        if (ok && d->virtualMachineInfo.storageSizeMb != storageSizeMb) {
+            d->virtualMachineInfo.storageSizeMb = storageSizeMb;
             VirtualMachineInfoCache::insert(uri(), d->virtualMachineInfo);
-            emit vdiCapacityMbChanged(vdiCapacityMb);
+            emit storageSizeMbChanged(storageSizeMb);
         }
         if (context_)
             functor(ok);
@@ -377,8 +407,8 @@ void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<
             emit memorySizeMbChanged(info.memorySizeMb);
         if (oldInfo.cpuCount != info.cpuCount)
             emit cpuCountChanged(info.cpuCount);
-        if (oldInfo.vdiCapacityMb != info.vdiCapacityMb)
-            emit vdiCapacityMbChanged(info.vdiCapacityMb);
+        if (oldInfo.storageSizeMb != info.storageSizeMb)
+            emit storageSizeMbChanged(info.storageSizeMb);
         if (oldInfo.snapshots != info.snapshots)
             emit snapshotsChanged();
         if (oldInfo.otherPorts != info.otherPorts
@@ -403,7 +433,7 @@ void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<
         }
     }
 
-    d->fetchInfo(VirtualMachineInfo::VdiInfo | VirtualMachineInfo::SnapshotInfo, this,
+    d->fetchInfo(VirtualMachineInfo::StorageInfo | VirtualMachineInfo::SnapshotInfo, this,
             [=](const VirtualMachineInfo &info, bool ok) {
         if (ok)
             VirtualMachineInfoCache::insert(uri(), info);
@@ -534,6 +564,25 @@ void VirtualMachinePrivate::restoreSnapshot(const QString &snapshotName, const Q
     });
 }
 
+void VirtualMachinePrivate::enableUpdates()
+{
+    Q_Q(VirtualMachine);
+    QTC_ASSERT(SdkPrivate::isVersionedSettingsEnabled(), return);
+
+    QObject::connect(VirtualMachineInfoCache::instance(), &VirtualMachineInfoCache::updated,
+            q, [=]() {
+        // Even if the cached info is not used, the cache serves as a mean to to
+        // notify about changes to those VM properties that are not persisted by
+        // BuildEngine or Emulator classes.
+        qCDebug(vms) << "VM info cache updated. Refreshing configuration of" << q->uri().toString();
+
+        // FIXME Not ideal
+        bool ok;
+        execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::refreshConfiguration), q);
+        QTC_CHECK(ok);
+    });
+}
+
 /*!
  * \class VirtualMachineFactory
  * \internal
@@ -543,6 +592,7 @@ VirtualMachineFactory *VirtualMachineFactory::s_instance = nullptr;
 
 VirtualMachineFactory::VirtualMachineFactory(QObject *parent)
     : QObject(parent)
+    , m_vmInfoCache(std::make_unique<VirtualMachineInfoCache>(this))
 {
     Q_ASSERT(!s_instance);
     s_instance = this;
@@ -652,6 +702,25 @@ QString VirtualMachineFactory::nameFromUri(const QUrl &uri)
  * \internal
  */
 
+VirtualMachineInfoCache *VirtualMachineInfoCache::s_instance = nullptr;
+
+VirtualMachineInfoCache::VirtualMachineInfoCache(QObject *parent)
+    : QObject(parent)
+{
+    Q_ASSERT(!s_instance);
+    s_instance = this;
+
+    if (SdkPrivate::isVersionedSettingsEnabled()) {
+        connect(SdkPrivate::instance(), &SdkPrivate::enableUpdatesRequested,
+                this, &VirtualMachineInfoCache::enableUpdates);
+    }
+}
+
+VirtualMachineInfoCache::~VirtualMachineInfoCache()
+{
+    s_instance = nullptr;
+}
+
 Utils::optional<VirtualMachineInfo> VirtualMachineInfoCache::info(const QUrl &vmUri)
 {
     const FileName fileName = cacheFileName();
@@ -710,13 +779,59 @@ void VirtualMachineInfoCache::insert(const QUrl &vmUri, const VirtualMachineInfo
     }
 
     QVariantMap vmInfos = data.value(VM_INFO_MAP).toMap();
-    vmInfos.insert(vmUri.toString(), info.toMap());
+
+    const QVariantMap oldInfo = vmInfos.value(vmUri.toString()).toMap();
+    const QVariantMap info_ = info.toMap();
+    if (oldInfo == info_) {
+        qCDebug(vms) << "Already caching the same VM info. Not updating VM info cache";
+        return;
+    } else {
+        qCDebug(vms) << "Updating VM info cache";
+    }
+
+    vmInfos.insert(vmUri.toString(), info_);
     data.insert(VM_INFO_MAP, vmInfos);
 
     PersistentSettingsWriter writer(fileName, docType());
     QString errorString;
     if (!writer.save(data, &errorString))
         qCWarning(vms) << "Failed to write VM info cache:" << errorString;
+}
+
+void VirtualMachineInfoCache::timerEvent(QTimerEvent *event)
+{
+    if (event->timerId() == m_updateTimer.timerId()) {
+        m_updateTimer.stop();
+        emit updated();
+    } else  {
+        QObject::timerEvent(event);
+    }
+}
+
+void VirtualMachineInfoCache::enableUpdates()
+{
+    QTC_ASSERT(SdkPrivate::isVersionedSettingsEnabled(), return);
+
+    qCDebug(vms) << "Enabling receiving updates to VM info cache";
+
+    const FileName cacheFileName = this->cacheFileName();
+
+    // FileSystemWatcher needs them existing
+    const bool mkpathOk = QDir(cacheFileName.parentDir().toString()).mkpath(".");
+    QTC_CHECK(mkpathOk);
+    if (!cacheFileName.exists()) {
+        const bool createFileOk = QFile(cacheFileName.toString()).open(QIODevice::WriteOnly);
+        QTC_CHECK(createFileOk);
+    }
+
+    m_watcher = std::make_unique<FileSystemWatcher>(this);
+    m_watcher->addFile(cacheFileName.toString(), FileSystemWatcher::WatchModifiedDate);
+    connect(m_watcher.get(), &FileSystemWatcher::fileChanged, this, [this]() {
+        m_updateTimer.start(VM_INFO_CACHE_UPDATE_DELAY_MS, this);
+    });
+
+    // Do not emit updated() initially - there are other triggers for the
+    // initial refresh of VM properties.
 }
 
 Utils::FileName VirtualMachineInfoCache::cacheFileName()
@@ -763,7 +878,7 @@ void VirtualMachineInfo::fromMap(const QVariantMap &data)
     headless = data.value(VM_INFO_HEADLESS).toBool();
     memorySizeMb = data.value(VM_INFO_MEMORY_SIZE_MB).toInt();
     cpuCount = data.value(VM_INFO_CPU_COUNT).toInt();
-    vdiCapacityMb = data.value(VM_INFO_VDI_CAPACITY_MB).toInt();
+    storageSizeMb = data.value(VM_INFO_STORAGE_SIZE_MB).toInt();
     snapshots = data.value(VM_INFO_SNAPSHOTS).toStringList();
 }
 
@@ -793,10 +908,12 @@ QVariantMap VirtualMachineInfo::toMap() const
     data.insert(VM_INFO_HEADLESS, headless);
     data.insert(VM_INFO_MEMORY_SIZE_MB, memorySizeMb);
     data.insert(VM_INFO_CPU_COUNT, cpuCount);
-    data.insert(VM_INFO_VDI_CAPACITY_MB, vdiCapacityMb);
+    data.insert(VM_INFO_STORAGE_SIZE_MB, storageSizeMb);
     data.insert(VM_INFO_SNAPSHOTS, snapshots);
 
     return data;
 }
 
 } // namespace Sfdk
+
+#include "virtualmachine.moc"
