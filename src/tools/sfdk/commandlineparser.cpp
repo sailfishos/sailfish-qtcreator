@@ -484,6 +484,16 @@ QString CommandLineParser::commandNotAvailableMessage(const QString &command)
     return tr("The command '%1' is not available in this mode").arg(command);
 }
 
+QString CommandLineParser::commandDeprecatedMessage(const QString &command,
+        const QString &replacement)
+{
+    return replacement.isEmpty()
+        ? tr("The command '%1' is deprecated and will be removed")
+            .arg(command)
+        : tr("The command '%1' is deprecated in favor of '%2' and will be removed")
+            .arg(command).arg(replacement);
+}
+
 QString CommandLineParser::unexpectedArgumentMessage(const QString &argument)
 {
     return tr("Unexpected argument: '%1'").arg(argument);

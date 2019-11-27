@@ -281,7 +281,7 @@ public:
         return true;
     }
 
-    bool addPackage(const QString &name)
+    bool installPackage(const QString &name)
     {
         QList<PackageInfo> info;
         bool fetchOk = fetchInfo(&info, [name](const QString &packageName) {
@@ -293,15 +293,15 @@ public:
         QTC_ASSERT(!info.isEmpty(), return false);
         QTC_ASSERT(!info.first().installed, return false);
 
-        QProcess addPackages;
-        addPackages.setProgram(SdkManager::sdkMaintenanceToolPath());
-        addPackages.setArguments({"-platform", "minimal", "--verbose", "--manage-packages",
+        QProcess managePackages;
+        managePackages.setProgram(SdkManager::sdkMaintenanceToolPath());
+        managePackages.setArguments({"-platform", "minimal", "--verbose", "--manage-packages",
                 "non-interactive=1", "accept-licenses=1", "add-packages=" + name});
-        addPackages.setProcessChannelMode(QProcess::ForwardedChannels);
-        addPackages.start();
-        if (!addPackages.waitForFinished(-1)) {
+        managePackages.setProcessChannelMode(QProcess::ForwardedChannels);
+        managePackages.start();
+        if (!managePackages.waitForFinished(-1)) {
             qerr() << tr("Error installing installer-provided packages")
-                << ": " << addPackages.readAllStandardError() << endl;
+                << ": " << managePackages.readAllStandardError() << endl;
             return false;
         }
 
@@ -320,15 +320,15 @@ public:
         QTC_ASSERT(!info.isEmpty(), return false);
         QTC_ASSERT(info.first().installed, return false);
 
-        QProcess removePackages;
-        removePackages.setProgram(SdkManager::sdkMaintenanceToolPath());
-        removePackages.setArguments({"-platform", "minimal", "--verbose", "--manage-packages",
+        QProcess managePackages;
+        managePackages.setProgram(SdkManager::sdkMaintenanceToolPath());
+        managePackages.setArguments({"-platform", "minimal", "--verbose", "--manage-packages",
                 "non-interactive=1", "accept-licenses=1", "remove-packages=" + name});
-        removePackages.setProcessChannelMode(QProcess::ForwardedChannels);
-        removePackages.start();
-        if (!removePackages.waitForFinished(-1)) {
+        managePackages.setProcessChannelMode(QProcess::ForwardedChannels);
+        managePackages.start();
+        if (!managePackages.waitForFinished(-1)) {
             qerr() << tr("Error uninstalling installer-provided packages")
-                << ": " << removePackages.readAllStandardError() << endl;
+                << ": " << managePackages.readAllStandardError() << endl;
             return false;
         }
 
@@ -452,7 +452,7 @@ public:
         return exitCode == EXIT_SUCCESS;
     }
 
-    bool addTools(const QString &name, SdkManager::ToolsTypeHint typeHint)
+    bool installTools(const QString &name, SdkManager::ToolsTypeHint typeHint)
     {
         if (!fetchInfo())
             return false;
@@ -478,10 +478,10 @@ public:
             return false;
         }
 
-        return PackageManager().addPackage(package);
+        return PackageManager().installPackage(package);
     }
 
-    bool createTools(const QString &name, const QString &imageFileOrUrl,
+    bool installCustomTools(const QString &name, const QString &imageFileOrUrl,
             SdkManager::ToolsTypeHint typeHint)
     {
         QStringList args;
@@ -797,7 +797,7 @@ public:
         return true;
     }
 
-    bool addEmulator(const QString &name)
+    bool installEmulator(const QString &name)
     {
         if (!fetchInfo())
             return false;
@@ -812,7 +812,7 @@ public:
             return false;
         }
 
-        return PackageManager().addPackage(package);
+        return PackageManager().installPackage(package);
     }
 
     bool removeEmulator(const QString &name)
@@ -1060,17 +1060,17 @@ bool SdkManager::registerTools(const QString &maybeName, ToolsTypeHint typeHint,
     return ToolsPackageManager().registerTools(maybeName, typeHint, maybeUserName, maybePassword);
 }
 
-bool SdkManager::addTools(const QString &name, ToolsTypeHint typeHint)
+bool SdkManager::installTools(const QString &name, ToolsTypeHint typeHint)
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    return ToolsPackageManager().addTools(name, typeHint);
+    return ToolsPackageManager().installTools(name, typeHint);
 }
 
-bool SdkManager::createTools(const QString &name, const QString &imageFileOrUrl,
+bool SdkManager::installCustomTools(const QString &name, const QString &imageFileOrUrl,
         ToolsTypeHint typeHint)
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    return ToolsPackageManager().createTools(name, imageFileOrUrl, typeHint);
+    return ToolsPackageManager().installCustomTools(name, imageFileOrUrl, typeHint);
 }
 
 bool SdkManager::removeTools(const QString &name, ToolsTypeHint typeHint)
@@ -1225,9 +1225,9 @@ bool SdkManager::listAvailableEmulators(QList<AvailableEmulatorInfo> *info)
     return EmulatorPackageManager().listAvailableEmulators(info);
 }
 
-bool SdkManager::addEmulator(const QString &name)
+bool SdkManager::installEmulator(const QString &name)
 {
-    return EmulatorPackageManager().addEmulator(name);
+    return EmulatorPackageManager().installEmulator(name);
 }
 
 bool SdkManager::removeEmulator(const QString &name)

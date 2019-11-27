@@ -85,6 +85,7 @@ public:
     static QString usageMessage();
     static QString unrecognizedCommandMessage(const QString &command);
     static QString commandNotAvailableMessage(const QString &command);
+    static QString commandDeprecatedMessage(const QString &command, const QString &replacement = {});
     static QString unexpectedArgumentMessage(const QString &argument);
     static QString missingArgumentMessage();
     static QString invalidArgumentToOptionMessage(const QString &problem, const QString &option);
