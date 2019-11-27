@@ -237,14 +237,15 @@ void MerBuildEngineDetailsWidget::onSrcFolderApplyButtonClicked()
     if (m_ui->srcFolderPathChooser->isValid()) {
         QString path = m_ui->srcFolderPathChooser->path();
         if (HostOsInfo::isWindowsHost()) {
-            if (!path.endsWith(QLatin1Char('\\')) && !path.endsWith(QLatin1Char('/'))) {
-                path = path + QLatin1Char('\\');
+            if (!path.endsWith(QLatin1Char('/'))) {
+                path = path + QLatin1Char('/');
             }
         }
         emit srcFolderApplyButtonClicked(path);
     } else {
         QMessageBox::warning(this, tr("Invalid path"),
-                tr("Not a valid source folder path: %1").arg(m_ui->srcFolderPathChooser->path()));
+                tr("Not a valid source folder path: %1")
+                .arg(QDir::toNativeSeparators(m_ui->srcFolderPathChooser->path())));
     }
 }
 

@@ -118,7 +118,7 @@ void MerEmulatorDetailsWidget::setEmulator(const Sfdk::Emulator *emulator)
     m_ui->sshPortSpinBox->setValue(emulator->sshPort());
     m_ui->sshTimeoutSpinBox->setValue(emulator->virtualMachine()->sshParameters().timeout);
     m_ui->userNameLabel->setText(emulator->virtualMachine()->sshParameters().userName());
-    m_ui->sshPrivateKeyLabel->setText(emulator->virtualMachine()->sshParameters().privateKeyFile);
+    m_ui->sshPrivateKeyLabel->setText(QDir::toNativeSeparators(emulator->virtualMachine()->sshParameters().privateKeyFile));
     m_ui->qmlLivePortsLineEdit->setText(emulator->qmlLivePorts().toString());
     m_ui->freePortsLineEdit->setText(emulator->freePorts().toString());
     m_ui->sshFolderPathLabel->setText(QDir::toNativeSeparators(emulator->sharedSshPath().toString()));
