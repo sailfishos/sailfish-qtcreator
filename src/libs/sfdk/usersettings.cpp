@@ -116,7 +116,9 @@ void UserSettings::enableUpdates()
     // FileSystemWatcher needs them existing
     const bool mkpathOk = QDir(userScopeFile.parentDir().toString()).mkpath(".");
     QTC_CHECK(mkpathOk);
-    if (!userScopeFile.exists()) {
+    const bool existedBefore = userScopeFile.exists();
+    if (!existedBefore) {
+        qCDebug(lib) << "Creating empty" << m_baseName;
         const bool createFileOk = QFile(userScopeFile.toString()).open(QIODevice::WriteOnly);
         QTC_CHECK(createFileOk);
     }
@@ -125,7 +127,8 @@ void UserSettings::enableUpdates()
     m_watcher->addFile(userScopeFile.toString(), FileSystemWatcher::WatchModifiedDate);
     connect(m_watcher.get(), &FileSystemWatcher::fileChanged,
             this, &UserSettings::checkUpdates);
-    checkUpdates();
+    if (existedBefore)
+        checkUpdates();
 }
 
 bool UserSettings::save(const QVariantMap &data, QString *errorString)
