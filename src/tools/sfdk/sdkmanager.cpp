@@ -1261,7 +1261,7 @@ void SdkManager::saveSettings()
     QStringList errorStrings;
     s_instance->m_sdk->saveSettings(&errorStrings);
     for (const QString &errorString : errorStrings)
-        qCWarning(sfdk) << "Error saving settings:" << errorString;
+        qCWarning(sfdk).noquote() << "Error saving settings:" << errorString;
 }
 
 QString SdkManager::cleanSharedHome() const
