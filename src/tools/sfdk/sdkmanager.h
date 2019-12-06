@@ -40,6 +40,7 @@ namespace Internal {
 namespace Sfdk {
 
 class BuildEngine;
+class BuildTargetData;
 class Device;
 class Emulator;
 class RemoteProcess;
@@ -140,6 +141,8 @@ public:
     static bool installTools(const QString &name, ToolsTypeHint typeHint);
     static bool installCustomTools(const QString &name, const QString &imageFileOrUrl, ToolsTypeHint typeHint);
     static bool removeTools(const QString &name, ToolsTypeHint typeHint);
+
+    static BuildTargetData configuredTarget(QString *errorMessage);
 
     static Device *configuredDevice(QString *errorMessage);
     static Device *deviceByName(const QString &deviceName, QString *errorMessage);

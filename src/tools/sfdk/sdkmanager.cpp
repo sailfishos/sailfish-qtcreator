@@ -1083,6 +1083,25 @@ bool SdkManager::removeTools(const QString &name, ToolsTypeHint typeHint)
     return ToolsPackageManager().removeTools(name, typeHint);
 }
 
+BuildTargetData SdkManager::configuredTarget(QString *errorMessage)
+{
+    Q_ASSERT(errorMessage);
+    QTC_ASSERT(s_instance->hasEngine(), return {});
+
+    const Option *const targetOption = Dispatcher::option("target");
+    QTC_ASSERT(targetOption, return {});
+
+    const Utils::optional<OptionEffectiveOccurence> effectiveTargetOption =
+        Configuration::effectiveState(targetOption);
+    if (!effectiveTargetOption) {
+        *errorMessage = tr("No target selected");
+        return {};
+    }
+    QTC_ASSERT(!effectiveTargetOption->isMasked(), return {});
+
+    return engine()->buildTarget(effectiveTargetOption->argument());
+}
+
 Device *SdkManager::configuredDevice(QString *errorMessage)
 {
     Q_ASSERT(errorMessage);

@@ -115,6 +115,23 @@ void RemoteProcess::setStandardOutputLineBuffered(bool lineBuffered)
     m_standardOutputLineBuffered = lineBuffered;
 }
 
+void RemoteProcess::enableLogAllOutput(std::function<const QLoggingCategory &()> category, const QString &key)
+{
+    if (category().isDebugEnabled()) {
+        auto rtrim1eol = [](const QByteArray &a) {
+            return a.endsWith('\n') ? a.chopped(1) : a;
+        };
+        QObject::connect(this, &RemoteProcess::standardOutput, [=](const QByteArray &data) {
+            for (const QByteArray &line : rtrim1eol(data).split('\n'))
+                qCDebug(category).noquote().nospace() << key << "/stdout: " << line;
+        });
+        QObject::connect(this, &RemoteProcess::standardError, [=](const QByteArray &data) {
+            for (const QByteArray &line : rtrim1eol(data).split('\n'))
+                qCDebug(category).noquote().nospace() << key << "/stderr: " << line;
+        });
+    }
+}
+
 int RemoteProcess::exec()
 {
     QEventLoop loop;

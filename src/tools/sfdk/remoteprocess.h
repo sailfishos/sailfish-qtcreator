@@ -62,14 +62,32 @@ public:
     explicit RemoteProcess(QObject *parent = 0);
     ~RemoteProcess() override;
 
+    QString program() const { return m_program; }
     void setProgram(const QString& program);
+
+    QStringList arguments() const { return m_arguments; }
     void setArguments(const QStringList& arguments);
+
+    QString workingDirectory() const { return m_workingDirectory; }
     void setWorkingDirectory(const QString& workingDirectory);
+
+    QSsh::SshConnectionParameters sshParameters() const { return m_sshConnectionParams; }
     void setSshParameters(const QSsh::SshConnectionParameters& params);
+
+    QProcessEnvironment extraEnvironment() const { return m_extraEnvironment; }
     void setExtraEnvironment(const QProcessEnvironment &extraEnvironment);
+
+    bool isRunInTerminalSet() const { return m_runInTerminal; }
     void setRunInTerminal(bool runInTerminal);
+
+    QProcess::InputChannelMode inputChannelMode() const { return m_inputChannelMode; }
     void setInputChannelMode(QProcess::InputChannelMode inputChannelMode);
+
+    bool isStandardOutputLineBufferedSet() const { return m_standardOutputLineBuffered; }
     void setStandardOutputLineBuffered(bool lineBuffered);
+
+    void enableLogAllOutput(std::function<const QLoggingCategory &()> category, const QString &key);
+
     void start();
     int exec();
 

@@ -103,6 +103,7 @@ public:
 
 private:
     ExitStatus runConfig(const QStringList &arguments0) const;
+    ExitStatus runDebug(const QStringList &arguments0, int *exitCode) const;
     ExitStatus runDevice(const QStringList &arguments, int *exitCode) const;
     ExitStatus runEmulator(const QStringList &arguments, int *exitCode) const;
     ExitStatus runEngine(const QStringList &arguments, int *exitCode) const;

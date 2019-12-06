@@ -33,10 +33,12 @@
 
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
+#include <utils/qtcprocess.h>
 
 #include <QCommandLineParser>
 
 using namespace Sfdk;
+using namespace Utils;
 
 namespace {
 using Constants::EXE_NAME;
@@ -478,12 +480,33 @@ bool CommandLineParser::checkPositionalArgumentsCount(const QStringList &argumen
         qerr() << missingArgumentMessage() << endl;
         return false;
     }
-    if (arguments.count() > max) {
+    if (max >= 0 && arguments.count() > max) {
         qerr() << unexpectedArgumentMessage(arguments.at(max)) << endl;
         return false;
     }
 
     return true;
+}
+
+bool CommandLineParser::splitArgs(const QString &args, Utils::OsType osType, QStringList *out)
+{
+    QtcProcess::SplitError error;
+    const bool abortOnMeta = true;
+    *out = QtcProcess::splitArgs(args, osType, abortOnMeta, &error);
+
+    switch (error) {
+    case QtcProcess::SplitOk:
+        return true;
+    case QtcProcess::BadQuoting:
+        qerr() << tr("Argument contains quoting errors: %1").arg(args) << endl;
+        return false;
+    case QtcProcess::FoundMeta:
+        qerr() << tr("Argument contains complex shell constructs: %1").arg(args) << endl;
+        return false;
+    }
+
+    QTC_CHECK(false);
+    return false;
 }
 
 QString CommandLineParser::summary()
@@ -514,6 +537,11 @@ QString CommandLineParser::commandDeprecatedMessage(const QString &command,
             .arg(command)
         : tr("The command '%1' is deprecated in favor of '%2' and will be removed")
             .arg(command).arg(replacement);
+}
+
+QString CommandLineParser::optionNotAvailableMessage(const QString &option)
+{
+    return tr("The option '%1' is not available in this mode").arg(option);
 }
 
 QString CommandLineParser::unexpectedArgumentMessage(const QString &argument)

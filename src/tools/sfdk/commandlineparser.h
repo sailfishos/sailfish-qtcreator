@@ -26,6 +26,8 @@
 #include "configuration.h"
 #include "command.h"
 
+#include <utils/osspecificaspects.h>
+
 #include <QCommandLineOption>
 #include <QCoreApplication>
 #include <QString>
@@ -80,12 +82,14 @@ public:
             const QList<const QCommandLineOption *> &options,
             const QCommandLineOption **out = nullptr);
     static bool checkPositionalArgumentsCount(const QStringList &arguments, int min, int max);
+    static bool splitArgs(const QString &cmd, Utils::OsType osType, QStringList *out);
 
     static QString summary();
     static QString usageMessage();
     static QString unrecognizedCommandMessage(const QString &command);
     static QString commandNotAvailableMessage(const QString &command);
     static QString commandDeprecatedMessage(const QString &command, const QString &replacement = {});
+    static QString optionNotAvailableMessage(const QString &option);
     static QString unexpectedArgumentMessage(const QString &argument);
     static QString missingArgumentMessage();
     static QString invalidArgumentToOptionMessage(const QString &problem, const QString &option,
