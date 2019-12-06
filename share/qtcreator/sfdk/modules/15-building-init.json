@@ -1,7 +1,7 @@
 {
     "version": 2,
     "domain": "building",
-    "trBrief": "Building packages",
+    "trBrief": "Building software",
 
     "worker":
     {
