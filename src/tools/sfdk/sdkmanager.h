@@ -112,7 +112,7 @@ public:
     Q_DECLARE_FLAGS(ListToolsOptions, ListToolsOption)
     Q_FLAG(ListToolsOptions)
 
-    SdkManager(bool useSystemSettingsOnly);
+    explicit SdkManager(bool useSystemSettingsOnly);
     ~SdkManager();
 
     static bool isValid();
