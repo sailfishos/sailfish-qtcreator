@@ -1383,7 +1383,7 @@ Worker::ExitStatus BuiltinWorker::setProperties(SetPropertiesTask *task,
 {
     for (const QString &assignment : assignments) {
         const int splitAt = assignment.indexOf('=');
-        if (splitAt <= 0 || splitAt == assignment.length() - 1) {
+        if (splitAt <= 0) {
             qerr() << tr("Assignment expected: \"%1\"").arg(assignment) << endl;
             return BadUsage;
         }
