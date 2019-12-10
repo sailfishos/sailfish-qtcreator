@@ -1122,8 +1122,7 @@ Device *SdkManager::deviceByName(const QString &deviceName, QString *errorMessag
     return device;
 }
 
-int SdkManager::runOnDevice(const Device &device, const QString &program,
-        const QStringList &arguments, QProcess::InputChannelMode inputChannelMode)
+bool SdkManager::prepareForRunOnDevice(const Device &device, RemoteProcess *process)
 {
     if (device.machineType() == Device::EmulatorMachine) {
         Emulator *const emulator = static_cast<const EmulatorDevice &>(device).emulator();
@@ -1136,13 +1135,33 @@ int SdkManager::runOnDevice(const Device &device, const QString &program,
             qCInfo(sfdk).noquote() << tr("Starting the emulator…");
             if (!emulator->virtualMachine()->connectTo(VirtualMachine::Block)) {
                 qerr() << tr("Failed to start the emulator") << endl;
-                return SFDK_EXIT_ABNORMAL;
+                return false;
             }
         }
     }
 
+    process->setSshParameters(device.sshParameters());
+
+    QObject::connect(process, &RemoteProcess::connectionError, [&](const QString &errorString) {
+        if (device.machineType() == Device::EmulatorMachine)
+            qerr() << tr("Error connecting to the emulator: ") << errorString << endl;
+        else
+            qerr() << tr("Error connecting to the device: ") << errorString << endl;
+    });
+    QObject::connect(process, &RemoteProcess::processError, [&](const QString &errorString) {
+        if (device.machineType() == Device::EmulatorMachine)
+            qerr() << tr("Error running command on the emulator: ") << errorString << endl;
+        else
+            qerr() << tr("Error running command on the device: ") << errorString << endl;
+    });
+
+    return true;
+}
+
+int SdkManager::runOnDevice(const Device &device, const QString &program,
+        const QStringList &arguments, QProcess::InputChannelMode inputChannelMode)
+{
     RemoteProcess process;
-    process.setSshParameters(device.sshParameters());
     process.setProgram(program);
     process.setArguments(arguments);
     process.setInputChannelMode(inputChannelMode);
@@ -1153,18 +1172,9 @@ int SdkManager::runOnDevice(const Device &device, const QString &program,
     QObject::connect(&process, &RemoteProcess::standardError, [&](const QByteArray &data) {
         qerr() << data << flush;
     });
-    QObject::connect(&process, &RemoteProcess::connectionError, [&](const QString &errorString) {
-        if (device.machineType() == Device::EmulatorMachine)
-            qerr() << tr("Error connecting to the emulator: ") << errorString << endl;
-        else
-            qerr() << tr("Error connecting to the device: ") << errorString << endl;
-    });
-    QObject::connect(&process, &RemoteProcess::processError, [&](const QString &errorString) {
-        if (device.machineType() == Device::EmulatorMachine)
-            qerr() << tr("Error running command on the emulator: ") << errorString << endl;
-        else
-            qerr() << tr("Error running command on the device: ") << errorString << endl;
-    });
+
+    if (!prepareForRunOnDevice(device, &process))
+        return SFDK_EXIT_ABNORMAL;
 
     return process.exec();
 }

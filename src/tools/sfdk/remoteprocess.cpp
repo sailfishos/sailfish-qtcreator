@@ -62,7 +62,9 @@ RemoteProcess::RemoteProcess(QObject *parent)
     connect(m_runner.get(), &SshRemoteProcessRunner::readyReadStandardError,
             this, &RemoteProcess::onReadyReadStandardError);
     connect(m_runner.get(), &SshRemoteProcessRunner::connectionError,
-            this, [this]() { emit connectionError(m_runner->lastConnectionErrorString()); });
+            this, &RemoteProcess::onConnectionError);
+    connect(m_runner.get(), &SshRemoteProcessRunner::processClosed,
+            this, &RemoteProcess::onProcessClosed);
 }
 
 RemoteProcess::~RemoteProcess()
@@ -106,11 +108,16 @@ void RemoteProcess::setInputChannelMode(QProcess::InputChannelMode inputChannelM
 int RemoteProcess::exec()
 {
     QEventLoop loop;
-    connect(m_runner.get(), &SshRemoteProcessRunner::connectionError,
-            &loop, &QEventLoop::quit);
-    connect(m_runner.get(), &SshRemoteProcessRunner::processClosed,
-            &loop, &QEventLoop::quit);
+    connect(this, &RemoteProcess::finished, &loop, &QEventLoop::exit);
 
+    start();
+    const int exitCode = loop.exec();
+
+    return exitCode;
+}
+
+void RemoteProcess::start()
+{
     QString fullCommand;
     fullCommand.append("echo $$ && ");
     if (!m_workingDirectory.isEmpty()) {
@@ -127,23 +134,6 @@ int RemoteProcess::exec()
     m_runner->runInTerminal(fullCommand.toUtf8(), m_sshConnectionParams, m_inputChannelMode);
 
     started();
-
-    loop.exec();
-
-    const int exitCode = m_startedOk && m_runner->processExitStatus() == SshRemoteProcess::NormalExit
-        && m_runner->processExitCode() != 255 // SSH error
-        ? m_runner->processExitCode()
-        : SFDK_EXIT_ABNORMAL;
-
-    if (exitCode == SFDK_EXIT_ABNORMAL)
-        emit processError(m_runner->processErrorString());
-
-    while (m_killRunner != nullptr)
-        QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);
-
-    exited();
-
-    return exitCode;
 }
 
 void RemoteProcess::beginTerminate()
@@ -212,6 +202,27 @@ void RemoteProcess::kill(const QString &signal, void (RemoteProcess::*callback)(
     m_killRunner->run(killCommand.toUtf8(), m_sshConnectionParams);
 }
 
+void RemoteProcess::finish()
+{
+    QTC_ASSERT(!m_finished, return);
+    m_finished = true;
+
+    const int exitCode = m_startedOk && m_runner->processExitStatus() == SshRemoteProcess::NormalExit
+        && m_runner->processExitCode() != 255 // SSH error
+        ? m_runner->processExitCode()
+        : SFDK_EXIT_ABNORMAL;
+
+    if (exitCode == SFDK_EXIT_ABNORMAL)
+        emit processError(m_runner->processErrorString());
+
+    while (m_killRunner != nullptr)
+        QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);
+
+    exited();
+
+    emit finished(exitCode);
+}
+
 QString RemoteProcess::environmentString(const QProcessEnvironment &environment)
 {
     if (environment.isEmpty())
@@ -243,6 +254,17 @@ void RemoteProcess::onProcessStarted()
         connect(notifier, &QSocketNotifier::activated,
                 this, &RemoteProcess::handleStdin);
     }
+}
+
+void RemoteProcess::onConnectionError()
+{
+    emit connectionError(m_runner->lastConnectionErrorString());
+    finish();
+}
+
+void RemoteProcess::onProcessClosed()
+{
+    finish();
 }
 
 void RemoteProcess::onReadyReadStandardOutput()
