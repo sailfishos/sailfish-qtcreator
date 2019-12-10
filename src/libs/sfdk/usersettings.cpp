@@ -155,34 +155,40 @@ bool UserSettings::save(const QVariantMap &data, QString *errorString)
     }
 
     bool canSaveUserScopeSettings = false;
+    bool userScopeSettingsDiffers = true;
     if (writeLock.isLocked() && readLock.isLocked()) {
         // In enableUpdates() we create and empty file to enable FileSystemWatcher operation
         if (userScopeFile.toFileInfo().size() == 0) {
             canSaveUserScopeSettings = true;
         } else {
             int latestVersion;
-            std::tie(latestVersion, std::ignore) = load(userScopeFile);
-            if (m_baseVersion == latestVersion)
-                canSaveUserScopeSettings = true;
+            QVariantMap latestData;
+            std::tie(latestVersion, latestData) = load(userScopeFile);
+            canSaveUserScopeSettings = m_baseVersion == latestVersion;
+            userScopeSettingsDiffers = data != latestData;
+            if (!userScopeSettingsDiffers)
+                qCDebug(lib) << "Data unchanged. No need to update" << m_baseName;
         }
     }
 
-    if (canSaveUserScopeSettings)
+    if (canSaveUserScopeSettings && userScopeSettingsDiffers)
         ++m_baseVersion;
 
     if (SdkPrivate::isVersionedSettingsEnabled()) {
         if (!save(sessionScopeFile(), data, errorString_))
             return false;
     } else {
-        if (!canSaveUserScopeSettings) {
-            // FIXME This should be reported in the UI
-            qCWarning(lib) << "Settings changed meanwhile. Discarding own changes.";
+        if (!canSaveUserScopeSettings && userScopeSettingsDiffers) {
+            *errorString_ = tr("Settings changed meanwhile. Discarding possible changes to \"%1\"")
+                .arg(m_baseName);
             return false;
         }
     }
 
-    if (canSaveUserScopeSettings && !save(userScopeFile, data, errorString_))
-        return false;
+    if (canSaveUserScopeSettings && userScopeSettingsDiffers) {
+        if (!save(userScopeFile, data, errorString_))
+            return false;
+    }
 
     return true;
 }
