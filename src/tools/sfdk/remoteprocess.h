@@ -100,6 +100,7 @@ private:
     QSsh::SshConnectionParameters m_sshConnectionParams;
     QProcessEnvironment m_extraEnvironment;
     QProcess::InputChannelMode m_inputChannelMode = QProcess::ManagedInputChannel;
+    bool m_startedOk = false;
     qint64 m_processId = 0;
     std::unique_ptr<QFile> m_stdin;
     LineBuffer m_stdoutBuffer;

@@ -105,12 +105,9 @@ void RemoteProcess::setInputChannelMode(QProcess::InputChannelMode inputChannelM
 
 int RemoteProcess::exec()
 {
-    bool startedOk = false;
     QEventLoop loop;
     connect(m_runner.get(), &SshRemoteProcessRunner::connectionError,
             &loop, &QEventLoop::quit);
-    connect(m_runner.get(), &SshRemoteProcessRunner::processStarted,
-            &loop, [&startedOk]() { startedOk = true; });
     connect(m_runner.get(), &SshRemoteProcessRunner::processClosed,
             &loop, &QEventLoop::quit);
 
@@ -133,7 +130,7 @@ int RemoteProcess::exec()
 
     loop.exec();
 
-    const int exitCode = startedOk && m_runner->processExitStatus() == SshRemoteProcess::NormalExit
+    const int exitCode = m_startedOk && m_runner->processExitStatus() == SshRemoteProcess::NormalExit
         && m_runner->processExitCode() != 255 // SSH error
         ? m_runner->processExitCode()
         : SFDK_EXIT_ABNORMAL;
@@ -234,6 +231,8 @@ QString RemoteProcess::environmentString(const QProcessEnvironment &environment)
 
 void RemoteProcess::onProcessStarted()
 {
+    m_startedOk = true;
+
     if (m_inputChannelMode == QProcess::ManagedInputChannel) {
         m_stdin = std::make_unique<QFile>(this);
         if (!m_stdin->open(stdin, QIODevice::ReadOnly | QIODevice::Unbuffered)) {
