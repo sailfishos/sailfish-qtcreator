@@ -110,6 +110,11 @@ void RemoteProcess::setInputChannelMode(QProcess::InputChannelMode inputChannelM
     m_inputChannelMode = inputChannelMode;
 }
 
+void RemoteProcess::setStandardOutputLineBuffered(bool lineBuffered)
+{
+    m_standardOutputLineBuffered = lineBuffered;
+}
+
 int RemoteProcess::exec()
 {
     QEventLoop loop;
@@ -277,8 +282,7 @@ void RemoteProcess::onProcessClosed()
 
 void RemoteProcess::onReadyReadStandardOutput()
 {
-    // except for the period before the processId string is received, stdout is unbuffered
-    if (m_processId != 0) {
+    if (!m_standardOutputLineBuffered && m_processId != 0) {
         emit standardOutput(m_runner->readAllStandardOutput());
         return;
     }
@@ -286,7 +290,12 @@ void RemoteProcess::onReadyReadStandardOutput()
     if (!m_stdoutBuffer.append(m_runner->readAllStandardOutput()))
         return;
 
-    QByteArray data = m_stdoutBuffer.flush(true);
+    if (m_processId != 0) {
+        emit standardOutput(m_stdoutBuffer.flush());
+        return;
+    }
+
+    QByteArray data = m_stdoutBuffer.flush(!m_standardOutputLineBuffered);
     int cut = data.indexOf('\n');
     QTC_ASSERT(cut != -1, { emit standardOutput(data); return; });
     // ssh with input connected to terminal translates LF to CRLF, hence the need to trim

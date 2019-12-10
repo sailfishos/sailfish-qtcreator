@@ -69,6 +69,7 @@ public:
     void setExtraEnvironment(const QProcessEnvironment &extraEnvironment);
     void setRunInTerminal(bool runInTerminal);
     void setInputChannelMode(QProcess::InputChannelMode inputChannelMode);
+    void setStandardOutputLineBuffered(bool lineBuffered);
     void start();
     int exec();
 
@@ -107,6 +108,7 @@ private:
     QProcessEnvironment m_extraEnvironment;
     bool m_runInTerminal = true;
     QProcess::InputChannelMode m_inputChannelMode = QProcess::ManagedInputChannel;
+    bool m_standardOutputLineBuffered = false;
     bool m_startedOk = false;
     bool m_finished = false;
     qint64 m_processId = 0;
