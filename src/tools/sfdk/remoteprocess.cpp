@@ -100,6 +100,11 @@ void RemoteProcess::setExtraEnvironment(const QProcessEnvironment &extraEnvironm
     m_extraEnvironment = extraEnvironment;
 }
 
+void RemoteProcess::setRunInTerminal(bool runInTerminal)
+{
+    m_runInTerminal = runInTerminal;
+}
+
 void RemoteProcess::setInputChannelMode(QProcess::InputChannelMode inputChannelMode)
 {
     m_inputChannelMode = inputChannelMode;
@@ -131,7 +136,10 @@ void RemoteProcess::start()
         fullCommand.append(' ');
     fullCommand.append(Utils::QtcProcess::joinArgs(m_arguments, Utils::OsTypeLinux));
 
-    m_runner->runInTerminal(fullCommand.toUtf8(), m_sshConnectionParams, m_inputChannelMode);
+    if (m_runInTerminal)
+        m_runner->runInTerminal(fullCommand.toUtf8(), m_sshConnectionParams, m_inputChannelMode);
+    else
+        m_runner->run(fullCommand.toUtf8(), m_sshConnectionParams);
 
     started();
 }
@@ -244,7 +252,7 @@ void RemoteProcess::onProcessStarted()
 {
     m_startedOk = true;
 
-    if (m_inputChannelMode == QProcess::ManagedInputChannel) {
+    if (m_runInTerminal && m_inputChannelMode == QProcess::ManagedInputChannel) {
         m_stdin = std::make_unique<QFile>(this);
         if (!m_stdin->open(stdin, QIODevice::ReadOnly | QIODevice::Unbuffered)) {
             qCWarning(sfdk) << "Unable to read from standard input while interactive mode is requested";

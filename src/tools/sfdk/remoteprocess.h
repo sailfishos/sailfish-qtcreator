@@ -67,6 +67,7 @@ public:
     void setWorkingDirectory(const QString& workingDirectory);
     void setSshParameters(const QSsh::SshConnectionParameters& params);
     void setExtraEnvironment(const QProcessEnvironment &extraEnvironment);
+    void setRunInTerminal(bool runInTerminal);
     void setInputChannelMode(QProcess::InputChannelMode inputChannelMode);
     void start();
     int exec();
@@ -104,6 +105,7 @@ private:
     QString m_workingDirectory;
     QSsh::SshConnectionParameters m_sshConnectionParams;
     QProcessEnvironment m_extraEnvironment;
+    bool m_runInTerminal = true;
     QProcess::InputChannelMode m_inputChannelMode = QProcess::ManagedInputChannel;
     bool m_startedOk = false;
     bool m_finished = false;
