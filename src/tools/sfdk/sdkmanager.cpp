@@ -1129,9 +1129,7 @@ bool SdkManager::prepareForRunOnDevice(const Device &device, RemoteProcess *proc
 
         // Assumption to minimize the time spent here: if the VM is running, we must have been waiting
         // before for the emulator to fully start, so no need to wait for connectTo again
-        emulator->virtualMachine()->refreshState(VirtualMachine::Synchronous);
-        const bool emulatorRunning = !emulator->virtualMachine()->isOff();
-        if (!emulatorRunning) {
+        if (!isEmulatorRunning(*emulator)) {
             qCInfo(sfdk).noquote() << tr("Starting the emulator…");
             if (!emulator->virtualMachine()->connectTo(VirtualMachine::Block)) {
                 qerr() << tr("Failed to start the emulator") << endl;
