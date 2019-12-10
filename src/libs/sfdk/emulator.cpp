@@ -336,6 +336,8 @@ bool EmulatorPrivate::fromMap(const QVariantMap &data)
     sshParameters.privateKeyFile = data.value(Constants::EMULATOR_PRIVATE_KEY_FILE).toString();
     sshParameters.setPort(data.value(Constants::EMULATOR_SSH_PORT).toUInt());
     sshParameters.timeout = data.value(Constants::EMULATOR_SSH_TIMEOUT).toInt();
+    if (sshParameters.timeout == 0)
+        sshParameters.timeout = Constants::EMULATOR_DEFAULT_SSH_TIMEOUT;
     setSshParameters(sshParameters);
 
     setFreePorts(PortList::fromString(data.value(Constants::EMULATOR_FREE_PORTS).toString()));

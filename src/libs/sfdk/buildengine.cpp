@@ -345,6 +345,8 @@ bool BuildEnginePrivate::fromMap(const QVariantMap &data)
     sshParameters.privateKeyFile = data.value(Constants::BUILD_ENGINE_PRIVATE_KEY_FILE).toString();
     sshParameters.setPort(data.value(Constants::BUILD_ENGINE_SSH_PORT).toUInt());
     sshParameters.timeout = data.value(Constants::BUILD_ENGINE_SSH_TIMEOUT).toInt();
+    if (sshParameters.timeout == 0)
+        sshParameters.timeout = Constants::BUILD_ENGINE_DEFAULT_SSH_TIMEOUT;
     setSshParameters(sshParameters);
 
     setWwwPort(data.value(Constants::BUILD_ENGINE_WWW_PORT).toUInt());
