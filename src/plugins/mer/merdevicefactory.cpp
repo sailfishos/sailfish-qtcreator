@@ -32,6 +32,8 @@
 #include "mersshkeydeploymentdialog.h"
 #include "mersettings.h"
 
+#include <sfdk/sdk.h>
+
 #include <coreplugin/icore.h>
 #include <ssh/sshconnection.h>
 #include <utils/portlist.h>
@@ -44,6 +46,7 @@
 using namespace Core;
 using namespace ProjectExplorer;
 using namespace QSsh;
+using namespace Sfdk;
 using namespace Utils;
 
 namespace Mer {
@@ -138,6 +141,18 @@ bool MerDeviceFactory::canRestore(const QVariantMap &map) const
         const_cast<MerDeviceFactory *>(this)->setConstructionFunction(MerEmulatorDevice::create);
     else
         const_cast<MerDeviceFactory *>(this)->setConstructionFunction(MerHardwareDevice::create);
+
+    // Discard emulator device configurations from pre-libsfdk times - there is no matching Sfdk
+    // device initially and so it would fail soon in MerEmulatorDevice::fromMap(). This is not
+    // necessary with HW devices - for those the synchronization between QtC and Sfdk happens
+    // bidirectionally.
+    if (MerDevice::workaround_machineTypeFromMap(map) == IDevice::Emulator) {
+        const Core::Id id = IDevice::idFromMap(map);
+        const QString sdkId = MerEmulatorDevice::toSdkId(id);
+        if (!Sdk::device(sdkId))
+            return false;
+    }
+
     return true;
 }
 
