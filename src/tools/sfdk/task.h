@@ -69,6 +69,8 @@ public:
     using QObject::QObject;
     ~Task() override;
 
+    void terminate();
+
 protected:
     void started();
     virtual void beginTerminate() = 0;

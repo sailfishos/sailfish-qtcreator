@@ -78,6 +78,11 @@ Task::~Task()
     QTC_CHECK(exited);
 }
 
+void Task::terminate()
+{
+    post(Terminate);
+}
+
 void Task::started()
 {
     process(Started);
