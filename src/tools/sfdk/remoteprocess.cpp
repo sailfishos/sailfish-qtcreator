@@ -174,6 +174,7 @@ void RemoteProcess::kill(const QString &signal, void (RemoteProcess::*callback)(
 
     if (!m_runner->isProcessRunning()) {
         qCDebug(sfdk) << "Remote process is not running";
+        m_runner->cancel(); // In case it was still starting
         (this->*callback)(true);
         return;
     }
