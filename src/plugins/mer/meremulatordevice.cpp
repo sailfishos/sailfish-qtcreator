@@ -234,7 +234,8 @@ void MerEmulatorDevice::init()
     addAction(tr("Configure Emulator..."), [](const MerEmulatorDevice::Ptr &device, QWidget *parent) {
         Q_UNUSED(parent);
         MerPlugin::emulatorOptionsPage()->setEmulator(device->emulator()->uri());
-        ICore::showOptionsDialog(Constants::MER_EMULATOR_OPTIONS_ID);
+        QTimer::singleShot(0, ICore::instance(),
+                []() { ICore::showOptionsDialog(Constants::MER_EMULATOR_OPTIONS_ID); });
     });
 }
 
