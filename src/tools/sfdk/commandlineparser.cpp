@@ -374,6 +374,8 @@ void CommandLineParser::allDomainsUsage(QTextStream &out) const
 {
     synopsis(out);
     out << endl;
+    wrapLine(out, 0, summary());
+    out << endl;
 
     out << commandsOverviewHeading() << endl;
     out << endl;
