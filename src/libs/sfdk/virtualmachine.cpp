@@ -461,6 +461,10 @@ void VirtualMachine::disconnectFrom()
  * \internal
  */
 
+VirtualMachinePrivate::~VirtualMachinePrivate()
+{
+}
+
 void VirtualMachinePrivate::setSharedPath(SharedPath which, const Utils::FileName &path,
         const QObject *context, const Functor<bool> &functor)
 {
