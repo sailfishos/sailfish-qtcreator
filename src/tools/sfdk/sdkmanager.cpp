@@ -224,8 +224,9 @@ public:
     {
         QProcess listPackages;
         listPackages.setProgram(SdkManager::sdkMaintenanceToolPath());
-        listPackages.setArguments({"-platform", "minimal", "--verbose", "--manage-packages",
+        listPackages.setArguments({"--verbose", "--manage-packages",
                 "non-interactive=1", "accept-licenses=1", "list-packages=1"});
+        listPackages.setProcessEnvironment(addQpaPlatformMinimal());
         listPackages.start();
         if (!listPackages.waitForFinished(-1)) {
             qerr() << tr("Error listing installer-provided packages")
@@ -295,8 +296,9 @@ public:
 
         QProcess managePackages;
         managePackages.setProgram(SdkManager::sdkMaintenanceToolPath());
-        managePackages.setArguments({"-platform", "minimal", "--verbose", "--manage-packages",
+        managePackages.setArguments({"--verbose", "--manage-packages",
                 "non-interactive=1", "accept-licenses=1", "add-packages=" + name});
+        managePackages.setProcessEnvironment(addQpaPlatformMinimal());
         managePackages.setProcessChannelMode(QProcess::ForwardedChannels);
         managePackages.start();
         if (!managePackages.waitForFinished(-1)) {
@@ -322,8 +324,9 @@ public:
 
         QProcess managePackages;
         managePackages.setProgram(SdkManager::sdkMaintenanceToolPath());
-        managePackages.setArguments({"-platform", "minimal", "--verbose", "--manage-packages",
+        managePackages.setArguments({"--verbose", "--manage-packages",
                 "non-interactive=1", "accept-licenses=1", "remove-packages=" + name});
+        managePackages.setProcessEnvironment(addQpaPlatformMinimal());
         managePackages.setProcessChannelMode(QProcess::ForwardedChannels);
         managePackages.start();
         if (!managePackages.waitForFinished(-1)) {
