@@ -52,6 +52,18 @@ int exitAbnormalCode()
 
 int SFDK_EXIT_ABNORMAL = exitAbnormalCode();
 
+QProcessEnvironment addQpaPlatformMinimal(const QProcessEnvironment &environment)
+{
+    QProcessEnvironment environment_ = environment;
+
+#ifdef Q_OS_LINUX
+    if (!qEnvironmentVariableIsSet(Constants::NO_QPA_PLATFORM_MINIMAL_ENV_VAR))
+        environment_.insert("QT_QPA_PLATFORM", "minimal");
+#endif
+
+    return environment_;
+}
+
 namespace Log {
 
 /*

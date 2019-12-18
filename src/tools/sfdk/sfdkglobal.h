@@ -24,10 +24,14 @@
 #pragma once
 
 #include <QLoggingCategory>
+#include <QProcessEnvironment>
 
 namespace Sfdk {
 
 extern int SFDK_EXIT_ABNORMAL;
+
+QProcessEnvironment addQpaPlatformMinimal(const QProcessEnvironment &environment
+        = QProcessEnvironment::systemEnvironment());
 
 inline namespace Log {
 
