@@ -117,6 +117,7 @@ public:
     Q_ENUM(ReservedPortList)
 
     VirtualMachinePrivate(VirtualMachine *q) : q_ptr(q) {}
+    virtual ~VirtualMachinePrivate();
 
     static VirtualMachinePrivate *get(VirtualMachine *q) { return q->d_func(); }
 
