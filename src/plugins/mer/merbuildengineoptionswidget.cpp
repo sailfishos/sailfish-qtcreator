@@ -27,6 +27,7 @@
 #include "merconnectionmanager.h"
 #include "merconstants.h"
 #include "mersdkmanager.h"
+#include "mertargetmanagementdialog.h"
 #include "mervmselectiondialog.h"
 #include "ui_merbuildengineoptionswidget.h"
 
@@ -86,6 +87,8 @@ MerBuildEngineOptionsWidget::MerBuildEngineOptionsWidget(QWidget *parent)
             this, &MerBuildEngineOptionsWidget::onStartVirtualMachineButtonClicked);
     connect(m_ui->stopVirtualMachineButton, &QPushButton::clicked,
             this, &MerBuildEngineOptionsWidget::onStopVirtualMachineButtonClicked);
+    connect(m_ui->manageTargetsButton, &QPushButton::clicked,
+            this, &MerBuildEngineOptionsWidget::onManageTargetsButtonClicked);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::testConnectionButtonClicked,
             this, &MerBuildEngineOptionsWidget::onTestConnectionButtonClicked);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::sshTimeoutChanged,
@@ -443,6 +446,13 @@ void MerBuildEngineOptionsWidget::onStopVirtualMachineButtonClicked()
 {
     BuildEngine *const buildEngine = m_buildEngines[m_virtualMachine];
     buildEngine->virtualMachine()->disconnectFrom();
+}
+
+void MerBuildEngineOptionsWidget::onManageTargetsButtonClicked()
+{
+    BuildEngine *const buildEngine = m_buildEngines[m_virtualMachine];
+    MerTargetManagementDialog dialog(buildEngine, ICore::dialogParent());
+    dialog.exec();
 }
 
 void MerBuildEngineOptionsWidget::onGenerateSshKey(const QString &privKeyPath)

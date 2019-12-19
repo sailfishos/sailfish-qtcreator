@@ -31,6 +31,9 @@ FORMS += \
     merrunconfigurationaspectqmllivedetailswidget.ui \
     meremulatormodeoptionswidget.ui \
     meremulatormodedetailswidget.ui \
+    mertargetmanagementpage.ui \
+    mertargetmanagementpackagespage.ui \
+    mertargetmanagementprogresspage.ui \
     mervirtualmachinesettingswidget.ui \
     mervmselectiondialog.ui \
 
@@ -78,6 +81,7 @@ SOURCES += \
     mersettings.cpp \
     mersshkeydeploymentdialog.cpp \
     mersshparser.cpp \
+    mertargetmanagementdialog.cpp \
     mertoolchain.cpp \
     mervmconnectionui.cpp \
     mervmselectiondialog.cpp \
@@ -133,6 +137,7 @@ HEADERS += \
     mersettings.h \
     mersshkeydeploymentdialog.h \
     mersshparser.h \
+    mertargetmanagementdialog.h \
     mertoolchain.h \
     mertoolchainfactory.h \
     mervmconnectionui.h \
