@@ -493,6 +493,8 @@ MerTargetManagementDialog::MerTargetManagementDialog(Sfdk::BuildEngine *engine, 
     setPage(MerTargetManagementBaseWizardPage::PackagesPage, m_packagesPage.get());
     setPage(MerTargetManagementBaseWizardPage::ProgressPage, m_progressPage.get());
 
+    setWizardStyle(QWizard::ClassicStyle);
+
     setOption(QWizard::NoBackButtonOnLastPage);
     setOption(QWizard::NoCancelButtonOnLastPage);
 
