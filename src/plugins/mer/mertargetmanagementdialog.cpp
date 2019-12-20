@@ -33,6 +33,7 @@
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
+#include <QDir>
 #include <QProcess>
 #include <QScrollBar>
 
@@ -110,6 +111,7 @@ private:
     bool execSfdk(const QStringList &arguments)
     {
         setProgram(Sdk::installationPath() + "/bin/sfdk" QTC_HOST_EXE_SUFFIX);
+        setWorkingDirectory(QDir::homePath());
         setArguments(arguments);
 
         start();
