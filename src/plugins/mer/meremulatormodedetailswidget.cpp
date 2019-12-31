@@ -149,7 +149,11 @@ void MerEmulatorModeDetailsWidget::setCurrentDeviceModel(const Sfdk::DeviceModel
     ui->screenWidthSpinBox->setValue(size.width());
     ui->screenResolutionHeightSpinBox->setValue(resolution.height());
     ui->screenResolutionWidthSpinBox->setValue(resolution.width());
-    ui->nameLineEdit->setText(model.name);
+
+    // Changing the text makes the cursor jump to the end of the line. It is
+    // not necessary to change the text if the old text is the same as the new.
+    if (ui->nameLineEdit->text() != model.name)
+        ui->nameLineEdit->setText(model.name);
     ui->autoDetectionValueLabel->setText(model.autodetected ? tr("Yes") : tr("No"));
 
     ui->nameLineEdit->setDisabled(predefined);
