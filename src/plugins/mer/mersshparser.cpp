@@ -22,6 +22,8 @@
 
 #include "mersshparser.h"
 
+#include <sfdk/sdk.h>
+
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/task.h>
 
@@ -60,6 +62,7 @@ void MerSshParser::stdError(const QString &line)
 
 using namespace ProjectExplorer;
 using namespace Mer::Internal;
+using namespace Sfdk;
 
 void MerPlugin::testMerSshOutputParsers_data()
 {
@@ -84,12 +87,12 @@ void MerPlugin::testMerSshOutputParsers_data()
             << QString();
 
     QTest::newRow("merssh error")
-            << QString::fromLatin1("Project ERROR: Sailfish OS build engine is not running.")
+            << tr("Project ERROR: %1 build engine is not running.").arg(Sdk::osVariant())
             << OutputParserTester::STDERR
             << QString() << QString()
             << (QList<Task>()
                 << Task(Task::Error,
-                        QLatin1String("Sailfish OS build engine is not running."),
+                        tr("%1 build engine is not running.").arg(Sdk::osVariant()),
                         FileName(), -1,
                         categoryBuildSystem))
             << QString();

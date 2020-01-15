@@ -341,7 +341,7 @@ void MerBuildEngineOptionsWidget::onBuildEngineChanged(int index)
 void MerBuildEngineOptionsWidget::onAddButtonClicked()
 {
     MerVmSelectionDialog dialog(this);
-    dialog.setWindowTitle(tr("Add a Sailfish OS Build Engine"));
+    dialog.setWindowTitle(tr("Add a %1 Build Engine").arg(Sdk::osVariant()));
     if (dialog.exec() != QDialog::Accepted)
         return;
 

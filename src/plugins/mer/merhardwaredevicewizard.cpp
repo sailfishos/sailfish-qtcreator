@@ -23,9 +23,12 @@
 
 #include "merhardwaredevicewizard.h"
 
+#include <sfdk/sdk.h>
+
 #include <ssh/sshconnection.h>
 
 using namespace ProjectExplorer;
+using namespace Sfdk;
 using namespace QSsh;
 
 namespace Mer {
@@ -37,7 +40,7 @@ MerHardwareDeviceWizard::MerHardwareDeviceWizard(QWidget *parent)
       m_setupPage(this),
       m_finalPage(this)
 {
-    setWindowTitle(tr("New Sailfish OS Hardware Device Setup"));
+    setWindowTitle(tr("New %1 Hardware Device Setup").arg(Sdk::osVariant()));
     addPage(&m_selectionPage);
     addPage(&m_setupPage);
     addPage(&m_finalPage);

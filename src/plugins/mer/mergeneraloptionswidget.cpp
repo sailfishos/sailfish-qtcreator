@@ -28,6 +28,8 @@
 #include "merdeploysteps.h"
 #include "mersettings.h"
 
+#include <sfdk/sdk.h>
+
 using namespace Utils;
 
 namespace Mer {
@@ -63,6 +65,11 @@ MerGeneralOptionsWidget::MerGeneralOptionsWidget(QWidget *parent)
     m_ui->benchLocationPathChooser->setExpectedKind(PathChooser::ExistingCommand);
     m_ui->benchLocationPathChooser->setPath(MerSettings::qmlLiveBenchLocation());
     m_ui->benchSyncWorkspaceCheckBox->setChecked(MerSettings::isSyncQmlLiveWorkspaceEnabled());
+
+    m_ui->askImportQmakeVariablesCheckBox->setToolTip(m_ui->askImportQmakeVariablesCheckBox->toolTip().arg(Sfdk::Sdk::osVariant()));
+    m_ui->askBeforeStartingVmCheckBox->setToolTip(m_ui->askBeforeStartingVmCheckBox->toolTip().arg(Sfdk::Sdk::osVariant()));
+    m_ui->askBeforeClosingVmCheckBox->setToolTip(m_ui->askBeforeClosingVmCheckBox->toolTip().arg(Sfdk::Sdk::osVariant()));
+    m_ui->rpmValidationInfoLabel->setText(m_ui->rpmValidationInfoLabel->text().arg(Sfdk::Sdk::osVariant()));
 }
 
 MerGeneralOptionsWidget::~MerGeneralOptionsWidget()

@@ -29,6 +29,8 @@
 #include "sfdkconstants.h"
 #include "textutils.h"
 
+#include <sfdk/sdk.h>
+
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
@@ -468,7 +470,7 @@ bool CommandLineParser::checkPositionalArgumentsCount(const QStringList &argumen
 
 QString CommandLineParser::summary()
 {
-    return tr("%1 is the command line frontend of the Sailfish SDK.").arg(EXE_NAME);
+    return tr("%1 is the command line frontend of the %2.").arg(EXE_NAME).arg(Sdk::sdkVariant());
 }
 
 QString CommandLineParser::usageMessage()

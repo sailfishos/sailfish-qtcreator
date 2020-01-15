@@ -41,6 +41,7 @@
 #include <utils/hostosinfo.h>
 #include <utils/utilsicons.h>
 
+#include <sfdk/sdk.h>
 #include <sfdk/sfdkconstants.h>
 
 #include "merconstants.h"
@@ -246,7 +247,7 @@ MerRunConfigurationAspect::MerRunConfigurationAspect(Target *target)
     , m_qmlLiveOptions(DEFAULT_QML_LIVE_OPTIONS)
 {
     setId(Constants::MER_RUN_CONFIGURATION_ASPECT);
-    setDisplayName(tr("Sailfish OS Application Settings"));
+    setDisplayName(tr("%1 Application Settings").arg(Sdk::osVariant()));
     setConfigWidgetCreator([this] { return new MerRunConfigWidget(this); });
 }
 

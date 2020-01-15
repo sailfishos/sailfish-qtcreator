@@ -26,6 +26,7 @@
 #include "mersdkkitinformation.h"
 
 #include <sfdk/buildengine.h>
+#include <sfdk/sdk.h>
 
 #include <projectexplorer/target.h>
 #include <utils/qtcassert.h>
@@ -46,7 +47,7 @@ bool MerSdkStartStep::init()
 {
     const BuildEngine *const engine = MerSdkKitInformation::buildEngine(target()->kit());
     if (!engine) {
-        addOutput(tr("Cannot start SDK: Missing Sailfish OS build-engine information in the kit"),
+        addOutput(tr("Cannot start SDK: Missing %1 build-engine information in the kit").arg(Sdk::osVariant()),
                 OutputFormat::ErrorMessage);
         return false;
     }

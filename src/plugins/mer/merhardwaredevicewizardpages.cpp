@@ -443,6 +443,8 @@ MerHardwareDeviceWizardSetupPage::MerHardwareDeviceWizardSetupPage(QWidget *pare
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
             &MerHardwareDeviceWizardSetupPage::handleBuildEngineChanged);
+
+    m_ui->merSdkLabel->setText(m_ui->merSdkLabel->text().arg(Sdk::osVariant()));
 }
 
 void MerHardwareDeviceWizardSetupPage::initializePage()

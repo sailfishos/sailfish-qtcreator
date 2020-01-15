@@ -28,6 +28,8 @@
 #include "sfdkglobal.h"
 #include "textutils.h"
 
+#include <sfdk/sdk.h>
+
 #include <utils/pointeralgorithm.h>
 #include <utils/qtcassert.h>
 
@@ -54,6 +56,12 @@ const char TR_SYNOPSIS_KEY[] = "trSynopsis";
 const char TYPE_KEY[] = "type";
 const char VERSION_KEY[] = "version";
 const char WORKER_KEY[] = "worker";
+
+const char OS_VARIANT_MACRO[] = "%{OsVariant}";
+const char OS_VARIANT_NOSPACE_MACRO[] = "%{OsVariant:NoSpace}";
+const char OS_VARIANT_UNDERLINE_MACRO[] = "%{OsVariant:Underline}";
+const char IDE_VARIANT_MACRO[] = "%{IdeVariant}";
+const char SDK_VARIANT_MACRO[] = "%{SdkVariant}";
 
 }
 
@@ -253,11 +261,29 @@ void Dispatcher::registerWorkerType(const QString &name, const WorkerCreator &cr
     m_workerCreators.insert(name, creator);
 }
 
+QString Dispatcher::brandedString(const QString &value)
+{
+    if (value.isNull())
+        return {};
+
+    QString brandedValue = value;
+
+    brandedValue.replace(OS_VARIANT_MACRO, Sdk::osVariant());
+    brandedValue.replace(OS_VARIANT_NOSPACE_MACRO, Sdk::osVariant(TextStyle::CamelCase));
+    brandedValue.replace(OS_VARIANT_UNDERLINE_MACRO, Sdk::osVariant(TextStyle::SnakeCase));
+
+    brandedValue.replace(SDK_VARIANT_MACRO, Sdk::sdkVariant());
+    brandedValue.replace(IDE_VARIANT_MACRO, Sdk::ideVariant());
+
+    return brandedValue;
+}
+
 QString Dispatcher::localizedString(const QVariant &value)
 {
     if (value.isNull())
         return {};
-    return QCoreApplication::translate(Constants::DISPATCH_TR_CONTEXT, value.toByteArray());
+
+    return brandedString(QCoreApplication::translate(Constants::DISPATCH_TR_CONTEXT, value.toByteArray()));
 }
 
 const Domain *Dispatcher::ensureDomain(const QString &name)

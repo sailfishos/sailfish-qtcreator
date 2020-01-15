@@ -16,28 +16,17 @@
 ** Other Usage
 **
 ** Alternatively, this file may be used in accordance with the terms and
-** conditions contained in a signed written agreement between you and Digia.
+** conditions contained in a signed written agreement between you and
+** The Qt Company.
 **
 ****************************************************************************/
 
 #pragma once
 
-#include "sfdkglobal.h"
-#include "utils.h"
-
-#include <QList>
-
-namespace Utils {
-class Port;
-class PortList;
-}
-
 namespace Sfdk {
+namespace Constants {
 
-QList<Utils::Port> toList(const Utils::PortList &portList);
-Utils::PortList toPortList(const QList<Utils::Port> &portList);
-Utils::PortList toPortList(const QList<quint16> &portList);
+const char VARIANT_NAME[] = \"$${SFDK_VARIANT}\";
 
-QString separator(TextStyle textStyle);
-
+} // namespace Constants
 } // namespace Sfdk
