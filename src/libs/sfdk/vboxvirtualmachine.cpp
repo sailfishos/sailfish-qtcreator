@@ -852,7 +852,8 @@ QStringList VBoxVirtualMachinePrivate::listedVirtualMachines(const QString &outp
     int pos = 0;
     while ((pos = rx.indexIn(output, pos)) != -1) {
         pos += rx.matchedLength();
-        vms.append(rx.cap(1));
+        if (rx.cap(1) != QLatin1String("<inaccessible>"))
+            vms.append(rx.cap(1));
     }
     return vms;
 }
