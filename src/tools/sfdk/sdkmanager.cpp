@@ -33,6 +33,7 @@
 #include <sfdk/device.h>
 #include <sfdk/emulator.h>
 #include <sfdk/sdk.h>
+#include <sfdk/sfdkconstants.h>
 #include <sfdk/virtualmachine.h>
 
 #include <mer/merconstants.h>
@@ -1316,11 +1317,11 @@ bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QStrin
         Qt::CaseSensitivity cs;
     } const mappings[] = {
 #if Q_CC_GNU <= 504 // Let's check if it is still needed with GCC > 5.4
-        {cleanSharedHome, QLatin1String(Mer::Constants::MER_SDK_SHARED_HOME_MOUNT_POINT), Qt::CaseSensitive},
-        {cleanSharedSrc, QLatin1String(Mer::Constants::MER_SDK_SHARED_SRC_MOUNT_POINT), caseInsensitiveOnWindows}
+        {cleanSharedHome, QLatin1String(Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT), Qt::CaseSensitive},
+        {cleanSharedSrc, QLatin1String(Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT), caseInsensitiveOnWindows}
 #else
-        {cleanSharedHome, Mer::Constants::MER_SDK_SHARED_HOME_MOUNT_POINT, Qt::CaseSensitive},
-        {cleanSharedSrc, Mer::Constants::MER_SDK_SHARED_SRC_MOUNT_POINT, caseInsensitiveOnWindows}
+        {cleanSharedHome, Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, Qt::CaseSensitive},
+        {cleanSharedSrc, Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, caseInsensitiveOnWindows}
 #endif
     };
     for (const Mapping &mapping : mappings) {
@@ -1354,10 +1355,10 @@ QByteArray SdkManager::maybeReverseMapEnginePaths(const QByteArray &commandOutpu
     QByteArray retv = commandOutput;
 
     if (!m_buildEngine->sharedSrcPath().isEmpty())
-      retv.replace(Mer::Constants::MER_SDK_SHARED_SRC_MOUNT_POINT, cleanSharedSrc.toUtf8());
+      retv.replace(Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, cleanSharedSrc.toUtf8());
 
     if (!m_buildEngine->sharedHomePath().isEmpty())
-      retv.replace(Mer::Constants::MER_SDK_SHARED_HOME_MOUNT_POINT, cleanSharedHome.toUtf8());
+      retv.replace(Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, cleanSharedHome.toUtf8());
 
     return retv;
 }

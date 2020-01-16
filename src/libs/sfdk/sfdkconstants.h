@@ -60,6 +60,9 @@ const char BUILD_ENGINE_HEADLESS[] = "Headless";
 const char BUILD_ENGINE_TARGETS_COUNT_KEY[] = "BuildTargets.Count";
 const char BUILD_ENGINE_TARGET_DATA_KEY_PREFIX[] = "BuildTarget.";
 
+const char BUILD_ENGINE_SHARED_HOME_MOUNT_POINT[] = "/home/mersdk/share";
+const char BUILD_ENGINE_SHARED_SRC_MOUNT_POINT[] = "/home/src1";
+
 const char BUILD_TARGET_NAME[] = "Name";
 const char BUILD_TARGET_GCC_DUMP_MACHINE[] = "GccDumpMachine";
 const char BUILD_TARGET_GCC_DUMP_MACROS[] = "GccDumpMacros";
