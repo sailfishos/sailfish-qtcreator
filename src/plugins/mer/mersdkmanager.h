@@ -80,6 +80,8 @@ private:
             const QString &buildTargetName, ProjectExplorer::Kit* k);
     static void ensureDebuggerIsSet(ProjectExplorer::Kit *k, const Sfdk::BuildEngine *buildEngine,
             const QString &buildTargetName);
+    static void ensureCmakeToolIsSet(ProjectExplorer::Kit *k, const Sfdk::BuildEngine *buildEngine,
+            const QString &buildTargetName);
     static std::unique_ptr<MerQtVersion> createQtVersion(const Sfdk::BuildEngine *buildEngine,
             const QString &buildTargetName);
     static std::unique_ptr<MerToolChain> createToolChain(const Sfdk::BuildEngine *buildEngine,

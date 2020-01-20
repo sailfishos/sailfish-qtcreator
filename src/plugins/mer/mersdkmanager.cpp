@@ -40,6 +40,9 @@
 #include <sfdk/virtualmachine.h>
 
 #include <app/app_version.h>
+#include <cmakeprojectmanager/cmakekitinformation.h>
+#include <cmakeprojectmanager/cmaketool.h>
+#include <cmakeprojectmanager/cmaketoolmanager.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/messagemanager.h>
@@ -66,6 +69,7 @@
 #include <QMenu>
 #include <QProcess>
 
+using namespace CMakeProjectManager;
 using namespace Debugger;
 using namespace ExtensionSystem;
 using namespace Mer::Constants;
@@ -135,11 +139,13 @@ void MerSdkManager::initialize()
             }
         }
 
-        // If debugger became available
+        // If debugger and/or cmake became available
         for (BuildEngine *const engine : Sdk::buildEngines()) {
             for (const QString &targetName : engine->buildTargetNames()) {
-                for (Kit *const kit : kitsForTarget(targetName))
+                for (Kit *const kit : kitsForTarget(targetName)) {
                     ensureDebuggerIsSet(kit, engine, targetName);
+                    ensureCmakeToolIsSet(kit, engine, targetName);
+                }
             }
         }
 
@@ -472,12 +478,15 @@ bool MerSdkManager::removeKit(const BuildEngine *buildEngine, const QString &bui
             if (mertoolchain->buildEngineUri() == buildEngine->uri() &&
                     mertoolchain->buildTargetName() == buildTargetName) {
                  BaseQtVersion *v = QtKitInformation::qtVersion(kit);
+                 Core::Id cmakeId = CMakeKitInformation::cmakeToolId(kit);
                  KitManager::deregisterKit(kit);
                  ToolChainManager::deregisterToolChain(tc);
                  if (tc_c)
                      ToolChainManager::deregisterToolChain(tc_c);
                  QTC_ASSERT(v && v->type() == QLatin1String(Constants::MER_QT), continue); //serious bug
                  QtVersionManager::removeVersion(v);
+                 if (cmakeId.isValid())
+                     CMakeToolManager::deregisterCMakeTool(cmakeId);
                  return true;
             }
         }
@@ -511,6 +520,8 @@ bool MerSdkManager::finalizeKitCreation(const BuildEngine *buildEngine,
     k->setMutable(DeviceKitInformation::id(), true);
 
     ensureDebuggerIsSet(k, buildEngine, buildTargetName);
+
+    ensureCmakeToolIsSet(k, buildEngine, buildTargetName);
 
     MerSdkKitInformation::setBuildTarget(k, buildEngine, buildTargetName);
     return true;
@@ -552,6 +563,31 @@ void MerSdkManager::ensureDebuggerIsSet(Kit *k, const BuildEngine *buildEngine,
     } else {
         qCWarning(Log::sdks) << "Debugger binary" << buildTarget.gdb << "not found";
         k->setValue(DebuggerKitInformation::id(), QVariant(QString()));
+    }
+}
+
+void MerSdkManager::ensureCmakeToolIsSet(Kit *k, const BuildEngine *buildEngine,
+        const QString &buildTargetName)
+{
+    const BuildTargetData buildTarget = buildEngine->buildTarget(buildTargetName);
+
+    const FileName cmakeWrapper = FileName(buildTarget.toolsPath).appendPath(Sfdk::Constants::WRAPPER_CMAKE);
+
+    if (cmakeWrapper.exists()) {
+        const Core::Id cmakeId = CMakeToolManager::registerOrFindCMakeTool(cmakeWrapper);
+        CMakeTool *cmakeTool = CMakeToolManager::findById(cmakeId);
+        cmakeTool->setDisplayName(QString::fromLatin1("CMake for %1 in %2").arg(buildTargetName, buildEngine->name()));
+        cmakeTool->setAutorun(true);
+        cmakeTool->setAutoCreateBuildDirectory(true);
+        CMakeKitInformation::setCMakeTool(k, cmakeId);
+        QStringList cmakeConf = { "CMAKE_CXX_COMPILER:STRING=/usr/bin/gcc",
+                                  "CMAKE_C_COMPILER:STRING=/usr/bin/gcc",
+                                  "CMAKE_PREFIX_PATH:STRING=%{Qt:QT_INSTALL_PREFIX}",
+                                  "QT_QMAKE_EXECUTABLE:STRING=%{Qt:qmakeExecutable}" };
+        CMakeConfigurationKitInformation::fromStringList(k, cmakeConf);
+    } else {
+        qCWarning(Log::sdks) << "CMake wrapper script" << cmakeWrapper.toString() << "not found";
+        k->setValue(CMakeKitInformation::id(), QVariant(QString()));
     }
 }
 
