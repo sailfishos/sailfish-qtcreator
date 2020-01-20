@@ -21,7 +21,7 @@
 **
 ****************************************************************************/
 
-#include "merbuildconfiguration.h"
+#include "merqmakebuildconfiguration.h"
 
 #include "merconstants.h"
 #include "merbuildsteps.h"
@@ -68,26 +68,26 @@ const int UPDATE_EXTRA_PARSER_ARGUMENTS_DELAY_MS = 3000;
 namespace Mer {
 namespace Internal {
 
-MerBuildConfiguration::MerBuildConfiguration(Target *target, Core::Id id)
+MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target, Core::Id id)
     : QmakeBuildConfiguration(target, id)
 {
     connect(MerSettings::instance(), &MerSettings::importQmakeVariablesEnabledChanged,
-            this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
+            this, &MerQmakeBuildConfiguration::maybeSetupExtraParserArguments);
 
     connect(SessionManager::instance(), &SessionManager::startupProjectChanged,
-            this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
+            this, &MerQmakeBuildConfiguration::maybeSetupExtraParserArguments);
     connect(project(), &Project::activeTargetChanged,
-            this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
+            this, &MerQmakeBuildConfiguration::maybeSetupExtraParserArguments);
     connect(target, &Target::activeBuildConfigurationChanged,
-            this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
+            this, &MerQmakeBuildConfiguration::maybeSetupExtraParserArguments);
     connect(ModeManager::instance(), &ModeManager::currentModeChanged,
-            this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
+            this, &MerQmakeBuildConfiguration::maybeSetupExtraParserArguments);
 
     QmakeProject *qmakeProject = static_cast<QmakeProject *>(project());
     // Note that this is emited more than once during qmake step execution - once
     // for each executed process
     connect(qmakeProject, &QmakeProject::buildDirectoryInitialized,
-            this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
+            this, &MerQmakeBuildConfiguration::maybeSetupExtraParserArguments);
 
     connect(EditorManager::instance(), &EditorManager::saved,
             this, [this](IDocument *document) {
@@ -108,7 +108,7 @@ MerBuildConfiguration::MerBuildConfiguration(Target *target, Core::Id id)
     });
 }
 
-void MerBuildConfiguration::initialize(const ProjectExplorer::BuildInfo &info)
+void MerQmakeBuildConfiguration::initialize(const ProjectExplorer::BuildInfo &info)
 {
     QmakeBuildConfiguration::initialize(info);
 
@@ -121,7 +121,7 @@ void MerBuildConfiguration::initialize(const ProjectExplorer::BuildInfo &info)
     cleanSteps->insertStep(0, new MerSdkStartStep(cleanSteps));
 }
 
-void MerBuildConfiguration::timerEvent(QTimerEvent *event)
+void MerQmakeBuildConfiguration::timerEvent(QTimerEvent *event)
 {
     if (event->timerId() == m_maybeUpdateExtraParserArgumentsTimer.timerId()) {
         m_maybeUpdateExtraParserArgumentsTimer.stop();
@@ -132,23 +132,23 @@ void MerBuildConfiguration::timerEvent(QTimerEvent *event)
     }
 }
 
-bool MerBuildConfiguration::eventFilter(QObject *watched, QEvent *event)
+bool MerQmakeBuildConfiguration::eventFilter(QObject *watched, QEvent *event)
 {
     if (event->type() == QEvent::Close) {
-        QTimer::singleShot(0, this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
+        QTimer::singleShot(0, this, &MerQmakeBuildConfiguration::maybeSetupExtraParserArguments);
         watched->removeEventFilter(this);
     }
 
     return QmakeBuildConfiguration::eventFilter(watched, event);
 }
 
-bool MerBuildConfiguration::isReallyActive() const
+bool MerQmakeBuildConfiguration::isReallyActive() const
 {
     QTC_ASSERT(project(), return false);
     return SessionManager::startupProject() == project() && isActive();
 }
 
-void MerBuildConfiguration::maybeSetupExtraParserArguments()
+void MerQmakeBuildConfiguration::maybeSetupExtraParserArguments()
 {
     if (!isReallyActive())
         return;
@@ -176,7 +176,7 @@ void MerBuildConfiguration::maybeSetupExtraParserArguments()
     setupExtraParserArguments();
 };
 
-void MerBuildConfiguration::setupExtraParserArguments()
+void MerQmakeBuildConfiguration::setupExtraParserArguments()
 {
     QTC_ASSERT(qmakeStep(), return);
     QTC_ASSERT(!project()->needsConfiguration(), return);
@@ -223,7 +223,7 @@ void MerBuildConfiguration::setupExtraParserArguments()
     }
 }
 
-void MerBuildConfiguration::maybeUpdateExtraParserArguments(bool now)
+void MerQmakeBuildConfiguration::maybeUpdateExtraParserArguments(bool now)
 {
     if (!now) {
         m_maybeUpdateExtraParserArgumentsTimer.start(UPDATE_EXTRA_PARSER_ARGUMENTS_DELAY_MS, this);
@@ -268,7 +268,7 @@ void MerBuildConfiguration::maybeUpdateExtraParserArguments(bool now)
     m_qmakeQuestion->raise();
 }
 
-void MerBuildConfiguration::updateExtraParserArguments()
+void MerQmakeBuildConfiguration::updateExtraParserArguments()
 {
     const BuildEngine *const buildEngine = MerSdkKitInformation::buildEngine(target()->kit());
     QTC_ASSERT(buildEngine, return);
@@ -291,16 +291,16 @@ void MerBuildConfiguration::updateExtraParserArguments()
     qs->setRecursive(true);
 }
 
-bool MerBuildConfiguration::fromMap(const QVariantMap &map)
+bool MerQmakeBuildConfiguration::fromMap(const QVariantMap &map)
 {
     if (!QmakeBuildConfiguration::fromMap(map))
         return false;
     return true;
 }
 
-MerBuildConfigurationFactory::MerBuildConfigurationFactory()
+MerQmakeBuildConfigurationFactory::MerQmakeBuildConfigurationFactory()
 {
-    registerBuildConfiguration<MerBuildConfiguration>(QmakeProjectManager::Constants::QMAKE_BC_ID);
+    registerBuildConfiguration<MerQmakeBuildConfiguration>(QmakeProjectManager::Constants::QMAKE_BC_ID);
     addSupportedTargetDeviceType(Constants::MER_DEVICE_TYPE);
 }
 
