@@ -44,14 +44,16 @@ namespace Internal {
 class BuildDirManager;
 class CMakeBuildSettingsWidget;
 
-class CMakeBuildConfiguration : public ProjectExplorer::BuildConfiguration
+class Q_DECL_EXPORT CMakeBuildConfiguration : public ProjectExplorer::BuildConfiguration
 {
     Q_OBJECT
 
     friend class ProjectExplorer::BuildConfigurationFactory;
-    CMakeBuildConfiguration(ProjectExplorer::Target *parent, Core::Id id);
 
 public:
+    CMakeBuildConfiguration(ProjectExplorer::Target *parent, Core::Id id);
+    ~CMakeBuildConfiguration() override;
+
     void emitBuildTypeChanged();
 
     bool isEnabled() const override;
@@ -79,16 +81,18 @@ signals:
 
     void configurationForCMakeChanged();
 
+protected:
+    void initialize(const ProjectExplorer::BuildInfo &info) override;
+
+    bool fromMap(const QVariantMap &map) override;
+
 private:
     QVariantMap toMap() const override;
     BuildType buildType() const override;
 
-    void initialize(const ProjectExplorer::BuildInfo &info) override;
     QString disabledReason() const override;
 
     ProjectExplorer::NamedWidget *createConfigWidget() override;
-
-    bool fromMap(const QVariantMap &map) override;
 
     bool isParsing() const;
 
@@ -117,7 +121,7 @@ private:
 
 class CMakeProjectImporter;
 
-class CMakeBuildConfigurationFactory : public ProjectExplorer::BuildConfigurationFactory
+class Q_DECL_EXPORT CMakeBuildConfigurationFactory : public ProjectExplorer::BuildConfigurationFactory
 {
     Q_OBJECT
 

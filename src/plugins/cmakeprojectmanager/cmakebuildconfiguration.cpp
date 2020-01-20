@@ -84,6 +84,8 @@ CMakeBuildConfiguration::CMakeBuildConfiguration(Target *parent, Core::Id id)
     connect(project, &Project::parsingFinished, this, &BuildConfiguration::enabledChanged);
 }
 
+CMakeBuildConfiguration::~CMakeBuildConfiguration() = default;
+
 void CMakeBuildConfiguration::initialize(const BuildInfo &info)
 {
     BuildConfiguration::initialize(info);
