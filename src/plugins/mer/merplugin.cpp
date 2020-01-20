@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -23,7 +23,7 @@
 
 #include "merplugin.h"
 
-#include "merbuildconfiguration.h"
+#include "merqmakebuildconfiguration.h"
 #include "merbuildengineoptionspage.h"
 #include "merbuildsteps.h"
 #include "merconnectionmanager.h"
@@ -118,7 +118,7 @@ public:
     MerDeployStepFactory<MerLocalRsyncDeployStep> localRsyncDeployStepFactory;
     MerDeployStepFactory<MerResetAmbienceDeployStep> resetAmbienceDeployStepFactory;
     MerQmlLiveBenchManager qmlLiveBenchManager;
-    MerBuildConfigurationFactory buildConfigurationFactory;
+    MerQmakeBuildConfigurationFactory qmakeBuildConfigurationFactory;
 };
 
 static MerPluginPrivate *dd = nullptr;

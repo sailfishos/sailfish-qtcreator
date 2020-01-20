@@ -32,12 +32,12 @@
 namespace Mer {
 namespace Internal {
 
-class MerBuildConfiguration : public QmakeProjectManager::QmakeBuildConfiguration
+class MerQmakeBuildConfiguration : public QmakeProjectManager::QmakeBuildConfiguration
 {
     Q_OBJECT
 
 public:
-    MerBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
+    MerQmakeBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
     void initialize(const ProjectExplorer::BuildInfo &info) override;
     bool fromMap(const QVariantMap &map) override;
 
@@ -57,10 +57,11 @@ private:
     QPointer<QMessageBox> m_qmakeQuestion;
 };
 
-class MerBuildConfigurationFactory : public QmakeProjectManager::QmakeBuildConfigurationFactory
+class MerQmakeBuildConfigurationFactory : public QmakeProjectManager::QmakeBuildConfigurationFactory
 {
+
 public:
-    MerBuildConfigurationFactory();
+    MerQmakeBuildConfigurationFactory();
 };
 
 } // namespace Internal
