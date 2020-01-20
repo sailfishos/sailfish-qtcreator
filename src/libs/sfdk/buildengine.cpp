@@ -51,6 +51,7 @@ namespace Sfdk {
 namespace {
 
 const char* SIMPLE_WRAPPERS[] = {
+    Constants::WRAPPER_CMAKE,
     Constants::WRAPPER_QMAKE,
     Constants::WRAPPER_MAKE,
     Constants::WRAPPER_GCC,
