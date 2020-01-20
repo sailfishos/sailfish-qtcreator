@@ -416,7 +416,7 @@ ProjectExplorer::NamedWidget *CMakeBuildConfiguration::createConfigWidget()
 CMakeBuildConfigurationFactory::CMakeBuildConfigurationFactory()
 {
     registerBuildConfiguration<CMakeBuildConfiguration>(
-        "CMakeProjectManager.CMakeBuildConfiguration");
+            Constants::CMAKEPROJECT_BC_ID);
 
     setSupportedProjectType(CMakeProjectManager::Constants::CMAKEPROJECT_ID);
     setSupportedProjectMimeTypeName(Constants::CMAKEPROJECTMIMETYPE);
