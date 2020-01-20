@@ -55,6 +55,7 @@ public:
     QString gccDumpMachine;
     QString gccDumpMacros;
     QString gccDumpIncludes;
+    QString cmakeQuery;
     QString qmakeQuery;
     QString rpmValidationSuites;
 };

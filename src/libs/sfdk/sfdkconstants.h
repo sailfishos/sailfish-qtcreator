@@ -75,6 +75,7 @@ const char BUILD_TARGET_NAME[] = "Name";
 const char BUILD_TARGET_GCC_DUMP_MACHINE[] = "GccDumpMachine";
 const char BUILD_TARGET_GCC_DUMP_MACROS[] = "GccDumpMacros";
 const char BUILD_TARGET_GCC_DUMP_INCLUDES[] = "GccDumpIncludes";
+const char BUILD_TARGET_CMAKE_QUERY[] = "CmakeQuery";
 const char BUILD_TARGET_QMAKE_QUERY[] = "QmakeQuery";
 const char BUILD_TARGET_RPM_VALIDATION_SUITES[] = "RpmValidationSuites";
 
