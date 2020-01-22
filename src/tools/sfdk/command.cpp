@@ -1669,9 +1669,19 @@ Worker::ExitStatus EngineWorker::run(const Command *command, const QStringList &
         return NormalExit;
     }
 
+    QString errorString;
+
+    QStringList globalArguments;
+    if (!Configuration::toArguments(command->configOptions, command->mandatoryConfigOptions,
+                &globalArguments, &errorString)) {
+        qerr() << errorString << endl;
+        *exitCode = SFDK_EXIT_ABNORMAL;
+        return BadUsage;
+    }
+
     QStringList allArguments;
     allArguments += m_initialArguments;
-    allArguments += Configuration::toArguments(command->module);
+    allArguments += globalArguments;
     if (!m_omitSubcommand)
         allArguments += command->name;
     allArguments += arguments;

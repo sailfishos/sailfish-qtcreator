@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include "configuration.h"
 #include "sdkmanager.h"
 
 #include <QCoreApplication>
@@ -63,6 +64,8 @@ public:
     QString synopsis;
     QString briefDescription;
     QString description;
+    Option::ConstList configOptions;
+    Option::ConstList mandatoryConfigOptions;
 };
 
 class Worker

@@ -1,5 +1,5 @@
 {
-    "version": 2,
+    "version": 3,
     "domain": "building",
     "trBrief": "Building software",
 
@@ -18,45 +18,53 @@
             "name": "build-requires",
             "trSynopsis": "[--[no-]refresh] {pull|reset}",
             "trBrief": "Update build time dependencies",
+            "configOptions": ["*", "target!", "-no-pull-build-requires"],
             "trDescription": "When 'pull' is used, install or update the build-time dependencies as is done implicitly by the 'prepare', 'build' and 'qmake' commands but refresh the package cache first, unless '--no-refresh' is active.\n\nWhen the 'snapshot' configuration option is used, '--no-refresh' is implied. This can be overridden with '--refresh' - do not use unless you know what you are doing. If refresh is needed, refresh (and update) the original target instead, then do 'reset'.\n\nThe 'reset' command can only be used together with the 'snapshot' configuration option, with the effect of resetting the target snapshot forcefully to the (possibly updated) state of the original target first, pulling later."
         },
         {
             "name": "prepare",
             "trBrief": "Prepare sources using the recipe from spec file",
+            "configOptions": ["*", "target!"],
             "trDescription": "Run rpmbuild. Execute just the %prep section of the .spec file."
         },
         {
             "name": "apply",
             "trSynopsis": "[-R]",
             "trBrief": "Apply patches listed in the spec file",
+            "configOptions": ["*", "target!"],
             "trDescription": "Apply all patches defined in the .spec file to the source tree.\n-R    reverse apply patches (patch -R)"
         },
         {
             "name": "build",
             "trSynopsis": "[-p|--doprep] [-d|--enable-debug] [-j <n>] [<project-dir-or-file>] [[--] <rpmbuild-extra-args>]",
             "trBrief": "Execute all build steps at once",
+            "configOptions": ["*", "target!"],
             "trDescription": "Run rpmbuild. Execute all sections of the .spec file except for %prep unless told otherwise. If path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the .spec file.)\n-p     run %prep phase as well\n-d     enable debug build\n-j <n> run up to <n> jobs simultaneously"
         },
         {
             "name": "qmake",
             "trSynopsis": "[<project-dir-or-file>] [[--] <qmake-extra-args>]",
             "trBrief": "Execute qmake build step",
+            "configOptions": ["*", "target!"],
             "trDescription": "Run rpmbuild. Execute just the %build section of the .spec file, suppressing any 'make' invocation figuring in that section. If path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the .spec file.)"
         },
         {
             "name": "make",
             "trSynopsis": "[<make-extra-args>]",
             "trBrief": "Execute make build step",
+            "configOptions": ["*", "target!"],
             "trDescription": "Run rpmbuild. Execute just the %build section of the .spec file, suppressing any 'qmake' invocation figuring in that section."
         },
         {
             "name": "make-install",
             "trBrief": "Execute make-install build step",
+            "configOptions": ["*", "target!"],
             "trDescription": "Run rpmbuild. Execute just the %install section of the .spec file. This is not the same as using the 'make' command with 'install' argument."
         },
         {
             "name": "package",
             "trBrief": "Execute package creation build step",
+            "configOptions": ["*", "target!"],
             "trDescription": "Run rpmbuild. Execute just the %install section of the .spec file, then build binary packages."
         }
     ],

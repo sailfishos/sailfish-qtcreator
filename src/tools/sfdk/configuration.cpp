@@ -85,11 +85,6 @@ private:
  * \class Option
  */
 
-const Domain *Option::domain() const
-{
-    return module->domain;
-}
-
 /*!
  * \class OptionOccurence
  */
@@ -410,23 +405,31 @@ Utils::optional<OptionEffectiveOccurence> Configuration::effectiveState(const Op
     return {};
 }
 
-QStringList Configuration::toArguments(const Module *module)
+bool Configuration::toArguments(const Option::ConstList &options,
+        const Option::ConstList &requiredOptions, QStringList *arguments, QString *errorString)
 {
-    QStringList retv;
+    auto unsetRequiredOptions = requiredOptions.toSet();
 
     for (const OptionEffectiveOccurence &occurence : effectiveState()) {
-        if (!occurence.isMasked() && occurence.option()->module == module) {
+        if (!occurence.isMasked() && options.contains(occurence.option())) {
             if (occurence.argument().isEmpty()) {
-                retv << "--" + occurence.option()->name;
+                *arguments << "--" + occurence.option()->name;
             } else if (occurence.option()->argumentType == Option::MandatoryArgument) {
-                retv << "--" + occurence.option()->name << occurence.argument();
+                *arguments << "--" + occurence.option()->name << occurence.argument();
             } else {
-                retv << "--" + occurence.option()->name + "=" + occurence.argument();
+                *arguments << "--" + occurence.option()->name + "=" + occurence.argument();
             }
+            unsetRequiredOptions.remove(occurence.option());
         }
     }
 
-    return retv;
+    if (!unsetRequiredOptions.isEmpty()) {
+        *errorString = tr("The required configuration option '%1' is not set")
+            .arg((*unsetRequiredOptions.cbegin())->name);
+        return false;
+    }
+
+    return true;
 }
 
 QString Configuration::print()

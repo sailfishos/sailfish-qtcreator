@@ -106,8 +106,14 @@ private:
     static QString localizedString(const QVariant &value);
     const Domain *ensureDomain(const QString &name);
     std::unique_ptr<Module> loadModule(const QVariantMap &data, QString *errorString);
-    bool loadOptions(const Module *module, const QVariantList &list, QString *errorString);
-    bool loadCommands(const Module *module, const QVariantList &list, QString *errorString);
+    bool loadExternOptions(const QVariantList &list, Option::ConstList *allModuleOptions,
+            QString *errorString);
+    bool loadOptions(const Module *module, const QVariantList &list,
+            Option::ConstList *allModuleOptions, QString *errorString);
+    bool loadCommands(const Module *module, const QVariantList &list,
+            const Option::ConstList &allModuleOptions, QString *errorString);
+    bool loadCommandConfigOptions(Command *command, const QVariantList &list,
+            const Option::ConstList &allModuleOptions, QString *errorString);
     const Worker *loadWorker(const QVariantMap &data, QString *errorString);
 
 private:

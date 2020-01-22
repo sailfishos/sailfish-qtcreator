@@ -32,6 +32,7 @@
 #include <sfdk/sdk.h>
 
 #include <utils/algorithm.h>
+#include <utils/pointeralgorithm.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
@@ -76,7 +77,7 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
         if (option->alias.isNull())
             continue;
 
-        QString domainHelpOptionName = "--help-" + option->domain()->name;
+        QString domainHelpOptionName = "--help-" + option->module->domain->name;
         QCommandLineOption alias(option->alias);
         alias.setValueName(option->argumentDescription);
         alias.setDescription(tr("This is a shorthand alias for the '%1' configuration option.")
@@ -437,15 +438,8 @@ void CommandLineParser::allDomainsUsage(QTextStream &out) const
     out << configurationOptionsHeading() << endl;
     out << endl;
 
-    for (const std::unique_ptr<const Domain> &domain : Dispatcher::domains()) {
-        const Option::ConstList domainOptions = domain->options();
-        if (domainOptions.isEmpty())
-            continue;
-
-        wrapLine(out, 1, domain->briefDescription());
-        describe(out, 2, domainOptions);
-        out << endl;
-    }
+    describe(out, 1, Utils::toRawPointer<QList>(Dispatcher::options()));
+    out << endl;
 
     exitStatusSection(out);
 }

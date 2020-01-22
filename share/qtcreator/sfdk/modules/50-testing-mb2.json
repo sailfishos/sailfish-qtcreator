@@ -1,5 +1,5 @@
 {
-    "version": 2,
+    "version": 3,
     "domain": "testing",
     "trBrief": "Testing software",
 
@@ -18,23 +18,31 @@
             "name": "deploy",
             "trSynopsis": "{--pkcon|--rsync|--sdk|--zypper|--manual} [--all] [--debug] [--] [[+|-]<pattern>...]",
             "trBrief": "Deploy to a device",
+            "configOptions": ["*", "device!", "target!"],
             "trDescription": "Deploy build results to the configured device (see the 'device' configuration option).\n\nUnless mentioned otherwise, this command implies also the 'make-install' and 'package' command. A common exception is when the '--all' option is used.\n\nBy default, just the build results of the project under current working directory will be deployed. When a shared output directory is used (see 'output-dir' and 'output-prefix' configuration options), the option '--all' can be used to require deployment of all packages, no matter of their origin. The '--all' option is not available when the '--rsync' method is used.\n\nSelection of (sub)packages for deployment can be influenced with glob <pattern>s, each of which may be preceded with '+' or '-' to opt for either inclusion (default) or exclusion respectively as the desired effect. Later specified patterns may override earlier ones.  Extended, Bash-compatible patterns are allowed.  The '-*-debug@(info|source)' pattern is implied unless the '--debug' option is used.  (Note: '--debug' is not needed for successfull debugging with the 'debug' command as that command uses the local debug information.)  Options must precede patterns if any.\n\nThe following deployment methods are available, corresponding to the mandatory option:\n\n--pkcon\n    Uses 'pkcon' to install RPM package(s). Requires the \"Allow untrusted software\" option enabled in Settings, does not require root access to the device.\n\n--rsync\n    Uses 'rsync' to copy the installed files under '/opt/sdk/<name>' without building/installing RPM package(s).  Does not require root access to the device. With this method the 'package' command is not implied. Incompatible with '--all'.\n\n--sdk\n    Uses the method native to the SDK to install RPM package(s). Requires developer mode enabled on the device, does not require root access.\n\n--zypper\n    Uses 'zypper' to install RPM package(s).  Requires 'zypper' installed on the device, requires root access to the device.\n\n--manual\n    Only transfers the RPM package(s) to the device for manual installation. Uses '~/RPMS' as the target directory on the device."
         },
         {
             "name": "check",
             "trSynopsis": "--list-suites\n[-l|--levels [+|-]<level>...] [-s|--suites [+|-]<suite>...] [<artefact>]...",
             "trBrief": "Perform quality checks",
+            "configOptions": ["*", "target!"],
             "trDescription": "Perform quality checks.\n\nBy default, test suites operate on the artefacts associated with build tree under CWD. Alternatively, single path to a source tree and/or one or more package files may be specified as <artefact> on command line (build tree is always looked for under CWD).\n\nEach test suite realizes testing on one or more of the four recognized test levels. This is indicated in the output produced with the '--list-suites' option, using the keywords found in the first column of the following table.\n\n| Level          | Tested art. | Executed at   | Default |\n|----------------+-------------+---------------+---------|\n|    static      |             |               |         |\n| 1. ├── source  | Sources     | Build host    | +       |\n| 2. └── package | Packages    | Build host    | +       |\n|    dynamic     |             |               |         |\n| 3. ├── unit    | Build tree  | Build host    | -       |\n| 4. └── system  | Packages    | Target device | -       |\n\n(See also QUALITY ASSURANCE in the domain help.)\n\n-l, --levels [+|-]<level>...\n    Select testing levels. Levels are selected using the keywords 'source', 'package', 'static', 'unit', 'system' and 'dynamic' as described before.\n\n--list-suites\n    List available test suites.\n\n-s, --suites [+|-]<suite>...\n    Select test suites to use. By default all and only the essential suites are selected. See '--list-suites'.\n\nThe '--levels' and '--suites' options may be passed multiple values, separated with comma. If a name is prefixed with '+' or '-', the effect is cumulative and persists until overriden with later name prefixed with the opposite operator."
         }
     ],
 
+    "externOptions": [
+        "device",
+        "[no-]fix-version",
+        "output-dir",
+        "output-prefix",
+        "[no-]search-output-dir",
+        "[force-no-]snapshot",
+        "specfile",
+        "target",
+        "[no-]task"
+    ],
+
     "options":
     [
-        {
-            "name": "device",
-            "trArgument": "<name>",
-            "trDescription": "Select the device to use with commands that need to access a device. Registered devices can be listed with the 'device list' command.",
-            "validator": "module.validateDeviceName"
-        }
     ]
 }

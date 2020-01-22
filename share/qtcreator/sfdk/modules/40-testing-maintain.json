@@ -1,5 +1,5 @@
 {
-    "version": 2,
+    "version": 3,
     "domain": "testing",
     "trBrief": "Testing software",
 
@@ -17,6 +17,7 @@
             "name": "device",
             "trSynopsis": "list\nexec [<name-or-idx>] [--] [<command> [<arg>...]]",
             "trBrief": "Maintain and control registered devices",
+            "configOptions": ["device"],
             "trDescription": "Registered devices can be listed with the 'list' command.\n\nThe 'exec' command allows executing an arbitrary <command> on the device specified with name or index as reported by the 'list' command. If no <name-or-idx> is passed, the device selected with the 'device' configuration option will be used. If no <command> is specified, an interactive shell is executed."
         },
         {
@@ -29,5 +30,11 @@
 
     "options":
     [
+        {
+            "name": "device",
+            "trArgument": "<name>",
+            "trDescription": "Select the device to use with commands that need to access a device. Registered devices can be listed with the 'device list' command.",
+            "validator": "module.validateDeviceName"
+        }
     ]
 }

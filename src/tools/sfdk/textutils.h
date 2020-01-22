@@ -54,6 +54,8 @@ void wrapLine(QTextStream &out, int indentLevel, const QString &line);
 void wrapLines(QTextStream &out, int indentLevel, const QStringList &prefix1,
         const QStringList &prefix2, const QString &lines);
 
+bool expandCompacted(const QString &string, QStringList *expanded);
+
 class TreePrinter
 {
 public:
