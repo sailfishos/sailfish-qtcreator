@@ -100,13 +100,17 @@ public:
     static QString unrecognizedOptionMessage(const QString &option);
     static QString tryLongHelpMessage(const QString &options);
 
+private:
     static QString commandsOverviewHeading();
     static QString commandsHeading();
     static QString globalOptionsHeading();
     static QString configurationOptionsHeading();
+    static QString relatedConfigurationOptionsHeading(const Command *command);
+    static QString listRelatedConfigurationOptions(const Command *command);
 
-private:
+    static QStringList compactOptions(const QStringList &names);
     static QString dashOption(const QString &option);
+
     void synopsis(QTextStream &out) const;
     void describe(QTextStream &out, int indentLevel, const QList<QCommandLineOption> &options) const;
     void describeBriefly(QTextStream &out, int indentLevel, const Command::ConstList &commands)
