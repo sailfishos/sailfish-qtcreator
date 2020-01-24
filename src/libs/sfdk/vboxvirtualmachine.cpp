@@ -212,6 +212,11 @@ VBoxVirtualMachine::~VBoxVirtualMachine()
 {
 }
 
+bool VBoxVirtualMachine::isAvailable()
+{
+    return !vBoxManagePath().isEmpty();
+}
+
 QString VBoxVirtualMachine::staticType()
 {
     return QStringLiteral("VirtualBox");

@@ -80,7 +80,8 @@ Sdk::Sdk(Options options)
     d->commandQueue_ = std::make_unique<CommandQueue>(this);
 
     d->virtualMachineFactory = std::make_unique<VirtualMachineFactory>(this);
-    d->virtualMachineFactory->registerType<VBoxVirtualMachine>();
+    if (VBoxVirtualMachine::isAvailable())
+        d->virtualMachineFactory->registerType<VBoxVirtualMachine>();
     if (DockerVirtualMachine::isAvailable())
         d->virtualMachineFactory->registerType<DockerVirtualMachine>();
 

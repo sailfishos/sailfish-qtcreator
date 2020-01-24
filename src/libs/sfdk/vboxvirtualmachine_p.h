@@ -35,6 +35,7 @@ public:
     explicit VBoxVirtualMachine(const QString &name, QObject *parent = nullptr);
     ~VBoxVirtualMachine() override;
 
+    static bool isAvailable();
     static QString staticType();
     static QString staticDisplayType();
     static void fetchRegisteredVirtualMachines(const QObject *context,
