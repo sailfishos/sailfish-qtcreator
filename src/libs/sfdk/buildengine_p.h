@@ -27,6 +27,10 @@
 
 #include <QDateTime>
 
+QT_BEGIN_NAMESPACE
+class QHostInfo;
+QT_END_NAMESPACE
+
 namespace QSsh {
 class SshConnectionParameters;
 }
@@ -134,6 +138,11 @@ public:
 
     static QString installDir();
 
+    static QString defaultBuildHostName();
+    static QString effectiveBuildHostName();
+    static QString customBuildHostName();
+    static void setCustomBuildHostName(const QString &hostName);
+
     static QList<BuildEngine *> buildEngines();
     static BuildEngine *buildEngine(const QUrl &uri);
     static void createBuildEngine(const QUrl &virtualMachineUri, const QObject *context,
@@ -142,6 +151,7 @@ public:
     static void removeBuildEngine(const QUrl &uri);
 
 signals:
+    void customBuildHostNameChanged(const QString &hostName);
     void buildEngineAdded(int index);
     void aboutToRemoveBuildEngine(int index);
 
@@ -152,6 +162,7 @@ private:
     void updateOnce();
     void checkSystemSettings();
     void saveSettings(QStringList *errorStrings) const;
+    void completeHostNameLookup(const QHostInfo &info);
     static Utils::FileName systemSettingsFile();
 
 private:
@@ -159,6 +170,8 @@ private:
     const std::unique_ptr<UserSettings> m_userSettings;
     int m_version = 0;
     QString m_installDir;
+    QString m_defaultBuildHostName;
+    QString m_customBuildHostName;
     std::vector<std::unique_ptr<BuildEngine>> m_buildEngines;
 };
 

@@ -94,6 +94,11 @@ public:
     static int addDevice(std::unique_ptr<Device> &&device);
     static void removeDevice(const QString &id);
 
+    static QString defaultBuildHostName();
+    static QString effectiveBuildHostName();
+    static QString customBuildHostName();
+    static void setCustomBuildHostName(const QString &hostName);
+
 signals:
     void buildEngineAdded(int index);
     void aboutToRemoveBuildEngine(int index);
@@ -102,6 +107,7 @@ signals:
     void deviceModelsChanged();
     void deviceAdded(int index);
     void aboutToRemoveDevice(int index);
+    void customBuildHostNameChanged(const QString &hostName);
 
 private:
     static Sdk *s_instance;

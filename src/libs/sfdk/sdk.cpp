@@ -86,6 +86,8 @@ Sdk::Sdk(Options options)
             this, &Sdk::buildEngineAdded);
     connect(d->buildEngineManager.get(), &BuildEngineManager::aboutToRemoveBuildEngine,
             this, &Sdk::aboutToRemoveBuildEngine);
+    connect(d->buildEngineManager.get(), &BuildEngineManager::customBuildHostNameChanged,
+            this, &Sdk::customBuildHostNameChanged);
 
     d->emulatorManager = std::make_unique<EmulatorManager>(this);
 
@@ -262,6 +264,26 @@ int Sdk::addDevice(std::unique_ptr<Device> &&device)
 void Sdk::removeDevice(const QString &id)
 {
     DeviceManager::removeDevice(id);
+}
+
+QString Sdk::defaultBuildHostName()
+{
+    return BuildEngineManager::defaultBuildHostName();
+}
+
+QString Sdk::effectiveBuildHostName()
+{
+    return BuildEngineManager::effectiveBuildHostName();
+}
+
+QString Sdk::customBuildHostName()
+{
+    return BuildEngineManager::customBuildHostName();
+}
+
+void Sdk::setCustomBuildHostName(const QString &hostName)
+{
+    BuildEngineManager::setCustomBuildHostName(hostName);
 }
 
 /*!
