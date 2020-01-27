@@ -78,10 +78,10 @@ protected:
             const Functor<bool> &functor) override;
 
     void doAddPortForwarding(const QString &ruleName,
-        const QString &protocol, quint16 hostPort, quint16 emulatorVmPort,
-        const QObject *context, const Functor<bool> &functor) override;
+            const QString &protocol, quint16 hostPort, quint16 emulatorVmPort,
+            const QObject *context, const Functor<bool> &functor) override;
     void doRemovePortForwarding(const QString &ruleName,
-        const QObject *context, const Functor<bool> &functor) override;
+            const QObject *context, const Functor<bool> &functor) override;
     void doSetReservedPortForwarding(ReservedPort which, quint16 port,
             const QObject *context, const Functor<bool> &functor) override;
     void doSetReservedPortListForwarding(ReservedPortList which, const QList<Utils::Port> &ports,
@@ -89,7 +89,7 @@ protected:
         override;
 
     void doRestoreSnapshot(const QString &snapshotName, const QObject *context,
-        const Functor<bool> &functor) override;
+            const Functor<bool> &functor) override;
 
 private:
     void fetchExtraData(const QString &key, const QObject *context,
