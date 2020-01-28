@@ -32,6 +32,7 @@
 
 #include <utils/utilsicons.h>
 
+using namespace Sfdk;
 using namespace Utils;
 
 namespace Mer {
@@ -54,6 +55,15 @@ MerGeneralOptionsWidget::MerGeneralOptionsWidget(QWidget *parent)
             + tr("This option is currently overridden with the %1 environment variable.")
                 .arg(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER)
             + QLatin1String("</font>"));
+
+    m_ui->buildHostNameLineEdit->setText(Sdk::effectiveBuildHostName());
+    m_ui->buildHostNameLineEdit->setEnabled(!Sdk::customBuildHostName().isEmpty());
+    m_ui->buildHostNameCustomCheckBox->setChecked(!Sdk::customBuildHostName().isEmpty());
+    connect(m_ui->buildHostNameCustomCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+        m_ui->buildHostNameLineEdit->setEnabled(checked);
+        if (!checked)
+            m_ui->buildHostNameLineEdit->setText(Sdk::defaultBuildHostName());
+    });
 
     m_ui->rpmValidationByDefaultCheckBox->setToolTip(m_ui->rpmValidationByDefaultCheckBox->toolTip()
             .arg(MerRpmValidationStep::displayName())
@@ -87,6 +97,9 @@ void MerGeneralOptionsWidget::store()
 {
     if (!MerSettings::isEnvironmentFilterFromEnvironment())
         MerSettings::setEnvironmentFilter(m_ui->environmentFilterTextEdit->toPlainText());
+    Sdk::setCustomBuildHostName(m_ui->buildHostNameCustomCheckBox->isChecked()
+            ? m_ui->buildHostNameLineEdit->text()
+            : QString());
     MerSettings::setRpmValidationByDefault(m_ui->rpmValidationByDefaultCheckBox->isChecked());
     MerSettings::setAskBeforeStartingVmEnabled(m_ui->askBeforeStartingVmCheckBox->isChecked());
     MerSettings::setAskBeforeClosingVmEnabled(m_ui->askBeforeClosingVmCheckBox->isChecked());
