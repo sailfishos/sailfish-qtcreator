@@ -79,8 +79,15 @@ class PropertiesAccessor
     Q_DECLARE_TR_FUNCTIONS(Sfdk::PropertiesAccessor)
 
 public:
+    enum PrepareResult {
+        Ignored = 0,
+        Prepared,
+        Failed,
+    };
+
+public:
     virtual QMap<QString, QString> get() const = 0;
-    virtual bool prepareSet(const QString &name, const QString &value, bool *needsVmOff,
+    virtual PrepareResult prepareSet(const QString &name, const QString &value, bool *needsVmOff,
             QString *errorString) = 0;
     virtual bool canSet(QString *errorString) const { Q_UNUSED(errorString); return true; }
     virtual bool set() = 0;
@@ -139,8 +146,10 @@ public:
     {
         bool needsVmOff = false;
 
-        if (!m_accessor->prepareSet(name, value, &needsVmOff, errorString))
+        if (m_accessor->prepareSet(name, value, &needsVmOff, errorString)
+                != PropertiesAccessor::Prepared) {
             return false;
+        }
 
         m_needsVmOff |= needsVmOff;
         return true;
@@ -227,38 +236,38 @@ public:
         return values;
     }
 
-    bool prepareSet(const QString &name, const QString &value, bool *needsVmOff,
+    PrepareResult prepareSet(const QString &name, const QString &value, bool *needsVmOff,
             QString *errorString) override
     {
         *needsVmOff = true;
 
         if (name == VM_MEMORY_SIZE_MB) {
             if (!parsePositiveInt(&m_memorySizeMb, value, errorString))
-                return false;
+                return Failed;
             if (m_memorySizeMb > VirtualMachine::availableMemorySizeMb()) {
                 *errorString = valueTooBigMessage();
-                return false;
+                return Failed;
             }
-            return true;
+            return Prepared;
         } else if (name == VM_CPU_COUNT) {
             if (!parsePositiveInt(&m_cpuCount, value, errorString))
-                return false;
+                return Failed;
             if (m_cpuCount > VirtualMachine::availableCpuCount()) {
                 *errorString = valueTooBigMessage();
-                return false;
+                return Failed;
             }
-            return true;
+            return Prepared;
         } else if (name == VM_STORAGE_SIZE_MB) {
             if (!parsePositiveInt(&m_storageSizeMb, value, errorString))
-                return false;
+                return Failed;
             if (m_storageSizeMb < m_vm->storageSizeMb()) {
                 *errorString = valueCannotBeDecreasedMessage();
-                return false;
+                return Failed;
             }
-            return true;
+            return Prepared;
         } else {
             *errorString = unknownPropertyMessage(name);
-            return false;
+            return Ignored;
         }
     }
 
@@ -323,7 +332,7 @@ public:
         return values;
     }
 
-    bool prepareSet(const QString &name, const QString &value, bool *needsVmOff,
+    PrepareResult prepareSet(const QString &name, const QString &value, bool *needsVmOff,
             QString *errorString) override
     {
         *needsVmOff = false;
@@ -343,23 +352,23 @@ public:
                     && value != Constants::WWW_PROXY_AUTOMATIC
                     && value != Constants::WWW_PROXY_MANUAL) {
                 *errorString = tr("Invalid proxy type: \"%1\"").arg(value);
-                return false;
+                return Failed;
             }
             m_wwwProxyType = value;
-            return true;
+            return Prepared;
         } else if (name == WWW_PROXY_SERVERS) {
             if (!validateUrls(value, errorString))
-                return false;
+                return Failed;
             m_wwwProxyServers = value.trimmed();
-            return true;
+            return Prepared;
         } else if (name == WWW_PROXY_EXCLUDES) {
             if (!validateUrls(value, errorString))
-                return false;
+                return Failed;
             m_wwwProxyExcludes = value.trimmed();
-            return true;
+            return Prepared;
         } else {
             *errorString = unknownPropertyMessage(name);
-            return false;
+            return Ignored;
         }
     }
 
@@ -416,7 +425,7 @@ public:
         return m_vmAccessor->get();
     }
 
-    bool prepareSet(const QString &name, const QString &value, bool *needsVmOff,
+    PrepareResult prepareSet(const QString &name, const QString &value, bool *needsVmOff,
             QString *errorString) override
     {
         return m_vmAccessor->prepareSet(name, value, needsVmOff, errorString);
@@ -451,7 +460,7 @@ public:
         return m_vmAccessor->get();
     }
 
-    bool prepareSet(const QString &name, const QString &value, bool *needsVmOff,
+    PrepareResult prepareSet(const QString &name, const QString &value, bool *needsVmOff,
             QString *errorString) override
     {
         return m_vmAccessor->prepareSet(name, value, needsVmOff, errorString);
