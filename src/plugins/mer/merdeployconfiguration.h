@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2014,2017-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -80,6 +81,8 @@ public:
 class MerRpmDeployConfigurationFactory
     : public MerDeployConfigurationFactory<MerRpmDeployConfigurationFactory>
 {
+    Q_DECLARE_TR_FUNCTIONS(Mer::Internal::MerRpmDeployConfigurationFactory)
+
 public:
     MerRpmDeployConfigurationFactory();
 
@@ -90,6 +93,8 @@ public:
 class MerRsyncDeployConfigurationFactory
     : public MerDeployConfigurationFactory<MerRsyncDeployConfigurationFactory>
 {
+    Q_DECLARE_TR_FUNCTIONS(Mer::Internal::MerRsyncDeployConfigurationFactory)
+
 public:
     MerRsyncDeployConfigurationFactory();
 
@@ -101,6 +106,8 @@ public:
 class MerMb2RpmBuildConfigurationFactory
     : public MerDeployConfigurationFactory<MerMb2RpmBuildConfigurationFactory>
 {
+    Q_DECLARE_TR_FUNCTIONS(Mer::Internal::MerMb2DeployConfigurationFactory)
+
 public:
     MerMb2RpmBuildConfigurationFactory();
 

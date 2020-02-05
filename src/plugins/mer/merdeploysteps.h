@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -57,6 +58,8 @@ class MerNamedCommandDeployService;
 
 class MerProcessStep: public ProjectExplorer::AbstractProcessStep
 {
+    Q_OBJECT
+
 public:
     enum InitOption {
         NoInitOption = 0x00,

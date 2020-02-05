@@ -302,6 +302,8 @@ private:
 
 class SdkPropertiesAccessor : public PropertiesAccessor
 {
+    Q_DECLARE_TR_FUNCTIONS(Sfdk::SdkPropertiesAccessor)
+
 public:
     SdkPropertiesAccessor()
     {
@@ -612,6 +614,14 @@ Worker::ExitStatus BuiltinWorker::runConfig(const QStringList &arguments0) const
                 return BadUsage;
             }
 
+            QString errorString;
+            if (occurence.type() == OptionOccurence::Push && !occurence.argument().isEmpty()
+                    && !occurence.isArgumentValid(&errorString)) {
+                qerr() << P::invalidPositionalArgumentMessage(errorString, occurence.argument())
+                    << endl;
+                return BadUsage;
+            }
+
             Configuration::push(scope, occurence);
             return NormalExit;
         }
@@ -637,10 +647,18 @@ Worker::ExitStatus BuiltinWorker::runConfig(const QStringList &arguments0) const
         }
 
         if (modeOption == &pushOption) {
-            const QString value = parser.positionalArguments().count() == 2
+            const QString argument = parser.positionalArguments().count() == 2
                 ? parser.positionalArguments().last()
                 : QString();
-            Configuration::push(scope, option, value);
+            const OptionOccurence occurence(option, OptionOccurence::Push, argument);
+
+            QString errorString;
+            if (!argument.isEmpty() && !occurence.isArgumentValid(&errorString)) {
+                qerr() << P::invalidPositionalArgumentMessage(errorString, argument) << endl;
+                return BadUsage;
+            }
+
+            Configuration::push(scope, occurence);
         } else if (modeOption == &pushMaskOption) {
             Configuration::pushMask(scope, option);
         } else if (modeOption == &dropOption) {

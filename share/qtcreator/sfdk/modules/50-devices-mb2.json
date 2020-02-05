@@ -1,5 +1,5 @@
 {
-    "version": 1,
+    "version": 2,
     "domain": "devices",
     "trBrief": "Working with devices",
 
@@ -25,7 +25,8 @@
         {
             "name": "device",
             "trArgument": "<name>",
-            "trDescription": "Select the device to use with commands that need to access a device. Registered devices can be listed with the 'device list' command."
+            "trDescription": "Select the device to use with commands that need to access a device. Registered devices can be listed with the 'device list' command.",
+            "validator": "module.validateDeviceName"
         }
     ]
 }

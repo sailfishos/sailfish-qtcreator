@@ -1,5 +1,5 @@
 {
-    "version": 1,
+    "version": 2,
     "domain": "building",
     "trBrief": "Building packages",
 
@@ -73,27 +73,32 @@
             "name": "specfile",
             "trArgument": "<file>",
             "trDescription": "Select the .spec file. Normally the .spec file is looked for inside the 'rpm' subdirectory of the package root directory. Some packages may provide more than one .spec file in their 'rpm' directory, it which case is necessary to select one using this option.",
-            "alias": "specfile"
+            "alias": "specfile",
+            "validator": "module.validateSpecFilePath"
         },
         {
             "name": "target",
             "trArgument": "<name>",
-            "trDescription": "Select the sb2 target to use"
+            "trDescription": "Select the sb2 target to use",
+            "validator": "module.validateBuildTargetName"
         },
         {
             "name": "output-dir",
             "trArgument": "<dir>",
-            "trDescription": "Defaults to './RPMS'. The resulting RPM packages will be placed  directly under the specified <dir>. With this option existing files in  the output directory are preserved. Implies 'search-output-dir'"
+            "trDescription": "Defaults to './RPMS'. The resulting RPM packages will be placed  directly under the specified <dir>. With this option existing files in  the output directory are preserved. Implies 'search-output-dir'",
+            "validator": "module.validateExistingDirectory"
         },
         {
             "name": "output-prefix",
             "trArgument": "<dir>",
-            "trDescription": "Much like 'output-dir' except that a subdirectory of the given <dir> will be used, denoted by the build target name (see 'target') and optionally prefixed with task name (see 'task') separated with single dash ('-') character ('<dir>/[<task>-]<target>')."
+            "trDescription": "Much like 'output-dir' except that a subdirectory of the given <dir> will be used, denoted by the build target name (see 'target') and optionally prefixed with task name (see 'task') separated with single dash ('-') character ('<dir>/[<task>-]<target>').",
+            "validator": "module.validateExistingDirectory"
         },
         {
             "name": "search-output-dir",
             "trArgument": "[verbose|quiet]",
-            "trDescription": "Consider the RPM packages found in the output directory when installing build time dependencies. The optional value controls zypper verbosity.  The default is 'verbose'."
+            "trDescription": "Consider the RPM packages found in the output directory when installing build time dependencies. The optional value controls zypper verbosity.  The default is 'verbose'.",
+            "validator": "module.validateSearchOutputDirOption"
         },
         {
             "name": "no-search-output-dir",

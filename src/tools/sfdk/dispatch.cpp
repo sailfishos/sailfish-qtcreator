@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -24,6 +25,7 @@
 
 #include "command.h"
 #include "configuration.h"
+#include "script.h"
 #include "sfdkconstants.h"
 #include "sfdkglobal.h"
 #include "textutils.h"
@@ -39,6 +41,7 @@
 #include <QJsonObject>
 #include <QJsonParseError>
 #include <QJsonValue>
+#include <QRegularExpression>
 
 using namespace Sfdk;
 
@@ -54,6 +57,7 @@ const char TR_BRIEF_KEY[] = "trBrief";
 const char TR_DESCRIPTION_KEY[] = "trDescription";
 const char TR_SYNOPSIS_KEY[] = "trSynopsis";
 const char TYPE_KEY[] = "type";
+const char VALIDATOR_KEY[] = "validator";
 const char VERSION_KEY[] = "version";
 const char WORKER_KEY[] = "worker";
 
@@ -158,6 +162,8 @@ bool Dispatcher::load(const QString &moduleFileName)
         return false;
     }
 
+    module->fileName = moduleFileName;
+
     s_instance->m_modules.emplace_back(std::move(module));
 
     return true;
@@ -256,6 +262,14 @@ bool Dispatcher::checkItems(const QVariantList &list, QVariant::Type type, QStri
     return true;
 }
 
+JSEngine *Dispatcher::jsEngine()
+{
+    if (!s_instance->m_jsEngine)
+        s_instance->m_jsEngine = std::make_unique<JSEngine>();
+
+    return s_instance->m_jsEngine.get();
+}
+
 void Dispatcher::registerWorkerType(const QString &name, const WorkerCreator &creator)
 {
     m_workerCreators.insert(name, creator);
@@ -316,7 +330,7 @@ std::unique_ptr<Module> Dispatcher::loadModule(const QVariantMap &data, QString 
     QVariant version = value(data, VERSION_KEY, QVariant::Double, {}, errorString);
     if (!version.isValid())
         return {};
-    if (version.toInt() != 1) {
+    if (version.toInt() < 1 || version.toInt() > 2) {
         *errorString = tr("Version unsupported: %1").arg(version.toInt());
         return {};
     }
@@ -405,6 +419,20 @@ bool Dispatcher::loadOptions(const Module *module, const QVariantList &list, QSt
                 : Option::MandatoryArgument;
         } else {
             option->argumentType = Option::NoArgument;
+        }
+
+        QVariant validator = value(data, VALIDATOR_KEY, QVariant::String, QString(), errorString);
+        if (!validator.isValid())
+            return false;
+        option->validatorJSFunctionName = validator.toString();
+
+        if (!option->validatorJSFunctionName.isEmpty()) {
+            const QRegularExpression qualifiedIdentifier("^\\w[\\w.]+$");
+            if (!qualifiedIdentifier.match(option->validatorJSFunctionName).hasMatch()) {
+                *errorString = tr("Not recognized as a (qualified) identifier: '%1'")
+                    .arg(option->validatorJSFunctionName);
+                return false;
+            }
         }
 
         m_optionByName.insert(option->name, option.get());

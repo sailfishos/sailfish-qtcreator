@@ -24,6 +24,7 @@
 #include "configuration.h"
 
 #include "dispatch.h"
+#include "script.h"
 #include "session.h"
 #include "sfdkconstants.h"
 #include "sfdkglobal.h"
@@ -92,6 +93,58 @@ const Domain *Option::domain() const
 /*!
  * \class OptionOccurence
  */
+
+bool OptionOccurence::isArgumentValid(QString *errorString) const
+{
+    QTC_ASSERT(m_type == Push, return true);
+    QTC_ASSERT(!m_argument.isEmpty(), return true);
+
+    if (m_option->validatorJSFunctionName.isEmpty())
+        return true;
+
+    QJSValue validator = Dispatcher::jsEngine()->evaluate(m_option->validatorJSFunctionName,
+            m_option->module);
+
+    if (validator.isError()) {
+        const QString errorFileName = validator.property("fileName").toString();
+        const int errorLineNumber = validator.property("lineNumber").toInt();
+        qCCritical(sfdk) << "Error dereferencing" << m_option->validatorJSFunctionName
+            << "in the context of" << m_option->module->fileName << "module:"
+            << errorFileName << ":" << errorLineNumber << ":" << validator.toString();
+        return false;
+    }
+
+    if (!validator.isCallable()) {
+        qCCritical(sfdk) << "Error dereferencing" << m_option->validatorJSFunctionName
+            << "in the context of" << m_option->module->fileName << "module:"
+            << "The result is not callable";
+        return false;
+    }
+
+    QJSValue result = validator.call({m_argument});
+
+    if (result.isError()) {
+        const QString errorFileName = validator.property("fileName").toString();
+        const int errorLineNumber = validator.property("lineNumber").toInt();
+        qCCritical(sfdk) << "Error calling" << m_option->validatorJSFunctionName
+            << "in the context of" << m_option->module->fileName << "module:"
+            << errorFileName << ":" << errorLineNumber << ":" << validator.toString();
+        return false;
+    }
+
+    if (!result.isArray()
+            || result.property("length").toInt() < 2
+            || !result.property(0).isBool()
+            || !result.property(1).isString()) {
+        qCCritical(sfdk) << "Error validating argument with" << m_option->validatorJSFunctionName
+            << "in the context of" << m_option->module->fileName << "module:"
+            << "The result is not an array [bool, string]";
+        return false;
+    }
+
+    *errorString = result.property(1).toString();
+    return result.property(0).toBool();
+}
 
 QString OptionOccurence::toString() const
 {

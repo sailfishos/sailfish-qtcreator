@@ -58,6 +58,7 @@ public:
     QString description;
     ArgumentType argumentType = NoArgument;
     QString argumentDescription;
+    QString validatorJSFunctionName;
 };
 
 class OptionOccurence
@@ -83,6 +84,8 @@ public:
     Type type() const { Q_ASSERT(!isNull()); return m_type; }
     QString argument() const { Q_ASSERT(!isNull()); return m_argument; }
     QString errorString() const { return m_errorString; }
+
+    bool isArgumentValid(QString *errorString) const;
 
     QString toString() const;
     static OptionOccurence fromString(const QString &string);
