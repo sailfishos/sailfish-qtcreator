@@ -37,6 +37,7 @@ const char BUILD_ENGINES_SETTINGS_FILE_NAME[] = "buildengines.xml";
 const char BUILD_ENGINES_SETTINGS_DOC_TYPE[] = "QtCreatorSfdkBuildEngines";
 const char BUILD_ENGINES_VERSION_KEY[] = "BuildEngines.Version";
 const char BUILD_ENGINES_INSTALL_DIR_KEY[] = "BuildEngines.InstallDir";
+const char BUILD_ENGINES_CUSTOM_BUILD_HOST_NAME_KEY[] = "BuildEngines.CustomBuildHostName";
 const char BUILD_ENGINES_COUNT_KEY[] = "BuildEngines.Count";
 const char BUILD_ENGINES_DATA_KEY_PREFIX[] = "BuildEngine.";
 const char BUILD_ENGINE_VM_URI[] = "VirtualMachineUri";

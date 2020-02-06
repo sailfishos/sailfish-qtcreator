@@ -15,7 +15,7 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0,0,0,1">
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout">
+    <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,1">
      <item>
       <widget class="QGroupBox" name="buildEnvironmentGroupBox">
        <property name="title">
@@ -23,14 +23,31 @@
        </property>
        <layout class="QVBoxLayout" name="verticalLayout">
         <item>
-         <widget class="QLabel" name="environmentFilterLabel">
-          <property name="text">
-           <string>Environment variables &amp;to forward:</string>
-          </property>
-          <property name="buddy">
-           <cstring>environmentFilterTextEdit</cstring>
-          </property>
-         </widget>
+         <layout class="QHBoxLayout" name="horizontalLayout_4">
+          <item>
+           <widget class="QLabel" name="environmentFilterLabel">
+            <property name="text">
+             <string>Environment variables &amp;to forward:</string>
+            </property>
+            <property name="buddy">
+             <cstring>environmentFilterTextEdit</cstring>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="environmentFilterInfoLabel">
+            <property name="text">
+             <string>I</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
         <item>
          <widget class="QPlainTextEdit" name="environmentFilterTextEdit">
@@ -46,18 +63,89 @@
          </widget>
         </item>
         <item>
-         <widget class="QLabel" name="environmentFilterOverriddenLabel">
-          <property name="text">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-style:italic;&quot;&gt;This option is currently overridden with the %1 environment variable.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-          <property name="wordWrap">
-           <bool>true</bool>
-          </property>
-         </widget>
+         <layout class="QGridLayout" name="gridLayout">
+          <item row="0" column="0">
+           <widget class="QLabel" name="buildHostNameLabel">
+            <property name="text">
+             <string>Build host name:</string>
+            </property>
+            <property name="buddy">
+             <cstring>buildHostNameLineEdit</cstring>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <layout class="QHBoxLayout" name="horizontalLayout_5">
+            <item>
+             <widget class="QLineEdit" name="buildHostNameLineEdit"/>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="buildHostNameCustomCheckBox">
+              <property name="text">
+               <string>Custom</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
         </item>
        </layout>
       </widget>
      </item>
+     <item>
+      <widget class="QGroupBox" name="groupBox_2">
+       <property name="title">
+        <string>Code model</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_5">
+        <item>
+         <widget class="QCheckBox" name="importQmakeVariablesCheckBox">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The effective qmake call reported in build configuration is missing further arguments possibly supplied e.g. according to the recipe in the .spec (.yaml) file. This may render the project model inaccurate.&lt;/p&gt;&lt;p&gt;This option enables to augment the project model with qmake variable assignments found on the actual qmake command line.&lt;/p&gt;&lt;p&gt;When enabled, qmake will be invoked automatically when the .spec (.yaml) file is updated.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>Augment project model using actual qmake arguments</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <property name="leftMargin">
+           <number>20</number>
+          </property>
+          <item>
+           <widget class="QCheckBox" name="askImportQmakeVariablesCheckBox">
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;With this option disabled, qmake will be run without notice but you still may be prompted to start the %1 build engine depending on the other options.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
+            <property name="text">
+             <string>Ask before running qmake</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <spacer name="verticalSpacer_3">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="1,1">
      <item>
       <widget class="QGroupBox" name="rpmValidationGroupBox">
        <property name="title">
@@ -109,46 +197,6 @@
        </layout>
       </widget>
      </item>
-    </layout>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="horizontalLayout_2">
-     <item>
-      <widget class="QGroupBox" name="groupBox_2">
-       <property name="title">
-        <string>Code model</string>
-       </property>
-       <layout class="QVBoxLayout" name="verticalLayout_5">
-        <item>
-         <widget class="QCheckBox" name="importQmakeVariablesCheckBox">
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The effective qmake call reported in build configuration is missing further arguments possibly supplied e.g. according to the recipe in the .spec (.yaml) file. This may render the project model inaccurate.&lt;/p&gt;&lt;p&gt;This option enables to augment the project model with qmake variable assignments found on the actual qmake command line.&lt;/p&gt;&lt;p&gt;When enabled, qmake will be invoked automatically when the .spec (.yaml) file is updated.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-          <property name="text">
-           <string>Augment project model using actual qmake arguments</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_3">
-          <property name="leftMargin">
-           <number>20</number>
-          </property>
-          <item>
-           <widget class="QCheckBox" name="askImportQmakeVariablesCheckBox">
-            <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;With this option disabled, qmake will be run without notice but you still may be prompted to start the %1 build engine depending on the other options.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-            </property>
-            <property name="text">
-             <string>Ask before running qmake</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-       </layout>
-      </widget>
-     </item>
      <item>
       <widget class="QGroupBox" name="groupBox">
        <property name="title">
@@ -174,6 +222,19 @@
            <string>Ask before closing a virtual machine</string>
           </property>
          </widget>
+        </item>
+        <item>
+         <spacer name="verticalSpacer_4">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
         </item>
        </layout>
       </widget>

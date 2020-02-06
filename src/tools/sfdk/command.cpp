@@ -58,6 +58,8 @@ const char INITIAL_ARGUMENTS_KEY[] = "initialArguments";
 const char OMIT_SUBCOMMAND_KEY[] = "omitSubcommand";
 const char DIRECT_TERMINAL_INPUT_KEY[] = "directTerminalInput";
 
+const char ENGINE_HOST_NAME[] = "hostName";
+
 const char WWW_PROXY_TYPE[] = "proxy";
 const char WWW_PROXY_SERVERS[] = "proxy.servers";
 const char WWW_PROXY_EXCLUDES[] = "proxy.excludes";
@@ -79,8 +81,15 @@ class PropertiesAccessor
     Q_DECLARE_TR_FUNCTIONS(Sfdk::PropertiesAccessor)
 
 public:
+    enum PrepareResult {
+        Ignored = 0,
+        Prepared,
+        Failed,
+    };
+
+public:
     virtual QMap<QString, QString> get() const = 0;
-    virtual bool prepareSet(const QString &name, const QString &value, bool *needsVmOff,
+    virtual PrepareResult prepareSet(const QString &name, const QString &value, bool *needsVmOff,
             QString *errorString) = 0;
     virtual bool canSet(QString *errorString) const { Q_UNUSED(errorString); return true; }
     virtual bool set() = 0;
@@ -139,8 +148,10 @@ public:
     {
         bool needsVmOff = false;
 
-        if (!m_accessor->prepareSet(name, value, &needsVmOff, errorString))
+        if (m_accessor->prepareSet(name, value, &needsVmOff, errorString)
+                != PropertiesAccessor::Prepared) {
             return false;
+        }
 
         m_needsVmOff |= needsVmOff;
         return true;
@@ -227,38 +238,38 @@ public:
         return values;
     }
 
-    bool prepareSet(const QString &name, const QString &value, bool *needsVmOff,
+    PrepareResult prepareSet(const QString &name, const QString &value, bool *needsVmOff,
             QString *errorString) override
     {
         *needsVmOff = true;
 
         if (name == VM_MEMORY_SIZE_MB) {
             if (!parsePositiveInt(&m_memorySizeMb, value, errorString))
-                return false;
+                return Failed;
             if (m_memorySizeMb > VirtualMachine::availableMemorySizeMb()) {
                 *errorString = valueTooBigMessage();
-                return false;
+                return Failed;
             }
-            return true;
+            return Prepared;
         } else if (name == VM_CPU_COUNT) {
             if (!parsePositiveInt(&m_cpuCount, value, errorString))
-                return false;
+                return Failed;
             if (m_cpuCount > VirtualMachine::availableCpuCount()) {
                 *errorString = valueTooBigMessage();
-                return false;
+                return Failed;
             }
-            return true;
+            return Prepared;
         } else if (name == VM_STORAGE_SIZE_MB) {
             if (!parsePositiveInt(&m_storageSizeMb, value, errorString))
-                return false;
+                return Failed;
             if (m_storageSizeMb < m_vm->storageSizeMb()) {
                 *errorString = valueCannotBeDecreasedMessage();
-                return false;
+                return Failed;
             }
-            return true;
+            return Prepared;
         } else {
             *errorString = unknownPropertyMessage(name);
-            return false;
+            return Ignored;
         }
     }
 
@@ -323,7 +334,7 @@ public:
         return values;
     }
 
-    bool prepareSet(const QString &name, const QString &value, bool *needsVmOff,
+    PrepareResult prepareSet(const QString &name, const QString &value, bool *needsVmOff,
             QString *errorString) override
     {
         *needsVmOff = false;
@@ -343,23 +354,23 @@ public:
                     && value != Constants::WWW_PROXY_AUTOMATIC
                     && value != Constants::WWW_PROXY_MANUAL) {
                 *errorString = tr("Invalid proxy type: \"%1\"").arg(value);
-                return false;
+                return Failed;
             }
             m_wwwProxyType = value;
-            return true;
+            return Prepared;
         } else if (name == WWW_PROXY_SERVERS) {
             if (!validateUrls(value, errorString))
-                return false;
+                return Failed;
             m_wwwProxyServers = value.trimmed();
-            return true;
+            return Prepared;
         } else if (name == WWW_PROXY_EXCLUDES) {
             if (!validateUrls(value, errorString))
-                return false;
+                return Failed;
             m_wwwProxyExcludes = value.trimmed();
-            return true;
+            return Prepared;
         } else {
             *errorString = unknownPropertyMessage(name);
-            return false;
+            return Ignored;
         }
     }
 
@@ -416,7 +427,7 @@ public:
         return m_vmAccessor->get();
     }
 
-    bool prepareSet(const QString &name, const QString &value, bool *needsVmOff,
+    PrepareResult prepareSet(const QString &name, const QString &value, bool *needsVmOff,
             QString *errorString) override
     {
         return m_vmAccessor->prepareSet(name, value, needsVmOff, errorString);
@@ -444,27 +455,73 @@ public:
         , m_vmAccessor(std::make_unique<VirtualMachinePropertiesAccessor>(
                     engine->virtualMachine()))
     {
+        m_hostName = Sdk::effectiveBuildHostName();
     }
 
     QMap<QString, QString> get() const override
     {
-        return m_vmAccessor->get();
+        return m_vmAccessor->get().unite(getOthers());
     }
 
-    bool prepareSet(const QString &name, const QString &value, bool *needsVmOff,
+    PrepareResult prepareSet(const QString &name, const QString &value, bool *needsVmOff,
             QString *errorString) override
     {
-        return m_vmAccessor->prepareSet(name, value, needsVmOff, errorString);
+        if (auto result = m_vmAccessor->prepareSet(name, value, needsVmOff, errorString))
+            return result;
+        if (auto result = prepareSetOther(name, value, needsVmOff, errorString))
+            return result;
+        return Ignored;
     }
 
     bool set() override
     {
-        return m_vmAccessor->set();
+        return m_vmAccessor->set() && setOthers();
+    }
+
+private:
+    QMap<QString, QString> getOthers() const
+    {
+        QMap<QString, QString> values;
+        values.insert(ENGINE_HOST_NAME, m_hostName);
+        return values;
+    }
+
+    PrepareResult prepareSetOther(const QString &name, const QString &value, bool *needsVmOff,
+            QString *errorString)
+    {
+        *needsVmOff = false;
+
+        if (name == ENGINE_HOST_NAME) {
+            if (!value.isEmpty()) {
+                QUrl url;
+                url.setHost(value);
+                if (!url.isValid()) {
+                    *errorString = tr("Not a well formed host name: \"%1\"").arg(value);
+                    return Failed;
+                }
+            }
+            m_hostName = value.isEmpty() ? QString() : value;
+            m_hostNameChanged = true;
+            return Prepared;
+        } else {
+            *errorString = unknownPropertyMessage(name);
+            return Ignored;
+        }
+    }
+
+    bool setOthers()
+    {
+        if (m_hostNameChanged)
+            Sdk::setCustomBuildHostName(m_hostName);
+
+        return true;
     }
 
 private:
     QPointer<BuildEngine> m_engine;
     std::unique_ptr<VirtualMachinePropertiesAccessor> m_vmAccessor;
+    QString m_hostName;
+    bool m_hostNameChanged = false;
 };
 
 } // namespace Sfdk

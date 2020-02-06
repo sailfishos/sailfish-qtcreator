@@ -43,6 +43,7 @@ namespace {
 const char DEVICES_XML_FILE_NAME[] = "devices.xml";
 const char DEVICE[] = "device";
 const char DEVICES[] = "devices";
+const char HOST[] = "host";
 const char NAME[] = "name";
 const char TYPE[] = "type";
 const char TYPE_REAL[] = "real";
@@ -366,6 +367,7 @@ DeviceManager::DeviceManager(QObject *parent)
     };
     connect(this, &DeviceManager::deviceAdded, this, scheduleUpdateDeviceXmlIfPrimary);
     connect(this, &DeviceManager::aboutToRemoveDevice, this, scheduleUpdateDeviceXmlIfPrimary);
+    connect(Sdk::instance(), &Sdk::customBuildHostNameChanged, this, scheduleUpdateDeviceXmlIfPrimary);
 }
 
 DeviceManager::~DeviceManager()
@@ -625,8 +627,9 @@ void DeviceManager::updateDevicesXml() const
 // Example output:
 //
 //<devices>
+// <host name="localhost" />
 // <engine name="Sailfish OS Build Engine" type="vbox">
-//  <subnet>10.220.220</subnet
+//  <subnet>10.220.220</subnet>
 // </engine>
 // <device name="Nemo N9" type="real">
 //  <ip>192.168.0.12</ip>
@@ -647,6 +650,9 @@ void DeviceManager::writeDevicesXml(const QString &fileName, const QList<DeviceD
     writer.setAutoFormatting(true);
     writer.writeStartDocument();
     writer.writeStartElement(DEVICES);
+    writer.writeStartElement(HOST);
+    writer.writeAttribute(NAME, Sdk::effectiveBuildHostName());
+    writer.writeEndElement(); // host
     writer.writeStartElement(ENGINE);
     writer.writeAttribute(NAME, engine.m_name);
     writer.writeAttribute(TYPE, engine.m_type);

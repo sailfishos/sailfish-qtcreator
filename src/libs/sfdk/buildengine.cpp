@@ -37,6 +37,7 @@
 #include <utils/qtcassert.h>
 
 #include <QDir>
+#include <QHostInfo>
 #include <QPointer>
 #include <QProcess>
 #include <QTimer>
@@ -914,6 +915,9 @@ BuildEngineManager::BuildEngineManager(QObject *parent)
     Q_ASSERT(!s_instance);
     s_instance = this;
 
+    QHostInfo::lookupHost(QHostInfo::localHostName(), this,
+            &BuildEngineManager::completeHostNameLookup);
+
     if (!SdkPrivate::useSystemSettingsOnly()) {
         // FIXME ugly
         const optional<QVariantMap> userData = m_userSettings->load();
@@ -948,6 +952,47 @@ QString BuildEngineManager::installDir()
     // Not initialized initially. See Sdk for comments.
     QTC_CHECK(!s_instance->m_installDir.isEmpty());
     return s_instance->m_installDir;
+}
+
+QString BuildEngineManager::defaultBuildHostName()
+{
+    if (!s_instance->m_defaultBuildHostName.isNull())
+        return s_instance->m_defaultBuildHostName;
+
+    // A non-blocking lookup was initiated during initialization, but it takes
+    // longer than anticipated - let's be patient.
+
+    QTime time;
+    time.start();
+
+    // TODO singletons vs. const correctness
+    s_instance->completeHostNameLookup(QHostInfo::fromName(QHostInfo::localHostName()));
+
+    qCDebug(lib) << "Local host info lookup blocked for" << time.elapsed() << "ms";
+
+    return s_instance->m_defaultBuildHostName;
+}
+
+QString BuildEngineManager::effectiveBuildHostName()
+{
+    return s_instance->m_customBuildHostName.isNull()
+        ? defaultBuildHostName()
+        : s_instance->m_customBuildHostName;
+}
+
+QString BuildEngineManager::customBuildHostName()
+{
+    return s_instance->m_customBuildHostName;
+}
+
+void BuildEngineManager::setCustomBuildHostName(const QString &hostName)
+{
+    if (s_instance->m_customBuildHostName == hostName)
+        return;
+
+    QTC_CHECK(!hostName.isEmpty() || hostName.isNull());
+    s_instance->m_customBuildHostName = hostName;
+    emit s_instance->customBuildHostNameChanged(s_instance->m_customBuildHostName);
 }
 
 QList<BuildEngine *> BuildEngineManager::buildEngines()
@@ -1018,6 +1063,7 @@ QVariantMap BuildEngineManager::toMap() const
     QVariantMap data;
     data.insert(Constants::BUILD_ENGINES_VERSION_KEY, 1);
     data.insert(Constants::BUILD_ENGINES_INSTALL_DIR_KEY, m_installDir);
+    data.insert(Constants::BUILD_ENGINES_CUSTOM_BUILD_HOST_NAME_KEY, m_customBuildHostName);
 
     int count = 0;
     for (const auto &engine : m_buildEngines) {
@@ -1040,6 +1086,11 @@ void BuildEngineManager::fromMap(const QVariantMap &data, bool fromSystemSetting
 
     m_installDir = data.value(Constants::BUILD_ENGINES_INSTALL_DIR_KEY).toString();
     QTC_ASSERT(!m_installDir.isEmpty(), return);
+
+    if (!fromSystemSettings || m_customBuildHostName.isNull()) {
+        setCustomBuildHostName(data.value(Constants::BUILD_ENGINES_CUSTOM_BUILD_HOST_NAME_KEY)
+                .toString());
+    }
 
     const int newCount = data.value(Constants::BUILD_ENGINES_COUNT_KEY, 0).toInt();
     QMap<QUrl, QVariantMap> newEnginesData;
@@ -1152,6 +1203,19 @@ void BuildEngineManager::saveSettings(QStringList *errorStrings) const
     const bool ok = m_userSettings->save(toMap(), &errorString);
     if (!ok)
         errorStrings->append(errorString);
+}
+
+void BuildEngineManager::completeHostNameLookup(const QHostInfo &info)
+{
+    // Sometimes hostname is available while FQDN is not and defaults to the
+    // less usefull localhost[.localdomain]
+    QStringList candidates{info.hostName(), QHostInfo::localHostName()};
+    candidates.removeAll(QString());
+    candidates.removeAll(QStringLiteral("localhost"));
+    candidates.removeAll(QStringLiteral("localhost.localdomain"));
+    candidates.append(QStringLiteral("localhost.localdomain"));
+    m_defaultBuildHostName = candidates.first();
+    Q_ASSERT(!m_defaultBuildHostName.isEmpty());
 }
 
 FileName BuildEngineManager::systemSettingsFile()
