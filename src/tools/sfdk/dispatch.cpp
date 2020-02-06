@@ -49,7 +49,9 @@ namespace {
 
 const char ALIAS_KEY[] = "alias";
 const char COMMANDS_KEY[] = "commands";
+const char CONFIG_OPTIONS_KEY[] = "configOptions";
 const char DOMAIN_KEY[] = "domain";
+const char EXTERN_OPTIONS_KEY[] = "externOptions";
 const char NAME_KEY[] = "name";
 const char OPTIONS_KEY[] = "options";
 const char TR_ARGUMENT_KEY[] = "trArgument";
@@ -95,8 +97,10 @@ Command::ConstList Domain::commands() const
 
 Option::ConstList Domain::options() const
 {
-    return Utils::filtered(Utils::toRawPointer<QList>(Dispatcher::options()),
-            Utils::equal(&Option::domain, this));
+    QSet<const Option *> options;
+    for (const Command *command : commands())
+        options += command->configOptions.toSet();
+    return options.toList();
 }
 
 /*!
@@ -323,14 +327,14 @@ std::unique_ptr<Module> Dispatcher::loadModule(const QVariantMap &data, QString 
     auto module = std::make_unique<Module>();
 
     QSet<QString> validKeys{VERSION_KEY, DOMAIN_KEY, TR_BRIEF_KEY, TR_DESCRIPTION_KEY, WORKER_KEY,
-        COMMANDS_KEY, OPTIONS_KEY};
+        COMMANDS_KEY, EXTERN_OPTIONS_KEY, OPTIONS_KEY};
     if (!checkKeys(data, validKeys, errorString))
         return {};
 
     QVariant version = value(data, VERSION_KEY, QVariant::Double, {}, errorString);
     if (!version.isValid())
         return {};
-    if (version.toInt() < 1 || version.toInt() > 2) {
+    if (version.toInt() < 3 || version.toInt() > 3) {
         *errorString = tr("Version unsupported: %1").arg(version.toInt());
         return {};
     }
@@ -360,11 +364,23 @@ std::unique_ptr<Module> Dispatcher::loadModule(const QVariantMap &data, QString 
         return {};
     }
 
+    Option::ConstList allModuleOptions;
+
+    QVariant externOptionsData = value(data, EXTERN_OPTIONS_KEY, QVariant::List, QVariantList(),
+            errorString);
+    if (!externOptionsData.isValid())
+        return {};
+
+    if (!loadExternOptions(externOptionsData.toList(), &allModuleOptions, errorString)) {
+        *errorString = addContext(*errorString, EXTERN_OPTIONS_KEY);
+        return {};
+    }
+
     QVariant optionsData = value(data, OPTIONS_KEY, QVariant::List, {}, errorString);
     if (!optionsData.isValid())
         return {};
 
-    if (!loadOptions(module.get(), optionsData.toList(), errorString)) {
+    if (!loadOptions(module.get(), optionsData.toList(), &allModuleOptions, errorString)) {
         *errorString = addContext(*errorString, OPTIONS_KEY);
         return {};
     }
@@ -373,7 +389,7 @@ std::unique_ptr<Module> Dispatcher::loadModule(const QVariantMap &data, QString 
     if (!commandsData.isValid())
         return {};
 
-    if (!loadCommands(module.get(), commandsData.toList(), errorString)) {
+    if (!loadCommands(module.get(), commandsData.toList(), allModuleOptions, errorString)) {
         *errorString = addContext(*errorString, COMMANDS_KEY);
         return {};
     }
@@ -381,7 +397,34 @@ std::unique_ptr<Module> Dispatcher::loadModule(const QVariantMap &data, QString 
     return module;
 }
 
-bool Dispatcher::loadOptions(const Module *module, const QVariantList &list, QString *errorString)
+bool Dispatcher::loadExternOptions(const QVariantList &list, Option::ConstList *allModuleOptions,
+        QString *errorString)
+{
+    if (!checkItems(list, QVariant::String, errorString))
+        return false;
+
+    for (const QString &spec : QVariant(list).toStringList()) {
+        QStringList names;
+        if (!expandCompacted(spec, &names)) {
+            *errorString = tr("Invalid compacted option specification: '%1'").arg(spec);
+            return false;
+        }
+        for (const QString &name : names) {
+            const Option *const option = m_optionByName.value(name);
+            if (!option) {
+                *errorString = tr("Unrecognized external option: '%1'").arg(name);
+                return false;
+            }
+
+            allModuleOptions->append(option);
+        }
+    }
+
+    return true;
+}
+
+bool Dispatcher::loadOptions(const Module *module, const QVariantList &list,
+        Option::ConstList *allModuleOptions, QString *errorString)
 {
     if (!checkItems(list, QVariant::Map, errorString))
         return false;
@@ -435,6 +478,8 @@ bool Dispatcher::loadOptions(const Module *module, const QVariantList &list, QSt
             }
         }
 
+        allModuleOptions->append(option.get());
+
         m_optionByName.insert(option->name, option.get());
         m_options.emplace_back(std::move(option));
     }
@@ -442,7 +487,8 @@ bool Dispatcher::loadOptions(const Module *module, const QVariantList &list, QSt
     return true;
 }
 
-bool Dispatcher::loadCommands(const Module *module, const QVariantList &list, QString *errorString)
+bool Dispatcher::loadCommands(const Module *module, const QVariantList &list,
+        const Option::ConstList &allModuleOptions, QString *errorString)
 {
     if (!checkItems(list, QVariant::Map, errorString))
         return false;
@@ -474,9 +520,73 @@ bool Dispatcher::loadCommands(const Module *module, const QVariantList &list, QS
             return false;
         command->description = localizedString(description.toString());
 
+        QVariant configOptionsData = value(data, CONFIG_OPTIONS_KEY, QVariant::List, QVariantList(),
+                errorString);
+        if (!configOptionsData.isValid())
+            return false;
+
+        if (!loadCommandConfigOptions(command.get(), configOptionsData.toList(), allModuleOptions,
+                    errorString)) {
+            return false;
+        }
+
         m_commandByName.insert(command->name, command.get());
         m_commands.emplace_back(std::move(command));
     }
+
+    return true;
+}
+
+bool Dispatcher::loadCommandConfigOptions(Command *command, const QVariantList &list,
+        const Option::ConstList &allModuleOptions, QString *errorString)
+{
+    if (!checkItems(list, QVariant::String, errorString))
+        return false;
+
+    for (QString optionSpec : QVariant(list).toStringList()) {
+        if (optionSpec == "*") {
+            command->configOptions.append(allModuleOptions);
+            continue;
+        }
+
+        bool exclude = false;
+        bool mandatory = false;
+
+        if (optionSpec.startsWith("-")) {
+            exclude = true;
+            optionSpec.remove(0, 1);
+        }
+        if (optionSpec.endsWith("!")) {
+            mandatory = true;
+            optionSpec.chop(1);
+        }
+
+        QStringList names;
+        if (!expandCompacted(optionSpec, &names)) {
+            *errorString = tr("Invalid compacted option specification: '%1'").arg(optionSpec);
+            return false;
+        }
+        for (const QString &name : names) {
+            const Option *const option = m_optionByName.value(name);
+            if (!option) {
+                *errorString = tr("Unrecognized option: '%1'").arg(name);
+                return false;
+            }
+
+            if (exclude) {
+                command->configOptions.removeOne(option);
+            } else {
+                if (!command->configOptions.contains(option))
+                    command->configOptions.append(option);
+                if (mandatory)
+                    command->mandatoryConfigOptions.append(option);
+            }
+        }
+    }
+
+    // Help keeping the module definition clean
+    QTC_CHECK(command->configOptions.toSet().count() == command->configOptions.count());
+    QTC_CHECK(command->mandatoryConfigOptions.toSet().count() == command->mandatoryConfigOptions.count());
 
     return true;
 }

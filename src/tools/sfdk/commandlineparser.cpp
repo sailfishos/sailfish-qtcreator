@@ -32,10 +32,12 @@
 #include <sfdk/sdk.h>
 
 #include <utils/algorithm.h>
+#include <utils/pointeralgorithm.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
 #include <QCommandLineParser>
+#include <QRegularExpression>
 
 using namespace Sfdk;
 using namespace Utils;
@@ -76,7 +78,7 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
         if (option->alias.isNull())
             continue;
 
-        QString domainHelpOptionName = "--help-" + option->domain()->name;
+        QString domainHelpOptionName = "--help-" + option->module->domain->name;
         QCommandLineOption alias(option->alias);
         alias.setValueName(option->argumentDescription);
         alias.setDescription(tr("This is a shorthand alias for the '%1' configuration option.")
@@ -321,6 +323,11 @@ void CommandLineParser::commandBriefUsage(QTextStream &out, const Command *comma
 {
     wrapLines(out, 0, {usageMessage()}, {EXE_NAME, command->name}, command->synopsis);
     out << endl;
+    if (!command->configOptions.isEmpty()) {
+        wrapLine(out, 0, relatedConfigurationOptionsHeading(command)
+                + ' ' + listRelatedConfigurationOptions(command) + '.');
+        out << endl;
+    }
     wrapLine(out, 0, tryLongHelpMessage(command->name + " --help"));
 }
 
@@ -330,6 +337,11 @@ void CommandLineParser::commandUsage(QTextStream &out, const Command *command) c
     out << endl;
     wrapLines(out, 0, {}, {}, command->description);
     out << endl;
+    if (!command->configOptions.isEmpty()) {
+        wrapLine(out, 0, relatedConfigurationOptionsHeading(command)
+                + ' ' + listRelatedConfigurationOptions(command) + '.');
+        out << endl;
+    }
     if (command->module->domain->name == Constants::GENERAL_DOMAIN_NAME)
         wrapLine(out, 0, tryLongHelpMessage("--help"));
     else
@@ -437,15 +449,8 @@ void CommandLineParser::allDomainsUsage(QTextStream &out) const
     out << configurationOptionsHeading() << endl;
     out << endl;
 
-    for (const std::unique_ptr<const Domain> &domain : Dispatcher::domains()) {
-        const Option::ConstList domainOptions = domain->options();
-        if (domainOptions.isEmpty())
-            continue;
-
-        wrapLine(out, 1, domain->briefDescription());
-        describe(out, 2, domainOptions);
-        out << endl;
-    }
+    describe(out, 1, Utils::toRawPointer<QList>(Dispatcher::options()));
+    out << endl;
 
     exitStatusSection(out);
 }
@@ -601,6 +606,69 @@ QString CommandLineParser::globalOptionsHeading()
 QString CommandLineParser::configurationOptionsHeading()
 {
     return tr("Configuration Options").toUpper();
+}
+
+QString CommandLineParser::relatedConfigurationOptionsHeading(const Command *command)
+{
+    return tr("The '%1' command obeys the following configuration options:")
+        .arg(command->name);
+}
+
+/*
+ * List options, using '[no-]option' syntax for when opposite option exists
+ */
+QString CommandLineParser::listRelatedConfigurationOptions(const Command *command)
+{
+    const QStringList names = Utils::transform(command->configOptions, &Option::name);
+
+    QStringList compacted = compactOptions(names);
+
+    // Ignore '[.*]' prefixes
+    Utils::sort(compacted, [](const QString &s1, const QString &s2) {
+        const QString s1Base = s1.mid(s1.indexOf(']') + 1);
+        const QString s2Base = s2.mid(s2.indexOf(']') + 1);
+        return s1Base < s2Base;
+    });
+
+    const QStringList quoted = Utils::transform(compacted, [](const QString &s) -> QString {
+        return '\'' + s + '\'';
+    });
+
+    return quoted.join(", ");
+}
+
+/*
+ * Replace pairs of opposite options with compact notation "[no-]foo".
+ */
+QStringList CommandLineParser::compactOptions(const QStringList &names)
+{
+    const QRegularExpression oppositeCandidateRe("\\bno-");
+    QStringList oppositeCandidates = names.filter(oppositeCandidateRe);
+    QSet<QString> compactedOpposites;
+
+    QStringList compacted;
+
+    for (const QString &name : names) {
+        if (oppositeCandidates.contains(name))
+            continue;
+        if (compactedOpposites.contains(name))
+            continue;
+
+        const QRegularExpression oppositeNameRe(".*\\bno-" + QRegularExpression::escape(name) + "$");
+        const int oppositeIndex = oppositeCandidates.indexOf(oppositeNameRe);
+        if (oppositeIndex < 0) {
+            compacted << name;
+        } else {
+            const QString opposite = oppositeCandidates.takeAt(oppositeIndex);
+            const QString oppositePrefix = opposite.chopped(name.length());
+            compacted << "[" + oppositePrefix + "]" + name;
+            compactedOpposites << opposite;
+        }
+    }
+
+    compacted += oppositeCandidates;
+
+    return compacted;
 }
 
 QString CommandLineParser::dashOption(const QString &option)

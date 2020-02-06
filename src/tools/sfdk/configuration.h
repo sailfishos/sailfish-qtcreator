@@ -50,8 +50,6 @@ public:
         MandatoryArgument
     };
 
-    const Domain *domain() const;
-
     const Module *module;
     QString name;
     QString alias;
@@ -150,7 +148,8 @@ public:
 
     static QList<OptionEffectiveOccurence> effectiveState();
     static Utils::optional<OptionEffectiveOccurence> effectiveState(const Option *option);
-    static QStringList toArguments(const Module *module);
+    static bool toArguments(const Option::ConstList &options, const Option::ConstList &requiredOptions,
+            QStringList *arguments, QString *errorString);
     static QString print();
 
 private:

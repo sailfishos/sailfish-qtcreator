@@ -186,6 +186,33 @@ void wrapLines(QTextStream &out, int indentLevel, const QStringList &prefix1,
     }
 }
 
+/*
+ * Simple expansion "[no-]foo" -> {"foo", "no-foo"}. Supports up to one [] pair
+ * at the very start of a string.
+ */
+bool expandCompacted(const QString &string, QStringList *expanded)
+{
+    const int leftCount = string.count('[');
+    const int rightCount = string.count(']');
+    const int left = string.indexOf('[');
+    const int right = string.indexOf(']');
+    if (leftCount != rightCount || leftCount > 1 || right < left || left > 0)
+        return false;
+
+    if (leftCount == 0) {
+        *expanded << string;
+        return true;
+    }
+
+    QString name1 = string;
+    name1.remove(left, right - left + 1);
+    QString name2 = string;
+    name2.remove(right, 1).remove(left, 1);
+    *expanded << name1 << name2;
+
+    return true;
+}
+
 TreePrinter::Tree TreePrinter::build(const QList<QStringList> &table, int idColumn,
         int parentIdColumn)
 {
