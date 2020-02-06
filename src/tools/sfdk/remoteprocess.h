@@ -62,12 +62,33 @@ public:
     explicit RemoteProcess(QObject *parent = 0);
     ~RemoteProcess() override;
 
+    QString program() const { return m_program; }
     void setProgram(const QString& program);
+
+    QStringList arguments() const { return m_arguments; }
     void setArguments(const QStringList& arguments);
+
+    QString workingDirectory() const { return m_workingDirectory; }
     void setWorkingDirectory(const QString& workingDirectory);
+
+    QSsh::SshConnectionParameters sshParameters() const { return m_sshConnectionParams; }
     void setSshParameters(const QSsh::SshConnectionParameters& params);
+
+    QProcessEnvironment extraEnvironment() const { return m_extraEnvironment; }
     void setExtraEnvironment(const QProcessEnvironment &extraEnvironment);
+
+    bool isRunInTerminalSet() const { return m_runInTerminal; }
+    void setRunInTerminal(bool runInTerminal);
+
+    QProcess::InputChannelMode inputChannelMode() const { return m_inputChannelMode; }
     void setInputChannelMode(QProcess::InputChannelMode inputChannelMode);
+
+    bool isStandardOutputLineBufferedSet() const { return m_standardOutputLineBuffered; }
+    void setStandardOutputLineBuffered(bool lineBuffered);
+
+    void enableLogAllOutput(std::function<const QLoggingCategory &()> category, const QString &key);
+
+    void start();
     int exec();
 
 signals:
@@ -75,6 +96,7 @@ signals:
     void standardError(const QByteArray &data);
     void connectionError(const QString &errorMessage);
     void processError(const QString &errorMessage);
+    void finished(int exitCode);
 
 protected:
     void beginTerminate() override;
@@ -83,10 +105,13 @@ protected:
 
 private:
     void kill(const QString &signal, void (RemoteProcess::*callback)(bool));
+    void finish();
     static QString environmentString(const QProcessEnvironment &environment);
 
 private slots:
     void onProcessStarted();
+    void onConnectionError();
+    void onProcessClosed();
     void onReadyReadStandardOutput();
     void onReadyReadStandardError();
     void handleStdin();
@@ -99,7 +124,11 @@ private:
     QString m_workingDirectory;
     QSsh::SshConnectionParameters m_sshConnectionParams;
     QProcessEnvironment m_extraEnvironment;
+    bool m_runInTerminal = true;
     QProcess::InputChannelMode m_inputChannelMode = QProcess::ManagedInputChannel;
+    bool m_standardOutputLineBuffered = false;
+    bool m_startedOk = false;
+    bool m_finished = false;
     qint64 m_processId = 0;
     std::unique_ptr<QFile> m_stdin;
     LineBuffer m_stdoutBuffer;

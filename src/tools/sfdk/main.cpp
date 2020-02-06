@@ -38,6 +38,7 @@
 #include <utils/algorithm.h>
 #include <utils/environment.h>
 #include <utils/fileutils.h>
+#include <utils/temporarydirectory.h>
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -108,6 +109,9 @@ int main(int argc, char **argv)
     // Lucida) and set the codepage using `chcp 65001`.
     QTextCodec::setCodecForLocale(QTextCodec::codecForName("UTF-8"));
 #endif
+
+    Utils::TemporaryDirectory::setMasterTemporaryDirectory(
+            QDir::tempPath() + "/" + Constants::APP_ID + "-XXXXXX");
 
     const QString resourcePath = QDir::cleanPath(app.applicationDirPath() + '/'
             + RELATIVE_DATA_PATH);

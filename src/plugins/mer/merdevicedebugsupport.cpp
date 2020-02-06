@@ -33,6 +33,7 @@
 #include "mertoolchain.h"
 
 #include <sfdk/buildengine.h>
+#include <sfdk/sfdkconstants.h>
 
 #include <debugger/debuggerkitinformation.h>
 #include <debugger/debuggerplugin.h>
@@ -149,11 +150,11 @@ void MerDeviceDebugSupport::start()
     BuildEngine *const engine = MerSdkKitInformation::buildEngine(runConfig->target()->kit());
 
     if (engine && !engine->sharedHomePath().isEmpty()) {
-        addSourcePathMap(Constants::MER_SDK_SHARED_HOME_MOUNT_POINT,
+        addSourcePathMap(Sfdk::Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT,
                 engine->sharedHomePath().toString());
     }
     if (engine && !engine->sharedSrcPath().isEmpty()) {
-        addSourcePathMap(Constants::MER_SDK_SHARED_SRC_MOUNT_POINT,
+        addSourcePathMap(Sfdk::Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT,
                 engine->sharedSrcPath().toString());
     }
 

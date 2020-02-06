@@ -40,8 +40,10 @@ namespace Internal {
 namespace Sfdk {
 
 class BuildEngine;
+class BuildTargetData;
 class Device;
 class Emulator;
+class RemoteProcess;
 class Sdk;
 class VirtualMachine;
 
@@ -112,7 +114,7 @@ public:
     Q_DECLARE_FLAGS(ListToolsOptions, ListToolsOption)
     Q_FLAG(ListToolsOptions)
 
-    SdkManager(bool useSystemSettingsOnly);
+    explicit SdkManager(bool useSystemSettingsOnly);
     ~SdkManager();
 
     static bool isValid();
@@ -140,8 +142,11 @@ public:
     static bool installCustomTools(const QString &name, const QString &imageFileOrUrl, ToolsTypeHint typeHint);
     static bool removeTools(const QString &name, ToolsTypeHint typeHint);
 
+    static BuildTargetData configuredTarget(QString *errorMessage);
+
     static Device *configuredDevice(QString *errorMessage);
     static Device *deviceByName(const QString &deviceName, QString *errorMessage);
+    static bool prepareForRunOnDevice(const Device &device, RemoteProcess *process);
     static int runOnDevice(const Device &device, const QString &program,
         const QStringList &arguments, QProcess::InputChannelMode inputChannelMode);
 

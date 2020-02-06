@@ -690,8 +690,8 @@ void MerMb2RpmBuildStep::stdOutput(const QString &line)
     if (rexp.indexIn(line) != -1) {
         QString file = rexp.cap(1);
         //TODO First replace shared home and then shared src (error prone!)
-        file.replace(QRegExp(QString("^") + Constants::MER_SDK_SHARED_HOME_MOUNT_POINT), m_sharedHome);
-        file.replace(QRegExp(QString("^") + Constants::MER_SDK_SHARED_SRC_MOUNT_POINT), m_sharedSrc);
+        file.replace(QRegExp(QString("^") + Sfdk::Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT), m_sharedHome);
+        file.replace(QRegExp(QString("^") + Sfdk::Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT), m_sharedSrc);
         m_packages.append(QDir::toNativeSeparators(file));
     }
     MerProcessStep::stdOutput(line);

@@ -18,6 +18,7 @@ HEADERS = \
     command.h \
     commandlineparser.h \
     configuration.h \
+    debugger.h \
     dispatch.h \
     sdkmanager.h \
     remoteprocess.h \
@@ -33,6 +34,7 @@ SOURCES = \
     command.cpp \
     commandlineparser.cpp \
     configuration.cpp \
+    debugger.cpp \
     dispatch.cpp \
     main.cpp \
     remoteprocess.cpp \

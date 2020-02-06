@@ -1,0 +1,40 @@
+{
+    "version": 2,
+    "domain": "testing",
+    "trBrief": "Testing software",
+
+    "trDescription": "QUALITY ASSURANCE\n\nCertain quality checks may be performed with the help of the 'check' command:\n\n$ cd package\n$ sfdk build\n$ sfdk check\n\nThe command enables execution of (pluggable) test suites, each realizing testing on one or more of the four recognized test levels:\n\n1. Static testing (verification) performed on the source tree\n\n2. Static testing (verification) performed on the build results (packages)\n\n3. Dynamic testing (validation) performed at build host (unit testing)\n\n    Testing at this level is only supported with the built-in suite 'rpmspec', that executes the steps defined by the '%check' section of the RPM .spec file if present.\n\n    Testing at this level is normally performed by the 'build' and 'package' commands (unless used with the '--nocheck' option) and so it is not enabled by default for this command. Performed with this command, it involves execution of the 'make-install' command.\n\n4. Dynamic testing (validation) performed on a target device (system testing)\n\n    The 'check' command does not include the deployment step. Package(s) need to be deployed to the device selected with the 'device' configuration option beforehand, possibly with the 'deploy' command in case of packages associated with the build tree under CWD.\n\nThe available test suites may be listed with the '--list-suites' option to the 'check' command.\n\nSee the 'check' command to learn how to override the default selection of test levels, suites and artefacts.",
+
+    "worker":
+    {
+        "type": "engine-command",
+        "version": 1,
+        "program": "mb2"
+    },
+
+    "commands":
+    [
+        {
+            "name": "deploy",
+            "trSynopsis": "{--pkcon|--rsync|--sdk|--zypper}",
+            "trBrief": "Deploy to a device",
+            "trDescription": "Deploy build results to the configured device (see the 'device' configuration option).\n\nThis command implies also the 'make-install' command and unless the '--rsync' method is used, it will include also the 'package' command. See the 'building' domain help for more information about the other commands.\n\nThe following deployment methods are available, corresponding to the single mandatory option:\n\n--pkcon\n    Uses 'pkcon' to install RPM package(s). Requires the \"Allow untrusted software\" option enabled in Settings, does not require root access to the device.\n\n--rsync\n    Uses 'rsync' to copy the installed files under '/opt/sdk/<name>' without building/installing RPM package(s).  Does not require root access to the device.\n\n--sdk\n    Uses the method native to the SDK to install RPM package(s). Requires developer mode enabled on the device, does not require root access.\n\n--zypper\n    Uses 'zypper' to install RPM package(s).  Requires 'zypper' installed on the device, requires root access to the device."
+        },
+        {
+            "name": "check",
+            "trSynopsis": "--list-suites\n[-l|--levels [+|-]<level>...] [-s|--suites [+|-]<suite>...] [<artefact>]...",
+            "trBrief": "Perform quality checks",
+            "trDescription": "Perform quality checks.\n\nBy default, test suites operate on the artefacts associated with build tree under CWD. Alternatively, single path to a source tree and/or one or more package files may be specified as <artefact> on command line (build tree is always looked for under CWD).\n\nEach test suite realizes testing on one or more of the four recognized test levels. This is indicated in the output produced with the '--list-suites' option, using the keywords found in the first column of the following table.\n\n| Level          | Tested art. | Executed at   | Default |\n|----------------+-------------+---------------+---------|\n|    static      |             |               |         |\n| 1. ├── source  | Sources     | Build host    | +       |\n| 2. └── package | Packages    | Build host    | +       |\n|    dynamic     |             |               |         |\n| 3. ├── unit    | Build tree  | Build host    | -       |\n| 4. └── system  | Packages    | Target device | -       |\n\n(See also QUALITY ASSURANCE in the domain help.)\n\n-l, --levels [+|-]<level>...\n    Select testing levels. Levels are selected using the keywords 'source', 'package', 'static', 'unit', 'system' and 'dynamic' as described before.\n\n--list-suites\n    List available test suites.\n\n-s, --suites [+|-]<suite>...\n    Select test suites to use. By default all and only the essential suites are selected. See '--list-suites'.\n\nThe '--levels' and '--suites' options may be passed multiple values, separated with comma. If a name is prefixed with '+' or '-', the effect is cumulative and persists until overriden with later name prefixed with the opposite operator."
+        }
+    ],
+
+    "options":
+    [
+        {
+            "name": "device",
+            "trArgument": "<name>",
+            "trDescription": "Select the device to use with commands that need to access a device. Registered devices can be listed with the 'device list' command.",
+            "validator": "module.validateDeviceName"
+        }
+    ]
+}

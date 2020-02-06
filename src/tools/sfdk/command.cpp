@@ -25,6 +25,7 @@
 
 #include "commandlineparser.h"
 #include "configuration.h"
+#include "debugger.h"
 #include "dispatch.h"
 #include "sfdkconstants.h"
 #include "sfdkglobal.h"
@@ -510,6 +511,8 @@ Worker::ExitStatus BuiltinWorker::run(const Command *command, const QStringList 
 
     if (command->name == "config")
         return runConfig(arguments0);
+    else if (command->name == "debug")
+        return runDebug(arguments0, exitCode);
     else if (command->name == "device")
         return runDevice(arguments, exitCode);
     else if (command->name == "emulator")
@@ -669,6 +672,181 @@ Worker::ExitStatus BuiltinWorker::runConfig(const QStringList &arguments0) const
 
         return NormalExit;
     }
+}
+
+Worker::ExitStatus BuiltinWorker::runDebug(const QStringList &arguments0, int *exitCode) const
+{
+    using P = CommandLineParser;
+
+    enum Subcommand {
+        Invalid,
+        Start,
+        Attach,
+        LoadCore,
+    };
+
+    QCommandLineParser parser;
+    parser.setOptionsAfterPositionalArgumentsMode(QCommandLineParser::ParseAsPositionalArguments);
+
+    // Options related to GDB invocation
+    QCommandLineOption dryRunOption(QStringList{"dry-run", "n"});
+    QCommandLineOption gdbOption("gdb", QString(), "<executable>");
+    QCommandLineOption gdbArgsOption("gdb-args", QString(), "<args>");
+    QCommandLineOption gdbServerOption("gdbserver", QString(), "<executable>");
+    QCommandLineOption gdbServerArgsOption("gdbserver-args", QString(), "<args>");
+    QList<QCommandLineOption> gdbInvocationOptions{dryRunOption, gdbOption, gdbArgsOption,
+            gdbServerOption, gdbServerArgsOption};
+
+    // Options specific to the "start" subcommand
+    QCommandLineOption workingDirectoryOption(QStringList{"working-directory", "C"}, QString(),
+            "<path>");
+    QCommandLineOption argsOption("args");
+    QList<QCommandLineOption> startOptions{workingDirectoryOption, argsOption};
+
+    // Options specific to the "load-core" subcommand
+    QCommandLineOption localCoreOption("local-core");
+    QList<QCommandLineOption> loadCoreOptions{localCoreOption};
+
+    if (arguments0.count() < 2) {
+        qerr() << P::missingArgumentMessage() << endl;
+        return BadUsage;
+    }
+
+    Subcommand subcommand = Invalid;
+
+    const QString maybeSubcommand = arguments0.at(1);
+    if (maybeSubcommand == "start") {
+        subcommand = Start;
+        parser.addOptions(gdbInvocationOptions);
+        parser.addOptions(startOptions);
+        if (!parser.parse(arguments0.mid(1))) {
+            qerr() << parser.errorText() << endl;
+            return BadUsage;
+        }
+        const int maxArgs = parser.isSet(argsOption) ? -1 : 2;
+        if (!P::checkPositionalArgumentsCount(parser.positionalArguments(), 1, maxArgs))
+            return BadUsage;
+    } else if (maybeSubcommand == "attach") {
+        subcommand = Attach;
+        parser.addOptions(gdbInvocationOptions);
+        if (!parser.parse(arguments0.mid(1))) {
+            qerr() << parser.errorText() << endl;
+            return BadUsage;
+        }
+        if (!P::checkPositionalArgumentsCount(parser.positionalArguments(), 2, 2))
+            return BadUsage;
+        if (parser.positionalArguments().at(1).toInt() == 0) {
+            qerr() << tr("Not a valid process ID: '%1'").arg(parser.positionalArguments().at(1))
+                << endl;
+            return BadUsage;
+        }
+    } else if (maybeSubcommand == "load-core") {
+        subcommand = LoadCore;
+        parser.addOptions(gdbInvocationOptions);
+        parser.addOptions(loadCoreOptions);
+        if (!parser.parse(arguments0.mid(1))) {
+            qerr() << parser.errorText() << endl;
+            return BadUsage;
+        }
+        if (!P::checkPositionalArgumentsCount(parser.positionalArguments(), 2, 2))
+            return BadUsage;
+    } else {
+        // Subcommand was not specified explicitly, guess it
+        parser.addOptions(gdbInvocationOptions);
+        parser.addOptions(startOptions);
+        parser.addOptions(loadCoreOptions);
+        if (!parser.parse(arguments0)) {
+            qerr() << parser.errorText() << endl;
+            return BadUsage;
+        }
+
+        if (parser.positionalArguments().isEmpty()) {
+            qerr() << P::missingArgumentMessage() << endl;
+            return BadUsage;
+        } else if (parser.positionalArguments().count() == 1 || parser.isSet(argsOption)) {
+            subcommand = Start;
+        } else if (parser.positionalArguments().count() > 2) {
+            qerr() << P::unexpectedArgumentMessage(parser.positionalArguments().at(2)) << endl;
+            return BadUsage;
+        } else if (parser.positionalArguments().at(1).toInt() > 0) {
+            subcommand = Attach;
+        } else {
+            subcommand = LoadCore;
+        }
+        QTC_ASSERT(subcommand != Invalid, return NormalExit);
+
+        if (parser.isSet(workingDirectoryOption) && subcommand != Start) {
+            qerr() << P::optionNotAvailableMessage(workingDirectoryOption.names().first()) << endl;
+            return BadUsage;
+        }
+        if (parser.isSet(argsOption) && subcommand != Start) {
+            qerr() << P::optionNotAvailableMessage(argsOption.names().first()) << endl;
+            return BadUsage;
+        }
+        if (parser.isSet(localCoreOption) && subcommand != LoadCore) {
+            qerr() << P::optionNotAvailableMessage(localCoreOption.names().first()) << endl;
+            return BadUsage;
+        }
+    }
+    QTC_ASSERT(subcommand != Invalid, return NormalExit);
+
+    QString errorString;
+
+    Device *const device = SdkManager::configuredDevice(&errorString);
+    if (!device) {
+        qerr() << errorString << endl;
+        *exitCode = SFDK_EXIT_ABNORMAL;
+        return NormalExit;
+    }
+
+    const BuildTargetData target = SdkManager::configuredTarget(&errorString);
+    if (!target.isValid()) {
+        qerr() << errorString << endl;
+        *exitCode = SFDK_EXIT_ABNORMAL;
+        return NormalExit;
+    }
+
+    Debugger debugger(device, target);
+
+    debugger.setDryRunEnabled(parser.isSet(dryRunOption));
+    if (parser.isSet(gdbOption))
+        debugger.setGdbExecutable(parser.value(gdbOption));
+    if (parser.isSet(gdbArgsOption)) {
+        QStringList split;
+        if (!CommandLineParser::splitArgs(parser.value(gdbArgsOption), Utils::OsTypeLinux, &split))
+            return BadUsage;
+        debugger.setGdbExtraArgs(split);
+    }
+    if (parser.isSet(gdbServerOption))
+        debugger.setGdbServerExecutable(parser.value(gdbServerOption));
+    if (parser.isSet(gdbServerArgsOption)) {
+        QStringList split;
+        if (!CommandLineParser::splitArgs(parser.value(gdbServerArgsOption), Utils::OsTypeLinux, &split))
+            return BadUsage;
+        debugger.setGdbServerExtraArgs(split);
+    }
+
+    switch (subcommand) {
+    case Invalid:
+        QTC_ASSERT(false, return NormalExit);
+    case Start:
+        *exitCode = debugger.execStart(parser.positionalArguments().first(),
+                parser.positionalArguments().mid(1),
+                parser.value(workingDirectoryOption));
+        return NormalExit;
+    case Attach:
+        *exitCode = debugger.execAttach(parser.positionalArguments().first(),
+                parser.positionalArguments().at(1).toInt());
+        return NormalExit;
+    case LoadCore:
+        *exitCode = debugger.execLoadCore(parser.positionalArguments().first(),
+                parser.positionalArguments().at(1),
+                parser.isSet(localCoreOption));
+        return NormalExit;
+    }
+
+    *exitCode = EXIT_SUCCESS;
+    return NormalExit;
 }
 
 Worker::ExitStatus BuiltinWorker::runDevice(const QStringList &arguments, int *exitCode) const

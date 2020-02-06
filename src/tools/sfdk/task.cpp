@@ -78,6 +78,11 @@ Task::~Task()
     QTC_CHECK(exited);
 }
 
+void Task::terminate()
+{
+    post(Terminate);
+}
+
 void Task::started()
 {
     process(Started);
@@ -295,6 +300,20 @@ TaskManager::~TaskManager()
     s_instance = nullptr;
 }
 
+void TaskManager::setCtrlCFilter(CtrlCFilter filter)
+{
+    if (filter)
+        qCDebug(sfdk) << "TaskManager: Ctrl-C filter set";
+    else
+        qCDebug(sfdk) << "TaskManager: Ctrl-C filter unset";
+    s_instance->m_ctrlCFilter = filter;
+}
+
+TaskManager::CtrlCFilter TaskManager::ctrlCFilter()
+{
+    return s_instance->m_ctrlCFilter;
+}
+
 void TaskManager::process(Request request)
 {
     qCDebug(sfdk) << "TaskManager:" << enumName(request) << "requested";
@@ -401,6 +420,11 @@ BOOL WINAPI SignalHandler::ctrlHandler(DWORD fdwCtrlType)
     switch (fdwCtrlType)
     {
     case CTRL_C_EVENT:
+        if (TaskManager::ctrlCFilter() && !TaskManager::ctrlCFilter()()) {
+            qCDebug(sfdk) << "Ctrl-C event filtered out";
+            return TRUE;
+        }
+        Q_FALLTHROUGH();
     case CTRL_CLOSE_EVENT:
     case CTRL_BREAK_EVENT:
     case CTRL_LOGOFF_EVENT:
@@ -436,8 +460,13 @@ void SignalHandler::setUp()
             << strsignal(signum);
 
         switch (signum) {
-        case SIGHUP:
         case SIGINT:
+            if (TaskManager::ctrlCFilter() && !TaskManager::ctrlCFilter()()) {
+                qCDebug(sfdk) << "Ctrl-C event filtered out";
+                break;
+            }
+            Q_FALLTHROUGH();
+        case SIGHUP:
         case SIGTERM:
             TaskManager::process(TaskManager::Terminate);
             break;

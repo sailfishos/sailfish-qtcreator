@@ -25,6 +25,7 @@
 #include <QObject>
 #include <QSet>
 
+#include <functional>
 #include <memory>
 
 namespace Sfdk {
@@ -69,6 +70,8 @@ public:
     using QObject::QObject;
     ~Task() override;
 
+    void terminate();
+
 protected:
     void started();
     virtual void beginTerminate() = 0;
@@ -110,9 +113,15 @@ public:
     };
     Q_ENUM(Request)
 
+    using CtrlCFilter = std::function<bool()>;
+    static bool IgnoreAllCtrlCEvents() { return false; }
+
 public:
     TaskManager();
     ~TaskManager();
+
+    static void setCtrlCFilter(CtrlCFilter filter);
+    static CtrlCFilter ctrlCFilter();
 
 private:
     friend class Task;
@@ -129,6 +138,7 @@ private:
     static TaskManager *s_instance;
     std::unique_ptr<SignalHandler> signalHandler;
     QSet<Task *> tasks;
+    CtrlCFilter m_ctrlCFilter;
 };
 
 } // namespace Sfdk

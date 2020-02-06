@@ -33,6 +33,7 @@
 #include <sfdk/device.h>
 #include <sfdk/emulator.h>
 #include <sfdk/sdk.h>
+#include <sfdk/sfdkconstants.h>
 #include <sfdk/virtualmachine.h>
 
 #include <mer/merconstants.h>
@@ -1082,6 +1083,25 @@ bool SdkManager::removeTools(const QString &name, ToolsTypeHint typeHint)
     return ToolsPackageManager().removeTools(name, typeHint);
 }
 
+BuildTargetData SdkManager::configuredTarget(QString *errorMessage)
+{
+    Q_ASSERT(errorMessage);
+    QTC_ASSERT(s_instance->hasEngine(), return {});
+
+    const Option *const targetOption = Dispatcher::option("target");
+    QTC_ASSERT(targetOption, return {});
+
+    const Utils::optional<OptionEffectiveOccurence> effectiveTargetOption =
+        Configuration::effectiveState(targetOption);
+    if (!effectiveTargetOption) {
+        *errorMessage = tr("No target selected");
+        return {};
+    }
+    QTC_ASSERT(!effectiveTargetOption->isMasked(), return {});
+
+    return engine()->buildTarget(effectiveTargetOption->argument());
+}
+
 Device *SdkManager::configuredDevice(QString *errorMessage)
 {
     Q_ASSERT(errorMessage);
@@ -1122,27 +1142,44 @@ Device *SdkManager::deviceByName(const QString &deviceName, QString *errorMessag
     return device;
 }
 
-int SdkManager::runOnDevice(const Device &device, const QString &program,
-        const QStringList &arguments, QProcess::InputChannelMode inputChannelMode)
+bool SdkManager::prepareForRunOnDevice(const Device &device, RemoteProcess *process)
 {
     if (device.machineType() == Device::EmulatorMachine) {
         Emulator *const emulator = static_cast<const EmulatorDevice &>(device).emulator();
 
         // Assumption to minimize the time spent here: if the VM is running, we must have been waiting
         // before for the emulator to fully start, so no need to wait for connectTo again
-        emulator->virtualMachine()->refreshState(VirtualMachine::Synchronous);
-        const bool emulatorRunning = !emulator->virtualMachine()->isOff();
-        if (!emulatorRunning) {
+        if (!isEmulatorRunning(*emulator)) {
             qCInfo(sfdk).noquote() << tr("Starting the emulator…");
             if (!emulator->virtualMachine()->connectTo(VirtualMachine::Block)) {
                 qerr() << tr("Failed to start the emulator") << endl;
-                return SFDK_EXIT_ABNORMAL;
+                return false;
             }
         }
     }
 
+    process->setSshParameters(device.sshParameters());
+
+    QObject::connect(process, &RemoteProcess::connectionError, [&](const QString &errorString) {
+        if (device.machineType() == Device::EmulatorMachine)
+            qerr() << tr("Error connecting to the emulator: ") << errorString << endl;
+        else
+            qerr() << tr("Error connecting to the device: ") << errorString << endl;
+    });
+    QObject::connect(process, &RemoteProcess::processError, [&](const QString &errorString) {
+        if (device.machineType() == Device::EmulatorMachine)
+            qerr() << tr("Error running command on the emulator: ") << errorString << endl;
+        else
+            qerr() << tr("Error running command on the device: ") << errorString << endl;
+    });
+
+    return true;
+}
+
+int SdkManager::runOnDevice(const Device &device, const QString &program,
+        const QStringList &arguments, QProcess::InputChannelMode inputChannelMode)
+{
     RemoteProcess process;
-    process.setSshParameters(device.sshParameters());
     process.setProgram(program);
     process.setArguments(arguments);
     process.setInputChannelMode(inputChannelMode);
@@ -1153,18 +1190,9 @@ int SdkManager::runOnDevice(const Device &device, const QString &program,
     QObject::connect(&process, &RemoteProcess::standardError, [&](const QByteArray &data) {
         qerr() << data << flush;
     });
-    QObject::connect(&process, &RemoteProcess::connectionError, [&](const QString &errorString) {
-        if (device.machineType() == Device::EmulatorMachine)
-            qerr() << tr("Error connecting to the emulator: ") << errorString << endl;
-        else
-            qerr() << tr("Error connecting to the device: ") << errorString << endl;
-    });
-    QObject::connect(&process, &RemoteProcess::processError, [&](const QString &errorString) {
-        if (device.machineType() == Device::EmulatorMachine)
-            qerr() << tr("Error running command on the emulator: ") << errorString << endl;
-        else
-            qerr() << tr("Error running command on the device: ") << errorString << endl;
-    });
+
+    if (!prepareForRunOnDevice(device, &process))
+        return SFDK_EXIT_ABNORMAL;
 
     return process.exec();
 }
@@ -1308,11 +1336,11 @@ bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QStrin
         Qt::CaseSensitivity cs;
     } const mappings[] = {
 #if Q_CC_GNU <= 504 // Let's check if it is still needed with GCC > 5.4
-        {cleanSharedHome, QLatin1String(Mer::Constants::MER_SDK_SHARED_HOME_MOUNT_POINT), Qt::CaseSensitive},
-        {cleanSharedSrc, QLatin1String(Mer::Constants::MER_SDK_SHARED_SRC_MOUNT_POINT), caseInsensitiveOnWindows}
+        {cleanSharedHome, QLatin1String(Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT), Qt::CaseSensitive},
+        {cleanSharedSrc, QLatin1String(Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT), caseInsensitiveOnWindows}
 #else
-        {cleanSharedHome, Mer::Constants::MER_SDK_SHARED_HOME_MOUNT_POINT, Qt::CaseSensitive},
-        {cleanSharedSrc, Mer::Constants::MER_SDK_SHARED_SRC_MOUNT_POINT, caseInsensitiveOnWindows}
+        {cleanSharedHome, Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, Qt::CaseSensitive},
+        {cleanSharedSrc, Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, caseInsensitiveOnWindows}
 #endif
     };
     for (const Mapping &mapping : mappings) {
@@ -1346,10 +1374,10 @@ QByteArray SdkManager::maybeReverseMapEnginePaths(const QByteArray &commandOutpu
     QByteArray retv = commandOutput;
 
     if (!m_buildEngine->sharedSrcPath().isEmpty())
-      retv.replace(Mer::Constants::MER_SDK_SHARED_SRC_MOUNT_POINT, cleanSharedSrc.toUtf8());
+      retv.replace(Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, cleanSharedSrc.toUtf8());
 
     if (!m_buildEngine->sharedHomePath().isEmpty())
-      retv.replace(Mer::Constants::MER_SDK_SHARED_HOME_MOUNT_POINT, cleanSharedHome.toUtf8());
+      retv.replace(Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, cleanSharedHome.toUtf8());
 
     return retv;
 }

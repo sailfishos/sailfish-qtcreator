@@ -62,7 +62,9 @@ RemoteProcess::RemoteProcess(QObject *parent)
     connect(m_runner.get(), &SshRemoteProcessRunner::readyReadStandardError,
             this, &RemoteProcess::onReadyReadStandardError);
     connect(m_runner.get(), &SshRemoteProcessRunner::connectionError,
-            this, [this]() { emit connectionError(m_runner->lastConnectionErrorString()); });
+            this, &RemoteProcess::onConnectionError);
+    connect(m_runner.get(), &SshRemoteProcessRunner::processClosed,
+            this, &RemoteProcess::onProcessClosed);
 }
 
 RemoteProcess::~RemoteProcess()
@@ -98,22 +100,51 @@ void RemoteProcess::setExtraEnvironment(const QProcessEnvironment &extraEnvironm
     m_extraEnvironment = extraEnvironment;
 }
 
+void RemoteProcess::setRunInTerminal(bool runInTerminal)
+{
+    m_runInTerminal = runInTerminal;
+}
+
 void RemoteProcess::setInputChannelMode(QProcess::InputChannelMode inputChannelMode)
 {
     m_inputChannelMode = inputChannelMode;
 }
 
+void RemoteProcess::setStandardOutputLineBuffered(bool lineBuffered)
+{
+    m_standardOutputLineBuffered = lineBuffered;
+}
+
+void RemoteProcess::enableLogAllOutput(std::function<const QLoggingCategory &()> category, const QString &key)
+{
+    if (category().isDebugEnabled()) {
+        auto rtrim1eol = [](const QByteArray &a) {
+            return a.endsWith('\n') ? a.chopped(1) : a;
+        };
+        QObject::connect(this, &RemoteProcess::standardOutput, [=](const QByteArray &data) {
+            for (const QByteArray &line : rtrim1eol(data).split('\n'))
+                qCDebug(category).noquote().nospace() << key << "/stdout: " << line;
+        });
+        QObject::connect(this, &RemoteProcess::standardError, [=](const QByteArray &data) {
+            for (const QByteArray &line : rtrim1eol(data).split('\n'))
+                qCDebug(category).noquote().nospace() << key << "/stderr: " << line;
+        });
+    }
+}
+
 int RemoteProcess::exec()
 {
-    bool startedOk = false;
     QEventLoop loop;
-    connect(m_runner.get(), &SshRemoteProcessRunner::connectionError,
-            &loop, &QEventLoop::quit);
-    connect(m_runner.get(), &SshRemoteProcessRunner::processStarted,
-            &loop, [&startedOk]() { startedOk = true; });
-    connect(m_runner.get(), &SshRemoteProcessRunner::processClosed,
-            &loop, &QEventLoop::quit);
+    connect(this, &RemoteProcess::finished, &loop, &QEventLoop::exit);
 
+    start();
+    const int exitCode = loop.exec();
+
+    return exitCode;
+}
+
+void RemoteProcess::start()
+{
     QString fullCommand;
     fullCommand.append("echo $$ && ");
     if (!m_workingDirectory.isEmpty()) {
@@ -127,26 +158,12 @@ int RemoteProcess::exec()
         fullCommand.append(' ');
     fullCommand.append(Utils::QtcProcess::joinArgs(m_arguments, Utils::OsTypeLinux));
 
-    m_runner->runInTerminal(fullCommand.toUtf8(), m_sshConnectionParams, m_inputChannelMode);
+    if (m_runInTerminal)
+        m_runner->runInTerminal(fullCommand.toUtf8(), m_sshConnectionParams, m_inputChannelMode);
+    else
+        m_runner->run(fullCommand.toUtf8(), m_sshConnectionParams);
 
     started();
-
-    loop.exec();
-
-    const int exitCode = startedOk && m_runner->processExitStatus() == SshRemoteProcess::NormalExit
-        && m_runner->processExitCode() != 255 // SSH error
-        ? m_runner->processExitCode()
-        : SFDK_EXIT_ABNORMAL;
-
-    if (exitCode == SFDK_EXIT_ABNORMAL)
-        emit processError(m_runner->processErrorString());
-
-    while (m_killRunner != nullptr)
-        QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);
-
-    exited();
-
-    return exitCode;
 }
 
 void RemoteProcess::beginTerminate()
@@ -174,6 +191,7 @@ void RemoteProcess::kill(const QString &signal, void (RemoteProcess::*callback)(
 
     if (!m_runner->isProcessRunning()) {
         qCDebug(sfdk) << "Remote process is not running";
+        m_runner->cancel(); // In case it was still starting
         (this->*callback)(true);
         return;
     }
@@ -215,6 +233,27 @@ void RemoteProcess::kill(const QString &signal, void (RemoteProcess::*callback)(
     m_killRunner->run(killCommand.toUtf8(), m_sshConnectionParams);
 }
 
+void RemoteProcess::finish()
+{
+    QTC_ASSERT(!m_finished, return);
+    m_finished = true;
+
+    const int exitCode = m_startedOk && m_runner->processExitStatus() == SshRemoteProcess::NormalExit
+        && m_runner->processExitCode() != 255 // SSH error
+        ? m_runner->processExitCode()
+        : SFDK_EXIT_ABNORMAL;
+
+    if (exitCode == SFDK_EXIT_ABNORMAL)
+        emit processError(m_runner->processErrorString());
+
+    while (m_killRunner != nullptr)
+        QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);
+
+    exited();
+
+    emit finished(exitCode);
+}
+
 QString RemoteProcess::environmentString(const QProcessEnvironment &environment)
 {
     if (environment.isEmpty())
@@ -234,7 +273,9 @@ QString RemoteProcess::environmentString(const QProcessEnvironment &environment)
 
 void RemoteProcess::onProcessStarted()
 {
-    if (m_inputChannelMode == QProcess::ManagedInputChannel) {
+    m_startedOk = true;
+
+    if (m_runInTerminal && m_inputChannelMode == QProcess::ManagedInputChannel) {
         m_stdin = std::make_unique<QFile>(this);
         if (!m_stdin->open(stdin, QIODevice::ReadOnly | QIODevice::Unbuffered)) {
             qCWarning(sfdk) << "Unable to read from standard input while interactive mode is requested";
@@ -246,10 +287,20 @@ void RemoteProcess::onProcessStarted()
     }
 }
 
+void RemoteProcess::onConnectionError()
+{
+    emit connectionError(m_runner->lastConnectionErrorString());
+    finish();
+}
+
+void RemoteProcess::onProcessClosed()
+{
+    finish();
+}
+
 void RemoteProcess::onReadyReadStandardOutput()
 {
-    // except for the period before the processId string is received, stdout is unbuffered
-    if (m_processId != 0) {
+    if (!m_standardOutputLineBuffered && m_processId != 0) {
         emit standardOutput(m_runner->readAllStandardOutput());
         return;
     }
@@ -257,7 +308,12 @@ void RemoteProcess::onReadyReadStandardOutput()
     if (!m_stdoutBuffer.append(m_runner->readAllStandardOutput()))
         return;
 
-    QByteArray data = m_stdoutBuffer.flush(true);
+    if (m_processId != 0) {
+        emit standardOutput(m_stdoutBuffer.flush());
+        return;
+    }
+
+    QByteArray data = m_stdoutBuffer.flush(!m_standardOutputLineBuffered);
     int cut = data.indexOf('\n');
     QTC_ASSERT(cut != -1, { emit standardOutput(data); return; });
     // ssh with input connected to terminal translates LF to CRLF, hence the need to trim
