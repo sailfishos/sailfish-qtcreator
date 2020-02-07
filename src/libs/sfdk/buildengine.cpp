@@ -820,6 +820,7 @@ set PKG_CONFIG_SYSROOT_DIR=
 {real} %*
 )");
         scriptContent.replace("{real}", real);
+        scriptContent.replace("{libDir}", libDir);
     } else {
         scriptContent = QStringLiteral(R"(#!/bin/sh
 export PKG_CONFIG_DIR=
@@ -829,6 +830,8 @@ export PKG_CONFIG_SYSROOT_DIR="{sysRoot}"
 real=$(which -a pkg-config |sed -n 2p)
 exec ${real?} "$@"
 )");
+        scriptContent.replace("{libDir}", libDir);
+        scriptContent.replace("{sysRoot}", sysRoot.toString());
     }
 
     bool ok;
