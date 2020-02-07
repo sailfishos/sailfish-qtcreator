@@ -579,15 +579,15 @@ QString DockerVirtualMachinePrivate::labelFor(VirtualMachinePrivate::SharedPath 
 {
     switch (which) {
     case SharedSrc:
-        return Constants::BUILD_ENGINE_SHARED_SRC;
+        return {Constants::BUILD_ENGINE_SHARED_SRC};
     case SharedHome:
-        return Constants::BUILD_ENGINE_SHARED_HOME;
+        return {Constants::BUILD_ENGINE_SHARED_HOME};
     case SharedConfig:
-        return Constants::BUILD_ENGINE_SHARED_CONFIG;
+        return {Constants::BUILD_ENGINE_SHARED_CONFIG};
     case SharedSsh:
-        return Constants::BUILD_ENGINE_SHARED_SSH;
+        return {Constants::BUILD_ENGINE_SHARED_SSH};
     case SharedTargets:
-        return Constants::BUILD_ENGINE_SHARED_TARGET;
+        return {Constants::BUILD_ENGINE_SHARED_TARGET};
     }
     Q_ASSERT(false);
     return {};
@@ -597,9 +597,9 @@ QString DockerVirtualMachinePrivate::labelFor(VirtualMachinePrivate::ReservedPor
 {
     switch (which) {
     case SshPort:
-        return Constants::BUILD_ENGINE_SSH_PORT;
+        return {Constants::BUILD_ENGINE_SSH_PORT};
     case WwwPort:
-        return Constants::BUILD_ENGINE_WWW_PORT;
+        return {Constants::BUILD_ENGINE_WWW_PORT};
     }
     Q_ASSERT(false);
     return {};
