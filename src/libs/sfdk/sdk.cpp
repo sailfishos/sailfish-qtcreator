@@ -26,6 +26,7 @@
 #include "buildengine_p.h"
 #include "device_p.h"
 #include "emulator_p.h"
+#include "dockervirtualmachine_p.h"
 #include "sfdkconstants.h"
 #include "sfdk_version_p.h"
 #include "usersettings_p.h"
@@ -50,6 +51,7 @@ namespace {
 const char SDK_MAINTENANCE_TOOL_DATA_FILE[] = "SDKMaintenanceTool.dat";
 const char GENERAL_SETTINGS_GROUP[] = "General";
 const char VBOXMANAGE_PATH[] = "VBoxManagePath";
+const char DOCKER_PATH[] = "DockerPath";
 }
 
 /*!
@@ -78,7 +80,10 @@ Sdk::Sdk(Options options)
     d->commandQueue_ = std::make_unique<CommandQueue>(this);
 
     d->virtualMachineFactory = std::make_unique<VirtualMachineFactory>(this);
-    d->virtualMachineFactory->registerType<VBoxVirtualMachine>();
+    if (VBoxVirtualMachine::isAvailable())
+        d->virtualMachineFactory->registerType<VBoxVirtualMachine>();
+    if (DockerVirtualMachine::isAvailable())
+        d->virtualMachineFactory->registerType<DockerVirtualMachine>();
 
     d->buildEngineManager = std::make_unique<BuildEngineManager>(this);
 
@@ -413,6 +418,7 @@ void SdkPrivate::readGeneralSettings()
 
     settings.beginGroup(GENERAL_SETTINGS_GROUP);
     customVBoxManagePath_ = settings.value(VBOXMANAGE_PATH).toString();
+    customDockerPath_ = settings.value(DOCKER_PATH).toString();
     settings.endGroup();
 }
 

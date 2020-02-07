@@ -16,7 +16,8 @@
 ** Other Usage
 **
 ** Alternatively, this file may be used in accordance with the terms and
-** conditions contained in a signed written agreement between you and Digia.
+** conditions contained in a signed written agreement between you and
+** The Qt Company.
 **
 ****************************************************************************/
 
@@ -26,14 +27,14 @@
 
 namespace Sfdk {
 
-class VBoxVirtualMachinePrivate;
-class VBoxVirtualMachine : public VirtualMachine
+class DockerVirtualMachinePrivate;
+class DockerVirtualMachine : public VirtualMachine
 {
     Q_OBJECT
 
 public:
-    explicit VBoxVirtualMachine(const QString &name, QObject *parent = nullptr);
-    ~VBoxVirtualMachine() override;
+    explicit DockerVirtualMachine(const QString &name, QObject *parent = nullptr);
+    ~DockerVirtualMachine() override;
 
     static bool isAvailable();
     static QString staticType();
@@ -42,14 +43,13 @@ public:
             const Functor<const QStringList &, bool> &functor);
 
 private:
-    Q_DISABLE_COPY(VBoxVirtualMachine)
-    Q_DECLARE_PRIVATE(VBoxVirtualMachine)
+    Q_DISABLE_COPY(DockerVirtualMachine)
+    Q_DECLARE_PRIVATE(DockerVirtualMachine)
 };
 
-class VBoxVirtualMachineInfo;
-class VBoxVirtualMachinePrivate : public VirtualMachinePrivate
+class DockerVirtualMachinePrivate : public VirtualMachinePrivate
 {
-    Q_DECLARE_PUBLIC(VBoxVirtualMachine)
+    Q_DECLARE_PUBLIC(DockerVirtualMachine)
 
 public:
     using VirtualMachinePrivate::VirtualMachinePrivate;
@@ -92,19 +92,15 @@ protected:
             const Functor<bool> &functor) override;
 
 private:
-    void fetchExtraData(const QString &key, const QObject *context,
-            const Functor<QString, bool> &functor) const;
-    void setExtraData(const QString &keyword, const QString &data, const QObject *context,
-            const Functor<bool> &functor);
+    static QStringList listedImages(const QString &output);
+    static VirtualMachineInfo virtualMachineInfoFromOutput(const QByteArray &output);
 
-    static bool isVirtualMachineRunningFromInfo(const QString &vmInfo, bool *headless);
-    static QStringList listedVirtualMachines(const QString &output);
-    static VBoxVirtualMachineInfo virtualMachineInfoFromOutput(const QString &output);
-    static void storageInfoFromOutput(const QString &output,
-            VBoxVirtualMachineInfo *virtualMachineInfo);
-    static int ramSizeFromOutput(const QString &output, bool *matched);
-    static void snapshotInfoFromOutput(const QString &output,
-            VBoxVirtualMachineInfo *virtualMachineInfo);
+    void buildWithLabel(const QString& key, const QString& value,
+                        const QObject *context, const Functor<bool> &functor);
+    static QString labelFor(SharedPath which);
+    static QString labelFor(ReservedPort which);
+
+    mutable QString containerId;
 };
 
 } // namespace Sfdk

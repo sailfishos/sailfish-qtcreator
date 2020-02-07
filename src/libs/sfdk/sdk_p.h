@@ -70,6 +70,7 @@ public:
     static Utils::FileName cacheLocation();
 
     static QString customVBoxManagePath() { return instance()->customVBoxManagePath_; }
+    static QString customDockerPath() { return instance()->customDockerPath_; }
 
 signals:
     void enableUpdatesRequested();
@@ -88,6 +89,7 @@ private:
     std::unique_ptr<EmulatorManager> emulatorManager;
     std::unique_ptr<DeviceManager> deviceManager;
     QString customVBoxManagePath_;
+    QString customDockerPath_;
 };
 
 } // namespace Sfdk
