@@ -682,6 +682,14 @@ QVariant Target::additionalData(Core::Id id) const
 
 void Target::updateDeviceState()
 {
+    RunConfiguration *rc = d->m_activeRunConfiguration;
+    if (rc) {
+        // In case of another device selected or device name changed
+        const QString targetFilePath = rc->buildTargetInfo().projectFilePath.toString();
+        const QString displayName = RunConfigurationFactory::decoratedTargetName(targetFilePath, this);
+        rc->setDisplayName(displayName);
+    }
+
     IDevice::ConstPtr current = DeviceKitInformation::device(kit());
 
     QIcon overlay;
