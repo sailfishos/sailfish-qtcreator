@@ -28,6 +28,7 @@
 #include "sfdkconstants.h"
 #include "usersettings_p.h"
 
+#include <utils/environment.h>
 #include <utils/fileutils.h>
 #include <utils/optional.h>
 #include <utils/qtcassert.h>
@@ -83,15 +84,7 @@ QString dockerPath()
     if (!path.isNull())
         return path;
 
-    const QStringList searchPaths = QProcessEnvironment::systemEnvironment()
-        .value("PATH").split(QChar(':'));
-    for (const QString &searchPath : searchPaths) {
-        QDir dir(searchPath);
-        if (dir.exists(DOCKER)) {
-            path = dir.absoluteFilePath(DOCKER);
-            break;
-        }
-    }
+    path = Utils::Environment::systemEnvironment().searchInPath(DOCKER).toString();
 
     QTC_ASSERT(!path.isEmpty(), return path);
     return path;
