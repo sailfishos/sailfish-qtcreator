@@ -30038,6 +30038,26 @@ Use this only if you are prototyping. You cannot create a full application with 
         <source>Vertex Shader (OpenGL/ES 2.0)</source>
         <translation>Вершинный шейдер (OpenGL/ES 2.0)</translation>
     </message>
+    <message>
+        <source>Creates a QML file for Sailfish OS application project.</source>
+        <translation>Создание QML-файла для проекта приложения Sailfish OS.</translation>
+    </message>
+    <message>
+        <source>QML File</source>
+        <translation>QML-файл</translation>
+    </message>
+    <message>
+        <source>QML File Options</source>
+        <translation>Параметры QML-файла</translation>
+    </message>
+    <message>
+        <source>Base type of QML document:</source>
+        <translation>Базовый тип QML-документа:</translation>
+    </message>
+    <message>
+        <source>Qt Quick version:</source>
+        <translation>Версия Qt Quick:</translation>
+    </message>
 </context>
 <context>
     <name>ProjectExplorer::JsonWizardFactory</name>

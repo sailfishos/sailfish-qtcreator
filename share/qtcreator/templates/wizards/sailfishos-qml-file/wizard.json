@@ -1,0 +1,71 @@
+{
+    "version": 1,
+    "supportedProjectTypes": [ ],
+    "id": "E.QmlFile",
+    "category": "Sailfish OS",
+    "trDescription": "Creates a QML file for Sailfish OS application project.",
+    "trDisplayName": "QML File",
+    "trDisplayCategory": "Sailfish OS",
+    "iconText": "QML",
+    "enabled": "true",
+
+    "options" : [
+        { "key": "TargetPath", "value": "%{Path}" },
+        { "key": "QmlFile", "value": "%{JS: Util.fileName('%{TargetPath}', 'qml')}" }
+    ],
+
+    "pages":
+    [
+        {
+            "trDisplayName": "Location",
+            "trShortTitle": "Location",
+            "typeId": "File"
+        },
+        {
+            "trDisplayName": "QML File Options",
+            "trShortTitle": "QML File Options",
+            "typeId": "Fields",
+            "data" :
+            [
+               {
+                   "name": "QmlBaseType",
+                   "trDisplayName": "Base type of QML document:",
+                   "type": "ComboBox",
+                   "data":
+                   {
+                       "items": [ "Item" ]
+                   }
+               },
+               {
+                   "name": "QtQuickVersion",
+                   "trDisplayName": "Qt Quick version:",
+                   "type": "ComboBox",
+                   "data":
+                   {
+                       "items": [ "2.6", "2.5", "2.4", "2.3", "2.2", "2.1", "2.0", "1.0" ]
+                   }
+               }
+            ]
+        },
+        {
+            "trDisplayName": "Project Management",
+            "trShortTitle": "Summary",
+            "typeId": "Summary"
+        }
+    ],
+
+    "generators":
+    [
+        {
+            "typeId": "File",
+            "data":
+            [
+                {
+                    "source": "template.qml",
+                    "target": "%{QmlFile}",
+                    "openInEditor": true
+                }
+            ]
+        }
+    ]
+}
