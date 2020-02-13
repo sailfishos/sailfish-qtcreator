@@ -22,6 +22,11 @@
             "typeId": "File"
         },
         {
+            "trDisplayName": "Local Imports",
+            "trShortTitle": "Local Imports",
+            "typeId": "QmlLocalImports"
+        },
+        {
             "trDisplayName": "QML File Options",
             "trShortTitle": "QML File Options",
             "typeId": "Fields",

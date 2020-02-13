@@ -60,7 +60,8 @@ SUBDIRS   = \
     languageclient \
     cppcheck \
     compilationdatabaseprojectmanager \
-    qmlpreview
+    qmlpreview \
+    sailfishoswizards
 
 qtHaveModule(serialport) {
     SUBDIRS += serialterminal

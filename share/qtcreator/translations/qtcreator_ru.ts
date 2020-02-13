@@ -30058,6 +30058,14 @@ Use this only if you are prototyping. You cannot create a full application with 
         <source>Qt Quick version:</source>
         <translation>Версия Qt Quick:</translation>
     </message>
+    <message>
+        <source>Local Imports</source>
+        <translation>Локальные импорты</translation>
+    </message>
+    <message>
+        <source>&quot;data&quot; for a &quot;QmlLocalImports&quot; page needs to be unset or an empty object.</source>
+        <translation>Объект «data» для страницы «Локальные импорты» должен быть не задан или пустым.</translation>
+    </message>
 </context>
 <context>
     <name>ProjectExplorer::JsonWizardFactory</name>
@@ -50959,6 +50967,41 @@ Close the virtual machine now?</source>
         <location filename="vmconnection.cpp" line="495"/>
         <source>SSH conection with virtual machine &quot;%1&quot; has been lost: %2</source>
         <translation>SSH-соединение с виртуальной машиной &quot;%1&quot; потеряно: %2 %3</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::QmlLocalImportsPage</name>
+    <message>
+        <source>Local Imports</source>
+        <translation>Локальные импорты</translation>
+    </message>
+    <message>
+        <source>Add file</source>
+        <translation>Добавить файл</translation>
+    </message>
+    <message>
+        <source>Add directory</source>
+        <translation>Добавить директорию</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Удалить</translation>
+    </message>
+    <message>
+        <source>Select one or more JavaScript files to import</source>
+        <translation>Выберите JavaScript-файлы для подключения в документ</translation>
+    </message>
+    <message>
+        <source>JavaScript files (*.js)</source>
+        <translation>JavaScript-файлы (*.js)</translation>
+    </message>
+    <message>
+        <source>Select directory containing QML files to import</source>
+        <translation>Выберите каталог, содержащий QML-файлы для импорта</translation>
+    </message>
+    <message>
+        <source>You do not need to add the target directory to local imports, because it is included by default.</source>
+        <translation>Вам не нужно добавлять целевой каталог в локальный импорт, потому что он включен по умолчанию.</translation>
     </message>
 </context>
 </TS>
