@@ -27,6 +27,11 @@
             "typeId": "QmlLocalImports"
         },
         {
+            "trDisplayName": "Import Libraries",
+            "trShortTitle": "Import Libraries",
+            "typeId": "ImportExternalLibraries"
+        },
+        {
             "trDisplayName": "QML File Options",
             "trShortTitle": "QML File Options",
             "typeId": "Fields",

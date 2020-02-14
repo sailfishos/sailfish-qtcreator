@@ -1,0 +1,22 @@
+{
+    "QtPositioning 5.3": {
+        "layoutname": "Qt Positioning",
+        "qt": ["positioning"],
+        "yamlheader": "Requires:",
+        "specheader": "Requires",
+        "dependencies": ["sailfishsilica-qt5 >= 0.10.9", "qt5-qtdeclarative-import-positioning"],
+        "types": ["PositionSource"]
+	},
+    "QtSensors 5.11": {
+        "layoutname": "Qt Sensors",
+        "qt": ["sensors"],
+        "yamlheader": "Requires",
+        "specheader": "Requires",
+        "dependencies": ["sailfishsilica-qt5 >= 0.10.9", "qt5-qtdeclarative-import-sensors"],
+        "types": ["Accelerometer", "AccelerometerReading", "Altimeter", "AltimeterReading", "AmbientLightReading", "AmbientLightSensor", "AmbientTemperatureReading",
+        "AmbientTemperatureSensor", "Compass", "CompassReading", "DistanceReading", "DistanceSensor", "Gyroscope", "GyroscopeReading", "HolsterReading",
+        "HolsterSensor", "HumidityReading", "HumiditySensor", "IRProximityReading", "IRProximitySensor", "LidReading", "LidSensor", "LightReading", "LightSensor",
+        "Magnetometer", "MagnetometerReading", "OrientationReading", "OrientationSensor", "PressureReading", "PressureSensor", "ProximityReading", "ProximitySensor",
+        "RotationReading", "RotationSensor", "Sensor", "SensorGesture", "SensorGlobal", "SensorReading", "TapReading", "TapSensor", "TiltReading", "TiltSensor"]
+    }
+}

@@ -9,6 +9,7 @@
 #include <projectexplorer/jsonwizard/jsonwizardfactory.h>
 
 #include "factories/qmllocalimportspagefactory.h"
+#include "factories/importexternallibrariespagefactory.h"
 
 namespace SailfishOSWizards {
 namespace Internal {
@@ -30,6 +31,7 @@ bool SailfishOSWizardsPlugin::initialize(const QStringList &arguments, QString *
     Q_UNUSED(arguments)
     Q_UNUSED(errorString)
     JsonWizardFactory::registerPageFactory(new QmlLocalImportsPageFactory);
+    JsonWizardFactory::registerPageFactory(new ImportExternalLibrariesPageFactory);
     return true;
 }
 
