@@ -28989,6 +28989,10 @@ to project &quot;%2&quot;.</source>
         <source>Source and target are both empty.</source>
         <translation>Источник и назначение пусты.</translation>
     </message>
+    <message>
+        <source>%1 (&quot;%2&quot;) &quot;items&quot; is not a string.</source>
+        <translation>Поле «items» у %1 («%2») не является строкой.</translation>
+    </message>
 </context>
 <context>
     <name>ProjectExplorer::JsonKitsPage</name>
@@ -30065,6 +30069,14 @@ Use this only if you are prototyping. You cannot create a full application with 
     <message>
         <source>&quot;data&quot; for a &quot;QmlLocalImports&quot; page needs to be unset or an empty object.</source>
         <translation>Объект «data» для страницы «Локальные импорты» должен быть не задан или пустым.</translation>
+    </message>
+    <message>
+        <source>Import Libraries</source>
+        <translation>Импорт библиотек</translation>
+    </message>
+    <message>
+        <source>&quot;data&quot; for a &quot;ImportExternalLibraries&quot; page needs to be unset or an empty object.</source>
+        <translation>Объект «data» для страницы «Имборт библиотек» должен быть не задан или пустым.</translation>
     </message>
 </context>
 <context>
@@ -51002,6 +51014,40 @@ Close the virtual machine now?</source>
     <message>
         <source>You do not need to add the target directory to local imports, because it is included by default.</source>
         <translation>Вам не нужно добавлять целевой каталог в локальный импорт, потому что он включен по умолчанию.</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::ImportExternalLibrariesPage</name>
+    <message>
+        <source>Import Libraries</source>
+        <translation>Импорт библиотек</translation>
+    </message>
+    <message>
+        <source>List of imported external standard libraries:</source>
+        <translation>Список импортируемых внешних стандартных библиотек:</translation>
+    </message>
+    <message>
+        <source>Add library</source>
+        <translation>Добавить библиотеку</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Удалить</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::SelectItemsDialog</name>
+    <message>
+        <source>List of external libraries</source>
+        <translation>Список внешних библиотек</translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation>Добавить</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Отмена</translation>
     </message>
 </context>
 </TS>

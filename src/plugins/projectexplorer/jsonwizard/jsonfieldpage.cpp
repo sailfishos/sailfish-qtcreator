@@ -50,6 +50,8 @@
 #include <QStandardItem>
 #include <QItemSelectionModel>
 #include <QDir>
+#include <QJsonDocument>
+#include <QJsonArray>
 
 using namespace Utils;
 
@@ -869,17 +871,19 @@ bool ListField::parseData(const QVariant &data, QString *errorMessage)
                 .arg(type(), name());
         return false;
     }
-    if (value.type() != QVariant::List) {
+    if (value.type() == QVariant::List) {
+        for (const QVariant &i : value.toList()) {
+            std::unique_ptr<QStandardItem> item = createStandardItemFromListItem(i, errorMessage);
+            QTC_ASSERT(!item || !item->text().isEmpty(), continue);
+            m_itemList.emplace_back(std::move(item));
+        }
+    } else if (value.type() == QVariant::String) {
+        m_itemsString = value.toString();
+    } else {
         *errorMessage = QCoreApplication::translate("ProjectExplorer::JsonFieldPage",
-                                                    "%1 (\"%2\") \"items\" is not a JSON list.")
+                                                    "%1 (\"%2\") \"items\" is not a JSON list or string.")
                 .arg(type(), name());
         return false;
-    }
-
-    for (const QVariant &i : value.toList()) {
-        std::unique_ptr<QStandardItem> item = createStandardItemFromListItem(i, errorMessage);
-        QTC_ASSERT(!item || !item->text().isEmpty(), continue);
-        m_itemList.emplace_back(std::move(item));
     }
 
     warnAboutUnsupportedKeys(tmp, name(), type());
@@ -907,45 +911,18 @@ void ListField::initializeData(MacroExpander *expander)
         m_index = -1;
     }
 
-    QStandardItem *currentItem = m_index >= 0 ? m_itemList[uint(m_index)].get() : nullptr;
     QList<QStandardItem*> expandedValuesItems;
-    expandedValuesItems.reserve(int(m_itemList.size()));
 
-    for (const std::unique_ptr<QStandardItem> &item : m_itemList) {
-        bool condition = JsonWizard::boolFromVariant(item->data(ConditionRole), expander);
-        if (!condition)
-            continue;
-        QStandardItem *expandedValuesItem = item->clone();
-        if (item.get() == currentItem)
-            currentItem = expandedValuesItem;
-        expandedValuesItem->setText(expander->expand(item->text()));
-        expandedValuesItem->setData(expander->expand(item->data(ValueRole).toString()), ValueRole);
-        expandedValuesItem->setData(expander->expand(item->data(IconStringRole).toString()), IconStringRole);
-        expandedValuesItem->setData(condition, ConditionRole);
-
-        QString iconPath = expandedValuesItem->data(IconStringRole).toString();
-        if (!iconPath.isEmpty()) {
-            if (auto *page = qobject_cast<JsonFieldPage*>(widget()->parentWidget())) {
-                const QString wizardDirectory = page->value("WizardDir").toString();
-                iconPath = QDir::cleanPath(QDir(wizardDirectory).absoluteFilePath(iconPath));
-                if (QFileInfo::exists(iconPath)) {
-                    QIcon icon(iconPath);
-                    expandedValuesItem->setIcon(icon);
-                    addPossibleIconSize(icon);
-                } else {
-                    qWarning().noquote() << QString("Icon file \"%1\" not found.").arg(QDir::toNativeSeparators(iconPath));
-                }
-            } else {
-                qWarning().noquote() <<  QString("%1 (\"%2\") has no parentWidget JsonFieldPage to get the icon path.").arg(type(), name());
-            }
-        }
-        expandedValuesItems.append(expandedValuesItem);
+    if (m_itemsString.isEmpty()) {
+        expandedValuesItems = createStandardItemListFromItemList(expander);
+    } else {
+        expandedValuesItems = createStandardItemListFromItemsString(expander);
     }
 
     itemModel()->clear();
     itemModel()->appendColumn(expandedValuesItems); // inserts the first column
 
-    selectionModel()->setCurrentIndex(itemModel()->indexFromItem(currentItem), QItemSelectionModel::ClearAndSelect);
+    selectionModel()->setCurrentIndex(itemModel()->index(0, 0), QItemSelectionModel::ClearAndSelect);
 
     updateIndex();
 }
@@ -988,6 +965,57 @@ void ListField::updateIndex()
         selectionModel()->setCurrentIndex(itemModel()->index(m_savedIndex, 0), QItemSelectionModel::ClearAndSelect);
         m_savedIndex = -1;
     }
+}
+
+QList<QStandardItem *> ListField::createStandardItemListFromItemList(MacroExpander *expander)
+{
+    QList<QStandardItem*> expandedValuesItems;
+    expandedValuesItems.reserve(int(m_itemList.size()));
+
+    for (const std::unique_ptr<QStandardItem> &item : m_itemList) {
+        bool condition = JsonWizard::boolFromVariant(item->data(ConditionRole), expander);
+        if (!condition)
+            continue;
+        QStandardItem *expandedValuesItem = item->clone();
+        expandedValuesItem->setText(expander->expand(item->text()));
+        expandedValuesItem->setData(expander->expand(item->data(ValueRole).toString()), ValueRole);
+        expandedValuesItem->setData(expander->expand(item->data(IconStringRole).toString()), IconStringRole);
+        expandedValuesItem->setData(condition, ConditionRole);
+
+        QString iconPath = expandedValuesItem->data(IconStringRole).toString();
+        if (!iconPath.isEmpty()) {
+            if (auto *page = qobject_cast<JsonFieldPage*>(widget()->parentWidget())) {
+                const QString wizardDirectory = page->value("WizardDir").toString();
+                iconPath = QDir::cleanPath(QDir(wizardDirectory).absoluteFilePath(iconPath));
+                if (QFileInfo::exists(iconPath)) {
+                    QIcon icon(iconPath);
+                    expandedValuesItem->setIcon(icon);
+                    addPossibleIconSize(icon);
+                } else {
+                    qWarning().noquote() << QString("Icon file \"%1\" not found.").arg(QDir::toNativeSeparators(iconPath));
+                }
+            } else {
+                qWarning().noquote() <<  QString("%1 (\"%2\") has no parentWidget JsonFieldPage to get the icon path.").arg(type(), name());
+            }
+        }
+        expandedValuesItems.append(expandedValuesItem);
+    }
+
+    return expandedValuesItems;
+}
+
+QList<QStandardItem *> ListField::createStandardItemListFromItemsString(MacroExpander *expander)
+{
+    QList<QStandardItem *> standardItemList;
+    QVariantList items = QJsonDocument::fromJson(expander->expand(m_itemsString).toUtf8())
+                         .array().toVariantList();
+    for (QVariant item : items) {
+        QStandardItem *standardItem = new QStandardItem();
+        standardItem->setText(item.toString());
+        standardItem->setData(item, ValueRole);
+        standardItemList << standardItem;
+    }
+    return standardItemList;
 }
 
 void ComboBoxField::setup(JsonFieldPage *page, const QString &name)

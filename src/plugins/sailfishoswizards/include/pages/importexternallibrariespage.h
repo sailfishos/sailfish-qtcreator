@@ -26,11 +26,13 @@ class ImportExternalLibrariesPage : public Utils::WizardPage
 {
     Q_OBJECT
     Q_PROPERTY(QString qmlLibrariesImports READ qmlLibrariesImports)
+    Q_PROPERTY(QString qmlLibrariesTypes READ qmlLibrariesTypes)
 
 public:
     explicit ImportExternalLibrariesPage();
 
     QString qmlLibrariesImports() const;
+    QString qmlLibrariesTypes() const;
 
 private:
     Ui::ImportExternalLibrariesPage m_pageUi;

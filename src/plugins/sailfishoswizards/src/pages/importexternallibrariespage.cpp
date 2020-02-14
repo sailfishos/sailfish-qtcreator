@@ -7,6 +7,9 @@
 
 #include "sailfishoswizards/utils.h"
 
+#include <QJsonDocument>
+#include <QJsonArray>
+
 namespace SailfishOSWizards {
 namespace Internal {
 
@@ -33,6 +36,7 @@ ImportExternalLibrariesPage::ImportExternalLibrariesPage()
     connect(m_selectLibrariesDialogUi.addButton, &QPushButton::clicked,
             this, &ImportExternalLibrariesPage::addMultimpleSelectedLibraries);
     registerFieldWithName(QLatin1String("QmlLibrariesImports"), this, "qmlLibrariesImports");
+    registerFieldWithName(QLatin1String("QmlLibrariesTypes"), this, "qmlLibrariesTypes");
 }
 
 /*!
@@ -48,6 +52,22 @@ QString ImportExternalLibrariesPage::qmlLibrariesImports() const
         importsString.append(QString("import %1\n").arg(import));
     }
     return importsString;
+}
+
+/*!
+ * \brief Creates and returns a string with QML-types from selected external libraries.
+ * \return QString with names of types that can be used as parent for new QML-type
+ * in the JSON-array format.
+ */
+QString ImportExternalLibrariesPage::qmlLibrariesTypes() const
+{
+    QStringList types = QStringList() << "Item";
+    for (int i = 0; i < m_selectedLibraries->size(); i++) {
+        types << m_selectedLibraries->index(i, 0).data(ExternalLibraryListModel::Types).toStringList();
+    }
+    QJsonDocument doc;
+    doc.setArray(QJsonArray::fromStringList(types));
+    return QString::fromUtf8(doc.toJson());
 }
 
 /*!

@@ -43,7 +43,7 @@
                    "type": "ComboBox",
                    "data":
                    {
-                       "items": [ "Item" ]
+                       "items": "%{QmlLibrariesTypes}"
                    }
                },
                {
