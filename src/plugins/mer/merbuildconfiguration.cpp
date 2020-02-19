@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -34,6 +34,7 @@
 
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/icore.h>
+#include <coreplugin/messagemanager.h>
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/projectexplorer.h>
@@ -89,9 +90,15 @@ MerBuildConfiguration::MerBuildConfiguration(Target *target, Core::Id id)
         if (!isReallyActive())
             return;
         QTC_ASSERT(project(), return);
-        if (!project()->files(Project::AllFiles).contains(document->filePath())
-                || !document->filePath().toString().contains(QRegExp("\\.spec$|\\.yaml$")))
+        if (!document->filePath().toString().contains(QRegExp("\\.spec$|\\.yaml$")))
             return;
+        if (!project()->files(Project::AllFiles).contains(document->filePath())) {
+            if (document->filePath().isChildOf(project()->rootProjectDirectory())) {
+                MessageManager::write(tr("Warning: RPM *.spec (or *.yaml) file not registered to the project."),
+                        MessageManager::Flash);
+            }
+            return;
+        }
 
         maybeUpdateExtraParserArguments();
     });
