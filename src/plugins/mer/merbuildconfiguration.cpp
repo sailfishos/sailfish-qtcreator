@@ -131,7 +131,18 @@ void MerBuildConfiguration::setupExtraParserArguments()
     QStringList args;
     if (MerSettings::isImportQmakeVariablesEnabled()) {
         QFile file(buildDirectory().toString() + "/" + MER_VARIABLES_CACHE_FILENAME);
-        if (file.exists() && file.open(QIODevice::ReadOnly)) {
+        if (!file.exists()) {
+            // Do not ask again
+            const bool mkpathOk = QFileInfo(file.fileName()).dir().mkpath(".");
+            QTC_CHECK(mkpathOk);
+            const bool createdOk = file.open(QIODevice::WriteOnly);
+            QTC_CHECK(createdOk);
+
+            maybeUpdateExtraParserArguments();
+            return;
+        } else {
+            const bool openOk = file.open(QIODevice::ReadOnly);
+            QTC_ASSERT(openOk, return);
             QByteArray rawArgs = file.readAll();
             if (rawArgs.endsWith('\0'))
                 rawArgs.chop(1);
