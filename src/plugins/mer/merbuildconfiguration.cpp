@@ -32,9 +32,12 @@
 #include <sfdk/buildengine.h>
 #include <sfdk/virtualmachine.h>
 
+#include <coreplugin/coreconstants.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/messagemanager.h>
+#include <coreplugin/modemanager.h>
+#include <debugger/debuggerconstants.h>
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/projectexplorer.h>
@@ -67,26 +70,23 @@ namespace Internal {
 MerBuildConfiguration::MerBuildConfiguration(Target *target, Core::Id id)
     : QmakeBuildConfiguration(target, id)
 {
-    auto setupExtraParserArgumentsIfActive = [this]() {
-        if (isReallyActive())
-            setupExtraParserArguments();
-    };
-
     connect(MerSettings::instance(), &MerSettings::importQmakeVariablesEnabledChanged,
-            this, setupExtraParserArgumentsIfActive);
+            this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
 
     connect(SessionManager::instance(), &SessionManager::startupProjectChanged,
-            this, setupExtraParserArgumentsIfActive);
+            this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
     connect(project(), &Project::activeTargetChanged,
-            this, setupExtraParserArgumentsIfActive);
+            this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
     connect(target, &Target::activeBuildConfigurationChanged,
-            this, setupExtraParserArgumentsIfActive);
+            this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
+    connect(ModeManager::instance(), &ModeManager::currentModeChanged,
+            this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
 
     QmakeProject *qmakeProject = static_cast<QmakeProject *>(project());
     // Note that this is emited more than once during qmake step execution - once
     // for each executed process
     connect(qmakeProject, &QmakeProject::buildDirectoryInitialized,
-            this, setupExtraParserArgumentsIfActive);
+            this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
 
     connect(EditorManager::instance(), &EditorManager::saved,
             this, [this](IDocument *document) {
@@ -137,10 +137,31 @@ bool MerBuildConfiguration::isReallyActive() const
     return SessionManager::startupProject() == project() && isActive();
 }
 
-void MerBuildConfiguration::setupExtraParserArguments()
+void MerBuildConfiguration::maybeSetupExtraParserArguments()
 {
+    if (!isReallyActive())
+        return;
+
+    // Most importantly, avoid taking actions on temporary changes in Projects mode, but
+    // more cases are covered
+    if (ModeManager::currentModeId() != Core::Constants::MODE_EDIT &&
+            ModeManager::currentModeId() != Debugger::Constants::MODE_DEBUG) {
+        return;
+    }
+
     if (!qmakeStep())
         return;
+
+    if (project()->needsConfiguration())
+        return;
+
+    setupExtraParserArguments();
+};
+
+void MerBuildConfiguration::setupExtraParserArguments()
+{
+    QTC_ASSERT(qmakeStep(), return);
+    QTC_ASSERT(!project()->needsConfiguration(), return);
 
     QStringList args;
     if (MerSettings::isImportQmakeVariablesEnabled()) {

@@ -46,6 +46,7 @@ protected:
 
 private:
     bool isReallyActive() const;
+    void maybeSetupExtraParserArguments();
     void setupExtraParserArguments();
     void maybeUpdateExtraParserArguments(bool now = false);
     void updateExtraParserArguments();
