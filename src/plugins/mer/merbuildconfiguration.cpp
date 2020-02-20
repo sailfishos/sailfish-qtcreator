@@ -230,11 +230,13 @@ void MerBuildConfiguration::maybeUpdateExtraParserArguments(bool now)
                 + QString(45, ' '), // more horizontal space for the informative text
             QMessageBox::Yes | QMessageBox::No,
             ICore::mainWindow());
-    m_qmakeQuestion->setInformativeText(tr("Additional qmake arguments that may influence project "
-                "parsing may be introduced at the rpmbuild level. These are recognized only after "
-                "qmake is executed and the effect is local to the active build configuration - "
-                "you may need to run qmake manually when project parsing fails to deliver the "
-                "expected results after switching to another build configuration."));
+    m_qmakeQuestion->setInformativeText(tr("Additional qmake arguments may be "
+                "introduced at the rpmbuild level. The qmake build step needs to "
+                "be executed to recognize these and augment the project model "
+                "with this information."
+                "\n\n"
+                "(You may need to re-run qmake manually when you find project "
+                "parsing inaccurate after changes to the build configuration.)"));
     m_qmakeQuestion->setCheckBox(new QCheckBox(CheckableMessageBox::msgDoNotAskAgain()));
     connect(m_qmakeQuestion, &QMessageBox::finished, [=](int result) {
         if (m_qmakeQuestion->checkBox()->isChecked())
