@@ -56,6 +56,9 @@ namespace {
 
 const char MER_VARIABLES_CACHE_FILENAME[] = ".mb2/qmake_variables.cache";
 
+// Avoid actions on temporary changes and asking questions too hastily
+const int UPDATE_EXTRA_PARSER_ARGUMENTS_DELAY_MS = 3000;
+
 } // namespace anonymous
 
 namespace Mer {
@@ -117,6 +120,17 @@ void MerBuildConfiguration::initialize(const ProjectExplorer::BuildInfo &info)
     cleanSteps->insertStep(0, new MerSdkStartStep(cleanSteps));
 }
 
+void MerBuildConfiguration::timerEvent(QTimerEvent *event)
+{
+    if (event->timerId() == m_maybeUpdateExtraParserArgumentsTimer.timerId()) {
+        m_maybeUpdateExtraParserArgumentsTimer.stop();
+        const bool now = true;
+        maybeUpdateExtraParserArguments(now);
+    } else  {
+        QmakeBuildConfiguration::timerEvent(event);
+    }
+}
+
 bool MerBuildConfiguration::isReallyActive() const
 {
     QTC_ASSERT(project(), return false);
@@ -170,8 +184,13 @@ void MerBuildConfiguration::setupExtraParserArguments()
     }
 }
 
-void MerBuildConfiguration::maybeUpdateExtraParserArguments()
+void MerBuildConfiguration::maybeUpdateExtraParserArguments(bool now)
 {
+    if (!now) {
+        m_maybeUpdateExtraParserArgumentsTimer.start(UPDATE_EXTRA_PARSER_ARGUMENTS_DELAY_MS, this);
+        return;
+    }
+
     if (m_qmakeQuestion)
         return; // already asking
 

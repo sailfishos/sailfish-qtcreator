@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -24,6 +25,7 @@
 
 #include <qmakeprojectmanager/qmakebuildconfiguration.h>
 
+#include <QBasicTimer>
 #include <QMessageBox>
 #include <QPointer>
 
@@ -39,13 +41,17 @@ public:
     void initialize(const ProjectExplorer::BuildInfo &info) override;
     bool fromMap(const QVariantMap &map) override;
 
+protected:
+    void timerEvent(QTimerEvent *event) override;
+
 private:
     bool isReallyActive() const;
     void setupExtraParserArguments();
-    void maybeUpdateExtraParserArguments();
+    void maybeUpdateExtraParserArguments(bool now = false);
     void updateExtraParserArguments();
 
 private:
+    QBasicTimer m_maybeUpdateExtraParserArgumentsTimer;
     QPointer<QMessageBox> m_qmakeQuestion;
 };
 
