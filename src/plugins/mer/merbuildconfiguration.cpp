@@ -152,13 +152,22 @@ void MerBuildConfiguration::setupExtraParserArguments()
     }
 
     if (Log::qmakeArgs().isDebugEnabled()) {
-        qCDebug(Log::qmakeArgs) << "Setting up extra parser arguments for" << displayName()
-            << "under target" << target()->displayName() << "as:";
+        if (qmakeStep()->extraParserArguments() == args) {
+            qCDebug(Log::qmakeArgs) << "Preserving extra parser arguments for" << displayName()
+                << "under target" << target()->displayName() << "as:";
+        } else {
+            qCDebug(Log::qmakeArgs) << "Changing extra parser arguments for" << displayName()
+                << "under target" << target()->displayName() << "to:";
+        }
         for (const QString &arg : qAsConst(args))
             qCDebug(Log::qmakeArgs) << "    " << arg;
     }
 
-    qmakeStep()->setExtraParserArguments(args);
+    if (qmakeStep()->extraParserArguments() != args) {
+        qmakeStep()->setExtraParserArguments(args);
+        auto *const qmakeProject = static_cast<QmakeProject *>(project());
+        qmakeProject->rootProFile()->scheduleUpdate(QmakeProFile::ParseLater);
+    }
 }
 
 void MerBuildConfiguration::maybeUpdateExtraParserArguments()
