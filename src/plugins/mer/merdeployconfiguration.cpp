@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2017-2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -69,7 +69,7 @@ QString MerRpmDeployConfigurationFactory::displayName()
 
 Core::Id MerRpmDeployConfigurationFactory::configurationId()
 {
-    return Core::Id("QmakeProjectManager.MerRpmDeployConfiguration");
+    return Core::Id("Mer.MerRpmDeployConfiguration");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -87,7 +87,7 @@ QString MerRsyncDeployConfigurationFactory::displayName()
 
 Core::Id MerRsyncDeployConfigurationFactory::configurationId()
 {
-    return Core::Id("QmakeProjectManager.MerRSyncDeployConfiguration");
+    return Core::Id("Mer.MerRSyncDeployConfiguration");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -104,7 +104,7 @@ QString MerMb2RpmBuildConfigurationFactory::displayName()
 
 Core::Id MerMb2RpmBuildConfigurationFactory::configurationId()
 {
-    return Core::Id("QmakeProjectManager.MerMb2RpmBuildConfiguration");
+    return Core::Id("Mer.MerMb2RpmBuildConfiguration");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
