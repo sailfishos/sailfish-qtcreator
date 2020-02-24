@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2016,2018-2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,6 +22,7 @@
 ****************************************************************************/
 
 #include "commandfactory.h"
+#include "cmakecommand.h"
 #include "deploycommand.h"
 #include "gcccommand.h"
 #include "generatekeyscommand.h"
@@ -149,6 +150,7 @@ int main(int argc, char *argv[])
     initQSsh();
 
     CommandFactory::registerCommand<QMakeCommand>(QLatin1String("qmake"));
+    CommandFactory::registerCommand<CMakeCommand>(QLatin1String("cmake"));
     CommandFactory::registerCommand<GccCommand>(QLatin1String("gcc"));
     CommandFactory::registerCommand<MakeCommand>(QLatin1String("make"));
     CommandFactory::registerCommand<DeployCommand>(QLatin1String("deploy"));
