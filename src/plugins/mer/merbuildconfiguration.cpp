@@ -267,6 +267,7 @@ void MerBuildConfiguration::updateExtraParserArguments()
     QMakeStep *qs = qmakeStep();
     QTC_ASSERT(qs, return);
 
+    qs->setForced(true); // gets cleared automatically
     qs->setRecursive(false);
     BuildManager::appendStep(qs, tr("Updating cache"));
     qs->setRecursive(true);
