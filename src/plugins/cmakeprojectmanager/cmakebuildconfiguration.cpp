@@ -242,11 +242,7 @@ FileName CMakeBuildConfiguration::shadowBuildDirectory(const FileName &projectFi
 void CMakeBuildConfiguration::buildTarget(const QString &buildTarget)
 {
     const Core::Id buildStep = ProjectExplorer::Constants::BUILDSTEPS_BUILD;
-    auto cmBs = qobject_cast<CMakeBuildStep *>(Utils::findOrDefault(
-                                                   stepList(buildStep)->steps(),
-                                                   [](const ProjectExplorer::BuildStep *bs) {
-        return bs->id() == Constants::CMAKE_BUILD_STEP_ID;
-    }));
+    CMakeBuildStep *cmBs = cmakeBuildStep();
 
     QString originalBuildTarget;
     if (cmBs) {
@@ -268,6 +264,15 @@ CMakeConfig CMakeBuildConfiguration::configurationFromCMake() const
 void CMakeBuildConfiguration::setConfigurationFromCMake(const CMakeConfig &config)
 {
     m_configurationFromCMake = config;
+}
+
+CMakeBuildStep *CMakeBuildConfiguration::cmakeBuildStep() const
+{
+    const Core::Id buildStep = ProjectExplorer::Constants::BUILDSTEPS_BUILD;
+    return static_cast<CMakeBuildStep *>(Utils::findOrDefault(stepList(buildStep)->steps(),
+            [](const ProjectExplorer::BuildStep *bs) {
+        return qobject_cast<const CMakeBuildStep *>(bs) != nullptr;
+    }));
 }
 
 void CMakeBuildConfiguration::setBuildTargets(const QList<CMakeBuildTarget> &targets)
