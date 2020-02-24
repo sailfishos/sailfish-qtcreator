@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2018-2019 Jolla Ltd.
+** Copyright (C) 2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -21,9 +22,11 @@
 ****************************************************************************/
 
 #include "command.h"
+#include "merremoteprocess.h"
 
 #include <sfdk/sfdkconstants.h>
 #include <utils/hostosinfo.h>
+#include <utils/qtcprocess.h>
 
 #include <QDir>
 #include <QFile>
@@ -34,6 +37,18 @@ Command::Command()
 
 Command::~Command()
 {
+}
+
+int Command::executeRemoteCommand(const QString &command)
+{
+    // Convert to build engine paths
+    QString mappedCommand = remotePathMapping(command);
+
+    // Execute in build engine
+    MerRemoteProcess process;
+    process.setSshParameters(sshParameters());
+    process.setCommand(mappedCommand);
+    return process.executeAndWait();
 }
 
 QString Command::sharedHomePath() const

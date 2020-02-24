@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012,2014-2015,2018-2019 Jolla Ltd.
+** Copyright (C) 2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,8 +23,6 @@
 
 #include "rpmvalidationcommand.h"
 
-#include "merremoteprocess.h"
-
 RpmValidationCommand::RpmValidationCommand()
 {
 
@@ -40,10 +39,8 @@ int RpmValidationCommand::execute()
                       QLatin1String(" -t ") +
                       targetName() +
                       QLatin1Char(' ') + arguments().mid(1).join(QLatin1Char(' ')) + QLatin1Char(' ');
-    MerRemoteProcess process;
-    process.setSshParameters(sshParameters());
-    process.setCommand(remotePathMapping(command));
-    return process.executeAndWait();
+
+    return executeRemoteCommand(command);
 }
 
 bool RpmValidationCommand::isValid() const

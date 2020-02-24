@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2018 Jolla Ltd.
+** Copyright (C) 2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -16,8 +17,6 @@
 ****************************************************************************/
 
 #include "lupdatecommand.h"
-
-#include "merremoteprocess.h"
 
 #include <mer/merconstants.h>
 
@@ -42,10 +41,7 @@ int LUpdateCommand::execute()
         targetParameter +
         QLatin1Char(' ') + arguments().join(QLatin1Char(' '));
 
-    MerRemoteProcess process;
-    process.setSshParameters(sshParameters());
-    process.setCommand(remotePathMapping(command));
-    return process.executeAndWait();
+    return executeRemoteCommand(command);
 }
 
 bool LUpdateCommand::isValid() const

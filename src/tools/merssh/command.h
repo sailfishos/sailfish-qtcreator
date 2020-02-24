@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2018 Jolla Ltd.
+** Copyright (C) 2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -36,6 +37,7 @@ class Command : public QObject
 public:
     Command();
     virtual ~Command();
+    int executeRemoteCommand(const QString &command);
     QString sharedHomePath() const;
     void setSharedHomePath(const QString& path);
     QString targetName() const;
