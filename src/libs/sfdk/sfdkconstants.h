@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -93,6 +93,7 @@ const char WRAPPER_RPM[] = "rpm" SCRIPT_EXTENSION;
 const char WRAPPER_RPMVALIDATION[] = "rpmvalidation" SCRIPT_EXTENSION;
 const char WRAPPER_LUPDATE[] = "lupdate" SCRIPT_EXTENSION;
 const char WRAPPER_PKG_CONFIG[] = "pkg-config" SCRIPT_EXTENSION;
+const char CMAKE_QUERY_CACHE[] = "cmake.query";
 const char QMAKE_QUERY_CACHE[] = "qmake.query";
 const char GCC_DUMP_MACHINE_CACHE[] = "gcc.dumpmachine";
 const char GCC_DUMP_MACROS_CACHE[] = "gcc.dumpmacros";

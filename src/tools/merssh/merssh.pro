@@ -10,6 +10,7 @@ QT -= gui
 SOURCES = \
     main.cpp \
     command.cpp \
+    cmakecommand.cpp \
     qmakecommand.cpp \
     generatekeyscommand.cpp \
     gcccommand.cpp \
@@ -24,6 +25,7 @@ SOURCES = \
 HEADERS += \
     command.h \
     commandfactory.h \
+    cmakecommand.h \
     qmakecommand.h \
     generatekeyscommand.h \
     gcccommand.h \
