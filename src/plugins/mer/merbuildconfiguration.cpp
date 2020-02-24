@@ -266,7 +266,10 @@ void MerBuildConfiguration::updateExtraParserArguments()
 
     QMakeStep *qs = qmakeStep();
     QTC_ASSERT(qs, return);
+
+    qs->setRecursive(false);
     BuildManager::appendStep(qs, tr("Updating cache"));
+    qs->setRecursive(true);
 }
 
 bool MerBuildConfiguration::fromMap(const QVariantMap &map)
