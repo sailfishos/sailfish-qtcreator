@@ -23,6 +23,7 @@
 
 #include "merplugin.h"
 
+#include "mercmakebuildconfiguration.h"
 #include "merqmakebuildconfiguration.h"
 #include "merbuildengineoptionspage.h"
 #include "merbuildsteps.h"
@@ -118,6 +119,7 @@ public:
     MerDeployStepFactory<MerLocalRsyncDeployStep> localRsyncDeployStepFactory;
     MerDeployStepFactory<MerResetAmbienceDeployStep> resetAmbienceDeployStepFactory;
     MerQmlLiveBenchManager qmlLiveBenchManager;
+    MerCMakeBuildConfigurationFactory cmakeBuildConfigurationFactory;
     MerQmakeBuildConfigurationFactory qmakeBuildConfigurationFactory;
 };
 
