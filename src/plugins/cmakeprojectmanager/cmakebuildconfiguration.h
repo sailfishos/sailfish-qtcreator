@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include "cmakebuildstep.h"
 #include "cmakeconfigitem.h"
 #include "cmakeproject.h"
 #include "configmodel.h"
@@ -60,6 +61,8 @@ public:
 public:
     CMakeConfig configurationForCMake() const;
     CMakeConfig configurationFromCMake() const;
+
+    CMakeBuildStep *cmakeBuildStep() const;
 
     QString error() const;
     QString warning() const;

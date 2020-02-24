@@ -230,11 +230,7 @@ FilePath CMakeBuildConfiguration::shadowBuildDirectory(const FilePath &projectFi
 
 void CMakeBuildConfiguration::buildTarget(const QString &buildTarget)
 {
-    auto cmBs = qobject_cast<CMakeBuildStep *>(Utils::findOrDefault(
-                                                   buildSteps()->steps(),
-                                                   [](const ProjectExplorer::BuildStep *bs) {
-        return bs->id() == Constants::CMAKE_BUILD_STEP_ID;
-    }));
+    CMakeBuildStep *cmBs = cmakeBuildStep();
 
     QString originalBuildTarget;
     if (cmBs) {
@@ -256,6 +252,15 @@ CMakeConfig CMakeBuildConfiguration::configurationFromCMake() const
 void CMakeBuildConfiguration::setConfigurationFromCMake(const CMakeConfig &config)
 {
     m_configurationFromCMake = config;
+}
+
+CMakeBuildStep *CMakeBuildConfiguration::cmakeBuildStep() const
+{
+    return qobject_cast<CMakeBuildStep *>(Utils::findOrDefault(
+                                                   buildSteps()->steps(),
+                                                   [](const ProjectExplorer::BuildStep *bs) {
+        return bs->id() == Constants::CMAKE_BUILD_STEP_ID;
+    }));
 }
 
 void CMakeBuildConfiguration::setConfigurationForCMake(const QList<ConfigModel::DataItem> &items)
