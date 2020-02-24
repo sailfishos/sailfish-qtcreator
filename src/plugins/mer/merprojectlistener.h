@@ -46,7 +46,7 @@ public:
 
 protected slots:
     virtual void init();
-    virtual bool handleProject(QmakeProjectManager::QmakeProject *project) = 0;
+    virtual bool handleProject(ProjectExplorer::Project *project) = 0;
     virtual bool forgetProject(ProjectExplorer::Project *project) = 0;
 
     virtual void onTargetAddedToProject(ProjectExplorer::Target *target);
