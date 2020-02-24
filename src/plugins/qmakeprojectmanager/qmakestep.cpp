@@ -103,7 +103,7 @@ QString QMakeStep::allArguments(const BaseQtVersion *v, ArgumentFlags flags) con
     else
         arguments << project()->projectFilePath().toUserOutput();
 
-    if (v->qtVersion() < QtVersionNumber(5, 0, 0))
+    if (m_recursive && v->qtVersion() < QtVersionNumber(5, 0, 0))
         arguments << "-r";
     bool userProvidedMkspec = false;
     for (QtcProcess::ConstArgIterator ait(m_userArgs); ait.next(); ) {
@@ -183,7 +183,7 @@ bool QMakeStep::init()
 
     m_qmakeExecutable = qtVersion->qmakeCommand().toString();
     m_qmakeArguments = allArguments(qtVersion);
-    m_runMakeQmake = (qtVersion->qtVersion() >= QtVersionNumber(5, 0 ,0));
+    m_runMakeQmake = m_recursive && (qtVersion->qtVersion() >= QtVersionNumber(5, 0 ,0));
 
     QString makefile = workingDirectory + '/';
 
@@ -275,6 +275,12 @@ void QMakeStep::doRun()
 void QMakeStep::setForced(bool b)
 {
     m_forced = b;
+}
+
+// Used by the 3rd party SailfishOS plugin
+void QMakeStep::setRecursive(bool b)
+{
+    m_recursive = b;
 }
 
 ProjectExplorer::BuildStepConfigWidget *QMakeStep::createConfigWidget()
@@ -466,7 +472,7 @@ QString QMakeStep::effectiveQMakeCall() const
         QmakeBuildConfiguration *qmakeBc = qmakeBuildConfiguration();
         const QString makefile = qmakeBc ? qmakeBc->makefile() : QString();
         result += ' ' + allArguments(qtVersion, ArgumentFlag::Expand);
-        if (qtVersion->qtVersion() >= QtVersionNumber(5, 0, 0))
+        if (m_recursive && qtVersion->qtVersion() >= QtVersionNumber(5, 0, 0))
             result.append(QString::fromLatin1(" && %1 %2").arg(make).arg(makeArguments(makefile)));
     }
     return result;
