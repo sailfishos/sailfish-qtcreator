@@ -109,7 +109,7 @@ bool MerProjectListener::handleProject_private(Project *project)
     QmakeProject *qmakeProject = qobject_cast<QmakeProject*>(project);
     if (!qmakeProject)
         return false;
-    return handleProject(qmakeProject);
+    return handleProject(project);
 }
 
 } // Internal
