@@ -260,9 +260,6 @@ MerSdkKitInformationWidget::MerSdkKitInformationWidget(Kit *kit,
         const MerSdkKitInformation *kitInformation)
     : KitConfigWidget(kit, kitInformation)
 {
-    if (!visibleInKit())
-        return;
-
     m_mainWidget = new QWidget;
     m_mainWidget->setContentsMargins(0, 0, 0, 0);
 
