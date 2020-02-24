@@ -41,6 +41,10 @@
 #include <QBasicTimer>
 #include <QQueue>
 
+namespace CMakeProjectManager {
+class CMakeProject;
+}
+
 namespace QmakeProjectManager {
 class QmakeProject;
 }

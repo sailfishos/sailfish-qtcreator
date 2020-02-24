@@ -33,6 +33,7 @@
 #include "merconstants.h"
 #include "merdeploysteps.h"
 
+#include <cmakeprojectmanager/cmakeproject.h>
 #include <coreplugin/idocument.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectnodes.h>
@@ -45,6 +46,7 @@
 #include <QVBoxLayout>
 
 using namespace ProjectExplorer;
+using namespace CMakeProjectManager;
 using namespace QmakeProjectManager;
 using namespace RemoteLinux;
 

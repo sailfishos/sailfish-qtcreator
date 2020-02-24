@@ -24,6 +24,7 @@
 
 #include "mersdkmanager.h"
 
+#include <cmakeprojectmanager/cmakeproject.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/progressmanager/futureprogress.h>
 #include <coreplugin/progressmanager/progressmanager.h>
@@ -37,6 +38,7 @@
 
 using namespace ProjectExplorer;
 using namespace QtSupport;
+using namespace CMakeProjectManager;
 using namespace QmakeProjectManager;
 
 namespace Mer {
@@ -106,8 +108,8 @@ void MerProjectListener::onProjectRemoved(Project *project)
 
 bool MerProjectListener::handleProject_private(Project *project)
 {
-    QmakeProject *qmakeProject = qobject_cast<QmakeProject*>(project);
-    if (!qmakeProject)
+    if (!qobject_cast<QmakeProject*>(project)
+            && !qobject_cast<CMakeProject*>(project))
         return false;
     return handleProject(project);
 }
