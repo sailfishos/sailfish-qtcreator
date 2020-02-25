@@ -100,6 +100,7 @@ const char GCC_DUMP_INCLUDES_CACHE[] = "gcc.dumpincludes";
 
 // FIXME
 const char MER_SSH_DEVICE_NAME[] = "MER_SSH_DEVICE_NAME";
+const char MER_SSH_HOST[] = "MER_SSH_HOST";
 const char MER_SSH_PORT[] = "MER_SSH_PORT";
 const char MER_SSH_PRIVATE_KEY[] = "MER_SSH_PRIVATE_KEY";
 const char MER_SSH_SDK_TOOLS[] = "MER_SSH_SDK_TOOLS";

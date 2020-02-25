@@ -542,6 +542,7 @@ void BuildEnginePrivate::syncWwwProxy()
 
     QStringList args;
     const QString eq("=");
+    args.append(Constants::MER_SSH_HOST + eq + sshParameters.host());
     args.append(Constants::MER_SSH_PORT + eq + QString::number(sshParameters.port()));
     args.append(Constants::MER_SSH_PRIVATE_KEY + eq + sshParameters.privateKeyFile);
     args.append(Constants::MER_SSH_SHARED_HOME + eq + sharedHomePath.toString());
