@@ -29,6 +29,8 @@
 #include <projectexplorer/gcctoolchain.h>
 #include <projectexplorer/headerpath.h>
 
+#include <QUrl>
+
 namespace Mer {
 namespace Internal {
 

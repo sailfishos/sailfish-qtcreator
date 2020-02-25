@@ -26,6 +26,8 @@
 
 #include <qtsupport/baseqtversion.h>
 
+#include <QUrl>
+
 namespace Mer {
 namespace Internal {
 

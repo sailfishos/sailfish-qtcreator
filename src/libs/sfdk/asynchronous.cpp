@@ -26,6 +26,7 @@
 #include <utils/qtcassert.h>
 
 #include <QTimer>
+#include <QTimerEvent>
 
 namespace Sfdk {
 
