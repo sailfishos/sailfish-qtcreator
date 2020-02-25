@@ -86,7 +86,6 @@ QString dockerPath()
 
     path = Utils::Environment::systemEnvironment().searchInPath(DOCKER).toString();
 
-    QTC_ASSERT(!path.isEmpty(), return path);
     return path;
 }
 
