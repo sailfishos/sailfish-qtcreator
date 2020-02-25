@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -32,8 +32,12 @@
 #include <sfdk/buildengine.h>
 #include <sfdk/virtualmachine.h>
 
+#include <coreplugin/coreconstants.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/icore.h>
+#include <coreplugin/messagemanager.h>
+#include <coreplugin/modemanager.h>
+#include <debugger/debuggerconstants.h>
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/projectexplorer.h>
@@ -55,6 +59,9 @@ namespace {
 
 const char MER_VARIABLES_CACHE_FILENAME[] = ".mb2/qmake_variables.cache";
 
+// Avoid actions on temporary changes and asking questions too hastily
+const int UPDATE_EXTRA_PARSER_ARGUMENTS_DELAY_MS = 3000;
+
 } // namespace anonymous
 
 namespace Mer {
@@ -63,35 +70,38 @@ namespace Internal {
 MerBuildConfiguration::MerBuildConfiguration(Target *target, Core::Id id)
     : QmakeBuildConfiguration(target, id)
 {
-    auto setupExtraParserArgumentsIfActive = [this]() {
-        if (isReallyActive())
-            setupExtraParserArguments();
-    };
-
     connect(MerSettings::instance(), &MerSettings::importQmakeVariablesEnabledChanged,
-            this, setupExtraParserArgumentsIfActive);
+            this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
 
     connect(SessionManager::instance(), &SessionManager::startupProjectChanged,
-            this, setupExtraParserArgumentsIfActive);
+            this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
     connect(project(), &Project::activeTargetChanged,
-            this, setupExtraParserArgumentsIfActive);
+            this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
     connect(target, &Target::activeBuildConfigurationChanged,
-            this, setupExtraParserArgumentsIfActive);
+            this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
+    connect(ModeManager::instance(), &ModeManager::currentModeChanged,
+            this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
 
     QmakeProject *qmakeProject = static_cast<QmakeProject *>(project());
     // Note that this is emited more than once during qmake step execution - once
     // for each executed process
     connect(qmakeProject, &QmakeProject::buildDirectoryInitialized,
-            this, setupExtraParserArgumentsIfActive);
+            this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
 
     connect(EditorManager::instance(), &EditorManager::saved,
             this, [this](IDocument *document) {
         if (!isReallyActive())
             return;
         QTC_ASSERT(project(), return);
-        if (!project()->files(Project::AllFiles).contains(document->filePath())
-                || !document->filePath().toString().contains(QRegExp("\\.spec$|\\.yaml$")))
+        if (!document->filePath().toString().contains(QRegExp("\\.spec$|\\.yaml$")))
             return;
+        if (!project()->files(Project::AllFiles).contains(document->filePath())) {
+            if (document->filePath().isChildOf(project()->rootProjectDirectory())) {
+                MessageManager::write(tr("Warning: RPM *.spec (or *.yaml) file not registered to the project."),
+                        MessageManager::Flash);
+            }
+            return;
+        }
 
         maybeUpdateExtraParserArguments();
     });
@@ -110,21 +120,64 @@ void MerBuildConfiguration::initialize(const ProjectExplorer::BuildInfo &info)
     cleanSteps->insertStep(0, new MerSdkStartStep(cleanSteps));
 }
 
+void MerBuildConfiguration::timerEvent(QTimerEvent *event)
+{
+    if (event->timerId() == m_maybeUpdateExtraParserArgumentsTimer.timerId()) {
+        m_maybeUpdateExtraParserArgumentsTimer.stop();
+        const bool now = true;
+        maybeUpdateExtraParserArguments(now);
+    } else  {
+        QmakeBuildConfiguration::timerEvent(event);
+    }
+}
+
 bool MerBuildConfiguration::isReallyActive() const
 {
     QTC_ASSERT(project(), return false);
     return SessionManager::startupProject() == project() && isActive();
 }
 
-void MerBuildConfiguration::setupExtraParserArguments()
+void MerBuildConfiguration::maybeSetupExtraParserArguments()
 {
+    if (!isReallyActive())
+        return;
+
+    // Most importantly, avoid taking actions on temporary changes in Projects mode, but
+    // more cases are covered
+    if (ModeManager::currentModeId() != Core::Constants::MODE_EDIT &&
+            ModeManager::currentModeId() != Debugger::Constants::MODE_DEBUG) {
+        return;
+    }
+
     if (!qmakeStep())
         return;
+
+    if (project()->needsConfiguration())
+        return;
+
+    setupExtraParserArguments();
+};
+
+void MerBuildConfiguration::setupExtraParserArguments()
+{
+    QTC_ASSERT(qmakeStep(), return);
+    QTC_ASSERT(!project()->needsConfiguration(), return);
 
     QStringList args;
     if (MerSettings::isImportQmakeVariablesEnabled()) {
         QFile file(buildDirectory().toString() + "/" + MER_VARIABLES_CACHE_FILENAME);
-        if (file.exists() && file.open(QIODevice::ReadOnly)) {
+        if (!file.exists()) {
+            // Do not ask again
+            const bool mkpathOk = QFileInfo(file.fileName()).dir().mkpath(".");
+            QTC_CHECK(mkpathOk);
+            const bool createdOk = file.open(QIODevice::WriteOnly);
+            QTC_CHECK(createdOk);
+
+            maybeUpdateExtraParserArguments();
+            return;
+        } else {
+            const bool openOk = file.open(QIODevice::ReadOnly);
+            QTC_ASSERT(openOk, return);
             QByteArray rawArgs = file.readAll();
             if (rawArgs.endsWith('\0'))
                 rawArgs.chop(1);
@@ -134,17 +187,31 @@ void MerBuildConfiguration::setupExtraParserArguments()
     }
 
     if (Log::qmakeArgs().isDebugEnabled()) {
-        qCDebug(Log::qmakeArgs) << "Setting up extra parser arguments for" << displayName()
-            << "under target" << target()->displayName() << "as:";
+        if (qmakeStep()->extraParserArguments() == args) {
+            qCDebug(Log::qmakeArgs) << "Preserving extra parser arguments for" << displayName()
+                << "under target" << target()->displayName() << "as:";
+        } else {
+            qCDebug(Log::qmakeArgs) << "Changing extra parser arguments for" << displayName()
+                << "under target" << target()->displayName() << "to:";
+        }
         for (const QString &arg : qAsConst(args))
             qCDebug(Log::qmakeArgs) << "    " << arg;
     }
 
-    qmakeStep()->setExtraParserArguments(args);
+    if (qmakeStep()->extraParserArguments() != args) {
+        qmakeStep()->setExtraParserArguments(args);
+        auto *const qmakeProject = static_cast<QmakeProject *>(project());
+        qmakeProject->rootProFile()->scheduleUpdate(QmakeProFile::ParseLater);
+    }
 }
 
-void MerBuildConfiguration::maybeUpdateExtraParserArguments()
+void MerBuildConfiguration::maybeUpdateExtraParserArguments(bool now)
 {
+    if (!now) {
+        m_maybeUpdateExtraParserArgumentsTimer.start(UPDATE_EXTRA_PARSER_ARGUMENTS_DELAY_MS, this);
+        return;
+    }
+
     if (m_qmakeQuestion)
         return; // already asking
 
@@ -163,11 +230,13 @@ void MerBuildConfiguration::maybeUpdateExtraParserArguments()
                 + QString(45, ' '), // more horizontal space for the informative text
             QMessageBox::Yes | QMessageBox::No,
             ICore::mainWindow());
-    m_qmakeQuestion->setInformativeText(tr("Additional qmake arguments that may influence project "
-                "parsing may be introduced at the rpmbuild level. These are recognized only after "
-                "qmake is executed and the effect is local to the active build configuration - "
-                "you may need to run qmake manually when project parsing fails to deliver the "
-                "expected results after switching to another build configuration."));
+    m_qmakeQuestion->setInformativeText(tr("Additional qmake arguments may be "
+                "introduced at the rpmbuild level. The qmake build step needs to "
+                "be executed to recognize these and augment the project model "
+                "with this information."
+                "\n\n"
+                "(You may need to re-run qmake manually when you find project "
+                "parsing inaccurate after changes to the build configuration.)"));
     m_qmakeQuestion->setCheckBox(new QCheckBox(CheckableMessageBox::msgDoNotAskAgain()));
     connect(m_qmakeQuestion, &QMessageBox::finished, [=](int result) {
         if (m_qmakeQuestion->checkBox()->isChecked())
@@ -197,7 +266,11 @@ void MerBuildConfiguration::updateExtraParserArguments()
 
     QMakeStep *qs = qmakeStep();
     QTC_ASSERT(qs, return);
+
+    qs->setForced(true); // gets cleared automatically
+    qs->setRecursive(false);
     BuildManager::appendStep(qs, tr("Updating cache"));
+    qs->setRecursive(true);
 }
 
 bool MerBuildConfiguration::fromMap(const QVariantMap &map)
