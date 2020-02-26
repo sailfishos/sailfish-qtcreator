@@ -66,6 +66,7 @@ void printUsage()
             << Sfdk::Constants::MER_SSH_DEVICE_NAME << endl
             << "evironment variables - connection parameters:" << endl
             << Sfdk::Constants::MER_SSH_USERNAME << endl
+            << Sfdk::Constants::MER_SSH_HOST << endl
             << Sfdk::Constants::MER_SSH_PORT << endl
             << Sfdk::Constants::MER_SSH_PRIVATE_KEY << endl;
 }
@@ -172,6 +173,7 @@ int main(int argc, char *argv[])
         QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS),
         QLatin1String(Sfdk::Constants::MER_SSH_DEVICE_NAME),
         QLatin1String(Sfdk::Constants::MER_SSH_USERNAME),
+        QLatin1String(Sfdk::Constants::MER_SSH_HOST),
         QLatin1String(Sfdk::Constants::MER_SSH_PORT),
         QLatin1String(Sfdk::Constants::MER_SSH_PRIVATE_KEY),
     };
@@ -213,7 +215,7 @@ int main(int argc, char *argv[])
     command->setDeviceName(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_DEVICE_NAME)));
 
     QSsh::SshConnectionParameters parameters;
-    parameters.setHost(QLatin1String(Sfdk::Constants::BUILD_ENGINE_DEFAULT_HOST));
+    parameters.setHost(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_HOST)));
     parameters.setUserName(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_USERNAME)));
     parameters.setPort(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_PORT)).toInt());
     parameters.privateKeyFile = environment.value(QLatin1String(Sfdk::Constants::MER_SSH_PRIVATE_KEY));

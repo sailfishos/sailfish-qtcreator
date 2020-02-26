@@ -100,6 +100,7 @@ const char GCC_DUMP_INCLUDES_CACHE[] = "gcc.dumpincludes";
 
 // FIXME
 const char MER_SSH_DEVICE_NAME[] = "MER_SSH_DEVICE_NAME";
+const char MER_SSH_HOST[] = "MER_SSH_HOST";
 const char MER_SSH_PORT[] = "MER_SSH_PORT";
 const char MER_SSH_PRIVATE_KEY[] = "MER_SSH_PRIVATE_KEY";
 const char MER_SSH_SDK_TOOLS[] = "MER_SSH_SDK_TOOLS";
@@ -120,7 +121,8 @@ const char DEFAULT_DEBUGGER_i486_FILENAME[] = "gdb-i486-meego-linux-gnu";
 const char DEFAULT_DEBUGGER_ARM_FILENAME[] = "gdb-armv7hl-meego-linux-gnueabi";
 const char DEBUGGER_FILENAME_PREFIX[] = "gdb-";
 
-const char BUILD_ENGINE_DEFAULT_HOST[] = "localhost";
+// hardcoded IPv4 address to prevent connecting via IPv6
+const char BUILD_ENGINE_DEFAULT_HOST[] = "127.0.0.1";
 const char BUILD_ENGINE_DEFAULT_USER_NAME[] = "mersdk";
 const int BUILD_ENGINE_DEFAULT_SSH_TIMEOUT = 30;
 
@@ -158,7 +160,8 @@ const char DEVICE_MODEL_DISPLAY_RESOLUTION[] = "DisplayResolution";
 const char DEVICE_MODEL_DISPLAY_SIZE[] = "DisplaySize";
 const char DEVICE_MODEL_DCONF[] = "Dconf";
 
-const char EMULATOR_DEFAULT_HOST[] = "localhost";
+// hardcoded IPv4 address to prevent connecting via IPv6
+const char EMULATOR_DEFAULT_HOST[] = "127.0.0.1";
 const char EMULATOR_DEFAULT_USER_NAME[] = "nemo";
 const int EMULATOR_DEFAULT_SSH_TIMEOUT = 30;
 

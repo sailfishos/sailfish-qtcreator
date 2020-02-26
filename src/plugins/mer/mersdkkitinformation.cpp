@@ -205,6 +205,7 @@ void MerSdkKitInformation::addToEnvironment(const Kit *kit, Environment &env) co
 
         env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_USERNAME),
                         QLatin1String(Sfdk::Constants::BUILD_ENGINE_DEFAULT_USER_NAME));
+        env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_HOST), engine->virtualMachine()->sshParameters().host());
         env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_PORT), sshPort);
         env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_PRIVATE_KEY),
                 engine->virtualMachine()->sshParameters().privateKeyFile);
