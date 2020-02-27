@@ -7,6 +7,7 @@
 #include "sailfishoswizardsconstants.h"
 
 #include <projectexplorer/jsonwizard/jsonwizardfactory.h>
+#include <sfdk/sdk.h>
 
 #include "factories/qmllocalimportspagefactory.h"
 #include "factories/importexternallibrariespagefactory.h"
@@ -30,6 +31,9 @@ bool SailfishOSWizardsPlugin::initialize(const QStringList &arguments, QString *
 {
     Q_UNUSED(arguments)
     Q_UNUSED(errorString)
+    Utils::globalMacroExpander()->registerVariable("SailfishOSFileWizardCategoryName",
+                                                   tr("Category of a wizard for Sailfish OS files"),
+                                                   []() { return Sfdk::Sdk::osVariant(); });
     JsonWizardFactory::registerPageFactory(new QmlLocalImportsPageFactory);
     JsonWizardFactory::registerPageFactory(new ImportExternalLibrariesPageFactory);
     return true;

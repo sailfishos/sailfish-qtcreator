@@ -5,7 +5,7 @@
     "category": "Sailfish OS",
     "trDescription": "Creates a QML file for Sailfish OS application project.",
     "trDisplayName": "QML File",
-    "trDisplayCategory": "Sailfish OS",
+    "trDisplayCategory": "%{SailfishOSFileWizardCategoryName}",
     "iconText": "QML",
     "enabled": "true",
 

@@ -51050,4 +51050,11 @@ Close the virtual machine now?</source>
         <translation>Отмена</translation>
     </message>
 </context>
+<context>
+    <name>SailfishOSWizards::Internal::SailfishOSWizardsPlugin</name>
+    <message>
+        <source>Category of a wizard for Sailfish OS files</source>
+        <translation>Категория мастера по созданию файлов для Sailfish OS</translation>
+    </message>
+</context>
 </TS>

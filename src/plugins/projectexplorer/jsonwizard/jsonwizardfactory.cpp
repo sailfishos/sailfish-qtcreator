@@ -611,7 +611,7 @@ bool JsonWizardFactory::initialize(const QVariantMap &data, const QDir &baseDir,
         *errorMessage = tr("No displayCategory set.");
         return false;
     }
-    setDisplayCategory(strVal);
+    setDisplayCategory(Utils::globalMacroExpander()->expand(strVal));
 
     strVal = localizedString(data.value(QLatin1String(DESCRIPTION_KEY)));
     if (strVal.isEmpty()) {
