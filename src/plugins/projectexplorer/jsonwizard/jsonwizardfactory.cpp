@@ -604,21 +604,21 @@ bool JsonWizardFactory::initialize(const QVariantMap &data, const QDir &baseDir,
         *errorMessage = tr("No displayName set.");
         return false;
     }
-    setDisplayName(strVal);
+    setDisplayName(Utils::globalMacroExpander()->expand(strVal));
 
     strVal = localizedString(data.value(QLatin1String(CATEGORY_NAME_KEY)));
     if (strVal.isEmpty()) {
         *errorMessage = tr("No displayCategory set.");
         return false;
     }
-    setDisplayCategory(strVal);
+    setDisplayCategory(Utils::globalMacroExpander()->expand(strVal));
 
     strVal = localizedString(data.value(QLatin1String(DESCRIPTION_KEY)));
     if (strVal.isEmpty()) {
         *errorMessage = tr("No description set.");
         return false;
     }
-    setDescription(strVal);
+    setDescription(Utils::globalMacroExpander()->expand(strVal));
 
     // Generator:
     QVariantList list = objectOrList(data.value(QLatin1String(GENERATOR_KEY)), errorMessage);
