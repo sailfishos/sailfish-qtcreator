@@ -154,6 +154,16 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     RunControl::registerWorker<RemoteLinuxQmlProfilerSupport>(QML_PROFILER_RUN_MODE, constraint);
     //RunControl::registerWorker<RemoteLinuxPerfSupport>(PERFPROFILER_RUN_MODE, constraint);
 
+    Utils::globalMacroExpander()->registerVariable("SailfishOSVariant",
+                                                   tr("Expands to \"Sailfish OS\" or its variant name").arg(Sdk::osVariant()),
+                                                   []() { return Sdk::osVariant(); });
+    Utils::globalMacroExpander()->registerVariable("SailfishIDEVariant",
+                                                   tr("Expands to \"Sailfish IDE\" or its variant name").arg(Sdk::ideVariant()),
+                                                   []() { return Sdk::ideVariant(); });
+    Utils::globalMacroExpander()->registerVariable("SailfishSDKVariant",
+                                                   tr("Expands to \"Sailfish SDK\" or its variant name").arg(Sdk::sdkVariant()),
+                                                   []() { return Sdk::sdkVariant(); });
+
     VirtualMachine::registerConnectionUi<MerVmConnectionUi>();
 
     dd = new MerPluginPrivate;
