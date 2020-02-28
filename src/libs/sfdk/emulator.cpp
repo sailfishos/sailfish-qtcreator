@@ -38,6 +38,8 @@
 #include <utils/stringutils.h>
 
 #include <QTimer>
+#include <QPoint>
+#include <QRect>
 
 using namespace QSsh;
 using namespace Utils;
