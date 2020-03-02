@@ -207,8 +207,11 @@ public:
 private:
     void addPossibleIconSize(const QIcon &icon);
     void updateIndex();
+    QList<QStandardItem *> createStandardItemListFromItemList(Utils::MacroExpander *expander);
+    QList<QStandardItem *> createStandardItemListFromItemsString(Utils::MacroExpander *expander);
 
     std::vector<std::unique_ptr<QStandardItem>> m_itemList;
+    QString m_itemsString = "";
     QStandardItemModel *m_itemModel = nullptr;
     QItemSelectionModel *m_selectionModel = nullptr;
     int m_index = -1;
