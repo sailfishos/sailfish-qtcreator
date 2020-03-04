@@ -71,6 +71,8 @@ const char VM_INFO_OTHER_PORTS[] = "OtherPorts";
 const char VM_INFO_MACS[] = "Macs";
 const char VM_INFO_HEADLESS[] = "Headless";
 const char VM_INFO_MEMORY_SIZE_MB[] = "MemorySizeMb";
+const char VM_INFO_SWAP_SUPPORTED[] = "SwapSupported";
+const char VM_INFO_SWAP_SIZE_MB[] = "SwapSizeMb";
 const char VM_INFO_CPU_COUNT[] = "CpuCount";
 const char VM_INFO_STORAGE_SIZE_MB[] = "StorageSizeMb";
 const char VM_INFO_SNAPSHOTS[] = "Snapshots";
@@ -286,6 +288,33 @@ int VirtualMachine::availableMemorySizeMb()
 #endif
 }
 
+int VirtualMachine::swapSizeMb() const
+{
+    Q_D(const VirtualMachine);
+    QTC_ASSERT(d->initialized(), return false);
+    return d->virtualMachineInfo.swapSizeMb;
+}
+
+void VirtualMachine::setSwapSizeMb(int swapSizeMb, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_D(VirtualMachine);
+    QTC_ASSERT(d->features & SwapMemory,
+               QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_CHECK(isLockedDown());
+
+    const QPointer<const QObject> context_{context};
+    d->doSetSwapSizeMb(swapSizeMb, this, [=](bool ok) {
+        if (ok && d->virtualMachineInfo.swapSizeMb != swapSizeMb) {
+            d->virtualMachineInfo.swapSizeMb = swapSizeMb;
+            VirtualMachineInfoCache::insert(uri(), d->virtualMachineInfo);
+            emit swapSizeMbChanged(swapSizeMb);
+        }
+        if (context_)
+            functor(ok);
+    });
+}
+
 int VirtualMachine::cpuCount() const
 {
     Q_D(const VirtualMachine);
@@ -431,6 +460,8 @@ void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<
 
         if (oldInfo.memorySizeMb != info.memorySizeMb)
             emit memorySizeMbChanged(info.memorySizeMb);
+        if (oldInfo.swapSizeMb != info.swapSizeMb)
+            emit swapSizeMbChanged(info.swapSizeMb);
         if (oldInfo.cpuCount != info.cpuCount)
             emit cpuCountChanged(info.cpuCount);
         if (oldInfo.storageSizeMb != info.storageSizeMb)
@@ -442,6 +473,11 @@ void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<
                 || oldInfo.freePorts != info.freePorts) {
             emit portForwardingChanged();
         }
+
+        // Features are immutable
+        QTC_CHECK(!d->initialized_ || oldInfo.swapSupported == info.swapSupported);
+        if (!d->initialized_ && info.swapSupported)
+            d->features |= SwapMemory;
 
         d->initialized_ = true;
 
@@ -911,6 +947,8 @@ void VirtualMachineInfo::fromMap(const QVariantMap &data)
     macs = data.value(VM_INFO_MACS).toStringList();
     headless = data.value(VM_INFO_HEADLESS).toBool();
     memorySizeMb = data.value(VM_INFO_MEMORY_SIZE_MB).toInt();
+    swapSupported = data.value(VM_INFO_SWAP_SUPPORTED).toBool();
+    swapSizeMb = data.value(VM_INFO_SWAP_SIZE_MB).toInt();
     cpuCount = data.value(VM_INFO_CPU_COUNT).toInt();
     storageSizeMb = data.value(VM_INFO_STORAGE_SIZE_MB).toInt();
     snapshots = data.value(VM_INFO_SNAPSHOTS).toStringList();
@@ -942,6 +980,8 @@ QVariantMap VirtualMachineInfo::toMap() const
     data.insert(VM_INFO_MACS, macs);
     data.insert(VM_INFO_HEADLESS, headless);
     data.insert(VM_INFO_MEMORY_SIZE_MB, memorySizeMb);
+    data.insert(VM_INFO_SWAP_SUPPORTED, swapSupported);
+    data.insert(VM_INFO_SWAP_SIZE_MB, swapSizeMb);
     data.insert(VM_INFO_CPU_COUNT, cpuCount);
     data.insert(VM_INFO_STORAGE_SIZE_MB, storageSizeMb);
     data.insert(VM_INFO_SNAPSHOTS, snapshots);

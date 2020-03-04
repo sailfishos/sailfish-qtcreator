@@ -84,6 +84,7 @@ public:
         ShrinkStorageSize = 0x08,
         OptionalHeadless = 0x10,
         Snapshots = 0x20,
+        SwapMemory = 0x40,
     };
     Q_DECLARE_FLAGS(Features, Feature)
 
@@ -116,6 +117,10 @@ public:
     void setMemorySizeMb(int memorySizeMb, const QObject *context,
             const Functor<bool> &functor);
     static int availableMemorySizeMb();
+
+    int swapSizeMb() const;
+    void setSwapSizeMb(int swapSizeMb, const QObject *context,
+            const Functor<bool> &functor);
 
     int cpuCount() const;
     void setCpuCount(int cpuCount, const QObject *context,
@@ -158,6 +163,7 @@ signals:
     void virtualMachineOffChanged(bool vmOff);
     void lockDownFailed();
     void memorySizeMbChanged(int sizeMb);
+    void swapSizeMbChanged(int sizeMb);
     void cpuCountChanged(int cpuCount);
     void storageSizeMbChanged(int storageSizeMb);
     void portForwardingChanged();

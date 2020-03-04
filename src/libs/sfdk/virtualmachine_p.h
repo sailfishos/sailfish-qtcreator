@@ -68,6 +68,8 @@ public:
     QStringList macs;
     bool headless{false};
     int memorySizeMb{0};
+    bool swapSupported{false};
+    int swapSizeMb{0};
     int cpuCount{0};
 
     // StorageInfo
@@ -152,6 +154,8 @@ public:
 
 protected:
     virtual void doSetMemorySizeMb(int memorySizeMb, const QObject *context,
+            const Functor<bool> &functor) = 0;
+    virtual void doSetSwapSizeMb(int swapSizeMb, const QObject *context,
             const Functor<bool> &functor) = 0;
     virtual void doSetCpuCount(int cpuCount, const QObject *context,
             const Functor<bool> &functor) = 0;
