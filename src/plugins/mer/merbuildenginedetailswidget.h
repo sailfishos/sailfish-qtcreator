@@ -67,6 +67,7 @@ public:
     void setWwwPort(quint16 port);
     void setWwwProxy(const QString &type, const QString &servers, const QString &excludes);
     void setMemorySizeMb(int sizeMb);
+    void setSwapSizeMb(int sizeMb);
     void setCpuCount(int count);
     void setStorageSizeMb(int capacityMb);
 
@@ -82,6 +83,7 @@ signals:
     void wwwPortChanged(quint16 port);
     void wwwProxyChanged(const QString &type, const QString &servers, const QString &excludes);
     void memorySizeMbChanged(int sizeMb);
+    void swapSizeMbChanged(int sizeMb);
     void cpuCountChanged(int count);
     void storageSizeMbChnaged(int value);
 

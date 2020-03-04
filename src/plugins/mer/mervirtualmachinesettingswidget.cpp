@@ -60,20 +60,37 @@ MerVirtualMachineSettingsWidget::~MerVirtualMachineSettingsWidget()
 void MerVirtualMachineSettingsWidget::setVmFeatures(VirtualMachine::Features features)
 {
     m_features = features;
+
     QString stopVmText = tr("Stop the virtual machine to unlock this field for editing.");
+
     if (features & VirtualMachine::LimitMemorySize)
         setToolTip(ui->memoryInfoLabel, stopVmText);
     else
         setToolTip(ui->memoryInfoLabel, tr("Virtual Machine does not allow changing memory size"));
+
     if (features & VirtualMachine::LimitCpuCount)
         setToolTip(ui->cpuInfoLabel, stopVmText);
     else
         setToolTip(ui->cpuInfoLabel, tr("Virtual Machine does not allow changing cpu count"));
+
     setStorageSizeLimits();
     if (features & (VirtualMachine::GrowStorageSize | VirtualMachine::ShrinkStorageSize))
         setToolTip(ui->storageSizeInfoLabel, stopVmText);
     else
         setToolTip(ui->storageSizeInfoLabel, tr("Virtual Machine does not allow changing storage size"));
+
+    if (features & VirtualMachine::SwapMemory) {
+        // hack: cannot restore once disabled
+        QTC_CHECK(!ui->swapLabel->isHidden());
+        setToolTip(ui->swapSizeInfoLabel, stopVmText);
+    } else if (ui->swapLabel->isVisibleTo(this)) {
+        ui->swapLabel->setVisible(false);
+        ui->swapSizeInfoLabel->setVisible(false);
+        ui->swapSizeGbSpinBox->setVisible(false);
+
+        // QTBUG-6864
+        ui->formLayout->takeRow(ui->swapLabel);
+    }
 }
 
 void MerVirtualMachineSettingsWidget::setMemorySizeMb(int sizeMb)
@@ -82,6 +99,12 @@ void MerVirtualMachineSettingsWidget::setMemorySizeMb(int sizeMb)
         ui->memorySpinBox->setRange(MIN_MEMORY_SIZE_MB, sizeMb);
 
     ui->memorySpinBox->setValue(sizeMb);
+}
+
+void MerVirtualMachineSettingsWidget::setSwapSizeMb(int sizeMb)
+{
+    const double sizeGb = sizeMb / 1024.0;
+    ui->swapSizeGbSpinBox->setValue(sizeGb);
 }
 
 void MerVirtualMachineSettingsWidget::setCpuCount(int count)
@@ -99,11 +122,14 @@ void MerVirtualMachineSettingsWidget::setStorageSizeMb(int storageSizeMb)
 void MerVirtualMachineSettingsWidget::setVmOff(bool vmOff)
 {
     ui->memorySpinBox->setEnabled(vmOff && (m_features & VirtualMachine::LimitMemorySize));
+    ui->swapSizeGbSpinBox->setEnabled(vmOff && (m_features & VirtualMachine::SwapMemory));
     ui->cpuCountSpinBox->setEnabled(vmOff && (m_features & VirtualMachine::LimitCpuCount));
     ui->storageSizeGbSpinBox->setEnabled(vmOff && (m_features & (VirtualMachine::GrowStorageSize
                                                                  | VirtualMachine::ShrinkStorageSize)));
 
     ui->memoryInfoLabel->setVisible(!ui->memorySpinBox->isEnabled());
+    ui->swapSizeInfoLabel->setVisible(!ui->swapSizeGbSpinBox->isEnabled()
+            && (m_features & VirtualMachine::SwapMemory));
     ui->cpuInfoLabel->setVisible(!ui->cpuCountSpinBox->isEnabled());
     ui->storageSizeInfoLabel->setVisible(!ui->storageSizeGbSpinBox->isEnabled());
 }
@@ -118,18 +144,26 @@ void MerVirtualMachineSettingsWidget::initGui()
     int maxMemorySizeMb = VirtualMachine::availableMemorySizeMb() > 0
         ? VirtualMachine::availableMemorySizeMb()
         : DEFAULT_MAX_MEMORY_SIZE_MB;
+    ui->swapSizeGbSpinBox->setRange(0, 999999); // "unlimited", later limited by storageSizeGb
     ui->memorySpinBox->setRange(MIN_MEMORY_SIZE_MB, maxMemorySizeMb);
     ui->cpuCountSpinBox->setRange(1, VirtualMachine::availableCpuCount());
 
     connect(ui->memorySpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &MerVirtualMachineSettingsWidget::memorySizeMbChanged);
+    connect(ui->swapSizeGbSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [this](double value) {
+        emit swapSizeMbChanged(static_cast<int>(value * 1024));
+    });
     connect(ui->cpuCountSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &MerVirtualMachineSettingsWidget::cpuCountChanged);
     connect(ui->storageSizeGbSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [this](double value) {
+        QTC_CHECK(ui->swapSizeGbSpinBox->value() <= value);
+        ui->swapSizeGbSpinBox->setMaximum(value);
+
         emit storageSizeMbChnaged(static_cast<int>(value * 1024));
     });
 
     ui->memoryInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
+    ui->swapSizeInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
     ui->cpuInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
     ui->storageSizeInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
 }

@@ -105,6 +105,8 @@ MerBuildEngineOptionsWidget::MerBuildEngineOptionsWidget(QWidget *parent)
             this, &MerBuildEngineOptionsWidget::onWwwProxyChanged);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::memorySizeMbChanged,
             this, &MerBuildEngineOptionsWidget::onMemorySizeMbChanged);
+    connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::swapSizeMbChanged,
+            this, &MerBuildEngineOptionsWidget::onSwapSizeMbChanged);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::cpuCountChanged,
             this, &MerBuildEngineOptionsWidget::onCpuCountChanged);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::storageSizeMbChnaged,
@@ -214,6 +216,17 @@ void MerBuildEngineOptionsWidget::store()
                 ok = false;
             }
         }
+        if (m_swapSizeMb.contains(buildEngine)) {
+            bool stepOk;
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&VirtualMachine::setSwapSizeMb),
+                    buildEngine->virtualMachine(), m_swapSizeMb[buildEngine]);
+            if (!stepOk) {
+                m_ui->buildEngineDetailsWidget->setSwapSizeMb(
+                        buildEngine->virtualMachine()->swapSizeMb());
+                m_swapSizeMb.remove(buildEngine);
+                ok = false;
+            }
+        }
         if (m_cpuCount.contains(buildEngine)) {
             bool stepOk;
             execAsynchronous(std::tie(stepOk), std::mem_fn(&VirtualMachine::setCpuCount),
@@ -262,6 +275,7 @@ void MerBuildEngineOptionsWidget::store()
     m_headless.clear();
     m_wwwPort.clear();
     m_memorySizeMb.clear();
+    m_swapSizeMb.clear();
     m_cpuCount.clear();
     m_storageSizeMb.clear();
 
@@ -283,6 +297,8 @@ bool MerBuildEngineOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(Q
             m_wwwPort.remove(buildEngine);
         if (m_memorySizeMb.value(buildEngine) == buildEngine->virtualMachine()->memorySizeMb())
             m_memorySizeMb.remove(buildEngine);
+        if (m_swapSizeMb.value(buildEngine) == buildEngine->virtualMachine()->swapSizeMb())
+            m_swapSizeMb.remove(buildEngine);
         if (m_cpuCount.value(buildEngine) == buildEngine->virtualMachine()->cpuCount())
             m_cpuCount.remove(buildEngine);
         if (m_storageSizeMb.value(buildEngine) == buildEngine->virtualMachine()->storageSizeMb())
@@ -291,6 +307,7 @@ bool MerBuildEngineOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(Q
         if (!m_sshPort.contains(buildEngine)
                 && !m_wwwPort.contains(buildEngine)
                 && !m_memorySizeMb.contains(buildEngine)
+                && !m_swapSizeMb.contains(buildEngine)
                 && !m_cpuCount.contains(buildEngine)
                 && !m_storageSizeMb.contains(buildEngine)) {
             continue;
@@ -328,6 +345,9 @@ bool MerBuildEngineOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(Q
         m_ui->buildEngineDetailsWidget->setMemorySizeMb(
                 buildEngine->virtualMachine()->memorySizeMb());
         m_memorySizeMb.remove(buildEngine);
+        m_ui->buildEngineDetailsWidget->setSwapSizeMb(
+                buildEngine->virtualMachine()->swapSizeMb());
+        m_swapSizeMb.remove(buildEngine);
         m_ui->buildEngineDetailsWidget->setCpuCount(buildEngine->virtualMachine()->cpuCount());
         m_cpuCount.remove(buildEngine);
         m_ui->buildEngineDetailsWidget->setStorageSizeMb(
@@ -394,6 +414,7 @@ void MerBuildEngineOptionsWidget::onRemoveButtonClicked()
          m_wwwProxyExcludes.remove(removed);
          m_storageSizeMb.remove(removed);
          m_memorySizeMb.remove(removed);
+         m_swapSizeMb.remove(removed);
          m_cpuCount.remove(removed);
     }
     update();
@@ -504,6 +525,8 @@ void MerBuildEngineOptionsWidget::onBuildEngineAdded(int index)
             this, cleaner(&m_storageSizeMb));
     connect(buildEngine->virtualMachine(), &VirtualMachine::memorySizeMbChanged,
             this, cleaner(&m_memorySizeMb));
+    connect(buildEngine->virtualMachine(), &VirtualMachine::swapSizeMbChanged,
+            this, cleaner(&m_swapSizeMb));
     connect(buildEngine->virtualMachine(), &VirtualMachine::cpuCountChanged,
             this, cleaner(&m_cpuCount));
 
@@ -531,6 +554,7 @@ void MerBuildEngineOptionsWidget::onAboutToRemoveBuildEngine(int index)
     m_wwwProxyExcludes.remove(buildEngine);
     m_storageSizeMb.remove(buildEngine);
     m_memorySizeMb.remove(buildEngine);
+    m_swapSizeMb.remove(buildEngine);
     m_cpuCount.remove(buildEngine);
 
     update();
@@ -658,6 +682,13 @@ void MerBuildEngineOptionsWidget::update()
                     buildEngine->virtualMachine()->memorySizeMb());
         }
 
+        if (m_swapSizeMb.contains(buildEngine)) {
+            m_ui->buildEngineDetailsWidget->setSwapSizeMb(m_swapSizeMb[buildEngine]);
+        } else {
+            m_ui->buildEngineDetailsWidget->setSwapSizeMb(
+                    buildEngine->virtualMachine()->swapSizeMb());
+        }
+
         if (m_cpuCount.contains(buildEngine))
             m_ui->buildEngineDetailsWidget->setCpuCount(m_cpuCount[buildEngine]);
         else
@@ -730,6 +761,11 @@ void MerBuildEngineOptionsWidget::onMemorySizeMbChanged(int sizeMb)
     m_memorySizeMb[m_buildEngines[m_virtualMachine]] = sizeMb;
 }
 
+void MerBuildEngineOptionsWidget::onSwapSizeMbChanged(int sizeMb)
+{
+    m_swapSizeMb[m_buildEngines[m_virtualMachine]] = sizeMb;
+}
+
 void MerBuildEngineOptionsWidget::onCpuCountChanged(int count)
 {
     m_cpuCount[m_buildEngines[m_virtualMachine]] = count;
@@ -754,6 +790,9 @@ void MerBuildEngineOptionsWidget::onVmOffChanged(bool vmOff)
         m_ui->buildEngineDetailsWidget->setMemorySizeMb(
                 buildEngine->virtualMachine()->memorySizeMb());
         m_memorySizeMb.remove(buildEngine);
+        m_ui->buildEngineDetailsWidget->setSwapSizeMb(
+                buildEngine->virtualMachine()->swapSizeMb());
+        m_swapSizeMb.remove(buildEngine);
         m_ui->buildEngineDetailsWidget->setCpuCount(buildEngine->virtualMachine()->cpuCount());
         m_cpuCount.remove(buildEngine);
         m_ui->buildEngineDetailsWidget->setStorageSizeMb(

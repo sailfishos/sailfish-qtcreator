@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>500</width>
-    <height>111</height>
+    <height>120</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -60,7 +60,7 @@
      </item>
     </layout>
    </item>
-   <item row="1" column="0">
+   <item row="2" column="0">
     <widget class="QLabel" name="cpuLabel">
      <property name="text">
       <string>Processor(s):</string>
@@ -70,7 +70,7 @@
      </property>
     </widget>
    </item>
-   <item row="2" column="0">
+   <item row="3" column="0">
     <widget class="QLabel" name="storageSizeLabel">
      <property name="text">
       <string>Storage size:</string>
@@ -80,7 +80,7 @@
      </property>
     </widget>
    </item>
-   <item row="1" column="1">
+   <item row="2" column="1">
     <layout class="QHBoxLayout" name="horizontalLayout_2">
      <item>
       <widget class="QSpinBox" name="cpuCountSpinBox">
@@ -101,7 +101,7 @@
      </item>
     </layout>
    </item>
-   <item row="2" column="1">
+   <item row="3" column="1">
     <layout class="QHBoxLayout" name="horizontalLayout_3">
      <item>
       <widget class="QDoubleSpinBox" name="storageSizeGbSpinBox">
@@ -128,8 +128,51 @@
      </item>
     </layout>
    </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="swapLabel">
+     <property name="text">
+      <string>Swap:</string>
+     </property>
+     <property name="buddy">
+      <cstring>swapSizeGbSpinBox</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <layout class="QHBoxLayout" name="horizontalLayout_4">
+     <item>
+      <widget class="QDoubleSpinBox" name="swapSizeGbSpinBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="toolTip">
+        <string>Setting to zero disables swap (defaullt). Swap may consume the free storage size inside the virtual machine. If the requested size cannot be served, the highest possible size will be set instead.</string>
+       </property>
+       <property name="suffix">
+        <string> GB</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="swapSizeInfoLabel">
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>memorySpinBox</tabstop>
+  <tabstop>swapSizeGbSpinBox</tabstop>
+  <tabstop>cpuCountSpinBox</tabstop>
+  <tabstop>storageSizeGbSpinBox</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>
