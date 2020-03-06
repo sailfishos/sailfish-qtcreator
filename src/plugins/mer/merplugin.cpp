@@ -103,9 +103,9 @@ public:
     MerHardwareDeviceManager hardwareDeviceManager;
     MerQtVersionFactory qtVersionFactory;
     MerToolChainFactory toolChainFactory;
+    MerRpmDeployConfigurationFactory rpmDeployConfigurationFactory;
     MerMb2RpmBuildConfigurationFactory mb2RpmBuildConfigurationFactory;
     MerRsyncDeployConfigurationFactory rsyncDeployConfigurationFactory;
-    MerRpmDeployConfigurationFactory rpmDeployConfigurationFactory;
     MerAddRemoveSpecialDeployStepsProjectListener addRemoveSpecialDeployStepsProjectListener;
     MerRunConfigurationFactory runConfigurationFactory;
     MerQmlRunConfigurationFactory qmlRunConfigurationFactory;
