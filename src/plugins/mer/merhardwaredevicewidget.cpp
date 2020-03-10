@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -64,6 +64,12 @@ MerHardwareDeviceWidget::MerHardwareDeviceWidget(
             this, &MerHardwareDeviceWidget::hostNameEditingFinished);
     connect(m_ui->userLineEdit, &QLineEdit::editingFinished,
             this, &MerHardwareDeviceWidget::userNameEditingFinished);
+    connect(m_ui->keyFileLineEdit, &PathChooser::editingFinished,
+            this, &MerHardwareDeviceWidget::keyFileEditingFinished);
+    connect(m_ui->keyFileLineEdit, &PathChooser::browsingFinished,
+            this, &MerHardwareDeviceWidget::keyFileEditingFinished);
+    connect(m_ui->keyButton, &QAbstractButton::toggled,
+            this, &MerHardwareDeviceWidget::authenticationTypeChanged);
     connect(m_ui->timeoutSpinBox, &QSpinBox::editingFinished,
             this, &MerHardwareDeviceWidget::timeoutEditingFinished);
     connect(m_ui->timeoutSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
@@ -76,12 +82,26 @@ MerHardwareDeviceWidget::MerHardwareDeviceWidget(
             this, &MerHardwareDeviceWidget::handleFreePortsChanged);
     connect(m_ui->qmlLivePortsLineEdit, &QLineEdit::editingFinished,
             this, &MerHardwareDeviceWidget::handleQmlLivePortsChanged);
+    connect(m_ui->createKeyButton, &QAbstractButton::clicked,
+            this, &MerHardwareDeviceWidget::createNewKey);
     initGui();
 }
 
 MerHardwareDeviceWidget::~MerHardwareDeviceWidget()
 {
     delete m_ui;
+}
+
+void MerHardwareDeviceWidget::authenticationTypeChanged()
+{
+    SshConnectionParameters sshParams = device()->sshParameters();
+    const bool useKeyFile = m_ui->keyButton->isChecked();
+    sshParams.authenticationType = useKeyFile
+            ? SshConnectionParameters::AuthenticationTypeSpecificKey
+            : SshConnectionParameters::AuthenticationTypeAll;
+    device()->setSshParameters(sshParams);
+    m_ui->keyFileLineEdit->setEnabled(useKeyFile);
+    m_ui->keyLabel->setEnabled(useKeyFile);
 }
 
 void MerHardwareDeviceWidget::hostNameEditingFinished()
@@ -112,6 +132,13 @@ void MerHardwareDeviceWidget::userNameEditingFinished()
     device()->setSshParameters(sshParams);
 }
 
+void MerHardwareDeviceWidget::keyFileEditingFinished()
+{
+    SshConnectionParameters sshParams = device()->sshParameters();
+    sshParams.privateKeyFile = m_ui->keyFileLineEdit->path();
+    device()->setSshParameters(sshParams);
+}
+
 void MerHardwareDeviceWidget::handleFreePortsChanged()
 {
     device()->setFreePorts(PortList::fromString(m_ui->portsLineEdit->text()));
@@ -125,12 +152,26 @@ void MerHardwareDeviceWidget::handleQmlLivePortsChanged()
     updateQmlLivePortsWarningLabel();
 }
 
+void MerHardwareDeviceWidget::setPrivateKey(const QString &path)
+{
+    m_ui->keyFileLineEdit->setPath(path);
+    keyFileEditingFinished();
+}
+
+void MerHardwareDeviceWidget::createNewKey()
+{
+    SshKeyCreationDialog dialog(this);
+    if (dialog.exec() == QDialog::Accepted)
+        setPrivateKey(dialog.privateKeyFilePath());
+}
+
 void MerHardwareDeviceWidget::updateDeviceFromUi()
 {
     hostNameEditingFinished();
     sshPortEditingFinished();
     timeoutEditingFinished();
     userNameEditingFinished();
+    keyFileEditingFinished();
     handleFreePortsChanged();
     handleQmlLivePortsChanged();
 }
@@ -147,12 +188,6 @@ void MerHardwareDeviceWidget::updateQmlLivePortsWarningLabel()
             || count > Sfdk::Constants::MAX_PORT_LIST_PORTS);
 }
 
-void MerHardwareDeviceWidget::updatePrivateKeyWarningLabel()
-{
-    QFileInfo info(device()->sshParameters().privateKeyFile);
-    m_ui->privateKeyWarningLabel->setVisible(!info.exists());
-}
-
 void MerHardwareDeviceWidget::initGui()
 {
     m_ui->portsWarningLabel->setPixmap(Utils::Icons::WARNING.pixmap());
@@ -165,10 +200,10 @@ void MerHardwareDeviceWidget::initGui()
             + tr("You will need at least one and at most %1 ports for QmlLive use.")
                 .arg(Sfdk::Constants::MAX_PORT_LIST_PORTS)
             + QLatin1String("</font>"));
-    m_ui->privateKeyWarningLabel->setPixmap(Utils::Icons::WARNING.pixmap());
-    m_ui->privateKeyWarningLabel->setToolTip(QLatin1String("<font color=\"red\">")
-                                             + tr("File does not exist.")
-                                             + QLatin1String("</font>"));
+
+    m_ui->keyFileLineEdit->setExpectedKind(PathChooser::File);
+    m_ui->keyFileLineEdit->setHistoryCompleter(QLatin1String("Ssh.KeyFile.History"));
+    m_ui->keyFileLineEdit->lineEdit()->setMinimumWidth(0);
 
     QRegExpValidator * const portsValidator
             = new QRegExpValidator(QRegExp(PortList::regularExpression()), this);
@@ -177,18 +212,31 @@ void MerHardwareDeviceWidget::initGui()
 
     const SshConnectionParameters &sshParams = device()->sshParameters();
 
-    m_ui->autheticationTypeLabelEdit->setText(tr("SSH Key"));
     m_ui->timeoutSpinBox->setValue(sshParams.timeout);
     m_ui->hostLineEdit->setText(sshParams.host());
     m_ui->timeoutSpinBox->setValue(sshParams.timeout);
     m_ui->userLineEdit->setText(sshParams.userName());
-    m_ui->privateKeyLabelEdit->setText(QDir::toNativeSeparators(sshParams.privateKeyFile));
     m_ui->sshPortSpinBox->setValue(sshParams.port());
     m_ui->portsLineEdit->setText(device()->freePorts().toString());
     m_ui->qmlLivePortsLineEdit->setText(device().staticCast<MerDevice>()->qmlLivePorts().toString());
+
+    switch (sshParams.authenticationType) {
+    case SshConnectionParameters::AuthenticationTypeSpecificKey:
+        m_ui->keyButton->setChecked(true);
+        m_ui->keyFileLineEdit->setEnabled(true);
+        m_ui->keyLabel->setEnabled(true);
+        break;
+    case SshConnectionParameters::AuthenticationTypeAll:
+        m_ui->defaultAuthButton->setChecked(true);
+        m_ui->keyFileLineEdit->setEnabled(false);
+        m_ui->keyLabel->setEnabled(false);
+        break;
+    }
+
+    m_ui->keyFileLineEdit->setPath(sshParams.privateKeyFile);
+
     updatePortsWarningLabel();
     updateQmlLivePortsWarningLabel();
-    updatePrivateKeyWarningLabel();
 }
 
 } // Internal
