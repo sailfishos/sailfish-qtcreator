@@ -232,12 +232,16 @@ bool GenericLinuxDeviceConfigurationWizardKeyDeploymentPage::isComplete() const
 
 bool GenericLinuxDeviceConfigurationWizardKeyDeploymentPage::validatePage()
 {
+    SshConnectionParameters sshParams = d->device->sshParameters();
     if (!d->defaultKeys().contains(d->keyFileChooser.path())) {
-        SshConnectionParameters sshParams = d->device->sshParameters();
         sshParams.authenticationType = SshConnectionParameters::AuthenticationTypeSpecificKey;
         sshParams.privateKeyFile = d->keyFileChooser.path();
-        d->device->setSshParameters(sshParams);
+    } else {
+        sshParams.authenticationType = SshConnectionParameters::AuthenticationTypeAll;
+        sshParams.privateKeyFile.clear();
     }
+    d->device->setSshParameters(sshParams);
+
     return true;
 }
 
