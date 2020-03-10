@@ -24,6 +24,7 @@ FORMS += \
     mergeneraloptionswidget.ui \
     merhardwaredevicewidget.ui \
     merhardwaredevicewizardselectionpage.ui \
+    merhardwaredevicewizardconnectiontestpage.ui \
     merhardwaredevicewizardsetuppage.ui \
     merrpminfo.ui \
     merrpmvalidationstepconfigwidget.ui \

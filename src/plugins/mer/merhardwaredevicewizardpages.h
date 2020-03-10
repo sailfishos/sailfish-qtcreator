@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -24,6 +24,8 @@
 #ifndef MERHARDWAREDEVICEWIZARDPAGES_H
 #define MERHARDWAREDEVICEWIZARDPAGES_H
 
+#include "merhardwaredevice.h"
+
 #include <projectexplorer/abi.h>
 
 #include <QWizardPage>
@@ -41,6 +43,7 @@ namespace Internal {
 
 namespace Ui {
     class MerHardwareDeviceWizardSelectionPage;
+    class MerHardwareDeviceWizardConnectionTestPage;
     class MerHardwareDeviceWizardSetupPage;
 }
 
@@ -50,18 +53,36 @@ class MerHardwareDeviceWizardSelectionPage : public QWizardPage
 public:
     explicit MerHardwareDeviceWizardSelectionPage(QWidget *parent = 0);
 
+    void setDevice(const MerHardwareDevice::Ptr &device);
+
     QString hostName() const;
     QString userName() const;
     int timeout() const;
     int sshPort() const;
 
-    ProjectExplorer::Abi::Architecture architecture() const;
-    QString deviceName() const;
-
     bool isComplete() const override;
+    bool validatePage() override;
+
+private:
+    Ui::MerHardwareDeviceWizardSelectionPage *m_ui;
+    MerHardwareDevice::Ptr m_device;
+};
+
+class MerHardwareDeviceWizardConnectionTestPage : public QWizardPage
+{
+    Q_OBJECT
+
+public:
+    explicit MerHardwareDeviceWizardConnectionTestPage(QWidget *parent = 0);
+
+    void setDevice(const MerHardwareDevice::Ptr &device);
+
+    void initializePage() override;
+    bool isComplete() const override;
+    bool validatePage() override;
 
 private slots:
-    void handleTestConnectionClicked();
+    void testConnection();
 
 private:
     static ProjectExplorer::Abi::Architecture detectArchitecture(
@@ -73,7 +94,8 @@ private:
     void showErrorMessageDialog(const QString &error, const QString &message);
 
 private:
-    Ui::MerHardwareDeviceWizardSelectionPage *m_ui;
+    Ui::MerHardwareDeviceWizardConnectionTestPage *m_ui;
+    MerHardwareDevice::Ptr m_device;
     ProjectExplorer::Abi::Architecture m_architecture;
     QString m_deviceName;
     bool m_sdkClientToolsInstalled;
@@ -84,25 +106,23 @@ private:
 class MerHardwareDeviceWizardSetupPage : public QWizardPage
 {
     Q_OBJECT
+
 public:
     explicit MerHardwareDeviceWizardSetupPage(QWidget *parent = 0);
+
+    void setDevice(const MerHardwareDevice::Ptr &device);
 
     void initializePage() override;
 
     QString configName() const;
     QString freePorts() const;
-    QString publicKeyFilePath() const;
-    QString privateKeyFilePath() const;
-    bool isNewSshKeysRquired() const;
-    Sfdk::BuildEngine *buildEngine() const;
 
     bool isComplete() const override;
-
-private slots:
-    void handleBuildEngineChanged();
+    bool validatePage() override;
 
 private:
     Ui::MerHardwareDeviceWizardSetupPage *m_ui;
+    MerHardwareDevice::Ptr m_device;
 };
 
 }
