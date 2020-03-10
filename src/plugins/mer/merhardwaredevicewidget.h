@@ -47,7 +47,6 @@ private slots:
     void userNameEditingFinished();
     void handleFreePortsChanged();
     void handleQmlLivePortsChanged();
-    void authorizePrivateKey();
 
 private:
     void updateDeviceFromUi() override;

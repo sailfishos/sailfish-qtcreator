@@ -23,7 +23,6 @@ FORMS += \
     meremulatoroptionswidget.ui \
     mergeneraloptionswidget.ui \
     merhardwaredevicewidget.ui \
-    merhardwaredevicewidgetauthorizedialog.ui \
     merhardwaredevicewizardselectionpage.ui \
     merhardwaredevicewizardsetuppage.ui \
     merrpminfo.ui \
