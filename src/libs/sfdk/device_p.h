@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -145,6 +145,7 @@ private:
     void saveSettings(QStringList *errorStrings) const;
     void onEmulatorAdded(int index);
     void onAboutToRemoveEmulator(int index);
+    void scheduleUpdateDeviceXmlIfPrimary();
     void updateDevicesXml() const;
     static void writeDevicesXml(const QString &fileName, const QList<DeviceData> &devices,
             const EngineData &engine);

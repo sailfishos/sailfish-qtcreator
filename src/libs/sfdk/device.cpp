@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -361,13 +361,12 @@ DeviceManager::DeviceManager(QObject *parent)
     connect(EmulatorManager::instance(), &EmulatorManager::aboutToRemoveEmulator,
             this, &DeviceManager::onAboutToRemoveEmulator);
 
-    auto scheduleUpdateDeviceXmlIfPrimary = [=]() {
-        if (!SdkPrivate::isVersionedSettingsEnabled() || !Sdk::isApplyingUpdates())
-            m_updateDevicesXmlTimer.start(0, this);
-    };
-    connect(this, &DeviceManager::deviceAdded, this, scheduleUpdateDeviceXmlIfPrimary);
-    connect(this, &DeviceManager::aboutToRemoveDevice, this, scheduleUpdateDeviceXmlIfPrimary);
-    connect(Sdk::instance(), &Sdk::customBuildHostNameChanged, this, scheduleUpdateDeviceXmlIfPrimary);
+    connect(this, &DeviceManager::deviceAdded,
+            this, &DeviceManager::scheduleUpdateDeviceXmlIfPrimary);
+    connect(this, &DeviceManager::aboutToRemoveDevice,
+            this, &DeviceManager::scheduleUpdateDeviceXmlIfPrimary);
+    connect(Sdk::instance(), &Sdk::customBuildHostNameChanged,
+            this, &DeviceManager::scheduleUpdateDeviceXmlIfPrimary);
 }
 
 DeviceManager::~DeviceManager()
@@ -399,6 +398,9 @@ int DeviceManager::addDevice(std::unique_ptr<Device> &&device)
 {
     QTC_ASSERT(device, return -1);
     QTC_ASSERT(!DeviceManager::device(device->id()), return -1);
+
+    connect(device.get(), &Device::sshParametersChanged,
+            s_instance, &DeviceManager::scheduleUpdateDeviceXmlIfPrimary);
 
     s_instance->m_devices.emplace_back(std::move(device));
     const int index = s_instance->m_devices.size() - 1;
@@ -507,6 +509,8 @@ void DeviceManager::fromMap(const QVariantMap &data)
         QTC_ASSERT(ok, return);
 
         if (newDevice) {
+            connect(newDevice.get(), &Device::sshParametersChanged,
+                    this, &DeviceManager::scheduleUpdateDeviceXmlIfPrimary);
             m_devices.emplace_back(std::move(newDevice));
             emit deviceAdded(m_devices.size() - 1);
         }
@@ -558,6 +562,12 @@ void DeviceManager::onAboutToRemoveEmulator(int index)
     QTC_ASSERT(deviceIndex >= 0, return);
     emit aboutToRemoveDevice(deviceIndex);
     m_devices.erase(m_devices.cbegin() + deviceIndex);
+}
+
+void DeviceManager::scheduleUpdateDeviceXmlIfPrimary()
+{
+    if (!SdkPrivate::isVersionedSettingsEnabled() || !Sdk::isApplyingUpdates())
+        m_updateDevicesXmlTimer.start(0, this);
 }
 
 // TODO multiple build engines
