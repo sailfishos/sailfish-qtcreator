@@ -33,6 +33,8 @@
 #include <utils/optional.h>
 #include <utils/pointeralgorithm.h>
 
+#include <QDir>
+
 using namespace QSsh;
 using namespace Utils;
 
@@ -55,6 +57,7 @@ const char SUBNET[] = "subnet";
 const char MAC[] = "mac";
 const char INDEX[] = "index";
 const char SSH_PORT[] = "sshport";
+const char MAGIC_HOME_PREFIX[] = "$HOME/";
 
 } // namespace anonymous
 
@@ -573,6 +576,8 @@ void DeviceManager::scheduleUpdateDeviceXmlIfPrimary()
 // TODO multiple build engines
 void DeviceManager::updateDevicesXml() const
 {
+    const FileName homePath = FileName::fromString(QDir::cleanPath(QDir::homePath()));
+
     QList<DeviceData> devices;
     QList<FileName> emulatorConfigPaths;
 
@@ -583,13 +588,12 @@ void DeviceManager::updateDevicesXml() const
             xmlData.m_name = device->name();
             xmlData.m_type = TYPE_REAL;
             xmlData.m_sshPort.setNum(device->sshParameters().port());
-            const FileName sharedConfigPath = !Sdk::buildEngines().isEmpty()
-                ? Sdk::buildEngines().first()->sharedConfigPath()
-                : FileName();
-            if (!sharedConfigPath.isEmpty()) {
-                xmlData.m_sshKeyPath =
-                    FileName::fromString(device->sshParameters().privateKeyFile).parentDir()
-                    .relativeChildPath(sharedConfigPath).toString();
+            if (device->sshParameters().authenticationType
+                    == SshConnectionParameters::AuthenticationTypeSpecificKey) {
+                const FileName path = FileName::fromString(device->sshParameters().privateKeyFile);
+                QTC_ASSERT(path.isChildOf(homePath), continue);
+                xmlData.m_sshKeyPath = MAGIC_HOME_PREFIX
+                    + QDir::fromNativeSeparators(path.relativeChildPath(homePath).toString());
             }
         } else {
             EmulatorDevice *const emulatorDevice = static_cast<EmulatorDevice *>(device.get());
