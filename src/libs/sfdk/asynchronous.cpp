@@ -247,8 +247,8 @@ void ProcessRunner::timerEvent(QTimerEvent *event)
 {
     if (event->timerId() == m_terminateTimeoutTimer.timerId()) {
         m_terminateTimeoutTimer.stop();
-        // Note that on Windows it always ends here as terminate() has no
-        // effect on VBoxManage there
+        // Note that with VBoxManage on Windows it always ends here as
+        // terminate() has no effect on VBoxManage there.
         m_process->kill();
     } else {
         QObject::timerEvent(event);
@@ -258,7 +258,7 @@ void ProcessRunner::timerEvent(QTimerEvent *event)
 void ProcessRunner::onErrorOccured(QProcess::ProcessError error)
 {
     if (error == QProcess::FailedToStart) {
-        qCWarning(vms) << "VBoxManage failed to start";
+        qCWarning(vms) << "Process" << m_process->program() << "failed to start";
         emit failure();
         emit done(false);
     }
@@ -270,17 +270,19 @@ void ProcessRunner::onFinished(int exitCode, QProcess::ExitStatus exitStatus)
 
     if (exitStatus != QProcess::NormalExit) {
         if (m_crashExpected) {
-            qCDebug(vms) << "VBoxManage crashed as expected. Arguments:" << m_process->arguments();
+            qCDebug(vms) << "Process" << m_process->program() << " crashed as expected. Arguments:"
+                << m_process->arguments();
             emit success();
             emit done(true);
             return;
         }
-        qCWarning(vms) << "VBoxManage crashed. Arguments:" << m_process->arguments();
+        qCWarning(vms) << "Process" << m_process->program() << " crashed. Arguments:"
+            << m_process->arguments();
         emit failure();
         emit done(false);
     } else if (!m_expectedExitCodes.contains(exitCode)) {
-        qCWarning(vms) << "VBoxManage exited with unexpected exit code" << exitCode
-            << ". Arguments:" << m_process->arguments();
+        qCWarning(vms) << "Process" << m_process->program() << " exited with unexpected exit code"
+            << exitCode << ". Arguments:" << m_process->arguments();
         emit failure();
         emit done(false);
     } else {
