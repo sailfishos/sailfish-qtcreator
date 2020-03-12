@@ -23,14 +23,17 @@
 
 #include "addsfdkdevicemodeloperation.h"
 #include "addkeysoperation.h"
+#include "addsfdkemulatoroperation.h"
 #include "findvalueoperation.h"
 #include "rmkeysoperation.h"
 #include "getoperation.h"
 #include "sfdkutils.h"
 #include "../../libs/sfdk/sfdkconstants.h"
+#include <QDir>
 #include <QRect>
 #include <iostream>
 
+const char MER_PARAM_INSTALLDIR[] = "--installdir";
 const char MER_PARAM_NAME[] = "--name";
 const char MER_PARAM_HRES_PX[] = "--hres-px";
 const char MER_PARAM_VRES_PX[] = "--vres-px";
@@ -57,7 +60,8 @@ QString AddSfdkDeviceModelOperation::helpText() const
 QString AddSfdkDeviceModelOperation::argumentsHelpText() const
 {
     const QString indent = QLatin1String("    ");
-    return indent + QLatin1String(MER_PARAM_NAME) + QLatin1String(" <STRING>        name of this device model (required).\n")
+    return indent + QLatin1String(MER_PARAM_INSTALLDIR) + QLatin1String(" <DIR>     SDK installation directory (required).\n")
+         + indent + QLatin1String(MER_PARAM_NAME) + QLatin1String(" <STRING>        name of this device model (required).\n")
          + indent + QLatin1String(MER_PARAM_HRES_PX) + QLatin1String(" <NUM>        display horizontal resolution in px (required).\n")
          + indent + QLatin1String(MER_PARAM_VRES_PX) + QLatin1String(" <NUM>        display vertical resolution in px (required).\n")
          + indent + QLatin1String(MER_PARAM_HSIZE_MM) + QLatin1String(" <NUM>       display horizontal size in milimeters (required).\n")
@@ -71,6 +75,14 @@ bool AddSfdkDeviceModelOperation::setArguments(const QStringList &args)
     for (int i = 0; i < args.count(); ++i) {
         const QString current = args.at(i);
         const QString next = ((i + 1) < args.count()) ? args.at(i + 1) : QString();
+
+        if (current == QLatin1String(MER_PARAM_INSTALLDIR)) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_installDir = QDir::fromNativeSeparators(next);
+            continue;
+        }
 
         if (current == QLatin1String(MER_PARAM_NAME)) {
             if (next.isNull())
@@ -123,6 +135,10 @@ bool AddSfdkDeviceModelOperation::setArguments(const QStringList &args)
 
     const char MISSING[] = " parameter missing.";
     bool error = false;
+    if (m_installDir.isEmpty()) {
+        std::cerr << MER_PARAM_INSTALLDIR << MISSING << std::endl << std::endl;
+        error = true;
+    }
     if (m_name.isEmpty()) {
         std::cerr << MER_PARAM_NAME << MISSING << std::endl << std::endl;
         error = true;
@@ -157,7 +173,7 @@ int AddSfdkDeviceModelOperation::execute() const
 
     QVariantMap map = load(QLatin1String("SfdkEmulators"));
     if (map.isEmpty())
-        map = initializeDeviceModels();
+        map = initializeDeviceModels(m_installDir);
 
     const QVariantMap result = addDeviceModel(map, m_name, m_hres, m_vres, m_hsize, m_vsize, m_dconfDb);
 
@@ -167,15 +183,9 @@ int AddSfdkDeviceModelOperation::execute() const
     return save(result, QLatin1String("SfdkEmulators")) ? 0 : 3;
 }
 
-QVariantMap AddSfdkDeviceModelOperation::initializeDeviceModels()
+QVariantMap AddSfdkDeviceModelOperation::initializeDeviceModels(const QString &installDir)
 {
-    QVariantMap map;
-    // Version and install dir should be initialized by AddSfdkEmulatorOperation
-    map.insert(QLatin1String(C::EMULATORS_VERSION_KEY), -1);
-    map.insert(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY), QLatin1String("/dev/null"));
-    map.insert(QLatin1String(C::EMULATORS_COUNT_KEY), 0);
-    map.insert(QLatin1String(C::DEVICE_MODELS_COUNT_KEY), 0);
-    return map;
+    return AddSfdkEmulatorOperation::initializeEmulators(installDir);
 }
 
 QVariantMap AddSfdkDeviceModelOperation::addDeviceModel(const QVariantMap &map,
@@ -229,14 +239,14 @@ QVariantMap AddSfdkDeviceModelOperation::addDeviceModel(const QVariantMap &map,
 #ifdef WITH_TESTS
 bool AddSfdkDeviceModelOperation::test() const
 {
-    QVariantMap map = initializeDeviceModels();
+    QVariantMap map = initializeDeviceModels(QLatin1String("/dir"));
 
     if (map.count() != 4
             || !map.contains(QLatin1String(C::EMULATORS_VERSION_KEY))
             || map.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != -1
             || !map.contains(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY))
             || map.value(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY)).toString()
-                != QLatin1String("/dev/null")
+                != QLatin1String("/dir")
             || !map.contains(QLatin1String(C::EMULATORS_COUNT_KEY))
             || map.value(QLatin1String(C::EMULATORS_COUNT_KEY)).toInt() != 0
             || !map.contains(QLatin1String(C::DEVICE_MODELS_COUNT_KEY))
@@ -252,7 +262,7 @@ bool AddSfdkDeviceModelOperation::test() const
             || map.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != -1
             || !map.contains(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY))
             || map.value(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY)).toString()
-                != QLatin1String("/dev/null")
+                != QLatin1String("/dir")
             || !map.contains(QLatin1String(C::EMULATORS_COUNT_KEY))
             || map.value(QLatin1String(C::EMULATORS_COUNT_KEY)).toInt() != 0
             || !map.contains(QLatin1String(C::DEVICE_MODELS_COUNT_KEY))
