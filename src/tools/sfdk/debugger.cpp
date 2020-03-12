@@ -167,7 +167,6 @@ private:
                 done
             }
             expand_port_list "$1" |while read port; do
-                sleep 10
                 ! port_is_used "$port" && echo "$port" && break
             done \
             |grep .
