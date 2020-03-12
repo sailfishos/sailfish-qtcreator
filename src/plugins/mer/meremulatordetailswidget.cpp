@@ -123,6 +123,7 @@ void MerEmulatorDetailsWidget::setEmulator(const Sfdk::Emulator *emulator)
     m_ui->freePortsLineEdit->setText(emulator->freePorts().toString());
     m_ui->sshFolderPathLabel->setText(QDir::toNativeSeparators(emulator->sharedSshPath().toString()));
     m_ui->configFolderPathLabel->setText(QDir::toNativeSeparators(emulator->sharedConfigPath().toString()));
+    m_ui->virtualMachineSettingsWidget->setVmFeatures(emulator->virtualMachine()->features());
     m_ui->virtualMachineSettingsWidget->setMemorySizeMb(emulator->virtualMachine()->memorySizeMb());
     m_ui->virtualMachineSettingsWidget->setCpuCount(emulator->virtualMachine()->cpuCount());
     m_ui->virtualMachineSettingsWidget->setStorageSizeMb(emulator->virtualMachine()->storageSizeMb());

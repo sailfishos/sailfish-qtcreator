@@ -26,8 +26,11 @@
 
 #include <QWidget>
 
+#include <sfdk/virtualmachine.h>
+
 QT_BEGIN_NAMESPACE
 class QFormLayout;
+class QLabel;
 QT_END_NAMESPACE
 
 namespace Mer {
@@ -44,6 +47,7 @@ class MerVirtualMachineSettingsWidget : public QWidget
 public:
     explicit MerVirtualMachineSettingsWidget(QWidget *parent = nullptr);
     ~MerVirtualMachineSettingsWidget();
+    void setVmFeatures(Sfdk::VirtualMachine::Features features);
     void setMemorySizeMb(int sizeMb);
     void setCpuCount(int count);
     void setStorageSizeMb(int storageSizeMb);
@@ -57,7 +61,10 @@ signals:
 
 private:
     void initGui();
+    void setToolTip(QLabel *label, const QString& toolTipText);
+    void setStorageSizeLimits();
     Ui::MerVirtualMachineSettingsWidget *ui;
+    Sfdk::VirtualMachine::Features m_features;
 };
 
 } // Internal
