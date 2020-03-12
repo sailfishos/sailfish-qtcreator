@@ -70,7 +70,7 @@ public:
            const QString &subnet,
            const QVariantMap &deviceModelMap,
            bool viewScaled);
-    static QVariantMap initializeEmulators(int version, const QString &installDir);
+    static QVariantMap initializeEmulators(const QString &installDir, int version = -1);
 
 private:
     QString m_installDir;

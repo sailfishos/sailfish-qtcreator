@@ -303,7 +303,7 @@ int AddSfdkEmulatorOperation::execute() const
 
     QVariantMap map = load(QLatin1String("SfdkEmulators"));
     if (map.isEmpty())
-        map = initializeEmulators(1, m_installDir);
+        map = initializeEmulators(m_installDir);
 
     QVariantMap deviceModelMap;
     const int deviceModelsCount = map.value(QLatin1String(C::DEVICE_MODELS_COUNT_KEY)).toInt();
@@ -321,10 +321,6 @@ int AddSfdkEmulatorOperation::execute() const
         return 2;
     };
 
-    // These are initialized from AddSfdkDeviceModelOperation to invalid values
-    map.insert(QLatin1String(C::EMULATORS_VERSION_KEY), 1);
-    map.insert(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY), m_installDir);
-
     const QVariantMap result = addEmulator(map, m_vmUri, QDateTime::currentDateTime(),
             m_vmFactorySnapshot, m_autodetected, m_sharedSshPath, m_sharedConfigPath, m_host,
             m_userName, m_privateKeyFile, m_sshPort, m_qmlLivePorts, m_freePorts, m_mac, m_subnet,
@@ -336,11 +332,12 @@ int AddSfdkEmulatorOperation::execute() const
     return save(result, QLatin1String("SfdkEmulators")) ? 0 : 3;
 }
 
-QVariantMap AddSfdkEmulatorOperation::initializeEmulators(int version,
-        const QString &installDir)
+QVariantMap AddSfdkEmulatorOperation::initializeEmulators(const QString &installDir, int version)
 {
+    const int CURRENT_VERSION = 1;
+
     QVariantMap map;
-    map.insert(QLatin1String(C::EMULATORS_VERSION_KEY), version);
+    map.insert(QLatin1String(C::EMULATORS_VERSION_KEY), version != -1 ? version : CURRENT_VERSION);
     map.insert(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY), installDir);
     map.insert(QLatin1String(C::EMULATORS_COUNT_KEY), 0);
     map.insert(QLatin1String(C::DEVICE_MODELS_COUNT_KEY), 0);
@@ -419,7 +416,7 @@ QVariantMap AddSfdkEmulatorOperation::addEmulator(const QVariantMap &map,
 #ifdef WITH_TESTS
 bool AddSfdkEmulatorOperation::test() const
 {
-    QVariantMap map = initializeEmulators(2, QLatin1String("/dir"));
+    QVariantMap map = initializeEmulators(QLatin1String("/dir"), 2);
 
     if (map.count() != 4
             || !map.contains(QLatin1String(C::EMULATORS_VERSION_KEY))

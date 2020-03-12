@@ -77,7 +77,7 @@ int RmSfdkDeviceModelOperation::execute() const
 
     QVariantMap map = load(QLatin1String("SfdkEmulators"));
     if (map.isEmpty())
-        map = AddSfdkDeviceModelOperation::initializeDeviceModels();
+        return 2;
 
     QVariantMap result = removeDeviceModel(map, m_name);
 
