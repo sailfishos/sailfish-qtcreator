@@ -38,6 +38,7 @@ public:
     static bool isAvailable();
     static QString staticType();
     static QString staticDisplayType();
+    static VirtualMachine::Features staticFeatures();
     static void fetchRegisteredVirtualMachines(const QObject *context,
             const Functor<const QStringList &, bool> &functor);
 

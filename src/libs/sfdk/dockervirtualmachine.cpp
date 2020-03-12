@@ -134,7 +134,8 @@ CommandQueue *commandQueue()
  */
 
 DockerVirtualMachine::DockerVirtualMachine(const QString &name, QObject *parent)
-    : VirtualMachine(std::make_unique<DockerVirtualMachinePrivate>(this), staticType(), name, parent)
+    : VirtualMachine(std::make_unique<DockerVirtualMachinePrivate>(this), staticType(),
+            staticFeatures(), name, parent)
 {
     Q_D(DockerVirtualMachine);
     d->setDisplayType(staticDisplayType());
@@ -157,6 +158,11 @@ QString DockerVirtualMachine::staticType()
 QString DockerVirtualMachine::staticDisplayType()
 {
     return tr("Docker");
+}
+
+VirtualMachine::Features DockerVirtualMachine::staticFeatures()
+{
+    return VirtualMachine::NoFeatures;
 }
 
 void DockerVirtualMachine::fetchRegisteredVirtualMachines(const QObject *context,

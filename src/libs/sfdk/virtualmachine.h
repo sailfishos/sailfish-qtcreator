@@ -76,11 +76,23 @@ public:
         Synchronous
     };
 
+    enum Feature {
+        NoFeatures = 0x00,
+        LimitMemorySize = 0x01,
+        LimitCpuCount = 0x02,
+        GrowStorageSize = 0x04,
+        ShrinkStorageSize = 0x08,
+        OptionalHeadless = 0x10,
+        Snapshots = 0x11,
+    };
+    Q_DECLARE_FLAGS(Features, Feature)
+
     ~VirtualMachine() override;
 
     QUrl uri() const;
     QString type() const;
     QString displayType() const;
+    Features features() const;
     // FIXME add qualifiedName() that would include type information?
     QString name() const;
 
@@ -153,7 +165,7 @@ signals:
 
 protected:
     VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, const QString &type,
-            const QString &name, QObject *parent);
+            const Features &features, const QString &name, QObject *parent);
     std::unique_ptr<VirtualMachinePrivate> d_ptr;
 
 private:
@@ -165,6 +177,7 @@ private:
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(VirtualMachine::ConnectOptions)
+Q_DECLARE_OPERATORS_FOR_FLAGS(VirtualMachine::Features)
 
 class SFDK_EXPORT VirtualMachine::ConnectionUi : public QObject
 {

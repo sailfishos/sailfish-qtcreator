@@ -38,6 +38,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QLockFile>
+#include <QTimer>
 #include <QThread>
 
 #ifdef Q_OS_WIN
@@ -113,12 +114,13 @@ private:
 VirtualMachine::ConnectionUiCreator VirtualMachine::s_connectionUiCreator;
 
 VirtualMachine::VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, const QString &type,
-        const QString &name, QObject *parent)
+        const Features &features, const QString &name, QObject *parent)
     : QObject(parent)
     , d_ptr(std::move(dd))
 {
     Q_D(VirtualMachine);
     d->type = type;
+    d->features = features;
     d->name = name;
     QTC_ASSERT(s_connectionUiCreator, return);
     d->connectionUi_ = s_connectionUiCreator(this);
@@ -155,6 +157,11 @@ QString VirtualMachine::type() const
 QString VirtualMachine::displayType() const
 {
     return d_func()->displayType;
+}
+
+VirtualMachine::Features VirtualMachine::features() const
+{
+    return d_func()->features;
 }
 
 QString VirtualMachine::name() const
@@ -194,6 +201,7 @@ bool VirtualMachine::isHeadless() const
 void VirtualMachine::setHeadless(bool headless)
 {
     Q_D(VirtualMachine);
+    QTC_ASSERT(d->features & OptionalHeadless, return);
     if (d->headless == headless)
         return;
     d->headless = headless;
@@ -240,6 +248,8 @@ void VirtualMachine::setMemorySizeMb(int memorySizeMb, const QObject *context,
         const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
+    QTC_ASSERT(d->features & LimitMemorySize,
+               QTimer::singleShot(0, context, std::bind(functor, false)); return);
     QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
@@ -278,6 +288,8 @@ int VirtualMachine::cpuCount() const
 void VirtualMachine::setCpuCount(int cpuCount, const QObject *context, const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
+    QTC_ASSERT(d->features & LimitCpuCount,
+               QTimer::singleShot(0, context, std::bind(functor, false)); return);
     QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
@@ -308,6 +320,12 @@ void VirtualMachine::setStorageSizeMb(int storageSizeMb, const QObject *context,
         const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
+    QTC_ASSERT(d->features & (GrowStorageSize | ShrinkStorageSize),
+            QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_ASSERT(!(storageSizeMb > d->virtualMachineInfo.storageSizeMb) || d->features & GrowStorageSize,
+            QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_ASSERT(!(storageSizeMb < d->virtualMachineInfo.storageSizeMb) || d->features & ShrinkStorageSize,
+            QTimer::singleShot(0, context, std::bind(functor, false)); return);
     QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};

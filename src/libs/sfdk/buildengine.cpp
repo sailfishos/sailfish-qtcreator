@@ -357,8 +357,10 @@ bool BuildEnginePrivate::fromMap(const QVariantMap &data)
             data.value(Constants::BUILD_ENGINE_WWW_PROXY_SERVERS).toString(),
             data.value(Constants::BUILD_ENGINE_WWW_PROXY_EXCLUDES).toString());
 
-    const bool headless = data.value(Constants::BUILD_ENGINE_HEADLESS).toBool();
-    virtualMachine->setHeadless(headless);
+    if (virtualMachine->features() & VirtualMachine::OptionalHeadless) {
+        const bool headless = data.value(Constants::BUILD_ENGINE_HEADLESS).toBool();
+        virtualMachine->setHeadless(headless);
+    }
 
     const int newCount = data.value(Constants::BUILD_ENGINE_TARGETS_COUNT_KEY).toInt();
     QList<BuildTargetDump> newBuildTargets;
