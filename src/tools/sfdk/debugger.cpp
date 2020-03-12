@@ -152,7 +152,8 @@ private:
         const QString scannerScript(R"(
             port_is_used() {
                 local port=$1
-                sudo /sbin/fuser --silent --namespace tcp "$port";
+                local regex=$(printf '^[^:]*: [[:xdigit:]]*:%04x ' "$port")
+                grep -q -e "$regex" /proc/net/tcp*
             }
             # Ensure it really works - assume port 22 is always open
             if ! port_is_used 22; then
@@ -202,7 +203,8 @@ private:
         const QString watcherScript(R"(
             port_is_used() {
                 local port=$1
-                sudo /sbin/fuser --silent --namespace tcp "$port"
+                local regex=$(printf '^[^:]*: [[:xdigit:]]*:%04x ' "$port")
+                grep -q -e "$regex" /proc/net/tcp*
             }
             while ! port_is_used "$1"; do
                 sleep 1;
