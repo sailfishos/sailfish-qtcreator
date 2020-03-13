@@ -43,6 +43,7 @@ public:
 
 protected:
     void timerEvent(QTimerEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     bool isReallyActive() const;
