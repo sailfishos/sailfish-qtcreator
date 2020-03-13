@@ -79,6 +79,7 @@ public:
 
     bool isAutodetected() const;
 
+    Utils::FileName sharedInstallPath() const;
     Utils::FileName sharedHomePath() const;
     Utils::FileName sharedTargetsPath() const;
     Utils::FileName sharedConfigPath() const;
@@ -103,6 +104,7 @@ public:
     BuildTargetData buildTarget(const QString &name) const;
 
 signals:
+    void sharedInstallPathChanged(const Utils::FileName &sharedInstallPath);
     void sharedHomePathChanged(const Utils::FileName &sharedHomePath);
     void sharedTargetsPathChanged(const Utils::FileName &sharedTargetsPath);
     void sharedConfigPathChanged(const Utils::FileName &sharedConfigPath);

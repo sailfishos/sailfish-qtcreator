@@ -80,6 +80,7 @@ public:
     QDateTime creationTime_() const { return creationTime; }
 
 private:
+    void setSharedInstallPath(const Utils::FileName &sharedInstallPath);
     void setSharedHomePath(const Utils::FileName &sharedHomePath);
     void setSharedTargetsPath(const Utils::FileName &sharedTargetsPath);
     void setSharedConfigPath(const Utils::FileName &sharedConfigPath);
@@ -112,6 +113,7 @@ private:
     QDateTime creationTime;
     std::unique_ptr<VirtualMachine> virtualMachine;
     bool autodetected = false;
+    Utils::FileName sharedInstallPath;
     Utils::FileName sharedHomePath;
     Utils::FileName sharedTargetsPath;
     Utils::FileName sharedConfigPath;

@@ -56,6 +56,7 @@ const char VM_INFO_CACHE_DOC_TYPE[] = "SfdkVmInfo";
 const int  VM_INFO_CACHE_UPDATE_DELAY_MS = 2000;
 const char VM_INFO_MAP[] = "VmInfos";
 
+const char VM_INFO_SHARED_INSTALL[] = "SharedInstall";
 const char VM_INFO_SHARED_HOME[] = "SharedHome";
 const char VM_INFO_SHARED_TARGETS[] = "SharedTargets";
 const char VM_INFO_SHARED_CONFIG[] = "SharedConfig";
@@ -476,6 +477,9 @@ void VirtualMachinePrivate::setSharedPath(SharedPath which, const Utils::FileNam
                 functor(false);
         }
         switch (which) {
+        case SharedInstall:
+            virtualMachineInfo.sharedInstall = path.toString();
+            break;
         case SharedConfig:
             virtualMachineInfo.sharedConfig = path.toString();
             break;
@@ -861,6 +865,7 @@ QString VirtualMachineInfoCache::docType()
 
 void VirtualMachineInfo::fromMap(const QVariantMap &data)
 {
+    sharedInstall = data.value(VM_INFO_SHARED_INSTALL).toString();
     sharedHome = data.value(VM_INFO_SHARED_HOME).toString();
     sharedTargets = data.value(VM_INFO_SHARED_TARGETS).toString();
     sharedConfig = data.value(VM_INFO_SHARED_CONFIG).toString();
@@ -890,6 +895,7 @@ QVariantMap VirtualMachineInfo::toMap() const
 {
     QVariantMap data;
 
+    data.insert(VM_INFO_SHARED_INSTALL, sharedInstall);
     data.insert(VM_INFO_SHARED_HOME, sharedHome);
     data.insert(VM_INFO_SHARED_TARGETS, sharedTargets);
     data.insert(VM_INFO_SHARED_CONFIG, sharedConfig);
