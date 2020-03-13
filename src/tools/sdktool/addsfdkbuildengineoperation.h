@@ -59,6 +59,7 @@ public:
            const QUrl &vmUri,
            const QDateTime &creationTime,
            bool autodetected,
+           const QString &sharedInstallPath,
            const QString &sharedHomePath,
            const QString &sharedTargetsPath,
            const QString &sharedSshPath,
@@ -76,6 +77,7 @@ private:
     QString m_installDir;
     QUrl m_vmUri;
     bool m_autodetected = true;
+    QString m_sharedInstallPath;
     QString m_sharedHomePath;
     QString m_sharedTargetsPath;
     QString m_sharedSshPath;

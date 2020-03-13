@@ -153,6 +153,7 @@ bool RmSfdkBuildEngineOperation::test() const
     QVariantMap map = AddSfdkBuildEngineOperation::initializeBuildEngines(2, QLatin1String("/dir"));
     map = AddSfdkBuildEngineOperation::addBuildEngine(map,
                                                  QUrl("sfdkvm:VirtualBox#testBuildEngine"), now, true,
+                                                 QLatin1String("/test/sharedInstallPath"),
                                                  QLatin1String("/test/sharedHomePath"),
                                                  QLatin1String("/test/sharedTargetPath"),
                                                  QLatin1String("/test/sharedSshPath"),
@@ -163,6 +164,7 @@ bool RmSfdkBuildEngineOperation::test() const
 
     map = AddSfdkBuildEngineOperation::addBuildEngine(map,
                                      QUrl("sfdkvm:VirtualBox#testBuildEngine2"), now, true,
+                                     QLatin1String("/test/sharedInstallPath"),
                                      QLatin1String("/test/sharedHomePath"),
                                      QLatin1String("/test/sharedTargetPath"),
                                      QLatin1String("/test/sharedSshPath"),
