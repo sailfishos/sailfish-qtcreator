@@ -47,6 +47,7 @@
 #include <qmakeprojectmanager/qmakestep.h>
 #include <utils/checkablemessagebox.h>
 
+#include <QApplication>
 #include <QCheckBox>
 
 using namespace Core;
@@ -131,6 +132,16 @@ void MerBuildConfiguration::timerEvent(QTimerEvent *event)
     }
 }
 
+bool MerBuildConfiguration::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() == QEvent::Close) {
+        QTimer::singleShot(0, this, &MerBuildConfiguration::maybeSetupExtraParserArguments);
+        watched->removeEventFilter(this);
+    }
+
+    return QmakeBuildConfiguration::eventFilter(watched, event);
+}
+
 bool MerBuildConfiguration::isReallyActive() const
 {
     QTC_ASSERT(project(), return false);
@@ -146,6 +157,13 @@ void MerBuildConfiguration::maybeSetupExtraParserArguments()
     // more cases are covered
     if (ModeManager::currentModeId() != Core::Constants::MODE_EDIT &&
             ModeManager::currentModeId() != Debugger::Constants::MODE_DEBUG) {
+        return;
+    }
+
+    // Most importantly, avoid taking actions on temporary changes when the mini
+    // project target selector is open, but more cases are covered
+    if (QApplication::activePopupWidget()) {
+        QApplication::activePopupWidget()->installEventFilter(this);
         return;
     }
 
