@@ -116,9 +116,9 @@ protected:
         return tr("Value cannot be decreased");
     }
 
-    static QString unknownPropertyMessage(const QString &name)
+    static QString unknownPropertyMessage()
     {
-        return tr("Unrecognized property \"%1\"").arg(name);
+        return tr("Unrecognized property");
     }
 };
 
@@ -268,7 +268,7 @@ public:
             }
             return Prepared;
         } else {
-            *errorString = unknownPropertyMessage(name);
+            *errorString = unknownPropertyMessage();
             return Ignored;
         }
     }
@@ -369,7 +369,7 @@ public:
             m_wwwProxyExcludes = value.trimmed();
             return Prepared;
         } else {
-            *errorString = unknownPropertyMessage(name);
+            *errorString = unknownPropertyMessage();
             return Ignored;
         }
     }
@@ -504,7 +504,7 @@ private:
             m_hostNameChanged = true;
             return Prepared;
         } else {
-            *errorString = unknownPropertyMessage(name);
+            *errorString = unknownPropertyMessage();
             return Ignored;
         }
     }
@@ -1645,7 +1645,7 @@ Worker::ExitStatus BuiltinWorker::setProperties(SetPropertiesTask *task,
         QString errorString;
         if (!task->prepareSet(property, value, &errorString)) {
             *exitCode = EXIT_FAILURE;
-            qerr() << errorString << endl;
+            qerr() << property << ": " << errorString << endl;
             return NormalExit;
         }
     }
