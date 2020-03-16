@@ -1,4 +1,4 @@
-/****************************************************************************
+﻿/****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
 ** Copyright (C) 2019 Open Mobile Platform LLC.
@@ -57,6 +57,25 @@ MerVirtualMachineSettingsWidget::~MerVirtualMachineSettingsWidget()
     delete ui;
 }
 
+void MerVirtualMachineSettingsWidget::setVmFeatures(VirtualMachine::Features features)
+{
+    m_features = features;
+    QString stopVmText = tr("Stop the virtual machine to unlock this field for editing.");
+    if (features & VirtualMachine::LimitMemorySize)
+        setToolTip(ui->memoryInfoLabel, stopVmText);
+    else
+        setToolTip(ui->memoryInfoLabel, tr("Virtual Machine does not allow changing memory size"));
+    if (features & VirtualMachine::LimitCpuCount)
+        setToolTip(ui->cpuInfoLabel, stopVmText);
+    else
+        setToolTip(ui->cpuInfoLabel, tr("Virtual Machine does not allow changing cpu count"));
+    setStorageSizeLimits();
+    if (features & (VirtualMachine::GrowStorageSize | VirtualMachine::ShrinkStorageSize))
+        setToolTip(ui->storageSizeInfoLabel, stopVmText);
+    else
+        setToolTip(ui->storageSizeInfoLabel, tr("Virtual Machine does not allow changing storage size"));
+}
+
 void MerVirtualMachineSettingsWidget::setMemorySizeMb(int sizeMb)
 {
     if (ui->memorySpinBox->maximum() < sizeMb)
@@ -73,21 +92,20 @@ void MerVirtualMachineSettingsWidget::setCpuCount(int count)
 void MerVirtualMachineSettingsWidget::setStorageSizeMb(int storageSizeMb)
 {
     const double storageSizeGb = storageSizeMb / 1024.0;
-    // Prohibit adding more than MAX_STORAGE_SIZE_INCREMENT_GB in one step, because there is no way to go back
-    // the minimum size is the current size because VBoxManager can't reduce storage size
-    ui->storageSizeGbSpinBox->setRange(storageSizeGb, storageSizeGb + MAX_STORAGE_SIZE_INCREMENT_GB);
     ui->storageSizeGbSpinBox->setValue(storageSizeGb);
+    setStorageSizeLimits();
 }
 
 void MerVirtualMachineSettingsWidget::setVmOff(bool vmOff)
 {
-    ui->memorySpinBox->setEnabled(vmOff);
-    ui->cpuCountSpinBox->setEnabled(vmOff);
-    ui->storageSizeGbSpinBox->setEnabled(vmOff);
+    ui->memorySpinBox->setEnabled(vmOff && (m_features & VirtualMachine::LimitMemorySize));
+    ui->cpuCountSpinBox->setEnabled(vmOff && (m_features & VirtualMachine::LimitCpuCount));
+    ui->storageSizeGbSpinBox->setEnabled(vmOff && (m_features & (VirtualMachine::GrowStorageSize
+                                                                 | VirtualMachine::ShrinkStorageSize)));
 
-    ui->memoryInfoLabel->setVisible(!vmOff);
-    ui->cpuInfoLabel->setVisible(!vmOff);
-    ui->storageSizeInfoLabel->setVisible(!vmOff);
+    ui->memoryInfoLabel->setVisible(!ui->memorySpinBox->isEnabled());
+    ui->cpuInfoLabel->setVisible(!ui->cpuCountSpinBox->isEnabled());
+    ui->storageSizeInfoLabel->setVisible(!ui->storageSizeGbSpinBox->isEnabled());
 }
 
 QFormLayout *MerVirtualMachineSettingsWidget::formLayout() const
@@ -112,22 +130,29 @@ void MerVirtualMachineSettingsWidget::initGui()
     });
 
     ui->memoryInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
-    ui->memoryInfoLabel->setToolTip(
-            QLatin1String("<font color=\"red\">")
-            + tr("Stop the virtual machine to unlock this field for editing.")
-            + QLatin1String("</font>"));
-
     ui->cpuInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
-    ui->cpuInfoLabel->setToolTip(
-            QLatin1String("<font color=\"red\">")
-            + tr("Stop the virtual machine to unlock this field for editing.")
-            + QLatin1String("</font>"));
-
     ui->storageSizeInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
-    ui->storageSizeInfoLabel->setToolTip(
-            QLatin1String("<font color=\"red\">")
-            + tr("Stop the virtual machine to unlock this field for editing.")
-            + QLatin1String("</font>"));
+}
+
+void MerVirtualMachineSettingsWidget::setToolTip(QLabel *label, const QString &toolTipText)
+{
+   label->setToolTip(QLatin1String("<font color=\"red\">")
+                     + toolTipText
+                     + QLatin1String("</font>"));
+}
+
+void MerVirtualMachineSettingsWidget::setStorageSizeLimits()
+{
+    // Prohibit adding more than MAX_STORAGE_SIZE_INCREMENT_GB in one step, because there is no way to go back
+    // with VirtualBox
+    const double currentValue = ui->storageSizeGbSpinBox->value();
+    const double maximumSizeGb = m_features & VirtualMachine::GrowStorageSize
+        ? currentValue + MAX_STORAGE_SIZE_INCREMENT_GB
+        : currentValue;
+    const double minimumSizeGb = m_features & VirtualMachine::ShrinkStorageSize
+        ? 0
+        : currentValue;
+    ui->storageSizeGbSpinBox->setRange(minimumSizeGb, maximumSizeGb);
 }
 
 } // Internal

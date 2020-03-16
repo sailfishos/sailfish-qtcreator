@@ -194,6 +194,7 @@ private:
     QSsh::SshConnectionParameters sshParameters;
     bool headless = false;
     bool autoConnectEnabled = true;
+    VirtualMachine::Features features;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(VirtualMachineInfo::ExtraInfos)

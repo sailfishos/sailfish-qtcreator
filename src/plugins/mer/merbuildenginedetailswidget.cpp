@@ -154,6 +154,7 @@ void MerBuildEngineDetailsWidget::setBuildEngine(const Sfdk::BuildEngine *buildE
 
     m_ui->userNameLabelText->setText(buildEngine->virtualMachine()->sshParameters().userName());
 
+    m_ui->virtualMachineSettingsWidget->setVmFeatures(buildEngine->virtualMachine()->features());
     m_ui->virtualMachineSettingsWidget->setMemorySizeMb(buildEngine->virtualMachine()->memorySizeMb());
     m_ui->virtualMachineSettingsWidget->setCpuCount(buildEngine->virtualMachine()->cpuCount());
     m_ui->virtualMachineSettingsWidget->setStorageSizeMb(buildEngine->virtualMachine()->storageSizeMb());

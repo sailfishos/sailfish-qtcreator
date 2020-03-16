@@ -202,7 +202,8 @@ CommandQueue *commandQueue()
  */
 
 VBoxVirtualMachine::VBoxVirtualMachine(const QString &name, QObject *parent)
-    : VirtualMachine(std::make_unique<VBoxVirtualMachinePrivate>(this), staticType(), name, parent)
+    : VirtualMachine(std::make_unique<VBoxVirtualMachinePrivate>(this), staticType(),
+            staticFeatures(), name, parent)
 {
     Q_D(VBoxVirtualMachine);
     d->setDisplayType(staticDisplayType());
@@ -225,6 +226,13 @@ QString VBoxVirtualMachine::staticType()
 QString VBoxVirtualMachine::staticDisplayType()
 {
     return tr("VirtualBox");
+}
+
+VirtualMachine::Features VBoxVirtualMachine::staticFeatures()
+{
+    return VirtualMachine::LimitMemorySize | VirtualMachine::LimitCpuCount
+        | VirtualMachine::GrowStorageSize | VirtualMachine::OptionalHeadless
+        | VirtualMachine::Snapshots;
 }
 
 void VBoxVirtualMachine::fetchRegisteredVirtualMachines(const QObject *context,
