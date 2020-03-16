@@ -223,6 +223,7 @@ void DockerVirtualMachinePrivate::start(const QObject *context, const Functor<bo
     Q_ASSERT(functor);
     QTC_ASSERT(cachedInfo().sshPort != 0, return);
     QTC_ASSERT(cachedInfo().wwwPort != 0, return);
+    QTC_ASSERT(!cachedInfo().sharedInstall.isEmpty(), return);
     QTC_ASSERT(!cachedInfo().sharedSrc.isEmpty(), return);
     QTC_ASSERT(!cachedInfo().sharedHome.isEmpty(), return);
     QTC_ASSERT(!cachedInfo().sharedTargets.isEmpty(), return);
@@ -256,6 +257,7 @@ void DockerVirtualMachinePrivate::start(const QObject *context, const Functor<bo
         arguments.append(VOLUME);
         arguments.append(hostPath + ":" + guestPath);
     };
+    sharePath(Constants::BUILD_ENGINE_SHARED_INSTALL_MOUNT_POINT, cachedInfo().sharedInstall);
     sharePath(Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, cachedInfo().sharedHome);
     sharePath(Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, cachedInfo().sharedSrc);
     sharePath(Constants::BUILD_ENGINE_SHARED_TARGET_MOUNT_POINT, cachedInfo().sharedTargets);
@@ -532,6 +534,7 @@ VirtualMachineInfo DockerVirtualMachinePrivate::virtualMachineInfoFromOutput(con
         *path = labels.value(key).toString();
     };
 
+    parsePath(VirtualMachinePrivate::SharedInstall, &info.sharedInstall);
     parsePath(VirtualMachinePrivate::SharedSrc, &info.sharedSrc);
     parsePath(VirtualMachinePrivate::SharedSsh, &info.sharedSsh);
     parsePath(VirtualMachinePrivate::SharedHome, &info.sharedHome);
@@ -570,6 +573,8 @@ void DockerVirtualMachinePrivate::buildWithLabel(const QString& key, const QStri
 QString DockerVirtualMachinePrivate::labelFor(VirtualMachinePrivate::SharedPath which)
 {
     switch (which) {
+    case SharedInstall:
+        return {Constants::BUILD_ENGINE_SHARED_INSTALL};
     case SharedSrc:
         return {Constants::BUILD_ENGINE_SHARED_SRC};
     case SharedHome:

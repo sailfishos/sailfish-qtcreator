@@ -555,6 +555,9 @@ void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FileName
 
     QString mountName;
     switch (which) {
+    case VirtualMachinePrivate::SharedInstall:
+        mountName = "install";
+        break;
     case VirtualMachinePrivate::SharedConfig:
         mountName = "config";
         break;
@@ -903,7 +906,9 @@ VBoxVirtualMachineInfo VBoxVirtualMachinePrivate::virtualMachineInfoFromOutput(c
             else
                 info.otherPorts[ruleName] = port;
         } else if(rexp.cap(0).startsWith(QLatin1String("SharedFolderNameMachineMapping"))) {
-            if (rexp.cap(7) == QLatin1String("home"))
+            if (rexp.cap(7) == QLatin1String("install"))
+                info.sharedInstall = QDir::fromNativeSeparators(rexp.cap(8));
+            else if (rexp.cap(7) == QLatin1String("home"))
                 info.sharedHome = QDir::fromNativeSeparators(rexp.cap(8));
             else if (rexp.cap(7) == QLatin1String("targets"))
                 info.sharedTargets = QDir::fromNativeSeparators(rexp.cap(8));

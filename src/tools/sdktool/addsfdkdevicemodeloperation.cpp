@@ -183,9 +183,9 @@ int AddSfdkDeviceModelOperation::execute() const
     return save(result, QLatin1String("SfdkEmulators")) ? 0 : 3;
 }
 
-QVariantMap AddSfdkDeviceModelOperation::initializeDeviceModels(const QString &installDir)
+QVariantMap AddSfdkDeviceModelOperation::initializeDeviceModels(const QString &installDir, int version)
 {
-    return AddSfdkEmulatorOperation::initializeEmulators(installDir);
+    return AddSfdkEmulatorOperation::initializeEmulators(installDir, version);
 }
 
 QVariantMap AddSfdkDeviceModelOperation::addDeviceModel(const QVariantMap &map,
@@ -239,11 +239,11 @@ QVariantMap AddSfdkDeviceModelOperation::addDeviceModel(const QVariantMap &map,
 #ifdef WITH_TESTS
 bool AddSfdkDeviceModelOperation::test() const
 {
-    QVariantMap map = initializeDeviceModels(QLatin1String("/dir"));
+    QVariantMap map = initializeDeviceModels(QLatin1String("/dir"), 2);
 
     if (map.count() != 4
             || !map.contains(QLatin1String(C::EMULATORS_VERSION_KEY))
-            || map.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != -1
+            || map.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != 2
             || !map.contains(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY))
             || map.value(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY)).toString()
                 != QLatin1String("/dir")
@@ -259,7 +259,7 @@ bool AddSfdkDeviceModelOperation::test() const
 
     if (map.count() != 5
             || !map.contains(QLatin1String(C::EMULATORS_VERSION_KEY))
-            || map.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != -1
+            || map.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != 2
             || !map.contains(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY))
             || map.value(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY)).toString()
                 != QLatin1String("/dir")

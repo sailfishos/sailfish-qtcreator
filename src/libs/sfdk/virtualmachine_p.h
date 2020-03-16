@@ -54,6 +54,7 @@ public:
     void fromMap(const QVariantMap &data);
     QVariantMap toMap() const;
 
+    QString sharedInstall;
     QString sharedHome;
     QString sharedTargets;
     QString sharedConfig;
@@ -96,6 +97,7 @@ public:
         SharedSsh,
 
         // Valid for build engine kind of VMs only
+        SharedInstall,
         SharedHome,
         SharedTargets,
         SharedSrc,

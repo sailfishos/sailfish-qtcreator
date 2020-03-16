@@ -126,6 +126,11 @@ bool BuildEngine::isAutodetected() const
     return d_func()->autodetected;
 }
 
+Utils::FileName BuildEngine::sharedInstallPath() const
+{
+    return d_func()->sharedInstallPath;
+}
+
 Utils::FileName BuildEngine::sharedHomePath() const
 {
     return d_func()->sharedHomePath;
@@ -283,6 +288,7 @@ QVariantMap BuildEnginePrivate::toMap() const
     data.insert(Constants::BUILD_ENGINE_CREATION_TIME, creationTime);
     data.insert(Constants::BUILD_ENGINE_AUTODETECTED, autodetected);
 
+    data.insert(Constants::BUILD_ENGINE_SHARED_INSTALL, sharedInstallPath.toString());
     data.insert(Constants::BUILD_ENGINE_SHARED_HOME, sharedHomePath.toString());
     data.insert(Constants::BUILD_ENGINE_SHARED_TARGET, sharedTargetsPath.toString());
     data.insert(Constants::BUILD_ENGINE_SHARED_CONFIG, sharedConfigPath.toString());
@@ -334,6 +340,7 @@ bool BuildEnginePrivate::fromMap(const QVariantMap &data)
     autodetected = data.value(Constants::BUILD_ENGINE_AUTODETECTED).toBool();
 
     auto toFileName = [](const QVariant &v) { return FileName::fromString(v.toString()); };
+    setSharedInstallPath(toFileName(data.value(Constants::BUILD_ENGINE_SHARED_INSTALL)));
     setSharedHomePath(toFileName(data.value(Constants::BUILD_ENGINE_SHARED_HOME)));
     setSharedTargetsPath(toFileName(data.value(Constants::BUILD_ENGINE_SHARED_TARGET)));
     setSharedConfigPath(toFileName(data.value(Constants::BUILD_ENGINE_SHARED_CONFIG)));
@@ -451,6 +458,7 @@ void BuildEnginePrivate::updateVmProperties(const QObject *context, const Functo
         const VirtualMachineInfo info =
             VirtualMachinePrivate::get(virtualMachine.get())->cachedInfo();
 
+        setSharedInstallPath(FileName::fromString(info.sharedInstall));
         setSharedHomePath(FileName::fromString(info.sharedHome));
         setSharedTargetsPath(FileName::fromString(info.sharedTargets));
         // FIXME if sharedConfig changes, at least privateKeyFile path needs to be updated
@@ -467,6 +475,14 @@ void BuildEnginePrivate::updateVmProperties(const QObject *context, const Functo
         if (context_)
             functor(true);
     });
+}
+
+void BuildEnginePrivate::setSharedInstallPath(const Utils::FileName &sharedInstallPath)
+{
+    if (this->sharedInstallPath == sharedInstallPath)
+        return;
+    this->sharedInstallPath = sharedInstallPath;
+    emit q_func()->sharedInstallPathChanged(sharedInstallPath);
 }
 
 void BuildEnginePrivate::setSharedHomePath(const Utils::FileName &sharedHomePath)

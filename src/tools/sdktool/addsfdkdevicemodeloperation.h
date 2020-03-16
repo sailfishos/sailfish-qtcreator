@@ -46,7 +46,7 @@ public:
     static QVariantMap addDeviceModel(const QVariantMap &map, const QString &name,
                                       int hres, int vres, int hsize, int vsize,
                                       const QString &dconfDb);
-    static QVariantMap initializeDeviceModels(const QString &installDir);
+    static QVariantMap initializeDeviceModels(const QString &installDir, int version = -1);
 
 private:
     QString m_installDir;

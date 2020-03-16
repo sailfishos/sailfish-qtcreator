@@ -163,7 +163,7 @@ bool RmSfdkEmulatorOperation::test() const
 {
     const auto now = QDateTime::currentDateTime();
 
-    QVariantMap map = AddSfdkEmulatorOperation::initializeEmulators(2, QLatin1String("/dir"));
+    QVariantMap map = AddSfdkEmulatorOperation::initializeEmulators(QLatin1String("/dir"), 2);
 
     map = AddSfdkDeviceModelOperation::addDeviceModel(map,
                  QLatin1String("Test Device"), 500, 1000, 50, 100, QLatin1String("Test dconf"));

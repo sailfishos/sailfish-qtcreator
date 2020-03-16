@@ -153,9 +153,10 @@ QVariantMap RmSfdkDeviceModelOperation::removeDeviceModel(const QVariantMap &map
 #ifdef WITH_TESTS
 bool RmSfdkDeviceModelOperation::test() const
 {
-    QVariantMap map = AddSfdkDeviceModelOperation::addDeviceModel(AddSfdkDeviceModelOperation::initializeDeviceModels(),
-                                                                 QLatin1String("Test Device 1"), 500, 1000, 50, 100,
-                                                                 QLatin1String("Test dconf content 1"));
+    QVariantMap map = AddSfdkDeviceModelOperation::addDeviceModel(
+            AddSfdkDeviceModelOperation::initializeDeviceModels(QLatin1String("/dir"), 2),
+            QLatin1String("Test Device 1"), 500, 1000, 50, 100,
+            QLatin1String("Test dconf content 1"));
 
     map = AddSfdkDeviceModelOperation::addDeviceModel(map, QLatin1String("Test Device 2"), 250, 500, 25, 50,
                                                      QLatin1String("Test dconf content 2"));
@@ -186,10 +187,10 @@ bool RmSfdkDeviceModelOperation::test() const
 
     if (map.count() != 7
             || !map.contains(QLatin1String(C::EMULATORS_VERSION_KEY))
-            || map.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != -1
+            || map.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != 2
             || !map.contains(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY))
             || map.value(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY)).toString()
-                != QLatin1String("/dev/null")
+                != QLatin1String("/dir")
             || !map.contains(QLatin1String(C::EMULATORS_COUNT_KEY))
             || map.value(QLatin1String(C::EMULATORS_COUNT_KEY)).toInt() != 1
             || !map.contains(QLatin1String(C::DEVICE_MODELS_COUNT_KEY))
@@ -209,10 +210,10 @@ bool RmSfdkDeviceModelOperation::test() const
             || !result.contains(QLatin1String(C::EMULATORS_COUNT_KEY))
             || result.value(QLatin1String(C::EMULATORS_COUNT_KEY)).toInt() != 1
             || !result.contains(QLatin1String(C::EMULATORS_VERSION_KEY))
-            || result.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != -1
+            || result.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != 2
             || !map.contains(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY))
             || map.value(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY)).toString()
-                != QLatin1String("/dev/null"))
+                != QLatin1String("/dir"))
         return false;
 
     QString deviceModel = QString::fromLatin1(C::DEVICE_MODELS_DATA_KEY_PREFIX) + QString::number(0);
@@ -234,10 +235,10 @@ bool RmSfdkDeviceModelOperation::test() const
               || !result.contains(QLatin1String(C::EMULATORS_COUNT_KEY))
               || result.value(QLatin1String(C::EMULATORS_COUNT_KEY)).toInt() != 1
               || !result.contains(QLatin1String(C::EMULATORS_VERSION_KEY))
-              || result.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != -1
+              || result.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != 2
               || !map.contains(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY))
               || map.value(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY)).toString()
-                  != QLatin1String("/dev/null"))
+                  != QLatin1String("/dir"))
         return false;
 
     deviceModel = QString::fromLatin1(C::DEVICE_MODELS_DATA_KEY_PREFIX) + QString::number(0);
