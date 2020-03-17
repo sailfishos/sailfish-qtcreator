@@ -46,32 +46,6 @@ namespace Sfdk {
 namespace {
 const char DOCKER[] = "docker";
 const char SAILFISH_SDK_SYSTEM_DOCKER[] = "SAILFISH_SDK_SYSTEM_DOCKER";
-const char RUN[] = "run";
-const char PRIVILEGED1[] = "--privileged";
-const char PRIVILEGED2[] = "--cap-drop=NET_ADMIN";
-const char STOP[] = "stop";
-const char COMMIT[] = "commit";
-const char CONTAINER_LIST[] = "ps";
-const char DETACHED[] = "-d";
-const char PUBLISH_PORT[] = "-p";
-const char VOLUME[] = "-v";
-const char CGROUP_MOUNT[] = "/sys/fs/cgroup:/sys/fs/cgroup:ro";
-const char TMPFS[] = "--tmpfs";
-const char TMPFS1[] = "/run:exec,mode=755";
-const char TMPFS2[] = "/run/lock";
-const char TMPFS3[] = "/tmp:exec";
-const char FILTER_PREFIX[] = "--filter=ancestor=";
-const char FORMAT_CONTAINER_LIST[] = "--format={{.Image}} {{.ID}}";
-const char COMMAND_INSPECT[] = "inspect";
-const char FORMAT_LABEL_LIST[] = "--format={{json .Config.Labels}}";
-const char IMAGE[] = "image";
-const char LIST[] = "ls";
-const char FORMAT_REPOSITORY[] = "--format={{.Repository}}";
-const char UNNAMED_IMAGE[] = "<none>";
-const char COMMAND_BUILD[] = "build";
-const char DOCKERFILE_PREFIX[] = "FROM ";
-const char LABEL_PREFIX[] = "--label=";
-const char TAG[] = "--tag";
 const quint16 GUESTSSHPORT = 22;
 const quint16 GUESTWWWPORT = 9292;
 } // namespace anonymous
@@ -172,9 +146,9 @@ void DockerVirtualMachine::fetchRegisteredVirtualMachines(const QObject *context
     Q_ASSERT(functor);
 
     QStringList arguments;
-    arguments.append(IMAGE);
-    arguments.append(LIST);
-    arguments.append(FORMAT_REPOSITORY);
+    arguments.append("image");
+    arguments.append("ls");
+    arguments.append("--format={{.Repository}}");
 
     auto runner = std::make_unique<DockerRunner>(arguments);
     QObject::connect(runner.get(), &DockerRunner::done,
@@ -206,9 +180,9 @@ void DockerVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extra
     Q_UNUSED(extraInfo)
 
     QStringList arguments;
-    arguments.append(COMMAND_INSPECT);
+    arguments.append("inspect");
     arguments.append(q->name());
-    arguments.append(FORMAT_LABEL_LIST);
+    arguments.append("--format={{json .Config.Labels}}");
 
     auto runner = std::make_unique<DockerRunner>(arguments);
     QObject::connect(runner.get(), &DockerRunner::done, context,
@@ -237,30 +211,30 @@ void DockerVirtualMachinePrivate::start(const QObject *context, const Functor<bo
     QTC_ASSERT(!cachedInfo().sharedSsh.isEmpty(), return);
 
     QStringList arguments;
-    arguments.append(RUN);
-    arguments.append(DETACHED);
-    arguments.append(PRIVILEGED1);
-    arguments.append(PRIVILEGED2);
-    arguments.append(VOLUME);
-    arguments.append(CGROUP_MOUNT);
+    arguments.append("run");
+    arguments.append("--detach");
+    arguments.append("--privileged");
+    arguments.append("--cap-drop=NET_ADMIN");
+    arguments.append("--volume");
+    arguments.append("/sys/fs/cgroup:/sys/fs/cgroup:ro");
 
     auto addTmpfs = [&arguments](const QString &path) {
-        arguments.append(TMPFS);
+        arguments.append("--tmpfs");
         arguments.append(path);
     };
-    addTmpfs(TMPFS1);
-    addTmpfs(TMPFS2);
-    addTmpfs(TMPFS3);
+    addTmpfs("/run:exec,mode=755");
+    addTmpfs("/run/lock");
+    addTmpfs("/tmp:exec");
 
     auto forwardPort = [&arguments](quint16 guestPort, quint16 hostPort) {
-        arguments.append(PUBLISH_PORT);
+        arguments.append("--publish");
         arguments.append(QString::number(hostPort) + ":" + QString::number(guestPort));
     };
     forwardPort(GUESTSSHPORT, cachedInfo().sshPort);
     forwardPort(GUESTWWWPORT, cachedInfo().wwwPort);
 
     auto sharePath = [&arguments](const QString &guestPath, const QString &hostPath) {
-        arguments.append(VOLUME);
+        arguments.append("--volume");
         arguments.append(hostPath + ":" + guestPath);
     };
     sharePath(Constants::BUILD_ENGINE_SHARED_INSTALL_MOUNT_POINT, cachedInfo().sharedInstall);
@@ -305,13 +279,13 @@ void DockerVirtualMachinePrivate::stop(const QObject *context, const Functor<boo
     const CommandQueue::BatchId batch = commandQueue()->beginBatch();
 
     QStringList stopArguments;
-    stopArguments.append(STOP);
+    stopArguments.append("stop");
     stopArguments.append(containerId);
 
     enqueue(stopArguments, batch);
 
     QStringList commitArguments;
-    commitArguments.append(COMMIT);
+    commitArguments.append("commit");
     commitArguments.append(containerId);
     commitArguments.append(q->name());
 
@@ -344,9 +318,9 @@ void DockerVirtualMachinePrivate::probe(const QObject *context,
         }
 
         QStringList arguments;
-        arguments.append(CONTAINER_LIST);
-        arguments.append(QString(FILTER_PREFIX) + q->name());
-        arguments.append(FORMAT_CONTAINER_LIST);
+        arguments.append("ps");
+        arguments.append("--filter=ancestor=" + q->name());
+        arguments.append("--format={{.Image}} {{.ID}}");
 
         auto runner = std::make_unique<DockerRunner>(arguments);
         QObject::connect(runner->process(),
@@ -507,7 +481,7 @@ QStringList DockerVirtualMachinePrivate::listedImages(const QString &output)
     QStringList images;
     const QStringList lines = output.split(QRegularExpression("[\r\n]"), QString::SkipEmptyParts);
     for (const QString &line : lines) {
-        if (line != UNNAMED_IMAGE)
+        if (line != "<none>")
             images.append(line);
     }
     return images;
@@ -558,16 +532,16 @@ void DockerVirtualMachinePrivate::buildWithLabel(const QString& key, const QStri
     Q_ASSERT(functor);
 
     QStringList arguments;
-    arguments.append(COMMAND_BUILD);
-    arguments.append(LABEL_PREFIX + key + "=" + value);
-    arguments.append(TAG);
+    arguments.append("build");
+    arguments.append("--label=" + key + "=" + value);
+    arguments.append("--tag");
     arguments.append(q->name());
     arguments.append("-");
 
     auto runner = std::make_unique<DockerRunner>(arguments);
 
     QObject::connect(runner->process(), &QProcess::started, q, [q, process = runner->process()]() {
-        QString dockerFile(DOCKERFILE_PREFIX + q->name());
+        const QString dockerFile("FROM " + q->name());
         process->write(dockerFile.toUtf8());
         process->closeWriteChannel();
     });
