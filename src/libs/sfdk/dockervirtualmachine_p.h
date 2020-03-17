@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -96,12 +96,12 @@ private:
     static QStringList listedImages(const QString &output);
     static VirtualMachineInfo virtualMachineInfoFromOutput(const QByteArray &output);
 
+    QStringList makeCreateArguments() const;
+
     void buildWithLabel(const QString& key, const QString& value,
                         const QObject *context, const Functor<bool> &functor);
     static QString labelFor(SharedPath which);
     static QString labelFor(ReservedPort which);
-
-    mutable QString containerId;
 };
 
 } // namespace Sfdk

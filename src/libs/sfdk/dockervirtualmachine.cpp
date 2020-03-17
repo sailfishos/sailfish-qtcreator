@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -196,23 +196,20 @@ void DockerVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extra
     commandQueue()->enqueue(std::move(runner));
 }
 
-void DockerVirtualMachinePrivate::start(const QObject *context, const Functor<bool> &functor)
+QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
 {
-    Q_Q(DockerVirtualMachine);
-    Q_ASSERT(context);
-    Q_ASSERT(functor);
-    QTC_ASSERT(cachedInfo().sshPort != 0, return);
-    QTC_ASSERT(cachedInfo().wwwPort != 0, return);
-    QTC_ASSERT(!cachedInfo().sharedInstall.isEmpty(), return);
-    QTC_ASSERT(!cachedInfo().sharedSrc.isEmpty(), return);
-    QTC_ASSERT(!cachedInfo().sharedHome.isEmpty(), return);
-    QTC_ASSERT(!cachedInfo().sharedTargets.isEmpty(), return);
-    QTC_ASSERT(!cachedInfo().sharedConfig.isEmpty(), return);
-    QTC_ASSERT(!cachedInfo().sharedSsh.isEmpty(), return);
+    Q_Q(const DockerVirtualMachine);
+    QTC_ASSERT(cachedInfo().sshPort != 0, return {});
+    QTC_ASSERT(cachedInfo().wwwPort != 0, return {});
+    QTC_ASSERT(!cachedInfo().sharedInstall.isEmpty(), return {});
+    QTC_ASSERT(!cachedInfo().sharedSrc.isEmpty(), return {});
+    QTC_ASSERT(!cachedInfo().sharedHome.isEmpty(), return {});
+    QTC_ASSERT(!cachedInfo().sharedTargets.isEmpty(), return {});
+    QTC_ASSERT(!cachedInfo().sharedConfig.isEmpty(), return {});
+    QTC_ASSERT(!cachedInfo().sharedSsh.isEmpty(), return {});
 
     QStringList arguments;
-    arguments.append("run");
-    arguments.append("--detach");
+    arguments.append("create");
     arguments.append("--privileged");
     arguments.append("--cap-drop=NET_ADMIN");
     arguments.append("--volume");
@@ -244,17 +241,91 @@ void DockerVirtualMachinePrivate::start(const QObject *context, const Functor<bo
     sharePath(Constants::BUILD_ENGINE_SHARED_CONFIG_MOUNT_POINT, cachedInfo().sharedConfig);
     sharePath(Constants::BUILD_ENGINE_SHARED_SSH_MOUNT_POINT, cachedInfo().sharedSsh);
 
+    arguments.append("--name");
     arguments.append(q->name());
 
-    auto runner = std::make_unique<DockerRunner>(arguments);
-    QObject::connect(runner.get(), &DockerRunner::done, q,
-            [this, context, functor, process = runner->process()](bool ok) {
-        if (ok)
-            containerId = QString::fromLocal8Bit(process->readAllStandardOutput().trimmed());
-        if (context)
-            functor(ok);
+    arguments.append(q->name());
+
+    return arguments;
+}
+
+void DockerVirtualMachinePrivate::start(const QObject *context, const Functor<bool> &functor)
+{
+    Q_Q(DockerVirtualMachine);
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
+    const QPointer<const QObject> context_{context};
+
+    auto prepare = [=](const QStringList &arguments, CommandQueue::BatchId batch) {
+        auto runner = std::make_unique<DockerRunner>(arguments);
+        QObject::connect(runner.get(), &DockerRunner::failure, Sdk::instance(), [=]() {
+            commandQueue()->cancelBatch(batch);
+            callIf(context_, functor, false);
+        });
+#ifdef Q_OS_MACOS
+        return std::move(runner);
+#else
+        return runner;
+#endif
+    };
+
+    auto enqueue = [=](const QStringList &arguments, CommandQueue::BatchId batch) {
+        auto runner = prepare(arguments, batch);
+        DockerRunner *runner_ = runner.get();
+        commandQueue()->enqueue(std::move(runner));
+        return runner_;
+    };
+
+    auto enqueueImmediate = [=](const QStringList &arguments, CommandQueue::BatchId batch) {
+        auto runner = prepare(arguments, batch);
+        DockerRunner *runner_ = runner.get();
+        commandQueue()->enqueueImmediate(std::move(runner));
+        return runner_;
+    };
+
+    CommandQueue::BatchId batch = commandQueue()->beginBatch();
+
+    QStringList psArguments;
+    psArguments.append("container");
+    psArguments.append("ls");
+    psArguments.append("--all");
+    psArguments.append("--filter=name=" + q->name());
+    psArguments.append("--format={{.Image}}");
+
+    DockerRunner *const psRunner = enqueue(psArguments, batch);
+    QObject::connect(psRunner, &DockerRunner::success, context, [=]() {
+        const QString out = QString::fromLocal8Bit(psRunner->process()->readAllStandardOutput())
+            .trimmed();
+        bool containerExists = !out.isEmpty();
+        const QString imageName = out;
+
+        if (!containerExists) {
+            enqueueImmediate(makeCreateArguments(), batch);
+        } else if (imageName != q->name()) {
+            // Recreate the container if it does not use the desired (latest) image.
+            // This may happen e.g. when stop() fails to 'create' after 'commit'.
+            QStringList rmArguments;
+            rmArguments.append("container");
+            rmArguments.append("rm");
+            rmArguments.append(q->name());
+
+            // enqueueImmediate reverses the actual order of execution
+            enqueueImmediate(makeCreateArguments(), batch);
+            enqueueImmediate(rmArguments, batch);
+        }
+
     });
-    commandQueue()->enqueue(std::move(runner));
+
+    QStringList startArguments;
+    startArguments.append("container");
+    startArguments.append("start");
+    startArguments.append(q->name());
+
+    enqueue(startArguments, batch);
+
+    commandQueue()->enqueueCheckPoint(context, [=]() { functor(true); });
+    commandQueue()->endBatch();
 }
 
 void DockerVirtualMachinePrivate::stop(const QObject *context, const Functor<bool> &functor)
@@ -280,16 +351,25 @@ void DockerVirtualMachinePrivate::stop(const QObject *context, const Functor<boo
 
     QStringList stopArguments;
     stopArguments.append("stop");
-    stopArguments.append(containerId);
+    stopArguments.append(q->name());
 
     enqueue(stopArguments, batch);
 
     QStringList commitArguments;
     commitArguments.append("commit");
-    commitArguments.append(containerId);
+    commitArguments.append(q->name());
     commitArguments.append(q->name());
 
     enqueue(commitArguments, batch);
+
+    QStringList rmArguments;
+    rmArguments.append("container");
+    rmArguments.append("rm");
+    rmArguments.append(q->name());
+
+    enqueue(rmArguments, batch);
+
+    enqueue(makeCreateArguments(), batch);
 
     commandQueue()->enqueueCheckPoint(context, [=]() { functor(true); });
     commandQueue()->endBatch();
@@ -322,9 +402,10 @@ void DockerVirtualMachinePrivate::probe(const QObject *context,
         *state |= VirtualMachinePrivate::Existing;
 
         QStringList arguments;
-        arguments.append("ps");
-        arguments.append("--filter=ancestor=" + q->name());
-        arguments.append("--format={{.Image}} {{.ID}}");
+        arguments.append("container");
+        arguments.append("ls");
+        arguments.append("--filter=name=" + q->name());
+        arguments.append("--quiet");
 
         auto runner = std::make_unique<DockerRunner>(arguments);
         QObject::connect(runner->process(),
@@ -337,16 +418,9 @@ void DockerVirtualMachinePrivate::probe(const QObject *context,
                 return;
             }
 
-            const QStringList runningContainers =
-                QString::fromLocal8Bit(runner->process()->readAllStandardOutput())
-                    .split('\n', QString::SkipEmptyParts);
-            for (const QString& runningContainer : runningContainers) {
-                QStringList nameAndId = runningContainer.split(' ', QString::SkipEmptyParts);
-                QTC_ASSERT(nameAndId.count() == 2 && nameAndId.first() == q->name(), continue);
+            if (!runner->process()->readAllStandardOutput().isEmpty())
                 *state |= VirtualMachinePrivate::Running | VirtualMachinePrivate::Headless;
-                if (containerId.isEmpty())
-                    containerId = nameAndId.last();
-            }
+
             if (context_)
                 functor(*state, true);
         });
