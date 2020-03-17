@@ -305,17 +305,21 @@ void DockerVirtualMachinePrivate::probe(const QObject *context,
     const QPointer<const QObject> context_{context};
 
     q->fetchRegisteredVirtualMachines(q, [=](const QStringList &registeredVms, bool ok) {
+        auto state = std::make_shared<VirtualMachinePrivate::BasicState>();
+
         if (!ok) {
             if (context_)
-                functor({}, false);
+                functor(*state, false);
             return;
         }
 
         if (!registeredVms.contains(q->name())) {
             if (context_)
-                functor({}, true);
+                functor(*state, true);
             return;
         }
+
+        *state |= VirtualMachinePrivate::Existing;
 
         QStringList arguments;
         arguments.append("ps");
@@ -329,23 +333,22 @@ void DockerVirtualMachinePrivate::probe(const QObject *context,
                 [=, runner = runner.get()](int exitCode, QProcess::ExitStatus exitStatus) {
             if (exitStatus != QProcess::NormalExit || exitCode != 0) {
                 if (context_)
-                    functor({}, false);
+                    functor(*state, false);
                 return;
             }
 
-            VirtualMachinePrivate::BasicState state = VirtualMachinePrivate::Existing;
             const QStringList runningContainers =
                 QString::fromLocal8Bit(runner->process()->readAllStandardOutput())
                     .split('\n', QString::SkipEmptyParts);
             for (const QString& runningContainer : runningContainers) {
                 QStringList nameAndId = runningContainer.split(' ', QString::SkipEmptyParts);
                 QTC_ASSERT(nameAndId.count() == 2 && nameAndId.first() == q->name(), continue);
-                state |= VirtualMachinePrivate::Running | VirtualMachinePrivate::Headless;
+                *state |= VirtualMachinePrivate::Running | VirtualMachinePrivate::Headless;
                 if (containerId.isEmpty())
                     containerId = nameAndId.last();
             }
             if (context_)
-                functor(state, true);
+                functor(*state, true);
         });
         commandQueue()->enqueue(std::move(runner));
     });
