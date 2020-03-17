@@ -98,7 +98,7 @@ private:
 
     QStringList makeCreateArguments() const;
 
-    void buildWithLabel(const QString& key, const QString& value,
+    void rebuildWithLabel(const QString& key, const QString& value,
                         const QObject *context, const Functor<bool> &functor);
     static QString labelFor(SharedPath which);
     static QString labelFor(ReservedPort which);

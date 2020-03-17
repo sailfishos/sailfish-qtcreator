@@ -434,7 +434,7 @@ void DockerVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FileNa
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    buildWithLabel(labelFor(which), path.toString(), context, functor);
+    rebuildWithLabel(labelFor(which), path.toString(), context, functor);
 }
 
 void DockerVirtualMachinePrivate::doAddPortForwarding(const QString &ruleName,
@@ -471,7 +471,7 @@ void DockerVirtualMachinePrivate::doSetReservedPortForwarding(ReservedPort which
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    buildWithLabel(labelFor(which), QString::number(port), context, functor);
+    rebuildWithLabel(labelFor(which), QString::number(port), context, functor);
 }
 
 void DockerVirtualMachinePrivate::doSetReservedPortListForwarding(ReservedPortList which,
@@ -601,7 +601,7 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
     return arguments;
 }
 
-void DockerVirtualMachinePrivate::buildWithLabel(const QString& key, const QString& value,
+void DockerVirtualMachinePrivate::rebuildWithLabel(const QString& key, const QString& value,
         const QObject *context, const Functor<bool> &functor)
 {
     Q_Q(DockerVirtualMachine);
