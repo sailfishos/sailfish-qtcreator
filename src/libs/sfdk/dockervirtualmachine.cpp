@@ -196,59 +196,6 @@ void DockerVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extra
     commandQueue()->enqueue(std::move(runner));
 }
 
-QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
-{
-    Q_Q(const DockerVirtualMachine);
-    QTC_ASSERT(cachedInfo().sshPort != 0, return {});
-    QTC_ASSERT(cachedInfo().wwwPort != 0, return {});
-    QTC_ASSERT(!cachedInfo().sharedInstall.isEmpty(), return {});
-    QTC_ASSERT(!cachedInfo().sharedSrc.isEmpty(), return {});
-    QTC_ASSERT(!cachedInfo().sharedHome.isEmpty(), return {});
-    QTC_ASSERT(!cachedInfo().sharedTargets.isEmpty(), return {});
-    QTC_ASSERT(!cachedInfo().sharedConfig.isEmpty(), return {});
-    QTC_ASSERT(!cachedInfo().sharedSsh.isEmpty(), return {});
-
-    QStringList arguments;
-    arguments.append("create");
-    arguments.append("--privileged");
-    arguments.append("--cap-drop=NET_ADMIN");
-    arguments.append("--volume");
-    arguments.append("/sys/fs/cgroup:/sys/fs/cgroup:ro");
-
-    auto addTmpfs = [&arguments](const QString &path) {
-        arguments.append("--tmpfs");
-        arguments.append(path);
-    };
-    addTmpfs("/run:exec,mode=755");
-    addTmpfs("/run/lock");
-    addTmpfs("/tmp:exec");
-
-    auto forwardPort = [&arguments](quint16 guestPort, quint16 hostPort) {
-        arguments.append("--publish");
-        arguments.append(QString::number(hostPort) + ":" + QString::number(guestPort));
-    };
-    forwardPort(GUESTSSHPORT, cachedInfo().sshPort);
-    forwardPort(GUESTWWWPORT, cachedInfo().wwwPort);
-
-    auto sharePath = [&arguments](const QString &guestPath, const QString &hostPath) {
-        arguments.append("--volume");
-        arguments.append(hostPath + ":" + guestPath);
-    };
-    sharePath(Constants::BUILD_ENGINE_SHARED_INSTALL_MOUNT_POINT, cachedInfo().sharedInstall);
-    sharePath(Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, cachedInfo().sharedHome);
-    sharePath(Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, cachedInfo().sharedSrc);
-    sharePath(Constants::BUILD_ENGINE_SHARED_TARGET_MOUNT_POINT, cachedInfo().sharedTargets);
-    sharePath(Constants::BUILD_ENGINE_SHARED_CONFIG_MOUNT_POINT, cachedInfo().sharedConfig);
-    sharePath(Constants::BUILD_ENGINE_SHARED_SSH_MOUNT_POINT, cachedInfo().sharedSsh);
-
-    arguments.append("--name");
-    arguments.append(q->name());
-
-    arguments.append(q->name());
-
-    return arguments;
-}
-
 void DockerVirtualMachinePrivate::start(const QObject *context, const Functor<bool> &functor)
 {
     Q_Q(DockerVirtualMachine);
@@ -599,6 +546,59 @@ VirtualMachineInfo DockerVirtualMachinePrivate::virtualMachineInfoFromOutput(con
     parsePath(VirtualMachinePrivate::SharedTargets, &info.sharedTargets);
 
     return info;
+}
+
+QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
+{
+    Q_Q(const DockerVirtualMachine);
+    QTC_ASSERT(cachedInfo().sshPort != 0, return {});
+    QTC_ASSERT(cachedInfo().wwwPort != 0, return {});
+    QTC_ASSERT(!cachedInfo().sharedInstall.isEmpty(), return {});
+    QTC_ASSERT(!cachedInfo().sharedSrc.isEmpty(), return {});
+    QTC_ASSERT(!cachedInfo().sharedHome.isEmpty(), return {});
+    QTC_ASSERT(!cachedInfo().sharedTargets.isEmpty(), return {});
+    QTC_ASSERT(!cachedInfo().sharedConfig.isEmpty(), return {});
+    QTC_ASSERT(!cachedInfo().sharedSsh.isEmpty(), return {});
+
+    QStringList arguments;
+    arguments.append("create");
+    arguments.append("--privileged");
+    arguments.append("--cap-drop=NET_ADMIN");
+    arguments.append("--volume");
+    arguments.append("/sys/fs/cgroup:/sys/fs/cgroup:ro");
+
+    auto addTmpfs = [&arguments](const QString &path) {
+        arguments.append("--tmpfs");
+        arguments.append(path);
+    };
+    addTmpfs("/run:exec,mode=755");
+    addTmpfs("/run/lock");
+    addTmpfs("/tmp:exec");
+
+    auto forwardPort = [&arguments](quint16 guestPort, quint16 hostPort) {
+        arguments.append("--publish");
+        arguments.append(QString::number(hostPort) + ":" + QString::number(guestPort));
+    };
+    forwardPort(GUESTSSHPORT, cachedInfo().sshPort);
+    forwardPort(GUESTWWWPORT, cachedInfo().wwwPort);
+
+    auto sharePath = [&arguments](const QString &guestPath, const QString &hostPath) {
+        arguments.append("--volume");
+        arguments.append(hostPath + ":" + guestPath);
+    };
+    sharePath(Constants::BUILD_ENGINE_SHARED_INSTALL_MOUNT_POINT, cachedInfo().sharedInstall);
+    sharePath(Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, cachedInfo().sharedHome);
+    sharePath(Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, cachedInfo().sharedSrc);
+    sharePath(Constants::BUILD_ENGINE_SHARED_TARGET_MOUNT_POINT, cachedInfo().sharedTargets);
+    sharePath(Constants::BUILD_ENGINE_SHARED_CONFIG_MOUNT_POINT, cachedInfo().sharedConfig);
+    sharePath(Constants::BUILD_ENGINE_SHARED_SSH_MOUNT_POINT, cachedInfo().sharedSsh);
+
+    arguments.append("--name");
+    arguments.append(q->name());
+
+    arguments.append(q->name());
+
+    return arguments;
 }
 
 void DockerVirtualMachinePrivate::buildWithLabel(const QString& key, const QString& value,
