@@ -111,14 +111,25 @@ protected:
     {
         return tr("Value too big");
     }
+
     static QString valueCannotBeDecreasedMessage()
     {
         return tr("Value cannot be decreased");
     }
 
-    static QString unknownPropertyMessage(const QString &name)
+    static QString valueCannotBeIncreasedMessage()
     {
-        return tr("Unrecognized property \"%1\"").arg(name);
+        return tr("Value cannot be increased");
+    }
+
+    static QString unknownPropertyMessage()
+    {
+        return tr("Unrecognized property");
+    }
+
+    static QString readOnlyPropertyMessage()
+    {
+        return tr("Read-only property");
     }
 };
 
@@ -244,6 +255,10 @@ public:
         *needsVmOff = true;
 
         if (name == VM_MEMORY_SIZE_MB) {
+            if (!(m_vm->features() & VirtualMachine::LimitMemorySize)){
+                *errorString = readOnlyPropertyMessage();
+                return Failed;
+            }
             if (!parsePositiveInt(&m_memorySizeMb, value, errorString))
                 return Failed;
             if (m_memorySizeMb > VirtualMachine::availableMemorySizeMb()) {
@@ -252,6 +267,10 @@ public:
             }
             return Prepared;
         } else if (name == VM_CPU_COUNT) {
+            if (!(m_vm->features() & VirtualMachine::LimitMemorySize)){
+                *errorString = readOnlyPropertyMessage();
+                return Failed;
+            }
             if (!parsePositiveInt(&m_cpuCount, value, errorString))
                 return Failed;
             if (m_cpuCount > VirtualMachine::availableCpuCount()) {
@@ -262,13 +281,19 @@ public:
         } else if (name == VM_STORAGE_SIZE_MB) {
             if (!parsePositiveInt(&m_storageSizeMb, value, errorString))
                 return Failed;
-            if (m_storageSizeMb < m_vm->storageSizeMb()) {
+            if (m_storageSizeMb < m_vm->storageSizeMb()
+                    && !(m_vm->features() & VirtualMachine::ShrinkStorageSize)) {
                 *errorString = valueCannotBeDecreasedMessage();
+                return Failed;
+            }
+            if (m_storageSizeMb > m_vm->storageSizeMb()
+                    && !(m_vm->features() & VirtualMachine::GrowStorageSize)) {
+                *errorString = valueCannotBeIncreasedMessage();
                 return Failed;
             }
             return Prepared;
         } else {
-            *errorString = unknownPropertyMessage(name);
+            *errorString = unknownPropertyMessage();
             return Ignored;
         }
     }
@@ -369,7 +394,7 @@ public:
             m_wwwProxyExcludes = value.trimmed();
             return Prepared;
         } else {
-            *errorString = unknownPropertyMessage(name);
+            *errorString = unknownPropertyMessage();
             return Ignored;
         }
     }
@@ -504,7 +529,7 @@ private:
             m_hostNameChanged = true;
             return Prepared;
         } else {
-            *errorString = unknownPropertyMessage(name);
+            *errorString = unknownPropertyMessage();
             return Ignored;
         }
     }
@@ -1645,7 +1670,7 @@ Worker::ExitStatus BuiltinWorker::setProperties(SetPropertiesTask *task,
         QString errorString;
         if (!task->prepareSet(property, value, &errorString)) {
             *exitCode = EXIT_FAILURE;
-            qerr() << errorString << endl;
+            qerr() << property << ": " << errorString << endl;
             return NormalExit;
         }
     }
