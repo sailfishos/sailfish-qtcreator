@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -53,37 +53,11 @@ namespace Sfdk {
 namespace {
 const char VBOXMANAGE[] = "VBoxManage";
 const char SAILFISH_SDK_SYSTEM_VBOXMANAGE[] = "SAILFISH_SDK_SYSTEM_VBOXMANAGE";
-const char LIST[] = "list";
-const char HDDS[] = "hdds";
-const char RUNNINGVMS[] = "runningvms";
-const char VMS[] = "vms";
-const char SHOWVMINFO[] = "showvminfo";
-const char MACHINE_READABLE[] = "--machinereadable";
-const char STARTVM[] = "startvm";
-const char CONTROLVM[] = "controlvm";
-const char ACPI_POWER_BUTTON[] = "acpipowerbutton";
-const char TYPE[] = "--type";
-const char HEADLESS[] = "headless";
-const char SHAREDFOLDER[] = "sharedfolder";
-const char SHARE_NAME[] = "--name";
-const char REMOVE_SHARED[] = "remove";
-const char HOSTPATH[] = "--hostpath";
-const char ADD_SHARED[] = "add";
-const char GETEXTRADATA[] = "getextradata";
-const char SETEXTRADATA[] = "setextradata";
-const char CUSTOM_VIDEO_MODE1[] = "CustomVideoMode1";
-const char LAST_GUEST_SIZE_HINT[] = "GUI/LastGuestSizeHint";
-const char AUTORESIZE_GUEST[] = "GUI/AutoresizeGuest";
-const char ENABLE_SYMLINKS[] = "VBoxInternal2/SharedFoldersEnableSymlinksCreate/%1";
-const char YES_ARG[] = "1";
 const char SAILFISH_SDK_DEVICE_MODEL[] = "SailfishSDK/DeviceModel";
 const char SAILFISH_SDK_ORIENTATION[] = "SailfishSDK/Orientation";
 const char SAILFISH_SDK_SCALE[] = "SailfishSDK/Scale";
 const char PORTRAIT[] = "portrait";
 const char LANDSCAPE[] = "landscape";
-const char MODIFYVM[] = "modifyvm";
-const char NATPF1[] = "--natpf1";
-const char DELETE[] = "delete";
 const char QML_LIVE_NATPF_RULE_NAME_MATCH[] = "qmllive_";
 const char FREE_PORT_NATPF_RULE_NAME_MATCH[] = "freeport_";
 const char NATPF_RULE_TEMPLATE[] = "%1,tcp,127.0.0.1,%2,,%3";
@@ -91,16 +65,6 @@ const char FREE_PORT_NATPF_RULE_NAME_TEMPLATE[] = "freeport_%1";
 const char QML_LIVE_NATPF_RULE_NAME_TEMPLATE[] = "qmllive_%1";
 const char SSH_NATPF_RULE_NAME[] = "guestssh";
 const char WWW_NATPF_RULE_NAME[] = "guestwww";
-const char MODIFYMEDIUM[] = "modifymedium";
-const char RESIZE[] = "--resize";
-const char MEMORY[] = "--memory";
-const char CPUS[] = "--cpus";
-const char SHOWMEDIUMINFO[] = "showmediuminfo";
-const char METRICS[] = "metrics";
-const char COLLECT[] = "collect";
-const char TOTAL_RAM[] = "RAM/Usage/Total";
-const char SNAPSHOT[] = "snapshot";
-const char RESTORE[] = "restore";
 } // namespace anonymous
 
 class VBoxVirtualMachineInfo : public VirtualMachineInfo
@@ -243,8 +207,8 @@ void VBoxVirtualMachine::fetchRegisteredVirtualMachines(const QObject *context,
     Q_ASSERT(functor);
 
     QStringList arguments;
-    arguments.append(QLatin1String(LIST));
-    arguments.append(QLatin1String(VMS));
+    arguments.append("list");
+    arguments.append("vms");
 
     auto runner = std::make_unique<VBoxManageRunner>(arguments);
     QObject::connect(runner.get(), &VBoxManageRunner::done,
@@ -292,9 +256,9 @@ void VBoxVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extraIn
     auto info = std::make_shared<VBoxVirtualMachineInfo>();
 
     QStringList arguments;
-    arguments.append(QLatin1String(SHOWVMINFO));
+    arguments.append("showvminfo");
     arguments.append(q->name());
-    arguments.append(QLatin1String(MACHINE_READABLE));
+    arguments.append("--machinereadable");
 
     enqueue(arguments, batch, [=](VBoxManageRunner *runner) {
         // FIXME return by argument
@@ -304,8 +268,8 @@ void VBoxVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extraIn
 
     if (extraInfo & VirtualMachineInfo::StorageInfo) {
         QStringList arguments;
-        arguments.append(QLatin1String(LIST));
-        arguments.append(QLatin1String(HDDS));
+        arguments.append("list");
+        arguments.append("hdds");
 
         enqueue(arguments, batch, [=](VBoxManageRunner *runner) {
             storageInfoFromOutput(QString::fromLocal8Bit(runner->process()->readAllStandardOutput()),
@@ -315,10 +279,10 @@ void VBoxVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extraIn
 
     if (extraInfo & VirtualMachineInfo::SnapshotInfo) {
         QStringList arguments;
-        arguments.append(QLatin1String(SNAPSHOT));
+        arguments.append("snapshot");
         arguments.append(q->name());
-        arguments.append(QLatin1String(LIST));
-        arguments.append(QLatin1String(MACHINE_READABLE));
+        arguments.append("list");
+        arguments.append("--machinereadable");
 
         enqueue(arguments, batch, [=](VBoxManageRunner *runner) {
             snapshotInfoFromOutput(QString::fromLocal8Bit(runner->process()->readAllStandardOutput()),
@@ -339,11 +303,11 @@ void VBoxVirtualMachinePrivate::start(const QObject *context, const Functor<bool
     qCDebug(vms) << "Starting" << q->uri().toString();
 
     QStringList arguments;
-    arguments.append(QLatin1String(STARTVM));
+    arguments.append("startvm");
     arguments.append(q->name());
     if (q->isHeadless()) {
-        arguments.append(QLatin1String(TYPE));
-        arguments.append(QLatin1String(HEADLESS));
+        arguments.append("--type");
+        arguments.append("headless");
     }
 
     auto runner = std::make_unique<VBoxManageRunner>(arguments);
@@ -360,9 +324,9 @@ void VBoxVirtualMachinePrivate::stop(const QObject *context, const Functor<bool>
     qCDebug(vms) << "Stopping" << q->uri().toString();
 
     QStringList arguments;
-    arguments.append(QLatin1String(CONTROLVM));
+    arguments.append("controlvm");
     arguments.append(q->name());
-    arguments.append(QLatin1String(ACPI_POWER_BUTTON));
+    arguments.append("acpipowerbutton");
 
     auto runner = std::make_unique<VBoxManageRunner>(arguments);
     QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
@@ -377,7 +341,7 @@ void VBoxVirtualMachinePrivate::probe(const QObject *context,
     Q_ASSERT(functor);
 
     QStringList arguments;
-    arguments.append(QLatin1String(SHOWVMINFO));
+    arguments.append("showvminfo");
     arguments.append(q->name());
 
     auto runner = std::make_unique<VBoxManageRunner>(arguments);
@@ -434,9 +398,9 @@ void VBoxVirtualMachinePrivate::setVideoMode(const QSize &size, int depth,
         setExtraData(key, value, Sdk::instance(), [=](bool ok) { *allOk &= ok; });
     };
 
-    enqueue(QLatin1String(CUSTOM_VIDEO_MODE1), videoMode);
-    enqueue(QLatin1String(LAST_GUEST_SIZE_HINT), hint);
-    enqueue(QLatin1String(AUTORESIZE_GUEST), QLatin1Literal("false"));
+    enqueue("CustomVideoMode1", videoMode);
+    enqueue("GUI/LastGuestSizeHint", hint);
+    enqueue("GUI/AutoresizeGuest", QLatin1Literal("false"));
 
     // These may be used by the optional VBoxManage wrapper
     enqueue(QLatin1String(SAILFISH_SDK_DEVICE_MODEL), deviceModelName);
@@ -458,9 +422,9 @@ void VBoxVirtualMachinePrivate::doSetMemorySizeMb(int memorySizeMb, const QObjec
     qCDebug(vms) << "Changing memory size of" << q->uri().toString() << "to" << memorySizeMb << "MB";
 
     QStringList arguments;
-    arguments.append(QLatin1String(MODIFYVM));
+    arguments.append("modifyvm");
     arguments.append(q->name());
-    arguments.append(QLatin1String(MEMORY));
+    arguments.append("--memory");
     arguments.append(QString::number(memorySizeMb));
 
     auto runner = std::make_unique<VBoxManageRunner>(arguments);
@@ -478,9 +442,9 @@ void VBoxVirtualMachinePrivate::doSetCpuCount(int cpuCount, const QObject *conte
     qCDebug(vms) << "Changing CPU count of" << q->uri().toString() << "to" << cpuCount;
 
     QStringList arguments;
-    arguments.append(QLatin1String(MODIFYVM));
+    arguments.append("modifyvm");
     arguments.append(q->name());
-    arguments.append(QLatin1String(CPUS));
+    arguments.append("--cpus");
     arguments.append(QString::number(cpuCount));
 
     auto runner = std::make_unique<VBoxManageRunner>(arguments);
@@ -507,8 +471,8 @@ void VBoxVirtualMachinePrivate::doSetStorageSizeMb(int storageSizeMb, const QObj
         auto virtualMachineInfo = static_cast<const VBoxVirtualMachineInfo &>(virtualMachineInfo_);
 
         if (storageSizeMb < virtualMachineInfo.storageSizeMb) {
-            qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << virtualMachineInfo.storageUuid
-                       << RESIZE << storageSizeMb << "for VM" << name << ":"
+            qWarning() << "VBoxManage failed to resize medium" << virtualMachineInfo.storageUuid
+                       << "to size [MB]" << storageSizeMb << "for VM" << name << ":"
                        << "Can't reduce storage size. Current size:" << virtualMachineInfo.storageSizeMb;
             callIf(context_, functor, false);
             return;
@@ -532,15 +496,15 @@ void VBoxVirtualMachinePrivate::doSetStorageSizeMb(int storageSizeMb, const QObj
             const QString storageUuid = toResize.takeLast();
 
             QStringList arguments;
-            arguments.append(QLatin1String(MODIFYMEDIUM));
+            arguments.append("modifymedium");
             arguments.append(storageUuid);
-            arguments.append(QLatin1String(RESIZE));
+            arguments.append("--resize");
             arguments.append(QString::number(storageSizeMb));
 
             auto runner = std::make_unique<VBoxManageRunner>(arguments);
             QObject::connect(runner.get(), &VBoxManageRunner::done, Sdk::instance(), [=](bool ok) {
                 if (!ok) {
-                    qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << storageUuid << RESIZE;
+                    qWarning() << "VBoxManage failed to resize medium" << storageUuid;
                     *allOk = false;
                 }
             });
@@ -586,26 +550,26 @@ void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FileName
     const QPointer<const QObject> context_{context};
 
     QStringList rargs;
-    rargs.append(QLatin1String(SHAREDFOLDER));
-    rargs.append(QLatin1String(REMOVE_SHARED));
+    rargs.append("sharedfolder");
+    rargs.append("remove");
     rargs.append(q->name());
-    rargs.append(QLatin1String(SHARE_NAME));
+    rargs.append("--name");
     rargs.append(mountName);
 
     QStringList aargs;
-    aargs.append(QLatin1String(SHAREDFOLDER));
-    aargs.append(QLatin1String(ADD_SHARED));
+    aargs.append("sharedfolder");
+    aargs.append("add");
     aargs.append(q->name());
-    aargs.append(QLatin1String(SHARE_NAME));
+    aargs.append("--name");
     aargs.append(mountName);
-    aargs.append(QLatin1String(HOSTPATH));
+    aargs.append("--hostpath");
     aargs.append(path.toString());
 
     QStringList sargs;
-    sargs.append(QLatin1String(SETEXTRADATA));
+    sargs.append("setextradata");
     sargs.append(q->name());
-    sargs.append(QString::fromLatin1(ENABLE_SYMLINKS).arg(mountName));
-    sargs.append(QLatin1String(YES_ARG));
+    sargs.append(QString("VBoxInternal2/SharedFoldersEnableSymlinksCreate/%1").arg(mountName));
+    sargs.append("1");
 
     auto enqueue = [=](const QStringList &args, CommandQueue::BatchId batch) {
         auto runner = std::make_unique<VBoxManageRunner>(args);
@@ -640,9 +604,9 @@ void VBoxVirtualMachinePrivate::doAddPortForwarding(const QString &ruleName,
         << hostPort << "to" << emulatorVmPort;
 
     QStringList arguments;
-    arguments.append(QLatin1String(MODIFYVM));
+    arguments.append("modifyvm");
     arguments.append(q->name());
-    arguments.append(QLatin1String(NATPF1));
+    arguments.append("--natpf1");
     arguments.append(QString::fromLatin1("%1,%2,,%3,,%4")
                      .arg(ruleName).arg(protocol).arg(hostPort).arg(emulatorVmPort));
 
@@ -661,10 +625,10 @@ void VBoxVirtualMachinePrivate::doRemovePortForwarding(const QString &ruleName,
     qCDebug(vms) << "Deleting port forwarding rule" << ruleName << "from" << q->uri().toString();
 
     QStringList arguments;
-    arguments.append(QLatin1String(MODIFYVM));
+    arguments.append("modifyvm");
     arguments.append(q->name());
-    arguments.append(QLatin1String(NATPF1));
-    arguments.append(QLatin1String(DELETE));
+    arguments.append("--natpf1");
+    arguments.append("delete");
     arguments.append(ruleName);
 
     auto runner = std::make_unique<VBoxManageRunner>(arguments);
@@ -698,12 +662,12 @@ void VBoxVirtualMachinePrivate::doSetReservedPortForwarding(ReservedPort which, 
         .arg(ruleName).arg(port).arg(guestPort);
 
     QStringList arguments;
-    arguments.append(QLatin1String(MODIFYVM));
+    arguments.append("modifyvm");
     arguments.append(q->name());
-    arguments.append(QLatin1String(NATPF1));
-    arguments.append(QLatin1String(DELETE));
+    arguments.append("--natpf1");
+    arguments.append("delete");
     arguments.append(ruleName);
-    arguments.append(QLatin1String(NATPF1));
+    arguments.append("--natpf1");
     arguments.append(rule);
 
     auto runner = std::make_unique<VBoxManageRunner>(arguments);
@@ -744,10 +708,10 @@ void VBoxVirtualMachinePrivate::doSetReservedPortListForwarding(ReservedPortList
         const QStringList rulesToDelete = (info.*ruleMap).keys();
         for (const QString &ruleToDelete : rulesToDelete) {
             QStringList arguments;
-            arguments.append(QLatin1String(MODIFYVM));
+            arguments.append("modifyvm");
             arguments.append(q->name());
-            arguments.append(QLatin1String(NATPF1));
-            arguments.append(QLatin1String(DELETE));
+            arguments.append("--natpf1");
+            arguments.append("delete");
             arguments.append(ruleToDelete);
 
             auto runner = std::make_unique<VBoxManageRunner>(arguments);
@@ -766,9 +730,9 @@ void VBoxVirtualMachinePrivate::doSetReservedPortListForwarding(ReservedPortList
     int i = 1;
     foreach (quint16 port, ports_) {
         QStringList arguments;
-        arguments.append(QLatin1String(MODIFYVM));
+        arguments.append("modifyvm");
         arguments.append(q->name());
-        arguments.append(QLatin1String(NATPF1));
+        arguments.append("--natpf1");
         arguments.append(ruleTemplate.arg(i).arg(port).arg(port));
 
         auto runner = std::make_unique<VBoxManageRunner>(arguments);
@@ -797,9 +761,9 @@ void VBoxVirtualMachinePrivate::doRestoreSnapshot(const QString &snapshotName, c
     qCDebug(vms) << "Restoring snapshot" << snapshotName << "of" << q->uri().toString();
 
     QStringList arguments;
-    arguments.append(QLatin1String(SNAPSHOT));
+    arguments.append("snapshot");
     arguments.append(q->name());
-    arguments.append(QLatin1String(RESTORE));
+    arguments.append("restore");
     arguments.append(snapshotName);
 
     auto runner = std::make_unique<VBoxManageRunner>(arguments);
@@ -815,7 +779,7 @@ void VBoxVirtualMachinePrivate::fetchExtraData(const QString &key,
     Q_ASSERT(functor);
 
     QStringList arguments;
-    arguments.append(QLatin1String(GETEXTRADATA));
+    arguments.append("getextradata");
     arguments.append(q->name());
     arguments.append(key);
 
@@ -840,7 +804,7 @@ void VBoxVirtualMachinePrivate::setExtraData(const QString &keyword, const QStri
     Q_ASSERT(functor);
 
     QStringList args;
-    args.append(QLatin1String(SETEXTRADATA));
+    args.append("setextradata");
     args.append(q->name());
     args.append(keyword);
     args.append(data);
