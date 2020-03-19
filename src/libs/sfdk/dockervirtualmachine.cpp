@@ -48,6 +48,8 @@ const char DOCKER[] = "docker";
 const char SAILFISH_SDK_SYSTEM_DOCKER[] = "SAILFISH_SDK_SYSTEM_DOCKER";
 const quint16 GUESTSSHPORT = 22;
 const quint16 GUESTWWWPORT = 9292;
+const char SAILFISH_SDK_DOCKER_RUN_PRIVILEGED[] = "SAILFISH_SDK_DOCKER_RUN_PRIVILEGED";
+const char SAILFISH_SDK_DOCKER_CAP_ADD[] = "SAILFISH_SDK_DOCKER_CAP_ADD";
 } // namespace anonymous
 
 namespace {
@@ -562,10 +564,18 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
 
     QStringList arguments;
     arguments.append("create");
-    arguments.append("--privileged");
-    arguments.append("--cap-drop=NET_ADMIN");
+    arguments.append("--env=container=docker");
+    arguments.append("--cap-add=NET_ADMIN");
+    arguments.append("--security-opt=seccomp=unconfined");
     arguments.append("--volume");
     arguments.append("/sys/fs/cgroup:/sys/fs/cgroup:ro");
+
+    if (qEnvironmentVariableIsSet(SAILFISH_SDK_DOCKER_RUN_PRIVILEGED))
+        arguments.append("--privileged");
+    for (const QString &capability : qEnvironmentVariable(SAILFISH_SDK_DOCKER_CAP_ADD)
+            .split(',', QString::SkipEmptyParts)) {
+        arguments.append("--cap-add=" + capability);
+    }
 
     auto addTmpfs = [&arguments](const QString &path) {
         arguments.append("--tmpfs");
