@@ -565,6 +565,7 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
     QStringList arguments;
     arguments.append("create");
     arguments.append("--env=container=docker");
+    arguments.append("--stop-signal=RTMIN+3");
     arguments.append("--cap-add=NET_ADMIN");
     arguments.append("--security-opt=seccomp=unconfined");
     arguments.append("--volume");
