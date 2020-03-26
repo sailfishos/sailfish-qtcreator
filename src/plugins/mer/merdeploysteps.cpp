@@ -629,7 +629,7 @@ Core::Id MerMb2RpmDeployStep::stepId()
 
 QString MerMb2RpmDeployStep::displayName()
 {
-    return QLatin1String("RPM");
+    return QLatin1String("RPM Deploy");
 }
 
 MerMb2RpmDeployStep::MerMb2RpmDeployStep(BuildStepList *bsl, Core::Id id)
@@ -669,7 +669,7 @@ Core::Id MerMb2RpmBuildStep::stepId()
 
 QString MerMb2RpmBuildStep::displayName()
 {
-    return QLatin1String("RPM");
+    return QLatin1String("RPM Build");
 }
 
 MerMb2RpmBuildStep::MerMb2RpmBuildStep(BuildStepList *bsl, Core::Id id)
@@ -678,9 +678,10 @@ MerMb2RpmBuildStep::MerMb2RpmBuildStep(BuildStepList *bsl, Core::Id id)
     setDefaultDisplayName(displayName());
 }
 
-
 bool MerMb2RpmBuildStep::init()
 {
+    m_showResultDialog = !deployConfiguration()->stepList()->contains(MerMb2RpmDeployStep::stepId());
+
     bool success = MerProcessStep::init(DoNotNeedDevice);
     m_packages.clear();
     BuildEngine *const engine = MerSdkKitAspect::buildEngine(target()->kit());
@@ -709,7 +710,7 @@ void MerMb2RpmBuildStep::processFinished(int exitCode, QProcess::ExitStatus stat
 {
     //TODO:
     MerProcessStep::processFinished(exitCode, status);
-    if(exitCode == 0 && status == QProcess::NormalExit && !m_packages.isEmpty()){
+    if (m_showResultDialog && exitCode == 0 && status == QProcess::NormalExit && !m_packages.isEmpty()) {
         new RpmInfo(m_packages, ICore::dialogParent());
     }
 }

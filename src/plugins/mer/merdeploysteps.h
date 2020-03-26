@@ -191,11 +191,13 @@ public:
     void processFinished(int exitCode, QProcess::ExitStatus status) override;
     void stdOutput(const QString &line) override;
     QString mainPackageFileName() const;
+
 protected:
     void doRun() override;
 private:
     QString m_sharedSrc;
     QStringList m_packages;
+    bool m_showResultDialog{true};
 };
 
 class RpmInfo: public QDialog
