@@ -26,6 +26,8 @@
 #include "sfdkglobal.h"
 #include "asynchronous.h"
 
+#include <utils/outputformat.h>
+
 #include <QUrl>
 
 #include <memory>
@@ -104,6 +106,10 @@ public:
 
     bool isHeadless() const;
     void setHeadless(bool headless);
+
+    bool isGraphicReady() const;
+    bool waitForGraphicReady(int msecs = 30000,
+                             std::function<void(const QString&, Utils::OutputFormat, bool)> messagingCallback = nullptr) const;
 
     bool isAutoConnectEnabled() const; // FIXME internal?
     void setAutoConnectEnabled(bool autoConnectEnabled);

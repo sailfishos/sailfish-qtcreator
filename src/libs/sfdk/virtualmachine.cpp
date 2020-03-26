@@ -25,6 +25,7 @@
 #include "asynchronous_p.h"
 #include "sdk_p.h"
 #include "sfdkconstants.h"
+#include "ssh/sshremoteprocessrunner.h"
 #include "vboxvirtualmachine_p.h"
 #include "vmconnection_p.h"
 
@@ -36,6 +37,7 @@
 #include <utils/qtcassert.h>
 
 #include <QCoreApplication>
+#include <QDeadlineTimer>
 #include <QDir>
 #include <QLockFile>
 #include <QTimer>
@@ -207,6 +209,57 @@ void VirtualMachine::setHeadless(bool headless)
         return;
     d->headless = headless;
     emit headlessChanged(headless);
+}
+
+bool VirtualMachine::isGraphicReady() const
+{
+    using namespace QSsh;
+
+    SshRemoteProcessRunner runner;
+    QEventLoop loop;
+    connect(&runner, &SshRemoteProcessRunner::connectionError,
+            &loop, &QEventLoop::quit);
+    connect(&runner, &SshRemoteProcessRunner::processClosed,
+            &loop, &QEventLoop::quit);
+    runner.run("systemctl --user is-active lipstick.service --quiet", sshParameters());
+    loop.exec();
+
+    return runner.lastConnectionErrorString().isEmpty()
+            && runner.processExitStatus() == SshRemoteProcess::NormalExit
+            && runner.processExitCode() == 0;
+}
+
+bool VirtualMachine::waitForGraphicReady(int msecs, std::function<void(const QString&, Utils::OutputFormat, bool)> messagingCallback) const
+{
+    // NOTE: Unable to use ProjectExplorer::RunWorker::appendMessage, so messagingCallback used instead
+    using namespace Utils;
+    auto showMessage = [messagingCallback](const QString &msg,
+            bool appendNewLine = true,
+            OutputFormat format = OutputFormat::LogMessageFormat) {
+        if (messagingCallback)
+            messagingCallback(msg, format, appendNewLine);
+    };
+
+    showMessage(tr("Checking Wayland compositor is ready: "), false,
+                OutputFormat::NormalMessageFormat);
+    if (isGraphicReady()) {
+        showMessage(tr("ok!"));
+        return true;
+    } else {
+        QDeadlineTimer timer(msecs);
+        do {
+            if (isGraphicReady()) {
+                showMessage(tr("ok!"));
+                return true;
+            }
+            showMessage(".", false);
+        } while (!timer.hasExpired());
+        showMessage("");
+        showMessage(tr("Wayland compositor is not ready. Please, wait and try again."), true,
+                    OutputFormat::ErrorMessageFormat);
+    }
+
+    return false;
 }
 
 bool VirtualMachine::isAutoConnectEnabled() const

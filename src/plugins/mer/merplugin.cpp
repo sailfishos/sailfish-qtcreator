@@ -49,6 +49,7 @@
 #include "meremulatormodeoptionspage.h"
 
 #include <sfdk/sdk.h>
+#include <sfdk/emulator.h>
 #include <sfdk/virtualmachine.h>
 
 #include <coreplugin/actionmanager/actioncontainer.h>
@@ -81,6 +82,33 @@ namespace Internal {
 
 namespace {
 const char *VM_NAME_PROPERTY = "merVmName";
+
+void waitForEmulatorGraphicReady(ProjectExplorer::RunWorker *worker)
+{
+    const auto emu = worker->device().dynamicCast<const MerEmulatorDevice>();
+
+    if (!emu || !emu->emulator() || !emu->emulator()->virtualMachine())
+        return;
+
+    const VirtualMachine *vm = emu->emulator()->virtualMachine();
+    const auto showMessage = [worker](const QString &msg, Utils::OutputFormat format, bool appendNewLine) {
+        worker->appendMessage(msg, format, appendNewLine);
+    };
+
+    if (!vm->waitForGraphicReady(30000, showMessage))
+        worker->reportFailure();
+}
+
+template<class Worker>
+Worker *createWorker(RunControl *rc)
+{
+    auto w = new Worker(rc);
+    QObject::connect(rc, &RunControl::aboutToStart, w, [w]() {
+        waitForEmulatorGraphicReady(w);
+    });
+    return w;
+}
+
 }
 
 class MerPluginPrivate
@@ -149,9 +177,15 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
             || id.name().startsWith(Constants::MER_RUNCONFIGURATION_PREFIX);
     };
 
-    RunControl::registerWorker<SimpleTargetRunner>(NORMAL_RUN_MODE, constraint);
-    RunControl::registerWorker<MerDeviceDebugSupport>(DEBUG_RUN_MODE, constraint);
-    RunControl::registerWorker<RemoteLinuxQmlProfilerSupport>(QML_PROFILER_RUN_MODE, constraint);
+    RunControl::registerWorker(NORMAL_RUN_MODE, [](RunControl *rc) {
+        return createWorker<SimpleTargetRunner>(rc);
+    }, constraint);
+    RunControl::registerWorker(DEBUG_RUN_MODE, [](RunControl *rc) {
+        return createWorker<MerDeviceDebugSupport>(rc);
+    }, constraint);
+    RunControl::registerWorker(QML_PROFILER_RUN_MODE, [](RunControl *rc) {
+        return createWorker<RemoteLinuxQmlProfilerSupport>(rc);
+    }, constraint);
     //RunControl::registerWorker<RemoteLinuxPerfSupport>(PERFPROFILER_RUN_MODE, constraint);
 
     VirtualMachine::registerConnectionUi<MerVmConnectionUi>();
