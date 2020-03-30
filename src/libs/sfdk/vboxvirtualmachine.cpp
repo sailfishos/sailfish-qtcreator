@@ -612,7 +612,7 @@ void VBoxVirtualMachinePrivate::doAddPortForwarding(const QString &ruleName,
 
     auto runner = std::make_unique<VBoxManageRunner>(arguments);
     QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
-    commandQueue()->enqueueImmediate(std::move(runner));
+    commandQueue()->enqueue(std::move(runner));
 }
 
 void VBoxVirtualMachinePrivate::doRemovePortForwarding(const QString &ruleName,
