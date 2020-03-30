@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -46,32 +46,6 @@ namespace Sfdk {
 namespace {
 const char DOCKER[] = "docker";
 const char SAILFISH_SDK_SYSTEM_DOCKER[] = "SAILFISH_SDK_SYSTEM_DOCKER";
-const char RUN[] = "run";
-const char PRIVILEGED1[] = "--privileged";
-const char PRIVILEGED2[] = "--cap-drop=NET_ADMIN";
-const char STOP[] = "stop";
-const char COMMIT[] = "commit";
-const char CONTAINER_LIST[] = "ps";
-const char DETACHED[] = "-d";
-const char PUBLISH_PORT[] = "-p";
-const char VOLUME[] = "-v";
-const char CGROUP_MOUNT[] = "/sys/fs/cgroup:/sys/fs/cgroup:ro";
-const char TMPFS[] = "--tmpfs";
-const char TMPFS1[] = "/run:exec,mode=755";
-const char TMPFS2[] = "/run/lock";
-const char TMPFS3[] = "/tmp:exec";
-const char FILTER_PREFIX[] = "--filter=ancestor=";
-const char FORMAT_CONTAINER_LIST[] = "--format={{.Image}} {{.ID}}";
-const char COMMAND_INSPECT[] = "inspect";
-const char FORMAT_LABEL_LIST[] = "--format={{json .Config.Labels}}";
-const char IMAGE[] = "image";
-const char LIST[] = "ls";
-const char FORMAT_REPOSITORY[] = "--format={{.Repository}}";
-const char UNNAMED_IMAGE[] = "<none>";
-const char COMMAND_BUILD[] = "build";
-const char DOCKERFILE_PREFIX[] = "FROM ";
-const char LABEL_PREFIX[] = "--label=";
-const char TAG[] = "--tag";
 const quint16 GUESTSSHPORT = 22;
 const quint16 GUESTWWWPORT = 9292;
 } // namespace anonymous
@@ -172,9 +146,9 @@ void DockerVirtualMachine::fetchRegisteredVirtualMachines(const QObject *context
     Q_ASSERT(functor);
 
     QStringList arguments;
-    arguments.append(IMAGE);
-    arguments.append(LIST);
-    arguments.append(FORMAT_REPOSITORY);
+    arguments.append("image");
+    arguments.append("ls");
+    arguments.append("--format={{.Repository}}");
 
     auto runner = std::make_unique<DockerRunner>(arguments);
     QObject::connect(runner.get(), &DockerRunner::done,
@@ -206,9 +180,9 @@ void DockerVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extra
     Q_UNUSED(extraInfo)
 
     QStringList arguments;
-    arguments.append(COMMAND_INSPECT);
+    arguments.append("inspect");
     arguments.append(q->name());
-    arguments.append(FORMAT_LABEL_LIST);
+    arguments.append("--format={{json .Config.Labels}}");
 
     auto runner = std::make_unique<DockerRunner>(arguments);
     QObject::connect(runner.get(), &DockerRunner::done, context,
@@ -227,60 +201,78 @@ void DockerVirtualMachinePrivate::start(const QObject *context, const Functor<bo
     Q_Q(DockerVirtualMachine);
     Q_ASSERT(context);
     Q_ASSERT(functor);
-    QTC_ASSERT(cachedInfo().sshPort != 0, return);
-    QTC_ASSERT(cachedInfo().wwwPort != 0, return);
-    QTC_ASSERT(!cachedInfo().sharedInstall.isEmpty(), return);
-    QTC_ASSERT(!cachedInfo().sharedSrc.isEmpty(), return);
-    QTC_ASSERT(!cachedInfo().sharedHome.isEmpty(), return);
-    QTC_ASSERT(!cachedInfo().sharedTargets.isEmpty(), return);
-    QTC_ASSERT(!cachedInfo().sharedConfig.isEmpty(), return);
-    QTC_ASSERT(!cachedInfo().sharedSsh.isEmpty(), return);
 
-    QStringList arguments;
-    arguments.append(RUN);
-    arguments.append(DETACHED);
-    arguments.append(PRIVILEGED1);
-    arguments.append(PRIVILEGED2);
-    arguments.append(VOLUME);
-    arguments.append(CGROUP_MOUNT);
+    const QPointer<const QObject> context_{context};
 
-    auto addTmpfs = [&arguments](const QString &path) {
-        arguments.append(TMPFS);
-        arguments.append(path);
+    auto prepare = [=](const QStringList &arguments, CommandQueue::BatchId batch) {
+        auto runner = std::make_unique<DockerRunner>(arguments);
+        QObject::connect(runner.get(), &DockerRunner::failure, Sdk::instance(), [=]() {
+            commandQueue()->cancelBatch(batch);
+            callIf(context_, functor, false);
+        });
+#ifdef Q_OS_MACOS
+        return std::move(runner);
+#else
+        return runner;
+#endif
     };
-    addTmpfs(TMPFS1);
-    addTmpfs(TMPFS2);
-    addTmpfs(TMPFS3);
 
-    auto forwardPort = [&arguments](quint16 guestPort, quint16 hostPort) {
-        arguments.append(PUBLISH_PORT);
-        arguments.append(QString::number(hostPort) + ":" + QString::number(guestPort));
+    auto enqueue = [=](const QStringList &arguments, CommandQueue::BatchId batch) {
+        auto runner = prepare(arguments, batch);
+        DockerRunner *runner_ = runner.get();
+        commandQueue()->enqueue(std::move(runner));
+        return runner_;
     };
-    forwardPort(GUESTSSHPORT, cachedInfo().sshPort);
-    forwardPort(GUESTWWWPORT, cachedInfo().wwwPort);
 
-    auto sharePath = [&arguments](const QString &guestPath, const QString &hostPath) {
-        arguments.append(VOLUME);
-        arguments.append(hostPath + ":" + guestPath);
+    auto enqueueImmediate = [=](const QStringList &arguments, CommandQueue::BatchId batch) {
+        auto runner = prepare(arguments, batch);
+        DockerRunner *runner_ = runner.get();
+        commandQueue()->enqueueImmediate(std::move(runner));
+        return runner_;
     };
-    sharePath(Constants::BUILD_ENGINE_SHARED_INSTALL_MOUNT_POINT, cachedInfo().sharedInstall);
-    sharePath(Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, cachedInfo().sharedHome);
-    sharePath(Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, cachedInfo().sharedSrc);
-    sharePath(Constants::BUILD_ENGINE_SHARED_TARGET_MOUNT_POINT, cachedInfo().sharedTargets);
-    sharePath(Constants::BUILD_ENGINE_SHARED_CONFIG_MOUNT_POINT, cachedInfo().sharedConfig);
-    sharePath(Constants::BUILD_ENGINE_SHARED_SSH_MOUNT_POINT, cachedInfo().sharedSsh);
 
-    arguments.append(q->name());
+    CommandQueue::BatchId batch = commandQueue()->beginBatch();
 
-    auto runner = std::make_unique<DockerRunner>(arguments);
-    QObject::connect(runner.get(), &DockerRunner::done, q,
-            [this, context, functor, process = runner->process()](bool ok) {
-        if (ok)
-            containerId = QString::fromLocal8Bit(process->readAllStandardOutput().trimmed());
-        if (context)
-            functor(ok);
+    QStringList lsArguments;
+    lsArguments.append("container");
+    lsArguments.append("ls");
+    lsArguments.append("--all");
+    lsArguments.append("--filter=name=" + q->name());
+    lsArguments.append("--format={{.Image}}");
+
+    DockerRunner *const lsRunner = enqueue(lsArguments, batch);
+    QObject::connect(lsRunner, &DockerRunner::success, context, [=]() {
+        const QString out = QString::fromLocal8Bit(lsRunner->process()->readAllStandardOutput())
+            .trimmed();
+        bool containerExists = !out.isEmpty();
+        const QString imageName = out;
+
+        if (!containerExists) {
+            enqueueImmediate(makeCreateArguments(), batch);
+        } else if (imageName != q->name()) {
+            // Recreate the container if it does not use the desired (latest) image.
+            // This may happen e.g. when stop() fails to 'create' after 'commit'.
+            QStringList rmArguments;
+            rmArguments.append("container");
+            rmArguments.append("rm");
+            rmArguments.append(q->name());
+
+            // enqueueImmediate reverses the actual order of execution
+            enqueueImmediate(makeCreateArguments(), batch);
+            enqueueImmediate(rmArguments, batch);
+        }
+
     });
-    commandQueue()->enqueue(std::move(runner));
+
+    QStringList startArguments;
+    startArguments.append("container");
+    startArguments.append("start");
+    startArguments.append(q->name());
+
+    enqueue(startArguments, batch);
+
+    commandQueue()->enqueueCheckPoint(context, [=]() { functor(true); });
+    commandQueue()->endBatch();
 }
 
 void DockerVirtualMachinePrivate::stop(const QObject *context, const Functor<bool> &functor)
@@ -305,17 +297,26 @@ void DockerVirtualMachinePrivate::stop(const QObject *context, const Functor<boo
     const CommandQueue::BatchId batch = commandQueue()->beginBatch();
 
     QStringList stopArguments;
-    stopArguments.append(STOP);
-    stopArguments.append(containerId);
+    stopArguments.append("stop");
+    stopArguments.append(q->name());
 
     enqueue(stopArguments, batch);
 
     QStringList commitArguments;
-    commitArguments.append(COMMIT);
-    commitArguments.append(containerId);
+    commitArguments.append("commit");
+    commitArguments.append(q->name());
     commitArguments.append(q->name());
 
     enqueue(commitArguments, batch);
+
+    QStringList rmArguments;
+    rmArguments.append("container");
+    rmArguments.append("rm");
+    rmArguments.append(q->name());
+
+    enqueue(rmArguments, batch);
+
+    enqueue(makeCreateArguments(), batch);
 
     commandQueue()->enqueueCheckPoint(context, [=]() { functor(true); });
     commandQueue()->endBatch();
@@ -331,22 +332,27 @@ void DockerVirtualMachinePrivate::probe(const QObject *context,
     const QPointer<const QObject> context_{context};
 
     q->fetchRegisteredVirtualMachines(q, [=](const QStringList &registeredVms, bool ok) {
+        auto state = std::make_shared<VirtualMachinePrivate::BasicState>();
+
         if (!ok) {
             if (context_)
-                functor({}, false);
+                functor(*state, false);
             return;
         }
 
         if (!registeredVms.contains(q->name())) {
             if (context_)
-                functor({}, true);
+                functor(*state, true);
             return;
         }
 
+        *state |= VirtualMachinePrivate::Existing;
+
         QStringList arguments;
-        arguments.append(CONTAINER_LIST);
-        arguments.append(QString(FILTER_PREFIX) + q->name());
-        arguments.append(FORMAT_CONTAINER_LIST);
+        arguments.append("container");
+        arguments.append("ls");
+        arguments.append("--filter=name=" + q->name());
+        arguments.append("--quiet");
 
         auto runner = std::make_unique<DockerRunner>(arguments);
         QObject::connect(runner->process(),
@@ -355,23 +361,15 @@ void DockerVirtualMachinePrivate::probe(const QObject *context,
                 [=, runner = runner.get()](int exitCode, QProcess::ExitStatus exitStatus) {
             if (exitStatus != QProcess::NormalExit || exitCode != 0) {
                 if (context_)
-                    functor({}, false);
+                    functor(*state, false);
                 return;
             }
 
-            VirtualMachinePrivate::BasicState state = VirtualMachinePrivate::Existing;
-            const QStringList runningContainers =
-                QString::fromLocal8Bit(runner->process()->readAllStandardOutput())
-                    .split('\n', QString::SkipEmptyParts);
-            for (const QString& runningContainer : runningContainers) {
-                QStringList nameAndId = runningContainer.split(' ', QString::SkipEmptyParts);
-                QTC_ASSERT(nameAndId.count() == 2 && nameAndId.first() == q->name(), continue);
-                state |= VirtualMachinePrivate::Running | VirtualMachinePrivate::Headless;
-                if (containerId.isEmpty())
-                    containerId = nameAndId.last();
-            }
+            if (!runner->process()->readAllStandardOutput().isEmpty())
+                *state |= VirtualMachinePrivate::Running | VirtualMachinePrivate::Headless;
+
             if (context_)
-                functor(state, true);
+                functor(*state, true);
         });
         commandQueue()->enqueue(std::move(runner));
     });
@@ -436,7 +434,7 @@ void DockerVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FileNa
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    buildWithLabel(labelFor(which), path.toString(), context, functor);
+    rebuildWithLabel(labelFor(which), path.toString(), context, functor);
 }
 
 void DockerVirtualMachinePrivate::doAddPortForwarding(const QString &ruleName,
@@ -473,7 +471,7 @@ void DockerVirtualMachinePrivate::doSetReservedPortForwarding(ReservedPort which
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    buildWithLabel(labelFor(which), QString::number(port), context, functor);
+    rebuildWithLabel(labelFor(which), QString::number(port), context, functor);
 }
 
 void DockerVirtualMachinePrivate::doSetReservedPortListForwarding(ReservedPortList which,
@@ -507,7 +505,7 @@ QStringList DockerVirtualMachinePrivate::listedImages(const QString &output)
     QStringList images;
     const QStringList lines = output.split(QRegularExpression("[\r\n]"), QString::SkipEmptyParts);
     for (const QString &line : lines) {
-        if (line != UNNAMED_IMAGE)
+        if (line != "<none>")
             images.append(line);
     }
     return images;
@@ -550,7 +548,60 @@ VirtualMachineInfo DockerVirtualMachinePrivate::virtualMachineInfoFromOutput(con
     return info;
 }
 
-void DockerVirtualMachinePrivate::buildWithLabel(const QString& key, const QString& value,
+QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
+{
+    Q_Q(const DockerVirtualMachine);
+    QTC_ASSERT(cachedInfo().sshPort != 0, return {});
+    QTC_ASSERT(cachedInfo().wwwPort != 0, return {});
+    QTC_ASSERT(!cachedInfo().sharedInstall.isEmpty(), return {});
+    QTC_ASSERT(!cachedInfo().sharedSrc.isEmpty(), return {});
+    QTC_ASSERT(!cachedInfo().sharedHome.isEmpty(), return {});
+    QTC_ASSERT(!cachedInfo().sharedTargets.isEmpty(), return {});
+    QTC_ASSERT(!cachedInfo().sharedConfig.isEmpty(), return {});
+    QTC_ASSERT(!cachedInfo().sharedSsh.isEmpty(), return {});
+
+    QStringList arguments;
+    arguments.append("create");
+    arguments.append("--privileged");
+    arguments.append("--cap-drop=NET_ADMIN");
+    arguments.append("--volume");
+    arguments.append("/sys/fs/cgroup:/sys/fs/cgroup:ro");
+
+    auto addTmpfs = [&arguments](const QString &path) {
+        arguments.append("--tmpfs");
+        arguments.append(path);
+    };
+    addTmpfs("/run:exec,mode=755");
+    addTmpfs("/run/lock");
+    addTmpfs("/tmp:exec");
+
+    auto forwardPort = [&arguments](quint16 guestPort, quint16 hostPort) {
+        arguments.append("--publish");
+        arguments.append(QString::number(hostPort) + ":" + QString::number(guestPort));
+    };
+    forwardPort(GUESTSSHPORT, cachedInfo().sshPort);
+    forwardPort(GUESTWWWPORT, cachedInfo().wwwPort);
+
+    auto sharePath = [&arguments](const QString &guestPath, const QString &hostPath) {
+        arguments.append("--volume");
+        arguments.append(hostPath + ":" + guestPath);
+    };
+    sharePath(Constants::BUILD_ENGINE_SHARED_INSTALL_MOUNT_POINT, cachedInfo().sharedInstall);
+    sharePath(Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, cachedInfo().sharedHome);
+    sharePath(Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, cachedInfo().sharedSrc);
+    sharePath(Constants::BUILD_ENGINE_SHARED_TARGET_MOUNT_POINT, cachedInfo().sharedTargets);
+    sharePath(Constants::BUILD_ENGINE_SHARED_CONFIG_MOUNT_POINT, cachedInfo().sharedConfig);
+    sharePath(Constants::BUILD_ENGINE_SHARED_SSH_MOUNT_POINT, cachedInfo().sharedSsh);
+
+    arguments.append("--name");
+    arguments.append(q->name());
+
+    arguments.append(q->name());
+
+    return arguments;
+}
+
+void DockerVirtualMachinePrivate::rebuildWithLabel(const QString& key, const QString& value,
         const QObject *context, const Functor<bool> &functor)
 {
     Q_Q(DockerVirtualMachine);
@@ -558,16 +609,16 @@ void DockerVirtualMachinePrivate::buildWithLabel(const QString& key, const QStri
     Q_ASSERT(functor);
 
     QStringList arguments;
-    arguments.append(COMMAND_BUILD);
-    arguments.append(LABEL_PREFIX + key + "=" + value);
-    arguments.append(TAG);
+    arguments.append("build");
+    arguments.append("--label=" + key + "=" + value);
+    arguments.append("--tag");
     arguments.append(q->name());
     arguments.append("-");
 
     auto runner = std::make_unique<DockerRunner>(arguments);
 
     QObject::connect(runner->process(), &QProcess::started, q, [q, process = runner->process()]() {
-        QString dockerFile(DOCKERFILE_PREFIX + q->name());
+        const QString dockerFile("FROM " + q->name());
         process->write(dockerFile.toUtf8());
         process->closeWriteChannel();
     });
