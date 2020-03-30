@@ -634,7 +634,10 @@ void VBoxVirtualMachinePrivate::doAddPortForwarding(const QString &ruleName,
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    doRemovePortForwarding(ruleName, Sdk::instance(), [](bool) {/* noop */});
+    bool ok;
+    Sfdk::execAsynchronous(std::tie(ok),
+                           std::mem_fn(&VBoxVirtualMachinePrivate::doRemovePortForwarding),
+                           this, ruleName);
 
     qCDebug(vms) << "Setting port forwarding for" << q->uri().toString() << "from"
         << hostPort << "to" << emulatorVmPort;
