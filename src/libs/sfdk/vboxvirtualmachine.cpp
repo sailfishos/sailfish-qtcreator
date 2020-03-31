@@ -491,6 +491,10 @@ void VBoxVirtualMachinePrivate::doSetStorageSizeMb(int storageSizeMb, const QObj
         qCDebug(vms) << "About to resize these storage images (in order):" << toResize;
 
         auto allOk = std::make_shared<bool>(true);
+
+        if (context_)
+            commandQueue()->enqueueImmediateCheckPoint(context_.data(), [=]() { functor(*allOk); });
+
         while (!toResize.isEmpty()) {
             // take last - enqueueImmediate reverses the actual order of execution
             const QString storageUuid = toResize.takeLast();
@@ -510,9 +514,6 @@ void VBoxVirtualMachinePrivate::doSetStorageSizeMb(int storageSizeMb, const QObj
             });
             commandQueue()->enqueueImmediate(std::move(runner));
         }
-
-        if (context_)
-            commandQueue()->enqueueImmediateCheckPoint(context_.data(), [=]() { functor(*allOk); });
     });
 }
 
@@ -612,7 +613,7 @@ void VBoxVirtualMachinePrivate::doAddPortForwarding(const QString &ruleName,
 
     auto runner = std::make_unique<VBoxManageRunner>(arguments);
     QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
-    commandQueue()->enqueueImmediate(std::move(runner));
+    commandQueue()->enqueue(std::move(runner));
 }
 
 void VBoxVirtualMachinePrivate::doRemovePortForwarding(const QString &ruleName,
