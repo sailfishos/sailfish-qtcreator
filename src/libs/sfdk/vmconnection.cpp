@@ -209,6 +209,9 @@ VmConnection::VmConnection(VirtualMachine *parent)
         vmStmScheduleExec();
         sshStmScheduleExec();
     });
+
+    m_vmStatePollTimer.start(VM_STATE_POLLING_INTERVAL_NORMAL, this);
+    vmPollState(VirtualMachine::Asynchronous);
 }
 
 VmConnection::~VmConnection()
