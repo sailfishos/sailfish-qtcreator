@@ -193,7 +193,7 @@ private:
     std::unique_ptr<VmConnection> connection;
     QSsh::SshConnectionParameters sshParameters;
     bool headless = false;
-    bool autoConnectEnabled = true;
+    bool autoConnectEnabled = false;
     VirtualMachine::Features features;
 };
 

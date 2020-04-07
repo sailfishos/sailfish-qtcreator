@@ -87,7 +87,7 @@ class MerPluginPrivate
 {
 public:
     MerPluginPrivate()
-        : sdk(Sdk::VersionedSettings)
+        : sdk(Sdk::VersionedSettings | Sdk::VmAutoConnect)
     {
     }
 

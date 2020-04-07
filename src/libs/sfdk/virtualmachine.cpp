@@ -217,6 +217,10 @@ bool VirtualMachine::isAutoConnectEnabled() const
 void VirtualMachine::setAutoConnectEnabled(bool autoConnectEnabled)
 {
     Q_D(VirtualMachine);
+    QTC_ASSERT(!autoConnectEnabled
+            || !SdkPrivate::isVersionedSettingsEnabled()
+            || SdkPrivate::isUpdatesEnabled(), return);
+
     if (d->autoConnectEnabled == autoConnectEnabled)
         return;
     d->autoConnectEnabled = autoConnectEnabled;

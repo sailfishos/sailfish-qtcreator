@@ -58,6 +58,7 @@ public:
     static bool isUpdatesEnabled() { return instance()->updatesEnabled; }
     static bool useSystemSettingsOnly() { return instance()->options_ & Sdk::SystemSettingsOnly; }
     static bool useCachedVmInfo() { return instance()->options_ & Sdk::CachedVmInfo; }
+    static bool enableVmAutoConnectInitially() { return instance()->options_ & Sdk::VmAutoConnect; }
 
     static QDateTime lastMaintained();
 

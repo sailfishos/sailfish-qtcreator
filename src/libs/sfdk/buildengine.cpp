@@ -407,9 +407,6 @@ bool BuildEnginePrivate::initVirtualMachine(const QUrl &vmUri)
             syncWwwProxy();
     });
 
-    // Do not attempt to auto-connect until the settings from UserScope is applied
-    virtualMachine->setAutoConnectEnabled(false);
-
     return true;
 }
 
@@ -419,7 +416,8 @@ void BuildEnginePrivate::enableUpdates()
     QTC_ASSERT(SdkPrivate::isVersionedSettingsEnabled(), return);
     QTC_ASSERT(!targetsXmlWatcher, return);
 
-    virtualMachine->setAutoConnectEnabled(true);
+    if (SdkPrivate::enableVmAutoConnectInitially())
+        virtualMachine->setAutoConnectEnabled(true);
 
     updateVmProperties(q, [](bool ok) { Q_UNUSED(ok) });
 
@@ -434,7 +432,8 @@ void BuildEnginePrivate::updateOnce()
 {
     QTC_ASSERT(!SdkPrivate::isVersionedSettingsEnabled(), return);
 
-    virtualMachine->setAutoConnectEnabled(true);
+    if (SdkPrivate::enableVmAutoConnectInitially())
+        virtualMachine->setAutoConnectEnabled(true);
 
     // FIXME Not ideal
     bool ok;
