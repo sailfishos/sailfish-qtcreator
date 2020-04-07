@@ -214,17 +214,20 @@ bool VirtualMachine::isAutoConnectEnabled() const
     return d_func()->autoConnectEnabled;
 }
 
-void VirtualMachine::setAutoConnectEnabled(bool autoConnectEnabled)
+bool VirtualMachine::setAutoConnectEnabled(bool autoConnectEnabled)
 {
     Q_D(VirtualMachine);
     QTC_ASSERT(!autoConnectEnabled
             || !SdkPrivate::isVersionedSettingsEnabled()
-            || SdkPrivate::isUpdatesEnabled(), return);
+            || SdkPrivate::isUpdatesEnabled(), return d->autoConnectEnabled);
 
     if (d->autoConnectEnabled == autoConnectEnabled)
-        return;
+        return d->autoConnectEnabled;
+
+    const bool old = d->autoConnectEnabled;
     d->autoConnectEnabled = autoConnectEnabled;
     emit autoConnectEnabledChanged(autoConnectEnabled);
+    return old;
 }
 
 bool VirtualMachine::isOff(bool *runningHeadless, bool *startedOutside) const

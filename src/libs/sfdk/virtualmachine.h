@@ -106,7 +106,7 @@ public:
     void setHeadless(bool headless);
 
     bool isAutoConnectEnabled() const; // FIXME internal?
-    void setAutoConnectEnabled(bool autoConnectEnabled);
+    bool setAutoConnectEnabled(bool autoConnectEnabled);
 
     bool isOff(bool *runningHeadless = 0, bool *startedOutside = 0) const;
     bool lockDown(bool lockDown);
