@@ -4,7 +4,6 @@ TEMPLATE = subdirs
 
 SUBDIRS = qtpromaker \
      ../plugins/cpaster/frontend \
-     sdktool \
      merssh \
      sfdk \
      valgrindfake \
