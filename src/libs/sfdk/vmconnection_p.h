@@ -39,6 +39,7 @@
 
 namespace Sfdk {
 
+class VmConnectionWaitForSystemRunningProcess;
 class VmConnectionRemoteShutdownProcess;
 class VmConnection : public QObject
 {
@@ -130,6 +131,7 @@ private slots:
     void onSshConnected();
     void onSshDisconnected();
     void onSshErrorOccured();
+    void onWaitForSystemRunningProcessFinished();
     void onRemoteShutdownProcessFinished();
 
 private:
@@ -182,6 +184,7 @@ private:
     // auto invoke reset after properties are changed
     QBasicTimer m_resetTimer;
 
+    QPointer<VmConnectionWaitForSystemRunningProcess> m_waitForSystemRunningProcess;
     QPointer<VmConnectionRemoteShutdownProcess> m_remoteShutdownProcess;
 };
 
