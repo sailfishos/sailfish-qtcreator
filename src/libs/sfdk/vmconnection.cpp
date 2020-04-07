@@ -204,7 +204,9 @@ VmConnection::VmConnection(VirtualMachine *parent)
     });
 
     connect(m_vm, &VirtualMachine::autoConnectEnabledChanged, this, [this] () {
-        if (!m_vm->isAutoConnectEnabled())
+        if (m_vm->isAutoConnectEnabled())
+            scheduleReset();
+        else
             m_resetTimer.stop();
         vmStmScheduleExec();
         sshStmScheduleExec();
@@ -428,6 +430,8 @@ void VmConnection::scheduleReset()
 
 void VmConnection::reset()
 {
+    QTC_ASSERT(m_vm->isAutoConnectEnabled(), return);
+
     DBG << "RESET";
 
     // Just do the best for the possibly updated SSH parameters to get in effect
