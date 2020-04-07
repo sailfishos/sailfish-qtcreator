@@ -279,9 +279,9 @@ void MerEmulatorDevice::generateSshKey(Sfdk::Emulator *emulator, const QString& 
     PublicKeyDeploymentDialog dialog(privateKeyFile, user, emulator->sharedSshPath().toString(),
             ICore::dialogParent());
 
-    emulator->virtualMachine()->setAutoConnectEnabled(false);
+    const bool wasEnabled = emulator->virtualMachine()->setAutoConnectEnabled(false);
     dialog.exec();
-    emulator->virtualMachine()->setAutoConnectEnabled(true);
+    emulator->virtualMachine()->setAutoConnectEnabled(wasEnabled);
 }
 
 void MerEmulatorDevice::doFactoryReset(Sfdk::Emulator *emulator, QWidget *parent)
