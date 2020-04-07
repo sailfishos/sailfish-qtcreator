@@ -1054,7 +1054,10 @@ void VmConnection::vmWantFastPollState(bool want)
         QTC_CHECK(m_vmWantFastPollState > 0);
         if (--m_vmWantFastPollState == 0) {
             DBG << "Stop fast VM state polling";
-            m_vmStatePollTimer.start(VM_STATE_POLLING_INTERVAL_NORMAL, this);
+            if (m_vm->isAutoConnectEnabled())
+                m_vmStatePollTimer.start(VM_STATE_POLLING_INTERVAL_NORMAL, this);
+            else
+                m_vmStatePollTimer.stop();
         }
     }
 }
