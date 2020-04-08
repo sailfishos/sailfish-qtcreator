@@ -571,6 +571,11 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
     arguments.append("--volume");
     arguments.append("/sys/fs/cgroup:/sys/fs/cgroup:ro");
 
+#ifdef Q_OS_WIN
+    arguments.append("--cap-add=SYS_ADMIN");
+    arguments.append("--device=/dev/fuse");
+#endif
+
     if (qEnvironmentVariableIsSet(SAILFISH_SDK_DOCKER_RUN_PRIVILEGED))
         arguments.append("--privileged");
     for (const QString &capability : qEnvironmentVariable(SAILFISH_SDK_DOCKER_CAP_ADD)
