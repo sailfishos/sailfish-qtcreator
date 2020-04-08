@@ -373,9 +373,6 @@ bool EmulatorPrivate::initVirtualMachine(const QUrl &vmUri)
     sshParameters.authenticationType = SshConnectionParameters::AuthenticationTypeSpecificKey;
     virtualMachine->setSshParameters(sshParameters);
 
-    // Do not attempt to auto-connect until the settings from UserScope is applied
-    virtualMachine->setAutoConnectEnabled(false);
-
     return true;
 }
 
@@ -384,7 +381,8 @@ void EmulatorPrivate::enableUpdates()
     Q_Q(Emulator);
     QTC_ASSERT(SdkPrivate::isVersionedSettingsEnabled(), return);
 
-    virtualMachine->setAutoConnectEnabled(true);
+    if (SdkPrivate::enableVmAutoConnectInitially())
+        virtualMachine->setAutoConnectEnabled(true);
 
     updateVmProperties(q, [](bool ok) { Q_UNUSED(ok) });
 }
@@ -393,7 +391,8 @@ void EmulatorPrivate::updateOnce()
 {
     QTC_ASSERT(!SdkPrivate::isVersionedSettingsEnabled(), return);
 
-    virtualMachine->setAutoConnectEnabled(true);
+    if (SdkPrivate::enableVmAutoConnectInitially())
+        virtualMachine->setAutoConnectEnabled(true);
 
     // FIXME Not ideal
     bool ok;
