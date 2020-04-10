@@ -703,7 +703,7 @@ bool VmConnection::vmStmStep()
                 }
             }
         } else if (m_vmStartedOutside && !m_vm->isAutoConnectEnabled()) {
-            if (m_sshState == SshNotConnected || m_sshState == SshDisconnected) {
+            if (!m_connectRequested && (m_sshState == SshNotConnected || m_sshState == SshDisconnected)) {
                 vmStmTransition(VmZombie, "started outside+auto connect disabled");
             }
         }
