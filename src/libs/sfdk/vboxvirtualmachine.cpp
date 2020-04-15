@@ -884,17 +884,17 @@ VBoxVirtualMachineInfo VBoxVirtualMachinePrivate::virtualMachineInfoFromOutput(c
                 info.otherPorts[ruleName] = port;
         } else if(rexp.cap(0).startsWith(QLatin1String("SharedFolderNameMachineMapping"))) {
             if (rexp.cap(7) == QLatin1String("install"))
-                info.sharedInstall = QDir::fromNativeSeparators(rexp.cap(8));
+                info.sharedInstall = QDir::cleanPath(rexp.cap(8));
             else if (rexp.cap(7) == QLatin1String("home"))
-                info.sharedHome = QDir::fromNativeSeparators(rexp.cap(8));
+                info.sharedHome = QDir::cleanPath(rexp.cap(8));
             else if (rexp.cap(7) == QLatin1String("targets"))
-                info.sharedTargets = QDir::fromNativeSeparators(rexp.cap(8));
+                info.sharedTargets = QDir::cleanPath(rexp.cap(8));
             else if (rexp.cap(7) == QLatin1String("ssh"))
-                info.sharedSsh = QDir::fromNativeSeparators(rexp.cap(8));
+                info.sharedSsh = QDir::cleanPath(rexp.cap(8));
             else if (rexp.cap(7) == QLatin1String("config"))
-                info.sharedConfig = QDir::fromNativeSeparators(rexp.cap(8));
+                info.sharedConfig = QDir::cleanPath(rexp.cap(8));
             else if (rexp.cap(7).startsWith(QLatin1String("src")))
-                info.sharedSrc = QDir::fromNativeSeparators(rexp.cap(8));
+                info.sharedSrc = QDir::cleanPath(rexp.cap(8));
         } else if(rexp.cap(0).startsWith(QLatin1String("macaddress"))) {
             QRegExp rx(QLatin1String("(?:([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2}))"));
             QString mac = rexp.cap(9);
