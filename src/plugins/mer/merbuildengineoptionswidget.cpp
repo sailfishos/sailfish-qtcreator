@@ -147,6 +147,8 @@ QString MerBuildEngineOptionsWidget::searchKeyWordMatchString() const
 
 void MerBuildEngineOptionsWidget::store()
 {
+    m_storing = true;
+
     QProgressDialog progress(this);
     progress.setWindowModality(Qt::WindowModal);
     QPushButton *cancelButton = new QPushButton(tr("Abort"), &progress);
@@ -262,6 +264,9 @@ void MerBuildEngineOptionsWidget::store()
     m_memorySizeMb.clear();
     m_cpuCount.clear();
     m_storageSizeMb.clear();
+
+    m_storing = false;
+    update();
 }
 
 bool MerBuildEngineOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<BuildEngine *>
@@ -597,6 +602,9 @@ void MerBuildEngineOptionsWidget::onSrcFolderApplyButtonClicked(const QString &n
 
 void MerBuildEngineOptionsWidget::update()
 {
+    if (m_storing)
+        return;
+
     m_ui->buildEngineComboBox->clear();
     for (BuildEngine *const buildEngine : m_buildEngines)
         m_ui->buildEngineComboBox->addItem(buildEngine->name(), buildEngine->uri());
