@@ -28,7 +28,6 @@
 
 #include <QDir>
 #include <QFile>
-#include <QStringList>
 
 CMakeCommand::CMakeCommand()
 {
@@ -42,10 +41,14 @@ QString CMakeCommand::name() const
 
 int CMakeCommand::execute()
 {
+    if (arguments().contains(QLatin1String("-E"))
+            && arguments().contains(QLatin1String("capabilities"))) {
+        fprintf(stdout, "%s", capabilities().data());
+        return 0;
+    }
+
     if (arguments().contains(QLatin1String("--version"))
-            || arguments().contains(QLatin1String("--help"))
-            || (arguments().contains(QLatin1String("-E"))
-                && arguments().contains(QLatin1String("capabilities")))) {
+            || arguments().contains(QLatin1String("--help"))) {
         m_cacheFile = QLatin1String(Sfdk::Constants::CMAKE_QUERY_CACHE);
     }
 
@@ -78,4 +81,21 @@ int CMakeCommand::execute()
 bool CMakeCommand::isValid() const
 {
     return Command::isValid() && !targetName().isEmpty() && !sdkToolsPath().isEmpty();
+}
+
+QByteArray CMakeCommand::capabilities()
+{
+    return R"({
+        "generators": [
+            {
+                "extraGenerators": [
+                    "CodeBlocks"
+                ],
+                "name": "Unix Makefiles",
+                "platformSupport": false,
+                "toolsetSupport": false
+            }
+        ],
+        "serverMode": false
+    })";
 }
