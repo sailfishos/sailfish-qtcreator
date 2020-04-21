@@ -34,6 +34,10 @@ public:
     QString name() const override;
     int execute() override;
     bool isValid() const override;
+
+private:
+    QByteArray capabilities();
+
 private:
     QString m_cacheFile;
 };

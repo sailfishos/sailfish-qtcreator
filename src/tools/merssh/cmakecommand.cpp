@@ -28,6 +28,10 @@
 
 #include <QDir>
 #include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonValue>
 #include <QStringList>
 
 CMakeCommand::CMakeCommand()
@@ -42,10 +46,14 @@ QString CMakeCommand::name() const
 
 int CMakeCommand::execute()
 {
+    if (arguments().contains(QLatin1String("-E"))
+            && arguments().contains(QLatin1String("capabilities"))) {
+        fprintf(stdout, "%s", capabilities().data());
+        return 0;
+    }
+
     if (arguments().contains(QLatin1String("--version"))
-            || arguments().contains(QLatin1String("--help"))
-            || (arguments().contains(QLatin1String("-E"))
-                && arguments().contains(QLatin1String("capabilities")))) {
+            || arguments().contains(QLatin1String("--help"))) {
         m_cacheFile = QLatin1String(Sfdk::Constants::CMAKE_QUERY_CACHE);
     }
 
@@ -78,4 +86,25 @@ int CMakeCommand::execute()
 bool CMakeCommand::isValid() const
 {
     return Command::isValid() && !targetName().isEmpty() && !sdkToolsPath().isEmpty();
+}
+
+QByteArray CMakeCommand::capabilities()
+{
+    QJsonArray extraGenerators;
+    extraGenerators.append(QJsonValue("CodeBlocks"));
+    QJsonObject makefileGenerator;
+    makefileGenerator["extraGenerators"]=extraGenerators;
+    makefileGenerator["name"]=QJsonValue("Unix Makefiles");
+    makefileGenerator["platformSupport"]=QJsonValue(false);
+    makefileGenerator["toolsetSupport"]=QJsonValue(false);
+
+    QJsonArray generators;
+    generators.append(makefileGenerator);
+
+    QJsonObject capabilities;
+    capabilities["generators"]=generators;
+    capabilities["serverMode"]=QJsonValue(false);
+
+    QJsonDocument capabilityDocument(capabilities);
+    return capabilityDocument.toJson();
 }
