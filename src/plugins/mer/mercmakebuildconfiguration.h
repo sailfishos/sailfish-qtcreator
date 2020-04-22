@@ -39,6 +39,8 @@ public:
     void initialize(const ProjectExplorer::BuildInfo &info) override;
     bool fromMap(const QVariantMap &map) override;
     bool isShadowBuild() const;
+private:
+    void startBuildEngine();
 };
 
 class MerCMakeBuildConfigurationFactory : public CMakeProjectManager::Internal::CMakeBuildConfigurationFactory
