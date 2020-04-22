@@ -39,6 +39,7 @@ public:
 protected:
     void updateEnabledState() override;
 private:
+    void fixExecutable();
     mutable QString m_disabledReason;
 };
 

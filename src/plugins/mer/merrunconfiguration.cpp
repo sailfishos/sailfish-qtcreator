@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -23,6 +24,7 @@
 #include "merrunconfiguration.h"
 
 #include "merconstants.h"
+#include "mercmakebuildconfiguration.h"
 #include "merdeployconfiguration.h"
 #include "merrunconfigurationaspect.h"
 #include "projectexplorer/kitinformation.h"
@@ -31,6 +33,7 @@
 #include <projectexplorer/deploymentdata.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
+#include <projectexplorer/runconfigurationaspects.h>
 #include <projectexplorer/target.h>
 #include <remotelinux/remotelinuxenvironmentaspect.h>
 
@@ -46,6 +49,8 @@ MerRunConfiguration::MerRunConfiguration(Target *target, Core::Id id)
 {
     connect(target, &Target::activeDeployConfigurationChanged,
             this, &MerRunConfiguration::updateEnabledState);
+    connect(this, &RemoteLinuxRunConfiguration::enabledChanged,
+            this, &MerRunConfiguration::fixExecutable);
 }
 
 QString MerRunConfiguration::disabledReason() const
@@ -71,6 +76,18 @@ void MerRunConfiguration::updateEnabledState()
     }
 
     RemoteLinuxRunConfiguration::updateEnabledState();
+}
+
+void MerRunConfiguration::fixExecutable()
+{
+    if (qobject_cast<MerCMakeBuildConfiguration*>(target()->activeBuildConfiguration())) {
+        QString executable = aspect<ExecutableAspect>()->executable().toString();
+        if (executable.startsWith("./")) {
+            executable.remove(0,1);
+            executable.prepend("/usr/bin");
+            aspect<ExecutableAspect>()->setExecutable(Utils::FileName::fromString(executable));
+        }
+    }
 }
 
 Runnable MerRunConfiguration::runnable() const
