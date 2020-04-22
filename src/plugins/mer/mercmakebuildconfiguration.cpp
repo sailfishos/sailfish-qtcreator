@@ -28,6 +28,9 @@
 #include "mersettings.h"
 #include "mersdkkitinformation.h"
 
+#include <sfdk/buildengine.h>
+#include <sfdk/virtualmachine.h>
+
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/icore.h>
 #include <projectexplorer/buildmanager.h>
@@ -62,12 +65,15 @@ void MerCMakeBuildConfiguration::initialize(const ProjectExplorer::BuildInfo &in
     BuildStepList *cleanSteps = stepList(Core::Id(ProjectExplorer::Constants::BUILDSTEPS_CLEAN));
     Q_ASSERT(cleanSteps);
     cleanSteps->insertStep(0, new MerSdkStartStep(cleanSteps));
+
+    connect(project(), &Project::parsingStarted, this, &MerCMakeBuildConfiguration::startBuildEngine);
 }
 
 bool MerCMakeBuildConfiguration::fromMap(const QVariantMap &map)
 {
     if (!CMakeBuildConfiguration::fromMap(map))
         return false;
+    connect(project(), &Project::parsingStarted, this, &MerCMakeBuildConfiguration::startBuildEngine);
     return true;
 }
 
@@ -84,6 +90,12 @@ MerCMakeBuildConfigurationFactory::MerCMakeBuildConfigurationFactory()
 {
     registerBuildConfiguration<MerCMakeBuildConfiguration>(CMakeProjectManager::Constants::CMAKEPROJECT_BC_ID);
     addSupportedTargetDeviceType(Constants::MER_DEVICE_TYPE);
+}
+
+void MerCMakeBuildConfiguration::startBuildEngine()
+{
+    MerSdkKitInformation::buildEngine(target()->kit())->virtualMachine()->connectTo(
+        Sfdk::VirtualMachine::AskStartVm|Sfdk::VirtualMachine::Block);
 }
 
 } // Internal
