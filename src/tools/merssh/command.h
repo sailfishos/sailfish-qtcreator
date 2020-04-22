@@ -64,6 +64,10 @@ public:
     virtual int execute() = 0;
 
 private:
+    void maybeDoCMakePathMapping();
+    void maybeUndoCMakePathMapping();
+
+private:
     QStringList m_args;
     QString m_sharedHomePath;
     QString m_targetName;
