@@ -338,7 +338,7 @@ bool VmConnection::lockDown(bool lockDown)
                 &loop, &QEventLoop::quit);
         connect(this, &VmConnection::lockDownFailed,
                 &loop, &QEventLoop::quit);
-        loop.exec();
+        loop.exec(QEventLoop::ExcludeUserInputEvents);
 
         if (m_lockDownFailed) {
             DBG << "Lockdown failed";
@@ -1203,7 +1203,7 @@ void VmConnection::vmPollState(VirtualMachine::Synchronization synchronization)
     VirtualMachinePrivate::get(m_vm)->probe(this, handler);
 
     if (synchronization == VirtualMachine::Synchronous) {
-        loop->exec();
+        loop->exec(QEventLoop::ExcludeUserInputEvents);
         delete loop, loop = 0;
     }
 }
@@ -1211,7 +1211,7 @@ void VmConnection::vmPollState(VirtualMachine::Synchronization synchronization)
 void VmConnection::waitForVmPollStateFinish()
 {
     while (m_pollingVmState)
-        QCoreApplication::processEvents();
+        QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 }
 
 void VmConnection::sshTryConnect()
