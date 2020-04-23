@@ -163,6 +163,8 @@ QString MerEmulatorOptionsWidget::searchKeyWordMatchString() const
 
 void MerEmulatorOptionsWidget::store()
 {
+    m_storing = true;
+
     QProgressDialog progress(this);
     progress.setWindowModality(Qt::WindowModal);
     QPushButton *cancelButton = new QPushButton(tr("Abort"), &progress);
@@ -275,6 +277,9 @@ void MerEmulatorOptionsWidget::store()
     m_memorySizeMb.clear();
     m_cpuCount.clear();
     m_storageSizeMb.clear();
+
+    m_storing = false;
+    update();
 }
 
 bool MerEmulatorOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<Emulator *>
@@ -543,6 +548,9 @@ void MerEmulatorOptionsWidget::onAboutToRemoveEmulator(int index)
 
 void MerEmulatorOptionsWidget::update()
 {
+    if (m_storing)
+        return;
+
     m_ui->emulatorComboBox->clear();
     for (Emulator *const emulator : m_emulators)
         m_ui->emulatorComboBox->addItem(emulator->name(), emulator->uri());

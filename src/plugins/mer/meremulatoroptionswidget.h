@@ -80,6 +80,7 @@ private slots:
 
 private:
     Ui::MerEmulatorOptionsWidget *m_ui;
+    bool m_storing = false;
     QUrl m_virtualMachine;
     QMetaObject::Connection m_vmOffConnection;
     QString m_status;
