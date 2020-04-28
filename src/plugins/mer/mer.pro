@@ -90,7 +90,8 @@ SOURCES += \
     meremulatormodeoptionswidget.cpp \
     meremulatormodedetailswidget.cpp \
     mervirtualmachinesettingswidget.cpp \
-    merbuildconfiguration.cpp
+    mercmakebuildconfiguration.cpp \
+    merqmakebuildconfiguration.cpp
 
 HEADERS += \
     merabstractvmstartstep.h \
@@ -147,4 +148,5 @@ HEADERS += \
     meremulatormodeoptionswidget.h \
     meremulatormodedetailswidget.h \
     mervirtualmachinesettingswidget.h \
-    merbuildconfiguration.h
+    mercmakebuildconfiguration.h \
+    merqmakebuildconfiguration.h
