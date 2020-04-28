@@ -32,21 +32,21 @@
             "trSynopsis": "[-R]",
             "trBrief": "Apply patches listed in the spec file",
             "configOptions": ["*", "target!"],
-            "trDescription": "Apply all patches defined in the .spec file to the source tree.\n-R    reverse apply patches (patch -R)"
+            "trDescription": "Apply all patches defined in the .spec file to the source tree.\n\n-R    reverse apply patches (patch -R)"
         },
         {
             "name": "build",
             "trSynopsis": "[-p|--doprep] [-d|--enable-debug] [-j <n>] [<project-dir-or-file>] [[--] <rpmbuild-extra-args>]",
             "trBrief": "Execute all build steps at once",
             "configOptions": ["*", "target!"],
-            "trDescription": "Run rpmbuild. Execute all sections of the .spec file except for %prep unless told otherwise. If path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the .spec file.)\n-p     run %prep phase as well\n-d     enable debug build\n-j <n> run up to <n> jobs simultaneously"
+            "trDescription": "Run rpmbuild. Execute all sections of the .spec file except for %prep unless told otherwise.\n\nIf path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the .spec file.)\n\n-p     run %prep phase as well\n-d     enable debug build\n-j <n> run up to <n> jobs simultaneously"
         },
         {
             "name": "qmake",
             "trSynopsis": "[<project-dir-or-file>] [[--] <qmake-extra-args>]",
             "trBrief": "Execute qmake build step",
             "configOptions": ["*", "target!"],
-            "trDescription": "Run rpmbuild. Execute just the %build section of the .spec file, suppressing any 'make' invocation figuring in that section. If path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the .spec file.)"
+            "trDescription": "Run rpmbuild. Execute just the %build section of the .spec file, suppressing any 'make' invocation figuring in that section.\n\nIf path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the .spec file.)"
         },
         {
             "name": "make",
