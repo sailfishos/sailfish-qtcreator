@@ -37,9 +37,6 @@ public:
 
 private:
     QByteArray capabilities();
-
-private:
-    QString m_cacheFile;
 };
 
 #endif // CMAKECOMMAND_H

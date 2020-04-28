@@ -24,10 +24,7 @@
 
 #include <mer/merconstants.h>
 #include <sfdk/sfdkconstants.h>
-#include <utils/qtcprocess.h>
-
-#include <QDir>
-#include <QFile>
+#include <utils/qtcassert.h>
 
 CMakeCommand::CMakeCommand()
 {
@@ -49,25 +46,7 @@ int CMakeCommand::execute()
 
     if (arguments().contains(QLatin1String("--version"))
             || arguments().contains(QLatin1String("--help"))) {
-        m_cacheFile = QLatin1String(Sfdk::Constants::CMAKE_QUERY_CACHE);
-    }
-
-    if (!m_cacheFile.isEmpty()) {
-        m_cacheFile.prepend(sdkToolsPath() + QDir::separator());
-
-        if (QFile::exists(m_cacheFile)) {
-            QFile cacheFile(m_cacheFile);
-            if (!cacheFile.open(QIODevice::ReadOnly)) {
-                fprintf(stderr, "%s",qPrintable(QString::fromLatin1("Cannot read cached file \"%1\"").arg(m_cacheFile)));
-                fflush(stderr);
-                return 1;
-            }
-            fprintf(stdout, "%s", cacheFile.readAll().constData());
-            fflush(stdout);
-            return 0;
-        }
-
-        return 1;
+        QTC_ASSERT(false, return 1);
     }
 
     QString command = QLatin1String("mb2") +
