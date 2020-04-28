@@ -41,6 +41,10 @@
 #include <QBasicTimer>
 #include <QQueue>
 
+namespace CMakeProjectManager {
+class CMakeProject;
+}
+
 namespace QmakeProjectManager {
 class QmakeProject;
 }
@@ -123,7 +127,7 @@ public:
     using MerProjectListener::MerProjectListener;
 
 protected:
-    bool handleProject(QmakeProjectManager::QmakeProject *project) override;
+    bool handleProject(ProjectExplorer::Project *project) override;
     bool forgetProject(ProjectExplorer::Project *project) override;
 
 protected:
@@ -133,12 +137,12 @@ private slots:
     void scheduleProjectUpdate();
 
 private:
-    void updateProject(QmakeProjectManager::QmakeProject *project);
-    static bool isAmbienceProject(QmakeProjectManager::QmakeProject *project);
+    void updateProject(ProjectExplorer::Project *project);
+    static bool isAmbienceProject(ProjectExplorer::Project *project);
     static void removeStep(ProjectExplorer::BuildStepList *stepList, Core::Id stepId);
 
 private:
-    QQueue<QmakeProjectManager::QmakeProject *> m_updateProjectsQueue;
+    QQueue<ProjectExplorer::Project *> m_updateProjectsQueue;
     QBasicTimer m_updateProjectsTimer;
 };
 

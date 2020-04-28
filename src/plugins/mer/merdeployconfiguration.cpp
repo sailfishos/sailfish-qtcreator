@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2017-2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -33,6 +33,7 @@
 #include "merconstants.h"
 #include "merdeploysteps.h"
 
+#include <cmakeprojectmanager/cmakeproject.h>
 #include <coreplugin/idocument.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectnodes.h>
@@ -45,6 +46,7 @@
 #include <QVBoxLayout>
 
 using namespace ProjectExplorer;
+using namespace CMakeProjectManager;
 using namespace QmakeProjectManager;
 using namespace RemoteLinux;
 
@@ -69,7 +71,7 @@ QString MerRpmDeployConfigurationFactory::displayName()
 
 Core::Id MerRpmDeployConfigurationFactory::configurationId()
 {
-    return Core::Id("QmakeProjectManager.MerRpmDeployConfiguration");
+    return Core::Id("Mer.MerRpmDeployConfiguration");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -87,7 +89,7 @@ QString MerRsyncDeployConfigurationFactory::displayName()
 
 Core::Id MerRsyncDeployConfigurationFactory::configurationId()
 {
-    return Core::Id("QmakeProjectManager.MerRSyncDeployConfiguration");
+    return Core::Id("Mer.MerRSyncDeployConfiguration");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -104,12 +106,12 @@ QString MerMb2RpmBuildConfigurationFactory::displayName()
 
 Core::Id MerMb2RpmBuildConfigurationFactory::configurationId()
 {
-    return Core::Id("QmakeProjectManager.MerMb2RpmBuildConfiguration");
+    return Core::Id("Mer.MerMb2RpmBuildConfiguration");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
 
-bool MerAddRemoveSpecialDeployStepsProjectListener::handleProject(QmakeProject *project)
+bool MerAddRemoveSpecialDeployStepsProjectListener::handleProject(Project *project)
 {
     connect(project, &Project::parsingFinished,
             this, &MerAddRemoveSpecialDeployStepsProjectListener::scheduleProjectUpdate,
@@ -120,8 +122,7 @@ bool MerAddRemoveSpecialDeployStepsProjectListener::handleProject(QmakeProject *
 
 bool MerAddRemoveSpecialDeployStepsProjectListener::forgetProject(Project *project)
 {
-    // Who knows if it still can be downcasted to QmakeProject at this point
-    Utils::erase(m_updateProjectsQueue, [project](QmakeProject *enqueued) {
+    Utils::erase(m_updateProjectsQueue, [project](Project *enqueued) {
         return enqueued == project;
     });
 
@@ -145,14 +146,14 @@ void MerAddRemoveSpecialDeployStepsProjectListener::timerEvent(QTimerEvent *even
 // Avoid temporary changes to project configuration
 void MerAddRemoveSpecialDeployStepsProjectListener::scheduleProjectUpdate()
 {
-    QmakeProject *project = qobject_cast<QmakeProject *>(sender());
+    Project *project = qobject_cast<Project *>(sender());
     QTC_ASSERT(project, return);
 
     m_updateProjectsQueue.enqueue(project);
     m_updateProjectsTimer.start(ADD_REMOVE_SPECIAL_STEPS_DELAY_MS, this);
 }
 
-void MerAddRemoveSpecialDeployStepsProjectListener::updateProject(QmakeProject *project)
+void MerAddRemoveSpecialDeployStepsProjectListener::updateProject(Project *project)
 {
     const bool isAmbienceProject = this->isAmbienceProject(project);
 
@@ -178,11 +179,17 @@ void MerAddRemoveSpecialDeployStepsProjectListener::updateProject(QmakeProject *
     }
 }
 
-bool MerAddRemoveSpecialDeployStepsProjectListener::isAmbienceProject(QmakeProject *project)
+bool MerAddRemoveSpecialDeployStepsProjectListener::isAmbienceProject(Project *project)
 {
-    QmakeProFile *root = project->rootProFile();
-    return root->projectType() == ProjectType::AuxTemplate &&
-        root->variableValue(Variable::Config).contains(QLatin1String(SAILFISH_AMBIENCE_CONFIG));
+    auto *qmakeProject = qobject_cast<QmakeProject*>(project);
+    if (qmakeProject) {
+        QmakeProFile *root = qmakeProject->rootProFile();
+        return root->projectType() == ProjectType::AuxTemplate &&
+            root->variableValue(Variable::Config).contains(QLatin1String(SAILFISH_AMBIENCE_CONFIG));
+    }
+
+    // TODO: Add support for !QmakeProjects
+    return false;
 }
 
 // TODO add BuildStepList::removeStep(Core::Id)

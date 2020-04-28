@@ -31,8 +31,10 @@
 #include "merdeploysteps.h"
 
 #include "merconstants.h"
+#include "mercmakebuildconfiguration.h"
 #include "merdeployconfiguration.h"
 #include "meremulatordevice.h"
+#include "merqmakebuildconfiguration.h"
 #include "merrpmvalidationparser.h"
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
@@ -44,6 +46,7 @@
 #include <sfdk/sdk.h>
 #include <sfdk/sfdkconstants.h>
 
+#include <cmakeprojectmanager/cmakebuildconfiguration.h>
 #include <coreplugin/fileutils.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/idocument.h>
@@ -74,6 +77,7 @@
 
 using namespace Core;
 using namespace ProjectExplorer;
+using namespace CMakeProjectManager::Internal;
 using namespace QmakeProjectManager;
 using namespace QSsh;
 using namespace RemoteLinux;
@@ -223,9 +227,13 @@ bool MerProcessStep::init()
 
 bool MerProcessStep::init(InitOptions options)
 {
-    QmakeBuildConfiguration *bc = qobject_cast<QmakeBuildConfiguration*>(buildConfiguration());
-    if (!bc)
-        bc =  qobject_cast<QmakeBuildConfiguration*>(target()->activeBuildConfiguration());
+    BuildConfiguration *bc = nullptr;
+    if (qobject_cast<MerCMakeBuildConfiguration*>(buildConfiguration())) {
+        bc = qobject_cast<MerCMakeBuildConfiguration*>(buildConfiguration());
+    } else {
+        // Default to MerQmakeBuildConfiguration
+        bc = qobject_cast<MerQmakeBuildConfiguration*>(buildConfiguration());
+    }
 
     if (!bc) {
         addOutput(tr("Cannot deploy: No active build configuration."),
@@ -258,7 +266,11 @@ bool MerProcessStep::init(InitOptions options)
         return false;
     }
 
-    const QString projectDirectory = bc->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory().toString();
+    QString projectDirectory;
+    if (qobject_cast<MerCMakeBuildConfiguration*>(bc))
+        projectDirectory = qobject_cast<MerCMakeBuildConfiguration*>(bc)->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory().toString();
+    else
+        projectDirectory = qobject_cast<MerQmakeBuildConfiguration*>(bc)->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory().toString();
     const FileName toolsPath = engine->buildTarget(target).toolsPath;
     const QString deployCommand =
         FileName(toolsPath).appendPath(Sfdk::Constants::WRAPPER_DEPLOY).toString();
@@ -292,7 +304,7 @@ void MerProcessStep::setArguments(const QString &arguments)
 
 Core::Id MerEmulatorStartStep::stepId()
 {
-    return Core::Id("QmakeProjectManager.MerEmulatorStartStep");
+    return Core::Id("Mer.MerEmulatorStartStep");
 }
 
 QString MerEmulatorStartStep::displayName()
@@ -324,7 +336,7 @@ bool MerEmulatorStartStep::init()
 
 Core::Id MerConnectionTestStep::stepId()
 {
-    return Core::Id("QmakeProjectManager.MerConnectionTestStep");
+    return Core::Id("Mer.MerConnectionTestStep");
 }
 
 QString MerConnectionTestStep::displayName()
@@ -406,7 +418,7 @@ void MerConnectionTestStep::finish(bool result)
 
 Core::Id MerPrepareTargetStep::stepId()
 {
-    return Core::Id("QmakeProjectManager.MerPrepareTargetStep");
+    return Core::Id("Mer.MerPrepareTargetStep");
 }
 
 QString MerPrepareTargetStep::displayName()
@@ -470,7 +482,7 @@ BuildStepConfigWidget *MerPrepareTargetStep::createConfigWidget()
 
 Core::Id MerMb2RsyncDeployStep::stepId()
 {
-    return Core::Id("QmakeProjectManager.MerRsyncDeployStep");
+    return Core::Id("Mer.MerRsyncDeployStep");
 }
 
 QString MerMb2RsyncDeployStep::displayName()
@@ -507,7 +519,7 @@ BuildStepConfigWidget *MerMb2RsyncDeployStep::createConfigWidget()
 
 Core::Id MerLocalRsyncDeployStep::stepId()
 {
-    return Core::Id("QmakeProjectManager.MerLocalRsyncDeployStep");
+    return Core::Id("Mer.MerLocalRsyncDeployStep");
 }
 
 QString MerLocalRsyncDeployStep::displayName()
@@ -523,9 +535,13 @@ MerLocalRsyncDeployStep::MerLocalRsyncDeployStep(BuildStepList *bsl)
 
 bool MerLocalRsyncDeployStep::init()
 {
-    QmakeBuildConfiguration *bc = qobject_cast<QmakeBuildConfiguration*>(buildConfiguration());
-    if (!bc)
-        bc =  qobject_cast<QmakeBuildConfiguration*>(target()->activeBuildConfiguration());
+    BuildConfiguration *bc = nullptr;
+    if (qobject_cast<MerCMakeBuildConfiguration*>(buildConfiguration())) {
+        bc = qobject_cast<MerCMakeBuildConfiguration*>(buildConfiguration());
+    } else {
+        // Default to MerQmakeBuildConfiguration
+        bc = qobject_cast<MerQmakeBuildConfiguration*>(buildConfiguration());
+    }
 
     if (!bc) {
         addOutput(tr("Cannot deploy: No active build configuration."),
@@ -549,7 +565,12 @@ bool MerLocalRsyncDeployStep::init()
         return false;
     }
 
-    const QString projectDirectory = bc->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory().toString();
+    QString projectDirectory;
+    if (qobject_cast<MerCMakeBuildConfiguration*>(bc))
+        projectDirectory = qobject_cast<MerCMakeBuildConfiguration*>(bc)->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory().toString();
+    else
+        projectDirectory = qobject_cast<MerQmakeBuildConfiguration*>(bc)->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory().toString();
+
     const QString deployCommand = QLatin1String("rsync");
 
     ProcessParameters *pp = processParameters();
@@ -583,7 +604,7 @@ BuildStepConfigWidget *MerLocalRsyncDeployStep::createConfigWidget()
 
 Core::Id MerMb2RpmDeployStep::stepId()
 {
-    return Core::Id("QmakeProjectManager.MerRpmDeployStep");
+    return Core::Id("Mer.MerRpmDeployStep");
 }
 
 QString MerMb2RpmDeployStep::displayName()
@@ -623,7 +644,7 @@ BuildStepConfigWidget *MerMb2RpmDeployStep::createConfigWidget()
 
 Core::Id MerMb2RpmBuildStep::stepId()
 {
-    return Core::Id("QmakeProjectManager.MerRpmBuildStep");
+    return Core::Id("Mer.MerRpmBuildStep");
 }
 
 QString MerMb2RpmBuildStep::displayName()
@@ -746,7 +767,7 @@ void RpmInfo::openContainingFolder()
 
 Core::Id MerRpmValidationStep::stepId()
 {
-    return Core::Id("QmakeProjectManager.MerRpmValidationStep");
+    return Core::Id("Mer.MerRpmValidationStep");
 }
 
 QString MerRpmValidationStep::displayName()
