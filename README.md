@@ -224,13 +224,23 @@ or using shadow builds.
 
 ## Building for Sailfish SDK
 
-1. create set of directories like '~/QtCreator/Build' '~/QtCreator/Install'
-2. navigate to '~/QtCreator' and clone the Qt Creator's source tree there
-3. run qmake:
-	qmake ../digia-qt-creator/qtcreator.pro -r -after "DEFINES+=IDE_COPY_SETTINGS_FROM_VARIANT=. IDE_SETTINGSVARIANT=SailfishBeta6" QTC_PREFIX=
+Building Qt Creator for the Sailfish SDK is done using tools, which are
+available in a github repo:
 
-4. build QtCreator, intaller, artifacts etc as defined in
-	http://qt-project.org/wiki/Building-Qt-Creator-Packages
+    https://github.com/sailfishos/sdk-build-tools.git
+
+Before building Qt Creator, you must build the prerequisite libraries (ICU, Qt
+and LLVM/Clang). In the abovementioned repository you can find tools for
+building each of them: buildicu.sh, buildqt5.sh and buildllvm.sh. Each of the
+build tools provide help when executed with the '--help' argument.
+
+Qt Creator itself is built with buildqtc.sh, which also provides help with the
+'--help' argument. A typical command for building could be:
+
+    ./buildqtc.sh -g -v SailfishSDK -vd 'Sailfish SDK' -u sdk-test
+
+This will build also gdb and the build results will be uploaded to upload host
+in a directory sdk-test.
 
 ## Get LLVM/Clang for the Clang Code Model
 
