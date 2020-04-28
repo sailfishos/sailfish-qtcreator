@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2018-2019 Jolla Ltd.
+** Copyright (C) 2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -21,8 +22,6 @@
 ****************************************************************************/
 
 #include "qmakecommand.h"
-
-#include "merremoteprocess.h"
 
 #include <sfdk/sfdkconstants.h>
 
@@ -68,10 +67,7 @@ int QMakeCommand::execute()
                       targetName() +
                       QLatin1Char(' ') + arguments().join(QLatin1Char(' ')) + QLatin1Char(' ');
 
-    MerRemoteProcess process;
-    process.setSshParameters(sshParameters());
-    process.setCommand(remotePathMapping(command));
-    return process.executeAndWait();
+    return executeRemoteCommand(command);
 
 //TODO: remote command to cache ?
 //    if (ok && !m_currentCacheFile.isEmpty()) {

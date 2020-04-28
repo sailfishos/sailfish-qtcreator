@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2018-2019 Jolla Ltd.
+** Copyright (C) 2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -21,12 +22,22 @@
 ****************************************************************************/
 
 #include "command.h"
+#include "merremoteprocess.h"
 
 #include <sfdk/sfdkconstants.h>
+#include <utils/fileutils.h>
 #include <utils/hostosinfo.h>
+#include <utils/qtcprocess.h>
 
 #include <QDir>
+#include <QDirIterator>
 #include <QFile>
+
+namespace {
+const char BACKUP_SUFFIX[] = ".qtccache";
+}
+
+using namespace Utils;
 
 Command::Command()
 {
@@ -34,6 +45,24 @@ Command::Command()
 
 Command::~Command()
 {
+}
+
+int Command::executeRemoteCommand(const QString &command)
+{
+    // Convert to build engine paths
+    QString mappedCommand = remotePathMapping(command);
+
+    maybeUndoCMakePathMapping();
+
+    // Execute in build engine
+    MerRemoteProcess process;
+    process.setSshParameters(sshParameters());
+    process.setCommand(mappedCommand);
+    const int rc = process.executeAndWait();
+
+    maybeDoCMakePathMapping();
+
+    return rc;
 }
 
 QString Command::sharedHomePath() const
@@ -191,4 +220,72 @@ bool Command::isValid() const
         return false;
     }
     return true;
+}
+
+void Command::maybeDoCMakePathMapping()
+{
+    if (!QFile::exists("CMakeCache.txt"))
+        return;
+
+    QDirIterator it(".", {"CMakeCache.txt", "*.cbp", "QtCreatorDeployment.txt"}, QDir::Files,
+            QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        const QString path = it.next();
+        const QString backupPath = path + BACKUP_SUFFIX;
+
+        bool ok;
+
+        ok = QFile::rename(path, backupPath);
+        if (!ok) {
+            fprintf(stderr, "%s", qPrintable(QString::fromLatin1("Could not back up file \"%1\"").arg(path)));
+            fflush(stderr);
+            continue;
+        }
+
+        FileReader reader;
+        ok = reader.fetch(backupPath);
+        if (!ok) {
+            fprintf(stderr, "%s", qPrintable(reader.errorString()));
+            fflush(stderr);
+            continue;
+        }
+
+        QString data = QString::fromUtf8(reader.data());
+        data.replace(Sfdk::Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, sharedHomePath());
+        data.replace(Sfdk::Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, sharedSourcePath());
+
+        FileSaver saver(path);
+        saver.write(data.toUtf8());
+        ok = saver.finalize();
+        if (!ok) {
+            fprintf(stderr, "%s", qPrintable(saver.errorString()));
+            fflush(stderr);
+            continue;
+        }
+    }
+}
+
+void Command::maybeUndoCMakePathMapping()
+{
+    if (!QFile::exists(QString("CMakeCache.txt") + BACKUP_SUFFIX))
+        return;
+
+    const int suffixLength = QLatin1String(BACKUP_SUFFIX).size();
+    QDirIterator it(".", {QString("*") + BACKUP_SUFFIX}, QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        const QString backupPath = it.next();
+        const QString path = backupPath.chopped(suffixLength);
+
+        bool ok;
+
+        if (QFile::exists(path))
+            QFile::remove(path);
+
+        ok = QFile::rename(backupPath, path);
+        if (!ok) {
+            fprintf(stderr, "%s", qPrintable(QString::fromLatin1("Could not restore file \"%1\"").arg(path)));
+            fflush(stderr);
+            continue;
+        }
+    }
 }

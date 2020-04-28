@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2018-2019 Jolla Ltd.
+** Copyright (C) 2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,8 +23,6 @@
 
 #include "deploycommand.h"
 
-#include "merremoteprocess.h"
-
 DeployCommand::DeployCommand()
 {
 
@@ -42,10 +41,8 @@ int DeployCommand::execute()
                       deviceParameter +
                       targetParameter +
                       QLatin1Char(' ') + arguments().join(QLatin1Char(' ')) + QLatin1Char(' ');
-    MerRemoteProcess process;
-    process.setSshParameters(sshParameters());
-    process.setCommand(remotePathMapping(command));
-    return process.executeAndWait();
+
+    return executeRemoteCommand(command);
 }
 
 bool DeployCommand::isValid() const

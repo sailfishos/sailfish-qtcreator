@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2018-2019 Jolla Ltd.
+** Copyright (C) 2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -16,8 +17,6 @@
 ****************************************************************************/
 
 #include "wwwproxycommand.h"
-
-#include "merremoteprocess.h"
 
 #include <QRegularExpression>
 
@@ -54,10 +53,8 @@ int WwwProxyCommand::execute()
     }
     QString command = QLatin1String("sudo connmanctl config ethernet_$(cat /sys/class/net/eth0/address |sed 's/://g')_cable") +
                       QLatin1Char(' ') + conf;
-    MerRemoteProcess process;
-    process.setSshParameters(sshParameters());
-    process.setCommand(remotePathMapping(command));
-    return process.executeAndWait();
+
+    return executeRemoteCommand(command);
 }
 
 bool WwwProxyCommand::isValid() const

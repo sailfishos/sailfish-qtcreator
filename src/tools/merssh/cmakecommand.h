@@ -1,6 +1,5 @@
 /****************************************************************************
 **
-** Copyright (C) 2012-2015,2018-2019 Jolla Ltd.
 ** Copyright (C) 2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
@@ -21,29 +20,23 @@
 **
 ****************************************************************************/
 
-#include "makecommand.h"
+#ifndef CMAKECOMMAND_H
+#define CMAKECOMMAND_H
 
-MakeCommand::MakeCommand()
+#include "command.h"
+
+class CMakeCommand : public Command
 {
+    Q_OBJECT
 
-}
+public:
+    CMakeCommand();
+    QString name() const override;
+    int execute() override;
+    bool isValid() const override;
 
-QString MakeCommand::name() const
-{
-    return QLatin1String("make");
-}
+private:
+    QByteArray capabilities();
+};
 
-int MakeCommand::execute()
-{
-    QString command = QLatin1String("mb2") +
-                      QLatin1String(" -t ") +
-                      targetName() +
-                      QLatin1Char(' ') + arguments().join(QLatin1Char(' ')) + QLatin1Char(' ');
-
-    return executeRemoteCommand(command);
-}
-
-bool MakeCommand::isValid() const
-{
-    return Command::isValid() && !targetName().isEmpty() ;
-}
+#endif // CMAKECOMMAND_H
