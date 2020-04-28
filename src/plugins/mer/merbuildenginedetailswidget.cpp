@@ -130,6 +130,7 @@ void MerBuildEngineDetailsWidget::setBuildEngine(const Sfdk::BuildEngine *buildE
 {
     m_ui->nameLabelText->setText(buildEngine->name());
     m_ui->autodetectedLabelText->setText(buildEngine->isAutodetected() ? tr("Yes") : tr("No"));
+    m_ui->hostLabelText->setText(buildEngine->virtualMachine()->sshParameters().host());
     m_ui->homeFolderPathLabel->setText(QDir::toNativeSeparators(buildEngine->sharedHomePath().toString()));
     m_ui->targetFolderPathLabel->setText(QDir::toNativeSeparators(buildEngine->sharedTargetsPath().toString()));
     m_ui->sshFolderPathLabel->setText(QDir::toNativeSeparators(buildEngine->sharedSshPath().toString()));
