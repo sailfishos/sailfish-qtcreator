@@ -85,6 +85,7 @@ const char BUILD_TARGET_RPM_VALIDATION_SUITES[] = "RpmValidationSuites";
 #endif
 
 const char BUILD_TARGET_TOOLS[] = "build-target-tools";
+const char WRAPPER_CMAKE[] = "cmake" SCRIPT_EXTENSION;
 const char WRAPPER_QMAKE[] = "qmake" SCRIPT_EXTENSION;
 const char WRAPPER_MAKE[] = "make" SCRIPT_EXTENSION;
 const char WRAPPER_GCC[] = "gcc" SCRIPT_EXTENSION;
