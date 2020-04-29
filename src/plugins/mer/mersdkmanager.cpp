@@ -130,8 +130,8 @@ void MerSdkManager::initialize()
             }
         }
 
-        for (int i = 0; i < Sdk::buildEngines().count(); ++i)
-            onBuildEngineAdded(i);
+        for (BuildEngine *const buildEngine : Sdk::buildEngines())
+            startWatching(buildEngine);
         connect(Sdk::instance(), &Sdk::buildEngineAdded,
                 this, &MerSdkManager::onBuildEngineAdded);
         connect(Sdk::instance(), &Sdk::aboutToRemoveBuildEngine,
@@ -384,11 +384,13 @@ bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)
 void MerSdkManager::onBuildEngineAdded(int index)
 {
     BuildEngine *const buildEngine = Sdk::buildEngines().at(index);
-    for (const QString &buildTargetName : buildEngine->buildTargetNames()) {
-        if (!kit(buildEngine, buildTargetName))
-            addKit(buildEngine, buildTargetName);
-    }
+    for (const QString &buildTargetName : buildEngine->buildTargetNames())
+        addKit(buildEngine, buildTargetName);
+    startWatching(buildEngine);
+}
 
+void MerSdkManager::startWatching(BuildEngine *buildEngine)
+{
     connect(buildEngine, &BuildEngine::buildTargetAdded, this, [=](int index) {
         addKit(buildEngine, buildEngine->buildTargetNames().at(index));
     });
