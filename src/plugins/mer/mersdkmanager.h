@@ -70,6 +70,7 @@ private:
     static QList<MerToolChain*> merToolChains();
     static QList<MerQtVersion*> merQtVersions();
     void onBuildEngineAdded(int index);
+    void startWatching(Sfdk::BuildEngine *buildEngine);
     void onAboutToRemoveBuildEngine(int index);
     static bool addKit(const Sfdk::BuildEngine *buildEngine, const QString &buildTargetName);
     static bool removeKit(const Sfdk::BuildEngine *buildEngine, const QString &buildTargetName);
