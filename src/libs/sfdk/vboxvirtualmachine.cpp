@@ -487,6 +487,7 @@ void VBoxVirtualMachinePrivate::doSetStorageSizeMb(int storageSizeMb, const QObj
 
         if (virtualMachineInfo.allRelatedStorageUuids.isEmpty()) {
             // Something went wrong, an error message should have been already issued
+            QTC_CHECK(false);
             callIf(context_, functor, false);
             return;
         }
@@ -974,6 +975,7 @@ void VBoxVirtualMachinePrivate::storageInfoFromOutput(const QString &output,
     QTC_ASSERT(parentAndChildrenUuids.contains(virtualMachineInfo->storageUuid), return);
 
     QSet<QString> relatedUuids;
+    relatedUuids.insert(virtualMachineInfo->storageUuid);
     QStack<QString> uuidsToCheck;
     uuidsToCheck.push(virtualMachineInfo->storageUuid);
     while (!uuidsToCheck.isEmpty()) {
