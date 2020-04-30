@@ -35,6 +35,7 @@
 
 #include <QDir>
 #include <QProcess>
+#include <QProgressDialog>
 #include <QScrollBar>
 
 using namespace Sfdk;
@@ -318,7 +319,17 @@ public:
             || m_ui->removeTreeWidget->topLevelItemCount() > 0;
     }
 
+    bool isSearching() const { return m_searching; }
+
 private:
+    void setSearching(bool searching)
+    {
+        m_searching = searching;
+        setDisabled(m_searching);
+        wizard()->button(QWizard::NextButton)->setDisabled(m_searching);
+        wizard()->button(QWizard::BackButton)->setDisabled(m_searching);
+    }
+
     void onSearchStringChanged(const QString &searchString)
     {
         const QStringList split = searchString.split(' ', QString::SkipEmptyParts);
@@ -340,7 +351,17 @@ private:
 
     void searchPackages()
     {
-        setEnabled(false);
+        setSearching(true);
+
+        QProgressDialog progress(this);
+        progress.setWindowModality(Qt::WindowModal);
+        progress.setLabelText(tr("Searching packages"));
+        QPushButton *cancelButton = new QPushButton(tr("Abort"), &progress);
+        cancelButton->setDisabled(true);
+        progress.setCancelButton(cancelButton);
+        progress.setMinimumDuration(2000);
+        progress.setMinimum(0);
+        progress.setMaximum(0);
 
         MerTargetManagementProcess process(wizard()->targetName());
         QList<QPair<QString, bool>> packages;
@@ -372,7 +393,7 @@ private:
             }
         }
 
-        setEnabled(true);
+        setSearching(false);
     }
 
     void onSearchTreeItemChanged(QTreeWidgetItem *item, int column)
@@ -400,6 +421,7 @@ private:
 private:
     std::unique_ptr<Ui::MerTargetManagementPackagesPage> m_ui;
     QStringList m_filters;
+    bool m_searching{false};
 };
 
 /*!
@@ -551,6 +573,11 @@ void MerTargetManagementDialog::reject()
 {
     if (currentId() == MerTargetManagementBaseWizardPage::ProgressPage
             && !m_progressPage->isComplete()) {
+        return;
+    }
+
+    if (currentId() == MerTargetManagementBaseWizardPage::PackagesPage
+            && m_packagesPage->isSearching()) {
         return;
     }
 
