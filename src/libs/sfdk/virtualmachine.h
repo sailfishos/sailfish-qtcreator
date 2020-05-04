@@ -83,7 +83,7 @@ public:
         GrowStorageSize = 0x04,
         ShrinkStorageSize = 0x08,
         OptionalHeadless = 0x10,
-        Snapshots = 0x11,
+        Snapshots = 0x20,
     };
     Q_DECLARE_FLAGS(Features, Feature)
 
