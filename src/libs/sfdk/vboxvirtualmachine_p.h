@@ -70,6 +70,8 @@ public:
 protected:
     void doSetMemorySizeMb(int memorySizeMb, const QObject *context,
             const Functor<bool> &functor) override;
+    void doSetSwapSizeMb(int swapSizeMb, const QObject *context,
+            const Functor<bool> &functor) override;
     void doSetCpuCount(int cpuCount, const QObject *context,
             const Functor<bool> &functor) override;
     void doSetStorageSizeMb(int storageSizeMb, const QObject *context,
@@ -101,6 +103,8 @@ private:
     static bool isVirtualMachineRunningFromInfo(const QString &vmInfo, bool *headless);
     static QStringList listedVirtualMachines(const QString &output);
     static VBoxVirtualMachineInfo virtualMachineInfoFromOutput(const QString &output);
+    static void propertyBasedInfoFromOutput(const QString &output,
+            VBoxVirtualMachineInfo *virtualMachineInfo);
     static void storageInfoFromOutput(const QString &output,
             VBoxVirtualMachineInfo *virtualMachineInfo);
     static int ramSizeFromOutput(const QString &output, bool *matched);

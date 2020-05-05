@@ -49,6 +49,7 @@ public:
     ~MerVirtualMachineSettingsWidget();
     void setVmFeatures(Sfdk::VirtualMachine::Features features);
     void setMemorySizeMb(int sizeMb);
+    void setSwapSizeMb(int sizeMb);
     void setCpuCount(int count);
     void setStorageSizeMb(int storageSizeMb);
     void setVmOff(bool vmOff);
@@ -56,6 +57,7 @@ public:
 
 signals:
     void memorySizeMbChanged(int sizeMb);
+    void swapSizeMbChanged(int sizeMb);
     void cpuCountChanged(int count);
     void storageSizeMbChnaged(int sizeMb);
 
@@ -63,6 +65,8 @@ private:
     void initGui();
     void setToolTip(QLabel *label, const QString& toolTipText);
     void setStorageSizeLimits();
+
+private:
     Ui::MerVirtualMachineSettingsWidget *ui;
     Sfdk::VirtualMachine::Features m_features;
 };

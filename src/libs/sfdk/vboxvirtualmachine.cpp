@@ -53,6 +53,8 @@ namespace Sfdk {
 namespace {
 const char VBOXMANAGE[] = "VBoxManage";
 const char SAILFISH_SDK_SYSTEM_VBOXMANAGE[] = "SAILFISH_SDK_SYSTEM_VBOXMANAGE";
+const char GUEST_PROPERTIES_PATTERN[] = "/SailfishSDK/*";
+const char SWAP_SIZE_MB_GUEST_PROPERTY_NAME[] = "/SailfishSDK/VM/Swap/SizeMb";
 const char SAILFISH_SDK_DEVICE_MODEL[] = "SailfishSDK/DeviceModel";
 const char SAILFISH_SDK_ORIENTATION[] = "SailfishSDK/Orientation";
 const char SAILFISH_SDK_SCALE[] = "SailfishSDK/Scale";
@@ -266,6 +268,18 @@ void VBoxVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extraIn
                 QString::fromLocal8Bit(runner->process()->readAllStandardOutput()));
     });
 
+    QStringList pArguments;
+    pArguments.append("guestproperty");
+    pArguments.append("enumerate");
+    pArguments.append(q->name());
+    pArguments.append("--patterns");
+    pArguments.append(QLatin1String(GUEST_PROPERTIES_PATTERN));
+
+    enqueue(pArguments, batch, [=](VBoxManageRunner *runner) {
+        propertyBasedInfoFromOutput(QString::fromLocal8Bit(runner->process()->readAllStandardOutput()),
+                info.get());
+    });
+
     if (extraInfo & VirtualMachineInfo::StorageInfo) {
         QStringList arguments;
         arguments.append("list");
@@ -430,6 +444,27 @@ void VBoxVirtualMachinePrivate::doSetMemorySizeMb(int memorySizeMb, const QObjec
     arguments.append(q->name());
     arguments.append("--memory");
     arguments.append(QString::number(memorySizeMb));
+
+    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
+    commandQueue()->enqueue(std::move(runner));
+}
+
+void VBoxVirtualMachinePrivate::doSetSwapSizeMb(int swapSizeMb, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_Q(VBoxVirtualMachine);
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
+    qCDebug(vms) << "Changing swap size of" << q->uri().toString() << "to" << swapSizeMb << "MB";
+
+    QStringList arguments;
+    arguments.append("guestproperty");
+    arguments.append("set");
+    arguments.append(q->name());
+    arguments.append(QLatin1String(SWAP_SIZE_MB_GUEST_PROPERTY_NAME));
+    arguments.append(QString::number(swapSizeMb));
 
     auto runner = std::make_unique<VBoxManageRunner>(arguments);
     QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
@@ -928,6 +963,24 @@ VBoxVirtualMachineInfo VBoxVirtualMachinePrivate::virtualMachineInfoFromOutput(c
     }
 
     return info;
+}
+
+void VBoxVirtualMachinePrivate::propertyBasedInfoFromOutput(const QString &output,
+        VBoxVirtualMachineInfo *virtualMachineInfo)
+{
+    QRegExp rexp(QLatin1String("^Name: +([^ ]+), +value: ([^ ]+), "));
+
+    for (const QString &line : output.split('\n')) {
+        if (rexp.indexIn(line) != -1) {
+            const QString name = rexp.cap(1);
+            const QString value = rexp.cap(2);
+
+            if (name == QLatin1String(SWAP_SIZE_MB_GUEST_PROPERTY_NAME)) {
+                virtualMachineInfo->swapSupported = true;
+                virtualMachineInfo->swapSizeMb = value.toInt();
+            }
+        }
+    }
 }
 
 void VBoxVirtualMachinePrivate::storageInfoFromOutput(const QString &output,

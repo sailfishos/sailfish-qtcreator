@@ -70,6 +70,8 @@ public:
 protected:
     void doSetMemorySizeMb(int memorySizeMb, const QObject *context,
             const Functor<bool> &functor) override;
+    void doSetSwapSizeMb(int swapSizeMb, const QObject *context,
+            const Functor<bool> &functor) override;
     void doSetCpuCount(int cpuCount, const QObject *context,
             const Functor<bool> &functor) override;
     void doSetStorageSizeMb(int storageSizeMb, const QObject *context,
