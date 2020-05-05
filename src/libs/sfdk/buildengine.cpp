@@ -557,12 +557,6 @@ void BuildEnginePrivate::setWwwPort(quint16 wwwPort)
 // takes effect, and the result should be checked.
 void BuildEnginePrivate::syncWwwProxy()
 {
-    // FIXME
-    if (virtualMachine->type() == DockerVirtualMachine::staticType()) {
-        qCDebug(engine) << "Not trying to sync WWW proxy on Docker-based build engine";
-        return;
-    }
-
     const SshConnectionParameters sshParameters = virtualMachine->sshParameters();
 
     QStringList args;
