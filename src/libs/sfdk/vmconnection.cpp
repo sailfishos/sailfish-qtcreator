@@ -60,6 +60,70 @@ const int SSH_TRY_CONNECT_INTERVAL_NORMAL  = 1000;
 const int SSH_TRY_CONNECT_INTERVAL_SLOW    = 10000;
 }
 
+// Intentionally do not report any error state or handle timeouts - this is
+// unlikely to fail or hang without entering error handling elsewhere
+class VmConnectionWaitForSystemRunningProcess : public QObject
+{
+    Q_OBJECT
+
+public:
+    VmConnectionWaitForSystemRunningProcess(QObject *parent)
+        : QObject(parent)
+        , m_runner(nullptr)
+        , m_finished(false)
+    {
+    }
+
+    void run(const SshConnectionParameters &sshParams)
+    {
+        delete m_runner, m_runner = new SshRemoteProcessRunner(this);
+        m_finished = false;
+        connect(m_runner, &SshRemoteProcessRunner::processClosed,
+                this, &VmConnectionWaitForSystemRunningProcess::onProcessClosed);
+        connect(m_runner, &SshRemoteProcessRunner::connectionError,
+                this, &VmConnectionWaitForSystemRunningProcess::onConnectionError);
+
+        // Do not check for "running", it's likely it will end in "degraded" state
+        const QString watcher(R"(
+            while [[ $(systemctl is-system-running) == starting ]]; do
+                sleep 1
+            done
+        )");
+
+        m_runner->run(watcher.toUtf8(), sshParams);
+    }
+
+    bool isFinished() const { return m_finished; }
+
+signals:
+    void finished();
+
+private slots:
+    void onProcessClosed()
+    {
+        if (m_runner->processExitStatus() != SshRemoteProcess::NormalExit)
+            qCDebug(vms) << "Failed to wait for is-system-running: Process exited abnormally";
+        else if (m_runner->processExitCode() != EXIT_SUCCESS)
+            qCDebug(vms) << "Failed to wait for is-system-running: Process exited with error";
+
+        m_finished = true;
+        emit finished();
+    }
+
+    void onConnectionError()
+    {
+        qCDebug(vms) << "Connection error while waiting for is-system-running:"
+            << m_runner->lastConnectionErrorString();
+
+        m_finished = true;
+        emit finished();
+    }
+
+private:
+    SshRemoteProcessRunner *m_runner;
+    bool m_finished;
+};
+
 // Most of the obscure handling here is because "shutdown" command newer exits "successfully" :)
 class VmConnectionRemoteShutdownProcess : public QObject
 {
@@ -486,7 +550,9 @@ void VmConnection::updateState()
                     break;
 
                 case SshConnected:
-                    m_state = VirtualMachine::Connected;
+                    QTC_ASSERT(m_waitForSystemRunningProcess, break);
+                    if (m_waitForSystemRunningProcess->isFinished())
+                        m_state = VirtualMachine::Connected;
                     break;
 
                 case SshDisconnecting:
@@ -949,6 +1015,13 @@ bool VmConnection::sshStmStep()
         ON_ENTRY {
             m_connectRequested = false;
             m_connectOptions = VirtualMachine::NoConnectOption;
+
+            m_waitForSystemRunningProcess = new VmConnectionWaitForSystemRunningProcess(this);
+            connect(m_waitForSystemRunningProcess.data(),
+                    &VmConnectionWaitForSystemRunningProcess::finished,
+                    this,
+                    &VmConnection::onWaitForSystemRunningProcessFinished);
+            m_waitForSystemRunningProcess->run(m_connection->connectionParameters());
         }
 
         if (m_vmState != VmRunning) {
@@ -962,7 +1035,7 @@ bool VmConnection::sshStmStep()
         }
 
         ON_EXIT {
-            ;
+            delete m_waitForSystemRunningProcess;
         }
         break;
 
@@ -1228,6 +1301,12 @@ void VmConnection::onSshErrorOccured()
     m_cachedSshErrorOrigin = m_connection;
     vmPollState(VirtualMachine::Asynchronous);
     sshStmScheduleExec();
+}
+
+void VmConnection::onWaitForSystemRunningProcessFinished()
+{
+    DBG << "Waiting for is-system-running finished";
+    updateState();
 }
 
 void VmConnection::onRemoteShutdownProcessFinished()
