@@ -93,11 +93,6 @@ MerSdkManager::MerSdkManager()
     connect(KitManager::instance(), &KitManager::kitsLoaded,
             this, &MerSdkManager::initialize);
     KitManager::registerKitInformation<MerSdkKitInformation>();
-
-    connect(Sdk::instance(), &Sdk::buildEngineAdded,
-            this, &MerSdkManager::onBuildEngineAdded);
-    connect(Sdk::instance(), &Sdk::aboutToRemoveBuildEngine,
-            this, &MerSdkManager::onAboutToRemoveBuildEngine);
 }
 
 MerSdkManager::~MerSdkManager()
@@ -138,6 +133,13 @@ void MerSdkManager::initialize()
                 kit->validate();
             }
         }
+
+        for (BuildEngine *const buildEngine : Sdk::buildEngines())
+            startWatching(buildEngine);
+        connect(Sdk::instance(), &Sdk::buildEngineAdded,
+                this, &MerSdkManager::onBuildEngineAdded);
+        connect(Sdk::instance(), &Sdk::aboutToRemoveBuildEngine,
+                this, &MerSdkManager::onAboutToRemoveBuildEngine);
 
         // If debugger and/or cmake became available
         for (BuildEngine *const engine : Sdk::buildEngines()) {
@@ -390,7 +392,11 @@ void MerSdkManager::onBuildEngineAdded(int index)
     BuildEngine *const buildEngine = Sdk::buildEngines().at(index);
     for (const QString &buildTargetName : buildEngine->buildTargetNames())
         addKit(buildEngine, buildTargetName);
+    startWatching(buildEngine);
+}
 
+void MerSdkManager::startWatching(BuildEngine *buildEngine)
+{
     connect(buildEngine, &BuildEngine::buildTargetAdded, this, [=](int index) {
         addKit(buildEngine, buildEngine->buildTargetNames().at(index));
     });
