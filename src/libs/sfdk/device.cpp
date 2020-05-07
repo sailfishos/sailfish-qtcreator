@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -33,6 +33,8 @@
 #include <utils/optional.h>
 #include <utils/pointeralgorithm.h>
 
+#include <QDir>
+
 using namespace QSsh;
 using namespace Utils;
 
@@ -55,6 +57,7 @@ const char SUBNET[] = "subnet";
 const char MAC[] = "mac";
 const char INDEX[] = "index";
 const char SSH_PORT[] = "sshport";
+const char MAGIC_HOME_PREFIX[] = "$HOME/";
 
 } // namespace anonymous
 
@@ -361,13 +364,12 @@ DeviceManager::DeviceManager(QObject *parent)
     connect(EmulatorManager::instance(), &EmulatorManager::aboutToRemoveEmulator,
             this, &DeviceManager::onAboutToRemoveEmulator);
 
-    auto scheduleUpdateDeviceXmlIfPrimary = [=]() {
-        if (!SdkPrivate::isVersionedSettingsEnabled() || !Sdk::isApplyingUpdates())
-            m_updateDevicesXmlTimer.start(0, this);
-    };
-    connect(this, &DeviceManager::deviceAdded, this, scheduleUpdateDeviceXmlIfPrimary);
-    connect(this, &DeviceManager::aboutToRemoveDevice, this, scheduleUpdateDeviceXmlIfPrimary);
-    connect(Sdk::instance(), &Sdk::customBuildHostNameChanged, this, scheduleUpdateDeviceXmlIfPrimary);
+    connect(this, &DeviceManager::deviceAdded,
+            this, &DeviceManager::scheduleUpdateDeviceXmlIfPrimary);
+    connect(this, &DeviceManager::aboutToRemoveDevice,
+            this, &DeviceManager::scheduleUpdateDeviceXmlIfPrimary);
+    connect(Sdk::instance(), &Sdk::customBuildHostNameChanged,
+            this, &DeviceManager::scheduleUpdateDeviceXmlIfPrimary);
 }
 
 DeviceManager::~DeviceManager()
@@ -399,6 +401,9 @@ int DeviceManager::addDevice(std::unique_ptr<Device> &&device)
 {
     QTC_ASSERT(device, return -1);
     QTC_ASSERT(!DeviceManager::device(device->id()), return -1);
+
+    connect(device.get(), &Device::sshParametersChanged,
+            s_instance, &DeviceManager::scheduleUpdateDeviceXmlIfPrimary);
 
     s_instance->m_devices.emplace_back(std::move(device));
     const int index = s_instance->m_devices.size() - 1;
@@ -507,6 +512,8 @@ void DeviceManager::fromMap(const QVariantMap &data)
         QTC_ASSERT(ok, return);
 
         if (newDevice) {
+            connect(newDevice.get(), &Device::sshParametersChanged,
+                    this, &DeviceManager::scheduleUpdateDeviceXmlIfPrimary);
             m_devices.emplace_back(std::move(newDevice));
             emit deviceAdded(m_devices.size() - 1);
         }
@@ -560,9 +567,17 @@ void DeviceManager::onAboutToRemoveEmulator(int index)
     m_devices.erase(m_devices.cbegin() + deviceIndex);
 }
 
+void DeviceManager::scheduleUpdateDeviceXmlIfPrimary()
+{
+    if (!SdkPrivate::isVersionedSettingsEnabled() || !Sdk::isApplyingUpdates())
+        m_updateDevicesXmlTimer.start(0, this);
+}
+
 // TODO multiple build engines
 void DeviceManager::updateDevicesXml() const
 {
+    const FileName homePath = FileName::fromString(QDir::cleanPath(QDir::homePath()));
+
     QList<DeviceData> devices;
     QList<FileName> emulatorConfigPaths;
 
@@ -573,13 +588,12 @@ void DeviceManager::updateDevicesXml() const
             xmlData.m_name = device->name();
             xmlData.m_type = TYPE_REAL;
             xmlData.m_sshPort.setNum(device->sshParameters().port());
-            const FileName sharedConfigPath = !Sdk::buildEngines().isEmpty()
-                ? Sdk::buildEngines().first()->sharedConfigPath()
-                : FileName();
-            if (!sharedConfigPath.isEmpty()) {
-                xmlData.m_sshKeyPath =
-                    FileName::fromString(device->sshParameters().privateKeyFile).parentDir()
-                    .relativeChildPath(sharedConfigPath).toString();
+            if (device->sshParameters().authenticationType
+                    == SshConnectionParameters::AuthenticationTypeSpecificKey) {
+                const FileName path = FileName::fromString(device->sshParameters().privateKeyFile);
+                QTC_ASSERT(path.isChildOf(homePath), continue);
+                xmlData.m_sshKeyPath = MAGIC_HOME_PREFIX
+                    + QDir::fromNativeSeparators(path.relativeChildPath(homePath).toString());
             }
         } else {
             EmulatorDevice *const emulatorDevice = static_cast<EmulatorDevice *>(device.get());

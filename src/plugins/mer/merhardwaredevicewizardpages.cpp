@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -23,6 +23,7 @@
 
 #include "merhardwaredevicewizardpages.h"
 #include "ui_merhardwaredevicewizardselectionpage.h"
+#include "ui_merhardwaredevicewizardconnectiontestpage.h"
 #include "ui_merhardwaredevicewizardsetuppage.h"
 
 #include "merconnectionmanager.h"
@@ -38,9 +39,11 @@
 #include <utils/portlist.h>
 #include <utils/qtcassert.h>
 
+#include <QAbstractButton>
 #include <QDir>
 #include <QInputDialog>
 #include <QMessageBox>
+#include <QTimer>
 #include <QVersionNumber>
 
 using namespace ProjectExplorer;
@@ -51,16 +54,18 @@ using namespace Utils;
 namespace Mer {
 namespace Internal {
 
+/*!
+ * \class MerHardwareDeviceWizardSelectionPage
+ * \internal
+ */
 
 MerHardwareDeviceWizardSelectionPage::MerHardwareDeviceWizardSelectionPage(QWidget *parent)
     : QWizardPage(parent)
     , m_ui(new Ui::MerHardwareDeviceWizardSelectionPage)
-    , m_architecture(Abi::UnknownArchitecture)
-    , m_isIdle(true)
-    , m_connectionTestOk(false)
 {
     m_ui->setupUi(this);
-    setTitle(tr("Select Device"));
+    setTitle(tr("Connection"));
+    setSubTitle(QLatin1String(" ")); // For Qt bug (background color)
 
     m_ui->hostNameLineEdit->setText(QLatin1String("192.168.2.15"));
     m_ui->usernameLineEdit->setText(QLatin1String(Constants::MER_DEVICE_DEFAULTUSER));
@@ -73,24 +78,32 @@ MerHardwareDeviceWizardSelectionPage::MerHardwareDeviceWizardSelectionPage(QWidg
     m_ui->timeoutSpinBox->setMaximum(65535);
     m_ui->timeoutSpinBox->setValue(10);
 
-    m_ui->connectionTestLabel->setText(tr("Not connected"));
-
     connect(m_ui->hostNameLineEdit, &QLineEdit::textChanged,
             this, &MerHardwareDeviceWizardSelectionPage::completeChanged);
     connect(m_ui->usernameLineEdit, &QLineEdit::textChanged,
             this, &MerHardwareDeviceWizardSelectionPage::completeChanged);
+}
 
-    connect(m_ui->testButton, &QPushButton::clicked,
-            this, &MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked);
+void MerHardwareDeviceWizardSelectionPage::setDevice(const MerHardwareDevice::Ptr &device)
+{
+    m_device = device;
 }
 
 bool MerHardwareDeviceWizardSelectionPage::isComplete() const
 {
     return !hostName().isEmpty()
-            && !userName().isEmpty()
-            && m_isIdle
-            && m_connectionTestOk
-            && m_sdkClientToolsInstalled;
+        && !userName().isEmpty();
+}
+
+bool MerHardwareDeviceWizardSelectionPage::validatePage()
+{
+    SshConnectionParameters sshParams = m_device->sshParameters();
+    sshParams.setHost(hostName());
+    sshParams.setUserName(userName());
+    sshParams.setPort(sshPort());
+    sshParams.timeout = timeout();
+    m_device->setSshParameters(sshParams);
+    return true;
 }
 
 QString MerHardwareDeviceWizardSelectionPage::hostName() const
@@ -113,34 +126,73 @@ int MerHardwareDeviceWizardSelectionPage::timeout() const
     return m_ui->timeoutSpinBox->value();
 }
 
-Abi::Architecture MerHardwareDeviceWizardSelectionPage::architecture() const
+/*!
+ * \class MerHardwareDeviceWizardConnectionTestPage
+ * \internal
+ */
+
+MerHardwareDeviceWizardConnectionTestPage::MerHardwareDeviceWizardConnectionTestPage(QWidget *parent)
+    : QWizardPage(parent)
+    , m_ui(new Ui::MerHardwareDeviceWizardConnectionTestPage)
+    , m_architecture(Abi::UnknownArchitecture)
+    , m_isIdle(true)
+    , m_connectionTestOk(false)
 {
-    return m_architecture;
+    m_ui->setupUi(this);
+    setTitle(tr("Device preparation"));
+    setSubTitle(QLatin1String(" "));
+
+    m_ui->connectionTestLabel->setText(tr("Not connected"));
 }
 
-QString MerHardwareDeviceWizardSelectionPage::deviceName() const
+void MerHardwareDeviceWizardConnectionTestPage::setDevice(const MerHardwareDevice::Ptr &device)
 {
-    return m_deviceName;
+    m_device = device;
 }
 
-void MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked()
+void MerHardwareDeviceWizardConnectionTestPage::initializePage()
+{
+    QTimer::singleShot(0, this, &MerHardwareDeviceWizardConnectionTestPage::testConnection);
+}
+
+bool MerHardwareDeviceWizardConnectionTestPage::isComplete() const
+{
+    return m_isIdle
+        && m_connectionTestOk
+        && m_sdkClientToolsInstalled;
+}
+
+bool MerHardwareDeviceWizardConnectionTestPage::validatePage()
+{
+    m_device->setArchitecture(m_architecture);
+
+    const QString arch = Abi::toString(m_architecture).toUpper();
+    QString preferredName = QStringLiteral("%1 (%2)").arg(m_deviceName).arg(arch);
+    int i = 1;
+    QString tryName = preferredName;
+    while (DeviceManager::instance()->hasDevice(tryName))
+        tryName = preferredName + QString::number(++i);
+
+    m_device->setDisplayName(tryName);
+
+    return true;
+}
+
+void MerHardwareDeviceWizardConnectionTestPage::testConnection()
 {
     // Without this focus would be moved to the "Cancel" button
     wizard()->setFocus();
 
-    m_ui->testButton->setEnabled(false);
     m_isIdle = false;
     completeChanged();
 
-    SshConnectionParameters sshParams;
-    sshParams.setHost(hostName());
-    sshParams.setUserName(userName());
-    sshParams.setPort(sshPort());
-    sshParams.timeout = timeout();
-    sshParams.authenticationType = SshConnectionParameters::AuthenticationTypeAll;
+    // QWizard will revert this next time completeChanged is emited
+    wizard()->button(QWizard::BackButton)->setEnabled(false);
+
+    const SshConnectionParameters sshParams = m_device->sshParameters();
 
     QString errorMessage;
-    m_ui->connectionTestLabel->setText(tr("Connecting to machine %1 ...").arg(hostName()));
+    m_ui->connectionTestLabel->setText(tr("Connecting to machine %1 ...").arg(sshParams.host()));
     m_ui->connectionTestLabel->setText(MerConnectionManager::testConnection(sshParams,
                 &m_connectionTestOk));
     if (!m_connectionTestOk)
@@ -182,15 +234,14 @@ void MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked()
         }
     }
 
-    m_ui->connectionTestLabel->setText(tr("Connected %1 device").arg(m_deviceName));
+    m_ui->connectionTestLabel->setText(tr("Prepared %1 device").arg(m_deviceName));
 
 end:
-    m_ui->testButton->setEnabled(true);
     m_isIdle = true;
     completeChanged();
 }
 
-Abi::Architecture MerHardwareDeviceWizardSelectionPage::detectArchitecture(
+Abi::Architecture MerHardwareDeviceWizardConnectionTestPage::detectArchitecture(
         const SshConnectionParameters &sshParams, bool *ok, QString *errorMessage)
 {
     if (!*ok) {
@@ -235,7 +286,7 @@ Abi::Architecture MerHardwareDeviceWizardSelectionPage::detectArchitecture(
     return architecture;
 }
 
-QString MerHardwareDeviceWizardSelectionPage::detectDeviceName(
+QString MerHardwareDeviceWizardConnectionTestPage::detectDeviceName(
         const SshConnectionParameters &sshParams, bool *ok, QString *errorMessage)
 {
     if (!*ok) {
@@ -271,7 +322,7 @@ QString MerHardwareDeviceWizardSelectionPage::detectDeviceName(
     return deviceName;
 }
 
-bool MerHardwareDeviceWizardSelectionPage::detectSdkClientTools(
+bool MerHardwareDeviceWizardConnectionTestPage::detectSdkClientTools(
         const SshConnectionParameters &sshParams, bool *ok, QString *errorMessage)
 {
     if (!*ok) {
@@ -332,7 +383,7 @@ bool MerHardwareDeviceWizardSelectionPage::detectSdkClientTools(
     return true;
 }
 
-bool MerHardwareDeviceWizardSelectionPage::askInstallSdkClientTools(QString *password)
+bool MerHardwareDeviceWizardConnectionTestPage::askInstallSdkClientTools(QString *password)
 {
     QInputDialog passwordDialog;
     passwordDialog.setWindowTitle(tr("Software package installation needed"));
@@ -347,7 +398,7 @@ bool MerHardwareDeviceWizardSelectionPage::askInstallSdkClientTools(QString *pas
     return passwordDialog.result() == QInputDialog::Accepted;
 }
 
-bool MerHardwareDeviceWizardSelectionPage::installSdkClientTools(
+bool MerHardwareDeviceWizardConnectionTestPage::installSdkClientTools(
         const SshConnectionParameters &sshParams, const QString &password, QString *errorMessage)
 {
     SshRemoteProcessRunner runner;
@@ -404,67 +455,47 @@ bool MerHardwareDeviceWizardSelectionPage::installSdkClientTools(
     return true;
 }
 
-void MerHardwareDeviceWizardSelectionPage::showErrorMessageDialog(const QString &error, const QString &message)
+void MerHardwareDeviceWizardConnectionTestPage::showErrorMessageDialog(const QString &error, const QString &message)
 {
     QMessageBox errorDialog(this);
-    errorDialog.setWindowTitle(tr("Connection test failed"));
+    errorDialog.setWindowTitle(tr("Failed to prepare device"));
     errorDialog.setText(error);
     errorDialog.setInformativeText(message);
     errorDialog.setIcon(QMessageBox::Critical);
     errorDialog.exec();
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////
+/*!
+ * \class MerHardwareDeviceWizardSetupPage
+ * \internal
+ */
 
 MerHardwareDeviceWizardSetupPage::MerHardwareDeviceWizardSetupPage(QWidget *parent)
     : QWizardPage(parent)
     , m_ui(new Ui::MerHardwareDeviceWizardSetupPage)
 {
     m_ui->setupUi(this);
-    setTitle(tr("Configure Connection"));
+    setTitle(tr("Configuration"));
+    setSubTitle(QLatin1String(" "));
 
     m_ui->freePortsLineEdit->setText(QLatin1String("10000-10100"));
 
-    m_ui->sshCheckBox->setChecked(true);
-
-    static QRegExp regExp(tr("Build Engine"));
-    const QList<BuildEngine *> engines = Sdk::buildEngines();
-    for (BuildEngine *const engine : engines) {
-        m_ui->merSdkComboBox->addItem(engine->name(), engine->uri());
-        if (regExp.indexIn(engine->name()) != -1) {
-            // Preselect
-            m_ui->merSdkComboBox->setCurrentIndex(m_ui->merSdkComboBox->count()-1);
-        }
-    }
-
     connect(m_ui->configLineEdit, &QLineEdit::textChanged,
             this, &MerHardwareDeviceWizardSetupPage::completeChanged);
-    connect(m_ui->merSdkComboBox,
-            QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this,
-            &MerHardwareDeviceWizardSetupPage::handleBuildEngineChanged);
+}
 
-    m_ui->merSdkLabel->setText(m_ui->merSdkLabel->text().arg(Sdk::osVariant()));
+void MerHardwareDeviceWizardSetupPage::setDevice(const MerHardwareDevice::Ptr &device)
+{
+    m_device = device;
 }
 
 void MerHardwareDeviceWizardSetupPage::initializePage()
 {
-   const MerHardwareDeviceWizard* wizard = qobject_cast<MerHardwareDeviceWizard*>(this->wizard());
-   QTC_ASSERT(wizard,return);
-
-   const QString arch = Abi::toString(wizard->architecture()).toUpper();
-
-   QString preferredName = QStringLiteral("%1 (%2)").arg(wizard->deviceName()).arg(arch);
-   int i = 1;
-   QString tryName = preferredName;
-   while (DeviceManager::instance()->hasDevice(tryName))
-       tryName = preferredName + QString::number(++i);
-   m_ui->configLineEdit->setText(tryName);
-
-   m_ui->hostLabelEdit->setText(wizard->hostName());
-   m_ui->usernameLabelEdit->setText(wizard->userName());
-   m_ui->sshPortLabelEdit->setText(QString::number(wizard->sshPort()));
-   handleBuildEngineChanged();
+    m_ui->configLineEdit->setText(m_device->displayName());
+    const SshConnectionParameters sshParams = m_device->sshParameters();
+    m_ui->hostLabelEdit->setText(sshParams.host());
+    m_ui->usernameLabelEdit->setText(sshParams.userName());
+    m_ui->sshPortLabelEdit->setText(QString::number(sshParams.port()));
 }
 
 QString MerHardwareDeviceWizardSetupPage::configName() const
@@ -477,45 +508,18 @@ QString MerHardwareDeviceWizardSetupPage::freePorts() const
     return m_ui->freePortsLineEdit->text().trimmed();
 }
 
-void MerHardwareDeviceWizardSetupPage::handleBuildEngineChanged()
-{
-    QTC_ASSERT(buildEngine(), return);
-    const MerHardwareDeviceWizard* wizard = qobject_cast<MerHardwareDeviceWizard*>(this->wizard());
-    QTC_ASSERT(wizard,return);
-    QString index(QLatin1String("/ssh/private_keys/%1/"));
-    //TODO: fix me
-    QString sshKeyPath(QDir::toNativeSeparators(buildEngine()->sharedConfigPath().toString() +
-                       index.arg(wizard->configurationName()).replace(QLatin1Char(' '),QLatin1Char('_')) +
-                       wizard->userName()));
-    m_ui->privateSshKeyLabelEdit->setText(sshKeyPath);
-    m_ui->publicSshKeyLabelEdit->setText(sshKeyPath + QLatin1String(".pub"));
-}
-
-QString MerHardwareDeviceWizardSetupPage::privateKeyFilePath() const
-{
-    return QDir::fromNativeSeparators(m_ui->privateSshKeyLabelEdit->text());
-}
-
-QString MerHardwareDeviceWizardSetupPage::publicKeyFilePath() const
-{
-    return QDir::fromNativeSeparators(m_ui->publicSshKeyLabelEdit->text());
-}
-
-bool MerHardwareDeviceWizardSetupPage::isNewSshKeysRquired() const
-{
-    return m_ui->sshCheckBox->isChecked();
-}
-
-Sfdk::BuildEngine *MerHardwareDeviceWizardSetupPage::buildEngine() const
-{
-    return Sdk::buildEngine(m_ui->merSdkComboBox->currentData().toUrl());
-}
-
 bool MerHardwareDeviceWizardSetupPage::isComplete() const
 {
     return !configName().isEmpty()
         && !freePorts().isEmpty()
         && !DeviceManager::instance()->hasDevice(configName());
+}
+
+bool MerHardwareDeviceWizardSetupPage::validatePage()
+{
+    m_device->setDisplayName(configName());
+    m_device->setFreePorts(PortList::fromString(freePorts()));
+    return true;
 }
 
 }

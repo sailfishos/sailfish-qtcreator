@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2017 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -35,16 +35,31 @@ namespace Mer {
 namespace Internal {
 
 MerHardwareDeviceWizard::MerHardwareDeviceWizard(QWidget *parent)
-    : QWizard(parent),
+    : Utils::Wizard(parent),
       m_selectionPage(this),
+      m_keyDeploymentPage(this),
+      m_connectionTestPage(this),
       m_setupPage(this),
       m_finalPage(this)
 {
     setWindowTitle(tr("New %1 Hardware Device Setup").arg(Sdk::osVariant()));
     addPage(&m_selectionPage);
+    addPage(&m_keyDeploymentPage);
+    addPage(&m_connectionTestPage);
     addPage(&m_setupPage);
     addPage(&m_finalPage);
     m_finalPage.setCommitPage(true);
+
+    // Avoid shaking
+    m_selectionPage.setMinimumSize(m_keyDeploymentPage.sizeHint());
+
+    m_device = MerHardwareDevice::create();
+    m_device->setupId(IDevice::ManuallyAdded, Core::Id());
+
+    m_selectionPage.setDevice(m_device);
+    m_keyDeploymentPage.setDevice(m_device);
+    m_connectionTestPage.setDevice(m_device);
+    m_setupPage.setDevice(m_device);
 }
 
 MerHardwareDeviceWizard::~MerHardwareDeviceWizard()
@@ -52,65 +67,9 @@ MerHardwareDeviceWizard::~MerHardwareDeviceWizard()
 
 }
 
-QString MerHardwareDeviceWizard::hostName() const
+MerHardwareDevice::Ptr MerHardwareDeviceWizard::device() const
 {
-    return m_selectionPage.hostName();
-}
-
-QString MerHardwareDeviceWizard::userName() const
-{
-    return m_selectionPage.userName();
-}
-
-Abi::Architecture MerHardwareDeviceWizard::architecture() const
-{
-    return m_selectionPage.architecture();
-}
-
-QString MerHardwareDeviceWizard::deviceName() const
-{
-    return m_selectionPage.deviceName();
-}
-
-QString MerHardwareDeviceWizard::privateKeyFilePath() const
-{
-    return m_setupPage.privateKeyFilePath();
-}
-
-QString MerHardwareDeviceWizard::publicKeyFilePath() const
-{
-    return m_setupPage.publicKeyFilePath();
-}
-
-QString MerHardwareDeviceWizard::configurationName() const
-{
-    return m_setupPage.configName();
-}
-
-QString MerHardwareDeviceWizard::freePorts() const
-{
-     return m_setupPage.freePorts();
-}
-
-int MerHardwareDeviceWizard::sshPort() const
-{
-    return m_selectionPage.sshPort();
-}
-
-int MerHardwareDeviceWizard::timeout() const
-{
-    return m_selectionPage.timeout();
-}
-
-bool MerHardwareDeviceWizard::isNewSshKeysRquired() const
-{
-    return m_setupPage.isNewSshKeysRquired();
-}
-
-// TODO unused, multiple build engines are not allowed
-Sfdk::BuildEngine *MerHardwareDeviceWizard::buildEngine() const
-{
-    return m_setupPage.buildEngine();
+    return m_device;
 }
 
 } // Internal

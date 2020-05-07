@@ -23,8 +23,8 @@ FORMS += \
     meremulatoroptionswidget.ui \
     mergeneraloptionswidget.ui \
     merhardwaredevicewidget.ui \
-    merhardwaredevicewidgetauthorizedialog.ui \
     merhardwaredevicewizardselectionpage.ui \
+    merhardwaredevicewizardconnectiontestpage.ui \
     merhardwaredevicewizardsetuppage.ui \
     merrpminfo.ui \
     merrpmvalidationstepconfigwidget.ui \
@@ -79,7 +79,6 @@ SOURCES += \
     mersdkkitinformation.cpp \
     mersdkmanager.cpp \
     mersettings.cpp \
-    mersshkeydeploymentdialog.cpp \
     mersshparser.cpp \
     mertargetmanagementdialog.cpp \
     mertoolchain.cpp \
@@ -136,7 +135,6 @@ HEADERS += \
     mersdkkitinformation.h \
     mersdkmanager.h \
     mersettings.h \
-    mersshkeydeploymentdialog.h \
     mersshparser.h \
     mertargetmanagementdialog.h \
     mertoolchain.h \

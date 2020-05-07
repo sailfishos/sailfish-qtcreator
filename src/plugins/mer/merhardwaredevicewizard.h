@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -28,8 +28,7 @@
 
 #include <projectexplorer/abi.h>
 #include <remotelinux/genericlinuxdeviceconfigurationwizardpages.h>
-
-#include <QWizard>
+#include <utils/wizard.h>
 
 namespace QSsh {
     class SshConnectionParameters;
@@ -38,29 +37,22 @@ namespace QSsh {
 namespace Mer {
 namespace Internal {
 
-class MerHardwareDeviceWizard : public QWizard
+class MerHardwareDeviceWizard : public Utils::Wizard
 {
     Q_OBJECT
 public:
     explicit MerHardwareDeviceWizard(QWidget *parent = 0);
     ~MerHardwareDeviceWizard() override;
-    QString hostName() const;
-    QString userName() const;
-    ProjectExplorer::Abi::Architecture architecture() const;
-    QString deviceName() const;
-    QString privateKeyFilePath() const;
-    QString publicKeyFilePath() const;
-    QString configurationName() const;
-    int sshPort() const;
-    int timeout() const;
-    QString freePorts() const;
-    bool isNewSshKeysRquired() const;
-    Sfdk::BuildEngine *buildEngine() const;
+
+    MerHardwareDevice::Ptr device() const;
 
 private:
     MerHardwareDeviceWizardSelectionPage m_selectionPage;
+    RemoteLinux::GenericLinuxDeviceConfigurationWizardKeyDeploymentPage m_keyDeploymentPage;
+    MerHardwareDeviceWizardConnectionTestPage m_connectionTestPage;
     MerHardwareDeviceWizardSetupPage m_setupPage;
     RemoteLinux::GenericLinuxDeviceConfigurationWizardFinalPage m_finalPage;
+    MerHardwareDevice::Ptr m_device;
 };
 
 } // Internal

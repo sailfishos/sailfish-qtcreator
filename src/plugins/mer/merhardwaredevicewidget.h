@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2017 Jolla Ltd.
+** Copyright (C) 2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -41,19 +42,21 @@ public:
     ~MerHardwareDeviceWidget() override;
 
 private slots:
+    void authenticationTypeChanged();
     void hostNameEditingFinished();
     void sshPortEditingFinished();
     void timeoutEditingFinished();
     void userNameEditingFinished();
+    void keyFileEditingFinished();
     void handleFreePortsChanged();
     void handleQmlLivePortsChanged();
-    void authorizePrivateKey();
+    void setPrivateKey(const QString &path);
+    void createNewKey();
 
 private:
     void updateDeviceFromUi() override;
     void updatePortsWarningLabel();
     void updateQmlLivePortsWarningLabel();
-    void updatePrivateKeyWarningLabel();
     void initGui();
 
     Ui::MerHardwareDeviceWidget *m_ui;

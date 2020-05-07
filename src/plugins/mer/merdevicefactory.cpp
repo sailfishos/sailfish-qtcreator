@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2017-2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -28,25 +28,14 @@
 #include "merhardwaredevice.h"
 #include "merhardwaredevicewizard.h"
 #include "mericons.h"
-#include "mersdkmanager.h"
-#include "mersshkeydeploymentdialog.h"
-#include "mersettings.h"
 
 #include <sfdk/sdk.h>
 
 #include <coreplugin/icore.h>
-#include <ssh/sshconnection.h>
-#include <utils/portlist.h>
 #include <utils/qtcassert.h>
-
-#include <QFileInfo>
-#include <QIcon>
-#include <QMessageBox>
 
 using namespace Core;
 using namespace ProjectExplorer;
-using namespace Sfdk;
-using namespace QSsh;
 using namespace Sfdk;
 using namespace Utils;
 
@@ -84,55 +73,7 @@ IDevice::Ptr MerDeviceFactory::create() const
     MerHardwareDeviceWizard wizard(ICore::dialogParent());
     if (wizard.exec() != QDialog::Accepted)
         return IDevice::Ptr();
-
-    if(wizard.isNewSshKeysRquired() && !wizard.privateKeyFilePath().isEmpty()) {
-
-        QString privKeyPath = wizard.privateKeyFilePath();
-
-        if(QFileInfo(privKeyPath).exists()) {
-            QFile(privKeyPath).remove();
-        }
-
-        QString error;
-
-        if (!MerSdkManager::generateSshKey(privKeyPath, error)) {
-            QMessageBox::critical(ICore::dialogParent(), tr("Could not generate key."), error);
-        }
-    }
-
-    {
-        SshConnectionParameters sshParams;
-        sshParams.setHost(wizard.hostName());
-        sshParams.setUserName(wizard.userName());
-        sshParams.setPort(wizard.sshPort());
-        sshParams.timeout = wizard.timeout();
-        sshParams.authenticationType = SshConnectionParameters::AuthenticationTypeAll;
-        MerSshKeyDeploymentDialog dlg(ICore::dialogParent());
-        dlg.setSShParameters(sshParams);
-        dlg.setPublicKeyPath(wizard.publicKeyFilePath());
-        if (dlg.exec() == QDialog::Rejected) {
-            return IDevice::Ptr();
-        }
-    }
-
-    SshConnectionParameters sshParams;
-    //sshParams.options &= ~SshConnectionOptions(SshEnableStrictConformanceChecks); // For older SSH servers.
-    sshParams.setHost(wizard.hostName());
-    sshParams.setUserName(wizard.userName());
-    sshParams.setPort(wizard.sshPort());
-    sshParams.timeout = wizard.timeout();
-    sshParams.authenticationType = SshConnectionParameters::AuthenticationTypeSpecificKey;
-    sshParams.privateKeyFile = wizard.privateKeyFilePath();
-
-    MerHardwareDevice::Ptr device = MerHardwareDevice::create();
-    device->setupId(IDevice::ManuallyAdded, Core::Id());
-    device->setDisplayName(wizard.configurationName());
-    device->setArchitecture(wizard.architecture());
-    device->setFreePorts(PortList::fromString(wizard.freePorts()));
-    //device->setFreePorts(PortList::fromString(QLatin1String("10000-10100")));
-    device->setSshParameters(sshParams);
-
-    return device;
+    return wizard.device();
 }
 
 bool MerDeviceFactory::canRestore(const QVariantMap &map) const
