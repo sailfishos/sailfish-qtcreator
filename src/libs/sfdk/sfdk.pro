@@ -45,8 +45,6 @@ HEADERS += \
     virtualmachine_p.h \
     vmconnection_p.h \
 
-isEmpty(SFDK_VARIANT):  SFDK_VARIANT = Sailfish
-
 DISTFILES += $$PWD/sfdk_version_p.h.in
 QMAKE_SUBSTITUTES += $$PWD/sfdk_version_p.h.in
 INCLUDEPATH += $$OUT_PWD
