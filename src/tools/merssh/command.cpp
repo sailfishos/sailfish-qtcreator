@@ -32,6 +32,7 @@
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
+#include <QRegularExpression>
 
 namespace {
 const char BACKUP_SUFFIX[] = ".qtccache";
@@ -253,6 +254,12 @@ void Command::maybeDoCMakePathMapping()
         QString data = QString::fromUtf8(reader.data());
         data.replace(Sfdk::Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, sharedHomePath());
         data.replace(Sfdk::Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, sharedSourcePath());
+        data.replace(QRegularExpression("CMAKE_CXX_COMPILER:STRING=.*"),
+                "CMAKE_CXX_COMPILER:STRING=" + sdkToolsPath() + "/gcc");
+        data.replace(QRegularExpression("CMAKE_C_COMPILER:STRING=.*"),
+                "CMAKE_C_COMPILER:STRING=" + sdkToolsPath() + "/gcc");
+        data.replace(QRegularExpression("CMAKE_COMMAND:INTERNAL=.*"),
+                "CMAKE_COMMAND:INTERNAL=" + sdkToolsPath() + "/cmake");
 
         FileSaver saver(path);
         saver.write(data.toUtf8());
