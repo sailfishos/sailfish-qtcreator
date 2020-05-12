@@ -592,8 +592,10 @@ void MerSdkManager::ensureCmakeToolIsSet(Kit *k, const BuildEngine *buildEngine,
             const bool registeredOk = CMakeToolManager::registerCMakeTool(std::move(cmakeTool));
             QTC_ASSERT(registeredOk, return);
             CMakeKitInformation::setCMakeTool(k, id);
-            QStringList cmakeConf = { "CMAKE_CXX_COMPILER:STRING=/usr/bin/gcc",
-                                      "CMAKE_C_COMPILER:STRING=/usr/bin/gcc",
+            // Qt Creator warns if these are not set or do not match Kit configuration, so we are
+            // adding them here and later filtering out in merssh.
+            QStringList cmakeConf = { "CMAKE_CXX_COMPILER:STRING=%{Compiler:Executable:Cxx}",
+                                      "CMAKE_C_COMPILER:STRING=%{Compiler:Executable:C}",
                                       "CMAKE_PREFIX_PATH:STRING=%{Qt:QT_INSTALL_PREFIX}",
                                       "QT_QMAKE_EXECUTABLE:STRING=%{Qt:qmakeExecutable}" };
             CMakeConfigurationKitInformation::fromStringList(k, cmakeConf);
