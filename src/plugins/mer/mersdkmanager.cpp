@@ -580,17 +580,24 @@ void MerSdkManager::ensureCmakeToolIsSet(Kit *k, const BuildEngine *buildEngine,
     const FileName cmakeWrapper = FileName(buildTarget.toolsPath).appendPath(Sfdk::Constants::WRAPPER_CMAKE);
 
     if (cmakeWrapper.exists()) {
-        const Core::Id cmakeId = CMakeToolManager::registerOrFindCMakeTool(cmakeWrapper);
-        CMakeTool *cmakeTool = CMakeToolManager::findById(cmakeId);
-        cmakeTool->setDisplayName(QString::fromLatin1("CMake for %1 in %2").arg(buildTargetName, buildEngine->name()));
-        cmakeTool->setAutorun(true);
-        cmakeTool->setAutoCreateBuildDirectory(true);
-        CMakeKitInformation::setCMakeTool(k, cmakeId);
-        QStringList cmakeConf = { "CMAKE_CXX_COMPILER:STRING=/usr/bin/gcc",
-                                  "CMAKE_C_COMPILER:STRING=/usr/bin/gcc",
-                                  "CMAKE_PREFIX_PATH:STRING=%{Qt:QT_INSTALL_PREFIX}",
-                                  "QT_QMAKE_EXECUTABLE:STRING=%{Qt:qmakeExecutable}" };
-        CMakeConfigurationKitInformation::fromStringList(k, cmakeConf);
+        if (const CMakeTool *existing = CMakeToolManager::findByCommand(cmakeWrapper)) {
+            CMakeKitInformation::setCMakeTool(k, existing->id());
+        } else {
+            auto cmakeTool = std::make_unique<CMakeTool>(CMakeTool::AutoDetectionByPlugin, CMakeTool::createId());
+            cmakeTool->setCMakeExecutable(cmakeWrapper);
+            cmakeTool->setDisplayName(QString::fromLatin1("CMake for %1 in %2").arg(buildTargetName, buildEngine->name()));
+            cmakeTool->setAutorun(true);
+            cmakeTool->setAutoCreateBuildDirectory(true);
+            const Core::Id id = cmakeTool->id();
+            const bool registeredOk = CMakeToolManager::registerCMakeTool(std::move(cmakeTool));
+            QTC_ASSERT(registeredOk, return);
+            CMakeKitInformation::setCMakeTool(k, id);
+            QStringList cmakeConf = { "CMAKE_CXX_COMPILER:STRING=/usr/bin/gcc",
+                                      "CMAKE_C_COMPILER:STRING=/usr/bin/gcc",
+                                      "CMAKE_PREFIX_PATH:STRING=%{Qt:QT_INSTALL_PREFIX}",
+                                      "QT_QMAKE_EXECUTABLE:STRING=%{Qt:qmakeExecutable}" };
+            CMakeConfigurationKitInformation::fromStringList(k, cmakeConf);
+        }
     } else {
         qCWarning(Log::sdks) << "CMake wrapper script" << cmakeWrapper.toString() << "not found";
         k->setValue(CMakeKitInformation::id(), QVariant(QString()));
