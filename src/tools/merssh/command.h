@@ -64,6 +64,7 @@ public:
     virtual int execute() = 0;
 
 private:
+    static QString readRelativeRoot();
     void maybeDoCMakePathMapping();
     void maybeUndoCMakePathMapping();
 
