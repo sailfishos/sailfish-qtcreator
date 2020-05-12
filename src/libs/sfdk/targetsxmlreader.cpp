@@ -50,6 +50,7 @@ const char GCCDUMPMACHINE[] = "GccDumpMachine";
 const char GCCDUMPMACROS[] = "GccDumpMacros";
 const char GCCDUMPINCLUDES[] = "GccDumpIncludes";
 const char QMAKEQUERY[] = "QmakeQuery";
+const char CMAKEVERSION[] = "CMakeVersion";
 const char RPMVALIDATIONSUITES[] = "RpmValidationSuites";
 
 class MessageHandler : public QAbstractMessageHandler
@@ -135,6 +136,8 @@ protected:
                 m_currentTarget.gccDumpIncludes = value.toString();
             else if (m_attributeValue == QLatin1String(QMAKEQUERY))
                 m_currentTarget.qmakeQuery = value.toString();
+            else if (m_attributeValue == QLatin1String(CMAKEVERSION))
+                m_currentTarget.cmakeVersion = value.toString();
             else if (m_attributeValue == QLatin1String(RPMVALIDATIONSUITES))
                 m_currentTarget.rpmValidationSuites = value.toString();
         }

@@ -26,6 +26,8 @@
 #include <sfdk/sfdkconstants.h>
 #include <utils/qtcassert.h>
 
+#include <QDir>
+
 CMakeCommand::CMakeCommand()
 {
 
@@ -42,11 +44,28 @@ int CMakeCommand::execute()
             && arguments().contains(QLatin1String("capabilities"))) {
         fprintf(stdout, "%s", capabilities().data());
         return 0;
+    } else if (arguments().contains(QLatin1String("--version"))) {
+        m_cacheFile = QLatin1String(Sfdk::Constants::CMAKE_VERSION_CACHE);
+    } else if (arguments().contains(QLatin1String("--help"))) {
+        QTC_ASSERT(false, return 1);
     }
 
-    if (arguments().contains(QLatin1String("--version"))
-            || arguments().contains(QLatin1String("--help"))) {
-        QTC_ASSERT(false, return 1);
+    if (!m_cacheFile.isEmpty()) {
+        m_cacheFile.prepend(sdkToolsPath() + QDir::separator());
+
+        if (QFile::exists(m_cacheFile)) {
+            QFile cacheFile(m_cacheFile);
+            if (!cacheFile.open(QIODevice::ReadOnly)) {
+                fprintf(stderr, "%s",qPrintable(QString::fromLatin1("Cannot read cached file \"%1\"").arg(m_cacheFile)));
+                fflush(stderr);
+                return 1;
+            }
+            fprintf(stdout, "%s", cacheFile.readAll().constData());
+            fflush(stdout);
+            return 0;
+        }
+
+        return 1;
     }
 
     QString command = QLatin1String("mb2") +
