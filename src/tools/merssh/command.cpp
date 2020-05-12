@@ -98,12 +98,12 @@ void Command::setSharedSourcePath(const QString& path)
 
 QString Command::sharedTargetPath() const
 {
-    return m_sharedSourcePath;
+    return m_sharedTargetPath;
 }
 
 void Command::setSharedTargetPath(const QString& path)
 {
-    m_sharedSourcePath = QDir::fromNativeSeparators(path);
+    m_sharedTargetPath = QDir::fromNativeSeparators(path);
 }
 
 QString Command::sdkToolsPath() const
