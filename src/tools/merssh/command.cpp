@@ -248,7 +248,7 @@ void Command::maybeDoCMakePathMapping()
     if (!QFile::exists("CMakeCache.txt"))
         return;
 
-    QString sharedTargetRoot = sharedTargetPath() + "/" + targetName() + "/";
+    QString sharedTargetRoot = sharedTargetPath() + "/" + targetName();
     QString relativeRoot = readRelativeRoot();
     QTC_CHECK(!relativeRoot.isEmpty());
 
@@ -277,7 +277,7 @@ void Command::maybeDoCMakePathMapping()
 
         QString data = QString::fromUtf8(reader.data());
         if (!relativeRoot.isEmpty())
-            data.replace(relativeRoot, sharedTargetRoot);
+            data.replace(relativeRoot, sharedTargetRoot + "/");
         data.replace(Sfdk::Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, sharedHomePath());
         data.replace(Sfdk::Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, sharedSourcePath());
         data.replace(QRegularExpression("CMAKE_CXX_COMPILER:(FILEPATH|STRING)=.*"),
@@ -286,7 +286,9 @@ void Command::maybeDoCMakePathMapping()
                 "CMAKE_C_COMPILER:\\1=" + sdkToolsPath() + "/gcc");
         data.replace(QRegularExpression("CMAKE_COMMAND:INTERNAL=.*"),
                 "CMAKE_COMMAND:INTERNAL=" + sdkToolsPath() + "/cmake");
-        data.replace("/usr/include/", sharedTargetRoot + "usr/include/");
+        data.replace(QRegularExpression("CMAKE_SYSROOT:(PATH|STRING)=/"),
+                "CMAKE_SYSROOT:\\1=" + sharedTargetRoot);
+        data.replace("/usr/include/", sharedTargetRoot + "/usr/include/");
 
         FileSaver saver(path);
         saver.write(data.toUtf8());
