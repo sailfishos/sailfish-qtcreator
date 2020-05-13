@@ -27,6 +27,7 @@
 #include <sfdk/sfdkconstants.h>
 #include <utils/fileutils.h>
 #include <utils/hostosinfo.h>
+#include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
 #include <QDir>
@@ -98,12 +99,12 @@ void Command::setSharedSourcePath(const QString& path)
 
 QString Command::sharedTargetPath() const
 {
-    return m_sharedSourcePath;
+    return m_sharedTargetPath;
 }
 
 void Command::setSharedTargetPath(const QString& path)
 {
-    m_sharedSourcePath = QDir::fromNativeSeparators(path);
+    m_sharedTargetPath = QDir::fromNativeSeparators(path);
 }
 
 QString Command::sdkToolsPath() const
@@ -182,6 +183,9 @@ QString Command::remotePathMapping(const QString& command) const
     result.prepend(QLatin1String("cd '") + QDir::currentPath()
                    + QLatin1String("' && "));
 
+    result.replace(sharedTargetPath() + "/" + targetName() + "/", "/");
+    result.replace(sharedTargetPath() + "/" + targetName(), "/");
+
     // First replace shared home and then shared src (error prone!)
     if (!sharedHomePath().isEmpty()) {
       QDir homeDir(sharedHomePath());
@@ -223,10 +227,30 @@ bool Command::isValid() const
     return true;
 }
 
+QString Command::readRelativeRoot()
+{
+    FileReader reader;
+    if (!reader.fetch("CMakeCache.txt"))
+        return {};
+
+    QString data = QString::fromUtf8(reader.data());
+    QRegularExpression cmakeHomeRegexp("CMAKE_HOME_DIRECTORY:INTERNAL=(.*)");
+    QRegularExpressionMatch cmakeHomeMatch = cmakeHomeRegexp.match(data);
+    if (!cmakeHomeMatch.hasMatch())
+        return {};
+
+    QString cmakeHome = cmakeHomeMatch.captured(1);
+    return cmakeHome + '/' + QDir(cmakeHome).relativeFilePath("/");
+}
+
 void Command::maybeDoCMakePathMapping()
 {
     if (!QFile::exists("CMakeCache.txt"))
         return;
+
+    QString sharedTargetRoot = sharedTargetPath() + "/" + targetName() + "/";
+    QString relativeRoot = readRelativeRoot();
+    QTC_CHECK(!relativeRoot.isEmpty());
 
     QDirIterator it(".", {"CMakeCache.txt", "*.cbp", "QtCreatorDeployment.txt"}, QDir::Files,
             QDirIterator::Subdirectories);
@@ -252,6 +276,8 @@ void Command::maybeDoCMakePathMapping()
         }
 
         QString data = QString::fromUtf8(reader.data());
+        if (!relativeRoot.isEmpty())
+            data.replace(relativeRoot, sharedTargetRoot);
         data.replace(Sfdk::Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, sharedHomePath());
         data.replace(Sfdk::Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, sharedSourcePath());
         data.replace(QRegularExpression("CMAKE_CXX_COMPILER:STRING=.*"),
@@ -260,6 +286,7 @@ void Command::maybeDoCMakePathMapping()
                 "CMAKE_C_COMPILER:STRING=" + sdkToolsPath() + "/gcc");
         data.replace(QRegularExpression("CMAKE_COMMAND:INTERNAL=.*"),
                 "CMAKE_COMMAND:INTERNAL=" + sdkToolsPath() + "/cmake");
+        data.replace("/usr/include/", sharedTargetRoot + "usr/include/");
 
         FileSaver saver(path);
         saver.write(data.toUtf8());
