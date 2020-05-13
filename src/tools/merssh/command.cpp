@@ -276,18 +276,35 @@ void Command::maybeDoCMakePathMapping()
         }
 
         QString data = QString::fromUtf8(reader.data());
+
         if (!relativeRoot.isEmpty())
             data.replace(relativeRoot, sharedTargetRoot + "/");
+
         data.replace(Sfdk::Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, sharedHomePath());
         data.replace(Sfdk::Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, sharedSourcePath());
+
         data.replace(QRegularExpression("CMAKE_CXX_COMPILER:(FILEPATH|STRING)=.*"),
                 "CMAKE_CXX_COMPILER:\\1=" + sdkToolsPath() + "/gcc");
         data.replace(QRegularExpression("CMAKE_C_COMPILER:(FILEPATH|STRING)=.*"),
                 "CMAKE_C_COMPILER:\\1=" + sdkToolsPath() + "/gcc");
+
         data.replace(QRegularExpression("CMAKE_COMMAND:INTERNAL=.*"),
                 "CMAKE_COMMAND:INTERNAL=" + sdkToolsPath() + "/cmake");
+
         data.replace(QRegularExpression("CMAKE_SYSROOT:(PATH|STRING)=/"),
                 "CMAKE_SYSROOT:\\1=" + sharedTargetRoot);
+
+        // See qmakeFromCMakeCache() in cmakeprojectimporter.cpp
+        const QRegularExpression qmakeRe("QT_QMAKE_EXECUTABLE:(FILEPATH|STRING)=.*");
+        const QRegularExpression qt5CoreDirRe("Qt5Core_DIR:(PATH|STRING)=.*");
+        if (data.contains(qmakeRe)) {
+            data.replace(qmakeRe, "QT_QMAKE_EXECUTABLE:\\1=" + sdkToolsPath() + "/qmake");
+        } else if (data.contains(qt5CoreDirRe)) {
+            data.append("\n");
+            data.append("//No help, variable specified on the command line.\n");
+            data.append("QT_QMAKE_EXECUTABLE:FILEPATH=" + sdkToolsPath() + "/qmake");
+        }
+
         data.replace("/usr/include/", sharedTargetRoot + "/usr/include/");
 
         FileSaver saver(path);
