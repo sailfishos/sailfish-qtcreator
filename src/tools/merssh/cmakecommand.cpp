@@ -25,8 +25,11 @@
 #include <mer/merconstants.h>
 #include <sfdk/sfdkconstants.h>
 #include <utils/qtcassert.h>
+#include <utils/qtcprocess.h>
 
 #include <QDir>
+
+using namespace Utils;
 
 CMakeCommand::CMakeCommand()
 {
@@ -68,10 +71,30 @@ int CMakeCommand::execute()
         return 1;
     }
 
+    // FIXME If merssh is passed "'Foo Bar'", Command::arguments() returns ["'Foo", "Bar'"].
+    const bool abortOnMeta = false;
+    QtcProcess::SplitError splitError;
+    const QStringList splitArguments = QtcProcess::splitArgs(arguments().join(QLatin1Char(' ')),
+            OsTypeLinux, abortOnMeta, &splitError);
+    QTC_ASSERT(splitError == QtcProcess::SplitOk, return 1);
+
+    QStringList filteredArguments;
+    for (const QString &argument : splitArguments) {
+        // See MerSdkManager::ensureCmakeToolIsSet()
+        if (argument.startsWith(QLatin1String("-DCMAKE_CXX_COMPILER:STRING="))
+                || argument.startsWith(QLatin1String("-DCMAKE_C_COMPILER:STRING="))
+                || argument.startsWith(QLatin1String("-DCMAKE_PREFIX_PATH:STRING="))
+                || argument.startsWith(QLatin1String("-DQT_QMAKE_EXECUTABLE:STRING="))) {
+            continue;
+        }
+
+        filteredArguments.append(argument);
+    }
+
     QString command = QLatin1String("mb2") +
                       QLatin1String(" -t ") +
                       targetName() +
-                      QLatin1Char(' ') + arguments().join(QLatin1Char(' ')) + QLatin1Char(' ');
+                      QLatin1Char(' ') + QtcProcess::joinArgs(filteredArguments, OsTypeLinux) + QLatin1Char(' ');
 
     return executeRemoteCommand(command);
 }
