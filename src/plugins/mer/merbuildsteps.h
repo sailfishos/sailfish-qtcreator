@@ -25,8 +25,6 @@
 
 #include "merabstractvmstartstep.h"
 
-#include <qmakeprojectmanager/qmakeprojectmanagerconstants.h>
-
 namespace Mer {
 namespace Internal {
 
@@ -51,7 +49,6 @@ public:
     {
         registerStep<Step>(Step::stepId());
         setDisplayName(Step::displayName());
-        setSupportedProjectType(QmakeProjectManager::Constants::QMAKEPROJECT_ID);
     }
 };
 

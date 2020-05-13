@@ -44,6 +44,7 @@
 #include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
 #include <qmakeprojectmanager/qmakeproject.h>
+#include <qmakeprojectmanager/qmakeprojectmanagerconstants.h>
 #include <qmakeprojectmanager/qmakestep.h>
 #include <utils/checkablemessagebox.h>
 
