@@ -45,7 +45,7 @@ namespace Internal {
 class BuildDirManager;
 class CMakeBuildSettingsWidget;
 
-class Q_DECL_EXPORT CMakeBuildConfiguration : public ProjectExplorer::BuildConfiguration
+class CMAKE_EXPORT CMakeBuildConfiguration : public ProjectExplorer::BuildConfiguration
 {
     Q_OBJECT
 
@@ -124,7 +124,7 @@ private:
 
 class CMakeProjectImporter;
 
-class Q_DECL_EXPORT CMakeBuildConfigurationFactory : public ProjectExplorer::BuildConfigurationFactory
+class CMAKE_EXPORT CMakeBuildConfigurationFactory : public ProjectExplorer::BuildConfigurationFactory
 {
     Q_OBJECT
 
