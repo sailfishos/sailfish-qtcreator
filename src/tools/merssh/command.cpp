@@ -183,8 +183,10 @@ QString Command::remotePathMapping(const QString& command) const
     result.prepend(QLatin1String("cd '") + QDir::currentPath()
                    + QLatin1String("' && "));
 
-    result.replace(sharedTargetPath() + "/" + targetName() + "/", "/");
-    result.replace(sharedTargetPath() + "/" + targetName(), "/");
+    if (!sharedTargetPath().isEmpty() && !targetName().isEmpty()) {
+        result.replace(sharedTargetPath() + "/" + targetName() + "/", "/");
+        result.replace(sharedTargetPath() + "/" + targetName(), "/");
+    }
 
     // First replace shared home and then shared src (error prone!)
     if (!sharedHomePath().isEmpty()) {
