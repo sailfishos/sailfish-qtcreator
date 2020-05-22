@@ -36,31 +36,31 @@
         },
         {
             "name": "build",
-            "trSynopsis": "[-p|--doprep] [-d|--enable-debug] [-j <n>] [<project-dir-or-file>] [[--] <rpmbuild-extra-args>]",
+            "trSynopsis": "[-p|--doprep] [-d|--enable-debug] [-j <n>] [<project-dir-or-file>] [[--] <rpmbuild-extra-arg>...]",
             "trBrief": "Execute all build steps at once",
             "configOptions": ["*", "target!"],
             "trDescription": "Run rpmbuild. Execute all sections of the .spec file except for %prep unless told otherwise.\n\nIf path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the .spec file.)\n\n-p     run %prep phase as well\n-d     enable debug build\n-j <n> run up to <n> jobs simultaneously"
         },
         {
             "name": "qmake",
-            "trSynopsis": "[<project-dir-or-file>] [[--] <qmake-extra-args>]",
+            "trSynopsis": "[<project-dir-or-file>] [[--] <qmake-extra-arg>...]",
             "trBrief": "Execute qmake build step",
             "configOptions": ["*", "target!"],
             "trDescription": "Run rpmbuild. Execute just the %build section of the .spec file, suppressing any 'make' invocation figuring in that section.\n\nIf path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the .spec file.)"
         },
         {
             "name": "cmake",
-            "trSynopsis": "[<project-dir>] [[--] <cmake-extra-args>]\n--build . [<cmake-extra-args>] [-- <build-tool-extra-args>]",
+            "trSynopsis": "[<project-dir>] [[--] <cmake-extra-arg>...]\n--build . [<cmake-extra-arg>...] [-- <build-tool-extra-arg>...]",
             "trBrief": "Execute cmake build step",
             "configOptions": ["*", "target!"],
-            "trDescription": "Run rpmbuild. Execute just the %build section of the .spec file, suppressing any 'cmake' invocation figuring in that section, that does not match the execution form used here, i.e., does not trigger the desired action, namely 1) generate a project buildsystem or 2) build the project.\n\nAdditionally, any plain 'make' invocation will be recognized as implementing the \"build the project\" action and will be treated accordingly. Any possible <cmake-extra-args> will be silently ignored and any possible <build-tools-extra-args> will be used equally for each 'make' invocation in that case.\n\nIf path to a <project-dir> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory."
+            "trDescription": "Run rpmbuild. Execute just the %build section of the .spec file, suppressing any 'cmake' invocation figuring in that section, that does not match the execution form used here, i.e., does not trigger the desired action, namely 1) generate a project buildsystem or 2) build the project.\n\nAdditionally, any plain 'make' invocation will be recognized as implementing the \"build the project\" action and will be treated accordingly. Any possible <cmake-extra-arg> will be silently ignored and any possible <build-tools-extra-arg> will be used equally for each 'make' invocation in that case.\n\nIf path to a <project-dir> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory."
         },
         {
             "name": "make",
-            "trSynopsis": "[<make-extra-args>]",
+            "trSynopsis": "[<make-extra-arg>...]",
             "trBrief": "Execute make build step",
             "configOptions": ["*", "target!"],
-            "trDescription": "Run rpmbuild. Execute just the %build section of the .spec file, suppressing any command figuring in that section, that is recognized as a command to generate project buildsystem. The following is a complete list of such commands:\n\n- any 'qmake' invocation\n- any 'cmake' invocation using the corresponding execution form\n\nFor CMake based projects the 'make <make-extra-args>' command is equivalent to 'cmake --build . -- <make-extra-args>' (provided that 'make' is the build tool used by the project)."
+            "trDescription": "Run rpmbuild. Execute just the %build section of the .spec file, suppressing any command figuring in that section, that is recognized as a command to generate project buildsystem. The following is a complete list of such commands:\n\n- any 'qmake' invocation\n- any 'cmake' invocation using the corresponding execution form\n\nFor CMake based projects the 'make <make-extra-arg>...' command is equivalent to 'cmake --build . -- <make-extra-arg>...' (provided that 'make' is the build tool used by the project)."
         },
         {
             "name": "make-install",
