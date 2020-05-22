@@ -1505,6 +1505,16 @@ Worker::ExitStatus BuiltinWorker::runTools(const QStringList &arguments_, int *e
         return NormalExit;
     }
 
+    if (arguments.first() == "exec") {
+        QStringList allArguments = arguments_;
+        // sdk-assistant uses different name for this command
+        allArguments[typeHint != SdkManager::NoToolsHint ? 1 : 0] = "maintain";
+        allArguments.prepend("--non-interactive");
+        *exitCode = SdkManager::runOnEngine("sdk-assistant", allArguments,
+                QProcess::ForwardedInputChannel);
+        return NormalExit;
+    }
+
     qerr() << P::unrecognizedCommandMessage(arguments.first()) << endl;
     return BadUsage;
 }
