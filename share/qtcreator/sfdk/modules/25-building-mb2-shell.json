@@ -1,0 +1,33 @@
+{
+    "version": 3,
+    "domain": "building",
+    "trBrief": "Building software",
+
+    "worker":
+    {
+        "type": "engine-command",
+        "version": 1,
+        "program": "mb2",
+        "directTerminalInput": true
+    },
+
+    "commands":
+    [
+        {
+            "name": "build-shell",
+            "trSynopsis": "[<command> [<arg>...]]",
+            "trBrief": "Execute custom build steps",
+            "configOptions": ["*", "target!"],
+            "trDescription": "Execute an arbitrary <command> in the build environment.  If no <command> is specified, an interactive shell will be opened."
+        }
+    ],
+
+    "externOptions": [
+        "[force-no-]snapshot",
+        "target"
+    ],
+
+    "options":
+    [
+    ]
+}
