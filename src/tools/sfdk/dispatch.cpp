@@ -54,6 +54,8 @@ const char DOMAIN_KEY[] = "domain";
 const char EXTERN_OPTIONS_KEY[] = "externOptions";
 const char NAME_KEY[] = "name";
 const char OPTIONS_KEY[] = "options";
+const char POST_RUN_KEY[] = "postRun";
+const char PRE_RUN_KEY[] = "preRun";
 const char TR_ARGUMENT_KEY[] = "trArgument";
 const char TR_BRIEF_KEY[] = "trBrief";
 const char TR_DESCRIPTION_KEY[] = "trDescription";
@@ -529,6 +531,16 @@ bool Dispatcher::loadCommands(const Module *module, const QVariantList &list,
                     errorString)) {
             return false;
         }
+
+        QVariant preRun = value(data, PRE_RUN_KEY, QVariant::String, QString(), errorString);
+        if (!preRun.isValid())
+            return false;
+        command->preRunJSFunctionName = preRun.toString();
+
+        QVariant postRun = value(data, POST_RUN_KEY, QVariant::String, QString(), errorString);
+        if (!postRun.isValid())
+            return false;
+        command->postRunJSFunctionName = postRun.toString();
 
         m_commandByName.insert(command->name, command.get());
         m_commands.emplace_back(std::move(command));

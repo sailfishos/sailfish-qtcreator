@@ -66,6 +66,8 @@ public:
     QString description;
     Option::ConstList configOptions;
     Option::ConstList mandatoryConfigOptions;
+    QString preRunJSFunctionName;
+    QString postRunJSFunctionName;
 };
 
 class Worker
@@ -84,10 +86,11 @@ public:
 
     virtual ~Worker() = default;
 
-    virtual ExitStatus run(const Command *command, const QStringList &arguments, int *exitCode)
-        const = 0;
+    ExitStatus run(const Command *command, const QStringList &arguments, int *exitCode) const;
 
 protected:
+    virtual ExitStatus doRun(const Command *command, const QStringList &arguments, int *exitCode)
+        const = 0;
     static QString crashExitErrorMessage();
     static bool checkVersion(int version, int minSupported, int maxSupported, QString *errorMessage);
 };
@@ -99,10 +102,11 @@ class BuiltinWorker : public Worker
     Q_DECLARE_TR_FUNCTIONS(Sfdk::BuiltinWorker)
 
 public:
-    ExitStatus run(const Command *command, const QStringList &arguments, int *exitCode) const
-        override;
-
     static std::unique_ptr<Worker> fromMap(const QVariantMap &data, int version, QString *errorString);
+
+protected:
+    ExitStatus doRun(const Command *command, const QStringList &arguments, int *exitCode) const
+        override;
 
 private:
     ExitStatus runConfig(const QStringList &arguments0) const;
@@ -137,10 +141,11 @@ private:
 class EngineWorker : public Worker
 {
 public:
-    ExitStatus run(const Command *command, const QStringList &arguments, int *exitCode) const
-        override;
-
     static std::unique_ptr<Worker> fromMap(const QVariantMap &data, int version, QString *errorString);
+
+protected:
+    ExitStatus doRun(const Command *command, const QStringList &arguments, int *exitCode) const
+        override;
 
 private:
     QString m_program;
