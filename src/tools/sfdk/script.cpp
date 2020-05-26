@@ -30,12 +30,16 @@
 #include <sfdk/sdk.h>
 #include <sfdk/sfdkconstants.h>
 
+#include <utils/fileutils.h>
 #include <utils/optional.h>
 #include <utils/qtcassert.h>
 
+#include <QDir>
 #include <QFileInfo>
+#include <QRegularExpression>
 
 using namespace Sfdk;
+using namespace Utils;
 
 namespace Sfdk {
 
@@ -52,6 +56,11 @@ class JSUtilsExtension : public QObject
 
 public:
     using QObject::QObject;
+
+    Q_INVOKABLE QString regExpEscape(const QString &string) const
+    {
+        return QRegularExpression::escape(string);
+    }
 
     Q_INVOKABLE bool isDevice(const QString &deviceName) const
     {
@@ -75,6 +84,56 @@ public:
     Q_INVOKABLE bool isFile(const QString &fileName) const
     {
         return QFileInfo(fileName).isFile();
+    }
+
+    Q_INVOKABLE void updateFile(const QString &fileName, QJSValue filterCallback) const
+    {
+        // FIXME Tried to use "~" suffix but there was no backup file after that
+        const QString backupFileName = fileName + ".raw";
+
+        bool ok;
+
+        if (QFile::exists(backupFileName)) {
+            ok = QFile::remove(backupFileName);
+            if (!ok) {
+                qjsEngine(this)->throwError(tr("Failed to remove old backup file \"%1\"")
+                        .arg(backupFileName));
+                return;
+            }
+        }
+
+        ok = QFile::rename(fileName, backupFileName);
+        if (!ok) {
+            qjsEngine(this)->throwError(tr("Could not back up file \"%1\" as \"%2\"")
+                    .arg(fileName).arg(backupFileName));
+            return;
+        }
+
+        FileReader reader;
+        ok = reader.fetch(backupFileName);
+        if (!ok) {
+            qjsEngine(this)->throwError(reader.errorString());
+            return;
+        }
+
+        const QString data = QString::fromUtf8(reader.data());
+
+        const QJSValue result = filterCallback.call({data});
+        if (result.isError()) {
+            qjsEngine(this)->throwError(tr("Uncaught exception in filterCallback: \"%1\"")
+                    .arg(result.toString()));
+            return;
+        }
+
+        const QString filtered = result.toString();
+
+        FileSaver saver(fileName);
+        saver.write(filtered.toUtf8());
+        ok = saver.finalize();
+        if (!ok) {
+            qjsEngine(this)->throwError(saver.errorString());
+            return;
+        }
     }
 };
 

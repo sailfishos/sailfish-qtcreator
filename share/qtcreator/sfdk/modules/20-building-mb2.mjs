@@ -35,3 +35,19 @@ export function validateSearchOutputDirOption(value) {
 
     return [false, qsTr("Invalid keyword used")];
 }
+
+export function mapCompilationDatabasePaths() {
+    if (!utils.isFile("compile_commands.json"))
+        return;
+    utils.updateFile("compile_commands.json", function (data) {
+        var sharedHomeMountPointRx =
+            new RegExp(utils.regExpEscape(buildEngine.sharedHomeMountPoint), "g");
+        data = data.replace(sharedHomeMountPointRx, buildEngine.sharedHomePath);
+        var sharedSrcMountPointRx =
+            new RegExp(utils.regExpEscape(buildEngine.sharedSrcMountPoint), "g");
+        data = data.replace(sharedSrcMountPointRx, buildEngine.sharedSrcPath);
+        var sysroot = buildEngine.sharedTargetsPath + '/' + configuration.optionArgument('target');
+        data = data.replace(/("[^/]*)\/(usr|lib|opt)\b/g, "$1" + sysroot + "/$2");
+        return data;
+    });
+}
