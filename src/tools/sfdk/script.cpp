@@ -117,4 +117,47 @@ QJSValue JSEngine::evaluate(const QString &program, const Module *context)
     return QJSEngine::evaluate(program);
 }
 
+QJSValue JSEngine::call(const QString &functionName, const QJSValueList &args,
+        const Module *context, TypeValidator returnTypeValidator)
+{
+    QJSValue function = evaluate(functionName, context);
+
+    if (function.isError()) {
+        const QString errorFileName = function.property("fileName").toString();
+        const int errorLineNumber = function.property("lineNumber").toInt();
+        qCCritical(sfdk) << "Error dereferencing" << functionName
+            << "in the context of" << context->fileName << "module:"
+            << errorFileName << ":" << errorLineNumber << ":" << function.toString();
+        return newErrorObject(QJSValue::GenericError, tr("Internal error"));
+    }
+
+    if (!function.isCallable()) {
+        qCCritical(sfdk) << "Error dereferencing" << functionName
+            << "in the context of" << context->fileName << "module:"
+            << "The result is not callable";
+        return newErrorObject(QJSValue::GenericError, tr("Internal error"));
+    }
+
+    const QJSValue result = function.call(args);
+
+    if (result.isError()) {
+        const QString errorFileName = function.property("fileName").toString();
+        const int errorLineNumber = function.property("lineNumber").toInt();
+        qCCritical(sfdk) << "Error calling" << functionName
+            << "in the context of" << context->fileName << "module:"
+            << errorFileName << ":" << errorLineNumber << ":" << result.toString();
+        return result;
+    }
+
+    QString errorString;
+    if (returnTypeValidator && !returnTypeValidator(result, &errorString)) {
+        qCCritical(sfdk) << "Error calling" << functionName
+            << "in the context of" << context->fileName << "module:"
+            << "Unexpected return value:" << errorString;
+        return newErrorObject(QJSValue::GenericError, tr("Internal error"));
+    }
+
+    return result;
+}
+
 #include "script.moc"

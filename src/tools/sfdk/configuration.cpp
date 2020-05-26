@@ -97,43 +97,22 @@ bool OptionOccurence::isArgumentValid(QString *errorString) const
     if (m_option->validatorJSFunctionName.isEmpty())
         return true;
 
-    QJSValue validator = Dispatcher::jsEngine()->evaluate(m_option->validatorJSFunctionName,
-            m_option->module);
+    auto resultTypeValidator = [](const QJSValue &value, QString *errorString) {
+        if (!value.isArray()
+                || value.property("length").toInt() < 2
+                || !value.property(0).isBool()
+                || !value.property(1).isString()) {
+            *errorString = "Not an array [bool, string]";
+            return false;
+        }
+        return true;
+    };
 
-    if (validator.isError()) {
-        const QString errorFileName = validator.property("fileName").toString();
-        const int errorLineNumber = validator.property("lineNumber").toInt();
-        qCCritical(sfdk) << "Error dereferencing" << m_option->validatorJSFunctionName
-            << "in the context of" << m_option->module->fileName << "module:"
-            << errorFileName << ":" << errorLineNumber << ":" << validator.toString();
-        return false;
-    }
-
-    if (!validator.isCallable()) {
-        qCCritical(sfdk) << "Error dereferencing" << m_option->validatorJSFunctionName
-            << "in the context of" << m_option->module->fileName << "module:"
-            << "The result is not callable";
-        return false;
-    }
-
-    QJSValue result = validator.call({m_argument});
+    const QJSValue result = Dispatcher::jsEngine()->call(m_option->validatorJSFunctionName,
+            {m_argument}, m_option->module, resultTypeValidator);
 
     if (result.isError()) {
-        const QString errorFileName = validator.property("fileName").toString();
-        const int errorLineNumber = validator.property("lineNumber").toInt();
-        qCCritical(sfdk) << "Error calling" << m_option->validatorJSFunctionName
-            << "in the context of" << m_option->module->fileName << "module:"
-            << errorFileName << ":" << errorLineNumber << ":" << validator.toString();
-        return false;
-    }
-
-    if (!result.isArray()
-            || result.property("length").toInt() < 2
-            || !result.property(0).isBool()
-            || !result.property(1).isString()) {
-        qCCritical(sfdk) << "Error validating argument with" << m_option->validatorJSFunctionName
-            << "in the context of" << m_option->module->fileName << "module:"
-            << "The result is not an array [bool, string]";
+        qCCritical(sfdk) << "Error validating option argument" << result.toString();
         return false;
     }
 
