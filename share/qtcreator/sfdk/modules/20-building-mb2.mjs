@@ -13,7 +13,7 @@ export function validateSpecFilePath(filePath) {
 }
 
 export function validateBuildTargetName(name) {
-    if (utils.isBuildTarget(name))
+    if (buildEngine.hasBuildTarget(name))
         return [true, ""];
 
     return [false, qsTr("No such build target")];

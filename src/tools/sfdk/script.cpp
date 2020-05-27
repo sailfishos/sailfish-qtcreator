@@ -28,6 +28,7 @@
 #include <sfdk/buildengine.h>
 #include <sfdk/device.h>
 #include <sfdk/sdk.h>
+#include <sfdk/sfdkconstants.h>
 
 #include <utils/optional.h>
 #include <utils/qtcassert.h>
@@ -40,6 +41,7 @@ namespace Sfdk {
 
 namespace {
 const char JS_CONFIGURATION_EXTENSION_NAME[] = "configuration";
+const char JS_BUILD_ENGINE_EXTENSION_NAME[] = "buildEngine";
 const char JS_MODULE_EXTENSION_NAME[] = "module";
 const char JS_UTILS_EXTENSION_NAME[] = "utils";
 } // namespace anonymous
@@ -58,16 +60,6 @@ public:
                 return true;
         }
         return false;
-    }
-
-    Q_INVOKABLE bool isBuildTarget(const QString &buildTargetName) const
-    {
-        if (!SdkManager::hasEngine()) {
-            qCWarning(sfdk).noquote() << SdkManager::noEngineFoundMessage();
-            return false;
-        }
-
-        return SdkManager::engine()->buildTargetNames().contains(buildTargetName);
     }
 
     Q_INVOKABLE bool exists(const QString &fileName) const
@@ -113,6 +105,70 @@ private:
     }
 };
 
+class JSBuildEngineExtension : public QObject
+{
+    Q_OBJECT
+    Q_PROPERTY(QString sharedInstallPath READ sharedInstallPath)
+    Q_PROPERTY(QString sharedHomePath READ sharedHomePath)
+    Q_PROPERTY(QString sharedTargetsPath READ sharedTargetsPath)
+    Q_PROPERTY(QString sharedConfigPath READ sharedConfigPath)
+    Q_PROPERTY(QString sharedSrcPath READ sharedSrcPath)
+    Q_PROPERTY(QString sharedSshPath READ sharedSshPath)
+    Q_PROPERTY(QString sharedInstallMountPoint READ sharedInstallMountPoint)
+    Q_PROPERTY(QString sharedHomeMountPoint READ sharedHomeMountPoint)
+    Q_PROPERTY(QString sharedTargetsMountPoint READ sharedTargetsMountPoint)
+    Q_PROPERTY(QString sharedConfigMountPoint READ sharedConfigMountPoint)
+    Q_PROPERTY(QString sharedSrcMountPoint READ sharedSrcMountPoint)
+    Q_PROPERTY(QString sharedSshMountPoint READ sharedSshMountPoint)
+
+public:
+    using QObject::QObject;
+
+    QString sharedInstallPath() const { return enginePath(&BuildEngine::sharedInstallPath); }
+    QString sharedHomePath() const { return enginePath(&BuildEngine::sharedHomePath); }
+    QString sharedTargetsPath() const { return enginePath(&BuildEngine::sharedTargetsPath); }
+    QString sharedConfigPath() const { return enginePath(&BuildEngine::sharedConfigPath); }
+    QString sharedSrcPath() const { return enginePath(&BuildEngine::sharedSrcPath); }
+    QString sharedSshPath() const { return enginePath(&BuildEngine::sharedSshPath); }
+
+    QString sharedInstallMountPoint() const
+    { return Sfdk::Constants::BUILD_ENGINE_SHARED_INSTALL_MOUNT_POINT; }
+    QString sharedHomeMountPoint() const
+    { return Sfdk::Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT; }
+    QString sharedTargetsMountPoint() const
+    { return Sfdk::Constants::BUILD_ENGINE_SHARED_TARGET_MOUNT_POINT; }
+    QString sharedConfigMountPoint() const
+    { return Sfdk::Constants::BUILD_ENGINE_SHARED_CONFIG_MOUNT_POINT; }
+    QString sharedSrcMountPoint() const
+    { return Sfdk::Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT; }
+    QString sharedSshMountPoint() const
+    { return Sfdk::Constants::BUILD_ENGINE_SHARED_SSH_MOUNT_POINT; }
+
+    Q_INVOKABLE bool hasBuildTarget(const QString &buildTargetName) const
+    {
+        return withEngine([=](BuildEngine *engine) {
+            return engine->buildTargetNames().contains(buildTargetName);
+        });
+    }
+
+private:
+    QString enginePath(Utils::FileName (BuildEngine::*getter)() const) const
+    {
+        return withEngine([=](BuildEngine *engine) {
+            return (engine->*getter)().toString();
+        });
+    }
+
+    template<typename Fn>
+    auto withEngine(Fn fn) const -> decltype(fn(SdkManager::engine())) {
+        if (!SdkManager::hasEngine()) {
+            qCWarning(sfdk).noquote() << SdkManager::noEngineFoundMessage();
+            return {};
+        }
+        return fn(SdkManager::engine());
+    }
+};
+
 } // namespace Sfdk
 
 /*!
@@ -128,6 +184,8 @@ JSEngine::JSEngine(QObject *parent)
             newQObject(new JSUtilsExtension));
     globalObject().setProperty(JS_CONFIGURATION_EXTENSION_NAME,
             newQObject(new JSConfigurationExtension));
+    globalObject().setProperty(JS_BUILD_ENGINE_EXTENSION_NAME,
+            newQObject(new JSBuildEngineExtension));
 }
 
 QJSValue JSEngine::evaluate(const QString &program, const Module *context)
