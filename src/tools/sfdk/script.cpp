@@ -29,6 +29,7 @@
 #include <sfdk/device.h>
 #include <sfdk/sdk.h>
 
+#include <utils/optional.h>
 #include <utils/qtcassert.h>
 
 #include <QFileInfo>
@@ -38,11 +39,12 @@ using namespace Sfdk;
 namespace Sfdk {
 
 namespace {
-const char JS_EXTENSION_NAME[] = "utils";
+const char JS_CONFIGURATION_EXTENSION_NAME[] = "configuration";
 const char JS_MODULE_EXTENSION_NAME[] = "module";
+const char JS_UTILS_EXTENSION_NAME[] = "utils";
 } // namespace anonymous
 
-class JSExtension : public QObject
+class JSUtilsExtension : public QObject
 {
     Q_OBJECT
 
@@ -84,6 +86,33 @@ public:
     }
 };
 
+class JSConfigurationExtension : public QObject
+{
+    Q_OBJECT
+
+public:
+    using QObject::QObject;
+
+    Q_INVOKABLE bool isOptionSet(const QString &optionName) const
+    {
+        return optionEffectiveState(optionName).has_value();
+    }
+
+    Q_INVOKABLE QString optionArgument(const QString &optionName) const
+    {
+        QTC_ASSERT(isOptionSet(optionName), return {});
+        return optionEffectiveState(optionName)->argument();
+    }
+
+private:
+    Utils::optional<OptionEffectiveOccurence> optionEffectiveState(const QString &optionName) const
+    {
+        const Option *const option = Dispatcher::option(optionName);
+        QTC_ASSERT(option, return {});
+        return Configuration::effectiveState(option);
+    }
+};
+
 } // namespace Sfdk
 
 /*!
@@ -95,8 +124,10 @@ JSEngine::JSEngine(QObject *parent)
 {
     installExtensions(QJSEngine::TranslationExtension | QJSEngine::ConsoleExtension);
 
-    const QJSValue extension = newQObject(new JSExtension);
-    globalObject().setProperty(JS_EXTENSION_NAME, extension);
+    globalObject().setProperty(JS_UTILS_EXTENSION_NAME,
+            newQObject(new JSUtilsExtension));
+    globalObject().setProperty(JS_CONFIGURATION_EXTENSION_NAME,
+            newQObject(new JSConfigurationExtension));
 }
 
 QJSValue JSEngine::evaluate(const QString &program, const Module *context)
