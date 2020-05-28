@@ -23,6 +23,7 @@
 
 #include "textutils.h"
 
+#include "sfdkconstants.h"
 #include "sfdkglobal.h"
 
 #include <utils/algorithm.h>
@@ -30,6 +31,13 @@
 
 #include <QCoreApplication>
 #include <QRegularExpression>
+
+#if defined(Q_OS_WIN)
+# include <windows.h>
+#endif
+#if defined(Q_OS_UNIX)
+# include <unistd.h>
+#endif
 
 namespace Sfdk {
 
@@ -56,6 +64,22 @@ QTextStream &qerr()
 {
     static QTextStream qerr(stderr);
     return qerr;
+}
+
+bool isOutputConnectedToTerminal()
+{
+    static const bool isOutputConnectedToTerminal = []() -> bool {
+        if (qEnvironmentVariableIsSet(Constants::CONNECTED_TO_TERMINAL_HINT_ENV_VAR))
+            return qEnvironmentVariableIntValue(Constants::CONNECTED_TO_TERMINAL_HINT_ENV_VAR);
+
+#if defined(Q_OS_WIN)
+        return GetConsoleWindow();
+#else
+        return isatty(STDOUT_FILENO);
+#endif
+    }();
+
+    return isOutputConnectedToTerminal;
 }
 
 /*!

@@ -124,7 +124,7 @@ private:
     QString m_workingDirectory;
     QSsh::SshConnectionParameters m_sshConnectionParams;
     QProcessEnvironment m_extraEnvironment;
-    bool m_runInTerminal = true;
+    bool m_runInTerminal = false;
     QProcess::InputChannelMode m_inputChannelMode = QProcess::ManagedInputChannel;
     bool m_standardOutputLineBuffered = false;
     bool m_startedOk = false;
