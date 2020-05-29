@@ -57,6 +57,7 @@ const char SUBNET[] = "subnet";
 const char MAC[] = "mac";
 const char INDEX[] = "index";
 const char SSH_PORT[] = "sshport";
+const char USERNAME[] = "username";
 const char MAGIC_HOME_PREFIX[] = "$HOME/";
 
 } // namespace anonymous
@@ -588,6 +589,7 @@ void DeviceManager::updateDevicesXml() const
             xmlData.m_name = device->name();
             xmlData.m_type = TYPE_REAL;
             xmlData.m_sshPort.setNum(device->sshParameters().port());
+            xmlData.m_userName = device->sshParameters().userName();
             if (device->sshParameters().authenticationType
                     == SshConnectionParameters::AuthenticationTypeSpecificKey) {
                 const FileName path = FileName::fromString(device->sshParameters().privateKeyFile);
@@ -605,6 +607,7 @@ void DeviceManager::updateDevicesXml() const
             xmlData.m_name = device->name();
             xmlData.m_mac = mac;
             xmlData.m_type = TYPE_VBOX;
+            xmlData.m_userName = device->sshParameters().userName();
             const FileName sharedConfigPath = !Sdk::buildEngines().isEmpty()
                 ? Sdk::buildEngines().first()->sharedConfigPath()
                 : FileName();
@@ -707,6 +710,11 @@ void DeviceManager::writeDevicesXml(const QString &fileName, const QList<DeviceD
             writer.writeStartElement(SSH_PORT);
             writer.writeCharacters(data.m_sshPort);
             writer.writeEndElement(); // sshport
+        }
+        if (!data.m_userName.isEmpty()) {
+            writer.writeStartElement(USERNAME);
+            writer.writeCharacters(data.m_userName);
+            writer.writeEndElement(); // username
         }
         writer.writeEndElement(); // device
     }

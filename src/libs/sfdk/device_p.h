@@ -108,6 +108,7 @@ class DeviceManager : public QObject
         QString m_type;
         QString m_index;
         QString m_sshPort;
+        QString m_userName;
     };
 
     class EngineData
