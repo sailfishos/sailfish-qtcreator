@@ -32,9 +32,13 @@ class Module;
 class JSEngine : public QJSEngine
 {
 public:
+    using TypeValidator = std::function<bool(const QJSValue &, QString *)>;
+
     explicit JSEngine(QObject *parent = nullptr);
 
     QJSValue evaluate(const QString &program, const Module *context);
+    QJSValue call(const QString &functionName, const QJSValueList &args, const Module *context,
+            TypeValidator returnTypeValidator = {});
 };
 
 } // namespace Sfdk

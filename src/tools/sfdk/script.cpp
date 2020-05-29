@@ -28,26 +28,39 @@
 #include <sfdk/buildengine.h>
 #include <sfdk/device.h>
 #include <sfdk/sdk.h>
+#include <sfdk/sfdkconstants.h>
 
+#include <utils/fileutils.h>
+#include <utils/optional.h>
 #include <utils/qtcassert.h>
 
+#include <QDir>
 #include <QFileInfo>
+#include <QRegularExpression>
 
 using namespace Sfdk;
+using namespace Utils;
 
 namespace Sfdk {
 
 namespace {
-const char JS_EXTENSION_NAME[] = "utils";
+const char JS_CONFIGURATION_EXTENSION_NAME[] = "configuration";
+const char JS_BUILD_ENGINE_EXTENSION_NAME[] = "buildEngine";
 const char JS_MODULE_EXTENSION_NAME[] = "module";
+const char JS_UTILS_EXTENSION_NAME[] = "utils";
 } // namespace anonymous
 
-class JSExtension : public QObject
+class JSUtilsExtension : public QObject
 {
     Q_OBJECT
 
 public:
     using QObject::QObject;
+
+    Q_INVOKABLE QString regExpEscape(const QString &string) const
+    {
+        return QRegularExpression::escape(string);
+    }
 
     Q_INVOKABLE bool isDevice(const QString &deviceName) const
     {
@@ -56,16 +69,6 @@ public:
                 return true;
         }
         return false;
-    }
-
-    Q_INVOKABLE bool isBuildTarget(const QString &buildTargetName) const
-    {
-        if (!SdkManager::hasEngine()) {
-            qCWarning(sfdk).noquote() << SdkManager::noEngineFoundMessage();
-            return false;
-        }
-
-        return SdkManager::engine()->buildTargetNames().contains(buildTargetName);
     }
 
     Q_INVOKABLE bool exists(const QString &fileName) const
@@ -82,6 +85,147 @@ public:
     {
         return QFileInfo(fileName).isFile();
     }
+
+    Q_INVOKABLE void updateFile(const QString &fileName, QJSValue filterCallback) const
+    {
+        // FIXME Tried to use "~" suffix but there was no backup file after that
+        const QString backupFileName = fileName + ".raw";
+
+        bool ok;
+
+        if (QFile::exists(backupFileName)) {
+            ok = QFile::remove(backupFileName);
+            if (!ok) {
+                qjsEngine(this)->throwError(tr("Failed to remove old backup file \"%1\"")
+                        .arg(backupFileName));
+                return;
+            }
+        }
+
+        ok = QFile::rename(fileName, backupFileName);
+        if (!ok) {
+            qjsEngine(this)->throwError(tr("Could not back up file \"%1\" as \"%2\"")
+                    .arg(fileName).arg(backupFileName));
+            return;
+        }
+
+        FileReader reader;
+        ok = reader.fetch(backupFileName);
+        if (!ok) {
+            qjsEngine(this)->throwError(reader.errorString());
+            return;
+        }
+
+        const QString data = QString::fromUtf8(reader.data());
+
+        const QJSValue result = filterCallback.call({data});
+        if (result.isError()) {
+            qjsEngine(this)->throwError(tr("Uncaught exception in filterCallback: \"%1\"")
+                    .arg(result.toString()));
+            return;
+        }
+
+        const QString filtered = result.toString();
+
+        FileSaver saver(fileName);
+        saver.write(filtered.toUtf8());
+        ok = saver.finalize();
+        if (!ok) {
+            qjsEngine(this)->throwError(saver.errorString());
+            return;
+        }
+    }
+};
+
+class JSConfigurationExtension : public QObject
+{
+    Q_OBJECT
+
+public:
+    using QObject::QObject;
+
+    Q_INVOKABLE bool isOptionSet(const QString &optionName) const
+    {
+        return optionEffectiveState(optionName).has_value();
+    }
+
+    Q_INVOKABLE QString optionArgument(const QString &optionName) const
+    {
+        QTC_ASSERT(isOptionSet(optionName), return {});
+        return optionEffectiveState(optionName)->argument();
+    }
+
+private:
+    Utils::optional<OptionEffectiveOccurence> optionEffectiveState(const QString &optionName) const
+    {
+        const Option *const option = Dispatcher::option(optionName);
+        QTC_ASSERT(option, return {});
+        return Configuration::effectiveState(option);
+    }
+};
+
+class JSBuildEngineExtension : public QObject
+{
+    Q_OBJECT
+    Q_PROPERTY(QString sharedInstallPath READ sharedInstallPath)
+    Q_PROPERTY(QString sharedHomePath READ sharedHomePath)
+    Q_PROPERTY(QString sharedTargetsPath READ sharedTargetsPath)
+    Q_PROPERTY(QString sharedConfigPath READ sharedConfigPath)
+    Q_PROPERTY(QString sharedSrcPath READ sharedSrcPath)
+    Q_PROPERTY(QString sharedSshPath READ sharedSshPath)
+    Q_PROPERTY(QString sharedInstallMountPoint READ sharedInstallMountPoint)
+    Q_PROPERTY(QString sharedHomeMountPoint READ sharedHomeMountPoint)
+    Q_PROPERTY(QString sharedTargetsMountPoint READ sharedTargetsMountPoint)
+    Q_PROPERTY(QString sharedConfigMountPoint READ sharedConfigMountPoint)
+    Q_PROPERTY(QString sharedSrcMountPoint READ sharedSrcMountPoint)
+    Q_PROPERTY(QString sharedSshMountPoint READ sharedSshMountPoint)
+
+public:
+    using QObject::QObject;
+
+    QString sharedInstallPath() const { return enginePath(&BuildEngine::sharedInstallPath); }
+    QString sharedHomePath() const { return enginePath(&BuildEngine::sharedHomePath); }
+    QString sharedTargetsPath() const { return enginePath(&BuildEngine::sharedTargetsPath); }
+    QString sharedConfigPath() const { return enginePath(&BuildEngine::sharedConfigPath); }
+    QString sharedSrcPath() const { return enginePath(&BuildEngine::sharedSrcPath); }
+    QString sharedSshPath() const { return enginePath(&BuildEngine::sharedSshPath); }
+
+    QString sharedInstallMountPoint() const
+    { return Sfdk::Constants::BUILD_ENGINE_SHARED_INSTALL_MOUNT_POINT; }
+    QString sharedHomeMountPoint() const
+    { return Sfdk::Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT; }
+    QString sharedTargetsMountPoint() const
+    { return Sfdk::Constants::BUILD_ENGINE_SHARED_TARGET_MOUNT_POINT; }
+    QString sharedConfigMountPoint() const
+    { return Sfdk::Constants::BUILD_ENGINE_SHARED_CONFIG_MOUNT_POINT; }
+    QString sharedSrcMountPoint() const
+    { return Sfdk::Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT; }
+    QString sharedSshMountPoint() const
+    { return Sfdk::Constants::BUILD_ENGINE_SHARED_SSH_MOUNT_POINT; }
+
+    Q_INVOKABLE bool hasBuildTarget(const QString &buildTargetName) const
+    {
+        return withEngine([=](BuildEngine *engine) {
+            return engine->buildTargetNames().contains(buildTargetName);
+        });
+    }
+
+private:
+    QString enginePath(Utils::FileName (BuildEngine::*getter)() const) const
+    {
+        return withEngine([=](BuildEngine *engine) {
+            return (engine->*getter)().toString();
+        });
+    }
+
+    template<typename Fn>
+    auto withEngine(Fn fn) const -> decltype(fn(SdkManager::engine())) {
+        if (!SdkManager::hasEngine()) {
+            qCWarning(sfdk).noquote() << SdkManager::noEngineFoundMessage();
+            return {};
+        }
+        return fn(SdkManager::engine());
+    }
 };
 
 } // namespace Sfdk
@@ -95,8 +239,12 @@ JSEngine::JSEngine(QObject *parent)
 {
     installExtensions(QJSEngine::TranslationExtension | QJSEngine::ConsoleExtension);
 
-    const QJSValue extension = newQObject(new JSExtension);
-    globalObject().setProperty(JS_EXTENSION_NAME, extension);
+    globalObject().setProperty(JS_UTILS_EXTENSION_NAME,
+            newQObject(new JSUtilsExtension));
+    globalObject().setProperty(JS_CONFIGURATION_EXTENSION_NAME,
+            newQObject(new JSConfigurationExtension));
+    globalObject().setProperty(JS_BUILD_ENGINE_EXTENSION_NAME,
+            newQObject(new JSBuildEngineExtension));
 }
 
 QJSValue JSEngine::evaluate(const QString &program, const Module *context)
@@ -115,6 +263,49 @@ QJSValue JSEngine::evaluate(const QString &program, const Module *context)
     }
 
     return QJSEngine::evaluate(program);
+}
+
+QJSValue JSEngine::call(const QString &functionName, const QJSValueList &args,
+        const Module *context, TypeValidator returnTypeValidator)
+{
+    QJSValue function = evaluate(functionName, context);
+
+    if (function.isError()) {
+        const QString errorFileName = function.property("fileName").toString();
+        const int errorLineNumber = function.property("lineNumber").toInt();
+        qCCritical(sfdk) << "Error dereferencing" << functionName
+            << "in the context of" << context->fileName << "module:"
+            << errorFileName << ":" << errorLineNumber << ":" << function.toString();
+        return newErrorObject(QJSValue::GenericError, tr("Internal error"));
+    }
+
+    if (!function.isCallable()) {
+        qCCritical(sfdk) << "Error dereferencing" << functionName
+            << "in the context of" << context->fileName << "module:"
+            << "The result is not callable";
+        return newErrorObject(QJSValue::GenericError, tr("Internal error"));
+    }
+
+    const QJSValue result = function.call(args);
+
+    if (result.isError()) {
+        const QString errorFileName = function.property("fileName").toString();
+        const int errorLineNumber = function.property("lineNumber").toInt();
+        qCCritical(sfdk) << "Error calling" << functionName
+            << "in the context of" << context->fileName << "module:"
+            << errorFileName << ":" << errorLineNumber << ":" << result.toString();
+        return result;
+    }
+
+    QString errorString;
+    if (returnTypeValidator && !returnTypeValidator(result, &errorString)) {
+        qCCritical(sfdk) << "Error calling" << functionName
+            << "in the context of" << context->fileName << "module:"
+            << "Unexpected return value:" << errorString;
+        return newErrorObject(QJSValue::GenericError, tr("Internal error"));
+    }
+
+    return result;
 }
 
 #include "script.moc"

@@ -32,6 +32,8 @@ namespace Sfdk {
 QTextStream &qout();
 QTextStream &qerr();
 
+bool isOutputConnectedToTerminal();
+
 class Pager
 {
 public:

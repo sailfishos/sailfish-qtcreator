@@ -27,6 +27,7 @@
 #include "configuration.h"
 #include "debugger.h"
 #include "dispatch.h"
+#include "script.h"
 #include "sfdkconstants.h"
 #include "sfdkglobal.h"
 #include "task.h"
@@ -596,6 +597,42 @@ const Domain *Command::domain() const
  * \class Worker
  */
 
+Worker::ExitStatus Worker::run(const Command *command, const QStringList &arguments, int *exitCode)
+    const
+{
+    auto doRunPrePost = [](const Command *command, const QString &jsFunctionName,
+            QString *errorString) {
+        const QJSValue result = Dispatcher::jsEngine()->call(jsFunctionName, {}, command->module);
+        if (result.isError()) {
+            *errorString = result.toString();
+            return false;
+        }
+        return true;
+    };
+
+    QString errorString;
+
+    if (!command->preRunJSFunctionName.isEmpty()
+            && !doRunPrePost(command, command->preRunJSFunctionName, &errorString)) {
+        qerr() << tr("Pre-run routine failed: ") << errorString << endl;
+        *exitCode = SFDK_EXIT_ABNORMAL;
+        return NormalExit;
+    }
+
+    const ExitStatus status = doRun(command, arguments, exitCode);
+    if (status != NormalExit)
+        return status;
+
+    if (!command->postRunJSFunctionName.isEmpty()
+            && !doRunPrePost(command, command->postRunJSFunctionName, &errorString)) {
+        qerr() << tr("Post-run routine failed: ") << errorString << endl;
+        *exitCode = SFDK_EXIT_ABNORMAL;
+        return NormalExit;
+    }
+
+    return NormalExit;
+}
+
 QString Worker::crashExitErrorMessage()
 {
     return tr("Command exited abnormally");
@@ -614,7 +651,7 @@ bool Worker::checkVersion(int version, int minSupported, int maxSupported, QStri
  * \class BuiltinWorker
  */
 
-Worker::ExitStatus BuiltinWorker::run(const Command *command, const QStringList &arguments,
+Worker::ExitStatus BuiltinWorker::doRun(const Command *command, const QStringList &arguments,
         int *exitCode) const
 {
     Q_ASSERT(exitCode != nullptr);
@@ -1505,6 +1542,16 @@ Worker::ExitStatus BuiltinWorker::runTools(const QStringList &arguments_, int *e
         return NormalExit;
     }
 
+    if (arguments.first() == "exec") {
+        QStringList allArguments = arguments_;
+        // sdk-assistant uses different name for this command
+        allArguments[typeHint != SdkManager::NoToolsHint ? 1 : 0] = "maintain";
+        allArguments.prepend("--non-interactive");
+        *exitCode = SdkManager::runOnEngine("sdk-assistant", allArguments,
+                QProcess::ForwardedInputChannel);
+        return NormalExit;
+    }
+
     qerr() << P::unrecognizedCommandMessage(arguments.first()) << endl;
     return BadUsage;
 }
@@ -1772,7 +1819,7 @@ QString BuiltinWorker::toString(AvailableEmulatorInfo::Flags flags)
  * \class EngineWorker
  */
 
-Worker::ExitStatus EngineWorker::run(const Command *command, const QStringList &arguments,
+Worker::ExitStatus EngineWorker::doRun(const Command *command, const QStringList &arguments,
         int *exitCode) const
 {
     Q_ASSERT(exitCode != nullptr);
@@ -1813,7 +1860,7 @@ Worker::ExitStatus EngineWorker::run(const Command *command, const QStringList &
 std::unique_ptr<Worker> EngineWorker::fromMap(const QVariantMap &data, int version,
         QString *errorString)
 {
-    if (!checkVersion(version, 1, 2, errorString))
+    if (!checkVersion(version, 1, 3, errorString))
         return {};
 
     if (!Dispatcher::checkKeys(data, {PROGRAM_KEY, INITIAL_ARGUMENTS_KEY, OMIT_SUBCOMMAND_KEY,

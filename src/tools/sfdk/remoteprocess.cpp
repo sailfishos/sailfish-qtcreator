@@ -54,6 +54,7 @@ using namespace Sfdk;
 RemoteProcess::RemoteProcess(QObject *parent)
     : Task(parent)
     , m_runner(std::make_unique<SshRemoteProcessRunner>(this))
+    , m_runInTerminal(isOutputConnectedToTerminal())
 {
     connect(m_runner.get(), &SshRemoteProcessRunner::processStarted,
             this, &RemoteProcess::onProcessStarted);
