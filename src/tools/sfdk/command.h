@@ -66,6 +66,8 @@ public:
     QString description;
     Option::ConstList configOptions;
     Option::ConstList mandatoryConfigOptions;
+    bool dynamic = false;
+    QStringList dynamicSubcommands;
     QString preRunJSFunctionName;
     QString postRunJSFunctionName;
 };

@@ -51,6 +51,8 @@ const char ALIAS_KEY[] = "alias";
 const char COMMANDS_KEY[] = "commands";
 const char CONFIG_OPTIONS_KEY[] = "configOptions";
 const char DOMAIN_KEY[] = "domain";
+const char DYNAMIC_KEY[] = "dynamic";
+const char DYNAMIC_SUBCOMMANDS_KEY[] = "dynamicSubcommands";
 const char EXTERN_OPTIONS_KEY[] = "externOptions";
 const char NAME_KEY[] = "name";
 const char OPTIONS_KEY[] = "options";
@@ -532,6 +534,19 @@ bool Dispatcher::loadCommands(const Module *module, const QVariantList &list,
             return false;
         }
 
+        QVariant dynamic = value(data, DYNAMIC_KEY, QVariant::Bool, false, errorString);
+        if (!dynamic.isValid())
+            return false;
+        command->dynamic = dynamic.toBool();
+
+        QVariant dynamicSubcommandsData = value(data, DYNAMIC_SUBCOMMANDS_KEY, QVariant::List,
+                QVariantList(), errorString);
+        if (!dynamicSubcommandsData.isValid())
+            return false;
+
+        if (!loadDynamicSubcommands(command.get(), dynamicSubcommandsData.toList(), errorString))
+            return false;
+
         QVariant preRun = value(data, PRE_RUN_KEY, QVariant::String, QString(), errorString);
         if (!preRun.isValid())
             return false;
@@ -599,6 +614,26 @@ bool Dispatcher::loadCommandConfigOptions(Command *command, const QVariantList &
     // Help keeping the module definition clean
     QTC_CHECK(command->configOptions.toSet().count() == command->configOptions.count());
     QTC_CHECK(command->mandatoryConfigOptions.toSet().count() == command->mandatoryConfigOptions.count());
+
+    return true;
+}
+
+bool Dispatcher::loadDynamicSubcommands(Command *command, const QVariantList &list,
+        QString *errorString)
+{
+    if (!checkItems(list, QVariant::String, errorString))
+        return false;
+
+    for (const QString &subcommand : QVariant(list).toStringList()) {
+        if (subcommand.startsWith("-")) {
+            *errorString = tr("Subcommand name may not start with dash: '%1'").arg(subcommand);
+            return false;
+        }
+        command->dynamicSubcommands.append(subcommand);
+    }
+
+    // Help keeping the module definition clean
+    QTC_CHECK(command->dynamicSubcommands.toSet().count() == command->dynamicSubcommands.count());
 
     return true;
 }

@@ -18,6 +18,7 @@
             "trSynopsis": "[<command> [<arg>...]]",
             "trBrief": "Execute custom build steps",
             "configOptions": ["*", "target!"],
+            "dynamic": true,
             "trDescription": "Execute an arbitrary <command> in the build environment.  If no <command> is specified, an interactive shell will be opened."
         }
     ],
