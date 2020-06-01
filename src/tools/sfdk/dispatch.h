@@ -114,6 +114,7 @@ private:
             const Option::ConstList &allModuleOptions, QString *errorString);
     bool loadCommandConfigOptions(Command *command, const QVariantList &list,
             const Option::ConstList &allModuleOptions, QString *errorString);
+    bool loadDynamicSubcommands(Command *command, const QVariantList &list, QString *errorString);
     const Worker *loadWorker(const QVariantMap &data, QString *errorString);
 
 private:

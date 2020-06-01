@@ -224,24 +224,47 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
 
     m_commandArguments = positionalArguments;
 
+    // When checking for the help-request options, only check up to the
+    // first non-option argument to a dynamic (sub)command to allow dynamic
+    // subcommands handle these themselves.
+    QStringList commandArgumentsWithoutDynamicSubcommands;
+    if (m_command->dynamic) {
+        for (const QString &argument : m_commandArguments) {
+            if (!argument.startsWith('-'))
+                break;
+            commandArgumentsWithoutDynamicSubcommands.append(argument);
+        }
+    } else if (!m_command->dynamicSubcommands.isEmpty()) {
+        bool underDynamic = false;
+        for (const QString &argument : m_commandArguments) {
+            if (m_command->dynamicSubcommands.contains(argument))
+                underDynamic = true;
+            else if (underDynamic && !argument.startsWith('-'))
+                break;
+            commandArgumentsWithoutDynamicSubcommands.append(argument);
+        }
+    } else {
+        commandArgumentsWithoutDynamicSubcommands = m_commandArguments;
+    }
+
     // We can just guess here...
-    if (m_commandArguments.contains("-h")) {
+    if (commandArgumentsWithoutDynamicSubcommands.contains("-h")) {
         commandBriefUsage(qout(), m_command);
         m_result = Usage;
         return;
     }
-    if (m_commandArguments.contains("--help")) {
+    if (commandArgumentsWithoutDynamicSubcommands.contains("--help")) {
         commandUsage(Pager(), m_command);
         m_result = Usage;
         return;
     }
-    if (m_commandArguments.contains("--help-all")) {
+    if (commandArgumentsWithoutDynamicSubcommands.contains("--help-all")) {
         allDomainsUsage(Pager());
         m_result = Usage;
         return;
     }
     for (const std::unique_ptr<const Domain> &domain : Dispatcher::domains()) {
-        if (m_commandArguments.contains("--help-" + domain->name)) {
+        if (commandArgumentsWithoutDynamicSubcommands.contains("--help-" + domain->name)) {
             domainUsage(Pager(), domain.get());
             m_result = Usage;
             return;
