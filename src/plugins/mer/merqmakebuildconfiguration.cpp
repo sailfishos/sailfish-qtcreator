@@ -59,8 +59,6 @@ using Utils::CheckableMessageBox;
 
 namespace {
 
-const char MER_VARIABLES_CACHE_FILENAME[] = ".mb2/qmake_variables.cache";
-
 // Avoid actions on temporary changes and asking questions too hastily
 const int UPDATE_EXTRA_PARSER_ARGUMENTS_DELAY_MS = 3000;
 
@@ -184,7 +182,8 @@ void MerQmakeBuildConfiguration::setupExtraParserArguments()
 
     QStringList args;
     if (MerSettings::isImportQmakeVariablesEnabled()) {
-        QFile file(buildDirectory().toString() + "/" + MER_VARIABLES_CACHE_FILENAME);
+        QFile file(buildDirectory().toString() + "/.mb2/qmake_variables."
+                   + MerSdkKitInformation::buildTargetName(target()->kit()) + ".cache");
         if (!file.exists()) {
             // Do not ask again
             const bool mkpathOk = QFileInfo(file.fileName()).dir().mkpath(".");
