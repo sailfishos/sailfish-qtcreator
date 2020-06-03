@@ -126,7 +126,6 @@ private:
     QList<QPair<QCommandLineOption, const Domain *>> m_domainHelpOptions;
     QList<QPair<QCommandLineOption, const Option *>> m_aliasOptions;
     QList<QCommandLineOption> m_otherOptions;
-    QString m_errorString;
     Verbosity m_verbosity = Normal;
     bool m_useSystemSettingsOnly = false;
     const Command *m_command = nullptr;
