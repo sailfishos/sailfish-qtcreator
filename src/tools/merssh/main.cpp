@@ -41,6 +41,7 @@
 #include <utils/environment.h>
 #include <utils/fileutils.h>
 #include <utils/hostosinfo.h>
+#include <utils/qtcprocess.h>
 
 #include <QCoreApplication>
 #include <QDir>
@@ -50,6 +51,8 @@
 #include <QSettings>
 #include <QStringList>
 #include <QTimer>
+
+using namespace Utils;
 
 void printUsage()
 {
@@ -100,6 +103,24 @@ QStringList unquoteArguments(QStringList args) {
         }
     }
     return result;
+}
+
+QStringList argumentsFromEnvironment(const QProcessEnvironment &environment, const QString &name, bool *ok)
+{
+    *ok = false;
+
+    const QString value = environment.value(name);
+    const bool abortOnMeta = true;
+    QtcProcess::SplitError error;
+    const QStringList arguments = QtcProcess::splitArgs(value, Utils::OsTypeLinux,
+            abortOnMeta, &error);
+    if (error != QtcProcess::SplitOk) {
+        qCritical() << "Failed to parse content of" << name << "environment variable" << endl;
+        return {};
+    }
+
+    *ok = true;
+    return arguments;
 }
 
 void initQSsh()
@@ -178,6 +199,7 @@ int main(int argc, char *argv[])
         QLatin1String(Sfdk::Constants::MER_SSH_HOST),
         QLatin1String(Sfdk::Constants::MER_SSH_PORT),
         QLatin1String(Sfdk::Constants::MER_SSH_PRIVATE_KEY),
+        QLatin1String(Sfdk::Constants::MER_SSH_SFDK_OPTIONS),
     };
     while (!arguments.isEmpty()) {
         const int equalPosition = arguments.first().indexOf('=');
@@ -209,6 +231,14 @@ int main(int argc, char *argv[])
         arguments = unquoteArguments(arguments);
 
     const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+
+    bool ok;
+    const QStringList sfdkOptions = argumentsFromEnvironment(environment,
+            Sfdk::Constants::MER_SSH_SFDK_OPTIONS, &ok);
+    if (!ok)
+        return 1;
+    command->setSfdkOptions(sfdkOptions);
+
     command->setTargetName(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_TARGET_NAME)));
     command->setSharedHomePath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_HOME)));
     command->setSharedTargetPath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_TARGET)));

@@ -81,6 +81,7 @@ int Command::executeSfdk(const QStringList &arguments)
         allArguments << "-c" << "target=" + targetName();
     if (!deviceName().isEmpty())
         allArguments << "-c" << "device=" + deviceName();
+    allArguments << sfdkOptions();
     allArguments << arguments;
 
     auto environment = QProcessEnvironment::systemEnvironment();
@@ -108,6 +109,16 @@ int Command::executeSfdk(const QStringList &arguments)
     maybeDoCMakePathMapping();
 
     return rc;
+}
+
+QStringList Command::sfdkOptions() const
+{
+    return m_sfdkOptions;
+}
+
+void Command::setSfdkOptions(const QStringList &sfdkOptions)
+{
+    m_sfdkOptions = sfdkOptions;
 }
 
 QString Command::sharedHomePath() const

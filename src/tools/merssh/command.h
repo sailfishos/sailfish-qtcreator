@@ -39,6 +39,8 @@ public:
     virtual ~Command();
     int executeRemoteCommand(const QString &command);
     int executeSfdk(const QStringList &arguments);
+    QStringList sfdkOptions() const;
+    void setSfdkOptions(const QStringList &sfdkOptions);
     QString sharedHomePath() const;
     void setSharedHomePath(const QString& path);
     QString targetName() const;
@@ -73,6 +75,7 @@ private:
 private:
     QStringList m_rawArgs;
     QStringList m_args;
+    QStringList m_sfdkOptions;
     QString m_sharedHomePath;
     QString m_targetName;
     QString m_sharedSourcePath;
