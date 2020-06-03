@@ -38,6 +38,7 @@ public:
     Command();
     virtual ~Command();
     int executeRemoteCommand(const QString &command);
+    int executeSfdk(const QStringList &arguments);
     QString sharedHomePath() const;
     void setSharedHomePath(const QString& path);
     QString targetName() const;
@@ -49,6 +50,7 @@ public:
     QString sdkToolsPath() const;
     void setSdkToolsPath(const QString& path);
     QStringList arguments() const;
+    QStringList rawArguments() const;
     void setArguments(const QStringList &args);
     QSsh::SshConnectionParameters sshParameters() const;
     void setSshParameters(const QSsh::SshConnectionParameters& params);
@@ -69,6 +71,7 @@ private:
     void maybeUndoCMakePathMapping();
 
 private:
+    QStringList m_rawArgs;
     QStringList m_args;
     QString m_sharedHomePath;
     QString m_targetName;

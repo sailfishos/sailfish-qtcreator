@@ -35,12 +35,7 @@ QString MakeCommand::name() const
 
 int MakeCommand::execute()
 {
-    QString command = QLatin1String("mb2") +
-                      QLatin1String(" -t ") +
-                      targetName() +
-                      QLatin1Char(' ') + arguments().join(QLatin1Char(' ')) + QLatin1Char(' ');
-
-    return executeRemoteCommand(command);
+    return executeSfdk(rawArguments());
 }
 
 bool MakeCommand::isValid() const

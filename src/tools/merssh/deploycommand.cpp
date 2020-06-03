@@ -35,14 +35,7 @@ QString DeployCommand::name() const
 
 int DeployCommand::execute()
 {
-    const QString targetParameter = QLatin1String(" -t ") +  targetName();
-    const QString deviceParameter = QLatin1String(" -d '") + deviceName() + QLatin1Char('\'');
-    QString command = QLatin1String("mb2") +
-                      deviceParameter +
-                      targetParameter +
-                      QLatin1Char(' ') + arguments().join(QLatin1Char(' ')) + QLatin1Char(' ');
-
-    return executeRemoteCommand(command);
+    return executeSfdk(rawArguments());
 }
 
 bool DeployCommand::isValid() const
