@@ -173,12 +173,17 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
             return;
         }
 
-        QString errorString;
-        if (occurence.type() == OptionOccurence::Push && !occurence.argument().isEmpty()
-                && !occurence.isArgumentValid(&errorString)) {
-            badUsage(invalidArgumentToOptionMessage(errorString, cOption.names().first(), value));
-            m_result = BadUsage;
-            return;
+        if (occurence.type() == OptionOccurence::Push && !occurence.argument().isEmpty()) {
+            // Argument validation needs to be delayed until SdkManager is instantiated
+            m_configOptionsValidators += [=]() -> bool {
+                QString errorString;
+                if (!occurence.isArgumentValid(&errorString)) {
+                    badUsage(invalidArgumentToOptionMessage(errorString, cOption.names().first(),
+                                value));
+                    return false;
+                }
+                return true;
+            };
         }
 
         Configuration::push(Configuration::Command, occurence);
@@ -196,13 +201,17 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
         }
 
         const OptionOccurence occurence(pair.second, OptionOccurence::Push, argument);
-        QString errorString;
-        if (!occurence.isArgumentValid(&errorString)) {
-            badUsage(invalidArgumentToOptionMessage(errorString, pair.first.names().first(),
-                        argument));
-            m_result = BadUsage;
-            return;
-        }
+
+        // Argument validation needs to be delayed until SdkManager is instantiated
+        m_configOptionsValidators += [=]() -> bool {
+            QString errorString;
+            if (!occurence.isArgumentValid(&errorString)) {
+                badUsage(invalidArgumentToOptionMessage(errorString, pair.first.names().first(),
+                            argument));
+                return false;
+            }
+            return true;
+        };
 
         Configuration::push(Configuration::Command, occurence);
     }
@@ -272,6 +281,15 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
     }
 
     m_result = Dispatch;
+}
+
+bool CommandLineParser::validateCommandScopeConfiguration() const
+{
+    for (const std::function<bool()> &validator : m_configOptionsValidators) {
+        if (!validator())
+            return false;
+    }
+    return true;
 }
 
 void CommandLineParser::badUsage(const QString &message) const

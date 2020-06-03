@@ -190,6 +190,9 @@ int main(int argc, char **argv)
 
     SdkManager sdkManager(parser.useSystemSettingsOnly());
 
+    if (!parser.validateCommandScopeConfiguration())
+        return SFDK_EXIT_ABNORMAL; // bad usage
+
     if (showVersion) {
         QString versionFile = SdkManager::installationPath() + '/' + VERSION_FILE_PATH;
         Utils::FileReader reader;

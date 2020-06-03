@@ -67,6 +67,7 @@ public:
     Result result() const { return m_result; }
     Verbosity verbosity() const { return m_verbosity; }
     bool useSystemSettingsOnly() const { return m_useSystemSettingsOnly; }
+    bool validateCommandScopeConfiguration() const;
     const Command *command() const { return m_command; }
     QStringList commandArguments() const { return m_commandArguments; }
 
@@ -126,6 +127,7 @@ private:
     QList<QPair<QCommandLineOption, const Domain *>> m_domainHelpOptions;
     QList<QPair<QCommandLineOption, const Option *>> m_aliasOptions;
     QList<QCommandLineOption> m_otherOptions;
+    QList<std::function<bool()>> m_configOptionsValidators;
     Verbosity m_verbosity = Normal;
     bool m_useSystemSettingsOnly = false;
     const Command *m_command = nullptr;
