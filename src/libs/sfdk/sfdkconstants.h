@@ -114,6 +114,7 @@ const char MER_SSH_SHARED_SRC[] = "MER_SSH_SHARED_SRC";
 const char MER_SSH_SHARED_TARGET[] = "MER_SSH_SHARED_TARGET";
 const char MER_SSH_TARGET_NAME[] = "MER_SSH_TARGET_NAME";
 const char MER_SSH_USERNAME[] = "MER_SSH_USERNAME";
+const char MER_SSH_SFDK_OPTIONS[] = "MER_SSH_SFDK_OPTIONS";
 
 const char WWW_PROXY_DISABLED[] = "direct";
 const char WWW_PROXY_AUTOMATIC[] = "auto";

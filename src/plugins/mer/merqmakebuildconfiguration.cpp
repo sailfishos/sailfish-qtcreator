@@ -23,6 +23,7 @@
 
 #include "merqmakebuildconfiguration.h"
 
+#include "merbuildconfigurationaspect.h"
 #include "merconstants.h"
 #include "merbuildsteps.h"
 #include "merlogging.h"
@@ -40,6 +41,7 @@
 #include <debugger/debuggerconstants.h>
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/buildsteplist.h>
+#include <projectexplorer/namedwidget.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
@@ -50,6 +52,7 @@
 
 #include <QApplication>
 #include <QCheckBox>
+#include <QVBoxLayout>
 
 using namespace Core;
 using namespace ProjectExplorer;
@@ -70,6 +73,10 @@ namespace Internal {
 MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target, Core::Id id)
     : QmakeBuildConfiguration(target, id)
 {
+    auto aspect = addAspect<MerBuildConfigurationAspect>(this);
+    connect(aspect, &ProjectConfigurationAspect::changed,
+            this, &BuildConfiguration::updateCacheAndEmitEnvironmentChanged);
+
     connect(MerSettings::instance(), &MerSettings::importQmakeVariablesEnabledChanged,
             this, &MerQmakeBuildConfiguration::maybeSetupExtraParserArguments);
 
@@ -296,6 +303,29 @@ bool MerQmakeBuildConfiguration::fromMap(const QVariantMap &map)
     if (!QmakeBuildConfiguration::fromMap(map))
         return false;
     return true;
+}
+
+QList<NamedWidget *> MerQmakeBuildConfiguration::createSubConfigWidgets()
+{
+    auto retv = QmakeBuildConfiguration::createSubConfigWidgets();
+
+    auto aspect = this->aspect<MerBuildConfigurationAspect>();
+    QTC_ASSERT(aspect, return retv);
+
+    auto widget = qobject_cast<NamedWidget *>(aspect->createConfigWidget());
+    QTC_ASSERT(widget, return retv);
+
+    retv += widget;
+    return retv;
+}
+
+void MerQmakeBuildConfiguration::addToEnvironment(Utils::Environment &env) const
+{
+    QmakeBuildConfiguration::addToEnvironment(env);
+
+    auto aspect = this->aspect<MerBuildConfigurationAspect>();
+    QTC_ASSERT(aspect, return);
+    aspect->addToEnvironment(env);
 }
 
 MerQmakeBuildConfigurationFactory::MerQmakeBuildConfigurationFactory()

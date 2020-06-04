@@ -24,6 +24,7 @@
 #include "command.h"
 #include "merremoteprocess.h"
 
+#include <mer/merconstants.h>
 #include <sfdk/sfdkconstants.h>
 #include <utils/fileutils.h>
 #include <utils/hostosinfo.h>
@@ -34,6 +35,7 @@
 #include <QDirIterator>
 #include <QFile>
 #include <QRegularExpression>
+#include <QTextStream>
 
 namespace {
 const char BACKUP_SUFFIX[] = ".qtccache";
@@ -65,6 +67,58 @@ int Command::executeRemoteCommand(const QString &command)
     maybeDoCMakePathMapping();
 
     return rc;
+}
+
+int Command::executeSfdk(const QStringList &arguments)
+{
+    QTextStream qerr(stderr);
+
+    static const QString program = QCoreApplication::applicationDirPath()
+        + '/' + RELATIVE_REVERSE_LIBEXEC_PATH + "/sfdk" QTC_HOST_EXE_SUFFIX;
+
+    QStringList allArguments;
+    if (!targetName().isEmpty())
+        allArguments << "-c" << "target=" + targetName();
+    if (!deviceName().isEmpty())
+        allArguments << "-c" << "device=" + deviceName();
+    allArguments << sfdkOptions();
+    allArguments << arguments;
+
+    auto environment = QProcessEnvironment::systemEnvironment();
+    environment.insert(Mer::Constants::SAILFISH_SDK_FRONTEND,
+            Mer::Constants::SAILFISH_SDK_FRONTEND_ID);
+
+    qerr << "+ " << program << ' ' << QtcProcess::joinArgs(allArguments, Utils::OsTypeLinux)
+        << endl;
+
+    QProcess process;
+    process.setProcessChannelMode(QProcess::ForwardedChannels);
+    process.setProgram(program);
+    process.setArguments(allArguments);
+    process.setProcessEnvironment(environment);
+
+    maybeUndoCMakePathMapping();
+
+    int rc{};
+    process.start();
+    if (!process.waitForFinished(-1) || process.error() == QProcess::FailedToStart)
+        rc = -2; // like QProcess::execute does
+    else
+        rc = process.exitStatus() == QProcess::NormalExit ? process.exitCode() : -1;
+
+    maybeDoCMakePathMapping();
+
+    return rc;
+}
+
+QStringList Command::sfdkOptions() const
+{
+    return m_sfdkOptions;
+}
+
+void Command::setSfdkOptions(const QStringList &sfdkOptions)
+{
+    m_sfdkOptions = sfdkOptions;
 }
 
 QString Command::sharedHomePath() const
@@ -119,6 +173,7 @@ void Command::setSdkToolsPath(const QString& path)
 
 void Command::setArguments(const QStringList &args)
 {
+    m_rawArgs = args;
     m_args.clear();
     foreach (const QString& arg,args)
         m_args.append(shellSafeArgument(arg));
@@ -127,6 +182,11 @@ void Command::setArguments(const QStringList &args)
 QStringList Command::arguments() const
 {
     return m_args;
+}
+
+QStringList Command::rawArguments() const
+{
+    return m_rawArgs;
 }
 
 void Command::setSshParameters(const QSsh::SshConnectionParameters& params)

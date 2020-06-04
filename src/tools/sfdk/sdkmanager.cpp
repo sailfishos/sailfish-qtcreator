@@ -1007,11 +1007,16 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
         }
     }
 
+    const QProcessEnvironment systemEnvironment = QProcessEnvironment::systemEnvironment();
+
     QString program_ = program;
     QStringList arguments_ = arguments;
     QString workingDirectory = QDir::current().canonicalPath();
+
     QProcessEnvironment extraEnvironment = s_instance->environmentToForwardToEngine();
-    extraEnvironment.insert(Mer::Constants::SAILFISH_SDK_FRONTEND, Constants::SDK_FRONTEND_ID);
+    extraEnvironment.insert(Mer::Constants::SAILFISH_SDK_FRONTEND,
+            systemEnvironment.value(Mer::Constants::SAILFISH_SDK_FRONTEND,
+                Constants::SDK_FRONTEND_ID));
 
     if (!s_instance->mapEnginePaths(&program_, &arguments_, &workingDirectory, &extraEnvironment))
         return SFDK_EXIT_ABNORMAL;

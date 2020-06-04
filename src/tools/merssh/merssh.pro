@@ -4,6 +4,10 @@ QTC_LIB_DEPENDS += \
 
 include(../../qtcreatortool.pri)
 
+# See qtcreator.pri
+RELATIVE_REVERSE_LIBEXEC_PATH = $$relative_path($$IDE_BIN_PATH, $$IDE_LIBEXEC_PATH)
+DEFINES += $$shell_quote(RELATIVE_REVERSE_LIBEXEC_PATH=\"$$RELATIVE_REVERSE_LIBEXEC_PATH\")
+
 QT += network
 QT -= gui
 

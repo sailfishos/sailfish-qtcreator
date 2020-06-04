@@ -62,12 +62,7 @@ int QMakeCommand::execute()
         return 1;
     }
 
-    QString command = QLatin1String("mb2") +
-                      QLatin1String(" -t ") +
-                      targetName() +
-                      QLatin1Char(' ') + arguments().join(QLatin1Char(' ')) + QLatin1Char(' ');
-
-    return executeRemoteCommand(command);
+    return executeSfdk(rawArguments());
 
 //TODO: remote command to cache ?
 //    if (ok && !m_currentCacheFile.isEmpty()) {

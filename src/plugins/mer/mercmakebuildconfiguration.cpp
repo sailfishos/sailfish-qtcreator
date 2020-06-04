@@ -22,6 +22,7 @@
 
 #include "mercmakebuildconfiguration.h"
 
+#include "merbuildconfigurationaspect.h"
 #include "merconstants.h"
 #include "merbuildsteps.h"
 #include "merlogging.h"
@@ -35,6 +36,7 @@
 #include <coreplugin/icore.h>
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/buildsteplist.h>
+#include <projectexplorer/namedwidget.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
@@ -52,6 +54,9 @@ namespace Internal {
 MerCMakeBuildConfiguration::MerCMakeBuildConfiguration(Target *target, Core::Id id)
     : CMakeBuildConfiguration(target, id)
 {
+    auto aspect = addAspect<MerBuildConfigurationAspect>(this);
+    connect(aspect, &ProjectConfigurationAspect::changed,
+            this, &BuildConfiguration::updateCacheAndEmitEnvironmentChanged);
 }
 
 void MerCMakeBuildConfiguration::initialize(const ProjectExplorer::BuildInfo &info)
@@ -75,6 +80,29 @@ bool MerCMakeBuildConfiguration::fromMap(const QVariantMap &map)
         return false;
     connect(project(), &Project::parsingStarted, this, &MerCMakeBuildConfiguration::startBuildEngine);
     return true;
+}
+
+QList<NamedWidget *> MerCMakeBuildConfiguration::createSubConfigWidgets()
+{
+    auto retv = CMakeBuildConfiguration::createSubConfigWidgets();
+
+    auto aspect = this->aspect<MerBuildConfigurationAspect>();
+    QTC_ASSERT(aspect, return retv);
+
+    auto widget = qobject_cast<NamedWidget *>(aspect->createConfigWidget());
+    QTC_ASSERT(widget, return retv);
+
+    retv += widget;
+    return retv;
+}
+
+void MerCMakeBuildConfiguration::addToEnvironment(Utils::Environment &env) const
+{
+    CMakeBuildConfiguration::addToEnvironment(env);
+
+    auto aspect = this->aspect<MerBuildConfigurationAspect>();
+    QTC_ASSERT(aspect, return);
+    aspect->addToEnvironment(env);
 }
 
 /// returns whether this is a shadow build configuration or not

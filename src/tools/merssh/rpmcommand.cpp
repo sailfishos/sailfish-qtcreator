@@ -35,12 +35,8 @@ QString RpmCommand::name() const
 
 int RpmCommand::execute()
 {
-    const QString targetParameter = QLatin1String(" -t ") +  targetName();
-    QString command = QLatin1String("mb2") +
-                      targetParameter +
-                      QLatin1Char(' ') + arguments().join(QLatin1Char(' ')) + QLatin1Char(' ');
-
-    return executeRemoteCommand(command);
+    // FIXME Rename me as "package"
+    return executeSfdk(QStringList{"package"} + rawArguments().mid(1));
 }
 
 bool RpmCommand::isValid() const

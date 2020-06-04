@@ -91,12 +91,7 @@ int CMakeCommand::execute()
         filteredArguments.append(argument);
     }
 
-    QString command = QLatin1String("mb2") +
-                      QLatin1String(" -t ") +
-                      targetName() +
-                      QLatin1Char(' ') + QtcProcess::joinArgs(filteredArguments, OsTypeLinux) + QLatin1Char(' ');
-
-    return executeRemoteCommand(command);
+    return executeSfdk(filteredArguments);
 }
 
 bool CMakeCommand::isValid() const

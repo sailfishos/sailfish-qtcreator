@@ -15,6 +15,7 @@ RESOURCES += \
     mer.qrc
 
 FORMS += \
+    merbuildconfigurationwidget.ui \
     merbuildenginedetailswidget.ui \
     merbuildengineoptionswidget.ui \
     merdeploystep.ui \
@@ -39,6 +40,7 @@ FORMS += \
 
 SOURCES += \
     merabstractvmstartstep.cpp \
+    merbuildconfigurationaspect.cpp \
     merbuildenginedetailswidget.cpp \
     merbuildengineoptionspage.cpp \
     merbuildengineoptionswidget.cpp \
@@ -94,6 +96,7 @@ SOURCES += \
 
 HEADERS += \
     merabstractvmstartstep.h \
+    merbuildconfigurationaspect.h \
     merbuildenginedetailswidget.h \
     merbuildengineoptionspage.h \
     merbuildengineoptionswidget.h \
