@@ -152,6 +152,11 @@ void TeaLeafReader::parse(bool forceCMakeRun, bool forceConfiguration)
 
 void TeaLeafReader::stop()
 {
+    if (isParsing()) {
+        m_stopping = true;
+        return;
+    }
+
     m_cmakeProcess.reset();
 }
 
@@ -369,6 +374,12 @@ void TeaLeafReader::extractData()
 
 void TeaLeafReader::startCMake(const QStringList &configurationArguments)
 {
+    if (isParsing()) {
+        m_queuedArguments = configurationArguments;
+        m_cmakeQueue = true;
+        return;
+    }
+
     QTC_ASSERT(!m_cmakeProcess, return);
 
     m_cmakeProcess = std::make_unique<CMakeProcess>();
@@ -386,6 +397,17 @@ void TeaLeafReader::cmakeFinished(int code, QProcess::ExitStatus status)
 
     QTC_ASSERT(m_cmakeProcess, return);
     m_cmakeProcess.reset();
+
+    if (m_stopping) {
+        m_stopping = false;
+        stop();
+
+        if (m_cmakeQueue) {
+            m_cmakeQueue = false;
+            startCMake(m_queuedArguments);
+        }
+        return;
+    }
 
     extractData(); // try even if cmake failed...
 

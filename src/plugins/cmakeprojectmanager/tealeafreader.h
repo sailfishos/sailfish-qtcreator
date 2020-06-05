@@ -74,6 +74,9 @@ private:
 
     // Process data:
     std::unique_ptr<CMakeProcess> m_cmakeProcess;
+    bool m_stopping = false;
+    bool m_cmakeQueue = false;
+    QStringList m_queuedArguments;
 
     QSet<Utils::FilePath> m_cmakeFiles;
     QString m_projectName;
