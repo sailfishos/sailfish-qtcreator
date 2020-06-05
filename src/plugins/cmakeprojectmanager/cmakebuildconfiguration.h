@@ -42,7 +42,7 @@ class BuildDirManager;
 class CMakeBuildSystem;
 class CMakeBuildSettingsWidget;
 
-class CMakeBuildConfiguration final : public ProjectExplorer::BuildConfiguration
+class CMAKE_EXPORT CMakeBuildConfiguration : public ProjectExplorer::BuildConfiguration
 {
     Q_OBJECT
 
@@ -52,8 +52,10 @@ class CMakeBuildConfiguration final : public ProjectExplorer::BuildConfiguration
                NOTIFY configurationForCMakeChanged)
 
     friend class ProjectExplorer::BuildConfigurationFactory;
+
+public:
     CMakeBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
-    ~CMakeBuildConfiguration() final;
+    ~CMakeBuildConfiguration() override;
 
 public:
     CMakeConfig configurationForCMake() const;
@@ -112,7 +114,7 @@ private:
 
 class CMakeProjectImporter;
 
-class CMakeBuildConfigurationFactory final : public ProjectExplorer::BuildConfigurationFactory
+class CMAKE_EXPORT CMakeBuildConfigurationFactory : public ProjectExplorer::BuildConfigurationFactory
 {
 public:
     CMakeBuildConfigurationFactory();
