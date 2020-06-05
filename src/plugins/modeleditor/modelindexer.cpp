@@ -356,7 +356,7 @@ QString ModelIndexer::findModel(const qmt::Uid &modelUid)
 
 QString ModelIndexer::findDiagram(const qmt::Uid &modelUid, const qmt::Uid &diagramUid)
 {
-    Q_UNUSED(modelUid); // avoid warning in release mode
+    Q_UNUSED(modelUid) // avoid warning in release mode
 
     QMutexLocker locker(&d->indexerMutex);
     QSet<IndexedDiagramReference *> indexedDiagramReferences = d->indexedDiagramReferencesByDiagramUid.value(diagramUid);
@@ -370,8 +370,11 @@ QString ModelIndexer::findDiagram(const qmt::Uid &modelUid, const qmt::Uid &diag
 
 void ModelIndexer::onProjectAdded(ProjectExplorer::Project *project)
 {
-    connect(project, &ProjectExplorer::Project::fileListChanged,
-            this, [=]() { this->onProjectFileListChanged(project); });
+    connect(project,
+            &ProjectExplorer::Project::fileListChanged,
+            this,
+            [=]() { this->onProjectFileListChanged(project); },
+            Qt::QueuedConnection);
     scanProject(project);
 }
 
@@ -392,21 +395,24 @@ void ModelIndexer::scanProject(ProjectExplorer::Project *project)
         return;
 
     // TODO harmonize following code with findFirstModel()?
-    const Utils::FileNameList files = project->files(ProjectExplorer::Project::SourceFiles);
+    const Utils::FilePaths files = project->files(ProjectExplorer::Project::SourceFiles);
     QQueue<QueuedFile> filesQueue;
     QSet<QueuedFile> filesSet;
 
-    for (const Utils::FileName &file : files) {
-        QFileInfo fileInfo = file.toFileInfo();
-        Utils::MimeType mimeType = Utils::mimeTypeForFile(fileInfo);
-        if (mimeType.name() == QLatin1String(Constants::MIME_TYPE_MODEL)) {
-            QueuedFile queuedFile(file.toString(), project, fileInfo.lastModified());
-            filesQueue.append(queuedFile);
-            filesSet.insert(queuedFile);
+    const Utils::MimeType modelMimeType = Utils::mimeTypeForName(Constants::MIME_TYPE_MODEL);
+    if (modelMimeType.isValid()) {
+        for (const Utils::FilePath &file : files) {
+            const QFileInfo fileInfo = file.toFileInfo();
+            if (modelMimeType.suffixes().contains(fileInfo.completeSuffix())) {
+                QueuedFile queuedFile(file.toString(), project, fileInfo.lastModified());
+                filesQueue.append(queuedFile);
+                filesSet.insert(queuedFile);
+            }
         }
     }
 
-    QString defaultModelFile = findFirstModel(project->rootProjectNode());
+    // FIXME: This potentially iterates over all files again.
+    QString defaultModelFile = findFirstModel(project->rootProjectNode(), modelMimeType);
 
     bool filesAreQueued = false;
     {
@@ -457,15 +463,17 @@ void ModelIndexer::scanProject(ProjectExplorer::Project *project)
         emit filesQueued();
 }
 
-QString ModelIndexer::findFirstModel(ProjectExplorer::FolderNode *folderNode)
+QString ModelIndexer::findFirstModel(ProjectExplorer::FolderNode *folderNode,
+                                     const Utils::MimeType &mimeType)
 {
+    if (!mimeType.isValid())
+        return QString();
     foreach (ProjectExplorer::FileNode *fileNode, folderNode->fileNodes()) {
-        Utils::MimeType mimeType = Utils::mimeTypeForFile(fileNode->filePath().toFileInfo());
-        if (mimeType.name() == QLatin1String(Constants::MIME_TYPE_MODEL))
+        if (mimeType.suffixes().contains(fileNode->filePath().toFileInfo().completeSuffix()))
             return fileNode->filePath().toString();
     }
     foreach (ProjectExplorer::FolderNode *subFolderNode, folderNode->folderNodes()) {
-        QString modelFileName = findFirstModel(subFolderNode);
+        QString modelFileName = findFirstModel(subFolderNode, mimeType);
         if (!modelFileName.isEmpty())
             return modelFileName;
     }
@@ -474,10 +482,10 @@ QString ModelIndexer::findFirstModel(ProjectExplorer::FolderNode *folderNode)
 
 void ModelIndexer::forgetProject(ProjectExplorer::Project *project)
 {
-    const Utils::FileNameList files = project->files(ProjectExplorer::Project::SourceFiles);
+    const Utils::FilePaths files = project->files(ProjectExplorer::Project::SourceFiles);
 
     QMutexLocker locker(&d->indexerMutex);
-    for (const Utils::FileName &file : files) {
+    for (const Utils::FilePath &file : files) {
         const QString fileString = file.toString();
         // remove file from queue
         QueuedFile queuedFile(fileString, project);

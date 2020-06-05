@@ -86,6 +86,22 @@ public:
     QmlProfilerTool m_profilerTool;
     QmlProfilerOptionsPage m_profilerOptionsPage;
     QmlProfilerActions m_actions;
+
+    // The full local profiler.
+    RunWorkerFactory localQmlProfilerFactory {
+        RunWorkerFactory::make<LocalQmlProfilerSupport>(),
+        {ProjectExplorer::Constants::QML_PROFILER_RUN_MODE},
+        {},
+        {ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE}
+    };
+
+    // The bits plugged in in remote setups.
+    RunWorkerFactory qmlProfilerWorkerFactory {
+        RunWorkerFactory::make<QmlProfilerRunner>(),
+        {ProjectExplorer::Constants::QML_PROFILER_RUNNER},
+        {},
+        {}
+    };
 };
 
 bool QmlProfilerPlugin::initialize(const QStringList &arguments, QString *errorString)
@@ -101,26 +117,6 @@ void QmlProfilerPlugin::extensionsInitialized()
     d->m_actions.registerActions();
 
     RunConfiguration::registerAspect<QmlProfilerRunConfigurationAspect>();
-
-    auto constraint = [](RunConfiguration *runConfiguration) {
-        Target *target = runConfiguration ? runConfiguration->target() : nullptr;
-        Kit *kit = target ? target->kit() : nullptr;
-        return DeviceTypeKitInformation::deviceTypeId(kit)
-                == ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE;
-    };
-
-    RunControl::registerWorkerCreator(ProjectExplorer::Constants::QML_PROFILER_RUN_MODE,
-                                      [this](RunControl *runControl) {
-        auto runner = new QmlProfilerRunner(runControl);
-        connect(runner, &QmlProfilerRunner::starting,
-                &d->m_profilerTool, &QmlProfilerTool::finalizeRunControl);
-        return runner;
-    });
-
-    RunControl::registerWorker(ProjectExplorer::Constants::QML_PROFILER_RUN_MODE,
-                               [this](ProjectExplorer::RunControl *runControl) {
-        return new LocalQmlProfilerSupport(&d->m_profilerTool, runControl);
-    }, constraint);
 }
 
 ExtensionSystem::IPlugin::ShutdownFlag QmlProfilerPlugin::aboutToShutdown()
@@ -139,9 +135,9 @@ QmlProfilerSettings *QmlProfilerPlugin::globalSettings()
     return qmlProfilerGlobalSettings();
 }
 
-QList<QObject *> QmlProfiler::Internal::QmlProfilerPlugin::createTestObjects() const
+QVector<QObject *> QmlProfiler::Internal::QmlProfilerPlugin::createTestObjects() const
 {
-    QList<QObject *> tests;
+    QVector<QObject *> tests;
 #ifdef WITH_TESTS
     tests << new DebugMessagesModelTest;
     tests << new FlameGraphModelTest;

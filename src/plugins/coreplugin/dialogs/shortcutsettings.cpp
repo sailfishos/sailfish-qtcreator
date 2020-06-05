@@ -56,7 +56,7 @@ static int translateModifiers(Qt::KeyboardModifiers state,
     int result = 0;
     // The shift modifier only counts when it is not used to type a symbol
     // that is only reachable using the shift key anyway
-    if ((state & Qt::ShiftModifier) && (text.size() == 0
+    if ((state & Qt::ShiftModifier) && (text.isEmpty()
                                         || !text.at(0).isPrint()
                                         || text.at(0).isLetterOrNumber()
                                         || text.at(0).isSpace()))
@@ -103,6 +103,17 @@ static bool keySequenceIsValid(const QKeySequence &sequence)
             return false;
     }
     return true;
+}
+
+static bool isTextKeySequence(const QKeySequence &sequence)
+{
+    if (sequence.isEmpty())
+        return false;
+    int key = sequence[0];
+    key &= ~(Qt::ShiftModifier | Qt::KeypadModifier);
+    if (key < Qt::Key_Escape)
+        return true;
+    return false;
 }
 
 namespace Core {
@@ -208,8 +219,38 @@ void ShortcutButton::handleToggleChange(bool toogleState)
     }
 }
 
-ShortcutSettingsWidget::ShortcutSettingsWidget(QWidget *parent)
-    : CommandMappings(parent)
+class ShortcutSettingsWidget final : public CommandMappings
+{
+    Q_DECLARE_TR_FUNCTIONS(Core::Internal::ShortcutSettings)
+
+public:
+    ShortcutSettingsWidget();
+    ~ShortcutSettingsWidget() final;
+
+    void apply();
+
+private:
+    void importAction() final;
+    void exportAction() final;
+    void defaultAction() final;
+    bool filterColumn(const QString &filterString, QTreeWidgetItem *item, int column) const final;
+
+    void initialize();
+    void handleCurrentCommandChanged(QTreeWidgetItem *current);
+    void resetToDefault();
+    bool validateShortcutEdit() const;
+    bool markCollisions(ShortcutItem *);
+    void setKeySequence(const QKeySequence &key);
+    void showConflicts();
+    void clear();
+
+    QList<ShortcutItem *> m_scitems;
+    QGroupBox *m_shortcutBox;
+    Utils::FancyLineEdit *m_shortcutEdit;
+    QLabel *m_warningLabel;
+};
+
+ShortcutSettingsWidget::ShortcutSettingsWidget()
 {
     setPageTitle(tr("Keyboard Shortcuts"));
     setTargetHeader(tr("Shortcut"));
@@ -283,11 +324,10 @@ ShortcutSettingsWidget::~ShortcutSettingsWidget()
     qDeleteAll(m_scitems);
 }
 
-ShortcutSettings::ShortcutSettings(QObject *parent)
-    : IOptionsPage(parent)
+ShortcutSettings::ShortcutSettings()
 {
     setId(Constants::SETTINGS_ID_SHORTCUTS);
-    setDisplayName(tr("Keyboard"));
+    setDisplayName(ShortcutSettingsWidget::tr("Keyboard"));
     setCategory(Constants::SETTINGS_CATEGORY_CORE);
 }
 
@@ -359,10 +399,12 @@ bool ShortcutSettingsWidget::validateShortcutEdit() const
         valid = !that->markCollisions(item);
         if (!valid) {
             m_warningLabel->setText(
-                        tr("Key sequence has potential conflicts. <a href=\"#conflicts\">Show.</a>"));
+                tr("Key sequence has potential conflicts. <a href=\"#conflicts\">Show.</a>"));
+        } else if (isTextKeySequence(currentKey)) {
+            m_warningLabel->setText(tr("Key sequence will not work in editor."));
         }
     } else {
-        m_warningLabel->setText(tr("Invalid key sequence."));
+        m_warningLabel->setText(m_warningLabel->text() + tr("Invalid key sequence."));
     }
     return valid;
 }
@@ -514,7 +556,7 @@ void ShortcutSettingsWidget::initialize()
         if (s->m_cmd->defaultKeySequence() != s->m_key)
             setModified(item, true);
 
-        item->setData(0, Qt::UserRole, qVariantFromValue(s));
+        item->setData(0, Qt::UserRole, QVariant::fromValue(s));
 
         markCollisions(s);
     }
@@ -552,7 +594,7 @@ bool ShortcutSettingsWidget::markCollisions(ShortcutItem *item)
     }
     item->m_item->setForeground(2, hasCollision
                                 ? Utils::creatorTheme()->color(Utils::Theme::TextColorError)
-                                : commandList()->palette().window());
+                                : commandList()->palette().windowText());
     return hasCollision;
 }
 

@@ -28,8 +28,6 @@
 #include "buildconfiguration.h"
 #include "buildinfo.h"
 #include "projectexplorerconstants.h"
-#include "kit.h"
-#include "kitconfigwidget.h"
 #include "kitmanager.h"
 #include "kitoptionspage.h"
 
@@ -41,12 +39,15 @@
 #include <utils/hostosinfo.h>
 #include <utils/pathchooser.h>
 #include <utils/qtcassert.h>
+#include <utils/utilsicons.h>
 
 #include <QCheckBox>
 #include <QHBoxLayout>
 #include <QGridLayout>
 #include <QLabel>
 #include <QPushButton>
+
+using namespace Utils;
 
 namespace ProjectExplorer {
 namespace Internal {
@@ -55,7 +56,7 @@ namespace Internal {
 // TargetSetupWidget
 // -------------------------------------------------------------------------
 
-TargetSetupWidget::TargetSetupWidget(Kit *k, const QString &projectPath) :
+TargetSetupWidget::TargetSetupWidget(Kit *k, const FilePath &projectPath) :
     m_kit(k)
 {
     Q_ASSERT(m_kit);
@@ -68,16 +69,13 @@ TargetSetupWidget::TargetSetupWidget(Kit *k, const QString &projectPath) :
     m_detailsWidget->setUseCheckBox(true);
     m_detailsWidget->setChecked(false);
     m_detailsWidget->setSummaryFontBold(true);
-    m_detailsWidget->setToolTip(m_kit->toHtml());
     vboxLayout->addWidget(m_detailsWidget);
 
     auto panel = new Utils::FadingWidget(m_detailsWidget);
     auto panelLayout = new QHBoxLayout(panel);
-    m_manageButton = new QPushButton(KitConfigWidget::msgManage());
+    m_manageButton = new QPushButton(KitAspectWidget::msgManage());
     panelLayout->addWidget(m_manageButton);
     m_detailsWidget->setToolWidget(panel);
-
-    handleKitUpdate(m_kit);
 
     auto widget = new QWidget;
     auto layout = new QVBoxLayout;
@@ -86,7 +84,7 @@ TargetSetupWidget::TargetSetupWidget(Kit *k, const QString &projectPath) :
 
     auto w = new QWidget;
     m_newBuildsLayout = new QGridLayout;
-    m_newBuildsLayout->setMargin(0);
+    m_newBuildsLayout->setContentsMargins(0, 0, 0, 0);
     if (Utils::HostOsInfo::isMacHost())
         m_newBuildsLayout->setSpacing(0);
     w->setLayout(m_newBuildsLayout);
@@ -99,9 +97,6 @@ TargetSetupWidget::TargetSetupWidget(Kit *k, const QString &projectPath) :
 
     connect(m_detailsWidget, &Utils::DetailsWidget::checked,
             this, &TargetSetupWidget::targetCheckBoxToggled);
-
-    connect(KitManager::instance(), &KitManager::kitUpdated,
-            this, &TargetSetupWidget::handleKitUpdate);
 
     connect(m_manageButton, &QAbstractButton::clicked, this, &TargetSetupWidget::manageKit);
 }
@@ -127,7 +122,7 @@ bool TargetSetupWidget::isKitSelected() const
 void TargetSetupWidget::setKitSelected(bool b)
 {
     // Only check target if there are build configurations possible
-    b &= !selectedBuildInfoList().isEmpty();
+    b &= hasSelectedBuildConfigurations();
     m_ignoreChange = true;
     m_detailsWidget->setChecked(b);
     m_detailsWidget->widget()->setEnabled(b);
@@ -156,7 +151,7 @@ void TargetSetupWidget::addBuildInfo(const BuildInfo &info, bool isImport)
     store.isEnabled = true;
     ++m_selected;
 
-    if (info.factory()) {
+    if (info.factory) {
         store.checkbox = new QCheckBox;
         store.checkbox->setText(info.displayName);
         store.checkbox->setChecked(store.isEnabled);
@@ -192,9 +187,12 @@ void TargetSetupWidget::targetCheckBoxToggled(bool b)
     if (m_ignoreChange)
         return;
     m_detailsWidget->widget()->setEnabled(b);
-    m_detailsWidget->setState(b && Utils::contains(m_infoStore, &BuildInfoStore::hasIssues)
-                              ? Utils::DetailsWidget::Expanded
-                              : Utils::DetailsWidget::Collapsed);
+    if (b && (contains(m_infoStore, &BuildInfoStore::hasIssues)
+              || !contains(m_infoStore, &BuildInfoStore::isEnabled))) {
+        m_detailsWidget->setState(DetailsWidget::Expanded);
+    } else if (!b) {
+        m_detailsWidget->setState(Utils::DetailsWidget::Collapsed);
+    }
     emit selectedToggled();
 }
 
@@ -209,7 +207,7 @@ void TargetSetupWidget::manageKit()
     }
 }
 
-void TargetSetupWidget::setProjectPath(const QString &projectPath)
+void TargetSetupWidget::setProjectPath(const FilePath &projectPath)
 {
     if (!m_kit)
         return;
@@ -226,23 +224,52 @@ void TargetSetupWidget::expandWidget()
     m_detailsWidget->setState(Utils::DetailsWidget::Expanded);
 }
 
-const QList<BuildInfo> TargetSetupWidget::buildInfoList(const Kit *k, const QString &projectPath)
+void TargetSetupWidget::update(const TasksGenerator &generator)
+{
+    const Tasks tasks = generator(kit());
+
+    m_detailsWidget->setSummaryText(kit()->displayName());
+    m_detailsWidget->setIcon(kit()->isValid() ? kit()->icon() : Icons::CRITICAL.icon());
+
+    const Task errorTask = Utils::findOrDefault(tasks, Utils::equal(&Task::type, Task::Error));
+
+    // Kits that where the taskGenarator reports an error are not selectable, because we cannot
+    // guarantee that we can handle the project sensibly (e.g. qmake project without Qt).
+    if (!errorTask.isNull()) {
+        toggleEnabled(false);
+        m_detailsWidget->setToolTip(kit()->toHtml(tasks, ""));
+        m_infoStore.clear();
+        return;
+    }
+
+    toggleEnabled(true);
+    updateDefaultBuildDirectories();
+}
+
+const QList<BuildInfo> TargetSetupWidget::buildInfoList(const Kit *k, const FilePath &projectPath)
 {
     if (auto factory = BuildConfigurationFactory::find(k, projectPath))
         return factory->allAvailableSetups(k, projectPath);
 
-    BuildInfo info(nullptr);
+    BuildInfo info;
     info.kitId = k->id();
     return {info};
 }
 
-void TargetSetupWidget::handleKitUpdate(Kit *k)
+bool TargetSetupWidget::hasSelectedBuildConfigurations() const
 {
-    if (k != m_kit)
-        return;
+    return !selectedBuildInfoList().isEmpty();
+}
 
-    m_detailsWidget->setIcon(k->icon());
-    m_detailsWidget->setSummaryText(k->displayName());
+void TargetSetupWidget::toggleEnabled(bool enabled)
+{
+    m_detailsWidget->widget()->setEnabled(enabled && hasSelectedBuildConfigurations());
+    m_detailsWidget->setCheckable(enabled);
+    m_detailsWidget->setExpandable(enabled);
+    if (!enabled) {
+        m_detailsWidget->setState(DetailsWidget::Collapsed);
+        m_detailsWidget->setChecked(false);
+    }
 }
 
 const QList<BuildInfo> TargetSetupWidget::selectedBuildInfoList() const
@@ -263,6 +290,28 @@ void TargetSetupWidget::clear()
     m_haveImported = false;
 
     emit selectedToggled();
+}
+
+void TargetSetupWidget::updateDefaultBuildDirectories()
+{
+    for (const BuildInfo &buildInfo : buildInfoList(m_kit, m_projectPath)) {
+        if (!buildInfo.factory)
+            continue;
+        bool found = false;
+        for (BuildInfoStore &buildInfoStore : m_infoStore) {
+            if (buildInfoStore.buildInfo.typeName == buildInfo.typeName) {
+                if (!buildInfoStore.customBuildDir) {
+                    m_ignoreChange = true;
+                    buildInfoStore.pathChooser->setFileName(buildInfo.buildDirectory);
+                    m_ignoreChange = false;
+                }
+                found = true;
+                break;
+            }
+        }
+        if (!found)  // the change of the kit may have produced more build information than before
+            addBuildInfo(buildInfo, false);
+    }
 }
 
 void TargetSetupWidget::checkBoxToggled(bool b)
@@ -296,6 +345,7 @@ void TargetSetupWidget::pathChanged()
     });
     QTC_ASSERT(it != m_infoStore.end(), return);
     it->buildInfo.buildDirectory = pathChooser->fileName();
+    it->customBuildDir = true;
     reportIssues(static_cast<int>(std::distance(m_infoStore.begin(), it)));
 }
 
@@ -315,13 +365,13 @@ void TargetSetupWidget::reportIssues(int index)
 
 QPair<Task::TaskType, QString> TargetSetupWidget::findIssues(const BuildInfo &info)
 {
-    if (m_projectPath.isEmpty() || !info.factory())
+    if (m_projectPath.isEmpty() || !info.factory)
         return qMakePair(Task::Unknown, QString());
 
     QString buildDir = info.buildDirectory.toString();
-    QList<Task> issues;
-    if (info.factory())
-        issues = info.factory()->reportIssues(m_kit, m_projectPath, buildDir);
+    Tasks issues;
+    if (info.factory)
+        issues = info.factory->reportIssues(m_kit, m_projectPath.toString(), buildDir);
 
     QString text;
     Task::TaskType highestType = Task::Unknown;

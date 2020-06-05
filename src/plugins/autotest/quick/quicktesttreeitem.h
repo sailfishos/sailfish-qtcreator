@@ -45,7 +45,7 @@ public:
     TestConfiguration *debugConfiguration() const override;
     QList<TestConfiguration *> getAllTestConfigurations() const override;
     QList<TestConfiguration *> getSelectedTestConfigurations() const override;
-    QList<TestConfiguration *> getTestConfigurationsForFile(const Utils::FileName &fileName) const override;
+    QList<TestConfiguration *> getTestConfigurationsForFile(const Utils::FilePath &fileName) const override;
     TestTreeItem *find(const TestParseResult *result) override;
     TestTreeItem *findChild(const TestTreeItem *other) override;
     bool modify(const TestParseResult *result) override;
@@ -57,6 +57,10 @@ public:
     QSet<QString> internalTargets() const override;
     void markForRemovalRecursively(const QString &filePath) override;
 private:
+    TestTreeItem *findChildByFileNameAndType(const QString &filePath, const QString &name,
+                                             Type tType);
+    TestTreeItem *findChildByNameFileAndLine(const QString &name, const QString &filePath,
+                                             int line);
     TestTreeItem *unnamedQuickTests() const;
 };
 

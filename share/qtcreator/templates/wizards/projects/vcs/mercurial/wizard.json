@@ -7,14 +7,14 @@
     "trDisplayName": "Mercurial Clone",
     "trDisplayCategory": "Import Project",
     "icon": "icon.png",
-    "enabled": "%{JS: [ %{Plugins} ].indexOf('Mercurial') >= 0}",
+    "enabled": "%{JS: value('Plugins').indexOf('Mercurial') >= 0}",
 
     "options":
     [
         { "key": "vcsId", "value": "H.Mercurial" },
         { "key": "vcsName", "value": "%{JS: Vcs.displayName('%{vcsId}')}" },
         { "key": "SR", "value": "%{JS: '%{Repo}'.substr('%{Repo}'.indexOf(':') + 1) }"},
-        { "key": "defaultDir", "value": "%{JS: '%{SR}'.substr('%{SR}'.lastIndexOf('/') + 1).replace(/\\./, '-') }"},
+        { "key": "defaultDir", "value": "%{JS: '%{SR}'.substr('%{SR}'.lastIndexOf('/') + 1).replace(/[.]/g, '-') }"},
         { "key": "TargetPath", "value": "%{Path}/%{Dir}" }
     ],
 
@@ -39,7 +39,9 @@
                     "name": "Repo",
                     "trDisplayName": "Repository:",
                     "mandatory": true,
-                    "type": "LineEdit"
+                    "type": "LineEdit",
+                    "isComplete": "%{JS: Vcs.isValidRepoUrl('%{vcsId}', '%{Repo}')}",
+                    "trIncompleteMessage": "Repository URL is not valid"
                 },
                 {
                     "name": "Sp1",

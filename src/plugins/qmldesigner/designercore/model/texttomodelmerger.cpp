@@ -29,7 +29,6 @@
 #include "modelnodepositionstorage.h"
 #include "abstractproperty.h"
 #include "bindingproperty.h"
-#include "enumeration.h"
 #include "filemanager/firstdefinitionfinder.h"
 #include "filemanager/objectlengthcalculator.h"
 #include "filemanager/qmlrefactoring.h"
@@ -42,22 +41,26 @@
 #include "rewriterview.h"
 #include "variantproperty.h"
 
+#include <enumeration.h>
+
 #include <qmljs/qmljsevaluate.h>
 #include <qmljs/qmljslink.h>
 #include <qmljs/parser/qmljsast_p.h>
 #include <qmljs/qmljscheck.h>
 #include <qmljs/qmljsutils.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
-#include <qmljs/qmljsqrcparser.h>
 #include <qmljs/qmljsinterpreter.h>
 #include <qmljs/qmljsvalueowner.h>
 
+#include <utils/algorithm.h>
+#include <utils/qrcparser.h>
 #include <utils/qtcassert.h>
 
 #include <QSet>
 #include <QDir>
 #include <QLoggingCategory>
 #include <QRegularExpression>
+#include <QElapsedTimer>
 
 #include <memory>
 
@@ -77,7 +80,7 @@ QStringList supportedVersionsList()
 {
     static const QStringList list = {
         "2.0", "2.1", "2.2", "2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9",
-        "2.10", "2.11", "2.12", "2.13"
+        "2.10", "2.11", "2.12", "2.13", "2.14", "2.15"
     };
     return list;
 }
@@ -97,7 +100,8 @@ QStringList globalQtEnums()
 QStringList knownEnumScopes()
 {
     static const QStringList list = {
-        "TextInput", "TextEdit", "Material", "Universal", "Font", "Shape", "ShapePath", "AbstractButton"
+        "TextInput", "TextEdit", "Material", "Universal", "Font", "Shape", "ShapePath",
+        "AbstractButton", "Text", "ShaderEffectSource"
     };
     return list;
 }
@@ -351,8 +355,14 @@ bool compareJavaScriptExpression(const QString &expression1, const QString &expr
 }
 
 bool smartVeryFuzzyCompare(const QVariant &value1, const QVariant &value2)
-{ //we ignore slight changes on doubles and only check three digits
-    if ((value1.type() == QVariant::Double) || (value2.type() == QVariant::Double)) {
+{
+    //we ignore slight changes on doubles and only check three digits
+    const auto type1 = static_cast<QMetaType::Type>(value1.type());
+    const auto type2 = static_cast<QMetaType::Type>(value2.type());
+    if (type1 == QMetaType::Double
+            || type2 == QMetaType::Double
+            || type1 == QMetaType::Float
+            || type2 == QMetaType::Float) {
         bool ok1, ok2;
         qreal a = value1.toDouble(&ok1);
         qreal b = value2.toDouble(&ok2);
@@ -372,6 +382,13 @@ bool smartVeryFuzzyCompare(const QVariant &value1, const QVariant &value2)
     return false;
 }
 
+bool smartColorCompare(const QVariant &value1, const QVariant &value2)
+{
+    if ((value1.type() == QVariant::Color) || (value2.type() == QVariant::Color))
+        return value1.value<QColor>().rgba() == value2.value<QColor>().rgba();
+    return false;
+}
+
 bool equals(const QVariant &a, const QVariant &b)
 {
     if (a.canConvert<QmlDesigner::Enumeration>() && b.canConvert<QmlDesigner::Enumeration>())
@@ -379,6 +396,8 @@ bool equals(const QVariant &a, const QVariant &b)
     if (a == b)
         return true;
     if (smartVeryFuzzyCompare(a, b))
+        return true;
+    if (smartColorCompare(a, b))
         return true;
     return false;
 }
@@ -457,7 +476,7 @@ public:
                 if (!name.isEmpty() && name != QLatin1String("."))
                     typeName.prepend(name + QLatin1Char('.'));
             } else if (importInfo.isValid() && importInfo.type() == ImportType::QrcDirectory) {
-                QString path = QrcParser::normalizedQrcDirectoryPath(importInfo.path());
+                QString path = Utils::QrcParser::normalizedQrcDirectoryPath(importInfo.path());
                 path = path.mid(1, path.size() - ((path.size() > 1) ? 2 : 1));
                 const QString name = path.replace(QLatin1Char('/'), QLatin1Char('.'));
                 if (!name.isEmpty())
@@ -753,8 +772,8 @@ void TextToModelMerger::setupImports(const Document::Ptr &doc,
             continue;
 
         QString version;
-        if (import->versionToken.isValid())
-            version = textAt(doc, import->versionToken);
+        if (import->version != nullptr)
+            version = QString("%1.%2").arg(import->version->majorVersion).arg(import->version->minorVersion);
         const QString &as = import->importId.toString();
 
         if (!import->fileName.isEmpty()) {
@@ -954,12 +973,9 @@ bool TextToModelMerger::load(const QString &data, DifferenceHandler &differenceH
 
     const bool justSanityCheck = !differenceHandler.isValidator();
 
-    QTime time;
+    QElapsedTimer time;
     if (rewriterBenchmark().isInfoEnabled())
         time.start();
-
-    // maybe the project environment (kit, ...) changed, so we need to clean old caches
-    NodeMetaInfo::clearCache();
 
     const QUrl url = m_rewriterView->model()->fileUrl();
 
@@ -969,6 +985,9 @@ bool TextToModelMerger::load(const QString &data, DifferenceHandler &differenceH
 
     setActive(true);
     m_rewriterView->setIncompleteTypeInformation(false);
+
+    // maybe the project environment (kit, ...) changed, so we need to clean old caches
+    NodeMetaInfo::clearCache();
 
     try {
         Snapshot snapshot = m_rewriterView->textModifier()->qmljsSnapshot();
@@ -1110,7 +1129,7 @@ void TextToModelMerger::syncNode(ModelNode &modelNode,
 
     context->enterScope(astNode);
 
-    QSet<PropertyName> modelPropertyNames = QSet<PropertyName>::fromList(modelNode.propertyNames());
+    QSet<PropertyName> modelPropertyNames = Utils::toSet(modelNode.propertyNames());
     if (!modelNode.id().isEmpty())
         modelPropertyNames.insert("id");
     QList<AST::UiObjectMember *> defaultPropertyItems;
@@ -2017,7 +2036,7 @@ void TextToModelMerger::collectLinkErrors(QList<DocumentMessage> *errors, const 
 void TextToModelMerger::collectImportErrors(QList<DocumentMessage> *errors)
 {
     if (m_rewriterView->model()->imports().isEmpty()) {
-        const QmlJS::DiagnosticMessage diagnosticMessage(QmlJS::Severity::Error, AST::SourceLocation(0, 0, 0, 0), QCoreApplication::translate("QmlDesigner::TextToModelMerger", "No import statements found"));
+        const QmlJS::DiagnosticMessage diagnosticMessage(QmlJS::Severity::Error, SourceLocation(0, 0, 0, 0), QCoreApplication::translate("QmlDesigner::TextToModelMerger", "No import statements found"));
         errors->append(DocumentMessage(diagnosticMessage, QUrl::fromLocalFile(m_document->fileName())));
     }
 
@@ -2028,7 +2047,7 @@ void TextToModelMerger::collectImportErrors(QList<DocumentMessage> *errors)
             if (supportedQtQuickVersion(import.version())) {
                 hasQtQuick = true;
             } else {
-                const QmlJS::DiagnosticMessage diagnosticMessage(QmlJS::Severity::Error, AST::SourceLocation(0, 0, 0, 0),
+                const QmlJS::DiagnosticMessage diagnosticMessage(QmlJS::Severity::Error, SourceLocation(0, 0, 0, 0),
                                                                  QCoreApplication::translate("QmlDesigner::TextToModelMerger", "Unsupported QtQuick version"));
                 errors->append(DocumentMessage(diagnosticMessage, QUrl::fromLocalFile(m_document->fileName())));
             }
@@ -2153,14 +2172,14 @@ QSet<QPair<QString, QString> > TextToModelMerger::qrcMapping() const
 }
 
 QString TextToModelMerger::textAt(const Document::Ptr &doc,
-                                  const AST::SourceLocation &location)
+                                  const SourceLocation &location)
 {
     return doc->source().mid(location.offset, location.length);
 }
 
 QString TextToModelMerger::textAt(const Document::Ptr &doc,
-                                  const AST::SourceLocation &from,
-                                  const AST::SourceLocation &to)
+                                  const SourceLocation &from,
+                                  const SourceLocation &to)
 {
     return doc->source().mid(from.offset, to.end() - from.begin());
 }

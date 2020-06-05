@@ -35,10 +35,10 @@
 #include <coreplugin/editormanager/ieditorfactory.h>
 #include <coreplugin/helpitem.h>
 
+#include <utils/elidinglabel.h>
 #include <utils/link.h>
 #include <utils/uncommentselection.h>
 
-#include <QLabel>
 #include <QPlainTextEdit>
 #include <QSharedPointer>
 #include <functional>
@@ -190,7 +190,7 @@ public:
     virtual void openFinishedSuccessfully();
     // IEditor
     QByteArray saveState() const;
-    bool restoreState(const QByteArray &state);
+    virtual bool restoreState(const QByteArray &state);
     void gotoLine(int line, int column = 0, bool centerLine = true, bool animate = false);
     int position(TextPositionOperation posOp = CurrentPosition,
          int at = -1) const;
@@ -345,9 +345,11 @@ public:
     virtual void cut();
     virtual void selectAll();
 
-    virtual void format();
+    virtual void autoIndent();
     virtual void rewrapParagraph();
     virtual void unCommentSelection();
+
+    virtual void autoFormat();
 
     virtual void encourageApply();
 
@@ -381,6 +383,8 @@ public:
     void unfold();
     void selectEncoding();
     void updateTextCodecLabel();
+    void selectLineEnding(int index);
+    void updateTextLineEndingLabel();
 
     void gotoBlockStart();
     void gotoBlockEnd();
@@ -474,6 +478,9 @@ public:
 
     Core::HighlightScrollBarController *highlightScrollBarController() const;
 
+    void addHoverHandler(BaseHoverHandler *handler);
+    void removeHoverHandler(BaseHoverHandler *handler);
+
 signals:
     void assistFinished(); // Used in tests.
     void readOnlyChanged();
@@ -534,8 +541,6 @@ protected:
     virtual void finalizeInitializationAfterDuplication(TextEditorWidget *) {}
     static QTextCursor flippedCursor(const QTextCursor &cursor);
 
-    void addHoverHandler(BaseHoverHandler *handler);
-
 public:
     QString selectedText() const;
 
@@ -551,6 +556,7 @@ public:
     void setContextHelpItem(const Core::HelpItem &item);
 
     static TextEditorWidget *currentTextEditorWidget();
+    static TextEditorWidget *fromEditor(const Core::IEditor *editor);
 
 protected:
     /*!
@@ -589,7 +595,7 @@ signals:
     void tooltipOverrideRequested(TextEditor::TextEditorWidget *widget,
         const QPoint &globalPos, int position, bool *handled);
     void tooltipRequested(const QPoint &globalPos, int position);
-    void activateEditor(Core::EditorManager::OpenEditorFlags flags = nullptr);
+    void activateEditor(Core::EditorManager::OpenEditorFlags flags = {});
 
 protected:
     virtual void slotCursorPositionChanged(); // Used in VcsBase
@@ -608,7 +614,7 @@ private:
     friend class RefactorOverlay;
 };
 
-class TEXTEDITOR_EXPORT TextEditorLinkLabel : public QLabel
+class TEXTEDITOR_EXPORT TextEditorLinkLabel : public Utils::ElidingLabel
 {
 public:
     TextEditorLinkLabel(QWidget *parent = nullptr);
@@ -628,15 +634,15 @@ private:
 
 class TEXTEDITOR_EXPORT TextEditorFactory : public Core::IEditorFactory
 {
-    Q_OBJECT
 
 public:
-    TextEditorFactory(QObject *parent = nullptr);
+    TextEditorFactory();
     ~TextEditorFactory() override;
 
     using EditorCreator = std::function<BaseTextEditor *()>;
     using DocumentCreator = std::function<TextDocument *()>;
-    using EditorWidgetCreator = std::function<TextEditorWidget *()>;
+    // editor widget must be castable (qobject_cast or Aggregate::query) to TextEditorWidget
+    using EditorWidgetCreator = std::function<QWidget *()>;
     using SyntaxHighLighterCreator = std::function<SyntaxHighlighter *()>;
     using IndenterCreator = std::function<Indenter *(QTextDocument *)>;
     using AutoCompleterCreator = std::function<AutoCompleter *()>;
@@ -648,8 +654,6 @@ public:
     void setSyntaxHighlighterCreator(const SyntaxHighLighterCreator &creator);
     void setUseGenericHighlighter(bool enabled);
     void setAutoCompleterCreator(const AutoCompleterCreator &creator);
-
-    void setEditorActionHandlers(Core::Id contextId, uint optionalActions);
     void setEditorActionHandlers(uint optionalActions);
 
     void addHoverHandler(BaseHoverHandler *handler);
@@ -660,8 +664,6 @@ public:
     void setMarksVisible(bool on);
     void setParenthesesMatchingEnabled(bool on);
     void setCodeFoldingSupported(bool on);
-
-    Core::IEditor *createEditor() override;
 
 private:
     friend class BaseTextEditor;

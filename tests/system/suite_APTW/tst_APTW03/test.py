@@ -29,7 +29,8 @@ def handleInsertVirtualFunctions(expected, toAdd):
     def __checkVirtualFunction(treeView, classIndex, isCheckedF, child):
         item = "%s.%s" % (str(classIndex.text), str(child.text))
         test.log("Checking '%s'." % item)
-        clickItem(treeView, item.replace("_", "\\_"), 5, 5, 0, Qt.LeftButton)
+        # params required here
+        mouseClick(waitForObjectItem(treeView, item.replace("_", "\\_")), 5, 5, 0, Qt.LeftButton)
         test.verify(waitFor("isCheckedF(child)", 1000), "Function must be checked after clicking")
 
     treeView = waitForObject("{container={title='Functions to insert:' type='QGroupBox' unnamed='1'"
@@ -85,7 +86,7 @@ def main():
     checkSimpleCppLib("SampleApp1", False)
     checkSimpleCppLib("SampleApp2", True)
 
-    pluginTargets = (Targets.DESKTOP_5_6_1_DEFAULT, Targets.DESKTOP_5_10_1_DEFAULT)
+    pluginTargets = (Targets.DESKTOP_5_10_1_DEFAULT, Targets.DESKTOP_5_14_1_DEFAULT)
     projectName, className = createNewQtPlugin(tempDir(), "SampleApp3", "MyPlugin", pluginTargets)
     virtualFunctionsAdded = False
     for kit, config in iterateBuildConfigs("Debug"):

@@ -30,8 +30,9 @@
 #include <remotelinux/linuxdevice.h>
 
 namespace Qnx {
+namespace Internal {
 
-class QNX_EXPORT QnxDevice : public RemoteLinux::LinuxDevice
+class QnxDevice final : public RemoteLinux::LinuxDevice
 {
     Q_DECLARE_TR_FUNCTIONS(Qnx::Internal::QnxDevice)
 
@@ -40,7 +41,6 @@ public:
     using ConstPtr = QSharedPointer<const QnxDevice>;
 
     static Ptr create() { return Ptr(new QnxDevice); }
-    ProjectExplorer::IDevice::Ptr clone() const override;
 
     ProjectExplorer::PortsGatheringMethod::Ptr portsGatheringMethod() const override;
     ProjectExplorer::DeviceProcessList *createProcessListModel(QObject *parent) const override;
@@ -48,9 +48,6 @@ public:
 
     ProjectExplorer::DeviceTester *createDeviceTester() const override;
     ProjectExplorer::DeviceProcess *createProcess(QObject *parent) const override;
-
-    QString displayType() const override;
-    Utils::OsType osType() const override;
 
     int qnxVersion() const;
 
@@ -69,4 +66,13 @@ private:
     mutable int m_versionNumber = 0;
 };
 
+class QnxDeviceFactory final : public ProjectExplorer::IDeviceFactory
+{
+public:
+    QnxDeviceFactory();
+
+    ProjectExplorer::IDevice::Ptr create() const override;
+};
+
+} // namespace Internal
 } // namespace Qnx

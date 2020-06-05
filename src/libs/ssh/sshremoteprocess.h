@@ -28,11 +28,7 @@
 #include "ssh_global.h"
 #include "sshprocess.h"
 
-#include <QStringList>
-
-QT_BEGIN_NAMESPACE
-class QByteArray;
-QT_END_NAMESPACE
+#include <utils/fileutils.h>
 
 namespace QSsh {
 class SshConnection;
@@ -50,13 +46,13 @@ public:
     void start();
 
     bool isRunning() const;
-    QStringList fullLocalCommandLine() const;
+    Utils::CommandLine fullLocalCommandLine() const;
 
 signals:
     void done(const QString &error);
 
 private:
-    SshRemoteProcess(const QByteArray &command, const QStringList &connectionArgs);
+    SshRemoteProcess(const QString &command, const QStringList &connectionArgs);
     void doStart();
 
     struct SshRemoteProcessPrivate;

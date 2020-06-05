@@ -27,6 +27,7 @@
 
 #include "helpviewer.h"
 
+#include <QWebEngineUrlRequestInterceptor>
 #include <QWebEngineUrlSchemeHandler>
 #include <QWebEngineView>
 
@@ -42,16 +43,31 @@ public:
     void requestStarted(QWebEngineUrlRequestJob *job) override;
 };
 
+class HelpUrlRequestInterceptor : public QWebEngineUrlRequestInterceptor
+{
+public:
+    explicit HelpUrlRequestInterceptor(QObject *parent = nullptr);
+    void interceptRequest(QWebEngineUrlRequestInfo &info) override;
+};
+
 class WebEngineHelpPage : public QWebEnginePage
 {
 public:
     explicit WebEngineHelpPage(QObject *parent = nullptr);
+
+protected:
+    bool acceptNavigationRequest(const QUrl &url,
+                                 QWebEnginePage::NavigationType type,
+                                 bool isMainFrame) override;
 };
 
 class WebView : public QWebEngineView
 {
 public:
     explicit WebView(WebEngineHelpViewer *viewer);
+
+    bool event(QEvent *ev) override;
+    bool eventFilter(QObject *src, QEvent *e) override;
 
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;

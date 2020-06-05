@@ -43,6 +43,7 @@
 #include <QPixmapCache>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPainterPath>
 
 namespace QmlDesigner {
 
@@ -93,7 +94,7 @@ static QPixmap getWavyPixmap(qreal maxRadius, const QPen &pen)
     const QString pixmapKey = QStringLiteral("WaveUnderline-Bauhaus");
 
     QPixmap pixmap;
-    if (QPixmapCache::find(pixmapKey, pixmap))
+    if (QPixmapCache::find(pixmapKey, &pixmap))
         return pixmap;
 
     pixmap = generateWavyPixmap(maxRadius, pen);
@@ -137,7 +138,7 @@ static QRect drawText(QPainter *painter,
 
     displayString = styleOption.fontMetrics.elidedText(displayString, Qt::ElideMiddle, styleOption.rect.width() - extraSpace);
     displayStringOffset = QPoint(5 + iconOffset, -5);
-    width = styleOption.fontMetrics.width(displayString);
+    width = styleOption.fontMetrics.horizontalAdvance(displayString);
 
     QPoint textPosition = styleOption.rect.bottomLeft() + displayStringOffset;
     painter->drawText(textPosition, displayString);
@@ -258,7 +259,7 @@ static void setId(const QModelIndex &index, const QString &newId)
 
 void NameItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const
 {
-    Q_UNUSED(model);
+    Q_UNUSED(model)
     auto lineEdit = static_cast<QLineEdit*>(editor);
     setId(index,lineEdit->text());
     lineEdit->clearFocus();

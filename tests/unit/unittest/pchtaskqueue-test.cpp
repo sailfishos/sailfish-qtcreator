@@ -29,6 +29,7 @@
 #include "mockprecompiledheaderstorage.h"
 #include "mocksqlitetransactionbackend.h"
 #include "mocktaskscheduler.h"
+#include "testenvironment.h"
 
 #include <pchtaskqueue.h>
 #include <progresscounter.h>
@@ -46,15 +47,17 @@ class PchTaskQueue : public testing::Test
 protected:
     NiceMock<MockTaskScheduler<ClangBackEnd::PchTaskQueue::Task>> mockSytemPchTaskScheduler;
     NiceMock<MockTaskScheduler<ClangBackEnd::PchTaskQueue::Task>> mockProjectPchTaskScheduler;
-    MockPrecompiledHeaderStorage mockPrecompiledHeaderStorage;
+    NiceMock<MockPrecompiledHeaderStorage> mockPrecompiledHeaderStorage;
     MockSqliteTransactionBackend mockSqliteTransactionBackend;
     NiceMock<MockFunction<void(int, int)>> mockSetProgressCallback;
     ClangBackEnd::ProgressCounter progressCounter{mockSetProgressCallback.AsStdFunction()};
+    TestEnvironment testEnvironment;
     ClangBackEnd::PchTaskQueue queue{mockSytemPchTaskScheduler,
                                      mockProjectPchTaskScheduler,
                                      progressCounter,
                                      mockPrecompiledHeaderStorage,
-                                     mockSqliteTransactionBackend};
+                                     mockSqliteTransactionBackend,
+                                     testEnvironment};
     IncludeSearchPaths systemIncludeSearchPaths{
         {"/includes", 1, IncludeSearchPathType::BuiltIn},
         {"/other/includes", 2, IncludeSearchPathType::System}};
@@ -64,6 +67,9 @@ protected:
     PchTask systemTask1{1,
                         {1, 2},
                         {1, 2},
+                        {2, 3},
+                        {3, 4},
+                        {6, 7},
                         {{"YI", "1", 1}, {"SAN", "3", 3}},
                         {{"LIANG", 0}, {"YI", 1}},
                         {"--yi"},
@@ -72,6 +78,9 @@ protected:
     PchTask systemTask2{2,
                         {1, 2},
                         {1, 2},
+                        {2, 3},
+                        {3, 4},
+                        {6, 7},
                         {{"YI", "1", 1}, {"SAN", "3", 3}},
                         {{"LIANG", 0}, {"YI", 1}},
                         {"--yi"},
@@ -80,6 +89,9 @@ protected:
     PchTask systemTask2b{2,
                          {3, 4},
                          {3, 4},
+                         {5, 6},
+                         {4, 7},
+                         {8, 9},
                          {{"YI", "1", 1}, {"SAN", "3", 3}},
                          {{"LIANG", 0}, {"YI", 1}},
                          {"--yi"},
@@ -88,6 +100,9 @@ protected:
     PchTask systemTask3{3,
                         {1, 2},
                         {1, 2},
+                        {2, 3},
+                        {3, 4},
+                        {6, 7},
                         {{"YI", "1", 1}, {"SAN", "3", 3}},
                         {{"LIANG", 0}, {"YI", 1}},
                         {"--yi"},
@@ -96,6 +111,9 @@ protected:
     PchTask projectTask1{1,
                          {11, 12},
                          {11, 12},
+                         {12, 13},
+                         {13, 14},
+                         {16, 17},
                          {{"SE", "4", 4}, {"WU", "5", 5}},
                          {{"ER", 2}, {"SAN", 3}},
                          {"--yi"},
@@ -104,6 +122,9 @@ protected:
     PchTask projectTask2{2,
                          {11, 12},
                          {11, 12},
+                         {12, 13},
+                         {13, 14},
+                         {16, 17},
                          {{"SE", "4", 4}, {"WU", "5", 5}},
                          {{"ER", 2}, {"SAN", 3}},
                          {"--yi"},
@@ -112,6 +133,9 @@ protected:
     PchTask projectTask2b{2,
                           {21, 22},
                           {11, 12},
+                          {22, 23},
+                          {23, 24},
+                          {26, 27},
                           {{"SE", "4", 4}, {"WU", "5", 5}},
                           {{"ER", 2}, {"SAN", 3}},
                           {"--yi"},
@@ -120,6 +144,9 @@ protected:
     PchTask projectTask3{3,
                          {21, 22},
                          {21, 22},
+                         {22, 23},
+                         {23, 24},
+                         {26, 27},
                          {{"SE", "4", 4}, {"WU", "5", 5}},
                          {{"ER", 2}, {"SAN", 3}},
                          {"--yi"},
@@ -128,6 +155,9 @@ protected:
     PchTask systemTask4{{1, 3},
                         {1, 2},
                         {1, 2},
+                        {2, 3},
+                        {3, 4},
+                        {5, 8},
                         {{"YI", "1", 1}, {"SAN", "3", 3}},
                         {{"LIANG", 0}, {"YI", 1}},
                         {"--yi"},
@@ -297,13 +327,14 @@ TEST_F(PchTaskQueue, CreateProjectTaskFromPchTask)
     auto tasks = queue.createProjectTasks({projectTask1});
     auto projectTask = projectTask1;
     projectTask.systemPchPath = "/path/to/pch";
+    projectTask.preIncludeSearchPath = testEnvironment.preIncludeSearchPath();
 
     EXPECT_CALL(mockPrecompiledHeaderStorage, fetchSystemPrecompiledHeaderPath(Eq(1)))
         .WillOnce(Return(ClangBackEnd::FilePath{"/path/to/pch"}));
     EXPECT_CALL(mockPchCreator, generatePch(Eq(projectTask)));
     EXPECT_CALL(mockPchCreator, projectPartPch()).WillOnce(ReturnRef(projectPartPch));
     EXPECT_CALL(mockPrecompiledHeaderStorage,
-                insertProjectPrecompiledHeader(Eq(1), Eq("/path/to/pch"), 99));
+                insertProjectPrecompiledHeader(Eq(1), Eq("/path/to/pch"), Eq(99)));
 
     tasks.front()(mockPchCreator);
 }
@@ -312,16 +343,17 @@ TEST_F(PchTaskQueue, DeleteProjectPchEntryInDatabaseIfNoPchIsGenerated)
 {
     InSequence s;
     MockPchCreator mockPchCreator;
-    ClangBackEnd::ProjectPartPch projectPartPch{{}, "", 0};
+    ClangBackEnd::ProjectPartPch projectPartPch{{}, "", 34};
     auto tasks = queue.createProjectTasks({projectTask1});
     auto projectTask = projectTask1;
     projectTask.systemPchPath = "/path/to/pch";
+    projectTask.preIncludeSearchPath = testEnvironment.preIncludeSearchPath();
 
     EXPECT_CALL(mockPrecompiledHeaderStorage, fetchSystemPrecompiledHeaderPath(Eq(1)))
         .WillOnce(Return(ClangBackEnd::FilePath{"/path/to/pch"}));
     EXPECT_CALL(mockPchCreator, generatePch(Eq(projectTask)));
     EXPECT_CALL(mockPchCreator, projectPartPch()).WillOnce(ReturnRef(projectPartPch));
-    EXPECT_CALL(mockPrecompiledHeaderStorage, deleteProjectPrecompiledHeader(Eq(1)));
+    EXPECT_CALL(mockPrecompiledHeaderStorage, deleteProjectPrecompiledHeader(Eq(1), Eq(34)));
 
     tasks.front()(mockPchCreator);
 }
@@ -339,11 +371,13 @@ TEST_F(PchTaskQueue, CreateSystemTaskFromPchTask)
     MockPchCreator mockPchCreator;
     ClangBackEnd::ProjectPartPch projectPartPch{{}, "/path/to/pch", 99};
     auto tasks = queue.createSystemTasks({systemTask4});
+    auto systemTask = systemTask4;
+    systemTask.preIncludeSearchPath = testEnvironment.preIncludeSearchPath();
 
-    EXPECT_CALL(mockPchCreator, generatePch(Eq(systemTask4)));
+    EXPECT_CALL(mockPchCreator, generatePch(Eq(systemTask)));
     EXPECT_CALL(mockPchCreator, projectPartPch()).WillOnce(ReturnRef(projectPartPch));
     EXPECT_CALL(mockPrecompiledHeaderStorage,
-                insertSystemPrecompiledHeaders(UnorderedElementsAre(1, 3), Eq("/path/to/pch"), 99));
+                insertSystemPrecompiledHeaders(UnorderedElementsAre(1, 3), Eq("/path/to/pch"), Eq(99)));
 
     tasks.front()(mockPchCreator);
 }
@@ -354,12 +388,15 @@ TEST_F(PchTaskQueue, DeleteSystemPchEntryInDatabaseIfNoPchIsGenerated)
     MockPchCreator mockPchCreator;
     ClangBackEnd::ProjectPartPch projectPartPch{{}, "", 0};
     auto tasks = queue.createSystemTasks({systemTask4});
+    auto systemTask = systemTask4;
+    systemTask.preIncludeSearchPath = testEnvironment.preIncludeSearchPath();
 
-    EXPECT_CALL(mockPchCreator, generatePch(Eq(systemTask4)));
+    EXPECT_CALL(mockPchCreator, generatePch(Eq(systemTask)));
     EXPECT_CALL(mockPchCreator, projectPartPch()).WillOnce(ReturnRef(projectPartPch));
     EXPECT_CALL(mockPrecompiledHeaderStorage,
                 deleteSystemPrecompiledHeaders(UnorderedElementsAre(1, 3)));
 
     tasks.front()(mockPchCreator);
 }
+
 } // namespace

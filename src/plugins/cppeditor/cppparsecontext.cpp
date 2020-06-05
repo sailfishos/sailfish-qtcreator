@@ -111,14 +111,16 @@ QString ParseContextModel::currentId() const
     return m_projectParts[m_currentIndex]->id();
 }
 
-int ParseContextModel::rowCount(const QModelIndex &) const
+int ParseContextModel::rowCount(const QModelIndex &parent) const
 {
+    if (parent.isValid())
+        return 0;
     return m_projectParts.size();
 }
 
 QVariant ParseContextModel::data(const QModelIndex &index, int role) const
 {
-    if (m_projectParts.isEmpty())
+    if (!index.isValid() || index.row() < 0 || index.row() >= m_projectParts.size())
         return QVariant();
 
     const int row = index.row();
@@ -149,7 +151,7 @@ ParseContextWidget::ParseContextWidget(ParseContextModel &parseContextModel, QWi
 
     // Set up sync of this widget and model in both directions
     connect(this,
-            static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
+            QOverload<int>::of(&QComboBox::activated),
             &m_parseContextModel,
             &ParseContextModel::setPreferred);
     connect(&m_parseContextModel, &ParseContextModel::updated,

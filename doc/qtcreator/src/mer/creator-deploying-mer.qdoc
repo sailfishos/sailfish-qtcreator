@@ -1,0 +1,46 @@
+/****************************************************************************
+**
+** Copyright (c) 2012 Digia Plc and/or its subsidiary(-ies).
+** Contact: http://www.qt-project.org/legal
+**
+** This file is part of Qt Creator
+**
+**
+** GNU Free Documentation License
+**
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of this
+** file.
+**
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \previouspage creator-deployment.html
+    \page creator-deployment-mer.html
+    \nextpage creator-deploying-android.html
+
+    \title Deploying Applications to Sailfish OS Devices
+
+    You can specify settings for deploying applications to Sailfish OS devices in the
+    project .pro file. You can view the settings in the \gui {Run Settings}.
+
+    When you run the application on a Sailfish OS device or on the emulator, \QC
+    deploys the application as specified by the deploy steps.
+
+    \section1 Copying Binary Files
+
+    \image creator-mer-deploy-settings.png
+
+    The \gui {Deploy by Copying Binaries} step determines that \QC uses the
+    rsync file copying tool to transfer the files to the device or to the
+    emulator.
+
+*/

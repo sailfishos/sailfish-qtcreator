@@ -60,11 +60,15 @@ namespace QmlJSEditor {
         bool autoFormatOnlyCurrentProject() const;
         void setAutoFormatOnlyCurrentProject(const bool autoFormatOnlyCurrentProject);
 
+        bool foldAuxData() const;
+        void setFoldAuxData(const bool foldAuxData);
+
     private:
         bool m_enableContextPane;
         bool m_pinContextPane;
         bool m_autoFormatOnSave;
         bool m_autoFormatOnlyCurrentProject;
+        bool m_foldAuxData;
     };
 
     inline bool operator==(const QmlJsEditingSettings &s1, const QmlJsEditingSettings &s2)
@@ -73,40 +77,12 @@ namespace QmlJSEditor {
     { return !s1.equals(s2); }
 
 
-class QmlJsEditingSettings;
-
 namespace Internal {
-
-class QmlJsEditingSettignsPageWidget : public QWidget
-{
-    Q_OBJECT
-
-public:
-    explicit QmlJsEditingSettignsPageWidget(QWidget *parent = nullptr);
-
-    QmlJsEditingSettings settings() const;
-    void setSettings(const QmlJsEditingSettings &);
-
-    static QmlJsEditingSettings get();
-
-private:
-    Ui::QmlJsEditingSettingsPage m_ui;
-};
-
 
 class QmlJsEditingSettingsPage : public Core::IOptionsPage
 {
-    Q_OBJECT
-
 public:
     QmlJsEditingSettingsPage();
-
-    QWidget *widget() override;
-    void apply() override;
-    void finish() override;
-
-private:
-    QPointer<QmlJsEditingSettignsPageWidget> m_widget;
 };
 
 } // namespace Internal

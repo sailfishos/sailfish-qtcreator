@@ -31,43 +31,27 @@
 using namespace ProjectExplorer;
 
 namespace RemoteLinux {
-namespace Internal {
 
-class RemoteLinuxCustomCommandDeploymentStepPrivate
+RemoteLinuxCustomCommandDeploymentStep::RemoteLinuxCustomCommandDeploymentStep
+        (BuildStepList *bsl, Core::Id id)
+    : AbstractRemoteLinuxDeployStep(bsl, id)
 {
-public:
-    BaseStringAspect *commandLineAspect;
-    RemoteLinuxCustomCommandDeployService service;
-};
+    auto service = createDeployService<RemoteLinuxCustomCommandDeployService>();
 
-} // namespace Internal
+    auto commandLine = addAspect<BaseStringAspect>();
+    commandLine->setSettingsKey("RemoteLinuxCustomCommandDeploymentStep.CommandLine");
+    commandLine->setLabelText(tr("Command line:"));
+    commandLine->setDisplayStyle(BaseStringAspect::LineEditDisplay);
 
-RemoteLinuxCustomCommandDeploymentStep::RemoteLinuxCustomCommandDeploymentStep(BuildStepList *bsl)
-    : AbstractRemoteLinuxDeployStep(bsl, stepId())
-{
-    d = new Internal::RemoteLinuxCustomCommandDeploymentStepPrivate;
-    d->commandLineAspect = addAspect<BaseStringAspect>();
-    d->commandLineAspect->setSettingsKey("RemoteLinuxCustomCommandDeploymentStep.CommandLine");
-    d->commandLineAspect->setLabelText(tr("Command line:"));
-    d->commandLineAspect->setDisplayStyle(BaseStringAspect::LineEditDisplay);
     setDefaultDisplayName(displayName());
+
+    setInternalInitializer([service, commandLine] {
+        service->setCommandLine(commandLine->value().trimmed());
+        return service->isDeploymentPossible();
+    });
 }
 
-RemoteLinuxCustomCommandDeploymentStep::~RemoteLinuxCustomCommandDeploymentStep()
-{
-    delete d;
-}
-
-bool RemoteLinuxCustomCommandDeploymentStep::initInternal(QString *error)
-{
-    d->service.setCommandLine(d->commandLineAspect->value().trimmed());
-    return d->service.isDeploymentPossible(error);
-}
-
-AbstractRemoteLinuxDeployService *RemoteLinuxCustomCommandDeploymentStep::deployService() const
-{
-    return &d->service;
-}
+RemoteLinuxCustomCommandDeploymentStep::~RemoteLinuxCustomCommandDeploymentStep() = default;
 
 Core::Id RemoteLinuxCustomCommandDeploymentStep::stepId()
 {

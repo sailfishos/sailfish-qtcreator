@@ -33,23 +33,6 @@
 namespace WinRt {
 namespace Internal {
 
-WinRtQtVersion::WinRtQtVersion(const Utils::FileName &path, bool isAutodetected,
-        const QString &autodetectionSource)
-    : BaseQtVersion(path, isAutodetected, autodetectionSource)
-{
-    setUnexpandedDisplayName(defaultUnexpandedDisplayName(path, false));
-}
-
-QtSupport::BaseQtVersion *WinRtQtVersion::clone() const
-{
-    return new WinRtQtVersion(*this);
-}
-
-QString WinRtQtVersion::type() const
-{
-    return QLatin1String(Constants::WINRT_WINRTQT);
-}
-
 QString WinRtQtVersion::description() const
 {
     return tr("Windows Runtime");
@@ -65,14 +48,20 @@ QSet<Core::Id> WinRtQtVersion::availableFeatures() const
     return features;
 }
 
-QList<ProjectExplorer::Abi> WinRtQtVersion::detectQtAbis() const
-{
-    return qtAbisFromLibrary(qtCorePaths());
-}
-
 QSet<Core::Id> WinRtQtVersion::targetDeviceTypes() const
 {
     return {Constants::WINRT_DEVICE_TYPE_LOCAL, Constants::WINRT_DEVICE_TYPE_EMULATOR};
+}
+
+
+// Factory
+
+WinRtQtVersionFactory::WinRtQtVersionFactory()
+{
+    setQtVersionCreator([] { return new WinRtQtVersion; });
+    setSupportedType(Constants::WINRT_WINRTQT);
+    setRestrictionChecker([](const SetupData &setup) { return setup.platforms.contains("winrt"); });
+    setPriority(10);
 }
 
 } // Internal

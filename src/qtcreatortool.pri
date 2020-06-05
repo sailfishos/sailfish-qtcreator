@@ -13,14 +13,7 @@ qtc_human_user_tool {
     target.path  = $$INSTALL_LIBEXEC_PATH
 }
 
-INSTALLS += target
-
-REL_PATH_TO_LIBS = $$relative_path($$IDE_LIBRARY_PATH, $$DESTDIR)
-REL_PATH_TO_PLUGINS = $$relative_path($$IDE_PLUGIN_PATH, $$DESTDIR)
-osx {
-    QMAKE_LFLAGS += -Wl,-rpath,@executable_path/$$REL_PATH_TO_LIBS,-rpath,@executable_path/$$REL_PATH_TO_PLUGINS
-} else {
-    QMAKE_RPATHDIR += \$\$ORIGIN/$$REL_PATH_TO_LIBS
-    QMAKE_RPATHDIR += \$\$ORIGIN/$$REL_PATH_TO_PLUGINS
-}
+RPATH_BASE = $$DESTDIR
 include(rpath.pri)
+
+INSTALLS += target

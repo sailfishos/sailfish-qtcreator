@@ -30,18 +30,22 @@
 namespace WinRt {
 namespace Internal {
 
-class WinRtPhoneQtVersion : public WinRtQtVersion
+class WinRtPhoneQtVersion : public QtSupport::BaseQtVersion
 {
     Q_DECLARE_TR_FUNCTIONS(WinRt::Internal::WinRtQtVersion)
 public:
     WinRtPhoneQtVersion() = default;
-    WinRtPhoneQtVersion(const Utils::FileName &path, bool isAutodetected,
-                        const QString &autodetectionSource);
 
-    QString description() const;
-    BaseQtVersion *clone() const;
-    QString type() const;
-    QSet<Core::Id> targetDeviceTypes() const;
+    QSet<Core::Id> availableFeatures() const override;
+
+    QString description() const override;
+    QSet<Core::Id> targetDeviceTypes() const override;
+};
+
+class WinRtPhoneQtVersionFactory : public QtSupport::QtVersionFactory
+{
+public:
+    WinRtPhoneQtVersionFactory();
 };
 
 } // Internal

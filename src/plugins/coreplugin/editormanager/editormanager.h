@@ -30,6 +30,8 @@
 
 #include "documentmodel.h"
 
+#include "utils/textfileformat.h"
+
 #include <QList>
 #include <QWidget>
 
@@ -42,8 +44,6 @@ namespace Utils { class MimeType; }
 namespace Core {
 
 class IEditor;
-class IEditorFactory;
-class IExternalEditor;
 class IDocument;
 class SearchResultItem;
 
@@ -59,7 +59,7 @@ class EditorManagerPrivate;
 class MainWindow;
 } // namespace Internal
 
-class CORE_EXPORT EditorManagerPlaceHolder : public QWidget
+class CORE_EXPORT EditorManagerPlaceHolder final : public QWidget
 {
     Q_OBJECT
 public:
@@ -128,9 +128,12 @@ public:
     static bool closeDocument(IDocument *document, bool askAboutModifiedEditors = true);
     static bool closeDocuments(const QList<IDocument *> &documents, bool askAboutModifiedEditors = true);
     static void closeDocument(DocumentModel::Entry *entry);
+    static bool closeDocuments(const QList<DocumentModel::Entry *> &entries);
     static void closeOtherDocuments(IDocument *document);
+    static bool closeAllDocuments();
 
     static void addCurrentPositionToNavigationHistory(const QByteArray &saveState = QByteArray());
+    static void setLastEditLocation(const IEditor *editor);
     static void cutForwardNavigationHistory();
 
     static bool saveDocument(IDocument *document);
@@ -146,12 +149,14 @@ public:
                                     const QString &infoText,
                                     const QString &buttonText = QString(),
                                     QObject *object = nullptr,
-                                    const std::function<void()> &function = nullptr);
+                                    const std::function<void()> &function = {});
     static void hideEditorStatusBar(const QString &id);
 
     static bool isAutoSaveFile(const QString &fileName);
 
     static QTextCodec *defaultTextCodec();
+
+    static Utils::TextFileFormat::LineTerminationMode defaultLineEnding();
 
     static qint64 maxTextFileSize();
 
@@ -161,6 +166,7 @@ public:
 
     static void addSaveAndCloseEditorActions(QMenu *contextMenu, DocumentModel::Entry *entry,
                                              IEditor *editor = nullptr);
+    static void addPinEditorActions(QMenu *contextMenu, DocumentModel::Entry *entry);
     static void addNativeDirAndOpenWithActions(QMenu *contextMenu, DocumentModel::Entry *entry);
     static void populateOpenWithMenu(QMenu *menu, const QString &fileName);
 
@@ -174,10 +180,12 @@ signals:
     void documentStateChanged(Core::IDocument *document);
     void editorCreated(Core::IEditor *editor, const QString &fileName);
     void editorOpened(Core::IEditor *editor);
+    void documentOpened(Core::IDocument *document);
     void editorAboutToClose(Core::IEditor *editor);
     void editorsClosed(QList<Core::IEditor *> editors);
+    void documentClosed(Core::IDocument *document);
     void findOnFileSystemRequest(const QString &path);
-    void openFileProperties(const Utils::FileName &path);
+    void openFileProperties(const Utils::FilePath &path);
     void aboutToSave(IDocument *document);
     void saved(IDocument *document);
     void autoSaved();

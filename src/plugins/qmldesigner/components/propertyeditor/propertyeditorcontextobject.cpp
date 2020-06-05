@@ -24,18 +24,25 @@
 ****************************************************************************/
 
 #include "propertyeditorcontextobject.h"
+#include "timelineeditor/easingcurvedialog.h"
 
 #include <abstractview.h>
 #include <nodemetainfo.h>
 #include <qmldesignerplugin.h>
 #include <qmlobjectnode.h>
+#include <qmlmodelnodeproxy.h>
 #include <rewritingexception.h>
 
 #include <coreplugin/messagebox.h>
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
+#include <QApplication>
+#include <QCursor>
+#include <QFontDatabase>
 #include <QQmlContext>
+
+#include <coreplugin/icore.h>
 
 static uchar fromHex(const uchar c, const uchar c2)
 {
@@ -96,7 +103,7 @@ QString PropertyEditorContextObject::convertColorToString(const QColor &color)
     QString colorString = color.name();
 
     if (color.alpha() != 255) {
-        const QString hexAlpha = QString::number(color.alpha(), 16);
+        QString hexAlpha = QString("%1").arg(color.alpha(), 2, 16, QLatin1Char('0'));
         colorString.remove(0,1);
         colorString.prepend(hexAlpha);
         colorString.prepend(QStringLiteral("#"));
@@ -152,22 +159,14 @@ void PropertyEditorContextObject::toogleExportAlias()
         PropertyName modelNodeId = selectedNode.id().toUtf8();
         ModelNode rootModelNode = rewriterView->rootModelNode();
 
-        try {
-            RewriterTransaction transaction =
-                    rewriterView->beginRewriterTransaction(QByteArrayLiteral("PropertyEditorContextObject:toogleExportAlias"));
-
+        rewriterView->executeInTransaction("PropertyEditorContextObject:toogleExportAlias", [&objectNode, &rootModelNode, modelNodeId](){
             if (!objectNode.isAliasExported())
                 objectNode.ensureAliasExport();
             else
                 if (rootModelNode.hasProperty(modelNodeId))
                     rootModelNode.removeProperty(modelNodeId);
-
-            transaction.commit();
-        }  catch (RewritingException &exception) { //better safe than sorry! There always might be cases where we fail
-            exception.showException();
-        }
+        });
     }
-
 }
 
 void PropertyEditorContextObject::changeTypeName(const QString &typeName)
@@ -181,11 +180,8 @@ void PropertyEditorContextObject::changeTypeName(const QString &typeName)
 
     QTC_ASSERT(!rewriterView->selectedModelNodes().isEmpty(), return);
 
-    ModelNode selectedNode = rewriterView->selectedModelNodes().constFirst();
-
-    try {
-        RewriterTransaction transaction =
-                rewriterView->beginRewriterTransaction(QByteArrayLiteral("PropertyEditorContextObject:changeTypeName"));
+    rewriterView->executeInTransaction("PropertyEditorContextObject:changeTypeName", [this, rewriterView, typeName](){
+        ModelNode selectedNode = rewriterView->selectedModelNodes().constFirst();
 
         NodeMetaInfo metaInfo = m_model->metaInfo(typeName.toLatin1());
         if (!metaInfo.isValid()) {
@@ -193,16 +189,10 @@ void PropertyEditorContextObject::changeTypeName(const QString &typeName)
             return;
         }
         if (selectedNode.isRootNode())
-             rewriterView->changeRootNodeType(metaInfo.typeName(), metaInfo.majorVersion(), metaInfo.minorVersion());
+            rewriterView->changeRootNodeType(metaInfo.typeName(), metaInfo.majorVersion(), metaInfo.minorVersion());
         else
             selectedNode.changeType(metaInfo.typeName(), metaInfo.majorVersion(), metaInfo.minorVersion());
-
-        transaction.commit();
-    }  catch (RewritingException &exception) { //better safe than sorry! There always might be cases where we fail
-        exception.showException();
-    }
-
-
+    });
 }
 
 void PropertyEditorContextObject::insertKeyframe(const QString &propertyName)
@@ -357,6 +347,15 @@ void PropertyEditorContextObject::setStateName(const QString &newStateName)
     emit stateNameChanged();
 }
 
+void PropertyEditorContextObject::setAllStateNames(const QStringList &allStates)
+{
+    if (allStates == m_allStateNames)
+            return;
+
+    m_allStateNames = allStates;
+    emit allStateNamesChanged();
+}
+
 void PropertyEditorContextObject::setIsBaseState(bool newIsBaseState)
 {
     if (newIsBaseState ==  m_isBaseState)
@@ -401,6 +400,64 @@ void PropertyEditorContextObject::setHasAliasExport(bool hasAliasExport)
 
     m_aliasExport = hasAliasExport;
     emit hasAliasExportChanged();
+}
+
+void PropertyEditorContextObject::hideCursor()
+{
+    if (QApplication::overrideCursor())
+        return;
+
+    QApplication::setOverrideCursor(QCursor(Qt::BlankCursor));
+    m_lastPos = QCursor::pos();
+}
+
+void PropertyEditorContextObject::restoreCursor()
+{
+    if (!QApplication::overrideCursor())
+        return;
+
+    QCursor::setPos(m_lastPos);
+    QApplication::restoreOverrideCursor();
+}
+
+QStringList PropertyEditorContextObject::styleNamesForFamily(const QString &family)
+{
+    const QFontDatabase dataBase;
+    return dataBase.styles(family);
+}
+
+void EasingCurveEditor::registerDeclarativeType()
+{
+     qmlRegisterType<EasingCurveEditor>("HelperWidgets", 2, 0, "EasingCurveEditor");
+}
+
+void EasingCurveEditor::runDialog()
+{
+    if (m_modelNode.isValid())
+        EasingCurveDialog::runDialog({ m_modelNode }, Core::ICore::dialogParent());
+}
+
+void EasingCurveEditor::setModelNodeBackend(const QVariant &modelNodeBackend)
+{
+    if (!modelNodeBackend.isNull() && modelNodeBackend.isValid()) {
+        m_modelNodeBackend = modelNodeBackend;
+
+        const auto modelNodeBackendObject = m_modelNodeBackend.value<QObject*>();
+
+        const auto backendObjectCasted =
+                qobject_cast<const QmlDesigner::QmlModelNodeProxy *>(modelNodeBackendObject);
+
+        if (backendObjectCasted) {
+            m_modelNode = backendObjectCasted->qmlObjectNode().modelNode();
+        }
+
+        emit modelNodeBackendChanged();
+    }
+}
+
+QVariant EasingCurveEditor::modelNodeBackend() const
+{
+    return m_modelNodeBackend;
 }
 
 } //QmlDesigner

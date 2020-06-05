@@ -32,15 +32,15 @@ class Targets:
     (DESKTOP_4_8_7_DEFAULT,
      EMBEDDED_LINUX,
      DESKTOP_5_4_1_GCC,
-     DESKTOP_5_6_1_DEFAULT,
-     DESKTOP_5_10_1_DEFAULT) = ALL_TARGETS
+     DESKTOP_5_10_1_DEFAULT,
+     DESKTOP_5_14_1_DEFAULT) = ALL_TARGETS
 
     __TARGET_NAME_DICT__ = dict(zip(ALL_TARGETS,
                                     ["Desktop 4.8.7 default",
                                      "Embedded Linux",
                                      "Desktop 5.4.1 GCC",
-                                     "Desktop 5.6.1 default",
-                                     "Desktop 5.10.1 default"]))
+                                     "Desktop 5.10.1 default",
+                                     "Desktop 5.14.1 default"]))
 
     @staticmethod
     def availableTargetClasses():
@@ -71,7 +71,7 @@ class Targets:
 
     @staticmethod
     def getDefaultKit():
-        return Targets.DESKTOP_5_6_1_DEFAULT
+        return Targets.DESKTOP_5_14_1_DEFAULT
 
 # this class holds some constants for easier usage inside the Projects view
 class ProjectSettings:
@@ -84,27 +84,6 @@ class ViewConstants:
     FIRST_AVAILABLE = 0
     # always adjust the following to the highest value of the available ViewConstants when adding new
     LAST_AVAILABLE = HELP
-
-    # this function returns a regex of the tooltip of the FancyTabBar elements
-    # this is needed because the keyboard shortcut is OS specific
-    # if the provided argument does not match any of the ViewConstants it returns None
-    @staticmethod
-    def getToolTipForViewTab(viewTab):
-        if viewTab == ViewConstants.WELCOME:
-            toolTip = ur'Switch to <b>Welcome</b> mode <span style="color: gray; font-size: small">(Ctrl\+|\u2303)%d</span>'
-        elif viewTab == ViewConstants.EDIT:
-            toolTip = ur'Switch to <b>Edit</b> mode <span style="color: gray; font-size: small">(Ctrl\+|\u2303)%d</span>'
-        elif viewTab == ViewConstants.DESIGN:
-            toolTip = ur'Switch to <b>Design</b> mode <span style="color: gray; font-size: small">(Ctrl\+|\u2303)%d</span>'
-        elif viewTab == ViewConstants.DEBUG:
-            toolTip = ur'Switch to <b>Debug</b> mode <span style="color: gray; font-size: small">(Ctrl\+|\u2303)%d</span>'
-        elif viewTab == ViewConstants.PROJECTS:
-            toolTip = ur'Switch to <b>Projects</b> mode <span style="color: gray; font-size: small">(Ctrl\+|\u2303)%d</span>'
-        elif viewTab == ViewConstants.HELP:
-            toolTip = ur'Switch to <b>Help</b> mode <span style="color: gray; font-size: small">(Ctrl\+|\u2303)%d</span>'
-        else:
-            return None
-        return toolTip % (viewTab + 1)
 
 class LibType:
     SHARED = 0
@@ -127,7 +106,7 @@ class Qt5Path:
 
     @staticmethod
     def getPaths(pathSpec):
-        qt5targets = [Targets.DESKTOP_5_6_1_DEFAULT, Targets.DESKTOP_5_10_1_DEFAULT]
+        qt5targets = [Targets.DESKTOP_5_10_1_DEFAULT, Targets.DESKTOP_5_14_1_DEFAULT]
         if platform.system() != 'Darwin':
             qt5targets.append(Targets.DESKTOP_5_4_1_GCC)
         if pathSpec == Qt5Path.DOCS:

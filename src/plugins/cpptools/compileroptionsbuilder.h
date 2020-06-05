@@ -69,6 +69,7 @@ public:
     void addExtraCodeModelFlags();
     void addPicIfCompilerFlagsContainsIt();
     void addCompilerFlags();
+    void enableExceptions();
     void insertWrappedQtHeaders();
     void addLanguageVersionAndExtensions();
     void updateFileLanguage(ProjectFile::Kind fileKind);
@@ -84,6 +85,8 @@ public:
     void add(const QString &arg, bool gccOnlyOption = false);
     void add(const QStringList &args, bool gccOnlyOptions = false);
     virtual void addExtraOptions() {}
+
+    void remove(const QStringList &args);
 
     static UseToolchainMacros useToolChainMacros();
     void reset();

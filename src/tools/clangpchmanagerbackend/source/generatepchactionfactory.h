@@ -46,8 +46,9 @@ public:
     {
         compilerInstance.getPreprocessorOpts().DisablePCHValidation = true;
         compilerInstance.getPreprocessorOpts().AllowPCHWithCompilerErrors = true;
-        compilerInstance.getLangOpts().DelayedTemplateParsing = true;
         compilerInstance.getDiagnosticOpts().ErrorLimit = 0;
+        compilerInstance.getFrontendOpts().SkipFunctionBodies = true;
+        compilerInstance.getFrontendOpts().IncludeTimestamps = true;
         std::unique_ptr<llvm::MemoryBuffer> Input = llvm::MemoryBuffer::getMemBuffer(m_fileContent);
         compilerInstance.getPreprocessorOpts().addRemappedFile(m_filePath, Input.release());
 
@@ -67,10 +68,17 @@ public:
         , m_fileContent(fileContent)
     {}
 
+#if LLVM_VERSION_MAJOR >= 10
+    std::unique_ptr<clang::FrontendAction> create() override
+    {
+        return std::make_unique<GeneratePCHAction>(m_filePath, m_fileContent);
+    }
+#else
     clang::FrontendAction *create() override
     {
         return new GeneratePCHAction{m_filePath, m_fileContent};
     }
+#endif
 
 private:
     llvm::StringRef m_filePath;

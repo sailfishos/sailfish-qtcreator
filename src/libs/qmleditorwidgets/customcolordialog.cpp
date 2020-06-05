@@ -62,8 +62,7 @@ CustomColorDialog::CustomColorDialog(QWidget *parent) : QFrame(parent )
     QVBoxLayout* vBox = new QVBoxLayout(colorFrameWidget);
     colorFrameWidget->setLayout(vBox);
     vBox->setSpacing(0);
-    vBox->setMargin(0);
-    vBox->setContentsMargins(0,5,0,28);
+    vBox->setContentsMargins(0, 5, 0, 28);
 
     m_beforeColorWidget = new QFrame(colorFrameWidget);
     m_beforeColorWidget->setFixedSize(30, 18);
@@ -85,7 +84,7 @@ CustomColorDialog::CustomColorDialog(QWidget *parent) : QFrame(parent )
     QGridLayout *gridLayout = new QGridLayout(this);
     gridLayout->setSpacing(4);
     gridLayout->setVerticalSpacing(4);
-    gridLayout->setMargin(4);
+    gridLayout->setContentsMargins(4, 4, 4, 4);
     setLayout(gridLayout);
 
     gridLayout->addWidget(m_colorBox, 0, 0, 4, 1);
@@ -113,17 +112,13 @@ CustomColorDialog::CustomColorDialog(QWidget *parent) : QFrame(parent )
     resize(sizeHint());
 
     connect(m_colorBox, &ColorBox::colorChanged, this, &CustomColorDialog::onColorBoxChanged);
-    connect(m_alphaSpinBox,
-            static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
+    connect(m_alphaSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &CustomColorDialog::spinBoxChanged);
-    connect(m_rSpinBox,
-            static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
+    connect(m_rSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &CustomColorDialog::spinBoxChanged);
-    connect(m_gSpinBox,
-            static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
+    connect(m_gSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &CustomColorDialog::spinBoxChanged);
-    connect(m_bSpinBox,
-            static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
+    connect(m_bSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &CustomColorDialog::spinBoxChanged);
     connect(m_hueControl, &HueControl::hueChanged, this, &CustomColorDialog::onHueChanged);
 
@@ -145,7 +140,7 @@ CustomColorDialog::CustomColorDialog(QWidget *parent) : QFrame(parent )
 void CustomColorDialog::setupColor(const QColor &color)
 {
     QPalette pal;
-    pal.setColor(QPalette::Background, color);
+    pal.setColor(QPalette::Window, color);
     m_beforeColorWidget->setPalette(pal);
     setColor(color);
 }
@@ -180,7 +175,7 @@ void CustomColorDialog::setupWidgets()
     m_bSpinBox->setValue(m_color.blueF());
     m_colorBox->setColor(m_color);
     QPalette pal;
-    pal.setColor(QPalette::Background, m_color);
+    pal.setColor(QPalette::Window, m_color);
     m_currentColorWidget->setPalette(pal);
     m_blockUpdate = false;
 }

@@ -42,8 +42,6 @@ public:
     DebuggerPlugin();
     ~DebuggerPlugin() override;
 
-    static DebuggerPlugin *instance();
-
 private:
     // IPlugin implementation.
     bool initialize(const QStringList &arguments, QString *errorMessage) override;
@@ -59,7 +57,7 @@ private:
     // Called from GammaRayIntegration
     Q_SLOT void getEnginesState(QByteArray *json) const;
 
-    QList<QObject *> createTestObjects() const override;
+    QVector<QObject *> createTestObjects() const override;
 };
 
 } // namespace Internal

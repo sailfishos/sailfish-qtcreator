@@ -44,10 +44,11 @@
 #include <QLoggingCategory>
 #include <QProcess>
 
+using namespace Utils;
 using namespace std;
 
 namespace {
-Q_LOGGING_CATEGORY(simulatorLog, "qtc.ios.simulator", QtWarningMsg)
+static Q_LOGGING_CATEGORY(simulatorLog, "qtc.ios.simulator", QtWarningMsg)
 }
 
 namespace Ios {
@@ -60,6 +61,7 @@ const char deviceTypeTag[] = "devicetypes";
 const char devicesTag[] = "devices";
 const char availabilityTag[] = "availability";
 const char unavailabilityToken[] = "unavailable";
+const char availabilityTagNew[] = "isAvailable"; // at least since Xcode 10
 const char identifierTag[] = "identifier";
 const char runtimesTag[] = "runtimes";
 const char nameTag[] = "name";
@@ -77,34 +79,34 @@ static bool checkForTimeout(const chrono::high_resolution_clock::time_point &sta
     return timedOut;
 }
 
-static bool runCommand(QString command, const QStringList &args, QString *output)
+static bool runCommand(const CommandLine &command, QString *output)
 {
-    Utils::SynchronousProcess p;
+    SynchronousProcess p;
     p.setTimeoutS(-1);
-    Utils::SynchronousProcessResponse resp = p.runBlocking(command, args);
+    SynchronousProcessResponse resp = p.runBlocking(command);
     if (output)
         *output = resp.stdOut();
-    return resp.result == Utils::SynchronousProcessResponse::Finished;
+    return resp.result == SynchronousProcessResponse::Finished;
 }
 
 static bool runSimCtlCommand(QStringList args, QString *output)
 {
     args.prepend("simctl");
-    return runCommand("xcrun", args, output);
+    return runCommand({"xcrun", args}, output);
 }
 
 static bool launchSimulator(const QString &simUdid) {
     QTC_ASSERT(!simUdid.isEmpty(), return false);
     const QString simulatorAppPath = IosConfigurations::developerPath()
-            .appendPath("Applications/Simulator.app/Contents/MacOS/Simulator").toString();
+            .pathAppended("Applications/Simulator.app/Contents/MacOS/Simulator").toString();
 
     if (IosConfigurations::xcodeVersion() >= QVersionNumber(9)) {
         // For XCode 9 boot the second device instead of launching simulator app twice.
         QString psOutput;
-        if (runCommand("ps", {"-A", "-o", "comm"}, &psOutput)) {
+        if (runCommand({"ps", {"-A", "-o", "comm"}}, &psOutput)) {
             for (const QString &comm : psOutput.split('\n')) {
                 if (comm == simulatorAppPath)
-                    return runSimCtlCommand(QStringList({"boot", simUdid}), nullptr);
+                    return runSimCtlCommand({"boot", simUdid}, nullptr);
             }
         } else {
             qCDebug(simulatorLog) << "Cannot start Simulator device."
@@ -114,6 +116,13 @@ static bool launchSimulator(const QString &simUdid) {
     }
 
     return QProcess::startDetached(simulatorAppPath, {"--args", "-CurrentDeviceUDID", simUdid});
+}
+
+static bool isAvailable(const QJsonObject &object)
+{
+    return object.contains(availabilityTagNew)
+               ? object.value(availabilityTagNew).toBool()
+               : !object.value(availabilityTag).toString().contains(unavailabilityToken);
 }
 
 static QList<DeviceTypeInfo> getAvailableDeviceTypes()
@@ -126,7 +135,7 @@ static QList<DeviceTypeInfo> getAvailableDeviceTypes()
         const QJsonArray runtimesArray = doc.object().value(deviceTypeTag).toArray();
         foreach (const QJsonValue deviceTypeValue, runtimesArray) {
             QJsonObject deviceTypeObject = deviceTypeValue.toObject();
-            if (!deviceTypeObject.value(availabilityTag).toString().contains(unavailabilityToken)) {
+            if (isAvailable(deviceTypeObject)) {
                 DeviceTypeInfo deviceType;
                 deviceType.name = deviceTypeObject.value(nameTag).toString("unknown");
                 deviceType.identifier = deviceTypeObject.value(identifierTag).toString("unknown");
@@ -150,7 +159,7 @@ static QList<RuntimeInfo> getAvailableRuntimes()
         const QJsonArray runtimesArray = doc.object().value(runtimesTag).toArray();
         foreach (const QJsonValue runtimeValue, runtimesArray) {
             QJsonObject runtimeObject = runtimeValue.toObject();
-            if (!runtimeObject.value(availabilityTag).toString().contains(unavailabilityToken)) {
+            if (isAvailable(runtimeObject)) {
                 RuntimeInfo runtime;
                 runtime.name = runtimeObject.value(nameTag).toString("unknown");
                 runtime.build = runtimeObject.value(buildVersionTag).toString("unknown");
@@ -172,12 +181,12 @@ private:
     ~SimulatorControlPrivate();
 
     static SimulatorInfo deviceInfo(const QString &simUdid);
-    static QString bundleIdentifier(const Utils::FileName &bundlePath);
-    static QString bundleExecutable(const Utils::FileName &bundlePath);
+    static QString bundleIdentifier(const Utils::FilePath &bundlePath);
+    static QString bundleExecutable(const Utils::FilePath &bundlePath);
 
     void startSimulator(QFutureInterface<SimulatorControl::ResponseData> &fi, const QString &simUdid);
     void installApp(QFutureInterface<SimulatorControl::ResponseData> &fi, const QString &simUdid,
-                    const Utils::FileName &bundlePath);
+                    const Utils::FilePath &bundlePath);
     void launchApp(QFutureInterface<SimulatorControl::ResponseData> &fi, const QString &simUdid,
                    const QString &bundleIdentifier, bool waitForDebugger,
                    const QStringList &extraArgs, const QString &stdoutPath,
@@ -232,8 +241,7 @@ static QList<SimulatorInfo> getAllSimulatorDevices()
                 device.identifier = deviceObject.value(udidTag).toString();
                 device.name = deviceObject.value(nameTag).toString();
                 device.runtimeName = runtime;
-                const QString availableStr = deviceObject.value(availabilityTag).toString();
-                device.available = !availableStr.contains(unavailabilityToken);
+                device.available = isAvailable(deviceObject);
                 device.state = deviceObject.value(stateTag).toString();
                 simulatorDevices.append(device);
             }
@@ -291,12 +299,12 @@ bool SimulatorControl::isSimulatorRunning(const QString &simUdid)
     return SimulatorControlPrivate::deviceInfo(simUdid).isBooted();
 }
 
-QString SimulatorControl::bundleIdentifier(const Utils::FileName &bundlePath)
+QString SimulatorControl::bundleIdentifier(const Utils::FilePath &bundlePath)
 {
     return SimulatorControlPrivate::bundleIdentifier(bundlePath);
 }
 
-QString SimulatorControl::bundleExecutable(const Utils::FileName &bundlePath)
+QString SimulatorControl::bundleExecutable(const Utils::FilePath &bundlePath)
 {
     return SimulatorControlPrivate::bundleExecutable(bundlePath);
 }
@@ -307,7 +315,7 @@ QFuture<SimulatorControl::ResponseData> SimulatorControl::startSimulator(const Q
 }
 
 QFuture<SimulatorControl::ResponseData>
-SimulatorControl::installApp(const QString &simUdid, const Utils::FileName &bundlePath) const
+SimulatorControl::installApp(const QString &simUdid, const Utils::FilePath &bundlePath) const
 {
     return Utils::runAsync(&SimulatorControlPrivate::installApp, d, simUdid, bundlePath);
 }
@@ -372,7 +380,7 @@ SimulatorInfo SimulatorControlPrivate::deviceInfo(const QString &simUdid)
     return device;
 }
 
-QString SimulatorControlPrivate::bundleIdentifier(const Utils::FileName &bundlePath)
+QString SimulatorControlPrivate::bundleIdentifier(const Utils::FilePath &bundlePath)
 {
     QString bundleID;
 #ifdef Q_OS_MAC
@@ -392,7 +400,7 @@ QString SimulatorControlPrivate::bundleIdentifier(const Utils::FileName &bundleP
     return bundleID;
 }
 
-QString SimulatorControlPrivate::bundleExecutable(const Utils::FileName &bundlePath)
+QString SimulatorControlPrivate::bundleExecutable(const Utils::FilePath &bundlePath)
 {
     QString executable;
 #ifdef Q_OS_MAC
@@ -470,7 +478,7 @@ void SimulatorControlPrivate::startSimulator(QFutureInterface<SimulatorControl::
 }
 
 void SimulatorControlPrivate::installApp(QFutureInterface<SimulatorControl::ResponseData> &fi,
-                                         const QString &simUdid, const Utils::FileName &bundlePath)
+                                         const QString &simUdid, const Utils::FilePath &bundlePath)
 {
     QTC_CHECK(bundlePath.exists());
 

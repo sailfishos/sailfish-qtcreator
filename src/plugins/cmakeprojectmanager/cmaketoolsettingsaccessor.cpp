@@ -72,30 +72,29 @@ static std::vector<std::unique_ptr<CMakeTool>> autoDetectCMakeTools()
 {
     Utils::Environment env = Environment::systemEnvironment();
 
-    Utils::FileNameList path = env.path();
+    Utils::FilePaths path = env.path();
     path = Utils::filteredUnique(path);
 
     if (HostOsInfo::isWindowsHost()) {
-        const QString progFiles = QLatin1String(qgetenv("ProgramFiles"));
-        path.append(Utils::FileName::fromString(progFiles + "/CMake"));
-        path.append(Utils::FileName::fromString(progFiles + "/CMake/bin"));
-        const QString progFilesX86 = QLatin1String(qgetenv("ProgramFiles(x86)"));
-        if (!progFilesX86.isEmpty()) {
-            path.append(Utils::FileName::fromString(progFilesX86 + "/CMake"));
-            path.append(Utils::FileName::fromString(progFilesX86 + "/CMake/bin"));
+        for (auto envVar : {"ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"}) {
+            if (qEnvironmentVariableIsSet(envVar)) {
+                const QString progFiles = qEnvironmentVariable(envVar);
+                path.append(Utils::FilePath::fromString(progFiles + "/CMake"));
+                path.append(Utils::FilePath::fromString(progFiles + "/CMake/bin"));
+            }
         }
     }
 
     if (HostOsInfo::isMacHost()) {
-        path.append(Utils::FileName::fromString("/Applications/CMake.app/Contents/bin"));
-        path.append(Utils::FileName::fromString("/usr/local/bin"));
-        path.append(Utils::FileName::fromString("/opt/local/bin"));
+        path.append(Utils::FilePath::fromString("/Applications/CMake.app/Contents/bin"));
+        path.append(Utils::FilePath::fromString("/usr/local/bin"));
+        path.append(Utils::FilePath::fromString("/opt/local/bin"));
     }
 
     const QStringList execs = env.appendExeExtensions(QLatin1String("cmake"));
 
-    FileNameList suspects;
-    foreach (const Utils::FileName &base, path) {
+    FilePaths suspects;
+    foreach (const Utils::FilePath &base, path) {
         if (base.isEmpty())
             continue;
 
@@ -103,14 +102,14 @@ static std::vector<std::unique_ptr<CMakeTool>> autoDetectCMakeTools()
         for (const QString &exec : execs) {
             fi.setFile(QDir(base.toString()), exec);
             if (fi.exists() && fi.isFile() && fi.isExecutable())
-                suspects << FileName::fromString(fi.absoluteFilePath());
+                suspects << FilePath::fromString(fi.absoluteFilePath());
         }
     }
 
     std::vector<std::unique_ptr<CMakeTool>> found;
-    foreach (const FileName &command, suspects) {
+    foreach (const FilePath &command, suspects) {
         auto item = std::make_unique<CMakeTool>(CMakeTool::AutoDetection, CMakeTool::createId());
-        item->setCMakeExecutable(command);
+        item->setFilePath(command);
         item->setDisplayName(CMakeToolManager::tr("System CMake at %1").arg(command.toUserOutput()));
 
         found.emplace_back(std::move(item));
@@ -166,7 +165,7 @@ CMakeToolSettingsAccessor::CMakeToolSettingsAccessor() :
                               QCoreApplication::translate("CMakeProjectManager::CMakeToolManager", "CMake"),
                               Core::Constants::IDE_DISPLAY_NAME)
 {
-    setBaseFilePath(FileName::fromString(Core::ICore::userResourcePath() + CMAKE_TOOL_FILENAME));
+    setBaseFilePath(FilePath::fromString(Core::ICore::userResourcePath() + CMAKE_TOOL_FILENAME));
 
     addVersionUpgrader(std::make_unique<CMakeToolSettingsUpgraderV0>());
 }
@@ -175,7 +174,7 @@ CMakeToolSettingsAccessor::CMakeTools CMakeToolSettingsAccessor::restoreCMakeToo
 {
     CMakeTools result;
 
-    const FileName sdkSettingsFile = FileName::fromString(Core::ICore::installerResourcePath()
+    const FilePath sdkSettingsFile = FilePath::fromString(Core::ICore::installerResourcePath()
                                                           + CMAKE_TOOL_FILENAME);
 
     CMakeTools sdkTools = cmakeTools(restoreSettings(sdkSettingsFile, parent), true);

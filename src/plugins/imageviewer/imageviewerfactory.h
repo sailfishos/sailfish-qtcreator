@@ -27,19 +27,14 @@
 #pragma once
 
 #include <coreplugin/editormanager/ieditorfactory.h>
-#include <coreplugin/editormanager/ieditor.h>
-#include <coreplugin/idocument.h>
 
 namespace ImageViewer {
 namespace Internal {
 
-class ImageViewerFactory : public Core::IEditorFactory
+class ImageViewerFactory final : public Core::IEditorFactory
 {
-    Q_OBJECT
 public:
-    explicit ImageViewerFactory(QObject *parent = nullptr);
-
-    Core::IEditor *createEditor() override;
+    ImageViewerFactory();
 };
 
 } // namespace Internal

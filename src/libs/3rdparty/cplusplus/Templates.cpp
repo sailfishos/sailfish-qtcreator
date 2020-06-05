@@ -34,7 +34,7 @@ using namespace CPlusPlus;
 CloneType::CloneType(Clone *clone)
     : _clone(clone)
     , _control(clone->control())
-    , _subst(0)
+    , _subst(nullptr)
 {
 }
 
@@ -102,7 +102,7 @@ void CloneType::visit(NamedType *type)
     const Name *name = _clone->name(type->name(), _subst);
     FullySpecifiedType ty;
     if (_subst)
-        ty = _clone->type(_subst->apply(name), 0);
+        ty = _clone->type(_subst->apply(name), nullptr);
     if (! ty.isValid())
         ty = _control->namedType(name);
     _type.setType(ty.type());
@@ -177,15 +177,15 @@ void CloneType::visit(ObjCForwardProtocolDeclaration *type)
 CloneSymbol::CloneSymbol(Clone *clone)
     : _clone(clone)
     , _control(clone->control())
-    , _subst(0)
-    , _symbol(0)
+    , _subst(nullptr)
+    , _symbol(nullptr)
 {
 }
 
 Symbol *CloneSymbol::cloneSymbol(Symbol *symbol, Subst *subst)
 {
     if (! symbol)
-        return 0;
+        return nullptr;
 
     SymbolSubstPair symbolSubstPair = std::make_pair(symbol, subst);
     auto it = _cache.find(symbolSubstPair);
@@ -194,14 +194,14 @@ Symbol *CloneSymbol::cloneSymbol(Symbol *symbol, Subst *subst)
             return it->second;
     }
 
-    Symbol *r = 0;
+    Symbol *r = nullptr;
     std::swap(_subst, subst);
     std::swap(_symbol, r);
     accept(symbol);
     std::swap(_symbol, r);
     std::swap(_subst, subst);
 
-    CPP_CHECK(r != 0);
+    CPP_CHECK(r != nullptr);
     _cache[symbolSubstPair] = r;
     return r;
 }
@@ -401,28 +401,28 @@ bool CloneSymbol::visit(ObjCPropertyDeclaration *symbol)
 CloneName::CloneName(Clone *clone)
     : _clone(clone)
     , _control(clone->control())
-    , _subst(0)
-    , _name(0)
+    , _subst(nullptr)
+    , _name(nullptr)
 {
 }
 
 const Name *CloneName::cloneName(const Name *name, Subst *subst)
 {
     if (! name)
-        return 0;
+        return nullptr;
 
     NameSubstPair nameSubstPair = std::make_pair(name, subst);
     auto it = _cache.find(nameSubstPair);
     if (it != _cache.end())
         return it->second;
 
-    const Name *r = 0;
+    const Name *r = nullptr;
     std::swap(_subst, subst);
     std::swap(_name, r);
     accept(name);
     std::swap(_name, r);
     std::swap(_subst, subst);
-    CPP_CHECK(r != 0);
+    CPP_CHECK(r != nullptr);
     _cache[nameSubstPair] = r;
     return r;
 }
@@ -440,13 +440,13 @@ void CloneName::visit(const AnonymousNameId *name)
 void CloneName::visit(const TemplateNameId *name)
 {
     std::vector<FullySpecifiedType> args(name->templateArgumentCount());
-    for (unsigned i = 0; i < args.size(); ++i)
+    for (int i = 0; i < int(args.size()); ++i)
         args[i] = _clone->type(name->templateArgumentAt(i), _subst);
     if (args.empty())
         _name = _control->templateNameId(_clone->identifier(name->identifier()), name->isSpecialization());
     else
         _name = _control->templateNameId(_clone->identifier(name->identifier()), name->isSpecialization(),
-                                         &args[0], unsigned(args.size()));
+                                         &args[0], int(args.size()));
 }
 
 void CloneName::visit(const DestructorNameId *name)
@@ -474,9 +474,9 @@ void CloneName::visit(const SelectorNameId *name)
 {
     CPP_CHECK(name->nameCount() > 0);
     std::vector<const Name *> names(name->nameCount());
-    for (unsigned i = 0; i < names.size(); ++i)
+    for (int i = 0; i < int(names.size()); ++i)
         names[i] = _clone->name(name->nameAt(i), _subst);
-    _name = _control->selectorNameId(&names[0], unsigned(names.size()), name->hasArguments());
+    _name = _control->selectorNameId(&names[0], int(names.size()), name->hasArguments());
 }
 
 
@@ -490,17 +490,17 @@ Clone::Clone(Control *control)
 
 const StringLiteral *Clone::stringLiteral(const StringLiteral *literal)
 {
-    return literal ? _control->stringLiteral(literal->chars(), literal->size()) : 0;
+    return literal ? _control->stringLiteral(literal->chars(), literal->size()) : nullptr;
 }
 
 const NumericLiteral *Clone::numericLiteral(const NumericLiteral *literal)
 {
-    return literal ? _control->numericLiteral(literal->chars(), literal->size()) : 0;
+    return literal ? _control->numericLiteral(literal->chars(), literal->size()) : nullptr;
 }
 
 const Identifier *Clone::identifier(const Identifier *id)
 {
-    return id ? _control->identifier(id->chars(), id->size()) : 0;
+    return id ? _control->identifier(id->chars(), id->size()) : nullptr;
 }
 
 FullySpecifiedType Clone::type(const FullySpecifiedType &type, Subst *subst)
@@ -518,16 +518,16 @@ Symbol *Clone::symbol(Symbol *symbol, Subst *subst)
     return _symbol(symbol, subst);
 }
 
-Symbol *Clone::instantiate(Template *templ, const FullySpecifiedType *const args, unsigned argc, Subst *s)
+Symbol *Clone::instantiate(Template *templ, const FullySpecifiedType *const args, int argc, Subst *s)
 {
     Subst subst(_control, s);
-    for (unsigned i = 0, e = std::min(templ->templateParameterCount(), argc); i < e; ++i) {
+    for (int i = 0, e = std::min(templ->templateParameterCount(), argc); i < e; ++i) {
         Symbol *formal = templ->templateParameterAt(i);
         FullySpecifiedType actual = args[i];
-        subst.bind(name(formal->name(), 0), actual);
+        subst.bind(name(formal->name(), nullptr), actual);
     }
     if (argc < templ->templateParameterCount()) {
-        for (unsigned i = argc; i < templ->templateParameterCount(); ++i) {
+        for (int i = argc; i < templ->templateParameterCount(); ++i) {
             Symbol *formal = templ->templateParameterAt(i);
             if (TypenameArgument *tn = formal->asTypenameArgument())
                 subst.bind(name(formal->name(), &subst), type(tn->type(), &subst));
@@ -537,7 +537,7 @@ Symbol *Clone::instantiate(Template *templ, const FullySpecifiedType *const args
         inst->setEnclosingScope(templ->enclosingScope());
         return inst;
     }
-    return 0;
+    return nullptr;
 }
 
 //
@@ -564,7 +564,7 @@ FullySpecifiedType Subst::apply(const Name *name) const
                     return control()->namedType(control()->qualifiedNameId(qualifiedBase,
                                                                            qualifiedName));
                 }
-                else if(baseNamedType->name()->identifier() != 0) {
+                else if(baseNamedType->name()->identifier() != nullptr) {
                     const QualifiedNameId *clonedQualifiedNameId
                             = control()->qualifiedNameId(baseNamedType->name()->identifier(),
                                                          unqualified->name());

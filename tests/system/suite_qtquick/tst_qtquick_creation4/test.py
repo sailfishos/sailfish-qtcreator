@@ -29,14 +29,14 @@ def main():
     startQC()
     if not startedWithoutPluginError():
         return
-    for target in [Targets.DESKTOP_5_6_1_DEFAULT, Targets.DESKTOP_5_10_1_DEFAULT]:
+    for target in [Targets.DESKTOP_5_10_1_DEFAULT, Targets.DESKTOP_5_14_1_DEFAULT]:
         # using a temporary directory won't mess up a potentially existing
         createNewQmlExtension(tempDir(), [target])
         # wait for parsing to complete
-        progressBarWait(30000)
+        waitForProjectParsing()
         test.log("Building project Qt Quick 2 Extension Plugin (%s)"
                  % Targets.getStringForTarget(target))
-        invokeMenuItem("Build","Build All")
+        invokeMenuItem("Build","Build All Projects")
         waitForCompile()
         checkCompile()
         checkLastBuild()

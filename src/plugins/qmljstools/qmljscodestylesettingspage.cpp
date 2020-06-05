@@ -121,16 +121,13 @@ void QmlJSCodeStylePreferencesWidget::updatePreview()
 
 // ------------------ CppCodeStyleSettingsPage
 
-QmlJSCodeStyleSettingsPage::QmlJSCodeStyleSettingsPage(/*QSharedPointer<CppFileSettings> &settings,*/
-                     QWidget *parent) :
-    Core::IOptionsPage(parent)
+QmlJSCodeStyleSettingsPage::QmlJSCodeStyleSettingsPage()
 {
     setId(Constants::QML_JS_CODE_STYLE_SETTINGS_ID);
     setDisplayName(QCoreApplication::translate("QmlJSTools", Constants::QML_JS_CODE_STYLE_SETTINGS_NAME));
     setCategory(QmlJSEditor::Constants::SETTINGS_CATEGORY_QML);
     setDisplayCategory(QCoreApplication::translate("QmlJSEditor", "Qt Quick"));
-    setCategoryIcon(Utils::Icon({{":/qmljstools/images/settingscategory_qml.png",
-                    Utils::Theme::PanelTextColorDark}}, Utils::Icon::Tint));
+    setCategoryIconPath(":/qmljstools/images/settingscategory_qml.png");
 }
 
 QWidget *QmlJSCodeStyleSettingsPage::widget()

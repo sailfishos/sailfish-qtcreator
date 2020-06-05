@@ -32,7 +32,6 @@
 #include <QSet>
 
 QT_BEGIN_NAMESPACE
-class QRegExp;
 class QTextCodec;
 class QTextCursor;
 QT_END_NAMESPACE
@@ -48,6 +47,7 @@ class BaseAnnotationHighlighter;
 class VcsBaseEditorWidget;
 class VcsBaseEditorConfig;
 class VcsCommand;
+class VcsEditorFactory;
 
 // Documentation inside
 enum EditorContentType
@@ -135,7 +135,6 @@ class VCSBASE_EXPORT VcsBaseEditorWidget : public TextEditor::TextEditorWidget
     Q_PROPERTY(QString workingDirectory READ workingDirectory WRITE setWorkingDirectory)
     Q_PROPERTY(QTextCodec *codec READ codec WRITE setCodec)
     Q_PROPERTY(QString annotateRevisionTextFormat READ annotateRevisionTextFormat WRITE setAnnotateRevisionTextFormat)
-    Q_PROPERTY(QString copyRevisionTextFormat READ copyRevisionTextFormat WRITE setCopyRevisionTextFormat)
     Q_PROPERTY(bool isFileLogAnnotateEnabled READ isFileLogAnnotateEnabled WRITE setFileLogAnnotateEnabled)
     Q_OBJECT
 
@@ -144,9 +143,13 @@ protected:
     // virtual functions).
     VcsBaseEditorWidget();
     // Pattern for diff header. File name must be in the first capture group
-    void setDiffFilePattern(const QRegExp &pattern);
+    void setDiffFilePattern(const QString &pattern);
     // Pattern for log entry. hash/revision number must be in the first capture group
-    void setLogEntryPattern(const QRegExp &pattern);
+    void setLogEntryPattern(const QString &pattern);
+    // Pattern for annotation entry. hash/revision number must be in the first capture group
+    void setAnnotationEntryPattern(const QString &pattern);
+    // Pattern for annotation separator. Lookup will stop on match.
+    void setAnnotationSeparatorPattern(const QString &pattern);
     virtual bool supportChangeLinks() const;
     virtual QString fileNameForLine(int line) const;
 
@@ -183,10 +186,6 @@ public:
     // Defaults to "annotateRevisionTextFormat" if unset.
     QString annotatePreviousRevisionTextFormat() const;
     void setAnnotatePreviousRevisionTextFormat(const QString &);
-
-    // Format for "Copy" revision menu entries. Should contain '%1" placeholder
-    QString copyRevisionTextFormat() const;
-    void setCopyRevisionTextFormat(const QString &);
 
     // Enable "Annotate" context menu in file log view
     // (set to true if the source is a single file and the VCS implements it)
@@ -245,7 +244,7 @@ protected:
 
     // Implement to return a set of change identifiers in
     // annotation mode
-    virtual QSet<QString> annotationChanges() const = 0;
+    QSet<QString> annotationChanges() const;
     // Implement to identify a change number at the cursor position
     virtual QString changeUnderCursor(const QTextCursor &) const = 0;
     // Factory functions for highlighters
@@ -295,8 +294,11 @@ private:
 
 #ifdef WITH_TESTS
 public:
-    static void testDiffFileResolving(const char *id);
-    static void testLogResolving(const char *id, QByteArray &data, const QByteArray &entry1, const QByteArray &entry2);
+    static void testDiffFileResolving(const VcsEditorFactory &factory);
+    static void testLogResolving(const VcsEditorFactory &factory,
+                                 const QByteArray &data,
+                                 const QByteArray &entry1,
+                                 const QByteArray &entry2);
 #endif
 };
 

@@ -35,6 +35,7 @@
 #include <QBrush>
 #include <QLineF>
 #include <QPainter>
+#include <QPainterPath>
 #include <QKeyEvent>
 
 namespace qmt {
@@ -157,9 +158,9 @@ QRectF PathSelectionItem::boundingRect() const
 
 void PathSelectionItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
 {
-    Q_UNUSED(painter);
-    Q_UNUSED(option);
-    Q_UNUSED(widget);
+    Q_UNUSED(painter)
+    Q_UNUSED(option)
+    Q_UNUSED(widget)
 
 #ifdef DEBUG_PAINT_SHAPE
     painter->save();

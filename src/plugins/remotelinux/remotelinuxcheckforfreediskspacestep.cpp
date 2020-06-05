@@ -24,142 +24,47 @@
 ****************************************************************************/
 
 #include "remotelinuxcheckforfreediskspacestep.h"
-#include "ui_remotelinuxcheckforfreediskspacestepwidget.h"
 
 #include "remotelinuxcheckforfreediskspaceservice.h"
 
-#include <QString>
+#include <projectexplorer/projectconfigurationaspects.h>
 
 #include <limits>
 
 using namespace ProjectExplorer;
 
 namespace RemoteLinux {
-namespace Internal {
-namespace {
-class RemoteLinuxCheckForFreeDiskSpaceStepWidget : public BuildStepConfigWidget
+
+RemoteLinuxCheckForFreeDiskSpaceStep::RemoteLinuxCheckForFreeDiskSpaceStep
+    (BuildStepList *bsl, Core::Id id)
+        : AbstractRemoteLinuxDeployStep(bsl, id)
 {
-    Q_OBJECT
-
-public:
-    explicit RemoteLinuxCheckForFreeDiskSpaceStepWidget(RemoteLinuxCheckForFreeDiskSpaceStep &step)
-            : BuildStepConfigWidget(&step), m_step(step)
-    {
-        const QString displayName = QLatin1String("<b>")
-                + RemoteLinuxCheckForFreeDiskSpaceStep::displayName() + QLatin1String("</b>");
-        setDisplayName(displayName);
-        setSummaryText(displayName);
-
-        m_ui.setupUi(this);
-        m_ui.requiredSpaceSpinBox->setSuffix(tr("MB"));
-        m_ui.requiredSpaceSpinBox->setMinimum(1);
-        m_ui.requiredSpaceSpinBox->setMaximum(std::numeric_limits<int>::max());
-
-        m_ui.pathLineEdit->setText(m_step.pathToCheck());
-        m_ui.requiredSpaceSpinBox->setValue(m_step.requiredSpaceInBytes()/multiplier);
-
-        connect(m_ui.pathLineEdit, &QLineEdit::textChanged,
-                this, &RemoteLinuxCheckForFreeDiskSpaceStepWidget::handlePathChanged);
-        connect(m_ui.requiredSpaceSpinBox,
-                static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-                this, &RemoteLinuxCheckForFreeDiskSpaceStepWidget::handleRequiredSpaceChanged);
-    }
-
-private:
-    void handlePathChanged() { m_step.setPathToCheck(m_ui.pathLineEdit->text().trimmed()); }
-    void handleRequiredSpaceChanged() {
-        m_step.setRequiredSpaceInBytes(quint64(m_ui.requiredSpaceSpinBox->value())*multiplier);
-    }
-
-    static const int multiplier = 1024*1024;
-
-    Ui::RemoteLinuxCheckForFreeDiskSpaceStepWidget m_ui;
-    RemoteLinuxCheckForFreeDiskSpaceStep &m_step;
-};
-
-} // anonymous namespace
-
-const char PathToCheckKey[] = "RemoteLinux.CheckForFreeDiskSpaceStep.PathToCheck";
-const char RequiredSpaceKey[] = "RemoteLinux.CheckForFreeDiskSpaceStep.RequiredSpace";
-
-class RemoteLinuxCheckForFreeDiskSpaceStepPrivate
-{
-public:
-    RemoteLinuxCheckForFreeDiskSpaceService deployService;
-    QString pathToCheck;
-    quint64 requiredSpaceInBytes;
-};
-} // namespace Internal
-
-
-RemoteLinuxCheckForFreeDiskSpaceStep::RemoteLinuxCheckForFreeDiskSpaceStep(BuildStepList *bsl)
-        : AbstractRemoteLinuxDeployStep(bsl, stepId())
-{
-    d = new Internal::RemoteLinuxCheckForFreeDiskSpaceStepPrivate;
     setDefaultDisplayName(displayName());
-    setPathToCheck("/");
-    setRequiredSpaceInBytes(5*1024*1024);
+
+    auto service = createDeployService<RemoteLinuxCheckForFreeDiskSpaceService>();
+
+    auto pathToCheckAspect = addAspect<BaseStringAspect>();
+    pathToCheckAspect->setSettingsKey("RemoteLinux.CheckForFreeDiskSpaceStep.PathToCheck");
+    pathToCheckAspect->setDisplayStyle(BaseStringAspect::LineEditDisplay);
+    pathToCheckAspect->setValue("/");
+    pathToCheckAspect->setLabelText(tr("Remote path to check for free space:"));
+
+    auto requiredSpaceAspect = addAspect<BaseIntegerAspect>();
+    requiredSpaceAspect->setSettingsKey("RemoteLinux.CheckForFreeDiskSpaceStep.RequiredSpace");
+    requiredSpaceAspect->setLabel(tr("Required disk space:"));
+    requiredSpaceAspect->setDisplayScaleFactor(1024*1024);
+    requiredSpaceAspect->setValue(5*1024*1024);
+    requiredSpaceAspect->setSuffix(tr("MB"));
+    requiredSpaceAspect->setRange(1, std::numeric_limits<int>::max());
+
+    setInternalInitializer([service, pathToCheckAspect, requiredSpaceAspect] {
+        service->setPathToCheck(pathToCheckAspect->value());
+        service->setRequiredSpaceInBytes(requiredSpaceAspect->value());
+        return CheckResult::success();
+    });
 }
 
-RemoteLinuxCheckForFreeDiskSpaceStep::~RemoteLinuxCheckForFreeDiskSpaceStep()
-{
-    delete d;
-}
-
-void RemoteLinuxCheckForFreeDiskSpaceStep::setPathToCheck(const QString &path)
-{
-    d->pathToCheck = path;
-}
-
-QString RemoteLinuxCheckForFreeDiskSpaceStep::pathToCheck() const
-{
-    return d->pathToCheck;
-}
-
-void RemoteLinuxCheckForFreeDiskSpaceStep::setRequiredSpaceInBytes(quint64 space)
-{
-    d->requiredSpaceInBytes = space;
-}
-
-quint64 RemoteLinuxCheckForFreeDiskSpaceStep::requiredSpaceInBytes() const
-{
-    return d->requiredSpaceInBytes;
-}
-
-bool RemoteLinuxCheckForFreeDiskSpaceStep::fromMap(const QVariantMap &map)
-{
-    if (!AbstractRemoteLinuxDeployStep::fromMap(map))
-        return false;
-    d->pathToCheck = map.value(QLatin1String(Internal::PathToCheckKey)).toString();
-    d->requiredSpaceInBytes = map.value(QLatin1String(Internal::RequiredSpaceKey)).toULongLong();
-    return true;
-}
-
-QVariantMap RemoteLinuxCheckForFreeDiskSpaceStep::toMap() const
-{
-    QVariantMap map = AbstractRemoteLinuxDeployStep::toMap();
-    map.insert(QLatin1String(Internal::PathToCheckKey), d->pathToCheck);
-    map.insert(QLatin1String(Internal::RequiredSpaceKey), d->requiredSpaceInBytes);
-    return map;
-}
-
-BuildStepConfigWidget *RemoteLinuxCheckForFreeDiskSpaceStep::createConfigWidget()
-{
-    return new Internal::RemoteLinuxCheckForFreeDiskSpaceStepWidget(*this);
-}
-
-bool RemoteLinuxCheckForFreeDiskSpaceStep::initInternal(QString *error)
-{
-    Q_UNUSED(error);
-    d->deployService.setPathToCheck(d->pathToCheck);
-    d->deployService.setRequiredSpaceInBytes(d->requiredSpaceInBytes);
-    return true;
-}
-
-AbstractRemoteLinuxDeployService *RemoteLinuxCheckForFreeDiskSpaceStep::deployService() const
-{
-    return &d->deployService;
-}
+RemoteLinuxCheckForFreeDiskSpaceStep::~RemoteLinuxCheckForFreeDiskSpaceStep() = default;
 
 Core::Id RemoteLinuxCheckForFreeDiskSpaceStep::stepId()
 {
@@ -172,5 +77,3 @@ QString RemoteLinuxCheckForFreeDiskSpaceStep::displayName()
 }
 
 } // namespace RemoteLinux
-
-#include "remotelinuxcheckforfreediskspacestep.moc"

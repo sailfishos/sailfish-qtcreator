@@ -30,13 +30,12 @@
 #include "texteditorconstants.h"
 #include "colorscheme.h"
 
-#include "texteditoroptionspage.h"
+#include <coreplugin/dialogs/ioptionspage.h>
 
 #include <QList>
 #include <QString>
 
 QT_BEGIN_NAMESPACE
-class QWidget;
 class QColor;
 QT_END_NAMESPACE
 
@@ -119,44 +118,12 @@ private:
 
 using FormatDescriptions = std::vector<FormatDescription>;
 
-class TEXTEDITOR_EXPORT FontSettingsPage : public TextEditorOptionsPage
+class TEXTEDITOR_EXPORT FontSettingsPage final : public Core::IOptionsPage
 {
-    Q_OBJECT
-
 public:
-    FontSettingsPage(const FormatDescriptions &fd, Core::Id id, QObject *parent = nullptr);
+    FontSettingsPage(FontSettings *fontSettings, const FormatDescriptions &fd);
 
-    ~FontSettingsPage() override;
-
-    QWidget *widget() override;
-    void apply() override;
-    void finish() override;
-
-    void saveSettings();
-
-    const FontSettings &fontSettings() const;
-
-signals:
-    void changed(const TextEditor::FontSettings&);
-
-private:
-    void delayedChange();
-    void fontSelected(const QFont &font);
-    void fontSizeSelected(const QString &sizeString);
-    void fontZoomChanged();
-    void antialiasChanged();
-    void colorSchemeSelected(int index);
-    void openCopyColorSchemeDialog();
-    void copyColorScheme(const QString &name);
-    void confirmDeleteColorScheme();
-    void deleteColorScheme();
-
-    void maybeSaveColorScheme();
-    void updatePointSizes();
-    QList<int> pointSizesForSelectedFont() const;
-    void refreshColorSchemeList();
-
-    Internal::FontSettingsPagePrivate *d_ptr;
+    void setFontZoom(int zoom);
 };
 
 } // namespace TextEditor

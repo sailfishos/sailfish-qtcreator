@@ -151,6 +151,11 @@ void Qt5TestNodeInstanceServer::clearScene(const ClearSceneCommand &command)
     Qt5NodeInstanceServer::clearScene(command);
 }
 
+void Qt5TestNodeInstanceServer::changeSelection(const ChangeSelectionCommand &)
+{
+
+}
+
 void Qt5TestNodeInstanceServer::removeInstances(const RemoveInstancesCommand &command)
 {
     ServerNodeInstance oldState = activeStateInstance();
@@ -288,7 +293,8 @@ void QmlDesigner::Qt5TestNodeInstanceServer::collectItemChangesAndSendChangeComm
         clearChangedPropertyList();
 
         if (!informationChangedInstanceSet.isEmpty()) {
-            InformationChangedCommand command = createAllInformationChangedCommand(informationChangedInstanceSet.toList());
+            InformationChangedCommand command
+                    = createAllInformationChangedCommand(QtHelpers::toList(informationChangedInstanceSet));
             command.sort();
             nodeInstanceClient()->informationChanged(command);
         }
@@ -299,7 +305,7 @@ void QmlDesigner::Qt5TestNodeInstanceServer::collectItemChangesAndSendChangeComm
         }
 
         if (!parentChangedSet.isEmpty())
-            sendChildrenChangedCommand(parentChangedSet.toList());
+            sendChildrenChangedCommand(QtHelpers::toList(parentChangedSet));
     }
 }
 

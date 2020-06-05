@@ -33,7 +33,6 @@
 namespace QmlDesigner {
 namespace Internal {
 
-
 ComponentNodeInstance::ComponentNodeInstance(QQmlComponent *component)
    : ObjectNodeInstance(component)
 {
@@ -73,7 +72,8 @@ void ComponentNodeInstance::setNodeSource(const QString &source)
     setId(id());
 
     if (component()->isError()) {
-        foreach (const QQmlError &error, component()->errors())
+        const QList<QQmlError> errors = component()->errors();
+        for (const QQmlError &error : errors)
             qWarning() << error;
     }
 

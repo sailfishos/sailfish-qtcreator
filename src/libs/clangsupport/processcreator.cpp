@@ -173,8 +173,10 @@ QProcessEnvironment ProcessCreator::processEnvironment() const
     }
 
     const Utils::Environment &env = m_environment;
-    for (auto it = env.constBegin(); it != env.constEnd(); ++it)
-        processEnvironment.insert(it.key(), it.value());
+    for (auto it = env.constBegin(); it != env.constEnd(); ++it) {
+        if (env.isEnabled(it))
+            processEnvironment.insert(env.key(it), env.expandedValueForKey(env.key(it)));
+    }
 
     return processEnvironment;
 }

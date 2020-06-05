@@ -34,6 +34,7 @@ enum InformationName
 {
     NoName,
     NoInformationChange = NoName,
+    AllStates,
     Size,
     BoundingRect,
     Transform,
@@ -52,7 +53,11 @@ enum InformationName
     HasBindingForProperty,
     ContentTransform,
     ContentItemTransform,
-    ContentItemBoundingRect
+    ContentItemBoundingRect,
+    MoveView,
+    ShowView,
+    ResizeView,
+    HideView
 };
 
 }

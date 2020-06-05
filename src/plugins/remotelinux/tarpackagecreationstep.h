@@ -43,7 +43,7 @@ class REMOTELINUX_EXPORT TarPackageCreationStep : public AbstractPackagingStep
 {
     Q_OBJECT
 public:
-    TarPackageCreationStep(ProjectExplorer::BuildStepList *bsl);
+    TarPackageCreationStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
 
     static Core::Id stepId();
     static QString displayName();
@@ -63,7 +63,6 @@ private:
     void addNeededDeploymentFiles(const ProjectExplorer::DeployableFile &deployable,
                                   const ProjectExplorer::Kit *kit);
 
-    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     bool fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
 

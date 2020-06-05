@@ -106,9 +106,9 @@ TimelineRenderPass::State *TimelineNotesRenderPass::update(const TimelineAbstrac
                                                            int lastIndex, bool stateChanged,
                                                            float spacing) const
 {
-    Q_UNUSED(firstIndex);
-    Q_UNUSED(lastIndex);
-    Q_UNUSED(spacing);
+    Q_UNUSED(firstIndex)
+    Q_UNUSED(lastIndex)
+    Q_UNUSED(spacing)
 
     const TimelineNotesModel *notes = renderer->notes();
     const TimelineModel *model = renderer->model();
@@ -117,7 +117,7 @@ TimelineRenderPass::State *TimelineNotesRenderPass::update(const TimelineAbstrac
         return oldState;
 
     TimelineNotesRenderPassState *state;
-    if (oldState == 0) {
+    if (oldState == nullptr) {
         state = new TimelineNotesRenderPassState(model->expandedRowCount());
     } else {
         if (!stateChanged && !renderer->notesDirty())
@@ -141,7 +141,7 @@ TimelineRenderPass::State *TimelineNotesRenderPass::update(const TimelineAbstrac
 
     QSGGeometryNode *collapsedNode = static_cast<QSGGeometryNode *>(state->collapsedOverlay());
 
-    if (collapsed.count() > 0) {
+    if (!collapsed.isEmpty()) {
         collapsedNode->setGeometry(NotesGeometry::createGeometry(collapsed, model, parentState,
                                                                  true));
         collapsedNode->setFlag(QSGGeometryNode::OwnsGeometry, true);
@@ -253,7 +253,7 @@ void NotesMaterialShader::updateState(const RenderState &state, QSGMaterial *, Q
 
 char const *const *NotesMaterialShader::attributeNames() const
 {
-    static const char *const attr[] = {"vertexCoord", "distanceFromTop", 0};
+    static const char *const attr[] = {"vertexCoord", "distanceFromTop", nullptr};
     return attr;
 }
 

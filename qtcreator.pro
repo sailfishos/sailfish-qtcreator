@@ -1,9 +1,9 @@
 include(qtcreator.pri)
 
 #version check qt
-!minQtVersion(5, 9, 0) {
+!minQtVersion(5, 11, 0) {
     message("Cannot build $$IDE_DISPLAY_NAME with Qt version $${QT_VERSION}.")
-    error("Use at least Qt 5.9.0.")
+    error("Use at least Qt 5.11.0.")
 }
 
 include(doc/doc.pri)
@@ -98,10 +98,10 @@ BASENAME = $$(INSTALL_BASENAME)
 isEmpty(BASENAME): BASENAME = qt-creator-$${PLATFORM}$(INSTALL_EDITION)-$${QTCREATOR_VERSION}$(INSTALL_POSTFIX)
 
 linux {
-    appstream.files = dist/org.qt-project.qtcreator.appdata.xml
+    appstream.files = share/metainfo/org.qt-project.qtcreator.appdata.xml
     appstream.path = $$QTC_PREFIX/share/metainfo/
 
-    desktop.files = dist/org.qt-project.qtcreator.desktop
+    desktop.files = share/applications/org.qt-project.qtcreator.desktop
     desktop.path = $$QTC_PREFIX/share/applications/
 
     INSTALLS += appstream desktop
@@ -113,7 +113,7 @@ macx {
     BINDIST_SOURCE.debug = "$$OUT_PWD/bin"
     BINDIST_EXCLUDE_ARG.debug = "--exclude-toplevel"
     deployqt.commands = $$PWD/scripts/deployqtHelper_mac.sh \"$${APPBUNDLE}\" \"$$[QT_INSTALL_BINS]\" \"$$[QT_INSTALL_TRANSLATIONS]\" \"$$[QT_INSTALL_PLUGINS]\" \"$$[QT_INSTALL_IMPORTS]\" \"$$[QT_INSTALL_QML]\"
-    codesign.commands = codesign --deep -s \"$(SIGNING_IDENTITY)\" $(SIGNING_FLAGS) \"$${APPBUNDLE}\"
+    codesign.commands = codesign --deep -o runtime -s \"$(SIGNING_IDENTITY)\" $(SIGNING_FLAGS) \"$${APPBUNDLE}\"
     dmg.commands = python -u \"$$PWD/scripts/makedmg.py\" \"$${BASENAME}.dmg\" \"Qt Creator\" \"$$IDE_SOURCE_TREE\" \"$$OUT_PWD/bin\"
     #dmg.depends = deployqt
     QMAKE_EXTRA_TARGETS += codesign dmg
@@ -124,7 +124,7 @@ macx {
     BINDIST_EXCLUDE_ARG.debug = $${BINDIST_EXCLUDE_ARG.release}
     deployqt.commands = python -u $$PWD/scripts/deployqt.py -i \"$(INSTALL_ROOT)$$QTC_PREFIX/bin/$${IDE_APP_TARGET}\" \"$(QMAKE)\"
     deployqt.depends = install
-    win32 {
+    win32:!isEmpty(BINARY_ARTIFACTS_BRANCH) {
         deployartifacts.depends = install
         deployartifacts.commands = git clone --depth 1 -b $$BINARY_ARTIFACTS_BRANCH \
                 "http://code.qt.io/qt-creator/binary-artifacts.git" \

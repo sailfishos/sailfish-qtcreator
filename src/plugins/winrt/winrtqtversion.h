@@ -26,6 +26,7 @@
 #pragma once
 
 #include <qtsupport/baseqtversion.h>
+#include <qtsupport/qtversionfactory.h>
 
 namespace WinRt {
 namespace Internal {
@@ -35,16 +36,17 @@ class WinRtQtVersion : public QtSupport::BaseQtVersion
     Q_DECLARE_TR_FUNCTIONS(WinRt::Internal::WinRtQtVersion)
 public:
     WinRtQtVersion() = default;
-    WinRtQtVersion(const Utils::FileName &path, bool isAutodetected,
-                   const QString &autodetectionSource);
 
-    BaseQtVersion *clone() const;
-    QString type() const;
-    QString description() const;
-    QSet<Core::Id> availableFeatures() const;
-    QList<ProjectExplorer::Abi> detectQtAbis() const;
+    QString description() const override;
+    QSet<Core::Id> availableFeatures() const override;
 
-    QSet<Core::Id> targetDeviceTypes() const;
+    QSet<Core::Id> targetDeviceTypes() const override;
+};
+
+class WinRtQtVersionFactory : public QtSupport::QtVersionFactory
+{
+public:
+    WinRtQtVersionFactory();
 };
 
 } // Internal

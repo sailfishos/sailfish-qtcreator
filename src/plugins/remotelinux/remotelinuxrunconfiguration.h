@@ -30,26 +30,24 @@
 #include <projectexplorer/runconfiguration.h>
 
 namespace RemoteLinux {
+namespace Internal {
 
-class REMOTELINUX_EXPORT RemoteLinuxRunConfiguration : public ProjectExplorer::RunConfiguration
+class RemoteLinuxRunConfiguration final : public ProjectExplorer::RunConfiguration
 {
     Q_OBJECT
 
 public:
     RemoteLinuxRunConfiguration(ProjectExplorer::Target *target, Core::Id id);
-    static const char *IdPrefix;
-
-protected:
-    ProjectExplorer::Runnable runnable() const override;
 
 private:
-    void updateTargetInformation();
+    ProjectExplorer::Runnable runnable() const override;
 };
 
-class RemoteLinuxRunConfigurationFactory : public ProjectExplorer::RunConfigurationFactory
+class RemoteLinuxRunConfigurationFactory final : public ProjectExplorer::RunConfigurationFactory
 {
 public:
     RemoteLinuxRunConfigurationFactory();
 };
 
+} // namespace Internal
 } // namespace RemoteLinux

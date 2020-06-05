@@ -27,23 +27,16 @@
 
 #include <coreplugin/dialogs/ioptionspage.h>
 
-#include <QPointer>
-
 namespace PerfProfiler {
+
+class PerfSettings;
+
 namespace Internal {
 
-class PerfOptionsPage : public Core::IOptionsPage
+class PerfOptionsPage final : public Core::IOptionsPage
 {
-    Q_OBJECT
 public:
-    PerfOptionsPage(QObject *parent = nullptr);
-
-    QWidget *widget();
-    void apply();
-    void finish();
-
-private:
-    QPointer<QWidget> m_widget;
+    explicit PerfOptionsPage(PerfSettings *settings);
 };
 
 } // namespace Internal

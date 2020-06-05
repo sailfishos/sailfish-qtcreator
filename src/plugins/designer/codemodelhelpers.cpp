@@ -27,30 +27,38 @@
 
 #include <cpptools/cppmodelmanager.h>
 
+#include <projectexplorer/buildsystem.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
+#include <projectexplorer/target.h>
 
 #include <QCoreApplication>
 #include <QDebug>
 
 // Debug helpers for code model. @todo: Move to some CppTools library?
 
-typedef QMap<QString, QStringList> DependencyMap;
-typedef CPlusPlus::Document::Ptr DocumentPtr;
-typedef QList<CPlusPlus::Symbol *> SymbolList;
-typedef QList<DocumentPtr> DocumentPtrList;
+using namespace ProjectExplorer;
+
+using DependencyMap = QMap<QString, QStringList>;
+using DocumentPtr = CPlusPlus::Document::Ptr;
+using SymbolList = QList<CPlusPlus::Symbol *>;
+using DocumentPtrList = QList<DocumentPtr>;
 
 static const char setupUiC[] = "setupUi";
 
 // Find the generated "ui_form.h" header of the form via project.
 static QString generatedHeaderOf(const QString &uiFileName)
 {
-    if (const ProjectExplorer::Project *uiProject =
-            ProjectExplorer::SessionManager::projectForFile(Utils::FileName::fromString(uiFileName))) {
-        QStringList files = uiProject->filesGeneratedFrom(uiFileName);
-        if (!files.isEmpty()) // There should be at most one header generated from a .ui
-            return files.front();
+    if (const Project *uiProject =
+            SessionManager::projectForFile(Utils::FilePath::fromString(uiFileName))) {
+        if (Target *t = uiProject->activeTarget()) {
+            if (BuildSystem *bs = t->buildSystem()) {
+                QStringList files = bs->filesGeneratedFrom(uiFileName);
+                if (!files.isEmpty()) // There should be at most one header generated from a .ui
+                    return files.front();
+            }
+        }
     }
     return QString();
 }
@@ -67,7 +75,7 @@ public:
     bool visit(CPlusPlus::Function * f) override;
 
 private:
-    const size_t m_length;
+    const uint m_length;
     const char *m_name;
 
     FunctionList m_matches;
@@ -82,8 +90,8 @@ SearchFunction::SearchFunction(const char *name) :
 SearchFunction::FunctionList SearchFunction::operator()(const DocumentPtr &doc)
 {
     m_matches.clear();
-    const unsigned globalSymbolCount = doc->globalSymbolCount();
-    for (unsigned i = 0; i < globalSymbolCount; ++i)
+    const int globalSymbolCount = doc->globalSymbolCount();
+    for (int i = 0; i < globalSymbolCount; ++i)
         accept(doc->globalSymbolAt(i));
     return m_matches;
 }
@@ -92,8 +100,8 @@ bool SearchFunction::visit(CPlusPlus::Function * f)
 {
     if (const CPlusPlus::Name *name = f->name())
         if (const CPlusPlus::Identifier *id = name->identifier())
-            if (id->size() == m_length)
-                if (!qstrncmp(m_name, id->chars(), uint(m_length)))
+            if (static_cast<uint>(id->size()) == m_length)
+                if (!qstrncmp(m_name, id->chars(), m_length))
                     m_matches.push_back(f);
     return true;
 }

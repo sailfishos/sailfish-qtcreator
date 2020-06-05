@@ -91,34 +91,25 @@ public:
                                    tr("Show merged revisions.")),
                    settings.boolPointer(BazaarSettings::logIncludeMergesKey));
 
-        QList<ComboBoxItem> logChoices;
-        logChoices << ComboBoxItem(tr("Detailed"), QLatin1String("long"))
-                   << ComboBoxItem(tr("Moderately Short"), QLatin1String("short"))
-                   << ComboBoxItem(tr("One Line"), QLatin1String("line"))
-                   << ComboBoxItem(tr("GNU Change Log"), QLatin1String("gnu-changelog"));
-        mapSetting(addComboBox(QStringList(QLatin1String("--log-format=%1")), logChoices),
+        const QList<ChoiceItem> logChoices = {
+            ChoiceItem(tr("Detailed"), QLatin1String("long")),
+            ChoiceItem(tr("Moderately Short"), QLatin1String("short")),
+            ChoiceItem(tr("One Line"), QLatin1String("line")),
+            ChoiceItem(tr("GNU Change Log"), QLatin1String("gnu-changelog"))
+        };
+        mapSetting(addChoices(tr("Format"), { "--log-format=%1" }, logChoices),
                    settings.stringPointer(BazaarSettings::logFormatKey));
     }
 };
 
-BazaarClient::BazaarClient() : VcsBaseClient(new BazaarSettings)
+BazaarClient::BazaarClient(BazaarSettings *settings) : VcsBaseClient(settings)
 {
-    setDiffConfigCreator([this](QToolBar *toolBar) {
-        return new BazaarDiffConfig(settings(), toolBar);
+    setDiffConfigCreator([settings](QToolBar *toolBar) {
+        return new BazaarDiffConfig(*settings, toolBar);
     });
-    setLogConfigCreator([this](QToolBar *toolBar) {
-        return new BazaarLogConfig(settings(), toolBar);
+    setLogConfigCreator([settings](QToolBar *toolBar) {
+        return new BazaarLogConfig(*settings, toolBar);
     });
-}
-
-bool BazaarClient::synchronousSetUserId()
-{
-    QStringList args;
-    args << QLatin1String("whoami")
-         << (settings().stringValue(BazaarSettings::userNameKey) + QLatin1String(" <")
-             + settings().stringValue(BazaarSettings::userEmailKey) + QLatin1Char('>'));
-    return vcsFullySynchronousExec(QDir::currentPath(), args).result
-            == SynchronousProcessResponse::Finished;
 }
 
 BranchInfo BazaarClient::synchronousBranchQuery(const QString &repositoryRoot) const
@@ -178,9 +169,9 @@ VcsBaseEditorWidget *BazaarClient::annotate(
                                    QStringList(extraOptions) << QLatin1String("--long"));
 }
 
-bool BazaarClient::isVcsDirectory(const FileName &fileName) const
+bool BazaarClient::isVcsDirectory(const FilePath &fileName) const
 {
-    return fileName.toFileInfo().isDir()
+    return fileName.isDir()
             && !fileName.fileName().compare(Constants::BAZAARREPO, HostOsInfo::fileNameCaseSensitivity());
 }
 
@@ -189,10 +180,8 @@ QString BazaarClient::findTopLevelForFile(const QFileInfo &file) const
     const QString repositoryCheckFile =
             QLatin1String(Constants::BAZAARREPO) + QLatin1String("/branch-format");
     return file.isDir() ?
-                VcsBasePlugin::findRepositoryForDirectory(file.absoluteFilePath(),
-                                                          repositoryCheckFile) :
-                VcsBasePlugin::findRepositoryForDirectory(file.absolutePath(),
-                                                          repositoryCheckFile);
+                VcsBase::findRepositoryForDirectory(file.absoluteFilePath(), repositoryCheckFile) :
+                VcsBase::findRepositoryForDirectory(file.absolutePath(), repositoryCheckFile);
 }
 
 bool BazaarClient::managesFile(const QString &workingDirectory, const QString &fileName) const

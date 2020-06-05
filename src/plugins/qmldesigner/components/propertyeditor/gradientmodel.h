@@ -70,6 +70,15 @@ public:
 
     Q_INVOKABLE void setGradientProperty(const QString &propertyName, qreal value);
 
+    Q_INVOKABLE void setPresetByID(int presetID);
+    Q_INVOKABLE void setPresetByStops(const QList<qreal> &stopsPositions,
+                                      const QList<QString> &stopsColors,
+                                      int stopsCount);
+
+    Q_INVOKABLE void savePreset();
+
+    Q_INVOKABLE void updateGradient();
+
 signals:
     void anchorBackendChanged();
     void hasGradientChanged();
@@ -87,17 +96,19 @@ private:
     bool locked() const;
     QmlDesigner::ModelNode createGradientNode();
     QmlDesigner::ModelNode createGradientStopNode();
+    void deleteGradientNode(bool saveTransaction);
 
 private:
     QmlDesigner::QmlItemNode m_itemNode;
     QString m_gradientPropertyName;
-    QString m_gradientTypeName;
-    bool m_locked;
+    QString m_gradientTypeName = {"Gradient"};
+    bool m_locked = false;
     bool hasShapesImport() const;
     void ensureShapesImport();
     void setupGradientProperties(const QmlDesigner::ModelNode &gradient);
     QmlDesigner::Model *model() const;
     QmlDesigner::AbstractView *view() const;
+    void resetPuppet();
 };
 
 QML_DECLARE_TYPE(GradientModel)

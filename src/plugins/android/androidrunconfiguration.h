@@ -43,7 +43,7 @@ public:
                                   Core::Id id = Core::Id());
     ~BaseStringListAspect() override;
 
-    void addToConfigurationLayout(QFormLayout *layout) override;
+    void addToLayout(ProjectExplorer::LayoutBuilder &builder) override;
 
     QStringList value() const;
     void setValue(const QStringList &val);
@@ -67,12 +67,6 @@ class ANDROID_EXPORT AndroidRunConfiguration : public ProjectExplorer::RunConfig
     Q_OBJECT
 public:
     explicit AndroidRunConfiguration(ProjectExplorer::Target *target, Core::Id id);
-
-    QString disabledReason() const override;
-    QWidget *createConfigurationWidget() override;
-
-private:
-    void updateTargetInformation();
 };
 
 } // namespace Android

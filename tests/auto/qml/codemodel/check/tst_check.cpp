@@ -39,6 +39,7 @@
 #include <qmljs/qmljsmodelmanagerinterface.h>
 #include <qmljs/parser/qmljsast_p.h>
 #include <qmljs/parser/qmljsengine_p.h>
+#include <qmljs/parser/qmljssourcelocation_p.h>
 
 #include <QtTest>
 #include <algorithm>
@@ -114,7 +115,7 @@ void tst_Check::test()
     Document::MutablePtr doc = Document::create(path, Dialect::Qml);
     QFile file(doc->fileName());
     file.open(QFile::ReadOnly | QFile::Text);
-    doc->setSource(file.readAll());
+    doc->setSource(QString::fromUtf8(file.readAll()));
     file.close();
     doc->parse();
     snapshot.insert(doc);
@@ -133,7 +134,7 @@ void tst_Check::test()
     const QRegExp messagePattern(" (\\d+) (\\d+) (\\d+)");
 
     QList<Message> expectedMessages;
-    foreach (const AST::SourceLocation &comment, doc->engine()->comments()) {
+    foreach (const SourceLocation &comment, doc->engine()->comments()) {
         const QString text = doc->source().mid(comment.begin(), comment.end() - comment.begin());
 
         if (messagePattern.indexIn(text) == -1)
@@ -148,7 +149,7 @@ void tst_Check::test()
                     columnEnd - columnStart,
                     comment.startLine,
                     columnStart),
-        message.type = static_cast<Type>(type);
+        message.type = static_cast<QmlJS::StaticAnalysis::Type>(type);
         expectedMessages += message;
     }
 

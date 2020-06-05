@@ -54,21 +54,19 @@ using namespace Internal;
 
 struct SshRemoteProcess::SshRemoteProcessPrivate
 {
-    QByteArray remoteCommand;
+    QString remoteCommand;
     QStringList connectionArgs;
     QString displayName;
     bool useTerminal = false;
 };
 
-SshRemoteProcess::SshRemoteProcess(const QByteArray &command, const QStringList &connectionArgs)
+SshRemoteProcess::SshRemoteProcess(const QString &command, const QStringList &connectionArgs)
     : d(new SshRemoteProcessPrivate)
 {
     d->remoteCommand = command;
     d->connectionArgs = connectionArgs;
 
-    connect(this,
-            static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
-            [this] {
+    connect(this, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this, [this] {
         QString error;
         if (exitStatus() == QProcess::CrashExit)
             error = tr("The ssh process crashed: %1").arg(errorString());
@@ -85,15 +83,14 @@ SshRemoteProcess::SshRemoteProcess(const QByteArray &command, const QStringList 
 void SshRemoteProcess::doStart()
 {
     QTC_ASSERT(!isRunning(), return);
-    const QStringList args = fullLocalCommandLine();
+    const Utils::CommandLine cmd = fullLocalCommandLine();
     if (!d->displayName.isEmpty()) {
         QProcessEnvironment env = processEnvironment();
         env.insert("DISPLAY", d->displayName);
         setProcessEnvironment(env);
     }
-    qCDebug(sshLog) << "starting remote process:" << QDir::toNativeSeparators(args.first())
-                    << args;
-    QProcess::start(args.first(), args.mid(1));
+    qCDebug(sshLog) << "starting remote process:" << cmd.toUserOutput();
+    QProcess::start(cmd.executable().toString(), cmd.splitArguments());
 }
 
 SshRemoteProcess::~SshRemoteProcess()
@@ -121,17 +118,22 @@ bool SshRemoteProcess::isRunning() const
     return state() == QProcess::Running;
 }
 
-QStringList SshRemoteProcess::fullLocalCommandLine() const
+Utils::CommandLine SshRemoteProcess::fullLocalCommandLine() const
 {
-    QStringList args = QStringList("-q") << d->connectionArgs;
-    if (d->useTerminal)
-        args.prepend("-tt");
+    Utils::CommandLine cmd{SshSettings::sshFilePath()};
+
     if (!d->displayName.isEmpty())
-        args.prepend("-X");
+        cmd.addArg("-X");
+    if (d->useTerminal)
+        cmd.addArg("-tt");
+
+    cmd.addArg("-q");
+    cmd.addArgs(d->connectionArgs);
+
     if (!d->remoteCommand.isEmpty())
-        args << QLatin1String(d->remoteCommand);
-    args.prepend(SshSettings::sshFilePath().toString());
-    return args;
+        cmd.addArg(d->remoteCommand);
+
+    return cmd;
 }
 
 } // namespace QSsh

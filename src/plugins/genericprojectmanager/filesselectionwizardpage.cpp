@@ -59,8 +59,8 @@ FilesSelectionWizardPage::FilesSelectionWizardPage(GenericProjectWizardDialog *g
 
 void FilesSelectionWizardPage::initializePage()
 {
-    m_filesWidget->resetModel(Utils::FileName::fromString(m_genericProjectWizardDialog->path()),
-                              Utils::FileNameList());
+    m_filesWidget->resetModel(Utils::FilePath::fromString(m_genericProjectWizardDialog->path()),
+                              Utils::FilePaths());
 }
 
 void FilesSelectionWizardPage::cleanupPage()
@@ -73,12 +73,12 @@ bool FilesSelectionWizardPage::isComplete() const
     return m_filesWidget->hasFilesSelected();
 }
 
-Utils::FileNameList FilesSelectionWizardPage::selectedPaths() const
+Utils::FilePaths FilesSelectionWizardPage::selectedPaths() const
 {
     return m_filesWidget->selectedPaths();
 }
 
-Utils::FileNameList FilesSelectionWizardPage::selectedFiles() const
+Utils::FilePaths FilesSelectionWizardPage::selectedFiles() const
 {
     return m_filesWidget->selectedFiles();
 }

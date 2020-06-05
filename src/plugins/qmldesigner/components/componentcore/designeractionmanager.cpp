@@ -112,16 +112,17 @@ void DesignerActionManager::polishActions() const
                                                         [](ActionInterface *action) { return action->type() != ActionInterface::ContextMenu; });
 
     Core::Context qmlDesignerFormEditorContext(Constants::C_QMLFORMEDITOR);
+    Core::Context qmlDesignerEditor3DContext(Constants::C_QMLEDITOR3D);
     Core::Context qmlDesignerNavigatorContext(Constants::C_QMLNAVIGATOR);
 
     Core::Context qmlDesignerUIContext;
     qmlDesignerUIContext.add(qmlDesignerFormEditorContext);
+    qmlDesignerUIContext.add(qmlDesignerEditor3DContext);
     qmlDesignerUIContext.add(qmlDesignerNavigatorContext);
 
     for (auto *action : actions) {
         if (!action->menuId().isEmpty()) {
-            const QString id =
-                    QString("QmlDesigner.%1").arg(QString::fromLatin1(action->menuId()));
+            const QString id = QString("QmlDesigner.%1").arg(QString::fromLatin1(action->menuId()));
 
             Core::Command *cmd = Core::ActionManager::registerAction(action->action(), id.toLatin1().constData(), qmlDesignerUIContext);
 
@@ -328,6 +329,73 @@ public:
                     selectionAction->setSelectionContext(nodeSelectionContext);
 
                     menu()->addAction(selectionAction);
+                }
+            }
+        }
+    }
+};
+
+bool flowOptionVisible(const SelectionContext &context)
+{
+    return QmlFlowViewNode::isValidQmlFlowViewNode(context.rootNode());
+}
+
+bool isFlowItem(const SelectionContext &context)
+{
+    return context.singleNodeIsSelected()
+           && QmlFlowItemNode::isValidQmlFlowItemNode(context.currentSingleSelectedNode());
+}
+
+bool isFlowTransitionItem(const SelectionContext &context)
+{
+    return context.singleNodeIsSelected()
+           && QmlFlowItemNode::isFlowTransition(context.currentSingleSelectedNode());
+}
+
+bool isFlowActionItemItem(const SelectionContext &context)
+{
+    const ModelNode selectedNode = context.currentSingleSelectedNode();
+
+    return context.singleNodeIsSelected()
+            && (QmlFlowActionAreaNode::isValidQmlFlowActionAreaNode(selectedNode)
+                || QmlVisualNode::isFlowDecision(selectedNode)
+                || QmlVisualNode::isFlowWildcard(selectedNode));
+}
+
+bool isFlowItemOrTransition(const SelectionContext &context)
+{
+    return isFlowItem(context) || isFlowTransitionItem(context);
+}
+
+class FlowActionConnectAction : public ActionGroup
+{
+public:
+    FlowActionConnectAction(const QString &displayName, const QByteArray &menuId, int priority) :
+        ActionGroup(displayName, menuId, priority,
+                    &isFlowActionItemItem, &flowOptionVisible)
+
+    {}
+
+    void updateContext() override
+    {
+        menu()->clear();
+        if (selectionContext().isValid()) {
+            action()->setEnabled(isEnabled(selectionContext()));
+            action()->setVisible(isVisible(selectionContext()));
+        } else {
+            return;
+        }
+        if (action()->isEnabled()) {
+            for (const QmlFlowItemNode &node : QmlFlowViewNode(selectionContext().rootNode()).flowItems()) {
+                if (node != selectionContext().currentSingleSelectedNode().parentProperty().parentModelNode()) {
+                    QString what = QString(QT_TRANSLATE_NOOP("QmlDesignerContextMenu", "Connect: %1")).arg(captionForModelNode(node));
+                    ActionTemplate *connectionAction = new ActionTemplate(what, &ModelNodeOperations::addTransition);
+
+                    SelectionContext nodeSelectionContext = selectionContext();
+                    nodeSelectionContext.setTargetNode(node);
+                    connectionAction->setSelectionContext(nodeSelectionContext);
+
+                    menu()->addAction(connectionAction);
                 }
             }
         }
@@ -785,6 +853,47 @@ void DesignerActionManager::createDefaultDesignerActions()
                           priorityLayoutCategory,
                           &layoutOptionVisible));
 
+    //isFlowTransitionItem
+
+    addDesignerAction(new ActionGroup(
+        flowCategoryDisplayName,
+        flowCategory,
+        priorityFlowCategory,
+        &isFlowItemOrTransition,
+        &flowOptionVisible));
+
+    addDesignerAction(new ModelNodeFormEditorAction(
+        createFlowActionAreaCommandId,
+        createFlowActionAreaDisplayName,
+        addIcon.icon(),
+        addFlowActionToolTip,
+        flowCategory,
+        {},
+        priorityFirst,
+        &createFlowActionArea,
+        &isFlowItem,
+        &flowOptionVisible));
+
+    addDesignerAction(new FlowActionConnectAction(
+        flowConnectionCategoryDisplayName,
+        flowConnectionCategory,
+        priorityFlowCategory));
+
+
+    const QList<TypeName> types = {"FlowActionArea",
+                                   "FlowFadeEffect",
+                                   "FlowPushRightEffect",
+                                   "FlowPushLeftEffect",
+                                   "FlowPushUpEffect",
+                                   "FlowSlideDownEffect",
+                                   "FlowSlideLeftEffect",
+                                   "FlowSlideRightEffect",
+                                   "FlowSlideUpEffect",
+                                   "None"};
+
+    for (const TypeName &typeName : types)
+        addTransitionEffectAction(typeName);
+
     addDesignerAction(new ActionGroup(
                           stackedContainerCategoryDisplayName,
                           stackedContainerCategory,
@@ -1026,6 +1135,13 @@ void DesignerActionManager::createDefaultAddResourceHandler()
     registerAddResourceHandler(AddResourceHandler(ComponentCoreConstants::addImagesDisplayString,
                                                   "*.svg",
                                                   ModelNodeOperations::addImageToProject));
+
+    registerAddResourceHandler(AddResourceHandler(ComponentCoreConstants::addFontsDisplayString,
+                                                  "*.ttf",
+                                                  ModelNodeOperations::addFontToProject));
+    registerAddResourceHandler(AddResourceHandler(ComponentCoreConstants::addFontsDisplayString,
+                                                  "*.otf",
+                                                  ModelNodeOperations::addFontToProject));
 }
 
 void DesignerActionManager::addDesignerAction(ActionInterface *newAction)
@@ -1053,6 +1169,20 @@ DesignerActionManager::DesignerActionManager(DesignerActionManagerView *designer
 
 DesignerActionManager::~DesignerActionManager() = default;
 
+void DesignerActionManager::addTransitionEffectAction(const TypeName &typeName)
+{
+    addDesignerAction(new ModelNodeContextMenuAction(
+        QByteArray(ComponentCoreConstants::flowAssignEffectCommandId) + typeName,
+        QLatin1String(ComponentCoreConstants::flowAssignEffectDisplayName) + typeName,
+        {},
+        ComponentCoreConstants::flowCategory,
+        {},
+        typeName == "None" ? 100 : 140,
+        [typeName](const SelectionContext &context)
+        { ModelNodeOperations::addFlowEffect(context, typeName); },
+        &isFlowTransitionItem));
+}
+
 DesignerActionToolBar::DesignerActionToolBar(QWidget *parentWidget) : Utils::StyledBar(parentWidget),
     m_toolBar(new QToolBar("ActionToolBar", this))
 {
@@ -1063,10 +1193,10 @@ DesignerActionToolBar::DesignerActionToolBar(QWidget *parentWidget) : Utils::Sty
 
     auto horizontalLayout = new QHBoxLayout(this);
 
-    horizontalLayout->setMargin(0);
+    horizontalLayout->setContentsMargins(0, 0, 0, 0);
     horizontalLayout->setSpacing(0);
 
-    horizontalLayout->setMargin(0);
+    horizontalLayout->setContentsMargins(0, 0, 0, 0);
     horizontalLayout->setSpacing(0);
 
     horizontalLayout->addWidget(m_toolBar);

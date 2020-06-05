@@ -31,6 +31,7 @@
 #include <texteditor/codeassist/keywordscompletionassist.h>
 
 #include <utils/fileutils.h>
+#include <utils/optional.h>
 #include <utils/synchronousprocess.h>
 
 #include <QObject>
@@ -53,6 +54,8 @@ public:
         AutoDetection = 0x1,
         AutoDetectionByPlugin = 0x3
     };
+
+    enum ReaderType { TeaLeaf, ServerMode, FileApi };
 
     struct Version
     {
@@ -77,7 +80,7 @@ public:
         bool matches(const QString &n, const QString &ex) const;
     };
 
-    using PathMapper = std::function<Utils::FileName (const Utils::FileName &)>;
+    using PathMapper = std::function<Utils::FilePath (const Utils::FilePath &)>;
 
     explicit CMakeTool(Detection d, const Core::Id &id);
     explicit CMakeTool(const QVariantMap &map, bool fromSdk);
@@ -90,16 +93,22 @@ public:
     Core::Id id() const { return m_id; }
     QVariantMap toMap () const;
 
-    void setCMakeExecutable(const Utils::FileName &executable);
     void setAutorun(bool autoRun);
     void setAutoCreateBuildDirectory(bool autoBuildDir);
 
-    Utils::FileName cmakeExecutable() const;
+    void setFilePath(const Utils::FilePath &executable);
+    Utils::FilePath filePath() const;
+    Utils::FilePath cmakeExecutable() const;
+    void setQchFilePath(const Utils::FilePath &path);
+    Utils::FilePath qchFilePath() const;
+    static Utils::FilePath cmakeExecutable(const Utils::FilePath &path);
     bool isAutoRun() const;
     bool autoCreateBuildDirectory() const;
     QList<Generator> supportedGenerators() const;
     TextEditor::Keywords keywords();
     bool hasServerMode() const;
+    bool hasFileApi() const;
+    QVector<std::pair<QString, int>> supportedFileApiObjects() const;
     Version version() const;
 
     bool isAutoDetected() const;
@@ -110,6 +119,10 @@ public:
     void setPathMapper(const PathMapper &includePathMapper);
     PathMapper pathMapper() const;
 
+    ReaderType readerType() const;
+
+    static Utils::FilePath searchQchFile(const Utils::FilePath &executable);
+
 private:
     enum class QueryType {
         GENERATORS,
@@ -118,7 +131,7 @@ private:
     };
     void readInformation(QueryType type) const;
 
-    Utils::SynchronousProcessResponse run(const QStringList &args, bool mayFail = false) const;
+    Utils::SynchronousProcessResponse run(const QStringList &args, int timeoutS = 1) const;
     void parseFunctionDetailsOutput(const QString &output);
     QStringList parseVariableOutput(const QString &output);
 
@@ -131,12 +144,15 @@ private:
 
     Core::Id m_id;
     QString m_displayName;
-    Utils::FileName m_executable;
+    Utils::FilePath m_executable;
+    Utils::FilePath m_qchFilePath;
 
     bool m_isAutoRun = true;
     bool m_isAutoDetected = false;
     bool m_isAutoDetectedByPlugin = false;
     bool m_autoCreateBuildDirectory = false;
+
+    Utils::optional<ReaderType> m_readerType;
 
     std::unique_ptr<Internal::IntrospectionData> m_introspection;
 

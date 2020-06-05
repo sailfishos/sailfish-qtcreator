@@ -1,46 +1,51 @@
 QT += network
 include(../../qtcreatorplugin.pri)
 
+# GDB debug servers
+include(debugservers/gdb/gdbservers.pri)
+# UVSC debug servers
+include(debugservers/uvsc/uvscservers.pri)
+
 # BareMetal files
 
-SOURCES += baremetalplugin.cpp \
-    baremetalcustomrunconfiguration.cpp\
-    baremetaldevice.cpp \
-    baremetalrunconfiguration.cpp \
-    baremetalgdbcommandsdeploystep.cpp \
-    baremetaldeviceconfigurationwizardpages.cpp \
-    baremetaldeviceconfigurationwizard.cpp \
-    baremetaldeviceconfigurationwidget.cpp \
-    baremetaldeviceconfigurationfactory.cpp \
+SOURCES += \
     baremetaldebugsupport.cpp \
-    gdbserverproviderprocess.cpp \
-    gdbserverproviderssettingspage.cpp \
-    gdbserverprovider.cpp \
-    gdbserverproviderchooser.cpp \
-    gdbserverprovidermanager.cpp \
-    openocdgdbserverprovider.cpp \
-    defaultgdbserverprovider.cpp \
-    stlinkutilgdbserverprovider.cpp
+    baremetaldevice.cpp \
+    baremetaldeviceconfigurationwidget.cpp \
+    baremetaldeviceconfigurationwizard.cpp \
+    baremetaldeviceconfigurationwizardpages.cpp \
+    baremetalplugin.cpp \
+    baremetalrunconfiguration.cpp \
+    debugserverproviderchooser.cpp \
+    debugserverprovidermanager.cpp \
+    debugserverproviderssettingspage.cpp \
+    iarewparser.cpp \
+    iarewtoolchain.cpp \
+    idebugserverprovider.cpp \
+    keilparser.cpp \
+    keiltoolchain.cpp \
+    sdccparser.cpp \
+    sdcctoolchain.cpp
 
-HEADERS += baremetalplugin.h \
+HEADERS += \
     baremetalconstants.h \
-    baremetalcustomrunconfiguration.h \
+    baremetaldebugsupport.h \
     baremetaldevice.h \
-    baremetalrunconfiguration.h \
-    baremetalgdbcommandsdeploystep.h \
-    baremetaldeviceconfigurationfactory.h \
     baremetaldeviceconfigurationwidget.h \
     baremetaldeviceconfigurationwizard.h \
     baremetaldeviceconfigurationwizardpages.h \
-    baremetaldebugsupport.h \
-    gdbserverproviderprocess.h \
-    gdbserverproviderssettingspage.h \
-    gdbserverprovider.h \
-    gdbserverproviderchooser.h \
-    gdbserverprovidermanager.h \
-    openocdgdbserverprovider.h \
-    defaultgdbserverprovider.h \
-    stlinkutilgdbserverprovider.h
+    baremetalplugin.h \
+    baremetalrunconfiguration.h \
+    debugserverproviderchooser.h \
+    debugserverprovidermanager.h \
+    debugserverproviderssettingspage.h \
+    iarewparser.h \
+    iarewtoolchain.h \
+    idebugserverprovider.h \
+    keilparser.h \
+    keiltoolchain.h \
+    sdccparser.h \
+    sdcctoolchain.h
 
 RESOURCES += \
     baremetal.qrc

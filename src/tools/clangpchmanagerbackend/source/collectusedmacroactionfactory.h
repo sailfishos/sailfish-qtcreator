@@ -39,13 +39,11 @@ class CollectUsedMacrosToolActionFactory final : public clang::tooling::Frontend
 public:
     CollectUsedMacrosToolActionFactory(UsedMacros &usedMacros,
                                        FilePathCachingInterface &filePathCache,
-                                       SourcesManager &sourcesManager,
                                        SourceDependencies &sourceDependencies,
                                        FilePathIds &sourceFiles,
                                        FileStatuses &fileStatuses)
         : m_usedMacros(usedMacros),
           m_filePathCache(filePathCache),
-          m_sourcesManager(sourcesManager),
           m_sourceDependencies(sourceDependencies),
           m_sourceFiles(sourceFiles),
           m_fileStatuses(fileStatuses)
@@ -63,20 +61,30 @@ public:
                                                                     diagnosticConsumer);
     }
 
+#if LLVM_VERSION_MAJOR >= 10
+    std::unique_ptr<clang::FrontendAction> create() override
+    {
+        return std::make_unique<CollectUsedMacrosAction>(
+                    m_usedMacros,
+                    m_filePathCache,
+                    m_sourceDependencies,
+                    m_sourceFiles,
+                    m_fileStatuses);
+    }
+#else
     clang::FrontendAction *create() override
     {
         return new CollectUsedMacrosAction(m_usedMacros,
                                            m_filePathCache,
-                                           m_sourcesManager,
                                            m_sourceDependencies,
                                            m_sourceFiles,
                                            m_fileStatuses);
     }
+#endif
 
 private:
     UsedMacros &m_usedMacros;
     FilePathCachingInterface &m_filePathCache;
-    SourcesManager &m_sourcesManager;
     SourceDependencies &m_sourceDependencies;
     FilePathIds &m_sourceFiles;
     FileStatuses &m_fileStatuses;

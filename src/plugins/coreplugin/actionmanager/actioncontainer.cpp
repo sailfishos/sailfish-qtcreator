@@ -42,13 +42,13 @@ Q_DECLARE_METATYPE(Core::Internal::MenuActionContainer*)
 using namespace Utils;
 
 namespace Core {
-namespace Internal {
 
 /*!
-    \class ActionContainer
-    \mainclass
+    \class Core::ActionContainer
+    \ingroup mainclasses
+    \inmodule QtCreator
 
-    \brief The ActionContainer class represents a menu or menu bar in Qt Creator.
+    \brief The ActionContainer class represents a menu or menu bar in \QC.
 
     You don't create instances of this class directly, but instead use the
     \l{ActionManager::createMenu()}, \l{ActionManager::createMenuBar()} and
@@ -58,29 +58,31 @@ namespace Internal {
 
     Within a menu or menu bar you can group menus and items together by defining groups
     (the order of the groups is defined by the order of the \l{ActionContainer::appendGroup()} calls), and
-    adding menus/actions to these groups. If no custom groups are defined, an action container
+    adding menus or actions to these groups. If no custom groups are defined, an action container
     has three default groups \c{Core::Constants::G_DEFAULT_ONE}, \c{Core::Constants::G_DEFAULT_TWO}
     and \c{Core::Constants::G_DEFAULT_THREE}.
 
-    You can define if the menu represented by this action container should automatically disable
-    or hide whenever it only contains disabled items and submenus by setting the corresponding
-    \l{ActionContainer::setOnAllDisabledBehavior()}{OnAllDisabledBehavior}. The default is
-    ActionContainer::Disable for menus, and ActionContainer::Show for menu bars.
+    You can specify whether the menu represented by this action container should
+    be automatically disabled or hidden whenever it only contains disabled items
+    and submenus by setting the corresponding \l setOnAllDisabledBehavior(). The
+    default is ActionContainer::Disable for menus, and ActionContainer::Show for
+    menu bars.
 */
 
 /*!
-    \enum ActionContainer::OnAllDisabledBehavior
-    Defines what happens when the represented menu is empty or contains only disabled/invisible items.
+    \enum Core::ActionContainer::OnAllDisabledBehavior
+    Defines what happens when the represented menu is empty or contains only
+    disabled or invisible items.
     \value Disable
         The menu will be visible but disabled.
     \value Hide
-        The menu will not be visible until the state of the subitems change.
+        The menu will not be visible until the state of the subitems changes.
     \value Show
         The menu will still be visible and active.
 */
 
 /*!
-    \fn ActionContainer::setOnAllDisabledBehavior(OnAllDisabledBehavior behavior)
+    \fn Core::ActionContainer::setOnAllDisabledBehavior(OnAllDisabledBehavior behavior)
     Defines the \a behavior of the menu represented by this action container for the case
     whenever it only contains disabled items and submenus.
     The default is ActionContainer::Disable for menus, and ActionContainer::Show for menu bars.
@@ -89,48 +91,49 @@ namespace Internal {
 */
 
 /*!
-    \fn ActionContainer::onAllDisabledBehavior() const
-    Returns the \a behavior of the menu represented by this action container for the case
+    \fn Core::ActionContainer::onAllDisabledBehavior() const
+    Returns the behavior of the menu represented by this action container for the case
     whenever it only contains disabled items and submenus.
     The default is ActionContainer::Disable for menus, and ActionContainer::Show for menu bars.
-    \sa ActionContainer::OnAllDisabledBehavior
-    \sa ActionContainer::setOnAllDisabledBehavior()
+    \sa OnAllDisabledBehavior
+    \sa setOnAllDisabledBehavior()
 */
 
 /*!
-    \fn int ActionContainer::id() const
+    \fn int Core::ActionContainer::id() const
     \internal
 */
 
 /*!
-    \fn QMenu *ActionContainer::menu() const
+    \fn QMenu *Core::ActionContainer::menu() const
     Returns the QMenu instance that is represented by this action container, or
     0 if this action container represents a menu bar.
 */
 
 /*!
-    \fn QMenuBar *ActionContainer::menuBar() const
+    \fn QMenuBar *Core::ActionContainer::menuBar() const
     Returns the QMenuBar instance that is represented by this action container, or
     0 if this action container represents a menu.
 */
 
 /*!
-    \fn QAction *ActionContainer::insertLocation(Id group) const
+    \fn QAction *Core::ActionContainer::insertLocation(Core::Id group) const
     Returns an action representing the \a group,
     that could be used with \c{QWidget::insertAction}.
 */
 
 /*!
-    \fn void ActionContainer::appendGroup(Id group)
-    Adds a group with the given \a identifier to the action container. Using groups
-    you can segment your action container into logical parts and add actions and
-    menus directly to these parts.
+    \fn void Core::ActionContainer::appendGroup(Core::Id group)
+    Adds \a group to the action container.
+
+    Use groups to segment your action container into logical parts. You can add
+    actions and menus directly into groups.
     \sa addAction()
     \sa addMenu()
 */
 
 /*!
-    \fn void ActionContainer::addAction(Command *action, Id group = Id())
+    \fn void Core::ActionContainer::addAction(Core::Command *action, Core::Id group = Id())
     Add the \a action as a menu item to this action container. The action is added as the
     last item of the specified \a group.
     \sa appendGroup()
@@ -138,12 +141,51 @@ namespace Internal {
 */
 
 /*!
-    \fn void ActionContainer::addMenu(ActionContainer *menu, Id group = Id())
+    \fn void Core::ActionContainer::addMenu(Core::ActionContainer *menu, Core::Id group = Core::Id())
     Add the \a menu as a submenu to this action container. The menu is added as the
     last item of the specified \a group.
     \sa appendGroup()
     \sa addAction()
 */
+
+/*!
+    \fn void Core::ActionContainer::addMenu(Core::ActionContainer *before, Core::ActionContainer *menu)
+    Add \a menu as a submenu to this action container before the menu specified
+    by \a before.
+    \sa appendGroup()
+    \sa addAction()
+*/
+
+/*!
+    \fn Core::ActionContainer::clear()
+
+    Clears this menu and submenus from all actions and submenus. However, does
+    does not destroy the submenus and commands, just removes them from their
+    parents.
+*/
+
+/*!
+    \fn Core::ActionContainer::insertGroup(Core::Id before, Core::Id group)
+
+    Inserts \a group to the action container before the group specified by
+    \a before.
+*/
+
+/*!
+    \fn virtual Utils::TouchBar *Core::ActionContainer::touchBar() const
+
+    Returns the touch bar that is represented by this action container.
+*/
+
+/*!
+    \fn Core::ActionContainer::addSeparator(const Core::Context &context, Core::Id group, QAction **outSeparator)
+
+    Adds a separator to the end of the given \a group to the action container,
+    which is enabled for a given \a context. Returns the created separator
+    action, \a outSeparator.
+*/
+
+namespace Internal {
 
 // ---------- ActionContainerPrivate ------------
 
@@ -276,9 +318,7 @@ void ActionContainerPrivate::addMenu(ActionContainer *before, ActionContainer *m
     auto containerPrivate = static_cast<ActionContainerPrivate *>(menu);
     QTC_ASSERT(containerPrivate->canBeAddedToContainer(this), return);
 
-    QMutableListIterator<Group> it(m_groups);
-    while (it.hasNext()) {
-        Group &group = it.next();
+    for (Group &group : m_groups) {
         const int insertionPoint = group.items.indexOf(before);
         if (insertionPoint >= 0) {
             group.items.insert(insertionPoint, menu);
@@ -295,15 +335,6 @@ void ActionContainerPrivate::addMenu(ActionContainer *before, ActionContainer *m
     scheduleUpdate();
 }
 
-/*!
- * Adds a separator to the end of the given \a group to the action container, which is enabled
- * for a given \a context. The created separator action is returned through \a outSeparator.
- *
- * Returns the created Command for the separator.
- */
-/*! \a context \a group \a outSeparator
- * \internal
- */
 Command *ActionContainerPrivate::addSeparator(const Context &context, Id group, QAction **outSeparator)
 {
     static int separatorIdCount = 0;
@@ -319,9 +350,7 @@ Command *ActionContainerPrivate::addSeparator(const Context &context, Id group, 
 
 void ActionContainerPrivate::clear()
 {
-    QMutableListIterator<Group> it(m_groups);
-    while (it.hasNext()) {
-        Group &group = it.next();
+    for (Group &group : m_groups) {
         foreach (QObject *item, group.items) {
             if (auto command = qobject_cast<Command *>(item)) {
                 removeAction(command);
@@ -343,9 +372,7 @@ void ActionContainerPrivate::clear()
 void ActionContainerPrivate::itemDestroyed()
 {
     QObject *obj = sender();
-    QMutableListIterator<Group> it(m_groups);
-    while (it.hasNext()) {
-        Group &group = it.next();
+    for (Group &group : m_groups) {
         if (group.items.removeAll(obj) > 0)
             break;
     }
@@ -454,9 +481,7 @@ bool MenuActionContainer::updateInternal()
     bool hasitems = false;
     QList<QAction *> actions = m_menu->actions();
 
-    QListIterator<Group> it(m_groups);
-    while (it.hasNext()) {
-        const Group &group = it.next();
+    for (const Group &group : m_groups) {
         foreach (QObject *item, group.items) {
             if (auto container = qobject_cast<ActionContainerPrivate*>(item)) {
                 actions.removeAll(container->menu()->menuAction());
@@ -656,6 +681,11 @@ bool TouchBarActionContainer::updateInternal()
 
 } // namespace Internal
 
+/*!
+    Adds a separator to the end of \a group to the action container.
+
+    Returns the created separator.
+*/
 Command *ActionContainer::addSeparator(Id group)
 {
     static const Context context(Constants::C_GLOBAL);

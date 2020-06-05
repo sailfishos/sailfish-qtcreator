@@ -67,7 +67,7 @@ void Diagnostic::setCode(const Diagnostic::Code &code)
         insert(codeKey, *val);
 }
 
-bool Diagnostic::isValid(QStringList *error) const
+bool Diagnostic::isValid(ErrorHierarchy *error) const
 {
     return check<Range>(error, rangeKey)
             && checkOptional<int>(error, severityKey)
@@ -96,7 +96,7 @@ void WorkspaceEdit::setChanges(const Changes &changes)
         QJsonArray edits;
         for (const TextEdit &edit : it.value())
             edits.append(QJsonValue(edit));
-        changesObject.insert(it.key().toFileName().toString(), edits);
+        changesObject.insert(it.key().toFilePath().toString(), edits);
     }
     insert(changesKey, changesObject);
 }
@@ -130,13 +130,14 @@ MarkupOrString::MarkupOrString(const QJsonValue &val)
     }
 }
 
-bool MarkupOrString::isValid(QStringList *error) const
+bool MarkupOrString::isValid(ErrorHierarchy *error) const
 {
     if (Utils::holds_alternative<MarkupContent>(*this) || Utils::holds_alternative<QString>(*this))
         return true;
     if (error) {
-        *error << QCoreApplication::translate("LanguageServerProtocoll::MarkupOrString",
-                                              "Expected a string or MarkupContent in MarkupOrString.");
+        error->setError(
+            QCoreApplication::translate("LanguageServerProtocoll::MarkupOrString",
+                                        "Expected a string or MarkupContent in MarkupOrString."));
     }
     return false;
 }
@@ -150,7 +151,7 @@ QJsonValue MarkupOrString::toJson() const
     return {};
 }
 
-bool SymbolInformation::isValid(QStringList *error) const
+bool SymbolInformation::isValid(ErrorHierarchy *error) const
 {
     return check<QString>(error, nameKey)
             && check<int>(error, kindKey)
@@ -158,13 +159,13 @@ bool SymbolInformation::isValid(QStringList *error) const
             && checkOptional<QString>(error, containerNameKey);
 }
 
-bool TextDocumentEdit::isValid(QStringList *error) const
+bool TextDocumentEdit::isValid(ErrorHierarchy *error) const
 {
     return check<VersionedTextDocumentIdentifier>(error, idKey)
             && checkArray<TextEdit>(error, editsKey);
 }
 
-bool TextDocumentItem::isValid(QStringList *error) const
+bool TextDocumentItem::isValid(ErrorHierarchy *error) const
 {
     return check<QString>(error, uriKey)
             && check<QString>(error, languageIdKey)
@@ -305,7 +306,7 @@ TextDocumentPositionParams::TextDocumentPositionParams(
     setPosition(position);
 }
 
-bool TextDocumentPositionParams::isValid(QStringList *error) const
+bool TextDocumentPositionParams::isValid(ErrorHierarchy *error) const
 {
     return check<TextDocumentIdentifier>(error, textDocumentKey)
             && check<Position>(error, positionKey);
@@ -324,8 +325,10 @@ Position::Position(const QTextCursor &cursor)
 int Position::toPositionInDocument(QTextDocument *doc) const
 {
     const QTextBlock block = doc->findBlockByNumber(line());
-    if (!block.isValid() || block.length() <= character())
+    if (!block.isValid())
         return -1;
+    if (block.length() <= character())
+        return block.position() + block.length();
     return block.position() + character();
 }
 
@@ -360,7 +363,7 @@ bool Range::overlaps(const Range &range) const
     return contains(range.start()) || contains(range.end());
 }
 
-bool DocumentFilter::applies(const Utils::FileName &fileName, const Utils::MimeType &mimeType) const
+bool DocumentFilter::applies(const Utils::FilePath &fileName, const Utils::MimeType &mimeType) const
 {
     if (Utils::optional<QString> _scheme = scheme()) {
         if (_scheme.value() == fileName.toString())
@@ -385,7 +388,7 @@ bool DocumentFilter::applies(const Utils::FileName &fileName, const Utils::MimeT
     return !contains(schemeKey) && !contains(languageKey) && !contains(patternKey);
 }
 
-bool DocumentFilter::isValid(QStringList *error) const
+bool DocumentFilter::isValid(ErrorHierarchy *error) const
 {
     return Utils::allOf(QStringList{languageKey, schemeKey, patternKey}, [this, &error](auto key){
         return this->checkOptional<QString>(error, key);
@@ -404,14 +407,38 @@ DocumentUri::DocumentUri(const QString &other)
     : QUrl(QUrl::fromPercentEncoding(other.toLocal8Bit()))
 { }
 
-DocumentUri::DocumentUri(const Utils::FileName &other)
+DocumentUri::DocumentUri(const Utils::FilePath &other)
     : QUrl(QUrl::fromLocalFile(other.toString()))
 { }
 
-Utils::FileName DocumentUri::toFileName() const
+Utils::FilePath DocumentUri::toFilePath() const
 {
-    return isLocalFile() ? Utils::FileName::fromUserInput(QUrl(*this).toLocalFile())
-                         : Utils::FileName();
+    return isLocalFile() ? Utils::FilePath::fromUserInput(QUrl(*this).toLocalFile())
+                         : Utils::FilePath();
+}
+
+MarkupKind::MarkupKind(const QJsonValue &value)
+{
+    m_value = value.toString() == "markdown" ? markdown : plaintext;
+}
+
+LanguageServerProtocol::MarkupKind::operator QJsonValue() const
+{
+    switch (m_value) {
+    case MarkupKind::markdown:
+        return "markdown";
+    case MarkupKind::plaintext:
+        return "plaintext";
+    }
+    return {};
+}
+
+Utils::Text::Replacement TextEdit::toReplacement(QTextDocument *document) const
+{
+    const Range &range = this->range();
+    const int start = range.start().toPositionInDocument(document);
+    const int end = range.end().toPositionInDocument(document);
+    return Utils::Text::Replacement(start, end - start, newText());
 }
 
 } // namespace LanguageServerProtocol

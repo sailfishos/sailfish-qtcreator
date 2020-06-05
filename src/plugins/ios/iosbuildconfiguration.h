@@ -26,6 +26,8 @@
 
 #include "qmakeprojectmanager/qmakebuildconfiguration.h"
 
+#include <projectexplorer/projectconfigurationaspects.h>
+
 namespace Ios {
 namespace Internal {
 
@@ -37,15 +39,15 @@ public:
     IosBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
 
 private:
+    friend class IosBuildSettingsWidget;
+
     QList<ProjectExplorer::NamedWidget *> createSubConfigWidgets() override;
-    QVariantMap toMap() const override;
     bool fromMap(const QVariantMap &map) override;
 
-    void onSigningSettingsChanged(bool autoManagedSigning, QString identifier);
     void updateQmakeCommand();
 
-    QString m_signingIdentifier;
-    bool m_autoManagedSigning = true;
+    ProjectExplorer::BaseStringAspect *m_signingIdentifier = nullptr;
+    ProjectExplorer::BaseBoolAspect *m_autoManagedSigning = nullptr;
 };
 
 class IosBuildConfigurationFactory : public QmakeProjectManager::QmakeBuildConfigurationFactory

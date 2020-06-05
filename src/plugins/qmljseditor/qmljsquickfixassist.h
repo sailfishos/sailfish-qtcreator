@@ -25,14 +25,16 @@
 
 #pragma once
 
-#include "qmljseditor.h"
-
 #include <qmljstools/qmljsrefactoringchanges.h>
+#include <qmljstools/qmljssemanticinfo.h>
 
 #include <texteditor/codeassist/assistinterface.h>
 #include <texteditor/codeassist/iassistprovider.h>
 
 namespace QmlJSEditor {
+
+class QmlJSEditorWidget;
+
 namespace Internal {
 
 class QmlJSQuickFixAssistInterface : public TextEditor::AssistInterface

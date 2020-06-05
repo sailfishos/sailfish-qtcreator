@@ -49,7 +49,11 @@ const char SETTINGS_SHOW_OUTPUT[] = "showOutput";
 const char SETTINGS_ADD_INCLUDE_PATHS[] = "addIncludePaths";
 const char SETTINGS_GUESS_ARGUMENTS[] = "guessArguments";
 
-const char CHECK_PROGRESS_ID[] = "Cppcheck.Cppcheck.CheckingTask";
+const char CHECK_PROGRESS_ID[] = "Cppcheck.CheckingTask";
+
+const char MANUAL_CHECK_PROGRESS_ID[] = "Cppcheck.ManualCheckingTask";
+const char MANUAL_RUN_ACTION[] = "Cppcheck.ManualRun";
+const char PERSPECTIVE_ID[] = "Cppcheck.Perspective";
 
 } // namespace Constants
 } // namespace Cppcheck

@@ -26,12 +26,14 @@
 #pragma once
 
 #include <model.h>
+#include <modelnode.h>
 
 #include <QObject>
 #include <QUrl>
 #include <QQmlPropertyMap>
 #include <QQmlComponent>
 #include <QColor>
+#include <QPoint>
 
 namespace QmlDesigner {
 
@@ -44,6 +46,7 @@ class PropertyEditorContextObject : public QObject
 
     Q_PROPERTY(QString specificQmlData READ specificQmlData WRITE setSpecificQmlData NOTIFY specificQmlDataChanged)
     Q_PROPERTY(QString stateName READ stateName WRITE setStateName NOTIFY stateNameChanged)
+    Q_PROPERTY(QStringList allStateNames READ allStateNames WRITE setAllStateNames NOTIFY allStateNamesChanged)
 
     Q_PROPERTY(bool isBaseState READ isBaseState WRITE setIsBaseState NOTIFY isBaseStateChanged)
     Q_PROPERTY(bool selectionChanged READ selectionChanged WRITE setSelectionChanged NOTIFY selectionChangedChanged)
@@ -68,6 +71,7 @@ public:
     QUrl specificsUrl() const {return m_specificsUrl; }
     QString specificQmlData() const {return m_specificQmlData; }
     QString stateName() const {return m_stateName; }
+    QStringList allStateNames() const { return m_allStateNames; }
 
     bool isBaseState() const { return m_isBaseState; }
     bool selectionChanged() const { return m_selectionChanged; }
@@ -84,6 +88,11 @@ public:
 
     Q_INVOKABLE void changeTypeName(const QString &typeName);
     Q_INVOKABLE void insertKeyframe(const QString &propertyName);
+
+    Q_INVOKABLE void hideCursor();
+    Q_INVOKABLE void restoreCursor();
+
+    Q_INVOKABLE QStringList styleNamesForFamily(const QString &family);
 
     int majorVersion() const;
     int majorQtQuickVersion() const;
@@ -107,6 +116,7 @@ signals:
     void specificsUrlChanged();
     void specificQmlDataChanged();
     void stateNameChanged();
+    void allStateNamesChanged();
     void isBaseStateChanged();
     void selectionChangedChanged();
     void backendValuesChanged();
@@ -127,6 +137,8 @@ public slots:
 
      void setStateName(const QString &newStateName);
 
+     void setAllStateNames(const QStringList &allStates);
+
      void setIsBaseState(bool newIsBaseState);
 
      void setSelectionChanged(bool newSelectionChanged);
@@ -144,6 +156,7 @@ private:
 
     QString m_specificQmlData;
     QString m_stateName;
+    QStringList m_allStateNames;
 
     bool m_isBaseState;
     bool m_selectionChanged;
@@ -157,11 +170,39 @@ private:
     QQmlComponent *m_qmlComponent;
     QQmlContext *m_qmlContext;
 
+    QPoint m_lastPos;
+
     Model *m_model = nullptr;
 
     bool m_aliasExport = false;
 
     bool m_setHasActiveTimeline = false;
 };
+
+class EasingCurveEditor : public QObject
+{
+    Q_OBJECT
+
+    Q_PROPERTY(QVariant modelNodeBackendProperty READ modelNodeBackend WRITE setModelNodeBackend NOTIFY modelNodeBackendChanged)
+
+public:
+    EasingCurveEditor(QObject *parent = nullptr) : QObject(parent)
+    {}
+
+    static void registerDeclarativeType();
+    Q_INVOKABLE void runDialog();
+    void setModelNodeBackend(const QVariant &modelNodeBackend);
+
+signals:
+    void modelNodeBackendChanged();
+
+private:
+    QVariant modelNodeBackend() const;
+
+private:
+    QVariant m_modelNodeBackend;
+    QmlDesigner::ModelNode m_modelNode;
+};
+
 
 } //QmlDesigner {

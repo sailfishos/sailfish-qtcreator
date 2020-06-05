@@ -51,6 +51,7 @@
 #include <QMessageBox>
 
 using namespace QmlJS::AST;
+using QmlJS::SourceLocation;
 using namespace QmlJSTools;
 
 namespace QmlJSEditor {
@@ -192,7 +193,7 @@ public:
         if (path == QFileInfo(currentFileName).path()) {
             // hack for the common case, next version should use the wizard
             ProjectExplorer::Node * oldFileNode =
-                    ProjectExplorer::ProjectTree::nodeForFile(Utils::FileName::fromString(currentFileName));
+                    ProjectExplorer::ProjectTree::nodeForFile(Utils::FilePath::fromString(currentFileName));
             if (oldFileNode) {
                 ProjectExplorer::FolderNode *containingFolder = oldFileNode->parentFolderNode();
                 if (containingFolder)

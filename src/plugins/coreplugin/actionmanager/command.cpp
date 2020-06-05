@@ -40,9 +40,11 @@
 
 /*!
     \class Core::Command
-    \mainclass
+    \inmodule QtCreator
+    \ingroup mainclasses
 
     \brief The Command class represents an action, such as a menu item, tool button, or shortcut.
+
     You do not create Command objects directly, but use \l{ActionManager::registerAction()}
     to register an action and retrieve a Command. The Command object represents the user visible
     action and its properties. If multiple actions are registered with the same ID (but
@@ -65,17 +67,16 @@
 */
 
 /*!
-    \enum Command::CommandAttribute
+    \enum Core::Command::CommandAttribute
     This enum defines how the user visible action is updated when the active action changes.
     The default is to update the enabled and visible state, and to disable the
     user visible action when there is no active action.
-    \omitvalue CA_Mask
     \value CA_UpdateText
         Also update the actions text.
     \value CA_UpdateIcon
         Also update the actions icon.
     \value CA_Hide
-        When there is no active action, hide the user "visible" action, instead of just
+        When there is no active action, hide the user-visible action, instead of just
         disabling it.
     \value CA_NonConfigurable
         Flag to indicate that the keyboard shortcut of this Command should not be
@@ -83,37 +84,37 @@
 */
 
 /*!
-    \fn void Command::setDefaultKeySequence(const QKeySequence &key)
+    \fn void Core::Command::setDefaultKeySequence(const QKeySequence &key)
     Sets the default keyboard shortcut that can be used to activate this command to \a key.
     This is used if the user didn't customize the shortcut, or resets the shortcut
     to the default one.
 */
 
 /*!
-    \fn void Command::defaultKeySequence() const
+    \fn void Core::Command::defaultKeySequence() const
     Returns the default keyboard shortcut that can be used to activate this command.
     \sa setDefaultKeySequence()
 */
 
 /*!
-    \fn void Command::keySequenceChanged()
+    \fn void Core::Command::keySequenceChanged()
     Sent when the keyboard shortcut assigned to this Command changes, e.g.
     when the user sets it in the keyboard shortcut settings dialog.
 */
 
 /*!
-    \fn QKeySequence Command::keySequence() const
+    \fn QKeySequence Core::Command::keySequence() const
     Returns the current keyboard shortcut assigned to this Command.
     \sa defaultKeySequence()
 */
 
 /*!
-    \fn void Command::setKeySequence(const QKeySequence &key)
+    \fn void Core::Command::setKeySequence(const QKeySequence &key)
     \internal
 */
 
 /*!
-    \fn void Command::setDescription(const QString &text)
+    \fn void Core::Command::setDescription(const QString &text)
     Sets the \a text that is used to represent the Command in the
     keyboard shortcut settings dialog. If you do not set this,
     the current text from the user visible action is taken (which
@@ -121,24 +122,24 @@
 */
 
 /*!
-    \fn QString Command::description() const
+    \fn QString Core::Command::description() const
     Returns the text that is used to present this Command to the user.
     \sa setDescription()
 */
 
 /*!
-    \fn int Command::id() const
+    \fn int Core::Command::id() const
     \internal
 */
 
 /*!
-    \fn QString Command::stringWithAppendedShortcut(const QString &string) const
+    \fn QString Core::Command::stringWithAppendedShortcut(const QString &string) const
     Returns the \a string with an appended representation of the keyboard shortcut
     that is currently assigned to this Command.
 */
 
 /*!
-    \fn QAction *Command::action() const
+    \fn QAction *Core::Command::action() const
     Returns the user visible action for this Command.
     If the Command represents a shortcut, it returns null.
     Use this action to put it on e.g. tool buttons. The action
@@ -151,7 +152,13 @@
 */
 
 /*!
-    \fn void Command::setAttribute(CommandAttribute attribute)
+    \fn Core::Context Core::Command::context() const
+
+    Returns the context for this command.
+*/
+
+/*!
+    \fn void Core::Command::setAttribute(Core::Command::CommandAttribute attribute)
     Adds \a attribute to the attributes of this Command.
     \sa CommandAttribute
     \sa removeAttribute()
@@ -159,14 +166,14 @@
 */
 
 /*!
-    \fn void Command::removeAttribute(CommandAttribute attribute)
+    \fn void Core::Command::removeAttribute(Core::Command::CommandAttribute attribute)
     Removes \a attribute from the attributes of this Command.
     \sa CommandAttribute
     \sa setAttribute()
 */
 
 /*!
-    \fn bool Command::hasAttribute(CommandAttribute attribute) const
+    \fn bool Core::Command::hasAttribute(Core::Command::CommandAttribute attribute) const
     Returns whether the Command has the \a attribute set.
     \sa CommandAttribute
     \sa removeAttribute()
@@ -174,31 +181,61 @@
 */
 
 /*!
-    \fn bool Command::isActive() const
+    \fn bool Core::Command::isActive() const
     Returns whether the Command has an active action or shortcut for the current
     context.
 */
 
 /*!
-    \fn bool Command::isScriptable() const
+    \fn bool Core::Command::isScriptable() const
     Returns whether the Command is scriptable. A scriptable command can be called
     from a script without the need for the user to interact with it.
 */
 
 /*!
-    \fn bool Command::isScriptable(const Context &) const
-    Returns whether the Command is scriptable for the given context.
-    A scriptable command can be called from a script without the need for the user to
-    interact with it.
+    \fn bool Core::Command::isScriptable(const Core::Context &) const
+    \internal
+
+    Returns whether the Command is scriptable.
+*/
+
+/*!
+    \fn void Core::Command::activeStateChanged()
+
+    This signal is emitted when the active state of the command changes.
+*/
+
+/*!
+    \fn virtual void Core::Command::setTouchBarText(const QString &text)
+
+    Sets the text for the action on the touch bar to \a text.
+*/
+
+/*!
+    \fn virtual QString Core::Command::touchBarText() const
+
+    Returns the text for the action on the touch bar.
+*/
+
+/*!
+    \fn virtual void Core::Command::setTouchBarIcon(const QIcon &icon)
+
+    Sets the icon for the action on the touch bar to \a icon.
+*/
+
+/*! \fn virtual QIcon Core::Command::touchBarIcon() const
+
+    Returns the icon for the action on the touch bar.
+*/
+
+/*! \fn virtual QAction *Core::Command::touchBarAction() const
+
+    Adds an action to the touch bar.
 */
 
 namespace Core {
 namespace Internal {
 
-/*!
-  \class Action
-  \internal
-*/
 Action::Action(Id id)
     : m_attributes({}),
       m_id(id),
@@ -325,14 +362,13 @@ void Action::addOverrideAction(QAction *action, const Context &context, bool scr
 
 void Action::removeOverrideAction(QAction *action)
 {
-    QMutableMapIterator<Id, QPointer<QAction> > it(m_contextActionMap);
-    while (it.hasNext()) {
-        it.next();
-        if (it.value() == nullptr)
-            it.remove();
-        else if (it.value() == action)
-            it.remove();
+    QList<Id> toRemove;
+    for (auto it = m_contextActionMap.cbegin(), end = m_contextActionMap.cend(); it != end; ++it) {
+        if (it.value() == nullptr || it.value() == action)
+            toRemove.append(it.key());
     }
+    for (Id id : toRemove)
+        m_contextActionMap.remove(id);
     setCurrentContext(m_context);
 }
 
@@ -454,6 +490,10 @@ QAction *Action::touchBarAction() const
 
 } // namespace Internal
 
+/*!
+    Appends the keyboard shortcut that is currently assigned to the action \a a
+    to its tool tip.
+*/
 void Command::augmentActionWithShortcutToolTip(QAction *a) const
 {
     a->setToolTip(stringWithAppendedShortcut(a->text()));
@@ -465,6 +505,11 @@ void Command::augmentActionWithShortcutToolTip(QAction *a) const
     });
 }
 
+/*!
+    Returns a tool button for \a action.
+
+    Appends the keyboard shortcut \a cmd to the tool tip of the action.
+*/
 QToolButton *Command::toolButtonWithAppendedShortcut(QAction *action, Command *cmd)
 {
     auto button = new QToolButton;

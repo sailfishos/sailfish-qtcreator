@@ -29,6 +29,8 @@
 #include "qmljsvalueowner.h"
 #include "parser/qmljsast_p.h"
 
+#include <QDebug>
+
 using namespace QmlJS;
 
 /*!
@@ -61,7 +63,7 @@ Evaluate::Evaluate(const ScopeChain *scopeChain, ReferenceContext *referenceCont
       _context(scopeChain->context()),
       _referenceContext(referenceContext),
       _scopeChain(scopeChain),
-      _result(0)
+      _result(nullptr)
 {
 }
 
@@ -95,7 +97,7 @@ const Value *Evaluate::value(AST::Node *ast)
 const Value *Evaluate::reference(AST::Node *ast)
 {
     // save the result
-    const Value *previousResult = switchResult(0);
+    const Value *previousResult = switchResult(nullptr);
 
     // process the expression
     accept(ast);
@@ -426,8 +428,8 @@ bool Evaluate::visit(AST::NotExpression *)
 
 bool Evaluate::visit(AST::BinaryExpression *ast)
 {
-    const Value *lhs = 0;
-    const Value *rhs = 0;
+    const Value *lhs = nullptr;
+    const Value *rhs = nullptr;
     switch (ast->op) {
     case QSOperator::Add:
     case QSOperator::InplaceAdd:
@@ -667,4 +669,9 @@ bool Evaluate::visit(AST::StatementList *)
 bool Evaluate::visit(AST::DebuggerStatement *)
 {
     return false;
+}
+
+void Evaluate::throwRecursionDepthError()
+{
+    qWarning("Evaluate hit maximum recursion error when visiting AST");
 }

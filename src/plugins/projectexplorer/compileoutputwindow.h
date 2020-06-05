@@ -26,6 +26,8 @@
 #pragma once
 
 #include "buildstep.h"
+#include "projectexplorersettings.h"
+#include <coreplugin/dialogs/ioptionspage.h>
 #include <coreplugin/ioutputpane.h>
 
 #include <QHash>
@@ -81,17 +83,29 @@ public:
 
     void flush();
 
+    const CompileOutputSettings &settings() const { return m_settings; }
+    void setSettings(const CompileOutputSettings &settings);
+
 private:
+    void updateFilter() override;
+
+    void loadSettings();
+    void storeSettings() const;
     void updateFromSettings();
-    void updateZoomEnabled();
 
     CompileOutputTextEdit *m_outputWindow;
     QHash<unsigned int, QPair<int, int>> m_taskPositions;
     ShowOutputTaskHandler *m_handler;
     QToolButton *m_cancelBuildButton;
-    QToolButton *m_zoomInButton;
-    QToolButton *m_zoomOutButton;
+    QToolButton * const m_settingsButton;
     Utils::OutputFormatter *m_formatter;
+    CompileOutputSettings m_settings;
+};
+
+class CompileOutputSettingsPage final : public Core::IOptionsPage
+{
+public:
+    CompileOutputSettingsPage();
 };
 
 } // namespace Internal

@@ -25,9 +25,9 @@
 
 import QtQuick 2.1
 import QtQuick.Layouts 1.0
-import QtQuick.Controls 1.0 as Controls
+import StudioControls 1.0 as StudioControls
+import StudioTheme 1.0 as StudioTheme
 import QtQuickDesignerTheme 1.0
-import QtQuick.Controls.Styles 1.1
 
 Loader {
     id: gradientDialogLoader
@@ -68,6 +68,8 @@ Loader {
             MouseArea {
                 anchors.fill: parent
                 onClicked: gradientDialogLoader.visible = false
+                preventStealing: true
+                hoverEnabled: true
             }
             Rectangle {
                 id: background
@@ -82,7 +84,6 @@ Loader {
                 width: parent.width - 8 - xOffset
                 height: gradientDialogLoader.dialogHeight
 
-                radius: 2
                 color: Theme.qmlDesignerBackgroundColorDarkAlternate()
                 border.color: Theme.qmlDesignerBorderColor()
 
@@ -93,33 +94,12 @@ Loader {
                     text: qsTr("Gradient Properties")
                 }
 
-                Button {
+                StudioControls.AbstractButton {
                     width: 16
                     height: 16
-                    style: ButtonStyle {
-                        background: Item {
-                            Image {
-                                width: 16
-                                height: 16
-                                source: "image://icons/error"
-                                opacity: {
-                                    if (control.pressed)
-                                        return 0.8
-                                    return 1.0
-                                }
-                                Rectangle {
-                                    z: -1
-                                    anchors.fill: parent
-                                    color: control.pressed
-                                           || control.hovered ? Theme.qmlDesignerBackgroundColorDarker() : Theme.qmlDesignerButtonColor()
-                                    border.color: Theme.qmlDesignerBorderColor()
-                                    radius: 2
-                                }
-                            }
-                        }
-                    }
+                    buttonIcon: StudioTheme.Constants.closeCross
                     onClicked: gradientDialogLoader.visible = false
-
+                    backgroundRadius: 2
                     anchors.right: parent.right
                     anchors.top: parent.top
                     anchors.margins: 4

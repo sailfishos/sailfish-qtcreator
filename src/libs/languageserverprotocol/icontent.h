@@ -26,6 +26,7 @@
 #pragma once
 
 #include "basemessage.h"
+#include "lsputils.h"
 
 #include <utils/mimetypes/mimetype.h>
 #include <utils/qtcassert.h>
@@ -69,12 +70,12 @@ public:
         return QJsonValue();
     }
 
-    bool isValid(QStringList *error = nullptr) const
+    bool isValid(ErrorHierarchy *error = nullptr) const
     {
         if (Utils::holds_alternative<int>(*this) || Utils::holds_alternative<QString>(*this))
             return true;
         if (error)
-            error->append("Expected int or string as MessageId");
+            error->setError("Expected int or string as MessageId");
         return false;
     }
 
@@ -92,7 +93,7 @@ using ResponseHandler = std::function<void(const QByteArray &, QTextCodec *)>;
 using ResponseHandlers = std::function<void(MessageId, const QByteArray &, QTextCodec *)>;
 using MethodHandler = std::function<void(const QString, MessageId, const IContent *)>;
 
-inline LANGUAGESERVERPROTOCOL_EXPORT uint qHash(const LanguageServerProtocol::MessageId &id)
+inline uint qHash(const LanguageServerProtocol::MessageId &id)
 {
     if (Utils::holds_alternative<int>(id))
         return QT_PREPEND_NAMESPACE(qHash(Utils::get<int>(id)));
@@ -102,8 +103,7 @@ inline LANGUAGESERVERPROTOCOL_EXPORT uint qHash(const LanguageServerProtocol::Me
 }
 
 template <typename Error>
-inline LANGUAGESERVERPROTOCOL_EXPORT QDebug operator<<(QDebug stream,
-                                                       const LanguageServerProtocol::MessageId &id)
+inline QDebug operator<<(QDebug stream, const LanguageServerProtocol::MessageId &id)
 {
     if (Utils::holds_alternative<int>(id))
         stream << Utils::get<int>(id);

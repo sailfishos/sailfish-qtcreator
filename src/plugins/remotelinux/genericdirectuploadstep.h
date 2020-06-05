@@ -26,29 +26,21 @@
 #pragma once
 
 #include "abstractremotelinuxdeploystep.h"
-#include "genericdirectuploadservice.h"
 #include "remotelinux_export.h"
 
 namespace RemoteLinux {
-namespace Internal { class GenericDirectUploadStepPrivate; }
 
 class REMOTELINUX_EXPORT GenericDirectUploadStep : public AbstractRemoteLinuxDeployStep
 {
     Q_OBJECT
 
 public:
-    explicit GenericDirectUploadStep(ProjectExplorer::BuildStepList *bsl);
+    GenericDirectUploadStep(ProjectExplorer::BuildStepList *bsl, Core::Id id,
+                            bool offerIncrementalDeployment = true);
     ~GenericDirectUploadStep() override;
-
-    bool initInternal(QString *error = nullptr) override;
 
     static Core::Id stepId();
     static QString displayName();
-
-private:
-    GenericDirectUploadService *deployService() const override;
-
-    Internal::GenericDirectUploadStepPrivate *d;
 };
 
 } //namespace RemoteLinux

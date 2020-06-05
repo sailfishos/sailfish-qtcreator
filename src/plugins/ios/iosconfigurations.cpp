@@ -71,8 +71,8 @@ using namespace Utils;
 using namespace Debugger;
 
 namespace {
-Q_LOGGING_CATEGORY(kitSetupLog, "qtc.ios.kitSetup", QtWarningMsg)
-Q_LOGGING_CATEGORY(iosCommonLog, "qtc.ios.common", QtWarningMsg)
+static Q_LOGGING_CATEGORY(kitSetupLog, "qtc.ios.kitSetup", QtWarningMsg)
+static Q_LOGGING_CATEGORY(iosCommonLog, "qtc.ios.common", QtWarningMsg)
 }
 
 using ToolChainPair = std::pair<ClangToolChain *, ClangToolChain *>;
@@ -136,7 +136,7 @@ static ToolChainPair findToolChainForPlatform(const XcodePlatform &platform,
                                               const QList<ClangToolChain *> &toolChains)
 {
     ToolChainPair platformToolChains;
-    auto toolchainMatch = [](ClangToolChain *toolChain, const Utils::FileName &compilerPath, const QStringList &flags) {
+    auto toolchainMatch = [](ClangToolChain *toolChain, const Utils::FilePath &compilerPath, const QStringList &flags) {
         return compilerPath == toolChain->compilerCommand()
                 && flags == toolChain->platformCodeGenFlags()
                 && flags == toolChain->platformLinkerFlags();
@@ -167,11 +167,11 @@ static QHash<XcodePlatform::ToolchainTarget, ToolChainPair> findToolChains(const
 
 static QSet<Kit *> existingAutoDetectedIosKits()
 {
-    return Utils::filtered(KitManager::kits(), [](Kit *kit) -> bool {
-        Core::Id deviceKind = DeviceTypeKitInformation::deviceTypeId(kit);
+    return Utils::toSet(Utils::filtered(KitManager::kits(), [](Kit *kit) -> bool {
+        Core::Id deviceKind = DeviceTypeKitAspect::deviceTypeId(kit);
         return kit->isAutoDetected() && (deviceKind == Constants::IOS_DEVICE_TYPE
                                          || deviceKind == Constants::IOS_SIMULATOR_TYPE);
-    }).toSet();
+    }));
 }
 
 static void printKits(const QSet<Kit *> &kits)
@@ -181,40 +181,40 @@ static void printKits(const QSet<Kit *> &kits)
 }
 
 static void setupKit(Kit *kit, Core::Id pDeviceType, const ToolChainPair& toolChains,
-                     const QVariant &debuggerId, const Utils::FileName &sdkPath, BaseQtVersion *qtVersion)
+                     const QVariant &debuggerId, const Utils::FilePath &sdkPath, BaseQtVersion *qtVersion)
 {
-    DeviceTypeKitInformation::setDeviceTypeId(kit, pDeviceType);
+    DeviceTypeKitAspect::setDeviceTypeId(kit, pDeviceType);
     if (toolChains.first)
-        ToolChainKitInformation::setToolChain(kit, toolChains.first);
+        ToolChainKitAspect::setToolChain(kit, toolChains.first);
     else
-        ToolChainKitInformation::clearToolChain(kit, ProjectExplorer::Constants::C_LANGUAGE_ID);
+        ToolChainKitAspect::clearToolChain(kit, ProjectExplorer::Constants::C_LANGUAGE_ID);
     if (toolChains.second)
-        ToolChainKitInformation::setToolChain(kit, toolChains.second);
+        ToolChainKitAspect::setToolChain(kit, toolChains.second);
     else
-        ToolChainKitInformation::clearToolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
+        ToolChainKitAspect::clearToolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
 
-    QtKitInformation::setQtVersion(kit, qtVersion);
+    QtKitAspect::setQtVersion(kit, qtVersion);
     // only replace debugger with the default one if we find an unusable one here
     // (since the user could have changed it)
-    if ((!DebuggerKitInformation::debugger(kit)
-            || !DebuggerKitInformation::debugger(kit)->isValid()
-            || DebuggerKitInformation::debugger(kit)->engineType() != LldbEngineType)
+    if ((!DebuggerKitAspect::debugger(kit)
+            || !DebuggerKitAspect::debugger(kit)->isValid()
+            || DebuggerKitAspect::debugger(kit)->engineType() != LldbEngineType)
             && debuggerId.isValid())
-        DebuggerKitInformation::setDebugger(kit, debuggerId);
+        DebuggerKitAspect::setDebugger(kit, debuggerId);
 
-    kit->setMutable(DeviceKitInformation::id(), true);
-    kit->setSticky(QtKitInformation::id(), true);
-    kit->setSticky(ToolChainKitInformation::id(), true);
-    kit->setSticky(DeviceTypeKitInformation::id(), true);
-    kit->setSticky(SysRootKitInformation::id(), true);
-    kit->setSticky(DebuggerKitInformation::id(), false);
+    kit->setMutable(DeviceKitAspect::id(), true);
+    kit->setSticky(QtKitAspect::id(), true);
+    kit->setSticky(ToolChainKitAspect::id(), true);
+    kit->setSticky(DeviceTypeKitAspect::id(), true);
+    kit->setSticky(SysRootKitAspect::id(), true);
+    kit->setSticky(DebuggerKitAspect::id(), false);
 
-    SysRootKitInformation::setSysRoot(kit, sdkPath);
+    SysRootKitAspect::setSysRoot(kit, sdkPath);
 }
 
-static QVersionNumber findXcodeVersion(const Utils::FileName &developerPath)
+static QVersionNumber findXcodeVersion(const Utils::FilePath &developerPath)
 {
-    FileName xcodeInfo = developerPath.parentDir().appendPath("Info.plist");
+    const FilePath xcodeInfo = developerPath.parentDir().pathAppended("Info.plist");
     if (xcodeInfo.exists()) {
         QSettings settings(xcodeInfo.toString(), QSettings::NativeFormat);
         return QVersionNumber::fromString(settings.value("CFBundleShortVersionString").toString());
@@ -233,7 +233,7 @@ static QByteArray decodeProvisioningProfile(const QString &path)
     p.setTimeoutS(3);
     // path is assumed to be valid file path to .mobileprovision
     const QStringList args = {"smime", "-inform", "der", "-verify", "-in", path};
-    Utils::SynchronousProcessResponse res = p.runBlocking("openssl", args);
+    Utils::SynchronousProcessResponse res = p.runBlocking({"openssl", args});
     if (res.result != Utils::SynchronousProcessResponse::Finished)
         qCDebug(iosCommonLog) << "Reading signed provisioning file failed" << path;
     return res.stdOut().toLatin1();
@@ -249,9 +249,9 @@ void IosConfigurations::updateAutomaticKitList()
     // target -> tool chain
     const auto targetToolChainHash = findToolChains(platforms);
 
-    const auto qtVersions = QtVersionManager::versions([](const BaseQtVersion *v) {
+    const auto qtVersions = Utils::toSet(QtVersionManager::versions([](const BaseQtVersion *v) {
         return v->isValid() && v->type() == Constants::IOSQT;
-    }).toSet();
+    }));
 
     const DebuggerItem *possibleDebugger = DebuggerItemManager::findByEngineType(LldbEngineType);
     const QVariant debuggerId = (possibleDebugger ? possibleDebugger->id() : QVariant());
@@ -287,10 +287,10 @@ void IosConfigurations::updateAutomaticKitList()
                 Kit *kit = Utils::findOrDefault(existingKits, [&pDeviceType, &platformToolchains, &qtVersion](const Kit *kit) {
                     // we do not compare the sdk (thus automatically upgrading it in place if a
                     // new Xcode is used). Change?
-                    return DeviceTypeKitInformation::deviceTypeId(kit) == pDeviceType
-                            && ToolChainKitInformation::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID) == platformToolchains.second
-                            && ToolChainKitInformation::toolChain(kit, ProjectExplorer::Constants::C_LANGUAGE_ID) == platformToolchains.first
-                            && QtKitInformation::qtVersion(kit) == qtVersion;
+                    return DeviceTypeKitAspect::deviceTypeId(kit) == pDeviceType
+                            && ToolChainKitAspect::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID) == platformToolchains.second
+                            && ToolChainKitAspect::toolChain(kit, ProjectExplorer::Constants::C_LANGUAGE_ID) == platformToolchains.first
+                            && QtKitAspect::qtVersion(kit) == qtVersion;
                 });
                 QTC_ASSERT(!resultingKits.contains(kit), continue);
                 if (kit) {
@@ -300,17 +300,15 @@ void IosConfigurations::updateAutomaticKitList()
                     kit->unblockNotification();
                 } else {
                     qCDebug(kitSetupLog) << "    - Setting up new kit";
-                    auto newKit = std::make_unique<Kit>();
-                    kit = newKit.get();
-                    kit->blockNotification();
-                    kit->setAutoDetected(true);
-                    const QString baseDisplayName = isSimulatorDeviceId(pDeviceType)
-                            ? tr("%1 Simulator").arg(qtVersion->unexpandedDisplayName())
-                            : qtVersion->unexpandedDisplayName();
-                    kit->setUnexpandedDisplayName(baseDisplayName);
-                    setupKit(kit, pDeviceType, platformToolchains, debuggerId, sdk.path, qtVersion);
-                    kit->unblockNotification();
-                    KitManager::registerKit(std::move(newKit));
+                    const auto init = [&](Kit *k) {
+                        k->setAutoDetected(true);
+                        const QString baseDisplayName = isSimulatorDeviceId(pDeviceType)
+                                ? tr("%1 Simulator").arg(qtVersion->unexpandedDisplayName())
+                                : qtVersion->unexpandedDisplayName();
+                        k->setUnexpandedDisplayName(baseDisplayName);
+                        setupKit(k, pDeviceType, platformToolchains, debuggerId, sdk.path, qtVersion);
+                    };
+                    kit = KitManager::registerKit(init);
                 }
                 resultingKits.insert(kit);
             }
@@ -359,7 +357,7 @@ void IosConfigurations::setIgnoreAllDevices(bool ignoreDevices)
     }
 }
 
-void IosConfigurations::setScreenshotDir(const FileName &path)
+void IosConfigurations::setScreenshotDir(const FilePath &path)
 {
     if (m_instance->m_screenshotDir != path) {
         m_instance->m_screenshotDir = path;
@@ -367,12 +365,12 @@ void IosConfigurations::setScreenshotDir(const FileName &path)
     }
 }
 
-FileName IosConfigurations::screenshotDir()
+FilePath IosConfigurations::screenshotDir()
 {
     return m_instance->m_screenshotDir;
 }
 
-FileName IosConfigurations::developerPath()
+FilePath IosConfigurations::developerPath()
 {
     return m_instance->m_developerPath;
 }
@@ -404,11 +402,11 @@ void IosConfigurations::load()
     QSettings *settings = Core::ICore::settings();
     settings->beginGroup(SettingsGroup);
     m_ignoreAllDevices = settings->value(ignoreAllDevicesKey, false).toBool();
-    m_screenshotDir = FileName::fromString(settings->value(screenshotDirPathKey).toString());
+    m_screenshotDir = FilePath::fromString(settings->value(screenshotDirPathKey).toString());
     if (!m_screenshotDir.exists()) {
         QString defaultDir =
                 QStandardPaths::standardLocations(QStandardPaths::PicturesLocation).constFirst();
-        m_screenshotDir = FileName::fromString(defaultDir);
+        m_screenshotDir = FilePath::fromString(defaultDir);
     }
 
     settings->endGroup();
@@ -427,7 +425,7 @@ void IosConfigurations::updateSimulators()
     SimulatorControl::updateAvailableSimulators();
 }
 
-void IosConfigurations::setDeveloperPath(const FileName &devPath)
+void IosConfigurations::setDeveloperPath(const FilePath &devPath)
 {
     static bool hasDevPath = false;
     if (devPath != m_instance->m_developerPath) {
@@ -476,9 +474,8 @@ void IosConfigurations::loadProvisioningData(bool notify)
     const QSettings xcodeSettings(xcodePlistPath, QSettings::NativeFormat);
     const QVariantMap teamMap = xcodeSettings.value(provisioningTeamsTag).toMap();
     QList<QVariantMap> teams;
-    QMapIterator<QString, QVariant> accountiterator(teamMap);
-    while (accountiterator.hasNext()) {
-        accountiterator.next();
+    for (auto accountiterator = teamMap.cbegin(), end = teamMap.cend();
+            accountiterator != end; ++accountiterator) {
         QVariantMap teamInfo = accountiterator.value().toMap();
         int provisioningTeamIsFree = teamInfo.value(freeTeamTag).toBool() ? 1 : 0;
         teamInfo[freeTeamTag] = provisioningTeamIsFree;
@@ -577,34 +574,10 @@ ProvisioningProfilePtr IosConfigurations::provisioningProfile(const QString &pro
                                 Utils::equal(&ProvisioningProfile::identifier, profileID));
 }
 
-static ClangToolChain *createToolChain(const XcodePlatform &platform,
-                                       const XcodePlatform::ToolchainTarget &target,
-                                       Core::Id l)
+IosToolChainFactory::IosToolChainFactory()
 {
-    if (!l.isValid())
-        return nullptr;
-
-    if (l != Core::Id(ProjectExplorer::Constants::C_LANGUAGE_ID)
-            && l != Core::Id(ProjectExplorer::Constants::CXX_LANGUAGE_ID))
-        return nullptr;
-
-    auto toolChain = new ClangToolChain(ToolChain::AutoDetection);
-    toolChain->setLanguage(l);
-    toolChain->setDisplayName(target.name);
-    toolChain->setPlatformCodeGenFlags(target.backendFlags);
-    toolChain->setPlatformLinkerFlags(target.backendFlags);
-    toolChain->resetToolChain(l == Core::Id(ProjectExplorer::Constants::CXX_LANGUAGE_ID) ?
-                                  platform.cxxCompilerPath : platform.cCompilerPath);
-
-    return toolChain;
-}
-
-QSet<Core::Id> IosToolChainFactory::supportedLanguages() const
-{
-    return {
-        ProjectExplorer::Constants::C_LANGUAGE_ID,
-        ProjectExplorer::Constants::CXX_LANGUAGE_ID
-    };
+    setSupportedLanguages({ProjectExplorer::Constants::C_LANGUAGE_ID,
+                           ProjectExplorer::Constants::CXX_LANGUAGE_ID});
 }
 
 QList<ToolChain *> IosToolChainFactory::autoDetect(const QList<ToolChain *> &existingToolChains)
@@ -613,13 +586,20 @@ QList<ToolChain *> IosToolChainFactory::autoDetect(const QList<ToolChain *> &exi
     const QList<XcodePlatform> platforms = XcodeProbe::detectPlatforms().values();
     QList<ToolChain *> toolChains;
     toolChains.reserve(platforms.size());
-    foreach (const XcodePlatform &platform, platforms) {
+    for (const XcodePlatform &platform : platforms) {
         for (const XcodePlatform::ToolchainTarget &target : platform.targets) {
             ToolChainPair platformToolchains = findToolChainForPlatform(platform, target,
                                                                         existingClangToolChains);
-            auto createOrAdd = [&](ClangToolChain* toolChain, Core::Id l) {
+            auto createOrAdd = [&](ClangToolChain *toolChain, Core::Id l) {
                 if (!toolChain) {
-                    toolChain = createToolChain(platform, target, l);
+                    toolChain = new ClangToolChain;
+                    toolChain->setDetection(ToolChain::AutoDetection);
+                    toolChain->setLanguage(l);
+                    toolChain->setDisplayName(target.name);
+                    toolChain->setPlatformCodeGenFlags(target.backendFlags);
+                    toolChain->setPlatformLinkerFlags(target.backendFlags);
+                    toolChain->resetToolChain(l == ProjectExplorer::Constants::CXX_LANGUAGE_ID ?
+                                                  platform.cxxCompilerPath : platform.cCompilerPath);
                     existingClangToolChains.append(toolChain);
                 }
                 toolChains.append(toolChain);

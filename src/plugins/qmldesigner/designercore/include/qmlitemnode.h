@@ -29,6 +29,7 @@
 #include <modelnode.h>
 #include "qmlobjectnode.h"
 #include "qmlstate.h"
+#include "qmlvisualnode.h"
 
 #include <QStringList>
 #include <QRectF>
@@ -40,26 +41,23 @@ class QmlModelStateGroup;
 class QmlAnchors;
 class ItemLibraryEntry;
 
-class QMLDESIGNERCORE_EXPORT QmlItemNode : public QmlObjectNode
+class QMLDESIGNERCORE_EXPORT QmlItemNode : public QmlVisualNode
 {
     friend class QmlAnchors;
 public:
-    QmlItemNode() : QmlObjectNode() {}
-    QmlItemNode(const ModelNode &modelNode)  : QmlObjectNode(modelNode) {}
+    QmlItemNode() : QmlVisualNode() {}
+    QmlItemNode(const ModelNode &modelNode)  : QmlVisualNode(modelNode) {}
     bool isValid() const override;
     static bool isValidQmlItemNode(const ModelNode &modelNode);
-    bool isRootNode() const;
 
     static bool isItemOrWindow(const ModelNode &modelNode);
 
     static QmlItemNode createQmlItemNode(AbstractView *view,
-                                         const ItemLibraryEntry &itemLibraryEntry,
-                                         const QPointF &position,
-                                         QmlItemNode parentQmlItemNode);
-    static QmlItemNode createQmlItemNode(AbstractView *view,
-                                         const ItemLibraryEntry &itemLibraryEntry,
-                                         const QPointF &position,
-                                         NodeAbstractProperty parentproperty);
+                                             const ItemLibraryEntry &itemLibraryEntry,
+                                             const QPointF &position,
+                                             QmlItemNode parentQmlItemNode);
+
+
     static QmlItemNode createQmlItemNodeFromImage(AbstractView *view,
                                                   const QString &imageName,
                                                   const QPointF &position,
@@ -69,7 +67,6 @@ public:
                                                   const QPointF &position,
                                                   NodeAbstractProperty parentproperty);
 
-    QmlModelStateGroup states() const;
     QList<QmlItemNode> children() const;
     QList<QmlObjectNode> resources() const;
     QList<QmlObjectNode> allDirectSubNodes() const;
@@ -94,6 +91,7 @@ public:
     bool modelIsInLayout() const;
 
     QRectF instanceBoundingRect() const;
+    QRectF instanceSceneBoundingRect() const;
     QRectF instancePaintedBoundingRect() const;
     QRectF instanceContentItemBoundingRect() const;
     QTransform instanceTransform() const;
@@ -110,48 +108,89 @@ public:
     QPixmap instanceRenderPixmap() const;
     QPixmap instanceBlurredRenderPixmap() const;
 
-    QString simplifiedTypeName() const;
-
     const QList<QmlItemNode> allDirectSubModelNodes() const;
     const QList<QmlItemNode> allSubModelNodes() const;
     bool hasAnySubModelNodes() const;
 
     void setPosition(const QPointF &position);
     void setPostionInBaseState(const QPointF &position);
+    void setFlowItemPosition(const QPointF &position);
+    QPointF flowPosition() const;
 
     void setSize(const QSizeF &size);
     bool isInLayout() const;
     bool canBereparentedTo(const ModelNode &potentialParent) const;
 
     bool isInStackedContainer() const;
+
+    bool isFlowView() const;
+    bool isFlowItem() const;
+    bool isFlowActionArea() const;
+    ModelNode rootModelNode() const;
 };
+
+class QmlFlowItemNode;
+class QmlFlowViewNode;
+
+class QMLDESIGNERCORE_EXPORT QmlFlowTargetNode : public QmlItemNode
+{
+public:
+    QmlFlowTargetNode(const ModelNode &modelNode)  : QmlItemNode(modelNode) {}
+    bool isValid() const override;
+
+    void assignTargetItem(const QmlFlowTargetNode &node);
+    void destroyTargets();
+    ModelNode targetTransition() const;
+    QmlFlowViewNode flowView() const;
+    ModelNode findSourceForDecisionNode() const;
+    static bool isFlowEditorTarget(const ModelNode &modelNode);
+    void removeTransitions();
+};
+
+class QMLDESIGNERCORE_EXPORT QmlFlowActionAreaNode : public QmlItemNode
+{
+public:
+    QmlFlowActionAreaNode(const ModelNode &modelNode)  : QmlItemNode(modelNode) {}
+    bool isValid() const override;
+    static bool isValidQmlFlowActionAreaNode(const ModelNode &modelNode);
+    ModelNode targetTransition() const;
+    void assignTargetFlowItem(const QmlFlowTargetNode &flowItem);
+    QmlFlowItemNode flowItemParent() const;
+    void destroyTarget();
+    ModelNode decisionNodeForTransition(const ModelNode &transition) const;
+};
+
+class QMLDESIGNERCORE_EXPORT QmlFlowItemNode : public QmlItemNode
+{
+public:
+    QmlFlowItemNode(const ModelNode &modelNode)  : QmlItemNode(modelNode) {}
+    bool isValid() const override;
+    static bool isValidQmlFlowItemNode(const ModelNode &modelNode);
+    QList<QmlFlowActionAreaNode> flowActionAreas() const;
+    QmlFlowViewNode flowView() const;
+};
+
+class QMLDESIGNERCORE_EXPORT QmlFlowViewNode : public QmlItemNode
+{
+public:
+    QmlFlowViewNode(const ModelNode &modelNode)  : QmlItemNode(modelNode) {}
+    bool isValid() const override;
+    static bool isValidQmlFlowViewNode(const ModelNode &modelNode);
+    QList<QmlFlowItemNode> flowItems() const;
+    ModelNode addTransition(const QmlFlowTargetNode &from, const QmlFlowTargetNode &to);
+    const QList<ModelNode> transitions() const;
+    const QList<ModelNode> wildcards() const;
+    const QList<ModelNode> decicions() const;
+    QList<ModelNode> transitionsForTarget(const ModelNode &modelNode);
+    void removeDanglingTransitions();
+    void removeAllTransitions();
+};
+
 
 QMLDESIGNERCORE_EXPORT uint qHash(const QmlItemNode &node);
 
-class QMLDESIGNERCORE_EXPORT QmlModelStateGroup
-{
-    friend class QmlItemNode;
-    friend class StatesEditorView;
-
-public:
-
-    QmlModelStateGroup() : m_modelNode(ModelNode()) {}
-
-    ModelNode modelNode() const { return m_modelNode; }
-    QStringList names() const;
-    QList<QmlModelState> allStates() const;
-    QmlModelState state(const QString &name) const;
-    QmlModelState addState(const QString &name);
-    void removeState(const QString &name);
-
-protected:
-    QmlModelStateGroup(const ModelNode &modelNode) : m_modelNode(modelNode) {}
-
-private:
-    ModelNode m_modelNode;
-};
-
 QMLDESIGNERCORE_EXPORT QList<ModelNode> toModelNodeList(const QList<QmlItemNode> &fxItemNodeList);
 QMLDESIGNERCORE_EXPORT QList<QmlItemNode> toQmlItemNodeList(const QList<ModelNode> &modelNodeList);
+QMLDESIGNERCORE_EXPORT QList<QmlItemNode> toQmlItemNodeListKeppInvalid(const QList<ModelNode> &modelNodeList);
 
 } //QmlDesigner

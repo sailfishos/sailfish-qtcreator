@@ -32,14 +32,17 @@
 
 #include <sqlitedatabase.h>
 
+#include <clangindexingsettingsmanager.h>
+#include <clangrefactoringservermessages.h>
 #include <filepathcaching.h>
 #include <precompiledheadersupdatedmessage.h>
 #include <refactoringdatabaseinitializer.h>
-#include <clangrefactoringservermessages.h>
 
 #include <pchmanagerclient.h>
 
 #include <refactoringprojectupdater.h>
+
+#include <projectexplorer/project.h>
 
 #include <memory>
 
@@ -61,9 +64,14 @@ MATCHER_P(IsProjectPartContainer,
 class RefactoringProjectUpdater : public testing::Test
 {
 protected:
+    RefactoringProjectUpdater()
+    {
+        ON_CALL(mockProjectPartsStorage, transactionBackend()).WillByDefault(ReturnRef(database));
+    }
     ProjectPart::Ptr createProjectPart(const char *name)
     {
         ProjectPart::Ptr projectPart{new ProjectPart};
+        projectPart->project = &project;
         projectPart->displayName = QString::fromUtf8(name, std::strlen(name));
         projectPartId = projectPart->id();
         return projectPart;
@@ -80,11 +88,14 @@ protected:
     ClangPchManager::PchManagerClient pchManagerClient{mockPchCreationProgressManager,
                                                        mockDependencyCreationProgressManager};
     MockCppModelManager mockCppModelManager;
+    ProjectExplorer::Project project;
+    ClangPchManager::ClangIndexingSettingsManager settingsManager;
     ClangRefactoring::RefactoringProjectUpdater updater{mockRefactoringServer,
                                                         pchManagerClient,
                                                         mockCppModelManager,
                                                         filePathCache,
-                                                        mockProjectPartsStorage};
+                                                        mockProjectPartsStorage,
+                                                        settingsManager};
     Utils::SmallString projectPartId;
 };
 
@@ -97,7 +108,7 @@ TEST_F(RefactoringProjectUpdater, DontUpdateProjectPartIfNoProjectPartExistsForI
     EXPECT_CALL(mockCppModelManager, projectPartForId(Eq(QString("project1"))));
     EXPECT_CALL(mockRefactoringServer, updateProjectParts(_)).Times(0);
 
-    pchManagerClient.precompiledHeadersUpdated({{{3, "/path/to/pch", 12}}});
+    pchManagerClient.precompiledHeadersUpdated({3});
 }
 
 TEST_F(RefactoringProjectUpdater, UpdateProjectPart)
@@ -108,13 +119,11 @@ TEST_F(RefactoringProjectUpdater, UpdateProjectPart)
         .WillRepeatedly(Return(QString(" project1")));
     EXPECT_CALL(mockCppModelManager, projectPartForId(Eq(QString(" project1"))))
         .WillRepeatedly(Return(createProjectPart("project1")));
-    EXPECT_CALL(mockProjectPartsStorage, fetchProjectPartId(Eq(" project1")))
-        .WillOnce(Return(ClangBackEnd::ProjectPartId{3}));
     EXPECT_CALL(mockRefactoringServer,
                 updateProjectParts(Field(&UpdateProjectPartsMessage::projectsParts,
                                          ElementsAre(IsProjectPartContainer(3)))));
 
-    pchManagerClient.precompiledHeadersUpdated({{{3, "/path/to/pch", 12}}});
+    pchManagerClient.precompiledHeadersUpdated({3});
 }
 
 TEST_F(RefactoringProjectUpdater, RemoveProjectPart)

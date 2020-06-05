@@ -33,6 +33,9 @@
 #include <utils/smallstringvector.h>
 #include <utils/cpplanguage_details.h>
 
+#include <QCoreApplication>
+#include <QDir>
+
 namespace ClangBackEnd {
 
 enum class InputFileType : unsigned char { Header, Source };
@@ -46,7 +49,8 @@ public:
                        InputFileType sourceType = InputFileType::Header,
                        FilePathView sourcePath = {},
                        FilePathView outputPath = {},
-                       FilePathView includePchPath = {})
+                       FilePathView includePchPath = {},
+                       NativeFilePathView preIncludeSearchPath = {})
     {
         commandLine.reserve(1024);
 
@@ -58,6 +62,7 @@ public:
         addLanguageVersion(projectInfo);
         addNoStdIncAndNoStdLibInc(projectInfo.language);
         addCompilerMacros(projectInfo.compilerMacros);
+        addPreIncludeSearchPath(preIncludeSearchPath);
         addProjectIncludeSearchPaths(
             sortedIncludeSearchPaths(projectInfo.projectIncludeSearchPaths));
         addSystemAndBuiltInIncludeSearchPaths(
@@ -97,9 +102,12 @@ public:
             if (projectInfo.languageExtension && Utils::LanguageExtension::ObjectiveC)
                 return sourceType == InputFileType::Header ? "objective-c++-header"
                                                            : "objective-c++";
+            return sourceType == InputFileType::Header ? "c++-header" : "c++";
+        case Utils::Language::None:
+            return "none";
         }
 
-        return sourceType == InputFileType::Header ? "c++-header" : "c++";
+        return "none";
     }
 
     void addLanguage(const ProjectInfo &projectInfo, InputFileType sourceType)
@@ -131,6 +139,8 @@ public:
             return "-std=c++17";
         case Utils::LanguageVersion::CXX2a:
             return "-std=c++2a";
+        case Utils::LanguageVersion::None:
+            return "";
         }
 
         return "-std=c++2a";
@@ -159,6 +169,8 @@ public:
             return "-std=gnu++17";
         case Utils::LanguageVersion::CXX2a:
             return "-std=gnu++2a";
+        case Utils::LanguageVersion::None:
+            return "";
         }
 
         return "-std=gnu++2a";
@@ -207,6 +219,14 @@ public:
 
         for (const CompilerMacro &macro : macros)
             commandLine.emplace_back(Utils::SmallString{"-D", macro.key, "=", macro.value});
+    }
+
+    void addPreIncludeSearchPath(NativeFilePathView preIncludeSearchPath)
+    {
+        if (!preIncludeSearchPath.empty()) {
+            commandLine.emplace_back("-isystem");
+            commandLine.emplace_back(preIncludeSearchPath);
+        }
     }
 
     IncludeSearchPaths sortedIncludeSearchPaths(const IncludeSearchPaths &unsortedPaths)

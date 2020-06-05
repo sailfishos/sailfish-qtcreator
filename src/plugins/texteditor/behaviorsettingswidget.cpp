@@ -28,6 +28,9 @@
 
 #include "tabsettingswidget.h"
 
+#include <coreplugin/coreconstants.h>
+#include <coreplugin/icore.h>
+
 #include <texteditor/typingsettings.h>
 #include <texteditor/storagesettings.h>
 #include <texteditor/behaviorsettings.h>
@@ -81,7 +84,9 @@ BehaviorSettingsWidget::BehaviorSettingsWidget(QWidget *parent)
         d->m_codecs.prepend(QTextCodec::codecForLocale());
     }
 
-    auto currentIndexChanged = static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged);
+    d->m_ui.defaultLineEndings->addItems(ExtraEncodingSettings::lineTerminationModeNames());
+
+    auto currentIndexChanged = QOverload<int>::of(&QComboBox::currentIndexChanged);
     connect(d->m_ui.autoIndent, &QAbstractButton::toggled,
             this, &BehaviorSettingsWidget::slotTypingSettingsChanged);
     connect(d->m_ui.smartBackspaceBehavior, currentIndexChanged,
@@ -132,17 +137,30 @@ void BehaviorSettingsWidget::setActive(bool active)
 
 void BehaviorSettingsWidget::setAssignedCodec(QTextCodec *codec)
 {
+    const QString codecName = Core::ICore::settings()->value(
+                Core::Constants::SETTINGS_DEFAULTTEXTENCODING).toString();
+
+    int rememberedSystemPosition = -1;
     for (int i = 0; i < d->m_codecs.size(); ++i) {
         if (codec == d->m_codecs.at(i)) {
-            d->m_ui.encodingBox->setCurrentIndex(i);
-            break;
+            if (d->m_ui.encodingBox->itemText(i) == codecName) {
+                d->m_ui.encodingBox->setCurrentIndex(i);
+                return;
+            } else { // we've got System matching encoding - but have explicitly set the codec
+                rememberedSystemPosition = i;
+            }
         }
     }
+    if (rememberedSystemPosition != -1)
+        d->m_ui.encodingBox->setCurrentIndex(rememberedSystemPosition);
 }
 
-QTextCodec *BehaviorSettingsWidget::assignedCodec() const
+QByteArray BehaviorSettingsWidget::assignedCodecName() const
 {
-    return d->m_codecs.at(d->m_ui.encodingBox->currentIndex());
+    return d->m_ui.encodingBox->currentIndex() == 0
+            ? QByteArray("System")   // we prepend System to the available codecs
+            : d->m_codecs.at(d->m_ui.encodingBox->currentIndex())->name();
+
 }
 
 void BehaviorSettingsWidget::setCodeStyle(ICodeStylePreferences *preferences)
@@ -227,6 +245,16 @@ void BehaviorSettingsWidget::assignedExtraEncodingSettings(
 {
     encodingSettings->m_utf8BomSetting =
         (ExtraEncodingSettings::Utf8BomSetting)d->m_ui.utf8BomBox->currentIndex();
+}
+
+void BehaviorSettingsWidget::setAssignedLineEnding(int lineEnding)
+{
+    d->m_ui.defaultLineEndings->setCurrentIndex(lineEnding);
+}
+
+int BehaviorSettingsWidget::assignedLineEnding() const
+{
+    return d->m_ui.defaultLineEndings->currentIndex();
 }
 
 TabSettingsWidget *BehaviorSettingsWidget::tabSettingsWidget() const

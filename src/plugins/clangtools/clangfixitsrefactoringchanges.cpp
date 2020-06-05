@@ -45,7 +45,7 @@
 
 #include <algorithm>
 
-Q_LOGGING_CATEGORY(fixitsLog, "qtc.clangtools.fixits", QtWarningMsg);
+static Q_LOGGING_CATEGORY(fixitsLog, "qtc.clangtools.fixits", QtWarningMsg);
 
 using namespace TextEditor;
 using namespace Utils;
@@ -109,7 +109,7 @@ bool FixitsRefactoringFile::apply()
                     format(*indenter, doc, operationsForFile, i);
                 operationsForFile.clear();
                 indenter = std::unique_ptr<TextEditor::Indenter>(factory->createIndenter(doc));
-                indenter->setFileName(Utils::FileName::fromString(op.fileName));
+                indenter->setFileName(Utils::FilePath::fromString(op.fileName));
             }
 
             QTextCursor cursor(doc);
@@ -150,7 +150,7 @@ void FixitsRefactoringFile::format(TextEditor::Indenter &indenter,
         const int end = doc->findBlock(op.pos + op.length).blockNumber() + 1;
         ranges.push_back({start, end});
     }
-    const Replacements replacements = indenter.format(ranges);
+    const Text::Replacements replacements = indenter.format(ranges);
 
     if (replacements.empty())
         return;
@@ -201,7 +201,7 @@ void FixitsRefactoringFile::shiftAffectedReplacements(const ReplacementOperation
 }
 
 bool FixitsRefactoringFile::hasIntersection(const QString &fileName,
-                                            const Replacements &replacements,
+                                            const Text::Replacements &replacements,
                                             int startIndex) const
 {
     for (int i = startIndex; i < m_replacementOperations.size(); ++i) {
@@ -212,7 +212,7 @@ bool FixitsRefactoringFile::hasIntersection(const QString &fileName,
         // Usually the number of replacements is from 1 to 3.
         if (std::any_of(replacements.begin(),
                         replacements.end(),
-                        [&current](const Replacement &replacement) {
+                        [&current](const Text::Replacement &replacement) {
                             return replacement.offset + replacement.length > current.pos
                                    && replacement.offset < current.pos + current.length;
                         })) {
@@ -224,7 +224,7 @@ bool FixitsRefactoringFile::hasIntersection(const QString &fileName,
 }
 
 void FixitsRefactoringFile::shiftAffectedReplacements(const QString &fileName,
-                                                      const Replacements &replacements,
+                                                      const Text::Replacements &replacements,
                                                       int startIndex)
 {
     for (int i = startIndex; i < m_replacementOperations.size(); ++i) {

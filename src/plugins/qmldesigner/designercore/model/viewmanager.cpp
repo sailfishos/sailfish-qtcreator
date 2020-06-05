@@ -36,6 +36,7 @@
 #include <itemlibraryview.h>
 #include <navigatorview.h>
 #include <stateseditorview.h>
+#include <edit3dview.h>
 #include <formeditorview.h>
 #include <texteditorview.h>
 #include <propertyeditorview.h>
@@ -47,6 +48,7 @@
 
 #include <utils/algorithm.h>
 
+#include <QElapsedTimer>
 #include <QLoggingCategory>
 #include <QTabWidget>
 
@@ -62,6 +64,7 @@ public:
     DesignerActionManagerView designerActionManagerView;
     NodeInstanceView nodeInstanceView;
     ComponentView componentView;
+    Edit3DView edit3DView;
     FormEditorView formEditorView;
     TextEditorView textEditorView;
     ItemLibraryView itemLibraryView;
@@ -71,7 +74,6 @@ public:
 
     QList<QPointer<AbstractView> > additionalViews;
 };
-
 
 static CrumbleBar *crumbleBar() {
     return QmlDesignerPlugin::instance()->mainWidget()->crumbleBar();
@@ -102,14 +104,13 @@ DesignDocument *ViewManager::currentDesignDocument() const
 
 void ViewManager::attachNodeInstanceView()
 {
-
-    QTime time;
+    QElapsedTimer time;
     if (viewBenchmark().isInfoEnabled())
         time.start();
 
     qCInfo(viewBenchmark) << Q_FUNC_INFO;
 
-    setNodeInstanceViewKit(currentDesignDocument()->currentKit());
+    setNodeInstanceViewTarget(currentDesignDocument()->currentTarget());
     currentModel()->setNodeInstanceView(&d->nodeInstanceView);
 
      qCInfo(viewBenchmark) << "NodeInstanceView:" << time.elapsed();
@@ -117,7 +118,7 @@ void ViewManager::attachNodeInstanceView()
 
 void ViewManager::attachRewriterView()
 {
-    QTime time;
+    QElapsedTimer time;
     if (viewBenchmark().isInfoEnabled())
         time.start();
 
@@ -165,6 +166,7 @@ QList<QPointer<AbstractView> > ViewManager::views() const
 {
     auto list = d->additionalViews;
     list.append({
+                    &d->edit3DView,
                     &d->formEditorView,
                     &d->textEditorView,
                     &d->itemLibraryView,
@@ -195,6 +197,7 @@ void ViewManager::detachViewsExceptRewriterAndComponetView()
     switchStateEditorViewToBaseState();
     detachAdditionalViews();
     currentModel()->detachView(&d->designerActionManagerView);
+    currentModel()->detachView(&d->edit3DView);
     currentModel()->detachView(&d->formEditorView);
     currentModel()->detachView(&d->textEditorView);
     currentModel()->detachView(&d->navigatorView);
@@ -253,7 +256,7 @@ void ViewManager::attachViewsExceptRewriterAndComponetView()
 
     attachNodeInstanceView();
 
-    QTime time;
+    QElapsedTimer time;
     if (viewBenchmark().isInfoEnabled())
         time.start();
 
@@ -264,9 +267,15 @@ void ViewManager::attachViewsExceptRewriterAndComponetView()
     int last = time.elapsed();
     qCInfo(viewBenchmark) << "ActionManagerView:" << last << time.elapsed();
 
-    currentModel()->attachView(&d->formEditorView);
+    currentModel()->attachView(&d->edit3DView);
 
     int currentTime = time.elapsed();
+    qCInfo(viewBenchmark) << "Edit3DView:" << currentTime - last;
+    last = currentTime;
+
+    currentModel()->attachView(&d->formEditorView);
+
+    currentTime = time.elapsed();
     qCInfo(viewBenchmark) << "FormEditorView:" << currentTime - last;
     last = currentTime;
 
@@ -328,20 +337,16 @@ void ViewManager::setComponentViewToMaster()
     d->componentView.setComponentToMaster();
 }
 
-void ViewManager::setNodeInstanceViewKit(ProjectExplorer::Kit *kit)
+void ViewManager::setNodeInstanceViewTarget(ProjectExplorer::Target *target)
 {
-    d->nodeInstanceView.setKit(kit);
-}
-
-void QmlDesigner::ViewManager::setNodeInstanceViewProject(ProjectExplorer::Project *project)
-{
-    d->nodeInstanceView.setProject(project);
+    d->nodeInstanceView.setTarget(target);
 }
 
 QList<WidgetInfo> ViewManager::widgetInfos() const
 {
     QList<WidgetInfo> widgetInfoList;
 
+    widgetInfoList.append(d->edit3DView.widgetInfo());
     widgetInfoList.append(d->formEditorView.widgetInfo());
     widgetInfoList.append(d->textEditorView.widgetInfo());
     widgetInfoList.append(d->itemLibraryView.widgetInfo());
@@ -384,7 +389,7 @@ void ViewManager::enableWidgets()
         view->enableWidget();
 }
 
-void ViewManager::pushFileOnCrumbleBar(const Utils::FileName &fileName)
+void ViewManager::pushFileOnCrumbleBar(const Utils::FilePath &fileName)
 {
     crumbleBar()->pushFile(fileName);
 }

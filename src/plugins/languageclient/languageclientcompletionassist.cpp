@@ -41,6 +41,7 @@
 #include <QDebug>
 #include <QLoggingCategory>
 #include <QRegExp>
+#include <QRegularExpression>
 #include <QTextBlock>
 #include <QTextDocument>
 #include <QTime>
@@ -76,6 +77,7 @@ public:
 
 private:
     CompletionItem m_item;
+    mutable QChar m_triggeredCommitCharacter;
     mutable QString m_sortText;
 };
 
@@ -89,8 +91,14 @@ QString LanguageClientCompletionItem::text() const
 bool LanguageClientCompletionItem::implicitlyApplies() const
 { return false; }
 
-bool LanguageClientCompletionItem::prematurelyApplies(const QChar &/*typedCharacter*/) const
-{ return false; }
+bool LanguageClientCompletionItem::prematurelyApplies(const QChar &typedCharacter) const
+{
+    if (m_item.commitCharacters().has_value() && m_item.commitCharacters().value().contains(typedCharacter)) {
+        m_triggeredCommitCharacter = typedCharacter;
+        return true;
+    }
+    return false;
+}
 
 void LanguageClientCompletionItem::apply(TextDocumentManipulatorInterface &manipulator,
                                          int /*basePosition*/) const
@@ -101,13 +109,20 @@ void LanguageClientCompletionItem::apply(TextDocumentManipulatorInterface &manip
     } else {
         const QString textToInsert(m_item.insertText().value_or(text()));
         int length = 0;
-        for (auto it = textToInsert.crbegin(); it != textToInsert.crend(); ++it) {
-            auto ch = *it;
-            if (ch == manipulator.characterAt(pos - length - 1))
-                ++length;
-            else if (length != 0)
+        for (auto it = textToInsert.crbegin(), end = textToInsert.crend(); it != end; ++it) {
+            if (it->toLower() != manipulator.characterAt(pos - length - 1).toLower()) {
                 length = 0;
+                break;
+            }
+            ++length;
         }
+        QTextCursor cursor = manipulator.textCursorAt(pos);
+        cursor.movePosition(QTextCursor::StartOfLine, QTextCursor::KeepAnchor);
+        const QString blockTextUntilPosition = cursor.selectedText();
+        static QRegularExpression identifier("[a-zA-Z_][a-zA-Z0-9_]*$");
+        QRegularExpressionMatch match = identifier.match(blockTextUntilPosition);
+        int matchLength = match.hasMatch() ? match.capturedLength(0) : 0;
+        length = qMax(length, matchLength);
         manipulator.replace(pos - length, length, textToInsert);
     }
 
@@ -115,6 +130,8 @@ void LanguageClientCompletionItem::apply(TextDocumentManipulatorInterface &manip
         for (const auto &edit : *additionalEdits)
             applyTextEdit(manipulator, edit);
     }
+    if (!m_triggeredCommitCharacter.isNull())
+        manipulator.insertCodeSnippet(manipulator.currentPosition(), m_triggeredCommitCharacter);
 }
 
 QIcon LanguageClientCompletionItem::icon() const
@@ -126,7 +143,7 @@ QIcon LanguageClientCompletionItem::icon() const
     case CompletionItemKind::Method:
     case CompletionItemKind::Function:
     case CompletionItemKind::Constructor: icon = iconForType(FuncPublic); break;
-    case CompletionItemKind::Field: icon = iconForType(VarPublic); break;
+    case CompletionItemKind::Field:
     case CompletionItemKind::Variable: icon = iconForType(VarPublic); break;
     case CompletionItemKind::Class: icon = iconForType(Class); break;
     case CompletionItemKind::Module: icon = iconForType(Namespace); break;
@@ -136,8 +153,7 @@ QIcon LanguageClientCompletionItem::icon() const
     case CompletionItemKind::Snippet: icon = QIcon(":/texteditor/images/snippet.png"); break;
     case CompletionItemKind::EnumMember: icon = iconForType(Enumerator); break;
     case CompletionItemKind::Struct: icon = iconForType(Struct); break;
-    default:
-        break;
+    default: icon = iconForType(Unknown); break;
     }
     return icon;
 }
@@ -262,13 +278,14 @@ public:
     IAssistProposal *perform(const AssistInterface *interface) override;
     bool running() override;
     bool needsRestart() const override { return true; }
+    void cancel() override;
 
 private:
     void handleCompletionResponse(const CompletionRequest::Response &response);
 
     QPointer<QTextDocument> m_document;
     QPointer<Client> m_client;
-    bool m_running = false;
+    MessageId m_currentRequest;
     int m_pos = -1;
 };
 
@@ -312,14 +329,15 @@ IAssistProposal *LanguageClientCompletionAssistProcessor::perform(const AssistIn
     --line; // line is 0 based in the protocol
     --column; // column is 0 based in the protocol
     params.setPosition({line, column});
+    params.setContext(context);
     params.setTextDocument(
-                DocumentUri::fromFileName(Utils::FileName::fromString(interface->fileName())));
+                DocumentUri::fromFilePath(Utils::FilePath::fromString(interface->fileName())));
     completionRequest.setResponseCallback([this](auto response) {
         this->handleCompletionResponse(response);
     });
     completionRequest.setParams(params);
     m_client->sendContent(completionRequest);
-    m_running = true;
+    m_currentRequest = completionRequest.id();
     m_document = interface->textDocument();
     qCDebug(LOGLSPCOMPLETION) << QTime::currentTime()
                               << " : request completions at " << m_pos
@@ -329,22 +347,32 @@ IAssistProposal *LanguageClientCompletionAssistProcessor::perform(const AssistIn
 
 bool LanguageClientCompletionAssistProcessor::running()
 {
-    return m_running;
+    return m_currentRequest.isValid();
+}
+
+void LanguageClientCompletionAssistProcessor::cancel()
+{
+    if (running()) {
+        m_client->cancelRequest(m_currentRequest);
+        m_currentRequest = MessageId();
+    }
 }
 
 void LanguageClientCompletionAssistProcessor::handleCompletionResponse(
     const CompletionRequest::Response &response)
 {
+    // We must report back to the code assistant under all circumstances
     qCDebug(LOGLSPCOMPLETION) << QTime::currentTime() << " : got completions";
-    m_running = false;
-    QTC_ASSERT(m_client, return);
-    if (auto error = response.error()) {
+    m_currentRequest = MessageId();
+    QTC_ASSERT(m_client, setAsyncProposalAvailable(nullptr); return);
+    if (auto error = response.error())
         m_client->log(error.value());
+
+    const Utils::optional<CompletionResult> &result = response.result();
+    if (!result || Utils::holds_alternative<std::nullptr_t>(*result)) {
+        setAsyncProposalAvailable(nullptr);
         return;
     }
-    const Utils::optional<CompletionResult> &result = response.result();
-    if (!result || Utils::holds_alternative<std::nullptr_t>(*result))
-        return;
 
     QList<CompletionItem> items;
     if (Utils::holds_alternative<CompletionList>(*result)) {
@@ -357,7 +385,7 @@ void LanguageClientCompletionAssistProcessor::handleCompletionResponse(
     model->loadContent(Utils::transform(items, [](const CompletionItem &item){
         return static_cast<AssistProposalItemInterface *>(new LanguageClientCompletionItem(item));
     }));
-    auto proposal = new LanguageClientCompletionProposal(m_pos, model);
+    LanguageClientCompletionProposal *proposal = new LanguageClientCompletionProposal(m_pos, model);
     proposal->m_document = m_document;
     proposal->m_pos = m_pos;
     proposal->setFragile(true);
@@ -368,7 +396,8 @@ void LanguageClientCompletionAssistProcessor::handleCompletionResponse(
 }
 
 LanguageClientCompletionAssistProvider::LanguageClientCompletionAssistProvider(Client *client)
-    : m_client(client)
+    : CompletionAssistProvider(client)
+    , m_client(client)
 { }
 
 IAssistProcessor *LanguageClientCompletionAssistProvider::createProcessor() const

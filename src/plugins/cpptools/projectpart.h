@@ -29,9 +29,10 @@
 
 #include "cppprojectfile.h"
 
+#include <projectexplorer/buildtargettype.h>
 #include <projectexplorer/headerpath.h>
-#include <projectexplorer/projectexplorer_global.h>
 #include <projectexplorer/projectmacro.h>
+#include <projectexplorer/rawprojectpart.h>
 
 #include <coreplugin/id.h>
 
@@ -40,6 +41,7 @@
 #include <cplusplus/Token.h>
 
 #include <utils/cpplanguage_details.h>
+#include <utils/fileutils.h>
 
 #include <QString>
 #include <QSharedPointer>
@@ -53,22 +55,9 @@ namespace CppTools {
 class CPPTOOLS_EXPORT ProjectPart
 {
 public:
-    enum QtVersion {
-        UnknownQt = -1,
-        NoQt,
-        Qt4,
-        Qt5
-    };
-
     enum ToolChainWordWidth {
         WordWidth32Bit,
         WordWidth64Bit,
-    };
-
-    enum BuildTargetType {
-        Unknown,
-        Executable,
-        Library
     };
 
     using Ptr = QSharedPointer<ProjectPart>;
@@ -97,7 +86,7 @@ public:
     ::Utils::LanguageVersion languageVersion = ::Utils::LanguageVersion::LatestCxx;
     ::Utils::LanguageExtensions languageExtensions = ::Utils::LanguageExtension::None;
     CPlusPlus::LanguageFeatures languageFeatures;
-    QtVersion qtVersion = UnknownQt;
+    ::Utils::QtVersion qtVersion = ::Utils::QtVersion::Unknown;
 
     // Files
     ProjectFiles files;
@@ -111,7 +100,7 @@ public:
 
     // Build system
     QString buildSystemTarget;
-    BuildTargetType buildTargetType = Unknown;
+    ProjectExplorer::BuildTargetType buildTargetType = ProjectExplorer::BuildTargetType::Unknown;
     bool selectedForBuilding = true;
 
     // ToolChain
@@ -119,7 +108,8 @@ public:
     bool isMsvc2015Toolchain = false;
     QString toolChainTargetTriple;
     ToolChainWordWidth toolChainWordWidth = WordWidth32Bit;
-    ProjectExplorer::WarningFlags warningFlags = ProjectExplorer::WarningFlags::Default;
+    ::Utils::FilePath toolChainInstallDir;
+    ::Utils::WarningFlags warningFlags = ::Utils::WarningFlags::Default;
 
     // Misc
     QStringList extraCodeModelFlags;

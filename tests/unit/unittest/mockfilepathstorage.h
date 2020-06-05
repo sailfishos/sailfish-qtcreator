@@ -27,18 +27,31 @@
 
 #include "googletest.h"
 
+#include "mocksqlitedatabase.h"
+
 #include <filepathstoragesources.h>
 
 class MockFilePathStorage
 {
 public:
-    MOCK_METHOD1(fetchDirectoryId,
-                 int (Utils::SmallStringView directoryPath));
+    MockFilePathStorage(MockSqliteDatabase &mockDatabase)
+        : mockDatabase{mockDatabase}
+    {}
+
+    MOCK_METHOD1(fetchDirectoryId, int(Utils::SmallStringView directoryPath));
     MOCK_METHOD2(fetchSourceId,
                  int (int directoryId, Utils::SmallStringView sourceName));
+    MOCK_METHOD1(fetchDirectoryIdUnguarded, int(Utils::SmallStringView directoryPath));
+    MOCK_METHOD2(fetchSourceIdUnguarded, int(int directoryId, Utils::SmallStringView sourceName));
     MOCK_METHOD1(fetchDirectoryPath,
                  Utils::PathString (int directoryId));
     MOCK_METHOD1(fetchSourceNameAndDirectoryId,
                  ClangBackEnd::Sources::SourceNameAndDirectoryId (int sourceId));
+    MOCK_METHOD0(fetchAllDirectories, std::vector<ClangBackEnd::Sources::Directory>());
+    MOCK_METHOD0(fetchAllSources, std::vector<ClangBackEnd::Sources::Source>());
+
+    MockSqliteDatabase &database() { return mockDatabase; }
+
+    MockSqliteDatabase &mockDatabase;
 };
 

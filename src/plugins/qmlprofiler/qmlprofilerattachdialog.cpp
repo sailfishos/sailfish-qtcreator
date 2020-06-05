@@ -51,12 +51,11 @@ QmlProfilerAttachDialog::QmlProfilerAttachDialog(QWidget *parent) :
     QDialog(parent),
     d(new QmlProfilerAttachDialogPrivate)
 {
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
     setWindowTitle(tr("Start QML Profiler"));
 
     d->kitChooser = new KitChooser(this);
     d->kitChooser->setKitPredicate([](const Kit *kit) {
-        return DeviceKitInformation::device(kit) != nullptr;
+        return DeviceKitAspect::device(kit) != nullptr;
     });
     d->kitChooser->populate();
 

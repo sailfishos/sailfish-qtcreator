@@ -27,30 +27,17 @@
 
 #include <coreplugin/dialogs/ioptionspage.h>
 
-#include <QPointer>
+#include <QCoreApplication>
 
 namespace ProjectExplorer {
 namespace Internal {
 
-class ToolChainOptionsWidget;
-
-// --------------------------------------------------------------------------
-// ToolChainOptionsPage
-// --------------------------------------------------------------------------
-
-class ToolChainOptionsPage : public Core::IOptionsPage
+class ToolChainOptionsPage final : public Core::IOptionsPage
 {
-    Q_OBJECT
+    Q_DECLARE_TR_FUNCTIONS(ProjectExplorer::Internal::ToolChainOptionsPage)
 
 public:
     ToolChainOptionsPage();
-
-    QWidget *widget() override;
-    void apply() override;
-    void finish() override;
-
-private:
-    QPointer<ToolChainOptionsWidget> m_widget;
 };
 
 } // namespace Internal

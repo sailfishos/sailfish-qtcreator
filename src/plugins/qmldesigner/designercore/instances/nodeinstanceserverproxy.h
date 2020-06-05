@@ -29,8 +29,8 @@
 
 #include <QPointer>
 #include <QProcess>
+#include <QElapsedTimer>
 #include <QFile>
-#include <QTime>
 #include <QTimer>
 
 QT_BEGIN_NAMESPACE
@@ -40,8 +40,7 @@ class QProcess;
 QT_END_NAMESPACE
 
 namespace ProjectExplorer {
-class Kit;
-class Project;
+class Target;
 }
 
 namespace QmlDesigner {
@@ -63,14 +62,15 @@ public:
 
     explicit NodeInstanceServerProxy(NodeInstanceView *nodeInstanceView,
                                      RunModus runModus,
-                                     ProjectExplorer::Kit *kit,
-                                     ProjectExplorer::Project *project);
+                                     ProjectExplorer::Target *target);
     ~NodeInstanceServerProxy() override;
     void createInstances(const CreateInstancesCommand &command) override;
     void changeFileUrl(const ChangeFileUrlCommand &command) override;
     void createScene(const CreateSceneCommand &command) override;
+    void update3DViewState(const Update3dViewStateCommand &command) override;
     void clearScene(const ClearSceneCommand &command) override;
     void removeInstances(const RemoveInstancesCommand &command) override;
+    void changeSelection(const ChangeSelectionCommand &command) override;
     void removeProperties(const RemovePropertiesCommand &command) override;
     void changePropertyBindings(const ChangeBindingsCommand &command) override;
     void changePropertyValues(const ChangeValuesCommand &command) override;
@@ -83,6 +83,8 @@ public:
     void token(const TokenCommand &command) override;
     void removeSharedMemory(const RemoveSharedMemoryCommand &command) override;
     void benchmark(const QString &message) override;
+    void inputEvent(const InputEventCommand &command) override;
+    void view3DAction(const View3DActionCommand &command) override;
 
 protected:
     void writeCommand(const QVariant &command);
@@ -96,6 +98,7 @@ signals:
 
 private slots:
     void processFinished();
+    void puppetTimeout(PuppetStreamType puppetStreamType);
     void processFinished(int exitCode, QProcess::ExitStatus exitStatus);
     void readFirstDataStream();
     void readSecondDataStream();
@@ -127,7 +130,7 @@ private:
     quint32 m_thirdLastReadCommandCounter = 0;
     RunModus m_runModus;
     int m_synchronizeId = -1;
-    QTime m_benchmarkTimer;
+    QElapsedTimer m_benchmarkTimer;
     bool m_destructing = false;
 };
 

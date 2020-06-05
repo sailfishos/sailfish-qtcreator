@@ -34,12 +34,15 @@
 #include <coreplugin/messagemanager.h>
 #include <coreplugin/progressmanager/futureprogress.h>
 #include <coreplugin/progressmanager/progressmanager.h>
+
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
-#include <projectexplorer/runconfiguration.h>
+#include <projectexplorer/runcontrol.h>
 #include <projectexplorer/session.h>
+#include <projectexplorer/target.h>
 #include <projectexplorer/toolchain.h>
+
 #include <qtsupport/qtkitinformation.h>
 #include <utils/qtcassert.h>
 
@@ -64,7 +67,7 @@ PerfDataReader::PerfDataReader(QObject *parent) :
     m_remoteProcessStart(std::numeric_limits<qint64>::max()),
     m_lastRemoteTimestamp(0)
 {
-    connect(&m_input, static_cast<void (QProcess::*)(int)>(&QProcess::finished),
+    connect(&m_input, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, [this](int exitCode) {
         emit processFinished();
         // process any remaining input before signaling finished()
@@ -293,16 +296,16 @@ QStringList PerfDataReader::collectArguments(const QString &executableDirPath,
     if (!executableDirPath.isEmpty())
         arguments << QLatin1String("--app") << executableDirPath;
 
-    if (QtSupport::BaseQtVersion *qt = QtSupport::QtKitInformation::qtVersion(kit)) {
+    if (QtSupport::BaseQtVersion *qt = QtSupport::QtKitAspect::qtVersion(kit)) {
         arguments << QLatin1String("--extra") << QString::fromLatin1("%1%5%2%5%3%5%4")
                      .arg(QDir::toNativeSeparators(qt->libraryPath().toString()))
                      .arg(QDir::toNativeSeparators(qt->pluginPath().toString()))
-                     .arg(QDir::toNativeSeparators(qt->binPath().toString()))
+                     .arg(QDir::toNativeSeparators(qt->hostBinPath().toString()))
                      .arg(QDir::toNativeSeparators(qt->qmlPath().toString()))
                      .arg(QDir::listSeparator());
     }
 
-    if (auto toolChain = ProjectExplorer::ToolChainKitInformation::toolChain(
+    if (auto toolChain = ProjectExplorer::ToolChainKitAspect::toolChain(
                 kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID)) {
         ProjectExplorer::Abi::Architecture architecture = toolChain->targetAbi().architecture();
         if (architecture == ProjectExplorer::Abi::ArmArchitecture &&
@@ -313,7 +316,7 @@ QStringList PerfDataReader::collectArguments(const QString &executableDirPath,
         }
     }
 
-    QString sysroot = ProjectExplorer::SysRootKitInformation::sysRoot(kit).toString();
+    QString sysroot = ProjectExplorer::SysRootKitAspect::sysRoot(kit).toString();
     if (!sysroot.isEmpty())
         arguments << QLatin1String("--sysroot") << sysroot;
 
@@ -392,11 +395,11 @@ bool PerfDataReader::feedParser(const QByteArray &input)
     return true;
 }
 
-QStringList PerfDataReader::findTargetArguments(const ProjectExplorer::RunConfiguration *rc) const
+QStringList PerfDataReader::findTargetArguments(const ProjectExplorer::RunControl *runControl) const
 {
-    ProjectExplorer::Kit *kit = rc->target()->kit();
+    ProjectExplorer::Kit *kit = runControl->kit();
     QTC_ASSERT(kit, return QStringList());
-    ProjectExplorer::BuildConfiguration *buildConfig = rc->target()->activeBuildConfiguration();
+    ProjectExplorer::BuildConfiguration *buildConfig = runControl->target()->activeBuildConfiguration();
     QString buildDir = buildConfig ? buildConfig->buildDirectory().toString() : QString();
     return collectArguments(buildDir, kit);
 }

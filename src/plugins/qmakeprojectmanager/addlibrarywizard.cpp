@@ -30,9 +30,10 @@
 #include <utils/hostosinfo.h>
 #include <utils/fileutils.h>
 
-#include <QVBoxLayout>
-#include <QRadioButton>
 #include <QLabel>
+#include <QRadioButton>
+#include <QScrollArea>
+#include <QVBoxLayout>
 
 #include <QFileInfo>
 #include <QTextStream>
@@ -54,11 +55,11 @@ QStringList qt_clean_filter_list(const QString &filter)
     return f.split(QLatin1Char(' '), QString::SkipEmptyParts);
 }
 
-static bool validateLibraryPath(const Utils::FileName &filePath,
+static bool validateLibraryPath(const Utils::FilePath &filePath,
                                 const Utils::PathChooser *pathChooser,
                                 QString *errorMessage)
 {
-    Q_UNUSED(errorMessage);
+    Q_UNUSED(errorMessage)
     if (!filePath.exists())
         return false;
 
@@ -268,11 +269,18 @@ SummaryPage::SummaryPage(AddLibraryWizard *parent)
     setFinalPage(true);
 
     auto *layout = new QVBoxLayout(this);
+    const auto scrollArea = new QScrollArea;
+    const auto snippetWidget = new QWidget;
+    const auto snippetLayout = new QVBoxLayout(snippetWidget);
     m_summaryLabel = new QLabel(this);
     m_snippetLabel = new QLabel(this);
     m_snippetLabel->setWordWrap(true);
     layout->addWidget(m_summaryLabel);
-    layout->addWidget(m_snippetLabel);
+    snippetLayout->addWidget(m_snippetLabel);
+    snippetLayout->addStretch(1);
+    scrollArea->setWidget(snippetWidget);
+    scrollArea->setWidgetResizable(true);
+    layout->addWidget(scrollArea);
     m_summaryLabel->setTextFormat(Qt::RichText);
     m_snippetLabel->setTextFormat(Qt::RichText);
     m_snippetLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);

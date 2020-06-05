@@ -273,40 +273,42 @@ bool AndroidSdkModel::setData(const QModelIndex &index, const QVariant &value, i
 void AndroidSdkModel::selectMissingEssentials()
 {
     resetSelection();
-    bool selectPlatformTool = !m_config.adbToolPath().exists();
-    bool selectBuildTools = m_config.buildToolsVersion().isNull();
+    QStringList pendingPkgs(m_config.allEssentials());
     auto addTool = [this](QList<const AndroidSdkPackage *>::const_iterator itr) {
-        m_changeState << *itr;
-        auto i = index(std::distance(m_tools.cbegin(), itr), 0, index(0, 0));
-        emit dataChanged(i, i, {Qt::CheckStateRole});
+        if ((*itr)->installedLocation().isEmpty()) {
+            m_changeState << *itr;
+            auto i = index(std::distance(m_tools.cbegin(), itr), 0, index(0, 0));
+            emit dataChanged(i, i, {Qt::CheckStateRole});
+        }
     };
     for (auto tool = m_tools.cbegin(); tool != m_tools.cend(); ++tool) {
-        if (selectPlatformTool && (*tool)->type() == AndroidSdkPackage::PlatformToolsPackage) {
-            // Select Platform tools
-            addTool(tool);
-            selectPlatformTool = false;
-        }
-        if (selectBuildTools && (*tool)->type() == AndroidSdkPackage::BuildToolsPackage) {
-            // Select build tools
-            addTool(tool);
-            selectBuildTools = false;
-        }
-        if (!selectPlatformTool && !selectBuildTools)
+        if (!pendingPkgs.contains((*tool)->sdkStylePath()))
+            continue;
+
+        addTool(tool);
+        pendingPkgs.removeOne((*tool)->sdkStylePath());
+
+        if (pendingPkgs.isEmpty())
             break;
     }
 
     // Select SDK platform
-    if (m_sdkManager->installedSdkPlatforms().isEmpty() && !m_sdkPlatforms.isEmpty()) {
-        auto i = index(0, 0, index(1,0));
-        m_changeState << m_sdkPlatforms.at(0);
-        emit dataChanged(i , i, {Qt::CheckStateRole});
+    for (const SdkPlatform *platform : m_sdkPlatforms) {
+        if (pendingPkgs.contains(platform->sdkStylePath()) &&
+            platform->installedLocation().isEmpty()) {
+            auto i = index(0, 0, index(1, 0));
+            m_changeState << platform;
+            emit dataChanged(i, i, {Qt::CheckStateRole});
+            pendingPkgs.removeOne(platform->sdkStylePath());
+        }
+        if (pendingPkgs.isEmpty())
+            break;
     }
 }
 
-
 QList<const AndroidSdkPackage *> AndroidSdkModel::userSelection() const
 {
-    return m_changeState.toList();
+    return Utils::toList(m_changeState);
 }
 
 void AndroidSdkModel::resetSelection()

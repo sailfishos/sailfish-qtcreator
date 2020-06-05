@@ -59,7 +59,6 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QDebug>
-#include <QDesktopWidget>
 #include <QFileInfo>
 #include <QLabel>
 #include <QScreen>
@@ -259,13 +258,13 @@ ToolTipWatchItem::ToolTipWatchItem(TreeItem *item)
 {
     const QAbstractItemModel *model = item->model();
     QModelIndex idx = item->index();
-    name = model->data(idx.sibling(idx.row(), 0), Qt::DisplayRole).toString();
-    value = model->data(idx.sibling(idx.row(), 1), Qt::DisplayRole).toString();
-    type = model->data(idx.sibling(idx.row(), 2), Qt::DisplayRole).toString();
-    iname = model->data(idx.sibling(idx.row(), 0), LocalsINameRole).toString();
-    valueColor = model->data(idx.sibling(idx.row(), 1), Qt::ForegroundRole).value<QColor>();
+    name = model->data(idx.sibling(idx.row(), WatchModelBase::NameColumn), Qt::DisplayRole).toString();
+    value = model->data(idx.sibling(idx.row(), WatchModelBase::ValueColumn), Qt::DisplayRole).toString();
+    type = model->data(idx.sibling(idx.row(), WatchModelBase::TypeColumn), Qt::DisplayRole).toString();
+    iname = model->data(idx.sibling(idx.row(), WatchModelBase::NameColumn), LocalsINameRole).toString();
+    valueColor = model->data(idx.sibling(idx.row(), WatchModelBase::ValueColumn), Qt::ForegroundRole).value<QColor>();
     expandable = model->hasChildren(idx);
-    expression = model->data(idx.sibling(idx.row(), 0), Qt::EditRole).toString();
+    expression = model->data(idx.sibling(idx.row(), WatchModelBase::NameColumn), Qt::EditRole).toString();
     for (TreeItem *child : *item)
         appendChild(new ToolTipWatchItem(child));
 }
@@ -359,7 +358,7 @@ QVariant ToolTipWatchItem::data(int column, int role) const
 
 void ToolTipModel::restoreTreeModel(QXmlStreamReader &r)
 {
-    Q_UNUSED(r);
+    Q_UNUSED(r)
 #if 0
 // Helper for building a QStandardItemModel of a tree form (see TreeModelVisitor).
 // The recursion/building is based on the scheme: \code
@@ -624,15 +623,10 @@ void DebuggerToolTipWidget::computeSize()
     // Add a bit of space to account for tooltip border, and not
     // touch the border of the screen.
     QPoint pos(x(), y());
-#if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
     auto screen = QGuiApplication::screenAt(pos);
     if (!screen)
         screen = QGuiApplication::primaryScreen();
     QRect desktopRect = screen->availableGeometry();
-#else
-    QTC_ASSERT(QApplication::desktop(), return);
-    QRect desktopRect = QApplication::desktop()->availableGeometry();
-#endif
     const int maxWidth = desktopRect.right() - pos.x() - 5 - 5;
     const int maxHeight = desktopRect.bottom() - pos.y() - 5 - 5;
 
@@ -726,8 +720,8 @@ DebuggerToolTipContext::DebuggerToolTipContext()
 
 static bool filesMatch(const QString &file1, const QString &file2)
 {
-    return FileName::fromString(QFileInfo(file1).canonicalFilePath())
-            == FileName::fromString(QFileInfo(file2).canonicalFilePath());
+    return FilePath::fromString(QFileInfo(file1).canonicalFilePath())
+            == FilePath::fromString(QFileInfo(file2).canonicalFilePath());
 }
 
 bool DebuggerToolTipContext::matchesFrame(const StackFrame &frame) const
@@ -1185,7 +1179,7 @@ DebuggerToolTipManagerPrivate::DebuggerToolTipManagerPrivate(DebuggerEngine *eng
             this, &DebuggerToolTipManagerPrivate::saveSessionData);
     connect(SessionManager::instance(), &SessionManager::aboutToUnloadSession,
             this, &DebuggerToolTipManagerPrivate::sessionAboutToChange);
-    setupEditors();
+    debugModeEntered();
 }
 
 void DebuggerToolTipManagerPrivate::slotTooltipOverrideRequested
@@ -1247,8 +1241,6 @@ void DebuggerToolTipManagerPrivate::slotTooltipOverrideRequested
         DEBUG("SYNC IN STATE" << tooltip->state);
         tooltip->updateTooltip(m_engine);
 
-        *handled = true;
-
     } else {
 
         context.iname = "tooltip." + toHex(context.expression);
@@ -1262,7 +1254,6 @@ void DebuggerToolTipManagerPrivate::slotTooltipOverrideRequested
             tooltip->context.mousePosition = point;
             ToolTip::move(point, DebuggerMainWindow::instance());
             DEBUG("UPDATING DELAYED.");
-            *handled = true;
         } else {
             DEBUG("CREATING DELAYED.");
             tooltip = new DebuggerToolTipHolder(context);
@@ -1278,6 +1269,8 @@ void DebuggerToolTipManagerPrivate::slotTooltipOverrideRequested
             }
         }
     }
+
+    *handled = true;
 }
 
 void DebuggerToolTipManagerPrivate::slotEditorOpened(IEditor *e)
@@ -1329,6 +1322,7 @@ void DebuggerToolTipManagerPrivate::leavingDebugMode()
         foreach (IEditor *e, DocumentModel::editorsForOpenedDocuments()) {
             if (auto toolTipEditor = qobject_cast<BaseTextEditor *>(e)) {
                 toolTipEditor->editorWidget()->verticalScrollBar()->disconnect(this);
+                toolTipEditor->editorWidget()->disconnect(this);
                 toolTipEditor->disconnect(this);
             }
         }

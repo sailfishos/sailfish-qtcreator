@@ -26,13 +26,18 @@
 import QtQuick 2.1
 import HelperWidgets 2.0
 import QtQuick.Layouts 1.0
-import QtQuick.Controls 1.0 as Controls
 
 Section {
     caption: qsTr("Margin")
 
     anchors.left: parent.left
     anchors.right: parent.right
+
+    property alias backendValueTopMargin: spinBoxTopMargin.backendValue
+    property alias backendValueBottomMargin: spinBoxBottomMargin.backendValue
+    property alias backendValueLeftMargin: spinBoxLeftMargin.backendValue
+    property alias backendValueRightMargin: spinBoxRightMargin.backendValue
+    property alias backendValueMargins: spinBoxMargins.backendValue
 
     SectionLayout {
         Label {
@@ -45,8 +50,10 @@ Section {
                 width: 42
             }
             SpinBox {
-                maximumValue: 9999999
-                minimumValue: -9999999
+                id: spinBoxTopMargin
+                minimumValue: -10000
+                maximumValue: 10000
+                realDragRange: 5000
                 decimals: 0
                 backendValue: backendValues.topMargin
                 Layout.fillWidth: true
@@ -62,8 +69,10 @@ Section {
                 width: 42
             }
             SpinBox {
-                maximumValue: 9999999
-                minimumValue: -9999999
+                id: spinBoxBottomMargin
+                minimumValue: -10000
+                maximumValue: 10000
+                realDragRange: 5000
                 decimals: 0
                 backendValue: backendValues.bottomMargin
                 Layout.fillWidth: true
@@ -80,8 +89,10 @@ Section {
                 width: 42
             }
             SpinBox {
-                maximumValue: 9999999
-                minimumValue: -9999999
+                id: spinBoxLeftMargin
+                minimumValue: -10000
+                maximumValue: 10000
+                realDragRange: 5000
                 decimals: 0
                 backendValue: backendValues.leftMargin
                 Layout.fillWidth: true
@@ -97,8 +108,10 @@ Section {
                 width: 42
             }
             SpinBox {
-                maximumValue: 9999999
-                minimumValue: -9999999
+                id: spinBoxRightMargin
+                minimumValue: -10000
+                maximumValue: 10000
+                realDragRange: 5000
                 decimals: 0
                 backendValue: backendValues.rightMargin
                 Layout.fillWidth: true
@@ -111,8 +124,10 @@ Section {
         }
         SecondColumnLayout {
             SpinBox {
-                maximumValue: 9999999
-                minimumValue: -9999999
+                id: spinBoxMargins
+                minimumValue: -10000
+                maximumValue: 10000
+                realDragRange: 5000
                 decimals: 0
                 backendValue: backendValues.margins
                 Layout.fillWidth: true

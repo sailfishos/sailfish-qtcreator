@@ -38,6 +38,7 @@
 #include <QUrl>
 
 #include <QDebug>
+#include <QtCore/qregularexpression.h>
 
 namespace QmlDesigner {
 
@@ -45,10 +46,13 @@ static ModelNode createNodeFromNode(const ModelNode &modelNode,const QHash<QStri
 
 static QString fixExpression(const QString &expression, const QHash<QString, QString> &idRenamingHash)
 {
+    const QString pattern("\\b%1\\b"); // Match only full ids
     QString newExpression = expression;
-    foreach (const QString &id, idRenamingHash.keys()) {
-        if (newExpression.contains(id))
-            newExpression = newExpression.replace(id, idRenamingHash.value(id));
+    const auto keys = idRenamingHash.keys();
+    for (const QString &id : keys) {
+        QRegularExpression re(pattern.arg(id));
+        if (newExpression.contains(re))
+            newExpression = newExpression.replace(re, idRenamingHash.value(id));
     }
     return newExpression;
 }
@@ -178,29 +182,23 @@ void ModelMerger::replaceModel(const ModelNode &modelNode)
         view()->model()->changeImports(modelNode.model()->imports(), {});
         view()->model()->setFileUrl(modelNode.model()->fileUrl());
 
-    try {
-        RewriterTransaction transaction(view()->beginRewriterTransaction(QByteArrayLiteral("ModelMerger::replaceModel")));
+        view()->executeInTransaction("ModelMerger::replaceModel", [this, modelNode](){
+            ModelNode rootNode(view()->rootModelNode());
 
-        ModelNode rootNode(view()->rootModelNode());
+            foreach (const PropertyName &propertyName, rootNode.propertyNames())
+                rootNode.removeProperty(propertyName);
 
-        foreach (const PropertyName &propertyName, rootNode.propertyNames())
-            rootNode.removeProperty(propertyName);
+            QHash<QString, QString> idRenamingHash;
+            setupIdRenamingHash(modelNode, idRenamingHash, view());
 
-        QHash<QString, QString> idRenamingHash;
-        setupIdRenamingHash(modelNode, idRenamingHash, view());
-
-        syncAuxiliaryProperties(rootNode, modelNode);
-        syncVariantProperties(rootNode, modelNode);
-        syncBindingProperties(rootNode, modelNode, idRenamingHash);
-        syncId(rootNode, modelNode, idRenamingHash);
-        syncNodeProperties(rootNode, modelNode, idRenamingHash, view());
-        syncNodeListProperties(rootNode, modelNode, idRenamingHash, view());
-        m_view->changeRootNodeType(modelNode.type(), modelNode.majorVersion(), modelNode.minorVersion());
-
-        transaction.commit();
-    } catch (const RewritingException &e) {
-        qWarning() << e.description(); //silent error
-    }
+            syncAuxiliaryProperties(rootNode, modelNode);
+            syncVariantProperties(rootNode, modelNode);
+            syncBindingProperties(rootNode, modelNode, idRenamingHash);
+            syncId(rootNode, modelNode, idRenamingHash);
+            syncNodeProperties(rootNode, modelNode, idRenamingHash, view());
+            syncNodeListProperties(rootNode, modelNode, idRenamingHash, view());
+            m_view->changeRootNodeType(modelNode.type(), modelNode.majorVersion(), modelNode.minorVersion());
+        });
 }
 
 } //namespace QmlDesigner

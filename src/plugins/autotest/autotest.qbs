@@ -37,6 +37,8 @@ QtcPlugin {
         "autotestconstants.h",
         "autotestplugin.cpp",
         "autotestplugin.h",
+        "projectsettingswidget.cpp",
+        "projectsettingswidget.h",
         "testcodeparser.cpp",
         "testcodeparser.h",
         "testconfiguration.cpp",
@@ -70,11 +72,12 @@ QtcPlugin {
         "testtreeview.h",
         "testoutputreader.cpp",
         "testoutputreader.h",
+        "testprojectsettings.cpp",
+        "testprojectsettings.h",
         "itestparser.cpp",
         "itestparser.h",
         "itestframework.h",
         "iframeworksettings.h",
-        "itestsettingspage.h",
         "testframeworkmanager.cpp",
         "testframeworkmanager.h",
         "testrunconfiguration.h"
@@ -98,6 +101,13 @@ QtcPlugin {
         name: "Google Test framework files"
         files: [
             "gtest/*"
+        ]
+    }
+
+    Group {
+        name: "Boost Test framework files"
+        files: [
+            "boost/*"
         ]
     }
 

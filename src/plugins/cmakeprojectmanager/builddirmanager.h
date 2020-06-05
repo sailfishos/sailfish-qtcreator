@@ -30,7 +30,7 @@
 #include "cmakebuildtarget.h"
 #include "cmakeconfigitem.h"
 
-#include <cpptools/cpprawprojectpart.h>
+#include <projectexplorer/rawprojectpart.h>
 
 #include <utils/fileutils.h>
 #include <utils/temporarydirectory.h>
@@ -45,76 +45,91 @@
 namespace ProjectExplorer { class FileNode; }
 
 namespace CMakeProjectManager {
-
-class CMakeTool;
-
 namespace Internal {
 
-class CMakeProjectNode;
 class CMakeBuildConfiguration;
+class CMakeBuildSystem;
+class CMakeProjectNode;
 
-class BuildDirManager : public QObject
+class BuildDirManager final : public QObject
 {
     Q_OBJECT
 
 public:
-    BuildDirManager();
+    enum ReparseParameters {
+        REPARSE_DEFAULT = 0,                    // Nothing special:-)
+        REPARSE_FORCE_CMAKE_RUN = (1 << 0),     // Force cmake to run
+        REPARSE_FORCE_CONFIGURATION = (1 << 1), // Force configuration arguments to cmake
+        REPARSE_CHECK_CONFIGURATION = (1 << 2), // Check for on-disk config and QtC config diff
+        REPARSE_SCAN = (1 << 3),                // Run filesystem scan
+        REPARSE_URGENT = (1 << 4),              // Do not delay the parser run by 1s
+    };
+
+    static QString flagsString(int reparseFlags);
+
+    explicit BuildDirManager(CMakeBuildSystem *buildSystem);
     ~BuildDirManager() final;
 
     bool isParsing() const;
 
+    void stopParsingAndClearState();
+
     void setParametersAndRequestParse(const BuildDirParameters &parameters,
-                                      int newReaderReparseOptions, int existingReaderReparseOptions);
-    CMakeBuildConfiguration *buildConfiguration() const;
+                                      const int reparseOptions);
+    // nullptr if the BC is not active anymore!
+    CMakeBuildSystem *buildSystem() const;
+    Utils::FilePath buildDirectory() const;
 
     void clearCache();
 
     void resetData();
     bool persistCMakeState();
 
-    void parse(int reparseParameters);
+    void requestFilesystemScan();
+    bool isFilesystemScanRequested() const;
+    void parse();
 
-    void generateProjectTree(CMakeProjectNode *root,
-                             const QList<const ProjectExplorer::FileNode *> &allFiles) const;
-    CppTools::RawProjectParts createRawProjectParts() const;
+    QSet<Utils::FilePath> projectFilesToWatch() const;
+    std::unique_ptr<CMakeProjectNode> generateProjectTree(const QList<const ProjectExplorer::FileNode *> &allFiles,
+                             QString &errorMessage) const;
+    ProjectExplorer::RawProjectParts createRawProjectParts(QString &errorMessage) const;
 
-    QList<CMakeBuildTarget> takeBuildTargets() const;
-    CMakeConfig takeCMakeConfiguration() const;
+    QList<CMakeBuildTarget> takeBuildTargets(QString &errorMessage) const;
+    CMakeConfig takeCMakeConfiguration(QString &errorMessage) const;
 
-    static CMakeConfig parseCMakeConfiguration(const Utils::FileName &cacheFile,
-                                              QString *errorMessage);
-
-    enum ReparseParameters { REPARSE_DEFAULT = 0, // use defaults
-                             REPARSE_URGENT = 1, // Do not wait for more requests, start ASAP
-                             REPARSE_FORCE_CONFIGURATION = 2, // Force configuration arguments to cmake
-                             REPARSE_CHECK_CONFIGURATION = 4, // Check and warn if on-disk config and QtC config differ
-                             REPARSE_SCAN = 8,
-                             REPARSE_IGNORE = 16, // Do not reparse:-)
-                             REPARSE_FAIL = 32 // Do not reparse and raise a warning
-                           };
+    static CMakeConfig parseCMakeConfiguration(const Utils::FilePath &cacheFile,
+                                               QString *errorMessage);
 
 signals:
-    void requestReparse(int reparseParameters) const;
+    void requestReparse() const;
+    void requestDelayedReparse() const;
     void parsingStarted() const;
     void dataAvailable() const;
     void errorOccured(const QString &err) const;
 
 private:
+    void updateReparseParameters(const int parameters);
+    int takeReparseParameters();
+
     void emitDataAvailable();
     void emitErrorOccured(const QString &message) const;
+    void emitReparseRequest() const;
     bool checkConfiguration();
 
-    Utils::FileName workDirectory(const BuildDirParameters &parameters) const;
+    Utils::FilePath workDirectory(const BuildDirParameters &parameters) const;
 
     void updateReaderType(const BuildDirParameters &p, std::function<void()> todo);
 
     bool hasConfigChanged();
 
+    void writeConfigurationIntoBuildDirectory(const Utils::MacroExpander *expander);
 
     void becameDirty();
 
     BuildDirParameters m_parameters;
-    mutable std::unordered_map<Utils::FileName, std::unique_ptr<Utils::TemporaryDirectory>> m_buildDirToTempDir;
+    int m_reparseParameters;
+    CMakeBuildSystem *m_buildSystem = nullptr;
+    mutable std::unordered_map<Utils::FilePath, std::unique_ptr<Utils::TemporaryDirectory>> m_buildDirToTempDir;
     mutable std::unique_ptr<BuildDirReader> m_reader;
     mutable bool m_isHandlingError = false;
 };

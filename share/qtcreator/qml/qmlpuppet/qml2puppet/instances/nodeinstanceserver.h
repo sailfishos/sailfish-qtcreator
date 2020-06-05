@@ -35,6 +35,18 @@
 #include "servernodeinstance.h"
 #include "debugoutputcommand.h"
 
+namespace QtHelpers {
+template <class T>
+QList<T>toList(const QSet<T> &set)
+{
+#if (QT_VERSION < QT_VERSION_CHECK(5, 14, 0))
+    return set.toList();
+#else
+    return QList<T>(set.begin(), set.end());
+#endif
+}
+} //QtHelpers
+
 QT_BEGIN_NAMESPACE
 class QFileSystemWatcher;
 class QQmlView;
@@ -48,6 +60,7 @@ namespace QmlDesigner {
 
 class NodeInstanceClientInterface;
 class ValuesChangedCommand;
+class ValuesModifiedCommand;
 class PixmapChangedCommand;
 class InformationChangedCommand;
 class ChildrenChangedCommand;
@@ -56,6 +69,7 @@ class ComponentCompletedCommand;
 class AddImportContainer;
 class MockupTypeContainer;
 class IdContainer;
+class ChangeSelectionCommand;
 
 namespace Internal {
     class ChildrenChangeEventFilter;
@@ -69,6 +83,11 @@ public:
     using IdPropertyPair = QPair<qint32, QString>;
     using InstancePropertyPair= QPair<ServerNodeInstance, PropertyName>;
     using DummyPair = QPair<QString, QPointer<QObject> >;
+    using InstancePropertyValueTriple = struct {
+        ServerNodeInstance instance;
+        PropertyName propertyName;
+        QVariant propertyValue;
+    };
 
 
     explicit NodeInstanceServer(NodeInstanceClientInterface *nodeInstanceClient);
@@ -81,6 +100,7 @@ public:
     void changeIds(const ChangeIdsCommand &command) override;
     void createScene(const CreateSceneCommand &command) override;
     void clearScene(const ClearSceneCommand &command) override;
+    void update3DViewState(const Update3dViewStateCommand &command) override;
     void removeInstances(const RemoveInstancesCommand &command) override;
     void removeProperties(const RemovePropertiesCommand &command) override;
     void reparentInstances(const ReparentInstancesCommand &command) override;
@@ -89,6 +109,9 @@ public:
     void changeNodeSource(const ChangeNodeSourceCommand &command) override;
     void token(const TokenCommand &command) override;
     void removeSharedMemory(const RemoveSharedMemoryCommand &command) override;
+    void changeSelection(const ChangeSelectionCommand &command) override;
+    void inputEvent(const InputEventCommand &command) override;
+    void view3DAction(const View3DActionCommand &command) override;
 
     ServerNodeInstance instanceForId(qint32 id) const;
     bool hasInstanceForId(qint32 id) const;
@@ -133,7 +156,7 @@ public slots:
     void emitParentChanged(QObject *child);
 
 protected:
-    QList<ServerNodeInstance> createInstances(const QVector<InstanceContainer> &container);
+    virtual QList<ServerNodeInstance> createInstances(const QVector<InstanceContainer> &container);
     void reparentInstances(const QVector<ReparentContainer> &containerVector);
 
     Internal::ChildrenChangeEventFilter *childrenChangeEventFilter();
@@ -154,10 +177,12 @@ protected:
 
     ValuesChangedCommand createValuesChangedCommand(const QList<ServerNodeInstance> &instanceList) const;
     ValuesChangedCommand createValuesChangedCommand(const QVector<InstancePropertyPair> &propertyList) const;
+    ValuesModifiedCommand createValuesModifiedCommand(const QVector<InstancePropertyValueTriple> &propertyList) const;
     PixmapChangedCommand createPixmapChangedCommand(const QList<ServerNodeInstance> &instanceList) const;
     InformationChangedCommand createAllInformationChangedCommand(const QList<ServerNodeInstance> &instanceList, bool initial = false) const;
     ChildrenChangedCommand createChildrenChangedCommand(const ServerNodeInstance &parentInstance, const QList<ServerNodeInstance> &instanceList) const;
     ComponentCompletedCommand createComponentCompletedCommand(const QList<ServerNodeInstance> &instanceList);
+    ChangeSelectionCommand createChangeSelectionCommand(const QList<ServerNodeInstance> &instanceList);
 
     void addChangedProperty(const InstancePropertyPair &property);
 

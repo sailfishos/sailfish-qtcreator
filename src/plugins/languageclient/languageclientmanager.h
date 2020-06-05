@@ -26,7 +26,10 @@
 #pragma once
 
 #include "client.h"
+#include "languageclient_global.h"
 #include "languageclientsettings.h"
+#include "locatorfilter.h"
+#include "lsplogger.h"
 
 #include <coreplugin/id.h>
 
@@ -45,7 +48,7 @@ namespace LanguageClient {
 
 class LanguageClientMark;
 
-class LanguageClientManager : public QObject
+class LANGUAGECLIENT_EXPORT LanguageClientManager : public QObject
 {
     Q_OBJECT
 public:
@@ -56,11 +59,13 @@ public:
     static void init();
 
     static void startClient(Client *client);
+    static Client *startClient(BaseSettings *setting, ProjectExplorer::Project *project = nullptr);
     static QVector<Client *> clients();
 
     static void addExclusiveRequest(const LanguageServerProtocol::MessageId &id, Client *client);
     static void reportFinished(const LanguageServerProtocol::MessageId &id, Client *byClient);
 
+    static void shutdownClient(Client *client);
     static void deleteClient(Client *client);
 
     static void shutdown();
@@ -69,19 +74,37 @@ public:
 
     static QList<Client *> clientsSupportingDocument(const TextEditor::TextDocument *doc);
 
+    static void applySettings();
+    static QList<BaseSettings *> currentSettings();
+    static void registerClientSettings(BaseSettings *settings);
+    static void enableClientSettings(const QString &settingsId);
+    static QVector<Client *> clientForSetting(const BaseSettings *setting);
+    static const BaseSettings *settingForClient(Client *setting);
+    static Client *clientForDocument(TextEditor::TextDocument *document);
+    static Client *clientForFilePath(const Utils::FilePath &filePath);
+    static Client *clientForUri(const LanguageServerProtocol::DocumentUri &uri);
+    static void reOpenDocumentWithClient(TextEditor::TextDocument *document, Client *client);
+
+    static void logBaseMessage(const LspLogMessage::MessageSender sender,
+                               const QString &clientName,
+                               const LanguageServerProtocol::BaseMessage &message);
+    static void showLogger();
+
 signals:
     void shutdownFinished();
 
 private:
-    LanguageClientManager();
+    LanguageClientManager(QObject *parent);
 
     void editorOpened(Core::IEditor *editor);
-    void editorsClosed(const QList<Core::IEditor *> &editors);
+    void documentOpened(Core::IDocument *document);
+    void openDocumentWithClient(TextEditor::TextDocument *document, Client *client);
+    void documentClosed(Core::IDocument *document);
     void documentContentsSaved(Core::IDocument *document);
     void documentWillSave(Core::IDocument *document);
-    void findLinkAt(const Utils::FileName &filePath, const QTextCursor &cursor,
-                    Utils::ProcessLinkCallback callback);
-    void findUsages(const Utils::FileName &filePath, const QTextCursor &cursor);
+    void findLinkAt(TextEditor::TextDocument *document, const QTextCursor &cursor,
+                    Utils::ProcessLinkCallback callback, const bool resolveTarget);
+    void findUsages(TextEditor::TextDocument *document, const QTextCursor &cursor);
 
     void projectAdded(ProjectExplorer::Project *project);
     void projectRemoved(ProjectExplorer::Project *project);
@@ -93,8 +116,14 @@ private:
 
     bool m_shuttingDown = false;
     QVector<Client *> m_clients;
+    QList<BaseSettings *>  m_currentSettings; // owned
+    QMap<QString, QVector<Client *>> m_clientsForSetting;
+    QHash<TextEditor::TextDocument *, QPointer<Client>> m_clientForDocument;
     QHash<LanguageServerProtocol::MessageId, QList<Client *>> m_exclusiveRequests;
-
-    friend class LanguageClientPlugin;
+    DocumentLocatorFilter m_currentDocumentLocatorFilter;
+    WorkspaceLocatorFilter m_workspaceLocatorFilter;
+    WorkspaceClassLocatorFilter m_workspaceClassLocatorFilter;
+    WorkspaceMethodLocatorFilter m_workspaceMethodLocatorFilter;
+    LspLogger m_logger;
 };
 } // namespace LanguageClient

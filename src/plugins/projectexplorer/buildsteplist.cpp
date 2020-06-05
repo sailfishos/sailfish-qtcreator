@@ -34,25 +34,18 @@
 
 #include <utils/algorithm.h>
 
-using namespace ProjectExplorer;
-
-namespace {
+namespace ProjectExplorer {
 
 const char STEPS_COUNT_KEY[] = "ProjectExplorer.BuildStepList.StepsCount";
 const char STEPS_PREFIX[] = "ProjectExplorer.BuildStepList.Step.";
 
-} // namespace
-
 BuildStepList::BuildStepList(QObject *parent, Core::Id id)
-    : ProjectConfiguration(parent, id)
+    : QObject(parent), m_id(id)
 {
-    if (id == Constants::BUILDSTEPS_BUILD) {
-        //: Display name of the build build step list. Used as part of the labels in the project window.
-        setDefaultDisplayName(tr("Build"));
-    } else if (id == Constants::BUILDSTEPS_CLEAN) {
-        //: Display name of the clean build step list. Used as part of the labels in the project window.
-        setDefaultDisplayName(tr("Clean"));
-    }
+    QTC_ASSERT(parent, return);
+    QTC_ASSERT(parent->parent(), return);
+    m_target = qobject_cast<Target *>(parent->parent());
+    QTC_ASSERT(m_target, return);
 }
 
 BuildStepList::~BuildStepList()
@@ -68,7 +61,18 @@ void BuildStepList::clear()
 
 QVariantMap BuildStepList::toMap() const
 {
-    QVariantMap map(ProjectConfiguration::toMap());
+    QVariantMap map;
+
+    {
+        // Only written for compatibility reasons within the 4.11 cycle
+        const char CONFIGURATION_ID_KEY[] = "ProjectExplorer.ProjectConfiguration.Id";
+        const char DISPLAY_NAME_KEY[] = "ProjectExplorer.ProjectConfiguration.DisplayName";
+        const char DEFAULT_DISPLAY_NAME_KEY[] = "ProjectExplorer.ProjectConfiguration.DefaultDisplayName";
+        map.insert(QLatin1String(CONFIGURATION_ID_KEY), m_id.toSetting());
+        map.insert(QLatin1String(DISPLAY_NAME_KEY), displayName());
+        map.insert(QLatin1String(DEFAULT_DISPLAY_NAME_KEY), displayName());
+    }
+
     // Save build steps
     map.insert(QString::fromLatin1(STEPS_COUNT_KEY), m_steps.count());
     for (int i = 0; i < m_steps.count(); ++i)
@@ -94,18 +98,27 @@ bool BuildStepList::contains(Core::Id id) const
     });
 }
 
-bool BuildStepList::isActive() const
+QString BuildStepList::displayName() const
 {
-    return qobject_cast<ProjectConfiguration *>(parent())->isActive();
+    if (m_id == Constants::BUILDSTEPS_BUILD) {
+        //: Display name of the build build step list. Used as part of the labels in the project window.
+        return tr("Build");
+    }
+    if (m_id == Constants::BUILDSTEPS_CLEAN) {
+        //: Display name of the clean build step list. Used as part of the labels in the project window.
+        return tr("Clean");
+    }
+    if (m_id == Constants::BUILDSTEPS_DEPLOY) {
+        //: Display name of the deploy build step list. Used as part of the labels in the project window.
+        return tr("Deploy");
+    }
+    QTC_CHECK(false);
+    return {};
 }
 
 bool BuildStepList::fromMap(const QVariantMap &map)
 {
     clear();
-
-    // We need the ID set before trying to restore the steps!
-    if (!ProjectConfiguration::fromMap(map))
-        return false;
 
     const QList<BuildStepFactory *> factories = BuildStepFactory::allBuildStepFactories();
 
@@ -140,9 +153,9 @@ QList<BuildStep *> BuildStepList::steps() const
     return m_steps;
 }
 
-QList<BuildStep *> BuildStepList::steps(const std::function<bool (const BuildStep *)> &filter) const
+BuildStep *BuildStepList::firstStepWithId(Core::Id id) const
 {
-    return Utils::filtered(steps(), filter);
+    return Utils::findOrDefault(m_steps, Utils::equal(&BuildStep::id, id));
 }
 
 void BuildStepList::insertStep(int position, BuildStep *step)
@@ -160,14 +173,6 @@ void BuildStepList::insertStep(int position, Core::Id stepId)
         }
     }
     QTC_ASSERT(false, qDebug() << "No factory for build step" << stepId.toString() << "found.");
-}
-
-void BuildStepList::appendSteps(const QList<StepCreationInfo> &infos)
-{
-    for (const StepCreationInfo &info : infos) {
-        if (!info.condition || info.condition(target()))
-            appendStep(info.stepId);
-    }
 }
 
 bool BuildStepList::removeStep(int position)
@@ -198,19 +203,4 @@ BuildStep *BuildStepList::at(int position)
     return m_steps.at(position);
 }
 
-Target *BuildStepList::target() const
-{
-    Q_ASSERT(parent());
-    auto bc = qobject_cast<BuildConfiguration *>(parent());
-    if (bc)
-        return bc->target();
-    auto dc = qobject_cast<DeployConfiguration *>(parent());
-    if (dc)
-        return dc->target();
-    return nullptr;
-}
-
-Project *BuildStepList::project() const
-{
-    return target()->project();
-}
+} // ProjectExplorer

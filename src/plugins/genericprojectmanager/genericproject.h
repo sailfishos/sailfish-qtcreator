@@ -27,9 +27,6 @@
 
 #include <projectexplorer/project.h>
 
-namespace CppTools { class CppProjectUpdater; }
-namespace Utils { class FileSystemWatcher; }
-
 namespace GenericProjectManager {
 namespace Internal {
 
@@ -38,59 +35,14 @@ class GenericProject : public ProjectExplorer::Project
     Q_OBJECT
 
 public:
-    explicit GenericProject(const Utils::FileName &filename);
-    ~GenericProject() override;
+    explicit GenericProject(const Utils::FilePath &filename);
 
-    bool addFiles(const QStringList &filePaths);
-    bool removeFiles(const QStringList &filePaths);
-    bool setFiles(const QStringList &filePaths);
-    bool renameFile(const QString &filePath, const QString &newFilePath);
-
-    enum RefreshOptions {
-        Files         = 0x01,
-        Configuration = 0x02,
-        Everything    = Files | Configuration
-    };
-
-    void refresh(RefreshOptions options);
-
-protected:
-    RestoreResult fromMap(const QVariantMap &map, QString *errorMessage) override;
+    void editFilesTriggered();
+    void removeFilesTriggered(const QStringList &filesToRemove);
 
 private:
-    bool saveRawFileList(const QStringList &rawFileList);
-    bool saveRawList(const QStringList &rawList, const QString &fileName);
-    void parseProject(RefreshOptions options);
-    QStringList processEntries(const QStringList &paths,
-                               QHash<QString, QString> *map = nullptr) const;
-
-    void refreshCppCodeModel();
-    void updateDeploymentData();
-    void activeTargetWasChanged();
-    void activeBuildConfigurationWasChanged();
-
-    QString m_filesFileName;
-    QString m_includesFileName;
-    QString m_configFileName;
-    QString m_cxxflagsFileName;
-    QString m_cflagsFileName;
-    ProjectExplorer::ProjectDocument *m_filesIDocument = nullptr;
-    ProjectExplorer::ProjectDocument *m_includesIDocument = nullptr;
-    ProjectExplorer::ProjectDocument *m_configIDocument = nullptr;
-    ProjectExplorer::ProjectDocument *m_cxxFlagsIDocument = nullptr;
-    ProjectExplorer::ProjectDocument *m_cFlagsIDocument = nullptr;
-    QStringList m_rawFileList;
-    QStringList m_files;
-    QHash<QString, QString> m_rawListEntries;
-    QStringList m_rawProjectIncludePaths;
-    QStringList m_projectIncludePaths;
-    QStringList m_cxxflags;
-    QStringList m_cflags;
-
-    CppTools::CppProjectUpdater *m_cppCodeModelUpdater = nullptr;
-
-    ProjectExplorer::Target *m_activeTarget = nullptr;
-    Utils::FileSystemWatcher * const m_deployFileWatcher = nullptr;
+    RestoreResult fromMap(const QVariantMap &map, QString *errorMessage) final;
+    ProjectExplorer::DeploymentKnowledge deploymentKnowledge() const final;
 };
 
 } // namespace Internal

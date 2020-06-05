@@ -43,8 +43,8 @@ namespace Internal {
 
 // Returns invalid Mark if it is not found at (line, column)
 static bool findMark(const QVector<ClangBackEnd::TokenInfoContainer> &marks,
-                     uint line,
-                     uint column,
+                     int line,
+                     int column,
                      ClangBackEnd::TokenInfoContainer &mark)
 {
     mark = Utils::findOrDefault(marks,
@@ -159,7 +159,7 @@ static ::Utils::ProcessLinkCallback extendedCallback(::Utils::ProcessLinkCallbac
     };
 }
 
-static bool isSameInvocationContext(const Utils::FileName &filePath)
+static bool isSameInvocationContext(const Utils::FilePath &filePath)
 {
     return TextEditor::BaseTextEditor::currentTextEditor()->editorWidget()->isVisible()
         && Core::EditorManager::currentDocument()->filePath() == filePath;

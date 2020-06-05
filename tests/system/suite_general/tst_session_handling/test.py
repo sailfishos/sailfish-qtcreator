@@ -39,8 +39,8 @@ def main():
                 "Verifying window title contains created session name.")
     checkWelcomePage(sessionName, True)
     for project in projects:
-        openQmakeProject(project, [Targets.DESKTOP_5_6_1_DEFAULT])
-    progressBarWait(20000)
+        openQmakeProject(project, [Targets.DESKTOP_5_14_1_DEFAULT])
+    waitForProjectParsing()
     checkNavigator(52, "Verifying whether all projects have been opened.")
     openDocument("animation.Resources.animation\\.qrc./animation.basics.animators\\.qml")
     openDocument("keyinteraction.Sources.main\\.cpp")
@@ -54,6 +54,7 @@ def main():
     checkNavigator(0, "Verifying that no more project is opened.")
     checkOpenDocuments(0, "Verifying whether all files have been closed.")
     switchSession(sessionName)
+    waitForProjectParsing()
     test.verify(waitFor("sessionName in str(mainWindow.windowTitle)", 2000),
                 "Verifying window title contains created session name.")
     checkNavigator(52, "Verifying whether all projects have been re-opened.")
@@ -66,9 +67,9 @@ def main():
     invokeMenuItem("File", "Exit")
 
 def prepareTestExamples():
-    examples = [os.path.join(Qt5Path.examplesPath(Targets.DESKTOP_5_6_1_DEFAULT),
+    examples = [os.path.join(Qt5Path.examplesPath(Targets.DESKTOP_5_14_1_DEFAULT),
                              "quick", "animation", "animation.pro"),
-                os.path.join(Qt5Path.examplesPath(Targets.DESKTOP_5_6_1_DEFAULT),
+                os.path.join(Qt5Path.examplesPath(Targets.DESKTOP_5_14_1_DEFAULT),
                              "quick", "keyinteraction", "keyinteraction.pro")
                 ]
     projects = []
@@ -84,10 +85,10 @@ def prepareTestExamples():
 def switchSession(toSession):
     test.log("Switching to session '%s'" % toSession)
     invokeMenuItem("File", "Sessions", "Manage...")
-    clickItem(waitForObject("{name='sessionView' type='ProjectExplorer::Internal::SessionView' visible='1' "
-                            "window=':Session Manager_ProjectExplorer::Internal::SessionDialog'}"),
-                            toSession, 5, 5, 0, Qt.LeftButton)
-    clickButton(waitForObject("{name='btSwitch' text='Switch to' type='QPushButton' visible='1' "
+    sessionView = ("{name='sessionView' type='ProjectExplorer::Internal::SessionView' visible='1' "
+                   "window=':Session Manager_ProjectExplorer::Internal::SessionDialog'}")
+    mouseClick(waitForObjectItem(sessionView, toSession))
+    clickButton(waitForObject("{name='btSwitch' type='QPushButton' visible='1' "
                               "window=':Session Manager_ProjectExplorer::Internal::SessionDialog'}"))
 
 def createAndSwitchToSession(toSession):

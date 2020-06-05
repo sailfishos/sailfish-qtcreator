@@ -30,14 +30,6 @@
 namespace Android {
 namespace Internal {
 
-enum AndroidQemuStatus {
-    AndroidQemuStarting,
-    AndroidQemuFailedToStart,
-    AndroidQemuFinished,
-    AndroidQemuCrashed,
-    AndroidQemuUserReason
-};
-
 #ifdef Q_OS_WIN32
 #define ANDROID_BAT_SUFFIX ".bat"
 #else
@@ -48,7 +40,7 @@ enum AndroidQemuStatus {
 
 namespace Constants {
 const char ANDROID_SETTINGS_ID[] = "BB.Android Configurations";
-const char ANDROID_TOOLCHAIN_ID[] = "Qt4ProjectManager.ToolChain.Android";
+const char ANDROID_TOOLCHAIN_TYPEID[] = "Qt4ProjectManager.ToolChain.Android";
 const char ANDROIDQT[] = "Qt4ProjectManager.QtVersion.Android";
 
 const char ANDROID_AMSTARTARGS[] = "Android.AmStartArgs";
@@ -63,23 +55,35 @@ const char ANDROID_MANIFEST_MIME_TYPE[] = "application/vnd.google.android.androi
 const char ANDROID_MANIFEST_EDITOR_ID[] = "Android.AndroidManifestEditor.Id";
 const char ANDROID_MANIFEST_EDITOR_CONTEXT[] = "Android.AndroidManifestEditor.Id";
 
+const char ANDROID_KIT_NDK[] = "Android.NDK";
+const char ANDROID_KIT_SDK[] = "Android.SDK";
+
 const char ANDROID_BUILDDIRECTORY[] = "android-build";
 const char JAVA_EDITOR_ID[] = "java.editor";
 const char JAVA_MIMETYPE[] = "text/x-java";
 const char ANDROID_ARCHITECTURE[] = "Android.Architecture";
-const char ANDROID_DEPLOY_SETTINGS_FILE[] = "AndroidDeploySettingsFile";
 const char ANDROID_PACKAGE_SOURCE_DIR[] = "AndroidPackageSourceDir";
 const char ANDROID_EXTRA_LIBS[] = "AndroidExtraLibs";
 
 const char ANDROID_PACKAGENAME[] = "Android.PackageName";
-const char ANDROID_PACKAGE_INSTALLATION_STEP_ID[] =  "Qt4ProjectManager.AndroidPackageInstallationStep";
+const char ANDROID_PACKAGE_INSTALLATION_STEP_ID[]
+    = "Qt4ProjectManager.AndroidPackageInstallationStep";
 const char ANDROID_BUILD_APK_ID[] = "QmakeProjectManager.AndroidBuildApkStep";
 
 const char AndroidPackageSourceDir[] = "AndroidPackageSourceDir"; // QString
 const char AndroidDeploySettingsFile[] = "AndroidDeploySettingsFile"; // QString
 const char AndroidExtraLibs[] = "AndroidExtraLibs";  // QStringList
+// REMOVE ME
 const char AndroidArch[] = "AndroidArch"; // QString
 const char AndroidSoLibPath[] = "AndroidSoLibPath"; // QStringList
+const char AndroidTargets[] = "AndroidTargets"; // QStringList
+const char AndroidApk[] = "Android.APK"; // QStringList
+const char AndroidManifest[] = "Android.Manifest"; // QStringList
+
+const char AndroidNdkPlatform[] = "AndroidNdkPlatform"; //QString
+const char NdkLocation[] = "NdkLocation"; // FileName
+const char SdkLocation[] = "SdkLocation"; // FileName
+const char AndroidABIs[] = "AndroidABIs"; // QString
 
 } // namespace Constants;
 } // namespace Android

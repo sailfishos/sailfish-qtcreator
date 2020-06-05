@@ -24,55 +24,11 @@
 ****************************************************************************/
 
 #include "nimprojectnode.h"
-#include "nimproject.h"
-
-using namespace ProjectExplorer;
-using namespace Utils;
 
 namespace Nim {
 
-NimProjectNode::NimProjectNode(NimProject &project,
-                               const FileName &projectFilePath)
+NimProjectNode::NimProjectNode(const Utils::FilePath &projectFilePath)
     : ProjectNode(projectFilePath)
-    , m_project(project)
 {}
 
-bool NimProjectNode::supportsAction(ProjectAction action, const Node *node) const
-{
-    switch (node->nodeType()) {
-    case NodeType::File:
-        return action == ProjectAction::Rename
-            || action == ProjectAction::RemoveFile;
-    case NodeType::Folder:
-    case NodeType::Project:
-        return action == ProjectAction::AddNewFile
-            || action == ProjectAction::RemoveFile
-            || action == ProjectAction::AddExistingFile;
-    default:
-        return ProjectNode::supportsAction(action, node);
-    }
-}
-
-bool NimProjectNode::addFiles(const QStringList &filePaths, QStringList *)
-{
-    return m_project.addFiles(filePaths);
-}
-
-RemovedFilesFromProject NimProjectNode::removeFiles(const QStringList &filePaths,
-                                                    QStringList *)
-{
-    return m_project.removeFiles(filePaths) ? RemovedFilesFromProject::Ok
-                                            : RemovedFilesFromProject::Error;
-}
-
-bool NimProjectNode::deleteFiles(const QStringList &)
-{
-    return true;
-}
-
-bool NimProjectNode::renameFile(const QString &filePath, const QString &newFilePath)
-{
-    return m_project.renameFile(filePath, newFilePath);
-}
-
-}
+} // namespace Nim

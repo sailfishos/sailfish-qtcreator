@@ -40,7 +40,7 @@ public:
 
 public:
     /// Constructs an empty Scope.
-    SymbolTable(Scope *owner = 0);
+    SymbolTable(Scope *owner = nullptr);
 
     /// Destroy this scope.
     ~SymbolTable();
@@ -58,10 +58,10 @@ public:
     bool isEmpty() const;
 
     /// Returns the number of symbols is in the scope.
-    unsigned symbolCount() const;
+    int symbolCount() const;
 
     /// Returns the Symbol at the given position.
-    Symbol *symbolAt(unsigned index) const;
+    Symbol *symbolAt(int index) const;
 
     /// Returns the first Symbol in the scope.
     iterator firstSymbol() const;
@@ -92,8 +92,8 @@ private:
 
 SymbolTable::SymbolTable(Scope *owner)
     : _owner(owner),
-      _symbols(0),
-      _hash(0),
+      _symbols(nullptr),
+      _hash(nullptr),
       _allocatedSymbols(0),
       _symbolCount(-1),
       _hashSize(0)
@@ -136,7 +136,7 @@ void SymbolTable::enterSymbol(Symbol *symbol)
 Symbol *SymbolTable::lookat(const Identifier *id) const
 {
     if (! _hash || ! id)
-        return 0;
+        return nullptr;
 
     const unsigned h = id->hashCode() % _hashSize;
     Symbol *symbol = _hash[h];
@@ -154,7 +154,7 @@ Symbol *SymbolTable::lookat(const Identifier *id) const
             if (d->identifier()->match(id))
                 break;
         } else if (identity->isQualifiedNameId()) {
-            return 0;
+            return nullptr;
         } else if (const SelectorNameId *selectorNameId = identity->asSelectorNameId()) {
             if (selectorNameId->identifier()->match(id))
                 break;
@@ -166,7 +166,7 @@ Symbol *SymbolTable::lookat(const Identifier *id) const
 Symbol *SymbolTable::lookat(OperatorNameId::Kind operatorId) const
 {
     if (! _hash)
-        return 0;
+        return nullptr;
 
     const unsigned h = operatorId % _hashSize;
     Symbol *symbol = _hash[h];
@@ -210,13 +210,13 @@ unsigned SymbolTable::hashValue(Symbol *symbol) const
 bool SymbolTable::isEmpty() const
 { return _symbolCount == -1; }
 
-unsigned SymbolTable::symbolCount() const
+int SymbolTable::symbolCount() const
 { return _symbolCount + 1; }
 
-Symbol *SymbolTable::symbolAt(unsigned index) const
+Symbol *SymbolTable::symbolAt(int index) const
 {
     if (! _symbols)
-        return 0;
+        return nullptr;
     return _symbols[index];
 }
 
@@ -226,16 +226,16 @@ SymbolTable::iterator SymbolTable::firstSymbol() const
 SymbolTable::iterator SymbolTable::lastSymbol() const
 { return _symbols + _symbolCount + 1; }
 
-Scope::Scope(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
+Scope::Scope(TranslationUnit *translationUnit, int sourceLocation, const Name *name)
     : Symbol(translationUnit, sourceLocation, name),
-      _members(0),
+      _members(nullptr),
       _startOffset(0),
       _endOffset(0)
 { }
 
 Scope::Scope(Clone *clone, Subst *subst, Scope *original)
     : Symbol(clone, subst, original)
-    , _members(0)
+    , _members(nullptr)
     , _startOffset(original->_startOffset)
     , _endOffset(original->_endOffset)
 {
@@ -260,39 +260,39 @@ bool Scope::isEmpty() const
 { return _members ? _members->isEmpty() : true; }
 
 /// Returns the number of symbols is in the scope.
-unsigned Scope::memberCount() const
+int Scope::memberCount() const
 { return _members ? _members->symbolCount() : 0; }
 
 /// Returns the Symbol at the given position.
-Symbol *Scope::memberAt(unsigned index) const
-{ return _members ? _members->symbolAt(index) : 0; }
+Symbol *Scope::memberAt(int index) const
+{ return _members ? _members->symbolAt(index) : nullptr; }
 
 /// Returns the first Symbol in the scope.
 Scope::iterator Scope::memberBegin() const
-{ return _members ? _members->firstSymbol() : 0; }
+{ return _members ? _members->firstSymbol() : nullptr; }
 
 /// Returns the last Symbol in the scope.
 Scope::iterator Scope::memberEnd() const
-{ return _members ? _members->lastSymbol() : 0; }
+{ return _members ? _members->lastSymbol() : nullptr; }
 
 Symbol *Scope::find(const Identifier *id) const
-{ return _members ? _members->lookat(id) : 0; }
+{ return _members ? _members->lookat(id) : nullptr; }
 
 Symbol *Scope::find(OperatorNameId::Kind operatorId) const
-{ return _members ? _members->lookat(operatorId) : 0; }
+{ return _members ? _members->lookat(operatorId) : nullptr; }
 
 /// Set the start offset of the scope
-unsigned Scope::startOffset() const
+int Scope::startOffset() const
 { return _startOffset; }
 
-void Scope::setStartOffset(unsigned offset)
+void Scope::setStartOffset(int offset)
 { _startOffset = offset; }
 
 /// Set the end offset of the scope
-unsigned Scope::endOffset() const
+int Scope::endOffset() const
 { return _endOffset; }
 
-void Scope::setEndOffset(unsigned offset)
+void Scope::setEndOffset(int offset)
 { _endOffset = offset; }
 
 } // namespace CPlusPlus

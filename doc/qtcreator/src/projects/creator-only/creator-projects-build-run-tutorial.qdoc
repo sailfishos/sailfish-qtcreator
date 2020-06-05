@@ -1,0 +1,100 @@
+/****************************************************************************
+**
+** Copyright (C) 2020 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \previouspage creator-configuring.html
+    \page creator-build-example-application.html
+    \nextpage creator-tutorials.html
+
+    \title Building and Running an Example
+
+    You can test that your \QSDK installation is successful by opening an existing
+    example application project.
+
+    To run an example application on an Android or iOS device, you must set up
+    the development environment for Android or iOS. For more information, see
+    \l{Connecting Android Devices} and \l{Connecting iOS Devices}.
+
+    To run an example application on a Boot2Qt device, you must set up
+    Qt for Device Creation on the development host and create connections
+    between the host and devices. For more information, see the
+    \l{http://doc.qt.io/QtForDeviceCreation/qtee-installation-guide.html}
+    {Installation Guide} in the
+    \l{http://doc.qt.io/QtForDeviceCreation/index.html}{Qt for Device Creation}
+    documentation.
+
+    \list 1
+
+        \li In the \uicontrol Welcome mode, select \uicontrol Examples (1).
+
+            \image qtcreator-gs-build-example-open.png "Selecting an example"
+
+            If no examples are listed, check that a \l{Adding Qt Versions}
+            {Qt version} (2) is installed and configured. If you select a Qt
+            for Android or iOS, only the examples tested for Android or iOS
+            are listed.
+
+        \li Select an example in the list of examples.
+
+            You can also use tags (3) to filter examples. For instance, enter
+            the \uicontrol Boot2Qt tag (commercial only) in the search field
+            (4) to list examples that you can run on Boot2Qt devices.
+
+        \li To check that the application code can be compiled and linked for a
+            device, click the \uicontrol {Kit Selector} and select a
+            \l{glossary-buildandrun-kit}{kit} for the
+            device.
+
+            \image qtcreator-gs-build-example-kit-selector.png "Selecting a kit to build with"
+
+            If you installed \QC as part of a Qt installation, it should have
+            automatically detected the installed kit. If no kits are available,
+            see \l{Adding Kits}.
+
+        \li Click \inlineimage run_small.png
+            (\uicontrol Run) to build and run the application.
+
+        \li To see the compilation progress, press \key{Alt+4} to open the
+            \uicontrol {Compile Output} pane.
+
+            If build errors occur, check that a Qt version and
+            \l{Adding Compilers}{compiler} are installed and
+            configured and that the necessary kits are configured. If you are
+            building for an \l{Connecting Android Devices}{Android device} or
+            \l{Connecting iOS Devices}{iOS device}, check that the development
+            environment has been set up correctly.
+
+            The \uicontrol Build progress bar on the toolbar turns green when the
+            project is successfully built. The application opens on the device.
+
+    \endlist
+
+*/

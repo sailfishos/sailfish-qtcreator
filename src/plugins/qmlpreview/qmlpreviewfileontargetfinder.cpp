@@ -66,13 +66,13 @@ QString QmlPreviewFileOnTargetFinder::findPath(const QString &filePath, bool *su
         return filePath;
 
     ProjectExplorer::DeployableFile file
-            = m_target->deploymentData().deployableForLocalFile(filePath);
+            = m_target->deploymentData().deployableForLocalFile(Utils::FilePath::fromString(filePath));
     if (file.isValid())
         return file.remoteFilePath();
 
     // Try the current node first. It's likely that this is the one we're looking for and if there
     // is any ambiguity (same file mapped to multiple qrc paths) it should take precedence.
-    ProjectExplorer::Node *currentNode = ProjectExplorer::ProjectTree::findCurrentNode();
+    ProjectExplorer::Node *currentNode = ProjectExplorer::ProjectTree::currentNode();
     if (currentNode && currentNode->filePath().toString() == filePath) {
         const QString path = resourceNodePath(currentNode);
         if (!path.isEmpty())
@@ -101,7 +101,7 @@ QString QmlPreviewFileOnTargetFinder::findPath(const QString &filePath, bool *su
 
     if (success) {
         // On desktop, if there is no "remote" path, then the application will load the local path.
-        *success = ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(m_target->kit())
+        *success = ProjectExplorer::DeviceTypeKitAspect::deviceTypeId(m_target->kit())
                     == ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE;
     }
     return filePath;

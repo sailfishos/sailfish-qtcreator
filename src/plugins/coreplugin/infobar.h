@@ -28,6 +28,7 @@
 #include "core_global.h"
 #include <coreplugin/id.h>
 
+#include <QFrame>
 #include <QObject>
 #include <QSet>
 
@@ -48,14 +49,13 @@ class InfoBarDisplay;
 class CORE_EXPORT InfoBarEntry
 {
 public:
-    enum GlobalSuppressionMode
+    enum class GlobalSuppression
     {
-        GlobalSuppressionDisabled,
-        GlobalSuppressionEnabled
+        Disabled,
+        Enabled
     };
 
-    InfoBarEntry(Id _id, const QString &_infoText, GlobalSuppressionMode _globalSuppression = GlobalSuppressionDisabled);
-    InfoBarEntry(const InfoBarEntry &other) { *this = other; }
+    InfoBarEntry(Id _id, const QString &_infoText, GlobalSuppression _globalSuppression = GlobalSuppression::Disabled);
 
     using CallBack = std::function<void()>;
     void setCustomButtonInfo(const QString &_buttonText, CallBack callBack);
@@ -75,7 +75,7 @@ private:
     CallBack m_buttonCallBack;
     QString m_cancelButtonText;
     CallBack m_cancelButtonCallBack;
-    GlobalSuppressionMode m_globalSuppression;
+    GlobalSuppression m_globalSuppression;
     DetailsWidgetCreator m_detailsWidgetCreator;
     bool m_useCancelButton = true;
     ComboCallBack m_comboCallBack;
@@ -128,6 +128,9 @@ public:
     InfoBarDisplay(QObject *parent = nullptr);
     void setTarget(QBoxLayout *layout, int index);
     void setInfoBar(InfoBar *infoBar);
+    void setStyle(QFrame::Shadow style);
+
+    InfoBar *infoBar() const;
 
 private:
     void update();
@@ -137,6 +140,7 @@ private:
     QList<QWidget *> m_infoWidgets;
     InfoBar *m_infoBar = nullptr;
     QBoxLayout *m_boxLayout = nullptr;
+    QFrame::Shadow m_style = QFrame::Raised;
     int m_boxIndex = 0;
     bool m_isShowingDetailsWidget = false;
 };

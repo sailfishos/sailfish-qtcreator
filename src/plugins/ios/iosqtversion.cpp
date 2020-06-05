@@ -42,23 +42,6 @@ using namespace ProjectExplorer;
 
 IosQtVersion::IosQtVersion() = default;
 
-IosQtVersion::IosQtVersion(const Utils::FileName &path, bool isAutodetected,
-                           const QString &autodetectionSource)
-    : QtSupport::BaseQtVersion(path, isAutodetected, autodetectionSource)
-{
-    setUnexpandedDisplayName(defaultUnexpandedDisplayName(path, false));
-}
-
-IosQtVersion *IosQtVersion::clone() const
-{
-    return new IosQtVersion(*this);
-}
-
-QString IosQtVersion::type() const
-{
-    return QLatin1String(Constants::IOSQT);
-}
-
 bool IosQtVersion::isValid() const
 {
     if (!BaseQtVersion::isValid())
@@ -76,9 +59,9 @@ QString IosQtVersion::invalidReason() const
     return tmp;
 }
 
-QList<Abi> IosQtVersion::detectQtAbis() const
+Abis IosQtVersion::detectQtAbis() const
 {
-    QList<Abi> abis = qtAbisFromLibrary(qtCorePaths());
+    Abis abis = BaseQtVersion::detectQtAbis();
     for (int i = 0; i < abis.count(); ++i) {
         abis[i] = Abi(abis.at(i).architecture(),
                       abis.at(i).os(),
@@ -91,8 +74,8 @@ QList<Abi> IosQtVersion::detectQtAbis() const
 
 void IosQtVersion::addToEnvironment(const Kit *k, Utils::Environment &env) const
 {
-    Q_UNUSED(k);
-    Q_UNUSED(env);
+    Q_UNUSED(k)
+    Q_UNUSED(env)
 }
 
 QString IosQtVersion::description() const
@@ -114,4 +97,17 @@ QSet<Core::Id> IosQtVersion::targetDeviceTypes() const
 {
     // iOS Qt version supports ios devices as well as simulator.
     return {Constants::IOS_DEVICE_TYPE, Constants::IOS_SIMULATOR_TYPE};
+}
+
+
+// Factory
+
+IosQtVersionFactory::IosQtVersionFactory()
+{
+    setQtVersionCreator([] { return new IosQtVersion; });
+    setSupportedType(Constants::IOSQT);
+    setPriority(90);
+    setRestrictionChecker([](const SetupData &setup) {
+        return setup.platforms.contains("ios");
+    });
 }

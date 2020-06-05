@@ -117,7 +117,7 @@ TEST_F(PchManagerClientServerInProcess, SendUpdateProjectPartsMessage)
 
 TEST_F(PchManagerClientServerInProcess, SendUpdateGeneratedFilesMessage)
 {
-    FileContainer fileContainer{{"/path/to/", "file"}, "content", {}};
+    FileContainer fileContainer{{"/path/to/", "file"}, 1, "content", {}};
     UpdateGeneratedFilesMessage message{{fileContainer}};
 
     EXPECT_CALL(mockPchManagerServer, updateGeneratedFiles(message));
@@ -148,7 +148,7 @@ TEST_F(PchManagerClientServerInProcess, SendRemoveGeneratedFilesMessage)
 
 TEST_F(PchManagerClientServerInProcess, SendPrecompiledHeaderUpdatedMessage)
 {
-    PrecompiledHeadersUpdatedMessage message{{{1, "/path/to/pch", 1}}};
+    PrecompiledHeadersUpdatedMessage message{1};
 
     EXPECT_CALL(mockPchManagerClient, precompiledHeadersUpdated(message));
 

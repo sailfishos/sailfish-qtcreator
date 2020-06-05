@@ -69,7 +69,7 @@ const QString &AndroidSdkPackage::sdkStylePath() const
     return m_sdkStylePath;
 }
 
-const Utils::FileName &AndroidSdkPackage::installedLocation() const
+const Utils::FilePath &AndroidSdkPackage::installedLocation() const
 {
     return m_installedLocation;
 }
@@ -89,7 +89,7 @@ void AndroidSdkPackage::setState(AndroidSdkPackage::PackageState state)
     m_state = state;
 }
 
-void AndroidSdkPackage::setInstalledLocation(const Utils::FileName &path)
+void AndroidSdkPackage::setInstalledLocation(const Utils::FilePath &path)
 {
     m_installedLocation = path;
     if (m_installedLocation.exists())
@@ -132,6 +132,16 @@ const SdkPlatform *SystemImage::platform() const
 void SystemImage::setPlatform(SdkPlatform *platform)
 {
     m_platform = platform;
+}
+
+int SystemImage::apiLevel() const
+{
+    return m_apiLevel;
+}
+
+void SystemImage::setApiLevel(const int apiLevel)
+{
+    m_apiLevel = apiLevel;
 }
 
 SdkPlatform::SdkPlatform(QVersionNumber version, QString sdkStylePathStr, int api, QObject *parent) :
@@ -282,6 +292,31 @@ bool ExtraTools::isValid() const
 AndroidSdkPackage::PackageType ExtraTools::type() const
 {
     return AndroidSdkPackage::ExtraToolsPackage;
+}
+
+Ndk::Ndk(QVersionNumber revision, QString sdkStylePathStr, QObject *parent) :
+    AndroidSdkPackage(revision, sdkStylePathStr, parent)
+{
+}
+
+bool Ndk::isValid() const
+{
+    return installedLocation().exists();
+}
+
+AndroidSdkPackage::PackageType Ndk::type() const
+{
+    return AndroidSdkPackage::NDKPackage;
+}
+
+bool Ndk::isNdkBundle() const
+{
+    return m_isBundle;
+}
+
+void Ndk::setAsNdkBundle(const bool isBundle)
+{
+    m_isBundle = isBundle;
 }
 
 } // namespace Android

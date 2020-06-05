@@ -30,17 +30,15 @@
 namespace Help {
 namespace Internal {
 
-class OpenPagesModel;
-
 class OpenPagesWidget : public Core::OpenDocumentsTreeView
 {
     Q_OBJECT
 
 public:
-    explicit OpenPagesWidget(OpenPagesModel *model, QWidget *parent = nullptr);
+    explicit OpenPagesWidget(QAbstractItemModel *model, QWidget *parent = nullptr);
     ~OpenPagesWidget() override;
 
-    void selectCurrentPage();
+    void selectCurrentPage(int index);
     void allowContextMenu(bool ok);
 
 signals:

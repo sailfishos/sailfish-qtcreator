@@ -49,7 +49,7 @@ void FileResourcesModel::setModelNodeBackend(const QVariant &modelNodeBackend)
             qobject_cast<const QmlDesigner::QmlModelNodeProxy *>(modelNodeBackendObject);
 
     if (backendObjectCasted)
-        m_path = backendObjectCasted->qmlItemNode().modelNode().model()->fileUrl();
+        m_path = backendObjectCasted->qmlObjectNode().modelNode().model()->fileUrl();
 
     setupModel();
     emit modelNodeBackendChanged();
@@ -83,6 +83,11 @@ void FileResourcesModel::setPath(const QUrl &url)
 QUrl FileResourcesModel::path() const
 {
     return m_path;
+}
+
+QUrl FileResourcesModel::dirPath() const
+{
+    return QUrl::fromLocalFile(m_dirPath.path());
 }
 
 void FileResourcesModel::setFilter(const QString &filter)
@@ -157,21 +162,47 @@ QVariant FileResourcesModel::modelNodeBackend() const
     return QVariant();
 }
 
+bool filterMetaIcons(const QString &fileName)
+{
+
+    QFileInfo info(fileName);
+
+    if (info.dir().path().split("/").contains("designer")) {
+
+        QDir currentDir = info.dir();
+
+        int i = 0;
+        while (!currentDir.isRoot() && i < 3) {
+            if (currentDir.dirName() == "designer") {
+                if (!currentDir.entryList({"*.metainfo"}).isEmpty())
+                    return false;
+            }
+
+            currentDir.cdUp();
+            ++i;
+        }
+
+        if (info.dir().dirName() == "designer")
+            return false;
+    }
+
+    return true;
+}
+
 void FileResourcesModel::setupModel()
 {
     m_lock = true;
     m_model.clear();
 
-    QDir dir;
-
-    dir = QFileInfo(m_path.toLocalFile()).dir();
+    m_dirPath = QFileInfo(m_path.toLocalFile()).dir();
 
     QStringList filterList = m_filter.split(QLatin1Char(' '));
 
-    QDirIterator it(dir.absolutePath(), filterList, QDir::Files, QDirIterator::Subdirectories);
+    QDirIterator it(m_dirPath.absolutePath(), filterList, QDir::Files, QDirIterator::Subdirectories);
     while (it.hasNext()) {
         QString absolutePath = it.next();
-        m_model.append(dir.relativeFilePath(absolutePath));
+        if (filterMetaIcons(absolutePath))
+            m_model.append(m_dirPath.relativeFilePath(absolutePath));
     }
 
     m_lock = false;

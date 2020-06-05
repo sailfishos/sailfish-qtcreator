@@ -301,29 +301,25 @@ QString diagnosticCategoryPrefixRemoved(const QString &text)
     return text;
 }
 
-static ::Utils::FileName compilerPath(const CppTools::ProjectPart &projectPart)
+static ::Utils::FilePath compilerPath(const CppTools::ProjectPart &projectPart)
 {
     ProjectExplorer::Target *target = projectPart.project->activeTarget();
     if (!target)
-        return ::Utils::FileName();
+        return ::Utils::FilePath();
 
-    ProjectExplorer::ToolChain *toolchain = ProjectExplorer::ToolChainKitInformation::toolChain(
+    ProjectExplorer::ToolChain *toolchain = ProjectExplorer::ToolChainKitAspect::toolChain(
         target->kit(), ProjectExplorer::Constants::CXX_LANGUAGE_ID);
 
     return toolchain->compilerCommand();
 }
 
-static ::Utils::FileName buildDirectory(const ProjectExplorer::Project &project)
+static ::Utils::FilePath buildDirectory(const ProjectExplorer::Project &project)
 {
-    ProjectExplorer::Target *target = project.activeTarget();
-    if (!target)
-        return ::Utils::FileName();
-
-    ProjectExplorer::BuildConfiguration *buildConfig = target->activeBuildConfiguration();
-    if (!buildConfig)
-        return ::Utils::FileName();
-
-    return buildConfig->buildDirectory();
+    if (auto *target = project.activeTarget()) {
+        if (auto *bc = target->activeBuildConfiguration())
+            return bc->buildDirectory();
+    }
+    return {};
 }
 
 static QStringList projectPartArguments(const ProjectPart &projectPart)
@@ -356,7 +352,7 @@ static QStringList projectPartArguments(const ProjectPart &projectPart)
     return args;
 }
 
-static QJsonObject createFileObject(const ::Utils::FileName &buildDir,
+static QJsonObject createFileObject(const ::Utils::FilePath &buildDir,
                                     const QStringList &arguments,
                                     const ProjectPart &projectPart,
                                     const ProjectFile &projFile)
@@ -386,18 +382,22 @@ static QJsonObject createFileObject(const ::Utils::FileName &buildDir,
     return fileObject;
 }
 
-void generateCompilationDB(CppTools::ProjectInfo projectInfo)
+GenerateCompilationDbResult generateCompilationDB(CppTools::ProjectInfo projectInfo)
 {
-    const ::Utils::FileName buildDir = buildDirectory(*projectInfo.project());
-    QTC_ASSERT(!buildDir.isEmpty(), return;);
+    const ::Utils::FilePath buildDir = buildDirectory(*projectInfo.project());
+    QTC_ASSERT(!buildDir.isEmpty(), return GenerateCompilationDbResult(QString(),
+        QCoreApplication::translate("ClangUtils", "Could not retrieve build directory.")));
 
     QDir dir(buildDir.toString());
     if (!dir.exists())
         dir.mkpath(dir.path());
     QFile compileCommandsFile(buildDir.toString() + "/compile_commands.json");
     const bool fileOpened = compileCommandsFile.open(QIODevice::WriteOnly | QIODevice::Truncate);
-    if (!fileOpened)
-        return;
+    if (!fileOpened) {
+        return GenerateCompilationDbResult(QString(),
+                QCoreApplication::translate("ClangUtils", "Could not create \"%1\": %2")
+                    .arg(compileCommandsFile.fileName(), compileCommandsFile.errorString()));
+    }
     compileCommandsFile.write("[");
 
     for (ProjectPart::Ptr projectPart : projectInfo.projectParts()) {
@@ -412,6 +412,7 @@ void generateCompilationDB(CppTools::ProjectInfo projectInfo)
 
     compileCommandsFile.write("\n]");
     compileCommandsFile.close();
+    return GenerateCompilationDbResult(compileCommandsFile.fileName(), QString());
 }
 
 QString currentCppEditorDocumentFilePath()

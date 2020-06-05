@@ -24,18 +24,42 @@
 ****************************************************************************/
 
 import QtQuick 2.1
-import QtQuick.Controls 1.1 as Controls
-import QtQuick.Controls.Styles 1.1
+import StudioControls 1.0 as StudioControls
+import StudioTheme 1.0 as StudioTheme
 
-Controls.ComboBox {
+StudioControls.ComboBox {
     id: comboBox
 
     property variant backendValue
 
-    property color textColor: colorLogic.textColor
+    labelColor: edit && !colorLogic.errorState ? StudioTheme.Values.themeTextColor : colorLogic.textColor
     property string scope: "Qt"
 
+    enum ValueType { String, Integer, Enum }
+    property int valueType: ComboBox.ValueType.Enum
+
+    onModelChanged: colorLogic.invalidate()
+
+    // This is available in all editors.
+
+    onValueTypeChanged: {
+        if (comboBox.valueType === ComboBox.ValueType.Integer)
+            comboBox.useInteger = true
+        else
+            comboBox.useInteger = false
+    }
+
+    // This property shouldn't be used anymore, valueType has come to replace it.
     property bool useInteger: false
+
+    onUseIntegerChanged: {
+        if (comboBox.useInteger) {
+            comboBox.valueType = ComboBox.ValueType.Integer
+        } else {
+            if (comboBox.valueType === ComboBox.ValueType.Integer)
+                comboBox.valueType = ComboBox.ValueType.Enum // set to default
+        }
+    }
 
     property bool __isCompleted: false
 
@@ -45,75 +69,98 @@ Controls.ComboBox {
 
     property bool block: false
 
+    property bool showExtendedFunctionButton: true
+
+    property alias colorLogic: colorLogic
+
+    ExtendedFunctionLogic {
+        id: extFuncLogic
+        backendValue: comboBox.backendValue
+    }
+
+    actionIndicator.icon.color: extFuncLogic.color
+    actionIndicator.icon.text: extFuncLogic.glyph
+    actionIndicator.onClicked: extFuncLogic.show()
+    actionIndicator.forceVisible: extFuncLogic.menuVisible
+
+    actionIndicator.visible: comboBox.showExtendedFunctionButton
+
     ColorLogic {
         id: colorLogic
         backendValue: comboBox.backendValue
-        onValueFromBackendChanged: {
-            invalidate();
-        }
+        onValueFromBackendChanged: colorLogic.invalidate()
 
         function invalidate() {
 
-            if (block)
+            if (comboBox.block)
                 return
 
-            block = true
+            comboBox.block = true
 
-            if (manualMapping) {
-                valueFromBackendChanged();
-            } else if (!comboBox.useInteger) {
-                var enumString = comboBox.backendValue.enumeration;
-
-                if (enumString === "")
-                    enumString = comboBox.backendValue.value
-
-                var index = comboBox.find(enumString)
-
-                if (index < 0)
-                    index = 0
-
-                if (index !== comboBox.currentIndex)
-                    comboBox.currentIndex = index
-
+            if (comboBox.manualMapping) {
+                comboBox.valueFromBackendChanged()
             } else {
-                if (comboBox.currentIndex !== backendValue.value)
-                    comboBox.currentIndex = backendValue.value
+                switch (comboBox.valueType) {
+                case ComboBox.ValueType.String:
+                    if (comboBox.currentText !== comboBox.backendValue.value) {
+                        var index = comboBox.find(comboBox.backendValue.value)
+                        if (index < 0)
+                            index = 0
+
+                        if (index !== comboBox.currentIndex)
+                            comboBox.currentIndex = index
+                    }
+                    break
+                case ComboBox.ValueType.Integer:
+                    if (comboBox.currentIndex !== comboBox.backendValue.value)
+                        comboBox.currentIndex = comboBox.backendValue.value
+                    break
+                case ComboBox.ValueType.Enum:
+                default:
+                    var enumString = comboBox.backendValue.enumeration
+
+                    if (enumString === "")
+                        enumString = comboBox.backendValue.value
+
+                    index = comboBox.find(enumString)
+
+                    if (index < 0)
+                        index = 0
+
+                    if (index !== comboBox.currentIndex)
+                        comboBox.currentIndex = index
+                }
             }
 
-            block = false
+            comboBox.block = false
         }
     }
 
-    onCurrentTextChanged: {
-        if (!__isCompleted)
-            return;
+    onCompressedActivated: {
+        if (!comboBox.__isCompleted)
+            return
 
-        if (backendValue === undefined)
-            return;
+        if (comboBox.backendValue === undefined)
+            return
 
-        if (manualMapping)
-            return;
+        if (comboBox.manualMapping)
+            return
 
-        if (!comboBox.useInteger) {
-            backendValue.setEnumeration(comboBox.scope, comboBox.currentText);
-        } else {
-            backendValue.value = comboBox.currentIndex;
+        switch (comboBox.valueType) {
+        case ComboBox.ValueType.String:
+            comboBox.backendValue.value = comboBox.currentText
+            break
+        case ComboBox.ValueType.Integer:
+            comboBox.backendValue.value = comboBox.currentIndex
+            break
+        case ComboBox.ValueType.Enum:
+        default:
+            comboBox.backendValue.setEnumeration(comboBox.scope, comboBox.currentText)
         }
     }
 
     Component.onCompleted: {
         colorLogic.invalidate()
-        __isCompleted = true;
-    }
-
-    style: CustomComboBoxStyle {
-        textColor: comboBox.textColor
-    }
-
-    ExtendedFunctionButton {
-        x: 2
-        anchors.verticalCenter: parent.verticalCenter
-        backendValue: comboBox.backendValue
-        visible: comboBox.enabled
+        comboBox.__isCompleted = true
     }
 }

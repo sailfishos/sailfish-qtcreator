@@ -26,103 +26,22 @@
 #pragma once
 
 #include <coreplugin/dialogs/ioptionspage.h>
-#include <utils/savedaction.h>
-#include "ui_cdboptionspagewidget.h"
 
-#include <QPointer>
-#include <QSharedPointer>
-#include <QStringList>
-#include <QDialog>
-
-QT_BEGIN_NAMESPACE
-class QCheckBox;
-QT_END_NAMESPACE
-
-namespace Utils { class PathListEditor; }
 namespace Debugger {
 namespace Internal {
 
-class CdbSymbolPathListEditor;
-class CdbPathsPageWidget;
-
-// Widget displaying a list of break events for the 'sxe' command
-// with a checkbox to enable 'break' and optionally a QLineEdit for
-// events with parameters (like 'out:Needle').
-class CdbBreakEventWidget : public QWidget
+class CdbOptionsPage final : public Core::IOptionsPage
 {
-    Q_OBJECT
-
 public:
-    explicit CdbBreakEventWidget(QWidget *parent = nullptr);
-
-    void setBreakEvents(const QStringList &l);
-    QStringList breakEvents() const;
-
-private:
-    QString filterText(int i) const;
-    void clear();
-
-    QList<QCheckBox*> m_checkBoxes;
-    QList<QLineEdit*> m_lineEdits;
-};
-
-class CdbOptionsPageWidget : public QWidget
-{
-    Q_OBJECT
-
-public:
-    explicit CdbOptionsPageWidget(QWidget *parent = nullptr);
-    QStringList breakEvents() const;
-
-    Utils::SavedActionSet group;
-
-private:
-    inline QString path() const;
-
-
-    Ui::CdbOptionsPageWidget m_ui;
-    CdbBreakEventWidget *m_breakEventWidget;
-    CdbSymbolPathListEditor *m_symbolPathListEditor;
-    Utils::PathListEditor *m_sourcePathListEditor;
-};
-
-class CdbOptionsPage : public Core::IOptionsPage
-{
-    Q_OBJECT
-
-public:
-    explicit CdbOptionsPage();
-    ~CdbOptionsPage() override;
-
-    // IOptionsPage
-    QWidget *widget() override;
-    void apply() override;
-    void finish() override;
+    CdbOptionsPage();
 
     static const char *crtDbgReport;
-
-private:
-    Utils::SavedActionSet group;
-    QPointer<CdbOptionsPageWidget> m_widget;
 };
 
-class CdbPathsPage : public Core::IOptionsPage
+class CdbPathsPage final : public Core::IOptionsPage
 {
-    Q_OBJECT
-
 public:
-    explicit CdbPathsPage();
-    ~CdbPathsPage() override;
-
-    static CdbPathsPage *instance();
-
-    // IOptionsPage
-    QWidget *widget() override;
-    void apply() override;
-    void finish() override;
-
-private:
-    QPointer<CdbPathsPageWidget> m_widget;
+    CdbPathsPage();
 };
 
 } // namespace Internal

@@ -33,29 +33,28 @@
 namespace ProjectExplorer {
 namespace Internal {
 
+enum class TerminalMode { On, Off, Smart };
+enum class AppOutputPaneMode { FlashOnOutput, PopupOnOutput, PopupOnFirstOutput };
+enum class BuildBeforeRunMode { Off, WholeProject, AppOnly };
+enum class StopBeforeBuild { None, SameProject, All, SameBuildDir, SameApp };
+
 class ProjectExplorerSettings
 {
 public:
-    enum StopBeforeBuild { StopNone = 0, StopSameProject, StopAll, StopSameBuildDir };
-
-    bool buildBeforeDeploy = true;
+    BuildBeforeRunMode buildBeforeDeploy = BuildBeforeRunMode::WholeProject;
     bool deployBeforeRun = true;
     bool saveBeforeBuild = false;
-    bool showCompilerOutput = false;
-    bool showRunOutput = true;
-    bool showDebugOutput = false;
-    bool cleanOldAppOutput = false;
-    bool mergeStdErrAndStdOut = false;
-    bool wrapAppOutput = true;
     bool useJom = true;
     bool autorestoreLastSession = false; // This option is set in the Session Manager!
     bool prompToStopRunControl = false;
     bool automaticallyCreateRunConfigurations = true;
     bool addLibraryPathsToRunEnv = true;
-    int  maxAppOutputChars = Core::Constants::DEFAULT_MAX_CHAR_COUNT;
-    int  maxBuildOutputChars = Core::Constants::DEFAULT_MAX_CHAR_COUNT;
-    StopBeforeBuild stopBeforeBuild = StopBeforeBuild::StopNone;
-    QString buildDirectoryTemplate;
+    bool closeSourceFilesWithProject = true;
+    bool clearIssuesOnRebuild = true;
+    bool abortBuildAllOnError = true;
+    bool lowBuildPriority = false;
+    StopBeforeBuild stopBeforeBuild = StopBeforeBuild::None;
+    TerminalMode terminalMode = TerminalMode::Smart;
 
     // Add a UUid which is used to identify the development environment.
     // This is used to warn the user when he is trying to open a .user file that was created
@@ -68,23 +67,38 @@ inline bool operator==(const ProjectExplorerSettings &p1, const ProjectExplorerS
     return p1.buildBeforeDeploy == p2.buildBeforeDeploy
             && p1.deployBeforeRun == p2.deployBeforeRun
             && p1.saveBeforeBuild == p2.saveBeforeBuild
-            && p1.showCompilerOutput == p2.showCompilerOutput
-            && p1.showRunOutput == p2.showRunOutput
-            && p1.showDebugOutput == p2.showDebugOutput
-            && p1.cleanOldAppOutput == p2.cleanOldAppOutput
-            && p1.mergeStdErrAndStdOut == p2.mergeStdErrAndStdOut
-            && p1.wrapAppOutput == p2.wrapAppOutput
             && p1.useJom == p2.useJom
             && p1.autorestoreLastSession == p2.autorestoreLastSession
             && p1.prompToStopRunControl == p2.prompToStopRunControl
             && p1.automaticallyCreateRunConfigurations == p2.automaticallyCreateRunConfigurations
             && p1.addLibraryPathsToRunEnv == p2.addLibraryPathsToRunEnv
-            && p1.maxAppOutputChars == p2.maxAppOutputChars
-            && p1.maxBuildOutputChars == p2.maxBuildOutputChars
             && p1.environmentId == p2.environmentId
             && p1.stopBeforeBuild == p2.stopBeforeBuild
-            && p1.buildDirectoryTemplate == p2.buildDirectoryTemplate;
+            && p1.terminalMode == p2.terminalMode
+            && p1.closeSourceFilesWithProject == p2.closeSourceFilesWithProject
+            && p1.clearIssuesOnRebuild == p2.clearIssuesOnRebuild
+            && p1.abortBuildAllOnError == p2.abortBuildAllOnError
+            && p1.lowBuildPriority == p2.lowBuildPriority;
 }
+
+class AppOutputSettings
+{
+public:
+    AppOutputPaneMode runOutputMode = AppOutputPaneMode::PopupOnFirstOutput;
+    AppOutputPaneMode debugOutputMode = AppOutputPaneMode::FlashOnOutput;
+    bool cleanOldOutput = false;
+    bool mergeChannels = false;
+    bool wrapOutput = false;
+    int maxCharCount = Core::Constants::DEFAULT_MAX_CHAR_COUNT;
+};
+
+class CompileOutputSettings
+{
+public:
+    bool popUp = false;
+    bool wrapOutput = false;
+    int maxCharCount = Core::Constants::DEFAULT_MAX_CHAR_COUNT;
+};
 
 } // namespace ProjectExplorer
 } // namespace Internal

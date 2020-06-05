@@ -28,8 +28,18 @@
 #include "propertyeditorvalue.h"
 #include "fileresourcesmodel.h"
 #include "gradientmodel.h"
+#include "gradientpresetdefaultlistmodel.h"
+#include "gradientpresetcustomlistmodel.h"
+#include "itemfiltermodel.h"
+#include "simplecolorpalettemodel.h"
+#include "bindingeditor/bindingeditor.h"
+#include "bindingeditor/actioneditor.h"
+#include "annotationeditor/annotationeditor.h"
 #include "qmlanchorbindingproxy.h"
 #include "theme.h"
+#include "aligndistribute.h"
+#include "propertyeditorcontextobject.h"
+#include "tooltip.h"
 
 namespace QmlDesigner {
 
@@ -48,8 +58,45 @@ void Quick2PropertyEditorView::registerQmlTypes()
         PropertyEditorValue::registerDeclarativeTypes();
         FileResourcesModel::registerDeclarativeType();
         GradientModel::registerDeclarativeType();
+        GradientPresetDefaultListModel::registerDeclarativeType();
+        GradientPresetCustomListModel::registerDeclarativeType();
+        ItemFilterModel::registerDeclarativeType();
+        SimpleColorPaletteModel::registerDeclarativeType();
         Internal::QmlAnchorBindingProxy::registerDeclarativeType();
+        BindingEditor::registerDeclarativeType();
+        ActionEditor::registerDeclarativeType();
+        AnnotationEditor::registerDeclarativeType();
+        AlignDistribute::registerDeclarativeType();
+        Tooltip::registerDeclarativeType();
+        EasingCurveEditor::registerDeclarativeType();
     }
+}
+
+bool Quick2PropertyEditorView::event(QEvent *e)
+{
+    static std::vector<QKeySequence> overrideSequences = { QKeySequence(Qt::SHIFT + Qt::Key_Up),
+                                                           QKeySequence(Qt::SHIFT + Qt::Key_Down),
+                                                           QKeySequence(Qt::CTRL + Qt::Key_Up),
+                                                           QKeySequence(Qt::CTRL + Qt::Key_Down)
+                                                         };
+
+    if (e->type() == QEvent::ShortcutOverride) {
+        auto keyEvent = static_cast<QKeyEvent *>(e);
+
+        static const Qt::KeyboardModifiers relevantModifiers = Qt::ShiftModifier
+                | Qt::ControlModifier
+                | Qt::AltModifier
+                | Qt::MetaModifier;
+
+        QKeySequence keySqeuence(keyEvent->key() | (keyEvent->modifiers() & relevantModifiers));
+        for (const QKeySequence &overrideSequence : overrideSequences)
+            if (keySqeuence.matches(overrideSequence)) {
+                keyEvent->accept();
+                return true;
+            }
+    }
+
+    return QQuickWidget::event(e);
 }
 
 } //QmlDesigner

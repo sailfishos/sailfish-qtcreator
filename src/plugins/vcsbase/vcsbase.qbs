@@ -11,11 +11,11 @@ QtcPlugin {
     Depends { name: "Core" }
     Depends { name: "TextEditor" }
     Depends { name: "ProjectExplorer" }
-    Depends { name: "CppTools" }
     Depends { name: "DiffEditor" }
 
     pluginRecommends: [
-        "CodePaster"
+        "CodePaster",
+        "CppTools"
     ]
 
     files: [
@@ -60,14 +60,14 @@ QtcPlugin {
         "vcsbaseeditor.h",
         "vcsbaseeditorconfig.cpp",
         "vcsbaseeditorconfig.h",
-        "vcsbaseoptionspage.cpp",
-        "vcsbaseoptionspage.h",
         "vcsbaseplugin.cpp",
         "vcsbaseplugin.h",
         "vcsbasesubmiteditor.cpp",
         "vcsbasesubmiteditor.h",
         "vcscommand.cpp",
         "vcscommand.h",
+        "vcsoutputformatter.cpp",
+        "vcsoutputformatter.h",
         "vcsoutputwindow.cpp",
         "vcsoutputwindow.h",
         "vcsplugin.cpp",

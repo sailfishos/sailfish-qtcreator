@@ -34,7 +34,7 @@
 
 #include <coreplugin/icontext.h>
 #include <projectexplorer/devicesupport/idevice.h>
-#include <projectexplorer/runconfiguration.h>
+#include <projectexplorer/runcontrol.h>
 #include <texteditor/textmark.h>
 #include <utils/fileutils.h>
 
@@ -56,6 +56,36 @@ namespace Debugger {
 
 class DebuggerRunTool;
 
+enum DebuggerState
+{
+    DebuggerNotReady,          // Debugger not started
+
+    EngineSetupRequested,      // Engine starts
+    EngineSetupFailed,
+    EngineSetupOk,
+
+    EngineRunRequested,
+    EngineRunFailed,
+
+    InferiorUnrunnable,        // Used in the core dump adapter
+
+    InferiorRunRequested,      // Debuggee requested to run
+    InferiorRunOk,             // Debuggee running
+    InferiorRunFailed,         // Debuggee not running
+
+    InferiorStopRequested,     // Debuggee running, stop requested
+    InferiorStopOk,            // Debuggee stopped
+    InferiorStopFailed,        // Debuggee not stopped, will kill debugger
+
+    InferiorShutdownRequested,
+    InferiorShutdownFinished,
+
+    EngineShutdownRequested,
+    EngineShutdownFinished,
+
+    DebuggerFinished
+};
+
 DEBUGGER_EXPORT QDebug operator<<(QDebug str, DebuggerState state);
 
 namespace Internal {
@@ -71,9 +101,12 @@ class LocationMark;
 class LogWindow;
 class ModulesHandler;
 class RegisterHandler;
-class StackHandler;
-class StackFrame;
+class PeripheralRegisterHandler;
+class Section;
 class SourceFilesHandler;
+class StackFrame;
+class StackHandler;
+class Symbol;
 class WatchHandler;
 class WatchTreeView;
 class DebuggerToolTipContext;
@@ -98,7 +131,7 @@ public:
     // Used by general remote debugging.
     QString remoteChannel;
     bool useExtendedRemote = false; // Whether to use GDB's target extended-remote or not.
-    QString symbolFile;
+    Utils::FilePath symbolFile;
 
     // Used by Mer plugin (3rd party)
     QMap<QString, QString> sourcePathMap;
@@ -117,13 +150,13 @@ public:
     // Used by Android to avoid false positives on warnOnRelease
     bool skipExecutableValidation = false;
     bool useTargetAsync = false;
-    Utils::FileNameList additionalSearchDirectories;
+    Utils::FilePaths additionalSearchDirectories;
 
     // Used by iOS.
     QString platform;
     QString deviceSymbolsRoot;
     bool continueAfterAttach = false;
-    Utils::FileName sysRoot;
+    Utils::FilePath sysRoot;
 
     // Used by general core file debugging. Public access requested in QTCREATORBUG-17158.
     QString coreFile;
@@ -147,8 +180,8 @@ public:
     bool isSnapshot = false; // Set if created internally.
     ProjectExplorer::Abi toolChainAbi;
 
-    Utils::FileName projectSourceDirectory;
-    Utils::FileNameList projectSourceFiles;
+    Utils::FilePath projectSourceDirectory;
+    Utils::FilePaths projectSourceFiles;
 
     // Used by Script debugging
     QString interpreter;
@@ -192,17 +225,17 @@ class Location
 public:
     Location() = default;
     Location(quint64 address) { m_address = address; }
-    Location(const QString &file) { m_fileName = file; }
-    Location(const QString &file, int line, bool marker = true)
+    Location(const Utils::FilePath &file) { m_fileName = file; }
+    Location(const Utils::FilePath &file, int line, bool marker = true)
         { m_lineNumber = line; m_fileName = file; m_needsMarker = marker; }
     Location(const StackFrame &frame, bool marker = true);
-    QString fileName() const { return m_fileName; }
+    Utils::FilePath fileName() const { return m_fileName; }
     QString functionName() const { return m_functionName; }
     QString from() const { return m_from; }
     int lineNumber() const { return m_lineNumber; }
     void setNeedsRaise(bool on) { m_needsRaise = on; }
     void setNeedsMarker(bool on) { m_needsMarker = on; }
-    void setFileName(const QString &fileName) { m_fileName = fileName; }
+    void setFileName(const Utils::FilePath &fileName) { m_fileName = fileName; }
     void setUseAssembler(bool on) { m_hasDebugInfo = !on; }
     bool needsRaise() const { return m_needsRaise; }
     bool needsMarker() const { return m_needsMarker; }
@@ -216,7 +249,7 @@ private:
     bool m_needsRaise = true;
     bool m_hasDebugInfo = true;
     int m_lineNumber = -1;
-    QString m_fileName;
+    Utils::FilePath m_fileName;
     QString m_functionName;
     QString m_from;
     quint64 m_address = 0;
@@ -237,7 +270,6 @@ public:
     QString runId() const;
 
     const DebuggerRunParameters &runParameters() const;
-    bool isStartupRunConfiguration() const;
     void setCompanionEngine(DebuggerEngine *engine);
     void setSecondaryEngine();
 
@@ -287,12 +319,14 @@ public:
     virtual void requestModuleSections(const QString &moduleName);
 
     virtual void reloadRegisters();
+    virtual void reloadPeripheralRegisters();
     virtual void reloadSourceFiles();
     virtual void reloadFullStack();
     virtual void loadAdditionalQmlStack();
     virtual void reloadDebuggingHelpers();
 
     virtual void setRegisterValue(const QString &name, const QString &value);
+    virtual void setPeripheralRegisterValue(quint64 address, quint64 value);
     virtual void addOptionPages(QList<Core::IOptionsPage*> *) const;
     virtual bool hasCapability(unsigned cap) const = 0;
     virtual void debugLastCommand() {}
@@ -327,6 +361,7 @@ public:
 
     ModulesHandler *modulesHandler() const;
     RegisterHandler *registerHandler() const;
+    PeripheralRegisterHandler *peripheralRegisterHandler() const;
     StackHandler *stackHandler() const;
     ThreadsHandler *threadsHandler() const;
     WatchHandler *watchHandler() const;
@@ -357,9 +392,8 @@ public:
     void handleReverseDirection(bool);
 
     // Convenience
-    Q_SLOT virtual void showMessage(const QString &msg, int channel = LogDebug,
-        int timeout = -1) const;
-    Q_SLOT void showStatusMessage(const QString &msg, int timeout = -1) const;
+    void showMessage(const QString &msg, int channel = LogDebug, int timeout = -1) const;
+    void showStatusMessage(const QString &msg, int timeout = -1) const;
 
     virtual void resetLocation();
     virtual void gotoLocation(const Internal::Location &location);
@@ -371,8 +405,6 @@ public:
     bool isPrimaryEngine() const;
 
     virtual bool canDisplayTooltip() const;
-
-    QString toFileInProject(const QUrl &fileUrl);
 
     QString expand(const QString &string) const;
     QString nativeStartupCommands() const;
@@ -424,9 +456,13 @@ public:
     QString debuggerName() const;
 
     bool isRegistersWindowVisible() const;
+    bool isPeripheralRegistersWindowVisible() const;
     bool isModulesWindowVisible() const;
 
     void openMemoryEditor();
+
+    static void showModuleSymbols(const QString &moduleName, const QVector<Symbol> &symbols);
+    static void showModuleSections(const QString &moduleName, const QVector<Section> &sections);
 
     void handleExecDetach();
     void handleExecContinue();
@@ -514,7 +550,6 @@ protected:
     bool isNativeMixedActiveFrame() const;
     void startDying() const;
 
-protected:
     ProjectExplorer::IDevice::ConstPtr device() const;
     DebuggerEngine *companionEngine() const;
 
@@ -522,6 +557,7 @@ private:
     friend class DebuggerPluginPrivate;
     friend class DebuggerEnginePrivate;
     friend class LocationMark;
+    friend class PeripheralRegisterHandler;
     DebuggerEnginePrivate *d;
 };
 
@@ -538,7 +574,7 @@ public:
 class LocationMark : public TextEditor::TextMark
 {
 public:
-    LocationMark(DebuggerEngine *engine, const Utils::FileName &file, int line);
+    LocationMark(DebuggerEngine *engine, const Utils::FilePath &file, int line);
     void removedFromEditor() override { updateLineNumber(0); }
 
     void updateIcon();

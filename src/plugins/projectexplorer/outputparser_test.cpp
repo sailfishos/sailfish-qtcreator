@@ -32,7 +32,7 @@
 
 namespace ProjectExplorer {
 
-static inline QByteArray msgFileComparisonFail(const Utils::FileName &f1, const Utils::FileName &f2)
+static inline QByteArray msgFileComparisonFail(const Utils::FilePath &f1, const Utils::FilePath &f2)
 {
     const QString result = '"' + f1.toUserOutput() + "\" != \"" + f2.toUserOutput() + '"';
     return result.toLocal8Bit();
@@ -43,7 +43,7 @@ OutputParserTester::OutputParserTester() = default;
 // test functions:
 void OutputParserTester::testParsing(const QString &lines,
                                      Channel inputChannel,
-                                     QList<Task> tasks,
+                                     Tasks tasks,
                                      const QString &childStdOutLines,
                                      const QString &childStdErrLines,
                                      const QString &outputLines)
@@ -137,7 +137,7 @@ void OutputParserTester::appendOutputParser(IOutputParser *parser)
 
 void OutputParserTester::outputAdded(const QString &line, BuildStep::OutputFormat format)
 {
-    Q_UNUSED(format);
+    Q_UNUSED(format)
     if (!m_receivedOutput.isEmpty())
         m_receivedOutput.append('\n');
     m_receivedOutput.append(line);
@@ -145,8 +145,8 @@ void OutputParserTester::outputAdded(const QString &line, BuildStep::OutputForma
 
 void OutputParserTester::taskAdded(const Task &task, int linkedLines, int skipLines)
 {
-    Q_UNUSED(linkedLines);
-    Q_UNUSED(skipLines);
+    Q_UNUSED(linkedLines)
+    Q_UNUSED(skipLines)
     m_receivedTasks.append(task);
 }
 

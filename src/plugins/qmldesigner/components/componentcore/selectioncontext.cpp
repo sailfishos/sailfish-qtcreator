@@ -29,7 +29,6 @@
 
 namespace QmlDesigner {
 
-
 SelectionContext::SelectionContext() = default;
 
 SelectionContext::SelectionContext(AbstractView *view) :
@@ -45,6 +44,11 @@ void SelectionContext::setTargetNode(const ModelNode &modelNode)
 ModelNode SelectionContext::targetNode() const
 {
     return m_targetNode;
+}
+
+ModelNode SelectionContext::rootNode() const
+{
+    return view()->rootModelNode();
 }
 
 bool SelectionContext::singleNodeIsSelected() const
@@ -74,7 +78,8 @@ QList<ModelNode> SelectionContext::selectedModelNodes() const
 
 bool SelectionContext::hasSingleSelectedModelNode() const
 {
-    return view()->hasSelectedModelNodes();
+    return view()->hasSingleSelectedModelNode()
+            && firstSelectedModelNode().isValid();
 }
 
 AbstractView *SelectionContext::view() const

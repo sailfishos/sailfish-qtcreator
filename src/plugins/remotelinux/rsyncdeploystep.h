@@ -45,21 +45,15 @@ class REMOTELINUX_EXPORT RsyncDeployStep : public AbstractRemoteLinuxDeployStep
     Q_OBJECT
 
 public:
-    explicit RsyncDeployStep(ProjectExplorer::BuildStepList *bsl);
+    RsyncDeployStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
     ~RsyncDeployStep() override;
 
     static Core::Id stepId();
     static QString displayName();
 
-    static RsyncCommandLine rsyncCommand(const QSsh::SshConnection &sshConnection);
-
-private:
-    AbstractRemoteLinuxDeployService *deployService() const override;
-
-    bool initInternal(QString *error = nullptr) override;
-
-    class RsyncDeployStepPrivate;
-    RsyncDeployStepPrivate * const d;
+    static QString defaultFlags();
+    static RsyncCommandLine rsyncCommand(const QSsh::SshConnection &sshConnection,
+                                         const QString &flags);
 };
 
 } // namespace RemoteLinux

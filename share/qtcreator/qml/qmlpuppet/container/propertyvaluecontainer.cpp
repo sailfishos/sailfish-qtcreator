@@ -42,6 +42,13 @@ PropertyValueContainer::PropertyValueContainer(qint32 instanceId, const Property
 {
 }
 
+PropertyValueContainer::PropertyValueContainer(qint32 option)
+    : m_instanceId(option),
+    m_name("-option-")
+{
+// '-option-' is not a valid property name and indicates that we store the transaction option.
+}
+
 qint32 PropertyValueContainer::instanceId() const
 {
     return m_instanceId;
@@ -67,12 +74,29 @@ TypeName PropertyValueContainer::dynamicTypeName() const
     return m_dynamicTypeName;
 }
 
+// The reflection flag indicates that a property change notification
+// is reflected. This means that the notification is the reaction to a
+// property change original done by the puppet itself.
+// In the Qt5InformationNodeInstanceServer such notification are
+// therefore ignored.
+
+void PropertyValueContainer::setReflectionFlag(bool b)
+{
+    m_isReflected = b;
+}
+
+bool PropertyValueContainer::isReflected() const
+{
+    return m_isReflected;
+}
+
 QDataStream &operator<<(QDataStream &out, const PropertyValueContainer &container)
 {
     out << container.instanceId();
     out << container.name();
     out << container.value();
     out << container.dynamicTypeName();
+    out << container.isReflected();
 
     return out;
 }
@@ -83,6 +107,7 @@ QDataStream &operator>>(QDataStream &in, PropertyValueContainer &container)
     in >> container.m_name;
     in >> container.m_value;
     in >> container.m_dynamicTypeName;
+    in >> container.m_isReflected;
 
     return in;
 }
@@ -92,7 +117,8 @@ bool operator ==(const PropertyValueContainer &first, const PropertyValueContain
     return first.m_instanceId == second.m_instanceId
             && first.m_name == second.m_name
             && first.m_value == second.m_value
-            && first.m_dynamicTypeName == second.m_dynamicTypeName;
+            && first.m_dynamicTypeName == second.m_dynamicTypeName
+            && first.m_isReflected == second.m_isReflected;
 }
 
 bool operator <(const PropertyValueContainer &first, const PropertyValueContainer &second)

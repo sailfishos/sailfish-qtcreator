@@ -33,19 +33,13 @@
 
 namespace ProjectExplorer {
 
-void DeploymentData::setLocalInstallRoot(const Utils::FileName &installRoot)
+void DeploymentData::setLocalInstallRoot(const Utils::FilePath &installRoot)
 {
     m_localInstallRoot = installRoot;
 }
 
 void DeploymentData::addFile(const DeployableFile &file)
 {
-    for (int i = 0; i < m_files.size(); ++i) {
-        if (m_files.at(i).localFilePath() == file.localFilePath()) {
-            m_files[i] = file;
-            return;
-        }
-    }
     m_files << file;
 }
 
@@ -55,16 +49,22 @@ void DeploymentData::addFile(const QString &localFilePath, const QString &remote
     addFile(DeployableFile(localFilePath, remoteDirectory, type));
 }
 
-DeployableFile DeploymentData::deployableForLocalFile(const QString &localFilePath) const
+DeployableFile DeploymentData::deployableForLocalFile(const Utils::FilePath &localFilePath) const
 {
-    return Utils::findOrDefault(m_files, [&localFilePath](const DeployableFile &d) {
-        return d.localFilePath().toString() == localFilePath;
+    const DeployableFile f =  Utils::findOrDefault(m_files,
+                                                   Utils::equal(&DeployableFile::localFilePath,
+                                                                localFilePath));
+    if (f.isValid())
+        return f;
+    const QString localFileName = localFilePath.fileName();
+    return Utils::findOrDefault(m_files, [&localFileName](const DeployableFile &d) {
+        return d.localFilePath().fileName() == localFileName;
     });
 }
 
 bool DeploymentData::operator==(const DeploymentData &other) const
 {
-    return m_files.toSet() == other.m_files.toSet()
+    return Utils::toSet(m_files) == Utils::toSet(other.m_files)
             && m_localInstallRoot == other.m_localInstallRoot;
 }
 

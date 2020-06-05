@@ -30,7 +30,7 @@
 namespace QtSupport {
 namespace Internal {
 
-class QtSupportPlugin : public ExtensionSystem::IPlugin
+class QtSupportPlugin final : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "QtSupport.json")
@@ -48,6 +48,7 @@ private:
 private slots:
     void testQtOutputParser_data();
     void testQtOutputParser();
+    void testQtTestOutputParser();
     void testQtOutputFormatter_data();
     void testQtOutputFormatter();
     void testQtOutputFormatter_appendMessage_data();

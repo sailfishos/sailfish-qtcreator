@@ -31,15 +31,13 @@
 #include <projectexplorer/abstractprocessstep.h>
 
 namespace Android {
-namespace Internal { class AndroidPackageInstallationFactory; }
 
 class ANDROID_EXPORT AndroidPackageInstallationStep : public ProjectExplorer::AbstractProcessStep
 {
     Q_OBJECT
-    friend class Internal::AndroidPackageInstallationFactory;
 
 public:
-    explicit AndroidPackageInstallationStep(ProjectExplorer::BuildStepList *bsl);
+    AndroidPackageInstallationStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
 
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
 

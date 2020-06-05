@@ -30,6 +30,7 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
+#include <coreplugin/infobar.h>
 #include <coreplugin/settingsdatabase.h>
 #include <coreplugin/shellcommand.h>
 #include <utils/fileutils.h>
@@ -39,13 +40,12 @@
 #include <QDomDocument>
 #include <QFile>
 #include <QFileInfo>
+#include <QLabel>
 #include <QMenu>
-#include <QMessageBox>
 #include <QMetaEnum>
 #include <QPointer>
 #include <QProcessEnvironment>
 #include <QTimer>
-#include <QtPlugin>
 
 namespace {
     static const char UpdaterGroup[] = "Updater";
@@ -55,6 +55,7 @@ namespace {
     static const char LastCheckDateKey[] = "LastCheckDate";
     static const quint32 OneMinute = 60000;
     static const quint32 OneHour = 3600000;
+    static const char InstallUpdates[] = "UpdateInfo.InstallUpdates";
 }
 
 using namespace Core;
@@ -67,6 +68,7 @@ class UpdateInfoPluginPrivate
 public:
     QString m_maintenanceTool;
     QPointer<ShellCommand> m_checkUpdatesCommand;
+    QPointer<FutureProgress> m_progress;
     QString m_collectedOutput;
     QTimer *m_checkUpdatesTimer = nullptr;
 
@@ -124,13 +126,19 @@ void UpdateInfoPlugin::startCheckForUpdates()
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     env.insert(QLatin1String("QT_LOGGING_RULES"), QLatin1String("*=false"));
     d->m_checkUpdatesCommand = new ShellCommand(QString(), env);
+    d->m_checkUpdatesCommand->setDisplayName(tr("Checking for Updates"));
     connect(d->m_checkUpdatesCommand, &ShellCommand::stdOutText, this, &UpdateInfoPlugin::collectCheckForUpdatesOutput);
     connect(d->m_checkUpdatesCommand, &ShellCommand::finished, this, &UpdateInfoPlugin::checkForUpdatesFinished);
-    d->m_checkUpdatesCommand->addJob(Utils::FileName(QFileInfo(d->m_maintenanceTool)), QStringList(QLatin1String("--checkupdates")),
+    d->m_checkUpdatesCommand->addJob({Utils::FilePath::fromFileInfo(d->m_maintenanceTool), {"--checkupdates"}},
                                      60 * 3, // 3 minutes timeout
                                      /*workingDirectory=*/QString(),
                                      [](int /*exitCode*/) { return Utils::SynchronousProcessResponse::Finished; });
     d->m_checkUpdatesCommand->execute();
+    d->m_progress = d->m_checkUpdatesCommand->futureProgress();
+    if (d->m_progress) {
+        d->m_progress->setKeepOnFinish(FutureProgress::KeepOnFinishTillUserInteraction);
+        d->m_progress->setSubtitleVisibleInStatusBar(true);
+    }
     emit checkForUpdatesRunningChanged(true);
 }
 
@@ -151,6 +159,23 @@ void UpdateInfoPlugin::collectCheckForUpdatesOutput(const QString &contents)
     d->m_collectedOutput += contents;
 }
 
+static QStringList availableUpdates(const QDomDocument &document)
+{
+    if (document.isNull() || !document.firstChildElement().hasChildNodes())
+        return {};
+    QStringList result;
+    const QDomNodeList updates = document.firstChildElement().elementsByTagName("update");
+    for (int i = 0; i < updates.size(); ++i) {
+        const QDomNode node = updates.item(i);
+        if (node.isElement()) {
+            const QDomElement element = node.toElement();
+            if (element.hasAttribute("name"))
+                result.append(element.attribute("name"));
+        }
+    }
+    return result;
+}
+
 void UpdateInfoPlugin::checkForUpdatesFinished()
 {
     setLastCheckDate(QDate::currentDate());
@@ -161,13 +186,34 @@ void UpdateInfoPlugin::checkForUpdatesFinished()
     stopCheckForUpdates();
 
     if (!document.isNull() && document.firstChildElement().hasChildNodes()) {
+        // progress details are shown until user interaction for the "no updates" case,
+        // so we can show the "No updates found" text, but if we have updates we don't
+        // want to keep it around
+        if (d->m_progress)
+            d->m_progress->setKeepOnFinish(FutureProgress::HideOnFinish);
         emit newUpdatesAvailable(true);
-        if (QMessageBox::question(ICore::dialogParent(), tr("Qt Updater"),
-                                  tr("New updates are available. Do you want to start the update?"))
-                == QMessageBox::Yes)
+        Core::InfoBarEntry info(InstallUpdates,
+                                tr("New updates are available. Start the update?"));
+        info.setCustomButtonInfo(tr("Start Update"), [this] {
+            Core::ICore::infoBar()->removeInfo(InstallUpdates);
             startUpdater();
+        });
+        const QStringList updates = availableUpdates(document);
+        info.setDetailsWidgetCreator([updates]() -> QWidget * {
+            const QString updateText = updates.join("</li><li>");
+            auto label = new QLabel;
+            label->setText("<qt><p>" + tr("Available updates:") + "<ul><li>" + updateText
+                           + "</li></ul></p></qt>");
+            label->setContentsMargins(0, 0, 0, 8);
+            return label;
+        });
+        Core::ICore::infoBar()->removeInfo(InstallUpdates); // remove any existing notifications
+        Core::ICore::infoBar()->unsuppressInfo(InstallUpdates);
+        Core::ICore::infoBar()->addInfo(info);
     } else {
         emit newUpdatesAvailable(false);
+        if (d->m_progress)
+            d->m_progress->setSubtitle(tr("No updates found."));
     }
 }
 

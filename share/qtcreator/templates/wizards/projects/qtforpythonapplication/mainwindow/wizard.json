@@ -1,19 +1,18 @@
 {
     "version": 1,
-    "supportedProjectTypes": [ "Qt4ProjectManager.Qt4Project" ],
-    "id": "U.QtForPythonApplicationWindow",
-    "category": "F.Application",
+    "supportedProjectTypes": [ "PythonProject" ],
+    "id": "F.QtForPythonApplicationWindow",
+    "category": "F.ApplicationPySide",
     "trDescription": "Creates a Qt for Python application that contains an empty window.",
     "trDisplayName": "Qt for Python - Window",
-    "trDisplayCategory": "Application",
-    "icon": "icon.png",
-    "enabled": "%{JS: false // [ %{Plugins} ].indexOf('PythonEditor') >= 0}",
-    "featuresRequired": [ "QtSupport.Wizards.FeatureQt.5.6" ],
+    "trDisplayCategory": "Application (Qt for Python)",
+    "icon": "../icons/icon.png",
+    "enabled": "%{JS: false // value('Plugins').indexOf('Python') >= 0}",
 
     "options":
     [
-        { "key": "MainPyFileName", "value": "main.py" },
-        { "key": "PyProjectFile", "value": "main.pyproject" }
+        { "key": "MainPyFileName", "value": "%{ProjectDirectory}/%{SrcFileName}" },
+        { "key":  "PyProjectFile", "value": "%{ProjectDirectory}/%{ProjectFileName}" }
     ],
 
     "pages":
@@ -21,7 +20,47 @@
         {
             "trDisplayName": "Project Location",
             "trShortTitle": "Location",
-            "typeId": "Project"
+            "typeId": "Project",
+            "name": "ProjectPath"
+        },
+        {
+            "trDisplayName": "Define Class",
+            "trShortTitle": "Details",
+            "typeId": "Fields",
+            "data" :
+            [
+                {
+                    "name": "Class",
+                    "trDisplayName": "Class name:",
+                    "mandatory": true,
+                    "type": "LineEdit",
+                    "data": { "validator": "(?:(?:[a-zA-Z_][a-zA-Z_0-9]*::)*[a-zA-Z_][a-zA-Z_0-9]*|)" }
+                },
+                {
+                    "name": "BaseCB",
+                    "trDisplayName": "Base class:",
+                    "type": "ComboBox",
+                    "data":
+                    {
+                        "items": [ "QWidget", "QMainWindow",
+                                 { "trKey": "<Custom>", "value": "" } ]
+                    }
+                },
+                {
+                    "name": "SrcFileName",
+                    "type": "LineEdit",
+                    "trDisplayName": "Source file:",
+                    "mandatory": true,
+                    "data": { "trText": "%{JS: Cpp.classToFileName(value('Class'), Util.preferredSuffix('text/x-python'))}" }
+                },
+                {
+                    "name": "ProjectFileName",
+                    "type": "LineEdit",
+                    "trDisplayName": "Project file:",
+                    "mandatory": true,
+                    "data": { "trText": "%{JS: Cpp.classToFileName(value('Class'), 'pyproject')}" }
+                }
+            ]
         },
         {
             "trDisplayName": "Project Management",
@@ -44,6 +83,11 @@
                     "source": "../main_mainwindow.py",
                     "target": "%{MainPyFileName}",
                     "openInEditor": true
+                },
+                {
+                    "source": "../../git.ignore",
+                    "target": ".gitignore",
+                    "condition": "%{JS: !value('IsSubproject') && value('VersionControl') === 'G.Git'}"
                 }
             ]
         }

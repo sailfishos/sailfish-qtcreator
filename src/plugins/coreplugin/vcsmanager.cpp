@@ -301,7 +301,7 @@ IVersionControl* VcsManager::findVersionControlForDirectory(const QString &input
                 InfoBarEntry info(vcsWarning,
                                   tr("%1 repository was detected but %1 is not configured.")
                                   .arg(versionControl->displayName()),
-                                  InfoBarEntry::GlobalSuppressionEnabled);
+                                  InfoBarEntry::GlobalSuppression::Enabled);
                 d->m_unconfiguredVcs = versionControl;
                 info.setCustomButtonInfo(ICore::msgShowOptionsDialog(), []() {
                     QTC_ASSERT(d->m_unconfiguredVcs, return);
@@ -400,12 +400,7 @@ void VcsManager::promptToAdd(const QString &directory, const QStringList &fileNa
     if (!vc || !vc->supportsOperation(IVersionControl::AddOperation))
         return;
 
-    QStringList unmanagedFiles;
-    QDir dir(directory);
-    foreach (const QString &fileName, fileNames) {
-        if (!vc->managesFile(directory, dir.relativeFilePath(fileName)))
-            unmanagedFiles << fileName;
-    }
+    const QStringList unmanagedFiles = vc->unmanagedFiles(directory, fileNames);
     if (unmanagedFiles.isEmpty())
         return;
 

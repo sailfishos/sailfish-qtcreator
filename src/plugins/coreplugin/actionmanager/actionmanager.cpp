@@ -52,25 +52,25 @@ using namespace Core::Internal;
 
 /*!
     \class Core::ActionManager
-    \mainclass
-    \inmodule Qt Creator
+    \ingroup mainclasses
+    \inmodule QtCreator
 
     \brief The ActionManager class is responsible for registration of menus and
     menu items and keyboard shortcuts.
 
     The ActionManager is the central bookkeeper of actions and their shortcuts and layout.
     It is a singleton containing mostly static functions. If you need access to the instance,
-    e.g. for connecting to signals, is its ActionManager::instance() function.
+    e.g. for connecting to signals, call its ActionManager::instance() function.
 
-    The main reasons for the need of this class is to provide a central place where the user
-    can specify all his keyboard shortcuts, and to provide a solution for actions that should
+    The main reasons for the need of this class is to provide a central place where the users
+    can specify all their keyboard shortcuts, and to provide a solution for actions that should
     behave differently in different contexts (like the copy/replace/undo/redo actions).
 
     \section1 Contexts
 
     All actions that are registered with the same Id (but different context lists)
     are considered to be overloads of the same command, represented by an instance
-    of the Command class.
+    of the Core::Command class.
     Exactly only one of the registered actions with the same ID is active at any time.
     Which action this is, is defined by the context list that the actions were registered
     with:
@@ -141,13 +141,13 @@ using namespace Core::Internal;
 */
 
 /*!
-    \fn void ActionManager::commandListChanged()
+    \fn void Core::ActionManager::commandListChanged()
 
     Emitted when the command list has changed.
 */
 
 /*!
-    \fn void ActionManager::commandAdded(const QString &id)
+    \fn void Core::ActionManager::commandAdded(Core::Id id)
 
     Emitted when a command (with the \a id) is added.
 */
@@ -262,7 +262,7 @@ ActionContainer *ActionManager::createTouchBar(Id id, const QIcon &icon, const Q
     for the currently active context.
     If the optional \a context argument is not specified, the global context
     will be assumed.
-    A scriptable action can be called from a script without the need for the user
+    A \a scriptable action can be called from a script without the need for the user
     to interact with it.
 */
 Command *ActionManager::registerAction(QAction *action, Id id, const Context &context, bool scriptable)
@@ -335,7 +335,7 @@ QList<Command *> ActionManager::commands()
 */
 void ActionManager::unregisterAction(QAction *action, Id id)
 {
-    Action *a = d->m_idCmdMap.value(id, 0);
+    Action *a = d->m_idCmdMap.value(id, nullptr);
     if (!a) {
         qWarning() << "unregisterAction: id" << id.name()
                    << "is registered with a different command type.";
@@ -356,7 +356,7 @@ void ActionManager::unregisterAction(QAction *action, Id id)
 
 /*!
     Handles the display of the used shortcuts in the presentation mode. The presentation mode is
-    enabled when starting \QC with the command line argument \c{-presentationMode}. In the
+    \a enabled when starting \QC with the command line argument \c{-presentationMode}. In the
     presentation mode, \QC displays any pressed shortcut in a grey box.
 */
 void ActionManager::setPresentationModeEnabled(bool enabled)
@@ -377,11 +377,19 @@ void ActionManager::setPresentationModeEnabled(bool enabled)
     d->m_presentationModeEnabled = enabled;
 }
 
+/*!
+    Returns whether presentation mode is enabled.
+
+    \sa setPresentationModeEnabled
+*/
 bool ActionManager::isPresentationModeEnabled()
 {
     return d->m_presentationModeEnabled;
 }
 
+/*!
+    \internal
+*/
 QString ActionManager::withNumberAccelerator(const QString &text, const int number)
 {
     if (Utils::HostOsInfo::isMacHost() || number > 9)
@@ -468,7 +476,7 @@ void ActionManagerPrivate::showShortcutPopup(const QString &shortcut)
 
 Action *ActionManagerPrivate::overridableAction(Id id)
 {
-    Action *a = m_idCmdMap.value(id, 0);
+    Action *a = m_idCmdMap.value(id, nullptr);
     if (!a) {
         a = new Action(id);
         m_idCmdMap.insert(id, a);

@@ -24,42 +24,79 @@
 ****************************************************************************/
 
 import QtQuick 2.1
-import QtQuick.Controls 1.1 as Controls
-import QtQuick.Controls.Styles 1.1
+import StudioControls 1.0 as StudioControls
+import StudioTheme 1.0 as StudioTheme
 
-Controls.SpinBox {
-    id: spinBox
+Item {
+    id: wrapper
 
-    property color textColor: colorLogic.textColor
-    property variant backendValue;
+    property alias decimals: spinBox.decimals
+    property alias hasSlider: spinBox.hasSlider
 
-    implicitWidth: 74
+    property alias minimumValue: spinBox.realFrom
+    property alias maximumValue: spinBox.realTo
+    property alias stepSize: spinBox.realStepSize
 
-    ExtendedFunctionButton {
-        x: 4
-        anchors.verticalCenter: parent.verticalCenter
-        backendValue: spinBox.backendValue
-        visible: spinBox.enabled
-    }
+    property alias backendValue: spinBox.backendValue
+    property alias sliderIndicatorVisible: spinBox.sliderIndicatorVisible
 
-    ColorLogic {
-        id: colorLogic
-        backendValue: spinBox.backendValue
-        onValueFromBackendChanged: {
-            spinBox.value = valueFromBackend;
+    property alias realDragRange: spinBox.realDragRange
+
+    width: 96
+    implicitHeight: spinBox.height
+
+    onFocusChanged: transaction.end();
+
+    StudioControls.RealSpinBox {
+        id: spinBox
+
+        onDragStarted: {
+            hideCursor();
+            transaction.start();
         }
+
+        onDragEnded: {
+            restoreCursor();
+            transaction.end();
+        }
+
+        onRealValueModified: {
+            if (transaction.active())
+                commitValue();
+        }
+
+        function commitValue() {
+            if (spinBox.backendValue.value !== spinBox.realValue)
+                spinBox.backendValue.value = spinBox.realValue;
+        }
+
+        property variant backendValue
+        property bool hasSlider: wrapper.sliderIndicatorVisible
+
+        width: wrapper.width
+
+        ExtendedFunctionLogic {
+            id: extFuncLogic
+            backendValue: spinBox.backendValue
+        }
+
+        actionIndicator.icon.color: extFuncLogic.color
+        actionIndicator.icon.text: extFuncLogic.glyph
+        actionIndicator.onClicked: extFuncLogic.show()
+
+        actionIndicator.forceVisible: extFuncLogic.menuVisible
+
+        ColorLogic {
+            id: colorLogic
+            backendValue: spinBox.backendValue
+            onValueFromBackendChanged: {
+                if (valueFromBackend !== undefined)
+                    spinBox.realValue = valueFromBackend
+            }
+        }
+
+        labelColor: spinBox.edit ? StudioTheme.Values.themeTextColor : colorLogic.textColor
+
+        onCompressedRealValueModified: commitValue()
     }
-
-    property bool hasSlider: false
-
-    height: hasSlider ? 32 : implicitHeight
-
-    onValueChanged: {
-        if (backendValue.value !== value)
-            backendValue.value = value;
-    }
-
-    style: CustomSpinBoxStyle {
-    }
-
 }

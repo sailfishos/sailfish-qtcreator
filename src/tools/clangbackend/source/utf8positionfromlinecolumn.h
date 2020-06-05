@@ -35,20 +35,20 @@ public:
     Utf8PositionFromLineColumn(const char *utf8Text);
 
     // 1-based line and column
-    bool find(uint line, uint column);
+    bool find(int line, int column);
 
     uint position() const;
 
 private:
-    bool advanceToLine(uint line);
-    bool advanceToColumn(uint column);
+    bool advanceToLine(int line);
+    bool advanceToColumn(int column);
     bool advanceCodePoint(bool stopOnNewLine = false);
 
 private:
-    const char * const m_utf8Text = 0;
+    const char * const m_utf8Text = nullptr;
 
-    const char *m_previousByte = 0;
-    const char *m_currentByte = 0;
+    const char *m_previousByte = nullptr;
+    const char *m_currentByte = nullptr;
 };
 
 } // namespace ClangBackEnd

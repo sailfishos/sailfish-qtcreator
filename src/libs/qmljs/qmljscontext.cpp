@@ -97,25 +97,33 @@ ViewerContext Context::viewerContext() const
 const Imports *Context::imports(const QmlJS::Document *doc) const
 {
     if (!doc)
-        return 0;
+        return nullptr;
     return _imports.value(doc).data();
 }
 
 const ObjectValue *Context::lookupType(const QmlJS::Document *doc, UiQualifiedId *qmlTypeName,
                                        UiQualifiedId *qmlTypeNameEnd) const
 {
+    if (!qmlTypeName)
+        return nullptr;
+
     const Imports *importsObj = imports(doc);
     if (!importsObj)
-        return 0;
+        return nullptr;
     const ObjectValue *objectValue = importsObj->typeScope();
     if (!objectValue)
-        return 0;
+        return nullptr;
 
-    for (UiQualifiedId *iter = qmlTypeName; objectValue && iter && iter != qmlTypeNameEnd;
-         iter = iter->next) {
-        const Value *value = objectValue->lookupMember(iter->name.toString(), this, 0, false);
+    UiQualifiedId *iter = qmlTypeName;
+    if (const ObjectValue *value = importsObj->aliased(iter->name.toString())) {
+        objectValue = value;
+        iter = iter->next;
+    }
+
+    for ( ; objectValue && iter && iter != qmlTypeNameEnd; iter = iter->next) {
+        const Value *value = objectValue->lookupMember(iter->name.toString(), this, nullptr, false);
         if (!value)
-            return 0;
+            return nullptr;
 
         objectValue = value->asObjectValue();
     }
@@ -125,20 +133,26 @@ const ObjectValue *Context::lookupType(const QmlJS::Document *doc, UiQualifiedId
 
 const ObjectValue *Context::lookupType(const QmlJS::Document *doc, const QStringList &qmlTypeName) const
 {
+    if (qmlTypeName.isEmpty())
+        return nullptr;
+
     const Imports *importsObj = imports(doc);
     if (!importsObj)
-        return 0;
+        return nullptr;
     const ObjectValue *objectValue = importsObj->typeScope();
     if (!objectValue)
-        return 0;
+        return nullptr;
 
-    foreach (const QString &name, qmlTypeName) {
-        if (!objectValue)
-            return 0;
+    auto iter = qmlTypeName.cbegin();
+    if (const ObjectValue *value = importsObj->aliased(*iter)) {
+        objectValue = value;
+        ++iter;
+    }
 
-        const Value *value = objectValue->lookupMember(name, this);
+    for (auto end = qmlTypeName.cend() ; objectValue && iter != end; ++iter) {
+        const Value *value = objectValue->lookupMember(*iter, this);
         if (!value)
-            return 0;
+            return nullptr;
 
         objectValue = value->asObjectValue();
     }

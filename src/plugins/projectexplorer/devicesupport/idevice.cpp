@@ -27,12 +27,14 @@
 
 #include "devicemanager.h"
 #include "deviceprocesslist.h"
+#include "idevicefactory.h"
 
 #include "../kit.h"
 #include "../kitinformation.h"
 #include "../runconfiguration.h"
 
 #include <ssh/sshconnection.h>
+#include <utils/displayname.h>
 #include <utils/icon.h>
 #include <utils/portlist.h>
 #include <utils/qtcassert.h>
@@ -107,7 +109,6 @@ const char DisplayNameKey[] = "Name";
 const char TypeKey[] = "OsType";
 const char IdKey[] = "InternalId";
 const char OriginKey[] = "Origin";
-const char SdkProvidedKey[] = "SdkProvided";
 const char MachineTypeKey[] = "Type";
 const char VersionKey[] = "Version";
 const char ExtraDataKey[] = "ExtraData";
@@ -137,13 +138,14 @@ class IDevicePrivate
 public:
     IDevicePrivate() = default;
 
-    QString displayName;
+    Utils::DisplayName displayName;
+    QString displayType;
     Core::Id type;
     IDevice::Origin origin = IDevice::AutoDetected;
-    bool sdkProvided = false;
     Core::Id id;
     IDevice::DeviceState deviceState = IDevice::DeviceStateUnknown;
     IDevice::MachineType machineType = IDevice::Hardware;
+    Utils::OsType osType = Utils::OsTypeOther;
     int version = 0; // This is used by devices that have been added by the SDK.
 
     QSsh::SshConnectionParameters sshParameters;
@@ -154,6 +156,7 @@ public:
     QList<Utils::Icon> deviceIcons;
     QList<IDevice::DeviceAction> deviceActions;
     QVariantMap extraData;
+    IDevice::OpenTerminal openTerminal;
 };
 } // namespace Internal
 
@@ -163,6 +166,11 @@ IDevice::IDevice() : d(new Internal::IDevicePrivate)
 {
 }
 
+void IDevice::setOpenTerminal(const IDevice::OpenTerminal &openTerminal)
+{
+    d->openTerminal = openTerminal;
+}
+
 void IDevice::setupId(Origin origin, Core::Id id)
 {
     d->origin = origin;
@@ -170,11 +178,15 @@ void IDevice::setupId(Origin origin, Core::Id id)
     d->id = id.isValid() ? id : newId();
 }
 
-IDevice::IDevice(const IDevice &other)
-    : QEnableSharedFromThis<IDevice>(other)
-    , d(std::make_unique<Internal::IDevicePrivate>())
+bool IDevice::canOpenTerminal() const
 {
-    *d = *other.d;
+    return bool(d->openTerminal);
+}
+
+void IDevice::openTerminal(const Utils::Environment &env, const QString &workingDir) const
+{
+    QTC_ASSERT(canOpenTerminal(), return);
+    d->openTerminal(env, workingDir);
 }
 
 IDevice::~IDevice() = default;
@@ -185,14 +197,32 @@ IDevice::~IDevice() = default;
 
 QString IDevice::displayName() const
 {
-    return d->displayName;
+    return d->displayName.value();
 }
 
 void IDevice::setDisplayName(const QString &name)
 {
-    if (d->displayName == name)
-        return;
-    d->displayName = name;
+    d->displayName.setValue(name);
+}
+
+void IDevice::setDefaultDisplayName(const QString &name)
+{
+    d->displayName.setDefaultValue(name);
+}
+
+QString IDevice::displayType() const
+{
+    return d->displayType;
+}
+
+void IDevice::setDisplayType(const QString &type)
+{
+    d->displayType = type;
+}
+
+void IDevice::setOsType(Utils::OsType osType)
+{
+    d->osType = osType;
 }
 
 IDevice::DeviceInfo IDevice::deviceInformation() const
@@ -231,16 +261,6 @@ bool IDevice::isAutoDetected() const
     return d->origin == AutoDetected;
 }
 
-bool IDevice::isSdkProvided() const
-{
-    return d->sdkProvided;
-}
-
-void IDevice::setSdkProvided(bool sdkProvided)
-{
-    d->sdkProvided = sdkProvided;
-}
-
 /*!
     Identifies the device. If an id is given when constructing a device then
     this id is used. Otherwise, a UUID is generated and used to identity the
@@ -261,7 +281,7 @@ Core::Id IDevice::id() const
 */
 bool IDevice::isCompatibleWith(const Kit *k) const
 {
-    return DeviceTypeKitInformation::deviceTypeId(k) == type();
+    return DeviceTypeKitAspect::deviceTypeId(k) == type();
 }
 
 void IDevice::addDeviceAction(const DeviceAction &deviceAction)
@@ -281,7 +301,7 @@ PortsGatheringMethod::Ptr IDevice::portsGatheringMethod() const
 
 DeviceProcessList *IDevice::createProcessListModel(QObject *parent) const
 {
-    Q_UNUSED(parent);
+    Q_UNUSED(parent)
     QTC_ASSERT(false, qDebug("This should not have been called..."); return nullptr);
     return nullptr;
 }
@@ -294,7 +314,7 @@ DeviceTester *IDevice::createDeviceTester() const
 
 Utils::OsType IDevice::osType() const
 {
-    return Utils::OsTypeOther;
+    return d->osType;
 }
 
 DeviceProcess *IDevice::createProcess(QObject * /* parent */) const
@@ -339,12 +359,11 @@ Core::Id IDevice::idFromMap(const QVariantMap &map)
 void IDevice::fromMap(const QVariantMap &map)
 {
     d->type = typeFromMap(map);
-    d->displayName = map.value(QLatin1String(DisplayNameKey)).toString();
+    d->displayName.fromMap(map, DisplayNameKey);
     d->id = Core::Id::fromSetting(map.value(QLatin1String(IdKey)));
     if (!d->id.isValid())
         d->id = newId();
     d->origin = static_cast<Origin>(map.value(QLatin1String(OriginKey), ManuallyAdded).toInt());
-    d->sdkProvided = map.value(QLatin1String(SdkProvidedKey)).toBool();
 
     d->sshParameters.setHost(map.value(QLatin1String(HostKey)).toString());
     d->sshParameters.setPort(map.value(QLatin1String(SshPortKey), 22).toInt());
@@ -384,11 +403,10 @@ void IDevice::fromMap(const QVariantMap &map)
 QVariantMap IDevice::toMap() const
 {
     QVariantMap map;
-    map.insert(QLatin1String(DisplayNameKey), d->displayName);
+    d->displayName.toMap(map, DisplayNameKey);
     map.insert(QLatin1String(TypeKey), d->type.toString());
     map.insert(QLatin1String(IdKey), d->id.toSetting());
     map.insert(QLatin1String(OriginKey), d->origin);
-    map.insert(QLatin1String(SdkProvidedKey), d->sdkProvided);
 
     map.insert(QLatin1String(MachineTypeKey), d->machineType);
     map.insert(QLatin1String(HostKey), d->sshParameters.host());
@@ -407,6 +425,23 @@ QVariantMap IDevice::toMap() const
     map.insert(ExtraDataKey, d->extraData);
 
     return map;
+}
+
+IDevice::Ptr IDevice::clone() const
+{
+    IDeviceFactory *factory = IDeviceFactory::find(d->type);
+    QTC_ASSERT(factory, return {});
+    IDevice::Ptr device = factory->construct();
+    QTC_ASSERT(device, return {});
+    device->d->deviceState = d->deviceState;
+    device->d->deviceActions = d->deviceActions;
+    device->d->deviceIcons = d->deviceIcons;
+    // Os type is only set in the constructor, always to the same value.
+    // But make sure we notice if that changes in the future (which it shouldn't).
+    QTC_CHECK(device->d->osType == d->osType);
+    device->d->osType = d->osType;
+    device->fromMap(toMap());
+    return device;
 }
 
 QString IDevice::deviceStateToString() const

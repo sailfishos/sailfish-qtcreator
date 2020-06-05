@@ -31,6 +31,7 @@
 #include <utils/hostosinfo.h>
 
 #include <QAbstractSocket>
+#include <QCoreApplication>
 #include <QList>
 #include <QObject>
 #include <QSharedPointer>
@@ -60,8 +61,6 @@ class DeviceProcess;
 class DeviceProcessList;
 class Kit;
 class Runnable;
-class RunControl;
-class RunWorker;
 
 namespace Internal { class IDevicePrivate; }
 
@@ -120,6 +119,7 @@ public:
 // See cpp file for documentation.
 class PROJECTEXPLORER_EXPORT IDevice : public QEnableSharedFromThis<IDevice>
 {
+    friend class Internal::IDevicePrivate;
 public:
     using Ptr = QSharedPointer<IDevice>;
     using ConstPtr = QSharedPointer<const IDevice>;
@@ -127,11 +127,13 @@ public:
     enum Origin { ManuallyAdded, AutoDetected };
     enum MachineType { Hardware, Emulator };
 
-    IDevice &operator=(const IDevice &) = delete;
     virtual ~IDevice();
+
+    Ptr clone() const;
 
     QString displayName() const;
     void setDisplayName(const QString &name);
+    void setDefaultDisplayName(const QString &name);
 
     // Provide some information on the device suitable for formated
     // output, e.g. in tool tips. Get a list of name value pairs.
@@ -149,12 +151,13 @@ public:
     void setType(Core::Id type);
 
     bool isAutoDetected() const;
-    bool isSdkProvided() const;
     Core::Id id() const;
 
     virtual bool isCompatibleWith(const Kit *k) const;
 
-    virtual QString displayType() const = 0;
+    QString displayType() const;
+    Utils::OsType osType() const;
+
     virtual IDeviceWidget *createWidget() = 0;
 
     struct DeviceAction {
@@ -172,14 +175,11 @@ public:
     virtual DeviceProcessList *createProcessListModel(QObject *parent = nullptr) const;
     virtual bool hasDeviceTester() const { return false; }
     virtual DeviceTester *createDeviceTester() const;
-    virtual Utils::OsType osType() const;
 
     virtual bool canCreateProcess() const { return false; }
     virtual DeviceProcess *createProcess(QObject *parent) const;
     virtual DeviceProcessSignalOperation::Ptr signalOperation() const = 0;
     virtual DeviceEnvironmentFetcher::Ptr environmentFetcher() const;
-
-    virtual std::function<RunWorker *(RunControl *)> workerCreator(Core::Id) const { return {}; }
 
     enum DeviceState { DeviceReadyToUse, DeviceConnected, DeviceDisconnected, DeviceStateUnknown };
     DeviceState deviceState() const;
@@ -188,7 +188,6 @@ public:
 
     virtual void fromMap(const QVariantMap &map);
     virtual QVariantMap toMap() const;
-    virtual Ptr clone() const = 0;
 
     static Core::Id typeFromMap(const QVariantMap &map);
     static Core::Id idFromMap(const QVariantMap &map);
@@ -219,13 +218,22 @@ public:
 
     void setupId(Origin origin, Core::Id id = Core::Id());
 
+    bool canOpenTerminal() const;
+    void openTerminal(const Utils::Environment &env, const QString &workingDir) const;
+
 protected:
     IDevice();
-    IDevice(const IDevice &other);
+
+    using OpenTerminal = std::function<void(const Utils::Environment &, const QString &)>;
+    void setOpenTerminal(const OpenTerminal &openTerminal);
+    void setDisplayType(const QString &type);
+    void setOsType(Utils::OsType osType);
 
 private:
+    IDevice(const IDevice &) = delete;
+    IDevice &operator=(const IDevice &) = delete;
+
     int version() const;
-    void setSdkProvided(bool sdkProvided);
 
     const std::unique_ptr<Internal::IDevicePrivate> d;
     friend class DeviceManager;

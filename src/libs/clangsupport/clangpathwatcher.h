@@ -27,71 +27,94 @@
 
 #include "clangpathwatcherinterface.h"
 #include "clangpathwatchernotifier.h"
-#include "changedfilepathcompressor.h"
+#include "directorypathcompressor.h"
 #include "filepathcachinginterface.h"
+#include "filesystem.h"
 #include "stringcache.h"
+
+#include <utils/algorithm.h>
 
 #include <QTimer>
 
 namespace ClangBackEnd {
 
+template<class InputIt1, class InputIt2, class Callable>
+void set_greedy_intersection_call(
+    InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, Callable callable)
+{
+    while (first1 != last1 && first2 != last2) {
+        if (*first1 < *first2) {
+            ++first1;
+        } else {
+            if (*first2 < *first1)
+                ++first2;
+            else
+                callable(*first1++);
+        }
+    }
+}
+
 class WatcherEntry
 {
 public:
-    ProjectPartId id;
-    FilePathId pathId;
+    ProjectChunkId id;
+    DirectoryPathId directoryPathId;
+    FilePathId filePathId;
+    long long lastModified = -1;
 
     friend bool operator==(WatcherEntry first, WatcherEntry second)
     {
-        return first.id == second.id && first.pathId == second.pathId;
+        return first.id == second.id && first.directoryPathId == second.directoryPathId
+               && first.filePathId == second.filePathId;
     }
 
     friend bool operator<(WatcherEntry first, WatcherEntry second)
     {
-        return std::tie(first.pathId, first.id) < std::tie(second.pathId, second.id);
+        return std::tie(first.directoryPathId, first.filePathId, first.id)
+               < std::tie(second.directoryPathId, second.filePathId, second.id);
     }
 
-    friend bool operator<(WatcherEntry entry, FilePathId pathId)
+    friend bool operator<(DirectoryPathId directoryPathId, WatcherEntry entry)
     {
-        return entry.pathId < pathId;
+        return directoryPathId < entry.directoryPathId;
     }
 
-    friend bool operator<(FilePathId pathId, WatcherEntry entry)
+    friend bool operator<(WatcherEntry entry, DirectoryPathId directoryPathId)
     {
-        return pathId < entry.pathId;
+        return entry.directoryPathId < directoryPathId;
     }
 
-    operator FilePathId() const
-    {
-        return pathId;
-    }
+    operator FilePathId() const { return filePathId; }
+
+    operator DirectoryPathId() const { return directoryPathId; }
 };
 
 using WatcherEntries = std::vector<WatcherEntry>;
 
-template <typename FileSystemWatcher,
-          typename Timer>
+template<typename FileSystemWatcher, typename Timer>
 class CLANGSUPPORT_GCCEXPORT ClangPathWatcher : public ClangPathWatcherInterface
 {
 public:
     ClangPathWatcher(FilePathCachingInterface &pathCache,
-                     ClangPathWatcherNotifier *notifier=nullptr)
-        : m_changedFilePathCompressor(pathCache),
-          m_pathCache(pathCache),
-          m_notifier(notifier)
+                     FileSystemInterface &fileSystem,
+                     ClangPathWatcherNotifier *notifier = nullptr)
+        : m_fileStatusCache(fileSystem)
+        , m_fileSystem(fileSystem)
+        , m_pathCache(pathCache)
+        , m_notifier(notifier)
     {
         QObject::connect(&m_fileSystemWatcher,
-                         &FileSystemWatcher::fileChanged,
-                         [&] (const QString &filePath) { compressChangedFilePath(filePath); });
+                         &FileSystemWatcher::directoryChanged,
+                         [&](const QString &path) { compressChangedDirectoryPath(path); });
 
-        m_changedFilePathCompressor.setCallback([&] (ClangBackEnd::FilePathIds &&filePathIds) {
-            addChangedPathForFilePath(std::move(filePathIds));
+        m_directoryPathCompressor.setCallback([&](ClangBackEnd::DirectoryPathIds &&directoryPathIds) {
+            addChangedPathForFilePath(std::move(directoryPathIds));
         });
     }
 
     ~ClangPathWatcher()
     {
-        m_changedFilePathCompressor.setCallback([&] (FilePathIds &&) {});
+        m_directoryPathCompressor.setCallback([&](DirectoryPathIds &&) {});
     }
 
     void updateIdPaths(const std::vector<IdPaths> &idPaths) override
@@ -109,31 +132,12 @@ public:
         auto filteredPaths = filterNotWatchedPaths(removedEntries);
 
         if (!filteredPaths.empty())
-            m_fileSystemWatcher.removePaths(convertWatcherEntriesToQStringList(filteredPaths));
+            m_fileSystemWatcher.removePaths(convertWatcherEntriesToDirectoryPathList(filteredPaths));
     }
 
     void setNotifier(ClangPathWatcherNotifier *notifier) override
     {
         m_notifier = notifier;
-    }
-
-    static std::vector<uint> idsFromIdPaths(const std::vector<IdPaths> &idPaths)
-    {
-        std::vector<uint> ids;
-        ids.reserve(idPaths.size());
-
-        auto extractId = [] (const IdPaths &idPath) {
-            return idPath.id;
-        };
-
-        std::transform(idPaths.begin(),
-                       idPaths.end(),
-                       std::back_inserter(ids),
-                       extractId);
-
-        std::sort(ids.begin(), ids.end());
-
-        return ids;
     }
 
     std::size_t sizeOfIdPaths(const std::vector<IdPaths> &idPaths)
@@ -145,26 +149,32 @@ public:
         return std::accumulate(idPaths.begin(), idPaths.end(), std::size_t(0), sumSize);
     }
 
-    std::pair<WatcherEntries, ProjectPartIds> convertIdPathsToWatcherEntriesAndIds(
+    std::pair<WatcherEntries, ProjectChunkIds> convertIdPathsToWatcherEntriesAndIds(
         const std::vector<IdPaths> &idPaths)
     {
         WatcherEntries entries;
         entries.reserve(sizeOfIdPaths(idPaths));
-        ProjectPartIds ids;
+        ProjectChunkIds ids;
         ids.reserve(ids.size());
 
         auto outputIterator = std::back_inserter(entries);
 
         for (const IdPaths &idPath : idPaths)
         {
-            ProjectPartId id = idPath.id;
+            ProjectChunkId id = idPath.id;
 
             ids.push_back(id);
 
             outputIterator = std::transform(idPath.filePathIds.begin(),
                                             idPath.filePathIds.end(),
                                             outputIterator,
-                                            [&] (FilePathId pathId) { return WatcherEntry{id, pathId}; });
+                                            [&](FilePathId filePathId) {
+                                                return WatcherEntry{
+                                                    id,
+                                                    m_pathCache.directoryPathId(filePathId),
+                                                    filePathId,
+                                                    m_fileStatusCache.lastModifiedTime(filePathId)};
+                                            });
         }
 
         std::sort(entries.begin(), entries.end());
@@ -182,10 +192,10 @@ public:
         mergeToWatchedEntries(newEntries);
 
         if (!filteredPaths.empty())
-            m_fileSystemWatcher.addPaths(convertWatcherEntriesToQStringList(filteredPaths));
+            m_fileSystemWatcher.addPaths(convertWatcherEntriesToDirectoryPathList(filteredPaths));
     }
 
-    void removeUnusedEntries(const WatcherEntries &entries, const ProjectPartIds &ids)
+    void removeUnusedEntries(const WatcherEntries &entries, const ProjectChunkIds &ids)
     {
         auto oldEntries = notAnymoreWatchedEntriesWithIds(entries, ids);
 
@@ -194,33 +204,31 @@ public:
         auto filteredPaths = filterNotWatchedPaths(oldEntries);
 
         if (!filteredPaths.empty())
-            m_fileSystemWatcher.removePaths(convertWatcherEntriesToQStringList(filteredPaths));
+            m_fileSystemWatcher.removePaths(convertWatcherEntriesToDirectoryPathList(filteredPaths));
     }
 
-    FileSystemWatcher &fileSystemWatcher()
-    {
-        return m_fileSystemWatcher;
-    }
+    FileSystemWatcher &fileSystemWatcher() { return m_fileSystemWatcher; }
 
-    QStringList convertWatcherEntriesToQStringList(
-            const WatcherEntries &watcherEntries)
+    QStringList convertWatcherEntriesToDirectoryPathList(const DirectoryPathIds &directoryPathIds) const
     {
-        QStringList paths;
-        paths.reserve(int(watcherEntries.size()));
-
-        std::transform(watcherEntries.begin(),
-                       watcherEntries.end(),
-                       std::back_inserter(paths),
-                       [&] (WatcherEntry entry) {
-            return QString(m_pathCache.filePath(entry.pathId).path());
+        return Utils::transform<QStringList>(directoryPathIds, [&](DirectoryPathId id) {
+            return QString(m_pathCache.directoryPath(id));
         });
-
-        return paths;
     }
 
-    template <typename Compare>
-    WatcherEntries notWatchedEntries(const WatcherEntries &entries,
-                                     Compare compare) const
+    QStringList convertWatcherEntriesToDirectoryPathList(const WatcherEntries &watcherEntries) const
+    {
+        DirectoryPathIds directoryPathIds = Utils::transform<DirectoryPathIds>(
+            watcherEntries, [&](WatcherEntry entry) { return entry.directoryPathId; });
+
+        std::sort(directoryPathIds.begin(), directoryPathIds.end());
+        directoryPathIds.erase(std::unique(directoryPathIds.begin(), directoryPathIds.end()),
+                               directoryPathIds.end());
+
+        return convertWatcherEntriesToDirectoryPathList(directoryPathIds);
+    }
+
+    WatcherEntries notWatchedEntries(const WatcherEntries &entries) const
     {
         WatcherEntries notWatchedEntries;
         notWatchedEntries.reserve(entries.size());
@@ -229,24 +237,23 @@ public:
                             entries.end(),
                             m_watchedEntries.cbegin(),
                             m_watchedEntries.cend(),
-                            std::back_inserter(notWatchedEntries),
-                            compare);
+                            std::back_inserter(notWatchedEntries));
 
         return notWatchedEntries;
     }
 
-    WatcherEntries notWatchedEntries(const WatcherEntries &entries) const
+    DirectoryPathIds notWatchedPaths(const DirectoryPathIds &ids) const
     {
-        return notWatchedEntries(entries, std::less<WatcherEntry>());
-    }
+        DirectoryPathIds notWatchedDirectoryIds;
+        notWatchedDirectoryIds.reserve(ids.size());
 
-    WatcherEntries notWatchedPaths(const WatcherEntries &entries) const
-    {
-        auto compare = [] (WatcherEntry first, WatcherEntry second) {
-            return first.pathId < second.pathId;
-        };
+        std::set_difference(ids.begin(),
+                            ids.end(),
+                            m_watchedEntries.cbegin(),
+                            m_watchedEntries.cend(),
+                            std::back_inserter(notWatchedDirectoryIds));
 
-        return notWatchedEntries(entries, compare);
+        return notWatchedDirectoryIds;
     }
 
     template <typename Compare>
@@ -268,7 +275,7 @@ public:
     }
 
     WatcherEntries notAnymoreWatchedEntriesWithIds(const WatcherEntries &newEntries,
-                                                   const ProjectPartIds &ids) const
+                                                   const ProjectChunkIds &ids) const
     {
         auto oldEntries = notAnymoreWatchedEntries(newEntries, std::less<WatcherEntry>());
 
@@ -297,25 +304,24 @@ public:
         m_watchedEntries = std::move(newWatchedEntries);
     }
 
-    static
-    WatcherEntries uniquePaths(const WatcherEntries &pathEntries)
+    static DirectoryPathIds uniquePaths(const WatcherEntries &pathEntries)
     {
-        WatcherEntries uniqueEntries;
-        uniqueEntries.reserve(pathEntries.size());
+        DirectoryPathIds uniqueDirectoryIds;
+        uniqueDirectoryIds.reserve(pathEntries.size());
 
-        auto compare = [] (WatcherEntry first, WatcherEntry second) {
-            return first.pathId == second.pathId;
+        auto compare = [](WatcherEntry first, WatcherEntry second) {
+            return first.directoryPathId == second.directoryPathId;
         };
 
         std::unique_copy(pathEntries.begin(),
                          pathEntries.end(),
-                         std::back_inserter(uniqueEntries),
+                         std::back_inserter(uniqueDirectoryIds),
                          compare);
 
-        return uniqueEntries;
+        return uniqueDirectoryIds;
     }
 
-    WatcherEntries filterNotWatchedPaths(const WatcherEntries &entries)
+    DirectoryPathIds filterNotWatchedPaths(const WatcherEntries &entries) const
     {
         return notWatchedPaths(uniquePaths(entries));
     }
@@ -351,73 +357,77 @@ public:
                             oldEntries.end(),
                             std::back_inserter(newWatchedEntries));
 
-
-        m_watchedEntries = newWatchedEntries;
+        m_watchedEntries = std::move(newWatchedEntries);
     }
 
-    void compressChangedFilePath(const QString &filePath)
+    void compressChangedDirectoryPath(const QString &path)
     {
-        m_changedFilePathCompressor.addFilePath(filePath);
+        m_directoryPathCompressor.addDirectoryPathId(
+            m_pathCache.directoryPathId(Utils::PathString{path}));
     }
 
-    WatcherEntries watchedEntriesForPaths(ClangBackEnd::FilePathIds &&filePathIds)
+    WatcherEntries watchedEntriesForPaths(ClangBackEnd::DirectoryPathIds &&directoryPathIds)
     {
         WatcherEntries foundEntries;
-        foundEntries.reserve(filePathIds.size());
+        foundEntries.reserve(m_watchedEntries.size());
 
-        for (FilePathId pathId : filePathIds) {
-            auto range = std::equal_range(m_watchedEntries.begin(), m_watchedEntries.end(), pathId);
-            foundEntries.insert(foundEntries.end(), range.first, range.second);
-        }
+        set_greedy_intersection_call(m_watchedEntries.begin(),
+                                     m_watchedEntries.end(),
+                                     directoryPathIds.begin(),
+                                     directoryPathIds.end(),
+                                     [&](WatcherEntry &entry) {
+                                         m_fileStatusCache.update(entry.filePathId);
+                                         auto currentLastModified = m_fileStatusCache.lastModifiedTime(
+                                             entry.filePathId);
+                                         if (entry.lastModified < currentLastModified) {
+                                             foundEntries.push_back(entry);
+                                             entry.lastModified = currentLastModified;
+                                         }
+                                     });
 
         return foundEntries;
     }
 
-    FilePathIds watchedPaths(const FilePathIds &filePathIds) const
+    FilePathIds watchedPaths(const WatcherEntries &entries) const
     {
-        FilePathIds watchedFilePathIds;
-        watchedFilePathIds.reserve(filePathIds.size());
+        auto filePathIds = Utils::transform<FilePathIds>(entries, &WatcherEntry::filePathId);
 
-        std::set_intersection(m_watchedEntries.begin(),
-                              m_watchedEntries.end(),
-                              filePathIds.begin(),
-                              filePathIds.end(),
-                              std::back_inserter(watchedFilePathIds));
+        std::sort(filePathIds.begin(), filePathIds.end());
 
-        return watchedFilePathIds;
+        filePathIds.erase(std::unique(filePathIds.begin(), filePathIds.end()), filePathIds.end());
+
+        return filePathIds;
     }
 
-    ProjectPartIds idsForWatcherEntries(const WatcherEntries &foundEntries)
+    std::vector<IdPaths> idPathsForWatcherEntries(WatcherEntries &&foundEntries)
     {
-        ProjectPartIds ids;
-        ids.reserve(foundEntries.size());
+        std::sort(foundEntries.begin(), foundEntries.end(), [](WatcherEntry first, WatcherEntry second) {
+            return std::tie(first.id, first.filePathId) < std::tie(second.id, second.filePathId);
+        });
 
-        std::transform(foundEntries.begin(),
-                       foundEntries.end(),
-                       std::back_inserter(ids),
-                       [&](WatcherEntry entry) { return entry.id; });
+        std::vector<IdPaths> idPaths;
+        idPaths.reserve(foundEntries.size());
 
-        return ids;
+        for (WatcherEntry entry : foundEntries) {
+            if (idPaths.empty() || idPaths.back().id != entry.id)
+                idPaths.emplace_back(entry.id, FilePathIds{});
+            idPaths.back().filePathIds.push_back(entry.filePathId);
+        }
+
+        return idPaths;
     }
 
-    ProjectPartIds uniqueIds(ProjectPartIds &&ids)
-    {
-        std::sort(ids.begin(), ids.end());
-        auto newEnd = std::unique(ids.begin(), ids.end());
-        ids.erase(newEnd, ids.end());
-
-        return std::move(ids);
-    }
-
-    void addChangedPathForFilePath(FilePathIds &&filePathIds)
+    void addChangedPathForFilePath(DirectoryPathIds &&directoryPathIds)
     {
         if (m_notifier) {
-            WatcherEntries foundEntries = watchedEntriesForPaths(std::move(filePathIds));
+            WatcherEntries foundEntries = watchedEntriesForPaths(std::move(directoryPathIds));
 
-            ProjectPartIds changedIds = idsForWatcherEntries(foundEntries);
+            FilePathIds watchedFilePathIds = watchedPaths(foundEntries);
 
-            m_notifier->pathsWithIdsChanged(uniqueIds(std::move(changedIds)));
-            m_notifier->pathsChanged(watchedPaths(filePathIds));
+            std::vector<IdPaths> changedIdPaths = idPathsForWatcherEntries(std::move(foundEntries));
+
+            m_notifier->pathsChanged(watchedFilePathIds);
+            m_notifier->pathsWithIdsChanged(changedIdPaths);
         }
     }
 
@@ -428,10 +438,12 @@ public:
 
 private:
     WatcherEntries m_watchedEntries;
-    ChangedFilePathCompressor<Timer> m_changedFilePathCompressor;
     FileSystemWatcher m_fileSystemWatcher;
+    FileStatusCache m_fileStatusCache;
+    FileSystemInterface &m_fileSystem;
     FilePathCachingInterface &m_pathCache;
     ClangPathWatcherNotifier *m_notifier;
+    DirectoryPathCompressor<Timer> m_directoryPathCompressor;
 };
 
 } // namespace ClangBackEnd

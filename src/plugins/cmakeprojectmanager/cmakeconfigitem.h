@@ -25,6 +25,10 @@
 
 #pragma once
 
+#include "cmake_global.h"
+
+#include <utils/optional.h>
+
 #include <QByteArray>
 #include <QList>
 
@@ -32,18 +36,17 @@
 
 namespace ProjectExplorer { class Kit; }
 namespace Utils {
-class FileName;
+class FilePath;
 class MacroExpander;
 } // namespace Utils
 
 namespace CMakeProjectManager {
 
-class CMakeConfigItem {
+class CMAKE_EXPORT CMakeConfigItem {
 public:
     enum Type { FILEPATH, PATH, BOOL, STRING, INTERNAL, STATIC };
     CMakeConfigItem();
-    CMakeConfigItem(const CMakeConfigItem &other);
-    CMakeConfigItem(const QByteArray &k, Type t, const QByteArray &d, const QByteArray &v);
+    CMakeConfigItem(const QByteArray &k, Type t, const QByteArray &d, const QByteArray &v, const QStringList &s = {});
     CMakeConfigItem(const QByteArray &k, const QByteArray &v);
 
     static QByteArray valueOf(const QByteArray &key, const QList<CMakeConfigItem> &input);
@@ -51,6 +54,8 @@ public:
                                    const QList<CMakeConfigItem> &input);
     static QStringList cmakeSplitValue(const QString &in, bool keepEmpty = false);
     static Type typeStringToType(const QByteArray &typeString);
+    static QString typeToTypeString(const Type t);
+    static Utils::optional<bool> toBool(const QByteArray &value);
     bool isNull() const { return key.isEmpty(); }
 
     QString expandedValue(const ProjectExplorer::Kit *k) const;
@@ -58,9 +63,10 @@ public:
 
     static std::function<bool(const CMakeConfigItem &a, const CMakeConfigItem &b)> sortOperator();
     static CMakeConfigItem fromString(const QString &s);
-    static QList<CMakeConfigItem> itemsFromFile(const Utils::FileName &input, QString *errorMessage);
+    static QList<CMakeConfigItem> itemsFromFile(const Utils::FilePath &input, QString *errorMessage);
     QString toString(const Utils::MacroExpander *expander = nullptr) const;
     QString toArgument(const Utils::MacroExpander *expander = nullptr) const;
+    QString toCMakeSetLine(const Utils::MacroExpander *expander = nullptr) const;
 
     bool operator==(const CMakeConfigItem &o) const;
 

@@ -80,6 +80,13 @@ MATCHER_P3(HasSource,
            && entry.hasMissingIncludes == hasMissingIncludes;
 }
 
+static Utils::SmallString toNativePath(Utils::SmallStringView text)
+{
+    ClangBackEnd::FilePath path{text};
+
+    return Utils::SmallString{ClangBackEnd::NativeFilePath{path}.path()};
+}
+
 class BuildDependencyCollector : public ::testing::Test
 {
 protected:
@@ -91,14 +98,15 @@ protected:
                             id(TESTDATA_DIR "/builddependencycollector/project/main2.cpp")},
                            {"cc",
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/external",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/project",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
                             "-isystem",
-                            TESTDATA_DIR "/builddependencycollector/system"});
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
 
         collector.addUnsavedFiles(
             {{{TESTDATA_DIR, "BuildDependencyCollector/project/generated_file.h"},
+              id(TESTDATA_DIR "/BuildDependencyCollector/project/generated_file.h"),
               "#pragma once",
               {}}});
 
@@ -120,7 +128,7 @@ protected:
 
     static std::time_t lastModified(Utils::SmallStringView filePath)
     {
-        return QFileInfo(QString(filePath)).lastModified().toTime_t();
+        return QFileInfo(QString(filePath)).lastModified().toSecsSinceEpoch();
     }
 
     ClangBackEnd::FileStatus fileStatus(Utils::SmallStringView filePath) const
@@ -184,7 +192,8 @@ protected:
         TESTDATA_DIR "/builddependencycollector/project/main2.cpp",
         TESTDATA_DIR "/builddependencycollector/project/header1.h",
         TESTDATA_DIR "/builddependencycollector/project/header2.h",
-        TESTDATA_DIR "/builddependencycollector/project/generated_file.h"};
+        TESTDATA_DIR "/builddependencycollector/project/generated_file.h",
+        TESTDATA_DIR "/builddependencycollector/project/generated/generated_file.h"};
 };
 
 TEST_F(BuildDependencyCollector, IncludesExternalHeader)
@@ -245,7 +254,14 @@ TEST_F(BuildDependencyCollector, IncludesAreSorted)
 
 TEST_F(BuildDependencyCollector, If)
 {
-    emptyCollector.addFile(id(TESTDATA_DIR "/builddependencycollector/project/if.cpp"),  {"cc", "-I", TESTDATA_DIR "/builddependencycollector/external", "-I", TESTDATA_DIR "/builddependencycollector/project", "-isystem", TESTDATA_DIR "/builddependencycollector/system"});
+    emptyCollector.addFile(id(TESTDATA_DIR "/builddependencycollector/project/if.cpp"),
+                           {"cc",
+                            "-I",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
+                            "-I",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
+                            "-isystem",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
 
     emptyCollector.collect();
 
@@ -256,7 +272,14 @@ TEST_F(BuildDependencyCollector, If)
 
 TEST_F(BuildDependencyCollector, LocalPath)
 {
-    emptyCollector.addFile(id(TESTDATA_DIR "/builddependencycollector/project/main.cpp"),  {"cc", "-I", TESTDATA_DIR "/builddependencycollector/external", "-I", TESTDATA_DIR "/builddependencycollector/project", "-isystem", TESTDATA_DIR "/builddependencycollector/system"});
+    emptyCollector.addFile(id(TESTDATA_DIR "/builddependencycollector/project/main.cpp"),
+                           {"cc",
+                            "-I",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
+                            "-I",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
+                            "-isystem",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
 
     emptyCollector.collect();
 
@@ -274,7 +297,14 @@ TEST_F(BuildDependencyCollector, LocalPath)
 
 TEST_F(BuildDependencyCollector, IgnoreMissingFile)
 {
-    emptyCollector.addFile(id(TESTDATA_DIR "/builddependencycollector/project/missingfile.cpp"),  {"cc", "-I", TESTDATA_DIR "/builddependencycollector/external", "-I", TESTDATA_DIR "/builddependencycollector/project", "-isystem", TESTDATA_DIR "/builddependencycollector/system"});
+    emptyCollector.addFile(id(TESTDATA_DIR "/builddependencycollector/project/missingfile.cpp"),
+                           {"cc",
+                            "-I",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
+                            "-I",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
+                            "-isystem",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
 
     emptyCollector.collect();
 
@@ -299,7 +329,14 @@ TEST_F(BuildDependencyCollector, IncludesOnlyTopExternalHeader)
 
 TEST_F(BuildDependencyCollector, TopIncludeInIfMacro)
 {
-    emptyCollector.addFile(id(TESTDATA_DIR "/builddependencycollector/project/if.cpp"),  {"cc", "-I", TESTDATA_DIR "/builddependencycollector/external", "-I", TESTDATA_DIR "/builddependencycollector/project", "-isystem", TESTDATA_DIR "/builddependencycollector/system"});
+    emptyCollector.addFile(id(TESTDATA_DIR "/builddependencycollector/project/if.cpp"),
+                           {"cc",
+                            "-I",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
+                            "-I",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
+                            "-isystem",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
     emptyCollector.setExcludedFilePaths({TESTDATA_DIR "/builddependencycollector/project/if.cpp"});
 
     emptyCollector.collect();
@@ -310,7 +347,14 @@ TEST_F(BuildDependencyCollector, TopIncludeInIfMacro)
 
 TEST_F(BuildDependencyCollector, TopIncludeWithLocalPath)
 {
-    emptyCollector.addFile(id(TESTDATA_DIR "/builddependencycollector/project/main.cpp"),  {"cc", "-I", TESTDATA_DIR "/builddependencycollector/external", "-I", TESTDATA_DIR "/builddependencycollector/project", "-isystem", TESTDATA_DIR "/builddependencycollector/system"});
+    emptyCollector.addFile(id(TESTDATA_DIR "/builddependencycollector/project/main.cpp"),
+                           {"cc",
+                            "-I",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
+                            "-I",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
+                            "-isystem",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
 
     emptyCollector.collect();
 
@@ -323,7 +367,14 @@ TEST_F(BuildDependencyCollector, TopIncludeWithLocalPath)
 
 TEST_F(BuildDependencyCollector, TopIncludesIgnoreMissingFile)
 {
-    emptyCollector.addFile(id(TESTDATA_DIR "/builddependencycollector/project/missingfile.cpp"),  {"cc", "-I", TESTDATA_DIR "/builddependencycollector/external", "-I", TESTDATA_DIR "/builddependencycollector/project", "-isystem", TESTDATA_DIR "/builddependencycollector/system"});
+    emptyCollector.addFile(id(TESTDATA_DIR "/builddependencycollector/project/missingfile.cpp"),
+                           {"cc",
+                            "-I",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
+                            "-I",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
+                            "-isystem",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
     emptyCollector.setExcludedFilePaths({TESTDATA_DIR "/builddependencycollector/project/missingfile.cpp"});
 
     emptyCollector.collect();
@@ -338,11 +389,11 @@ TEST_F(BuildDependencyCollector, SourceFiles)
     emptyCollector.addFile(id(TESTDATA_DIR "/symbolscollector/main.cpp"),
                            {"cc",
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/external",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/project",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
                             "-isystem",
-                            TESTDATA_DIR "/builddependencycollector/system"});
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
 
     emptyCollector.collect();
 
@@ -357,11 +408,11 @@ TEST_F(BuildDependencyCollector, MainFileInSourceFiles)
     emptyCollector.addFile(id(TESTDATA_DIR "/symbolscollector/main.cpp"),
                            {"cc",
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/external",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/project",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
                             "-isystem",
-                            TESTDATA_DIR "/builddependencycollector/system"});
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
 
     ASSERT_THAT(emptyCollector.sourceFiles(),
                 ElementsAre(id(TESTDATA_DIR "/symbolscollector/main.cpp")));
@@ -372,11 +423,11 @@ TEST_F(BuildDependencyCollector, ResetMainFileInSourceFiles)
     emptyCollector.addFile(id(TESTDATA_DIR "/symbolscollector/main.cpp"),
                            {"cc",
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/external",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/project",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
                             "-isystem",
-                            TESTDATA_DIR "/builddependencycollector/system"});
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
 
     ASSERT_THAT(emptyCollector.sourceFiles(),
                 ElementsAre(id(TESTDATA_DIR "/symbolscollector/main.cpp")));
@@ -387,11 +438,11 @@ TEST_F(BuildDependencyCollector, DontDuplicateSourceFiles)
     emptyCollector.addFile(id(TESTDATA_DIR "/symbolscollector/main.cpp"),
                            {"cc",
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/external",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/project",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
                             "-isystem",
-                            TESTDATA_DIR "/builddependencycollector/system"});
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
     emptyCollector.collect();
 
     emptyCollector.collect();
@@ -407,11 +458,11 @@ TEST_F(BuildDependencyCollector, ClearSourceFiles)
     emptyCollector.addFile(id(TESTDATA_DIR "/symbolscollector/main.cpp"),
                            {"cc",
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/external",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/project",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
                             "-isystem",
-                            TESTDATA_DIR "/builddependencycollector/system"});
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
 
     emptyCollector.clear();
 
@@ -423,11 +474,11 @@ TEST_F(BuildDependencyCollector, ClearFileStatus)
     emptyCollector.addFile(id(TESTDATA_DIR "/symbolscollector/main.cpp"),
                            {"cc",
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/external",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/project",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
                             "-isystem",
-                            TESTDATA_DIR "/builddependencycollector/system"});
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
     emptyCollector.collect();
 
     emptyCollector.clear();
@@ -440,11 +491,11 @@ TEST_F(BuildDependencyCollector, ClearUsedMacros)
     emptyCollector.addFile(id(TESTDATA_DIR "/symbolscollector/defines.h"),
                            {"cc",
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/external",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/project",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
                             "-isystem",
-                            TESTDATA_DIR "/builddependencycollector/system"});
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
     emptyCollector.collect();
 
     emptyCollector.clear();
@@ -467,11 +518,11 @@ TEST_F(BuildDependencyCollector, DontCollectSourceFilesAfterFilesAreCleared)
     emptyCollector.addFile(id(TESTDATA_DIR "/symbolscollector/main.cpp"),
                            {"cc",
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/external",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/project",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
                             "-isystem",
-                            TESTDATA_DIR "/builddependencycollector/system"});
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
 
     emptyCollector.clear();
     emptyCollector.collect();
@@ -484,11 +535,11 @@ TEST_F(BuildDependencyCollector, DontCollectFileStatusAfterFilesAreCleared)
     emptyCollector.addFile(id(TESTDATA_DIR "/symbolscollector/main.cpp"),
                            {"cc",
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/external",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/project",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
                             "-isystem",
-                            TESTDATA_DIR "/builddependencycollector/system"});
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
 
     emptyCollector.clear();
     emptyCollector.collect();
@@ -501,11 +552,11 @@ TEST_F(BuildDependencyCollector, DontCollectUsedMacrosAfterFilesAreCleared)
     emptyCollector.addFile(id(TESTDATA_DIR "/symbolscollector/main.cpp"),
                            {"cc",
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/external",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/project",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
                             "-isystem",
-                            TESTDATA_DIR "/builddependencycollector/system"});
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
 
     emptyCollector.clear();
     emptyCollector.collect();
@@ -519,11 +570,11 @@ TEST_F(BuildDependencyCollector, DontCollectSourceDependenciesAfterFilesAreClear
     emptyCollector.addFile(id(TESTDATA_DIR "/symbolscollector/main.cpp"),
                            {"cc",
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/external",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/project",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
                             "-isystem",
-                            TESTDATA_DIR "/builddependencycollector/system"});
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
 
     emptyCollector.clear();
     emptyCollector.collect();
@@ -552,11 +603,11 @@ TEST_F(BuildDependencyCollector, CollectUsedMacrosWithoutExternalDefine)
     emptyCollector.addFile(fileId,
                            {"cc",
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/external",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/project",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
                             "-isystem",
-                            TESTDATA_DIR "/builddependencycollector/system"});
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
 
     emptyCollector.collect();
 
@@ -574,11 +625,11 @@ TEST_F(BuildDependencyCollector, DontCollectHeaderGuards)
     emptyCollector.addFile(fileId,
                            {"cc",
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/external",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/project",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
                             "-isystem",
-                            TESTDATA_DIR "/builddependencycollector/system"});
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
 
     emptyCollector.collect();
 
@@ -592,11 +643,11 @@ TEST_F(BuildDependencyCollector, DISABLED_DontCollectDynamicLibraryExports)
     emptyCollector.addFile(fileId,
                            {"cc",
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/external",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/project",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
                             "-isystem",
-                            TESTDATA_DIR "/builddependencycollector/system"});
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
 
     emptyCollector.collect();
 
@@ -609,11 +660,11 @@ TEST_F(BuildDependencyCollector, CollectFileStatuses)
     emptyCollector.addFile(id(TESTDATA_DIR "/symbolscollector/main.cpp"),
                            {"cc",
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/external",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/project",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
                             "-isystem",
-                            TESTDATA_DIR "/builddependencycollector/system"});
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
 
     emptyCollector.collect();
 
@@ -645,11 +696,11 @@ TEST_F(BuildDependencyCollector, MissingInclude)
     emptyCollector.addFile(id(TESTDATA_DIR "/builddependencycollector/project/main5.cpp"),
                            {"cc",
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/external",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/project",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
                             "-isystem",
-                            TESTDATA_DIR "/builddependencycollector/system"});
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
 
     emptyCollector.collect();
 
@@ -690,24 +741,27 @@ TEST_F(BuildDependencyCollector, MissingInclude)
 TEST_F(BuildDependencyCollector, GeneratedFile)
 {
     generatedFiles.update(
-        {{TESTDATA_DIR "/builddependencycollector/project/generated_file.h", "#pragma once"}});
+        {{TESTDATA_DIR "/builddependencycollector/project/generated/generated_file.h",
+          id(TESTDATA_DIR "/builddependencycollector/project/generated/generated_file.h"),
+          "#pragma once"}});
     emptyCollector.addFile(id(TESTDATA_DIR "/builddependencycollector/project/main6.cpp"),
                            {"cc",
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/external",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
                             "-I",
-                            TESTDATA_DIR "/builddependencycollector/project",
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
                             "-isystem",
-                            TESTDATA_DIR "/builddependencycollector/system"});
+                            toNativePath(TESTDATA_DIR "/builddependencycollector/system")});
     emptyCollector.addUnsavedFiles(generatedFiles.fileContainers());
 
     emptyCollector.collect();
 
-    ASSERT_THAT(
-        emptyCollector.sourceEntries(),
-        ElementsAre(HasSource(id(TESTDATA_DIR "/builddependencycollector/project/main6.cpp"),
+    ASSERT_THAT(emptyCollector.sourceEntries(),
+                UnorderedElementsAre(
+                    HasSource(id(TESTDATA_DIR "/builddependencycollector/project/main6.cpp"),
                               SourceType::Source),
-                    HasSource(id(TESTDATA_DIR "/builddependencycollector/project/generated_file.h"),
+                    HasSource(id(TESTDATA_DIR
+                                 "/builddependencycollector/project/generated/generated_file.h"),
                               SourceType::UserInclude)));
 }
 
@@ -731,16 +785,23 @@ TEST_F(BuildDependencyCollector, Create)
 {
     using ClangBackEnd::IncludeSearchPathType;
     ClangBackEnd::BuildDependencyCollector collector{filePathCache, generatedFiles, environment};
-    generatedFiles.update(
-        {{TESTDATA_DIR "/builddependencycollector/project/generated_file.h", "#pragma once"}});
+    generatedFiles.update({{TESTDATA_DIR "/builddependencycollector/project/generated_file.h",
+                            id(TESTDATA_DIR "/builddependencycollector/project/generated_file.h"),
+                            "#pragma once"}});
     ClangBackEnd::ProjectPartContainer projectPart{
         1,
         {},
         {},
-        {{TESTDATA_DIR "/builddependencycollector/system", 1, IncludeSearchPathType::System}},
+        {{toNativePath(TESTDATA_DIR "/builddependencycollector/system"),
+          1,
+          ClangBackEnd::IncludeSearchPathType::System}},
         {
-            {TESTDATA_DIR "/builddependencycollector/project", 1, IncludeSearchPathType::User},
-            {TESTDATA_DIR "/builddependencycollector/external", 2, IncludeSearchPathType::User},
+            {toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
+             1,
+             ClangBackEnd::IncludeSearchPathType::User},
+            {toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
+             2,
+             ClangBackEnd::IncludeSearchPathType::User},
         },
         {
             id(TESTDATA_DIR "/builddependencycollector/project/header1.h"),
@@ -771,6 +832,7 @@ TEST_F(BuildDependencyCollector, Create)
                                  "/builddependencycollector/external/indirect_external2.h"),
                       fileStatus(TESTDATA_DIR "/builddependencycollector/external/external2.h"),
                       fileStatus(TESTDATA_DIR "/builddependencycollector/system/system1.h"),
+                      fileStatus(TESTDATA_DIR "/preincludes/system1.h"),
                       fileStatus(TESTDATA_DIR "/builddependencycollector/system/indirect_system.h"),
                       fileStatus(TESTDATA_DIR
                                  "/builddependencycollector/system/indirect_system2.h"),
@@ -804,7 +866,7 @@ TEST_F(BuildDependencyCollector, Create)
                     HasSource(id(TESTDATA_DIR "/builddependencycollector/external/external2.h"),
                               SourceType::TopProjectInclude),
                     HasSource(id(TESTDATA_DIR "/builddependencycollector/system/system1.h"),
-                              SourceType::TopSystemInclude),
+                              SourceType::SystemInclude),
                     HasSource(id(TESTDATA_DIR "/builddependencycollector/system/indirect_system.h"),
                               SourceType::SystemInclude),
                     HasSource(id(TESTDATA_DIR
@@ -813,7 +875,8 @@ TEST_F(BuildDependencyCollector, Create)
                     HasSource(id(TESTDATA_DIR "/builddependencycollector/project/macros.h"),
                               SourceType::UserInclude),
                     HasSource(id(TESTDATA_DIR "/builddependencycollector/project/generated_file.h"),
-                              SourceType::UserInclude))),
+                              SourceType::UserInclude),
+                    HasSource(id(TESTDATA_DIR "/preincludes/system1.h"), SourceType::TopSystemInclude))),
             Field(&BuildDependency::usedMacros,
                   UnorderedElementsAre(
                       UsedMacro{"IFDEF", id(TESTDATA_DIR "/builddependencycollector/project/macros.h")},
@@ -830,6 +893,7 @@ TEST_F(BuildDependencyCollector, Create)
                       id(TESTDATA_DIR "/builddependencycollector/external/indirect_external2.h"),
                       id(TESTDATA_DIR "/builddependencycollector/external/external2.h"),
                       id(TESTDATA_DIR "/builddependencycollector/system/system1.h"),
+                      id(TESTDATA_DIR "/preincludes/system1.h"),
                       id(TESTDATA_DIR "/builddependencycollector/system/indirect_system.h"),
                       id(TESTDATA_DIR "/builddependencycollector/system/indirect_system2.h"),
                       id(TESTDATA_DIR "/builddependencycollector/project/missingfile.h"),
@@ -854,6 +918,8 @@ TEST_F(BuildDependencyCollector, Create)
                                      id(TESTDATA_DIR
                                         "/builddependencycollector/external/external2.h")),
                     SourceDependency(id(TESTDATA_DIR "/builddependencycollector/project/main4.cpp"),
+                                     id(TESTDATA_DIR "/preincludes/system1.h")),
+                    SourceDependency(id(TESTDATA_DIR "/preincludes/system1.h"),
                                      id(TESTDATA_DIR "/builddependencycollector/system/system1.h")),
                     SourceDependency(id(TESTDATA_DIR "/builddependencycollector/project/main4.cpp"),
                                      id(TESTDATA_DIR "/builddependencycollector/project/macros.h")),
@@ -888,10 +954,42 @@ TEST_F(BuildDependencyCollector, Clear)
         1,
         {},
         {},
-        {{TESTDATA_DIR "/builddependencycollector/system", 1, IncludeSearchPathType::System}},
+        {{toNativePath(TESTDATA_DIR "/builddependencycollector/system"),
+          1,
+          ClangBackEnd::IncludeSearchPathType::System}},
         {
-            {TESTDATA_DIR "/builddependencycollector/project", 1, IncludeSearchPathType::User},
-            {TESTDATA_DIR "/builddependencycollector/external", 2, IncludeSearchPathType::User},
+            {toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
+             1,
+             ClangBackEnd::IncludeSearchPathType::User},
+            {toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
+             2,
+             ClangBackEnd::IncludeSearchPathType::User},
+        },
+        {
+            id(TESTDATA_DIR "/builddependencycollector/project/header1.h"),
+            id(TESTDATA_DIR "/builddependencycollector/project/header2.h"),
+            id(TESTDATA_DIR "/builddependencycollector/project/missingfile.h"),
+            id(TESTDATA_DIR "/builddependencycollector/project/macros.h"),
+        },
+        {id(TESTDATA_DIR "/builddependencycollector/project/main4.cpp")},
+        Utils::Language::Cxx,
+        Utils::LanguageVersion::CXX11,
+        Utils::LanguageExtension::None};
+    collector.create(projectPart);
+    ClangBackEnd::ProjectPartContainer emptyProjectPart{
+        1,
+        {},
+        {},
+        {{toNativePath(TESTDATA_DIR "/builddependencycollector/system"),
+          1,
+          ClangBackEnd::IncludeSearchPathType::System}},
+        {
+            {toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
+             1,
+             ClangBackEnd::IncludeSearchPathType::User},
+            {toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
+             2,
+             ClangBackEnd::IncludeSearchPathType::User},
         },
         {
             id(TESTDATA_DIR "/builddependencycollector/project/header1.h"),
@@ -903,10 +1001,46 @@ TEST_F(BuildDependencyCollector, Clear)
         Utils::Language::Cxx,
         Utils::LanguageVersion::CXX11,
         Utils::LanguageExtension::None};
-    collector.create(projectPart);
+
+    auto buildDependency = collector.create(emptyProjectPart);
+
+    ASSERT_THAT(buildDependency.sources, IsEmpty());
+}
+
+TEST_F(BuildDependencyCollector, PreIncludes)
+{
+    using ClangBackEnd::IncludeSearchPathType;
+    ClangBackEnd::BuildDependencyCollector collector{filePathCache, generatedFiles, environment};
+    ClangBackEnd::ProjectPartContainer projectPart{
+        1,
+        {},
+        {},
+        {{toNativePath(TESTDATA_DIR "/builddependencycollector/system"),
+          1,
+          ClangBackEnd::IncludeSearchPathType::System}},
+        {
+            {toNativePath(TESTDATA_DIR "/builddependencycollector/project"),
+             1,
+             ClangBackEnd::IncludeSearchPathType::User},
+            {toNativePath(TESTDATA_DIR "/builddependencycollector/external"),
+             2,
+             ClangBackEnd::IncludeSearchPathType::User},
+        },
+        {
+            id(TESTDATA_DIR "/builddependencycollector/project/header1.h"),
+            id(TESTDATA_DIR "/builddependencycollector/project/header2.h"),
+            id(TESTDATA_DIR "/builddependencycollector/project/missingfile.h"),
+            id(TESTDATA_DIR "/builddependencycollector/project/macros.h"),
+        },
+        {id(TESTDATA_DIR "/builddependencycollector/project/main4.cpp")},
+        Utils::Language::Cxx,
+        Utils::LanguageVersion::CXX11,
+        Utils::LanguageExtension::None};
 
     auto buildDependency = collector.create(projectPart);
 
-    ASSERT_THAT(buildDependency.sources, IsEmpty());
+    ASSERT_THAT(buildDependency.sources,
+                Contains(HasSource(id(TESTDATA_DIR "/preincludes/system1.h"),
+                                   SourceType::TopSystemInclude)));
 }
 } // namespace

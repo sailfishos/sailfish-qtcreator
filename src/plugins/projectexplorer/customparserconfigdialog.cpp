@@ -26,6 +26,8 @@
 #include "customparserconfigdialog.h"
 #include "ui_customparserconfigdialog.h"
 
+#include <utils/theme/theme.h>
+
 #include <QLineEdit>
 #include <QPushButton>
 #include <QRegularExpression>
@@ -42,20 +44,20 @@ CustomParserConfigDialog::CustomParserConfigDialog(QDialog *parent) :
     connect(ui->errorPattern, &QLineEdit::textChanged, this, &CustomParserConfigDialog::changed);
     connect(ui->errorOutputMessage, &QLineEdit::textChanged,
             this, &CustomParserConfigDialog::changed);
-    connect(ui->errorFileNameCap, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+    connect(ui->errorFileNameCap, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &CustomParserConfigDialog::changed);
-    connect(ui->errorLineNumberCap, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+    connect(ui->errorLineNumberCap, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &CustomParserConfigDialog::changed);
-    connect(ui->errorMessageCap, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+    connect(ui->errorMessageCap, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &CustomParserConfigDialog::changed);
     connect(ui->warningPattern, &QLineEdit::textChanged, this, &CustomParserConfigDialog::changed);
     connect(ui->warningOutputMessage, &QLineEdit::textChanged,
             this, &CustomParserConfigDialog::changed);
-    connect(ui->warningFileNameCap, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+    connect(ui->warningFileNameCap, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &CustomParserConfigDialog::changed);
-    connect(ui->warningLineNumberCap, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+    connect(ui->warningLineNumberCap, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &CustomParserConfigDialog::changed);
-    connect(ui->warningMessageCap, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+    connect(ui->warningMessageCap, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &CustomParserConfigDialog::changed);
 
     changed();
@@ -270,13 +272,17 @@ bool CustomParserConfigDialog::checkPattern(QLineEdit *pattern, const QString &o
     rx.setPattern(pattern->text());
 
     QPalette palette;
-    palette.setColor(QPalette::Text, rx.isValid() ? Qt::black : Qt::red);
+    palette.setColor(QPalette::Text,
+                     Utils::creatorTheme()->color(rx.isValid() ? Utils::Theme::TextColorNormal
+                                                               : Utils::Theme::TextColorError));
     pattern->setPalette(palette);
     pattern->setToolTip(rx.isValid() ? QString() : rx.errorString());
 
     *match = rx.match(outputText);
     if (rx.pattern().isEmpty() || !rx.isValid() || !match->hasMatch()) {
-        *errorMessage = QLatin1String("<font color=\"red\">") + tr("Not applicable:") + QLatin1Char(' ');
+        *errorMessage = QString::fromLatin1("<font color=\"%1\">%2 ").arg(
+                    Utils::creatorTheme()->color(Utils::Theme::TextColorError).name(),
+                    tr("Not applicable:"));
         if (rx.pattern().isEmpty())
             *errorMessage += tr("Pattern is empty.");
         else if (!rx.isValid())

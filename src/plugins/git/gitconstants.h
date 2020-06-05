@@ -32,10 +32,12 @@ namespace Constants {
 
 const char GIT_PLUGIN[] = "GitPlugin";
 
-const char GIT_COMMAND_LOG_EDITOR_ID[] = "Git Command Log Editor";
-const char GIT_COMMAND_LOG_EDITOR_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("VCS", "Git Command Log Editor");
-const char GIT_LOG_EDITOR_ID[] = "Git File Log Editor";
-const char GIT_LOG_EDITOR_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("VCS", "Git File Log Editor");
+const char GIT_SVN_LOG_EDITOR_ID[] = "Git SVN Log Editor";
+const char GIT_SVN_LOG_EDITOR_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("VCS", "Git SVN Log Editor");
+const char GIT_LOG_EDITOR_ID[] = "Git Log Editor";
+const char GIT_LOG_EDITOR_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("VCS", "Git Log Editor");
+const char GIT_REFLOG_EDITOR_ID[] = "Git Reflog Editor";
+const char GIT_REFLOG_EDITOR_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("VCS", "Git Reflog Editor");
 const char GIT_BLAME_EDITOR_ID[] = "Git Annotation Editor";
 const char GIT_BLAME_EDITOR_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("VCS", "Git Annotation Editor");
 const char GIT_COMMIT_TEXT_EDITOR_ID[] = "Git Commit Editor";
@@ -51,6 +53,7 @@ const char SUBMIT_MIMETYPE[] = "text/vnd.qtcreator.git.submit";
 const char C_GITEDITORID[]  = "Git Editor";
 
 const int OBSOLETE_COMMIT_AGE_IN_DAYS = 90;
+const int MAX_OBSOLETE_COMMITS_TO_DISPLAY = 5;
 
 const char EXPAND_BRANCHES[] = "Branches: <Expand>";
 

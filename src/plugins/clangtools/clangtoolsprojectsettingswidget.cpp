@@ -26,11 +26,20 @@
 #include "clangtoolsprojectsettingswidget.h"
 #include "ui_clangtoolsprojectsettingswidget.h"
 
+#include "clangtool.h"
+#include "clangtoolsconstants.h"
 #include "clangtoolsprojectsettings.h"
+#include "clangtoolssettings.h"
+#include "clangtoolsutils.h"
+
+#include <coreplugin/icore.h>
+#include <cpptools/clangdiagnosticconfigsselectionwidget.h>
 
 #include <utils/qtcassert.h>
 
 #include <QAbstractTableModel>
+
+#include <cpptools/clangdiagnosticconfigsmodel.h>
 
 namespace ClangTools {
 namespace Internal {
@@ -45,7 +54,7 @@ public:
     SuppressedDiagnostic diagnosticAt(int i) const;
 
 private:
-    enum Columns { ColumnFile, ColumnContext, ColumnDescription, ColumnLast = ColumnDescription };
+    enum Columns { ColumnFile, ColumnDescription, ColumnLast = ColumnDescription };
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     int columnCount(const QModelIndex & = QModelIndex()) const override { return ColumnLast + 1; }
@@ -56,15 +65,59 @@ private:
     SuppressedDiagnosticsList m_diagnostics;
 };
 
+enum { UseGlobalSettings, UseCustomSettings }; // Values in sync with m_ui->globalCustomComboBox
+
 ProjectSettingsWidget::ProjectSettingsWidget(ProjectExplorer::Project *project, QWidget *parent) :
     QWidget(parent),
     m_ui(new Ui::ProjectSettingsWidget)
-  , m_projectSettings(ClangToolsProjectSettingsManager::getSettings(project))
+  , m_projectSettings(ClangToolsProjectSettings::getSettings(project))
 {
     m_ui->setupUi(this);
+
+    // Use global/custom settings combo box
+    const int globalOrCustomIndex = m_projectSettings->useGlobalSettings() ? UseGlobalSettings
+                                                                           : UseCustomSettings;
+    m_ui->globalCustomComboBox->setCurrentIndex(globalOrCustomIndex);
+    onGlobalCustomChanged(globalOrCustomIndex);
+    connect(m_ui->globalCustomComboBox,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this,
+            QOverload<int>::of(&ProjectSettingsWidget::onGlobalCustomChanged));
+
+    // Global settings
+    connect(ClangToolsSettings::instance(),
+            &ClangToolsSettings::changed,
+            this,
+            QOverload<>::of(&ProjectSettingsWidget::onGlobalCustomChanged));
+    connect(m_ui->restoreGlobal, &QPushButton::clicked, this, [this]() {
+        m_ui->runSettingsWidget->fromSettings(ClangToolsSettings::instance()->runSettings());
+    });
+
+    // Links
+    connect(m_ui->gotoGlobalSettingsLabel, &QLabel::linkActivated, [](const QString &) {
+        Core::ICore::showOptionsDialog(ClangTools::Constants::SETTINGS_PAGE_ID);
+    });
+
+    connect(m_ui->gotoAnalyzerModeLabel, &QLabel::linkActivated, [](const QString &) {
+        ClangTool::instance()->selectPerspective();
+    });
+
+    // Run options
+    connect(m_ui->runSettingsWidget, &RunSettingsWidget::changed, [this]() {
+        // Save project run settings
+        m_projectSettings->setRunSettings(m_ui->runSettingsWidget->toSettings());
+
+        // Save global custom configs
+        const CppTools::ClangDiagnosticConfigs configs
+            = m_ui->runSettingsWidget->diagnosticSelectionWidget()->customConfigs();
+        ClangToolsSettings::instance()->setDiagnosticConfigs(configs);
+        ClangToolsSettings::instance()->writeSettings();
+    });
+
+    // Suppressed diagnostics
     auto * const model = new SuppressedDiagnosticsModel(this);
     model->setDiagnostics(m_projectSettings->suppressedDiagnostics());
-    connect(m_projectSettings, &ClangToolsProjectSettings::suppressedDiagnosticsChanged,
+    connect(m_projectSettings.data(), &ClangToolsProjectSettings::suppressedDiagnosticsChanged,
             [model, this] {
                     model->setDiagnostics(m_projectSettings->suppressedDiagnostics());
                     updateButtonStates();
@@ -84,6 +137,23 @@ ProjectSettingsWidget::ProjectSettingsWidget(ProjectExplorer::Project *project, 
 ProjectSettingsWidget::~ProjectSettingsWidget()
 {
     delete m_ui;
+}
+
+void ProjectSettingsWidget::onGlobalCustomChanged()
+{
+    onGlobalCustomChanged(m_ui->globalCustomComboBox->currentIndex());
+}
+
+void ProjectSettingsWidget::onGlobalCustomChanged(int index)
+{
+    const bool useGlobal = index == UseGlobalSettings;
+    const RunSettings runSettings = useGlobal ? ClangToolsSettings::instance()->runSettings()
+                                              : m_projectSettings->runSettings();
+    m_ui->runSettingsWidget->fromSettings(runSettings);
+    m_ui->runSettingsWidget->setEnabled(!useGlobal);
+    m_ui->restoreGlobal->setEnabled(!useGlobal);
+
+    m_projectSettings->setUseGlobalSettings(useGlobal);
 }
 
 void ProjectSettingsWidget::updateButtonStates()
@@ -113,7 +183,6 @@ void ProjectSettingsWidget::removeSelected()
     m_projectSettings->removeSuppressedDiagnostic(model->diagnosticAt(selectedRows.first().row()));
 }
 
-
 void SuppressedDiagnosticsModel::setDiagnostics(const SuppressedDiagnosticsList &diagnostics)
 {
     beginResetModel();
@@ -137,8 +206,6 @@ QVariant SuppressedDiagnosticsModel::headerData(int section, Qt::Orientation ori
     if (role == Qt::DisplayRole && orientation == Qt::Horizontal) {
         if (section == ColumnFile)
             return tr("File");
-        if (section == ColumnContext)
-            return tr("Context");
         if (section == ColumnDescription)
             return tr("Diagnostic");
     }
@@ -152,11 +219,6 @@ QVariant SuppressedDiagnosticsModel::data(const QModelIndex &index, int role) co
     const SuppressedDiagnostic &diag = m_diagnostics.at(index.row());
     if (index.column() == ColumnFile)
         return diag.filePath.toUserOutput();
-    if (index.column() == ColumnContext) {
-        if (diag.contextKind == QLatin1String("function") && !diag.context.isEmpty())
-            return tr("Function \"%1\"").arg(diag.context);
-        return QString();
-    }
     if (index.column() == ColumnDescription)
         return diag.description;
     return QVariant();

@@ -27,8 +27,9 @@
 
 #include "projectpartpch.h"
 
-#include <filepath.h>
+#include <pchpaths.h>
 #include <projectpartid.h>
+#include <sourceentry.h>
 
 #include <utils/smallstringvector.h>
 #include <utils/optional.h>
@@ -45,16 +46,20 @@ public:
 
     virtual void insertProjectPrecompiledHeader(ProjectPartId projectPartId,
                                                 Utils::SmallStringView pchPath,
-                                                long long pchBuildTime)
+                                                TimeStamp pchBuildTime)
         = 0;
-    virtual void deleteProjectPrecompiledHeader(ProjectPartId projectPartName) = 0;
+    virtual void deleteProjectPrecompiledHeader(ProjectPartId projectPartId, TimeStamp pchBuildTime) = 0;
+    virtual void deleteProjectPrecompiledHeaders(const ProjectPartIds &projectPartIds) = 0;
     virtual void insertSystemPrecompiledHeaders(const ProjectPartIds &projectPartIds,
                                                 Utils::SmallStringView pchPath,
-                                                long long pchBuildTime)
+                                                TimeStamp pchBuildTime)
         = 0;
     virtual void deleteSystemPrecompiledHeaders(const ProjectPartIds &projectPartIds) = 0;
+    virtual void deleteSystemAndProjectPrecompiledHeaders(const ProjectPartIds &projectPartIds) = 0;
     virtual FilePath fetchSystemPrecompiledHeaderPath(ProjectPartId projectPartId) = 0;
-    virtual Utils::optional<ProjectPartPch> fetchPrecompiledHeader(ProjectPartId projectPartId) const = 0;
+    virtual FilePath fetchPrecompiledHeader(ProjectPartId projectPartId) const = 0;
+    virtual PchPaths fetchPrecompiledHeaders(ProjectPartId projectPartId) const = 0;
+    virtual PrecompiledHeaderTimeStamps fetchTimeStamps(ProjectPartId projectPartId) const = 0;
 
 protected:
     ~PrecompiledHeaderStorageInterface() = default;

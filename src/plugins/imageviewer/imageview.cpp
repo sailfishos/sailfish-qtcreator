@@ -151,6 +151,7 @@ void ImageView::drawBackground(QPainter *p, const QRectF &)
 {
     p->save();
     p->resetTransform();
+    p->setRenderHint(QPainter::SmoothPixmapTransform, false);
     p->drawTiledPixmap(viewport()->rect(), backgroundBrush().texture());
     p->restore();
 }
@@ -285,7 +286,7 @@ void ImageView::doScale(qreal factor)
 
 void ImageView::wheelEvent(QWheelEvent *event)
 {
-    qreal factor = qPow(Constants::DEFAULT_SCALE_FACTOR, event->delta() / 240.0);
+    qreal factor = qPow(Constants::DEFAULT_SCALE_FACTOR, event->angleDelta().y() / 240.0);
     doScale(factor);
     event->accept();
 }

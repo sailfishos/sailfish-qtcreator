@@ -108,7 +108,7 @@ void ModelTreeView::selectFromSourceModelIndex(const QModelIndex &index)
 
 void ModelTreeView::startDrag(Qt::DropActions supportedActions)
 {
-    Q_UNUSED(supportedActions);
+    Q_UNUSED(supportedActions)
 
     TreeModel *treeModel = m_sortedTreeModel->treeModel();
     QMT_ASSERT(treeModel, return);
@@ -173,14 +173,13 @@ void ModelTreeView::dragMoveEvent(QDragMoveEvent *event)
         if (dynamic_cast<MObject*>(modelElement))
             accept = true;
         if (m_autoDelayIndex == dropIndex) {
-            if (m_autoDelayStartTime.elapsed() > 1000) {
+            if (m_autoDelayStartTimer.elapsed() > 1000) {
                 setExpanded(dropIndex, !isExpanded(dropIndex));
-                m_autoDelayStartTime.start();
+                m_autoDelayStartTimer.start();
             }
         } else {
             m_autoDelayIndex = dropIndex;
-            m_autoDelayStartTime = QTime::currentTime();
-            m_autoDelayStartTime.start();
+            m_autoDelayStartTimer.start();
         }
     }
     event->setAccepted(accept);
@@ -232,7 +231,7 @@ void ModelTreeView::dropEvent(QDropEvent *event)
 
 void ModelTreeView::focusInEvent(QFocusEvent *event)
 {
-    Q_UNUSED(event);
+    Q_UNUSED(event)
 
     emit treeViewActivated();
 }

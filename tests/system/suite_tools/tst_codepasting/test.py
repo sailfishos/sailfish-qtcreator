@@ -35,7 +35,6 @@ def __platformToBeRunToday__():
 skipPastingToPastebinCom = platform.system() not in __platformToBeRunToday__()
 
 NAME_PBCOM = "Pastebin.Com"
-NAME_PCXYZ = "Pastecode.Xyz"
 
 serverProblems = "Server side problems."
 
@@ -53,11 +52,11 @@ def closeHTTPStatusAndPasterDialog(protocol, pasterDialog):
         if 'Service Unavailable' in text:
             test.warning(text)
             return True
+        test.log("Closed dialog without expected error.", text)
     except:
         t,v = sys.exc_info()[:2]
         test.warning("An exception occurred in closeHTTPStatusAndPasterDialog(): %s(%s)"
                      % (str(t), str(v)))
-    test.log("Closed dialog without expected error.", text)
     return False
 
 def pasteFile(sourceFile, protocol):
@@ -129,7 +128,7 @@ def fetchSnippet(protocol, description, pasteId, skippedPasting):
         closeHTTPStatusAndPasterDialog(protocol, ':PasteSelectDialog_CodePaster::PasteSelectDialog')
         return -1
     waitFor("pasteModel.rowCount() > 1", 20000)
-    if (not skippedPasting and not any(map(lambda str:pasteId in str, dumpItems(pasteModel)))):
+    if (protocol != NAME_PBCOM and not skippedPasting and not any(map(lambda str:pasteId in str, dumpItems(pasteModel)))):
         test.warning("Fetching too fast for server of %s - waiting 3s and trying to refresh." % protocol)
         snooze(3)
         clickButton("{text='Refresh' type='QPushButton' unnamed='1' visible='1' "
@@ -152,13 +151,16 @@ def fetchSnippet(protocol, description, pasteId, skippedPasting):
                             "Verify that line in list of pastes contains the description")
         except:
             if not skippedPasting:
-                test.fail("Could not find id '%s' in list of pastes from %s" % (pasteId, protocol))
+                message = "Could not find id '%s' in list of pastes from %s" % (pasteId, protocol)
+                if protocol == NAME_PBCOM:
+                    test.xfail(message, "pastebin.com does not show pastes in list anymore")
+                else:
+                    test.fail(message)
             foundSnippet = False
             replaceEditorContent(waitForObject(":PasteSelectDialog.pasteEdit_QLineEdit"), pasteId)
     if foundSnippet:
         pasteLine = pasteLine.replace(".", "\\.")
-        waitForObjectItem(":PasteSelectDialog.listWidget_QListWidget", pasteLine)
-        clickItem(":PasteSelectDialog.listWidget_QListWidget", pasteLine, 5, 5, 0, Qt.LeftButton)
+        mouseClick(waitForObjectItem(":PasteSelectDialog.listWidget_QListWidget", pasteLine))
     clickButton(waitForObject(":PasteSelectDialog.OK_QPushButton"))
     return pasteId
 
@@ -166,7 +168,7 @@ def main():
     startQC()
     if not startedWithoutPluginError():
         return
-    protocolsToTest = [NAME_PBCOM, NAME_PCXYZ]
+    protocolsToTest = [NAME_PBCOM]
     sourceFile = os.path.join(os.getcwd(), "testdata", "main.cpp")
     # make sure General Messages is open
     openGeneralMessages()

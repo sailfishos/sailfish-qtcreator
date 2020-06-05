@@ -27,8 +27,6 @@
 
 #include <debugger/analyzer/detailederrorview.h>
 
-#include <memory>
-
 namespace ClangTools {
 namespace Internal {
 
@@ -43,26 +41,45 @@ public:
     DiagnosticView(QWidget *parent = nullptr);
     ~DiagnosticView() override;
 
-    void setSelectedFixItsCount(int fixItsCount);
+    void scheduleAllFixits(bool schedule);
+
+signals:
+    void showHelp();
+
+    void showFilter();
+    void clearFilter();
+    void filterForCurrentKind();
+    void filterOutCurrentKind();
 
 private:
-    void openEditorForCurrentIndex();
-    void suppressCurrentDiagnostic();
+    bool eventFilter(QObject *watched, QEvent *event) override;
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
 
+    QList<QAction *> customActions() const override;
     void goNext() override;
     void goBack() override;
+
+    void openEditorForCurrentIndex();
+    void suppressCurrentDiagnostic();
     enum Direction { Next = 1, Previous = -1 };
     QModelIndex getIndex(const QModelIndex &index, Direction direction) const;
     QModelIndex getTopLevelIndex(const QModelIndex &index, Direction direction) const;
 
-    QList<QAction *> customActions() const override;
-    bool eventFilter(QObject *watched, QEvent *event) override;
-    void mouseDoubleClickEvent(QMouseEvent *event) override;
-    void setModel(QAbstractItemModel *theProxyModel) override;
+private:
+    QAction *m_help = nullptr;
 
-    QAction *m_suppressAction;
-    std::unique_ptr<DiagnosticViewStyle> m_style;
-    std::unique_ptr<DiagnosticViewDelegate> m_delegate;
+    QAction *m_showFilter = nullptr;
+    QAction *m_clearFilter = nullptr;
+    QAction *m_filterForCurrentKind = nullptr;
+    QAction *m_filterOutCurrentKind = nullptr;
+
+    QAction *m_suppressAction = nullptr;
+
+    QAction *m_separator = nullptr;
+    QAction *m_separator2 = nullptr;
+
+    DiagnosticViewStyle *m_style = nullptr;
+    DiagnosticViewDelegate *m_delegate = nullptr;
     bool m_ignoreSetSelectedFixItsCount = false;
 };
 

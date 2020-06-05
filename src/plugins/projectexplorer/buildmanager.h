@@ -25,16 +25,22 @@
 
 #pragma once
 
-#include "projectexplorer_export.h"
 #include "buildstep.h"
+#include "projectexplorer_export.h"
 
 #include <QObject>
 #include <QStringList>
 
 namespace ProjectExplorer {
+class RunConfiguration;
+
+namespace Internal { class CompileOutputSettings; }
 
 class Task;
 class Project;
+
+enum class BuildForRunConfigStatus { Building, NotBuilding, BuildFailed };
+enum class ConfigSelection { All, Active };
 
 class PROJECTEXPLORER_EXPORT BuildManager : public QObject
 {
@@ -47,10 +53,28 @@ public:
 
     static void extensionsInitialized();
 
+    static void buildProjectWithoutDependencies(Project *project);
+    static void cleanProjectWithoutDependencies(Project *project);
+    static void rebuildProjectWithoutDependencies(Project *project);
+    static void buildProjectWithDependencies(
+            Project *project,
+            ConfigSelection configSelection = ConfigSelection::Active
+            );
+    static void cleanProjectWithDependencies(Project *project, ConfigSelection configSelection);
+    static void rebuildProjectWithDependencies(Project *project, ConfigSelection configSelection);
+    static void buildProjects(const QList<Project *> &projects, ConfigSelection configSelection);
+    static void cleanProjects(const QList<Project *> &projects, ConfigSelection configSelection);
+    static void rebuildProjects(const QList<Project *> &projects, ConfigSelection configSelection);
+
+    static void deployProjects(const QList<Project *> &projects);
+
+    static BuildForRunConfigStatus potentiallyBuildForRunConfig(RunConfiguration *rc);
+
     static bool isBuilding();
+    static bool isDeploying();
     static bool tasksAvailable();
 
-    static bool buildLists(QList<BuildStepList *> bsls,
+    static bool buildLists(const QList<BuildStepList *> bsls,
                            const QStringList &preambelMessage = QStringList());
     static bool buildList(BuildStepList *bsl);
 
@@ -64,6 +88,9 @@ public:
 
     static int getErrorTaskCount();
 
+    static void setCompileOutputSettings(const Internal::CompileOutputSettings &settings);
+    static const Internal::CompileOutputSettings &compileOutputSettings();
+
 public slots:
     static void cancel();
     // Shows without focus
@@ -75,9 +102,6 @@ public slots:
 signals:
     void buildStateChanged(ProjectExplorer::Project *pro);
     void buildQueueFinished(bool success);
-    void tasksChanged();
-    void taskAdded(const ProjectExplorer::Task &task);
-    void tasksCleared();
 
 private:
     static void addToTaskWindow(const ProjectExplorer::Task &task, int linkedOutputLines, int skipLines);

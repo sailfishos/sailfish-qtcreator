@@ -25,7 +25,6 @@
 
 #pragma once
 
-#include "centralwidget.h"
 #include "helpviewer.h"
 #include "openpagesmanager.h"
 
@@ -93,17 +92,18 @@ public:
     void scaleUp();
     void scaleDown();
 
-    void setSource(const QUrl &name) override;
+    void withFixedTopPosition(const std::function<void()> &action);
 
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
     bool eventFilter(QObject *obj, QEvent *event) override;
-    void wheelEvent(QWheelEvent *e) override;
     void mousePressEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *e) override;
+    void resizeEvent(QResizeEvent *e) override;
 
 private:
-    QString linkAt(const QPoint& pos);
+    QString linkAt(const QPoint &pos);
+    void scrollToTextPosition(int position);
 
     int zoomCount;
     bool forceFont;

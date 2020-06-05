@@ -42,6 +42,7 @@
 #include <cplusplus/LookupContext.h>
 #include <utils/qtcassert.h>
 #include <utils/runextensions.h>
+#include <utils/stringutils.h>
 #include <utils/temporarydirectory.h>
 
 #include <QCoreApplication>
@@ -52,6 +53,7 @@ using namespace CppTools;
 using namespace CppTools::Internal;
 
 static const bool FindErrorsIndexing = qgetenv("QTC_FIND_ERRORS_INDEXING") == "1";
+static Q_LOGGING_CATEGORY(indexerLog, "qtc.cpptools.indexer", QtWarningMsg)
 
 namespace {
 
@@ -172,9 +174,8 @@ void indexFindErrors(QFutureInterface<void> &indexingFuture,
         indexingFuture.setProgressValue(files.size() - (files.size() - (i + 1)));
     }
 
-    const QTime format = QTime(0, 0, 0, 0).addMSecs(timer.elapsed() + 500);
-    const QString time = format.toString(QLatin1String("hh:mm:ss"));
-    qDebug("FindErrorsIndexing: Finished after %s.", qPrintable(time));
+    const QString elapsedTime = Utils::formatElapsedTime(timer.elapsed());
+    qDebug("FindErrorsIndexing: %s", qPrintable(elapsedTime));
 }
 
 void index(QFutureInterface<void> &indexingFuture,
@@ -196,7 +197,7 @@ void index(QFutureInterface<void> &indexingFuture,
     const int sourceCount = sources.size();
     QStringList files = sources + headers;
 
-    sourceProcessor->setTodo(files.toSet());
+    sourceProcessor->setTodo(Utils::toSet(files));
 
     const QString conf = CppModelManager::configurationFileName();
     bool processingHeaders = false;
@@ -205,6 +206,8 @@ void index(QFutureInterface<void> &indexingFuture,
     const ProjectExplorer::HeaderPaths fallbackHeaderPaths = cmm->headerPaths();
     const CPlusPlus::LanguageFeatures defaultFeatures =
             CPlusPlus::LanguageFeatures::defaultFeatures();
+
+    qCDebug(indexerLog) << "About to index" << files.size() << "files.";
     for (int i = 0; i < files.size(); ++i) {
         if (indexingFuture.isCanceled() || superFuture.isCanceled())
             break;
@@ -225,6 +228,7 @@ void index(QFutureInterface<void> &indexingFuture,
             processingHeaders = true;
         }
 
+        qCDebug(indexerLog) << "  Indexing" << i + 1 << "of" << files.size() << ":" << fileName;
         ProjectExplorer::HeaderPaths headerPaths = parts.isEmpty()
                 ? fallbackHeaderPaths
                 : parts.first()->headerPaths;
@@ -236,6 +240,7 @@ void index(QFutureInterface<void> &indexingFuture,
         if (isSourceFile)
             sourceProcessor->resetEnvironment();
     }
+    qCDebug(indexerLog) << "Indexing finished.";
 }
 
 void parse(QFutureInterface<void> &indexingFuture,
@@ -310,7 +315,7 @@ public:
                         item.path = scope.split(QLatin1String("::"), QString::SkipEmptyParts);
                         item.text = text;
                         item.icon = info->icon();
-                        item.userData = qVariantFromValue(info);
+                        item.userData = QVariant::fromValue(info);
                         resultItems << item;
                     }
 

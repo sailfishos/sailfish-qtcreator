@@ -55,13 +55,12 @@ FormPageFactory::FormPageFactory()
 Utils::WizardPage *FormPageFactory::create(ProjectExplorer::JsonWizard *wizard, Core::Id typeId,
                                            const QVariant &data)
 {
-    Q_UNUSED(wizard);
-    Q_UNUSED(data);
+    Q_UNUSED(wizard)
+    Q_UNUSED(data)
 
-    QTC_ASSERT(canCreate(typeId), return 0);
+    QTC_ASSERT(canCreate(typeId), return nullptr);
 
-    FormTemplateWizardPage *page = new FormTemplateWizardPage;
-    return page;
+    return new FormTemplateWizardPage;
 }
 
 bool FormPageFactory::validateData(Core::Id typeId, const QVariant &data, QString *errorMessage)
@@ -117,7 +116,7 @@ bool FormTemplateWizardPage::validatePage()
         QMessageBox::critical(this, tr("%1 - Error").arg(title()), errorMessage);
         return false;
     }
-    wizard()->setProperty("FormContents", m_templateContents.split('\n'));
+    wizard()->setProperty("FormContents", m_templateContents);
     return true;
 }
 

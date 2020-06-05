@@ -11,7 +11,17 @@ SOURCES += propertyeditorview.cpp \
     propertyeditorwidget.cpp \
     fileresourcesmodel.cpp \
     gradientmodel.cpp \
-    qmlmodelnodeproxy.cpp
+    qmlmodelnodeproxy.cpp \
+    gradientpresetitem.cpp \
+    gradientpresetlistmodel.cpp \
+    gradientpresetdefaultlistmodel.cpp \
+    gradientpresetcustomlistmodel.cpp \
+    simplecolorpalette.cpp \
+    simplecolorpalettemodel.cpp \
+    simplecolorpalettesingleton.cpp \
+    itemfiltermodel.cpp \
+    aligndistribute.cpp \
+    tooltip.cpp
 
 HEADERS += propertyeditorview.h \
     qmlanchorbindingproxy.h \
@@ -24,6 +34,16 @@ HEADERS += propertyeditorview.h \
     propertyeditorwidget.h \
     fileresourcesmodel.h \
     gradientmodel.h \
-    qmlmodelnodeproxy.h
+    qmlmodelnodeproxy.h \
+    gradientpresetitem.h \
+    gradientpresetlistmodel.h \
+    gradientpresetdefaultlistmodel.h \
+    gradientpresetcustomlistmodel.h \
+    simplecolorpalette.h \
+    simplecolorpalettemodel.h \
+    simplecolorpalettesingleton.h \
+    itemfiltermodel.h \
+    aligndistribute.h \
+    tooltip.h
 
 QT += qml quick

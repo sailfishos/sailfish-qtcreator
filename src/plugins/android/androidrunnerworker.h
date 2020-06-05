@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include <projectexplorer/runconfiguration.h>
+#include <projectexplorer/runcontrol.h>
 
 #include <qmldebug/qmldebugcommandlinearguments.h>
 
@@ -64,7 +64,7 @@ public:
     void handleJdbSettled();
 
 signals:
-    void remoteProcessStarted(Utils::Port gdbServerPort, const QUrl &qmlServer, int pid);
+    void remoteProcessStarted(Utils::Port gdbServerPort, const QUrl &qmlServer, qint64 pid);
     void remoteProcessFinished(const QString &errString = QString());
 
     void remoteOutput(const QString &output);

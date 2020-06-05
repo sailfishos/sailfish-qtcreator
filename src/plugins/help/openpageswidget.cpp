@@ -25,10 +25,8 @@
 
 #include "openpageswidget.h"
 
-#include "centralwidget.h"
-#include "openpagesmodel.h"
-
 #include <coreplugin/coreconstants.h>
+#include <utils/stringutils.h>
 
 #include <QAbstractItemModel>
 #include <QApplication>
@@ -38,7 +36,7 @@ using namespace Help::Internal;
 
 // -- OpenPagesWidget
 
-OpenPagesWidget::OpenPagesWidget(OpenPagesModel *sourceModel, QWidget *parent)
+OpenPagesWidget::OpenPagesWidget(QAbstractItemModel *sourceModel, QWidget *parent)
     : OpenDocumentsTreeView(parent)
     , m_allowContextMenu(true)
 {
@@ -61,12 +59,12 @@ OpenPagesWidget::OpenPagesWidget(OpenPagesModel *sourceModel, QWidget *parent)
 
 OpenPagesWidget::~OpenPagesWidget() = default;
 
-void OpenPagesWidget::selectCurrentPage()
+void OpenPagesWidget::selectCurrentPage(int index)
 {
     QItemSelectionModel * const selModel = selectionModel();
     selModel->clearSelection();
-    selModel->select(model()->index(CentralWidget::instance()->currentIndex(), 0),
-        QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+    selModel->select(model()->index(index, 0),
+                     QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
     scrollTo(currentIndex());
 }
 
@@ -86,10 +84,9 @@ void OpenPagesWidget::contextMenuRequested(QPoint pos)
     if (index.column() == 1)
         index = index.sibling(index.row(), 0);
     QMenu contextMenu;
-    QAction *closeEditor = contextMenu.addAction(tr("Close %1").arg(index.data()
-        .toString()));
-    QAction *closeOtherEditors = contextMenu.addAction(tr("Close All Except %1")
-        .arg(index.data().toString()));
+    const QString displayString = Utils::quoteAmpersands(index.data().toString());
+    QAction *closeEditor = contextMenu.addAction(tr("Close %1").arg(displayString));
+    QAction *closeOtherEditors = contextMenu.addAction(tr("Close All Except %1").arg(displayString));
 
     if (model()->rowCount() == 1) {
         closeEditor->setEnabled(false);
@@ -114,7 +111,7 @@ void OpenPagesWidget::handleActivated(const QModelIndex &index)
         // work around a bug in itemviews where the delegate wouldn't get the QStyle::State_MouseOver
         QWidget *vp = viewport();
         const QPoint &cursorPos = QCursor::pos();
-        QMouseEvent e(QEvent::MouseMove, vp->mapFromGlobal(cursorPos), cursorPos, Qt::NoButton, nullptr, nullptr);
+        QMouseEvent e(QEvent::MouseMove, vp->mapFromGlobal(cursorPos), cursorPos, Qt::NoButton, {}, {});
         QCoreApplication::sendEvent(vp, &e);
     }
 }

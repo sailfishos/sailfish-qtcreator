@@ -24,9 +24,8 @@
 #ifndef KSYNTAXHIGHLIGHTING_KEYWORDLIST_P_H
 #define KSYNTAXHIGHLIGHTING_KEYWORDLIST_P_H
 
-#include <QSet>
 #include <QString>
-#include <QVector>
+#include <QStringList>
 
 #include <vector>
 
@@ -35,6 +34,9 @@ class QXmlStreamReader;
 QT_END_NAMESPACE
 
 namespace KSyntaxHighlighting {
+
+class Repository;
+class DefinitionData;
 
 class KeywordList
 {
@@ -57,6 +59,14 @@ public:
         return m_keywords;
     }
 
+    void setKeywordList(const QStringList& keywords)
+    {
+        m_keywords = keywords;
+        m_keywordsSortedCaseSensitive.clear();
+        m_keywordsSortedCaseInsensitive.clear();
+        initLookupForCaseSensitivity(m_caseSensitive);
+    }
+
     /** Checks if @p str is a keyword in this list. */
     bool contains(const QStringRef &str) const
     {
@@ -69,6 +79,7 @@ public:
     void load(QXmlStreamReader &reader);
     void setCaseSensitivity(Qt::CaseSensitivity caseSensitive);
     void initLookupForCaseSensitivity(Qt::CaseSensitivity caseSensitive);
+    void resolveIncludeKeywords(DefinitionData &def);
 
 private:
     /**
@@ -80,6 +91,11 @@ private:
      * raw list of keywords, as seen in XML (but trimmed)
      */
     QStringList m_keywords;
+
+    /**
+     * raw list of include keywords, as seen in XML (but trimmed)
+     */
+    QStringList m_includes;
 
     /**
      * default case-sensitivity setting

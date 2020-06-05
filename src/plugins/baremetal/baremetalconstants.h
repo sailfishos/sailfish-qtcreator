@@ -34,12 +34,22 @@ const char BareMetalOsType[] = "BareMetalOsType";
 const char ACTION_ID[] = "BareMetal.Action";
 const char MENU_ID[] = "BareMetal.Menu";
 
-const char GDB_PROVIDERS_SETTINGS_ID[] = "EE.BareMetal.GdbServerProvidersOptions";
+const char DEBUG_SERVER_PROVIDERS_SETTINGS_ID[] = "EE.BareMetal.DebugServerProvidersOptions";
 
-// Debugger Server Provider Ids
-const char OPENOCD_PROVIDER_ID[] = "BareMetal.GdbServerProvider.OpenOcd";
-const char DEFAULT_PROVIDER_ID[] = "BareMetal.GdbServerProvider.Default";
-const char STLINK_UTIL_PROVIDER_ID[] = "BareMetal.GdbServerProvider.STLinkUtil";
+// GDB Debugger Server Provider Ids.
+const char GDBSERVER_OPENOCD_PROVIDER_ID[] = "BareMetal.GdbServerProvider.OpenOcd";
+const char GDBSERVER_JLINK_PROVIDER_ID[] = "BareMetal.GdbServerProvider.JLink";
+const char GDBSERVER_STLINK_UTIL_PROVIDER_ID[] = "BareMetal.GdbServerProvider.STLinkUtil";
+const char GDBSERVER_EBLINK_PROVIDER_ID[] = "BareMetal.GdbServerProvider.EBlink";
+
+// uVision Debugger Server Provider Ids.
+const char UVSC_SIMULATOR_PROVIDER_ID[] = "BareMetal.UvscServerProvider.Simulator";
+const char UVSC_STLINK_PROVIDER_ID[] = "BareMetal.UvscServerProvider.StLink";
+
+// Toolchain types.
+const char IAREW_TOOLCHAIN_TYPEID[] = "BareMetal.ToolChain.Iar";
+const char KEIL_TOOLCHAIN_TYPEID[] = "BareMetal.ToolChain.Keil";
+const char SDCC_TOOLCHAIN_TYPEID[] = "BareMetal.ToolChain.Sdcc";
 
 } // namespace BareMetal
 } // namespace Constants

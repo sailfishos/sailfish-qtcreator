@@ -25,46 +25,13 @@
 
 #include "projectinfo.h"
 
-#include "cppkitinfo.h"
-
 #include <projectexplorer/abi.h>
-#include <projectexplorer/toolchain.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/rawprojectpart.h>
+#include <projectexplorer/toolchain.h>
 
 namespace CppTools {
-
-ToolChainInfo::ToolChainInfo(const ProjectExplorer::ToolChain *toolChain,
-                             const QString &sysRootPath)
-{
-    if (toolChain) {
-        // Keep the following cheap/non-blocking for the ui thread...
-        type = toolChain->typeId();
-        isMsvc2015ToolChain
-                = toolChain->targetAbi().osFlavor() == ProjectExplorer::Abi::WindowsMsvc2015Flavor;
-        wordWidth = toolChain->targetAbi().wordWidth();
-        targetTriple = toolChain->originalTargetTriple();
-        extraCodeModelFlags = toolChain->extraCodeModelFlags();
-
-        // ...and save the potentially expensive operations for later so that
-        // they can be run from a worker thread.
-        this->sysRootPath = sysRootPath;
-        headerPathsRunner = toolChain->createBuiltInHeaderPathsRunner();
-        macroInspectionRunner = toolChain->createMacroInspectionRunner();
-    }
-}
-
-ProjectUpdateInfo::ProjectUpdateInfo(ProjectExplorer::Project *project,
-                                     const KitInfo &kitInfo,
-                                     const RawProjectParts &rawProjectParts)
-    : project(project)
-    , rawProjectParts(rawProjectParts)
-    , cToolChain(kitInfo.cToolChain)
-    , cxxToolChain(kitInfo.cxxToolChain)
-    , cToolChainInfo(ToolChainInfo(cToolChain, kitInfo.sysRootPath))
-    , cxxToolChainInfo(ToolChainInfo(cxxToolChain, kitInfo.sysRootPath))
-{
-}
 
 ProjectInfo::ProjectInfo(QPointer<ProjectExplorer::Project> project)
     : m_project(project)

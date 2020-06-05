@@ -56,7 +56,11 @@ void ResourceHandler::ensureInitialized()
     m_initialized = true;
 
     auto connector = [this](Project *p) {
-        connect(p, &Project::fileListChanged, this, &ResourceHandler::updateResources);
+        connect(p,
+                &Project::fileListChanged,
+                this,
+                &ResourceHandler::updateResources,
+                Qt::QueuedConnection);
     };
 
     for (Project *p : SessionManager::projects())
@@ -69,10 +73,7 @@ void ResourceHandler::ensureInitialized()
         qDebug() << "ResourceHandler::ensureInitialized() origPaths=" << m_originalUiQrcPaths;
 }
 
-ResourceHandler::~ResourceHandler()
-{
-
-}
+ResourceHandler::~ResourceHandler() = default;
 
 void ResourceHandler::updateResourcesHelper(bool updateProjectResources)
 {
@@ -88,7 +89,7 @@ void ResourceHandler::updateResourcesHelper(bool updateProjectResources)
         qDebug() << "ResourceHandler::updateResources()" << fileName;
 
     // Filename could change in the meantime.
-    Project *project = SessionManager::projectForFile(Utils::FileName::fromUserInput(fileName));
+    Project *project = SessionManager::projectForFile(Utils::FilePath::fromUserInput(fileName));
     const bool dirty = m_form->property("_q_resourcepathchanged").toBool();
     if (dirty)
         m_form->setDirty(true);
@@ -96,13 +97,40 @@ void ResourceHandler::updateResourcesHelper(bool updateProjectResources)
     // Does the file belong to a project?
     if (project) {
         // Collect project resource files.
-        ProjectNode *root = project->rootProjectNode();
+
+        // Find the (sub-)project the file belongs to. We don't want to find resources
+        // from other parts of the project tree, e.g. via a qmake subdirs project.
+        Node * const fileNode = project->rootProjectNode()->findNode([&fileName](const Node *n) {
+            return n->filePath().toString() == fileName;
+        });
+        ProjectNode *projectNodeForUiFile = nullptr;
+        if (fileNode) {
+            // We do not want qbs groups or qmake .pri files here, as they contain only a subset
+            // of the relevant files.
+            projectNodeForUiFile = fileNode->parentProjectNode();
+            while (projectNodeForUiFile && !projectNodeForUiFile->isProduct())
+                projectNodeForUiFile = projectNodeForUiFile->parentProjectNode();
+        }
+        if (!projectNodeForUiFile)
+            projectNodeForUiFile = project->rootProjectNode();
+
+        const auto useQrcFile = [projectNodeForUiFile, project](const Node *qrcNode) {
+            if (projectNodeForUiFile == project->rootProjectNode())
+                return true;
+            ProjectNode *projectNodeForQrcFile = qrcNode->parentProjectNode();
+            while (projectNodeForQrcFile && !projectNodeForQrcFile->isProduct())
+                projectNodeForQrcFile = projectNodeForQrcFile->parentProjectNode();
+            return !projectNodeForQrcFile
+                    || projectNodeForQrcFile == projectNodeForUiFile
+                    || projectNodeForQrcFile->productType() != ProductType::App;
+        };
+
         QStringList projectQrcFiles;
-        root->forEachNode([&](FileNode *node) {
-            if (node->fileType() == FileType::Resource)
+        project->rootProjectNode()->forEachNode([&](FileNode *node) {
+            if (node->fileType() == FileType::Resource && useQrcFile(node))
                 projectQrcFiles.append(node->filePath().toString());
         }, [&](FolderNode *node) {
-            if (dynamic_cast<ResourceEditor::ResourceTopLevelNode *>(node))
+            if (dynamic_cast<ResourceEditor::ResourceTopLevelNode *>(node) && useQrcFile(node))
                 projectQrcFiles.append(node->filePath().toString());
         });
         // Check if the user has chosen to update the lacking resource inside designer
@@ -114,7 +142,7 @@ void ResourceHandler::updateResourcesHelper(bool updateProjectResources)
             }
             if (!qrcPathsToBeAdded.isEmpty()) {
                 m_handlingResources = true;
-                root->addFiles(qrcPathsToBeAdded);
+                projectNodeForUiFile->addFiles(qrcPathsToBeAdded);
                 m_handlingResources = false;
                 projectQrcFiles += qrcPathsToBeAdded;
             }

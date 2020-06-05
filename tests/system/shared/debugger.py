@@ -55,7 +55,7 @@ def takeDebuggerLog():
     debuggerLogWindow = waitForObject("{container=':DebugModeWidget.Debugger Log_QDockWidget' "
                                       "type='Debugger::Internal::DebuggerPane' unnamed='1' visible='1'}")
     debuggerLog = str(debuggerLogWindow.plainText)
-    mouseClick(debuggerLogWindow, 5, 5, 0, Qt.LeftButton)
+    mouseClick(debuggerLogWindow)
     invokeContextMenuItem(debuggerLogWindow, "Clear Contents")
     waitFor("str(debuggerLogWindow.plainText)==''", 5000)
     invokeMenuItem("Window", "Views", "Global Debugger Log")
@@ -255,7 +255,7 @@ def verifyBreakPoint(bpToVerify):
 def __isWinFirewallRunning__():
     if hasattr(__isWinFirewallRunning__, "fireWallState"):
         return __isWinFirewallRunning__.fireWallState
-    if not platform.system() in ('Microsoft' 'Windows'):
+    if platform.system() not in ('Microsoft' 'Windows'):
         __isWinFirewallRunning__.fireWallState = False
         return False
     result = getOutputFromCmdline(["netsh", "firewall", "show", "state"])

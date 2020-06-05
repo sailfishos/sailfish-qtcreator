@@ -77,14 +77,19 @@ class PropertyEditorValue : public QObject
     Q_PROPERTY(QVariant enumeration READ enumeration NOTIFY valueChangedQml)
     Q_PROPERTY(QString expression READ expression WRITE setExpressionWithEmit NOTIFY expressionChanged FINAL)
     Q_PROPERTY(QString valueToString READ valueToString NOTIFY valueChangedQml FINAL)
-    Q_PROPERTY(bool isInModel READ isInModel NOTIFY valueChangedQml FINAL)
-    Q_PROPERTY(bool isInSubState READ isInSubState NOTIFY valueChangedQml FINAL)
+    Q_PROPERTY(bool isInModel READ isInModel NOTIFY isExplicitChanged FINAL)
+    Q_PROPERTY(bool isInSubState READ isInSubState NOTIFY isExplicitChanged FINAL)
     Q_PROPERTY(bool isBound READ isBound NOTIFY isBoundChanged FINAL)
     Q_PROPERTY(bool isValid READ isValid NOTIFY isValidChanged FINAL)
     Q_PROPERTY(bool isTranslated READ isTranslated NOTIFY expressionChanged FINAL)
 
+    Q_PROPERTY(bool isIdList READ isIdList NOTIFY expressionChanged FINAL)
+    Q_PROPERTY(QStringList expressionAsList READ getExpressionAsList NOTIFY expressionChanged FINAL)
+
     Q_PROPERTY(QString name READ nameAsQString FINAL)
     Q_PROPERTY(PropertyEditorNodeWrapper* complexNode READ complexNode NOTIFY complexNodeChanged FINAL)
+
+    Q_PROPERTY(bool isAvailable READ isAvailable NOTIFY isBoundChanged)
 
 public:
     PropertyEditorValue(QObject *parent=nullptr);
@@ -112,6 +117,8 @@ public:
 
     bool isTranslated() const;
 
+    bool isAvailable() const;
+
     QmlDesigner::PropertyName name() const;
     QString nameAsQString() const;
     void setName(const QmlDesigner::PropertyName &name);
@@ -130,6 +137,13 @@ public:
 
     Q_INVOKABLE QString getTranslationContext() const;
 
+    bool isIdList() const;
+
+    Q_INVOKABLE QStringList getExpressionAsList() const;
+    Q_INVOKABLE bool idListAdd(const QString &value);
+    Q_INVOKABLE bool idListRemove(int idx);
+    Q_INVOKABLE bool idListReplace(int idx, const QString &value);
+
 public slots:
     void resetValue();
     void setEnumeration(const QString &scope, const QString &name);
@@ -147,8 +161,12 @@ signals:
     void complexNodeChanged();
     void isBoundChanged();
     void isValidChanged();
+    void isExplicitChanged();
 
-private: //variables
+private:
+    QStringList generateStringList(const QString &string) const;
+    QString generateString(const QStringList &stringList) const;
+
     QmlDesigner::ModelNode m_modelNode;
     QVariant m_value;
     QString m_expression;

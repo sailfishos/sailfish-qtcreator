@@ -27,20 +27,26 @@
 
 #include <debugger/debuggerruncontrol.h>
 
+namespace ProjectExplorer {
+class RunControl;
+}
+
 namespace BareMetal {
 namespace Internal {
 
-class BareMetalDebugSupport : public Debugger::DebuggerRunTool
+class IDebugServerProvider;
+
+// BareMetalDebugSupport
+
+class BareMetalDebugSupport final : public Debugger::DebuggerRunTool
 {
     Q_OBJECT
 
 public:
-    BareMetalDebugSupport(ProjectExplorer::RunControl *runControl);
+    explicit BareMetalDebugSupport(ProjectExplorer::RunControl *runControl);
 
 private:
-    void start() override;
-
-    ProjectExplorer::SimpleTargetRunner *m_gdbServer = nullptr;
+    void start() final;
 };
 
 } // namespace Internal

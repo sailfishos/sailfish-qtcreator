@@ -53,7 +53,7 @@ using namespace Utils;
 ToolWidget::ToolWidget(QWidget *parent) : FadingPanel(parent)
 {
     auto layout = new QHBoxLayout;
-    layout->setMargin(4);
+    layout->setContentsMargins(4, 4, 4, 4);
     layout->setSpacing(4);
     setLayout(layout);
     m_firstWidget = new FadingWidget(this);
@@ -75,7 +75,7 @@ ToolWidget::ToolWidget(QWidget *parent) : FadingPanel(parent)
     m_secondWidget = new FadingWidget(this);
     m_secondWidget->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
     hbox = new QHBoxLayout();
-    hbox->setMargin(0);
+    hbox->setContentsMargins(0, 0, 0, 0);
     hbox->setSpacing(4);
     m_secondWidget->setLayout(hbox);
 
@@ -191,9 +191,33 @@ BuildStepsWidgetData::~BuildStepsWidgetData()
     // We do not own the step
 }
 
-BuildStepListWidget::BuildStepListWidget(QWidget *parent) :
-    NamedWidget(parent)
-{ }
+BuildStepListWidget::BuildStepListWidget(BuildStepList *bsl)
+    //: %1 is the name returned by BuildStepList::displayName
+    : NamedWidget(tr("%1 Steps").arg(bsl->displayName())), m_buildStepList(bsl)
+{
+    setupUi();
+
+    connect(bsl, &BuildStepList::stepInserted, this, &BuildStepListWidget::addBuildStep);
+    connect(bsl, &BuildStepList::stepRemoved, this, &BuildStepListWidget::removeBuildStep);
+    connect(bsl, &BuildStepList::stepMoved, this, &BuildStepListWidget::stepMoved);
+
+    for (int i = 0; i < bsl->count(); ++i) {
+        addBuildStep(i);
+        // addBuilStep expands the config widget by default, which we don't want here
+        if (m_buildStepsData.at(i)->step->widgetExpandedByDefault()) {
+            m_buildStepsData.at(i)->detailsWidget->setState(
+                        m_buildStepsData.at(i)->step->wasUserExpanded()
+                        ? DetailsWidget::Expanded : DetailsWidget::Collapsed);
+        }
+    }
+
+    m_noStepsLabel->setVisible(bsl->isEmpty());
+    m_noStepsLabel->setText(tr("No %1 Steps").arg(m_buildStepList->displayName()));
+
+    m_addButton->setText(tr("Add %1 Step").arg(m_buildStepList->displayName()));
+
+    updateBuildStepButtonsState();
+}
 
 BuildStepListWidget::~BuildStepListWidget()
 {
@@ -225,49 +249,6 @@ void BuildStepListWidget::updateEnabledState()
             }
         }
     }
-}
-
-void BuildStepListWidget::init(BuildStepList *bsl)
-{
-    Q_ASSERT(bsl);
-    if (bsl == m_buildStepList)
-        return;
-
-    setupUi();
-
-    if (m_buildStepList) {
-        disconnect(m_buildStepList, &BuildStepList::stepInserted,
-                   this, &BuildStepListWidget::addBuildStep);
-        disconnect(m_buildStepList, &BuildStepList::stepRemoved,
-                   this, &BuildStepListWidget::removeBuildStep);
-        disconnect(m_buildStepList, &BuildStepList::stepMoved,
-                   this, &BuildStepListWidget::stepMoved);
-    }
-
-    connect(bsl, &BuildStepList::stepInserted, this, &BuildStepListWidget::addBuildStep);
-    connect(bsl, &BuildStepList::stepRemoved, this, &BuildStepListWidget::removeBuildStep);
-    connect(bsl, &BuildStepList::stepMoved, this, &BuildStepListWidget::stepMoved);
-
-    qDeleteAll(m_buildStepsData);
-    m_buildStepsData.clear();
-
-    m_buildStepList = bsl;
-    //: %1 is the name returned by BuildStepList::displayName
-    setDisplayName(tr("%1 Steps").arg(m_buildStepList->displayName()));
-
-    for (int i = 0; i < bsl->count(); ++i) {
-        addBuildStep(i);
-        // addBuilStep expands the config widget by default, which we don't want here
-        if (m_buildStepsData.at(i)->step->widgetExpandedByDefault())
-            m_buildStepsData.at(i)->detailsWidget->setState(DetailsWidget::Collapsed);
-    }
-
-    m_noStepsLabel->setVisible(bsl->isEmpty());
-    m_noStepsLabel->setText(tr("No %1 Steps").arg(m_buildStepList->displayName()));
-
-    m_addButton->setText(tr("Add %1 Step").arg(m_buildStepList->displayName()));
-
-    updateBuildStepButtonsState();
 }
 
 void BuildStepListWidget::updateAddBuildStepMenu()
@@ -323,10 +304,10 @@ void BuildStepListWidget::addBuildStep(int pos)
             this, &BuildStepListWidget::updateEnabledState);
 
     // Expand new build steps by default
-    if (newStep->widgetExpandedByDefault())
-        s->detailsWidget->setState(DetailsWidget::Expanded);
-    else
-        s->detailsWidget->setState(DetailsWidget::OnlySummary);
+    const bool expand = newStep->hasUserExpansionState()
+            ? newStep->wasUserExpanded() : newStep->widgetExpandedByDefault();
+    s->detailsWidget->setState(expand ? DetailsWidget::Expanded : DetailsWidget::OnlySummary);
+    connect(s->detailsWidget, &DetailsWidget::expanded, newStep, &BuildStep::setUserExpanded);
 
     m_noStepsLabel->setVisible(false);
     updateBuildStepButtonsState();
@@ -422,21 +403,4 @@ void BuildStepListWidget::updateBuildStepButtonsState()
         s->toolWidget->setDownVisible(m_buildStepList->count() != 1);
         s->toolWidget->setUpVisible(m_buildStepList->count() != 1);
     }
-}
-
-BuildStepsPage::BuildStepsPage(BuildConfiguration *bc, Core::Id id) :
-    m_id(id),
-    m_widget(new BuildStepListWidget(this))
-{
-    auto layout = new QVBoxLayout(this);
-    layout->setMargin(0);
-    layout->setSpacing(0);
-    layout->addWidget(m_widget);
-
-    m_widget->init(bc->stepList(m_id));
-
-    if (m_id == Constants::BUILDSTEPS_BUILD)
-        setDisplayName(tr("Build Steps"));
-    if (m_id == Constants::BUILDSTEPS_CLEAN)
-        setDisplayName(tr("Clean Steps"));
 }

@@ -37,7 +37,6 @@
 #include <QHelpEngine>
 #include <QStyle>
 #include <QTimer>
-#include <QtMac>
 #include <QToolTip>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -336,7 +335,6 @@ static NSMenuItem *menuItem(NSURL *url, id target, SEL action, const QString &ti
         case WebMenuItemTagGoBack:
         case WebMenuItemTagGoForward:
         case WebMenuItemTagStop:
-        case WebMenuItemTagReload:
         case WebMenuItemTagOther:
         case WebMenuItemTagSearchInSpotlight:
         case WebMenuItemTagSearchWeb:

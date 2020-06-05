@@ -6,18 +6,11 @@ include(../../shared/clang/clang_defines.pri)
 
 requires(!isEmpty(CLANGFORMAT_LIBS))
 
-win32 {
-    LLVM_BUILDMODE = $$system($$llvm_config --build-mode, lines)
-    CONFIG(debug, debug|release):requires(equals(LLVM_BUILDMODE, "Debug"))
-}
-
 LIBS += $$CLANGFORMAT_LIBS
 INCLUDEPATH += $$LLVM_INCLUDEPATH
 
 QMAKE_CXXFLAGS_WARN_ON *= $$LLVM_CXXFLAGS_WARNINGS
 QMAKE_CXXFLAGS *= $$LLVM_CXXFLAGS
-# clang/Format/Format.h has intentional multiline comments
-gcc:QMAKE_CXXFLAGS *= -Wno-comment
 unix:!macos:QMAKE_LFLAGS += -Wl,--exclude-libs,ALL
 
 SOURCES += \
@@ -35,4 +28,5 @@ HEADERS += \
     clangformatutils.h
 
 FORMS += \
+    clangformatchecks.ui \
     clangformatconfigwidget.ui

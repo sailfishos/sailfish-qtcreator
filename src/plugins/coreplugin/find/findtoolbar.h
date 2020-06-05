@@ -33,34 +33,11 @@
 
 #include <QTimer>
 
-QT_BEGIN_NAMESPACE
-class QCheckBox;
-QT_END_NAMESPACE
-
 namespace Core {
 
 class FindToolBarPlaceHolder;
 
 namespace Internal {
-
-class OptionsPopup : public QWidget
-{
-    Q_OBJECT
-
-public:
-    explicit OptionsPopup(QWidget *parent);
-
-protected:
-    bool event(QEvent *ev) override;
-    bool eventFilter(QObject *obj, QEvent *ev) override;
-
-private:
-    void actionChanged();
-
-    QCheckBox *createCheckboxForCommand(Id id);
-
-    QMap<QAction *, QCheckBox *> m_checkboxMap;
-};
 
 class FindToolBar : public Utils::StyledBar
 {

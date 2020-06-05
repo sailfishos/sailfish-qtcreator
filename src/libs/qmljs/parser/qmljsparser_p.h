@@ -1,13 +1,10 @@
-
-#line 178 "qmljs.g"
 /****************************************************************************
 **
 ** Copyright (C) 2016 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
-** This file is part of the QtQml module of the Qt Toolkit.
+** This file is part of Qt Creator.
 **
-** $QT_BEGIN_LICENSE:LGPL$
 ** Commercial License Usage
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
@@ -16,28 +13,16 @@
 ** and conditions see https://www.qt.io/terms-conditions. For further
 ** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 3 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL3 included in the
-** packaging of this file. Please review the following information to
-** ensure the GNU Lesser General Public License version 3 requirements
-** will be met: https://www.gnu.org/licenses/lgpl-3.0.html.
-**
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 2.0 or (at your option) the GNU General
-** Public license version 3 or any later version approved by the KDE Free
-** Qt Foundation. The licenses are as published by the Free Software
-** Foundation and appearing in the file LICENSE.GPL2 and LICENSE.GPL3
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
 ** included in the packaging of this file. Please review the following
 ** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-2.0.html and
-** https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
+#line 223 "qmljs.g"
 
 
 //
@@ -66,10 +51,11 @@
 #ifndef QMLJSPARSER_P_H
 #define QMLJSPARSER_P_H
 
-#include "qmljsglobal_p.h"
-#include "qmljsgrammar_p.h"
-#include "qmljsast_p.h"
-#include "qmljsengine_p.h"
+#include "qmljs/parser/qmljsglobal_p.h"
+#include "qmljs/parser/qmljsgrammar_p.h"
+#include "qmljs/parser/qmljsast_p.h"
+#include "qmljs/parser/qmljsengine_p.h"
+#include "qmljs/parser/qmljsdiagnosticmessage_p.h"
 
 #include <QtCore/qlist.h>
 #include <QtCore/qstring.h>
@@ -122,6 +108,9 @@ public:
       AST::ExportsList *ExportsList;
       AST::ExportClause *ExportClause;
       AST::ExportDeclaration *ExportDeclaration;
+      AST::TypeAnnotation *TypeAnnotation;
+      AST::TypeArgumentList *TypeArgumentList;
+      AST::Type *Type;
 
       AST::UiProgram *UiProgram;
       AST::UiHeaderItemList *UiHeaderItemList;
@@ -139,6 +128,9 @@ public:
       AST::UiArrayMemberList *UiArrayMemberList;
       AST::UiQualifiedId *UiQualifiedId;
       AST::UiEnumMemberList *UiEnumMemberList;
+      AST::UiVersionSpecifier *UiVersionSpecifier;
+      AST::UiAnnotation *UiAnnotation;
+      AST::UiAnnotationList *UiAnnotationList;
     };
 
 public:
@@ -217,7 +209,10 @@ protected:
     inline QStringRef &stringRef(int index)
     { return string_stack [tos + index - 1]; }
 
-    inline AST::SourceLocation &loc(int index)
+    inline QStringRef &rawStringRef(int index)
+    { return rawString_stack [tos + index - 1]; }
+
+    inline SourceLocation &loc(int index)
     { return location_stack [tos + index - 1]; }
 
     AST::UiQualifiedId *reparseAsQualifiedId(AST::ExpressionNode *expr);
@@ -225,12 +220,24 @@ protected:
     void pushToken(int token);
     int lookaheadToken(Lexer *lexer);
 
-    void syntaxError(const AST::SourceLocation &location, const char *message) {
-        diagnostic_messages.append(DiagnosticMessage(Severity::Error, location, QLatin1String(message)));
+    static DiagnosticMessage compileError(const SourceLocation &location,
+                                          const QString &message, QtMsgType kind = QtCriticalMsg)
+    {
+        DiagnosticMessage error;
+        error.loc = location;
+        error.message = message;
+        error.kind = DiagnosticMessage::qtMsgTypeToKind(kind);
+        return error;
+    }
+
+    void syntaxError(const SourceLocation &location, const char *message) {
+        diagnostic_messages.append(compileError(location, QLatin1String(message)));
      }
-     void syntaxError(const AST::SourceLocation &location, const QString &message) {
-         diagnostic_messages.append(DiagnosticMessage(Severity::Error, location, message));
+     void syntaxError(const SourceLocation &location, const QString &message) {
+        diagnostic_messages.append(compileError(location, message));
       }
+
+    bool ensureNoFunctionTypeAnnotations(AST::TypeAnnotation *returnTypeAnnotation, AST::FormalParameterList *formals);
 
 protected:
     Engine *driver;
@@ -239,8 +246,9 @@ protected:
     int stack_size = 0;
     Value *sym_stack = nullptr;
     int *state_stack = nullptr;
-    AST::SourceLocation *location_stack = nullptr;
+    SourceLocation *location_stack = nullptr;
     QVector<QStringRef> string_stack;
+    QVector<QStringRef> rawString_stack;
 
     AST::Node *program = nullptr;
 
@@ -250,15 +258,17 @@ protected:
     struct SavedToken {
        int token;
        double dval;
-       AST::SourceLocation loc;
+       SourceLocation loc;
        QStringRef spell;
+       QStringRef raw;
     };
 
     int yytoken = -1;
     double yylval = 0.;
     QStringRef yytokenspell;
-    AST::SourceLocation yylloc;
-    AST::SourceLocation yyprevlloc;
+    QStringRef yytokenraw;
+    SourceLocation yylloc;
+    SourceLocation yyprevlloc;
 
     SavedToken token_buffer[TOKEN_BUFFER_SIZE];
     SavedToken *first_token = nullptr;
@@ -271,7 +281,7 @@ protected:
         CE_ParenthesizedExpression,
         CE_FormalParameterList
     };
-    AST::SourceLocation coverExpressionErrorLocation;
+    SourceLocation coverExpressionErrorLocation;
     CoverExpressionType coverExpressionType = CE_Invalid;
 
     QList<DiagnosticMessage> diagnostic_messages;
@@ -281,27 +291,27 @@ protected:
 
 
 
-#line 1511 "qmljs.g"
+#line 1828 "qmljs.g"
 
-#define J_SCRIPT_REGEXPLITERAL_RULE1 128
+#define J_SCRIPT_REGEXPLITERAL_RULE1 161
 
-#line 1523 "qmljs.g"
+#line 1840 "qmljs.g"
 
-#define J_SCRIPT_REGEXPLITERAL_RULE2 129
+#define J_SCRIPT_REGEXPLITERAL_RULE2 162
 
-#line 3022 "qmljs.g"
+#line 3389 "qmljs.g"
 
-#define J_SCRIPT_EXPRESSIONSTATEMENTLOOKAHEAD_RULE 421
+#define J_SCRIPT_EXPRESSIONSTATEMENTLOOKAHEAD_RULE 460
 
-#line 3653 "qmljs.g"
+#line 4041 "qmljs.g"
 
-#define J_SCRIPT_CONCISEBODYLOOKAHEAD_RULE 499
+#define J_SCRIPT_CONCISEBODYLOOKAHEAD_RULE 530
 
-#line 4181 "qmljs.g"
+#line 4583 "qmljs.g"
 
-#define J_SCRIPT_EXPORTDECLARATIONLOOKAHEAD_RULE 569
+#define J_SCRIPT_EXPORTDECLARATIONLOOKAHEAD_RULE 599
 
-#line 4469 "qmljs.g"
+#line 4867 "qmljs.g"
 
 QT_QML_END_NAMESPACE
 

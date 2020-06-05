@@ -28,7 +28,7 @@ source("../../shared/qtcreator.py")
 # entry of test
 def main():
     # prepare example project
-    sourceExample = os.path.join(Qt5Path.examplesPath(Targets.DESKTOP_5_6_1_DEFAULT),
+    sourceExample = os.path.join(Qt5Path.examplesPath(Targets.DESKTOP_5_14_1_DEFAULT),
                                  "quick", "animation")
     proFile = "animation.pro"
     if not neededFilePresent(os.path.join(sourceExample, proFile)):
@@ -42,6 +42,7 @@ def main():
     # open example project, supports only Qt 5
     targets = Targets.desktopTargetClasses()
     targets.discard(Targets.DESKTOP_4_8_7_DEFAULT)
+    targets.discard(Targets.DESKTOP_5_4_1_GCC)
     openQmakeProject(examplePath, targets)
     # build and wait until finished - on all build configurations
     availableConfigs = iterateBuildConfigs()
@@ -51,14 +52,14 @@ def main():
         selectBuildConfig(kit, config)
         # try to build project
         test.log("Testing build configuration: " + config)
-        invokeMenuItem("Build", "Build All")
+        invokeMenuItem("Build", "Build All Projects")
         waitForCompile()
         # verify build successful
         ensureChecked(waitForObject(":Qt Creator_CompileOutput_Core::Internal::OutputPaneToggleButton"))
         compileOutput = waitForObject(":Qt Creator.Compile Output_Core::OutputWindow")
         if not test.verify(compileSucceeded(compileOutput.plainText),
                            "Verifying building of existing complex qt application."):
-            test.log(compileOutput.plainText)
+            test.log(str(compileOutput.plainText))
     # exit
     invokeMenuItem("File", "Exit")
 # no cleanup needed, as whole testing directory gets properly removed after test finished

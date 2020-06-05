@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include <coreplugin/welcomepagehelper.h>
+
 #include <qtsupport/baseqtversion.h>
 
 #include <QAbstractListModel>
@@ -43,21 +45,25 @@ class ExampleSetModel : public QStandardItemModel
     Q_OBJECT
 
 public:
+    struct ExtraExampleSet
+    {
+        QString displayName;
+        QString manifestPath;
+        QString examplesPath;
+    };
+    static QVector<ExtraExampleSet> pluginRegisteredExampleSets();
+
     ExampleSetModel();
 
     int selectedExampleSet() const { return m_selectedExampleSetIndex; }
     void selectExampleSet(int index);
     QStringList exampleSources(QString *examplesInstallPath, QString *demosInstallPath);
+    bool selectedQtSupports(const Core::Id &target) const;
 
 signals:
     void selectedExampleSetChanged(int);
 
 private:
-    struct ExtraExampleSet {
-        QString displayName;
-        QString manifestPath;
-        QString examplesPath;
-    };
 
     enum ExampleSetType {
         InvalidExampleSet,
@@ -84,9 +90,9 @@ private:
     void helpManagerInitialized();
     void tryToInitialize();
 
-    QList<ExtraExampleSet> m_extraExampleSets;
-    QList<BaseQtVersion*> m_qtVersions;
+    QVector<ExtraExampleSet> m_extraExampleSets;
     int m_selectedExampleSetIndex = -1;
+    QSet<Core::Id> m_selectedQtTypes;
 
     bool m_qtVersionManagerInitialized = false;
     bool m_helpManagerInitialized = false;
@@ -98,17 +104,13 @@ enum InstructionalType
     Example = 0, Demo, Tutorial
 };
 
-class ExampleItem
+class ExampleItem : public Core::ListItem
 {
 public:
-    QString name;
     QString projectPath;
-    QString description;
-    QString imageUrl;
     QString docUrl;
     QStringList filesToOpen;
     QString mainFile; /* file to be visible after opening filesToOpen */
-    QStringList tags;
     QStringList dependencies;
     InstructionalType type;
     int difficulty = 0;
@@ -121,19 +123,12 @@ public:
     QStringList preferredFeatures;
 };
 
-class ExamplesListModel : public QAbstractListModel
+class ExamplesListModel : public Core::ListModel
 {
     Q_OBJECT
-
 public:
-    enum ExampleListDataRole {
-        ExampleItemRole = Qt::UserRole,
-        ExampleImageRole = Qt::UserRole + 1
-    };
-
     explicit ExamplesListModel(QObject *parent);
 
-    int rowCount(const QModelIndex &parent = QModelIndex()) const final;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const final;
 
     void updateExamples();
@@ -141,7 +136,7 @@ public:
     QStringList exampleSets() const;
     ExampleSetModel *exampleSetModel() { return &m_exampleSetModel; }
 
-    static const QSize exampleImageSize;
+    QPixmap fetchPixmapAndUpdatePixmapCache(const QString &url) const override;
 
 signals:
     void selectedExampleSetChanged(int);
@@ -156,32 +151,22 @@ private:
     void parseTutorials(QXmlStreamReader *reader, const QString &projectsOffset);
 
     ExampleSetModel m_exampleSetModel;
-    QList<ExampleItem> m_exampleItems;
 };
 
-class ExamplesListModelFilter : public QSortFilterProxyModel
+class ExamplesListModelFilter : public Core::ListModelFilter
 {
-    Q_OBJECT
-
 public:
     ExamplesListModelFilter(ExamplesListModel *sourceModel, bool showTutorialsOnly, QObject *parent);
 
-    void setSearchString(const QString &arg);
-
+protected:
+    bool leaveFilterAcceptsRowBeforeFiltering(const Core::ListItem *item,
+                                              bool *earlyExitResult) const override;
 private:
-    bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const final;
-    void timerEvent(QTimerEvent *event) final;
-
-    void delayedUpdateFilter();
-
     const bool m_showTutorialsOnly;
-    QString m_searchString;
-    QStringList m_filterTags;
-    QStringList m_filterStrings;
-    int m_timerId = 0;
+    ExamplesListModel *m_examplesListModel = nullptr;
 };
 
 } // namespace Internal
 } // namespace QtSupport
 
-Q_DECLARE_METATYPE(QtSupport::Internal::ExampleItem)
+Q_DECLARE_METATYPE(QtSupport::Internal::ExampleItem *)

@@ -24,6 +24,7 @@
 ****************************************************************************/
 
 #include "googletest.h"
+#include "mockfilesystem.h"
 
 #include <filepathcaching.h>
 #include <modifiedtimechecker.h>
@@ -39,33 +40,48 @@ using ClangBackEnd::FilePathView;
 class ModifiedTimeChecker : public testing::Test
 {
 protected:
-
-    ClangBackEnd::FilePathId id(const Utils::SmallStringView &path) const
-    {
-        return filePathCache.filePathId(ClangBackEnd::FilePathView{path});
-    }
-
-
     ModifiedTimeChecker()
     {
-        ON_CALL(getModifiedTimeCallback, Call(Eq(FilePathView("/path1")))).WillByDefault(Return(50));
-        ON_CALL(getModifiedTimeCallback, Call(Eq(FilePathView("/path2")))).WillByDefault(Return(30));
+        ON_CALL(mockFileSystem, lastModified(Eq(1))).WillByDefault(Return(50));
+        ON_CALL(mockFileSystem, lastModified(Eq(2))).WillByDefault(Return(30));
+        ON_CALL(mockFileSystem, lastModified(Eq(3))).WillByDefault(Return(50));
+        ON_CALL(mockFileSystem, lastModified(Eq(4))).WillByDefault(Return(30));
     }
-    NiceMock<MockFunction<ClangBackEnd::TimeStamp(ClangBackEnd::FilePathView filePath)>> getModifiedTimeCallback;
-    Sqlite::Database database{":memory:", Sqlite::JournalMode::Memory};
-    ClangBackEnd::RefactoringDatabaseInitializer<Sqlite::Database> databaseInitializer{database};
-    ClangBackEnd::FilePathCaching filePathCache{database};
-    decltype(getModifiedTimeCallback.AsStdFunction()) callback = getModifiedTimeCallback
-                                                                     .AsStdFunction();
-    ClangBackEnd::ModifiedTimeChecker checker{callback, filePathCache};
-    SourceEntries upToDateEntries = {{id("/path1"), SourceType::UserInclude, 100},
-                                     {id("/path2"), SourceType::SystemInclude, 30}};
-    SourceEntries notUpToDateEntries = {{id("/path1"), SourceType::UserInclude, 50},
-                                        {id("/path2"), SourceType::SystemInclude, 20}};
+
+    NiceMock<MockFileSystem> mockFileSystem;
+    ClangBackEnd::ModifiedTimeChecker<> checker{mockFileSystem};
+    SourceEntries upToDateEntries = {{1, SourceType::UserInclude, 51},
+                                     {2, SourceType::SystemInclude, 30},
+                                     {3, SourceType::UserInclude, 50},
+                                     {4, SourceType::SystemInclude, 31}};
+    SourceEntries equalEntries = {{1, SourceType::UserInclude, 50},
+                                  {2, SourceType::SystemInclude, 30},
+                                  {3, SourceType::UserInclude, 50},
+                                  {4, SourceType::SystemInclude, 30}};
+    SourceEntries notUpToDateEntries = {{1, SourceType::UserInclude, 50},
+                                        {2, SourceType::SystemInclude, 29},
+                                        {3, SourceType::UserInclude, 50},
+                                        {4, SourceType::SystemInclude, 30}};
 };
 
 TEST_F(ModifiedTimeChecker, IsUpToDate)
 {
+    auto isUpToDate = checker.isUpToDate(upToDateEntries);
+
+    ASSERT_TRUE(isUpToDate);
+}
+
+TEST_F(ModifiedTimeChecker, EqualEntriesAreUpToDate)
+{
+    auto isUpToDate = checker.isUpToDate(equalEntries);
+
+    ASSERT_TRUE(isUpToDate);
+}
+
+TEST_F(ModifiedTimeChecker, IsUpToDateSecondRun)
+{
+    checker.isUpToDate(upToDateEntries);
+
     auto isUpToDate = checker.isUpToDate(upToDateEntries);
 
     ASSERT_TRUE(isUpToDate);
@@ -80,7 +96,16 @@ TEST_F(ModifiedTimeChecker, IsNotUpToDateIfSourceEntriesAreEmpty)
 
 TEST_F(ModifiedTimeChecker, IsNotUpToDate)
 {
-    auto isUpToDate = checker.isUpToDate({});
+    auto isUpToDate = checker.isUpToDate(notUpToDateEntries);
+
+    ASSERT_FALSE(isUpToDate);
+}
+
+TEST_F(ModifiedTimeChecker, IsNotUpToDateSecondRun)
+{
+    checker.isUpToDate(notUpToDateEntries);
+
+    auto isUpToDate = checker.isUpToDate(notUpToDateEntries);
 
     ASSERT_FALSE(isUpToDate);
 }
@@ -89,19 +114,19 @@ TEST_F(ModifiedTimeChecker, PathChangesUpdatesTimeStamps)
 {
     checker.isUpToDate(upToDateEntries);
 
-    EXPECT_CALL(getModifiedTimeCallback, Call(Eq(FilePathView("/path1"))));
-    EXPECT_CALL(getModifiedTimeCallback, Call(Eq(FilePathView("/path2"))));
+    EXPECT_CALL(mockFileSystem, lastModified(Eq(2)));
+    EXPECT_CALL(mockFileSystem, lastModified(Eq(3)));
 
-    checker.pathsChanged({id(FilePathView("/path1")), id(FilePathView("/path2")), id(FilePathView("/path3"))});
+    checker.pathsChanged({2, 3});
 }
 
 TEST_F(ModifiedTimeChecker, IsNotUpToDateAnyMoreAfterUpdating)
 {
     checker.isUpToDate(upToDateEntries);
-    ON_CALL(getModifiedTimeCallback, Call(Eq(FilePathView("/path1")))).WillByDefault(Return(120));
-    ON_CALL(getModifiedTimeCallback, Call(Eq(FilePathView("/path2")))).WillByDefault(Return(30));
+    ON_CALL(mockFileSystem, lastModified(Eq(1))).WillByDefault(Return(120));
+    ON_CALL(mockFileSystem, lastModified(Eq(2))).WillByDefault(Return(30));
 
-    checker.pathsChanged({id(FilePathView("/path1")), id(FilePathView("/path2")), id(FilePathView("/path3"))});
+    checker.pathsChanged({1, 2, 3});
 
     ASSERT_FALSE(checker.isUpToDate(upToDateEntries));
 }

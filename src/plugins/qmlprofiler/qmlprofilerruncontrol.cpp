@@ -88,7 +88,8 @@ QmlProfilerRunner::~QmlProfilerRunner()
 
 void QmlProfilerRunner::start()
 {
-    emit starting(this);
+    if (!d->m_profilerState)
+        QmlProfilerTool::instance()->finalizeRunControl(this);
     QTC_ASSERT(d->m_profilerState, return);
     reportStarted();
 }
@@ -204,9 +205,8 @@ QUrl QmlProfilerRunner::serverUrl() const
 static QUrl localServerUrl(RunControl *runControl)
 {
     QUrl serverUrl;
-    RunConfiguration *runConfiguration = runControl->runConfiguration();
-    Kit *kit = runConfiguration->target()->kit();
-    const QtSupport::BaseQtVersion *version = QtSupport::QtKitInformation::qtVersion(kit);
+    Kit *kit = runControl->kit();
+    const QtSupport::BaseQtVersion *version = QtSupport::QtKitAspect::qtVersion(kit);
     if (version) {
         if (version->qtVersion() >= QtSupport::QtVersionNumber(5, 6, 0))
             serverUrl = Utils::urlFromLocalSocket();
@@ -219,47 +219,46 @@ static QUrl localServerUrl(RunControl *runControl)
     return serverUrl;
 }
 
-LocalQmlProfilerSupport::LocalQmlProfilerSupport(QmlProfilerTool *profilerTool,
-                                                 RunControl *runControl)
-    : LocalQmlProfilerSupport(profilerTool, runControl, localServerUrl(runControl))
+LocalQmlProfilerSupport::LocalQmlProfilerSupport(RunControl *runControl)
+    : LocalQmlProfilerSupport(runControl, localServerUrl(runControl))
 {
 }
 
-LocalQmlProfilerSupport::LocalQmlProfilerSupport(QmlProfilerTool *profilerTool,
-                                                 RunControl *runControl, const QUrl &serverUrl)
+LocalQmlProfilerSupport::LocalQmlProfilerSupport(RunControl *runControl, const QUrl &serverUrl)
     : SimpleTargetRunner(runControl)
 {
     setId("LocalQmlProfilerSupport");
 
     auto profiler = new QmlProfilerRunner(runControl);
     profiler->setServerUrl(serverUrl);
-    connect(profiler, &QmlProfilerRunner::starting,
-            profilerTool, &QmlProfilerTool::finalizeRunControl);
 
     addStopDependency(profiler);
     // We need to open the local server before the application tries to connect.
     // In the TCP case, it doesn't hurt either to start the profiler before.
     addStartDependency(profiler);
 
-    Runnable debuggee = runnable();
+    setStarter([this, runControl, profiler, serverUrl] {
+        Runnable debuggee = runControl->runnable();
 
-    QString code;
-    if (serverUrl.scheme() == Utils::urlSocketScheme())
-        code = QString("file:%1").arg(serverUrl.path());
-    else if (serverUrl.scheme() == Utils::urlTcpScheme())
-        code = QString("port:%1").arg(serverUrl.port());
-    else
-        QTC_CHECK(false);
+        QUrl serverUrl = profiler->serverUrl();
+        QString code;
+        if (serverUrl.scheme() == Utils::urlSocketScheme())
+            code = QString("file:%1").arg(serverUrl.path());
+        else if (serverUrl.scheme() == Utils::urlTcpScheme())
+            code = QString("port:%1").arg(serverUrl.port());
+        else
+            QTC_CHECK(false);
 
-    QString arguments = Utils::QtcProcess::quoteArg(
-                QmlDebug::qmlDebugCommandLineArguments(QmlDebug::QmlProfilerServices, code, true));
+        QString arguments = Utils::QtcProcess::quoteArg(
+                                QmlDebug::qmlDebugCommandLineArguments(QmlDebug::QmlProfilerServices, code, true));
 
-    if (!debuggee.commandLineArguments.isEmpty())
-        arguments += ' ' + debuggee.commandLineArguments;
+        if (!debuggee.commandLineArguments.isEmpty())
+            arguments += ' ' + debuggee.commandLineArguments;
 
-    debuggee.commandLineArguments = arguments;
+        debuggee.commandLineArguments = arguments;
 
-    setRunnable(debuggee);
+        doStart(debuggee, {});
+    });
 }
 
 } // namespace Internal

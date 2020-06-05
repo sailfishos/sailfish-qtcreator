@@ -34,13 +34,7 @@ class ClangFormatPlugin : public ExtensionSystem::IPlugin
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "ClangFormat.json")
 
-public:
-    ClangFormatPlugin();
-    ~ClangFormatPlugin();
-
-private:
     bool initialize(const QStringList &arguments, QString *errorString) final;
-    void extensionsInitialized() final {}
 };
 
 } // namespace ClangTools

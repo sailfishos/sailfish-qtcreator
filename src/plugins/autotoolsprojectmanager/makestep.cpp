@@ -26,18 +26,35 @@
 ****************************************************************************/
 
 #include "makestep.h"
-#include "autotoolsproject.h"
 #include "autotoolsprojectconstants.h"
-#include "autotoolsbuildconfiguration.h"
 
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/projectexplorerconstants.h>
 
-using namespace AutotoolsProjectManager;
-using namespace AutotoolsProjectManager::Internal;
 using namespace AutotoolsProjectManager::Constants;
 
-const char MAKE_STEP_ID[] = "AutotoolsProjectManager.MakeStep";
+namespace AutotoolsProjectManager {
+namespace Internal {
+
+// MakeStep
+
+class MakeStep : public ProjectExplorer::MakeStep
+{
+public:
+    MakeStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
+};
+
+MakeStep::MakeStep(ProjectExplorer::BuildStepList *bsl, Core::Id id)
+    : ProjectExplorer::MakeStep(bsl, id)
+{
+    setAvailableBuildTargets({"all", "clean"});
+    if (bsl->id() == ProjectExplorer::Constants::BUILDSTEPS_CLEAN) {
+        setBuildTarget("clean", true);
+        setClean(true);
+    } else {
+        setBuildTarget("all", true);
+    }
+}
 
 // MakeStepFactory
 
@@ -48,15 +65,5 @@ MakeStepFactory::MakeStepFactory()
     setSupportedProjectType(AUTOTOOLS_PROJECT_ID);
 }
 
-// MakeStep
-
-MakeStep::MakeStep(ProjectExplorer::BuildStepList *bsl)
-    : ProjectExplorer::MakeStep(bsl, MAKE_STEP_ID, QString(), {"all", "clean"})
-{
-    if (bsl->id() == ProjectExplorer::Constants::BUILDSTEPS_CLEAN) {
-        setBuildTarget("clean", true);
-        setClean(true);
-    } else {
-        setBuildTarget("all", true);
-    }
-}
+} // Internal
+} // AutotoolsProjectManager

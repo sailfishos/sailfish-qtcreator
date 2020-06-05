@@ -40,6 +40,33 @@ def is_linux_platform():
 def is_mac_platform():
     return sys.platform.startswith('darwin')
 
+def check_print_call(command, workdir):
+    print('------------------------------------------')
+    print('COMMAND:')
+    print(' '.join(['"' + c.replace('"', '\\"') + '"' for c in command]))
+    print('PWD:      "' + workdir + '"')
+    print('------------------------------------------')
+    subprocess.check_call(command, cwd=workdir)
+
+
+def get_git_SHA(path):
+    try:
+        return subprocess.check_output(['git', 'rev-list', '-n1', 'HEAD'], cwd=path).strip()
+    except subprocess.CalledProcessError:
+        return None
+    return None
+
+
+# get commit SHA either directly from git, or from a .tag file in the source directory
+def get_commit_SHA(path):
+    git_sha = get_git_SHA(path)
+    if not git_sha:
+        tagfile = os.path.join(path, '.tag')
+        if os.path.exists(tagfile):
+            with open(tagfile, 'r') as f:
+                git_sha = f.read().strip()
+    return git_sha
+
 # copy of shutil.copytree that does not bail out if the target directory already exists
 # and that does not create empty directories
 def copytree(src, dst, symlinks=False, ignore=None):
@@ -91,7 +118,8 @@ def copytree(src, dst, symlinks=False, ignore=None):
 
 def get_qt_install_info(qmake_bin):
     output = subprocess.check_output([qmake_bin, '-query'])
-    lines = output.decode(encoding).strip().split('\n')
+    decoded_output = output.decode(encoding) if encoding else output
+    lines = decoded_output.strip().split('\n')
     info = {}
     for line in lines:
         (var, sep, value) = line.partition(':')
@@ -178,12 +206,39 @@ def is_not_debug(path, filenames):
     files = [fn for fn in filenames if os.path.isfile(os.path.join(path, fn))]
     return [fn for fn in files if not is_debug_file(os.path.join(path, fn))]
 
-def codesign(app_path):
+def codesign_call():
     signing_identity = os.environ.get('SIGNING_IDENTITY')
-    if is_mac_platform() and signing_identity:
-        codesign_call = ['codesign', '--force', '--deep', '-s', signing_identity, '-v']
-        signing_flags = os.environ.get('SIGNING_FLAGS')
-        if signing_flags:
-            codesign_call.extend(signing_flags.split())
-        codesign_call.append(app_path)
-        subprocess.check_call(codesign_call)
+    if not signing_identity:
+        return None
+    codesign_call = ['codesign', '-o', 'runtime', '--force', '-s', signing_identity,
+                     '-v']
+    signing_flags = os.environ.get('SIGNING_FLAGS')
+    if signing_flags:
+        codesign_call.extend(signing_flags.split())
+    return codesign_call
+
+def os_walk(path, filter, function):
+    for r, _, fs in os.walk(path):
+        for f in fs:
+            ff = os.path.join(r, f)
+            if filter(ff):
+                function(ff)
+
+def conditional_sign_recursive(path, filter):
+    codesign = codesign_call()
+    if is_mac_platform() and codesign:
+        os_walk(path, filter, lambda fp: subprocess.check_call(codesign + [fp]))
+
+def codesign(app_path):
+    # sign all executables in Resources
+    conditional_sign_recursive(os.path.join(app_path, 'Contents', 'Resources'),
+                               lambda ff: os.access(ff, os.X_OK))
+    # sign all libraries in Imports
+    conditional_sign_recursive(os.path.join(app_path, 'Contents', 'Imports'),
+                               lambda ff: ff.endswith('.dylib'))
+    codesign = codesign_call()
+    if is_mac_platform() and codesign:
+        entitlements_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'dist',
+                                         'installer', 'mac', 'entitlements.plist')
+        # sign the whole bundle
+        subprocess.check_call(codesign + ['--deep', app_path, '--entitlements', entitlements_path])

@@ -10,14 +10,16 @@ HEADERS += \
     codegenerator.h \
     codegensettings.h \
     codegensettingspage.h \
+    copytolocationdialog.h \
     gettingstartedwelcomepage.h \
+    qtbuildaspects.h \
     qtcppkitinfo.h \
     qtprojectimporter.h \
     qtsupportplugin.h \
     qtsupport_global.h \
-    qtkitconfigwidget.h \
     qtkitinformation.h \
     qtoutputformatter.h \
+    qttestparser.h \
     qtversionmanager.h \
     qtversionfactory.h \
     baseqtversion.h \
@@ -29,25 +31,25 @@ HEADERS += \
     exampleslistmodel.h \
     screenshotcropper.h \
     qtconfigwidget.h \
-    copytolocationdialog.h \
-    desktopqtversionfactory.h \
-    desktopqtversion.h \
+    qtversions.h \
     uicgenerator.h \
-    qscxmlcgenerator.h
+    qscxmlcgenerator.h \
+    translationwizardpage.h
 
 SOURCES += \
     codegenerator.cpp \
     codegensettings.cpp \
     codegensettingspage.cpp \
+    copytolocationdialog.cpp \
     gettingstartedwelcomepage.cpp \
+    qtbuildaspects.cpp \
     qtcppkitinfo.cpp \
     qtprojectimporter.cpp \
     qtsupportplugin.cpp \
-    qtkitconfigwidget.cpp \
     qtkitinformation.cpp \
     qtoutputformatter.cpp \
+    qttestparser.cpp \
     qtversionmanager.cpp \
-    qtversionfactory.cpp \
     baseqtversion.cpp \
     qmldumptool.cpp \
     qtoptionspage.cpp \
@@ -56,11 +58,10 @@ SOURCES += \
     exampleslistmodel.cpp \
     screenshotcropper.cpp \
     qtconfigwidget.cpp \
-    copytolocationdialog.cpp \
-    desktopqtversionfactory.cpp \
-    desktopqtversion.cpp \
+    qtversions.cpp \
     uicgenerator.cpp \
-    qscxmlcgenerator.cpp
+    qscxmlcgenerator.cpp \
+    translationwizardpage.cpp
 
 FORMS   +=  \
     codegensettingspagewidget.ui \

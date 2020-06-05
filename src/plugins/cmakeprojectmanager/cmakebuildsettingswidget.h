@@ -40,6 +40,7 @@ QT_END_NAMESPACE
 namespace Utils {
 class CategorySortFilterModel;
 class FancyLineEdit;
+class InfoLabel;
 class ProgressIndicator;
 } // namespace Utils
 
@@ -64,6 +65,7 @@ private:
     void updateButtonState();
     void updateAdvancedCheckBox();
     void updateFromKit();
+    void handleQmlDebugCxxFlags();
 
     void setConfigurationForCMake();
     void updateSelection(const QModelIndex &current, const QModelIndex &previous);
@@ -86,10 +88,8 @@ private:
     QPushButton *m_reconfigureButton;
     QTimer m_showProgressTimer;
     Utils::FancyLineEdit *m_filterEdit;
-    QLabel *m_errorLabel;
-    QLabel *m_warningLabel;
-    QLabel *m_errorMessageLabel;
-    QLabel *m_warningMessageLabel;
+    Utils::InfoLabel *m_errorMessageLabel;
+    Utils::InfoLabel *m_warningMessageLabel;
 };
 
 } // namespace Internal

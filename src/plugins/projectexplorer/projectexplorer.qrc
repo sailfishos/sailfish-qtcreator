@@ -1,6 +1,5 @@
 <RCC>
     <qresource prefix="/projectexplorer">
-        <file>images/closetab.png</file>
         <file>images/debugger_start.png</file>
         <file>images/debugger_start@2x.png</file>
         <file>images/debugger_beetle_mask.png</file>
@@ -75,6 +74,8 @@
         <file>images/fileoverlay_cpp@2x.png</file>
         <file>images/fileoverlay_h.png</file>
         <file>images/fileoverlay_h@2x.png</file>
+        <file>images/fileoverlay_py.png</file>
+        <file>images/fileoverlay_py@2x.png</file>
         <file>images/fileoverlay_unknown.png</file>
         <file>images/fileoverlay_unknown@2x.png</file>
         <file>images/cancelbuild_overlay.png</file>
@@ -85,5 +86,9 @@
         <file>images/settingscategory_devices@2x.png</file>
         <file>images/settingscategory_kits.png</file>
         <file>images/settingscategory_kits@2x.png</file>
+        <file>images/settingscategory_cpp.png</file>
+        <file>images/settingscategory_cpp@2x.png</file>
+        <file>images/importasproject.png</file>
+        <file>images/importasproject@2x.png</file>
     </qresource>
 </RCC>

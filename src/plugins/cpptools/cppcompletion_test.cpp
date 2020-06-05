@@ -81,7 +81,7 @@ public:
         m_editor = EditorManager::openEditor(fileName);
         QVERIFY(m_editor);
         closeEditorAtEndOfTestCase(m_editor);
-        m_editorWidget = qobject_cast<TextEditorWidget *>(m_editor->widget());
+        m_editorWidget = TextEditorWidget::fromEditor(m_editor);
         QVERIFY(m_editorWidget);
 
         m_textDocument = m_editorWidget->document();
@@ -388,7 +388,7 @@ void CppToolsPlugin::test_global_completion()
     QVERIFY(test.succeededSoFar());
     const QStringList completions = test.getCompletions();
     QVERIFY(isProbablyGlobalCompletion(completions));
-    QVERIFY(completions.toSet().contains(requiredCompletionItems.toSet()));
+    QVERIFY(Utils::toSet(completions).contains(Utils::toSet(requiredCompletionItems)));
 }
 
 void CppToolsPlugin::test_doxygen_tag_completion_data()

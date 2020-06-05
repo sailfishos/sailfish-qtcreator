@@ -38,6 +38,8 @@
 
 #include <utils/qtcassert.h>
 
+#include <QDebug>
+
 namespace QmlProfiler {
 namespace Internal {
 
@@ -78,12 +80,16 @@ protected:
         return true;
     }
 
+    void throwRecursionDepthError() override
+    {
+        qWarning("Warning: Hit mximum recursion depth while visiting AST in PropertyVisitor");
+    }
 private:
     QmlJS::AST::Node *m_lastValidNode = nullptr;
     quint32 m_line = 0;
     quint32 m_column = 0;
 
-    bool containsLocation(QmlJS::AST::SourceLocation start, QmlJS::AST::SourceLocation end)
+    bool containsLocation(QmlJS::SourceLocation start, QmlJS::SourceLocation end)
     {
         return (m_line > start.startLine
                     || (m_line == start.startLine && m_column >= start.startColumn))
@@ -112,7 +118,7 @@ void QmlProfilerDetailsRewriter::requestDetailsForLocation(int typeId,
 
 QString QmlProfilerDetailsRewriter::getLocalFile(const QString &remoteFile)
 {
-    const QString localFile = m_projectFinder.findFile(remoteFile);
+    const QString localFile = m_projectFinder.findFile(remoteFile).first().toString();
     const QFileInfo fileInfo(localFile);
     if (!fileInfo.exists() || !fileInfo.isReadable())
         return QString();

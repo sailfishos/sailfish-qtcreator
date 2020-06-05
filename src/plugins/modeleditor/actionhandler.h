@@ -37,7 +37,6 @@ class QAction;
 QT_END_NAMESPACE
 
 namespace Core {
-class ActionContainer;
 class Command;
 }
 
@@ -53,7 +52,7 @@ class ActionHandler :
     class ActionHandlerPrivate;
 
 public:
-    ActionHandler(const Core::Context &context, QObject *parent = nullptr);
+    ActionHandler();
     ~ActionHandler();
 
 public:

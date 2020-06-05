@@ -27,44 +27,23 @@
 
 #include "commentssettings.h"
 #include "completionsettings.h"
-#include "texteditoroptionspage.h"
 
-
-#include <QPointer>
+#include <coreplugin/dialogs/ioptionspage.h>
 
 namespace TextEditor {
 namespace Internal {
 
-namespace Ui { class CompletionSettingsPage; }
-
-class CompletionSettingsPage : public TextEditorOptionsPage
+class CompletionSettingsPage : public Core::IOptionsPage
 {
-    Q_OBJECT
-
 public:
-    CompletionSettingsPage(QObject *parent);
-    ~CompletionSettingsPage() override;
-
-    QWidget *widget() override;
-    void apply() override;
-    void finish() override;
+    CompletionSettingsPage();
 
     const CompletionSettings & completionSettings();
     const CommentsSettings & commentsSettings();
 
-signals:
-    void completionSettingsChanged(const CompletionSettings &);
-    void commentsSettingsChanged(const CommentsSettings &);
-
 private:
-    CaseSensitivity caseSensitivity() const;
-    CompletionTrigger completionTrigger() const;
-    void settingsFromUi(CompletionSettings &completion, CommentsSettings &comment) const;
+    friend class CompletionSettingsPageWidget;
 
-    void onCompletionTriggerChanged();
-
-    Ui::CompletionSettingsPage *m_page = nullptr;
-    QPointer<QWidget> m_widget;
     CommentsSettings m_commentsSettings;
     CompletionSettings m_completionSettings;
 };

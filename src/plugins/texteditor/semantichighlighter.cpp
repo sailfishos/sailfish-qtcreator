@@ -38,13 +38,17 @@ using namespace TextEditor::SemanticHighlighter;
 
 namespace {
 
-QTextCharFormat textCharFormatForResult(const HighlightingResult &result,
+QTextLayout::FormatRange rangeForResult(const HighlightingResult &result,
                                         const QHash<int, QTextCharFormat> &kindToFormat)
 {
-    if (result.useTextSyles)
-        return TextEditorSettings::fontSettings().toTextCharFormat(result.textStyles);
-    else
-        return kindToFormat.value(result.kind);
+    QTextLayout::FormatRange formatRange;
+
+    formatRange.start = int(result.column) - 1;
+    formatRange.length = int(result.length);
+    formatRange.format = result.useTextSyles
+        ? TextEditorSettings::fontSettings().toTextCharFormat(result.textStyles)
+        : kindToFormat.value(result.kind);
+    return formatRange;
 }
 
 }
@@ -58,14 +62,14 @@ void SemanticHighlighter::incrementalApplyExtraAdditionalFormats(
     if (to <= from)
         return;
 
-    const int firstResultBlockNumber = future.resultAt(from).line - 1;
+    const int firstResultBlockNumber = int(future.resultAt(from).line) - 1;
 
     // blocks between currentBlockNumber and the last block with results will
     // be cleaned of additional extra formats if they have no results
     int currentBlockNumber = 0;
     for (int i = from - 1; i >= 0; --i) {
         const HighlightingResult &result = future.resultAt(i);
-        const int blockNumber = result.line - 1;
+        const int blockNumber = int(result.line) - 1;
         if (blockNumber < firstResultBlockNumber) {
             // stop! found where last format stopped
             currentBlockNumber = blockNumber + 1;
@@ -81,13 +85,12 @@ void SemanticHighlighter::incrementalApplyExtraAdditionalFormats(
 
     HighlightingResult result = future.resultAt(from);
     for (int i = from; i < to && b.isValid(); ) {
-        const int blockNumber = result.line - 1;
+        const int blockNumber = int(result.line) - 1;
         QTC_ASSERT(blockNumber < doc->blockCount(), return);
 
         // clear formats of blocks until blockNumber
         while (currentBlockNumber < blockNumber) {
-            QVector<QTextLayout::FormatRange> noFormats;
-            highlighter->setExtraFormats(b, noFormats);
+            highlighter->clearExtraFormats(b);
             b = b.next();
             ++currentBlockNumber;
         }
@@ -96,26 +99,49 @@ void SemanticHighlighter::incrementalApplyExtraAdditionalFormats(
         QVector<QTextLayout::FormatRange> formats;
         formats.reserve(to - from);
         forever {
-            QTextLayout::FormatRange formatRange;
-
-            formatRange.format = textCharFormatForResult(result, kindToFormat);
-            if (formatRange.format.isValid()) {
-                formatRange.start = result.column - 1;
-                formatRange.length = result.length;
+            const QTextLayout::FormatRange formatRange = rangeForResult(result, kindToFormat);
+            if (formatRange.format.isValid())
                 formats.append(formatRange);
-            }
 
             ++i;
             if (i >= to)
                 break;
             result = future.resultAt(i);
-            const int nextBlockNumber = result.line - 1;
+            const int nextBlockNumber = int(result.line) - 1;
             if (nextBlockNumber != blockNumber)
                 break;
         }
-        highlighter->setExtraFormats(b, formats);
+        highlighter->setExtraFormats(b, std::move(formats));
         b = b.next();
         ++currentBlockNumber;
+    }
+}
+
+void SemanticHighlighter::setExtraAdditionalFormats(SyntaxHighlighter *highlighter,
+                                                    const QList<HighlightingResult> &results,
+                                                    const QHash<int, QTextCharFormat> &kindToFormat)
+{
+    if (!highlighter)
+        return;
+    highlighter->clearAllExtraFormats();
+
+    QTextDocument *doc = highlighter->document();
+    QTC_ASSERT(doc, return );
+
+    QVector<QVector<QTextLayout::FormatRange>> ranges(doc->blockCount());
+
+    for (auto result : results) {
+        const QTextLayout::FormatRange formatRange = rangeForResult(result, kindToFormat);
+        if (formatRange.format.isValid())
+            ranges[int(result.line) - 1].append(formatRange);
+    }
+
+    for (int blockNumber = 0; blockNumber < ranges.count(); ++blockNumber) {
+        if (!ranges[blockNumber].isEmpty()) {
+            QTextBlock b = doc->findBlockByNumber(blockNumber);
+            QTC_ASSERT(b.isValid(), return );
+            highlighter->setExtraFormats(b, std::move(ranges[blockNumber]));
+        }
     }
 }
 
@@ -128,7 +154,7 @@ void SemanticHighlighter::clearExtraAdditionalFormatsUntilEnd(
     for (int i = future.resultCount() - 1; i >= 0; --i) {
         const HighlightingResult &result = future.resultAt(i);
         if (result.line) {
-            lastBlockNumber = result.line - 1;
+            lastBlockNumber = int(result.line) - 1;
             break;
         }
     }
@@ -142,8 +168,7 @@ void SemanticHighlighter::clearExtraAdditionalFormatsUntilEnd(
     QTextBlock b = doc->findBlockByNumber(firstBlockToClear);
 
     while (b.isValid()) {
-        QVector<QTextLayout::FormatRange> noFormats;
-        highlighter->setExtraFormats(b, noFormats);
+        highlighter->clearExtraFormats(b);
         b = b.next();
     }
 }

@@ -65,7 +65,7 @@ def checkTypeAndProperties(typePropertiesDetails):
 
 def main():
     # prepare example project
-    sourceExample = os.path.join(Qt5Path.examplesPath(Targets.DESKTOP_5_6_1_DEFAULT),
+    sourceExample = os.path.join(Qt5Path.examplesPath(Targets.DESKTOP_5_14_1_DEFAULT),
                                  "quick", "animation")
     if not neededFilePresent(sourceExample):
         return
@@ -99,7 +99,7 @@ def main():
     # select "Open project" and select a project
     examplePath = os.path.join(prepareTemplate(sourceExample), "animation.pro")
     openQmakeProject(examplePath, fromWelcome = True)
-    progressBarWait(30000)
+    waitForProjectParsing()
     test.verify(checkIfObjectExists("{column='0' container=':Qt Creator_Utils::NavigationTreeView'"
                                     " text~='animation( \(.*\))?' type='QModelIndex'}"),
                 "Verifying: The project is opened in 'Edit' mode after configuring.")

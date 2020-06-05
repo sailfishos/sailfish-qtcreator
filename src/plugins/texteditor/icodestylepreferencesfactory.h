@@ -35,7 +35,6 @@ namespace Core { class Id; }
 namespace TextEditor {
 
 class ICodeStylePreferences;
-class SnippetProvider;
 
 class TEXTEDITOR_EXPORT CodeStyleEditorWidget : public QWidget
 {
@@ -47,11 +46,14 @@ public:
     virtual void apply() {}
 };
 
-class TEXTEDITOR_EXPORT ICodeStylePreferencesFactory : public QObject
+class TEXTEDITOR_EXPORT ICodeStylePreferencesFactory
 {
-    Q_OBJECT
+    ICodeStylePreferencesFactory(const ICodeStylePreferencesFactory &) = delete;
+    ICodeStylePreferencesFactory &operator=(const ICodeStylePreferencesFactory &) = delete;
+
 public:
-    explicit ICodeStylePreferencesFactory(QObject *parent = nullptr);
+    ICodeStylePreferencesFactory();
+    virtual ~ICodeStylePreferencesFactory() = default;
 
     virtual CodeStyleEditorWidget *createCodeStyleEditor(ICodeStylePreferences *codeStyle,
                                                          QWidget *parent = nullptr);

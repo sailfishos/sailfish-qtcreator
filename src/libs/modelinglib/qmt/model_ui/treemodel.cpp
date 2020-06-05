@@ -80,13 +80,13 @@ public:
 
     void visitMElement(const MElement *element)
     {
-        Q_UNUSED(element);
+        Q_UNUSED(element)
         QMT_CHECK(false);
     }
 
     void visitMObject(const MObject *object)
     {
-        Q_UNUSED(object);
+        Q_UNUSED(object)
         QMT_ASSERT(m_item, return);
         m_item->setEditable(false);
     }
@@ -156,7 +156,7 @@ public:
 
     void visitMRelation(const MRelation *relation)
     {
-        Q_UNUSED(relation);
+        Q_UNUSED(relation)
         QMT_ASSERT(m_item, return);
         m_item->setEditable(false);
         m_item->setData(TreeModel::Relation, TreeModel::RoleItemType);
@@ -216,7 +216,7 @@ public:
 
     void visitMElement(const MElement *element)
     {
-        Q_UNUSED(element);
+        Q_UNUSED(element)
         QMT_CHECK(false);
     }
 
@@ -443,7 +443,7 @@ QModelIndex TreeModel::indexOf(const MElement *element) const
             QMT_CHECK(false);
             return QModelIndex();
         }
-        QModelIndex parentIndex = indexFromItem(item);
+        const QModelIndex parentIndex = indexFromItem(item);
         int row = parentObject->children().indexOf(object);
         return QStandardItemModel::index(row, 0, parentIndex);
     } else if (auto relation = dynamic_cast<const MRelation *>(element)) {
@@ -454,7 +454,7 @@ QModelIndex TreeModel::indexOf(const MElement *element) const
             QMT_CHECK(false);
             return QModelIndex();
         }
-        QModelIndex parentIndex = indexFromItem(item);
+        const QModelIndex parentIndex = indexFromItem(item);
         int row = owner->children().size() + owner->relations().indexOf(relation);
         return QStandardItemModel::index(row, 0, parentIndex);
     }
@@ -502,8 +502,8 @@ void TreeModel::onEndResetModel()
 
 void TreeModel::onBeginUpdateObject(int row, const MObject *parent)
 {
-    Q_UNUSED(row);
-    Q_UNUSED(parent);
+    Q_UNUSED(row)
+    Q_UNUSED(parent)
     QMT_CHECK(m_busyState == NotBusy);
     m_busyState = UpdateElement;
 }
@@ -519,7 +519,7 @@ void TreeModel::onEndUpdateObject(int row, const MObject *parent)
         parentIndex = indexFromItem(parentItem);
     }
     // reflect updated element in standard item
-    QModelIndex elementIndex = this->QStandardItemModel::index(row, 0, parentIndex);
+    const QModelIndex elementIndex = this->QStandardItemModel::index(row, 0, parentIndex);
     MElement *element = TreeModel::element(elementIndex);
     if (element) {
         auto object = dynamic_cast<MObject *>(element);
@@ -531,13 +531,13 @@ void TreeModel::onEndUpdateObject(int row, const MObject *parent)
         }
     }
     m_busyState = NotBusy;
-    emit dataChanged(QStandardItemModel::index(row, 0, parentIndex), QStandardItemModel::index(row, 0, parentIndex));
+    emit dataChanged(elementIndex, elementIndex);
 }
 
 void TreeModel::onBeginInsertObject(int row, const MObject *parent)
 {
-    Q_UNUSED(row);
-    Q_UNUSED(parent);
+    Q_UNUSED(row)
+    Q_UNUSED(parent)
     QMT_CHECK(m_busyState == NotBusy);
     m_busyState = InsertElement;
 }
@@ -569,8 +569,8 @@ void TreeModel::onBeginRemoveObject(int row, const MObject *parent)
 
 void TreeModel::onEndRemoveObject(int row, const MObject *parent)
 {
-    Q_UNUSED(row);
-    Q_UNUSED(parent);
+    Q_UNUSED(row)
+    Q_UNUSED(parent)
     QMT_CHECK(m_busyState == RemoveElement);
     m_busyState = NotBusy;
 }
@@ -602,8 +602,8 @@ void TreeModel::onEndMoveObject(int row, const MObject *owner)
 
 void TreeModel::onBeginUpdateRelation(int row, const MObject *parent)
 {
-    Q_UNUSED(row);
-    Q_UNUSED(parent);
+    Q_UNUSED(row)
+    Q_UNUSED(parent)
     QMT_CHECK(m_busyState == NotBusy);
     m_busyState = UpdateRelation;
 }
@@ -616,11 +616,11 @@ void TreeModel::onEndUpdateRelation(int row, const MObject *parent)
     QMT_CHECK(m_objectToItemMap.contains(parent));
     ModelItem *parentItem = m_objectToItemMap.value(parent);
     QMT_ASSERT(parentItem, return);
-    QModelIndex parentIndex = indexFromItem(parentItem);
+    const QModelIndex parentIndex = indexFromItem(parentItem);
 
     // reflect updated relation in standard item
     row += parent->children().size();
-    QModelIndex elementIndex = QStandardItemModel::index(row, 0, parentIndex);
+    const QModelIndex elementIndex = QStandardItemModel::index(row, 0, parentIndex);
     MElement *element = TreeModel::element(elementIndex);
     if (element) {
         auto relation = dynamic_cast<MRelation *>(element);
@@ -632,13 +632,13 @@ void TreeModel::onEndUpdateRelation(int row, const MObject *parent)
         }
     }
     m_busyState = NotBusy;
-    emit dataChanged(QStandardItemModel::index(row, 0, parentIndex), QStandardItemModel::index(row, 0, parentIndex));
+    emit dataChanged(elementIndex, elementIndex);
 }
 
 void TreeModel::onBeginInsertRelation(int row, const MObject *parent)
 {
-    Q_UNUSED(row);
-    Q_UNUSED(parent);
+    Q_UNUSED(row)
+    Q_UNUSED(parent)
     QMT_CHECK(m_busyState == NotBusy);
     m_busyState = InsertRelation;
 }
@@ -668,8 +668,8 @@ void TreeModel::onBeginRemoveRelation(int row, const MObject *parent)
 
 void TreeModel::onEndRemoveRelation(int row, const MObject *parent)
 {
-    Q_UNUSED(row);
-    Q_UNUSED(parent);
+    Q_UNUSED(row)
+    Q_UNUSED(parent)
     QMT_CHECK(m_busyState == RemoveRelation);
     m_busyState = NotBusy;
 }
@@ -699,7 +699,7 @@ void TreeModel::onEndMoveRelation(int row, const MObject *owner)
 
 void TreeModel::onRelationEndChanged(MRelation *relation, MObject *endObject)
 {
-    Q_UNUSED(endObject);
+    Q_UNUSED(endObject)
     QMT_CHECK(m_busyState == NotBusy);
 
     MObject *parent = relation->owner();
@@ -707,10 +707,10 @@ void TreeModel::onRelationEndChanged(MRelation *relation, MObject *endObject)
     QMT_CHECK(m_objectToItemMap.contains(parent));
     ModelItem *parentItem = m_objectToItemMap.value(parent);
     QMT_ASSERT(parentItem, return);
-    QModelIndex parentIndex = indexFromItem(parentItem);
+    const QModelIndex parentIndex = indexFromItem(parentItem);
 
     int row = parent->children().size() + relation->owner()->relations().indexOf(relation);
-    QModelIndex elementIndex = QStandardItemModel::index(row, 0, parentIndex);
+    const QModelIndex elementIndex = QStandardItemModel::index(row, 0, parentIndex);
     QMT_CHECK(elementIndex.isValid());
 
     auto item = dynamic_cast<ModelItem *>(itemFromIndex(elementIndex));
@@ -720,13 +720,13 @@ void TreeModel::onRelationEndChanged(MRelation *relation, MObject *endObject)
     if (item->text() != label)
         item->setText(label);
 
-    emit dataChanged(QStandardItemModel::index(row, 0, parentIndex), QStandardItemModel::index(row, 0, parentIndex));
+    emit dataChanged(elementIndex, elementIndex);
 }
 
 void TreeModel::onModelDataChanged(const QModelIndex &topleft, const QModelIndex &bottomright)
 {
-    Q_UNUSED(topleft);
-    Q_UNUSED(bottomright);
+    Q_UNUSED(topleft)
+    Q_UNUSED(bottomright)
     // TODO fix editing object name in model tree
     // item->text() no longer returns a simple object name
     // classes contains namespace label

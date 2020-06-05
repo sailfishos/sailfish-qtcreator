@@ -53,9 +53,9 @@ using namespace QmlJS::AST;
 
 Bind::Bind(Document *doc, QList<DiagnosticMessage> *messages, bool isJsLibrary, const QList<ImportInfo> &jsImports)
     : _doc(doc),
-      _currentObjectValue(0),
-      _idEnvironment(0),
-      _rootObjectValue(0),
+      _currentObjectValue(nullptr),
+      _idEnvironment(nullptr),
+      _rootObjectValue(nullptr),
       _isJsLibrary(isJsLibrary),
       _imports(jsImports),
       _diagnosticMessages(messages)
@@ -134,7 +134,7 @@ ObjectValue *Bind::switchObjectValue(ObjectValue *newObjectValue)
 
 ObjectValue *Bind::bindObject(UiQualifiedId *qualifiedTypeNameId, UiObjectInitializer *initializer)
 {
-    ObjectValue *parentObjectValue = 0;
+    ObjectValue *parentObjectValue = nullptr;
 
     // normal component instance
     ASTObjectValue *objectValue = new ASTObjectValue(qualifiedTypeNameId, initializer, _doc, &_valueOwner);
@@ -162,6 +162,11 @@ ObjectValue *Bind::bindObject(UiQualifiedId *qualifiedTypeNameId, UiObjectInitia
     return switchObjectValue(parentObjectValue);
 }
 
+void Bind::throwRecursionDepthError()
+{
+    _diagnosticMessages->append(DiagnosticMessage(Severity::Error, SourceLocation(), tr("Hit maximal recursion depth in AST visit")));
+}
+
 void Bind::accept(Node *node)
 {
     Node::accept(node, this);
@@ -169,13 +174,13 @@ void Bind::accept(Node *node)
 
 bool Bind::visit(AST::UiProgram *)
 {
-    _idEnvironment = _valueOwner.newObject(/*prototype =*/ 0);
+    _idEnvironment = _valueOwner.newObject(/*prototype =*/ nullptr);
     return true;
 }
 
 bool Bind::visit(AST::Program *)
 {
-    _currentObjectValue = _valueOwner.newObject(/*prototype =*/ 0);
+    _currentObjectValue = _valueOwner.newObject(/*prototype =*/ nullptr);
     _rootObjectValue = _currentObjectValue;
     return true;
 }
@@ -194,14 +199,8 @@ void Bind::endVisit(UiProgram *)
 bool Bind::visit(UiImport *ast)
 {
     ComponentVersion version;
-    if (ast->versionToken.isValid()) {
-        const QString versionString = _doc->source().mid(ast->versionToken.offset, ast->versionToken.length);
-        version = ComponentVersion(versionString);
-        if (!version.isValid()) {
-            _diagnosticMessages->append(
-                        errorMessage(ast->versionToken, tr("expected two numbers separated by a dot")));
-        }
-    }
+    if (ast->version)
+        version = ComponentVersion(ast->version->majorVersion, ast->version->minorVersion);
 
     if (ast->importUri) {
         if (!version.isValid()) {
@@ -236,7 +235,7 @@ bool Bind::visit(UiPublicMember *ast)
     const Block *block = AST::cast<const Block*>(ast->statement);
     if (block) {
         // build block scope
-        ObjectValue *blockScope = _valueOwner.newObject(/*prototype=*/0);
+        ObjectValue *blockScope = _valueOwner.newObject(/*prototype=*/nullptr);
         _attachedJSScopes.insert(ast, blockScope); // associated with the UiPublicMember, not with the block
         ObjectValue *parent = switchObjectValue(blockScope);
         accept(ast->statement);
@@ -259,7 +258,7 @@ bool Bind::visit(UiObjectDefinition *ast)
         _qmlObjects.insert(ast, value);
     } else {
         _groupedPropertyBindings.insert(ast);
-        ObjectValue *oldObjectValue = switchObjectValue(0);
+        ObjectValue *oldObjectValue = switchObjectValue(nullptr);
         accept(ast->initializer);
         switchObjectValue(oldObjectValue);
     }
@@ -289,7 +288,7 @@ bool Bind::visit(UiScriptBinding *ast)
     const Block *block = AST::cast<const Block*>(ast->statement);
     if (block) {
         // build block scope
-        ObjectValue *blockScope = _valueOwner.newObject(/*prototype=*/0);
+        ObjectValue *blockScope = _valueOwner.newObject(/*prototype=*/nullptr);
         _attachedJSScopes.insert(ast, blockScope); // associated with the UiScriptBinding, not with the block
         ObjectValue *parent = switchObjectValue(blockScope);
         accept(ast->statement);
@@ -328,7 +327,7 @@ bool Bind::visit(FunctionExpression *ast)
         _currentObjectValue->setMember(ast->name.toString(), function);
 
     // build function scope
-    ObjectValue *functionScope = _valueOwner.newObject(/*prototype=*/0);
+    ObjectValue *functionScope = _valueOwner.newObject(/*prototype=*/nullptr);
     _attachedJSScopes.insert(ast, functionScope);
     ObjectValue *parent = switchObjectValue(functionScope);
 
@@ -345,7 +344,7 @@ bool Bind::visit(FunctionExpression *ast)
     // ### TODO, currently covered by the accept(body)
 
     // 3. Arguments object
-    ObjectValue *arguments = _valueOwner.newObject(/*prototype=*/0);
+    ObjectValue *arguments = _valueOwner.newObject(/*prototype=*/nullptr);
     arguments->setMember(QLatin1String("callee"), function);
     arguments->setMember(QLatin1String("length"), _valueOwner.numberValue());
     functionScope->setMember(QLatin1String("arguments"), arguments);

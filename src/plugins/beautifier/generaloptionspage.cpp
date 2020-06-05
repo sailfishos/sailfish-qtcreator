@@ -29,87 +29,53 @@
 #include "beautifierconstants.h"
 #include "generalsettings.h"
 
-#include <coreplugin/icore.h>
-
-#include <QTextStream>
-
 namespace Beautifier {
 namespace Internal {
 
-GeneralOptionsPageWidget::GeneralOptionsPageWidget(const QSharedPointer<GeneralSettings> &settings,
-                                                   const QStringList &toolIds, QWidget *parent) :
-    QWidget(parent),
-    ui(new Ui::GeneralOptionsPage),
-    m_settings(settings)
+class GeneralOptionsPageWidget : public Core::IOptionsPageWidget
 {
-    ui->setupUi(this);
-    ui->autoFormatTool->addItems(toolIds);
-    restore();
+    Q_DECLARE_TR_FUNCTIONS(Beautifier::Internal::GeneralOptionsPageWidget)
+
+public:
+    explicit GeneralOptionsPageWidget(const QStringList &toolIds);
+
+private:
+    void apply() final;
+
+    Ui::GeneralOptionsPage ui;
+};
+
+GeneralOptionsPageWidget::GeneralOptionsPageWidget(const QStringList &toolIds)
+{
+    ui.setupUi(this);
+    ui.autoFormatTool->addItems(toolIds);
+
+    auto settings = GeneralSettings::instance();
+    ui.autoFormat->setChecked(settings->autoFormatOnSave());
+    const int index = ui.autoFormatTool->findText(settings->autoFormatTool());
+    ui.autoFormatTool->setCurrentIndex(qMax(index, 0));
+    ui.autoFormatMime->setText(settings->autoFormatMimeAsString());
+    ui.autoFormatOnlyCurrentProject->setChecked(settings->autoFormatOnlyCurrentProject());
 }
 
-GeneralOptionsPageWidget::~GeneralOptionsPageWidget()
+void GeneralOptionsPageWidget::apply()
 {
-    delete ui;
+    auto settings = GeneralSettings::instance();
+    settings->setAutoFormatOnSave(ui.autoFormat->isChecked());
+    settings->setAutoFormatTool(ui.autoFormatTool->currentText());
+    settings->setAutoFormatMime(ui.autoFormatMime->text());
+    settings->setAutoFormatOnlyCurrentProject(ui.autoFormatOnlyCurrentProject->isChecked());
+    settings->save();
 }
 
-void GeneralOptionsPageWidget::restore()
-{
-    ui->autoFormat->setChecked(m_settings->autoFormatOnSave());
-    const int index = ui->autoFormatTool->findText(m_settings->autoFormatTool());
-    ui->autoFormatTool->setCurrentIndex(qMax(index, 0));
-    ui->autoFormatMime->setText(m_settings->autoFormatMimeAsString());
-    ui->autoFormatOnlyCurrentProject->setChecked(m_settings->autoFormatOnlyCurrentProject());
-}
-
-void GeneralOptionsPageWidget::apply(bool *autoFormatChanged)
-{
-    if (autoFormatChanged)
-        *autoFormatChanged = m_settings->autoFormatOnSave() != ui->autoFormat->isChecked();
-
-    m_settings->setAutoFormatOnSave(ui->autoFormat->isChecked());
-    m_settings->setAutoFormatTool(ui->autoFormatTool->currentText());
-    m_settings->setAutoFormatMime(ui->autoFormatMime->text());
-    m_settings->setAutoFormatOnlyCurrentProject(ui->autoFormatOnlyCurrentProject->isChecked());
-    m_settings->save();
-}
-
-GeneralOptionsPage::GeneralOptionsPage(const QSharedPointer<GeneralSettings> &settings,
-                                       const QStringList &toolIds, QObject *parent) :
-    IOptionsPage(parent),
-    m_settings(settings),
-    m_toolIds(toolIds)
+GeneralOptionsPage::GeneralOptionsPage(const QStringList &toolIds)
 {
     setId(Constants::OPTION_GENERAL_ID);
-    setDisplayName(tr("General"));
+    setDisplayName(GeneralOptionsPageWidget::tr("General"));
     setCategory(Constants::OPTION_CATEGORY);
     setDisplayCategory(QCoreApplication::translate("Beautifier", "Beautifier"));
-    setCategoryIcon(Utils::Icon({{":/beautifier/images/settingscategory_beautifier.png",
-                    Utils::Theme::PanelTextColorDark}}, Utils::Icon::Tint));
-}
-
-QWidget *GeneralOptionsPage::widget()
-{
-    m_settings->read();
-
-    if (!m_widget)
-        m_widget = new GeneralOptionsPageWidget(m_settings, m_toolIds);
-    m_widget->restore();
-
-    return m_widget;
-}
-
-void GeneralOptionsPage::apply()
-{
-    if (m_widget) {
-        bool autoFormat = false;
-        m_widget->apply(&autoFormat);
-        if (autoFormat)
-            emit autoFormatChanged();
-    }
-}
-
-void GeneralOptionsPage::finish()
-{
+    setWidgetCreator([toolIds] { return new GeneralOptionsPageWidget(toolIds); });
+    setCategoryIconPath(":/beautifier/images/settingscategory_beautifier.png");
 }
 
 } // namespace Internal

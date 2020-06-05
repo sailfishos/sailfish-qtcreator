@@ -96,21 +96,14 @@ void PerfLoadDialog::on_browseExecutableDirButton_pressed()
 
 void PerfLoadDialog::chooseDefaults()
 {
-    ProjectExplorer::Project *project = ProjectExplorer::SessionManager::startupProject();
-    if (!project)
-        return;
-
-    ProjectExplorer::Target *target = project->activeTarget();
+    ProjectExplorer::Target *target = ProjectExplorer::SessionManager::startupTarget();
     if (!target)
         return;
 
     ui->kitChooser->setCurrentKitId(target->kit()->id());
 
-    ProjectExplorer::BuildConfiguration *buildConfig = target->activeBuildConfiguration();
-    if (!buildConfig)
-        return;
-
-    ui->executableDirLineEdit->setText(buildConfig->buildDirectory().toString());
+    if (auto *bc = target->activeBuildConfiguration())
+        ui->executableDirLineEdit->setText(bc->buildDirectory().toString());
 }
 
 } // namespace Internal

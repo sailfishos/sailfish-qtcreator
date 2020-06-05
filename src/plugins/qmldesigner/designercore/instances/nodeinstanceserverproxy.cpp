@@ -29,6 +29,7 @@
 
 #include <createinstancescommand.h>
 #include <createscenecommand.h>
+#include <update3dviewstatecommand.h>
 #include <changevaluescommand.h>
 #include <changebindingscommand.h>
 #include <changeauxiliarycommand.h>
@@ -41,6 +42,10 @@
 #include <changestatecommand.h>
 #include <completecomponentcommand.h>
 #include <changenodesourcecommand.h>
+#include <changeselectioncommand.h>
+#include <puppettocreatorcommand.h>
+#include <inputeventcommand.h>
+#include <view3dactioncommand.h>
 
 #include <informationchangedcommand.h>
 #include <pixmapchangedcommand.h>
@@ -102,8 +107,7 @@ void NodeInstanceServerProxy::showCannotConnectToPuppetWarningAndSwitchToEditMod
 
 NodeInstanceServerProxy::NodeInstanceServerProxy(NodeInstanceView *nodeInstanceView,
                                                  RunModus runModus,
-                                                 ProjectExplorer::Kit *kit,
-                                                 ProjectExplorer::Project *project)
+                                                 ProjectExplorer::Target *target)
     : NodeInstanceServerInterface(nodeInstanceView),
       m_localServer(new QLocalServer(this)),
       m_nodeInstanceView(nodeInstanceView),
@@ -116,7 +120,7 @@ NodeInstanceServerProxy::NodeInstanceServerProxy(NodeInstanceView *nodeInstanceV
    m_localServer->listen(socketToken);
    m_localServer->setMaxPendingConnections(3);
 
-   PuppetCreator puppetCreator(kit, project, nodeInstanceView->model());
+   PuppetCreator puppetCreator(target, nodeInstanceView->model());
    puppetCreator.setQrcMappingString(qrcMappingString());
 
    puppetCreator.createQml2PuppetExecutableIfMissing();
@@ -143,17 +147,17 @@ NodeInstanceServerProxy::NodeInstanceServerProxy(NodeInstanceView *nodeInstanceV
    const int second = 1000;
    const int waitConstant = 8 * second;
    if (m_qmlPuppetEditorProcess->waitForStarted(waitConstant)) {
-       connect(m_qmlPuppetEditorProcess.data(), static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+       connect(m_qmlPuppetEditorProcess.data(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             m_qmlPuppetEditorProcess.data(), &QProcess::deleteLater);
     qCInfo(instanceViewBenchmark) << "puppets started:" << m_benchmarkTimer.elapsed();
 
        if (runModus == NormalModus) {
            m_qmlPuppetPreviewProcess->waitForStarted(waitConstant / 2);
-           connect(m_qmlPuppetPreviewProcess.data(), static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+           connect(m_qmlPuppetPreviewProcess.data(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 m_qmlPuppetPreviewProcess.data(), &QProcess::deleteLater);
 
            m_qmlPuppetRenderProcess->waitForStarted(waitConstant / 2);
-           connect(m_qmlPuppetRenderProcess.data(), static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+           connect(m_qmlPuppetRenderProcess.data(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 m_qmlPuppetRenderProcess.data(), &QProcess::deleteLater);
        }
 
@@ -216,9 +220,13 @@ NodeInstanceServerProxy::NodeInstanceServerProxy(NodeInstanceView *nodeInstanceV
 
     if (QmlDesignerPlugin::instance()->settings().value(DesignerSettingsKey::
             DEBUG_PUPPET).toString().isEmpty()) {
-       connect(&m_firstTimer, SIGNAL(timeout()), this, SLOT(processFinished()));
-       connect(&m_secondTimer, SIGNAL(timeout()), this, SLOT(processFinished()));
-       connect(&m_thirdTimer, SIGNAL(timeout()), this, SLOT(processFinished()));
+
+       connect(&m_firstTimer, &QTimer::timeout, this,
+               [this](){ NodeInstanceServerProxy::puppetTimeout(FirstPuppetStream); });
+       connect(&m_secondTimer, &QTimer::timeout, this,
+               [this](){ NodeInstanceServerProxy::puppetTimeout(SecondPuppetStream); });
+       connect(&m_thirdTimer, &QTimer::timeout, this,
+               [this](){ NodeInstanceServerProxy::puppetTimeout(ThirdPuppetStream); });
    }
 #endif
 }
@@ -266,6 +274,7 @@ void NodeInstanceServerProxy::dispatchCommand(const QVariant &command, PuppetStr
 {
     static const int informationChangedCommandType = QMetaType::type("InformationChangedCommand");
     static const int valuesChangedCommandType = QMetaType::type("ValuesChangedCommand");
+    static const int valuesModifiedCommandType = QMetaType::type("ValuesModifiedCommand");
     static const int pixmapChangedCommandType = QMetaType::type("PixmapChangedCommand");
     static const int childrenChangedCommandType = QMetaType::type("ChildrenChangedCommand");
     static const int statePreviewImageChangedCommandType = QMetaType::type("StatePreviewImageChangedCommand");
@@ -274,16 +283,20 @@ void NodeInstanceServerProxy::dispatchCommand(const QVariant &command, PuppetStr
     static const int tokenCommandType = QMetaType::type("TokenCommand");
     static const int debugOutputCommandType = QMetaType::type("DebugOutputCommand");
     static const int puppetAliveCommandType = QMetaType::type("PuppetAliveCommand");
+    static const int changeSelectionCommandType = QMetaType::type("ChangeSelectionCommand");
+    static const int puppetToCreatorCommand = QMetaType::type("PuppetToCreatorCommand");
 
     if (m_destructing)
         return;
 
     qCInfo(instanceViewBenchmark) << "dispatching command" << command.userType() << command.typeName();
-    if (command.userType() ==  informationChangedCommandType) {
+    if (command.userType() == informationChangedCommandType) {
         nodeInstanceClient()->informationChanged(command.value<InformationChangedCommand>());
-    } else if (command.userType() ==  valuesChangedCommandType) {
+    } else if (command.userType() == valuesChangedCommandType) {
         nodeInstanceClient()->valuesChanged(command.value<ValuesChangedCommand>());
-    } else if (command.userType() ==  pixmapChangedCommandType) {
+    } else if (command.userType() == valuesModifiedCommandType) {
+        nodeInstanceClient()->valuesModified(command.value<ValuesModifiedCommand>());
+    } else if (command.userType() == pixmapChangedCommandType) {
         nodeInstanceClient()->pixmapChanged(command.value<PixmapChangedCommand>());
     } else if (command.userType() == childrenChangedCommandType) {
         nodeInstanceClient()->childrenChanged(command.value<ChildrenChangedCommand>());
@@ -295,14 +308,20 @@ void NodeInstanceServerProxy::dispatchCommand(const QVariant &command, PuppetStr
         nodeInstanceClient()->token(command.value<TokenCommand>());
     } else if (command.userType() == debugOutputCommandType) {
         nodeInstanceClient()->debugOutput(command.value<DebugOutputCommand>());
+    } else if (command.userType() == changeSelectionCommandType) {
+        nodeInstanceClient()->selectionChanged(command.value<ChangeSelectionCommand>());
+    } else if (command.userType() == puppetToCreatorCommand) {
+        nodeInstanceClient()->handlePuppetToCreatorCommand(command.value<PuppetToCreatorCommand>());
     } else if (command.userType() == puppetAliveCommandType) {
         puppetAlive(puppetStreamType);
     } else if (command.userType() == synchronizeCommandType) {
         SynchronizeCommand synchronizeCommand = command.value<SynchronizeCommand>();
         m_synchronizeId = synchronizeCommand.synchronizeId();
-    }  else
+    } else {
         Q_ASSERT(false);
-     qCInfo(instanceViewBenchmark) << "dispatching command" << "done" << command.userType();
+    }
+
+    qCInfo(instanceViewBenchmark) << "dispatching command" << "done" << command.userType();
 }
 
 NodeInstanceClientInterface *NodeInstanceServerProxy::nodeInstanceClient() const
@@ -357,6 +376,37 @@ QString NodeInstanceServerProxy::qrcMappingString() const
 void NodeInstanceServerProxy::processFinished()
 {
     processFinished(-1, QProcess::CrashExit);
+}
+
+void NodeInstanceServerProxy::puppetTimeout(PuppetStreamType puppetStreamType)
+{
+    switch (puppetStreamType) {
+    case FirstPuppetStream:
+        if (m_firstSocket->waitForReadyRead(10)) {
+            m_firstTimer.stop();
+            m_firstTimer.start();
+            return;
+        }
+        break;
+    case SecondPuppetStream:
+        if (m_secondSocket->waitForReadyRead(10)) {
+            m_secondTimer.stop();
+            m_secondTimer.start();
+            return;
+        }
+        break;
+    case ThirdPuppetStream:
+        if (m_thirdSocket->waitForReadyRead(10)) {
+            m_thirdTimer.stop();
+            m_thirdTimer.start();
+            return;
+        }
+        break;
+    default:
+        break;
+    }
+
+    processFinished();
 }
 
 static void writeCommandToIODecive(const QVariant &command, QIODevice *ioDevice, unsigned int commandCounter)
@@ -605,7 +655,17 @@ void NodeInstanceServerProxy::clearScene(const ClearSceneCommand &command)
     writeCommand(QVariant::fromValue(command));
 }
 
+void NodeInstanceServerProxy::update3DViewState(const Update3dViewStateCommand &command)
+{
+    writeCommand(QVariant::fromValue(command));
+}
+
 void NodeInstanceServerProxy::removeInstances(const RemoveInstancesCommand &command)
+{
+    writeCommand(QVariant::fromValue(command));
+}
+
+void NodeInstanceServerProxy::changeSelection(const ChangeSelectionCommand &command)
 {
     writeCommand(QVariant::fromValue(command));
 }
@@ -662,12 +722,22 @@ void NodeInstanceServerProxy::token(const TokenCommand &command)
 
 void NodeInstanceServerProxy::removeSharedMemory(const RemoveSharedMemoryCommand &command)
 {
-   writeCommand(QVariant::fromValue(command));
+    writeCommand(QVariant::fromValue(command));
 }
 
 void NodeInstanceServerProxy::benchmark(const QString &message)
 {
     qCInfo(instanceViewBenchmark) << message << m_benchmarkTimer.elapsed();
+}
+
+void NodeInstanceServerProxy::inputEvent(const InputEventCommand &command)
+{
+    writeCommand(QVariant::fromValue(command));
+}
+
+void NodeInstanceServerProxy::view3DAction(const View3DActionCommand &command)
+{
+    writeCommand(QVariant::fromValue(command));
 }
 
 } // namespace QmlDesigner

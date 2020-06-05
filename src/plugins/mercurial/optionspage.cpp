@@ -28,39 +28,42 @@
 #include "mercurialclient.h"
 #include "mercurialsettings.h"
 #include "mercurialplugin.h"
+#include "ui_optionspage.h"
+#include "ui_optionspage.h"
 
 #include <coreplugin/icore.h>
 #include <utils/pathchooser.h>
 #include <vcsbase/vcsbaseconstants.h>
-
-#include <QTextStream>
 
 using namespace VcsBase;
 
 namespace Mercurial {
 namespace Internal  {
 
-OptionsPageWidget::OptionsPageWidget(QWidget *parent) : VcsClientOptionsPageWidget(parent)
+class OptionsPageWidget final : public Core::IOptionsPageWidget
+{
+    Q_DECLARE_TR_FUNCTIONS(Mercurial::Internal::OptionsPageWidget)
+
+public:
+    OptionsPageWidget(const std::function<void()> &onApply, MercurialSettings *settings);
+    void apply() final;
+
+private:
+    Ui::OptionsPage m_ui;
+    std::function<void()> m_onApply;
+    MercurialSettings *m_settings;
+};
+
+OptionsPageWidget::OptionsPageWidget(const std::function<void()> &onApply, MercurialSettings *settings)
+    : m_onApply(onApply), m_settings(settings)
 {
     m_ui.setupUi(this);
     m_ui.commandChooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
     m_ui.commandChooser->setHistoryCompleter(QLatin1String("Mercurial.Command.History"));
     m_ui.commandChooser->setPromptDialogTitle(tr("Mercurial Command"));
-}
 
-VcsBaseClientSettings OptionsPageWidget::settings() const
-{
-    MercurialSettings s;
-    s.setValue(MercurialSettings::binaryPathKey, m_ui.commandChooser->rawPath());
-    s.setValue(MercurialSettings::userNameKey, m_ui.defaultUsernameLineEdit->text().trimmed());
-    s.setValue(MercurialSettings::userEmailKey, m_ui.defaultEmailLineEdit->text().trimmed());
-    s.setValue(MercurialSettings::logCountKey, m_ui.logEntriesCount->value());
-    s.setValue(MercurialSettings::timeoutKey, m_ui.timeout->value());
-    return s;
-}
+    const VcsBaseClientSettings &s = *settings;
 
-void OptionsPageWidget::setSettings(const VcsBaseClientSettings &s)
-{
     m_ui.commandChooser->setPath(s.stringValue(MercurialSettings::binaryPathKey));
     m_ui.defaultUsernameLineEdit->setText(s.stringValue(MercurialSettings::userNameKey));
     m_ui.defaultEmailLineEdit->setText(s.stringValue(MercurialSettings::userEmailKey));
@@ -68,12 +71,27 @@ void OptionsPageWidget::setSettings(const VcsBaseClientSettings &s)
     m_ui.timeout->setValue(s.intValue(MercurialSettings::timeoutKey));
 }
 
-OptionsPage::OptionsPage(Core::IVersionControl *control, QObject *parent) :
-    VcsClientOptionsPage(control, MercurialPlugin::client(), parent)
+void OptionsPageWidget::apply()
+{
+    MercurialSettings ms;
+    ms.setValue(MercurialSettings::binaryPathKey, m_ui.commandChooser->rawPath());
+    ms.setValue(MercurialSettings::userNameKey, m_ui.defaultUsernameLineEdit->text().trimmed());
+    ms.setValue(MercurialSettings::userEmailKey, m_ui.defaultEmailLineEdit->text().trimmed());
+    ms.setValue(MercurialSettings::logCountKey, m_ui.logEntriesCount->value());
+    ms.setValue(MercurialSettings::timeoutKey, m_ui.timeout->value());
+
+    if (*m_settings != ms) {
+        *m_settings = ms;
+        m_onApply();
+    }
+}
+
+OptionsPage::OptionsPage(const std::function<void()> &onApply, MercurialSettings *settings)
 {
     setId(VcsBase::Constants::VCS_ID_MERCURIAL);
-    setDisplayName(tr("Mercurial"));
-    setWidgetFactory([]() { return new OptionsPageWidget; });
+    setDisplayName(OptionsPageWidget::tr("Mercurial"));
+    setCategory(VcsBase::Constants::VCS_SETTINGS_CATEGORY);
+    setWidgetCreator([onApply, settings] { return new OptionsPageWidget(onApply, settings); });
 }
 
 } // namespace Internal

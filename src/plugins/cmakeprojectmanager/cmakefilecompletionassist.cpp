@@ -55,6 +55,7 @@ CMakeFileCompletionAssist::CMakeFileCompletionAssist() :
     KeywordsCompletionAssistProcessor(Keywords())
 {
     setSnippetGroup(Constants::CMAKE_SNIPPETS_GROUP_ID);
+    setDynamicCompletionFunction(&TextEditor::pathComplete);
 }
 
 IAssistProposal *CMakeFileCompletionAssist::perform(const AssistInterface *interface)
@@ -62,9 +63,9 @@ IAssistProposal *CMakeFileCompletionAssist::perform(const AssistInterface *inter
     Keywords kw;
     QString fileName = interface->fileName();
     if (!fileName.isEmpty() && QFileInfo(fileName).isFile()) {
-        Project *p = SessionManager::projectForFile(Utils::FileName::fromString(fileName));
+        Project *p = SessionManager::projectForFile(Utils::FilePath::fromString(fileName));
         if (p && p->activeTarget()) {
-            CMakeTool *cmake = CMakeKitInformation::cmakeTool(p->activeTarget()->kit());
+            CMakeTool *cmake = CMakeKitAspect::cmakeTool(p->activeTarget()->kit());
             if (cmake && cmake->isValid())
                 kw = cmake->keywords();
         }

@@ -95,7 +95,7 @@ QTransform QuickItemNodeInstance::transform() const
 QObject *QuickItemNodeInstance::parent() const
 {
     if (!quickItem() || !quickItem()->parentItem())
-        return 0;
+        return nullptr;
 
     return quickItem()->parentItem();
 }
@@ -230,6 +230,20 @@ QList<QQuickItem *> QuickItemNodeInstance::allItemsRecursive() const
     }
 
     return itemList;
+}
+
+QStringList QuickItemNodeInstance::allStates() const
+{
+    QStringList list;
+
+    QList<QObject*> stateList = DesignerSupport::statesForItem(quickItem());
+    for (QObject *state : stateList) {
+        QQmlProperty property(state, "name");
+        if (property.isValid())
+            list.append(property.read().toString());
+    }
+
+    return list;
 }
 
 QRectF QuickItemNodeInstance::contentItemBoundingBox() const
@@ -611,8 +625,8 @@ void QuickItemNodeInstance::setPropertyVariant(const PropertyName &name, const Q
     if (ignoredProperties().contains(name))
         return;
 
-    if (name == "state")
-        return; // states are only set by us
+    if (name == "state" && isRootNodeInstance())
+        return; // states on the root item are only set by us
 
     if (name == "height") {
         m_height = value.toDouble();
@@ -649,8 +663,8 @@ void QuickItemNodeInstance::setPropertyBinding(const PropertyName &name, const Q
     if (ignoredProperties().contains(name))
         return;
 
-    if (name == "state")
-        return; // states are only set by us
+    if (name == "state" && isRootNodeInstance())
+        return; // states on the root item are only set by us
 
     if (name.startsWith("anchors.") && isRootNodeInstance())
         return;
@@ -799,8 +813,8 @@ bool QuickItemNodeInstance::isAnchoredBySibling() const
 
 QQuickItem *QuickItemNodeInstance::quickItem() const
 {
-    if (object() == 0)
-        return 0;
+    if (object() == nullptr)
+        return nullptr;
 
     return static_cast<QQuickItem*>(object());
 }

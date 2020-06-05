@@ -25,22 +25,16 @@
 
 #pragma once
 
-#include "texteditoroptionspage.h"
-
-QT_BEGIN_NAMESPACE
-template <class> class QList;
-QT_END_NAMESPACE
+#include <coreplugin/dialogs/ioptionspage.h>
 
 namespace TextEditor {
 
 class HighlighterSettings;
 
-class HighlighterSettingsPage : public TextEditorOptionsPage
+class HighlighterSettingsPage final : public Core::IOptionsPage
 {
-    Q_OBJECT
-
 public:
-    HighlighterSettingsPage(Core::Id id, QObject *parent);
+    HighlighterSettingsPage();
     ~HighlighterSettingsPage() override;
 
     QWidget *widget() override;

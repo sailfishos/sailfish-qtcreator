@@ -51,7 +51,7 @@ public:
     SshConnection *m_connection;
     bool m_runInTerminal;
     QProcess::InputChannelMode m_inputChannelMode;
-    QByteArray m_command;
+    QString m_command;
     QString m_lastConnectionErrorString;
     QProcess::ExitStatus m_exitStatus;
     QByteArray m_stdout;
@@ -77,8 +77,7 @@ SshRemoteProcessRunner::~SshRemoteProcessRunner()
     delete d;
 }
 
-void SshRemoteProcessRunner::run(const QByteArray &command,
-    const SshConnectionParameters &sshParams)
+void SshRemoteProcessRunner::run(const QString &command, const SshConnectionParameters &sshParams)
 {
     QTC_ASSERT(d->m_state == Inactive, return);
 
@@ -86,7 +85,7 @@ void SshRemoteProcessRunner::run(const QByteArray &command,
     runInternal(command, sshParams);
 }
 
-void SshRemoteProcessRunner::runInTerminal(const QByteArray &command,
+void SshRemoteProcessRunner::runInTerminal(const QString &command,
                                            const SshConnectionParameters &sshParams,
                                            QProcess::InputChannelMode inputChannelMode)
 {
@@ -95,7 +94,7 @@ void SshRemoteProcessRunner::runInTerminal(const QByteArray &command,
     runInternal(command, sshParams);
 }
 
-void SshRemoteProcessRunner::runInternal(const QByteArray &command,
+void SshRemoteProcessRunner::runInternal(const QString &command,
     const SshConnectionParameters &sshParams)
 {
     setState(Connecting);
@@ -195,14 +194,14 @@ void SshRemoteProcessRunner::setState(int newState)
             d->m_process.release()->deleteLater();
         }
         if (d->m_connection) {
-            disconnect(d->m_connection, 0, this, 0);
+            disconnect(d->m_connection, nullptr, this, nullptr);
             QSsh::releaseConnection(d->m_connection);
-            d->m_connection = 0;
+            d->m_connection = nullptr;
         }
     }
 }
 
-QByteArray SshRemoteProcessRunner::command() const { return d->m_command; }
+QString SshRemoteProcessRunner::command() const { return d->m_command; }
 QString SshRemoteProcessRunner::lastConnectionErrorString() const {
     return d->m_lastConnectionErrorString;
 }

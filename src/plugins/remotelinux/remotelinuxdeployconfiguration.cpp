@@ -27,6 +27,7 @@
 
 #include "genericdirectuploadstep.h"
 #include "linuxdevice.h"
+#include "makeinstallstep.h"
 #include "remotelinuxcheckforfreediskspacestep.h"
 #include "remotelinuxkillappstep.h"
 #include "remotelinux_constants.h"
@@ -60,14 +61,29 @@ RemoteLinuxDeployConfigurationFactory::RemoteLinuxDeployConfigurationFactory()
                                                       "Deploy to Remote Linux Host"));
     setUseDeploymentDataView();
 
+    const auto needsMakeInstall = [](Target *target)
+    {
+        const Project * const prj = target->project();
+        return prj->deploymentKnowledge() == DeploymentKnowledge::Bad
+                && prj->hasMakeInstallEquivalent();
+    };
+    setPostRestore([needsMakeInstall](DeployConfiguration *dc, const QVariantMap &map) {
+        // 4.9 -> 4.10. See QTCREATORBUG-22689.
+        if (map.value("_checkMakeInstall").toBool() && needsMakeInstall(dc->target())) {
+            auto step = new MakeInstallStep(dc->stepList(), MakeInstallStep::stepId());
+            dc->stepList()->insertStep(0, step);
+        }
+    });
+
+    addInitialStep(MakeInstallStep::stepId(), needsMakeInstall);
     addInitialStep(RemoteLinuxCheckForFreeDiskSpaceStep::stepId());
     addInitialStep(RemoteLinuxKillAppStep::stepId());
     addInitialStep(RsyncDeployStep::stepId(), [](Target *target) {
-        auto device = DeviceKitInformation::device(target->kit()).staticCast<const LinuxDevice>();
+        auto device = DeviceKitAspect::device(target->kit()).staticCast<const LinuxDevice>();
         return device && device->supportsRSync();
     });
     addInitialStep(GenericDirectUploadStep::stepId(), [](Target *target) {
-        auto device = DeviceKitInformation::device(target->kit()).staticCast<const LinuxDevice>();
+        auto device = DeviceKitAspect::device(target->kit()).staticCast<const LinuxDevice>();
         return device && !device->supportsRSync();
     });
 }

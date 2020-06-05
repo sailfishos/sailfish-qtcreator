@@ -27,11 +27,13 @@
 #include "deploymenttimeinfo.h"
 
 #include <projectexplorer/deployablefile.h>
+#include <projectexplorer/kitinformation.h>
 #include <projectexplorer/target.h>
-#include <qtsupport/qtkitinformation.h>
-#include <utils/qtcassert.h>
+
 #include <ssh/sshconnection.h>
 #include <ssh/sshconnectionmanager.h>
+
+#include <utils/qtcassert.h>
 
 #include <QDateTime>
 #include <QFileInfo>
@@ -114,7 +116,7 @@ bool AbstractRemoteLinuxDeployService::hasRemoteFileChanged(
 void AbstractRemoteLinuxDeployService::setTarget(Target *target)
 {
     d->target = target;
-    d->deviceConfiguration = DeviceKitInformation::device(profile());
+    d->deviceConfiguration = DeviceKitAspect::device(profile());
 }
 
 void AbstractRemoteLinuxDeployService::setDevice(const IDevice::ConstPtr &device)
@@ -126,9 +128,9 @@ void AbstractRemoteLinuxDeployService::start()
 {
     QTC_ASSERT(d->state == Inactive, return);
 
-    QString errorMsg;
-    if (!isDeploymentPossible(&errorMsg)) {
-        emit errorMessage(errorMsg);
+    const CheckResult check = isDeploymentPossible();
+    if (!check) {
+        emit errorMessage(check.errorMessage());
         emit finished();
         return;
     }
@@ -165,14 +167,11 @@ void AbstractRemoteLinuxDeployService::stop()
     }
 }
 
-bool AbstractRemoteLinuxDeployService::isDeploymentPossible(QString *whyNot) const
+CheckResult AbstractRemoteLinuxDeployService::isDeploymentPossible() const
 {
-    if (!deviceConfiguration()) {
-        if (whyNot)
-            *whyNot = tr("No device configuration set.");
-        return false;
-    }
-    return true;
+    if (!deviceConfiguration())
+        return CheckResult::failure(tr("No device configuration set."));
+    return CheckResult::success();
 }
 
 QVariantMap AbstractRemoteLinuxDeployService::exportDeployTimes() const

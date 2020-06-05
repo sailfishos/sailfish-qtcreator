@@ -25,9 +25,10 @@
 
 #pragma once
 
-#include <QAbstractItemModel>
+#include <QSortFilterProxyModel>
 
 #include <QIcon>
+#include <QRegularExpression>
 
 #include "task.h"
 
@@ -53,9 +54,9 @@ public:
     QString categoryDisplayName(Core::Id categoryId) const;
     void addCategory(Core::Id categoryId, const QString &categoryName);
 
-    QList<Task> tasks(Core::Id categoryId = Core::Id()) const;
-    void addTask(const Task &task);
-    void removeTask(const Task &task);
+    Tasks tasks(Core::Id categoryId = Core::Id()) const;
+    void addTask(const Task &t);
+    void removeTask(unsigned int id);
     void clearTasks(Core::Id categoryId = Core::Id());
     void updateTaskFileName(unsigned int id, const QString &fileName);
     void updateTaskLineNumber(unsigned int id, int line);
@@ -110,7 +111,7 @@ private:
     };
 
     QHash<Core::Id,CategoryData> m_categories; // category id to data
-    QList<Task> m_tasks;   // all tasks (in order of id)
+    Tasks m_tasks;   // all tasks (in order of id)
 
     QHash<QString,bool> m_fileNotFound;
     QFont m_fileMeasurementFont;
@@ -120,26 +121,17 @@ private:
     int m_sizeOfLineNumber = 0;
 };
 
-class TaskFilterModel : public QAbstractItemModel
+class TaskFilterModel : public QSortFilterProxyModel
 {
     Q_OBJECT
 
 public:
     TaskFilterModel(TaskModel *sourceModel, QObject *parent = nullptr);
 
-    TaskModel *taskModel() { return m_sourceModel; }
-
-    QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const override;
-    QModelIndex parent(const QModelIndex &child) const override;
-    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
-    int columnCount(const QModelIndex &parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
-
-    bool filterIncludesUnknowns() const { return m_includeUnknowns; }
-    void setFilterIncludesUnknowns(bool b) { m_includeUnknowns = b; invalidateFilter(); }
+    TaskModel *taskModel() const { return static_cast<TaskModel *>(sourceModel()); }
 
     bool filterIncludesWarnings() const { return m_includeWarnings; }
-    void setFilterIncludesWarnings(bool b) { m_includeWarnings = b; invalidateFilter(); }
+    void setFilterIncludesWarnings(bool b);
 
     bool filterIncludesErrors() const { return m_includeErrors; }
     void setFilterIncludesErrors(bool b) { m_includeErrors = b; invalidateFilter(); }
@@ -147,33 +139,32 @@ public:
     QList<Core::Id> filteredCategories() const { return m_categoryIds; }
     void setFilteredCategories(const QList<Core::Id> &categoryIds) { m_categoryIds = categoryIds; invalidateFilter(); }
 
-    Task task(const QModelIndex &index) const
-    { return m_sourceModel->task(mapToSource(index)); }
+    Task task(const QModelIndex &index) const { return taskModel()->task(mapToSource(index)); }
+    int issuesCount(int startRow, int endRow) const;
 
     bool hasFile(const QModelIndex &index) const
-    { return m_sourceModel->hasFile(mapToSource(index)); }
+    { return taskModel()->hasFile(mapToSource(index)); }
 
-    QModelIndex mapFromSource(const QModelIndex &idx) const;
+    void updateFilterProperties(
+            const QString &filterText,
+            Qt::CaseSensitivity caseSensitivity,
+            bool isRegex,
+            bool isInverted);
 
 private:
-    void handleNewRows(const QModelIndex &index, int first, int last);
-    void handleRowsAboutToBeRemoved(const QModelIndex &index, int first, int last);
-    void handleDataChanged(const QModelIndex &top, const QModelIndex &bottom);
-
-    QModelIndex mapToSource(const QModelIndex &index) const;
-    void invalidateFilter();
-    void updateMapping() const;
+    bool filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override;
     bool filterAcceptsTask(const Task &task) const;
 
     bool m_beginRemoveRowsSent = false;
     bool m_includeUnknowns;
     bool m_includeWarnings;
     bool m_includeErrors;
+    bool m_filterStringIsRegexp = false;
+    bool m_filterIsInverted = false;
+    Qt::CaseSensitivity m_filterCaseSensitivity = Qt::CaseInsensitive;
     QList<Core::Id> m_categoryIds;
-
-    mutable QList<int> m_mapping;
-
-    TaskModel *m_sourceModel;
+    QString m_filterText;
+    QRegularExpression m_filterRegexp;
 };
 
 } // namespace Internal

@@ -29,9 +29,14 @@
 #include "environmentaspect.h"
 
 #include <utils/fileutils.h>
+#include <utils/macroexpander.h>
 #include <utils/pathchooser.h>
 
 #include <memory>
+
+QT_BEGIN_NAMESPACE
+class QCheckBox;
+QT_END_NAMESPACE
 
 namespace ProjectExplorer {
 
@@ -39,6 +44,7 @@ namespace Internal {
 class BaseBoolAspectPrivate;
 class BaseStringAspectPrivate;
 class BaseIntegerAspectPrivate;
+class BaseSelectionAspectPrivate;
 } // Internal
 
 class PROJECTEXPLORER_EXPORT BaseBoolAspect : public ProjectConfigurationAspect
@@ -49,7 +55,7 @@ public:
     explicit BaseBoolAspect(const QString &settingsKey = QString());
     ~BaseBoolAspect() override;
 
-    void addToConfigurationLayout(QFormLayout *layout) override;
+    void addToLayout(LayoutBuilder &builder) override;
 
     bool value() const;
     void setValue(bool val);
@@ -57,7 +63,8 @@ public:
     bool defaultValue() const;
     void setDefaultValue(bool defaultValue);
 
-    void setLabel(const QString &label);
+    enum class LabelPlacement { AtCheckBox, InExtraLabel };
+    void setLabel(const QString &label, LabelPlacement labelPlacement);
     void setToolTip(const QString &tooltip);
 
     void fromMap(const QVariantMap &map) override;
@@ -65,6 +72,37 @@ public:
 
 private:
     std::unique_ptr<Internal::BaseBoolAspectPrivate> d;
+};
+
+class PROJECTEXPLORER_EXPORT BaseSelectionAspect : public ProjectConfigurationAspect
+{
+    Q_OBJECT
+
+public:
+    BaseSelectionAspect();
+    ~BaseSelectionAspect() override;
+
+    void addToLayout(LayoutBuilder &builder) override;
+
+    int value() const;
+    void setValue(int val);
+
+    int defaultValue() const;
+    void setDefaultValue(int defaultValue);
+
+    enum class DisplayStyle { RadioButtons, ComboBox };
+    void setDisplayStyle(DisplayStyle style);
+
+    void addOption(const QString &displayName, const QString &toolTip = {});
+
+    void fromMap(const QVariantMap &map) override;
+    void toMap(QVariantMap &map) const override;
+
+protected:
+    void setVisibleDynamic(bool visible) override;
+
+private:
+    std::unique_ptr<Internal::BaseSelectionAspectPrivate> d;
 };
 
 class PROJECTEXPLORER_EXPORT BaseStringAspect : public ProjectConfigurationAspect
@@ -75,7 +113,7 @@ public:
     BaseStringAspect();
     ~BaseStringAspect() override;
 
-    void addToConfigurationLayout(QFormLayout *layout) override;
+    void addToLayout(LayoutBuilder &builder) override;
 
     QString value() const;
     void setValue(const QString &val);
@@ -83,15 +121,24 @@ public:
     QString labelText() const;
     void setLabelText(const QString &labelText);
     void setLabelPixmap(const QPixmap &labelPixmap);
+    void setShowToolTipOnLabel(bool show);
 
     void setDisplayFilter(const std::function<QString (const QString &)> &displayFilter);
     void setPlaceHolderText(const QString &placeHolderText);
     void setHistoryCompleter(const QString &historyCompleterKey);
     void setExpectedKind(const Utils::PathChooser::Kind expectedKind);
     void setEnvironment(const Utils::Environment &env);
+    void setBaseFileName(const Utils::FilePath &baseFileName);
+    void setReadOnly(bool readOnly);
+    void setMacroExpanderProvider(const Utils::MacroExpanderProvider &expanderProvider);
 
+    enum class UncheckedSemantics { Disabled, ReadOnly };
+    enum class CheckBoxPlacement { Top, Right };
+    void setUncheckedSemantics(UncheckedSemantics semantics);
     bool isChecked() const;
-    void makeCheckable(const QString &optionalLabel, const QString &optionalBaseKey);
+    void setChecked(bool checked);
+    void makeCheckable(CheckBoxPlacement checkBoxPlacement, const QString &optionalLabel,
+                       const QString &optionalBaseKey);
 
     enum DisplayStyle {
         LabelDisplay,
@@ -104,8 +151,11 @@ public:
     void fromMap(const QVariantMap &map) override;
     void toMap(QVariantMap &map) const override;
 
-    Utils::FileName fileName() const;
-    void setFileName(const Utils::FileName &val);
+    Utils::FilePath filePath() const;
+    void setFilePath(const Utils::FilePath &val);
+
+signals:
+    void checkedChanged();
 
 private:
     void update();
@@ -121,22 +171,55 @@ public:
     BaseIntegerAspect();
     ~BaseIntegerAspect() override;
 
-    void addToConfigurationLayout(QFormLayout *layout) override;
+    void addToLayout(LayoutBuilder &builder) override;
 
-    int value() const;
-    void setValue(int val);
+    qint64 value() const;
+    void setValue(qint64 val);
 
-    void setRange(int min, int max);
+    void setRange(qint64 min, qint64 max);
     void setLabel(const QString &label);
     void setPrefix(const QString &prefix);
     void setSuffix(const QString &suffix);
     void setDisplayIntegerBase(int base);
+    void setDisplayScaleFactor(qint64 factor);
 
     void fromMap(const QVariantMap &map) override;
     void toMap(QVariantMap &map) const override;
 
 private:
     std::unique_ptr<Internal::BaseIntegerAspectPrivate> d;
+};
+
+class PROJECTEXPLORER_EXPORT TriState
+{
+    enum Value { EnabledValue, DisabledValue, DefaultValue };
+    explicit TriState(Value v) : m_value(v) {}
+
+public:
+    TriState() = default;
+
+    QVariant toVariant() const { return int(m_value); }
+    static TriState fromVariant(const QVariant &variant);
+
+    static const TriState Enabled;
+    static const TriState Disabled;
+    static const TriState Default;
+
+    friend bool operator==(TriState a, TriState b) { return a.m_value == b.m_value; }
+    friend bool operator!=(TriState a, TriState b) { return a.m_value != b.m_value; }
+
+private:
+    Value m_value = DefaultValue;
+};
+
+class PROJECTEXPLORER_EXPORT BaseTriStateAspect : public BaseSelectionAspect
+{
+    Q_OBJECT
+public:
+    BaseTriStateAspect();
+
+    TriState setting() const;
+    void setSetting(TriState setting);
 };
 
 } // namespace ProjectExplorer

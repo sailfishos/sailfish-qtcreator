@@ -30,6 +30,7 @@
 
 #include "../nimconstants.h"
 #include "../nimplugin.h"
+#include "nimtexteditorwidget.h"
 
 #include <texteditor/texteditoractionhandler.h>
 #include <texteditor/texteditorconstants.h>
@@ -44,18 +45,16 @@ namespace Nim {
 NimEditorFactory::NimEditorFactory()
 {
     setId(Constants::C_NIMEDITOR_ID);
-    setDisplayName(tr(Nim::Constants::C_EDITOR_DISPLAY_NAME));
+    setDisplayName(QCoreApplication::translate("OpenWith::Editors", "Nim Editor"));
     addMimeType(QLatin1String(Nim::Constants::C_NIM_MIMETYPE));
     addMimeType(QLatin1String(Nim::Constants::C_NIM_SCRIPT_MIMETYPE));
 
     setEditorActionHandlers(TextEditorActionHandler::Format
                             | TextEditorActionHandler::UnCommentSelection
-                            | TextEditorActionHandler::UnCollapseAll);
-
+                            | TextEditorActionHandler::UnCollapseAll
+                            | TextEditorActionHandler::FollowSymbolUnderCursor);
     setEditorWidgetCreator([]{
-        auto result = new TextEditorWidget();
-        result->setLanguageSettingsId(Nim::Constants::C_NIMLANGUAGE_ID);
-        return result;
+        return new NimTextEditorWidget();
     });
     setDocumentCreator([]() {
         return new TextDocument(Constants::C_NIMEDITOR_ID);
@@ -70,11 +69,6 @@ NimEditorFactory::NimEditorFactory()
     setCommentDefinition(CommentDefinition::HashStyle);
     setParenthesesMatchingEnabled(true);
     setCodeFoldingSupported(true);
-}
-
-Core::IEditor *NimEditorFactory::createEditor()
-{
-    return TextEditorFactory::createEditor();
 }
 
 void NimEditorFactory::decorateEditor(TextEditorWidget *editor)

@@ -25,8 +25,8 @@
 
 #include "clangtoolspreconfiguredsessiontests.h"
 
+#include "clangtool.h"
 #include "clangtoolsdiagnostic.h"
-#include "clangtidyclazytool.h"
 #include "clangtoolsutils.h"
 
 #include <coreplugin/icore.h>
@@ -43,7 +43,7 @@
 #include <utils/fileutils.h>
 
 #include <QSignalSpy>
-#include <QTimer>
+#include <QElapsedTimer>
 #include <QtTest>
 #include <QVariant>
 
@@ -54,10 +54,10 @@ using namespace ProjectExplorer;
 
 static bool processEventsUntil(const std::function<bool()> condition, int timeOutInMs = 30000)
 {
-    QTime t;
+    QElapsedTimer t;
     t.start();
 
-    forever {
+    while (true) {
         if (t.elapsed() > timeOutInMs)
             return false;
 
@@ -121,13 +121,13 @@ void PreconfiguredSessionTests::testPreconfiguredSession()
 
     QVERIFY(switchToProjectAndTarget(project, target));
 
-    ClangTidyClazyTool::instance()->startTool(false);
-    QSignalSpy waitUntilAnalyzerFinished(ClangTidyClazyTool::instance(), SIGNAL(finished(bool)));
+    ClangTool::instance()->startTool(ClangTool::FileSelection::AllFiles);
+    QSignalSpy waitUntilAnalyzerFinished(ClangTool::instance(), SIGNAL(finished(bool)));
     QVERIFY(waitUntilAnalyzerFinished.wait(30000));
     const QList<QVariant> arguments = waitUntilAnalyzerFinished.takeFirst();
     const bool analyzerFinishedSuccessfully = arguments.first().toBool();
     QVERIFY(analyzerFinishedSuccessfully);
-    QCOMPARE(ClangTidyClazyTool::instance()->diagnostics().count(), 0);
+    QCOMPARE(ClangTool::instance()->diagnostics().count(), 0);
 }
 
 static QList<Project *> validProjects(const QList<Project *> projectsOfSession)
@@ -166,7 +166,7 @@ static QList<Target *> validTargets(Project *project)
             return false;
         }
 
-        const ToolChain * const toolchain = ToolChainKitInformation::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
+        const ToolChain * const toolchain = ToolChainKitAspect::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
         QTC_ASSERT(toolchain, return false);
 
         if (Core::ICore::clangExecutable(CLANG_BINDIR).isEmpty()) {

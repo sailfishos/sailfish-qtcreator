@@ -1,0 +1,78 @@
+{
+    "version": 1,
+    "supportedProjectTypes": [ "CMakeProjectManager.CMakeProject" ],
+    "id": "M.McuSupportApplication",
+    "category": "D.ApplicationMCU",
+    "trDescription": "Creates an Mcu Support application with an empty UI.",
+    "trDisplayName": "Mcu Support Application",
+    "trDisplayCategory": "Application (Qt for MCU)",
+    "icon": "../icon.png",
+    "enabled": true,
+
+    "options":
+    [
+        { "key": "MainQmlFile", "value": "%{ProjectName}.qml" },
+        { "key": "CMakeFile", "value": "%{ProjectDirectory}/CMakeLists.txt" }
+    ],
+
+    "pages":
+    [
+        {
+            "trDisplayName": "Project Location",
+            "trShortTitle": "Location",
+            "typeId": "Project"
+        },
+        {
+            "trDisplayName": "Kit Selection",
+            "trShortTitle": "Kits",
+            "typeId": "Kits",
+            "enabled": "%{JS: !value('IsSubproject')}",
+            "data": {
+                "projectFilePath": "%{CMakeFile}"
+            }
+        },
+        {
+            "trDisplayName": "Project Management",
+            "trShortTitle": "Summary",
+            "typeId": "Summary"
+        }
+    ],
+    "generators":
+    [
+        {
+            "typeId": "File",
+            "data":
+            [
+                {
+                    "source": "CMakeLists.txt",
+                    "openAsProject": true
+                },
+                {
+                    "source": "project.qmlproject.tpl",
+                    "target": "%{ProjectDirectory}/%{ProjectName}.qmlproject",
+                    "openInEditor": false
+                },
+                {
+                    "source": "BareMetal/main.cpp.tpl",
+                    "target": "%{ProjectDirectory}/BareMetal/main.cpp",
+                    "openInEditor": false
+                },
+                {
+                    "source": "FreeRTOS/main.cpp.tpl",
+                    "target": "%{ProjectDirectory}/FreeRTOS/main.cpp",
+                    "openInEditor": false
+                },
+                {
+                    "source": "main.qml.tpl",
+                    "target": "%{ProjectDirectory}/%{MainQmlFile}",
+                    "openInEditor": true
+                },
+                {
+                    "source": "%{IDE:ResourcePath}/templates/wizards/projects/git.ignore",
+                    "target": ".gitignore",
+                    "condition": "%{JS: !value('IsSubproject') && value('VersionControl') === 'G.Git'}"
+                }
+            ]
+        }
+    ]
+}

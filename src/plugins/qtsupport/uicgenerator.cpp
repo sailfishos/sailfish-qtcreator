@@ -43,32 +43,31 @@ using namespace ProjectExplorer;
 
 namespace QtSupport {
 
-UicGenerator::UicGenerator(const Project *project, const Utils::FileName &source,
-                           const Utils::FileNameList &targets, QObject *parent) :
+UicGenerator::UicGenerator(const Project *project, const Utils::FilePath &source,
+                           const Utils::FilePaths &targets, QObject *parent) :
     ProcessExtraCompiler(project, source, targets, parent)
 {
     QTC_ASSERT(targets.count() == 1, return);
 }
 
-Utils::FileName UicGenerator::command() const
+Utils::FilePath UicGenerator::command() const
 {
     QtSupport::BaseQtVersion *version = nullptr;
     Target *target;
     if ((target = project()->activeTarget()))
-        version = QtSupport::QtKitInformation::qtVersion(target->kit());
+        version = QtSupport::QtKitAspect::qtVersion(target->kit());
     else
-        version = QtSupport::QtKitInformation::qtVersion(KitManager::defaultKit());
+        version = QtSupport::QtKitAspect::qtVersion(KitManager::defaultKit());
 
     if (!version)
-        return Utils::FileName();
+        return Utils::FilePath();
 
-    return Utils::FileName::fromString(version->uicCommand());
+    return Utils::FilePath::fromString(version->uicCommand());
 }
 
-void UicGenerator::handleProcessStarted(QProcess *process, const QByteArray &sourceContents)
+QStringList UicGenerator::arguments() const
 {
-    process->write(sourceContents);
-    process->closeWriteChannel();
+    return {"-p"};
 }
 
 FileNameToContentsHash UicGenerator::handleProcessFinished(QProcess *process)
@@ -77,13 +76,21 @@ FileNameToContentsHash UicGenerator::handleProcessFinished(QProcess *process)
     if (process->exitStatus() != QProcess::NormalExit && process->exitCode() != 0)
         return result;
 
-    const Utils::FileNameList targetList = targets();
+    const Utils::FilePaths targetList = targets();
     if (targetList.size() != 1)
         return result;
     // As far as I can discover in the UIC sources, it writes out local 8-bit encoding. The
     // conversion below is to normalize both the encoding, and the line terminators.
-    result[targetList.first()] = QString::fromLocal8Bit(process->readAllStandardOutput()).toUtf8();
+    QByteArray content = QString::fromLocal8Bit(process->readAllStandardOutput()).toUtf8();
+    content.prepend("#pragma once\n");
+    result[targetList.first()] = content;
     return result;
+}
+
+void UicGenerator::handleProcessStarted(QProcess *process, const QByteArray &sourceContents)
+{
+    process->write(sourceContents);
+    process->closeWriteChannel();
 }
 
 FileType UicGeneratorFactory::sourceType() const
@@ -97,8 +104,8 @@ QString UicGeneratorFactory::sourceTag() const
 }
 
 ExtraCompiler *UicGeneratorFactory::create(const Project *project,
-                                           const Utils::FileName &source,
-                                           const Utils::FileNameList &targets)
+                                           const Utils::FilePath &source,
+                                           const Utils::FilePaths &targets)
 {
     annouceCreation(project, source, targets);
 

@@ -98,7 +98,7 @@ void FindUsages::operator()(Symbol *symbol)
 
 void FindUsages::reportResult(unsigned tokenIndex, const Name *name, Scope *scope)
 {
-    if (! (tokenIndex && name != 0))
+    if (! (tokenIndex && name != nullptr))
         return;
 
     if (name->identifier() != _id)
@@ -157,10 +157,10 @@ void FindUsages::reportResult(unsigned tokenIndex)
 
     _processed.insert(tokenIndex);
 
-    unsigned line, col;
+    int line, col;
     getTokenStartPosition(tokenIndex, &line, &col);
     QString lineText;
-    if (line < _sourceLineEnds.size())
+    if (line < int(_sourceLineEnds.size()))
         lineText = fetchLine(line);
     else
         lineText = matchingLine(tk);
@@ -170,7 +170,7 @@ void FindUsages::reportResult(unsigned tokenIndex)
 
     const int len = tk.utf16chars();
 
-    const Usage u(Utils::FileName::fromString(_doc->fileName()), lineText, line, col, len);
+    const Usage u(Utils::FilePath::fromString(_doc->fileName()), lineText, line, col, len);
     _usages.append(u);
     _references.append(tokenIndex);
 }
@@ -298,7 +298,7 @@ const Name *FindUsages::name(NameAST *ast)
         return ast->name;
     }
 
-    return 0;
+    return nullptr;
 }
 
 void FindUsages::specifier(SpecifierAST *ast)
@@ -1867,7 +1867,7 @@ bool FindUsages::visit(QualifiedNameAST *ast)
         if (NameAST *class_or_namespace_name = nested_name_specifier->class_or_namespace_name) {
             SimpleNameAST *simple_name = class_or_namespace_name->asSimpleName();
 
-            TemplateIdAST *template_id = 0;
+            TemplateIdAST *template_id = nullptr;
             if (! simple_name) {
                 template_id = class_or_namespace_name->asTemplateId();
 
@@ -1897,7 +1897,7 @@ bool FindUsages::visit(QualifiedNameAST *ast)
         else if (DestructorNameAST *dtor = unqualified_name->asDestructorName())
             identifier_token = dtor->unqualified_name->firstToken();
 
-        TemplateIdAST *template_id = 0;
+        TemplateIdAST *template_id = nullptr;
         if (! identifier_token) {
             template_id = unqualified_name->asTemplateId();
 

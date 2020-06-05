@@ -28,30 +28,25 @@
 #include "projectconfiguration.h"
 #include "projectexplorer_export.h"
 
-#include "subscription.h"
-
 #include <memory>
 
 QT_FORWARD_DECLARE_CLASS(QIcon)
 
-namespace Utils { class Environment; }
-
 namespace ProjectExplorer {
 class BuildConfiguration;
-class BuildTargetInfoList;
+class BuildTargetInfo;
+class BuildSystem;
 class DeployConfiguration;
-class DeployConfigurationFactory;
 class DeploymentData;
-class BuildConfigurationFactory;
-class RunConfigurationFactory;
 class Kit;
-class NamedWidget;
+class MakeInstallCommand;
 class Project;
+class ProjectConfigurationModel;
 class RunConfiguration;
 
 class TargetPrivate;
 
-class PROJECTEXPLORER_EXPORT Target : public ProjectConfiguration
+class PROJECTEXPLORER_EXPORT Target : public QObject
 {
     friend class SessionManager; // for setActiveBuild and setActiveDeployConfiguration
     Q_OBJECT
@@ -62,56 +57,44 @@ public:
     Target(Project *parent, Kit *k, _constructor_tag);
     ~Target() override;
 
-    Project *project() const override;
+    bool isActive() const;
 
-    bool isActive() const final;
-
-    // Kit:
+    Project *project() const;
     Kit *kit() const;
+    BuildSystem *buildSystem() const;
+
+    Core::Id id() const;
+    QString displayName() const;
+    QString toolTip() const;
 
     // Build configuration
     void addBuildConfiguration(BuildConfiguration *bc);
     bool removeBuildConfiguration(BuildConfiguration *bc);
 
-    QList<BuildConfiguration *> buildConfigurations() const;
+    const QList<BuildConfiguration *> buildConfigurations() const;
     BuildConfiguration *activeBuildConfiguration() const;
 
     // DeployConfiguration
     void addDeployConfiguration(DeployConfiguration *dc);
     bool removeDeployConfiguration(DeployConfiguration *dc);
 
-    QList<DeployConfiguration *> deployConfigurations() const;
+    const QList<DeployConfiguration *> deployConfigurations() const;
     DeployConfiguration *activeDeployConfiguration() const;
 
-    void setDeploymentData(const DeploymentData &deploymentData);
-    DeploymentData deploymentData() const;
-
-    void setApplicationTargets(const BuildTargetInfoList &appTargets);
-    BuildTargetInfoList applicationTargets() const;
-
-    QList<ProjectConfiguration *> projectConfigurations() const;
-
     // Running
-    QList<RunConfiguration *> runConfigurations() const;
+    const QList<RunConfiguration *> runConfigurations() const;
     void addRunConfiguration(RunConfiguration *rc);
     void removeRunConfiguration(RunConfiguration *rc);
 
     RunConfiguration *activeRunConfiguration() const;
     void setActiveRunConfiguration(RunConfiguration *rc);
 
-    // Returns whether this target is actually available at he time
-    // of the call. A target may become unavailable e.g. when a Qt version
-    // is removed.
-    //
-    // Note: Enabled state is not saved!
-    bool isEnabled() const;
-
     QIcon icon() const;
     QIcon overlayIcon() const;
     void setOverlayIcon(const QIcon &icon);
     QString overlayIconToolTip();
 
-    QVariantMap toMap() const override;
+    QVariantMap toMap() const;
 
     void updateDefaultBuildConfigurations();
     void updateDefaultDeployConfigurations();
@@ -121,24 +104,20 @@ public:
     void setNamedSettings(const QString &name, const QVariant &value);
 
     QVariant additionalData(Core::Id id) const;
+    MakeInstallCommand makeInstallCommand(const QString &installRoot) const;
 
-    template<typename S, typename R, typename T>
-    void subscribeSignal(void (S::*sig)(), R*recv, T (R::*sl)()) {
-        new Internal::TargetSubscription([sig, recv, sl, this](ProjectConfiguration *pc) {
-            if (S* sender = qobject_cast<S*>(pc))
-                return connect(sender, sig, recv, sl);
-            return QMetaObject::Connection();
-        }, recv, this);
-    }
+    Utils::MacroExpander *macroExpander() const;
 
-    template<typename S, typename R, typename T>
-    void subscribeSignal(void (S::*sig)(), R*recv, T sl) {
-        new Internal::TargetSubscription([sig, recv, sl, this](ProjectConfiguration *pc) {
-            if (S* sender = qobject_cast<S*>(pc))
-                return connect(sender, sig, recv, sl);
-            return QMetaObject::Connection();
-        }, recv, this);
-    }
+    ProjectConfigurationModel *buildConfigurationModel() const;
+    ProjectConfigurationModel *deployConfigurationModel() const;
+    ProjectConfigurationModel *runConfigurationModel() const;
+
+    BuildSystem *fallbackBuildSystem() const;
+
+    DeploymentData deploymentData() const;
+    DeploymentData buildSystemDeploymentData() const;
+    const QList<BuildTargetInfo> applicationTargets() const;
+    BuildTargetInfo buildTarget(const QString &buildKey) const;
 
 signals:
     void targetEnabled(bool);
@@ -147,11 +126,9 @@ signals:
 
     void kitChanged();
 
-    void aboutToRemoveProjectConfiguration(ProjectExplorer::ProjectConfiguration *pc);
-    void removedProjectConfiguration(ProjectExplorer::ProjectConfiguration *pc);
-    void addedProjectConfiguration(ProjectExplorer::ProjectConfiguration *pc);
-
-    void activeProjectConfigurationChanged(ProjectExplorer::ProjectConfiguration *pc);
+    void parsingStarted();
+    void parsingFinished(bool);
+    void buildSystemUpdated(ProjectExplorer::BuildSystem *bs);
 
     // TODO clean up signal names
     // might be better to also have aboutToRemove signals
@@ -162,18 +139,16 @@ signals:
     void removedBuildConfiguration(ProjectExplorer::BuildConfiguration *bc);
     void addedBuildConfiguration(ProjectExplorer::BuildConfiguration *bc);
     void activeBuildConfigurationChanged(ProjectExplorer::BuildConfiguration *);
+    void buildEnvironmentChanged(ProjectExplorer::BuildConfiguration *bc);
 
     void removedDeployConfiguration(ProjectExplorer::DeployConfiguration *dc);
     void addedDeployConfiguration(ProjectExplorer::DeployConfiguration *dc);
     void activeDeployConfigurationChanged(ProjectExplorer::DeployConfiguration *dc);
 
     void deploymentDataChanged();
-    void applicationTargetsChanged();
 
 private:
-    void setEnabled(bool);
-
-    bool fromMap(const QVariantMap &map) override;
+    bool fromMap(const QVariantMap &map);
 
     void updateDeviceState();
 

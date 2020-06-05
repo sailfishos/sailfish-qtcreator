@@ -42,25 +42,26 @@ class CMakeBuildConfiguration;
 class BuildDirParameters {
 public:
     BuildDirParameters();
-    BuildDirParameters(CMakeBuildConfiguration *bc);
+    explicit BuildDirParameters(CMakeBuildConfiguration *bc);
     BuildDirParameters(const BuildDirParameters &other);
+    BuildDirParameters &operator=(const BuildDirParameters &other);
 
     bool isValid() const;
     CMakeTool *cmakeTool() const;
 
-    CMakeBuildConfiguration *buildConfiguration = nullptr;
+    bool initialized = false;
     QString projectName;
 
-    Utils::FileName sourceDirectory;
-    Utils::FileName buildDirectory;
-    Utils::FileName workDirectory; // either buildDirectory or a QTemporaryDirectory!
+    Utils::FilePath sourceDirectory;
+    Utils::FilePath buildDirectory;
+    Utils::FilePath workDirectory; // either buildDirectory or a QTemporaryDirectory!
     Utils::Environment environment;
     Core::Id cmakeToolId;
 
     QByteArray cxxToolChainId;
     QByteArray cToolChainId;
 
-    Utils::FileName sysRoot;
+    Utils::FilePath sysRoot;
 
     Utils::MacroExpander *expander = nullptr;
 

@@ -28,6 +28,8 @@
 #include "gitplugin.h"
 #include "gitclient.h"
 
+#include "ui_settingspage.h"
+
 #include <coreplugin/icore.h>
 #include <coreplugin/messagebox.h>
 #include <vcsbase/vcsbaseconstants.h>
@@ -36,15 +38,31 @@
 #include <utils/hostosinfo.h>
 
 #include <QDir>
-#include <QDebug>
-#include <QTextStream>
 
 using namespace VcsBase;
 
 namespace Git {
 namespace Internal {
 
-SettingsPageWidget::SettingsPageWidget(QWidget *parent) : VcsClientOptionsPageWidget(parent)
+class GitSettingsPageWidget final : public Core::IOptionsPageWidget
+{
+    Q_DECLARE_TR_FUNCTIONS(Git::Internal::SettingsPageWidget)
+
+public:
+    GitSettingsPageWidget(GitSettings *settings, const std::function<void()> &onChange);
+
+    void apply() final;
+
+private:
+    void updateNoteField();
+
+    std::function<void()> m_onChange;
+    GitSettings *m_settings;
+    Ui::SettingsPage m_ui;
+};
+
+GitSettingsPageWidget::GitSettingsPageWidget(GitSettings *settings, const std::function<void()> &onChange)
+    : m_onChange(onChange), m_settings(settings)
 {
     m_ui.setupUi(this);
     if (Utils::HostOsInfo::isWindowsHost()) {
@@ -66,25 +84,9 @@ SettingsPageWidget::SettingsPageWidget(QWidget *parent) : VcsClientOptionsPageWi
     m_ui.repBrowserCommandPathChooser->setHistoryCompleter("Git.RepoCommand.History");
     m_ui.repBrowserCommandPathChooser->setPromptDialogTitle(tr("Git Repository Browser Command"));
 
-    connect(m_ui.pathLineEdit, &QLineEdit::textChanged, this, &SettingsPageWidget::updateNoteField);
-}
+    connect(m_ui.pathLineEdit, &QLineEdit::textChanged, this, &GitSettingsPageWidget::updateNoteField);
 
-VcsBaseClientSettings SettingsPageWidget::settings() const
-{
-    GitSettings rc;
-    rc.setValue(GitSettings::pathKey, m_ui.pathLineEdit->text());
-    rc.setValue(GitSettings::logCountKey, m_ui.logCountSpinBox->value());
-    rc.setValue(GitSettings::timeoutKey, m_ui.timeoutSpinBox->value());
-    rc.setValue(GitSettings::pullRebaseKey, m_ui.pullRebaseCheckBox->isChecked());
-    rc.setValue(GitSettings::winSetHomeEnvironmentKey, m_ui.winHomeCheckBox->isChecked());
-    rc.setValue(GitSettings::gitkOptionsKey, m_ui.gitkOptionsLineEdit->text().trimmed());
-    rc.setValue(GitSettings::repositoryBrowserCmd, m_ui.repBrowserCommandPathChooser->path().trimmed());
-
-    return rc;
-}
-
-void SettingsPageWidget::setSettings(const VcsBaseClientSettings &s)
-{
+    GitSettings &s = *m_settings;
     m_ui.pathLineEdit->setText(s.stringValue(GitSettings::pathKey));
     m_ui.logCountSpinBox->setValue(s.intValue(GitSettings::logCountKey));
     m_ui.timeoutSpinBox->setValue(s.intValue(GitSettings::timeoutKey));
@@ -94,7 +96,24 @@ void SettingsPageWidget::setSettings(const VcsBaseClientSettings &s)
     m_ui.repBrowserCommandPathChooser->setPath(s.stringValue(GitSettings::repositoryBrowserCmd));
 }
 
-void SettingsPageWidget::updateNoteField()
+void GitSettingsPageWidget::apply()
+{
+    GitSettings rc = *m_settings;
+    rc.setValue(GitSettings::pathKey, m_ui.pathLineEdit->text());
+    rc.setValue(GitSettings::logCountKey, m_ui.logCountSpinBox->value());
+    rc.setValue(GitSettings::timeoutKey, m_ui.timeoutSpinBox->value());
+    rc.setValue(GitSettings::pullRebaseKey, m_ui.pullRebaseCheckBox->isChecked());
+    rc.setValue(GitSettings::winSetHomeEnvironmentKey, m_ui.winHomeCheckBox->isChecked());
+    rc.setValue(GitSettings::gitkOptionsKey, m_ui.gitkOptionsLineEdit->text().trimmed());
+    rc.setValue(GitSettings::repositoryBrowserCmd, m_ui.repBrowserCommandPathChooser->path().trimmed());
+
+    if (rc != *m_settings) {
+        *m_settings = rc;
+        m_onChange();
+    }
+}
+
+void GitSettingsPageWidget::updateNoteField()
 {
     Utils::Environment env = Utils::Environment::systemEnvironment();
     env.prependOrSetPath(m_ui.pathLineEdit->text());
@@ -106,27 +125,13 @@ void SettingsPageWidget::updateNoteField()
 }
 
 // -------- SettingsPage
-SettingsPage::SettingsPage(Core::IVersionControl *control, QObject *parent) :
-    VcsClientOptionsPage(control, GitPlugin::client(), parent)
+
+GitSettingsPage::GitSettingsPage(GitSettings *settings, const std::function<void()> &onChange)
 {
     setId(VcsBase::Constants::VCS_ID_GIT);
-    setDisplayName(tr("Git"));
-    setWidgetFactory([]() { return new SettingsPageWidget; });
-}
-
-void SettingsPage::apply()
-{
-    VcsClientOptionsPage::apply();
-
-    if (widget()->isVisible()) {
-        const VcsBaseClientSettings settings = widget()->settings();
-        auto rc = static_cast<const GitSettings *>(&settings);
-        bool gitFoundOk;
-        QString errorMessage;
-        rc->gitExecutable(&gitFoundOk, &errorMessage);
-        if (!gitFoundOk)
-            Core::AsynchronousMessageBox::warning(tr("Git Settings"), errorMessage);
-    }
+    setDisplayName(GitSettingsPageWidget::tr("Git"));
+    setCategory(VcsBase::Constants::VCS_SETTINGS_CATEGORY);
+    setWidgetCreator([settings, onChange] { return new GitSettingsPageWidget(settings, onChange); });
 }
 
 } // namespace Internal

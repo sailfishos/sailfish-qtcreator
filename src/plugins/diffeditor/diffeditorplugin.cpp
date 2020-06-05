@@ -35,7 +35,6 @@
 #include <QFutureWatcher>
 #include <QMenu>
 #include <QTextCodec>
-#include <QtPlugin>
 
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -47,6 +46,7 @@
 
 #include <texteditor/textdocument.h>
 #include <texteditor/texteditor.h>
+#include "texteditor/texteditoractionhandler.h"
 
 #include <utils/algorithm.h>
 #include <utils/differ.h>
@@ -54,6 +54,7 @@
 #include <utils/qtcassert.h>
 
 using namespace Core;
+using namespace TextEditor;
 using namespace Utils;
 
 namespace DiffEditor {
@@ -129,11 +130,11 @@ class DiffFilesController : public DiffEditorController
     Q_OBJECT
 public:
     DiffFilesController(IDocument *document);
-    ~DiffFilesController() override;
+    ~DiffFilesController() override { cancelReload(); }
 
 protected:
-    void reload() final;
     virtual QList<ReloadInput> reloadInputList() const = 0;
+
 private:
     void reloaded();
     void cancelReload();
@@ -146,22 +147,16 @@ DiffFilesController::DiffFilesController(IDocument *document)
 {
     connect(&m_futureWatcher, &QFutureWatcher<FileData>::finished,
             this, &DiffFilesController::reloaded);
-}
 
-DiffFilesController::~DiffFilesController()
-{
-    cancelReload();
-}
+    setReloader([this] {
+        cancelReload();
+        m_futureWatcher.setFuture(Utils::map(reloadInputList(),
+                                             DiffFile(ignoreWhitespace(),
+                                                      contextLineCount())));
 
-void DiffFilesController::reload()
-{
-    cancelReload();
-    m_futureWatcher.setFuture(Utils::map(reloadInputList(),
-                                         DiffFile(ignoreWhitespace(),
-                                                  contextLineCount())));
-
-    Core::ProgressManager::addTask(m_futureWatcher.future(),
-                                   tr("Calculating diff"), "DiffEditor");
+        Core::ProgressManager::addTask(m_futureWatcher.future(),
+                                       tr("Calculating diff"), "DiffEditor");
+    });
 }
 
 void DiffFilesController::reloaded()
@@ -421,10 +416,7 @@ static TextEditor::TextDocument *currentTextDocument()
                 EditorManager::currentDocument());
 }
 
-DiffEditorServiceImpl::DiffEditorServiceImpl(QObject *parent) :
-    QObject(parent)
-{
-}
+DiffEditorServiceImpl::DiffEditorServiceImpl() = default;
 
 void DiffEditorServiceImpl::diffFiles(const QString &leftFileName, const QString &rightFileName)
 {
@@ -458,11 +450,28 @@ void DiffEditorServiceImpl::diffModifiedFiles(const QStringList &fileNames)
     document->reload();
 }
 
-bool DiffEditorPlugin::initialize(const QStringList &arguments, QString *errorMessage)
+class DiffEditorPluginPrivate : public QObject
 {
-    Q_UNUSED(arguments)
-    Q_UNUSED(errorMessage)
+    Q_DECLARE_TR_FUNCTIONS(DiffEditor::Internal::DiffEditorPlugin)
 
+public:
+    DiffEditorPluginPrivate();
+
+    void updateDiffCurrentFileAction();
+    void updateDiffOpenFilesAction();
+    void diffCurrentFile();
+    void diffOpenFiles();
+    void diffExternalFiles();
+
+    QAction *m_diffCurrentFileAction = nullptr;
+    QAction *m_diffOpenFilesAction = nullptr;
+
+    DiffEditorFactory editorFactory;
+    DiffEditorServiceImpl service;
+};
+
+DiffEditorPluginPrivate::DiffEditorPluginPrivate()
+{
     //register actions
     ActionContainer *toolsContainer
             = ActionManager::actionContainer(Core::Constants::M_TOOLS);
@@ -474,51 +483,43 @@ bool DiffEditorPlugin::initialize(const QStringList &arguments, QString *errorMe
     m_diffCurrentFileAction = new QAction(tr("Diff Current File"), this);
     Command *diffCurrentFileCommand = ActionManager::registerAction(m_diffCurrentFileAction, "DiffEditor.DiffCurrentFile");
     diffCurrentFileCommand->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Meta+H") : tr("Ctrl+H")));
-    connect(m_diffCurrentFileAction, &QAction::triggered, this, &DiffEditorPlugin::diffCurrentFile);
+    connect(m_diffCurrentFileAction, &QAction::triggered, this, &DiffEditorPluginPrivate::diffCurrentFile);
     diffContainer->addAction(diffCurrentFileCommand);
 
     m_diffOpenFilesAction = new QAction(tr("Diff Open Files"), this);
     Command *diffOpenFilesCommand = ActionManager::registerAction(m_diffOpenFilesAction, "DiffEditor.DiffOpenFiles");
     diffOpenFilesCommand->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Meta+Shift+H") : tr("Ctrl+Shift+H")));
-    connect(m_diffOpenFilesAction, &QAction::triggered, this, &DiffEditorPlugin::diffOpenFiles);
+    connect(m_diffOpenFilesAction, &QAction::triggered, this, &DiffEditorPluginPrivate::diffOpenFiles);
     diffContainer->addAction(diffOpenFilesCommand);
 
     QAction *diffExternalFilesAction = new QAction(tr("Diff External Files..."), this);
     Command *diffExternalFilesCommand = ActionManager::registerAction(diffExternalFilesAction, "DiffEditor.DiffExternalFiles");
-    connect(diffExternalFilesAction, &QAction::triggered, this, &DiffEditorPlugin::diffExternalFiles);
+    connect(diffExternalFilesAction, &QAction::triggered, this, &DiffEditorPluginPrivate::diffExternalFiles);
     diffContainer->addAction(diffExternalFilesCommand);
 
     connect(EditorManager::instance(), &EditorManager::currentEditorChanged,
-        this, &DiffEditorPlugin::updateDiffCurrentFileAction);
+            this, &DiffEditorPluginPrivate::updateDiffCurrentFileAction);
     connect(EditorManager::instance(), &EditorManager::currentDocumentStateChanged,
-        this, &DiffEditorPlugin::updateDiffCurrentFileAction);
+        this, &DiffEditorPluginPrivate::updateDiffCurrentFileAction);
     connect(EditorManager::instance(), &EditorManager::editorOpened,
-        this, &DiffEditorPlugin::updateDiffOpenFilesAction);
+        this, &DiffEditorPluginPrivate::updateDiffOpenFilesAction);
     connect(EditorManager::instance(), &EditorManager::editorsClosed,
-        this, &DiffEditorPlugin::updateDiffOpenFilesAction);
+        this, &DiffEditorPluginPrivate::updateDiffOpenFilesAction);
     connect(EditorManager::instance(), &EditorManager::documentStateChanged,
-        this, &DiffEditorPlugin::updateDiffOpenFilesAction);
+        this, &DiffEditorPluginPrivate::updateDiffOpenFilesAction);
 
     updateDiffCurrentFileAction();
     updateDiffOpenFilesAction();
-
-    new DiffEditorFactory(this);
-    new DiffEditorServiceImpl(this);
-
-    return true;
 }
 
-void DiffEditorPlugin::extensionsInitialized()
-{ }
-
-void DiffEditorPlugin::updateDiffCurrentFileAction()
+void DiffEditorPluginPrivate::updateDiffCurrentFileAction()
 {
     auto textDocument = currentTextDocument();
     const bool enabled = textDocument && textDocument->isModified();
     m_diffCurrentFileAction->setEnabled(enabled);
 }
 
-void DiffEditorPlugin::updateDiffOpenFilesAction()
+void DiffEditorPluginPrivate::updateDiffOpenFilesAction()
 {
     const bool enabled = Utils::anyOf(DocumentModel::openedDocuments(), [](IDocument *doc) {
             return doc->isModified() && qobject_cast<TextEditor::TextDocument *>(doc);
@@ -526,7 +527,7 @@ void DiffEditorPlugin::updateDiffOpenFilesAction()
     m_diffOpenFilesAction->setEnabled(enabled);
 }
 
-void DiffEditorPlugin::diffCurrentFile()
+void DiffEditorPluginPrivate::diffCurrentFile()
 {
     auto textDocument = currentTextDocument();
     if (!textDocument)
@@ -551,7 +552,7 @@ void DiffEditorPlugin::diffCurrentFile()
     document->reload();
 }
 
-void DiffEditorPlugin::diffOpenFiles()
+void DiffEditorPluginPrivate::diffOpenFiles()
 {
     const QString documentId = Constants::DIFF_EDITOR_PLUGIN
             + QLatin1String(".DiffOpenFiles");
@@ -567,7 +568,7 @@ void DiffEditorPlugin::diffOpenFiles()
     document->reload();
 }
 
-void DiffEditorPlugin::diffExternalFiles()
+void DiffEditorPluginPrivate::diffExternalFiles()
 {
     const QString fileName1 = QFileDialog::getOpenFileName(ICore::dialogParent(),
                                                      tr("Select First File for Diff"),
@@ -599,6 +600,21 @@ void DiffEditorPlugin::diffExternalFiles()
     document->reload();
 }
 
+DiffEditorPlugin::~DiffEditorPlugin()
+{
+    delete d;
+}
+
+bool DiffEditorPlugin::initialize(const QStringList &arguments, QString *errorMessage)
+{
+    d = new DiffEditorPluginPrivate;
+
+    Q_UNUSED(arguments)
+    Q_UNUSED(errorMessage)
+
+    return true;
+}
+
 } // namespace Internal
 } // namespace DiffEditor
 
@@ -610,6 +626,7 @@ void DiffEditorPlugin::diffExternalFiles()
 
 Q_DECLARE_METATYPE(DiffEditor::ChunkData)
 Q_DECLARE_METATYPE(DiffEditor::FileData)
+Q_DECLARE_METATYPE(DiffEditor::ChunkSelection)
 
 static inline QString _(const char *string) { return QString::fromLatin1(string); }
 
@@ -1427,6 +1444,238 @@ void DiffEditor::Internal::DiffEditorPlugin::testReadPatch()
                 QCOMPARE(resultRowData.rightLine.textLineType, origRowData.rightLine.textLineType);
             }
         }
+    }
+}
+
+using ListOfStringPairs = QList<QPair<QString, QString>>;
+
+void DiffEditor::Internal::DiffEditorPlugin::testFilterPatch_data()
+{
+    QTest::addColumn<ChunkData>("chunk");
+    QTest::addColumn<ListOfStringPairs>("rows");
+    QTest::addColumn<ChunkSelection>("selection");
+    QTest::addColumn<bool>("revert");
+
+    auto createChunk = []() {
+        ChunkData chunk;
+        chunk.contextInfo = "void DiffEditor::ctor()";
+        chunk.contextChunk = false;
+        chunk.leftStartingLineNumber = 49;
+        chunk.rightStartingLineNumber = 49;
+        return chunk;
+    };
+    auto appendRow = [](ChunkData *chunk, const QString &left, const QString &right) {
+        RowData row;
+        row.equal = (left == right);
+        row.leftLine.text = left;
+        row.leftLine.textLineType = left.isEmpty() ? TextLineData::Separator : TextLineData::TextLine;
+        row.rightLine.text = right;
+        row.rightLine.textLineType = right.isEmpty() ? TextLineData::Separator : TextLineData::TextLine;
+        chunk->rows.append(row);
+    };
+    ChunkData chunk;
+    ListOfStringPairs rows;
+
+    chunk = createChunk();
+    appendRow(&chunk, "A", "A"); // 50
+    appendRow(&chunk, "",  "B"); // 51 +
+    appendRow(&chunk, "C", "C"); // 52
+    rows = ListOfStringPairs {
+        {"A", "A"},
+        {"", "B"},
+        {"C", "C"}
+    };
+    QTest::newRow("one added") << chunk << rows << ChunkSelection() << false;
+
+    chunk = createChunk();
+    appendRow(&chunk, "A", "A"); // 50
+    appendRow(&chunk, "B", "");  // 51 -
+    appendRow(&chunk, "C", "C"); // 52
+    rows = ListOfStringPairs {
+        {"A", "A"},
+        {"B", ""},
+        {"C", "C"}
+    };
+    QTest::newRow("one removed") << chunk << rows << ChunkSelection() << false;
+
+    chunk = createChunk();
+    appendRow(&chunk, "A", "A"); // 50
+    appendRow(&chunk, "",  "B"); // 51
+    appendRow(&chunk, "",  "C"); // 52 +
+    appendRow(&chunk, "",  "D"); // 53 +
+    appendRow(&chunk, "",  "E"); // 54
+    appendRow(&chunk, "F", "F"); // 55
+    rows = ListOfStringPairs {
+        {"A", "A"},
+        {"", "C"},
+        {"", "D"},
+        {"F", "F"}
+    };
+    QTest::newRow("stage selected added") << chunk << rows << ChunkSelection({2, 3}, {2, 3}) << false;
+
+    chunk = createChunk();
+    appendRow(&chunk, "A", "A"); // 50
+    appendRow(&chunk, "",  "B"); // 51 +
+    appendRow(&chunk, "C", "D"); // 52
+    appendRow(&chunk, "E", "E"); // 53
+    rows = ListOfStringPairs {
+        {"A", "A"},
+        {"", "B"},
+        {"C", "C"},
+        {"E", "E"}
+    };
+    QTest::newRow("stage selected added keep changed") << chunk << rows << ChunkSelection({1}, {1}) << false;
+
+    chunk = createChunk();
+    appendRow(&chunk, "A", "A"); // 50
+    appendRow(&chunk, "B", "");  // 51
+    appendRow(&chunk, "C", "");  // 52 -
+    appendRow(&chunk, "D", "");  // 53 -
+    appendRow(&chunk, "E", "");  // 54
+    appendRow(&chunk, "F", "F"); // 55
+    rows = ListOfStringPairs {
+        {"A", "A"},
+        {"B", "B"},
+        {"C", ""},
+        {"D", ""},
+        {"E", "E"},
+        {"F", "F"}
+    };
+    QTest::newRow("stage selected removed") << chunk << rows << ChunkSelection({2, 3}, {2, 3}) << false;
+
+    chunk = createChunk();
+    appendRow(&chunk, "A", "A"); // 50
+    appendRow(&chunk, "B", "");  // 51
+    appendRow(&chunk, "C", "");  // 52 -
+    appendRow(&chunk, "",  "D"); // 53 +
+    appendRow(&chunk, "",  "E"); // 54
+    appendRow(&chunk, "F", "F"); // 55
+    rows = ListOfStringPairs {
+        {"A", "A"},
+        {"B", "B"},
+        {"C", ""},
+        {"", "D"},
+        {"F", "F"}
+    };
+    QTest::newRow("stage selected added/removed") << chunk << rows << ChunkSelection({2, 3}, {2, 3}) << false;
+
+    chunk = createChunk();
+    appendRow(&chunk, "A", "A"); // 50
+    appendRow(&chunk, "B", "C"); // 51 -/+
+    appendRow(&chunk, "D", "D"); // 52
+    rows = ListOfStringPairs {
+        {"A", "A"},
+        {"B", "C"},
+        {"D", "D"}
+    };
+    QTest::newRow("stage modified row") << chunk << rows << ChunkSelection({1}, {1}) << false;
+
+    chunk = createChunk();
+    appendRow(&chunk, "A", "A"); // 50
+    appendRow(&chunk, "B", "C"); // 51 -/+
+    appendRow(&chunk, "D", "D"); // 52
+    rows = ListOfStringPairs {
+        {"A", "A"},
+        {"B", "C"},
+        {"D", "D"}
+    };
+    QTest::newRow("stage modified and unmodified rows") << chunk << rows << ChunkSelection({0, 1, 2}, {0, 1, 2}) << false;
+
+    chunk = createChunk();
+    appendRow(&chunk, "A", "A"); // 50
+    appendRow(&chunk, "B", "C"); // 51 -/+
+    appendRow(&chunk, "D", "D"); // 52
+    rows = ListOfStringPairs {
+        {"A", "A"},
+        {"B", "C"},
+        {"D", "D"}
+    };
+    QTest::newRow("stage unmodified left rows") << chunk << rows << ChunkSelection({0, 1, 2}, {1}) << false;
+
+    chunk = createChunk();
+    appendRow(&chunk, "A", "A"); // 50
+    appendRow(&chunk, "B", "C"); // 51 -/+
+    appendRow(&chunk, "D", "D"); // 52
+    rows = ListOfStringPairs {
+        {"A", "A"},
+        {"B", "C"},
+        {"D", "D"}
+    };
+    QTest::newRow("stage unmodified right rows") << chunk << rows << ChunkSelection({1}, {0, 1, 2}) << false;
+
+    chunk = createChunk();
+    appendRow(&chunk, "A", "A"); // 50
+    appendRow(&chunk, "B", "C"); // 51 -/+
+    appendRow(&chunk, "D", "D"); // 52
+    rows = ListOfStringPairs {
+        {"A", "A"},
+        {"B", ""},
+        {"D", "D"}
+    };
+    QTest::newRow("stage left only") << chunk << rows << ChunkSelection({1}, {}) << false;
+
+    chunk = createChunk();
+    appendRow(&chunk, "A", "A"); // 50
+    appendRow(&chunk, "B", "C"); // 51 -/+
+    appendRow(&chunk, "D", "D"); // 52
+    rows = ListOfStringPairs {
+        {"A", "A"},
+        {"B", "B"},
+        {"", "C"},
+        {"D", "D"}
+    };
+    QTest::newRow("stage right only") << chunk << rows << ChunkSelection({}, {1}) << false;
+
+    chunk = createChunk();
+    appendRow(&chunk, "A", "A"); // 50
+    appendRow(&chunk, "B", "C"); // 51 -/+
+    appendRow(&chunk, "D", "D"); // 52
+    rows = ListOfStringPairs {
+        {"A", "A"},
+        {"B", "C"},
+        {"D", "D"}
+    };
+    QTest::newRow("stage modified row and revert") << chunk << rows << ChunkSelection({1}, {1}) << true;
+
+    chunk = createChunk();
+    appendRow(&chunk, "A", "A"); // 50
+    appendRow(&chunk, "B", "C"); // 51 -/+
+    appendRow(&chunk, "D", "D"); // 52
+    rows = ListOfStringPairs {
+        {"A", "A"},
+        {"B", ""},
+        {"C", "C"},
+        {"D", "D"}
+    };
+    // symmetric to: "stage right only"
+    QTest::newRow("stage left only and revert") << chunk << rows << ChunkSelection({1}, {}) << true;
+
+    chunk = createChunk();
+    appendRow(&chunk, "A", "A"); // 50
+    appendRow(&chunk, "B", "C"); // 51 -/+
+    appendRow(&chunk, "D", "D"); // 52
+    rows = ListOfStringPairs {
+        {"A", "A"},
+        {"", "C"},
+        {"D", "D"}
+    };
+    // symmetric to: "stage left only"
+    QTest::newRow("stage right only and revert") << chunk << rows << ChunkSelection({}, {1}) << true;
+
+}
+
+void DiffEditor::Internal::DiffEditorPlugin::testFilterPatch()
+{
+    QFETCH(ChunkData, chunk);
+    QFETCH(ListOfStringPairs, rows);
+    QFETCH(ChunkSelection, selection);
+    QFETCH(bool, revert);
+
+    const ChunkData result = DiffEditorDocument::filterChunk(chunk, selection, revert);
+    QCOMPARE(result.rows.size(), rows.size());
+    for (int i = 0; i < rows.size(); ++i) {
+        QCOMPARE(result.rows.at(i).leftLine.text, rows.at(i).first);
+        QCOMPARE(result.rows.at(i).rightLine.text, rows.at(i).second);
     }
 }
 

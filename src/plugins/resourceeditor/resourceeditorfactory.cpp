@@ -39,9 +39,7 @@
 using namespace ResourceEditor::Internal;
 using namespace ResourceEditor::Constants;
 
-ResourceEditorFactory::ResourceEditorFactory(ResourceEditorPlugin *plugin) :
-    Core::IEditorFactory(plugin),
-    m_plugin(plugin)
+ResourceEditorFactory::ResourceEditorFactory(ResourceEditorPlugin *plugin)
 {
     setId(RESOURCEEDITOR_ID);
     setMimeTypes(QStringList(QLatin1String(C_RESOURCE_MIMETYPE)));
@@ -49,10 +47,8 @@ ResourceEditorFactory::ResourceEditorFactory(ResourceEditorPlugin *plugin) :
 
     Core::FileIconProvider::registerIconOverlayForSuffix(
                 ProjectExplorer::Constants::FILEOVERLAY_QRC, "qrc");
-}
 
-Core::IEditor *ResourceEditorFactory::createEditor()
-{
-    Core::Context context(C_RESOURCEEDITOR);
-    return new ResourceEditorW(context, m_plugin);
+    setEditorCreator([plugin] {
+        return new ResourceEditorW(Core::Context(C_RESOURCEEDITOR), plugin);
+    });
 }

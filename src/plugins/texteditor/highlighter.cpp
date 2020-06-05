@@ -29,10 +29,14 @@
 #include "textdocumentlayout.h"
 #include "tabsettings.h"
 #include "texteditorsettings.h"
+#include "texteditor.h"
 
+#include <coreplugin/editormanager/documentmodel.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/messagemanager.h>
 #include <utils/mimetypes/mimedatabase.h>
+#include <utils/stylehelper.h>
+#include <utils/qtcassert.h>
 
 #include <DefinitionDownloader>
 #include <Format>
@@ -119,13 +123,15 @@ Highlighter::Definition Highlighter::definitionForDocument(const TextDocument *d
 
 Highlighter::Definition Highlighter::definitionForMimeType(const QString &mimeType)
 {
+    if (mimeType.isEmpty())
+        return {};
     const Definitions definitions = definitionsForMimeType(mimeType);
     if (definitions.size() == 1)
         return definitions.first();
     return highlightRepository()->definitionForMimeType(mimeType);
 }
 
-Highlighter::Definition Highlighter::definitionForFilePath(const Utils::FileName &fileName)
+Highlighter::Definition Highlighter::definitionForFilePath(const Utils::FilePath &fileName)
 {
     const Definitions definitions = definitionsForFileName(fileName);
     if (definitions.size() == 1)
@@ -140,13 +146,23 @@ Highlighter::Definition Highlighter::definitionForName(const QString &name)
 
 Highlighter::Definitions Highlighter::definitionsForDocument(const TextDocument *document)
 {
-    const Utils::MimeType mimeType = Utils::mimeTypeForName(document->mimeType());
-    Definitions definitions;
-    if (mimeType.isValid())
-        definitions = Highlighter::definitionsForMimeType(mimeType.name());
-    if (definitions.isEmpty())
-        definitions = Highlighter::definitionsForFileName(document->filePath());
-    return definitions;
+    QTC_ASSERT(document, return {});
+    const Utils::MimeType &mimeType = Utils::mimeTypeForName(document->mimeType());
+    if (mimeType.isValid()) {
+        if (mimeType.name() == "text/plain") {
+            // text/plain is the base mime type for all text types so ignore it and try matching the
+            // file name against the pattern and only if no definition can be found for the
+            // file name try matching the mime type
+            const Definitions &fileNameDefinitions = definitionsForFileName(document->filePath());
+            if (!fileNameDefinitions.isEmpty())
+                return fileNameDefinitions;
+            return definitionsForMimeType(mimeType.name());
+        }
+        const Definitions &mimeTypeDefinitions = definitionsForMimeType(mimeType.name());
+        if (!mimeTypeDefinitions.isEmpty())
+            return mimeTypeDefinitions;
+    }
+    return definitionsForFileName(document->filePath());
 }
 
 static Highlighter::Definition definitionForSetting(const QString &settingsKey,
@@ -171,7 +187,7 @@ Highlighter::Definitions Highlighter::definitionsForMimeType(const QString &mime
     return definitions;
 }
 
-Highlighter::Definitions Highlighter::definitionsForFileName(const Utils::FileName &fileName)
+Highlighter::Definitions Highlighter::definitionsForFileName(const Utils::FilePath &fileName)
 {
     Definitions definitions
         = highlightRepository()->definitionsForFileName(fileName.fileName()).toList();
@@ -193,6 +209,7 @@ Highlighter::Definitions Highlighter::definitionsForFileName(const Utils::FileNa
 void Highlighter::rememberDefintionForDocument(const Highlighter::Definition &definition,
                                                const TextDocument *document)
 {
+    QTC_ASSERT(document, return );
     if (!definition.isValid())
         return;
     const QString &mimeType = document->mimeType();
@@ -229,12 +246,12 @@ void Highlighter::clearDefintionForDocumentCache()
     settings->endGroup();
 }
 
-void Highlighter::addCustomHighlighterPath(const Utils::FileName &path)
+void Highlighter::addCustomHighlighterPath(const Utils::FilePath &path)
 {
     highlightRepository()->addCustomSearchPath(path.toString());
 }
 
-void Highlighter::updateDefinitions(std::function<void()> callback) {
+void Highlighter::downloadDefinitions(std::function<void()> callback) {
     auto downloader =
         new KSyntaxHighlighting::DefinitionDownloader(highlightRepository());
     connect(downloader, &KSyntaxHighlighting::DefinitionDownloader::done,
@@ -242,6 +259,7 @@ void Highlighter::updateDefinitions(std::function<void()> callback) {
                 Core::MessageManager::write(tr("Highlighter updates: done"),
                                             Core::MessageManager::ModeSwitch);
                 downloader->deleteLater();
+                reload();
                 if (callback)
                     callback();
             });
@@ -253,6 +271,17 @@ void Highlighter::updateDefinitions(std::function<void()> callback) {
                                             Core::MessageManager::ModeSwitch);
             });
     downloader->start();
+}
+
+void Highlighter::reload()
+{
+    highlightRepository()->reload();
+    for (auto editor : Core::DocumentModel::editorsForOpenedDocuments()) {
+        if (auto textEditor = qobject_cast<BaseTextEditor *>(editor)) {
+            if (qobject_cast<Highlighter *>(textEditor->textDocument()->syntaxHighlighter()))
+                textEditor->editorWidget()->configureGenericHighlighter();
+        }
+    }
 }
 
 void Highlighter::handleShutdown()
@@ -272,12 +301,14 @@ static bool isClosingParenthesis(QChar c)
 
 void Highlighter::highlightBlock(const QString &text)
 {
-    if (!definition().isValid())
+    if (!definition().isValid()) {
+        formatSpaces(text);
         return;
-    const QTextBlock block = currentBlock();
+    }
+    QTextBlock block = currentBlock();
     KSyntaxHighlighting::State state;
-    setCurrentBlockState(qMax(0, previousBlockState()));
-    if (TextBlockUserData *data = TextDocumentLayout::testUserData(block)) {
+    TextDocumentLayout::setBraceDepth(block, TextDocumentLayout::braceDepth(block.previous()));
+    if (TextBlockUserData *data = TextDocumentLayout::textUserData(block)) {
         state = data->syntaxState();
         data->setFoldingStartIncluded(false);
         data->setFoldingEndIncluded(false);
@@ -298,8 +329,11 @@ void Highlighter::highlightBlock(const QString &text)
 
     if (nextBlock.isValid()) {
         TextBlockUserData *data = TextDocumentLayout::userData(nextBlock);
-        data->setSyntaxState(state);
-        data->setFoldingIndent(currentBlockState());
+        if (data->syntaxState() != state) {
+            data->setSyntaxState(state);
+            setCurrentBlockState(currentBlockState() ^ 1); // force rehighlight of next block
+        }
+        data->setFoldingIndent(TextDocumentLayout::braceDepth(block));
     }
 
     formatSpaces(text);
@@ -307,7 +341,40 @@ void Highlighter::highlightBlock(const QString &text)
 
 void Highlighter::applyFormat(int offset, int length, const KSyntaxHighlighting::Format &format)
 {
-    setFormat(offset, length, formatForCategory(format.textStyle()));
+    const KSyntaxHighlighting::Theme defaultTheme;
+    QTextCharFormat qformat = formatForCategory(format.textStyle());
+
+    if (format.hasTextColor(defaultTheme)) {
+        const QColor textColor = format.textColor(defaultTheme);
+        if (format.hasBackgroundColor(defaultTheme)) {
+            const QColor backgroundColor = format.hasBackgroundColor(defaultTheme);
+            if (Utils::StyleHelper::isReadableOn(backgroundColor, textColor)) {
+                qformat.setForeground(textColor);
+                qformat.setBackground(backgroundColor);
+            } else if (Utils::StyleHelper::isReadableOn(qformat.background().color(), textColor)) {
+                qformat.setForeground(textColor);
+            }
+        } else if (Utils::StyleHelper::isReadableOn(qformat.background().color(), textColor)) {
+            qformat.setForeground(textColor);
+        }
+    } else if (format.hasBackgroundColor(defaultTheme)) {
+        const QColor backgroundColor = format.hasBackgroundColor(defaultTheme);
+        if (Utils::StyleHelper::isReadableOn(backgroundColor, qformat.foreground().color()))
+            qformat.setBackground(backgroundColor);
+    }
+
+    if (format.isBold(defaultTheme))
+        qformat.setFontWeight(QFont::Bold);
+
+    if (format.isItalic(defaultTheme))
+        qformat.setFontItalic(true);
+
+    if (format.isUnderline(defaultTheme))
+        qformat.setFontUnderline(true);
+
+    if (format.isStrikeThrough(defaultTheme))
+        qformat.setFontStrikeOut(true);
+    setFormat(offset, length, qformat);
 }
 
 void Highlighter::applyFolding(int offset,
@@ -316,24 +383,24 @@ void Highlighter::applyFolding(int offset,
 {
     if (!region.isValid())
         return;
-    const QTextBlock &block = currentBlock();
+    QTextBlock block = currentBlock();
     const QString &text = block.text();
     TextBlockUserData *data = TextDocumentLayout::userData(currentBlock());
     const bool fromStart = TabSettings::firstNonSpace(text) == offset;
     const bool toEnd = (offset + length) == (text.length() - TabSettings::trailingWhitespaces(text));
     if (region.type() == KSyntaxHighlighting::FoldingRegion::Begin) {
-        setCurrentBlockState(currentBlockState() + 1);
+        TextDocumentLayout::changeBraceDepth(block, 1);
         // if there is only a folding begin in the line move the current block into the fold
         if (fromStart && toEnd) {
-            data->setFoldingIndent(currentBlockState());
+            data->setFoldingIndent(TextDocumentLayout::braceDepth(block));
             data->setFoldingStartIncluded(true);
         }
     } else if (region.type() == KSyntaxHighlighting::FoldingRegion::End) {
-        setCurrentBlockState(qMax(0, currentBlockState() - 1));
+        TextDocumentLayout::changeBraceDepth(block, -1);
         // if the folding end is at the end of the line move the current block into the fold
         if (toEnd)
             data->setFoldingEndIncluded(true);
         else
-            data->setFoldingIndent(currentBlockState());
+            data->setFoldingIndent(TextDocumentLayout::braceDepth(block));
     }
 }

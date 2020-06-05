@@ -37,40 +37,48 @@ Section {
 
         Label {
             text: qsTr("Origin")
+            disabledState: !backendValues.transformOrigin.isAvailable
         }
 
         OriginControl {
             backendValue: backendValues.transformOrigin
+            enabled: backendValues.transformOrigin.isAvailable
         }
 
         Label {
             text: qsTr("Scale")
+            disabledState: !backendValues.scale.isAvailable
         }
 
         SecondColumnLayout {
             SpinBox {
+                sliderIndicatorVisible: true
                 backendValue: backendValues.scale
                 hasSlider: true
                 decimals: 2
-                minimumValue: 0.01
                 stepSize: 0.1
+                minimumValue: -10
                 maximumValue: 10
-                Layout.preferredWidth: 80
+                Layout.preferredWidth: 140
+                enabled: backendValues.scale.isAvailable
             }
             ExpandingSpacer {
             }
         }
         Label {
             text: qsTr("Rotation")
+            disabledState: !backendValues.rotation.isAvailable
         }
         SecondColumnLayout {
             SpinBox {
+                sliderIndicatorVisible: true
                 backendValue: backendValues.rotation
                 hasSlider: true
                 decimals: 2
                 minimumValue: -360
                 maximumValue: 360
-                Layout.preferredWidth: 80
+                Layout.preferredWidth: 140
+                enabled: backendValues.rotation.isAvailable
             }
             ExpandingSpacer {
             }
@@ -80,11 +88,25 @@ Section {
         }
         SecondColumnLayout {
             SpinBox {
+                sliderIndicatorVisible: true
                 backendValue: backendValues.z
                 hasSlider: true
                 minimumValue: -100
                 maximumValue: 100
-                Layout.preferredWidth: 80
+                Layout.preferredWidth: 140
+            }
+            ExpandingSpacer {
+            }
+        }
+
+        Label {
+            text: "State"
+        }
+        SecondColumnLayout {
+            LineEdit {
+                backendValue: backendValues.state
+                showTranslateCheckBox: false
+                enabled: anchorBackend.hasParent || isBaseState
             }
             ExpandingSpacer {
             }
@@ -107,12 +129,14 @@ Section {
         Label {
             visible: majorQtQuickVersion > 1
             text: qsTr("Smooth")
+            disabledState: !backendValues.smooth.isAvailable
         }
         SecondColumnLayout {
             visible: majorQtQuickVersion > 1
             CheckBox {
                 backendValue: backendValues.smooth
                 text: qsTr("Smooth sampling active")
+                enabled: backendValues.smooth.isAvailable
             }
             ExpandingSpacer {
             }
@@ -121,12 +145,14 @@ Section {
         Label {
             visible: majorQtQuickVersion > 1
             text: qsTr("Antialiasing")
+            disabledState: !backendValues.antialiasing.isAvailable
         }
         SecondColumnLayout {
             visible: majorQtQuickVersion > 1
             CheckBox {
                 backendValue: backendValues.antialiasing
                 text: qsTr("Anti-aliasing active")
+                enabled: backendValues.antialiasing.isAvailable
             }
             ExpandingSpacer {
             }

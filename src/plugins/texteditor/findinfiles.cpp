@@ -87,7 +87,7 @@ FileIterator *FindInFiles::files(const QStringList &nameFilters,
 
 QVariant FindInFiles::additionalParameters() const
 {
-    return qVariantFromValue(path().toString());
+    return QVariant::fromValue(path().toString());
 }
 
 QString FindInFiles::label() const
@@ -144,14 +144,14 @@ QWidget *FindInFiles::createConfigWidget()
     if (!m_configWidget) {
         m_configWidget = new QWidget;
         auto gridLayout = new QGridLayout(m_configWidget);
-        gridLayout->setMargin(0);
+        gridLayout->setContentsMargins(0, 0, 0, 0);
         m_configWidget->setLayout(gridLayout);
 
         int row = 0;
         auto searchEngineLabel = new QLabel(tr("Search engine:"));
         gridLayout->addWidget(searchEngineLabel, row, 0, Qt::AlignRight);
         m_searchEngineCombo = new QComboBox;
-        auto cc = static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged);
+        auto cc = QOverload<int>::of(&QComboBox::currentIndexChanged);
         connect(m_searchEngineCombo, cc, this, &FindInFiles::searchEnginesSelectionChanged);
         searchEngineLabel->setBuddy(m_searchEngineCombo);
         gridLayout->addWidget(m_searchEngineCombo, row, 1);
@@ -203,7 +203,7 @@ QWidget *FindInFiles::createConfigWidget()
     return m_configWidget;
 }
 
-FileName FindInFiles::path() const
+FilePath FindInFiles::path() const
 {
     return m_directory->fileName();
 }
@@ -222,17 +222,17 @@ void FindInFiles::readSettings(QSettings *settings)
     settings->endGroup();
 }
 
-void FindInFiles::setDirectory(const FileName &directory)
+void FindInFiles::setDirectory(const FilePath &directory)
 {
     m_directory->setFileName(directory);
 }
 
-void FindInFiles::setBaseDirectory(const FileName &directory)
+void FindInFiles::setBaseDirectory(const FilePath &directory)
 {
-    m_directory->setBaseFileName(directory);
+    m_directory->setBaseDirectory(directory);
 }
 
-FileName FindInFiles::directory() const
+FilePath FindInFiles::directory() const
 {
     return m_directory->fileName();
 }
@@ -242,7 +242,7 @@ void FindInFiles::findOnFileSystem(const QString &path)
     QTC_ASSERT(m_instance, return);
     const QFileInfo fi(path);
     const QString folder = fi.isDir() ? fi.absoluteFilePath() : fi.absolutePath();
-    m_instance->setDirectory(FileName::fromString(folder));
+    m_instance->setDirectory(FilePath::fromString(folder));
     Find::openFindDialog(m_instance);
 }
 

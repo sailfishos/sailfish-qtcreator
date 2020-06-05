@@ -12,7 +12,9 @@ win32: VERSION=
 HEADERS += ../tools/qtcreatorcrashhandler/crashhandlersetup.h
 SOURCES += main.cpp ../tools/qtcreatorcrashhandler/crashhandlersetup.cpp
 
+RPATH_BASE = $$IDE_BIN_PATH
 include(../rpath.pri)
+
 include(../libs/qt-breakpad/qtbreakpad.pri)
 
 LIBS *= -l$$qtLibraryName(ExtensionSystem) -l$$qtLibraryName(Aggregation) -l$$qtLibraryName(Utils)
@@ -23,7 +25,10 @@ win32 {
     #  RC_VERSION_STRING="4.4.0-beta1" (free text)
     # Also, we need to replace space with \x20 to be able to work with both rc and windres
     COPYRIGHT = "2008-$${QTCREATOR_COPYRIGHT_YEAR} The Qt Company Ltd"
-    DEFINES += RC_VERSION=$$replace(QTCREATOR_VERSION, "\\.", ","),0 \
+    APPLICATION_NAME = "$${IDE_DISPLAY_NAME}"
+    DEFINES += \
+        RC_APPLICATION_NAME=\"$$replace(APPLICATION_NAME, " ", "\\x20")\" \
+        RC_VERSION=$$replace(QTCREATOR_VERSION, "\\.", ","),0 \
         RC_VERSION_STRING=\"$${QTCREATOR_DISPLAY_VERSION}\" \
         RC_COPYRIGHT=\"$$replace(COPYRIGHT, " ", "\\x20")\"
     RC_FILE = qtcreator.rc
@@ -35,9 +40,11 @@ win32 {
     QMAKE_ASSET_CATALOGS_APP_ICON = qtcreator
 
     infoplist = $$cat($$PWD/app-Info.plist, blob)
-    infoplist = $$replace(infoplist, @MACOSX_DEPLOYMENT_TARGET@, $$QMAKE_MACOSX_DEPLOYMENT_TARGET)
-    infoplist = $$replace(infoplist, @QTCREATOR_COPYRIGHT_YEAR@, $$QTCREATOR_COPYRIGHT_YEAR)
-    infoplist = $$replace(infoplist, @PRODUCT_BUNDLE_IDENTIFIER@, $$PRODUCT_BUNDLE_IDENTIFIER)
+    infoplist = $$replace(infoplist, \\$\\{MACOSX_DEPLOYMENT_TARGET\\}, $$QMAKE_MACOSX_DEPLOYMENT_TARGET)
+    infoplist = $$replace(infoplist, \\$\\{IDE_COPYRIGHT_YEAR\\}, $$QTCREATOR_COPYRIGHT_YEAR)
+    infoplist = $$replace(infoplist, \\$\\{IDE_APP_TARGET\\}, $$IDE_APP_TARGET)
+    infoplist = $$replace(infoplist, \\$\\{IDE_BUNDLE_IDENTIFIER\\}, $$PRODUCT_BUNDLE_IDENTIFIER)
+    infoplist = $$replace(infoplist, \\$\\{IDE_VERSION\\}, $$QTCREATOR_VERSION)
     write_file($$OUT_PWD/Info.plist, infoplist)
 
     QMAKE_INFO_PLIST = $$OUT_PWD/Info.plist

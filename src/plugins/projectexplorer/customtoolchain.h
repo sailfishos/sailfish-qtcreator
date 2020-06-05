@@ -65,7 +65,6 @@ public:
         QString displayName; ///< A translateable name to show in the user interface
     };
 
-    QString typeDisplayName() const override;
     Abi targetAbi() const override;
     void setTargetAbi(const Abi &);
 
@@ -74,15 +73,17 @@ public:
     MacroInspectionRunner createMacroInspectionRunner() const override;
     Macros predefinedMacros(const QStringList &cxxflags) const override;
     Utils::LanguageExtensions languageExtensions(const QStringList &cxxflags) const override;
-    WarningFlags warningFlags(const QStringList &cxxflags) const override;
+    Utils::WarningFlags warningFlags(const QStringList &cxxflags) const override;
     const Macros &rawPredefinedMacros() const;
     void setPredefinedMacros(const Macros &macros);
 
-    BuiltInHeaderPathsRunner createBuiltInHeaderPathsRunner() const override;
+    BuiltInHeaderPathsRunner createBuiltInHeaderPathsRunner(
+            const Utils::Environment &) const override;
     HeaderPaths builtInHeaderPaths(const QStringList &cxxFlags,
-                                   const Utils::FileName &) const override;
+                                   const Utils::FilePath &,
+                                   const Utils::Environment &env) const override;
     void addToEnvironment(Utils::Environment &env) const override;
-    Utils::FileNameList suggestedMkspecList() const override;
+    QStringList suggestedMkspecList() const override;
     IOutputParser *outputParser() const override;
     QStringList headerPathsList() const;
     void setHeaderPaths(const QStringList &list);
@@ -94,10 +95,10 @@ public:
 
     bool operator ==(const ToolChain &) const override;
 
-    void setCompilerCommand(const Utils::FileName &);
-    Utils::FileName compilerCommand() const override;
-    void setMakeCommand(const Utils::FileName &);
-    QString makeCommand(const Utils::Environment &environment) const override;
+    void setCompilerCommand(const Utils::FilePath &);
+    Utils::FilePath compilerCommand() const override;
+    void setMakeCommand(const Utils::FilePath &);
+    Utils::FilePath makeCommand(const Utils::Environment &environment) const override;
 
     void setCxx11Flags(const QStringList &);
     const QStringList &cxx11Flags() const;
@@ -105,29 +106,23 @@ public:
     void setMkspecs(const QString &);
     QString mkspecs() const;
 
-    ToolChain *clone() const override;
-
     Core::Id outputParserId() const;
     void setOutputParserId(Core::Id parserId);
     CustomParserSettings customParserSettings() const;
     void setCustomParserSettings(const CustomParserSettings &settings);
     static QList<CustomToolChain::Parser> parsers();
 
-protected:
-    CustomToolChain(const CustomToolChain &) = default;
-
 private:
-    explicit CustomToolChain(Detection d);
-    explicit CustomToolChain(Core::Id language, Detection d);
+    CustomToolChain();
 
-    Utils::FileName m_compilerCommand;
-    Utils::FileName m_makeCommand;
+    Utils::FilePath m_compilerCommand;
+    Utils::FilePath m_makeCommand;
 
     Abi m_targetAbi;
     Macros m_predefinedMacros;
     HeaderPaths m_builtInHeaderPaths;
     QStringList m_cxx11Flags;
-    Utils::FileNameList m_mkspecs;
+    QStringList m_mkspecs;
 
     Core::Id m_outputParserId;
     CustomParserSettings m_customParserSettings;
@@ -144,14 +139,6 @@ class CustomToolChainFactory : public ToolChainFactory
 
 public:
     CustomToolChainFactory();
-    QSet<Core::Id> supportedLanguages() const override;
-
-    bool canCreate() override;
-    ToolChain *create(Core::Id language) override;
-
-    // Used by the ToolChainManager to restore user-generated tool chains
-    bool canRestore(const QVariantMap &data) override;
-    ToolChain *restore(const QVariantMap &data) override;
 };
 
 // --------------------------------------------------------------------------

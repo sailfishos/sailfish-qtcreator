@@ -125,12 +125,11 @@ const char CLOSE_ALTERNATIVE[]     = "QtCreator.Close_Alternative"; // temporary
 const char CLOSEALL[]              = "QtCreator.CloseAll";
 const char CLOSEOTHERS[]           = "QtCreator.CloseOthers";
 const char CLOSEALLEXCEPTVISIBLE[] = "QtCreator.CloseAllExceptVisible";
-const char GOTONEXT[]              = "QtCreator.GotoNext";
-const char GOTOPREV[]              = "QtCreator.GotoPrevious";
 const char GOTONEXTINHISTORY[]     = "QtCreator.GotoNextInHistory";
 const char GOTOPREVINHISTORY[]     = "QtCreator.GotoPreviousInHistory";
 const char GO_BACK[]               = "QtCreator.GoBack";
 const char GO_FORWARD[]            = "QtCreator.GoForward";
+const char GOTOLASTEDIT[]          = "QtCreator.GotoLastEdit";
 const char ABOUT_QTCREATOR[]       = "QtCreator.AboutQtCreator";
 const char ABOUT_PLUGINS[]         = "QtCreator.AboutPlugins";
 const char S_RETURNTOEDITOR[]      = "QtCreator.ReturnToEditor";
@@ -212,6 +211,7 @@ const char SETTINGS_ID_TOOLS[] = "D.ExternalTools";
 const char SETTINGS_ID_MIMETYPES[] = "E.MimeTypes";
 
 const char SETTINGS_DEFAULTTEXTENCODING[] = "General/DefaultFileEncoding";
+const char SETTINGS_DEFAULT_LINE_TERMINATOR[] = "General/DefaultLineTerminator";
 
 const char SETTINGS_THEME[] = "Core/CreatorTheme";
 const char DEFAULT_THEME[] = "flat";

@@ -25,21 +25,14 @@
 
 #include "qnxanalyzesupport.h"
 
-#include "qnxdevice.h"
-#include "qnxrunconfiguration.h"
 #include "slog2inforunner.h"
 
 #include <projectexplorer/devicesupport/deviceusedportsgatherer.h>
-#include <projectexplorer/kitinformation.h>
-#include <projectexplorer/target.h>
 
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
 #include <qmldebug/qmldebugcommandlinearguments.h>
-#include <qmldebug/qmloutputparser.h>
-
-#include <ssh/sshconnection.h>
 
 using namespace ProjectExplorer;
 using namespace Utils;
@@ -53,35 +46,27 @@ QnxQmlProfilerSupport::QnxQmlProfilerSupport(RunControl *runControl)
     setId("QnxQmlProfilerSupport");
     appendMessage(tr("Preparing remote side..."), Utils::LogMessageFormat);
 
-    m_portsGatherer = new PortsGatherer(runControl);
-    addStartDependency(m_portsGatherer);
+    auto portsGatherer = new PortsGatherer(runControl);
+    addStartDependency(portsGatherer);
 
     auto slog2InfoRunner = new Slog2InfoRunner(runControl);
     addStartDependency(slog2InfoRunner);
 
-    m_profiler = runControl->createWorker(runControl->runMode());
-    m_profiler->addStartDependency(this);
-    addStopDependency(m_profiler);
-}
+    auto profiler = runControl->createWorker(ProjectExplorer::Constants::QML_PROFILER_RUNNER);
+    profiler->addStartDependency(this);
+    addStopDependency(profiler);
 
-void QnxQmlProfilerSupport::start()
-{
-    Port qmlPort = m_portsGatherer->findPort();
+    setStarter([this, runControl, portsGatherer, profiler] {
+        const QUrl serverUrl = portsGatherer->findEndPoint();
+        profiler->recordData("QmlServerUrl", serverUrl);
 
-    QUrl serverUrl;
-    serverUrl.setHost(device()->sshParameters().host());
-    serverUrl.setPort(qmlPort.number());
-    serverUrl.setScheme("tcp");
-    m_profiler->recordData("QmlServerUrl", serverUrl);
+        Runnable r = runControl->runnable();
+        QtcProcess::addArg(&r.commandLineArguments,
+                           QmlDebug::qmlDebugTcpArguments(QmlDebug::QmlProfilerServices, serverUrl),
+                           Utils::OsTypeOtherUnix);
 
-    Runnable r = runnable();
-    QtcProcess::addArg(&r.commandLineArguments,
-                       QmlDebug::qmlDebugTcpArguments(QmlDebug::QmlProfilerServices, qmlPort),
-                       device()->osType());
-
-    setRunnable(r);
-
-    SimpleTargetRunner::start();
+        doStart(r, runControl->device());
+    });
 }
 
 } // namespace Internal

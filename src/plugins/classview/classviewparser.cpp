@@ -53,10 +53,12 @@
 #include <QReadWriteLock>
 #include <QReadLocker>
 #include <QWriteLocker>
+#include <QElapsedTimer>
 
 enum { debug = false };
 
 using namespace ProjectExplorer;
+using namespace Utils;
 
 namespace ClassView {
 namespace Internal {
@@ -257,7 +259,7 @@ ParserTreeItem::ConstPtr Parser::findItemByRoot(const QStandardItem *item, bool 
     while (uiList.count() > 0) {
         cur = uiList.last();
         uiList.removeLast();
-        const SymbolInformation &inf = Utils::symbolInformationFromItem(cur);
+        const SymbolInformation &inf = Internal::symbolInformationFromItem(cur);
         internal = internal->child(inf);
         if (internal.isNull())
             break;
@@ -274,7 +276,7 @@ ParserTreeItem::ConstPtr Parser::findItemByRoot(const QStandardItem *item, bool 
 
 ParserTreeItem::ConstPtr Parser::parse()
 {
-    QTime time;
+    QElapsedTimer time;
     if (debug)
         time.start();
 
@@ -284,9 +286,7 @@ ParserTreeItem::ConstPtr Parser::parse()
     for (const Project *prj : SessionManager::projects()) {
         ParserTreeItem::Ptr item;
         QString prjName(prj->displayName());
-        QString prjType(prjName);
-        if (prj->document())
-            prjType = prj->projectFilePath().toString();
+        QString prjType = prj->projectFilePath().toString();
         SymbolInformation inf(prjName, prjType);
         item = ParserTreeItem::Ptr(new ParserTreeItem());
 
@@ -587,8 +587,7 @@ void Parser::clearCache()
 
 void Parser::setFileList(const QStringList &fileList)
 {
-    d->fileList.clear();
-    d->fileList = QSet<QString>::fromList(fileList);
+    d->fileList = Utils::toSet(fileList);
 }
 
 /*!
@@ -634,12 +633,12 @@ void Parser::resetData(const CPlusPlus::Snapshot &snapshot)
     d->docLocker.unlock();
 
     // recalculate file list
-    ::Utils::FileNameList fileList;
+    FilePaths fileList;
 
     // check all projects
     for (const Project *prj : SessionManager::projects())
         fileList += prj->files(Project::SourceFiles);
-    setFileList(::Utils::transform(fileList, &::Utils::FileName::toString));
+    setFileList(Utils::transform(fileList, &FilePath::toString));
 
     emit resetDataDone();
 }
@@ -721,7 +720,7 @@ QStringList Parser::addProjectTree(const ParserTreeItem::Ptr &item, const Projec
     if (cit != d->cachedPrjFileLists.constEnd()) {
         fileList = cit.value();
     } else {
-        fileList = ::Utils::transform(project->files(Project::SourceFiles), &::Utils::FileName::toString);
+        fileList = Utils::transform(project->files(Project::SourceFiles), &FilePath::toString);
         d->cachedPrjFileLists[projectPath] = fileList;
     }
     if (fileList.count() > 0) {
@@ -746,7 +745,7 @@ QStringList Parser::getAllFiles(const Project *project)
     if (cit != d->cachedPrjFileLists.constEnd()) {
         fileList = cit.value();
     } else {
-        fileList = ::Utils::transform(project->files(Project::SourceFiles), &::Utils::FileName::toString);
+        fileList = Utils::transform(project->files(Project::SourceFiles), &FilePath::toString);
         d->cachedPrjFileLists[nodePath] = fileList;
     }
     return fileList;

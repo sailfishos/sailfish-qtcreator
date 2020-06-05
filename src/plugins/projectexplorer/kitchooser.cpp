@@ -25,7 +25,6 @@
 
 #include "kitchooser.h"
 
-#include "kitconfigwidget.h"
 #include "kitinformation.h"
 #include "kitmanager.h"
 #include "project.h"
@@ -52,7 +51,7 @@ KitChooser::KitChooser(QWidget *parent) :
 {
     m_chooser = new QComboBox(this);
     m_chooser->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
-    m_manageButton = new QPushButton(KitConfigWidget::msgManage(), this);
+    m_manageButton = new QPushButton(KitAspectWidget::msgManage(), this);
 
     auto layout = new QHBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -60,9 +59,9 @@ KitChooser::KitChooser(QWidget *parent) :
     layout->addWidget(m_manageButton);
     setFocusProxy(m_manageButton);
 
-    connect(m_chooser, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+    connect(m_chooser, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &KitChooser::onCurrentIndexChanged);
-    connect(m_chooser, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
+    connect(m_chooser, QOverload<int>::of(&QComboBox::activated),
             this, &KitChooser::onActivated);
     connect(m_manageButton, &QAbstractButton::clicked, this, &KitChooser::onManageButtonClicked);
     connect(KitManager::instance(), &KitManager::kitsChanged, this, &KitChooser::populate);
@@ -71,6 +70,11 @@ KitChooser::KitChooser(QWidget *parent) :
 void KitChooser::onManageButtonClicked()
 {
     Core::ICore::showOptionsDialog(Constants::KITS_SETTINGS_PAGE_ID, this);
+}
+
+void KitChooser::setShowIcons(bool showIcons)
+{
+    m_showIcons = showIcons;
 }
 
 void KitChooser::onCurrentIndexChanged()
@@ -108,29 +112,30 @@ void KitChooser::populate()
     const Id lastKit = Id::fromSetting(ICore::settings()->value(lastKitKey));
     bool didActivate = false;
 
-    if (Project *project = SessionManager::startupProject()) {
-        if (Target *target = project->activeTarget()) {
-            Kit *kit = target->kit();
-            if (m_kitPredicate(kit)) {
-                QString display = tr("Kit of Active Project: %1").arg(kitText(kit));
-                m_chooser->addItem(display, kit->id().toSetting());
-                m_chooser->setItemData(0, kitToolTip(kit), Qt::ToolTipRole);
-                if (!lastKit.isValid()) {
-                    m_chooser->setCurrentIndex(0);
-                    didActivate = true;
-                }
-                m_chooser->insertSeparator(1);
-                m_hasStartupKit = true;
+    if (Target *target = SessionManager::startupTarget()) {
+        Kit *kit = target->kit();
+        if (m_kitPredicate(kit)) {
+            QString display = tr("Kit of Active Project: %1").arg(kitText(kit));
+            m_chooser->addItem(display, kit->id().toSetting());
+            m_chooser->setItemData(0, kitToolTip(kit), Qt::ToolTipRole);
+            if (!lastKit.isValid()) {
+                m_chooser->setCurrentIndex(0);
+                didActivate = true;
             }
+            m_chooser->insertSeparator(1);
+            m_hasStartupKit = true;
         }
     }
 
     foreach (Kit *kit, KitManager::sortKits(KitManager::kits())) {
         if (m_kitPredicate(kit)) {
             m_chooser->addItem(kitText(kit), kit->id().toSetting());
-            m_chooser->setItemData(m_chooser->count() - 1, kitToolTip(kit), Qt::ToolTipRole);
+            const int pos = m_chooser->count() - 1;
+            m_chooser->setItemData(pos, kitToolTip(kit), Qt::ToolTipRole);
+            if (m_showIcons)
+                m_chooser->setItemData(pos, kit->displayIcon(), Qt::DecorationRole);
             if (!didActivate && kit->id() == lastKit) {
-                m_chooser->setCurrentIndex(m_chooser->count() - 1);
+                m_chooser->setCurrentIndex(pos);
                 didActivate = true;
             }
         }

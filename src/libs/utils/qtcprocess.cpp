@@ -37,6 +37,10 @@
 
 #ifdef Q_OS_WIN
 #include <qt_windows.h>
+#else
+#include <errno.h>
+#include <stdio.h>
+#include <unistd.h>
 #endif
 
 
@@ -94,7 +98,7 @@ static void envExpandWin(QString &args, const Environment *env, const QString *p
         if (prev >= 0) {
             const QString var = args.mid(prev + 1, that - prev - 1).toUpper();
             const QString val = (var == cdName && pwd && !pwd->isEmpty())
-                                    ? QDir::toNativeSeparators(*pwd) : env->value(var);
+                                    ? QDir::toNativeSeparators(*pwd) : env->expandedValueForKey(var);
             if (!val.isEmpty()) { // Empty values are impossible, so this is an existence check
                 args.replace(prev, that - prev + 1, val);
                 off = prev + val.length();
@@ -394,7 +398,7 @@ static QStringList splitArgsUnix(const QString &args, bool abortOnMeta,
                                 if (abortOnMeta)
                                     goto metaerr; // Assume this is a shell builtin
                             } else {
-                                cret += env->value(vit);
+                                cret += env->expandedValueForKey(env->key(vit));
                             }
                         }
                         if (!braced)
@@ -444,7 +448,7 @@ static QStringList splitArgsUnix(const QString &args, bool abortOnMeta,
                         if (abortOnMeta)
                             goto metaerr; // Assume this is a shell builtin
                     } else {
-                        val = env->value(vit);
+                        val = env->expandedValueForKey(env->key(vit));
                     }
                 }
                 for (int i = 0; i < val.length(); i++) {
@@ -535,7 +539,7 @@ QStringList QtcProcess::splitArgs(const QString &args, OsType osType,
 
 QString QtcProcess::quoteArgUnix(const QString &arg)
 {
-    if (!arg.length())
+    if (arg.isEmpty())
         return QString::fromLatin1("''");
 
     QString ret(arg);
@@ -571,7 +575,7 @@ static bool hasSpecialCharsWin(const QString &arg)
 
 static QString quoteArgWin(const QString &arg)
 {
-    if (!arg.length())
+    if (arg.isEmpty())
         return QString::fromLatin1("\"\"");
 
     QString ret(arg);
@@ -595,12 +599,12 @@ static QString quoteArgWin(const QString &arg)
 }
 
 QtcProcess::Arguments QtcProcess::prepareArgs(const QString &cmd, SplitError *err, OsType osType,
-                                   const Environment *env, const QString *pwd)
+                                   const Environment *env, const QString *pwd, bool abortOnMeta)
 {
     if (osType == OsTypeWindows)
         return prepareArgsWin(cmd, err, env, pwd);
     else
-        return Arguments::createUnixArgs(splitArgs(cmd, osType, true, err, env, pwd));
+        return Arguments::createUnixArgs(splitArgs(cmd, osType, abortOnMeta, err, env, pwd));
 }
 
 
@@ -672,8 +676,8 @@ QtcProcess::QtcProcess(QObject *parent)
 {
     static int qProcessExitStatusMeta = qRegisterMetaType<QProcess::ExitStatus>();
     static int qProcessProcessErrorMeta = qRegisterMetaType<QProcess::ProcessError>();
-    Q_UNUSED(qProcessExitStatusMeta);
-    Q_UNUSED(qProcessProcessErrorMeta);
+    Q_UNUSED(qProcessExitStatusMeta)
+    Q_UNUSED(qProcessProcessErrorMeta)
 }
 
 void QtcProcess::setUseCtrlCStub(bool enabled)
@@ -694,10 +698,11 @@ void QtcProcess::start()
     const OsType osType = HostOsInfo::hostOs();
     if (m_haveEnv) {
         if (m_environment.size() == 0)
-            qWarning("QtcProcess::start: Empty environment set when running '%s'.", qPrintable(m_command));
+            qWarning("QtcProcess::start: Empty environment set when running '%s'.",
+                     qPrintable(m_commandLine.executable().toString()));
         env = m_environment;
 
-        QProcess::setEnvironment(env.toStringList());
+        QProcess::setProcessEnvironment(env.toProcessEnvironment());
     } else {
         env = Environment::systemEnvironment();
     }
@@ -705,13 +710,23 @@ void QtcProcess::start()
     const QString &workDir = workingDirectory();
     QString command;
     QtcProcess::Arguments arguments;
-    bool success = prepareCommand(m_command, m_arguments, &command, &arguments, osType, &env, &workDir);
+    bool success = prepareCommand(m_commandLine.executable().toString(),
+                                  m_commandLine.arguments(),
+                                  &command, &arguments, osType, &env, &workDir);
     if (osType == OsTypeWindows) {
         QString args;
         if (m_useCtrlCStub) {
-            args = QtcProcess::quoteArg(QDir::toNativeSeparators(command));
+            if (m_lowPriority)
+                addArg(&args, "-nice");
+            addArg(&args, QDir::toNativeSeparators(command));
             command = QCoreApplication::applicationDirPath()
                     + QLatin1String("/qtcreator_ctrlc_stub.exe");
+        } else if (m_lowPriority) {
+#ifdef Q_OS_WIN
+            setCreateProcessArgumentsModifier([](CreateProcessArguments *args) {
+                args->flags |= BELOW_NORMAL_PRIORITY_CLASS;
+            });
+#endif
         }
         QtcProcess::addArgs(&args, arguments.toWindowsArgs());
 #ifdef Q_OS_WIN
@@ -1203,6 +1218,19 @@ QString QtcProcess::expandMacros(const QString &str, AbstractMacroExpander *mx, 
     QString ret = str;
     expandMacros(&ret, mx, osType);
     return ret;
+}
+
+void QtcProcess::setupChildProcess()
+{
+#if defined Q_OS_UNIX
+    // nice value range is -20 to +19 where -20 is highest, 0 default and +19 is lowest
+    if (m_lowPriority) {
+        errno = 0;
+        if (::nice(5) == -1 && errno != 0)
+            perror("Failed to set nice value");
+    }
+#endif
+    QProcess::setupChildProcess();
 }
 
 bool QtcProcess::ArgIterator::next()

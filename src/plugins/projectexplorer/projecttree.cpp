@@ -30,6 +30,7 @@
 #include "projectnodes.h"
 #include "projecttreewidget.h"
 #include "session.h"
+#include "target.h"
 
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -104,16 +105,28 @@ Project *ProjectTree::currentProject()
     return s_instance->m_currentProject;
 }
 
-Node *ProjectTree::findCurrentNode()
+Target *ProjectTree::currentTarget()
+{
+    Project *p = currentProject();
+    return p ? p->activeTarget() : nullptr;
+}
+
+BuildSystem *ProjectTree::currentBuildSystem()
+{
+    Target *t = currentTarget();
+    return t ? t->buildSystem() : nullptr;
+}
+
+Node *ProjectTree::currentNode()
 {
     s_instance->update();
     return s_instance->m_currentNode;
 }
 
-FileName ProjectTree::currentFilePath()
+FilePath ProjectTree::currentFilePath()
 {
-    Node *currentNode = findCurrentNode();
-    return currentNode ? currentNode->filePath() : FileName();
+    Node *node = currentNode();
+    return node ? node->filePath() : FilePath();
 }
 
 void ProjectTree::registerWidget(ProjectTreeWidget *widget)
@@ -167,7 +180,7 @@ void ProjectTree::updateFromProjectTreeWidget(ProjectTreeWidget *widget)
 void ProjectTree::updateFromDocumentManager()
 {
     if (Core::IDocument *document = Core::EditorManager::currentDocument()) {
-        const FileName fileName = document->filePath();
+        const FilePath fileName = document->filePath();
         updateFromNode(ProjectTreeWidget::nodeForFile(fileName));
     } else {
         updateFromNode(nullptr);
@@ -283,6 +296,12 @@ void ProjectTree::expandAll()
         w->expandAll();
 }
 
+void ProjectTree::changeProjectRootDirectory()
+{
+    if (m_currentProject)
+        m_currentProject->changeRootProjectDirectory();
+}
+
 void ProjectTree::updateExternalFileWarning()
 {
     auto document = qobject_cast<Core::IDocument *>(sender());
@@ -296,12 +315,12 @@ void ProjectTree::updateExternalFileWarning()
     }
     if (!infoBar->canInfoBeAdded(externalFileId))
         return;
-    const FileName fileName = document->filePath();
+    const FilePath fileName = document->filePath();
     const QList<Project *> projects = SessionManager::projects();
     if (projects.isEmpty())
         return;
     for (Project *project : projects) {
-        FileName projectDir = project->projectDirectory();
+        FilePath projectDir = project->projectDirectory();
         if (projectDir.isEmpty())
             continue;
         if (fileName.isChildOf(projectDir))
@@ -309,13 +328,13 @@ void ProjectTree::updateExternalFileWarning()
         // External file. Test if it under the same VCS
         QString topLevel;
         if (Core::VcsManager::findVersionControlForDirectory(projectDir.toString(), &topLevel)
-                && fileName.isChildOf(FileName::fromString(topLevel))) {
+                && fileName.isChildOf(FilePath::fromString(topLevel))) {
             return;
         }
     }
     infoBar->addInfo(Core::InfoBarEntry(externalFileId,
                                         tr("<b>Warning:</b> This file is outside the project directory."),
-                                        Core::InfoBarEntry::GlobalSuppressionEnabled));
+                                        Core::InfoBarEntry::GlobalSuppression::Enabled));
 }
 
 bool ProjectTree::hasFocus(ProjectTreeWidget *widget)
@@ -333,31 +352,21 @@ void ProjectTree::showContextMenu(ProjectTreeWidget *focus, const QPoint &global
 
     if (!node) {
         contextMenu = Core::ActionManager::actionContainer(Constants::M_SESSIONCONTEXT)->menu();
-    } else {
-        switch (node->nodeType()) {
-        case NodeType::Project: {
-            if ((node->parentFolderNode() && node->parentFolderNode()->asContainerNode())
-                    || node->asContainerNode())
-                contextMenu = Core::ActionManager::actionContainer(Constants::M_PROJECTCONTEXT)->menu();
-            else
-                contextMenu = Core::ActionManager::actionContainer(Constants::M_SUBPROJECTCONTEXT)->menu();
-            break;
-        }
-        case NodeType::VirtualFolder:
-        case NodeType::Folder:
-            contextMenu = Core::ActionManager::actionContainer(Constants::M_FOLDERCONTEXT)->menu();
-            break;
-        case NodeType::File:
-            contextMenu = Core::ActionManager::actionContainer(Constants::M_FILECONTEXT)->menu();
-            break;
-        default:
-            qWarning("ProjectExplorerPlugin::showContextMenu - Missing handler for node type");
-        }
+    } else  if (node->isProjectNodeType()) {
+        if ((node->parentFolderNode() && node->parentFolderNode()->asContainerNode())
+                || node->asContainerNode())
+            contextMenu = Core::ActionManager::actionContainer(Constants::M_PROJECTCONTEXT)->menu();
+        else
+            contextMenu = Core::ActionManager::actionContainer(Constants::M_SUBPROJECTCONTEXT)->menu();
+    } else if (node->isVirtualFolderType() || node->isFolderNodeType()) {
+        contextMenu = Core::ActionManager::actionContainer(Constants::M_FOLDERCONTEXT)->menu();
+    } else if (node->asFileNode()) {
+        contextMenu = Core::ActionManager::actionContainer(Constants::M_FILECONTEXT)->menu();
     }
 
-    if (contextMenu && contextMenu->actions().count() > 0) {
-        contextMenu->popup(globalPos);
+    if (contextMenu && !contextMenu->actions().isEmpty()) {
         s_instance->m_focusForContextMenu = focus;
+        contextMenu->popup(globalPos);
         connect(contextMenu, &QMenu::aboutToHide,
                 s_instance, &ProjectTree::hideContextMenu,
                 Qt::ConnectionType(Qt::UniqueConnection | Qt::QueuedConnection));
@@ -393,9 +402,15 @@ void ProjectTree::applyTreeManager(FolderNode *folder)
 bool ProjectTree::hasNode(const Node *node)
 {
     return Utils::contains(SessionManager::projects(), [node](const Project *p) {
-        return p && p->rootProjectNode() && (
-                    p->containerNode() == node
-                    || p->rootProjectNode()->findNode([node](const Node *n) { return n == node; }));
+        if (!p)
+            return false;
+        if (p->containerNode() == node)
+            return true;
+        // When parsing fails we have a living container node but no rootProjectNode.
+        ProjectNode *pn = p->rootProjectNode();
+        if (!pn)
+            return false;
+        return pn->findNode([node](const Node *n) { return n == node; }) != nullptr;
     });
 }
 
@@ -427,7 +442,7 @@ Project *ProjectTree::projectForNode(const Node *node)
     });
 }
 
-Node *ProjectTree::nodeForFile(const FileName &fileName)
+Node *ProjectTree::nodeForFile(const FilePath &fileName)
 {
     Node *node = nullptr;
     for (const Project *project : SessionManager::projects()) {
@@ -435,7 +450,7 @@ Node *ProjectTree::nodeForFile(const FileName &fileName)
             projectNode->forEachGenericNode([&](Node *n) {
                 if (n->filePath() == fileName) {
                     // prefer file nodes
-                    if (!node || (node->nodeType() != NodeType::File && n->nodeType() == NodeType::File))
+                    if (!node || (!node->asFileNode() && n->asFileNode()))
                         node = n;
                 }
             });

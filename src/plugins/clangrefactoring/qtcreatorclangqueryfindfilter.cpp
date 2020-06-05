@@ -108,10 +108,12 @@ std::vector<ClangBackEnd::V2::FileContainer> createUnsavedContents()
     std::vector<ClangBackEnd::V2::FileContainer> unsavedContents;
     unsavedContents.reserve(std::size_t(abstractEditors.size()));
 
-    auto toFileContainer = [] (const CppTools::AbstractEditorSupport *abstractEditor) {
-        return  ClangBackEnd::V2::FileContainer(ClangBackEnd::FilePath(abstractEditor->fileName()),
-                                                Utils::SmallString::fromQByteArray(abstractEditor->contents()),
-                                                {});
+    auto toFileContainer = [](const CppTools::AbstractEditorSupport *abstractEditor) {
+        return ClangBackEnd::V2::FileContainer(ClangBackEnd::FilePath(abstractEditor->fileName()),
+                                               -1,
+                                               Utils::SmallString::fromQByteArray(
+                                                   abstractEditor->contents()),
+                                               {});
     };
 
     std::transform(abstractEditors.begin(),
@@ -130,7 +132,8 @@ void QtCreatorClangQueryFindFilter::prepareFind()
 
     const CppTools::ProjectInfo projectInfo = CppTools::CppModelManager::instance()->projectInfo(currentProject);
 
-    setProjectParts(projectInfo.projectParts().toStdVector());
+    const QVector<CppTools::ProjectPart::Ptr> parts = projectInfo.projectParts();
+    setProjectParts({parts.begin(), parts.end()});
 
     setUnsavedContent(createUnsavedContents());
 }

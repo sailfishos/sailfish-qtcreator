@@ -53,49 +53,13 @@ using namespace ProjectExplorer;
 namespace Valgrind {
 namespace Internal {
 
-static ValgrindGlobalSettings *theGlobalSettings = nullptr;
-
-class ValgrindOptionsPage : public IOptionsPage
-{
-public:
-    explicit ValgrindOptionsPage(QObject *parent)
-        : IOptionsPage(parent)
-    {
-        setId(ANALYZER_VALGRIND_SETTINGS);
-        setDisplayName(QCoreApplication::translate("Valgrind::Internal::ValgrindOptionsPage", "Valgrind"));
-        setCategory("T.Analyzer");
-        setDisplayCategory(QCoreApplication::translate("Analyzer", "Analyzer"));
-        setCategoryIcon(Analyzer::Icons::SETTINGSCATEGORY_ANALYZER);
-    }
-
-    QWidget *widget() override
-    {
-        if (!m_widget)
-            m_widget = new ValgrindConfigWidget(theGlobalSettings, true);
-        return m_widget;
-    }
-
-    void apply() override
-    {
-        theGlobalSettings->writeSettings();
-    }
-
-    void finish() override
-    {
-        delete m_widget;
-    }
-
-private:
-    QPointer<QWidget> m_widget;
-};
-
 class ValgrindRunConfigurationAspect : public GlobalOrProjectAspect
 {
 public:
     ValgrindRunConfigurationAspect(Target *)
     {
         setProjectSettings(new ValgrindProjectSettings);
-        setGlobalSettings(ValgrindPlugin::globalSettings());
+        setGlobalSettings(ValgrindGlobalSettings::instance());
         setId(ANALYZER_VALGRIND_SETTINGS);
         setDisplayName(QCoreApplication::translate("Valgrind::Internal::ValgrindRunConfigurationAspect",
                                                    "Valgrind Settings"));
@@ -105,45 +69,32 @@ public:
     }
 };
 
+class ValgrindPluginPrivate
+{
+public:
+    ValgrindGlobalSettings valgrindGlobalSettings; // Needs to come before the tools.
+    MemcheckTool memcheckTool;
+    CallgrindTool callgrindTool;
+    ValgrindOptionsPage valgrindOptionsPage;
+};
+
 ValgrindPlugin::~ValgrindPlugin()
 {
-    delete theGlobalSettings;
-    theGlobalSettings = nullptr;
+    delete d;
 }
 
 bool ValgrindPlugin::initialize(const QStringList &, QString *)
 {
-    theGlobalSettings = new ValgrindGlobalSettings;
-    theGlobalSettings->readSettings();
-
-    new ValgrindOptionsPage(this);
+    d = new ValgrindPluginPrivate;
 
     RunConfiguration::registerAspect<ValgrindRunConfigurationAspect>();
 
     return true;
 }
 
-void ValgrindPlugin::extensionsInitialized()
+QVector<QObject *> ValgrindPlugin::createTestObjects() const
 {
-    initMemcheckTool();
-    initCallgrindTool();
-}
-
-ExtensionSystem::IPlugin::ShutdownFlag ValgrindPlugin::aboutToShutdown()
-{
-    destroyCallgrindTool();
-    destroyMemcheckTool();
-    return SynchronousShutdown;
-}
-
-ValgrindGlobalSettings *ValgrindPlugin::globalSettings()
-{
-    return theGlobalSettings;
-}
-
-QList<QObject *> ValgrindPlugin::createTestObjects() const
-{
-    QList<QObject *> tests;
+    QVector<QObject *> tests;
 #ifdef WITH_TESTS
     tests << new Test::ValgrindMemcheckParserTest << new Test::ValgrindTestRunnerTest;
 #endif

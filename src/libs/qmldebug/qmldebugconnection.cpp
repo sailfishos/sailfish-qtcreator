@@ -35,6 +35,8 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 
+Q_DECLARE_METATYPE(QLocalSocket::LocalSocketError)
+
 namespace QmlDebug {
 
 const int protocolVersion = 1;
@@ -45,17 +47,16 @@ const QString clientId = QLatin1String("QDeclarativeDebugClient");
 class QmlDebugConnectionPrivate
 {
 public:
-    QmlDebugConnectionPrivate();
-    QPacketProtocol *protocol;
-    QLocalServer *server;
-    QIODevice *device; // Currently a QTcpSocket or a QLocalSocket
+    QPacketProtocol *protocol = nullptr;
+    QLocalServer *server = nullptr;
+    QIODevice *device = nullptr; // Currently a QTcpSocket or a QLocalSocket
 
-    bool gotHello;
+    bool gotHello = false;
     QHash <QString, float> serverPlugins;
     QHash<QString, QmlDebugClient *> plugins;
 
-    int currentDataStreamVersion;
-    int maximumDataStreamVersion;
+    int currentDataStreamVersion = QmlDebugConnection::minimumDataStreamVersion();
+    int maximumDataStreamVersion = QDataStream::Qt_DefaultCompiledVersion;
 
     void advertisePlugins();
     void flush();
@@ -73,13 +74,6 @@ static QString socketErrorToString(QAbstractSocket::SocketError error)
     QString errorString;
     QDebug(&errorString) << error;
     return QmlDebugConnection::tr("Error: %1").arg(errorString);
-}
-
-QmlDebugConnectionPrivate::QmlDebugConnectionPrivate() :
-    protocol(0), server(0), device(0), gotHello(false),
-    currentDataStreamVersion(QmlDebugConnection::minimumDataStreamVersion()),
-    maximumDataStreamVersion(QDataStream::Qt_DefaultCompiledVersion)
-{
 }
 
 void QmlDebugConnectionPrivate::advertisePlugins()
@@ -118,7 +112,7 @@ void QmlDebugConnection::socketDisconnected()
     if (d->protocol) {
         d->protocol->disconnect();
         d->protocol->deleteLater();
-        d->protocol = 0;
+        d->protocol = nullptr;
     }
     if (d->device) {
         // Don't allow any "connected()" or "disconnected()" signals to be triggered anymore.
@@ -126,7 +120,7 @@ void QmlDebugConnection::socketDisconnected()
         d->device->disconnect();
         // Don't immediately delete it as it may do some cleanup on returning from a signal.
         d->device->deleteLater();
-        d->device = 0;
+        d->device = nullptr;
     }
 }
 
@@ -220,7 +214,7 @@ void QmlDebugConnection::protocolReadyRead()
 
                 QHash<QString, QmlDebugClient *>::Iterator iter = d->plugins.begin();
                 for (; iter != d->plugins.end(); ++iter) {
-                    const QString pluginName = iter.key();
+                    const QString &pluginName = iter.key();
                     QmlDebugClient::State newState = QmlDebugClient::Unavailable;
                     if (d->serverPlugins.contains(pluginName))
                         newState = QmlDebugClient::Enabled;
@@ -252,6 +246,11 @@ void QmlDebugConnection::protocolReadyRead()
 QmlDebugConnection::QmlDebugConnection(QObject *parent)
     : QObject(parent), d_ptr(new QmlDebugConnectionPrivate)
 {
+    static const int metaTypes[] = {
+        qRegisterMetaType<QAbstractSocket::SocketError>(),
+        qRegisterMetaType<QLocalSocket::LocalSocketError>()
+    };
+    Q_UNUSED(metaTypes)
 }
 
 QmlDebugConnection::~QmlDebugConnection()
@@ -282,7 +281,7 @@ void QmlDebugConnection::close()
 QmlDebugClient *QmlDebugConnection::client(const QString &name) const
 {
     Q_D(const QmlDebugConnection);
-    return d->plugins.value(name, 0);
+    return d->plugins.value(name, nullptr);
 }
 
 bool QmlDebugConnection::addClient(const QString &name, QmlDebugClient *client)
@@ -324,16 +323,11 @@ bool QmlDebugConnection::sendMessage(const QString &name, const QByteArray &mess
     return true;
 }
 
-int QmlDebugConnection::minimumDataStreamVersion()
-{
-    return QDataStream::Qt_4_7;
-}
-
 void QmlDebugConnectionPrivate::flush()
 {
-    if (QAbstractSocket *socket = qobject_cast<QAbstractSocket *>(device))
+    if (auto socket = qobject_cast<QAbstractSocket *>(device))
         socket->flush();
-    else if (QLocalSocket *socket = qobject_cast<QLocalSocket *>(device))
+    else if (auto socket = qobject_cast<QLocalSocket *>(device))
         socket->flush();
 }
 
@@ -341,7 +335,7 @@ void QmlDebugConnection::connectToHost(const QString &hostName, quint16 port)
 {
     Q_D(QmlDebugConnection);
     socketDisconnected();
-    QTcpSocket *socket = new QTcpSocket(this);
+    auto socket = new QTcpSocket(this);
     socket->setProxy(QNetworkProxy::NoProxy);
     d->device = socket;
     d->protocol = new QPacketProtocol(socket, this);
@@ -352,13 +346,14 @@ void QmlDebugConnection::connectToHost(const QString &hostName, quint16 port)
         emit logStateChange(socketStateToString(state));
     });
 
-    connect(socket, static_cast<void (QTcpSocket::*)(QAbstractSocket::SocketError)>
-            (&QAbstractSocket::error), this, [this](QAbstractSocket::SocketError error) {
+    connect(socket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error),
+            this, [this](QAbstractSocket::SocketError error) {
         emit logError(socketErrorToString(error));
         socketDisconnected();
-    });
+    }, Qt::QueuedConnection);
     connect(socket, &QAbstractSocket::connected, this, &QmlDebugConnection::socketConnected);
-    connect(socket, &QAbstractSocket::disconnected, this, &QmlDebugConnection::socketDisconnected);
+    connect(socket, &QAbstractSocket::disconnected, this, &QmlDebugConnection::socketDisconnected,
+            Qt::QueuedConnection);
     socket->connectToHost(hostName.isEmpty() ? QString("localhost") : hostName, port);
 }
 
@@ -389,13 +384,20 @@ void QmlDebugConnection::newConnection()
     QObject::connect(d->protocol, &QPacketProtocol::readyRead,
                      this, &QmlDebugConnection::protocolReadyRead);
 
-    connect(socket, &QLocalSocket::disconnected, this, &QmlDebugConnection::socketDisconnected);
+    connect(socket, &QLocalSocket::disconnected, this, &QmlDebugConnection::socketDisconnected,
+            Qt::QueuedConnection);
 
-    connect(socket, static_cast<void (QLocalSocket::*)(QLocalSocket::LocalSocketError)>
-            (&QLocalSocket::error), this, [this](QLocalSocket::LocalSocketError error) {
+    constexpr void (QLocalSocket::*LocalSocketErrorFunction)(QLocalSocket::LocalSocketError)
+#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
+                = &QLocalSocket::error;
+#else
+                = &QLocalSocket::errorOccurred;
+#endif
+
+    connect(socket, LocalSocketErrorFunction, this, [this](QLocalSocket::LocalSocketError error) {
         emit logError(socketErrorToString(static_cast<QAbstractSocket::SocketError>(error)));
         socketDisconnected();
-    });
+    }, Qt::QueuedConnection);
 
     connect(socket, &QLocalSocket::stateChanged,
             this, [this](QLocalSocket::LocalSocketState state) {
@@ -420,12 +422,11 @@ void QmlDebugConnection::setMaximumDataStreamVersion(int maximumVersion)
 QAbstractSocket::SocketState QmlDebugConnection::socketState() const
 {
     Q_D(const QmlDebugConnection);
-    if (QAbstractSocket *socket = qobject_cast<QAbstractSocket *>(d->device))
+    if (auto socket = qobject_cast<QAbstractSocket *>(d->device))
         return socket->state();
-    else if (QLocalSocket *socket = qobject_cast<QLocalSocket *>(d->device))
+    if (auto socket = qobject_cast<QLocalSocket *>(d->device))
         return static_cast<QAbstractSocket::SocketState>(socket->state());
-    else
-        return QAbstractSocket::UnconnectedState;
+    return QAbstractSocket::UnconnectedState;
 }
 
 } // namespace QmlDebug

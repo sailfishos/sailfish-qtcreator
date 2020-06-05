@@ -29,12 +29,14 @@
 #include "winrtrunconfiguration.h"
 
 #include <coreplugin/idocument.h>
+
 #include <projectexplorer/buildtargetinfo.h>
 #include <projectexplorer/devicesupport/idevice.h>
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/project.h>
-#include <projectexplorer/runconfiguration.h>
+#include <projectexplorer/runcontrol.h>
 #include <projectexplorer/target.h>
+
 #include <qtsupport/baseqtversion.h>
 #include <qtsupport/qtkitinformation.h>
 #include <utils/qtcprocess.h>
@@ -50,30 +52,28 @@ WinRtRunnerHelper::WinRtRunnerHelper(ProjectExplorer::RunWorker *runWorker, QStr
     : QObject(runWorker)
     , m_worker(runWorker)
 {
-    auto runConfiguration = runWorker->runControl()->runConfiguration();
+    auto runControl = runWorker->runControl();
 
-    ProjectExplorer::Target *target = runConfiguration->target();
     m_device = runWorker->device().dynamicCast<const WinRtDevice>();
 
-    const QtSupport::BaseQtVersion *qt = QtSupport::QtKitInformation::qtVersion(target->kit());
+    const QtSupport::BaseQtVersion *qt = QtSupport::QtKitAspect::qtVersion(runControl->kit());
     if (!qt) {
         *errorMessage = tr("The current kit has no Qt version.");
         return;
     }
 
-    m_runnerFilePath = qt->binPath().toString() + QStringLiteral("/winrtrunner.exe");
+    m_runnerFilePath = qt->hostBinPath().toString() + QStringLiteral("/winrtrunner.exe");
     if (!QFile::exists(m_runnerFilePath)) {
         *errorMessage = tr("Cannot find winrtrunner.exe in \"%1\".").arg(
-                    QDir::toNativeSeparators(qt->binPath().toString()));
+                    QDir::toNativeSeparators(qt->hostBinPath().toString()));
         return;
     }
 
-    const BuildTargetInfo bti = target->applicationTargets().buildTargetInfo(runConfiguration->buildKey());
-    m_executableFilePath = bti.targetFilePath.toString();
+    m_executableFilePath = runControl->targetFilePath().toString();
 
     if (m_executableFilePath.isEmpty()) {
-        *errorMessage = tr("Cannot determine the executable file path for \"%1\".").arg(
-                    QDir::toNativeSeparators(bti.projectFilePath.toString()));
+        *errorMessage = tr("Cannot determine the executable file path for \"%1\".")
+                .arg(runControl->projectFilePath().toUserOutput());
         return;
     }
 
@@ -84,23 +84,20 @@ WinRtRunnerHelper::WinRtRunnerHelper(ProjectExplorer::RunWorker *runWorker, QStr
 
     bool loopbackExemptClient = false;
     bool loopbackExemptServer = false;
-    if (auto aspect = runConfiguration->aspect<ArgumentsAspect>())
-        m_arguments = aspect->arguments(runConfiguration->macroExpander());
-    if (auto aspect = runConfiguration->aspect<UninstallAfterStopAspect>())
+    if (auto aspect = runControl->aspect<ArgumentsAspect>())
+        m_arguments = aspect->arguments(runControl->macroExpander());
+    if (auto aspect = runControl->aspect<UninstallAfterStopAspect>())
         m_uninstallAfterStop = aspect->value();
-    if (auto aspect = runConfiguration->aspect<LoopbackExemptClientAspect>())
+    if (auto aspect = runControl->aspect<LoopbackExemptClientAspect>())
         loopbackExemptClient = aspect->value();
-    if (auto aspect = runConfiguration->aspect<LoopbackExemptServerAspect>())
+    if (auto aspect = runControl->aspect<LoopbackExemptServerAspect>())
         loopbackExemptServer = aspect->value();
     if (loopbackExemptClient && loopbackExemptServer)
-        m_loopbackArguments = "--loopbackexempt clientserver";
+        m_loopbackArguments = QStringList{"--loopbackexempt", "clientserver"};
     else if (loopbackExemptClient)
-        m_loopbackArguments = "--loopbackexempt client";
+        m_loopbackArguments = QStringList{"--loopbackexempt", "client"};
     else if (loopbackExemptServer)
-        m_loopbackArguments = "--loopbackexempt server";
-
-    if (ProjectExplorer::BuildConfiguration *bc = target->activeBuildConfiguration())
-        m_environment = bc->environment();
+        m_loopbackArguments = QStringList{"--loopbackexempt", "server"};
 }
 
 void WinRtRunnerHelper::appendMessage(const QString &message, Utils::OutputFormat format)
@@ -170,10 +167,10 @@ void WinRtRunnerHelper::onProcessError(QProcess::ProcessError processError)
 void WinRtRunnerHelper::startWinRtRunner(const RunConf &conf)
 {
     using namespace Utils;
-    QString runnerArgs;
+    CommandLine cmdLine(FilePath::fromString(m_runnerFilePath), {});
     if (m_device) {
-        QtcProcess::addArg(&runnerArgs, QStringLiteral("--device"));
-        QtcProcess::addArg(&runnerArgs, QString::number(m_device->deviceId()));
+        cmdLine.addArg("--device");
+        cmdLine.addArg(QString::number(m_device->deviceId()));
     }
 
     QtcProcess *process = nullptr;
@@ -181,42 +178,41 @@ void WinRtRunnerHelper::startWinRtRunner(const RunConf &conf)
 
     switch (conf) {
     case Debug:
-        QtcProcess::addArg(&runnerArgs, QStringLiteral("--debug"));
-        QtcProcess::addArg(&runnerArgs, m_debuggerExecutable);
+        cmdLine.addArg("--debug");
+        cmdLine.addArg(m_debuggerExecutable);
         if (!m_debuggerArguments.isEmpty()) {
-            QtcProcess::addArg(&runnerArgs, QStringLiteral("--debugger-arguments"));
-            QtcProcess::addArg(&runnerArgs, m_debuggerArguments);
+            cmdLine.addArg("--debugger-arguments");
+            cmdLine.addArg(m_debuggerArguments);
         }
         Q_FALLTHROUGH();
     case Start:
-        QtcProcess::addArgs(&runnerArgs, QStringLiteral("--start --stop --wait 0"));
+        cmdLine.addArgs({"--start", "--stop", "--wait", "0"});
         connectProcess = true;
         QTC_ASSERT(!m_process, m_process->deleteLater());
         m_process = new QtcProcess(this);
         process = m_process;
         break;
     case Stop:
-        QtcProcess::addArgs(&runnerArgs, QStringLiteral("--stop"));
+        cmdLine.addArg("--stop");
         process = new QtcProcess(this);
         break;
     }
 
     if (m_device->type() == Constants::WINRT_DEVICE_TYPE_LOCAL)
-        QtcProcess::addArgs(&runnerArgs, QStringLiteral("--profile appx"));
+        cmdLine.addArgs({"--profile", "appx"});
     else if (m_device->type() == Constants::WINRT_DEVICE_TYPE_PHONE ||
              m_device->type() == Constants::WINRT_DEVICE_TYPE_EMULATOR)
-        QtcProcess::addArgs(&runnerArgs, QStringLiteral("--profile appxphone"));
+        cmdLine.addArgs({"--profile", "appxphone"});
 
-    QtcProcess::addArgs(&runnerArgs, m_loopbackArguments);
-    QtcProcess::addArg(&runnerArgs, m_executableFilePath);
-    QtcProcess::addArgs(&runnerArgs, m_arguments);
+    cmdLine.addArgs(m_loopbackArguments);
+    cmdLine.addArg(m_executableFilePath);
+    cmdLine.addArgs(m_arguments, CommandLine::Raw);
 
-    appendMessage(QStringLiteral("winrtrunner ") + runnerArgs + QLatin1Char('\n'), NormalMessageFormat);
+    appendMessage(cmdLine.toUserOutput(), NormalMessageFormat);
 
     if (connectProcess) {
         connect(process, &QProcess::started, this, &WinRtRunnerHelper::started);
-        connect(process,
-                static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+        connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &WinRtRunnerHelper::onProcessFinished);
         connect(process, &QProcess::errorOccurred, this, &WinRtRunnerHelper::onProcessError);
         connect(process, &QProcess::readyReadStandardOutput, this, &WinRtRunnerHelper::onProcessReadyReadStdOut);
@@ -224,8 +220,8 @@ void WinRtRunnerHelper::startWinRtRunner(const RunConf &conf)
     }
 
     process->setUseCtrlCStub(true);
-    process->setCommand(m_runnerFilePath, runnerArgs);
-    process->setEnvironment(m_environment);
+    process->setCommand(cmdLine);
+    process->setEnvironment(m_worker->runControl()->buildEnvironment());
     process->setWorkingDirectory(QFileInfo(m_executableFilePath).absolutePath());
     process->start();
 }

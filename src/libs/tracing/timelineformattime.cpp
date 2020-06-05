@@ -30,7 +30,7 @@ namespace Timeline {
 
 QString formatTime(qint64 timestamp, qint64 reference)
 {
-    static const char *decimalUnits[] = {"ns", "\xb5s", "ms", "s"};
+    static const char *decimalUnits[] = {" ns", " \xb5s", " ms", " s"};
     static const double second = 1e9;
     static const double minute = 60;
     static const double hour = 60;
@@ -63,7 +63,7 @@ QString formatTime(qint64 timestamp, qint64 reference)
 
     double seconds = timestamp / second;
     if (seconds < minute) {
-        return QString::number(seconds, 'g', qMax(round, 3)) + "s";
+        return QString::number(seconds, 'g', qMax(round, 3)) + " s";
     } else {
         int minutes = seconds / minute;
         seconds -= minutes * minute;
@@ -88,8 +88,8 @@ QString formatTime(qint64 timestamp, qint64 reference)
 
 static QObject *createFormatter(QQmlEngine *engine, QJSEngine *scriptEngine)
 {
-    Q_UNUSED(engine);
-    Q_UNUSED(scriptEngine);
+    Q_UNUSED(engine)
+    Q_UNUSED(scriptEngine)
     return new TimeFormatter;
 }
 
@@ -97,7 +97,7 @@ void TimeFormatter::setupTimeFormatter()
 {
     static const int typeIndex = qmlRegisterSingletonType<TimeFormatter>(
                 "TimelineTimeFormatter", 1, 0, "TimeFormatter", createFormatter);
-    Q_UNUSED(typeIndex);
+    Q_UNUSED(typeIndex)
 }
 
 }

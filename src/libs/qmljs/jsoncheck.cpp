@@ -41,7 +41,7 @@ using namespace Utils;
 
 JsonCheck::JsonCheck(Document::Ptr doc)
     : m_doc(doc)
-    , m_schema(0)
+    , m_schema(nullptr)
 {
     QTC_CHECK(m_doc->ast());
 }
@@ -308,6 +308,14 @@ bool JsonCheck::visit(StringLiteral *ast)
     }
 
     return false;
+}
+
+void JsonCheck::throwRecursionDepthError()
+{
+    analysis()->m_messages.append(Message(ErrHitMaximumRecursion,
+                                          SourceLocation(),
+                                          QString(), QString(), false));
+
 }
 
 static QString formatExpectedTypes(QStringList all)

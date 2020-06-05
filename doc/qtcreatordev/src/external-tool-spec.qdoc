@@ -1,0 +1,194 @@
+/****************************************************************************
+**
+** Copyright (C) 2020 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+/*!
+    \page external-tool-spec.html
+    \nextpage coding-style.html
+
+    \title External Tool Specification Files
+
+    An external tool specification file describes a tool that can be run from
+    the \uicontrol Tools > \uicontrol External menu.
+    It specifies the name of the tool, the executable to run, optional
+    arguments, and how to handle the output from the tool.
+
+    \section1 File Name
+
+    \c {<yourtoolname>.xml}
+
+    \section1 Location
+
+    User specific tools are located in \c {$HOME/.config/QtProject/qtcreator/externaltools}
+    on Mac and Linux, and in \c {%APPDATA%\QtProject\qtcreator\externaltools} on Windows.
+
+    System wide tools are located in \c {<Qt Creator install>/share/qtcreator/externaltools}
+    on Windows and Linux, and in \c {Qt Creator.app/Contents/Resources/externaltools} on Mac.
+
+    \section1 File Format
+
+    External tool specifications are XML files with the following structure.
+
+    \section2 Main Tag
+
+    The root tag is \c externaltool. It has the mandatory attribute \c id.
+
+    \table
+    \header
+        \li Tag
+        \li Meaning
+    \row
+        \li externaltool
+        \li Root element in the XML file that specifies an external tool.
+    \endtable
+    \table
+    \header
+        \li Attribute
+        \li Meaning
+    \row
+        \li id
+        \li A string that identifies the external tool.
+            Two tools cannot have the same id. Required.
+    \endtable
+
+    \section2 Description Tags
+
+    You must specify a description, display name, and category for the tool.
+    You can translate their values into different languages by adding multiple
+    \c description, \c displayname, and \c category tags that contain language
+    codes.
+
+    \table
+    \header
+        \li Tag
+        \li Meaning
+    \row
+        \li description
+        \li Short, one-line description of what the tool is for. Required.
+    \row
+        \li displayname
+        \li Name to show in the menu item for the tool. Required.
+    \row
+        \li category
+        \li Name of the category to show the tool in.
+            This is the name of the sub menu of the \c { Tools > External }
+            menu where the tool is placed. For example, specify the value
+            \c "Text" to display the tool in the \c { Tools > External > Text }
+            menu. Required.
+    \endtable
+    \table
+    \header
+        \li Attribute
+        \li Meaning
+    \row
+        \li xml:lang
+        \li Language code (such as, \c "en" or \c "de") of the language that is used for
+            the description, display name, or category. Optional.
+    \endtable
+
+    \section2 Executable Specification Tag
+
+    You must add an \c executable tag under the root tag, that specifies the
+    executable to run, optional arguments, and how to handle the output.
+
+    \table
+    \header
+        \li Tag
+        \li Meaning
+    \row
+        \li executable
+        \li Encloses subtags that specify what to run and which parameters to use. Required.
+    \endtable
+    \table
+    \header
+        \li Attribute
+        \li Meaning
+    \row
+        \li output
+        \li Specifies how to handle the tool's standard output stream.
+           Defaults to \c ShowInPane. Optional.
+    \row
+        \li error
+        \li Specifies how to handle the tool's standard error stream.
+            Defaults to \c ShowInPane. Optional.
+    \row
+        \li modifiesdocument
+        \li Specifies whether Qt Creator should expect changes to the current
+            document. If this flag is set, Qt Creator prompts users to save
+            changes to the current document before running the tool,
+            and silently reloads the current document after the tool has finished.
+            Possible values are: \c "yes" or \c "no" (defaults to \c "no").
+            Optional.
+    \endtable
+
+    The \c executable tag allows the following subtags. You must specify at least
+    one \c path. All subtags can contain special
+    \l{https://doc.qt.io/qtcreator/creator-build-settings.html#using-qt-creator-variables}
+    {Qt Creator variables}.
+
+    \table
+    \header
+        \li Subtag
+        \li Meaning
+    \row
+        \li path
+        \li File path to the executable to run, including filename. If you
+            specify the executable name without a path, Qt creator checks the
+            system PATH environment variable for a path to the executable. You
+            can specify the path multiple times. Qt Creator tries to resolve the
+            references in the given order and runs the first executable that it
+            finds. Required.
+    \row
+        \li arguments
+        \li Command line arguments for the executable. Specify the string in the
+            same format (with respect to quoting and argument splitting, for
+            example) as you would specify it on the command line of the platform
+            the tool runs on. Optional.
+    \row
+        \li workingdirectory
+        \li The working directory for the executable. Optional.
+    \row
+        \li input
+        \li A potentially multiline string that is passed to the tool via standard input stream.
+    \endtable
+
+    \section1 Example
+
+    \code
+<?xml version="1.0" encoding="UTF-8"?>
+<externaltool id="sort">
+    <description>Sorts the selected text</description>
+    <description xml:lang="de">Sortiert den ausgewaehlten Text</description>
+    <displayname>Sort Selection</displayname>
+    <displayname xml:lang="de">Auswahl Sortieren</displayname>
+    <category>Text</category>
+    <category xml:lang="de">Text</category>
+    <executable output="replaceselection" error="ignore">
+        <path>sort</path>
+        <input>%{CurrentDocument:Selection}</input>
+        <workingdirectory>%{CurrentDocument:Path}</workingdirectory>
+    </executable>
+</externaltool>
+    \endcode
+*/

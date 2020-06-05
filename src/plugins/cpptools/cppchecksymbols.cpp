@@ -314,9 +314,9 @@ CheckSymbols::CheckSymbols(Document::Ptr doc, const LookupContext &context, cons
     : ASTVisitor(doc->translationUnit()), _doc(doc), _context(context)
     , _lineOfLastUsage(0), _macroUses(macroUses)
 {
-    unsigned line = 0;
+    int line = 0;
     getTokenEndPosition(translationUnit()->ast()->lastToken(), &line, nullptr);
-    _chunkSize = qMax(50U, line / 200);
+    _chunkSize = qMax(50, line / 200);
     _usages.reserve(_chunkSize);
 
     _astStack.reserve(200);
@@ -365,7 +365,7 @@ bool CheckSymbols::warning(AST *ast, const QString &text)
     const Token &lastToken = tokenAt(ast->lastToken() - 1);
 
     const unsigned length = lastToken.utf16charsEnd() - firstToken.utf16charsBegin();
-    unsigned line = 1, column = 1;
+    int line = 1, column = 1;
     getTokenStartPosition(ast->firstToken(), &line, &column);
 
     warning(line, column, text, length);
@@ -461,11 +461,7 @@ Scope *CheckSymbols::enclosingScope() const
 bool CheckSymbols::preVisit(AST *ast)
 {
     _astStack.append(ast);
-
-    if (isCanceled())
-        return false;
-
-    return true;
+    return !isCanceled();
 }
 
 void CheckSymbols::postVisit(AST *)
@@ -478,7 +474,7 @@ bool CheckSymbols::visit(NamespaceAST *ast)
     if (ast->identifier_token) {
         const Token &tok = tokenAt(ast->identifier_token);
         if (!tok.generated()) {
-            unsigned line, column;
+            int line, column;
             getTokenStartPosition(ast->identifier_token, &line, &column);
             Result use(line, column, tok.utf16chars(), SemanticHighlighter::TypeUse);
             addUse(use);
@@ -786,7 +782,7 @@ void CheckSymbols::checkNamespace(NameAST *name)
     if (!name)
         return;
 
-    unsigned line, column;
+    int line, column;
     getTokenStartPosition(name->firstToken(), &line, &column);
 
     if (ClassOrNamespace *b = _context.lookupType(name->name, enclosingScope())) {
@@ -1184,7 +1180,7 @@ void CheckSymbols::addUse(unsigned tokenIndex, Kind kind)
     if (tok.generated())
         return;
 
-    unsigned line, column;
+    int line, column;
     getTokenStartPosition(tokenIndex, &line, &column);
     const unsigned length = tok.utf16chars();
 
@@ -1221,7 +1217,7 @@ void CheckSymbols::addType(ClassOrNamespace *b, NameAST *ast)
     if (tok.generated())
         return;
 
-    unsigned line, column;
+    int line, column;
     getTokenStartPosition(startToken, &line, &column);
     const unsigned length = tok.utf16chars();
     const Result use(line, column, length, SemanticHighlighter::TypeUse);
@@ -1256,14 +1252,13 @@ bool CheckSymbols::maybeAddTypeOrStatic(const QList<LookupItem> &candidates, Nam
         Symbol *c = r.declaration();
         if (c->isUsingDeclaration()) // skip using declarations...
             continue;
-        else if (c->isUsingNamespaceDirective()) // ... and using namespace directives.
+        if (c->isUsingNamespaceDirective()) // ... and using namespace directives.
             continue;
-        else if (c->isTypedef() || c->isNamespace() ||
-                 c->isStatic() || //consider also static variable
-                 c->isClass() || c->isEnum() || isTemplateClass(c) ||
-                 c->isForwardClassDeclaration() || c->isTypenameArgument() || c->enclosingEnum() != nullptr) {
-
-            unsigned line, column;
+        if (c->isTypedef() || c->isNamespace() ||
+                c->isStatic() || //consider also static variable
+                c->isClass() || c->isEnum() || isTemplateClass(c) ||
+                c->isForwardClassDeclaration() || c->isTypenameArgument() || c->enclosingEnum()) {
+            int line, column;
             getTokenStartPosition(startToken, &line, &column);
             const unsigned length = tok.utf16chars();
 
@@ -1298,14 +1293,14 @@ bool CheckSymbols::maybeAddField(const QList<LookupItem> &candidates, NameAST *a
         Symbol *c = r.declaration();
         if (!c)
             continue;
-        else if (!c->isDeclaration())
+        if (!c->isDeclaration())
             return false;
-        else if (!(c->enclosingScope() && c->enclosingScope()->isClass()))
+        if (!(c->enclosingScope() && c->enclosingScope()->isClass()))
             return false; // shadowed
-        else if (c->isTypedef() || (c->type() && c->type()->isFunctionType()))
+        if (c->isTypedef() || (c->type() && c->type()->isFunctionType()))
             return false; // shadowed
 
-        unsigned line, column;
+        int line, column;
         getTokenStartPosition(startToken, &line, &column);
         const unsigned length = tok.utf16chars();
 
@@ -1319,9 +1314,9 @@ bool CheckSymbols::maybeAddField(const QList<LookupItem> &candidates, NameAST *a
 }
 
 bool CheckSymbols::maybeAddFunction(const QList<LookupItem> &candidates, NameAST *ast,
-                                    unsigned argumentCount, FunctionKind functionKind)
+                                    int argumentCount, FunctionKind functionKind)
 {
-    unsigned startToken = ast->firstToken();
+    int startToken = ast->firstToken();
     bool isDestructor = false;
     bool isConstructor = false;
     if (DestructorNameAST *dtor = ast->asDestructorName()) {
@@ -1399,7 +1394,7 @@ bool CheckSymbols::maybeAddFunction(const QList<LookupItem> &candidates, NameAST
             return false;
         }
 
-        unsigned line, column;
+        int line, column;
         getTokenStartPosition(startToken, &line, &column);
         const unsigned length = tok.utf16chars();
 

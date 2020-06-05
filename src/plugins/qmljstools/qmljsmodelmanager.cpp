@@ -41,6 +41,7 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/projectnodes.h>
 #include <projectexplorer/projecttree.h>
+#include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
 #include <qmljs/qmljsbind.h>
@@ -76,10 +77,36 @@ using namespace QmlJS;
 namespace QmlJSTools {
 namespace Internal {
 
+static void setupProjectInfoQmlBundles(ModelManagerInterface::ProjectInfo &projectInfo)
+{
+    Target *activeTarget = nullptr;
+    if (projectInfo.project)
+        activeTarget = projectInfo.project->activeTarget();
+    Kit *activeKit = activeTarget ? activeTarget->kit() : KitManager::defaultKit();
+    const QHash<QString, QString> replacements = {{QLatin1String("$(QT_INSTALL_QML)"), projectInfo.qtQmlPath}};
+
+    for (IBundleProvider *bp : IBundleProvider::allBundleProviders())
+        bp->mergeBundlesForKit(activeKit, projectInfo.activeBundle, replacements);
+
+    projectInfo.extendedBundle = projectInfo.activeBundle;
+
+    if (projectInfo.project) {
+        QSet<Kit *> currentKits;
+        foreach (const Target *t, projectInfo.project->targets())
+            currentKits.insert(t->kit());
+        currentKits.remove(activeKit);
+        foreach (Kit *kit, currentKits) {
+            for (IBundleProvider *bp : IBundleProvider::allBundleProviders())
+                bp->mergeBundlesForKit(kit, projectInfo.extendedBundle, replacements);
+        }
+    }
+}
+
 ModelManagerInterface::ProjectInfo ModelManager::defaultProjectInfoForProject(
         Project *project) const
 {
-    ModelManagerInterface::ProjectInfo projectInfo(project);
+    ModelManagerInterface::ProjectInfo projectInfo;
+    projectInfo.project = project;
     projectInfo.qmlDumpEnvironment = Utils::Environment::systemEnvironment();
     Target *activeTarget = nullptr;
     if (project) {
@@ -94,11 +121,11 @@ ModelManagerInterface::ProjectInfo ModelManager::defaultProjectInfoForProject(
             return fn && fn->fileType() == FileType::QML
                     && qmlTypeNames.contains(Utils::mimeTypeForFile(fn->filePath().toString(),
                                                                     MimeMatchMode::MatchExtension).name());
-        }), &FileName::toString);
+        }), &FilePath::toString);
         activeTarget = project->activeTarget();
     }
     Kit *activeKit = activeTarget ? activeTarget->kit() : KitManager::defaultKit();
-    QtSupport::BaseQtVersion *qtVersion = QtSupport::QtKitInformation::qtVersion(activeKit);
+    QtSupport::BaseQtVersion *qtVersion = QtSupport::QtKitAspect::qtVersion(activeKit);
 
     bool preferDebugDump = false;
     bool setPreferDump = false;
@@ -111,7 +138,14 @@ ModelManagerInterface::ProjectInfo ModelManager::defaultProjectInfoForProject(
             // Append QML2_IMPORT_PATH if it is defined in build configuration.
             // It enables qmlplugindump to correctly dump custom plugins or other dependent
             // plugins that are not installed in default Qt qml installation directory.
-            projectInfo.qmlDumpEnvironment.appendOrSet("QML2_IMPORT_PATH", bc->environment().value("QML2_IMPORT_PATH"), ":");
+            projectInfo.qmlDumpEnvironment.appendOrSet("QML2_IMPORT_PATH", bc->environment().expandedValueForKey("QML2_IMPORT_PATH"), ":");
+        }
+
+        const auto appTargets = activeTarget->applicationTargets();
+        for (const auto &target : appTargets) {
+            if (target.targetFilePath.isEmpty())
+                continue;
+            projectInfo.applicationDirectories.append(target.targetFilePath.parentDir().toString());
         }
     }
     if (!setPreferDump && qtVersion)
@@ -138,36 +172,6 @@ ModelManagerInterface::ProjectInfo ModelManager::defaultProjectInfoForProject(
     setupProjectInfoQmlBundles(projectInfo);
     return projectInfo;
 }
-
-} // namespace Internal
-
-void setupProjectInfoQmlBundles(ModelManagerInterface::ProjectInfo &projectInfo)
-{
-    Target *activeTarget = nullptr;
-    if (projectInfo.project)
-        activeTarget = projectInfo.project->activeTarget();
-    Kit *activeKit = activeTarget ? activeTarget->kit() : KitManager::defaultKit();
-    const QHash<QString, QString> replacements = {{QLatin1String("$(QT_INSTALL_QML)"), projectInfo.qtQmlPath}};
-
-    for (IBundleProvider *bp : IBundleProvider::allBundleProviders())
-        bp->mergeBundlesForKit(activeKit, projectInfo.activeBundle, replacements);
-
-    projectInfo.extendedBundle = projectInfo.activeBundle;
-
-    if (projectInfo.project) {
-        QSet<Kit *> currentKits;
-        foreach (const Target *t, projectInfo.project->targets())
-            currentKits.insert(t->kit());
-        currentKits.remove(activeKit);
-        foreach (Kit *kit, currentKits) {
-            for (IBundleProvider *bp : IBundleProvider::allBundleProviders())
-                bp->mergeBundlesForKit(kit, projectInfo.extendedBundle, replacements);
-        }
-    }
-}
-
-namespace Internal {
-
 
 QHash<QString,Dialect> ModelManager::initLanguageForSuffix() const
 {
@@ -225,7 +229,7 @@ void ModelManager::delayedInitialization()
 
     ViewerContext qbsVContext;
     qbsVContext.language = Dialect::QmlQbs;
-    qbsVContext.maybeAddPath(ICore::resourcePath() + QLatin1String("/qbs"));
+    qbsVContext.paths.append(ICore::resourcePath() + QLatin1String("/qbs"));
     setDefaultVContext(qbsVContext);
 }
 
@@ -268,13 +272,15 @@ void ModelManager::updateDefaultProjectInfo()
 {
     // needs to be performed in the ui thread
     Project *currentProject = SessionManager::startupProject();
-    ProjectInfo newDefaultProjectInfo = projectInfo(currentProject,
-                                                    defaultProjectInfoForProject(currentProject));
-    setDefaultProject(projectInfo(currentProject,newDefaultProjectInfo), currentProject);
+    setDefaultProject(containsProject(currentProject)
+                            ? projectInfo(currentProject)
+                            : defaultProjectInfoForProject(currentProject),
+                      currentProject);
 }
 
 
-void ModelManager::addTaskInternal(QFuture<void> result, const QString &msg, const char *taskId) const
+void ModelManager::addTaskInternal(const QFuture<void> &result, const QString &msg,
+                                   const char *taskId) const
 {
     ProgressManager::addTask(result, msg, taskId);
 }

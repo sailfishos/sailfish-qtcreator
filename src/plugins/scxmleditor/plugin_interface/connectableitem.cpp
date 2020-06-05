@@ -35,6 +35,7 @@
 
 #include <QDebug>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPen>
 #include <QStringList>
 #include <QUndoStack>
@@ -740,7 +741,7 @@ void ConnectableItem::addOverlappingItem(ConnectableItem *item)
     if (!m_overlappedItems.contains(item))
         m_overlappedItems.append(item);
 
-    setOverlapping(m_overlappedItems.count() > 0);
+    setOverlapping(!m_overlappedItems.isEmpty());
 }
 
 void ConnectableItem::removeOverlappingItem(ConnectableItem *item)
@@ -748,7 +749,7 @@ void ConnectableItem::removeOverlappingItem(ConnectableItem *item)
     if (m_overlappedItems.contains(item))
         m_overlappedItems.removeAll(item);
 
-    setOverlapping(m_overlappedItems.count() > 0);
+    setOverlapping(!m_overlappedItems.isEmpty());
 }
 
 void ConnectableItem::checkOverlapping()
@@ -776,7 +777,7 @@ void ConnectableItem::checkOverlapping()
         }
     }
 
-    setOverlapping(m_overlappedItems.count() > 0);
+    setOverlapping(!m_overlappedItems.isEmpty());
 }
 
 bool ConnectableItem::canStartTransition(ItemType type) const

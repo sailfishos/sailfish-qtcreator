@@ -1,0 +1,578 @@
+/****************************************************************************
+**
+** Copyright (C) 2019 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \page creator-acknowledgements.html
+    \if defined(qtdesignstudio)
+    \previouspage studio-terms.html
+    \else
+    \previouspage technical-support.html
+    \endif
+
+    \title Acknowledgements
+
+    \section1 Credits
+
+    We would like to thank our contributors, who are listed in the \QC
+    \l{https://code.qt.io/cgit/qt-creator/qt-creator.git/tree/dist}{change logs}
+    for each release.
+
+    \section1 Third-party Components
+
+    \QC contains the following third-party components:
+
+    \list
+        \li \b{YAML Parser yaml-cpp (MIT License)}
+
+            \l {https://github.com/jbeder/yaml-cpp}
+
+            QtCreator/src/libs/3rdparty/yaml-cpp
+
+            Copyright (c) 2008-2015 Jesse Beder.
+
+            Permission is hereby granted, free of charge, to any person obtaining a copy
+            of this software and associated documentation files (the "Software"), to deal
+            in the Software without restriction, including without limitation the rights
+            to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+            copies of the Software, and to permit persons to whom the Software is
+            furnished to do so, subject to the following conditions:
+
+            The above copyright notice and this permission notice shall be included in
+            all copies or substantial portions of the Software.
+
+            THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+            IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+            FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+            AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+            LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+            OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+            THE SOFTWARE.
+
+        \li \b{Syntax highlighting engine for Kate syntax definitions}
+
+            This is a stand-alone implementation of the Kate syntax highlighting engine.
+            It's meant as a building block for text editors as well as for simple highlighted
+            text rendering (e.g. as HTML), supporting both integration with a custom editor
+            as well as a ready-to-use QSyntaxHighlighter sub-class.
+
+            Distributed under the:
+            \code
+            MIT License
+
+            Permission is hereby granted, free of charge, to any person obtaining
+            a copy of this software and associated documentation files (the
+            "Software"), to deal in the Software without restriction, including
+            without limitation the rights to use, copy, modify, merge, publish,
+            distribute, sublicense, and/or sell copies of the Software, and to
+            permit persons to whom the Software is furnished to do so, subject to
+            the following conditions:
+
+            The above copyright notice and this permission notice shall be included
+            in all copies or substantial portions of the Software.
+
+            THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+            EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+            MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+            IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+            CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+            TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+            SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+            \endcode
+
+            The source code of  KSyntaxHighlighting can be found
+            here:
+            \list
+            \li \l{https://cgit.kde.org/syntax-highlighting.git}
+            \li QtCreator/src/libs/3rdparty/syntax-highlighting
+            \li \l{https://code.qt.io/cgit/qt-creator/qt-creator.git/tree/src/libs/3rdparty/syntax-highlighting}
+            \endlist
+
+        \li \b{Clazy}
+
+            \l {https://github.com/KDE/clazy}
+
+            Copyright (C) 2015-2019 Clazy Team
+
+            Distributed under the \l {https://www.gnu.org/licenses/old-licenses/lgpl-2.0.html}
+            {GNU LIBRARY GENERAL PUBLIC LICENSE Version 2 (LGPL2)}.
+
+            Integrated with patches from
+            \list
+            \li \l{http://code.qt.io/cgit/clang/clang-tools-extra.git}
+            \endlist
+
+        \li \b{LLVM/Clang}
+
+            \list
+            \li \l{http://llvm.org/svn/llvm-project/llvm}
+            \li \l{http://llvm.org/svn/llvm-project/cfe/trunk}
+            \li \l{http://llvm.org/svn/llvm-project/clang-tools-extra/trunk}
+            \endlist
+
+            Copyright (C) 2003-2019 LLVM Team
+
+            Distributed under the \l {https://github.com/llvm-mirror/llvm/blob/master/LICENSE.TXT}
+            {University of Illinois/NCSA Open Source License (NCSA)}.
+
+            With backported/additional patches from
+            \list
+            \li \l{http://code.qt.io/cgit/clang/llvm.git}
+            \li \l{http://code.qt.io/cgit/clang/clang.git}
+            \endlist
+
+        \li \b{Reference implementation for std::experimental::optional}
+
+            Copyright (C) 2011-2012 Andrzej Krzemienski
+
+            Distributed under the \l {http://boost.org/LICENSE_1_0.txt}
+            {Boost Software License, Version 1.0}.
+            (See accompanying file LICENSE_1_0.txt)
+
+            The idea and interface is based on Boost.Optional library
+            authored by Fernando Luis Cacciola Carballal
+
+            The source code of std::experimental::optional can be found
+            here:
+            \list
+            \li \l{https://github.com/akrzemi1/Optional}
+            \li QtCreator/src/libs/3rdparty/optional
+            \li \l{https://code.qt.io/cgit/qt-creator/qt-creator.git/tree/src/libs/3rdparty/optional}
+            \endlist
+
+        \li \b{Implementation for std::variant}
+
+            Copyright Michael Park, 2015-2017
+
+            Distributed under the \l {http://boost.org/LICENSE_1_0.txt}
+            {Boost Software License, Version 1.0}.
+            (See accompanying file LICENSE.md.)
+
+            The source code can be found here:
+            \list
+            \li \l{https://github.com/mpark/variant}
+            \li QtCreator/src/libs/3rdparty/variant
+            \li \l{https://code.qt.io/cgit/qt-creator/qt-creator.git/tree/src/libs/3rdparty/variant}
+            \endlist
+
+        \li \b{Open Source front-end for C++ (license MIT)}, enhanced for use
+            in \QC.\br
+            Roberto Raggi <roberto.raggi@gmail.com>\br
+            QtCreator/src/shared/cplusplus\br\br
+
+        \li \b{ANGLE Library (Windows)}
+
+        Used on Windows to implement OpenGL ES on top of DirectX.
+
+        The source code of ANGLE is part of the Qt libraries. For more
+        information about the licenses used in Qt GUI, see
+        \l{https://doc.qt.io/qt-5.11/licenses-used-in-qt.html#qt-gui}{Qt GUI}.
+
+        \l{https://spdx.org/licenses/BSD-3-Clause.html}
+        {BSD 3-clause "New" or "Revised" License}
+
+        \code
+        Copyright (C) 2002-2013 The ANGLE Project Authors.
+        All rights reserved.
+
+        Redistribution and use in source and binary forms, with or without
+        modification, are permitted provided that the following conditions
+        are met:
+
+            Redistributions of source code must retain the above copyright
+            notice, this list of conditions and the following disclaimer.
+
+            Redistributions in binary form must reproduce the above
+            copyright notice, this list of conditions and the following
+            disclaimer in the documentation and/or other materials provided
+            with the distribution.
+
+            Neither the name of TransGaming Inc., Google Inc., 3DLabs Inc.
+            Ltd., nor the names of their contributors may be used to endorse
+            or promote products derived from this software without specific
+            prior written permission.
+
+        THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+        "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+        LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+        FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+        COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+        INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+        BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+        LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+        CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+        LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+        ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+        POSSIBILITY OF SUCH DAMAGE.
+        \endcode
+
+        \li \b{ANGLE Array Bounds Clamper for WebKit (Windows)}
+
+        Implements clamping of array indexing expressions during shader
+        translation.
+
+        Used on Windows to implement OpenGL ES on top of DirectX. Configure with
+        \c {-no-opengl}, or \c {-opengl desktop} to exclude.
+
+        The sources can be found in
+        \c qtbase/src/3rdparty/angle/src/third_party/compiler.
+
+        BSD 2-clause "Simplified" License.
+
+        \code
+        Copyright (C) 2012 Apple Inc. All rights reserved.
+
+        Redistribution and use in source and binary forms, with or without
+        modification, are permitted provided that the following conditions
+        are met:
+        1. Redistributions of source code must retain the above copyright
+           notice, this list of conditions and the following disclaimer.
+        2. Redistributions in binary form must reproduce the above copyright
+           notice, this list of conditions and the following disclaimer in the
+           documentation and/or other materials provided with the distribution.
+
+        THIS SOFTWARE IS PROVIDED BY APPLE, INC. ``AS IS'' AND ANY
+        EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+        IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+        PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE, INC. OR
+        CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+        EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+        PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+        PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+        OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+        (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+        OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+        \endcode
+
+        \li \b{ANGLE: Murmurhash (Windows)}
+
+        Used on Windows to implement OpenGL ES on top of DirectX. Configure
+        with \c {-no-opengl}, or \c {-opengl desktop} to exclude.
+
+        The sources can be found in
+        \c qtbase/src/3rdparty/angle/src/third_party/murmurhash.
+
+        \code
+        MurmurHash3 was written by Austin Appleby, and is placed in the public
+        domain. The author hereby disclaims copyright to this source code.
+        \endcode
+
+        Public Domain.
+
+        \li \b{ANGLE: Systeminfo (Windows)}
+
+        Used on Windows to implement OpenGL ES on top of DirectX. Configure
+        with \c {-no-opengl}, or \c {-opengl desktop} to exclude.
+
+        The sources can be found in
+        \c qtbase/src/3rdparty/angle/src/third_party/systeminfo.
+
+        BSD 2-clause "Simplified" License.
+
+        \code
+        Copyright (C) 2009 Apple Inc. All Rights Reserved.
+
+        Redistribution and use in source and binary forms, with or without
+        modification, are permitted provided that the following conditions
+        are met:
+        1. Redistributions of source code must retain the above copyright
+           notice, this list of conditions and the following disclaimer.
+        2. Redistributions in binary form must reproduce the above copyright
+           notice, this list of conditions and the following disclaimer in the
+           documentation and/or other materials provided with the distribution.
+
+        THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
+        EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+        IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+        PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
+        CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+        EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+        PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+        PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+        OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+        (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+        OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+        \endcode
+
+        \li \b{ANGLE: trace_event (Windows)}
+
+        Used on Windows to implement OpenGL ES on top of DirectX. Configure
+        with \c {-no-opengl}, or \c {-opengl desktop} to exclude.
+
+        The sources can be found in
+        \c qtbase/src/3rdparty/angle/src/third_party/trace_event.
+
+        BSD 3-clause "New" or "Revised" License.
+
+        \code
+        Copyright 2013 The Chromium Authors. All rights reserved.
+
+        Redistribution and use in source and binary forms, with or without
+        modification, are permitted provided that the following conditions are
+        met:
+
+           * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+           * Redistributions in binary form must reproduce the above
+        copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the
+        distribution.
+           * Neither the name of Google Inc. nor the names of its
+        contributors may be used to endorse or promote products derived from
+        this software without specific prior written permission.
+
+        THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+        "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+        LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+        A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+        OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+        SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+        LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+        DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+        THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+        (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+        OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+        \endcode
+
+        \li \b{SQLite, an embedded database. Version 3.8.10.2}\br\br
+
+        The author or authors of this code dedicate any and all copyright
+        interest in this code to the public domain. We make this dedication
+        for the benefit of the public at large and to the detriment of our
+        heirs and successors. We intend this dedication to be an overt act
+        of relinquishment in perpetuity of all present and future rights to
+        this code under copyright law.\br\br
+
+        The source code of SQLite library can be found here:
+        \list
+        \li  QtCreator/src/libs/3rdparty/sqlite
+        \li  \l{https://code.qt.io/cgit/qt-creator/qt-creator.git/tree/src/libs/3rdparty/sqlite}
+        \endlist
+
+        \li \b{three.js (license MIT)}\br
+        Copyright (C) 2010-2015 three.js authors\br
+        share/qtcreator/templates/wizards/projects/qmake/qtcanvas3dapplication
+
+        \li \b{OpenSSL toolkit}
+
+        The OpenSSL toolkit stays under a double license, i.e. both the conditions of
+        the OpenSSL License and the original SSLeay license apply to the toolkit.
+        See below for the actual license texts.
+
+        \code
+        OpenSSL License
+        ====================================================================
+
+        Copyright (c) 1998-2019 The OpenSSL Project.  All rights reserved.
+
+        Redistribution and use in source and binary forms, with or without
+        modification, are permitted provided that the following conditions
+        are met:
+
+        1. Redistributions of source code must retain the above copyright
+           notice, this list of conditions and the following disclaimer.
+
+        2. Redistributions in binary form must reproduce the above copyright
+           notice, this list of conditions and the following disclaimer in
+           the documentation and/or other materials provided with the
+           distribution.
+
+        3. All advertising materials mentioning features or use of this
+           software must display the following acknowledgment:
+           "This product includes software developed by the OpenSSL Project
+           for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+
+        4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+           endorse or promote products derived from this software without
+           prior written permission. For written permission, please contact
+           openssl-core@openssl.org.
+
+        5. Products derived from this software may not be called "OpenSSL"
+           nor may "OpenSSL" appear in their names without prior written
+           permission of the OpenSSL Project.
+
+        6. Redistributions of any form whatsoever must retain the following
+           acknowledgment:
+           "This product includes software developed by the OpenSSL Project
+           for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+
+        THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+        EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+        IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+        PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+        ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+        SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+        NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+        LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+        HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+        STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+        ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+        OF THE POSSIBILITY OF SUCH DAMAGE.
+        ====================================================================
+
+        This product includes cryptographic software written by Eric Young
+        (eay@cryptsoft.com).  This product includes software written by Tim
+        Hudson (tjh@cryptsoft.com).
+
+        Original SSLeay License
+        =======================
+
+        Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
+        All rights reserved.
+
+        This package is an SSL implementation written
+        by Eric Young (eay@cryptsoft.com).
+        The implementation was written so as to conform with Netscapes SSL.
+
+        This library is free for commercial and non-commercial use as long as
+        the following conditions are aheared to.  The following conditions
+        apply to all code found in this distribution, be it the RC4, RSA,
+        lhash, DES, etc., code; not just the SSL code.  The SSL documentation
+        included with this distribution is covered by the same copyright terms
+        except that the holder is Tim Hudson (tjh@cryptsoft.com).
+
+        Copyright remains Eric Young's, and as such any Copyright notices in
+        the code are not to be removed.
+        If this package is used in a product, Eric Young should be given attribution
+        as the author of the parts of the library used.
+        This can be in the form of a textual message at program startup or
+        in documentation (online or textual) provided with the package.
+
+        Redistribution and use in source and binary forms, with or without
+        modification, are permitted provided that the following conditions
+        are met:
+        1. Redistributions of source code must retain the copyright
+           notice, this list of conditions and the following disclaimer.
+        2. Redistributions in binary form must reproduce the above copyright
+           notice, this list of conditions and the following disclaimer in the
+           documentation and/or other materials provided with the distribution.
+        3. All advertising materials mentioning features or use of this software
+           must display the following acknowledgement:
+           "This product includes cryptographic software written by
+            Eric Young (eay@cryptsoft.com)"
+           The word 'cryptographic' can be left out if the rouines from the library
+           being used are not cryptographic related :-).
+        4. If you include any Windows specific code (or a derivative thereof) from
+           the apps directory (application code) you must include an acknowledgement:
+           "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
+
+        THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
+        ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+        IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+        ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+        FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+        DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+        OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+        HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+        LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+        OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+        SUCH DAMAGE.
+
+        The licence and distribution terms for any publically available version or
+        derivative of this code cannot be changed.  i.e. this code cannot simply be
+        copied and put under another distribution licence
+        [including the GNU Public Licence.]
+        \endcode
+
+        \li \b{Mesa LLVMPipe, 3D graphics library}
+
+        Mesa is a 3D graphics library with an API which is very similar to that
+        of OpenGL. The llvmpipe software renderer enables the running of OpenGL
+        applications without any hardware or driver support.
+
+        Mesa is shipped as part of the binary packages for Windows
+        (opengl32sw.dll).
+
+        \l{https://spdx.org/licenses/MIT.html}{MIT License}:
+
+        \code
+        Copyright (C) 1999-2007  Brian Paul   All Rights Reserved.
+
+        Permission is hereby granted, free of charge, to any person obtaining a
+        copy of this software and associated documentation files (the "Software"),
+        to deal in the Software without restriction, including without limitation
+        the rights to use, copy, modify, merge, publish, distribute, sublicense,
+        and/or sell copies of the Software, and to permit persons to whom the
+        Software is furnished to do so, subject to the following conditions:
+
+        The above copyright notice and this permission notice shall be included
+        in all copies or substantial portions of the Software.
+
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+        OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+        BRIAN PAUL BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+        AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+        CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+        \endcode
+
+        \li \b{JSON Library by Niels Lohmann}
+
+        Used by the Chrome Trace Format Visualizer plugin instead of QJson
+        because of QJson's current hard limit of 128 Mb object size and
+        trace files often being much larger.
+
+        The sources can be found in
+        \c QtCreator/src/libs/3rdparty/json.
+
+        The class is licensed under the MIT License:
+
+        Copyright (C) 2013-2019 Niels Lohmann
+
+        \code
+        Permission is hereby granted, free of charge, to any person obtaining a
+        copy of this software and associated documentation files (the "Software"), to
+        deal in the Software without restriction, including without limitation the
+        rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+        copies of the Software, and to permit persons to whom the Software is furnished
+        to do so, subject to the following conditions:
+
+        The above copyright notice and this permission notice shall be included
+        in all copies or substantial portions of the Software.
+
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+        OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+        SOFTWARE.
+        \endcode
+
+        The class contains the UTF-8 Decoder from Bjoern Hoehrmann which is
+        licensed under the MIT License (see above). Copyright (C) 2008-2009 Bjoern
+        Hoehrmann <bjoern@hoehrmann.de>
+
+        The class contains a slightly modified version of the Grisu2 algorithm
+        from Florian Loitsch which is licensed under the MIT License (see above).
+        Copyright (C) 2009 Florian Loitsch
+
+     \endlist
+*/

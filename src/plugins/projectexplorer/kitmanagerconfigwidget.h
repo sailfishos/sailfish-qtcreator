@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "kitconfigwidget.h"
+#include "kitmanager.h"
 
 #include <QWidget>
 
@@ -52,19 +52,18 @@ public:
     ~KitManagerConfigWidget() override;
 
     QString displayName() const;
-    QIcon icon() const;
+    QIcon displayIcon() const;
 
     void apply();
     void discard();
     bool isDirty() const;
-    bool isValid() const;
-    bool hasWarning() const;
     QString validityMessage() const;
-    void addConfigWidget(KitConfigWidget *widget);
+    void addAspectToWorkingCopy(KitAspect *aspect);
     void makeStickySubWidgetsReadOnly();
 
     Kit *workingCopy() const;
     bool configures(Kit *k) const;
+    bool isRegistering() const { return m_isRegistering; }
     void setIsDefaultKit(bool d);
     bool isDefaultKit() const;
     void removeKit();
@@ -97,13 +96,14 @@ private:
     QToolButton *m_iconButton;
     QLineEdit *m_nameEdit;
     QLineEdit *m_fileSystemFriendlyNameLineEdit;
-    QList<KitConfigWidget *> m_widgets;
+    QList<KitAspectWidget *> m_widgets;
     QList<QLabel *> m_labels;
     Kit *m_kit;
     std::unique_ptr<Kit> m_modifiedKit;
     bool m_isDefaultKit = false;
     bool m_fixingKit = false;
     bool m_hasUniqueName = true;
+    bool m_isRegistering = false;
     QList<QAction *> m_actions;
     mutable QString m_cachedDisplayName;
 };

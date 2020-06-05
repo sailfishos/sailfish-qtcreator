@@ -57,10 +57,9 @@ public:
         if (auto debuggable = dynamic_cast<DebuggableTestConfiguration *>(config))
             enableQuick = debuggable->mixedDebugging();
 
-        if (auto debugAspect = aspect<Debugger::DebuggerRunConfigurationAspect>()) {
-            debugAspect->setUseQmlDebugger(enableQuick);
-            ProjectExplorer::ProjectExplorerPlugin::instance()->updateRunActions();
-        }
+        auto debugAspect = addAspect<Debugger::DebuggerRunConfigurationAspect>(parent);
+        debugAspect->setUseQmlDebugger(enableQuick);
+        ProjectExplorer::ProjectExplorerPlugin::updateRunActions();
         m_testConfig = config;
     }
 
@@ -68,7 +67,7 @@ public:
     {
         ProjectExplorer::Runnable r;
         QTC_ASSERT(m_testConfig, return r);
-        r.executable = m_testConfig->executableFilePath();
+        r.executable = Utils::FilePath::fromString(m_testConfig->executableFilePath());
         r.commandLineArguments = m_testConfig->argumentsForTestRunner().join(' ');
         r.workingDirectory = m_testConfig->workingDirectory();
         r.environment = m_testConfig->environment();

@@ -26,45 +26,15 @@
 
 #pragma once
 
-#include <vcsbase/vcsbaseoptionspage.h>
-
-#include "ui_settingspage.h"
-
-#include <QPointer>
+#include <coreplugin/dialogs/ioptionspage.h>
 
 namespace ClearCase {
 namespace Internal {
 
-class ClearCaseSettings;
-
-class SettingsPageWidget : public QWidget
+class ClearCaseSettingsPage final : public Core::IOptionsPage
 {
-    Q_OBJECT
-
 public:
-    explicit SettingsPageWidget(QWidget *parent = nullptr);
-
-    ClearCaseSettings settings() const;
-    void setSettings(const ClearCaseSettings &);
-
-private:
-    Ui::SettingsPage m_ui;
-};
-
-
-class SettingsPage : public VcsBase::VcsBaseOptionsPage
-{
-    Q_OBJECT
-
-public:
-    explicit SettingsPage(QObject *parent);
-
-    QWidget *widget() override;
-    void apply() override;
-    void finish() override { }
-
-private:
-    QPointer<SettingsPageWidget> m_widget;
+    ClearCaseSettingsPage();
 };
 
 } // namespace ClearCase

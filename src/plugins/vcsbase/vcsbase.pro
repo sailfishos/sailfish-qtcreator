@@ -2,6 +2,7 @@ DEFINES += VCSBASE_LIBRARY
 include(../../qtcreatorplugin.pri)
 HEADERS += vcsbase_global.h \
     vcsbaseconstants.h \
+    vcsoutputformatter.h \
     wizard/vcsconfigurationpage.h \
     wizard/vcscommandpage.h \
     wizard/vcsjsextension.h \
@@ -20,7 +21,6 @@ HEADERS += vcsbase_global.h \
     nicknamedialog.h \
     vcsoutputwindow.h \
     cleandialog.h \
-    vcsbaseoptionspage.h \
     vcscommand.h \
     vcsbaseclient.h \
     vcsbaseclientsettings.h \
@@ -31,6 +31,7 @@ HEADERS += vcsbase_global.h \
 
 SOURCES += vcsplugin.cpp \
     vcsbaseplugin.cpp \
+    vcsoutputformatter.cpp \
     wizard/vcsconfigurationpage.cpp \
     wizard/vcscommandpage.cpp \
     wizard/vcsjsextension.cpp \
@@ -47,7 +48,6 @@ SOURCES += vcsplugin.cpp \
     nicknamedialog.cpp \
     vcsoutputwindow.cpp \
     cleandialog.cpp \
-    vcsbaseoptionspage.cpp \
     vcscommand.cpp \
     vcsbaseclient.cpp \
     vcsbaseclientsettings.cpp \

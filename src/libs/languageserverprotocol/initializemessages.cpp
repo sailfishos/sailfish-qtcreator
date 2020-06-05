@@ -54,27 +54,18 @@ QString Trace::toString() const
 }
 #undef RETURN_CASE
 
-TextDocumentClientCapabilities::CompletionCapabilities::CompletionItemCapbilities::CompletionItemCapbilities()
-{
-}
-
 Utils::optional<QList<MarkupKind>>
 TextDocumentClientCapabilities::CompletionCapabilities::CompletionItemCapbilities::
 documentationFormat() const
 {
-    Utils::optional<QList<int>> array = optionalArray<int>(documentationFormatKey);
-    if (!array)
-        return Utils::nullopt;
-    return Utils::make_optional(Utils::transform(array.value(), [] (int value) {
-        return static_cast<MarkupKind>(value);
-    }));
+    return optionalArray<MarkupKind>(documentationFormatKey);
 }
 
 void
 TextDocumentClientCapabilities::CompletionCapabilities::CompletionItemCapbilities::
 setDocumentationFormat(const QList<MarkupKind> &documentationFormat)
 {
-    insert(documentationFormatKey, enumArrayToJsonArray<MarkupKind>(documentationFormat));
+    insertArray(documentationFormatKey, documentationFormat);
 }
 
 TextDocumentClientCapabilities::CompletionCapabilities::CompletionItemKindCapabilities::CompletionItemKindCapabilities()
@@ -111,36 +102,26 @@ setValueSet(const QList<CompletionItemKind::Kind> &valueSet)
 
 Utils::optional<QList<MarkupKind> > TextDocumentClientCapabilities::HoverCapabilities::contentFormat() const
 {
-    Utils::optional<QList<int>> array = optionalArray<int>(contentFormatKey);
-    if (!array)
-        return Utils::nullopt;
-    return Utils::make_optional(Utils::transform(array.value(), [] (int value) {
-        return static_cast<MarkupKind>(value);
-    }));
+    return optionalArray<MarkupKind>(contentFormatKey);
 }
 
 void TextDocumentClientCapabilities::HoverCapabilities::setContentFormat(const QList<MarkupKind> &contentFormat)
 {
-    insert(contentFormatKey, enumArrayToJsonArray<MarkupKind>(contentFormat));
+    insertArray(contentFormatKey, contentFormat);
 }
 
 Utils::optional<QList<MarkupKind>>
 TextDocumentClientCapabilities::SignatureHelpCapabilities::SignatureInformationCapabilities::
 documentationFormat() const
 {
-    Utils::optional<QList<int>> array = optionalArray<int>(documentationFormatKey);
-    if (!array)
-        return Utils::nullopt;
-    return Utils::make_optional(Utils::transform(array.value(), [] (int value) {
-        return static_cast<MarkupKind>(value);
-    }));
+    return optionalArray<MarkupKind>(documentationFormatKey);
 }
 
 void
 TextDocumentClientCapabilities::SignatureHelpCapabilities::SignatureInformationCapabilities::
 setDocumentationFormat(const QList<MarkupKind> &documentationFormat)
 {
-    insert(documentationFormatKey, enumArrayToJsonArray<MarkupKind>(documentationFormat));
+    insertArray(documentationFormatKey, documentationFormat);
 }
 
 InitializeParams::InitializeParams()
@@ -159,9 +140,9 @@ Utils::optional<Trace> InitializeParams::trace() const
     return Utils::make_optional(Trace(traceValue.toString()));
 }
 
-bool InitializeParams::isValid(QStringList *error) const
+bool InitializeParams::isValid(ErrorHierarchy *error) const
 {
-    return check<int, std::nullptr_t>(error, processIdKey)
+    return checkVariant<int, std::nullptr_t>(error, processIdKey)
             && checkOptional<QString, std::nullptr_t>(error, rootPathKey)
             && checkOptional<QString, std::nullptr_t>(error, rootUriKey)
             && check<ClientCapabilities>(error, capabilitiesKey)

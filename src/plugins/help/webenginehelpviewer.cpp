@@ -34,6 +34,7 @@
 #include <QBuffer>
 #include <QContextMenuEvent>
 #include <QCoreApplication>
+#include <QDesktopServices>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QWebEngineContextMenuData>
@@ -72,10 +73,40 @@ static HelpUrlSchemeHandler *helpUrlSchemeHandler()
     return schemeHandler;
 }
 
+HelpUrlRequestInterceptor::HelpUrlRequestInterceptor(QObject *parent)
+    : QWebEngineUrlRequestInterceptor(parent)
+{}
+
+void HelpUrlRequestInterceptor::interceptRequest(QWebEngineUrlRequestInfo &info)
+{
+    if (!HelpViewer::isLocalUrl(info.requestUrl())
+        && info.navigationType() != QWebEngineUrlRequestInfo::NavigationTypeLink) {
+        info.block(true);
+    }
+}
+
+static HelpUrlRequestInterceptor *helpurlRequestInterceptor()
+{
+    static HelpUrlRequestInterceptor *interceptor = nullptr;
+    if (!interceptor)
+        interceptor = new HelpUrlRequestInterceptor(LocalHelpManager::instance());
+    return interceptor;
+}
+
 WebEngineHelpViewer::WebEngineHelpViewer(QWidget *parent) :
     HelpViewer(parent),
     m_widget(new WebView(this))
 {
+    // some of these should already be that way by default, but better be sure
+    QWebEngineSettings *settings = m_widget->settings();
+    settings->setAttribute(QWebEngineSettings::JavascriptCanOpenWindows, false);
+    settings->setAttribute(QWebEngineSettings::LocalContentCanAccessRemoteUrls, false);
+    settings->setAttribute(QWebEngineSettings::XSSAuditingEnabled, true);
+    settings->setAttribute(QWebEngineSettings::PluginsEnabled, false);
+    settings->setAttribute(QWebEngineSettings::AllowRunningInsecureContent, false);
+    settings->setAttribute(QWebEngineSettings::AllowGeolocationOnInsecureOrigins, false);
+    settings->setAttribute(QWebEngineSettings::AllowWindowActivationFromJavaScript, false);
+
     m_widget->setPage(new WebEngineHelpPage(this));
     auto layout = new QVBoxLayout;
     setLayout(layout);
@@ -121,6 +152,11 @@ WebEngineHelpViewer::WebEngineHelpViewer(QWidget *parent) :
     QTC_ASSERT(viewProfile, return);
     if (!viewProfile->urlSchemeHandler("qthelp"))
         viewProfile->installUrlSchemeHandler("qthelp", helpUrlSchemeHandler());
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 13, 0))
+    viewProfile->setUrlRequestInterceptor(helpurlRequestInterceptor());
+#else
+    viewProfile->setRequestInterceptor(helpurlRequestInterceptor());
+#endif
 }
 
 QFont WebEngineHelpViewer::viewerFont() const
@@ -224,7 +260,7 @@ bool WebEngineHelpViewer::findText(const QString &text, Core::FindFlags flags, b
     Q_UNUSED(fromSearch)
     if (wrapped)
         *wrapped = false; // missing feature in QWebEngine
-    QWebEnginePage::FindFlags webEngineFlags = 0;
+    QWebEnginePage::FindFlags webEngineFlags;
     if (flags & Core::FindBackward)
         webEngineFlags |= QWebEnginePage::FindBackward;
     if (flags & Core::FindCaseSensitively)
@@ -286,10 +322,46 @@ WebEngineHelpPage::WebEngineHelpPage(QObject *parent)
 {
 }
 
-WebView::WebView(WebEngineHelpViewer *viewer)
-    : QWebEngineView(viewer),
-      m_viewer(viewer)
+bool WebEngineHelpPage::acceptNavigationRequest(const QUrl &url,
+                                                QWebEnginePage::NavigationType type,
+                                                bool isMainFrame)
 {
+    Q_UNUSED(type)
+    Q_UNUSED(isMainFrame)
+    if (HelpViewer::isLocalUrl(url))
+        return true;
+    QDesktopServices::openUrl(url);
+    return false;
+}
+
+WebView::WebView(WebEngineHelpViewer *viewer)
+    : QWebEngineView(viewer)
+    , m_viewer(viewer)
+{}
+
+bool WebView::event(QEvent *ev)
+{
+    // work around QTBUG-43602
+    if (ev->type() == QEvent::ChildAdded) {
+        auto ce = static_cast<QChildEvent *>(ev);
+        ce->child()->installEventFilter(this);
+    } else if (ev->type() == QEvent::ChildRemoved) {
+        auto ce = static_cast<QChildEvent *>(ev);
+        ce->child()->removeEventFilter(this);
+    }
+    return QWebEngineView::event(ev);
+}
+
+bool WebView::eventFilter(QObject *src, QEvent *e)
+{
+    Q_UNUSED(src)
+    // work around QTBUG-43602
+    if (m_viewer->isScrollWheelZoomingEnabled() && e->type() == QEvent::Wheel) {
+        auto we = static_cast<QWheelEvent *>(e);
+        if (we->modifiers() == Qt::ControlModifier)
+            return true;
+    }
+    return false;
 }
 
 void WebView::contextMenuEvent(QContextMenuEvent *event)

@@ -63,7 +63,7 @@ public:
     static ResultDataList fromSearchResultList(const QList<Core::SearchResultItem> &entries)
     {
         ResultDataList result;
-        foreach (const Core::SearchResultItem &entry, entries)
+        for (const Core::SearchResultItem &entry : entries)
             result << ResultData(entry.text, entry.path.join(QLatin1String("::")));
         return result;
     }
@@ -72,9 +72,9 @@ public:
     static void printFilterEntries(const ResultDataList &entries)
     {
         QTextStream out(stdout);
-        foreach (const ResultData entry, entries) {
+        for (const ResultData &entry : entries) {
             out << "<< ResultData(_(\"" << entry.m_symbolName << "\"), _(\""
-                << entry.m_scope <<  "\"))" << endl;
+                << entry.m_scope <<  "\"))" << '\n';
         }
     }
 
@@ -164,7 +164,7 @@ void CppToolsPlugin::test_builtinsymbolsearcher_data()
     // Check All Symbol Types
     searchParameters = SymbolSearcher::Parameters();
     searchParameters.text = _("");
-    searchParameters.flags = nullptr;
+    searchParameters.flags = {};
     searchParameters.types = SearchSymbols::AllTypes;
     searchParameters.scope = SymbolSearcher::SearchGlobal;
     QTest::newRow("BuiltinSymbolSearcher::AllTypes")
@@ -218,7 +218,7 @@ void CppToolsPlugin::test_builtinsymbolsearcher_data()
     // Check Classes
     searchParameters = SymbolSearcher::Parameters();
     searchParameters.text = _("myclass");
-    searchParameters.flags = nullptr;
+    searchParameters.flags = {};
     searchParameters.types = SymbolSearcher::Classes;
     searchParameters.scope = SymbolSearcher::SearchGlobal;
     QTest::newRow("BuiltinSymbolSearcher::Classes")
@@ -233,7 +233,7 @@ void CppToolsPlugin::test_builtinsymbolsearcher_data()
     // Check Functions
     searchParameters = SymbolSearcher::Parameters();
     searchParameters.text = _("fun");
-    searchParameters.flags = nullptr;
+    searchParameters.flags = {};
     searchParameters.types = SymbolSearcher::Functions;
     searchParameters.scope = SymbolSearcher::SearchGlobal;
     QTest::newRow("BuiltinSymbolSearcher::Functions")
@@ -258,7 +258,7 @@ void CppToolsPlugin::test_builtinsymbolsearcher_data()
     // Check Enums
     searchParameters = SymbolSearcher::Parameters();
     searchParameters.text = _("enum");
-    searchParameters.flags = nullptr;
+    searchParameters.flags = {};
     searchParameters.types = SymbolSearcher::Enums;
     searchParameters.scope = SymbolSearcher::SearchGlobal;
     QTest::newRow("BuiltinSymbolSearcher::Enums")
@@ -273,7 +273,7 @@ void CppToolsPlugin::test_builtinsymbolsearcher_data()
     // Check Declarations
     searchParameters = SymbolSearcher::Parameters();
     searchParameters.text = _("myvar");
-    searchParameters.flags = nullptr;
+    searchParameters.flags = {};
     searchParameters.types = SymbolSearcher::Declarations;
     searchParameters.scope = SymbolSearcher::SearchGlobal;
     QTest::newRow("BuiltinSymbolSearcher::Declarations")

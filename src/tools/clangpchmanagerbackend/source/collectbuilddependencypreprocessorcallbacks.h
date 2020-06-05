@@ -54,12 +54,10 @@ public:
                                          const std::vector<uint> &excludedIncludeUID,
                                          std::vector<uint> &alreadyIncludedFileUIDs,
                                          clang::SourceManager &sourceManager,
-                                         SourcesManager &sourcesManager,
                                          std::shared_ptr<clang::Preprocessor> preprocessor)
         : CollectUsedMacrosAndSourcesPreprocessorCallbacksBase(buildDependency.usedMacros,
                                                                filePathCache,
                                                                sourceManager,
-                                                               sourcesManager,
                                                                preprocessor,
                                                                buildDependency.sourceDependencies,
                                                                buildDependency.sourceFiles,
@@ -189,7 +187,6 @@ public:
     {
         filterOutHeaderGuards();
         mergeUsedMacros();
-        m_sourcesManager.updateModifiedTimeStamps();
         filterOutIncludesWithMissingIncludes();
     }
 
@@ -293,7 +290,7 @@ public:
             entry.get().hasMissingIncludes = HasMissingIncludes::Yes;
     }
 
-    SourceDependencies sourceDependenciesSortedByDependendFilePathId() const
+    SourceDependencies sourceDependenciesSortedByDependentFilePathId() const
     {
         auto sourceDependencies = m_buildDependency.sourceDependencies;
         std::sort(sourceDependencies.begin(), sourceDependencies.end(), [](auto first, auto second) {
@@ -309,7 +306,7 @@ public:
         sortAndMakeUnique(m_containsMissingIncludes);
 
         collectSourceWithMissingIncludes(m_containsMissingIncludes,
-                                         sourceDependenciesSortedByDependendFilePathId());
+                                         sourceDependenciesSortedByDependentFilePathId());
 
         removeSourceWithMissingIncludesFromSources();
     }

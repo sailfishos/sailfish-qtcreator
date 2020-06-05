@@ -60,7 +60,7 @@ def main():
         test.fatal("Could not open/create cmake project - leaving test")
         invokeMenuItem("File", "Exit")
         return
-    progressBarWait(30000)
+    waitForProjectParsing()
     naviTreeView = "{column='0' container=':Qt Creator_Utils::NavigationTreeView' text~='%s' type='QModelIndex'}"
     if cmakeSupportsServerMode():
         treeFile = "projecttree_speedcrunch_server.tsv"
@@ -69,7 +69,7 @@ def main():
     compareProjectTree(naviTreeView % "speedcrunch( \[\S+\])?", treeFile)
 
     # Invoke a rebuild of the application
-    invokeMenuItem("Build", "Rebuild All")
+    invokeMenuItem("Build", "Rebuild All Projects")
 
     # Wait for, and test if the build succeeded
     waitForCompile(300000)

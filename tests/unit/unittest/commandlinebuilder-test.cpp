@@ -36,6 +36,7 @@ namespace {
 template<typename ProjectInfo>
 using Builder = ClangBackEnd::CommandLineBuilder<ProjectInfo>;
 
+using ClangBackEnd::FilePath;
 using ClangBackEnd::IncludeSearchPathType;
 using ClangBackEnd::InputFileType;
 
@@ -48,24 +49,18 @@ template <>
 class CommandLineBuilder<ClangBackEnd::PchTask> : public testing::Test
 {
 public:
-    CommandLineBuilder()
-    {
-        cppProjectInfo.language = Utils::Language::Cxx;
-    }
+    CommandLineBuilder() { cppProjectInfo.language = Utils::Language::Cxx; }
 
 public:
-    ClangBackEnd::PchTask emptyProjectInfo{0, {}, {}, {}, {}, {}, {}, {}};
-    ClangBackEnd::PchTask cppProjectInfo{1, {}, {}, {}, {}, {}, {}, {}};
+    ClangBackEnd::PchTask emptyProjectInfo{0, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}};
+    ClangBackEnd::PchTask cppProjectInfo{1, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}};
 };
 
 template <>
 class CommandLineBuilder<ClangBackEnd::ProjectPartContainer> : public testing::Test
 {
 public:
-    CommandLineBuilder()
-    {
-        cppProjectInfo.language = Utils::Language::Cxx;
-    }
+    CommandLineBuilder() { cppProjectInfo.language = Utils::Language::Cxx; }
 
 public:
     ClangBackEnd::ProjectPartContainer emptyProjectInfo{0,
@@ -94,10 +89,7 @@ template <>
 class CommandLineBuilder<ClangBackEnd::ProjectPartArtefact> : public testing::Test
 {
 public:
-    CommandLineBuilder()
-    {
-        cppProjectInfo.language = Utils::Language::Cxx;
-    }
+    CommandLineBuilder() { cppProjectInfo.language = Utils::Language::Cxx; }
 
 public:
     ClangBackEnd::ProjectPartArtefact emptyProjectInfo{{},
@@ -502,7 +494,13 @@ TYPED_TEST(CommandLineBuilder, IncludesOrder)
                                           {"/system/foo", 3, IncludeSearchPathType::Framework},
                                           {"/builtin/bar", 2, IncludeSearchPathType::BuiltIn},
                                           {"/builtin/foo", 1, IncludeSearchPathType::BuiltIn}};
-    Builder<TypeParam> builder{this->emptyProjectInfo, {}, InputFileType::Header, "/source/file.cpp"};
+    Builder<TypeParam> builder{this->emptyProjectInfo,
+                               {},
+                               InputFileType::Header,
+                               "/source/file.cpp",
+                               {},
+                               {},
+                               ClangBackEnd::NativeFilePath{FilePath{"/resource/path"}}};
 
     ASSERT_THAT(builder.commandLine,
                 ElementsAre("clang++",
@@ -513,6 +511,8 @@ TYPED_TEST(CommandLineBuilder, IncludesOrder)
                             "-std=c++11",
                             "-nostdinc",
                             "-nostdinc++",
+                            "-isystem",
+                            toNativePath("/resource/path"),
                             "-I",
                             toNativePath("/include/foo"),
                             "-I",
@@ -596,6 +596,19 @@ TYPED_TEST(CommandLineBuilder, OutputFile)
                             "-o",
                             toNativePath("/output/file.o"),
                             toNativePath("/source/file.cpp")));
+}
+
+TYPED_TEST(CommandLineBuilder, PreIncludeSearchPath)
+{
+    Builder<TypeParam> builder{this->emptyProjectInfo,
+                               {},
+                               {},
+                               {},
+                               {},
+                               {},
+                               ClangBackEnd::NativeFilePath{FilePath{"/resource/path"}}};
+
+    ASSERT_THAT(builder.commandLine, Contains(toNativePath("/resource/path")));
 }
 
 TYPED_TEST(CommandLineBuilder, IncludePchPath)

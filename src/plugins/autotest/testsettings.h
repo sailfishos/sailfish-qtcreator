@@ -36,6 +36,13 @@ QT_END_NAMESPACE
 namespace Autotest {
 namespace Internal {
 
+enum class RunAfterBuildMode
+{
+    None,
+    All,
+    Selected
+};
+
 struct TestSettings
 {
     TestSettings();
@@ -47,12 +54,14 @@ struct TestSettings
     bool omitRunConfigWarn = false;
     bool limitResultOutput = true;
     bool autoScroll = true;
-    bool filterScan = false;
     bool processArgs = false;
     bool displayApplication = false;
+    bool popupOnStart = true;
+    bool popupOnFinish = true;
+    bool popupOnFail = false;
+    RunAfterBuildMode runAfterBuild = RunAfterBuildMode::None;
     QHash<Core::Id, bool> frameworks;
     QHash<Core::Id, bool> frameworksGrouping;
-    QStringList whiteListFilters;
 };
 
 } // namespace Internal

@@ -96,7 +96,7 @@ BookmarkDialog::BookmarkDialog(BookmarkManager *manager, const QString &title,
             this, &BookmarkDialog::itemChanged);
 
     connect(ui.bookmarkFolders,
-            static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::currentIndexChanged),
+            QOverload<const QString &>::of(&QComboBox::currentIndexChanged),
             this, &BookmarkDialog::selectBookmarkFolder);
 
     connect(ui.treeView, &TreeView::customContextMenuRequested,
@@ -411,7 +411,7 @@ void BookmarkWidget::setup()
     regExp.setCaseSensitivity(Qt::CaseInsensitive);
 
     QLayout *vlayout = new QVBoxLayout(this);
-    vlayout->setMargin(0);
+    vlayout->setContentsMargins(0, 0, 0, 0);
     vlayout->setSpacing(0);
 
     searchField = new Utils::FancyLineEdit(this);
@@ -421,7 +421,7 @@ void BookmarkWidget::setup()
     Utils::StyledBar *toolbar = new Utils::StyledBar(this);
     toolbar->setSingleRow(false);
     QLayout *tbLayout = new QHBoxLayout();
-    tbLayout->setMargin(4);
+    tbLayout->setContentsMargins(4, 4, 4, 4);
     tbLayout->addWidget(searchField);
     toolbar->setLayout(tbLayout);
 
@@ -702,7 +702,7 @@ void BookmarkManager::itemChanged(QStandardItem *item)
     if (item->text() != oldText) {
         if (item->data(Qt::UserRole + 10).toString() != QLatin1String("Folder")) {
             QList<QStandardItem*>itemList = listModel->findItems(oldText);
-            if (itemList.count() > 0)
+            if (!itemList.isEmpty())
                 itemList.at(0)->setText(item->text());
         }
     }

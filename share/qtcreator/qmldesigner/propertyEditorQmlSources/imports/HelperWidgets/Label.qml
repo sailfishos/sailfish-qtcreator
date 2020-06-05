@@ -24,29 +24,50 @@
 ****************************************************************************/
 
 import QtQuick 2.1
-import QtQuick.Controls 1.1 as Controls
 import QtQuick.Layouts 1.0
-import QtQuick.Controls.Private 1.0
+import QtQuick.Controls 2.12
 import QtQuickDesignerTheme 1.0
+import StudioTheme 1.0 as StudioTheme
 
-Controls.Label {
+Label {
     id: label
 
     property alias tooltip: toolTipArea.tooltip
     // workaround because PictureSpecifics.qml still use this
     property alias toolTip: toolTipArea.tooltip
 
-    width: Math.max(Math.min(240, parent.width - 220), 80)
-    color: Theme.color(Theme.PanelTextColorLight)
+    width: Math.max(Math.min(240, parent.width - 280), 50)
+    color: label.disabledState ? StudioTheme.Values.themeDisabledTextColor : StudioTheme.Values.themeTextColor
+
     elide: Text.ElideRight
+
+    font.pixelSize: StudioTheme.Values.myFontSize
 
     Layout.preferredWidth: width
     Layout.minimumWidth: width
     Layout.maximumWidth: width
 
+    leftPadding: label.disabledState ? 10 : 0
+    rightPadding: label.disabledState ? 10 : 0
+
+    property bool disabledState: false
+
+    Text {
+        text: "["
+        color: StudioTheme.Values.themeTextColor//StudioTheme.Values.themeDisabledTextColor
+        visible: label.disabledState
+    }
+
+    Text {
+        text: "]"
+        color: StudioTheme.Values.themeTextColor//StudioTheme.Values.themeDisabledTextColor//
+        visible: label.disabledState
+        x: label.contentWidth + 10 + contentWidth
+    }
+
     ToolTipArea {
         id: toolTipArea
         anchors.fill: parent
-        tooltip: label.text
+        tooltip:  label.disabledState ? qsTr("This property is not available in this configuration.") : label.text
     }
 }

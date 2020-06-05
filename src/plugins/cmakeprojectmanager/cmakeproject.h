@@ -28,102 +28,40 @@
 #include "cmake_global.h"
 
 #include "builddirmanager.h"
+#include "cmakebuildsystem.h"
 #include "cmakebuildtarget.h"
 #include "cmakeprojectimporter.h"
-#include "treescanner.h"
 
-#include <projectexplorer/extracompiler.h>
-#include <projectexplorer/projectmacro.h>
+#include <projectexplorer/buildsystem.h>
 #include <projectexplorer/project.h>
-
-#include <utils/fileutils.h>
-
-#include <QFuture>
-#include <QHash>
-#include <QTimer>
 
 #include <memory>
 
-namespace CppTools { class CppProjectUpdater; }
-namespace ProjectExplorer { class FileNode; }
-
 namespace CMakeProjectManager {
 
-namespace Internal {
-class CMakeBuildConfiguration;
-class CMakeBuildSettingsWidget;
-class CMakeProjectNode;
-} // namespace Internal
-
-class CMAKE_EXPORT CMakeProject : public ProjectExplorer::Project
+class CMAKE_EXPORT CMakeProject final : public ProjectExplorer::Project
 {
     Q_OBJECT
 
 public:
-    explicit CMakeProject(const Utils::FileName &filename);
+    explicit CMakeProject(const Utils::FilePath &filename);
     ~CMakeProject() final;
 
-    QStringList buildTargetTitles() const;
-
-    bool knowsAllBuildExecutables() const final;
-
-    QList<ProjectExplorer::Task> projectIssues(const ProjectExplorer::Kit *k) const final;
-
-    void runCMake();
-    void runCMakeAndScanProjectTree();
-
-    // Context menu actions:
-    void buildCMakeTarget(const QString &buildTarget);
+    ProjectExplorer::Tasks projectIssues(const ProjectExplorer::Kit *k) const final;
 
     ProjectExplorer::ProjectImporter *projectImporter() const final;
 
-    bool persistCMakeState();
-    void clearCMakeCache();
-    bool mustUpdateCMakeStateBeforeBuild();
-
 protected:
-    RestoreResult fromMap(const QVariantMap &map, QString *errorMessage) final;
     bool setupTarget(ProjectExplorer::Target *t) final;
 
 private:
-    void handleReparseRequest(int reparseParameters);
+    ProjectExplorer::DeploymentKnowledge deploymentKnowledge() const override;
+    ProjectExplorer::MakeInstallCommand makeInstallCommand(const ProjectExplorer::Target *target,
+                                                           const QString &installRoot) override;
 
-    void startParsing(int reparseParameters);
-
-    void handleTreeScanningFinished();
-    void handleParsingSuccess(Internal::CMakeBuildConfiguration *bc);
-    void handleParsingError(Internal::CMakeBuildConfiguration *bc);
-    void combineScanAndParse(Internal::CMakeBuildConfiguration *bc);
-    void updateProjectData(Internal::CMakeBuildConfiguration *bc);
-    void updateQmlJSCodeModel();
-
-    std::unique_ptr<Internal::CMakeProjectNode>
-    generateProjectTree(const QList<const ProjectExplorer::FileNode*> &allFiles) const;
-
-    QList<ProjectExplorer::ExtraCompiler *> findExtraCompilers() const;
-    QStringList filesGeneratedFrom(const QString &sourceFile) const final;
-
-    // TODO probably need a CMake specific node structure
-    QList<CMakeBuildTarget> m_buildTargets;
-    CppTools::CppProjectUpdater *m_cppCodeModelUpdater = nullptr;
-    QList<ProjectExplorer::ExtraCompiler *> m_extraCompilers;
-
-    Internal::TreeScanner m_treeScanner;
-    Internal::BuildDirManager m_buildDirManager;
-
-    bool m_waitingForScan = false;
-    bool m_waitingForParse = false;
-    bool m_combinedScanAndParseResult = false;
-
-    QHash<QString, bool> m_mimeBinaryCache;
-    QList<const ProjectExplorer::FileNode *> m_allFiles;
     mutable std::unique_ptr<Internal::CMakeProjectImporter> m_projectImporter;
 
-    QTimer m_delayedParsingTimer;
-    int m_delayedParsingParameters = 0;
-
-    friend class Internal::CMakeBuildConfiguration;
-    friend class Internal::CMakeBuildSettingsWidget;
+    friend class CMakeBuildSystem;
 };
 
 } // namespace CMakeProjectManager

@@ -45,11 +45,11 @@ AndroidExtraLibraryListModel::AndroidExtraLibraryListModel(ProjectExplorer::Targ
 {
     updateModel();
 
-    connect(target->project(), &ProjectExplorer::Project::parsingStarted,
+    connect(target, &Target::parsingStarted,
             this, &AndroidExtraLibraryListModel::updateModel);
-    connect(target->project(), &ProjectExplorer::Project::parsingFinished,
+    connect(target, &Target::parsingFinished,
             this, &AndroidExtraLibraryListModel::updateModel);
-    connect(target, &ProjectExplorer::Target::activeRunConfigurationChanged,
+    connect(target, &Target::activeRunConfigurationChanged,
             this, &AndroidExtraLibraryListModel::updateModel);
 }
 
@@ -76,11 +76,9 @@ int AndroidExtraLibraryListModel::columnCount(const QModelIndex &) const
 QVariant AndroidExtraLibraryListModel::data(const QModelIndex &index, int role) const
 {
     Q_ASSERT(index.row() >= 0 && index.row() < m_entries.size());
-    const QString &entry = QDir::cleanPath(m_entries.at(index.row()));
-    switch (role) {
-    case Qt::DisplayRole: return entry;
-    default: return QVariant();
-    };
+    if (role == Qt::DisplayRole)
+        return QDir::cleanPath(m_entries.at(index.row()));
+    return {};
 }
 
 void AndroidExtraLibraryListModel::updateModel()
@@ -89,7 +87,8 @@ void AndroidExtraLibraryListModel::updateModel()
     QTC_ASSERT(rc, return);
 
     const ProjectNode *node = m_target->project()->findNodeForBuildKey(rc->buildKey());
-    QTC_ASSERT(node, return);
+    if (!node)
+        return;
 
     if (node->parseInProgress()) {
         emit enabledChanged(false);

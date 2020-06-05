@@ -1,0 +1,69 @@
+/****************************************************************************
+**
+** Copyright (C) 2020 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+/*!
+    \previouspage quick-signals.html
+    \page quick-dynamic-properties.html
+    \nextpage quick-property-bindings.html
+
+    \title Specifying Dynamic Properties
+
+    In addition to the properties predefined for QML types, you can specify
+    \e {dynamic properties} to add properties that would not otherwise
+    exist for a particular type. You bind the properties to dynamic expressions
+    to define global properties for an object that can be read by other objects.
+    For example, you can specify global properties for the root object that you
+    can use in the child objects.
+
+    For example, to specify spacing between UI elements, you could define a
+    margin for an object of a QML type that does not have a margin property,
+    and then use bindings to refer to the value of the margin property from
+    other objects.
+
+    Similarly, you can add dynamic properties at component level.
+
+    You can specify dynamic properties for objects in the
+    \uicontrol Connections view.
+
+    \image qmldesigner-dynamicprops.png
+
+    To specify dynamic properties for an object:
+
+    \list 1
+        \li In the \uicontrol {Connections} view, select the
+            \uicontrol {Properties} tab.
+        \li Select the \inlineimage plus.png
+            (\uicontrol Add) button to add a dynamic property for the currently
+            selected item. The item ID is displayed in the \uicontrol Item
+            column.
+        \li Double-click the value in the \uicontrol Property column to give a
+            name to the property.
+        \li Double-click the value in the \uicontrol {Property Type} column to
+            specify the type of the property.
+        \li Double-click the value in the \uicontrol {Property Value} column
+            to specify a dynamic expression as the value of the property.
+    \endlist
+
+*/

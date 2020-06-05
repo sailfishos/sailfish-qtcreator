@@ -102,19 +102,19 @@ static QVector<QString> splitInTwoLines(const QString &text,
         nextSplitPos = rx.lastIndexIn(text, nextSplitPos - text.length() - 1);
         if (nextSplitPos != -1) {
             int splitCandidate = nextSplitPos + rx.matchedLength();
-            if (fontMetrics.width(text.mid(splitCandidate)) <= availableWidth)
+            if (fontMetrics.horizontalAdvance(text.mid(splitCandidate)) <= availableWidth)
                 splitPos = splitCandidate;
             else
                 break;
         }
-    } while (nextSplitPos > 0 && fontMetrics.width(text.left(nextSplitPos)) > availableWidth);
+    } while (nextSplitPos > 0 && fontMetrics.horizontalAdvance(text.left(nextSplitPos)) > availableWidth);
     // check if we could split at white space at all
     if (splitPos < 0) {
         splitLines[0] = fontMetrics.elidedText(text, Qt::ElideRight, int(availableWidth));
         QString common = Utils::commonPrefix(QStringList({splitLines[0], text}));
         splitLines[1] = text.mid(common.length());
         // elide the second line even if it fits, since it is cut off in mid-word
-        while (fontMetrics.width(QChar(0x2026) /*'...'*/ + splitLines[1]) > availableWidth
+        while (fontMetrics.horizontalAdvance(QChar(0x2026) /*'...'*/ + splitLines[1]) > availableWidth
                && splitLines[1].length() > 3
                /*keep at least three original characters (should not happen)*/) {
             splitLines[1].remove(0, 1);
@@ -176,7 +176,7 @@ void FancyToolButton::paintEvent(QPaintEvent *event)
                                      : QIcon::Disabled;
     QRect iconRect(0, 0, Constants::MODEBAR_ICON_SIZE, Constants::MODEBAR_ICON_SIZE);
 
-    const bool isTitledAction = defaultAction()->property("titledAction").toBool();
+    const bool isTitledAction = defaultAction() && defaultAction()->property("titledAction").toBool();
     // draw popup texts
     if (isTitledAction && !m_iconsOnly) {
         QFont normalFont(painter.font());
@@ -222,7 +222,7 @@ void FancyToolButton::paintEvent(QPaintEvent *event)
         painter.setFont(boldFont);
         QVector<QString> splitBuildConfiguration(2);
         const QString buildConfiguration = defaultAction()->property("subtitle").toString();
-        if (boldFm.width(buildConfiguration) <= availableWidth)
+        if (boldFm.horizontalAdvance(buildConfiguration) <= availableWidth)
             // text fits in one line
             splitBuildConfiguration[0] = buildConfiguration;
         else
@@ -286,7 +286,7 @@ QSize FancyToolButton::sizeHint() const
     }
 
     QSizeF buttonSize = iconSize().expandedTo(QSize(64, 38));
-    if (defaultAction()->property("titledAction").toBool()) {
+    if (defaultAction() && defaultAction()->property("titledAction").toBool()) {
         QFont boldFont(font());
         boldFont.setPointSizeF(StyleHelper::sidebarFontSize());
         boldFont.setBold(true);
@@ -359,7 +359,7 @@ FancyActionBar::FancyActionBar(QWidget *parent)
 {
     setObjectName("actionbar");
     m_actionsLayout = new QVBoxLayout;
-    m_actionsLayout->setMargin(0);
+    m_actionsLayout->setContentsMargins(0, 0, 0, 0);
     m_actionsLayout->setSpacing(0);
     setLayout(m_actionsLayout);
     setContentsMargins(0, 2, 0, 8);

@@ -57,7 +57,7 @@ class ContextProperty {
 public:
     QString name;
     QString expression;
-    unsigned line, column;
+    int line, column;
 };
 
 class FindExportsVisitor : protected ASTVisitor
@@ -87,13 +87,15 @@ public:
         QmlRegisterSingletonTypeUrl,
         // template<typename T> int qmlRegisterUncreatableType(const char *uri, int versionMajor, int versionMinor, const char *qmlName, const QString& reason)
         // or template<typename T, int metaObjectRevision> int qmlRegisterUncreatableType(const char *uri, int versionMajor, int versionMinor, const char *qmlName, const QString& reason)
-        QmlRegisterUncreatableType
+        QmlRegisterUncreatableType,
+        // int qmlRegisterUncreatableMetaObject(const QMetaObject &staticMetaObject, const char *uri, int versionMajor, int versionMinor, const char *qmlName, const QString &reason)
+        QmlRegisterUncreatableMetaObject
     };
 
     FindExportsVisitor(CPlusPlus::Document::Ptr doc)
         : ASTVisitor(doc->translationUnit())
         , _doc(doc)
-        , _compound(0)
+        , _compound(nullptr)
     {}
 
     void operator()()
@@ -142,7 +144,7 @@ protected:
         if (!idExp || !idExp->name)
             return false;
         RegistrationFunction registrationFunction = InvalidRegistrationFunction;
-        TypeIdAST *typeId = 0;
+        TypeIdAST *typeId = nullptr;
         if (TemplateIdAST *templateId = idExp->name->asTemplateId()) {
             if (!templateId->identifier_token)
                 return false;
@@ -189,6 +191,8 @@ protected:
                 registrationFunction = QmlRegisterType5;
             else if (fName == "qmlRegisterSingletonType")
                 registrationFunction = QmlRegisterSingletonTypeCallback2;
+            else if (fName == "qmlRegisterUncreatableMetaObject")
+                registrationFunction = QmlRegisterUncreatableMetaObject;
             else
                 return false;
         } else {
@@ -215,11 +219,17 @@ protected:
                     || !ast->expression_list->next->next->next->next->value
                     || ast->expression_list->next->next->next->next->next)
                 return false;
+            break;
+        case QmlRegisterUncreatableMetaObject:
+            if (!ast->expression_list->next->next->next->next->next
+                    || !ast->expression_list->next->next->next->next->next->value
+                    || ast->expression_list->next->next->next->next->next->next)
+                return false;
         }
-        ExpressionAST *uriExp = 0;
-        ExpressionAST *majorVersionExp = 0;
-        ExpressionAST *minorVersionExp = 0;
-        ExpressionAST *nameExp = 0;
+        ExpressionAST *uriExp = nullptr;
+        ExpressionAST *majorVersionExp = nullptr;
+        ExpressionAST *minorVersionExp = nullptr;
+        ExpressionAST *nameExp = nullptr;
         if (registrationFunction == QmlRegisterType5) {
             uriExp = ast->expression_list->next->value;
             majorVersionExp = ast->expression_list->next->next->value;
@@ -235,17 +245,22 @@ protected:
             majorVersionExp = ast->expression_list->next->next->value;
             minorVersionExp = ast->expression_list->next->next->next->value;
             nameExp = ast->expression_list->next->next->next->next->value;
+        } else if (registrationFunction == QmlRegisterUncreatableMetaObject) {
+            uriExp = ast->expression_list->next->value;
+            majorVersionExp = ast->expression_list->next->next->value;
+            minorVersionExp = ast->expression_list->next->next->next->value;
+            nameExp = ast->expression_list->next->next->next->next->value;
         } else {
             uriExp = ast->expression_list->value;
             majorVersionExp = ast->expression_list->next->value;
             minorVersionExp = ast->expression_list->next->next->value;
             nameExp = ast->expression_list->next->next->next->value;
         }
-        const StringLiteral *nameLit = 0;
+        const StringLiteral *nameLit = nullptr;
         if (StringLiteralAST *nameAst = skipStringCall(nameExp)->asStringLiteral())
             nameLit = translationUnit()->stringLiteral(nameAst->literal_token);
         if (!nameLit) {
-            unsigned line, column;
+            int line, column;
             translationUnit()->getTokenStartPosition(nameExp->firstToken(), &line, &column);
             _messages += Document::DiagnosticMessage(
                         Document::DiagnosticMessage::Warning,
@@ -290,7 +305,7 @@ protected:
             const Token end = _doc->translationUnit()->tokenAt(ast->firstToken());
 
             // go through comments backwards to find the annotation closest to the call
-            for (unsigned i = _doc->translationUnit()->commentCount(); i-- > 0; ) {
+            for (int i = _doc->translationUnit()->commentCount(); i-- > 0; ) {
                 const Token commentToken = _doc->translationUnit()->commentAt(i);
                 if (commentToken.utf16charsBegin() >= end.utf16charsBegin()
                         || commentToken.utf16charsEnd() <= begin.utf16charsBegin()) {
@@ -305,7 +320,7 @@ protected:
         }
         if (packageName.isEmpty()) {
             packageName = QmlJS::CppQmlTypes::defaultPackage;
-            unsigned line, column;
+            int line, column;
             translationUnit()->getTokenStartPosition(ast->firstToken(), &line, &column);
             _messages += Document::DiagnosticMessage(
                         Document::DiagnosticMessage::Warning,
@@ -318,8 +333,8 @@ protected:
         }
 
         // version arguments must be integer literals
-        const NumericLiteral *majorLit = 0;
-        const NumericLiteral *minorLit = 0;
+        const NumericLiteral *majorLit = nullptr;
+        const NumericLiteral *minorLit = nullptr;
         if (NumericLiteralAST *majorAst = majorVersionExp->asNumericLiteral())
             majorLit = translationUnit()->numericLiteral(majorAst->literal_token);
         if (NumericLiteralAST *minorAst = minorVersionExp->asNumericLiteral())
@@ -331,7 +346,8 @@ protected:
                 || registrationFunction == QmlRegisterSingletonTypeCallback2
                 || registrationFunction == QmlRegisterSingletonTypeUrl;
         exportedType.isCreatable = !exportedType.isSingleton
-                && registrationFunction != QmlRegisterUncreatableType;
+                && registrationFunction != QmlRegisterUncreatableType
+                && registrationFunction != QmlRegisterUncreatableMetaObject;
         exportedType.typeName = QString::fromUtf8(nameLit->chars(), nameLit->size());
         exportedType.packageName = packageName;
         if (majorLit && minorLit && majorLit->isInt() && minorLit->isInt()) {
@@ -341,7 +357,7 @@ protected:
         }
 
         // we want to do lookup later, so also store the surrounding scope
-        unsigned line, column;
+        int line, column;
         translationUnit()->getTokenStartPosition(ast->firstToken(), &line, &column);
         exportedType.scope = _doc->scopeAt(line, column);
 
@@ -363,6 +379,8 @@ protected:
                     exportedType.url = QString::fromUtf8(urlLit->chars(), urlLit->size());
                 }
             }
+        } else if (registrationFunction == QmlRegisterUncreatableMetaObject) {
+            // Anything to do here?
         } else {
             qCWarning(QmlJS::qmljsLog()) << "missing template type for registrationFunction " << registrationFunction;
         }
@@ -377,7 +395,7 @@ protected:
             return idExp->name;
         if (MemberAccessAST *memberExp = exp->asMemberAccess())
             return memberExp->member_name;
-        return 0;
+        return nullptr;
     }
 
     static ExpressionAST *skipQVariant(ExpressionAST *ast, TranslationUnit *translationUnit)
@@ -479,11 +497,11 @@ protected:
             return false;
 
         // first argument must be a string literal
-        const StringLiteral *nameLit = 0;
+        const StringLiteral *nameLit = nullptr;
         if (StringLiteralAST *nameAst = skipStringCall(ast->expression_list->value)->asStringLiteral())
             nameLit = translationUnit()->stringLiteral(nameAst->literal_token);
         if (!nameLit) {
-            unsigned line, column;
+            int line, column;
             translationUnit()->getTokenStartPosition(ast->expression_list->value->firstToken(), &line, &column);
             _messages += Document::DiagnosticMessage(
                         Document::DiagnosticMessage::Warning,
@@ -634,7 +652,7 @@ static QString toQmlType(const FullySpecifiedType &type)
 static Class *lookupClass(const QString &expression, Scope *scope, TypeOfExpression &typeOf)
 {
     QList<LookupItem> results = typeOf(expression.toUtf8(), scope);
-    Class *klass = 0;
+    Class *klass = nullptr;
     foreach (const LookupItem &item, results) {
         if (item.declaration()) {
             klass = item.declaration()->asClass();
@@ -642,7 +660,7 @@ static Class *lookupClass(const QString &expression, Scope *scope, TypeOfExpress
                 return klass;
         }
     }
-    return 0;
+    return nullptr;
 }
 
 static LanguageUtils::FakeMetaObject::Ptr buildFakeMetaObject(
@@ -666,7 +684,7 @@ static LanguageUtils::FakeMetaObject::Ptr buildFakeMetaObject(
     // add the no-package export, so the cpp name can be used in properties
     fmo->addExport(fmo->className(), QmlJS::CppQmlTypes::cppPackage, ComponentVersion());
 
-    for (unsigned i = 0; i < klass->memberCount(); ++i) {
+    for (int i = 0; i < klass->memberCount(); ++i) {
         Symbol *member = klass->memberAt(i);
         if (!member->name())
             continue;
@@ -678,7 +696,7 @@ static LanguageUtils::FakeMetaObject::Ptr buildFakeMetaObject(
                 method.setMethodType(FakeMetaMethod::Signal);
             else
                 method.setMethodType(FakeMetaMethod::Slot);
-            for (unsigned a = 0, argc = func->argumentCount(); a < argc; ++a) {
+            for (int a = 0, argc = func->argumentCount(); a < argc; ++a) {
                 Symbol *arg = func->argumentAt(a);
                 QString name;
                 if (arg->name())
@@ -702,7 +720,7 @@ static LanguageUtils::FakeMetaObject::Ptr buildFakeMetaObject(
         }
         if (QtEnum *qtEnum = member->asQtEnum()) {
             // find the matching enum
-            Enum *e = 0;
+            Enum *e = nullptr;
             QList<LookupItem> result = typeOf(namePrinter.prettyName(qtEnum->name()).toUtf8(), klass);
             foreach (const LookupItem &item, result) {
                 if (item.declaration()) {
@@ -715,11 +733,11 @@ static LanguageUtils::FakeMetaObject::Ptr buildFakeMetaObject(
                 continue;
 
             FakeMetaEnum metaEnum(namePrinter.prettyName(e->name()));
-            for (unsigned j = 0; j < e->memberCount(); ++j) {
+            for (int j = 0; j < e->memberCount(); ++j) {
                 Symbol *enumMember = e->memberAt(j);
                 if (!enumMember->name())
                     continue;
-                metaEnum.addKey(namePrinter.prettyName(enumMember->name()), 0);
+                metaEnum.addKey(namePrinter.prettyName(enumMember->name()));
             }
             fmo->addEnum(metaEnum);
         }
@@ -754,7 +772,7 @@ static void buildExportedQmlObjects(
         return;
 
     foreach (const ExportedQmlType &exportedType, cppExports) {
-        Class *klass = 0;
+        Class *klass = nullptr;
         if (!exportedType.typeExpression.isEmpty())
             klass = lookupClass(exportedType.typeExpression, exportedType.scope, typeOf);
         // TODO: something smarter with exportedType.url
@@ -900,6 +918,7 @@ bool FindExportedCppTypes::maybeExportsTypes(const CPlusPlus::Document::Ptr &doc
     const QByteArray qmlRegisterSingletonTypeToken("qmlRegisterType");
     const QByteArray qmlRegisterTypeToken("qmlRegisterSingletonType");
     const QByteArray qmlRegisterUncreatableTypeToken("qmlRegisterUncreatableType");
+    const QByteArray qmlRegisterUncreatableMetaObjectToken("qmlRegisterUncreatableMetaObject");
     const QByteArray setContextPropertyToken("setContextProperty");
     if (document->control()->findIdentifier(
                 qmlRegisterTypeToken.constData(), qmlRegisterTypeToken.size())) {
@@ -915,6 +934,10 @@ bool FindExportedCppTypes::maybeExportsTypes(const CPlusPlus::Document::Ptr &doc
     }
     if (document->control()->findIdentifier(
                 setContextPropertyToken.constData(), setContextPropertyToken.size())) {
+        return true;
+    }
+    if (document->control()->findIdentifier(
+                qmlRegisterUncreatableMetaObjectToken.constData(), qmlRegisterUncreatableMetaObjectToken.size())) {
         return true;
     }
     return false;

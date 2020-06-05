@@ -43,6 +43,7 @@ const char OBJECTIVE_CPP_SOURCE_MIMETYPE[] = "text/x-objc++src";
 const char CPP_HEADER_MIMETYPE[] = "text/x-c++hdr";
 const char QDOC_MIMETYPE[] = "text/x-qdoc";
 const char MOC_MIMETYPE[] = "text/x-moc";
+const char AMBIGUOUS_HEADER_MIMETYPE[] = "application/vnd.qtc.ambiguousheader"; // not a real MIME type
 
 // QSettings keys for use by the "New Class" wizards.
 const char CPPTOOLS_SETTINGSGROUP[] = "CppTools";
@@ -57,15 +58,13 @@ const char CPPTOOLS_INTERPRET_AMBIGIUOUS_HEADERS_AS_C_HEADERS[]
 const char CPPTOOLS_SKIP_INDEXING_BIG_FILES[] = "SkipIndexingBigFiles";
 const char CPPTOOLS_INDEXER_FILE_SIZE_LIMIT[] = "IndexerFileSizeLimit";
 
-const char CPP_CLANG_BUILTIN_CONFIG_ID_EVERYTHING_WITH_EXCEPTIONS[]
-    = "Builtin.EverythingWithExceptions";
+const char CPP_CLANG_DIAG_CONFIG_QUESTIONABLE[] = "Builtin.Questionable";
 
 const char CPP_CODE_STYLE_SETTINGS_ID[] = "A.Cpp.Code Style";
 const char CPP_CODE_STYLE_SETTINGS_NAME[] = QT_TRANSLATE_NOOP("CppTools", "Code Style");
 const char CPP_FILE_SETTINGS_ID[] = "B.Cpp.File Naming";
 const char CPP_FILE_SETTINGS_NAME[] = QT_TRANSLATE_NOOP("CppTools", "File Naming");
 const char CPP_CODE_MODEL_SETTINGS_ID[] = "C.Cpp.Code Model";
-const char CPP_CODE_MODEL_SETTINGS_NAME[] = QT_TRANSLATE_NOOP("CppTools", "Code Model");
 const char CPP_DIAGNOSTIC_CONFIG_SETTINGS_ID[] = "C.Cpp.Diagnostic Config";
 const char CPP_DIAGNOSTIC_CONFIG_SETTINGS_NAME[] = QT_TRANSLATE_NOOP("CppTools", "Diagnostic Configurations");
 const char CPP_SETTINGS_CATEGORY[] = "I.C++";
@@ -100,8 +99,15 @@ const char SYMBOLS_FIND_FILTER_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("CppTools", "C
 // CLANG_VERSION here because it might denote a version that was not yet
 // released (e.g. 6.0.1, but only 6.0.0 was released).
 constexpr const char TIDY_DOCUMENTATION_URL_TEMPLATE[]
-    = "https://releases.llvm.org/7.0.0/tools/clang/tools/extra/docs/clang-tidy/checks/%1.html";
+    = "https://releases.llvm.org/8.0.1/tools/clang/tools/extra/docs/clang-tidy/checks/%1.html";
 
+constexpr const char CLANG_STATIC_ANALYZER_DOCUMENTATION_URL[]
+    = "https://clang-analyzer.llvm.org/available_checks.html";
+
+// CLANG-UPGRADE-CHECK: Checks/update URLs.
+//
+// Once it gets dedicated documentation pages for released versions,
+// use them instead of pointing to master, as checks might vanish.
 constexpr const char CLAZY_DOCUMENTATION_URL_TEMPLATE[]
     = "https://github.com/KDE/clazy/blob/master/docs/checks/README-%1.md";
 

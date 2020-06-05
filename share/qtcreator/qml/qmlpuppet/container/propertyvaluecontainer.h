@@ -43,18 +43,22 @@ class PropertyValueContainer
 public:
     PropertyValueContainer();
     PropertyValueContainer(qint32 instanceId, const PropertyName &name, const QVariant &value, const TypeName &dynamicTypeName);
+    PropertyValueContainer(qint32 option);
 
     qint32 instanceId() const;
     PropertyName name() const;
     QVariant value() const;
     bool isDynamic() const;
     TypeName dynamicTypeName() const;
+    void setReflectionFlag(bool b);
+    bool isReflected() const;
 
 private:
     qint32 m_instanceId;
     PropertyName m_name;
     QVariant m_value;
     TypeName m_dynamicTypeName;
+    bool m_isReflected = false;
 };
 
 QDataStream &operator<<(QDataStream &out, const PropertyValueContainer &container);

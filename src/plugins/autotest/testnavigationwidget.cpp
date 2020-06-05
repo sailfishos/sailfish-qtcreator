@@ -78,7 +78,7 @@ TestNavigationWidget::TestNavigationWidget(QWidget *parent) :
     hLayout->addWidget(new QLabel(tr("No active test frameworks.")));
     m_missingFrameworksWidget->setVisible(!TestFrameworkManager::instance()->hasActiveFrameworks());
     QVBoxLayout *layout = new QVBoxLayout;
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     layout->addWidget(m_missingFrameworksWidget);
     layout->addWidget(Core::ItemViewFind::createSearchableWrapper(m_view));
@@ -197,7 +197,6 @@ QList<QToolButton *> TestNavigationWidget::createToolButtons()
     m_filterButton->setIcon(Utils::Icons::FILTER.icon());
     m_filterButton->setToolTip(tr("Filter Test Tree"));
     m_filterButton->setProperty("noArrow", true);
-    m_filterButton->setAutoRaise(true);
     m_filterButton->setPopupMode(QToolButton::InstantPopup);
     m_filterMenu = new QMenu(m_filterButton);
     initializeFilterMenu();
@@ -237,7 +236,7 @@ void TestNavigationWidget::onItemActivated(const QModelIndex &index)
 void TestNavigationWidget::onSortClicked()
 {
     if (m_sortAlphabetically) {
-        m_sort->setIcon(Icons::SORT_ALPHABETICALLY.icon());
+        m_sort->setIcon(Utils::Icons::SORT_ALPHABETICALLY_TOOLBAR.icon());
         m_sort->setToolTip(tr("Sort Alphabetically"));
         m_sortFilterModel->setSortMode(TestTreeItem::Naturally);
     } else {

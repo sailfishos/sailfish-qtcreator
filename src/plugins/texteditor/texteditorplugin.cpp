@@ -48,10 +48,10 @@
 #include <texteditor/icodestylepreferences.h>
 #include <texteditor/tabsettings.h>
 
+#include <utils/fancylineedit.h>
 #include <utils/qtcassert.h>
 #include <utils/macroexpander.h>
 
-#include <QtPlugin>
 #include <QAction>
 #include <QDir>
 
@@ -125,6 +125,10 @@ bool TextEditorPlugin::initialize(const QStringList &arguments, QString *errorMe
         if (BaseTextEditor *editor = BaseTextEditor::currentTextEditor())
             editor->editorWidget()->invokeAssist(Completion);
     });
+    connect(command, &Command::keySequenceChanged, [command] {
+        Utils::FancyLineEdit::setCompletionShortcut(command->keySequence());
+    });
+    Utils::FancyLineEdit::setCompletionShortcut(command->keySequence());
 
     // Add shortcut for invoking quick fix options
     QAction *quickFixAction = new QAction(tr("Trigger Refactoring Action"), this);

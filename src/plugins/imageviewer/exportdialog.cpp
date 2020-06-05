@@ -88,10 +88,6 @@ ExportDialog::ExportDialog(QWidget *parent)
     , m_heightSpinBox(new QSpinBox(this))
     , m_aspectRatio(1)
 {
-    using QSpinBoxIntSignal = void (QSpinBox::*)(int);
-
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
-
     auto formLayout = new QFormLayout(this);
 
     m_pathChooser->setMinimumWidth(QApplication::desktop()->availableGeometry(this).width() / 5);
@@ -102,14 +98,14 @@ ExportDialog::ExportDialog(QWidget *parent)
     auto sizeLayout = new QHBoxLayout;
     m_widthSpinBox->setMinimum(exportMinimumSize);
     m_widthSpinBox->setMaximum(exportMaximumSize);
-    connect(m_widthSpinBox, static_cast<QSpinBoxIntSignal>(&QSpinBox::valueChanged),
+    connect(m_widthSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &ExportDialog::exportWidthChanged);
     sizeLayout->addWidget(m_widthSpinBox);
     //: Multiplication, as in 32x32
     sizeLayout->addWidget(new QLabel(tr("x")));
     m_heightSpinBox->setMinimum(exportMinimumSize);
     m_heightSpinBox->setMaximum(exportMaximumSize);
-    connect(m_heightSpinBox, static_cast<QSpinBoxIntSignal>(&QSpinBox::valueChanged),
+    connect(m_heightSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &ExportDialog::exportHeightChanged);
     sizeLayout->addWidget(m_heightSpinBox);
     auto resetButton = new QToolButton(this);
@@ -196,7 +192,7 @@ QString ExportDialog::exportFileName() const
 
 void ExportDialog::setExportFileName(const QString &f)
 {
-    m_pathChooser->setFileName(Utils::FileName::fromString(f));
+    m_pathChooser->setFileName(Utils::FilePath::fromString(f));
 }
 
 ExportData ExportDialog::exportData() const

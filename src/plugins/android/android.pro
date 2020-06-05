@@ -11,7 +11,6 @@ HEADERS += \
     androidmanager.h \
     androidrunconfiguration.h \
     androidruncontrol.h \
-    androidsettingspage.h \
     androidsettingswidget.h \
     androidtoolchain.h \
     androiderrormessage.h \
@@ -19,14 +18,11 @@ HEADERS += \
     androidrunner.h \
     androidrunnerworker.h \
     androiddebugsupport.h \
-    androidqtversionfactory.h \
     androidqtversion.h \
     androidcreatekeystorecertificate.h \
     javaparser.h \
     androidplugin.h \
-    androiddevicefactory.h \
     androiddevice.h \
-    androidgdbserverkitinformation.h \
     androidqmltoolingsupport.h \
     androidmanifesteditorfactory.h \
     androidmanifesteditor.h \
@@ -53,28 +49,24 @@ HEADERS += \
     androidpackageinstallationstep.h \
     androidextralibrarylistmodel.h \
     createandroidmanifestwizard.h \
-    androidrunenvironmentaspect.h
+    androidsdkdownloader.h
 
 SOURCES += \
     androidconfigurations.cpp \
     androidmanager.cpp \
     androidrunconfiguration.cpp \
     androidruncontrol.cpp \
-    androidsettingspage.cpp \
     androidsettingswidget.cpp \
     androidtoolchain.cpp \
     androiderrormessage.cpp \
     androidrunner.cpp \
     androidrunnerworker.cpp \
     androiddebugsupport.cpp \
-    androidqtversionfactory.cpp \
     androidqtversion.cpp \
     androidcreatekeystorecertificate.cpp \
     javaparser.cpp \
     androidplugin.cpp \
-    androiddevicefactory.cpp \
     androiddevice.cpp \
-    androidgdbserverkitinformation.cpp \
     androidqmltoolingsupport.cpp \
     androidmanifesteditorfactory.cpp \
     androidmanifesteditor.cpp \
@@ -100,14 +92,13 @@ SOURCES += \
     androidpackageinstallationstep.cpp \
     androidextralibrarylistmodel.cpp \
     createandroidmanifestwizard.cpp \
-    androidrunenvironmentaspect.cpp
+    androidsdkdownloader.cpp
 
 FORMS += \
     androidsettingswidget.ui \
     addnewavddialog.ui \
     androidcreatekeystorecertificate.ui \
     androiddevicedialog.ui \
-    androidbuildapkwidget.ui \
     adbcommandswidget.ui \
     androidsdkmanagerwidget.ui
 

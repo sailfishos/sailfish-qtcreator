@@ -131,11 +131,12 @@ public:
 
         void visit(Function *type) override
         {
-            Function *funTy = control()->newFunction(0, 0);
+            Function *funTy = control()->newFunction(0, nullptr);
             funTy->copy(type);
             funTy->setConst(type->isConst());
             funTy->setVolatile(type->isVolatile());
             funTy->setRefQualifier(type->refQualifier());
+            funTy->setExceptionSpecification(type->exceptionSpecification());
 
             funTy->setName(rewrite->rewriteName(type->name()));
 
@@ -144,7 +145,7 @@ public:
             for (unsigned i = 0, argc = type->argumentCount(); i < argc; ++i) {
                 Symbol *arg = type->argumentAt(i);
 
-                Argument *newArg = control()->newArgument(0, 0);
+                Argument *newArg = control()->newArgument(0, nullptr);
                 newArg->copy(arg);
                 newArg->setName(rewrite->rewriteName(arg->name()));
                 newArg->setType(rewrite->rewriteType(arg->type()));
@@ -225,7 +226,7 @@ public:
         const Identifier *identifier(const Identifier *other) const
         {
             if (! other)
-                return 0;
+                return nullptr;
 
             return control()->identifier(other->chars(), other->size());
         }
@@ -236,7 +237,7 @@ public:
         const Name *operator()(const Name *name)
         {
             if (! name)
-                return 0;
+                return nullptr;
 
             accept(name);
             return (!temps.isEmpty()) ? temps.takeLast() : name;
@@ -257,7 +258,7 @@ public:
         void visit(const TemplateNameId *name) override
         {
             QVarLengthArray<FullySpecifiedType, 8> args(name->templateArgumentCount());
-            for (unsigned i = 0; i < name->templateArgumentCount(); ++i)
+            for (int i = 0; i < name->templateArgumentCount(); ++i)
                 args[i] = rewrite->rewriteType(name->templateArgumentAt(i));
             temps.append(control()->templateNameId(identifier(name->identifier()), name->isSpecialization(),
                                                    args.data(), args.size()));
@@ -282,7 +283,7 @@ public:
         void visit(const SelectorNameId *name) override
         {
             QVarLengthArray<const Name *, 8> names(name->nameCount());
-            for (unsigned i = 0; i < name->nameCount(); ++i)
+            for (int i = 0; i < name->nameCount(); ++i)
                 names[i] = rewrite->rewriteName(name->nameAt(i));
             temps.append(control()->selectorNameId(names.constData(), names.size(), name->hasArguments()));
         }
@@ -296,7 +297,7 @@ public: // attributes
 };
 
 SubstitutionEnvironment::SubstitutionEnvironment()
-    : _scope(0)
+    : _scope(nullptr)
 {
 }
 
@@ -415,7 +416,7 @@ FullySpecifiedType UseMinimalNames::apply(const Name *name, Rewrite *rewrite) co
 
 
 UseQualifiedNames::UseQualifiedNames()
-    : UseMinimalNames(0)
+    : UseMinimalNames(nullptr)
 {
 
 }

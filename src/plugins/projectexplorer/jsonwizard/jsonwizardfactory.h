@@ -55,7 +55,7 @@ class PROJECTEXPLORER_EXPORT JsonWizardFactory : public Core::IWizardFactory
 
 public:
     // Add search paths for wizard.json files. All subdirs are going to be checked.
-    static void addWizardPath(const Utils::FileName &path);
+    static void addWizardPath(const Utils::FilePath &path);
 
     // actual interface of the wizard factory:
     class Generator {
@@ -96,7 +96,7 @@ private:
     static QList<IWizardFactory *> createWizardFactories();
     static JsonWizardFactory *createWizardFactory(const QVariantMap &data, const QDir &baseDir,
                                                   QString *errorMessage);
-    static Utils::FileNameList &searchPaths();
+    static Utils::FilePaths &searchPaths();
 
     static void setVerbose(int level);
     static int verbose();
@@ -119,4 +119,23 @@ private:
     friend class ProjectExplorerPluginPrivate;
 };
 
-} //namespace ProjectExplorer
+namespace Internal {
+
+class JsonWizardFactoryJsExtension : public QObject
+{
+    Q_OBJECT
+public:
+    JsonWizardFactoryJsExtension(Core::Id platformId,
+                                 const QSet<Core::Id> &availableFeatures,
+                                 const QSet<Core::Id> &pluginFeatures);
+
+    Q_INVOKABLE QVariant value(const QString &name) const;
+
+private:
+    Core::Id m_platformId;
+    QSet<Core::Id> m_availableFeatures;
+    QSet<Core::Id> m_pluginFeatures;
+};
+
+} // namespace Internal
+} // namespace ProjectExplorer

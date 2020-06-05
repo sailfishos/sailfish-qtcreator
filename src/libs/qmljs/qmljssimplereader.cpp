@@ -92,7 +92,7 @@ SimpleReaderNode::Ptr SimpleReaderNode::create(const QString &name, WeakPtr pare
     Ptr newNode(new SimpleReaderNode(name, parent));
     newNode->m_weakThis = newNode;
     if (parent)
-        parent.data()->m_children.append(newNode);
+        parent.toStrongRef().data()->m_children.append(newNode);
     return newNode;
 }
 
@@ -125,7 +125,7 @@ bool SimpleAbstractStreamReader::readFile(const QString &fileName)
 bool SimpleAbstractStreamReader::readFromSource(const QString &source)
 {
     m_errors.clear();
-    m_currentSourceLocation = AST::SourceLocation();
+    m_currentSourceLocation = SourceLocation();
 
     m_source = source;
 
@@ -151,7 +151,7 @@ QStringList SimpleAbstractStreamReader::errors() const
     return m_errors;
 }
 
-void SimpleAbstractStreamReader::addError(const QString &error, const AST::SourceLocation &sourceLocation)
+void SimpleAbstractStreamReader::addError(const QString &error, const SourceLocation &sourceLocation)
 {
     m_errors << QString::fromLatin1("%1:%2: %3\n").arg(
                     QString::number(sourceLocation.startLine),
@@ -159,7 +159,7 @@ void SimpleAbstractStreamReader::addError(const QString &error, const AST::Sourc
                     error);
 }
 
-AST::SourceLocation SimpleAbstractStreamReader::currentSourceLocation() const
+SourceLocation SimpleAbstractStreamReader::currentSourceLocation() const
 {
     return m_currentSourceLocation;
 }
@@ -278,13 +278,13 @@ QVariant SimpleAbstractStreamReader::parsePropertyExpression(AST::ExpressionNode
     return textAt(expressionNode->firstSourceLocation(), expressionNode->lastSourceLocation());
 }
 
-void SimpleAbstractStreamReader::setSourceLocation(const AST::SourceLocation &sourceLocation)
+void SimpleAbstractStreamReader::setSourceLocation(const SourceLocation &sourceLocation)
 {
     m_currentSourceLocation = sourceLocation;
 }
 
-QString SimpleAbstractStreamReader::textAt(const AST::SourceLocation &from,
-                                           const AST::SourceLocation &to)
+QString SimpleAbstractStreamReader::textAt(const SourceLocation &from,
+                                           const SourceLocation &to)
 {
     return m_source.mid(from.offset, to.end() - from.begin());
 }
@@ -323,21 +323,21 @@ void SimpleReader::elementEnd()
 {
     Q_ASSERT(m_currentNode);
 
-    qCDebug(simpleReaderLog) << "elementEnd()" << m_currentNode.data()->name();
+    qCDebug(simpleReaderLog) << "elementEnd()" << m_currentNode.toStrongRef().data()->name();
 
-    m_currentNode = m_currentNode.data()->parent();
+    m_currentNode = m_currentNode.toStrongRef().data()->parent();
 }
 
 void SimpleReader::propertyDefinition(const QString &name, const QVariant &value)
 {
     Q_ASSERT(m_currentNode);
 
-    qCDebug(simpleReaderLog) << "propertyDefinition()" << m_currentNode.data()->name() << name << value;
+    qCDebug(simpleReaderLog) << "propertyDefinition()" << m_currentNode.toStrongRef().data()->name() << name << value;
 
-    if (m_currentNode.data()->propertyNames().contains(name))
+    if (m_currentNode.toStrongRef().data()->propertyNames().contains(name))
         addError(tr("Property is defined twice."), currentSourceLocation());
 
-    m_currentNode.data()->setProperty(name, value);
+    m_currentNode.toStrongRef().data()->setProperty(name, value);
 }
 
 } // namespace QmlJS

@@ -71,7 +71,13 @@ public:
                                                    : QApplication::translate("TaskHub", "Warning"));
         setPriority(task.type == Task::Error ? TextEditor::TextMark::NormalPriority
                                              : TextEditor::TextMark::LowPriority);
-        setToolTip(task.description);
+        if (task.category == Constants::TASK_CATEGORY_COMPILE) {
+            setToolTip("<html><body><b>" + QApplication::translate("TaskHub", "Build Issue")
+                       + "</b><br/><code style=\"white-space:pre;font-family:monospace\">"
+                       + task.description.toHtmlEscaped() + "</code></body></html>");
+        } else {
+            setToolTip(task.description);
+        }
         setIcon(task.icon);
         setVisible(!task.icon.isNull());
     }
@@ -79,7 +85,7 @@ public:
     bool isClickable() const override;
     void clicked() override;
 
-    void updateFileName(const FileName &fileName) override;
+    void updateFileName(const FilePath &fileName) override;
     void updateLineNumber(int lineNumber) override;
     void removedFromEditor() override;
 private:
@@ -92,10 +98,10 @@ void TaskMark::updateLineNumber(int lineNumber)
     TextMark::updateLineNumber(lineNumber);
 }
 
-void TaskMark::updateFileName(const FileName &fileName)
+void TaskMark::updateFileName(const FilePath &fileName)
 {
     TaskHub::updateTaskFileName(m_id, fileName.toString());
-    TextMark::updateFileName(FileName::fromString(fileName.toString()));
+    TextMark::updateFileName(FilePath::fromString(fileName.toString()));
 }
 
 void TaskMark::removedFromEditor()
@@ -117,7 +123,7 @@ TaskHub::TaskHub()
 {
     m_instance = this;
     qRegisterMetaType<ProjectExplorer::Task>("ProjectExplorer::Task");
-    qRegisterMetaType<QList<ProjectExplorer::Task> >("QList<ProjectExplorer::Task>");
+    qRegisterMetaType<Tasks >("Tasks");
 }
 
 TaskHub::~TaskHub()
@@ -138,9 +144,9 @@ TaskHub *TaskHub::instance()
     return m_instance;
 }
 
-void TaskHub::addTask(Task::TaskType type, const QString &description, Core::Id category, const Utils::FileName &file, int line)
+void TaskHub::addTask(Task::TaskType type, const QString &description, Core::Id category)
 {
-    addTask(Task(type, description, file, line, category));
+    addTask(Task(type, description, {}, -1, category));
 }
 
 void TaskHub::addTask(Task task)
@@ -154,7 +160,7 @@ void TaskHub::addTask(Task task)
         task.line = -1;
     task.movedLine = task.line;
 
-    if ((task.options & Task::AddTextMark) && task.line != -1)
+    if ((task.options & Task::AddTextMark) && task.line != -1 && task.type != Task::Unknown)
         task.setMark(new TaskMark(task));
     emit m_instance->taskAdded(task);
 }

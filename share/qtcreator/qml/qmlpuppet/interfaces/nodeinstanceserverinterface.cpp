@@ -32,6 +32,7 @@
 #include "instancecontainer.h"
 #include "createinstancescommand.h"
 #include "createscenecommand.h"
+#include "update3dviewstatecommand.h"
 #include "changevaluescommand.h"
 #include "changebindingscommand.h"
 #include "changeauxiliarycommand.h"
@@ -45,6 +46,9 @@
 #include "completecomponentcommand.h"
 #include "addimportcontainer.h"
 #include "changenodesourcecommand.h"
+#include "changeselectioncommand.h"
+#include "inputeventcommand.h"
+#include "view3dactioncommand.h"
 
 #include "informationchangedcommand.h"
 #include "pixmapchangedcommand.h"
@@ -59,12 +63,13 @@
 #include "endpuppetcommand.h"
 #include "debugoutputcommand.h"
 #include "puppetalivecommand.h"
+#include "puppettocreatorcommand.h"
 
 #include <enumeration.h>
 
 namespace QmlDesigner {
 
-static bool isRegistered=false;
+static bool isRegistered = false;
 
 NodeInstanceServerInterface::NodeInstanceServerInterface(QObject *parent) :
     QObject(parent)
@@ -88,6 +93,9 @@ void NodeInstanceServerInterface::registerCommands()
     qRegisterMetaType<CreateSceneCommand>("CreateSceneCommand");
     qRegisterMetaTypeStreamOperators<CreateSceneCommand>("CreateSceneCommand");
 
+    qRegisterMetaType<Update3dViewStateCommand>("Update3dViewStateCommand");
+    qRegisterMetaTypeStreamOperators<Update3dViewStateCommand>("Update3dViewStateCommand");
+
     qRegisterMetaType<ChangeBindingsCommand>("ChangeBindingsCommand");
     qRegisterMetaTypeStreamOperators<ChangeBindingsCommand>("ChangeBindingsCommand");
 
@@ -102,6 +110,9 @@ void NodeInstanceServerInterface::registerCommands()
 
     qRegisterMetaType<RemoveInstancesCommand>("RemoveInstancesCommand");
     qRegisterMetaTypeStreamOperators<RemoveInstancesCommand>("RemoveInstancesCommand");
+
+    qRegisterMetaType<ChangeSelectionCommand>("ChangeSelectionCommand");
+    qRegisterMetaTypeStreamOperators<ChangeSelectionCommand>("ChangeSelectionCommand");
 
     qRegisterMetaType<RemovePropertiesCommand>("RemovePropertiesCommand");
     qRegisterMetaTypeStreamOperators<RemovePropertiesCommand>("RemovePropertiesCommand");
@@ -120,6 +131,9 @@ void NodeInstanceServerInterface::registerCommands()
 
     qRegisterMetaType<ValuesChangedCommand>("ValuesChangedCommand");
     qRegisterMetaTypeStreamOperators<ValuesChangedCommand>("ValuesChangedCommand");
+
+    qRegisterMetaType<ValuesModifiedCommand>("ValuesModifiedCommand");
+    qRegisterMetaTypeStreamOperators<ValuesModifiedCommand>("ValuesModifiedCommand");
 
     qRegisterMetaType<PixmapChangedCommand>("PixmapChangedCommand");
     qRegisterMetaTypeStreamOperators<PixmapChangedCommand>("PixmapChangedCommand");
@@ -186,6 +200,18 @@ void NodeInstanceServerInterface::registerCommands()
 
     qRegisterMetaType<PuppetAliveCommand>("PuppetAliveCommand");
     qRegisterMetaTypeStreamOperators<PuppetAliveCommand>("PuppetAliveCommand");
+
+    qRegisterMetaType<PuppetToCreatorCommand>("PuppetToCreatorCommand");
+    qRegisterMetaTypeStreamOperators<PuppetToCreatorCommand>("PuppetToCreatorCommand");
+
+    qRegisterMetaType<InputEventCommand>("InputEventCommand");
+    qRegisterMetaTypeStreamOperators<InputEventCommand>("InputEventCommand");
+
+    qRegisterMetaType<View3DActionCommand>("View3DActionCommand");
+    qRegisterMetaTypeStreamOperators<View3DActionCommand>("View3DActionCommand");
+
+    qRegisterMetaType<QPair<int, int>>("QPairIntInt");
+    qRegisterMetaTypeStreamOperators<QPair<int, int>>("QPairIntInt");
 }
 
 }

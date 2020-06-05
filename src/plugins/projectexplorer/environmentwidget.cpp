@@ -30,13 +30,17 @@
 
 #include <utils/detailswidget.h>
 #include <utils/environment.h>
-#include <utils/environmentmodel.h>
 #include <utils/environmentdialog.h>
+#include <utils/environmentmodel.h>
 #include <utils/headerviewstretcher.h>
+#include <utils/hostosinfo.h>
 #include <utils/itemviews.h>
+#include <utils/namevaluevalidator.h>
 #include <utils/tooltip/tooltip.h>
 
 #include <QDir>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QString>
 #include <QPushButton>
 #include <QTreeView>
@@ -47,48 +51,6 @@
 #include <QDebug>
 
 namespace ProjectExplorer {
-
-class EnvironmentValidator : public QValidator
-{
-    Q_OBJECT
-public:
-    EnvironmentValidator(QWidget *parent, Utils::EnvironmentModel *model, QTreeView *view,
-                         const QModelIndex &index) :
-        QValidator(parent), m_model(model), m_view(view), m_index(index)
-    {
-        m_hideTipTimer.setInterval(2000);
-        m_hideTipTimer.setSingleShot(true);
-        connect(&m_hideTipTimer, &QTimer::timeout,
-                this, [](){Utils::ToolTip::hide();});
-    }
-
-    QValidator::State validate(QString &in, int &pos) const override
-    {
-        Q_UNUSED(pos)
-        QModelIndex idx = m_model->variableToIndex(in);
-        if (idx.isValid() && idx != m_index)
-            return QValidator::Intermediate;
-        Utils::ToolTip::hide();
-        m_hideTipTimer.stop();
-        return QValidator::Acceptable;
-    }
-
-    void fixup(QString &input) const override
-    {
-        Q_UNUSED(input)
-
-        QPoint pos = m_view->mapToGlobal(m_view->visualRect(m_index).topLeft());
-        pos -= Utils::ToolTip::offsetFromPosition();
-        Utils::ToolTip::show(pos, tr("Variable already exists."));
-        m_hideTipTimer.start();
-        // do nothing
-    }
-private:
-    Utils::EnvironmentModel *m_model;
-    QTreeView *m_view;
-    QModelIndex m_index;
-    mutable QTimer m_hideTipTimer;
-};
 
 class EnvironmentDelegate : public QStyledItemDelegate
 {
@@ -105,7 +67,8 @@ public:
             return w;
 
         if (auto edit = qobject_cast<QLineEdit *>(w))
-            edit->setValidator(new EnvironmentValidator(edit, m_model, m_view, index));
+            edit->setValidator(new Utils::NameValueValidator(
+                edit, m_model, m_view, index, EnvironmentWidget::tr("Variable already exists.")));
         return w;
     }
 private:
@@ -124,17 +87,21 @@ public:
     Utils::EnvironmentModel *m_model;
 
     QString m_baseEnvironmentText;
+    EnvironmentWidget::OpenTerminalFunc m_openTerminalFunc;
     Utils::DetailsWidget *m_detailsContainer;
     QTreeView *m_environmentView;
     QPushButton *m_editButton;
     QPushButton *m_addButton;
     QPushButton *m_resetButton;
     QPushButton *m_unsetButton;
+    QPushButton *m_toggleButton;
     QPushButton *m_batchEditButton;
+    QPushButton *m_appendPathButton = nullptr;
+    QPushButton *m_prependPathButton = nullptr;
     QPushButton *m_terminalButton;
 };
 
-EnvironmentWidget::EnvironmentWidget(QWidget *parent, QWidget *additionalDetailsWidget)
+EnvironmentWidget::EnvironmentWidget(QWidget *parent, Type type, QWidget *additionalDetailsWidget)
     : QWidget(parent), d(std::make_unique<EnvironmentWidgetPrivate>())
 {
     d->m_model = new Utils::EnvironmentModel();
@@ -156,13 +123,13 @@ EnvironmentWidget::EnvironmentWidget(QWidget *parent, QWidget *additionalDetails
     details->setVisible(false);
 
     auto vbox2 = new QVBoxLayout(details);
-    vbox2->setMargin(0);
+    vbox2->setContentsMargins(0, 0, 0, 0);
 
     if (additionalDetailsWidget)
         vbox2->addWidget(additionalDetailsWidget);
 
     auto horizontalLayout = new QHBoxLayout();
-    horizontalLayout->setMargin(0);
+    horizontalLayout->setContentsMargins(0, 0, 0, 0);
     auto tree = new Utils::TreeView(this);
     connect(tree, &QAbstractItemView::activated,
             tree, [tree](const QModelIndex &idx) { tree->edit(idx); });
@@ -200,6 +167,28 @@ EnvironmentWidget::EnvironmentWidget(QWidget *parent, QWidget *additionalDetails
     d->m_unsetButton->setText(tr("&Unset"));
     buttonLayout->addWidget(d->m_unsetButton);
 
+    d->m_toggleButton = new QPushButton(tr("Disable"), this);
+    buttonLayout->addWidget(d->m_toggleButton);
+    connect(d->m_toggleButton, &QPushButton::clicked, this, [this] {
+        d->m_model->toggleVariable(d->m_environmentView->currentIndex());
+        updateButtons();
+    });
+
+    if (type == TypeLocal) {
+        d->m_appendPathButton = new QPushButton(this);
+        d->m_appendPathButton->setEnabled(false);
+        d->m_appendPathButton->setText(tr("Append Path..."));
+        buttonLayout->addWidget(d->m_appendPathButton);
+        d->m_prependPathButton = new QPushButton(this);
+        d->m_prependPathButton->setEnabled(false);
+        d->m_prependPathButton->setText(tr("Prepend Path..."));
+        buttonLayout->addWidget(d->m_prependPathButton);
+        connect(d->m_appendPathButton, &QAbstractButton::clicked,
+                this, &EnvironmentWidget::appendPathButtonClicked);
+        connect(d->m_prependPathButton, &QAbstractButton::clicked,
+                this, &EnvironmentWidget::prependPathButtonClicked);
+    }
+
     d->m_batchEditButton = new QPushButton(this);
     d->m_batchEditButton->setText(tr("&Batch Edit..."));
     buttonLayout->addWidget(d->m_batchEditButton);
@@ -207,10 +196,8 @@ EnvironmentWidget::EnvironmentWidget(QWidget *parent, QWidget *additionalDetails
     d->m_terminalButton = new QPushButton(this);
     d->m_terminalButton->setText(tr("Open &Terminal"));
     d->m_terminalButton->setToolTip(tr("Open a terminal with this environment set up."));
+    d->m_terminalButton->setEnabled(type == TypeLocal);
     buttonLayout->addWidget(d->m_terminalButton);
-#if defined(Q_OS_UNIX) && QT_VERSION < QT_VERSION_CHECK(5, 10, 0)
-    d->m_terminalButton->setVisible(false);
-#endif
     buttonLayout->addStretch();
 
     horizontalLayout->addLayout(buttonLayout);
@@ -234,7 +221,14 @@ EnvironmentWidget::EnvironmentWidget(QWidget *parent, QWidget *additionalDetails
     connect(d->m_environmentView->selectionModel(), &QItemSelectionModel::currentChanged,
             this, &EnvironmentWidget::environmentCurrentIndexChanged);
     connect(d->m_terminalButton, &QAbstractButton::clicked,
-            this, &EnvironmentWidget::openTerminal);
+            this, [this] {
+        Utils::Environment env = d->m_model->baseEnvironment();
+        env.modify(d->m_model->userChanges());
+        if (d->m_openTerminalFunc)
+            d->m_openTerminalFunc(env);
+        else
+            Core::FileUtils::openTerminal(QDir::currentPath(), env);
+    });
     connect(d->m_detailsContainer, &Utils::DetailsWidget::linkActivated,
             this, &EnvironmentWidget::linkActivated);
 
@@ -275,40 +269,65 @@ void EnvironmentWidget::setBaseEnvironmentText(const QString &text)
     updateSummaryText();
 }
 
-QList<Utils::EnvironmentItem> EnvironmentWidget::userChanges() const
+Utils::EnvironmentItems EnvironmentWidget::userChanges() const
 {
     return d->m_model->userChanges();
 }
 
-void EnvironmentWidget::setUserChanges(const QList<Utils::EnvironmentItem> &list)
+void EnvironmentWidget::setUserChanges(const Utils::EnvironmentItems &list)
 {
     d->m_model->setUserChanges(list);
     updateSummaryText();
 }
 
+void EnvironmentWidget::setOpenTerminalFunc(const EnvironmentWidget::OpenTerminalFunc &func)
+{
+    d->m_openTerminalFunc = func;
+    d->m_terminalButton->setVisible(bool(func));
+}
+
+void EnvironmentWidget::expand()
+{
+    d->m_detailsContainer->setState(Utils::DetailsWidget::Expanded);
+}
+
 void EnvironmentWidget::updateSummaryText()
 {
-    QList<Utils::EnvironmentItem> list = d->m_model->userChanges();
+    Utils::EnvironmentItems list = d->m_model->userChanges();
     Utils::EnvironmentItem::sort(&list);
 
     QString text;
     foreach (const Utils::EnvironmentItem &item, list) {
         if (item.name != Utils::EnvironmentModel::tr("<VARIABLE>")) {
-            text.append(QLatin1String("<br>"));
-            if (item.operation == Utils::EnvironmentItem::Unset)
+            if (!d->m_baseEnvironmentText.isEmpty() || !text.isEmpty())
+                text.append(QLatin1String("<br>"));
+            switch (item.operation) {
+            case Utils::EnvironmentItem::Unset:
                 text.append(tr("Unset <a href=\"%1\"><b>%1</b></a>").arg(item.name.toHtmlEscaped()));
-            else
+                break;
+            case Utils::EnvironmentItem::SetEnabled:
+            case Utils::EnvironmentItem::Append:
+            case Utils::EnvironmentItem::Prepend:
                 text.append(tr("Set <a href=\"%1\"><b>%1</b></a> to <b>%2</b>").arg(item.name.toHtmlEscaped(), item.value.toHtmlEscaped()));
+                break;
+            case Utils::EnvironmentItem::SetDisabled:
+                text.append(tr("Set <a href=\"%1\"><b>%1</b></a> to <b>%2</b> [disabled]").arg(item.name.toHtmlEscaped(), item.value.toHtmlEscaped()));
+                break;
+            }
         }
     }
 
     if (text.isEmpty()) {
         //: %1 is "System Environment" or some such.
-        text.prepend(tr("Use <b>%1</b>").arg(d->m_baseEnvironmentText));
+        if (!d->m_baseEnvironmentText.isEmpty())
+            text.prepend(tr("Use <b>%1</b>").arg(d->m_baseEnvironmentText));
+        else
+            text.prepend(tr("<b>No environment changes</b>"));
     } else {
         //: Yup, word puzzle. The Set/Unset phrases above are appended to this.
         //: %1 is "System Environment" or some such.
-        text.prepend(tr("Use <b>%1</b> and").arg(d->m_baseEnvironmentText));
+        if (!d->m_baseEnvironmentText.isEmpty())
+            text.prepend(tr("Use <b>%1</b> and").arg(d->m_baseEnvironmentText));
     }
 
     d->m_detailsContainer->setSummaryText(text);
@@ -319,6 +338,36 @@ void EnvironmentWidget::linkActivated(const QString &link)
     d->m_detailsContainer->setState(Utils::DetailsWidget::Expanded);
     QModelIndex idx = d->m_model->variableToIndex(link);
     focusIndex(idx);
+}
+
+bool EnvironmentWidget::currentEntryIsPathList(const QModelIndex &current) const
+{
+    if (!current.isValid())
+        return false;
+
+    // Look at the name first and check it against some well-known path variables. Extend as needed.
+    const QString varName = d->m_model->indexToVariable(current);
+    if (varName.compare("PATH", Utils::HostOsInfo::fileNameCaseSensitivity()) == 0)
+        return true;
+    if (Utils::HostOsInfo::isMacHost() && varName == "DYLD_LIBRARY_PATH")
+        return true;
+    if (Utils::HostOsInfo::isAnyUnixHost() && varName == "LD_LIBRARY_PATH")
+        return true;
+
+    // Now check the value: If it's a list of strings separated by the platform's path separator
+    // and at least one of the strings is an existing directory, then that's enough proof for us.
+    QModelIndex valueIndex = current;
+    if (valueIndex.column() == 0)
+        valueIndex = valueIndex.siblingAtColumn(1);
+    const QStringList entries = d->m_model->data(valueIndex).toString()
+            .split(Utils::HostOsInfo::pathListSeparator(), QString::SkipEmptyParts);
+    if (entries.length() < 2)
+        return false;
+    for (const QString &potentialDir : entries) {
+        if (QFileInfo(potentialDir).isDir())
+            return true;
+    }
+    return false;
 }
 
 void EnvironmentWidget::updateButtons()
@@ -355,23 +404,50 @@ void EnvironmentWidget::unsetEnvironmentButtonClicked()
         d->m_model->unsetVariable(name);
 }
 
-void EnvironmentWidget::batchEditEnvironmentButtonClicked()
+void EnvironmentWidget::amendPathList(const PathListModifier &modifier)
 {
-    const QList<Utils::EnvironmentItem> changes = d->m_model->userChanges();
-
-    bool ok;
-    const QList<Utils::EnvironmentItem> newChanges = Utils::EnvironmentDialog::getEnvironmentItems(&ok, this, changes);
-    if (!ok)
+    const QString varName = d->m_model->indexToVariable(d->m_environmentView->currentIndex());
+    const QString dir = QDir::toNativeSeparators(
+                QFileDialog::getExistingDirectory(this, tr("Choose Directory")));
+    if (dir.isEmpty())
         return;
-
-    d->m_model->setUserChanges(newChanges);
+    QModelIndex index = d->m_model->variableToIndex(varName);
+    if (!index.isValid())
+        return;
+    if (index.column() == 0)
+        index = index.siblingAtColumn(1);
+    const QString value = d->m_model->data(index).toString();
+    d->m_model->setData(index, modifier(value, dir));
 }
 
-void EnvironmentWidget::openTerminal()
+void EnvironmentWidget::appendPathButtonClicked()
 {
-    Utils::Environment env = d->m_model->baseEnvironment();
-    env.modify(d->m_model->userChanges());
-    Core::FileUtils::openTerminal(QDir::currentPath(), env);
+    amendPathList([](const QString &pathList, const QString &dir) {
+        QString newPathList = dir;
+        if (!pathList.isEmpty())
+            newPathList.prepend(Utils::HostOsInfo::pathListSeparator()).prepend(pathList);
+        return newPathList;
+    });
+}
+
+void EnvironmentWidget::prependPathButtonClicked()
+{
+    amendPathList([](const QString &pathList, const QString &dir) {
+        QString newPathList = dir;
+        if (!pathList.isEmpty())
+            newPathList.append(Utils::HostOsInfo::pathListSeparator()).append(pathList);
+        return newPathList;
+    });
+}
+
+void EnvironmentWidget::batchEditEnvironmentButtonClicked()
+{
+    const Utils::EnvironmentItems changes = d->m_model->userChanges();
+
+    const auto newChanges = Utils::EnvironmentDialog::getEnvironmentItems(this, changes);
+
+    if (newChanges)
+        d->m_model->setUserChanges(*newChanges);
 }
 
 void EnvironmentWidget::environmentCurrentIndexChanged(const QModelIndex &current)
@@ -380,13 +456,21 @@ void EnvironmentWidget::environmentCurrentIndexChanged(const QModelIndex &curren
         d->m_editButton->setEnabled(true);
         const QString &name = d->m_model->indexToVariable(current);
         bool modified = d->m_model->canReset(name) && d->m_model->changes(name);
-        bool unset = d->m_model->canUnset(name);
+        bool unset = d->m_model->isUnset(name);
         d->m_resetButton->setEnabled(modified || unset);
         d->m_unsetButton->setEnabled(!unset);
+        d->m_toggleButton->setEnabled(!unset);
+        d->m_toggleButton->setText(d->m_model->isEnabled(name) ? tr("Disable") : tr("Enable"));
     } else {
         d->m_editButton->setEnabled(false);
         d->m_resetButton->setEnabled(false);
         d->m_unsetButton->setEnabled(false);
+        d->m_toggleButton->setEnabled(false);
+        d->m_toggleButton->setText(tr("Disable"));
+    }
+    if (d->m_appendPathButton) {
+        d->m_appendPathButton->setEnabled(currentEntryIsPathList(current));
+        d->m_prependPathButton->setEnabled(currentEntryIsPathList(current));
     }
 }
 
@@ -396,5 +480,3 @@ void EnvironmentWidget::invalidateCurrentIndex()
 }
 
 } // namespace ProjectExplorer
-
-#include "environmentwidget.moc"

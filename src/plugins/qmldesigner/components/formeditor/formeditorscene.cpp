@@ -39,6 +39,7 @@
 #include <QGraphicsView>
 
 #include <QDebug>
+#include <QElapsedTimer>
 #include <QList>
 #include <QTime>
 
@@ -48,9 +49,10 @@
 namespace QmlDesigner {
 
 FormEditorScene::FormEditorScene(FormEditorWidget *view, FormEditorView *editorView)
-        : QGraphicsScene(),
-        m_editorView(editorView),
-        m_showBoundingRects(false)
+        : QGraphicsScene()
+        , m_editorView(editorView)
+        , m_showBoundingRects(false)
+        , m_annotationVisibility(false)
 {
     setupScene();
     view->setScene(this);
@@ -86,7 +88,6 @@ void FormEditorScene::resetScene()
 
 FormEditorItem* FormEditorScene::itemForQmlItemNode(const QmlItemNode &qmlItemNode) const
 {
-    QTC_ASSERT(qmlItemNode.isValid(), return nullptr);
     return m_qmlItemNodeItemHash.value(qmlItemNode);
 }
 
@@ -163,26 +164,27 @@ void FormEditorScene::synchronizeParent(const QmlItemNode &qmlItemNode)
 void FormEditorScene::synchronizeOtherProperty(FormEditorItem *item, const QByteArray &propertyName)
 {
     Q_ASSERT(item);
-    const QmlItemNode qmlItemNode = item->qmlItemNode();
-    if (propertyName == "opacity")
-        item->setOpacity(qmlItemNode.instanceValue("opacity").toDouble());
 
-    if (propertyName == "clip")
-        item->setFlag(QGraphicsItem::ItemClipsChildrenToShape, qmlItemNode.instanceValue("clip").toBool());
-
-    if (NodeHints::fromModelNode(qmlItemNode).forceClip())
-        item->setFlag(QGraphicsItem::ItemClipsChildrenToShape, true);
-
-    if (propertyName == "z")
-        item->setZValue(qmlItemNode.instanceValue("z").toDouble());
-
-    if (propertyName == "visible")
-        item->setContentVisible(qmlItemNode.instanceValue("visible").toBool());
+    item->synchronizeOtherProperty(propertyName);
 }
 
-FormEditorItem *FormEditorScene::addFormEditorItem(const QmlItemNode &qmlItemNode)
+FormEditorItem *FormEditorScene::addFormEditorItem(const QmlItemNode &qmlItemNode, ItemType type)
 {
-    auto formEditorItem = new FormEditorItem(qmlItemNode, this);
+    FormEditorItem *formEditorItem = nullptr;
+
+    if (type == Flow)
+        formEditorItem = new FormEditorFlowItem(qmlItemNode, this);
+    else if (type == FlowAction)
+        formEditorItem = new FormEditorFlowActionItem(qmlItemNode, this);
+    else if (type == FlowTransition)
+        formEditorItem = new FormEditorTransitionItem(qmlItemNode, this);
+    else if (type == FlowDecision)
+        formEditorItem = new FormEditorFlowDecisionItem(qmlItemNode, this);
+    else if (type == FlowWildcard)
+        formEditorItem = new FormEditorFlowWildcardItem(qmlItemNode, this);
+    else
+        formEditorItem = new FormEditorItem(qmlItemNode, this);
+
     Q_ASSERT(!m_qmlItemNodeItemHash.contains(qmlItemNode));
 
     m_qmlItemNodeItemHash.insert(qmlItemNode, formEditorItem);
@@ -255,16 +257,16 @@ void FormEditorScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
         currentTool()->mousePressEvent(removeLayerItems(itemsAt(event->scenePos())), event);
 }
 
-static QTime staticTimer()
+static QElapsedTimer staticTimer()
 {
-    QTime timer;
+    QElapsedTimer timer;
     timer.start();
     return timer;
 }
 
 void FormEditorScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 {
-    static QTime time = staticTimer();
+    static QElapsedTimer time = staticTimer();
 
     QGraphicsScene::mouseMoveEvent(event);
 
@@ -432,6 +434,16 @@ void FormEditorScene::setShowBoundingRects(bool show)
 bool FormEditorScene::showBoundingRects() const
 {
     return m_showBoundingRects;
+}
+
+bool FormEditorScene::annotationVisibility() const
+{
+    return m_annotationVisibility;
+}
+
+void FormEditorScene::setAnnotationVisibility(bool status)
+{
+    m_annotationVisibility = status;
 }
 
 }

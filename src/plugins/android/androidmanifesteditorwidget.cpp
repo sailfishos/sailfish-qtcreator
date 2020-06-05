@@ -34,6 +34,8 @@
 #include <coreplugin/infobar.h>
 #include <coreplugin/editormanager/ieditor.h>
 
+#include <qtsupport/qtkitinformation.h>
+
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectnodes.h>
@@ -45,32 +47,40 @@
 
 #include <texteditor/texteditoractionhandler.h>
 #include <texteditor/texteditor.h>
-#include <utils/algorithm.h>
-#include <utils/utilsicons.h>
 
-#include <QLineEdit>
-#include <QFileInfo>
-#include <QDomDocument>
-#include <QDir>
-#include <QGroupBox>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QFormLayout>
-#include <QComboBox>
-#include <QSpinBox>
-#include <QDebug>
-#include <QToolButton>
+#include <utils/algorithm.h>
 #include <utils/fileutils.h>
 #include <utils/stylehelper.h>
-#include <QListView>
-#include <QPushButton>
-#include <QFileDialog>
-#include <QTimer>
+#include <utils/utilsicons.h>
+
 #include <QCheckBox>
+#include <QComboBox>
+#include <QDebug>
+#include <QDir>
+#include <QDomDocument>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QFormLayout>
+#include <QGroupBox>
+#include <QHBoxLayout>
+#include <QImage>
+#include <QLabel>
+#include <QLineEdit>
+#include <QListView>
+#include <QLoggingCategory>
+#include <QPushButton>
 #include <QScrollArea>
+#include <QSpinBox>
+#include <QTimer>
+#include <QToolButton>
 
 #include <algorithm>
 #include <limits>
+
+
+namespace {
+static Q_LOGGING_CATEGORY(androidManifestEditorLog, "qtc.android.manifestEditor", QtWarningMsg)
+}
 
 using namespace ProjectExplorer;
 using namespace Android;
@@ -85,15 +95,15 @@ bool checkPackageName(const QString &packageName)
     return QRegExp(packageNameRegExp).exactMatch(packageName);
 }
 
-Project *androidProject(const Utils::FileName &fileName)
+Target *androidTarget(const Utils::FilePath &fileName)
 {
     for (Project *project : SessionManager::projects()) {
-        if (!project->activeTarget())
-            continue;
-        Kit *kit = project->activeTarget()->kit();
-        if (DeviceTypeKitInformation::deviceTypeId(kit) == Android::Constants::ANDROID_DEVICE_TYPE
-                && fileName.isChildOf(project->projectDirectory()))
-            return project;
+        if (Target *target = project->activeTarget()) {
+            Kit *kit = target->kit();
+            if (DeviceTypeKitAspect::deviceTypeId(kit) == Android::Constants::ANDROID_DEVICE_TYPE
+                    && fileName.isChildOf(project->projectDirectory()))
+                return target;
+        }
     }
     return nullptr;
 }
@@ -164,7 +174,7 @@ void AndroidManifestEditorWidget::initializePage()
         m_packageNameWarningIcon->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
         auto warningRow = new QHBoxLayout;
-        warningRow->setMargin(0);
+        warningRow->setContentsMargins(0, 0, 0, 0);
         warningRow->addWidget(m_packageNameWarningIcon);
         warningRow->addWidget(m_packageNameWarning);
 
@@ -202,10 +212,10 @@ void AndroidManifestEditorWidget::initializePage()
         connect(m_versionNameLinedit, &QLineEdit::textEdited,
                 this, setDirtyFunc);
         connect(m_androidMinSdkVersion,
-                static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+                QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, setDirtyFunc);
         connect(m_androidTargetSdkVersion,
-                static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+                QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, setDirtyFunc);
 
     }
@@ -230,30 +240,66 @@ void AndroidManifestEditorWidget::initializePage()
         m_targetLineEdit->installEventFilter(this);
         formLayout->addRow(tr("Run:"), m_targetLineEdit);
 
+        m_styleExtractMethod = new QComboBox(applicationGroupBox);
+        formLayout->addRow(tr("Style extraction:"), m_styleExtractMethod);
+        const QList<QStringList> styleMethodsMap = {
+            {"default", "In most cases this will be the same as \"full\", but it can also be something else if needed, e.g. for compatibility reasons."},
+            {"full", "Useful for Qt Widgets & Qt Quick Controls 1 apps."},
+            {"minimal", "Useful for Qt Quick Controls 2 apps, it is much faster than \"full\"."},
+            {"none", "Useful for apps that don't use Qt Widgets, Qt Quick Controls 1 or Qt Quick Controls 2."}};
+        for (int i = 0; i <styleMethodsMap.size(); ++i) {
+            m_styleExtractMethod->addItem(styleMethodsMap.at(i).first());
+            m_styleExtractMethod->setItemData(i, styleMethodsMap.at(i).at(1), Qt::ToolTipRole);
+        }
+
         auto iconLayout = new QHBoxLayout();
-        m_lIconButton = new QToolButton(applicationGroupBox);
-        m_lIconButton->setMinimumSize(QSize(48, 48));
-        m_lIconButton->setMaximumSize(QSize(48, 48));
-        m_lIconButton->setToolTip(tr("Select low DPI icon."));
-        iconLayout->addWidget(m_lIconButton);
 
-        iconLayout->addItem(new QSpacerItem(28, 20, QSizePolicy::Expanding, QSizePolicy::Minimum));
+        createDPIButton(iconLayout,
+                        applicationGroupBox,
+                        m_masterIconButton, iconSize(LowDPI),
+                        tr("Master icon"), tr("Select master icon."));
 
-        m_mIconButton = new QToolButton(applicationGroupBox);
-        m_mIconButton->setMinimumSize(QSize(48, 48));
-        m_mIconButton->setMaximumSize(QSize(48, 48));
-        m_mIconButton->setToolTip(tr("Select medium DPI icon."));
-        iconLayout->addWidget(m_mIconButton);
+        m_masterIconButton->setIcon(QIcon::fromTheme(QLatin1String("document-open"), Utils::Icons::OPENFILE.icon()));
 
-        iconLayout->addItem(new QSpacerItem(28, 20, QSizePolicy::Expanding, QSizePolicy::Minimum));
+        iconLayout->addStretch(1);
 
-        m_hIconButton = new QToolButton(applicationGroupBox);
-        m_hIconButton->setMinimumSize(QSize(48, 48));
-        m_hIconButton->setMaximumSize(QSize(48, 48));
-        m_hIconButton->setToolTip(tr("Select high DPI icon."));
-        iconLayout->addWidget(m_hIconButton);
+        QFrame* line = new QFrame();
+        line->setFrameShape(QFrame::VLine);
+        line->setFrameShadow(QFrame::Sunken);
+        iconLayout->addWidget(line);
 
-        formLayout->addRow(tr("Application icon:"), iconLayout);
+        iconLayout->addStretch(1);
+
+        createDPIButton(iconLayout,
+                        applicationGroupBox,
+                        m_lIconButton, iconSize(LowDPI),
+                        tr("Low DPI icon"), tr("Select low DPI icon."),
+                        &m_lIconClearButton,
+                        &m_lIconScaleWarningLabel);
+
+        iconLayout->addStretch(1);
+
+        createDPIButton(iconLayout,
+                        applicationGroupBox,
+                        m_mIconButton, iconSize(MediumDPI),
+                        tr("Medium DPI icon"), tr("Select medium DPI icon."),
+                        &m_mIconClearButton,
+                        &m_mIconScaleWarningLabel);
+
+        iconLayout->addStretch(1);
+
+        createDPIButton(iconLayout,
+                        applicationGroupBox,
+                        m_hIconButton, iconSize(HighDPI),
+                        tr("High DPI icon"), tr("Select high DPI icon."),
+                        &m_hIconClearButton,
+                        &m_hIconScaleWarningLabel);
+
+        iconLayout->addStretch(6);
+
+        formLayout->addRow(tr("Application icon:"), new QLabel());
+
+        formLayout->addRow(QString(), iconLayout);
 
         applicationGroupBox->setLayout(formLayout);
 
@@ -263,13 +309,24 @@ void AndroidManifestEditorWidget::initializePage()
                 this, setDirtyFunc);
         connect(m_targetLineEdit, &QComboBox::currentTextChanged,
                 this, setDirtyFunc);
+        connect(m_styleExtractMethod,
+                QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, setDirtyFunc);
 
+        connect(m_masterIconButton, &QAbstractButton::clicked,
+                this, &AndroidManifestEditorWidget::setMasterIcon);
         connect(m_lIconButton, &QAbstractButton::clicked,
                 this, &AndroidManifestEditorWidget::setLDPIIcon);
         connect(m_mIconButton, &QAbstractButton::clicked,
                 this, &AndroidManifestEditorWidget::setMDPIIcon);
         connect(m_hIconButton, &QAbstractButton::clicked,
                 this, &AndroidManifestEditorWidget::setHDPIIcon);
+        connect(m_lIconClearButton, &QAbstractButton::clicked,
+                this, &AndroidManifestEditorWidget::clearLDPIIcon);
+        connect(m_mIconClearButton, &QAbstractButton::clicked,
+                this, &AndroidManifestEditorWidget::clearMDPIIcon);
+        connect(m_hIconClearButton, &QAbstractButton::clicked,
+                this, &AndroidManifestEditorWidget::clearHDPIIcon);
     }
 
 
@@ -288,17 +345,6 @@ void AndroidManifestEditorWidget::initializePage()
         m_defaultFeaturesCheckBox = new QCheckBox(this);
         m_defaultFeaturesCheckBox->setText(tr("Include default features for Qt modules."));
         layout->addWidget(m_defaultFeaturesCheckBox, 1, 0);
-
-        m_permissionsModel = new PermissionsModel(this);
-
-        m_permissionsListView = new QListView(permissionsGroupBox);
-        m_permissionsListView->setModel(m_permissionsModel);
-        m_permissionsListView->setMinimumSize(QSize(0, 200));
-        layout->addWidget(m_permissionsListView, 2, 0, 3, 1);
-
-        m_removePermissionButton = new QPushButton(permissionsGroupBox);
-        m_removePermissionButton->setText(tr("Remove"));
-        layout->addWidget(m_removePermissionButton, 2, 1);
 
         m_permissionsComboBox = new QComboBox(permissionsGroupBox);
         m_permissionsComboBox->insertItems(0, QStringList()
@@ -434,11 +480,21 @@ void AndroidManifestEditorWidget::initializePage()
          << QLatin1String("android.permission.WRITE_USER_DICTIONARY")
         );
         m_permissionsComboBox->setEditable(true);
-        layout->addWidget(m_permissionsComboBox, 6, 0);
+        layout->addWidget(m_permissionsComboBox, 2, 0);
 
         m_addPermissionButton = new QPushButton(permissionsGroupBox);
         m_addPermissionButton->setText(tr("Add"));
-        layout->addWidget(m_addPermissionButton, 6, 1);
+        layout->addWidget(m_addPermissionButton, 2, 1);
+
+        m_permissionsModel = new PermissionsModel(this);
+
+        m_permissionsListView = new QListView(permissionsGroupBox);
+        m_permissionsListView->setModel(m_permissionsModel);
+        layout->addWidget(m_permissionsListView, 3, 0, 3, 1);
+
+        m_removePermissionButton = new QPushButton(permissionsGroupBox);
+        m_removePermissionButton->setText(tr("Remove"));
+        layout->addWidget(m_removePermissionButton, 3, 1);
 
         permissionsGroupBox->setLayout(layout);
 
@@ -488,17 +544,13 @@ void AndroidManifestEditorWidget::focusInEvent(QFocusEvent *event)
 
 void AndroidManifestEditorWidget::updateTargetComboBox()
 {
-    Project *project = androidProject(m_textEditorWidget->textDocument()->filePath());
     QStringList items;
-    if (project) {
-        Kit *kit = project->activeTarget()->kit();
-        if (DeviceTypeKitInformation::deviceTypeId(kit) == Constants::ANDROID_DEVICE_TYPE) {
-            ProjectNode *root = project->rootProjectNode();
-            root->forEachProjectNode([&items](const ProjectNode *projectNode) {
-                items << projectNode->targetApplications();
-            });
-            items.sort();
-        }
+    if (Target *target = androidTarget(m_textEditorWidget->textDocument()->filePath())) {
+        ProjectNode *root = target->project()->rootProjectNode();
+        root->forEachProjectNode([&items](const ProjectNode *projectNode) {
+            items << projectNode->targetApplications();
+        });
+        items.sort();
     }
 
     // QComboBox randomly resets what the user has entered
@@ -542,10 +594,7 @@ void AndroidManifestEditorWidget::setDirty(bool dirty)
 
 bool AndroidManifestEditorWidget::isModified() const
 {
-    return m_dirty
-            || !m_hIconPath.isEmpty()
-            || !m_mIconPath.isEmpty()
-            || !m_lIconPath.isEmpty();
+    return m_dirty;
 }
 
 AndroidManifestEditorWidget::EditorPage AndroidManifestEditorWidget::activePage() const
@@ -585,18 +634,10 @@ void AndroidManifestEditorWidget::preSave()
         syncToEditor();
 
     QString baseDir = m_textEditorWidget->textDocument()->filePath().toFileInfo().absolutePath();
-    if (!m_lIconPath.isEmpty()) {
-        copyIcon(LowDPI, baseDir, m_lIconPath);
-        m_lIconPath.clear();
-    }
-    if (!m_mIconPath.isEmpty()) {
-        copyIcon(MediumDPI, baseDir, m_mIconPath);
-        m_mIconPath.clear();
-    }
-    if (!m_hIconPath.isEmpty()) {
-        copyIcon(HighDPI, baseDir, m_hIconPath);
-        m_hIconPath.clear();
-    }
+    copyIcon(LowDPI, baseDir, m_lIconPath);
+    copyIcon(MediumDPI, baseDir, m_mIconPath);
+    copyIcon(HighDPI, baseDir, m_hIconPath);
+
     // no need to emit changed() since this is called as part of saving
 
     updateInfoBar();
@@ -604,18 +645,17 @@ void AndroidManifestEditorWidget::preSave()
 
 void AndroidManifestEditorWidget::postSave()
 {
-    const Utils::FileName docPath = m_textEditorWidget->textDocument()->filePath();
-    ProjectExplorer::Project *project = androidProject(docPath);
-    if (project) {
-        if (Target *target = project->activeTarget()) {
-            if (BuildConfiguration *bc = target->activeBuildConfiguration()) {
-                QString androidNdkPlatform = AndroidConfigurations::currentConfig()
-                        .bestNdkPlatformMatch(AndroidManager::minimumSDK(target));
-                if (m_androidNdkPlatform != androidNdkPlatform) {
-                    m_androidNdkPlatform = androidNdkPlatform;
-                    bc->updateCacheAndEmitEnvironmentChanged();
-                    bc->regenerateBuildFiles(nullptr);
-                }
+    const Utils::FilePath docPath = m_textEditorWidget->textDocument()->filePath();
+    if (Target *target = androidTarget(docPath)) {
+        if (BuildConfiguration *bc = target->activeBuildConfiguration()) {
+            QString androidNdkPlatform = AndroidConfigurations::currentConfig().bestNdkPlatformMatch(
+                AndroidManager::minimumSDK(target),
+                QtSupport::QtKitAspect::qtVersion(
+                    androidTarget(m_textEditorWidget->textDocument()->filePath())->kit()));
+            if (m_androidNdkPlatform != androidNdkPlatform) {
+                m_androidNdkPlatform = androidNdkPlatform;
+                bc->updateCacheAndEmitEnvironmentChanged();
+                bc->regenerateBuildFiles(nullptr);
             }
         }
     }
@@ -765,8 +805,12 @@ void AndroidManifestEditorWidget::syncToWidgets(const QDomDocument &doc)
     m_versionNameLinedit->setText(manifest.attribute(QLatin1String("android:versionName")));
 
     QDomElement usesSdkElement = manifest.firstChildElement(QLatin1String("uses-sdk"));
-    setApiLevel(m_androidMinSdkVersion, usesSdkElement, QLatin1String("android:minSdkVersion"));
-    setApiLevel(m_androidTargetSdkVersion, usesSdkElement, QLatin1String("android:targetSdkVersion"));
+    m_androidMinSdkVersion->setEnabled(!usesSdkElement.isNull());
+    m_androidTargetSdkVersion->setEnabled(!usesSdkElement.isNull());
+    if (!usesSdkElement.isNull()) {
+        setApiLevel(m_androidMinSdkVersion, usesSdkElement, QLatin1String("android:minSdkVersion"));
+        setApiLevel(m_androidTargetSdkVersion, usesSdkElement, QLatin1String("android:targetSdkVersion"));
+    }
 
     QString baseDir = m_textEditorWidget->textDocument()->filePath().toFileInfo().absolutePath();
 
@@ -778,20 +822,30 @@ void AndroidManifestEditorWidget::syncToWidgets(const QDomDocument &doc)
 
     QDomElement metadataElem = activityElem.firstChildElement(QLatin1String("meta-data"));
 
+    const int parseItemsCount = 2;
+    int counter = 0;
     while (!metadataElem.isNull()) {
         if (metadataElem.attribute(QLatin1String("android:name")) == QLatin1String("android.app.lib_name")) {
             m_targetLineEdit->setEditText(metadataElem.attribute(QLatin1String("android:value")));
-            break;
+            ++counter;
+        } else if (metadataElem.attribute(QLatin1String("android:name"))
+                   == QLatin1String("android.app.extract_android_style")) {
+            m_styleExtractMethod->setCurrentText(
+                metadataElem.attribute(QLatin1String("android:value")));
+            ++counter;
         }
+
+        if (counter == parseItemsCount)
+            break;
         metadataElem = metadataElem.nextSiblingElement(QLatin1String("meta-data"));
     }
 
+    copyIcon(LowDPI, baseDir, baseDir + iconPath(LowDPI));
+    copyIcon(MediumDPI, baseDir, baseDir + iconPath(MediumDPI));
+    copyIcon(HighDPI, baseDir, baseDir + iconPath(HighDPI));
     m_lIconButton->setIcon(icon(baseDir, LowDPI));
     m_mIconButton->setIcon(icon(baseDir, MediumDPI));
     m_hIconButton->setIcon(icon(baseDir, HighDPI));
-    m_lIconPath.clear();
-    m_mIconPath.clear();
-    m_hIconPath.clear();
 
     disconnect(m_defaultPermissonsCheckBox, &QCheckBox::stateChanged,
             this, &AndroidManifestEditorWidget::defaultPermissionOrFeatureCheckBoxClicked);
@@ -924,7 +978,7 @@ void AndroidManifestEditorWidget::parseManifest(QXmlStreamReader &reader, QXmlSt
     QXmlStreamAttributes result = modifyXmlStreamAttributes(attributes, keys, values);
     writer.writeAttributes(result);
 
-    QSet<QString> permissions = m_permissionsModel->permissions().toSet();
+    QSet<QString> permissions = Utils::toSet(m_permissionsModel->permissions());
 
     bool foundUsesSdk = false;
     bool foundPermissionComment = false;
@@ -993,15 +1047,17 @@ void AndroidManifestEditorWidget::parseApplication(QXmlStreamReader &reader, QXm
     QXmlStreamAttributes attributes = reader.attributes();
     QStringList keys = {QLatin1String("android:label")};
     QStringList values = {m_appNameLineEdit->text()};
+    QStringList remove;
     bool ensureIconAttribute =  !m_lIconPath.isEmpty()
             || !m_mIconPath.isEmpty()
             || !m_hIconPath.isEmpty();
     if (ensureIconAttribute) {
         keys << QLatin1String("android:icon");
         values << QLatin1String("@drawable/icon");
-    }
+    } else
+        remove << QLatin1String("android:icon");
 
-    QXmlStreamAttributes result = modifyXmlStreamAttributes(attributes, keys, values);
+    QXmlStreamAttributes result = modifyXmlStreamAttributes(attributes, keys, values, remove);
     writer.writeAttributes(result);
 
     reader.readNext();
@@ -1068,10 +1124,18 @@ bool AndroidManifestEditorWidget::parseMetaData(QXmlStreamReader &reader, QXmlSt
     bool found = false;
     QXmlStreamAttributes attributes = reader.attributes();
     QXmlStreamAttributes result;
+    QStringList keys;
+    QStringList values;
 
     if (attributes.value(QLatin1String("android:name")) == QLatin1String("android.app.lib_name")) {
-        QStringList keys = QStringList("android:value");
-        QStringList values = QStringList(m_targetLineEdit->currentText());
+        keys = QStringList("android:value");
+        values = QStringList(m_targetLineEdit->currentText());
+        result = modifyXmlStreamAttributes(attributes, keys, values);
+        found = true;
+    } else if (attributes.value(QLatin1String("android:name"))
+               == QLatin1String("android.app.extract_android_style")) {
+        keys = QStringList("android:value");
+        values = QStringList(m_styleExtractMethod->currentText());
         result = modifyXmlStreamAttributes(attributes, keys, values);
         found = true;
     } else {
@@ -1211,23 +1275,45 @@ void AndroidManifestEditorWidget::parseUnknownElement(QXmlStreamReader &reader, 
     }
 }
 
-QString AndroidManifestEditorWidget::iconPath(const QString &baseDir, IconDPI dpi)
+QString AndroidManifestEditorWidget::iconPath(IconDPI dpi)
 {
-    Utils::FileName fileName = Utils::FileName::fromString(baseDir);
     switch (dpi) {
     case HighDPI:
-        fileName.appendPath(QLatin1String("res/drawable-hdpi/icon.png"));
+        return QString("/res/drawable-hdpi/icon.png");
+    case MediumDPI:
+        return QString("/res/drawable-mdpi/icon.png");
+    case LowDPI:
+        return QString("/res/drawable-ldpi/icon.png");
+    }
+    return {};
+}
+
+QSize AndroidManifestEditorWidget::iconSize(IconDPI dpi)
+{
+    switch (dpi) {
+    case HighDPI:
+        return QSize(72, 72);
+    case MediumDPI:
+        return QSize(48, 48);
+    case LowDPI:
+        return QSize(32, 32);
+    }
+    return QSize(72, 72);
+}
+
+void AndroidManifestEditorWidget::updateIconPath(const QString &newPath, IconDPI dpi)
+{
+    switch (dpi) {
+    case HighDPI:
+        m_hIconPath = newPath;
         break;
     case MediumDPI:
-        fileName.appendPath(QLatin1String("res/drawable-mdpi/icon.png"));
+        m_mIconPath = newPath;
         break;
     case LowDPI:
-        fileName.appendPath(QLatin1String("res/drawable-ldpi/icon.png"));
+        m_lIconPath = newPath;
         break;
-    default:
-        return QString();
     }
-    return fileName.toString();
 }
 
 QIcon AndroidManifestEditorWidget::icon(const QString &baseDir, IconDPI dpi)
@@ -1242,7 +1328,7 @@ QIcon AndroidManifestEditorWidget::icon(const QString &baseDir, IconDPI dpi)
     if (dpi == LowDPI && !m_lIconPath.isEmpty())
         return QIcon(m_lIconPath);
 
-    QString fileName = iconPath(baseDir, dpi);
+    QString fileName = baseDir + iconPath(dpi);
     if (fileName.isEmpty())
         return QIcon();
     return QIcon(fileName);
@@ -1250,44 +1336,191 @@ QIcon AndroidManifestEditorWidget::icon(const QString &baseDir, IconDPI dpi)
 
 void AndroidManifestEditorWidget::copyIcon(IconDPI dpi, const QString &baseDir, const QString &filePath)
 {
-    if (!QFileInfo::exists(filePath))
+    const QString targetPath = baseDir + iconPath(dpi);
+    if (targetPath.isEmpty()) {
+        qCDebug(androidManifestEditorLog) << "Icon target path empty, cannot copy icon.";
         return;
+    }
+    QFileInfo targetFile(targetPath);
+    if (filePath != targetPath)
+        removeIcon(dpi, baseDir);
+    QImage original(filePath);
+    if (!targetPath.isEmpty() && !original.isNull()) {
+        if (filePath != targetPath) {
+            QDir dir;
+            dir.mkpath(QFileInfo(targetPath).absolutePath());
+            QSize targetSize = iconSize(dpi);
+            QImage scaled = original.scaled(targetSize.width(), targetSize.height(),
+                                            Qt::KeepAspectRatio, Qt::SmoothTransformation);
+            toggleIconScaleWarning(dpi, scaled.width() > original.width() || scaled.height() > original.height());
+            scaled.save(targetPath);
+        }
+        updateIconPath(targetPath, dpi);
+    }
+}
 
-    const QString targetPath = iconPath(baseDir, dpi);
-    QFile::remove(targetPath);
-    QDir dir;
-    dir.mkpath(QFileInfo(targetPath).absolutePath());
-    QFile::copy(filePath, targetPath);
+void AndroidManifestEditorWidget::removeIcon(IconDPI dpi, const QString &baseDir)
+{
+    const QString targetPath = baseDir + iconPath(dpi);
+    if (targetPath.isEmpty()) {
+        qCDebug(androidManifestEditorLog) << "Icon target path empty, cannot remove icon.";
+        return;
+    }
+    QFileInfo targetFile(targetPath);
+    if (targetFile.exists()) {
+        QDir rmRf(targetFile.absoluteDir());
+        rmRf.removeRecursively();
+    }
+    toggleIconScaleWarning(dpi, false);
+}
+
+void AndroidManifestEditorWidget::toggleIconScaleWarning(IconDPI dpi, bool visible)
+{
+    switch (dpi) {
+    case HighDPI:
+        m_hIconScaleWarningLabel->setVisible(visible);
+        break;
+    case MediumDPI:
+        m_mIconScaleWarningLabel->setVisible(visible);
+        break;
+    case LowDPI:
+        m_lIconScaleWarningLabel->setVisible(visible);
+        break;
+    }
+}
+
+const auto fileDialogIconFiles = QWidget::tr("Images (*.png *.jpg *.webp *.svg)");
+
+void AndroidManifestEditorWidget::setMasterIcon()
+{
+    QString file = QFileDialog::getOpenFileName(this, tr("Choose Master Icon"), QDir::homePath(), fileDialogIconFiles);
+    if (file.isEmpty())
+        return;
+    QString baseDir = m_textEditorWidget->textDocument()->filePath().toFileInfo().absolutePath();
+    copyIcon(LowDPI, baseDir, file);
+    copyIcon(MediumDPI, baseDir, file);
+    copyIcon(HighDPI, baseDir, file);
+    m_lIconButton->setIcon(icon(baseDir, LowDPI));
+    m_mIconButton->setIcon(icon(baseDir, MediumDPI));
+    m_hIconButton->setIcon(icon(baseDir, HighDPI));
+    syncToEditor();
 }
 
 void AndroidManifestEditorWidget::setLDPIIcon()
 {
-    QString file = QFileDialog::getOpenFileName(this, tr("Choose Low DPI Icon"), QDir::homePath(), tr("PNG images (*.png)"));
+    QString file = QFileDialog::getOpenFileName(this, tr("Choose Low DPI Icon"), QDir::homePath(), fileDialogIconFiles);
     if (file.isEmpty())
         return;
     m_lIconPath = file;
-    m_lIconButton->setIcon(QIcon(file));
-    setDirty(true);
+    QString baseDir = m_textEditorWidget->textDocument()->filePath().toFileInfo().absolutePath();
+    copyIcon(LowDPI, baseDir, m_lIconPath);
+    m_lIconButton->setIcon(icon(baseDir, LowDPI));
+    syncToEditor();
 }
 
 void AndroidManifestEditorWidget::setMDPIIcon()
 {
-    QString file = QFileDialog::getOpenFileName(this, tr("Choose Medium DPI Icon"), QDir::homePath(), tr("PNG images (*.png)"));
+    QString file = QFileDialog::getOpenFileName(this, tr("Choose Medium DPI Icon"), QDir::homePath(), fileDialogIconFiles);
     if (file.isEmpty())
         return;
     m_mIconPath = file;
-    m_mIconButton->setIcon(QIcon(file));
-    setDirty(true);
+    QString baseDir = m_textEditorWidget->textDocument()->filePath().toFileInfo().absolutePath();
+    copyIcon(MediumDPI, baseDir, m_mIconPath);
+    m_mIconButton->setIcon(icon(baseDir, MediumDPI));
+    syncToEditor();
 }
 
 void AndroidManifestEditorWidget::setHDPIIcon()
 {
-    QString file = QFileDialog::getOpenFileName(this, tr("Choose High DPI Icon"), QDir::homePath(), tr("PNG images (*.png)"));
+    QString file = QFileDialog::getOpenFileName(this, tr("Choose High DPI Icon"), QDir::homePath(), fileDialogIconFiles);
     if (file.isEmpty())
         return;
     m_hIconPath = file;
-    m_hIconButton->setIcon(QIcon(file));
-    setDirty(true);
+    QString baseDir = m_textEditorWidget->textDocument()->filePath().toFileInfo().absolutePath();
+    copyIcon(HighDPI, baseDir, m_hIconPath);
+    m_hIconButton->setIcon(icon(baseDir, HighDPI));
+    syncToEditor();
+}
+
+void AndroidManifestEditorWidget::clearLDPIIcon()
+{
+    m_lIconPath.clear();
+    m_lIconButton->setIcon(QIcon());
+    QString baseDir = m_textEditorWidget->textDocument()->filePath().toFileInfo().absolutePath();
+    removeIcon(LowDPI, baseDir);
+    syncToEditor();
+}
+
+void AndroidManifestEditorWidget::clearMDPIIcon()
+{
+    m_mIconPath.clear();
+    m_mIconButton->setIcon(QIcon());
+    QString baseDir = m_textEditorWidget->textDocument()->filePath().toFileInfo().absolutePath();
+    removeIcon(MediumDPI, baseDir);
+    syncToEditor();
+}
+
+void AndroidManifestEditorWidget::clearHDPIIcon()
+{
+    m_hIconPath.clear();
+    m_hIconButton->setIcon(QIcon());
+    QString baseDir = m_textEditorWidget->textDocument()->filePath().toFileInfo().absolutePath();
+    removeIcon(HighDPI, baseDir);
+    syncToEditor();
+}
+
+void AndroidManifestEditorWidget::createDPIButton(QHBoxLayout *layout,
+                                                  QWidget *parent,
+                                                  QToolButton *&button,
+                                                  const QSize &buttonSize,
+                                                  const QString &title,
+                                                  const QString &tooltip,
+                                                  QToolButton **clearButton,
+                                                  QLabel **scaleWarningLabel)
+{
+    auto iconLayout = new QVBoxLayout();
+    auto iconTitle = new QLabel(title, parent);
+    auto iconButtonLayout = new QGridLayout();
+    button = new QToolButton(parent);
+    button->setMinimumSize(buttonSize);
+    button->setMaximumSize(buttonSize);
+    button->setToolTip(tooltip);
+    button->setIconSize(buttonSize);
+    QSize clearAndWarningSize(16, 16);
+    if (clearButton) {
+        *clearButton = new QToolButton(parent);
+        (*clearButton)->setMinimumSize(clearAndWarningSize);
+        (*clearButton)->setMaximumSize(clearAndWarningSize);
+        (*clearButton)->setIcon(Utils::Icons::CLOSE_FOREGROUND.icon());
+    }
+    if (scaleWarningLabel) {
+        *scaleWarningLabel = new QLabel(parent);
+        (*scaleWarningLabel)->setMinimumSize(clearAndWarningSize);
+        (*scaleWarningLabel)->setMaximumSize(clearAndWarningSize);
+        (*scaleWarningLabel)->setPixmap(Utils::Icons::WARNING.icon().pixmap(clearAndWarningSize));
+        (*scaleWarningLabel)->setToolTip(tr("Icon scaled up"));
+        (*scaleWarningLabel)->setVisible(false);
+    }
+    auto label = new QLabel(tr("Click to select"), parent);
+    iconLayout->addWidget(iconTitle);
+    iconLayout->setAlignment(iconTitle, Qt::AlignHCenter);
+    iconButtonLayout->setColumnMinimumWidth(0, 16);
+    iconButtonLayout->addWidget(button, 0, 1, 1, 3);
+    iconButtonLayout->setAlignment(button, Qt::AlignVCenter);
+    if (clearButton) {
+        iconButtonLayout->addWidget(*clearButton, 0, 4, 1, 1);
+        iconButtonLayout->setAlignment(*clearButton, Qt::AlignTop);
+    }
+    if (scaleWarningLabel) {
+        iconButtonLayout->addWidget(*scaleWarningLabel, 0, 0, 1, 1);
+        iconButtonLayout->setAlignment(*scaleWarningLabel, Qt::AlignTop);
+    }
+    iconLayout->addLayout(iconButtonLayout);
+    iconLayout->setAlignment(iconButtonLayout, Qt::AlignHCenter);
+    iconLayout->addWidget(label);
+    iconLayout->setAlignment(label, Qt::AlignHCenter);
+
+    layout->addLayout(iconLayout);
 }
 
 void AndroidManifestEditorWidget::defaultPermissionOrFeatureCheckBoxClicked()

@@ -36,6 +36,7 @@
 
 #include <QFile>
 #include <QJsonDocument>
+#include <QJsonObject>
 #include <QMessageBox>
 #include <QRegularExpression>
 #include <QSettings>
@@ -240,10 +241,10 @@ QStringList GerritServer::curlArguments() const
 
 int GerritServer::testConnection()
 {
-    static GitClient *const client = GitPlugin::client();
+    static GitClient *const client = GitClient::instance();
     const QStringList arguments = curlArguments() << (url(RestUrl) + accountUrlC);
     const SynchronousProcessResponse resp = client->vcsFullySynchronousExec(
-                QString(), FileName::fromString(curlBinary), arguments,
+                QString(), {curlBinary, arguments},
                 Core::ShellCommand::NoOutput);
     if (resp.result == SynchronousProcessResponse::Finished) {
         QString output = resp.stdOut();
@@ -332,7 +333,7 @@ bool GerritServer::resolveRoot()
 
 void GerritServer::resolveVersion(const GerritParameters &p, bool forceReload)
 {
-    static GitClient *const client = GitPlugin::client();
+    static GitClient *const client = GitClient::instance();
     QSettings *settings = Core::ICore::settings();
     const QString fullVersionKey = "Gerrit/" + host + '/' + versionKey;
     version = settings->value(fullVersionKey).toString();
@@ -345,7 +346,7 @@ void GerritServer::resolveVersion(const GerritParameters &p, bool forceReload)
             arguments << p.portFlag << QString::number(port);
         arguments << hostArgument() << "gerrit" << "version";
         const SynchronousProcessResponse resp = client->vcsFullySynchronousExec(
-                    QString(), FileName::fromString(p.ssh), arguments,
+                    QString(), {p.ssh, arguments},
                     Core::ShellCommand::NoOutput);
         QString stdOut = resp.stdOut().trimmed();
         stdOut.remove("gerrit version ");
@@ -353,7 +354,7 @@ void GerritServer::resolveVersion(const GerritParameters &p, bool forceReload)
     } else {
         const QStringList arguments = curlArguments() << (url(RestUrl) + versionUrlC);
         const SynchronousProcessResponse resp = client->vcsFullySynchronousExec(
-                    QString(), FileName::fromString(curlBinary), arguments,
+                    QString(), {curlBinary, arguments},
                     Core::ShellCommand::NoOutput);
         // REST endpoint for version is only available from 2.8 and up. Do not consider invalid
         // if it fails.

@@ -76,6 +76,9 @@ public:
     void selectedNodesChanged(const QList<ModelNode> &selectedNodeList,
                               const QList<ModelNode> &lastSelectedNodeList) override;
 
+    void bindingPropertiesChanged(const QList<BindingProperty>& propertyList,
+                                  PropertyChangeFlags propertyChange) override;
+
     void documentMessagesChanged(const QList<DocumentMessage> &errors, const QList<DocumentMessage> &warnings) override;
 
     void customNotification(const AbstractView *view, const QString &identifier, const QList<ModelNode> &nodeList, const QList<QVariant> &data) override;
@@ -123,14 +126,14 @@ protected:
     void delayedReset();
     bool isMoveToolAvailable() const;
 
-private: //functions
+private:
     void setupFormEditorItemTree(const QmlItemNode &qmlItemNode);
     void removeNodeFromScene(const QmlItemNode &qmlItemNode);
     void hideNodeFromScene(const QmlItemNode &qmlItemNode);
     void createFormEditorWidget();
     void temporaryBlockView();
+    void resetNodeInstanceView();
 
-private: //variables
     QPointer<FormEditorWidget> m_formEditorWidget;
     QPointer<FormEditorScene> m_scene;
     QList<AbstractCustomTool*> m_customToolList;

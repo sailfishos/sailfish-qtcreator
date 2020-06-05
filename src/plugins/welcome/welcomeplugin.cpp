@@ -53,7 +53,6 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QMouseEvent>
-#include <QOpenGLWidget>
 #include <QPainter>
 #include <QScrollArea>
 #include <QStackedWidget>
@@ -88,7 +87,6 @@ static QFont sizedFont(int size, const QWidget *widget, bool underline = false)
 static QPalette lightText()
 {
     QPalette pal;
-    pal.setColor(QPalette::Foreground, themeColor(Theme::Welcome_ForegroundPrimaryColor));
     pal.setColor(QPalette::WindowText, themeColor(Theme::Welcome_ForegroundPrimaryColor));
     return pal;
 }
@@ -124,7 +122,7 @@ private:
     Id m_activePage;
 };
 
-class WelcomePlugin : public ExtensionSystem::IPlugin
+class WelcomePlugin final : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "Welcome.json")
@@ -199,7 +197,7 @@ public:
     void enterEvent(QEvent *) override
     {
         QPalette pal;
-        pal.setColor(QPalette::Background, themeColor(Theme::Welcome_HoverColor));
+        pal.setColor(QPalette::Window, themeColor(Theme::Welcome_HoverColor));
         setPalette(pal);
         m_label->setFont(sizedFont(11, m_label, true));
         update();
@@ -208,7 +206,7 @@ public:
     void leaveEvent(QEvent *) override
     {
         QPalette pal;
-        pal.setColor(QPalette::Background, themeColor(Theme::Welcome_BackgroundColor));
+        pal.setColor(QPalette::Window, themeColor(Theme::Welcome_BackgroundColor));
         setPalette(pal);
         m_label->setFont(sizedFont(11, m_label, false));
         update();
@@ -319,7 +317,7 @@ WelcomeMode::WelcomeMode()
     setContext(Context(Constants::C_WELCOME_MODE));
 
     QPalette palette = creatorTheme()->palette();
-    palette.setColor(QPalette::Background, themeColor(Theme::Welcome_BackgroundColor));
+    palette.setColor(QPalette::Window, themeColor(Theme::Welcome_BackgroundColor));
 
     m_modeWidget = new QWidget;
     m_modeWidget->setPalette(palette);
@@ -348,16 +346,10 @@ WelcomeMode::WelcomeMode()
     hbox->setStretchFactor(m_pageStack, 10);
 
     auto layout = new QVBoxLayout(m_modeWidget);
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     layout->addWidget(new StyledBar(m_modeWidget));
     layout->addItem(hbox);
-
-    if (Utils::HostOsInfo::isMacHost()) { // workaround QTBUG-61384
-        auto openglWidget = new QOpenGLWidget;
-        openglWidget->hide();
-        layout->addWidget(openglWidget);
-    }
 
     setWidget(m_modeWidget);
 }
@@ -421,14 +413,21 @@ void WelcomeMode::addPage(IWelcomePage *page)
     pageButton->setText(page->title());
     pageButton->setActiveChecker([this, pageId] { return m_activePage == pageId; });
 
-    m_pluginList.append(page);
-    m_pageButtons.append(pageButton);
+    m_pluginList.insert(idx, page);
+    m_pageButtons.insert(idx, pageButton);
 
     m_sideBar->m_pluginButtons->insertWidget(idx, pageButton);
 
     QWidget *stackPage = page->createWidget();
     stackPage->setAutoFillBackground(true);
     m_pageStack->insertWidget(idx, stackPage);
+
+    connect(page, &QObject::destroyed, this, [this, page, stackPage, pageButton] {
+        m_pluginList.removeOne(page);
+        m_pageButtons.removeOne(pageButton);
+        delete pageButton;
+        delete stackPage;
+    });
 
     auto onClicked = [this, pageId, stackPage] {
         m_activePage = pageId;

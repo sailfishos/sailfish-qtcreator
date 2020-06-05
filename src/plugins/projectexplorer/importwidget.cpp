@@ -29,6 +29,7 @@
 #include <utils/pathchooser.h>
 
 #include <QPushButton>
+#include <QTimer>
 #include <QVBoxLayout>
 
 namespace ProjectExplorer {
@@ -60,22 +61,39 @@ ImportWidget::ImportWidget(QWidget *parent) :
     layout->addWidget(importButton);
 
     connect(importButton, &QAbstractButton::clicked, this, &ImportWidget::handleImportRequest);
+    connect(m_pathChooser->lineEdit(), &QLineEdit::returnPressed, this, [this] {
+        if (m_pathChooser->isValid()) {
+            m_ownsReturnKey = true;
+            handleImportRequest();
+
+            // The next return should trigger the "Configure" button.
+            QTimer::singleShot(0, this, [this] {
+                setFocus();
+                m_ownsReturnKey = false;
+            });
+        }
+    });
 
     detailsWidget->setWidget(widget);
 }
 
-void ImportWidget::setCurrentDirectory(const Utils::FileName &dir)
+void ImportWidget::setCurrentDirectory(const Utils::FilePath &dir)
 {
-    m_pathChooser->setBaseFileName(dir);
+    m_pathChooser->setBaseDirectory(dir);
     m_pathChooser->setFileName(dir);
+}
+
+bool ImportWidget::ownsReturnKey() const
+{
+    return m_ownsReturnKey;
 }
 
 void ImportWidget::handleImportRequest()
 {
-    Utils::FileName dir = m_pathChooser->fileName();
+    Utils::FilePath dir = m_pathChooser->fileName();
     emit importFrom(dir);
 
-    m_pathChooser->setFileName(m_pathChooser->baseFileName());
+    m_pathChooser->setFileName(m_pathChooser->baseDirectory());
 }
 
 } // namespace Internal

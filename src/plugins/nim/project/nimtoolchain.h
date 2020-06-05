@@ -33,39 +33,37 @@ namespace Nim {
 class NimToolChain : public ProjectExplorer::ToolChain
 {
 public:
-    NimToolChain(Detection d);
-    NimToolChain(Core::Id typeId, Detection d);
+    NimToolChain();
+    explicit NimToolChain(Core::Id typeId);
 
-    QString typeDisplayName() const override;
     ProjectExplorer::Abi targetAbi() const override;
     bool isValid() const override;
 
     MacroInspectionRunner createMacroInspectionRunner() const override;
     ProjectExplorer::Macros predefinedMacros(const QStringList &flags) const final;
     Utils::LanguageExtensions languageExtensions(const QStringList &flags) const final;
-    ProjectExplorer::WarningFlags warningFlags(const QStringList &flags) const final;
+    Utils::WarningFlags warningFlags(const QStringList &flags) const final;
 
-    BuiltInHeaderPathsRunner createBuiltInHeaderPathsRunner() const override;
+    BuiltInHeaderPathsRunner createBuiltInHeaderPathsRunner(
+            const Utils::Environment &) const override;
     ProjectExplorer::HeaderPaths builtInHeaderPaths(const QStringList &flags,
-                                                    const Utils::FileName &sysRoot) const final;
+                                                    const Utils::FilePath &sysRoot,
+                                                    const Utils::Environment &) const final;
     void addToEnvironment(Utils::Environment &env) const final;
-    QString makeCommand(const Utils::Environment &env) const final;
-    Utils::FileName compilerCommand() const final;
+    Utils::FilePath makeCommand(const Utils::Environment &env) const final;
+    Utils::FilePath compilerCommand() const final;
     QString compilerVersion() const;
-    void setCompilerCommand(const Utils::FileName &compilerCommand);
+    void setCompilerCommand(const Utils::FilePath &compilerCommand);
     ProjectExplorer::IOutputParser *outputParser() const final;
     std::unique_ptr<ProjectExplorer::ToolChainConfigWidget> createConfigurationWidget() final;
-    ProjectExplorer::ToolChain *clone() const final;
 
     QVariantMap toMap() const final;
     bool fromMap(const QVariantMap &data) final;
 
-    static bool parseVersion(const Utils::FileName &path, std::tuple<int, int, int> &version);
+    static bool parseVersion(const Utils::FilePath &path, std::tuple<int, int, int> &version);
 
 private:
-    NimToolChain(const NimToolChain &other);
-
-    Utils::FileName m_compilerCommand;
+    Utils::FilePath m_compilerCommand;
     std::tuple<int, int, int> m_version;
 };
 

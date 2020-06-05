@@ -37,19 +37,19 @@ class QScxmlcGenerator : public ProjectExplorer::ProcessExtraCompiler
 {
     Q_OBJECT
 public:
-    QScxmlcGenerator(const ProjectExplorer::Project *project, const Utils::FileName &source,
-                     const Utils::FileNameList &targets, QObject *parent = 0);
+    QScxmlcGenerator(const ProjectExplorer::Project *project, const Utils::FilePath &source,
+                     const Utils::FilePaths &targets, QObject *parent = nullptr);
 
 protected:
-    Utils::FileName command() const override;
+    Utils::FilePath command() const override;
     QStringList arguments() const override;
-    Utils::FileName workingDirectory() const override;
+    Utils::FilePath workingDirectory() const override;
 
 private:
-    Utils::FileName tmpFile() const;
+    Utils::FilePath tmpFile() const;
     ProjectExplorer::FileNameToContentsHash handleProcessFinished(QProcess *process) override;
     bool prepareToRun(const QByteArray &sourceContents) override;
-    QList<ProjectExplorer::Task> parseIssues(const QByteArray &processStderr) override;
+    ProjectExplorer::Tasks parseIssues(const QByteArray &processStderr) override;
 
     Utils::TemporaryDirectory m_tmpdir;
     QString m_header;
@@ -60,15 +60,15 @@ class QScxmlcGeneratorFactory : public ProjectExplorer::ExtraCompilerFactory
 {
     Q_OBJECT
 public:
-    QScxmlcGeneratorFactory(QObject *parent = 0) : ExtraCompilerFactory(parent) {}
+    QScxmlcGeneratorFactory() = default;
 
     ProjectExplorer::FileType sourceType() const override;
 
     QString sourceTag() const override;
 
     ProjectExplorer::ExtraCompiler *create(const ProjectExplorer::Project *project,
-                                           const Utils::FileName &source,
-                                           const Utils::FileNameList &targets) override;
+                                           const Utils::FilePath &source,
+                                           const Utils::FilePaths &targets) override;
 };
 
 } // QtSupport

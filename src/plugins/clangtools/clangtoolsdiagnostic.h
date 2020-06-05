@@ -44,10 +44,8 @@ public:
     }
 
     QString message;
-    QString extendedMessage;
     Debugger::DiagnosticLocation location;
     QVector<Debugger::DiagnosticLocation> ranges;
-    int depth = 0;
     bool isFixIt = false;
 };
 
@@ -56,15 +54,18 @@ class Diagnostic
 public:
     bool isValid() const;
 
+    QString name;
     QString description;
     QString category;
     QString type;
-    QString issueContextKind;
-    QString issueContext;
     Debugger::DiagnosticLocation location;
     QVector<ExplainingStep> explainingSteps;
     bool hasFixits = false;
 };
+
+bool operator==(const Diagnostic &lhs, const Diagnostic &rhs);
+
+using Diagnostics = QList<Diagnostic>;
 
 quint32 qHash(const Diagnostic &diagnostic);
 

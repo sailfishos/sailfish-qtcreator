@@ -75,7 +75,7 @@ class tst_c99: public QObject
 
         virtual void report(int level,
                             const StringLiteral *fileName,
-                            unsigned line, unsigned column,
+                            int line, int column,
                             const char *format, va_list ap)
         {
             if (! errors)
@@ -83,11 +83,10 @@ class tst_c99: public QObject
 
             static const char *const pretty[] = {"warning", "error", "fatal"};
 
-            QString str;
-            str.sprintf("%s:%d:%d: %s: ", fileName->chars(), line, column, pretty[level]);
+            QString str = QString::asprintf("%s:%d:%d: %s: ", fileName->chars(), line, column, pretty[level]);
             errors->append(str.toUtf8());
 
-            str.vsprintf(format, ap);
+            str += QString::vasprintf(format, ap);
             errors->append(str.toUtf8());
 
             errors->append('\n');

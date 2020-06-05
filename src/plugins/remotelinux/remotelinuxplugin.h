@@ -30,7 +30,7 @@
 namespace RemoteLinux {
 namespace Internal {
 
-class RemoteLinuxPlugin : public ExtensionSystem::IPlugin
+class RemoteLinuxPlugin final : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "RemoteLinux.json")
@@ -41,7 +41,6 @@ public:
 
 private:
     bool initialize(const QStringList &arguments, QString *errorMessage) final;
-    void extensionsInitialized() final {}
 };
 
 } // namespace Internal

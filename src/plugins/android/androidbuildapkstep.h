@@ -43,16 +43,14 @@ class ANDROID_EXPORT AndroidBuildApkStep : public ProjectExplorer::AbstractProce
     Q_OBJECT
 
 public:
-    AndroidBuildApkStep(ProjectExplorer::BuildStepList *bc);
-
-    static AndroidBuildApkStep *findInBuild(const ProjectExplorer::BuildConfiguration *bc);
+    AndroidBuildApkStep(ProjectExplorer::BuildStepList *bc, Core::Id id);
 
     bool fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
 
     // signing
-    Utils::FileName keystorePath();
-    void setKeystorePath(const Utils::FileName &path);
+    Utils::FilePath keystorePath();
+    void setKeystorePath(const Utils::FilePath &path);
     void setKeystorePassword(const QString &pwd);
     void setCertificateAlias(const QString &alias);
     void setCertificatePassword(const QString &pwd);
@@ -60,6 +58,9 @@ public:
     QAbstractItemModel *keystoreCertificates();
     bool signPackage() const;
     void setSignPackage(bool b);
+
+    bool buildAAB() const;
+    void setBuildAAB(bool aab);
 
     bool openPackageLocation() const;
     void setOpenPackageLocation(bool open);
@@ -76,6 +77,7 @@ public:
     QString buildTargetSdk() const;
     void setBuildTargetSdk(const QString &sdk);
 
+    QVariant data(Core::Id id) const override;
 private:
     Q_INVOKABLE void showInGraphicalShell();
 
@@ -88,6 +90,7 @@ private:
 
     void doRun() override;
 
+    bool m_buildAAB = false;
     bool m_signPackage = false;
     bool m_verbose = false;
     bool m_useMinistro = false;
@@ -96,15 +99,16 @@ private:
     bool m_addDebugger = true;
     QString m_buildTargetSdk;
 
-    Utils::FileName m_keystorePath;
+    Utils::FilePath m_keystorePath;
     QString m_keystorePasswd;
     QString m_certificateAlias;
     QString m_certificatePasswd;
-    QString m_apkPath;
+    QString m_packagePath;
 
     QString m_command;
     QString m_argumentsPasswordConcealed;
     bool m_skipBuilding = false;
+    QString m_inputFile;
 };
 
 namespace Internal {

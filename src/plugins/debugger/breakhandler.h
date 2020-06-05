@@ -76,10 +76,10 @@ public:
     void removeBreakpointFromModel();
 
     void updateLineNumber(int lineNumber);
-    void updateFileName(const Utils::FileName &fileName);
+    void updateFileName(const Utils::FilePath &fileName);
 
     QString displayName() const;
-    QString markerFileName() const;
+    Utils::FilePath markerFileName() const;
     QString toolTip() const;
     int markerLineNumber() const;
     int modelId() const;
@@ -93,7 +93,6 @@ private:
     friend class BreakHandler;
     friend class BreakpointManager;
     friend class BreakpointMarker;
-    friend class GlobalBreakpointMarker;
 
     void updateMarker();
     void updateMarkerIcon();
@@ -111,7 +110,7 @@ private:
 using GlobalBreakpoint = QPointer<GlobalBreakpointItem>;
 using GlobalBreakpoints = QList<GlobalBreakpoint>;
 
-class BreakpointItem : public QObject, public Utils::TypedTreeItem<SubBreakpointItem>
+class BreakpointItem final : public QObject, public Utils::TypedTreeItem<SubBreakpointItem>
 {
     Q_DECLARE_TR_FUNCTIONS(Debugger::Internal::BreakHandler)
 
@@ -123,11 +122,11 @@ public:
 
     QIcon icon() const;
 
-    void setMarkerFileAndLine(const QString &fileName, int lineNumber);
+    void setMarkerFileAndLine(const Utils::FilePath &fileName, int lineNumber);
     bool needsChange() const;
 
     SubBreakpoint findOrCreateSubBreakpoint(const QString &responseId);
-    QString markerFileName() const;
+    Utils::FilePath markerFileName() const;
     int markerLineNumber() const;
 
     const BreakpointParameters &requestedParameters() const;
@@ -147,7 +146,7 @@ public:
     QString condition() const { return m_parameters.condition; }
     int ignoreCount() const { return m_parameters.ignoreCount; }
     int threadSpec() const { return m_parameters.threadSpec; }
-    QString fileName() const { return m_parameters.fileName; }
+    Utils::FilePath fileName() const { return m_parameters.fileName; }
     QString functionName() const { return m_parameters.functionName; }
     QString expression() const { return m_parameters.expression; }
     QString message() const { return m_parameters.message; }
@@ -161,7 +160,7 @@ public:
     bool isPending() const { return m_parameters.pending; }
 
     void setLineNumber(int lineNumber) { m_parameters.lineNumber = lineNumber; }
-    void setFileName(const QString &fileName) { m_parameters.fileName = fileName; }
+    void setFileName(const Utils::FilePath &fileName) { m_parameters.fileName = fileName; }
     void setFunctionName(const QString &functionName) { m_parameters.functionName = functionName; }
     void setPending(bool pending);
     void setResponseId(const QString &str) { m_responseId = str; }
@@ -191,7 +190,7 @@ public:
     void deleteGlobalOrThisBreakpoint();
 
     void updateLineNumber(int lineNumber);
-    void updateFileName(const Utils::FileName &fileName);
+    void updateFileName(const Utils::FilePath &fileName);
 
     const GlobalBreakpoint globalBreakpoint() const;
     void gotoState(BreakpointState target, BreakpointState assumedCurrent);
@@ -313,7 +312,6 @@ private:
 
     void loadSessionData();
     void saveSessionData();
-    void aboutToUnloadSession();
 
     bool contextMenuEvent(const Utils::ItemViewEvent &ev);
     void gotoLocation(const GlobalBreakpoint &gbp) const;

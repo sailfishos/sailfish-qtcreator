@@ -25,51 +25,15 @@
 
 #pragma once
 
-#include "ui_docsettingspage.h"
 #include <coreplugin/dialogs/ioptionspage.h>
-
-#include <QList>
-#include <QPointer>
-
-QT_FORWARD_DECLARE_CLASS(QSortFilterProxyModel)
-QT_FORWARD_DECLARE_CLASS(QModelIndex)
 
 namespace Help {
 namespace Internal {
 
-class DocModel;
-
-class DocSettingsPage : public Core::IOptionsPage
+class DocSettingsPage final : public Core::IOptionsPage
 {
-    Q_OBJECT
-
 public:
     DocSettingsPage();
-
-    QWidget *widget() override;
-    void apply() override;
-    void finish() override;
-
-private:
-    void addDocumentation();
-
-    bool eventFilter(QObject *object, QEvent *event) override;
-    void removeDocumentation(const QList<QModelIndex> &items);
-
-    QList<QModelIndex> currentSelection() const;
-
-    Ui::DocSettingsPage m_ui;
-    QPointer<QWidget> m_widget;
-
-    QString m_recentDialogPath;
-
-    using NameSpaceToPathHash = QHash<QString, QString>;
-    NameSpaceToPathHash m_filesToRegister;
-    QHash<QString, bool> m_filesToRegisterUserManaged;
-    NameSpaceToPathHash m_filesToUnregister;
-
-    QSortFilterProxyModel *m_proxyModel = nullptr;
-    DocModel *m_model = nullptr;
 };
 
 } // namespace Help

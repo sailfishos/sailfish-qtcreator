@@ -45,6 +45,7 @@ class CreateSceneCommand;
 class CreateInstancesCommand;
 class ClearSceneCommand;
 class ReparentInstancesCommand;
+class Update3dViewStateCommand;
 class ChangeFileUrlCommand;
 class ChangeValuesCommand;
 class ChangeAuxiliaryCommand;
@@ -56,17 +57,21 @@ class CompleteComponentCommand;
 class ChangeStateCommand;
 class ChangeNodeSourceCommand;
 class EndPuppetCommand;
-
+class ChangeSelectionCommand;
+class PuppetToCreatorCommand;
+class InputEventCommand;
+class View3DActionCommand;
 
 class NodeInstanceClientProxy : public QObject, public NodeInstanceClientInterface
 {
     Q_OBJECT
 
 public:
-    NodeInstanceClientProxy(QObject *parent = 0);
+    NodeInstanceClientProxy(QObject *parent = nullptr);
 
     void informationChanged(const InformationChangedCommand &command) override;
     void valuesChanged(const ValuesChangedCommand &command) override;
+    void valuesModified(const ValuesModifiedCommand &command) override;
     void pixmapChanged(const PixmapChangedCommand &command) override;
     void childrenChanged(const ChildrenChangedCommand &command) override;
     void statePreviewImagesChanged(const StatePreviewImageChangedCommand &command) override;
@@ -74,6 +79,8 @@ public:
     void token(const TokenCommand &command) override;
     void debugOutput(const DebugOutputCommand &command) override;
     void puppetAlive(const PuppetAliveCommand &command);
+    void selectionChanged(const ChangeSelectionCommand &command) override;
+    void handlePuppetToCreatorCommand(const PuppetToCreatorCommand &command) override;
 
     void flush() override;
     void synchronizeWithClientProcess() override;
@@ -91,6 +98,7 @@ protected:
     void changeFileUrl(const ChangeFileUrlCommand &command);
     void createScene(const CreateSceneCommand &command);
     void clearScene(const ClearSceneCommand &command);
+    void update3DViewState(const Update3dViewStateCommand &command);
     void removeInstances(const RemoveInstancesCommand &command);
     void removeProperties(const RemovePropertiesCommand &command);
     void changePropertyBindings(const ChangeBindingsCommand &command);
@@ -104,7 +112,10 @@ protected:
     void removeSharedMemory(const RemoveSharedMemoryCommand &command);
     void redirectToken(const TokenCommand &command);
     void redirectToken(const EndPuppetCommand &command);
+    void changeSelection(const ChangeSelectionCommand &command);
     static QVariant readCommandFromIOStream(QIODevice *ioDevice, quint32 *readCommandCounter, quint32 *blockSize);
+    void inputEvent(const InputEventCommand &command);
+    void view3DAction(const View3DActionCommand &command);
 
 protected slots:
     void readDataStream();

@@ -33,12 +33,23 @@
 #include <QUrl>
 #include <QStandardItemModel>
 
+#include <functional>
+
 QT_FORWARD_DECLARE_CLASS(QHelpEngine)
 
 class BookmarkManager;
 
 namespace Help {
 namespace Internal {
+
+class HelpViewer;
+
+struct HelpViewerFactory
+{
+    QByteArray id;
+    QString displayName;
+    std::function<HelpViewer *()> create;
+};
 
 class LocalHelpManager : public QObject
 {
@@ -78,6 +89,9 @@ public:
     static bool returnOnClose();
     static void setReturnOnClose(bool returnOnClose);
 
+    static bool isScrollWheelZoomingEnabled();
+    static void setScrollWheelZoomingEnabled(bool enabled);
+
     static QStringList lastShownPages();
     static void setLastShownPages(const QStringList &pages);
 
@@ -86,6 +100,12 @@ public:
 
     static int lastSelectedTab();
     static void setLastSelectedTab(int index);
+
+    static HelpViewerFactory defaultViewerBackend();
+    static QVector<HelpViewerFactory> viewerBackends();
+    static HelpViewerFactory viewerBackend();
+    static void setViewerBackendId(const QByteArray &id);
+    static QByteArray viewerBackendId();
 
     static void setupGuiHelpEngine();
     static void setEngineNeedsUpdate();
@@ -102,10 +122,15 @@ public:
 
     static void updateFilterModel();
 
+    static bool canOpenOnlineHelp(const QUrl &url);
+    static bool openOnlineHelp(const QUrl &url);
+
 signals:
     void filterIndexChanged(int index);
     void fallbackFontChanged(const QFont &font);
     void returnOnCloseChanged();
+    void scrollWheelZoomingEnabledChanged(bool enabled);
+    void contextHelpOptionChanged(Core::HelpManager::HelpViewerLocation option);
 
 private:
     static bool m_guiNeedsSetup;

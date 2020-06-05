@@ -1,0 +1,329 @@
+/****************************************************************************
+**
+** Copyright (C) 2020 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \previouspage {Creating a Qt Quick Application}
+    \page creator-writing-program.html
+    \nextpage {Creating a Mobile Application}
+
+    \title Creating a Qt Widget Based Application
+
+    This tutorial describes how to use \QC to create a small Qt application,
+    Text Finder. It is a simplified version of the Qt UI Tools \l{Text Finder
+    Example}. The application user interface is constructed from Qt widgets by
+    using \QD. The application logic is written in C++ by using the code editor.
+
+    \image qtcreator-textfinder-screenshot.png
+
+    \section1 Creating the Text Finder Project
+
+    \list 1
+
+        \li Select \uicontrol File > \uicontrol {New File or Project} >
+            \uicontrol Application (Qt) > \uicontrol {Qt Widgets Application} >
+            \uicontrol Choose.
+
+            \image qtcreator-new-qt-gui-application.png "New File or Project dialog"
+
+            The \uicontrol{Introduction and Project Location} dialog opens.
+
+            \image qtcreator-intro-and-location-qt-gui.png "Introduction and Project Location dialog"
+
+        \li In the \uicontrol{Name} field, type \b {TextFinder}.
+
+        \li In the \uicontrol {Create in} field, enter the path for the project files.
+            For example, \c {C:\Qt\examples}, and then select \uicontrol{Next} (on
+            Windows and Linux) or \uicontrol Continue (on \macos).
+
+            The \uicontrol {Define Build System} dialog opens.
+
+            \image qtcreator-new-project-build-system-qt-gui.png "Define Build System dialog"
+
+        \li In the \uicontrol {Build system} field, select the build system to
+            use for building and running the project: \l qmake,
+            \l {Setting Up CMake}{CMake}, or \l {Setting Up Qbs}{Qbs}.
+
+            The \uicontrol{Class Information} dialog opens.
+
+            \image qtcreator-class-info-qt-gui.png "Class Information dialog"
+
+        \li In the \uicontrol{Class name} field, type \b {TextFinder} as the class
+            name.
+
+        \li In the \uicontrol{Base class} list, select \b {QWidget} as the base
+            class type.
+
+           \note The \uicontrol{Header file}, \uicontrol{Source file} and \uicontrol{Form file}
+            fields are automatically updated to match the name of the class.
+
+            The \uicontrol {Kit Selection} dialog opens.
+
+            \image qtcreator-new-project-qt-versions-qt-gui.png "Kit Selection dialog"
+
+        \li Select build and run \l{glossary-buildandrun-kit}{kits} for your project,
+            and select \uicontrol Next or \uicontrol Continue.
+
+        \li Select \uicontrol Next or \uicontrol Continue.
+
+            The \uicontrol{Project Management} dialog opens.
+
+            \image qtcreator-new-project-summary-qt-gui.png "Project Management dialog"
+
+        \li Review the project settings, and select \uicontrol{Finish} (on Windows and
+            Linux) or \uicontrol Done (on \macos) to create the project.
+
+    \endlist
+
+    \note The project opens in the \uicontrol Edit mode, and these instructions are
+    hidden. To return to these instructions, open the \uicontrol Help mode.
+
+    The TextFinder project now contains the following files:
+
+    \list
+
+        \li main.cpp
+        \li textfinder.h
+        \li textfinder.cpp
+        \li textfinder.ui
+        \li textfinder.pro
+
+    \endlist
+
+    \image qtcreator-textfinder-contents.png "TextFinder project contents"
+
+    The .h and .cpp files come with the necessary boiler plate code.
+    The .pro file is complete.
+
+    \section1 Filling in the Missing Pieces
+
+    Begin by designing the user interface and then move on to filling
+    in the missing code. Finally, add the find functionality.
+
+    \section2 Designing the User Interface
+
+    \image qtcreator-textfinder-ui.png "Text Finder UI"
+
+    \list 1
+
+        \li In the \uicontrol{Editor} mode, double-click the textfinder.ui file in the
+            \uicontrol{Projects} view to launch the integrated \QD.
+
+        \li Drag and drop the following widgets to the form:
+
+        \list
+
+            \li \uicontrol{Label} (QLabel)
+            \li \uicontrol{Line Edit} (QLineEdit)
+            \li \uicontrol{Push Button} (QPushButton)
+
+        \endlist
+
+        \image qtcreator-textfinder-ui-widgets.png "Adding widgets to Text Finder UI"
+
+        \note To easily locate the widgets, use the search box at the top of the
+        \uicontrol Sidebar. For example, to find the \uicontrol Label widget, start typing
+        the word \b label.
+
+        \image qtcreator-textfinder-filter.png "Filter field"
+
+        \li Double-click the \uicontrol{Label} widget and enter the text
+            \b{Keyword}.
+
+        \li Double-click the \uicontrol{Push Button} widget and enter the text
+            \b{Find}.
+
+        \li In the \uicontrol Properties view, change the \uicontrol objectName to
+            \b findButton.
+
+            \image qtcreator-textfinder-objectname.png "Changing object names"
+
+        \li Press \key {Ctrl+A} (or \key {Cmd+A}) to select the widgets and
+            select \uicontrol{Lay out Horizontally} (or press \key {Ctrl+H} on Linux or
+            Windows or \key {Ctrl+Shift+H} on \macos) to apply a horizontal
+            layout (QHBoxLayout).
+
+            \image qtcreator-textfinder-ui-horizontal-layout.png "Applying horizontal layout"
+
+        \li Drag and drop a \uicontrol{Text Edit} widget (QTextEdit) to the form.
+
+        \li Select the screen area, and then select \uicontrol{Lay out Vertically}
+            (or press \key {Ctrl+L}) to apply a vertical layout (QVBoxLayout).
+
+            \image qtcreator-textfinder-ui.png "Text Finder UI"
+
+            Applying the horizontal and vertical layouts ensures that the
+            application UI scales to different screen sizes.
+
+        \li To call a find function when users select the \uicontrol Find button, you
+            use the Qt signals and slots mechanism. A signal is emitted when a
+            particular event occurs and a slot is a function that is called in
+            response to a particular signal. Qt widgets have predefined signals
+            and slots that you can use directly from \QD. To add a slot for the
+            find function:
+
+            \list
+
+                \li Right-click the \uicontrol Find button to open a context-menu.
+
+                \li Select \uicontrol {Go to Slot} > \uicontrol {clicked()}, and
+                    then select \uicontrol OK.
+
+                    A private slot, \c{on_findButton_clicked()}, is added to the
+                    header file, textfinder.h and a private function,
+                    \c{TextFinder::on_findButton_clicked()}, is added to the
+                    source file, textfinder.cpp.
+
+            \endlist
+
+        \li Press \key {Ctrl+S} (or \key {Cmd+S}) to save your changes.
+
+    \endlist
+
+    For more information about designing forms with \QD, see the
+    \l{Qt Designer Manual}.
+
+    \section2 Completing the Header File
+
+    The textfinder.h file already has the necessary #includes, a constructor,
+    a destructor, and the \c{Ui} object. You need to add a private function,
+    \c{loadTextFile()}, to read and display the contents of the input text file
+    in the QTextEdit.
+
+    \list 1
+
+        \li In the \uicontrol{Projects} view in the \uicontrol {Edit view}, double-click the
+            \c{textfinder.h} file to open it for editing.
+
+        \li Add a private function to the \c{private} section, after the
+            \c{Ui::TextFinder} pointer, as illustrated by the following code
+            snippet:
+
+            \snippet textfinder/textfinder.h 0
+
+    \endlist
+
+    \section2 Completing the Source File
+
+    Now that the header file is complete, move on to the source file,
+    textfinder.cpp.
+
+    \list 1
+
+        \li In the \uicontrol{Projects} view in the \uicontrol Edit view, double-click the
+            textfinder.cpp file to open it for editing.
+
+        \li Add code to load a text file using QFile, read it with QTextStream,
+            and then display it on \c{textEdit} with
+            \l{QTextEdit::setPlainText()}.
+            This is illustrated by the following code snippet:
+
+            \snippet textfinder/textfinder.cpp 0
+
+        \li To use QFile and QTextStream, add the following #includes to
+            textfinder.cpp:
+
+            \snippet textfinder/textfinder.cpp 1
+
+        \li For the \c{on_findButton_clicked()} slot, add code to extract the
+            search string and use the \l{QTextEdit::find()} function
+            to look for the search string within the text file. This is
+            illustrated by the following code snippet:
+
+            \snippet textfinder/textfinder.cpp 2
+
+        \li Once both of these functions are complete, add a line to call
+            \c{loadTextFile()} in the constructor, as illustrated by the
+            following code snippet:
+
+            \snippet textfinder/textfinder.cpp 3
+
+    \endlist
+
+    The \c{on_findButton_clicked()} slot is called automatically in
+    the uic generated ui_textfinder.h file by this line of code:
+
+    \code
+    QMetaObject::connectSlotsByName(TextFinder);
+    \endcode
+
+    \section2 Creating a Resource File
+
+    You need a resource file (.qrc) within which you embed the input
+    text file. The input file can be any .txt file with a paragraph of text.
+    Create a text file called input.txt and store it in the textfinder
+    folder.
+
+    To add a resource file:
+
+    \list 1
+
+        \li Select \uicontrol File > \uicontrol {New File or Project} >
+            \uicontrol Qt > \uicontrol {Qt Resource File} > \uicontrol Choose.
+
+            \image qtcreator-add-resource-wizard.png "New File or Project dialog"
+
+            The \uicontrol {Choose the Location} dialog opens.
+
+            \image qtcreator-add-resource-wizard2.png "Choose the Location dialog"
+
+        \li In the \uicontrol{Name} field, enter \b{textfinder}.
+
+        \li In the \uicontrol{Path} field, enter \c{C:\Qt\examples\TextFinder},
+            and select \uicontrol Next or \uicontrol Continue.
+
+            The \uicontrol{Project Management} dialog opens.
+
+            \image qtcreator-add-resource-wizard3.png "Project Management dialog"
+
+
+        \li In the \uicontrol{Add to project} field, select \b{TextFinder.pro}
+            and select \uicontrol{Finish} or \uicontrol Done to open the file
+            in the code editor.
+
+        \li Select \uicontrol Add > \uicontrol {Add Prefix}.
+
+        \li In the \uicontrol{Prefix} field, replace the default prefix with a slash
+            (/).
+
+        \li Select \uicontrol Add > \uicontrol {Add Files}, to locate and add
+            input.txt.
+
+            \image qtcreator-add-resource.png "Editing resource files"
+
+    \endlist
+
+    \section1 Compiling and Running Your Program
+
+    Now that you have all the necessary files, select the
+    \inlineimage run_small.png
+    button to compile and run your program.
+
+*/

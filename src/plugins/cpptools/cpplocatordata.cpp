@@ -44,16 +44,18 @@ void CppLocatorData::onDocumentUpdated(const CPlusPlus::Document::Ptr &document)
 {
     QMutexLocker locker(&m_pendingDocumentsMutex);
 
-    int i = 0, ei = m_pendingDocuments.size();
-    for (; i < ei; ++i) {
+    bool isPending = false;
+    for (int i = 0, ei = m_pendingDocuments.size(); i < ei; ++i) {
         const CPlusPlus::Document::Ptr &doc = m_pendingDocuments.at(i);
-        if (doc->fileName() == document->fileName() && doc->revision() <= document->revision()) {
-            m_pendingDocuments[i] = document;
+        if (doc->fileName() == document->fileName()) {
+            isPending = true;
+            if (document->revision() >= doc->revision())
+                m_pendingDocuments[i] = document;
             break;
         }
     }
 
-    if (i == ei && QFileInfo(document->fileName()).suffix() != "moc")
+    if (!isPending && QFileInfo(document->fileName()).suffix() != "moc")
         m_pendingDocuments.append(document);
 
     flushPendingDocument(false);
@@ -101,10 +103,7 @@ QList<IndexItem::Ptr> CppLocatorData::allIndexItems(
         const QHash<QString, QList<IndexItem::Ptr>> &items) const
 {
     QList<IndexItem::Ptr> result;
-    QHashIterator<QString, QList<IndexItem::Ptr> > it(items);
-    while (it.hasNext()) {
-        it.next();
-        result.append(it.value());
-    }
+    for (const QList<IndexItem::Ptr> &subItems : items)
+        result.append(subItems);
     return result;
 }

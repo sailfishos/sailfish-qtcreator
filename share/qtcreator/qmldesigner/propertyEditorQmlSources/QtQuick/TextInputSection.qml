@@ -27,7 +27,6 @@ import QtQuick 2.1
 import HelperWidgets 2.0
 import QtQuick.Layouts 1.0
 
-
 Section {
     anchors.left: parent.left
     anchors.right: parent.right
@@ -40,6 +39,15 @@ Section {
         rows: 4
         columns: 2
 
+        Label {
+            text: qsTr("Mouse selection mode")
+        }
+        ComboBox {
+            Layout.fillWidth: true
+            backendValue: backendValues.mouseSelectionMode
+            scope: "TextInput"
+            model: ["SelectCharacters", "SelectWords"]
+        }
 
         Label {
             visible: textInputSection.isTextInput
@@ -50,6 +58,7 @@ Section {
             visible: textInputSection.isTextInput
             backendValue: backendValues.inputMask
             Layout.fillWidth: true
+            showTranslateCheckBox: false
         }
 
         Label {
@@ -62,7 +71,7 @@ Section {
             Layout.fillWidth: true
             backendValue: backendValues.echoMode
             scope: "TextInput"
-            model:  ["Normal", "Password", "PasswordEchoOnEdit", "NoEcho"]
+            model: ["Normal", "Password", "PasswordEchoOnEdit", "NoEcho"]
         }
 
         Label {
@@ -75,6 +84,33 @@ Section {
             visible: textInputSection.isTextInput
             backendValue: backendValues.passwordCharacter
             Layout.fillWidth: true
+            showTranslateCheckBox: false
+        }
+
+        Label {
+            visible: !textInputSection.isTextInput
+            text: qsTr("Tab stop distance")
+            tooltip: qsTr("Sets the default distance, in device units, between tab stops.")
+        }
+        SpinBox {
+            visible: !textInputSection.isTextInput
+            Layout.fillWidth: true
+            backendValue: backendValues.tabStopDistance
+            maximumValue: 200
+            minimumValue: 0
+        }
+
+        Label {
+            visible: !textInputSection.isTextInput
+            text: qsTr("Text margin")
+            tooltip: qsTr("Sets the margin, in pixels, around the text in the Text Edit.")
+        }
+        SpinBox {
+            visible: !textInputSection.isTextInput
+            Layout.fillWidth: true
+            backendValue: backendValues.textMargin
+            maximumValue: 200
+            minimumValue: -200
         }
 
         Label {
@@ -85,25 +121,54 @@ Section {
         SecondColumnLayout {
             ColumnLayout {
                 CheckBox {
+                    Layout.fillWidth: true
                     text: qsTr("Read only")
-                    backendValue: backendValues.readOnly;
+                    backendValue: backendValues.readOnly
                 }
 
                 CheckBox {
+                    Layout.fillWidth: true
                     text: qsTr("Cursor visible")
-                    backendValue: backendValues.cursorVisible;
+                    backendValue: backendValues.cursorVisible
                 }
 
                 CheckBox {
+                    Layout.fillWidth: true
                     text: qsTr("Active focus on press")
-                    backendValue:  backendValues.activeFocusOnPress;
+                    backendValue: backendValues.activeFocusOnPress
                 }
 
                 CheckBox {
+                    visible: textInputSection.isTextInput
+                    Layout.fillWidth: true
                     text: qsTr("Auto scroll")
-                    backendValue:  backendValues.autoScroll;
+                    backendValue: backendValues.autoScroll
                 }
 
+                CheckBox {
+                    Layout.fillWidth: true
+                    text: qsTr("Overwrite mode")
+                    backendValue: backendValues.overwriteMode
+                }
+
+                CheckBox {
+                    Layout.fillWidth: true
+                    text: qsTr("Persistent selection")
+                    backendValue: backendValues.persistentSelection
+                }
+
+                CheckBox {
+                    Layout.fillWidth: true
+                    text: qsTr("Select by mouse")
+                    backendValue: backendValues.selectByMouse
+                }
+
+                CheckBox {
+                    visible: !textInputSection.isTextInput
+                    Layout.fillWidth: true
+                    text: qsTr("Select by keyboard")
+                    backendValue: backendValues.selectByKeyboard
+                }
             }
         }
     }

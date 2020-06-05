@@ -25,43 +25,60 @@
 
 #include "codegensettingspage.h"
 
+#include "codegensettings.h"
 #include "qtsupportconstants.h"
+#include "ui_codegensettingspagewidget.h"
 
+#include <coreplugin/icore.h>
 #include <cpptools/cpptoolsconstants.h>
 
 #include <QCoreApplication>
-#include <QTextStream>
-#include <coreplugin/icore.h>
 
 namespace QtSupport {
 namespace Internal {
 
 // ---------- CodeGenSettingsPageWidget
 
-CodeGenSettingsPageWidget::CodeGenSettingsPageWidget(QWidget *parent) :
-        QWidget(parent)
+class CodeGenSettingsPageWidget : public Core::IOptionsPageWidget
+{
+    Q_DECLARE_TR_FUNCTIONS(QtSupport::Internal::CodeGenSettingsPage)
+
+public:
+    CodeGenSettingsPageWidget();
+
+private:
+    void apply() final;
+
+    int uiEmbedding() const;
+    void setUiEmbedding(int);
+
+    Ui::CodeGenSettingsPageWidget m_ui;
+};
+
+CodeGenSettingsPageWidget::CodeGenSettingsPageWidget()
 {
     m_ui.setupUi(this);
+
+    CodeGenSettings parameters;
+    parameters.fromSettings(Core::ICore::settings());
+
+    m_ui.retranslateCheckBox->setChecked(parameters.retranslationSupport);
+    m_ui.includeQtModuleCheckBox->setChecked(parameters.includeQtModule);
+    m_ui.addQtVersionCheckBox->setChecked(parameters.addQtVersionCheck);
+    setUiEmbedding(parameters.embedding);
+
     connect(m_ui.includeQtModuleCheckBox, &QAbstractButton::toggled,
             m_ui.addQtVersionCheckBox, &QWidget::setEnabled);
 }
 
-CodeGenSettings CodeGenSettingsPageWidget::parameters() const
+void CodeGenSettingsPageWidget::apply()
 {
     CodeGenSettings rc;
     rc.embedding = static_cast<CodeGenSettings::UiClassEmbedding>(uiEmbedding());
-    rc.retranslationSupport =m_ui.retranslateCheckBox->isChecked();
+    rc.retranslationSupport = m_ui.retranslateCheckBox->isChecked();
     rc.includeQtModule = m_ui.includeQtModuleCheckBox->isChecked();
     rc.addQtVersionCheck = m_ui.addQtVersionCheckBox->isChecked();
-    return rc;
-}
-
-void CodeGenSettingsPageWidget::setParameters(const CodeGenSettings &p)
-{
-    m_ui.retranslateCheckBox->setChecked(p.retranslationSupport);
-    m_ui.includeQtModuleCheckBox->setChecked(p.includeQtModule);
-    m_ui.addQtVersionCheckBox->setChecked(p.addQtVersionCheck);
-    setUiEmbedding(p.embedding);
+    rc.toSettings(Core::ICore::settings());
 }
 
 int CodeGenSettingsPageWidget::uiEmbedding() const
@@ -89,38 +106,16 @@ void CodeGenSettingsPageWidget::setUiEmbedding(int v)
 }
 
 // ---------- CodeGenSettingsPage
-CodeGenSettingsPage::CodeGenSettingsPage(QObject *parent) :
-    Core::IOptionsPage(parent)
+
+CodeGenSettingsPage::CodeGenSettingsPage()
 {
-    m_parameters.fromSettings(Core::ICore::settings());
     setId(Constants::CODEGEN_SETTINGS_PAGE_ID);
-    setDisplayName(QCoreApplication::translate("QtSupport", Constants::CODEGEN_SETTINGS_PAGE_NAME));
+    setDisplayName(QCoreApplication::translate("QtSupport", "Qt Class Generation"));
     setCategory(CppTools::Constants::CPP_SETTINGS_CATEGORY);
-}
-
-QWidget *CodeGenSettingsPage::widget()
-{
-    if (!m_widget) {
-        m_widget = new CodeGenSettingsPageWidget;
-        m_widget->setParameters(m_parameters);
-    }
-    return m_widget;
-}
-
-void CodeGenSettingsPage::apply()
-{
-    if (m_widget) {
-        const CodeGenSettings newParameters = m_widget->parameters();
-        if (newParameters != m_parameters) {
-            m_parameters = newParameters;
-            m_parameters.toSettings(Core::ICore::settings());
-        }
-    }
-}
-
-void CodeGenSettingsPage::finish()
-{
-    delete m_widget;
+    setDisplayCategory(
+        QCoreApplication::translate("CppTools", CppTools::Constants::CPP_SETTINGS_NAME));
+    setCategoryIconPath(":/projectexplorer/images/settingscategory_cpp.png");
+    setWidgetCreator([] { return new CodeGenSettingsPageWidget; });
 }
 
 } // namespace Internal

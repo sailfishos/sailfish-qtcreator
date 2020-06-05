@@ -28,11 +28,13 @@
 #include "debuggeractions.h"
 #include "debuggerinternalconstants.h"
 #include "debuggercore.h"
+#include "debuggersourcepathmappingwidget.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/variablechooser.h>
 
 #include <app/app_version.h>
+
 #include <utils/hostosinfo.h>
 #include <utils/pathchooser.h>
 #include <utils/qtcassert.h>
@@ -61,50 +63,14 @@ namespace Internal {
 //
 ///////////////////////////////////////////////////////////////////////
 
-CommonOptionsPage::CommonOptionsPage(const QSharedPointer<GlobalDebuggerOptions> &go) :
-    m_options(go)
+class CommonOptionsPageWidget : public Core::IOptionsPageWidget
 {
-    setId(DEBUGGER_COMMON_SETTINGS_ID);
-    setDisplayName(QCoreApplication::translate("Debugger", "General"));
-    setCategory(DEBUGGER_SETTINGS_CATEGORY);
-    setDisplayCategory(QCoreApplication::translate("Debugger", "Debugger"));
-    setCategoryIcon(Utils::Icon({{":/debugger/images/settingscategory_debugger.png",
-                    Utils::Theme::PanelTextColorDark}}, Utils::Icon::Tint));
-}
+    Q_DECLARE_TR_FUNCTIONS(Debugger::Internal::CommonOptionsPageWidget)
 
-void CommonOptionsPage::apply()
-{
-    m_group.apply(ICore::settings());
-
-    GlobalDebuggerOptions newOptions;
-    SourcePathMap allPathMap = m_sourceMappingWidget->sourcePathMap();
-    for (auto it = allPathMap.begin(), end = allPathMap.end(); it != end; ++it) {
-        const QString key = it.key();
-        if (key.startsWith('('))
-            newOptions.sourcePathRegExpMap.append(qMakePair(QRegExp(key), it.value()));
-        else
-            newOptions.sourcePathMap.insert(key, it.value());
-    }
-
-    if (newOptions.sourcePathMap != m_options->sourcePathMap
-            || newOptions.sourcePathRegExpMap != m_options->sourcePathRegExpMap) {
-        *m_options = newOptions;
-        m_options->toSettings();
-    }
-}
-
-void CommonOptionsPage::finish()
-{
-    m_group.finish();
-    delete m_widget;
-}
-
-QWidget *CommonOptionsPage::widget()
-{
-    if (!m_widget) {
-        m_widget = new QWidget;
-
-        auto behaviorBox = new QGroupBox(m_widget);
+public:
+    explicit CommonOptionsPageWidget()
+    {
+        auto behaviorBox = new QGroupBox(this);
         behaviorBox->setTitle(tr("Behavior"));
 
         auto checkBoxUseAlternatingRowColors = new QCheckBox(behaviorBox);
@@ -171,7 +137,7 @@ QWidget *CommonOptionsPage::widget()
         spinBoxMaximalStackDepth->setSingleStep(5);
         spinBoxMaximalStackDepth->setValue(10);
 
-        m_sourceMappingWidget = new DebuggerSourcePathMappingWidget(m_widget);
+        m_sourceMappingWidget = new DebuggerSourcePathMappingWidget(this);
 
         auto horizontalLayout = new QHBoxLayout;
         horizontalLayout->addWidget(labelMaximalStackDepth);
@@ -194,12 +160,10 @@ QWidget *CommonOptionsPage::widget()
         gridLayout->addWidget(checkBoxKeepEditorStationaryWhileStepping, 3, 1, 1, 1);
         gridLayout->addWidget(checkBoxRegisterForPostMortem, 4, 1, 1, 1);
 
-        auto verticalLayout = new QVBoxLayout(m_widget);
+        auto verticalLayout = new QVBoxLayout(this);
         verticalLayout->addWidget(behaviorBox);
         verticalLayout->addWidget(m_sourceMappingWidget);
         verticalLayout->addStretch();
-
-        m_group.clear();
 
         m_group.insert(action(UseAlternatingRowColors),
                        checkBoxUseAlternatingRowColors);
@@ -228,8 +192,6 @@ QWidget *CommonOptionsPage::widget()
         m_group.insert(action(AlwaysAdjustColumnWidths), nullptr);
         m_group.insert(action(UseToolTipsInBreakpointsView), nullptr);
         m_group.insert(action(UseToolTipsInStackView), nullptr);
-        m_group.insert(action(UseAddressInBreakpointsView), nullptr);
-        m_group.insert(action(UseAddressInStackView), nullptr);
         m_group.insert(action(MaximalStackDepth), spinBoxMaximalStackDepth);
         m_group.insert(action(ShowStdNamespace), nullptr);
         m_group.insert(action(ShowQtNamespace), nullptr);
@@ -247,24 +209,61 @@ QWidget *CommonOptionsPage::widget()
             checkBoxRegisterForPostMortem->setVisible(false);
         }
 
-        SourcePathMap allPathMap = m_options->sourcePathMap;
-        foreach (auto regExpMap, m_options->sourcePathRegExpMap)
+        GlobalDebuggerOptions *options = Internal::globalDebuggerOptions();
+        SourcePathMap allPathMap = options->sourcePathMap;
+        for (auto regExpMap : qAsConst(options->sourcePathRegExpMap))
             allPathMap.insert(regExpMap.first.pattern(), regExpMap.second);
         m_sourceMappingWidget->setSourcePathMap(allPathMap);
     }
-    return m_widget;
+
+    void apply() final;
+    void finish() final { m_group.finish(); }
+
+private:
+    SavedActionSet m_group;
+    DebuggerSourcePathMappingWidget *m_sourceMappingWidget = nullptr;
+};
+
+void CommonOptionsPageWidget::apply()
+{
+    m_group.apply(ICore::settings());
+
+    GlobalDebuggerOptions *options = Internal::globalDebuggerOptions();
+    options->sourcePathMap.clear();
+    options->sourcePathRegExpMap.clear();
+
+    SourcePathMap allPathMap = m_sourceMappingWidget->sourcePathMap();
+    for (auto it = allPathMap.begin(), end = allPathMap.end(); it != end; ++it) {
+        const QString key = it.key();
+        if (key.startsWith('('))
+            options->sourcePathRegExpMap.append(qMakePair(QRegExp(key), it.value()));
+        else
+            options->sourcePathMap.insert(key, it.value());
+    }
+    options->toSettings();
+}
+
+CommonOptionsPage::CommonOptionsPage()
+{
+    setId(DEBUGGER_COMMON_SETTINGS_ID);
+    setDisplayName(QCoreApplication::translate("Debugger", "General"));
+    setCategory(DEBUGGER_SETTINGS_CATEGORY);
+    setDisplayCategory(QCoreApplication::translate("Debugger", "Debugger"));
+    setCategoryIconPath(":/debugger/images/settingscategory_debugger.png");
+    setWidgetCreator([] { return new CommonOptionsPageWidget; });
 }
 
 QString CommonOptionsPage::msgSetBreakpointAtFunction(const char *function)
 {
-    return tr("Stop when %1() is called").arg(QLatin1String(function));
+    return CommonOptionsPageWidget::tr("Stop when %1() is called").arg(QLatin1String(function));
 }
 
 QString CommonOptionsPage::msgSetBreakpointAtFunctionToolTip(const char *function,
                                                              const QString &hint)
 {
     QString result = "<html><head/><body>";
-    result += tr("Always adds a breakpoint on the <i>%1()</i> function.").arg(QLatin1String(function));
+    result += CommonOptionsPageWidget::tr("Always adds a breakpoint on the <i>%1()</i> function.")
+            .arg(QLatin1String(function));
     if (!hint.isEmpty()) {
         result += "<br>";
         result += hint;
@@ -280,31 +279,14 @@ QString CommonOptionsPage::msgSetBreakpointAtFunctionToolTip(const char *functio
 //
 ///////////////////////////////////////////////////////////////////////
 
-LocalsAndExpressionsOptionsPage::LocalsAndExpressionsOptionsPage()
+class LocalsAndExpressionsOptionsPageWidget : public IOptionsPageWidget
 {
-    setId("Z.Debugger.LocalsAndExpressions");
-    //: '&&' will appear as one (one is marking keyboard shortcut)
-    setDisplayName(QCoreApplication::translate("Debugger", "Locals && Expressions"));
-    setCategory(DEBUGGER_SETTINGS_CATEGORY);
-}
+    Q_DECLARE_TR_FUNCTIONS(Debugger::Internal::LocalsAndExpressionsOptionsPage)
 
-void LocalsAndExpressionsOptionsPage::apply()
-{
-    m_group.apply(ICore::settings());
-}
-
-void LocalsAndExpressionsOptionsPage::finish()
-{
-    m_group.finish();
-    delete m_widget;
-}
-
-QWidget *LocalsAndExpressionsOptionsPage::widget()
-{
-    if (!m_widget) {
-        m_widget = new QWidget;
-
-        auto debuggingHelperGroupBox = new QGroupBox(m_widget);
+public:
+    LocalsAndExpressionsOptionsPageWidget()
+    {
+        auto debuggingHelperGroupBox = new QGroupBox(this);
         debuggingHelperGroupBox->setTitle(tr("Use Debugging Helper"));
         debuggingHelperGroupBox->setCheckable(true);
 
@@ -339,23 +321,23 @@ QWidget *LocalsAndExpressionsOptionsPage::widget()
 
         auto checkBoxUseCodeModel = new QCheckBox(debuggingHelperGroupBox);
         auto checkBoxShowThreadNames = new QCheckBox(debuggingHelperGroupBox);
-        auto checkBoxShowStdNamespace = new QCheckBox(m_widget);
-        auto checkBoxShowQtNamespace = new QCheckBox(m_widget);
-        auto checkBoxShowQObjectNames = new QCheckBox(m_widget);
+        auto checkBoxShowStdNamespace = new QCheckBox(this);
+        auto checkBoxShowQtNamespace = new QCheckBox(this);
+        auto checkBoxShowQObjectNames = new QCheckBox(this);
 
-        auto spinBoxMaximalStringLength = new QSpinBox(m_widget);
+        auto spinBoxMaximalStringLength = new QSpinBox(this);
         spinBoxMaximalStringLength->setSpecialValueText(tr("<unlimited>"));
         spinBoxMaximalStringLength->setMaximum(10000000);
         spinBoxMaximalStringLength->setSingleStep(1000);
         spinBoxMaximalStringLength->setValue(10000);
 
-        auto spinBoxDisplayStringLimit = new QSpinBox(m_widget);
+        auto spinBoxDisplayStringLimit = new QSpinBox(this);
         spinBoxDisplayStringLimit->setSpecialValueText(tr("<unlimited>"));
         spinBoxDisplayStringLimit->setMaximum(10000);
         spinBoxDisplayStringLimit->setSingleStep(10);
         spinBoxDisplayStringLimit->setValue(100);
 
-        auto chooser = new VariableChooser(m_widget);
+        auto chooser = new VariableChooser(this);
         chooser->addSupportedWidget(textEditCustomDumperCommands);
         chooser->addSupportedWidget(pathChooserExtraDumperFile->lineEdit());
 
@@ -379,7 +361,7 @@ QWidget *LocalsAndExpressionsOptionsPage::widget()
         lowerLayout->addLayout(layout1);
         lowerLayout->addStretch();
 
-        auto layout = new QVBoxLayout(m_widget);
+        auto layout = new QVBoxLayout(this);
         layout->addWidget(debuggingHelperGroupBox);
         layout->addLayout(lowerLayout);
         layout->addStretch();
@@ -402,7 +384,21 @@ QWidget *LocalsAndExpressionsOptionsPage::widget()
         m_group.insert(action(DisplayStringLimit), spinBoxDisplayStringLimit);
         m_group.insert(action(MaximalStringLength), spinBoxMaximalStringLength);
     }
-    return m_widget;
+
+    void apply() { m_group.apply(ICore::settings()); }
+    void finish() { m_group.finish(); }
+
+private:
+    Utils::SavedActionSet m_group;
+};
+
+LocalsAndExpressionsOptionsPage::LocalsAndExpressionsOptionsPage()
+{
+    setId("Z.Debugger.LocalsAndExpressions");
+    //: '&&' will appear as one (one is marking keyboard shortcut)
+    setDisplayName(QCoreApplication::translate("Debugger", "Locals && Expressions"));
+    setCategory(DEBUGGER_SETTINGS_CATEGORY);
+    setWidgetCreator([] { return new LocalsAndExpressionsOptionsPageWidget; });
 }
 
 } // namespace Internal

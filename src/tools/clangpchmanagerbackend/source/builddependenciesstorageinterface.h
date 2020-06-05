@@ -56,6 +56,15 @@ public:
     virtual UsedMacros fetchUsedMacros(FilePathId sourceId) const = 0;
     virtual ProjectPartId fetchProjectPartId(Utils::SmallStringView projectPartName) = 0;
     virtual void updatePchCreationTimeStamp(long long pchCreationTimeStamp, ProjectPartId projectPartId) = 0;
+    virtual FilePathIds fetchPchSources(ProjectPartId projectPartId) const = 0;
+    virtual FilePathIds fetchSources(ProjectPartId projectPartId) const = 0;
+    virtual void insertOrUpdateIndexingTimeStamps(const FilePathIds &filePathIds, TimeStamp indexingTimeStamp) = 0;
+    virtual void insertOrUpdateIndexingTimeStampsWithoutTransaction(const FilePathIds &filePathIds,
+                                                                    TimeStamp indexingTimeStamp)
+        = 0;
+    virtual SourceTimeStamps fetchIndexingTimeStamps() const = 0;
+    virtual SourceTimeStamps fetchIncludedIndexingTimeStamps(FilePathId sourcePathId) const = 0;
+    virtual FilePathIds fetchDependentSourceIds(const FilePathIds &sourcePathIds) const = 0;
 
 protected:
     ~BuildDependenciesStorageInterface() = default;

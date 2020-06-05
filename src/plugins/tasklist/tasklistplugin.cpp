@@ -107,7 +107,7 @@ static QString unescape(const QString &input)
     return result;
 }
 
-static bool parseTaskFile(QString *errorString, const FileName &name)
+static bool parseTaskFile(QString *errorString, const FilePath &name)
 {
     QFile tf(name.toString());
     if (!tf.open(QIODevice::ReadOnly)) {
@@ -116,7 +116,7 @@ static bool parseTaskFile(QString *errorString, const FileName &name)
         return false;
     }
 
-    const FileName parentDir = name.parentDir();
+    const FilePath parentDir = name.parentDir();
     while (!tf.atEnd()) {
         QStringList chunks = parseRawLine(tf.readLine());
         if (chunks.isEmpty())
@@ -149,12 +149,12 @@ static bool parseTaskFile(QString *errorString, const FileName &name)
             file = QDir::fromNativeSeparators(file);
             QFileInfo fi(file);
             if (fi.isRelative())
-                file = FileName(parentDir).appendPath(file).toString();
+                file = parentDir.pathAppended(file).toString();
         }
         description = unescape(description);
 
-        TaskHub::addTask(type, description, Constants::TASKLISTTASK_ID,
-                         FileName::fromUserInput(file), line);
+        TaskHub::addTask(Task(type, description, FilePath::fromUserInput(file), line,
+                              Constants::TASKLISTTASK_ID));
     }
     return true;
 }
@@ -163,7 +163,7 @@ static bool parseTaskFile(QString *errorString, const FileName &name)
 // TaskListPlugin
 // --------------------------------------------------------------------------
 
-IDocument *TaskListPlugin::openTasks(const FileName &fileName)
+IDocument *TaskListPlugin::openTasks(const FilePath &fileName)
 {
     foreach (TaskFile *doc, d->m_openFiles) {
         if (doc->filePath() == fileName)
@@ -210,7 +210,7 @@ bool TaskListPlugin::initialize(const QStringList &arguments, QString *errorMess
 
     d->m_fileFactory.addMimeType(QLatin1String("text/x-tasklist"));
     d->m_fileFactory.setOpener([this](const QString &fileName) {
-        return openTasks(FileName::fromString(fileName));
+        return openTasks(FilePath::fromString(fileName));
     });
 
     connect(SessionManager::instance(), &SessionManager::sessionLoaded,
@@ -219,15 +219,17 @@ bool TaskListPlugin::initialize(const QStringList &arguments, QString *errorMess
     return true;
 }
 
-bool TaskListPlugin::loadFile(QString *errorString, const FileName &fileName)
+bool TaskListPlugin::loadFile(QString *errorString, const FilePath &fileName)
 {
     clearTasks();
 
     bool result = parseTaskFile(errorString, fileName);
-    if (result)
-        SessionManager::setValue(QLatin1String(SESSION_FILE_KEY), fileName.toString());
-    else
+    if (result) {
+        if (!SessionManager::isDefaultSession(SessionManager::activeSession()))
+            SessionManager::setValue(QLatin1String(SESSION_FILE_KEY), fileName.toString());
+    } else {
         stopMonitoring();
+    }
 
     return result;
 }
@@ -248,7 +250,7 @@ void TaskListPlugin::clearTasks()
 
 void TaskListPlugin::loadDataFromSession()
 {
-    const FileName fileName = FileName::fromString(
+    const FilePath fileName = FilePath::fromString(
                 SessionManager::value(QLatin1String(SESSION_FILE_KEY)).toString());
     if (!fileName.isEmpty())
         openTasks(fileName);

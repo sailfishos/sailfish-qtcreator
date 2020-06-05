@@ -73,44 +73,20 @@ static Core::IEditor *locateEditor(const char *property, const QString &entry)
 
 namespace VcsBase {
 
-class VcsBaseClientImplPrivate
-{
-public:
-    VcsBaseClientImplPrivate(VcsBaseClientSettings *settings);
-    ~VcsBaseClientImplPrivate();
-
-    VcsBaseClientSettings *m_clientSettings;
-};
-
-VcsBaseClientImplPrivate::VcsBaseClientImplPrivate(VcsBaseClientSettings *settings) :
+VcsBaseClientImpl::VcsBaseClientImpl(VcsBaseClientSettings *settings) :
     m_clientSettings(settings)
 {
     m_clientSettings->readSettings(Core::ICore::settings());
-}
-
-VcsBaseClientImplPrivate::~VcsBaseClientImplPrivate()
-{
-    delete m_clientSettings;
-}
-
-VcsBaseClientImpl::VcsBaseClientImpl(VcsBaseClientSettings *settings) :
-    d(new VcsBaseClientImplPrivate(settings))
-{
     connect(Core::ICore::instance(), &Core::ICore::saveSettingsRequested,
             this, &VcsBaseClientImpl::saveSettings);
 }
 
-VcsBaseClientImpl::~VcsBaseClientImpl()
-{
-    delete d;
-}
-
 VcsBaseClientSettings &VcsBaseClientImpl::settings() const
 {
-    return *d->m_clientSettings;
+    return *m_clientSettings;
 }
 
-FileName VcsBaseClientImpl::vcsBinary() const
+FilePath VcsBaseClientImpl::vcsBinary() const
 {
     return settings().binaryPath();
 }
@@ -138,14 +114,14 @@ void VcsBaseClientImpl::enqueueJob(VcsCommand *cmd, const QStringList &args,
                                    const QString &workingDirectory,
                                    const ExitCodeInterpreter &interpreter) const
 {
-    cmd->addJob(vcsBinary(), args, vcsTimeoutS(), workingDirectory, interpreter);
+    cmd->addJob({vcsBinary(), args}, vcsTimeoutS(), workingDirectory, interpreter);
     cmd->execute();
 }
 
 QProcessEnvironment VcsBaseClientImpl::processEnvironment() const
 {
     QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
-    VcsBasePlugin::setProcessEnvironment(&environment, false);
+    VcsBase::setProcessEnvironment(&environment, false);
     return environment;
 }
 
@@ -178,15 +154,14 @@ QString VcsBaseClientImpl::stripLastNewline(const QString &in)
 }
 
 SynchronousProcessResponse
-VcsBaseClientImpl::vcsFullySynchronousExec(const QString &workingDir, const FileName &binary,
-                                           const QStringList &args, unsigned flags,
-                                           int timeoutS, QTextCodec *codec) const
+VcsBaseClientImpl::vcsFullySynchronousExec(const QString &workingDir, const CommandLine &cmdLine,
+                                           unsigned flags, int timeoutS, QTextCodec *codec) const
 {
     VcsCommand command(workingDir, processEnvironment());
     command.addFlags(flags);
     if (codec)
         command.setCodec(codec);
-    return command.runCommand(binary, args, (timeoutS > 0) ? timeoutS : vcsTimeoutS());
+    return command.runCommand(cmdLine, (timeoutS > 0) ? timeoutS : vcsTimeoutS());
 }
 
 void VcsBaseClientImpl::resetCachedVcsInfo(const QString &workingDir)
@@ -211,7 +186,7 @@ SynchronousProcessResponse
 VcsBaseClientImpl::vcsFullySynchronousExec(const QString &workingDir, const QStringList &args,
                                            unsigned flags, int timeoutS, QTextCodec *codec) const
 {
-    return vcsFullySynchronousExec(workingDir, vcsBinary(), args, flags, timeoutS, codec);
+    return vcsFullySynchronousExec(workingDir, {vcsBinary(), args}, flags, timeoutS, codec);
 }
 
 VcsCommand *VcsBaseClientImpl::vcsExec(const QString &workingDirectory, const QStringList &arguments,
@@ -233,13 +208,13 @@ SynchronousProcessResponse VcsBaseClientImpl::vcsSynchronousExec(const QString &
                                                                  unsigned flags,
                                                                  QTextCodec *outputCodec) const
 {
-    return VcsBasePlugin::runVcs(workingDir, vcsBinary(), args, vcsTimeoutS(), flags,
-                                 outputCodec, processEnvironment());
+    return VcsBase::runVcs(workingDir, {vcsBinary(), args}, vcsTimeoutS(), flags,
+                           outputCodec, processEnvironment());
 }
 
 int VcsBaseClientImpl::vcsTimeoutS() const
 {
-    return settings().intValue(VcsBaseClientSettings::timeoutKey);
+    return m_clientSettings->vcsTimeoutS();
 }
 
 VcsBaseEditorWidget *VcsBaseClientImpl::createVcsEditor(Core::Id kind, QString title,
@@ -277,40 +252,10 @@ void VcsBaseClientImpl::saveSettings()
     settings().writeSettings(Core::ICore::settings());
 }
 
-class VcsBaseClientPrivate
-{
-public:
-    VcsBaseEditorConfig *createDiffEditor(VcsBaseEditorWidget *editor);
-    VcsBaseEditorConfig *createLogEditor(VcsBaseEditorWidget *editor);
-
-    VcsBaseClient::ConfigCreator m_diffConfigCreator;
-    VcsBaseClient::ConfigCreator m_logConfigCreator;
-};
-
-VcsBaseEditorConfig *VcsBaseClientPrivate::createDiffEditor(VcsBaseEditorWidget *editor)
-{
-    return m_diffConfigCreator ? m_diffConfigCreator(editor->toolBar()) : 0;
-}
-
-VcsBaseEditorConfig *VcsBaseClientPrivate::createLogEditor(VcsBaseEditorWidget *editor)
-{
-    return m_logConfigCreator ? m_logConfigCreator(editor->toolBar()) : 0;
-}
-
-VcsBaseClient::StatusItem::StatusItem(const QString &s, const QString &f) :
-    flags(s), file(f)
-{ }
-
 VcsBaseClient::VcsBaseClient(VcsBaseClientSettings *settings) :
-    VcsBaseClientImpl(settings),
-    d(new VcsBaseClientPrivate)
+    VcsBaseClientImpl(settings)
 {
     qRegisterMetaType<QVariant>();
-}
-
-VcsBaseClient::~VcsBaseClient()
-{
-    delete d;
 }
 
 bool VcsBaseClient::synchronousCreateRepository(const QString &workingDirectory,
@@ -437,7 +382,8 @@ void VcsBaseClient::diff(const QString &workingDir, const QStringList &files,
 
     VcsBaseEditorConfig *paramWidget = editor->editorConfig();
     if (!paramWidget) {
-        paramWidget = d->createDiffEditor(editor);
+        if (m_diffConfigCreator)
+            paramWidget = m_diffConfigCreator(editor->toolBar());
         if (paramWidget) {
             paramWidget->setBaseArguments(extraOptions);
             // editor has been just created, createVcsEditor() didn't set a configuration widget yet
@@ -478,7 +424,8 @@ void VcsBaseClient::log(const QString &workingDir, const QStringList &files,
 
     VcsBaseEditorConfig *paramWidget = editor->editorConfig();
     if (!paramWidget) {
-        paramWidget = d->createLogEditor(editor);
+        if (m_logConfigCreator)
+            paramWidget = m_logConfigCreator(editor->toolBar());
         if (paramWidget) {
             paramWidget->setBaseArguments(extraOptions);
             // editor has been just created, createVcsEditor() didn't set a configuration widget yet
@@ -575,12 +522,12 @@ ExitCodeInterpreter VcsBaseClient::exitCodeInterpreter(VcsCommandTag cmd) const
 
 void VcsBaseClient::setDiffConfigCreator(ConfigCreator creator)
 {
-    d->m_diffConfigCreator = std::move(creator);
+    m_diffConfigCreator = std::move(creator);
 }
 
 void VcsBaseClient::setLogConfigCreator(ConfigCreator creator)
 {
-    d->m_logConfigCreator = std::move(creator);
+    m_logConfigCreator = std::move(creator);
 }
 
 void VcsBaseClient::import(const QString &repositoryRoot, const QStringList &files,
@@ -643,7 +590,7 @@ QString VcsBaseClient::vcsEditorTitle(const QString &vcsCmd, const QString &sour
 {
     return vcsBinary().toFileInfo().baseName() +
             QLatin1Char(' ') + vcsCmd + QLatin1Char(' ') +
-            FileName::fromString(sourceId).fileName();
+            FilePath::fromString(sourceId).fileName();
 }
 
 void VcsBaseClient::statusParser(const QString &text)

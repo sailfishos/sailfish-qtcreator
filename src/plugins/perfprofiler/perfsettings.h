@@ -33,14 +33,14 @@
 
 namespace PerfProfiler {
 
-class PERFPROFILER_EXPORT PerfSettings : public ProjectExplorer::ISettingsAspect
+class PERFPROFILER_EXPORT PerfSettings final : public ProjectExplorer::ISettingsAspect
 {
     Q_OBJECT
     Q_PROPERTY(QStringList perfRecordArguments READ perfRecordArguments NOTIFY changed)
 
 public:
     explicit PerfSettings(ProjectExplorer::Target *target = nullptr);
-    ~PerfSettings();
+    ~PerfSettings() final;
 
     void readGlobalSettings();
     void writeGlobalSettings() const;
@@ -66,8 +66,8 @@ signals:
     void changed();
 
 protected:
-    void toMap(QVariantMap &map) const;
-    void fromMap(const QVariantMap &map);
+    void toMap(QVariantMap &map) const final;
+    void fromMap(const QVariantMap &map) final;
 
     int m_period;
     int m_stackSize;

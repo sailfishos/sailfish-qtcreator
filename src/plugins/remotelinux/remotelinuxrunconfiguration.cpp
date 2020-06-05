@@ -29,14 +29,14 @@
 #include "remotelinuxx11forwardingaspect.h"
 #include "remotelinuxenvironmentaspect.h"
 
+#include <projectexplorer/buildsystem.h>
 #include <projectexplorer/buildtargetinfo.h>
 #include <projectexplorer/deploymentdata.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/runconfigurationaspects.h>
+#include <projectexplorer/runcontrol.h>
 #include <projectexplorer/target.h>
-
-#include <qtsupport/qtoutputformatter.h>
 
 #include <utils/hostosinfo.h>
 
@@ -44,6 +44,7 @@ using namespace ProjectExplorer;
 using namespace Utils;
 
 namespace RemoteLinux {
+namespace Internal {
 
 RemoteLinuxRunConfiguration::RemoteLinuxRunConfiguration(Target *target, Core::Id id)
     : RunConfiguration(target, id)
@@ -65,19 +66,20 @@ RemoteLinuxRunConfiguration::RemoteLinuxRunConfiguration(Target *target, Core::I
     if (HostOsInfo::isAnyUnixHost())
         addAspect<TerminalAspect>();
     addAspect<RemoteLinuxEnvironmentAspect>(target);
-    if (id == IdPrefix && Utils::HostOsInfo::isAnyUnixHost())
+    if (HostOsInfo::isAnyUnixHost())
         addAspect<X11ForwardingAspect>();
 
-    setOutputFormatter<QtSupport::QtOutputFormatter>();
+    setUpdater([this, target, exeAspect, symbolsAspect] {
+        BuildTargetInfo bti = buildTargetInfo();
+        const FilePath localExecutable = bti.targetFilePath;
+        DeployableFile depFile = target->deploymentData().deployableForLocalFile(localExecutable);
 
-    connect(target, &Target::deploymentDataChanged,
-            this, &RemoteLinuxRunConfiguration::updateTargetInformation);
-    connect(target, &Target::applicationTargetsChanged,
-            this, &RemoteLinuxRunConfiguration::updateTargetInformation);
-    connect(target->project(), &Project::parsingFinished,
-            this, &RemoteLinuxRunConfiguration::updateTargetInformation);
-    connect(target, &Target::kitChanged,
-            this, &RemoteLinuxRunConfiguration::updateTargetInformation);
+        exeAspect->setExecutable(FilePath::fromString(depFile.remoteFilePath()));
+        symbolsAspect->setFilePath(localExecutable);
+    });
+
+    connect(target, &Target::buildSystemUpdated, this, &RunConfiguration::update);
+    connect(target, &Target::kitChanged, this, &RunConfiguration::update);
 }
 
 Runnable RemoteLinuxRunConfiguration::runnable() const
@@ -89,28 +91,14 @@ Runnable RemoteLinuxRunConfiguration::runnable() const
     return r;
 }
 
-void RemoteLinuxRunConfiguration::updateTargetInformation()
-{
-    BuildTargetInfo bti = buildTargetInfo();
-    QString localExecutable = bti.targetFilePath.toString();
-    DeployableFile depFile = target()->deploymentData().deployableForLocalFile(localExecutable);
-
-    aspect<ExecutableAspect>()->setExecutable(FileName::fromString(depFile.remoteFilePath()));
-    aspect<SymbolFileAspect>()->setValue(localExecutable);
-
-    emit enabledChanged();
-}
-
-const char *RemoteLinuxRunConfiguration::IdPrefix = "RemoteLinuxRunConfiguration:";
-
-
 // RemoteLinuxRunConfigurationFactory
 
 RemoteLinuxRunConfigurationFactory::RemoteLinuxRunConfigurationFactory()
 {
-    registerRunConfiguration<RemoteLinuxRunConfiguration>(RemoteLinuxRunConfiguration::IdPrefix);
+    registerRunConfiguration<RemoteLinuxRunConfiguration>("RemoteLinuxRunConfiguration:");
     setDecorateDisplayNames(true);
     addSupportedTargetDeviceType(RemoteLinux::Constants::GenericLinuxOsType);
 }
 
+} // namespace Internal
 } // namespace RemoteLinux

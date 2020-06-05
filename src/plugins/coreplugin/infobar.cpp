@@ -30,7 +30,6 @@
 #include <utils/theme/theme.h>
 #include <utils/utilsicons.h>
 
-#include <QFrame>
 #include <QHBoxLayout>
 #include <QSettings>
 #include <QVBoxLayout>
@@ -48,7 +47,7 @@ QSet<Id> InfoBar::globallySuppressed;
 QSettings *InfoBar::m_settings = nullptr;
 Utils::Theme *InfoBar::m_theme = nullptr;
 
-InfoBarEntry::InfoBarEntry(Id _id, const QString &_infoText, GlobalSuppressionMode _globalSuppression)
+InfoBarEntry::InfoBarEntry(Id _id, const QString &_infoText, GlobalSuppression _globalSuppression)
     : m_id(_id)
     , m_infoText(_infoText)
     , m_globalSuppression(_globalSuppression)
@@ -207,6 +206,17 @@ void InfoBarDisplay::setInfoBar(InfoBar *infoBar)
     update();
 }
 
+void InfoBarDisplay::setStyle(QFrame::Shadow style)
+{
+    m_style = style;
+    update();
+}
+
+InfoBar *InfoBarDisplay::infoBar() const
+{
+    return m_infoBar;
+}
+
 void InfoBarDisplay::infoBarDestroyed()
 {
     m_infoBar = nullptr;
@@ -236,15 +246,15 @@ void InfoBarDisplay::update()
         }
 
         infoWidget->setPalette(pal);
-        infoWidget->setFrameStyle(QFrame::Panel | QFrame::Raised);
+        infoWidget->setFrameStyle(QFrame::Panel | m_style);
         infoWidget->setLineWidth(1);
         infoWidget->setAutoFillBackground(true);
 
         auto hbox = new QHBoxLayout;
-        hbox->setMargin(2);
+        hbox->setContentsMargins(2, 2, 2, 2);
 
         auto vbox = new QVBoxLayout(infoWidget);
-        vbox->setMargin(0);
+        vbox->setContentsMargins(0, 0, 0, 0);
         vbox->addLayout(hbox);
 
         QLabel *infoWidgetLabel = new QLabel(info.m_infoText);
@@ -297,7 +307,7 @@ void InfoBarDisplay::update()
 
         const Id id = info.m_id;
         QToolButton *infoWidgetSuppressButton = nullptr;
-        if (info.m_globalSuppression == InfoBarEntry::GlobalSuppressionEnabled) {
+        if (info.m_globalSuppression == InfoBarEntry::GlobalSuppression::Enabled) {
             infoWidgetSuppressButton = new QToolButton;
             infoWidgetSuppressButton->setText(tr("Do Not Show Again"));
             connect(infoWidgetSuppressButton, &QAbstractButton::clicked, this, [this, id] {

@@ -33,7 +33,6 @@
 #include <coreplugin/helpmanager.h>
 #include <utils/portlist.h>
 
-#include <QCoreApplication>
 #include <QVariant>
 #include <QVariantMap>
 #include <QMessageBox>
@@ -42,6 +41,16 @@
 #include <IOKit/IOKitLib.h>
 #include <IOKit/usb/IOUSBLib.h>
 #include <CoreFoundation/CoreFoundation.h>
+
+// Work around issue with not being able to retrieve USB serial number.
+// See QTCREATORBUG-23460.
+// For an unclear reason USBSpec.h in macOS SDK 10.15 uses a different value if
+// MAC_OS_X_VERSION_MIN_REQUIRED > MAC_OS_X_VERSION_10_14, which just does not work.
+#if MAC_OS_X_VERSION_MIN_REQUIRED > MAC_OS_X_VERSION_10_14
+#undef kUSBSerialNumberString
+#define kUSBSerialNumberString "USB Serial Number"
+#endif
+
 #endif
 
 #include <exception>
@@ -49,7 +58,7 @@
 using namespace ProjectExplorer;
 
 namespace {
-Q_LOGGING_CATEGORY(detectLog, "qtc.ios.deviceDetect", QtWarningMsg)
+static Q_LOGGING_CATEGORY(detectLog, "qtc.ios.deviceDetect", QtWarningMsg)
 }
 
 #ifdef Q_OS_MAC
@@ -78,49 +87,43 @@ static QString CFStringRef2QString(CFStringRef s)
 namespace Ios {
 namespace Internal {
 
-IosDevice::IosDevice()
+IosDevice::IosDevice(CtorHelper)
     : m_lastPort(Constants::IOS_DEVICE_PORT_START)
 {
-    setupId(IDevice::AutoDetected, Constants::IOS_DEVICE_ID);
     setType(Constants::IOS_DEVICE_TYPE);
-    setDisplayName(IosDevice::name());
+    setDefaultDisplayName(IosDevice::name());
+    setDisplayType(tr("iOS"));
     setMachineType(IDevice::Hardware);
+    setOsType(Utils::OsTypeMac);
     setDeviceState(DeviceDisconnected);
+}
+
+IosDevice::IosDevice()
+    : IosDevice(CtorHelper{})
+{
+    setupId(IDevice::AutoDetected, Constants::IOS_DEVICE_ID);
+
     Utils::PortList ports;
     ports.addRange(Utils::Port(Constants::IOS_DEVICE_PORT_START),
                    Utils::Port(Constants::IOS_DEVICE_PORT_END));
     setFreePorts(ports);
 }
 
-IosDevice::IosDevice(const IosDevice &other) = default;
-
 IosDevice::IosDevice(const QString &uid)
-    : m_lastPort(Constants::IOS_DEVICE_PORT_START)
+    : IosDevice(CtorHelper{})
 {
     setupId(IDevice::AutoDetected, Core::Id(Constants::IOS_DEVICE_ID).withSuffix(uid));
-    setType(Constants::IOS_DEVICE_TYPE);
-    setDisplayName(IosDevice::name());
-    setMachineType(IDevice::Hardware);
-    setDeviceState(DeviceDisconnected);
 }
-
 
 IDevice::DeviceInfo IosDevice::deviceInformation() const
 {
     IDevice::DeviceInfo res;
-    QMapIterator<QString, QString> i(m_extraInfo);
-    while (i.hasNext()) {
-        i.next();
+    for (auto i = m_extraInfo.cbegin(), end = m_extraInfo.cend(); i != end; ++i) {
         IosDeviceManager::TranslationMap tMap = IosDeviceManager::translationMap();
         if (tMap.contains(i.key()))
             res.append(DeviceInfoItem(tMap.value(i.key()), tMap.value(i.value(), i.value())));
     }
     return res;
-}
-
-QString IosDevice::displayType() const
-{
-    return QCoreApplication::translate("Ios::Internal::IosDevice", "iOS");
 }
 
 IDeviceWidget *IosDevice::createWidget()
@@ -133,32 +136,22 @@ DeviceProcessSignalOperation::Ptr IosDevice::signalOperation() const
     return DeviceProcessSignalOperation::Ptr();
 }
 
-IDevice::Ptr IosDevice::clone() const
-{
-    return IDevice::Ptr(new IosDevice(*this));
-}
-
 void IosDevice::fromMap(const QVariantMap &map)
 {
     IDevice::fromMap(map);
-    QVariantMap vMap = map.value(QLatin1String(Constants::EXTRA_INFO_KEY)).toMap();
-    QMapIterator<QString, QVariant> i(vMap);
+
     m_extraInfo.clear();
-    while (i.hasNext()) {
-        i.next();
+    const QVariantMap vMap = map.value(QLatin1String(Constants::EXTRA_INFO_KEY)).toMap();
+    for (auto i = vMap.cbegin(), end = vMap.cend(); i != end; ++i)
         m_extraInfo.insert(i.key(), i.value().toString());
-    }
 }
 
 QVariantMap IosDevice::toMap() const
 {
     QVariantMap res = IDevice::toMap();
     QVariantMap vMap;
-    QMapIterator<QString, QString> i(m_extraInfo);
-    while (i.hasNext()) {
-        i.next();
+    for (auto i = m_extraInfo.cbegin(), end = m_extraInfo.cend(); i != end; ++i)
         vMap.insert(i.key(), i.value());
-    }
     res.insert(QLatin1String(Constants::EXTRA_INFO_KEY), vMap);
     return res;
 }
@@ -189,11 +182,6 @@ Utils::Port IosDevice::nextPort() const
 bool IosDevice::canAutoDetectPorts() const
 {
     return true;
-}
-
-Utils::OsType IosDevice::osType() const
-{
-    return Utils::OsTypeMac;
 }
 
 
@@ -234,14 +222,10 @@ void IosDeviceManager::deviceConnected(const QString &uid, const QString &name)
     } else if (dev->deviceState() != IDevice::DeviceConnected &&
                dev->deviceState() != IDevice::DeviceReadyToUse) {
         qCDebug(detectLog) << "updating ios device " << uid;
-        IosDevice *newDev = nullptr;
-        if (dev->type() == devType) {
-            auto iosDev = static_cast<const IosDevice *>(dev.data());
-            newDev = new IosDevice(*iosDev);
-        } else {
-            newDev = new IosDevice(uid);
-        }
-        devManager->addDevice(IDevice::ConstPtr(newDev));
+        if (dev->type() == devType) // FIXME: Should that be a QTC_ASSERT?
+            devManager->addDevice(dev->clone());
+        else
+            devManager->addDevice(IDevice::ConstPtr(new IosDevice(uid)));
     }
     updateInfo(uid);
 }
@@ -294,7 +278,8 @@ void IosDeviceManager::deviceInfo(IosToolHandler *, const QString &uid,
             skipUpdate = true;
             newDev = const_cast<IosDevice *>(iosDev);
         } else {
-            newDev = new IosDevice(*iosDev);
+            newDev = new IosDevice();
+            newDev->fromMap(iosDev->toMap());
         }
     } else {
         newDev = new IosDevice(uid);
@@ -380,9 +365,14 @@ void deviceConnectedCallback(void *refCon, io_iterator_t iterator)
                                                              usbDevice,
                                                              CFSTR(kUSBSerialNumberString),
                                                              kCFAllocatorDefault, 0));
-            QString uid = CFStringRef2QString(cfUid);
-            CFRelease(cfUid);
-            IosDeviceManager::instance()->deviceConnected(uid, name);
+            if (cfUid) {
+                QString uid = CFStringRef2QString(cfUid);
+                CFRelease(cfUid);
+                qCDebug(detectLog) << "device UID is" << uid;
+                IosDeviceManager::instance()->deviceConnected(uid, name);
+            } else {
+                qCDebug(detectLog) << "failed to retrieve device's UID";
+            }
 
             // Done with this USB device; release the reference added by IOIteratorNext
             kr = IOObjectRelease(usbDevice);
@@ -409,18 +399,22 @@ void deviceDisconnectedCallback(void *refCon, io_iterator_t iterator)
 
             // Get the USB device's name.
             kr = IORegistryEntryGetName(usbDevice, deviceName);
-            if (KERN_SUCCESS != kr)
-                deviceName[0] = '\0';
-            qCDebug(detectLog) << "ios device " << deviceName << " in deviceDisconnectedCallback";
+            QString name;
+            if (KERN_SUCCESS == kr)
+                name = QString::fromLocal8Bit(deviceName);
+            qCDebug(detectLog) << "ios device " << name << " in deviceDisconnectedCallback";
 
-            {
-                CFStringRef cfUid = static_cast<CFStringRef>(IORegistryEntryCreateCFProperty(
-                                                                 usbDevice,
-                                                                 CFSTR(kUSBSerialNumberString),
-                                                                 kCFAllocatorDefault, 0));
+            CFStringRef cfUid = static_cast<CFStringRef>(
+                IORegistryEntryCreateCFProperty(usbDevice,
+                                                CFSTR(kUSBSerialNumberString),
+                                                kCFAllocatorDefault,
+                                                0));
+            if (cfUid) {
                 QString uid = CFStringRef2QString(cfUid);
                 CFRelease(cfUid);
                 IosDeviceManager::instance()->deviceDisconnected(uid);
+            } else {
+                qCDebug(detectLog) << "failed to retrieve device's UID";
             }
 
             // Done with this USB device; release the reference added by IOIteratorNext
@@ -538,13 +532,24 @@ void IosDeviceManager::updateAvailableDevices(const QStringList &devices)
     }
 }
 
-IosDevice::ConstPtr IosKitInformation::device(Kit *kit)
+// Factory
+
+IosDeviceFactory::IosDeviceFactory()
+    : IDeviceFactory(Constants::IOS_DEVICE_TYPE)
 {
-    if (!kit)
-        return IosDevice::ConstPtr();
-    IDevice::ConstPtr dev = DeviceKitInformation::device(kit);
-    IosDevice::ConstPtr res = dev.dynamicCast<const IosDevice>();
-    return res;
+    setDisplayName(IosDevice::name());
+    setCombinedIcon(":/ios/images/iosdevicesmall.png",
+                     ":/ios/images/iosdevice.png");
+    setConstructionFunction([] { return IDevice::Ptr(new IosDevice); });
+}
+
+bool IosDeviceFactory::canRestore(const QVariantMap &map) const
+{
+    QVariantMap vMap = map.value(QLatin1String(Constants::EXTRA_INFO_KEY)).toMap();
+    if (vMap.isEmpty()
+            || vMap.value(QLatin1String("deviceName")).toString() == QLatin1String("*unknown*"))
+        return false; // transient device (probably generated during an activation)
+    return true;
 }
 
 } // namespace Internal

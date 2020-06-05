@@ -36,28 +36,29 @@ class UicGenerator : public ProjectExplorer::ProcessExtraCompiler
 {
     Q_OBJECT
 public:
-    UicGenerator(const ProjectExplorer::Project *project, const Utils::FileName &source,
-                 const Utils::FileNameList &targets, QObject *parent = 0);
+    UicGenerator(const ProjectExplorer::Project *project, const Utils::FilePath &source,
+                 const Utils::FilePaths &targets, QObject *parent = nullptr);
 
 protected:
-    Utils::FileName command() const override;
-    void handleProcessStarted(QProcess *process, const QByteArray &sourceContents) override;
+    Utils::FilePath command() const override;
+    QStringList arguments() const override;
     ProjectExplorer::FileNameToContentsHash handleProcessFinished(QProcess *process) override;
+    void handleProcessStarted(QProcess *process, const QByteArray &sourceContents) override;
 };
 
 class UicGeneratorFactory : public ProjectExplorer::ExtraCompilerFactory
 {
     Q_OBJECT
 public:
-    UicGeneratorFactory(QObject *parent = 0) : ExtraCompilerFactory(parent) {}
+    UicGeneratorFactory() = default;
 
     ProjectExplorer::FileType sourceType() const override;
 
     QString sourceTag() const override;
 
     ProjectExplorer::ExtraCompiler *create(const ProjectExplorer::Project *project,
-                                           const Utils::FileName &source,
-                                           const Utils::FileNameList &targets) override;
+                                           const Utils::FilePath &source,
+                                           const Utils::FilePaths &targets) override;
 };
 
 } // QtSupport

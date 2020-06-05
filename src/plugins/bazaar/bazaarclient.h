@@ -33,16 +33,14 @@ namespace Bazaar {
 namespace Internal {
 
 class BazaarSettings;
-class BazaarControl;
 
 class BazaarClient : public VcsBase::VcsBaseClient
 {
     Q_OBJECT
 
 public:
-    BazaarClient();
+    explicit BazaarClient(BazaarSettings *settings);
 
-    bool synchronousSetUserId();
     BranchInfo synchronousBranchQuery(const QString &repositoryRoot) const;
     bool synchronousUncommit(const QString &workingDir,
                              const QString& revision = QString(),
@@ -52,13 +50,12 @@ public:
     VcsBase::VcsBaseEditorWidget *annotate(
             const QString &workingDir, const QString &file, const QString &revision = QString(),
             int lineNumber = -1, const QStringList &extraOptions = QStringList()) override;
-    bool isVcsDirectory(const Utils::FileName &fileName) const;
+    bool isVcsDirectory(const Utils::FilePath &fileName) const;
     QString findTopLevelForFile(const QFileInfo &file) const override;
     bool managesFile(const QString &workingDirectory, const QString &fileName) const;
     void view(const QString &source, const QString &id,
               const QStringList &extraOptions = QStringList()) override;
 
-protected:
     Core::Id vcsEditorKind(VcsCommandTag cmd) const override;
     QString vcsCommandString(VcsCommandTag cmd) const override;
     Utils::ExitCodeInterpreter exitCodeInterpreter(VcsCommandTag cmd) const override;
@@ -67,7 +64,6 @@ protected:
 
 private:
     friend class CloneWizard;
-    friend class BazaarControl;
 };
 
 } // namespace Internal

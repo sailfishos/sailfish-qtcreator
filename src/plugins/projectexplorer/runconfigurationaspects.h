@@ -29,10 +29,15 @@
 #include "applicationlauncher.h"
 #include "environmentaspect.h"
 
+#include <QPointer>
+
 QT_BEGIN_NAMESPACE
 class QCheckBox;
+class QPlainTextEdit;
 class QToolButton;
 QT_END_NAMESPACE
+
+namespace Utils { class ExpandButton; }
 
 namespace ProjectExplorer {
 
@@ -43,10 +48,10 @@ class PROJECTEXPLORER_EXPORT TerminalAspect : public ProjectConfigurationAspect
 public:
     TerminalAspect();
 
-    void addToConfigurationLayout(QFormLayout *layout) override;
+    void addToLayout(LayoutBuilder &builder) override;
 
     bool useTerminal() const;
-    void setUseTerminal(bool useTerminal);
+    void setUseTerminalHint(bool useTerminal);
 
     bool isUserSet() const;
 
@@ -54,6 +59,9 @@ private:
     void fromMap(const QVariantMap &map) override;
     void toMap(QVariantMap &map) const override;
 
+    void calculateUseTerminal();
+
+    bool m_useTerminalHint = false;
     bool m_useTerminal = false;
     bool m_userSet = false;
     QPointer<QCheckBox> m_checkBox; // Owned by RunConfigWidget
@@ -64,14 +72,15 @@ class PROJECTEXPLORER_EXPORT WorkingDirectoryAspect : public ProjectConfiguratio
     Q_OBJECT
 
 public:
-    explicit WorkingDirectoryAspect(EnvironmentAspect *envAspect = nullptr);
+    WorkingDirectoryAspect();
 
-    void addToConfigurationLayout(QFormLayout *layout) override;
+    void addToLayout(LayoutBuilder &builder) override;
+    void acquaintSiblings(const ProjectConfigurationAspects &) override;
 
-    Utils::FileName workingDirectory(const Utils::MacroExpander *expander) const;
-    Utils::FileName defaultWorkingDirectory() const;
-    Utils::FileName unexpandedWorkingDirectory() const;
-    void setDefaultWorkingDirectory(const Utils::FileName &defaultWorkingDir);
+    Utils::FilePath workingDirectory(const Utils::MacroExpander *expander) const;
+    Utils::FilePath defaultWorkingDirectory() const;
+    Utils::FilePath unexpandedWorkingDirectory() const;
+    void setDefaultWorkingDirectory(const Utils::FilePath &defaultWorkingDir);
     Utils::PathChooser *pathChooser() const;
 
 private:
@@ -81,9 +90,9 @@ private:
     void resetPath();
     QString keyForDefaultWd() const;
 
-    EnvironmentAspect * const m_envAspect = nullptr;
-    Utils::FileName m_workingDirectory;
-    Utils::FileName m_defaultWorkingDirectory;
+    EnvironmentAspect *m_envAspect = nullptr;
+    Utils::FilePath m_workingDirectory;
+    Utils::FilePath m_defaultWorkingDirectory;
     QPointer<Utils::PathChooser> m_chooser;
     QPointer<QToolButton> m_resetButton;
 };
@@ -95,7 +104,7 @@ class PROJECTEXPLORER_EXPORT ArgumentsAspect : public ProjectConfigurationAspect
 public:
     ArgumentsAspect();
 
-    void addToConfigurationLayout(QFormLayout *layout) override;
+    void addToLayout(LayoutBuilder &builder) override;
 
     QString arguments(const Utils::MacroExpander *expander) const;
     QString unexpandedArguments() const;
@@ -109,8 +118,14 @@ private:
     void fromMap(const QVariantMap &map) override;
     void toMap(QVariantMap &map) const override;
 
+    QWidget *setupChooser();
+
     QString m_arguments;
     QPointer<Utils::FancyLineEdit> m_chooser;
+    QPointer<QPlainTextEdit> m_multiLineChooser;
+    QPointer<Utils::ExpandButton> m_multiLineButton;
+    bool m_multiLine = false;
+    mutable bool m_currentlyExpanding = false;
 };
 
 class PROJECTEXPLORER_EXPORT UseLibraryPathsAspect : public BaseBoolAspect
@@ -137,12 +152,12 @@ public:
     ExecutableAspect();
     ~ExecutableAspect() override;
 
-    Utils::FileName executable() const;
-    void setExecutable(const Utils::FileName &executable);
+    Utils::FilePath executable() const;
+    void setExecutable(const Utils::FilePath &executable);
 
     void setSettingsKey(const QString &key);
     void makeOverridable(const QString &overridingKey, const QString &useOverridableKey);
-    void addToConfigurationLayout(QFormLayout *layout) override;
+    void addToLayout(LayoutBuilder &builder) override;
     void setLabelText(const QString &labelText);
     void setPlaceHolderText(const QString &placeHolderText);
     void setExecutablePathStyle(Utils::OsType osType);

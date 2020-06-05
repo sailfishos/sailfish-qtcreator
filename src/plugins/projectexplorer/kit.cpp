@@ -33,10 +33,14 @@
 #include "projectexplorerconstants.h"
 
 #include <utils/algorithm.h>
+#include <utils/displayname.h>
 #include <utils/fileutils.h>
 #include <utils/icon.h>
 #include <utils/macroexpander.h>
+#include <utils/optional.h>
 #include <utils/qtcassert.h>
+#include <utils/stringutils.h>
+#include <utils/utilsicons.h>
 
 #include <QApplication>
 #include <QFileInfo>
@@ -44,6 +48,8 @@
 #include <QStyle>
 #include <QTextStream>
 #include <QUuid>
+
+#include <numeric>
 
 using namespace Core;
 using namespace Utils;
@@ -56,8 +62,10 @@ const char AUTODETECTIONSOURCE_KEY[] = "PE.Profile.AutoDetectionSource";
 const char SDK_PROVIDED_KEY[] = "PE.Profile.SDK";
 const char DATA_KEY[] = "PE.Profile.Data";
 const char ICON_KEY[] = "PE.Profile.Icon";
+const char DEVICE_TYPE_FOR_ICON_KEY[] = "PE.Profile.DeviceTypeForIcon";
 const char MUTABLE_INFO_KEY[] = "PE.Profile.MutableInfo";
 const char STICKY_INFO_KEY[] = "PE.Profile.StickyInfo";
+const char IRRELEVANT_ASPECTS_KEY[] = "PE.Kit.IrrelevantAspects";
 
 namespace ProjectExplorer {
 namespace Internal {
@@ -78,7 +86,8 @@ public:
         if (!id.isValid())
             m_id = Id::fromString(QUuid::createUuid().toString());
 
-        m_unexpandedDisplayName = QCoreApplication::translate("ProjectExplorer::Kit", "Unnamed");
+        m_unexpandedDisplayName.setDefaultValue(QCoreApplication::translate("ProjectExplorer::Kit",
+                                                                            "Unnamed"));
 
         m_macroExpander.setDisplayName(tr("Kit"));
         m_macroExpander.setAccumulating(true);
@@ -86,8 +95,8 @@ public:
             [kit] { return kit->id().toString(); });
         m_macroExpander.registerVariable("Kit:FileSystemName", tr("Kit filesystem-friendly name"),
             [kit] { return kit->fileSystemFriendlyName(); });
-        foreach (KitInformation *ki, KitManager::kitInformation())
-            ki->addToMacroExpander(kit, &m_macroExpander);
+        for (KitAspect *aspect : KitManager::kitAspects())
+            aspect->addToMacroExpander(kit, &m_macroExpander);
 
         // This provides the same global fall back as the global expander
         // without relying on the currentKit() discovery process there.
@@ -105,7 +114,7 @@ public:
             false);
     }
 
-    QString m_unexpandedDisplayName;
+    DisplayName m_unexpandedDisplayName;
     QString m_fileSystemFriendlyName;
     QString m_autoDetectionSource;
     Id m_id;
@@ -117,11 +126,13 @@ public:
     bool m_hasValidityInfo = false;
     bool m_mustNotify = false;
     QIcon m_cachedIcon;
-    FileName m_iconPath;
+    FilePath m_iconPath;
+    Id m_deviceTypeForIcon;
 
     QHash<Id, QVariant> m_data;
     QSet<Id> m_sticky;
     QSet<Id> m_mutable;
+    optional<QSet<Id>> m_irrelevantAspects;
     MacroExpander m_macroExpander;
 };
 
@@ -131,11 +142,14 @@ public:
 // Kit:
 // -------------------------------------------------------------------------
 
-Kit::Kit(Id id) :
-    d(std::make_unique<Internal::KitPrivate>(id, this))
+Kit::Predicate Kit::defaultPredicate()
 {
-    foreach (KitInformation *sti, KitManager::kitInformation())
-        d->m_data.insert(sti->id(), sti->defaultValue(this));
+    return [](const Kit *k) { return k->isValid(); };
+}
+
+Kit::Kit(Id id)
+    : d(std::make_unique<Internal::KitPrivate>(id, this))
+{
 }
 
 Kit::Kit(const QVariantMap &data) :
@@ -153,11 +167,14 @@ Kit::Kit(const QVariantMap &data) :
     else
         d->m_sdkProvided = d->m_autodetected;
 
-    d->m_unexpandedDisplayName = data.value(QLatin1String(DISPLAYNAME_KEY),
-                                            d->m_unexpandedDisplayName).toString();
+    d->m_unexpandedDisplayName.fromMap(data, DISPLAYNAME_KEY);
     d->m_fileSystemFriendlyName = data.value(QLatin1String(FILESYSTEMFRIENDLYNAME_KEY)).toString();
-    d->m_iconPath = FileName::fromString(data.value(QLatin1String(ICON_KEY),
+    d->m_iconPath = FilePath::fromString(data.value(QLatin1String(ICON_KEY),
                                                     d->m_iconPath.toString()).toString());
+    d->m_deviceTypeForIcon = Id::fromSetting(data.value(DEVICE_TYPE_FOR_ICON_KEY));
+    const auto it = data.constFind(IRRELEVANT_ASPECTS_KEY);
+    if (it != data.constEnd())
+        d->m_irrelevantAspects = transform<QSet<Id>>(it.value().toList(), &Id::fromSetting);
 
     QVariantMap extra = data.value(QLatin1String(DATA_KEY)).toMap();
     d->m_data.clear(); // remove default values
@@ -190,38 +207,39 @@ void Kit::unblockNotification()
         kitUpdated();
 }
 
+void Kit::copyKitCommon(Kit *target, const Kit *source)
+{
+    target->d->m_data = source->d->m_data;
+    target->d->m_iconPath = source->d->m_iconPath;
+    target->d->m_deviceTypeForIcon = source->d->m_deviceTypeForIcon;
+    target->d->m_cachedIcon = source->d->m_cachedIcon;
+    target->d->m_sticky = source->d->m_sticky;
+    target->d->m_mutable = source->d->m_mutable;
+    target->d->m_irrelevantAspects = source->d->m_irrelevantAspects;
+    target->d->m_hasValidityInfo = false;
+}
+
 Kit *Kit::clone(bool keepName) const
 {
     auto k = new Kit;
+    copyKitCommon(k, this);
     if (keepName)
         k->d->m_unexpandedDisplayName = d->m_unexpandedDisplayName;
     else
-        k->d->m_unexpandedDisplayName = QCoreApplication::translate("ProjectExplorer::Kit", "Clone of %1")
-                .arg(d->m_unexpandedDisplayName);
+        k->d->m_unexpandedDisplayName.setValue(newKitName(KitManager::kits()));
     k->d->m_autodetected = false;
-    k->d->m_data = d->m_data;
     // Do not clone m_fileSystemFriendlyName, needs to be unique
-    k->d->m_hasError = d->m_hasError;
-    k->d->m_cachedIcon = d->m_cachedIcon;
-    k->d->m_iconPath = d->m_iconPath;
-    k->d->m_sticky = d->m_sticky;
-    k->d->m_mutable = d->m_mutable;
+    k->d->m_hasError = d->m_hasError;  // TODO: Is this intentionally not done for copyFrom()?
     return k;
 }
 
 void Kit::copyFrom(const Kit *k)
 {
-    KitGuard g(this);
-    d->m_data = k->d->m_data;
-    d->m_iconPath = k->d->m_iconPath;
-    d->m_cachedIcon = k->d->m_cachedIcon;
+    copyKitCommon(this, k);
     d->m_autodetected = k->d->m_autodetected;
     d->m_autoDetectionSource = k->d->m_autoDetectionSource;
     d->m_unexpandedDisplayName = k->d->m_unexpandedDisplayName;
     d->m_fileSystemFriendlyName = k->d->m_fileSystemFriendlyName;
-    d->m_mustNotify = true;
-    d->m_sticky = k->d->m_sticky;
-    d->m_mutable = k->d->m_mutable;
 }
 
 bool Kit::isValid() const
@@ -243,14 +261,12 @@ bool Kit::hasWarning() const
     return d->m_hasWarning;
 }
 
-QList<Task> Kit::validate() const
+Tasks Kit::validate() const
 {
-    QList<Task> result;
-    QList<KitInformation *> infoList = KitManager::kitInformation();
-    for (KitInformation *i : infoList) {
-        QList<Task> tmp = i->validate(this);
-        result.append(tmp);
-    }
+    Tasks result;
+    for (KitAspect *aspect : KitManager::kitAspects())
+        result.append(aspect->validate(this));
+
     d->m_hasError = containsType(result, Task::TaskType::Error);
     d->m_hasWarning = containsType(result, Task::TaskType::Warning);
 
@@ -262,44 +278,41 @@ QList<Task> Kit::validate() const
 void Kit::fix()
 {
     KitGuard g(this);
-    foreach (KitInformation *i, KitManager::kitInformation())
-        i->fix(this);
+    for (KitAspect *aspect : KitManager::kitAspects())
+        aspect->fix(this);
 }
 
 void Kit::setup()
 {
     KitGuard g(this);
-    const QList<KitInformation *> info = KitManager::kitInformation();
-    for (KitInformation * const ki : info)
-        ki->setup(this);
+    const QList<KitAspect *> aspects = KitManager::kitAspects();
+    for (KitAspect * const aspect : aspects)
+        aspect->setup(this);
 }
 
 void Kit::upgrade()
 {
     KitGuard g(this);
-    // Process the KitInfos in reverse order: They may only be based on other information lower in
-    // the stack.
-    for (KitInformation *ki : KitManager::kitInformation())
-        ki->upgrade(this);
+    // Process the KitAspects in reverse order: They may only be based on other information
+    // lower in the stack.
+    for (KitAspect *aspect : KitManager::kitAspects())
+        aspect->upgrade(this);
 }
 
 QString Kit::unexpandedDisplayName() const
 {
-    return d->m_unexpandedDisplayName;
+    return d->m_unexpandedDisplayName.value();
 }
 
 QString Kit::displayName() const
 {
-    return d->m_macroExpander.expand(d->m_unexpandedDisplayName);
+    return d->m_macroExpander.expand(unexpandedDisplayName());
 }
 
 void Kit::setUnexpandedDisplayName(const QString &name)
 {
-    if (d->m_unexpandedDisplayName == name)
-        return;
-
-    d->m_unexpandedDisplayName = name;
-    kitUpdated();
+    if (d->m_unexpandedDisplayName.setValue(name))
+        kitUpdated();
 }
 
 void Kit::setCustomFileSystemFriendlyName(const QString &fileSystemFriendlyName)
@@ -350,6 +363,15 @@ Id Kit::id() const
     return d->m_id;
 }
 
+int Kit::weight() const
+{
+    const QList<KitAspect *> &aspects = KitManager::kitAspects();
+    return std::accumulate(aspects.begin(), aspects.end(), 0,
+                           [this](int sum, const KitAspect *aspect) {
+        return sum + aspect->weight(this);
+    });
+}
+
 static QIcon iconForDeviceType(Core::Id deviceType)
 {
     const IDeviceFactory *factory = Utils::findOrDefault(IDeviceFactory::allDeviceFactories(),
@@ -364,12 +386,13 @@ QIcon Kit::icon() const
     if (!d->m_cachedIcon.isNull())
         return d->m_cachedIcon;
 
-    if (!d->m_iconPath.isEmpty() && d->m_iconPath.exists()) {
+    if (!d->m_deviceTypeForIcon.isValid() && !d->m_iconPath.isEmpty() && d->m_iconPath.exists()) {
         d->m_cachedIcon = QIcon(d->m_iconPath.toString());
         return d->m_cachedIcon;
     }
 
-    const Core::Id deviceType = DeviceTypeKitInformation::deviceTypeId(this);
+    const Core::Id deviceType = d->m_deviceTypeForIcon.isValid()
+            ? d->m_deviceTypeForIcon : DeviceTypeKitAspect::deviceTypeId(this);
     const QIcon deviceTypeIcon = iconForDeviceType(deviceType);
     if (!deviceTypeIcon.isNull()) {
         d->m_cachedIcon = deviceTypeIcon;
@@ -380,16 +403,40 @@ QIcon Kit::icon() const
     return d->m_cachedIcon;
 }
 
-FileName Kit::iconPath() const
+QIcon Kit::displayIcon() const
+{
+    QIcon result = icon();
+    if (hasWarning()) {
+         static const QIcon warningIcon(Utils::Icons::WARNING.icon());
+         result = warningIcon;
+    }
+    if (!isValid()) {
+        static const QIcon errorIcon(Utils::Icons::CRITICAL.icon());
+        result = errorIcon;
+    }
+    return result;
+}
+
+FilePath Kit::iconPath() const
 {
     return d->m_iconPath;
 }
 
-void Kit::setIconPath(const FileName &path)
+void Kit::setIconPath(const FilePath &path)
 {
     if (d->m_iconPath == path)
         return;
+    d->m_deviceTypeForIcon = Id();
     d->m_iconPath = path;
+    kitUpdated();
+}
+
+void Kit::setDeviceTypeForIcon(Id deviceType)
+{
+    if (d->m_deviceTypeForIcon == deviceType)
+        return;
+    d->m_iconPath.clear();
+    d->m_deviceTypeForIcon = deviceType;
     kitUpdated();
 }
 
@@ -459,10 +506,11 @@ bool Kit::isEqual(const Kit *other) const
 {
     return isDataEqual(other)
             && d->m_iconPath == other->d->m_iconPath
+            && d->m_deviceTypeForIcon == other->d->m_deviceTypeForIcon
             && d->m_unexpandedDisplayName == other->d->m_unexpandedDisplayName
             && d->m_fileSystemFriendlyName == other->d->m_fileSystemFriendlyName
+            && d->m_irrelevantAspects == other->d->m_irrelevantAspects
             && d->m_mutable == other->d->m_mutable;
-
 }
 
 QVariantMap Kit::toMap() const
@@ -470,14 +518,15 @@ QVariantMap Kit::toMap() const
     using IdVariantConstIt = QHash<Id, QVariant>::ConstIterator;
 
     QVariantMap data;
+    d->m_unexpandedDisplayName.toMap(data, DISPLAYNAME_KEY);
     data.insert(QLatin1String(ID_KEY), QString::fromLatin1(d->m_id.name()));
-    data.insert(QLatin1String(DISPLAYNAME_KEY), d->m_unexpandedDisplayName);
     data.insert(QLatin1String(AUTODETECTED_KEY), d->m_autodetected);
     if (!d->m_fileSystemFriendlyName.isEmpty())
         data.insert(QLatin1String(FILESYSTEMFRIENDLYNAME_KEY), d->m_fileSystemFriendlyName);
     data.insert(QLatin1String(AUTODETECTIONSOURCE_KEY), d->m_autoDetectionSource);
     data.insert(QLatin1String(SDK_PROVIDED_KEY), d->m_sdkProvided);
     data.insert(QLatin1String(ICON_KEY), d->m_iconPath.toString());
+    data.insert(DEVICE_TYPE_FOR_ICON_KEY, d->m_deviceTypeForIcon.toSetting());
 
     QStringList mutableInfo;
     foreach (Id id, d->m_mutable)
@@ -488,6 +537,11 @@ QVariantMap Kit::toMap() const
     foreach (Id id, d->m_sticky)
         stickyInfo << id.toString();
     data.insert(QLatin1String(STICKY_INFO_KEY), stickyInfo);
+
+    if (d->m_irrelevantAspects) {
+        data.insert(IRRELEVANT_ASPECTS_KEY, transform<QVariantList>(d->m_irrelevantAspects.value(),
+                                                                    &Id::toSetting));
+    }
 
     QVariantMap extra;
 
@@ -501,35 +555,35 @@ QVariantMap Kit::toMap() const
 
 void Kit::addToEnvironment(Environment &env) const
 {
-    QList<KitInformation *> infoList = KitManager::kitInformation();
-    foreach (KitInformation *ki, infoList)
-        ki->addToEnvironment(this, env);
+    for (KitAspect *aspect : KitManager::kitAspects())
+        aspect->addToEnvironment(this, env);
 }
 
 IOutputParser *Kit::createOutputParser() const
 {
     auto first = new OsParser;
-    QList<KitInformation *> infoList = KitManager::kitInformation();
-    foreach (KitInformation *ki, infoList)
-        first->appendOutputParser(ki->createOutputParser(this));
+    for (KitAspect *aspect : KitManager::kitAspects())
+        first->appendOutputParser(aspect->createOutputParser(this));
     return first;
 }
 
-QString Kit::toHtml(const QList<Task> &additional) const
+QString Kit::toHtml(const Tasks &additional, const QString &extraText) const
 {
     QString result;
     QTextStream str(&result);
     str << "<html><body>";
     str << "<h3>" << displayName() << "</h3>";
 
+    if (!extraText.isEmpty())
+        str << "<p>" << extraText << "</p>";
+
     if (!isValid() || hasWarning() || !additional.isEmpty())
         str << "<p>" << ProjectExplorer::toHtml(additional + validate()) << "</p>";
 
     str << "<table>";
-    QList<KitInformation *> infoList = KitManager::kitInformation();
-    foreach (KitInformation *ki, infoList) {
-        KitInformation::ItemList list = ki->toUserOutput(this);
-        foreach (const KitInformation::Item &j, list) {
+    for (KitAspect *aspect : KitManager::kitAspects()) {
+        const KitAspect::ItemList list = aspect->toUserOutput(this);
+        for (const KitAspect::Item &j : list) {
             QString contents = j.second;
             if (contents.count() > 256) {
                 int pos = contents.lastIndexOf("<br>", 256);
@@ -571,9 +625,9 @@ void Kit::setSdkProvided(bool sdkProvided)
 
 void Kit::makeSticky()
 {
-    foreach (KitInformation *ki, KitManager::kitInformation()) {
-        if (hasValue(ki->id()))
-            setSticky(ki->id(), true);
+    for (KitAspect *aspect : KitManager::kitAspects()) {
+        if (hasValue(aspect->id()))
+            setSticky(aspect->id(), true);
     }
 }
 
@@ -614,11 +668,21 @@ bool Kit::isMutable(Id id) const
     return d->m_mutable.contains(id);
 }
 
+void Kit::setIrrelevantAspects(const QSet<Id> &irrelevant)
+{
+    d->m_irrelevantAspects = irrelevant;
+}
+
+QSet<Id> Kit::irrelevantAspects() const
+{
+    return d->m_irrelevantAspects.value_or(KitManager::irrelevantAspects());
+}
+
 QSet<Id> Kit::supportedPlatforms() const
 {
     QSet<Id> platforms;
-    foreach (const KitInformation *ki, KitManager::kitInformation()) {
-        const QSet<Id> ip = ki->supportedPlatforms(this);
+    for (const KitAspect *aspect : KitManager::kitAspects()) {
+        const QSet<Id> ip = aspect->supportedPlatforms(this);
         if (ip.isEmpty())
             continue;
         if (platforms.isEmpty())
@@ -632,8 +696,8 @@ QSet<Id> Kit::supportedPlatforms() const
 QSet<Id> Kit::availableFeatures() const
 {
     QSet<Id> features;
-    foreach (const KitInformation *ki, KitManager::kitInformation())
-        features |= ki->availableFeatures(this);
+    for (const KitAspect *aspect : KitManager::kitAspects())
+        features |= aspect->availableFeatures(this);
     return features;
 }
 
@@ -645,6 +709,19 @@ bool Kit::hasFeatures(const QSet<Id> &features) const
 MacroExpander *Kit::macroExpander() const
 {
     return &d->m_macroExpander;
+}
+
+QString Kit::newKitName(const QList<Kit *> &allKits) const
+{
+    return newKitName(unexpandedDisplayName(), allKits);
+}
+
+QString Kit::newKitName(const QString &name, const QList<Kit *> &allKits)
+{
+    const QString baseName = name.isEmpty()
+            ? QCoreApplication::translate("ProjectExplorer::Kit", "Unnamed")
+            : QCoreApplication::translate("ProjectExplorer::Kit", "Clone of %1").arg(name);
+    return Utils::makeUniquelyNumbered(baseName, transform(allKits, &Kit::unexpandedDisplayName));
 }
 
 void Kit::kitUpdated()

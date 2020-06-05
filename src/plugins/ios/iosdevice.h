@@ -28,25 +28,24 @@
 #include "iostoolhandler.h"
 
 #include <projectexplorer/devicesupport/idevice.h>
+#include <projectexplorer/devicesupport/idevicefactory.h>
 
 #include <QVariantMap>
 #include <QMap>
 #include <QString>
-#include <QSharedPointer>
 #include <QStringList>
 #include <QTimer>
 
-namespace ProjectExplorer{
-class Kit;
-}
 namespace Ios {
 class IosConfigurations;
 
 namespace Internal {
 class IosDeviceManager;
 
-class IosDevice : public ProjectExplorer::IDevice
+class IosDevice final : public ProjectExplorer::IDevice
 {
+    Q_DECLARE_TR_FUNCTIONS(Ios::Internal::IosDevice)
+
 public:
     using Dict = QMap<QString, QString>;
     using ConstPtr = QSharedPointer<const IosDevice>;
@@ -55,17 +54,13 @@ public:
     ProjectExplorer::IDevice::DeviceInfo deviceInformation() const override;
     ProjectExplorer::IDeviceWidget *createWidget() override;
     ProjectExplorer::DeviceProcessSignalOperation::Ptr signalOperation() const override;
-    QString displayType() const override;
 
-    ProjectExplorer::IDevice::Ptr clone() const override;
     void fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
     QString uniqueDeviceID() const;
-    IosDevice(const QString &uid);
     QString osVersion() const;
     Utils::Port nextPort() const;
     bool canAutoDetectPorts() const override;
-    Utils::OsType osType() const override;
 
     static QString name();
 
@@ -73,13 +68,26 @@ protected:
     friend class IosDeviceFactory;
     friend class Ios::Internal::IosDeviceManager;
     IosDevice();
-    IosDevice(const IosDevice &other);
+    IosDevice(const QString &uid);
+
+    enum CtorHelper {};
+    IosDevice(CtorHelper);
+
     Dict m_extraInfo;
     bool m_ignoreDevice = false;
     mutable quint16 m_lastPort;
 };
 
-class IosDeviceManager : public QObject {
+class IosDeviceFactory final : public ProjectExplorer::IDeviceFactory
+{
+public:
+    IosDeviceFactory();
+
+    bool canRestore(const QVariantMap &map) const override;
+};
+
+class IosDeviceManager : public QObject
+{
     Q_OBJECT
 public:
     using TranslationMap = QHash<QString, QString>;
@@ -103,10 +111,5 @@ private:
     QStringList m_userModeDeviceIds;
 };
 
-namespace IosKitInformation {
-IosDevice::ConstPtr device(ProjectExplorer::Kit *);
-}
-
 } // namespace Internal
-
 } // namespace Ios

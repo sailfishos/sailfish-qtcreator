@@ -25,12 +25,12 @@
 
 #include "clangtoolruncontrol.h"
 
+#include "clangtidyclazyrunner.h"
 #include "clangtool.h"
 #include "clangtoolslogfilereader.h"
 #include "clangtoolsprojectsettings.h"
 #include "clangtoolssettings.h"
 #include "clangtoolsutils.h"
-#include "clangtoolrunner.h"
 
 #include <debugger/analyzer/analyzerconstants.h>
 
@@ -40,6 +40,7 @@
 #include <coreplugin/progressmanager/futureprogress.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 
+#include <cpptools/clangdiagnosticconfigsmodel.h>
 #include <cpptools/compileroptionsbuilder.h>
 #include <cpptools/cppmodelmanager.h>
 #include <cpptools/cppprojectfile.h>
@@ -55,13 +56,12 @@
 #include <projectexplorer/projectexplorericons.h>
 #include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/target.h>
-#include <projectexplorer/taskhub.h>
 #include <projectexplorer/toolchain.h>
 
 #include <utils/algorithm.h>
-#include <utils/checkablemessagebox.h>
 #include <utils/hostosinfo.h>
 #include <utils/qtcprocess.h>
+#include <utils/stringutils.h>
 
 #include <QAction>
 #include <QLoggingCategory>
@@ -81,8 +81,7 @@ static QStringList splitArgs(QString &argsString)
     return result;
 }
 
-template<size_t Size>
-static QStringList extraOptions(const char(&environment)[Size])
+static QStringList extraOptions(const char *environment)
 {
     if (!qEnvironmentVariableIsSet(environment))
         return QStringList();
@@ -90,7 +89,8 @@ static QStringList extraOptions(const char(&environment)[Size])
     return splitArgs(arguments);
 }
 
-static QStringList extraClangToolsPrependOptions() {
+static QStringList extraClangToolsPrependOptions()
+{
     constexpr char csaPrependOptions[] = "QTC_CLANG_CSA_CMD_PREPEND";
     constexpr char toolsPrependOptions[] = "QTC_CLANG_TOOLS_CMD_PREPEND";
     static const QStringList options = extraOptions(csaPrependOptions)
@@ -100,7 +100,8 @@ static QStringList extraClangToolsPrependOptions() {
     return options;
 }
 
-static QStringList extraClangToolsAppendOptions() {
+static QStringList extraClangToolsAppendOptions()
+{
     constexpr char csaAppendOptions[] = "QTC_CLANG_CSA_CMD_APPEND";
     constexpr char toolsAppendOptions[] = "QTC_CLANG_TOOLS_CMD_APPEND";
     static const QStringList options = extraOptions(csaAppendOptions)
@@ -113,62 +114,31 @@ static QStringList extraClangToolsAppendOptions() {
 namespace ClangTools {
 namespace Internal {
 
+static ClangTool *tool()
+{
+    return ClangTool::instance();
+}
+
 class ProjectBuilder : public RunWorker
 {
 public:
-    ProjectBuilder(RunControl *runControl, Project *project, ClangToolRunControl *parent)
-        : RunWorker(runControl), m_project(project), m_parent(parent)
+    ProjectBuilder(RunControl *runControl)
+        : RunWorker(runControl)
     {
         setId("ProjectBuilder");
     }
-
-    void setEnabled(bool enabled) { m_enabled = enabled; }
 
     bool success() const { return m_success; }
 
 private:
     void start() final
     {
-        if (!m_enabled) {
-            ProjectExplorerPlugin::saveModifiedFiles();
-            onBuildFinished(true);
-            return;
-        }
-
-        Target *target = m_project->activeTarget();
+        Target *target = runControl()->target();
         QTC_ASSERT(target, reportFailure(); return);
-
-        BuildConfiguration::BuildType buildType = BuildConfiguration::Unknown;
-        if (const BuildConfiguration *buildConfig = target->activeBuildConfiguration())
-            buildType = buildConfig->buildType();
-
-        if (buildType == BuildConfiguration::Release) {
-            const QString wrongMode = ClangToolRunControl::tr("Release");
-            const QString toolName = m_parent->tool()->name();
-            const QString title = ClangToolRunControl::tr("Run %1 in %2 Mode?").arg(toolName, wrongMode);
-            const QString problem = ClangToolRunControl::tr(
-                        "You are trying to run the tool \"%1\" on an application in %2 mode. The tool is "
-                        "designed to be used in Debug mode since enabled assertions can reduce the number of "
-                        "false positives.").arg(toolName, wrongMode);
-            const QString question = ClangToolRunControl::tr(
-                        "Do you want to continue and run the tool in %1 mode?").arg(wrongMode);
-            const QString message = QString("<html><head/><body>"
-                                            "<p>%1</p>"
-                                            "<p>%2</p>"
-                                            "</body></html>").arg(problem, question);
-            if (Utils::CheckableMessageBox::doNotAskAgainQuestion(Core::ICore::mainWindow(),
-                                                                  title, message, Core::ICore::settings(),
-                                                                  "ClangToolsCorrectModeWarning") != QDialogButtonBox::Yes)
-            {
-                reportFailure();
-                return;
-            }
-        }
 
         connect(BuildManager::instance(), &BuildManager::buildQueueFinished,
                 this, &ProjectBuilder::onBuildFinished, Qt::QueuedConnection);
-
-        ProjectExplorerPlugin::buildProject(m_project);
+        BuildManager::buildProjectWithDependencies(target->project());
      }
 
      void onBuildFinished(bool success)
@@ -180,9 +150,6 @@ private:
      }
 
 private:
-     QPointer<Project> m_project;
-     ClangToolRunControl *m_parent;
-     bool m_enabled = true;
      bool m_success = false;
 };
 
@@ -207,7 +174,7 @@ static AnalyzeUnits toAnalyzeUnits(const FileInfos &fileInfos)
     return unitsToAnalyze;
 }
 
-AnalyzeUnits ClangToolRunControl::unitsToAnalyze()
+AnalyzeUnits ClangToolRunWorker::unitsToAnalyze()
 {
     QTC_ASSERT(m_projectInfo.isValid(), return AnalyzeUnits());
 
@@ -216,111 +183,124 @@ AnalyzeUnits ClangToolRunControl::unitsToAnalyze()
 
 static QDebug operator<<(QDebug debug, const Utils::Environment &environment)
 {
-    foreach (const QString &entry, environment.toStringList())
+    for (const QString &entry : environment.toStringList())
         debug << "\n  " << entry;
     return debug;
 }
 
 static QDebug operator<<(QDebug debug, const AnalyzeUnits &analyzeUnits)
 {
-    foreach (const AnalyzeUnit &unit, analyzeUnits)
+    for (const AnalyzeUnit &unit : analyzeUnits)
         debug << "\n  " << unit.file;
     return debug;
 }
 
-ClangToolRunControl::ClangToolRunControl(RunControl *runControl,
-                                         Target *target,
-                                         const FileInfos &fileInfos)
+
+ClangToolRunWorker::ClangToolRunWorker(RunControl *runControl,
+                                       const RunSettings &runSettings,
+                                       const CppTools::ClangDiagnosticConfig &diagnosticConfig,
+                                       const FileInfos &fileInfos,
+                                       bool buildBeforeAnalysis)
     : RunWorker(runControl)
-    , m_projectBuilder(new ProjectBuilder(runControl, target->project(), this))
-    , m_clangExecutable(Core::ICore::clangExecutable(CLANG_BINDIR))
-    , m_temporaryDir("clangtools-XXXXXX")
-    , m_target(target)
+    , m_runSettings(runSettings)
+    , m_diagnosticConfig(diagnosticConfig)
     , m_fileInfos(fileInfos)
+    , m_temporaryDir("clangtools-XXXXXX")
 {
-    addStartDependency(m_projectBuilder);
-
-    ClangToolsProjectSettings *projectSettings = ClangToolsProjectSettingsManager::getSettings(
-        target->project());
-    if (projectSettings->useGlobalSettings())
-        m_projectBuilder->setEnabled(ClangToolsSettings::instance()->savedBuildBeforeAnalysis());
-    else
-        m_projectBuilder->setEnabled(projectSettings->buildBeforeAnalysis());
-}
-
-void ClangToolRunControl::init()
-{
+    m_temporaryDir.setAutoRemove(qEnvironmentVariable("QTC_CLANG_DONT_DELETE_OUTPUT_FILES") != "1");
+    setId("ClangTidyClazyRunner");
     setSupportsReRunning(false);
-    m_projectInfoBeforeBuild = CppTools::CppModelManager::instance()->projectInfo(
-                m_target->project());
 
-    BuildConfiguration *buildConfiguration = m_target->activeBuildConfiguration();
+    if (buildBeforeAnalysis) {
+        m_projectBuilder = new ProjectBuilder(runControl);
+        addStartDependency(m_projectBuilder);
+    }
+
+    Target *target = runControl->target();
+    m_projectInfoBeforeBuild = CppTools::CppModelManager::instance()->projectInfo(target->project());
+
+    BuildConfiguration *buildConfiguration = target->activeBuildConfiguration();
     QTC_ASSERT(buildConfiguration, return);
     m_environment = buildConfiguration->environment();
 
-    ToolChain *toolChain = ToolChainKitInformation::toolChain(m_target->kit(),
-                                                              ProjectExplorer::Constants::CXX_LANGUAGE_ID);
+    ToolChain *toolChain = ToolChainKitAspect::toolChain(target->kit(),
+                                                         ProjectExplorer::Constants::CXX_LANGUAGE_ID);
     QTC_ASSERT(toolChain, return);
     m_targetTriple = toolChain->originalTargetTriple();
     m_toolChainType = toolChain->typeId();
 }
 
-void ClangToolRunControl::start()
+QList<RunnerCreator> ClangToolRunWorker::runnerCreators()
 {
-    TaskHub::clearTasks(Debugger::Constants::ANALYZERTASK_ID);
+    QList<RunnerCreator> creators;
 
-    if (ClangToolsSettings::instance()->savedBuildBeforeAnalysis()) {
-        QTC_ASSERT(m_projectBuilder, return;);
-        if (!m_projectBuilder->success()) {
-            reportFailure();
-            return;
-        }
+    if (m_diagnosticConfig.isClangTidyEnabled())
+        creators << [this]() { return createRunner<ClangTidyRunner>(); };
+
+    if (m_diagnosticConfig.isClazyEnabled()) {
+        if (!qEnvironmentVariable("QTC_USE_CLAZY_STANDALONE_PATH").isEmpty())
+            creators << [this]() { return createRunner<ClazyStandaloneRunner>(); };
+        else
+            creators << [this]() { return createRunner<ClazyPluginRunner>(); };
     }
 
-    const QString &toolName = tool()->name();
-    if (m_clangExecutable.isEmpty()) {
-        const QString errorMessage = tr("%1: Can't find clang executable, stop.").arg(toolName);
-        appendMessage(errorMessage, Utils::ErrorMessageFormat);
-        TaskHub::addTask(Task::Error, errorMessage, Debugger::Constants::ANALYZERTASK_ID);
-        TaskHub::requestPopup();
-        reportFailure();
+    return creators;
+}
+
+void ClangToolRunWorker::start()
+{
+    ProjectExplorerPlugin::saveModifiedFiles();
+
+    if (m_projectBuilder && !m_projectBuilder->success()) {
+        emit buildFailed();
+        reportFailure(tr("Failed to build the project."));
         return;
     }
 
-    m_projectInfo = CppTools::CppModelManager::instance()->projectInfo(m_target->project());
+    const QString &toolName = tool()->name();
+    Project *project = runControl()->project();
+    m_projectInfo = CppTools::CppModelManager::instance()->projectInfo(project);
+    m_projectFiles = Utils::toSet(project->files(Project::AllFiles));
 
-    // Some projects provides CompilerCallData once a build is finished,
+    // Project changed in the mean time?
     if (m_projectInfo.configurationOrFilesChanged(m_projectInfoBeforeBuild)) {
         // If it's more than a release/debug build configuration change, e.g.
         // a version control checkout, files might be not valid C++ anymore
         // or even gone, so better stop here.
         reportFailure(tr("The project configuration changed since the start of "
-                         "the %1. Please re-run with current configuration.").arg(toolName));
+                         "the %1. Please re-run with current configuration.")
+                          .arg(toolName));
+        emit startFailed();
         return;
     }
-
-    const Utils::FileName projectFile = m_projectInfo.project()->projectFilePath();
-    appendMessage(tr("Running %1 on %2").arg(toolName).arg(projectFile.toUserOutput()),
-                  Utils::NormalMessageFormat);
 
     // Create log dir
     if (!m_temporaryDir.isValid()) {
-        const QString errorMessage
-                = tr("%1: Failed to create temporary dir, stop.").arg(toolName);
-        appendMessage(errorMessage, Utils::ErrorMessageFormat);
-        TaskHub::addTask(Task::Error, errorMessage, Debugger::Constants::ANALYZERTASK_ID);
-        TaskHub::requestPopup();
-        reportFailure(errorMessage);
+        reportFailure(
+            tr("Failed to create temporary directory: %1.").arg(m_temporaryDir.errorString()));
+        emit startFailed();
         return;
     }
+
+    const Utils::FilePath projectFile = m_projectInfo.project()->projectFilePath();
+    appendMessage(tr("Running %1 on %2 with configuration \"%3\".")
+                      .arg(toolName)
+                      .arg(projectFile.toUserOutput())
+                      .arg(m_diagnosticConfig.displayName()),
+                  Utils::NormalMessageFormat);
 
     // Collect files
     const AnalyzeUnits unitsToProcess = unitsToAnalyze();
     qCDebug(LOG) << "Files to process:" << unitsToProcess;
-    m_unitsToProcess = unitsToProcess;
-    m_initialFilesToProcessSize = m_unitsToProcess.count();
-    m_filesAnalyzed = 0;
-    m_filesNotAnalyzed = 0;
+
+    m_queue.clear();
+    for (const AnalyzeUnit &unit : unitsToProcess) {
+        for (const RunnerCreator &creator : runnerCreators())
+            m_queue << QueueItem{unit, creator};
+    }
+    m_initialQueueSize = m_queue.count();
+    m_filesAnalyzed.clear();
+    m_filesNotAnalyzed.clear();
 
     // Set up progress information
     using namespace Core;
@@ -330,93 +310,99 @@ void ClangToolRunControl::start()
                                    toolName.toStdString().c_str());
     futureProgress->setKeepOnFinish(FutureProgress::HideOnFinish);
     connect(futureProgress, &FutureProgress::canceled,
-            this, &ClangToolRunControl::onProgressCanceled);
-    m_progress.setProgressRange(0, m_initialFilesToProcessSize);
+            this, &ClangToolRunWorker::onProgressCanceled);
+    m_progress.setProgressRange(0, m_initialQueueSize);
     m_progress.reportStarted();
 
     // Start process(es)
     qCDebug(LOG) << "Environment:" << m_environment;
     m_runners.clear();
-    const int parallelRuns = ClangToolsSettings::instance()->savedSimultaneousProcesses();
+    const int parallelRuns = m_runSettings.parallelJobs();
     QTC_ASSERT(parallelRuns >= 1, reportFailure(); return);
-    m_success = true;
 
-    if (m_unitsToProcess.isEmpty()) {
+    if (m_queue.isEmpty()) {
         finalize();
         return;
     }
 
     reportStarted();
+    m_elapsed.start();
 
-    while (m_runners.size() < parallelRuns && !m_unitsToProcess.isEmpty())
+    while (m_runners.size() < parallelRuns && !m_queue.isEmpty())
         analyzeNextFile();
 }
 
-void ClangToolRunControl::stop()
+void ClangToolRunWorker::stop()
 {
-    QSetIterator<ClangToolRunner *> i(m_runners);
-    while (i.hasNext()) {
-        ClangToolRunner *runner = i.next();
+    for (ClangToolRunner *runner : m_runners) {
         QObject::disconnect(runner, nullptr, this, nullptr);
         delete runner;
     }
+    m_projectFiles.clear();
     m_runners.clear();
-    m_unitsToProcess.clear();
+    m_queue.clear();
     m_progress.reportFinished();
 
     reportStopped();
+
+    // Print elapsed time since start
+    const QString elapsedTime = Utils::formatElapsedTime(m_elapsed.elapsed());
+    appendMessage(elapsedTime, NormalMessageFormat);
 }
 
-void ClangToolRunControl::analyzeNextFile()
+void ClangToolRunWorker::analyzeNextFile()
 {
     if (m_progress.isFinished())
         return; // The previous call already reported that we are finished.
 
-    if (m_unitsToProcess.isEmpty()) {
+    if (m_queue.isEmpty()) {
         if (m_runners.isEmpty())
             finalize();
         return;
     }
 
-    const AnalyzeUnit unit = m_unitsToProcess.takeFirst();
+    const QueueItem queueItem = m_queue.takeFirst();
+    const AnalyzeUnit unit = queueItem.unit;
     qCDebug(LOG) << "analyzeNextFile:" << unit.file;
 
-    ClangToolRunner *runner = createRunner();
+    ClangToolRunner *runner = queueItem.runnerCreator();
     m_runners.insert(runner);
-    QTC_ASSERT(runner->run(unit.file, unit.arguments), return);
 
-    appendMessage(tr("Analyzing \"%1\".").arg(
-                      Utils::FileName::fromString(unit.file).toUserOutput()),
-                  Utils::StdOutFormat);
+    if (runner->run(unit.file, unit.arguments)) {
+        const QString filePath = FilePath::fromString(unit.file).toUserOutput();
+        appendMessage(tr("Analyzing \"%1\" [%2].").arg(filePath, runner->name()),
+                      Utils::StdOutFormat);
+    } else {
+        reportFailure(tr("Failed to start runner \"%1\".").arg(runner->name()));
+        stop();
+    }
 }
 
-static Utils::FileName cleanPath(const Utils::FileName &filePath)
+void ClangToolRunWorker::onRunnerFinishedWithSuccess(const QString &filePath)
 {
-    return Utils::FileName::fromString(QDir::cleanPath(filePath.toString()));
-}
+    auto runner = qobject_cast<ClangToolRunner *>(sender());
+    const QString outputFilePath = runner->outputFilePath();
+    qCDebug(LOG) << "onRunnerFinishedWithSuccess:" << outputFilePath;
 
-void ClangToolRunControl::onRunnerFinishedWithSuccess(const QString &filePath)
-{
-    const QString logFilePath = qobject_cast<ClangToolRunner *>(sender())->logFilePath();
-    qCDebug(LOG) << "onRunnerFinishedWithSuccess:" << logFilePath;
-
-    QTC_ASSERT(m_projectInfo.project(), return);
-    const Utils::FileName projectRootDir = cleanPath(m_projectInfo.project()->projectDirectory());
+    emit runnerFinished();
 
     QString errorMessage;
-    const QList<Diagnostic> diagnostics = tool()->read(filePath,
-                                                       projectRootDir,
-                                                       logFilePath,
-                                                       &errorMessage);
-    QFile::remove(logFilePath); // Clean-up.
+    const Diagnostics diagnostics = tool()->read(runner->outputFileFormat(),
+                                                 outputFilePath,
+                                                 filePath,
+                                                 m_projectFiles,
+                                                 &errorMessage);
 
     if (!errorMessage.isEmpty()) {
+        m_filesAnalyzed.remove(filePath);
+        m_filesNotAnalyzed.insert(filePath);
         qCDebug(LOG) << "onRunnerFinishedWithSuccess: Error reading log file:" << errorMessage;
-        const QString filePath = qobject_cast<ClangToolRunner *>(sender())->filePath();
+        const QString filePath = qobject_cast<ClangToolRunner *>(sender())->fileToAnalyze();
         appendMessage(tr("Failed to analyze \"%1\": %2").arg(filePath, errorMessage),
                       Utils::StdErrFormat);
     } else {
-        ++m_filesAnalyzed;
+        if (!m_filesNotAnalyzed.contains(filePath))
+            m_filesAnalyzed.insert(filePath);
         if (!diagnostics.isEmpty())
             tool()->onNewDiagnosticsAvailable(diagnostics);
     }
@@ -424,30 +410,28 @@ void ClangToolRunControl::onRunnerFinishedWithSuccess(const QString &filePath)
     handleFinished();
 }
 
-void ClangToolRunControl::onRunnerFinishedWithFailure(const QString &errorMessage,
+void ClangToolRunWorker::onRunnerFinishedWithFailure(const QString &errorMessage,
                                                       const QString &errorDetails)
 {
     qCDebug(LOG).noquote() << "onRunnerFinishedWithFailure:"
                            << errorMessage << '\n' << errorDetails;
 
+    emit runnerFinished();
+
     auto *toolRunner = qobject_cast<ClangToolRunner *>(sender());
-    const QString filePath = toolRunner->filePath();
-    const QString logFilePath = toolRunner->logFilePath();
+    const QString fileToAnalyze = toolRunner->fileToAnalyze();
+    const QString outputFilePath = toolRunner->outputFilePath();
 
-    // Even in the error case the log file was created, so clean it up here, too.
-    QFile::remove(logFilePath);
+    m_filesAnalyzed.remove(fileToAnalyze);
+    m_filesNotAnalyzed.insert(fileToAnalyze);
 
-    const QString message = tr("Failed to analyze \"%1\": %2").arg(filePath, errorMessage);
-
-    ++m_filesNotAnalyzed;
-    m_success = false;
+    const QString message = tr("Failed to analyze \"%1\": %2").arg(fileToAnalyze, errorMessage);
     appendMessage(message, Utils::StdErrFormat);
     appendMessage(errorDetails, Utils::StdErrFormat);
-    TaskHub::addTask(Task::Error, message, Debugger::Constants::ANALYZERTASK_ID);
     handleFinished();
 }
 
-void ClangToolRunControl::handleFinished()
+void ClangToolRunWorker::handleFinished()
 {
     m_runners.remove(qobject_cast<ClangToolRunner *>(sender()));
     updateProgressValue();
@@ -455,33 +439,54 @@ void ClangToolRunControl::handleFinished()
     analyzeNextFile();
 }
 
-void ClangToolRunControl::onProgressCanceled()
+void ClangToolRunWorker::onProgressCanceled()
 {
     m_progress.reportCanceled();
     runControl()->initiateStop();
 }
 
-void ClangToolRunControl::updateProgressValue()
+void ClangToolRunWorker::updateProgressValue()
 {
-    m_progress.setProgressValue(m_initialFilesToProcessSize - m_unitsToProcess.size());
+    m_progress.setProgressValue(m_initialQueueSize - m_queue.size());
 }
 
-void ClangToolRunControl::finalize()
+void ClangToolRunWorker::finalize()
 {
     const QString toolName = tool()->name();
+    if (m_filesNotAnalyzed.size() != 0) {
+        appendMessage(tr("Error: Failed to analyze %1 files.").arg(m_filesNotAnalyzed.size()),
+                      ErrorMessageFormat);
+        Target *target = runControl()->target();
+        if (target && target->activeBuildConfiguration() && !target->activeBuildConfiguration()->buildDirectory().exists()
+            && !m_runSettings.buildBeforeAnalysis()) {
+            appendMessage(
+                tr("Note: You might need to build the project to generate or update source "
+                   "files. To build automatically, enable \"Build the project before analysis\"."),
+                NormalMessageFormat);
+        }
+    }
+
     appendMessage(tr("%1 finished: "
                      "Processed %2 files successfully, %3 failed.")
-                        .arg(toolName).arg(m_filesAnalyzed).arg(m_filesNotAnalyzed),
+                      .arg(toolName)
+                      .arg(m_filesAnalyzed.size())
+                      .arg(m_filesNotAnalyzed.size()),
                   Utils::NormalMessageFormat);
-
-    if (m_filesNotAnalyzed != 0) {
-        QString msg = tr("%1: Not all files could be analyzed.").arg(toolName);
-        TaskHub::addTask(Task::Error, msg, Debugger::Constants::ANALYZERTASK_ID);
-        TaskHub::requestPopup();
-    }
 
     m_progress.reportFinished();
     runControl()->initiateStop();
+}
+
+template<class T>
+ClangToolRunner *ClangToolRunWorker::createRunner()
+{
+    auto runner = new T(m_diagnosticConfig, this);
+    runner->init(m_temporaryDir.path(), m_environment);
+    connect(runner, &ClangToolRunner::finishedWithSuccess,
+            this, &ClangToolRunWorker::onRunnerFinishedWithSuccess);
+    connect(runner, &ClangToolRunner::finishedWithFailure,
+            this, &ClangToolRunWorker::onRunnerFinishedWithFailure);
+    return runner;
 }
 
 } // namespace Internal

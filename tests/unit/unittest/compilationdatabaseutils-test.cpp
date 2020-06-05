@@ -29,26 +29,35 @@
 #include <projectexplorer/headerpath.h>
 #include <projectexplorer/projectmacro.h>
 #include <utils/fileutils.h>
+#include <utils/hostosinfo.h>
 
 using namespace ProjectExplorer;
 using namespace CompilationDatabaseProjectManager;
+using namespace CompilationDatabaseProjectManager::Internal;
 
 namespace {
 
 class CompilationDatabaseUtils : public ::testing::Test
 {
 protected:
+    QStringList splitCommandLine(const QString &commandLine)
+    {
+        QSet<QString> flagsCache;
+        return CompilationDatabaseProjectManager::Internal::splitCommandLine(commandLine, flagsCache);
+    }
+
     HeaderPaths headerPaths;
     Macros macros;
     CppTools::ProjectFile::Kind fileKind = CppTools::ProjectFile::Unclassified;
     QStringList flags;
     QString fileName;
     QString workingDir;
+    QString sysRoot;
 };
 
 TEST_F(CompilationDatabaseUtils, FilterEmptyFlags)
 {
-    filteredFlags(fileName, workingDir, flags, headerPaths, macros, fileKind);
+    filteredFlags(fileName, workingDir, flags, headerPaths, macros, fileKind, sysRoot);
 
     ASSERT_THAT(flags.isEmpty(), true);
 }
@@ -62,77 +71,89 @@ TEST_F(CompilationDatabaseUtils, FilterFromFilename)
 
 TEST_F(CompilationDatabaseUtils, FilterArguments)
 {
+    using Utils::HostOsInfo;
+    const char winPath1[] = "C:\\Qt\\5.9.2\\mingw53_32\\include";
+    const char otherPath1[] = "/Qt/5.9.2/mingw53_32/include";
+    const char winPath2[] = "C:\\Qt\\5.9.2\\mingw53_32\\include\\QtWidgets";
+    const char otherPath2[] = "/Qt/5.9.2/mingw53_32/include/QtWidgets";
     fileName = "compileroptionsbuilder.cpp";
     workingDir = "C:/build-qtcreator-MinGW_32bit-Debug";
-    flags = filterFromFileName(QStringList {
-        "clang++",
-        "-c",
-        "-m32",
-        "-target",
-        "i686-w64-mingw32",
-        "-std=gnu++14",
-        "-fcxx-exceptions",
-        "-fexceptions",
-        "-DUNICODE",
-        "-DRELATIVE_PLUGIN_PATH=\"../lib/qtcreator/plugins\"",
-        "-DQT_CREATOR",
-        "-fPIC",
-        "-I",
-        "C:\\Qt\\5.9.2\\mingw53_32\\include",
-        "-I",
-        "C:\\Qt\\5.9.2\\mingw53_32\\include\\QtWidgets",
-        "-x",
-        "c++",
-        "C:\\qt-creator\\src\\plugins\\cpptools\\compileroptionsbuilder.cpp"
-    }, "compileroptionsbuilder");
+    flags = filterFromFileName(
+        QStringList{"clang++",
+                    "-c",
+                    "-m32",
+                    "-target",
+                    "i686-w64-mingw32",
+                    "-std=gnu++14",
+                    "-fcxx-exceptions",
+                    "-fexceptions",
+                    "-DUNICODE",
+                    "-DRELATIVE_PLUGIN_PATH=\"../lib/qtcreator/plugins\"",
+                    "-DQT_CREATOR",
+                    "-fPIC",
+                    "-I",
+                    QString::fromUtf8(HostOsInfo::isWindowsHost() ? winPath1 : otherPath1),
+                    "-I",
+                    QString::fromUtf8(HostOsInfo::isWindowsHost() ? winPath2 : otherPath2),
+                    "-x",
+                    "c++",
+                    QString("--sysroot=") + (HostOsInfo::isWindowsHost()
+                        ? "C:\\sysroot\\embedded" : "/opt/sysroot/embedded"),
+                    "C:\\qt-creator\\src\\plugins\\cpptools\\compileroptionsbuilder.cpp"},
+        "compileroptionsbuilder");
 
-    filteredFlags(fileName, workingDir, flags, headerPaths, macros, fileKind);
+    filteredFlags(fileName, workingDir, flags, headerPaths, macros, fileKind, sysRoot);
 
-    ASSERT_THAT(flags, Eq(QStringList{"-m32",
-                                      "-target",
-                                      "i686-w64-mingw32",
-                                      "-std=gnu++14",
-                                      "-fcxx-exceptions",
-                                      "-fexceptions"}));
-    ASSERT_THAT(headerPaths, Eq(HeaderPaths{
-                                    {"C:\\Qt\\5.9.2\\mingw53_32\\include", HeaderPathType::User},
-                                    {"C:\\Qt\\5.9.2\\mingw53_32\\include\\QtWidgets", HeaderPathType::User}
-                                }));
-    ASSERT_THAT(macros, Eq(Macros{
-                               {"UNICODE", "1"},
-                               {"RELATIVE_PLUGIN_PATH", "\"../lib/qtcreator/plugins\""},
-                               {"QT_CREATOR", "1"}
-                           }));
+    ASSERT_THAT(flags,
+                Eq(QStringList{"-m32",
+                               "-target",
+                               "i686-w64-mingw32",
+                               "-std=gnu++14",
+                               "-fcxx-exceptions",
+                               "-fexceptions"}));
+    ASSERT_THAT(headerPaths,
+                Eq(HeaderPaths{{QString::fromUtf8(HostOsInfo::isWindowsHost() ? winPath1 : otherPath1),
+                                HeaderPathType::User},
+                               {QString::fromUtf8(HostOsInfo::isWindowsHost() ? winPath2 : otherPath2),
+                                HeaderPathType::User}}));
+    ASSERT_THAT(macros,
+                Eq(Macros{{"UNICODE", "1"},
+                          {"RELATIVE_PLUGIN_PATH", "\"../lib/qtcreator/plugins\""},
+                          {"QT_CREATOR", "1"}}));
     ASSERT_THAT(fileKind, CppTools::ProjectFile::Kind::CXXSource);
+    ASSERT_THAT(sysRoot, HostOsInfo::isWindowsHost() ? QString("C:\\sysroot\\embedded")
+                                                     : QString("/opt/sysroot/embedded"));
 }
 
-static QString kCmakeCommand = "C:\\PROGRA~2\\MICROS~2\\2017\\COMMUN~1\\VC\\Tools\\MSVC\\1415~1.267\\bin\\HostX64\\x64\\cl.exe "
-                               "/nologo "
-                               "/TP "
-                               "-DUNICODE "
-                               "-D_HAS_EXCEPTIONS=0 "
-                               "-Itools\\clang\\lib\\Sema "
-                               "/DWIN32 "
-                               "/D_WINDOWS "
-                               "/Zc:inline "
-                               "/Zc:strictStrings "
-                               "/Oi "
-                               "/Zc:rvalueCast "
-                               "/W4 "
-                               "-wd4141 "
-                               "-wd4146 "
-                               "/MDd "
-                               "/Zi "
-                               "/Ob0 "
-                               "/Od "
-                               "/RTC1 "
-                               "/EHs-c- "
-                               "/GR "
-                               "/Fotools\\clang\\lib\\Sema\\CMakeFiles\\clangSema.dir\\SemaCodeComplete.cpp.obj "
-                               "/FdTARGET_COMPILE_PDB "
-                               "/FS "
-                               "-c "
-                               "C:\\qt_llvm\\tools\\clang\\lib\\Sema\\SemaCodeComplete.cpp";
+static QString kCmakeCommand
+    = "C:\\PROGRA~2\\MICROS~2\\2017\\COMMUN~1\\VC\\Tools\\MSVC\\1415~1.267\\bin\\HostX64\\x64\\cl."
+      "exe "
+      "/nologo "
+      "/TP "
+      "-DUNICODE "
+      "-D_HAS_EXCEPTIONS=0 "
+      "-Itools\\clang\\lib\\Sema "
+      "/DWIN32 "
+      "/D_WINDOWS "
+      "/Zc:inline "
+      "/Zc:strictStrings "
+      "/Oi "
+      "/Zc:rvalueCast "
+      "/W4 "
+      "-wd4141 "
+      "-wd4146 "
+      "/MDd "
+      "/Zi "
+      "/Ob0 "
+      "/Od "
+      "/RTC1 "
+      "/EHs-c- "
+      "/GR "
+      "/Fotools\\clang\\lib\\Sema\\CMakeFiles\\clangSema.dir\\SemaCodeComplete.cpp.obj "
+      "/FdTARGET_COMPILE_PDB "
+      "/FS "
+      "-c "
+      "C:\\qt_llvm\\tools\\clang\\lib\\Sema\\SemaCodeComplete.cpp";
 
 TEST_F(CompilationDatabaseUtils, SplitFlags)
 {
@@ -155,21 +176,14 @@ TEST_F(CompilationDatabaseUtils, FilterCommand)
     workingDir = "C:/build-qt_llvm-msvc2017_64bit-Debug";
     flags = filterFromFileName(splitCommandLine(kCmakeCommand), "SemaCodeComplete");
 
-    filteredFlags(fileName, workingDir, flags, headerPaths, macros, fileKind);
+    filteredFlags(fileName, workingDir, flags, headerPaths, macros, fileKind, sysRoot);
 
-    ASSERT_THAT(flags, Eq(QStringList{"/Zc:inline",
-                                      "/Zc:strictStrings",
-                                      "/Zc:rvalueCast",
-                                      "/Zi"}));
-    ASSERT_THAT(headerPaths, Eq(HeaderPaths{
-                                    {"tools\\clang\\lib\\Sema", HeaderPathType::User}
-                                }));
-    ASSERT_THAT(macros, Eq(Macros{
-                               {"UNICODE", "1"},
-                               {"_HAS_EXCEPTIONS", "0"},
-                               {"WIN32", "1"},
-                               {"_WINDOWS", "1"}
-                           }));
+    ASSERT_THAT(flags, Eq(QStringList{"/Zc:inline", "/Zc:strictStrings", "/Zc:rvalueCast", "/Zi"}));
+    ASSERT_THAT(headerPaths,
+                Eq(HeaderPaths{{"C:/build-qt_llvm-msvc2017_64bit-Debug/tools\\clang\\lib\\Sema",
+                                HeaderPathType::User}}));
+    ASSERT_THAT(macros,
+                Eq(Macros{{"UNICODE", "1"}, {"_HAS_EXCEPTIONS", "0"}, {"WIN32", "1"}, {"_WINDOWS", "1"}}));
     ASSERT_THAT(fileKind, CppTools::ProjectFile::Kind::CXXSource);
 }
 
@@ -178,7 +192,7 @@ TEST_F(CompilationDatabaseUtils, FileKindDifferentFromExtension)
     fileName = "foo.c";
     flags = QStringList{"-xc++"};
 
-    filteredFlags(fileName, workingDir, flags, headerPaths, macros, fileKind);
+    filteredFlags(fileName, workingDir, flags, headerPaths, macros, fileKind, sysRoot);
 
     ASSERT_THAT(fileKind, CppTools::ProjectFile::Kind::CXXSource);
 }
@@ -186,9 +200,9 @@ TEST_F(CompilationDatabaseUtils, FileKindDifferentFromExtension)
 TEST_F(CompilationDatabaseUtils, FileKindDifferentFromExtension2)
 {
     fileName = "foo.cpp";
-    flags  = QStringList{"-x", "c"};
+    flags = QStringList{"-x", "c"};
 
-    filteredFlags(fileName, workingDir, flags, headerPaths, macros, fileKind);
+    filteredFlags(fileName, workingDir, flags, headerPaths, macros, fileKind, sysRoot);
 
     ASSERT_THAT(fileKind, CppTools::ProjectFile::Kind::CSource);
 }
@@ -197,9 +211,9 @@ TEST_F(CompilationDatabaseUtils, SkipOutputFiles)
 {
     flags = filterFromFileName(QStringList{"-o", "foo.o"}, "foo");
 
-    filteredFlags(fileName, workingDir, flags, headerPaths, macros, fileKind);
+    filteredFlags(fileName, workingDir, flags, headerPaths, macros, fileKind, sysRoot);
 
     ASSERT_THAT(flags.isEmpty(), true);
 }
 
-}
+} // namespace

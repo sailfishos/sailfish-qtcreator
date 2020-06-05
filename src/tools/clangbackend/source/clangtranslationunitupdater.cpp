@@ -113,7 +113,7 @@ void TranslationUnitUpdater::createTranslationUnitIfNeeded()
         UnsavedFilesShallowArguments unsaved = m_in.unsavedFiles.shallowArguments();
 
         m_parseErrorCode = clang_parseTranslationUnit2(m_cxIndex,
-                                                     NULL,
+                                                     nullptr,
                                                      args.data(),
                                                      args.count(),
                                                      unsaved.data(),
@@ -177,11 +177,10 @@ uint TranslationUnitUpdater::defaultParseOptions()
     return CXTranslationUnit_CacheCompletionResults
          | CXTranslationUnit_PrecompiledPreamble
          | CXTranslationUnit_CreatePreambleOnFirstParse
-#ifdef IS_LIMITSKIPFUNCTIONBODIESTOPREAMBLE_SUPPORTED
          | CXTranslationUnit_SkipFunctionBodies
          | CXTranslationUnit_LimitSkipFunctionBodiesToPreamble
-#endif
-#ifdef IS_SKIPWARNINGSFROMINCLUDEDFILES_SUPPORTED
+// CLANG-UPGRADE-CHECK: Remove when required version is 9
+#if (LLVM_VERSION_MAJOR >= 9) || defined(CINDEX_VERSION_HAS_SKIPWARNINGSFROMINCLUDEDFILES_BACKPORTED)
          | CXTranslationUnit_IgnoreNonErrorsFromIncludedFiles
 #endif
          | CXTranslationUnit_IncludeBriefCommentsInCodeCompletion

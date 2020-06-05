@@ -34,11 +34,6 @@
 namespace Autotest {
 namespace Internal {
 
-QtTestResult::QtTestResult(const QString &projectFile, TestType type, const QString &className)
-    : TestResult(className), m_projectFile(projectFile), m_type(type)
-{
-}
-
 QtTestResult::QtTestResult(const QString &id, const QString &projectFile, TestType type,
                            const QString &className)
     : TestResult(id, className), m_projectFile(projectFile), m_type(type)
@@ -51,12 +46,12 @@ const QString QtTestResult::outputString(bool selected) const
     const QString &className = name();
     QString output;
     switch (result()) {
-    case Result::Pass:
-    case Result::Fail:
-    case Result::ExpectedFail:
-    case Result::UnexpectedPass:
-    case Result::BlacklistedFail:
-    case Result::BlacklistedPass:
+    case ResultType::Pass:
+    case ResultType::Fail:
+    case ResultType::ExpectedFail:
+    case ResultType::UnexpectedPass:
+    case ResultType::BlacklistedFail:
+    case ResultType::BlacklistedPass:
         output = className + "::" + m_function;
         if (!m_dataTag.isEmpty())
             output.append(QString(" (%1)").arg(m_dataTag));
@@ -64,7 +59,7 @@ const QString QtTestResult::outputString(bool selected) const
             output.append('\n').append(desc);
         }
         break;
-    case Result::Benchmark:
+    case ResultType::Benchmark:
         output = className + "::" + m_function;
         if (!m_dataTag.isEmpty())
             output.append(QString(" (%1)").arg(m_dataTag));
@@ -89,18 +84,19 @@ bool QtTestResult::isDirectParentOf(const TestResult *other, bool *needsIntermed
         return false;
     const QtTestResult *qtOther = static_cast<const QtTestResult *>(other);
 
-    if (TestResult::isMessageCaseStart(result())) {
+    if (result() == ResultType::TestStart) {
         if (qtOther->isDataTag()) {
             if (qtOther->m_function == m_function) {
                 if (m_dataTag.isEmpty()) {
                     // avoid adding function's TestCaseEnd to the data tag
-                    *needsIntermediate = qtOther->result() != Result::MessageTestCaseEnd;
+                    *needsIntermediate = qtOther->result() != ResultType::TestEnd;
                     return true;
                 }
                 return qtOther->m_dataTag == m_dataTag;
             }
         } else if (qtOther->isTestFunction()) {
-            return isTestCase() || m_function == qtOther->m_function;
+            return isTestCase() || (m_function == qtOther->m_function
+                                    && qtOther->result() != ResultType::TestStart);
         }
     }
     return false;
@@ -164,7 +160,7 @@ bool QtTestResult::matches(const TestTreeItem *item) const
         if (item->proFile() != m_projectFile)
             return false;
         return matchesTestCase(item);
-    case TestTreeItem::TestFunctionOrSet:
+    case TestTreeItem::TestFunction:
     case TestTreeItem::TestSpecialFunction:
         if (!isTestFunction())
             return false;

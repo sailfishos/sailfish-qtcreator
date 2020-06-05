@@ -24,46 +24,73 @@
 **
 ****************************************************************************/
 
-#include "baremetalplugin.h"
 #include "baremetalconstants.h"
-#include "baremetalcustomrunconfiguration.h"
-#include "baremetaldeviceconfigurationfactory.h"
 #include "baremetaldebugsupport.h"
+#include "baremetaldevice.h"
+#include "baremetalplugin.h"
 #include "baremetalrunconfiguration.h"
 
-#include "gdbserverproviderssettingspage.h"
-#include "gdbserverprovidermanager.h"
+#include "debugserverprovidermanager.h"
+#include "debugserverproviderssettingspage.h"
 
-#include <coreplugin/icore.h>
-#include <coreplugin/icontext.h>
+#include "iarewtoolchain.h"
+#include "keiltoolchain.h"
+#include "sdcctoolchain.h"
+
+#include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/icontext.h>
+#include <coreplugin/icore.h>
+
+#include <projectexplorer/deployconfiguration.h>
 
 using namespace ProjectExplorer;
 
 namespace BareMetal {
 namespace Internal {
 
-class BareMetalPluginRunData
+class BareMetalDeployConfigurationFactory : public DeployConfigurationFactory
 {
 public:
-    BareMetalDeviceConfigurationFactory deviceConfigurationFactory;
-    BareMetalRunConfigurationFactory runConfigurationFactory;
-    BareMetalCustomRunConfigurationFactory customRunConfigurationFactory;
-    GdbServerProvidersSettingsPage gdbServerProviderSettinsPage;
-    GdbServerProviderManager gdbServerProviderManager;
+    BareMetalDeployConfigurationFactory()
+    {
+        setConfigBaseId("BareMetal.DeployConfiguration");
+        setDefaultDisplayName(QCoreApplication::translate("BareMetalDeployConfiguration",
+                                                          "Deploy to BareMetal Device"));
+        addSupportedTargetDeviceType(Constants::BareMetalOsType);
+    }
 };
 
-BareMetalPlugin::BareMetalPlugin()
+
+// BareMetalPluginPrivate
+
+class BareMetalPluginPrivate
 {
-    setObjectName(QLatin1String("BareMetalPlugin"));
-}
+public:
+    IarToolChainFactory iarToolChainFactory;
+    KeilToolchainFactory keilToolChainFactory;
+    SdccToolChainFactory sdccToolChainFactory;
+    BareMetalDeviceFactory deviceFactory;
+    BareMetalRunConfigurationFactory runConfigurationFactory;
+    BareMetalCustomRunConfigurationFactory customRunConfigurationFactory;
+    DebugServerProvidersSettingsPage debugServerProviderSettinsPage;
+    DebugServerProviderManager debugServerProviderManager;
+    BareMetalDeployConfigurationFactory deployConfigurationFactory;
+
+    RunWorkerFactory runWorkerFactory{
+        RunWorkerFactory::make<BareMetalDebugSupport>(),
+        {ProjectExplorer::Constants::NORMAL_RUN_MODE, ProjectExplorer::Constants::DEBUG_RUN_MODE},
+        {runConfigurationFactory.id(), customRunConfigurationFactory.id()}
+    };
+};
+
+// BareMetalPlugin
 
 BareMetalPlugin::~BareMetalPlugin()
 {
-    delete m_runData;
+    delete d;
 }
 
 bool BareMetalPlugin::initialize(const QStringList &arguments, QString *errorString)
@@ -71,26 +98,13 @@ bool BareMetalPlugin::initialize(const QStringList &arguments, QString *errorStr
     Q_UNUSED(arguments)
     Q_UNUSED(errorString)
 
-    m_runData = new BareMetalPluginRunData;
-
-    auto constraint = [](RunConfiguration *runConfig) {
-        const QByteArray idStr = runConfig->id().name();
-        const bool res = idStr.startsWith(BareMetalRunConfiguration::IdPrefix)
-                || idStr == BareMetalCustomRunConfiguration::Id;
-        return res;
-    };
-
-    RunControl::registerWorker<BareMetalDebugSupport>
-            (ProjectExplorer::Constants::NORMAL_RUN_MODE, constraint);
-    RunControl::registerWorker<BareMetalDebugSupport>
-            (ProjectExplorer::Constants::DEBUG_RUN_MODE, constraint);
-
+    d = new BareMetalPluginPrivate;
     return true;
 }
 
 void BareMetalPlugin::extensionsInitialized()
 {
-    GdbServerProviderManager::instance()->restoreProviders();
+    DebugServerProviderManager::instance()->restoreProviders();
 }
 
 } // namespace Internal

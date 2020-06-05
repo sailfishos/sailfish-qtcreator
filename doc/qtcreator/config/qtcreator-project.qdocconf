@@ -1,0 +1,91 @@
+project     = "$IDE_DISPLAY_NAME"
+description = "$IDE_DISPLAY_NAME Manual"
+url         = http://doc.qt.io/$IDE_ID
+
+headerdirs =
+sourcedirs = ../src \
+             ../../qtdesignstudio/src/qtquick3d-editor
+
+imagedirs = ../images \
+            ../../qtdesignstudio/images \
+            ../../../src/libs/qmleditorwidgets/images \
+            ../../../src/libs/utils/images \
+            ../../../src/plugins/android/images \
+            ../../../src/plugins/autotest/images \
+            ../../../src/plugins/classview/images \
+            ../../../src/plugins/coreplugin/images \
+            ../../../src/plugins/debugger/images \
+            ../../../src/plugins/diffeditor/images \
+            ../../../src/plugins/help/images \
+            ../../../src/plugins/projectexplorer/images \
+            ../../../src/plugins/qmldesigner/components/componentcore/images \
+            ../../../src/plugins/qmldesigner/components/edit3d/images \
+            ../../../src/plugins/qmldesigner/components/formeditor \
+            ../../../src/plugins/qmldesigner/components/navigator \
+            ../../../src/plugins/qmldesigner/components/timelineeditor/images \
+            ../../../src/plugins/qmldesigner/qmlpreviewplugin/images \
+            ../../../src/plugins/scxmleditor/common/images \
+            ../../../src/plugins/texteditor/images \
+            ../../../src/plugins/valgrind/images \
+            ../../../src/plugins/welcome/images
+
+exampledirs = ../examples
+examples.fileextensions += *.qml *.svg
+
+HTML.extraimages         = ../../config/images/commercial.png
+qhp.QtCreator.extraFiles = ../../config/images/commercial.png
+
+depends +=    qtandroidextras\
+              qtwidgets \
+              qtcmake \
+              qtcore \
+              qtqml \
+              qtqmlmodels \
+              qtquick \
+              qmake \
+              qtdesigner \
+              qtdoc \
+              qtgraphicaleffects \
+              qtgui \
+              qthelp \
+              qtquick3d \
+              qtquickcontrols \
+              qtquickextras \
+              qtquicktimeline \
+              qtlinguist \
+              qtscxml \
+              qtsensors \
+              qttestlib \
+              qtuitools \
+              qtxml
+
+include(../../config/macros.qdocconf)
+include(../../config/qt-cpp-ignore.qdocconf)
+include(../../config/qt-defines.qdocconf)
+
+defines += qtcreator
+
+sources.fileextensions         = "*.qdoc"
+
+qhp.projects            = QtCreator
+qhp.QtCreator.file             = qtcreator.qhp
+qhp.QtCreator.namespace        = org.qt-project.qtcreator.$QTC_VERSION_TAG
+qhp.QtCreator.virtualFolder    = doc
+qhp.QtCreator.indexTitle       = $IDE_DISPLAY_NAME Manual $QTC_VERSION
+qhp.QtCreator.filterAttributes = $IDE_ID $QTC_VERSION
+qhp.QtCreator.customFilters.QtCreator.name = $IDE_DISPLAY_NAME $QTC_VERSION
+qhp.QtCreator.customFilters.QtCreator.filterAttributes = $IDE_ID $QTC_VERSION
+qhp.QtCreator.indexRoot        =
+
+qhp.QtCreator.subprojects = manual
+qhp.QtCreator.subprojects.manual.title = $IDE_DISPLAY_NAME Manual
+qhp.QtCreator.subprojects.manual.indexTitle = All Topics
+qhp.QtCreator.subprojects.manual.type = manual
+
+# Doxygen compatibility commands
+
+macro.see                       = "\\sa"
+macro.function                  = "\\fn"
+
+navigation.landingpage = "$IDE_DISPLAY_NAME Manual"
+buildversion = "$IDE_DISPLAY_NAME Manual $QTC_VERSION"

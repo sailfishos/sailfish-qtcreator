@@ -42,7 +42,7 @@ namespace ClangBackEnd {
 class SymbolsCollector final : public SymbolsCollectorInterface
 {
 public:
-    SymbolsCollector(Sqlite::Database &database);
+    SymbolsCollector(FilePathCaching &filePathCache);
 
     void addFiles(const FilePathIds &filePathIds,
                   const Utils::SmallStringVector &arguments);
@@ -58,23 +58,21 @@ public:
 
     const SymbolEntries &symbols() const override;
     const SourceLocationEntries &sourceLocations() const override;
-    const FilePathIds &sourceFiles() const override;
-    const UsedMacros &usedMacros() const override;
-    const FileStatuses &fileStatuses() const override;
-    const SourceDependencies &sourceDependencies() const override;
 
     bool isUsed() const override;
     void setIsUsed(bool isUsed) override;
 
+    bool isClean() const { return m_clangTool.isClean(); }
+
 private:
-    FilePathCaching m_filePathCache;
+    CopyableFilePathCaching m_filePathCache;
     ClangTool m_clangTool;
     SymbolEntries m_symbolEntries;
     SourceLocationEntries m_sourceLocationEntries;
     std::shared_ptr<IndexDataConsumer> m_indexDataConsumer;
     CollectSymbolsAction m_collectSymbolsAction;
-    CollectMacrosSourceFileCallbacks m_collectMacrosSourceFileCallbacks;
-    SourcesManager m_sourcesManager;
+    SourcesManager m_symbolSourcesManager;
+    SourcesManager m_macroSourcesManager;
     bool m_isUsed = false;
 };
 

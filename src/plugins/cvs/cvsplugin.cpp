@@ -27,13 +27,17 @@
 #include "settingspage.h"
 #include "cvseditor.h"
 #include "cvssubmiteditor.h"
-#include "cvsclient.h"
-#include "cvscontrol.h"
+#include "cvsutils.h"
+#include "cvssettings.h"
 
 #include <vcsbase/basevcseditorfactory.h>
 #include <vcsbase/basevcssubmiteditorfactory.h>
+#include <vcsbase/vcsbaseclient.h>
+#include <vcsbase/vcsbaseclientsettings.h>
 #include <vcsbase/vcsbaseconstants.h>
 #include <vcsbase/vcsbaseeditor.h>
+#include <vcsbase/vcsbaseeditorconfig.h>
+#include <vcsbase/vcsbaseplugin.h>
 #include <vcsbase/vcscommand.h>
 #include <vcsbase/vcsoutputwindow.h>
 
@@ -63,7 +67,6 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QTextCodec>
-#include <QtPlugin>
 #include <QAction>
 #include <QMainWindow>
 #include <QMenu>
@@ -76,20 +79,10 @@
 using namespace Core;
 using namespace VcsBase;
 using namespace Utils;
+using namespace std::placeholders;
 
 namespace Cvs {
 namespace Internal {
-
-static inline QString msgCannotFindTopLevel(const QString &f)
-{
-    return CvsPlugin::tr("Cannot find repository for \"%1\".").
-            arg(QDir::toNativeSeparators(f));
-}
-
-static inline QString msgLogParsingFailed()
-{
-    return CvsPlugin::tr("Parsing of the log output failed.");
-}
 
 const char CVS_CONTEXT[]               = "CVS Context";
 const char CMD_ID_CVS_MENU[]           = "CVS.Menu";
@@ -121,55 +114,400 @@ const char CVS_SUBMIT_MIMETYPE[] = "text/vnd.qtcreator.cvs.submit";
 const char CVSCOMMITEDITOR_ID[]  = "CVS Commit Editor";
 const char CVSCOMMITEDITOR_DISPLAY_NAME[]  = QT_TRANSLATE_NOOP("VCS", "CVS Commit Editor");
 
-const VcsBaseEditorParameters editorParameters[] = {
+class CvsResponse
 {
+public:
+    enum Result { Ok, NonNullExitCode, OtherError };
+
+    Result result = Ok;
+    QString stdOut;
+    QString stdErr;
+    QString message;
+};
+
+const VcsBaseSubmitEditorParameters submitParameters {
+    CVS_SUBMIT_MIMETYPE,
+    CVSCOMMITEDITOR_ID,
+    CVSCOMMITEDITOR_DISPLAY_NAME,
+    VcsBaseSubmitEditorParameters::DiffFiles
+};
+
+const VcsBaseEditorParameters commandLogEditorParameters {
     OtherContent,
     "CVS Command Log Editor", // id
     QT_TRANSLATE_NOOP("VCS", "CVS Command Log Editor"), // display name
-    "text/vnd.qtcreator.cvs.commandlog"},
-{   LogOutput,
-    "CVS File Log Editor",   // id
-    QT_TRANSLATE_NOOP("VCS", "CVS File Log Editor"),   // display name
-    "text/vnd.qtcreator.cvs.log"},
-{    AnnotateOutput,
-    "CVS Annotation Editor",  // id
-    QT_TRANSLATE_NOOP("VCS", "CVS Annotation Editor"),  // display name
-    "text/vnd.qtcreator.cvs.annotation"},
-{   DiffOutput,
-    "CVS Diff Editor",  // id
-    QT_TRANSLATE_NOOP("VCS", "CVS Diff Editor"),  // display name
-    "text/x-patch"}
+    "text/vnd.qtcreator.cvs.commandlog"
 };
 
-// Utility to find a parameter set by type
-static inline const VcsBaseEditorParameters *findType(int ie)
-{
-    return VcsBaseEditor::findType(editorParameters,
-                                   sizeof(editorParameters) / sizeof(*editorParameters),
-                                   static_cast<EditorContentType>(ie));
-}
+const VcsBaseEditorParameters logEditorParameters {
+    LogOutput,
+    "CVS File Log Editor",   // id
+    QT_TRANSLATE_NOOP("VCS", "CVS File Log Editor"),   // display name
+    "text/vnd.qtcreator.cvs.log"
+};
+
+const VcsBaseEditorParameters annotateEditorParameters {
+    AnnotateOutput,
+    "CVS Annotation Editor",  // id
+    QT_TRANSLATE_NOOP("VCS", "CVS Annotation Editor"),  // display name
+    "text/vnd.qtcreator.cvs.annotation"
+};
+
+const VcsBaseEditorParameters diffEditorParameters {
+    DiffOutput,
+    "CVS Diff Editor",  // id
+    QT_TRANSLATE_NOOP("VCS", "CVS Diff Editor"),  // display name
+    "text/x-patch"
+};
 
 static inline bool messageBoxQuestion(const QString &title, const QString &question)
 {
     return QMessageBox::question(ICore::dialogParent(), title, question, QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes;
 }
 
-// ------------- CVSPlugin
-CvsPlugin *CvsPlugin::m_cvsPluginInstance = nullptr;
 
-CvsPlugin::~CvsPlugin()
+// Parameter widget controlling whitespace diff mode, associated with a parameter
+class CvsDiffConfig : public VcsBaseEditorConfig
+{
+public:
+    CvsDiffConfig(VcsBaseClientSettings &settings, QToolBar *toolBar) :
+        VcsBaseEditorConfig(toolBar),
+        m_settings(settings)
+    {
+        mapSetting(addToggleButton(QLatin1String("-w"), CvsPlugin::tr("Ignore Whitespace")),
+                   settings.boolPointer(CvsSettings::diffIgnoreWhiteSpaceKey));
+        mapSetting(addToggleButton(QLatin1String("-B"), CvsPlugin::tr("Ignore Blank Lines")),
+                   settings.boolPointer(CvsSettings::diffIgnoreBlankLinesKey));
+    }
+
+    QStringList arguments() const override
+    {
+        QStringList args;
+        args = m_settings.stringValue(CvsSettings::diffOptionsKey).split(QLatin1Char(' '),
+                                                                         QString::SkipEmptyParts);
+        args += VcsBaseEditorConfig::arguments();
+        return args;
+    }
+
+private:
+    VcsBaseClientSettings &m_settings;
+};
+
+class CvsClient : public VcsBaseClient
+{
+public:
+    explicit CvsClient(CvsSettings *settings) : VcsBaseClient(settings)
+    {
+        setDiffConfigCreator([settings](QToolBar *toolBar) {
+            return new CvsDiffConfig(*settings, toolBar);
+        });
+    }
+
+    ExitCodeInterpreter exitCodeInterpreter(VcsCommandTag cmd) const override
+    {
+        if (cmd == DiffCommand) {
+            return [](int code) {
+                return (code < 0 || code > 2) ? SynchronousProcessResponse::FinishedError
+                                              : SynchronousProcessResponse::Finished;
+            };
+        }
+        return Utils::defaultExitCodeInterpreter;
+    }
+
+    Core::Id vcsEditorKind(VcsCommandTag cmd) const override
+    {
+        switch (cmd) {
+        case DiffCommand:
+            return "CVS Diff Editor"; // TODO: replace by string from cvsconstants.h
+        default:
+            return Core::Id();
+        }
+    }
+};
+
+class CvsPluginPrivate final : public VcsBasePluginPrivate
+{
+    Q_DECLARE_TR_FUNCTIONS(Cvs::Internal::CvsPlugin)
+
+public:
+    CvsPluginPrivate();
+    ~CvsPluginPrivate() final;
+
+    // IVersionControl
+    QString displayName() const final { return QLatin1String("cvs"); }
+    Core::Id id() const final;
+
+    bool isVcsFileOrDirectory(const Utils::FilePath &fileName) const final;
+
+    bool managesDirectory(const QString &directory, QString *topLevel) const final;
+    bool managesFile(const QString &workingDirectory, const QString &fileName) const final;
+
+    bool isConfigured() const final;
+    bool supportsOperation(Operation operation) const final;
+    OpenSupportMode openSupportMode(const QString &fileName) const final;
+    bool vcsOpen(const QString &fileName) final;
+    bool vcsAdd(const QString &fileName) final;
+    bool vcsDelete(const QString &filename) final;
+    bool vcsMove(const QString &, const QString &) final { return false; }
+    bool vcsCreateRepository(const QString &directory) final;
+    bool vcsAnnotate(const QString &file, int line) final;
+
+    QString vcsOpenText() const final;
+
+    Core::ShellCommand *createInitialCheckoutCommand(const QString &url,
+                                                     const Utils::FilePath &baseDirectory,
+                                                     const QString &localName,
+                                                     const QStringList &extraArgs) final;
+
+
+    ///
+    CvsSubmitEditor *openCVSSubmitEditor(const QString &fileName);
+
+    // IVersionControl
+    bool vcsAdd(const QString &workingDir, const QString &fileName);
+    bool vcsDelete(const QString &workingDir, const QString &fileName);
+    // cvs 'edit' is used to implement 'open' (cvsnt).
+    bool edit(const QString &topLevel, const QStringList &files);
+
+    void vcsAnnotate(const QString &workingDirectory, const QString &file,
+                     const QString &revision, int lineNumber);
+
+protected:
+    void updateActions(ActionState) final;
+    bool submitEditorAboutToClose() final;
+
+private:
+    void addCurrentFile();
+    void revertCurrentFile();
+    void diffProject();
+    void diffCurrentFile();
+    void revertAll();
+    void startCommitAll();
+    void startCommitDirectory();
+    void startCommitCurrentFile();
+    void filelogCurrentFile();
+    void annotateCurrentFile();
+    void projectStatus();
+    void updateDirectory();
+    void updateProject();
+    void commitFromEditor() final;
+    void diffCommitFiles(const QStringList &);
+    void logProject();
+    void logRepository();
+    void commitProject();
+    void diffRepository();
+    void statusRepository();
+    void updateRepository();
+    void editCurrentFile();
+    void uneditCurrentFile();
+    void uneditCurrentRepository();
+
+    bool isCommitEditorOpen() const;
+    Core::IEditor *showOutputInEditor(const QString& title, const QString &output,
+                                      Core::Id id, const QString &source,
+                                      QTextCodec *codec);
+
+    CvsResponse runCvs(const QString &workingDirectory,
+                       const QStringList &arguments,
+                       int timeOutS,
+                       unsigned flags,
+                       QTextCodec *outputCodec = nullptr) const;
+
+    void annotate(const QString &workingDir, const QString &file,
+                  const QString &revision = QString(), int lineNumber= -1);
+    bool describe(const QString &source, const QString &changeNr, QString *errorMessage);
+    bool describe(const QString &toplevel, const QString &source, const QString &changeNr, QString *errorMessage);
+    bool describe(const QString &repository, QList<CvsLogEntry> entries, QString *errorMessage);
+    void describeHelper(const QString &source, const QString &changeNr);
+    void filelog(const QString &workingDir,
+                 const QString &file = QString(),
+                 bool enableAnnotationContextMenu = false);
+    bool unedit(const QString &topLevel, const QStringList &files);
+    bool status(const QString &topLevel, const QString &file, const QString &title);
+    bool update(const QString &topLevel, const QString &file);
+    bool checkCVSDirectory(const QDir &directory) const;
+    // Quick check if files are modified
+    bool diffCheckModified(const QString &topLevel, const QStringList &files, bool *modified);
+    QString findTopLevelForDirectoryI(const QString &directory) const;
+    void startCommit(const QString &workingDir, const QString &file = QString());
+    bool commit(const QString &messageFile, const QStringList &subVersionFileList);
+    void cleanCommitMessageFile();
+
+    CvsSettings m_settings;
+    CvsClient *m_client = nullptr;
+
+    QString m_commitMessageFileName;
+    QString m_commitRepository;
+
+    Core::CommandLocator *m_commandLocator = nullptr;
+    Utils::ParameterAction *m_addAction = nullptr;
+    Utils::ParameterAction *m_deleteAction = nullptr;
+    Utils::ParameterAction *m_revertAction = nullptr;
+    Utils::ParameterAction *m_editCurrentAction = nullptr;
+    Utils::ParameterAction *m_uneditCurrentAction = nullptr;
+    QAction *m_uneditRepositoryAction = nullptr;
+    Utils::ParameterAction *m_diffProjectAction = nullptr;
+    Utils::ParameterAction *m_diffCurrentAction = nullptr;
+    Utils::ParameterAction *m_logProjectAction = nullptr;
+    QAction *m_logRepositoryAction = nullptr;
+    QAction *m_commitAllAction = nullptr;
+    QAction *m_revertRepositoryAction = nullptr;
+    Utils::ParameterAction *m_commitCurrentAction = nullptr;
+    Utils::ParameterAction *m_filelogCurrentAction = nullptr;
+    Utils::ParameterAction *m_annotateCurrentAction = nullptr;
+    Utils::ParameterAction *m_statusProjectAction = nullptr;
+    Utils::ParameterAction *m_updateProjectAction = nullptr;
+    Utils::ParameterAction *m_commitProjectAction = nullptr;
+    Utils::ParameterAction *m_updateDirectoryAction = nullptr;
+    Utils::ParameterAction *m_commitDirectoryAction = nullptr;
+    QAction *m_diffRepositoryAction = nullptr;
+    QAction *m_updateRepositoryAction = nullptr;
+    QAction *m_statusRepositoryAction = nullptr;
+
+    QAction *m_menuAction = nullptr;
+    bool m_submitActionTriggered = false;
+
+    CvsSettingsPage m_settingsPage{[this] { configurationChanged(); }, &m_settings};
+
+public:
+    VcsSubmitEditorFactory submitEditorFactory {
+        submitParameters,
+        [] { return new CvsSubmitEditor; },
+        this
+    };
+
+    VcsEditorFactory commandLogEditorFactory {
+        &commandLogEditorParameters,
+        [] { return new CvsEditorWidget; },
+        std::bind(&CvsPluginPrivate::describeHelper, this, _1, _2)
+    };
+
+    VcsEditorFactory logEditorFactory {
+        &logEditorParameters,
+        [] { return new CvsEditorWidget; },
+        std::bind(&CvsPluginPrivate::describeHelper, this, _1, _2)
+    };
+
+    VcsEditorFactory annotateEditorFactory {
+        &annotateEditorParameters,
+        [] { return new CvsEditorWidget; },
+        std::bind(&CvsPluginPrivate::describeHelper, this, _1, _2)
+    };
+
+    VcsEditorFactory diffEditorFactory {
+        &diffEditorParameters,
+        [] { return new CvsEditorWidget; },
+        std::bind(&CvsPluginPrivate::describeHelper, this, _1, _2)
+    };
+};
+
+Core::Id CvsPluginPrivate::id() const
+{
+    return Core::Id(VcsBase::Constants::VCS_ID_CVS);
+}
+
+bool CvsPluginPrivate::isVcsFileOrDirectory(const Utils::FilePath &fileName) const
+{
+    return fileName.isDir()
+            && !fileName.fileName().compare("CVS", Utils::HostOsInfo::fileNameCaseSensitivity());
+}
+
+bool CvsPluginPrivate::isConfigured() const
+{
+    const Utils::FilePath binary = m_settings.binaryPath();
+    if (binary.isEmpty())
+        return false;
+    QFileInfo fi = binary.toFileInfo();
+    return fi.exists() && fi.isFile() && fi.isExecutable();
+}
+
+bool CvsPluginPrivate::supportsOperation(Operation operation) const
+{
+    bool rc = isConfigured();
+    switch (operation) {
+    case AddOperation:
+    case DeleteOperation:
+    case AnnotateOperation:
+    case InitialCheckoutOperation:
+        break;
+    case MoveOperation:
+    case CreateRepositoryOperation:
+    case SnapshotOperations:
+        rc = false;
+        break;
+    }
+    return rc;
+}
+
+Core::IVersionControl::OpenSupportMode CvsPluginPrivate::openSupportMode(const QString &fileName) const
+{
+    Q_UNUSED(fileName)
+    return OpenOptional;
+}
+
+bool CvsPluginPrivate::vcsOpen(const QString &fileName)
+{
+    const QFileInfo fi(fileName);
+    return edit(fi.absolutePath(), QStringList(fi.fileName()));
+}
+
+bool CvsPluginPrivate::vcsAdd(const QString &fileName)
+{
+    const QFileInfo fi(fileName);
+    return vcsAdd(fi.absolutePath(), fi.fileName());
+}
+
+bool CvsPluginPrivate::vcsDelete(const QString &fileName)
+{
+    const QFileInfo fi(fileName);
+    return vcsDelete(fi.absolutePath(), fi.fileName());
+}
+
+bool CvsPluginPrivate::vcsCreateRepository(const QString &)
+{
+    return false;
+}
+
+bool CvsPluginPrivate::vcsAnnotate(const QString &file, int line)
+{
+    const QFileInfo fi(file);
+    vcsAnnotate(fi.absolutePath(), fi.fileName(), QString(), line);
+    return true;
+}
+
+QString CvsPluginPrivate::vcsOpenText() const
+{
+    return tr("&Edit");
+}
+
+Core::ShellCommand *CvsPluginPrivate::createInitialCheckoutCommand(const QString &url,
+                                                             const Utils::FilePath &baseDirectory,
+                                                             const QString &localName,
+                                                             const QStringList &extraArgs)
+{
+    QTC_ASSERT(localName == url, return nullptr);
+
+    QStringList args;
+    args << QLatin1String("checkout") << url << extraArgs;
+
+    auto command = new VcsBase::VcsCommand(baseDirectory.toString(),
+                                           QProcessEnvironment::systemEnvironment());
+    command->setDisplayName(tr("CVS Checkout"));
+    command->addJob({m_settings.binaryPath(), m_settings.addOptions(args)}, -1);
+    return command;
+}
+
+// ------------- CVSPlugin
+
+static CvsPluginPrivate *dd = nullptr;
+
+CvsPluginPrivate::~CvsPluginPrivate()
 {
     delete m_client;
     cleanCommitMessageFile();
 }
 
-CvsClient *CvsPlugin::client() const
-{
-    QTC_CHECK(m_client);
-    return m_client;
-}
-
-void CvsPlugin::cleanCommitMessageFile()
+void CvsPluginPrivate::cleanCommitMessageFile()
 {
     if (!m_commitMessageFileName.isEmpty()) {
         QFile::remove(m_commitMessageFileName);
@@ -177,46 +515,38 @@ void CvsPlugin::cleanCommitMessageFile()
         m_commitRepository.clear();
     }
 }
-bool CvsPlugin::isCommitEditorOpen() const
+bool CvsPluginPrivate::isCommitEditorOpen() const
 {
     return !m_commitMessageFileName.isEmpty();
 }
 
-static const VcsBaseSubmitEditorParameters submitParameters = {
-    CVS_SUBMIT_MIMETYPE,
-    CVSCOMMITEDITOR_ID,
-    CVSCOMMITEDITOR_DISPLAY_NAME,
-    VcsBaseSubmitEditorParameters::DiffFiles
-};
+CvsPlugin::~CvsPlugin()
+{
+    delete dd;
+    dd = nullptr;
+}
 
 bool CvsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
     Q_UNUSED(arguments)
     Q_UNUSED(errorMessage)
+    dd = new CvsPluginPrivate;
+    return true;
+}
+
+void CvsPlugin::extensionsInitialized()
+{
+    dd->extensionsInitialized();
+}
+
+CvsPluginPrivate::CvsPluginPrivate()
+    : VcsBasePluginPrivate(Context(CVS_CONTEXT))
+{
     using namespace Core::Constants;
+    dd = this;
 
     Context context(CVS_CONTEXT);
-
-    initializeVcs<CvsControl>(context, this);
-
-    m_cvsPluginInstance = this;
-
-    m_client = new CvsClient;
-
-    new SettingsPage(versionControl(), this);
-
-    new VcsSubmitEditorFactory(&submitParameters,
-        []() { return new CvsSubmitEditor(&submitParameters); }, this);
-
-    const auto describeFunc = [this](const QString &source, const QString &changeNr) {
-        QString errorMessage;
-        if (!describe(source, changeNr, &errorMessage))
-            VcsOutputWindow::appendError(errorMessage);
-    };
-    const int editorCount = sizeof(editorParameters) / sizeof(editorParameters[0]);
-    const auto widgetCreator = []() { return new CvsEditorWidget; };
-    for (int i = 0; i < editorCount; i++)
-        new VcsEditorFactory(editorParameters + i, widgetCreator, describeFunc, this);
+    m_client = new CvsClient(&m_settings);
 
     const QString prefix = QLatin1String("cvs");
     m_commandLocator = new CommandLocator("CVS", prefix, prefix, this);
@@ -236,7 +566,7 @@ bool CvsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
         CMD_ID_DIFF_CURRENT, context);
     command->setAttribute(Command::CA_UpdateText);
     command->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Meta+C,Meta+D") : tr("Alt+C,Alt+D")));
-    connect(m_diffCurrentAction, &QAction::triggered, this, &CvsPlugin::diffCurrentFile);
+    connect(m_diffCurrentAction, &QAction::triggered, this, &CvsPluginPrivate::diffCurrentFile);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -244,7 +574,7 @@ bool CvsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     command = ActionManager::registerAction(m_filelogCurrentAction,
         CMD_ID_FILELOG_CURRENT, context);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_filelogCurrentAction, &QAction::triggered, this, &CvsPlugin::filelogCurrentFile);
+    connect(m_filelogCurrentAction, &QAction::triggered, this, &CvsPluginPrivate::filelogCurrentFile);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -252,7 +582,7 @@ bool CvsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     command = ActionManager::registerAction(m_annotateCurrentAction,
         CMD_ID_ANNOTATE_CURRENT, context);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_annotateCurrentAction, &QAction::triggered, this, &CvsPlugin::annotateCurrentFile);
+    connect(m_annotateCurrentAction, &QAction::triggered, this, &CvsPluginPrivate::annotateCurrentFile);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -263,7 +593,7 @@ bool CvsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
         context);
     command->setAttribute(Command::CA_UpdateText);
     command->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Meta+C,Meta+A") : tr("Alt+C,Alt+A")));
-    connect(m_addAction, &QAction::triggered, this, &CvsPlugin::addCurrentFile);
+    connect(m_addAction, &QAction::triggered, this, &CvsPluginPrivate::addCurrentFile);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -272,7 +602,7 @@ bool CvsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
         CMD_ID_COMMIT_CURRENT, context);
     command->setAttribute(Command::CA_UpdateText);
     command->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Meta+C,Meta+C") : tr("Alt+C,Alt+C")));
-    connect(m_commitCurrentAction, &QAction::triggered, this, &CvsPlugin::startCommitCurrentFile);
+    connect(m_commitCurrentAction, &QAction::triggered, this, &CvsPluginPrivate::startCommitCurrentFile);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -280,7 +610,7 @@ bool CvsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     command = ActionManager::registerAction(m_deleteAction, CMD_ID_DELETE_FILE,
         context);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_deleteAction, &QAction::triggered, this, &CvsPlugin::promptToDeleteCurrentFile);
+    connect(m_deleteAction, &QAction::triggered, this, &CvsPluginPrivate::promptToDeleteCurrentFile);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -288,7 +618,7 @@ bool CvsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     command = ActionManager::registerAction(m_revertAction, CMD_ID_REVERT,
         context);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_revertAction, &QAction::triggered, this, &CvsPlugin::revertCurrentFile);
+    connect(m_revertAction, &QAction::triggered, this, &CvsPluginPrivate::revertCurrentFile);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -297,20 +627,20 @@ bool CvsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     m_editCurrentAction = new ParameterAction(tr("Edit"), tr("Edit \"%1\""), ParameterAction::EnabledWithParameter, this);
     command = ActionManager::registerAction(m_editCurrentAction, CMD_ID_EDIT_FILE, context);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_editCurrentAction, &QAction::triggered, this, &CvsPlugin::editCurrentFile);
+    connect(m_editCurrentAction, &QAction::triggered, this, &CvsPluginPrivate::editCurrentFile);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
     m_uneditCurrentAction = new ParameterAction(tr("Unedit"), tr("Unedit \"%1\""), ParameterAction::EnabledWithParameter, this);
     command = ActionManager::registerAction(m_uneditCurrentAction, CMD_ID_UNEDIT_FILE, context);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_uneditCurrentAction, &QAction::triggered, this, &CvsPlugin::uneditCurrentFile);
+    connect(m_uneditCurrentAction, &QAction::triggered, this, &CvsPluginPrivate::uneditCurrentFile);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
     m_uneditRepositoryAction = new QAction(tr("Unedit Repository"), this);
     command = ActionManager::registerAction(m_uneditRepositoryAction, CMD_ID_UNEDIT_REPOSITORY, context);
-    connect(m_uneditRepositoryAction, &QAction::triggered, this, &CvsPlugin::uneditCurrentRepository);
+    connect(m_uneditRepositoryAction, &QAction::triggered, this, &CvsPluginPrivate::uneditCurrentRepository);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -320,7 +650,7 @@ bool CvsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     command = ActionManager::registerAction(m_diffProjectAction, CMD_ID_DIFF_PROJECT,
         context);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_diffProjectAction, &QAction::triggered, this, &CvsPlugin::diffProject);
+    connect(m_diffProjectAction, &QAction::triggered, this, &CvsPluginPrivate::diffProject);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -328,28 +658,28 @@ bool CvsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     command = ActionManager::registerAction(m_statusProjectAction, CMD_ID_STATUS,
         context);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_statusProjectAction, &QAction::triggered, this, &CvsPlugin::projectStatus);
+    connect(m_statusProjectAction, &QAction::triggered, this, &CvsPluginPrivate::projectStatus);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
     m_logProjectAction = new ParameterAction(tr("Log Project"), tr("Log Project \"%1\""), ParameterAction::EnabledWithParameter, this);
     command = ActionManager::registerAction(m_logProjectAction, CMD_ID_PROJECTLOG, context);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_logProjectAction, &QAction::triggered, this, &CvsPlugin::logProject);
+    connect(m_logProjectAction, &QAction::triggered, this, &CvsPluginPrivate::logProject);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
     m_updateProjectAction = new ParameterAction(tr("Update Project"), tr("Update Project \"%1\""), ParameterAction::EnabledWithParameter, this);
     command = ActionManager::registerAction(m_updateProjectAction, CMD_ID_UPDATE, context);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_updateProjectAction, &QAction::triggered, this, &CvsPlugin::updateProject);
+    connect(m_updateProjectAction, &QAction::triggered, this, &CvsPluginPrivate::updateProject);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
     m_commitProjectAction = new ParameterAction(tr("Commit Project"), tr("Commit Project \"%1\""), ParameterAction::EnabledWithParameter, this);
     command = ActionManager::registerAction(m_commitProjectAction, CMD_ID_PROJECTCOMMIT, context);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_commitProjectAction, &QAction::triggered, this, &CvsPlugin::commitProject);
+    connect(m_commitProjectAction, &QAction::triggered, this, &CvsPluginPrivate::commitProject);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -358,7 +688,7 @@ bool CvsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     m_updateDirectoryAction = new ParameterAction(tr("Update Directory"), tr("Update Directory \"%1\""), Utils::ParameterAction::EnabledWithParameter, this);
     command = ActionManager::registerAction(m_updateDirectoryAction, CMD_ID_UPDATE_DIRECTORY, context);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_updateDirectoryAction, &QAction::triggered, this, &CvsPlugin::updateDirectory);
+    connect(m_updateDirectoryAction, &QAction::triggered, this, &CvsPluginPrivate::updateDirectory);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -366,7 +696,7 @@ bool CvsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     command = ActionManager::registerAction(m_commitDirectoryAction,
         CMD_ID_COMMIT_DIRECTORY, context);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_commitDirectoryAction, &QAction::triggered, this, &CvsPlugin::startCommitDirectory);
+    connect(m_commitDirectoryAction, &QAction::triggered, this, &CvsPluginPrivate::startCommitDirectory);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -374,45 +704,51 @@ bool CvsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 
     m_diffRepositoryAction = new QAction(tr("Diff Repository"), this);
     command = ActionManager::registerAction(m_diffRepositoryAction, CMD_ID_REPOSITORYDIFF, context);
-    connect(m_diffRepositoryAction, &QAction::triggered, this, &CvsPlugin::diffRepository);
+    connect(m_diffRepositoryAction, &QAction::triggered, this, &CvsPluginPrivate::diffRepository);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
     m_statusRepositoryAction = new QAction(tr("Repository Status"), this);
     command = ActionManager::registerAction(m_statusRepositoryAction, CMD_ID_REPOSITORYSTATUS, context);
-    connect(m_statusRepositoryAction, &QAction::triggered, this, &CvsPlugin::statusRepository);
+    connect(m_statusRepositoryAction, &QAction::triggered, this, &CvsPluginPrivate::statusRepository);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
     m_logRepositoryAction = new QAction(tr("Repository Log"), this);
     command = ActionManager::registerAction(m_logRepositoryAction, CMD_ID_REPOSITORYLOG, context);
-    connect(m_logRepositoryAction, &QAction::triggered, this, &CvsPlugin::logRepository);
+    connect(m_logRepositoryAction, &QAction::triggered, this, &CvsPluginPrivate::logRepository);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
     m_updateRepositoryAction = new QAction(tr("Update Repository"), this);
     command = ActionManager::registerAction(m_updateRepositoryAction, CMD_ID_REPOSITORYUPDATE, context);
-    connect(m_updateRepositoryAction, &QAction::triggered, this, &CvsPlugin::updateRepository);
+    connect(m_updateRepositoryAction, &QAction::triggered, this, &CvsPluginPrivate::updateRepository);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
     m_commitAllAction = new QAction(tr("Commit All Files"), this);
     command = ActionManager::registerAction(m_commitAllAction, CMD_ID_COMMIT_ALL,
         context);
-    connect(m_commitAllAction, &QAction::triggered, this, &CvsPlugin::startCommitAll);
+    connect(m_commitAllAction, &QAction::triggered, this, &CvsPluginPrivate::startCommitAll);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
     m_revertRepositoryAction = new QAction(tr("Revert Repository..."), this);
     command = ActionManager::registerAction(m_revertRepositoryAction, CMD_ID_REVERT_ALL,
                              context);
-    connect(m_revertRepositoryAction, &QAction::triggered, this, &CvsPlugin::revertAll);
+    connect(m_revertRepositoryAction, &QAction::triggered, this, &CvsPluginPrivate::revertAll);
     cvsMenu->addAction(command);
     m_commandLocator->appendCommand(command);
-    return true;
 }
 
-bool CvsPlugin::submitEditorAboutToClose()
+void CvsPluginPrivate::describeHelper(const QString &source, const QString &changeNr)
+{
+    QString errorMessage;
+    if (!describe(source, changeNr, &errorMessage))
+        VcsOutputWindow::appendError(errorMessage);
+};
+
+bool CvsPluginPrivate::submitEditorAboutToClose()
 {
     if (!isCommitEditorOpen())
         return true;
@@ -432,7 +768,7 @@ bool CvsPlugin::submitEditorAboutToClose()
     // Prompt user. Force a prompt unless submit was actually invoked (that
     // is, the editor was closed or shutdown).
     const VcsBaseSubmitEditor::PromptSubmitResult answer = editor->promptSubmit(
-                this, client()->settings().boolPointer(CvsSettings::promptOnSubmitKey),
+                this, m_settings.boolPointer(CvsSettings::promptOnSubmitKey),
                 !m_submitActionTriggered);
     m_submitActionTriggered = false;
     switch (answer) {
@@ -457,7 +793,7 @@ bool CvsPlugin::submitEditorAboutToClose()
     return closeEditor;
 }
 
-void CvsPlugin::diffCommitFiles(const QStringList &files)
+void CvsPluginPrivate::diffCommitFiles(const QStringList &files)
 {
     m_client->diff(m_commitRepository, files);
 }
@@ -468,18 +804,18 @@ static void setDiffBaseDirectory(IEditor *editor, const QString &db)
         ve->setWorkingDirectory(db);
 }
 
-CvsSubmitEditor *CvsPlugin::openCVSSubmitEditor(const QString &fileName)
+CvsSubmitEditor *CvsPluginPrivate::openCVSSubmitEditor(const QString &fileName)
 {
     IEditor *editor = EditorManager::openEditor(fileName, CVSCOMMITEDITOR_ID);
     auto submitEditor = qobject_cast<CvsSubmitEditor*>(editor);
     QTC_ASSERT(submitEditor, return nullptr);
     connect(submitEditor, &VcsBaseSubmitEditor::diffSelectedFiles,
-            this, &CvsPlugin::diffCommitFiles);
+            this, &CvsPluginPrivate::diffCommitFiles);
 
     return submitEditor;
 }
 
-void CvsPlugin::updateActions(VcsBasePlugin::ActionState as)
+void CvsPluginPrivate::updateActions(VcsBasePluginPrivate::ActionState as)
 {
     if (!enableMenuAction(as, m_menuAction)) {
         m_commandLocator->setEnabled(false);
@@ -522,14 +858,14 @@ void CvsPlugin::updateActions(VcsBasePlugin::ActionState as)
     m_uneditRepositoryAction->setEnabled(hasTopLevel);
 }
 
-void CvsPlugin::addCurrentFile()
+void CvsPluginPrivate::addCurrentFile()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
     vcsAdd(state.currentFileTopLevel(), state.relativeCurrentFile());
 }
 
-void CvsPlugin::revertAll()
+void CvsPluginPrivate::revertAll()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
@@ -539,23 +875,23 @@ void CvsPlugin::revertAll()
     QStringList args;
     args << QLatin1String("update") << QLatin1String("-C") << state.topLevel();
     const CvsResponse revertResponse =
-            runCvs(state.topLevel(), args, client()->vcsTimeoutS(),
+            runCvs(state.topLevel(), args, m_settings.vcsTimeoutS(),
                    VcsCommand::SshPasswordPrompt | VcsCommand::ShowStdOut);
     if (revertResponse.result == CvsResponse::Ok)
-        cvsVersionControl()->emitRepositoryChanged(state.topLevel());
+        emit repositoryChanged(state.topLevel());
     else
         Core::AsynchronousMessageBox::warning(title,
                                               tr("Revert failed: %1").arg(revertResponse.message));
 }
 
-void CvsPlugin::revertCurrentFile()
+void CvsPluginPrivate::revertCurrentFile()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
     QStringList args;
     args << QLatin1String("diff") << state.relativeCurrentFile();
     const CvsResponse diffResponse =
-            runCvs(state.currentFileTopLevel(), args, client()->vcsTimeoutS(), 0);
+            runCvs(state.currentFileTopLevel(), args, m_settings.vcsTimeoutS(), 0);
     switch (diffResponse.result) {
     case CvsResponse::Ok:
         return; // Not modified, diff exit code 0
@@ -577,13 +913,13 @@ void CvsPlugin::revertCurrentFile()
     args.clear();
     args << QLatin1String("update") << QLatin1String("-C") << state.relativeCurrentFile();
     const CvsResponse revertResponse =
-            runCvs(state.currentFileTopLevel(), args, client()->vcsTimeoutS(),
+            runCvs(state.currentFileTopLevel(), args, m_settings.vcsTimeoutS(),
                    VcsCommand::SshPasswordPrompt | VcsCommand::ShowStdOut);
     if (revertResponse.result == CvsResponse::Ok)
-        cvsVersionControl()->emitFilesChanged(QStringList(state.currentFile()));
+        emit filesChanged(QStringList(state.currentFile()));
 }
 
-void CvsPlugin::diffProject()
+void CvsPluginPrivate::diffProject()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasProject(), return);
@@ -592,14 +928,14 @@ void CvsPlugin::diffProject()
             relativeProject.isEmpty() ? QStringList() : QStringList(relativeProject));
 }
 
-void CvsPlugin::diffCurrentFile()
+void CvsPluginPrivate::diffCurrentFile()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
     m_client->diff(state.currentFileTopLevel(), QStringList(state.relativeCurrentFile()));
 }
 
-void CvsPlugin::startCommitCurrentFile()
+void CvsPluginPrivate::startCommitCurrentFile()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
@@ -609,14 +945,14 @@ void CvsPlugin::startCommitCurrentFile()
     startCommit(state.currentFileDirectory(), state.currentFileName());
 }
 
-void CvsPlugin::startCommitDirectory()
+void CvsPluginPrivate::startCommitDirectory()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
     startCommit(state.currentFileDirectory());
 }
 
-void CvsPlugin::startCommitAll()
+void CvsPluginPrivate::startCommitAll()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
@@ -626,7 +962,7 @@ void CvsPlugin::startCommitAll()
 /* Start commit of files of a single repository by displaying
  * template and files in a submit editor. On closing, the real
  * commit will start. */
-void CvsPlugin::startCommit(const QString &workingDir, const QString &file)
+void CvsPluginPrivate::startCommit(const QString &workingDir, const QString &file)
 {
     if (!promptBeforeCommit())
         return;
@@ -642,7 +978,7 @@ void CvsPlugin::startCommit(const QString &workingDir, const QString &file)
     // where we are, so, have stdout/stderr channels merged.
     QStringList args = QStringList(QLatin1String("status"));
     const CvsResponse response =
-            runCvs(workingDir, args, client()->vcsTimeoutS(), VcsCommand::MergeOutputChannels);
+            runCvs(workingDir, args, m_settings.vcsTimeoutS(), VcsCommand::MergeOutputChannels);
     if (response.result != CvsResponse::Ok)
         return;
     // Get list of added/modified/deleted files and purge out undesired ones
@@ -681,40 +1017,40 @@ void CvsPlugin::startCommit(const QString &workingDir, const QString &file)
     editor->setStateList(statusOutput);
 }
 
-bool CvsPlugin::commit(const QString &messageFile,
+bool CvsPluginPrivate::commit(const QString &messageFile,
                               const QStringList &fileList)
 {
     QStringList args = QStringList(QLatin1String("commit"));
     args << QLatin1String("-F") << messageFile;
     args.append(fileList);
     const CvsResponse response =
-            runCvs(m_commitRepository, args, 10 * client()->vcsTimeoutS(),
+            runCvs(m_commitRepository, args, 10 * m_settings.vcsTimeoutS(),
                    VcsCommand::SshPasswordPrompt | VcsCommand::ShowStdOut);
     return response.result == CvsResponse::Ok ;
 }
 
-void CvsPlugin::filelogCurrentFile()
+void CvsPluginPrivate::filelogCurrentFile()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
     filelog(state.currentFileTopLevel(), state.relativeCurrentFile(), true);
 }
 
-void CvsPlugin::logProject()
+void CvsPluginPrivate::logProject()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasProject(), return);
     filelog(state.currentProjectTopLevel(), state.relativeCurrentProject());
 }
 
-void CvsPlugin::logRepository()
+void CvsPluginPrivate::logRepository()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
     filelog(state.topLevel());
 }
 
-void CvsPlugin::filelog(const QString &workingDir,
+void CvsPluginPrivate::filelog(const QString &workingDir,
                         const QString &file,
                         bool enableAnnotationContextMenu)
 {
@@ -726,7 +1062,7 @@ void CvsPlugin::filelog(const QString &workingDir,
     args << QLatin1String("log");
     args.append(file);
     const CvsResponse response =
-            runCvs(workingDir, args, client()->vcsTimeoutS(),
+            runCvs(workingDir, args, m_settings.vcsTimeoutS(),
                    VcsCommand::SshPasswordPrompt, codec);
     if (response.result != CvsResponse::Ok)
         return;
@@ -739,101 +1075,101 @@ void CvsPlugin::filelog(const QString &workingDir,
         EditorManager::activateEditor(editor);
     } else {
         const QString title = QString::fromLatin1("cvs log %1").arg(id);
-        IEditor *newEditor = showOutputInEditor(title, response.stdOut, LogOutput, source, codec);
+        IEditor *newEditor = showOutputInEditor(title, response.stdOut, logEditorParameters.id, source, codec);
         VcsBaseEditor::tagEditor(newEditor, tag);
         if (enableAnnotationContextMenu)
             VcsBaseEditor::getVcsBaseEditor(newEditor)->setFileLogAnnotateEnabled(true);
     }
 }
 
-void CvsPlugin::updateDirectory()
+void CvsPluginPrivate::updateDirectory()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
     update(state.currentFileDirectory(), QString());
 }
 
-void CvsPlugin::updateProject()
+void CvsPluginPrivate::updateProject()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasProject(), return);
     update(state.currentProjectTopLevel(), state.relativeCurrentProject());
 }
 
-bool CvsPlugin::update(const QString &topLevel, const QString &file)
+bool CvsPluginPrivate::update(const QString &topLevel, const QString &file)
 {
     QStringList args(QLatin1String("update"));
     args.push_back(QLatin1String("-dR"));
     if (!file.isEmpty())
         args.append(file);
     const CvsResponse response =
-            runCvs(topLevel, args, 10 * client()->vcsTimeoutS(),
+            runCvs(topLevel, args, 10 * m_settings.vcsTimeoutS(),
                    VcsCommand::SshPasswordPrompt | VcsCommand::ShowStdOut);
     const bool ok = response.result == CvsResponse::Ok;
     if (ok)
-        cvsVersionControl()->emitRepositoryChanged(topLevel);
+        emit repositoryChanged(topLevel);
     return ok;
 }
 
-void CvsPlugin::editCurrentFile()
+void CvsPluginPrivate::editCurrentFile()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
     edit(state.currentFileTopLevel(), QStringList(state.relativeCurrentFile()));
 }
 
-void CvsPlugin::uneditCurrentFile()
+void CvsPluginPrivate::uneditCurrentFile()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
     unedit(state.currentFileTopLevel(), QStringList(state.relativeCurrentFile()));
 }
 
-void CvsPlugin::uneditCurrentRepository()
+void CvsPluginPrivate::uneditCurrentRepository()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
     unedit(state.topLevel(), QStringList());
 }
 
-void CvsPlugin::annotateCurrentFile()
+void CvsPluginPrivate::annotateCurrentFile()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
     annotate(state.currentFileTopLevel(), state.relativeCurrentFile());
 }
 
-void CvsPlugin::vcsAnnotate(const QString &workingDirectory, const QString &file,
+void CvsPluginPrivate::vcsAnnotate(const QString &workingDirectory, const QString &file,
                             const QString &revision, int lineNumber)
 {
     annotate(workingDirectory, file, revision, lineNumber);
 }
 
-bool CvsPlugin::edit(const QString &topLevel, const QStringList &files)
+bool CvsPluginPrivate::edit(const QString &topLevel, const QStringList &files)
 {
     QStringList args(QLatin1String("edit"));
     args.append(files);
     const CvsResponse response =
-            runCvs(topLevel, args, client()->vcsTimeoutS(),
+            runCvs(topLevel, args, m_settings.vcsTimeoutS(),
                    VcsCommand::ShowStdOut | VcsCommand::SshPasswordPrompt);
     return response.result == CvsResponse::Ok;
 }
 
-bool CvsPlugin::diffCheckModified(const QString &topLevel, const QStringList &files, bool *modified)
+bool CvsPluginPrivate::diffCheckModified(const QString &topLevel, const QStringList &files, bool *modified)
 {
     // Quick check for modified files using diff
     *modified = false;
     QStringList args(QLatin1String("-q"));
     args << QLatin1String("diff");
     args.append(files);
-    const CvsResponse response = runCvs(topLevel, args, client()->vcsTimeoutS(), 0);
+    const CvsResponse response = runCvs(topLevel, args, m_settings.vcsTimeoutS(), 0);
     if (response.result == CvsResponse::OtherError)
         return false;
     *modified = response.result == CvsResponse::NonNullExitCode;
     return true;
 }
 
-bool CvsPlugin::unedit(const QString &topLevel, const QStringList &files)
+bool CvsPluginPrivate::unedit(const QString &topLevel, const QStringList &files)
 {
     bool modified;
     // Prompt and use force flag if modified
@@ -854,12 +1190,12 @@ bool CvsPlugin::unedit(const QString &topLevel, const QStringList &files)
         args.append(QLatin1String("-y"));
     args.append(files);
     const CvsResponse response =
-            runCvs(topLevel, args, client()->vcsTimeoutS(),
+            runCvs(topLevel, args, m_settings.vcsTimeoutS(),
                    VcsCommand::ShowStdOut | VcsCommand::SshPasswordPrompt);
     return response.result == CvsResponse::Ok;
 }
 
-void CvsPlugin::annotate(const QString &workingDir, const QString &file,
+void CvsPluginPrivate::annotate(const QString &workingDir, const QString &file,
                          const QString &revision /* = QString() */,
                          int lineNumber /* = -1 */)
 {
@@ -873,7 +1209,7 @@ void CvsPlugin::annotate(const QString &workingDir, const QString &file,
         args << QLatin1String("-r") << revision;
     args << file;
     const CvsResponse response =
-            runCvs(workingDir, args, client()->vcsTimeoutS(),
+            runCvs(workingDir, args, m_settings.vcsTimeoutS(),
                    VcsCommand::SshPasswordPrompt, codec);
     if (response.result != CvsResponse::Ok)
         return;
@@ -890,54 +1226,54 @@ void CvsPlugin::annotate(const QString &workingDir, const QString &file,
         EditorManager::activateEditor(editor);
     } else {
         const QString title = QString::fromLatin1("cvs annotate %1").arg(id);
-        IEditor *newEditor = showOutputInEditor(title, response.stdOut, AnnotateOutput, source, codec);
+        IEditor *newEditor = showOutputInEditor(title, response.stdOut, annotateEditorParameters.id, source, codec);
         VcsBaseEditor::tagEditor(newEditor, tag);
         VcsBaseEditor::gotoLineOfEditor(newEditor, lineNumber);
     }
 }
 
-bool CvsPlugin::status(const QString &topLevel, const QString &file, const QString &title)
+bool CvsPluginPrivate::status(const QString &topLevel, const QString &file, const QString &title)
 {
     QStringList args(QLatin1String("status"));
     if (!file.isEmpty())
         args.append(file);
     const CvsResponse response =
-            runCvs(topLevel, args, client()->vcsTimeoutS(), 0);
+            runCvs(topLevel, args, m_settings.vcsTimeoutS(), 0);
     const bool ok = response.result == CvsResponse::Ok;
     if (ok)
-        showOutputInEditor(title, response.stdOut, OtherContent, topLevel, nullptr);
+        showOutputInEditor(title, response.stdOut, commandLogEditorParameters.id, topLevel, nullptr);
     return ok;
 }
 
-void CvsPlugin::projectStatus()
+void CvsPluginPrivate::projectStatus()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasProject(), return);
     status(state.currentProjectTopLevel(), state.relativeCurrentProject(), tr("Project status"));
 }
 
-void CvsPlugin::commitProject()
+void CvsPluginPrivate::commitProject()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasProject(), return);
     startCommit(state.currentProjectTopLevel(), state.relativeCurrentProject());
 }
 
-void CvsPlugin::diffRepository()
+void CvsPluginPrivate::diffRepository()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
     m_client->diff(state.topLevel(), QStringList());
 }
 
-void CvsPlugin::statusRepository()
+void CvsPluginPrivate::statusRepository()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
     status(state.topLevel(), QString(), tr("Repository status"));
 }
 
-void CvsPlugin::updateRepository()
+void CvsPluginPrivate::updateRepository()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
@@ -945,19 +1281,20 @@ void CvsPlugin::updateRepository()
 
 }
 
-bool CvsPlugin::describe(const QString &file, const QString &changeNr, QString *errorMessage)
+bool CvsPluginPrivate::describe(const QString &file, const QString &changeNr, QString *errorMessage)
 {
 
     QString toplevel;
     const bool manages = managesDirectory(QFileInfo(file).absolutePath(), &toplevel);
     if (!manages || toplevel.isEmpty()) {
-        *errorMessage = msgCannotFindTopLevel(file);
+        *errorMessage = tr("Cannot find repository for \"%1\".")
+                .arg(QDir::toNativeSeparators(file));
         return false;
     }
     return describe(toplevel, QDir(toplevel).relativeFilePath(file), changeNr, errorMessage);
 }
 
-bool CvsPlugin::describe(const QString &toplevel, const QString &file, const
+bool CvsPluginPrivate::describe(const QString &toplevel, const QString &file, const
                          QString &changeNr, QString *errorMessage)
 {
 
@@ -976,17 +1313,17 @@ bool CvsPlugin::describe(const QString &toplevel, const QString &file, const
     QStringList args;
     args << QLatin1String("log") << (QLatin1String("-r") + changeNr) << file;
     const CvsResponse logResponse =
-            runCvs(toplevel, args, client()->vcsTimeoutS(), VcsCommand::SshPasswordPrompt);
+            runCvs(toplevel, args, m_settings.vcsTimeoutS(), VcsCommand::SshPasswordPrompt);
     if (logResponse.result != CvsResponse::Ok) {
         *errorMessage = logResponse.message;
         return false;
     }
     const QList<CvsLogEntry> fileLog = parseLogEntries(logResponse.stdOut);
     if (fileLog.empty() || fileLog.front().revisions.empty()) {
-        *errorMessage = msgLogParsingFailed();
+        *errorMessage = tr("Parsing of the log output failed.");
         return false;
     }
-    if (client()->settings().boolValue(CvsSettings::describeByCommitIdKey)) {
+    if (m_settings.boolValue(CvsSettings::describeByCommitIdKey)) {
         // Run a log command over the repo, filtering by the commit date
         // and commit id, collecting all files touched by the commit.
         const QString commitId = fileLog.front().revisions.front().commitId;
@@ -998,7 +1335,7 @@ bool CvsPlugin::describe(const QString &toplevel, const QString &file, const
         args << QLatin1String("log") << QLatin1String("-d") << (dateS  + QLatin1Char('<') + nextDayS);
 
         const CvsResponse repoLogResponse =
-                runCvs(toplevel, args, 10 * client()->vcsTimeoutS(), VcsCommand::SshPasswordPrompt);
+                runCvs(toplevel, args, 10 * m_settings.vcsTimeoutS(), VcsCommand::SshPasswordPrompt);
         if (repoLogResponse.result != CvsResponse::Ok) {
             *errorMessage = repoLogResponse.message;
             return false;
@@ -1019,7 +1356,7 @@ bool CvsPlugin::describe(const QString &toplevel, const QString &file, const
 
 // Describe a set of files and revisions by
 // concatenating log and diffs to previous revisions
-bool CvsPlugin::describe(const QString &repositoryPath,
+bool CvsPluginPrivate::describe(const QString &repositoryPath,
                          QList<CvsLogEntry> entries,
                          QString *errorMessage)
 {
@@ -1035,7 +1372,7 @@ bool CvsPlugin::describe(const QString &repositoryPath,
         QStringList args(QLatin1String("log"));
         args << (QLatin1String("-r") + it->revisions.front().revision) << it->file;
         const CvsResponse logResponse =
-                runCvs(repositoryPath, args, client()->vcsTimeoutS(), VcsCommand::SshPasswordPrompt);
+                runCvs(repositoryPath, args, m_settings.vcsTimeoutS(), VcsCommand::SshPasswordPrompt);
         if (logResponse.result != CvsResponse::Ok) {
             *errorMessage =  logResponse.message;
             return false;
@@ -1048,11 +1385,11 @@ bool CvsPlugin::describe(const QString &repositoryPath,
         if (!isFirstRevision(revision)) {
             const QString previousRev = previousRevision(revision);
             QStringList args(QLatin1String("diff"));
-            args << client()->settings().stringValue(CvsSettings::diffOptionsKey)
+            args << m_settings.stringValue(CvsSettings::diffOptionsKey)
                  << QLatin1String("-r") << previousRev << QLatin1String("-r")
                  << it->revisions.front().revision << it->file;
             const CvsResponse diffResponse =
-                    runCvs(repositoryPath, args, client()->vcsTimeoutS(), 0, codec);
+                    runCvs(repositoryPath, args, m_settings.vcsTimeoutS(), 0, codec);
             switch (diffResponse.result) {
             case CvsResponse::Ok:
             case CvsResponse::NonNullExitCode: // Diff exit code != 0
@@ -1078,14 +1415,14 @@ bool CvsPlugin::describe(const QString &repositoryPath,
         setDiffBaseDirectory(editor, repositoryPath);
     } else {
         const QString title = QString::fromLatin1("cvs describe %1").arg(commitId);
-        IEditor *newEditor = showOutputInEditor(title, output, DiffOutput, entries.front().file, codec);
+        IEditor *newEditor = showOutputInEditor(title, output, diffEditorParameters.id, entries.front().file, codec);
         VcsBaseEditor::tagEditor(newEditor, commitId);
         setDiffBaseDirectory(newEditor, repositoryPath);
     }
     return true;
 }
 
-void CvsPlugin::commitFromEditor()
+void CvsPluginPrivate::commitFromEditor()
 {
     m_submitActionTriggered = true;
     QTC_ASSERT(submitEditor(), return);
@@ -1094,13 +1431,13 @@ void CvsPlugin::commitFromEditor()
 
 // Run CVS. At this point, file arguments must be relative to
 // the working directory (see above).
-CvsResponse CvsPlugin::runCvs(const QString &workingDirectory,
+CvsResponse CvsPluginPrivate::runCvs(const QString &workingDirectory,
                               const QStringList &arguments,
                               int timeOutS,
                               unsigned flags,
                               QTextCodec *outputCodec) const
 {
-    const FileName executable = client()->vcsBinary();
+    const FilePath executable = m_settings.binaryPath();
     CvsResponse response;
     if (executable.isEmpty()) {
         response.result = CvsResponse::OtherError;
@@ -1109,7 +1446,7 @@ CvsResponse CvsPlugin::runCvs(const QString &workingDirectory,
     }
     // Run, connect stderr to the output window
     const SynchronousProcessResponse sp_resp =
-            runVcs(workingDirectory, executable, client()->settings().addOptions(arguments),
+            runVcs(workingDirectory, {executable, m_settings.addOptions(arguments)},
                    timeOutS, flags, outputCodec);
 
     response.result = CvsResponse::OtherError;
@@ -1134,19 +1471,16 @@ CvsResponse CvsPlugin::runCvs(const QString &workingDirectory,
     return response;
 }
 
-IEditor *CvsPlugin::showOutputInEditor(const QString& title, const QString &output,
-                                       int editorType, const QString &source,
-                                       QTextCodec *codec)
+IEditor *CvsPluginPrivate::showOutputInEditor(const QString& title, const QString &output,
+                                              Core::Id id, const QString &source,
+                                              QTextCodec *codec)
 {
-    const VcsBaseEditorParameters *params = findType(editorType);
-    QTC_ASSERT(params, return nullptr);
-    const Id id = params->id;
     QString s = title;
     IEditor *editor = EditorManager::openEditorWithContents(id, &s, output.toUtf8());
     auto e = qobject_cast<CvsEditorWidget*>(editor->widget());
     if (!e)
         return nullptr;
-    connect(e, &VcsBaseEditorWidget::annotateRevisionRequested, this, &CvsPlugin::annotate);
+    connect(e, &VcsBaseEditorWidget::annotateRevisionRequested, this, &CvsPluginPrivate::annotate);
     s.replace(QLatin1Char(' '), QLatin1Char('_'));
     e->textDocument()->setFallbackSaveAsFileName(s);
     e->setForceReadOnly(true);
@@ -1157,35 +1491,29 @@ IEditor *CvsPlugin::showOutputInEditor(const QString& title, const QString &outp
     return editor;
 }
 
-CvsPlugin *CvsPlugin::instance()
-{
-    QTC_ASSERT(m_cvsPluginInstance, return m_cvsPluginInstance);
-    return m_cvsPluginInstance;
-}
-
-bool CvsPlugin::vcsAdd(const QString &workingDir, const QString &rawFileName)
+bool CvsPluginPrivate::vcsAdd(const QString &workingDir, const QString &rawFileName)
 {
     QStringList args;
     args << QLatin1String("add") << rawFileName;
     const CvsResponse response =
-            runCvs(workingDir, args, client()->vcsTimeoutS(),
+            runCvs(workingDir, args, m_settings.vcsTimeoutS(),
                    VcsCommand::SshPasswordPrompt | VcsCommand::ShowStdOut);
     return response.result == CvsResponse::Ok;
 }
 
-bool CvsPlugin::vcsDelete(const QString &workingDir, const QString &rawFileName)
+bool CvsPluginPrivate::vcsDelete(const QString &workingDir, const QString &rawFileName)
 {
     QStringList args;
     args << QLatin1String("remove") << QLatin1String("-f") << rawFileName;
     const CvsResponse response =
-            runCvs(workingDir, args, client()->vcsTimeoutS(),
+            runCvs(workingDir, args, m_settings.vcsTimeoutS(),
                    VcsCommand::SshPasswordPrompt | VcsCommand::ShowStdOut);
     return response.result == CvsResponse::Ok;
 }
 
 /* CVS has a "CVS" directory in each directory it manages. The top level
  * is the first directory under the directory that does not have it. */
-bool CvsPlugin::managesDirectory(const QString &directory, QString *topLevel /* = 0 */) const
+bool CvsPluginPrivate::managesDirectory(const QString &directory, QString *topLevel /* = 0 */) const
 {
     if (topLevel)
         topLevel->clear();
@@ -1214,26 +1542,21 @@ bool CvsPlugin::managesDirectory(const QString &directory, QString *topLevel /* 
     return manages;
 }
 
-bool CvsPlugin::managesFile(const QString &workingDirectory, const QString &fileName) const
+bool CvsPluginPrivate::managesFile(const QString &workingDirectory, const QString &fileName) const
 {
     QStringList args;
     args << QLatin1String("status") << fileName;
     const CvsResponse response =
-            runCvs(workingDirectory, args, client()->vcsTimeoutS(), VcsCommand::SshPasswordPrompt);
+            runCvs(workingDirectory, args, m_settings.vcsTimeoutS(), VcsCommand::SshPasswordPrompt);
     if (response.result != CvsResponse::Ok)
         return false;
     return !response.stdOut.contains(QLatin1String("Status: Unknown"));
 }
 
-bool CvsPlugin::checkCVSDirectory(const QDir &directory) const
+bool CvsPluginPrivate::checkCVSDirectory(const QDir &directory) const
 {
     const QString cvsDir = directory.absoluteFilePath(QLatin1String("CVS"));
     return QFileInfo(cvsDir).isDir();
-}
-
-CvsControl *CvsPlugin::cvsVersionControl() const
-{
-    return static_cast<CvsControl *>(versionControl());
 }
 
 #ifdef WITH_TESTS
@@ -1253,7 +1576,7 @@ void CvsPlugin::testDiffFileResolving_data()
 
 void CvsPlugin::testDiffFileResolving()
 {
-    VcsBaseEditorWidget::testDiffFileResolving(editorParameters[3].id);
+    VcsBaseEditorWidget::testDiffFileResolving(dd->diffEditorFactory);
 }
 
 void CvsPlugin::testLogResolving()
@@ -1279,7 +1602,7 @@ void CvsPlugin::testLogResolving()
                 "added latest commentary\n"
                 "----------------------------\n"
                 );
-    VcsBaseEditorWidget::testLogResolving(editorParameters[1].id, data, "1.3", "1.2");
+    VcsBaseEditorWidget::testLogResolving(dd->logEditorFactory, data, "1.3", "1.2");
 }
 #endif
 

@@ -146,7 +146,7 @@ void MoveManipulator::begin(const QPointF &beginPoint)
     QTransform fromContentItemToSceneTransform = m_snapper.containerFormEditorItem()->qmlItemNode().instanceSceneContentItemTransform();
     foreach (FormEditorItem* item, m_itemList) {
         if (item && item->qmlItemNode().isValid()) {
-            QPointF positionInScenesSpace = fromContentItemToSceneTransform.map(item->qmlItemNode().instancePosition());
+            QPointF positionInScenesSpace = fromContentItemToSceneTransform.map(item->instancePosition());
             m_beginPositionInSceneSpaceHash.insert(item, positionInScenesSpace);
         }
     }
@@ -181,9 +181,9 @@ QPointF MoveManipulator::findSnappingOffset(const QHash<FormEditorItem*, QRectF>
     QMap<double, double> verticalOffsetMap;
     QMap<double, double> horizontalOffsetMap;
 
-    QHashIterator<FormEditorItem*, QRectF> hashIterator(boundingRectHash);
-    while (hashIterator.hasNext()) {
-        hashIterator.next();
+    for (auto hashIterator = boundingRectHash.cbegin(), end = boundingRectHash.cend();
+              hashIterator != end;
+              ++hashIterator) {
         FormEditorItem *formEditorItem = hashIterator.key();
         QRectF boundingRect = hashIterator.value();
 
@@ -230,10 +230,10 @@ QHash<FormEditorItem*, QRectF> MoveManipulator::tanslatedBoundingRects(const QHa
 {
     QHash<FormEditorItem*, QRectF> translatedBoundingRectHash;
 
-    QHashIterator<FormEditorItem*, QRectF> hashIterator(boundingRectHash);
-    while (hashIterator.hasNext()) {
+    for (auto hashIterator = boundingRectHash.cbegin(), end = boundingRectHash.cend();
+              hashIterator != end;
+              ++hashIterator) {
         QPointF alignedOffset(offsetVector);
-        hashIterator.next();
         FormEditorItem *formEditorItem = hashIterator.key();
         QRectF boundingRect = transform.mapRect(hashIterator.value());
 
@@ -306,9 +306,9 @@ void MoveManipulator::update(const QPointF& updatePoint, Snapper::Snapping useSn
                 if (anchors.instanceHasAnchor(AnchorLineVerticalCenter))
                     anchors.setMargin(AnchorLineVerticalCenter, m_beginVerticalCenterHash.value(item) + offsetVector.y());
 
-                item->qmlItemNode().setPosition(positionInContainerSpace);
+                item->setDataModelPosition(positionInContainerSpace);
             } else {
-                item->qmlItemNode().setPostionInBaseState(positionInContainerSpace);
+                item->setDataModelPositionInBaseState(positionInContainerSpace);
             }
         }
     }
@@ -426,8 +426,8 @@ void MoveManipulator::moveBy(double deltaX, double deltaY)
         if (anchors.instanceHasAnchor(AnchorLineVerticalCenter))
             anchors.setMargin(AnchorLineVerticalCenter, anchors.instanceMargin(AnchorLineVerticalCenter) + deltaY);
 
-        item->qmlItemNode().setPosition(QPointF(item->qmlItemNode().instanceValue("x").toDouble() + deltaX,
-                                                  item->qmlItemNode().instanceValue("y").toDouble() + deltaY));
+        item->setDataModelPosition(QPointF(item->qmlItemNode().instanceValue("x").toDouble() + deltaX,
+                                           item->qmlItemNode().instanceValue("y").toDouble() + deltaY));
     }
 }
 

@@ -25,6 +25,7 @@
 
 #include "cppoutline.h"
 
+#include "cppeditor.h"
 #include <cpptools/cppeditoroutline.h>
 
 #include <cpptools/cppoverviewmodel.h>
@@ -107,7 +108,7 @@ CppOutlineWidget::CppOutlineWidget(CppEditorWidget *editor) :
     m_proxyModel->setSourceModel(model);
 
     auto *layout = new QVBoxLayout;
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     layout->addWidget(Core::ItemViewFind::createSearchableWrapper(m_treeView));
     setLayout(layout);

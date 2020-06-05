@@ -28,8 +28,7 @@
 #include "remotelinux_export.h"
 
 #include <projectexplorer/devicesupport/idevice.h>
-
-#include <QCoreApplication>
+#include <projectexplorer/devicesupport/idevicefactory.h>
 
 namespace RemoteLinux {
 
@@ -43,10 +42,7 @@ public:
 
     static Ptr create() { return Ptr(new LinuxDevice); }
 
-    QString displayType() const override;
     ProjectExplorer::IDeviceWidget *createWidget() override;
-    Utils::OsType osType() const override;
-    ProjectExplorer::IDevice::Ptr clone() const override;
 
     bool canCreateProcess() const override { return true; }
     ProjectExplorer::DeviceProcess *createProcess(QObject *parent) const override;
@@ -66,4 +62,15 @@ protected:
     LinuxDevice();
 };
 
+namespace Internal {
+
+class LinuxDeviceFactory final : public ProjectExplorer::IDeviceFactory
+{
+public:
+    LinuxDeviceFactory();
+
+    ProjectExplorer::IDevice::Ptr create() const override;
+};
+
+} // namespace Internal
 } // namespace RemoteLinux

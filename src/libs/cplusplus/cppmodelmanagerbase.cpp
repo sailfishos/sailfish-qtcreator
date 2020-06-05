@@ -27,7 +27,7 @@
 
 namespace CPlusPlus {
 
-static CppModelManagerBase *g_instance = 0;
+static CppModelManagerBase *g_instance = nullptr;
 
 CppModelManagerBase::CppModelManagerBase(QObject *parent)
     : QObject(parent)
@@ -39,7 +39,7 @@ CppModelManagerBase::CppModelManagerBase(QObject *parent)
 CppModelManagerBase::~CppModelManagerBase()
 {
     Q_ASSERT(g_instance == this);
-    g_instance = 0;
+    g_instance = nullptr;
 }
 
 CppModelManagerBase *CppModelManagerBase::instance()
@@ -58,9 +58,9 @@ bool CppModelManagerBase::trySetExtraDiagnostics(const QString &fileName, const 
 bool CppModelManagerBase::setExtraDiagnostics(const QString &fileName, const QString &kind,
                                               const QList<CPlusPlus::Document::DiagnosticMessage> &diagnostics)
 {
-    Q_UNUSED(fileName);
-    Q_UNUSED(kind);
-    Q_UNUSED(diagnostics);
+    Q_UNUSED(fileName)
+    Q_UNUSED(kind)
+    Q_UNUSED(diagnostics)
     return false;
 }
 

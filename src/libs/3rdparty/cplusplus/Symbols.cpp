@@ -34,7 +34,7 @@
 using namespace CPlusPlus;
 
 UsingNamespaceDirective::UsingNamespaceDirective(TranslationUnit *translationUnit,
-                                                 unsigned sourceLocation, const Name *name)
+                                                 int sourceLocation, const Name *name)
     : Symbol(translationUnit, sourceLocation, name)
 { }
 
@@ -52,8 +52,8 @@ void UsingNamespaceDirective::visitSymbol0(SymbolVisitor *visitor)
 { visitor->visit(this); }
 
 NamespaceAlias::NamespaceAlias(TranslationUnit *translationUnit,
-                               unsigned sourceLocation, const Name *name)
-    : Symbol(translationUnit, sourceLocation, name), _namespaceName(0)
+                               int sourceLocation, const Name *name)
+    : Symbol(translationUnit, sourceLocation, name), _namespaceName(nullptr)
 { }
 
 NamespaceAlias::NamespaceAlias(Clone *clone, Subst *subst, NamespaceAlias *original)
@@ -78,7 +78,7 @@ void NamespaceAlias::visitSymbol0(SymbolVisitor *visitor)
 
 
 UsingDeclaration::UsingDeclaration(TranslationUnit *translationUnit,
-                                   unsigned sourceLocation, const Name *name)
+                                   int sourceLocation, const Name *name)
     : Symbol(translationUnit, sourceLocation, name)
 { }
 
@@ -95,9 +95,9 @@ FullySpecifiedType UsingDeclaration::type() const
 void UsingDeclaration::visitSymbol0(SymbolVisitor *visitor)
 { visitor->visit(this); }
 
-Declaration::Declaration(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
+Declaration::Declaration(TranslationUnit *translationUnit, int sourceLocation, const Name *name)
     : Symbol(translationUnit, sourceLocation, name)
-    , _initializer(0)
+    , _initializer(nullptr)
 { }
 
 Declaration::Declaration(Clone *clone, Subst *subst, Declaration *original)
@@ -158,7 +158,7 @@ Declaration::Declaration(Clone *clone, Subst *subst, Declaration *original)
         std::strcmp(enNamespaceNameId, "__cxx11") == 0) {
         if (std::strcmp(enClassNameId, "unique_ptr") == 0) {
             if (std::strcmp(nameId, "pointer") == 0) {
-                newType = clone->type(subst->apply(firstTemplParamName), 0);
+                newType = clone->type(subst->apply(firstTemplParamName), nullptr);
                 newType = FullySpecifiedType(clone->control()->pointerType(newType));
             }
         } else if (std::strcmp(enClassNameId, "list") == 0 ||
@@ -172,12 +172,12 @@ Declaration::Declaration(Clone *clone, Subst *subst, Declaration *original)
                    std::strcmp(enClassNameId, "array") == 0) {
             if (std::strcmp(nameId, "reference") == 0 ||
                 std::strcmp(nameId, "const_reference") == 0) {
-                newType = clone->type(subst->apply(firstTemplParamName), 0);
+                newType = clone->type(subst->apply(firstTemplParamName), nullptr);
             } else if (std::strcmp(nameId, "iterator") == 0 ||
                        std::strcmp(nameId, "reverse_iterator") == 0 ||
                        std::strcmp(nameId, "const_reverse_iterator") == 0 ||
                        std::strcmp(nameId, "const_iterator") == 0) {
-                newType = clone->type(subst->apply(firstTemplParamName), 0);
+                newType = clone->type(subst->apply(firstTemplParamName), nullptr);
                 newType = FullySpecifiedType(clone->control()->pointerType(newType));
             }
         } else if (std::strcmp(enClassNameId, "_Hash") == 0 ||
@@ -186,12 +186,12 @@ Declaration::Declaration(Clone *clone, Subst *subst, Declaration *original)
                 std::strcmp(nameId, "reverse_iterator") == 0 ||
                 std::strcmp(nameId, "const_reverse_iterator") == 0 ||
                 std::strcmp(nameId, "const_iterator") == 0) {
-                FullySpecifiedType clonedType = clone->type(subst->apply(firstTemplParamName), 0);
+                FullySpecifiedType clonedType = clone->type(subst->apply(firstTemplParamName), nullptr);
                 if (NamedType *namedType = clonedType.type()->asNamedType()) {
                     if (const TemplateNameId * templateNameId =
                             namedType->name()->asTemplateNameId()) {
                         if (templateNameId->templateArgumentCount()) {
-                            newType = clone->type(templateNameId->templateArgumentAt(0), 0);
+                            newType = clone->type(templateNameId->templateArgumentAt(0), nullptr);
                             newType = FullySpecifiedType(clone->control()->pointerType(newType));
                         }
                     }
@@ -226,9 +226,9 @@ const StringLiteral *Declaration::getInitializer() const
 void Declaration::visitSymbol0(SymbolVisitor *visitor)
 { visitor->visit(this); }
 
-EnumeratorDeclaration::EnumeratorDeclaration(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
+EnumeratorDeclaration::EnumeratorDeclaration(TranslationUnit *translationUnit, int sourceLocation, const Name *name)
     : Declaration(translationUnit, sourceLocation, name)
-    , _constantValue(0)
+    , _constantValue(nullptr)
 {}
 
 EnumeratorDeclaration::~EnumeratorDeclaration()
@@ -240,9 +240,9 @@ const StringLiteral *EnumeratorDeclaration::constantValue() const
 void EnumeratorDeclaration::setConstantValue(const StringLiteral *constantValue)
 { _constantValue = constantValue; }
 
-Argument::Argument(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
+Argument::Argument(TranslationUnit *translationUnit, int sourceLocation, const Name *name)
     : Symbol(translationUnit, sourceLocation, name),
-      _initializer(0)
+      _initializer(nullptr)
 { }
 
 Argument::Argument(Clone *clone, Subst *subst, Argument *original)
@@ -255,7 +255,7 @@ Argument::~Argument()
 { }
 
 bool Argument::hasInitializer() const
-{ return _initializer != 0; }
+{ return _initializer != nullptr; }
 
 const StringLiteral *Argument::initializer() const
 { return _initializer; }
@@ -272,7 +272,7 @@ FullySpecifiedType Argument::type() const
 void Argument::visitSymbol0(SymbolVisitor *visitor)
 { visitor->visit(this); }
 
-TypenameArgument::TypenameArgument(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
+TypenameArgument::TypenameArgument(TranslationUnit *translationUnit, int sourceLocation, const Name *name)
     : Symbol(translationUnit, sourceLocation, name)
     , _isClassDeclarator(false)
 { }
@@ -295,7 +295,7 @@ FullySpecifiedType TypenameArgument::type() const
 void TypenameArgument::visitSymbol0(SymbolVisitor *visitor)
 { visitor->visit(this); }
 
-Function::Function(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
+Function::Function(TranslationUnit *translationUnit, int sourceLocation, const Name *name)
     : Scope(translationUnit, sourceLocation, name),
       _flags(0)
 { }
@@ -303,6 +303,7 @@ Function::Function(TranslationUnit *translationUnit, unsigned sourceLocation, co
 Function::Function(Clone *clone, Subst *subst, Function *original)
     : Scope(clone, subst, original)
     , _returnType(clone->type(original->_returnType, subst))
+    , _exceptionSpecification(original->_exceptionSpecification)
     , _flags(original->_flags)
 { }
 
@@ -338,10 +339,10 @@ bool Function::isSignatureEqualTo(const Function *other, Matcher *matcher) const
     else if (! Matcher::match(unqualifiedName(), other->unqualifiedName(), matcher))
         return false;
 
-    const unsigned argc = argumentCount();
+    const int argc = argumentCount();
     if (argc != other->argumentCount())
         return false;
-    for (unsigned i = 0; i < argc; ++i) {
+    for (int i = 0; i < argc; ++i) {
         Symbol *l = argumentAt(i);
         Symbol *r = other->argumentAt(i);
         if (! l->type().match(r->type(), matcher)) {
@@ -395,24 +396,24 @@ bool Function::hasReturnType() const
     return ty.isValid() || ty.isSigned() || ty.isUnsigned();
 }
 
-unsigned Function::argumentCount() const
+int Function::argumentCount() const
 {
-    const unsigned memCnt = memberCount();
+    const int memCnt = memberCount();
     if (memCnt > 0 && memberAt(0)->type()->isVoidType())
         return 0;
 
     // Definitions with function-try-blocks will have more than a block, and
     // arguments with a lambda as default argument will also have more blocks.
-    unsigned argc = 0;
-    for (unsigned it = 0; it < memCnt; ++it)
+    int argc = 0;
+    for (int it = 0; it < memCnt; ++it)
         if (memberAt(it)->isArgument())
             ++argc;
     return argc;
 }
 
-Symbol *Function::argumentAt(unsigned index) const
+Symbol *Function::argumentAt(int index) const
 {
-    for (unsigned it = 0, eit = memberCount(); it < eit; ++it) {
+    for (int it = 0, eit = memberCount(); it < eit; ++it) {
         if (Argument *arg = memberAt(it)->asArgument()) {
             if (index == 0)
                 return arg;
@@ -421,20 +422,20 @@ Symbol *Function::argumentAt(unsigned index) const
         }
     }
 
-    return 0;
+    return nullptr;
 }
 
 bool Function::hasArguments() const
 {
-    unsigned argc = argumentCount();
+    int argc = argumentCount();
     return ! (argc == 0 || (argc == 1 && argumentAt(0)->type()->isVoidType()));
 }
 
-unsigned Function::minimumArgumentCount() const
+int Function::minimumArgumentCount() const
 {
-    unsigned index = 0;
+    int index = 0;
 
-    for (unsigned ei = argumentCount(); index < ei; ++index) {
+    for (int ei = argumentCount(); index < ei; ++index) {
         if (Argument *arg = argumentAt(index)->asArgument()) {
             if (arg->hasInitializer())
                 break;
@@ -501,16 +502,16 @@ void Function::setAmbiguous(bool isAmbiguous)
 void Function::visitSymbol0(SymbolVisitor *visitor)
 {
     if (visitor->visit(this)) {
-        for (unsigned i = 0; i < memberCount(); ++i) {
+        for (int i = 0; i < memberCount(); ++i) {
             visitSymbol(memberAt(i), visitor);
         }
     }
 }
 
-bool Function::maybeValidPrototype(unsigned actualArgumentCount) const
+bool Function::maybeValidPrototype(int actualArgumentCount) const
 {
-    const unsigned argc = argumentCount();
-    unsigned minNumberArguments = 0;
+    const int argc = argumentCount();
+    int minNumberArguments = 0;
 
     for (; minNumberArguments < argc; ++minNumberArguments) {
         Argument *arg = argumentAt(minNumberArguments)->asArgument();
@@ -534,9 +535,14 @@ bool Function::maybeValidPrototype(unsigned actualArgumentCount) const
     return true;
 }
 
+const StringLiteral *Function::exceptionSpecification()
+{ return _exceptionSpecification; }
 
-Block::Block(TranslationUnit *translationUnit, unsigned sourceLocation)
-    : Scope(translationUnit, sourceLocation, /*name = */ 0)
+void Function::setExceptionSpecification(const StringLiteral *spec)
+{ _exceptionSpecification = spec; }
+
+Block::Block(TranslationUnit *translationUnit, int sourceLocation)
+    : Scope(translationUnit, sourceLocation, /*name = */ nullptr)
 { }
 
 Block::Block(Clone *clone, Subst *subst, Block *original)
@@ -552,13 +558,13 @@ FullySpecifiedType Block::type() const
 void Block::visitSymbol0(SymbolVisitor *visitor)
 {
     if (visitor->visit(this)) {
-        for (unsigned i = 0; i < memberCount(); ++i) {
+        for (int i = 0; i < memberCount(); ++i) {
             visitSymbol(memberAt(i), visitor);
         }
     }
 }
 
-Enum::Enum(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
+Enum::Enum(TranslationUnit *translationUnit, int sourceLocation, const Name *name)
     : Scope(translationUnit, sourceLocation, name)
     , _isScoped(false)
 { }
@@ -598,13 +604,13 @@ bool Enum::match0(const Type *otherType, Matcher *matcher) const
 void Enum::visitSymbol0(SymbolVisitor *visitor)
 {
     if (visitor->visit(this)) {
-        for (unsigned i = 0; i < memberCount(); ++i) {
+        for (int i = 0; i < memberCount(); ++i) {
             visitSymbol(memberAt(i), visitor);
         }
     }
 }
 
-Template::Template(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
+Template::Template(TranslationUnit *translationUnit, int sourceLocation, const Name *name)
     : Scope(translationUnit, sourceLocation, name)
 { }
 
@@ -615,21 +621,21 @@ Template::Template(Clone *clone, Subst *subst, Template *original)
 Template::~Template()
 { }
 
-unsigned Template::templateParameterCount() const
+int Template::templateParameterCount() const
 {
-    if (declaration() != 0)
+    if (declaration() != nullptr)
         return memberCount() - 1;
 
     return 0;
 }
 
-Symbol *Template::templateParameterAt(unsigned index) const
+Symbol *Template::templateParameterAt(int index) const
 { return memberAt(index); }
 
 Symbol *Template::declaration() const
 {
     if (isEmpty())
-        return 0;
+        return nullptr;
 
     if (Symbol *s = memberAt(memberCount() - 1)) {
         if (s->isClass() || s->isForwardClassDeclaration() ||
@@ -637,7 +643,7 @@ Symbol *Template::declaration() const
             return s;
     }
 
-    return 0;
+    return nullptr;
 }
 
 FullySpecifiedType Template::type() const
@@ -646,7 +652,7 @@ FullySpecifiedType Template::type() const
 void Template::visitSymbol0(SymbolVisitor *visitor)
 {
     if (visitor->visit(this)) {
-        for (unsigned i = 0; i < memberCount(); ++i) {
+        for (int i = 0; i < memberCount(); ++i) {
             visitSymbol(memberAt(i), visitor);
         }
     }
@@ -662,7 +668,7 @@ bool Template::match0(const Type *otherType, Matcher *matcher) const
     return false;
 }
 
-Namespace::Namespace(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
+Namespace::Namespace(TranslationUnit *translationUnit, int sourceLocation, const Name *name)
     : Scope(translationUnit, sourceLocation, name)
     , _isInline(false)
 { }
@@ -689,7 +695,7 @@ bool Namespace::match0(const Type *otherType, Matcher *matcher) const
 void Namespace::visitSymbol0(SymbolVisitor *visitor)
 {
     if (visitor->visit(this)) {
-        for (unsigned i = 0; i < memberCount(); ++i) {
+        for (int i = 0; i < memberCount(); ++i) {
             visitSymbol(memberAt(i), visitor);
         }
     }
@@ -698,7 +704,7 @@ void Namespace::visitSymbol0(SymbolVisitor *visitor)
 FullySpecifiedType Namespace::type() const
 { return FullySpecifiedType(const_cast<Namespace *>(this)); }
 
-BaseClass::BaseClass(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
+BaseClass::BaseClass(TranslationUnit *translationUnit, int sourceLocation, const Name *name)
     : Symbol(translationUnit, sourceLocation, name),
       _isVirtual(false)
 { }
@@ -734,7 +740,7 @@ void BaseClass::visitSymbol0(SymbolVisitor *visitor)
 { visitor->visit(this); }
 
 ForwardClassDeclaration::ForwardClassDeclaration(TranslationUnit *translationUnit,
-                                                 unsigned sourceLocation, const Name *name)
+                                                 int sourceLocation, const Name *name)
     : Symbol(translationUnit, sourceLocation, name)
 { }
 
@@ -762,7 +768,7 @@ bool ForwardClassDeclaration::match0(const Type *otherType, Matcher *matcher) co
     return false;
 }
 
-Class::Class(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
+Class::Class(TranslationUnit *translationUnit, int sourceLocation, const Name *name)
     : Scope(translationUnit, sourceLocation, name),
       _key(ClassKey)
 { }
@@ -804,10 +810,10 @@ bool Class::match0(const Type *otherType, Matcher *matcher) const
     return false;
 }
 
-unsigned Class::baseClassCount() const
-{ return unsigned(_baseClasses.size()); }
+int Class::baseClassCount() const
+{ return int(_baseClasses.size()); }
 
-BaseClass *Class::baseClassAt(unsigned index) const
+BaseClass *Class::baseClassAt(int index) const
 { return _baseClasses.at(index); }
 
 void Class::addBaseClass(BaseClass *baseClass)
@@ -819,17 +825,17 @@ FullySpecifiedType Class::type() const
 void Class::visitSymbol0(SymbolVisitor *visitor)
 {
     if (visitor->visit(this)) {
-        for (unsigned i = 0; i < _baseClasses.size(); ++i) {
+        for (int i = 0; i < int(_baseClasses.size()); ++i) {
             visitSymbol(_baseClasses.at(i), visitor);
         }
-        for (unsigned i = 0; i < memberCount(); ++i) {
+        for (int i = 0; i < memberCount(); ++i) {
             visitSymbol(memberAt(i), visitor);
         }
     }
 }
 
 
-QtPropertyDeclaration::QtPropertyDeclaration(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
+QtPropertyDeclaration::QtPropertyDeclaration(TranslationUnit *translationUnit, int sourceLocation, const Name *name)
     : Symbol(translationUnit, sourceLocation, name)
     , _flags(NoFlags)
 { }
@@ -859,7 +865,7 @@ void QtPropertyDeclaration::visitSymbol0(SymbolVisitor *visitor)
 { visitor->visit(this); }
 
 
-QtEnum::QtEnum(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
+QtEnum::QtEnum(TranslationUnit *translationUnit, int sourceLocation, const Name *name)
     : Symbol(translationUnit, sourceLocation, name)
 { }
 
@@ -877,7 +883,7 @@ void QtEnum::visitSymbol0(SymbolVisitor *visitor)
 { visitor->visit(this); }
 
 
-ObjCBaseClass::ObjCBaseClass(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
+ObjCBaseClass::ObjCBaseClass(TranslationUnit *translationUnit, int sourceLocation, const Name *name)
     : Symbol(translationUnit, sourceLocation, name)
 { }
 
@@ -894,7 +900,7 @@ FullySpecifiedType ObjCBaseClass::type() const
 void ObjCBaseClass::visitSymbol0(SymbolVisitor *visitor)
 { visitor->visit(this); }
 
-ObjCBaseProtocol::ObjCBaseProtocol(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
+ObjCBaseProtocol::ObjCBaseProtocol(TranslationUnit *translationUnit, int sourceLocation, const Name *name)
     : Symbol(translationUnit, sourceLocation, name)
 { }
 
@@ -911,17 +917,17 @@ FullySpecifiedType ObjCBaseProtocol::type() const
 void ObjCBaseProtocol::visitSymbol0(SymbolVisitor *visitor)
 { visitor->visit(this); }
 
-ObjCClass::ObjCClass(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name):
+ObjCClass::ObjCClass(TranslationUnit *translationUnit, int sourceLocation, const Name *name):
     Scope(translationUnit, sourceLocation, name),
-    _categoryName(0),
-    _baseClass(0),
+    _categoryName(nullptr),
+    _baseClass(nullptr),
     _isInterface(false)
 { }
 
 ObjCClass::ObjCClass(Clone *clone, Subst *subst, ObjCClass *original)
     : Scope(clone, subst, original)
     , _categoryName(clone->name(original->_categoryName, subst))
-    , _baseClass(0)
+    , _baseClass(nullptr)
     , _isInterface(original->_isInterface)
 {
     if (original->_baseClass)
@@ -940,7 +946,7 @@ void ObjCClass::setInterface(bool isInterface)
 { _isInterface = isInterface; }
 
 bool ObjCClass::isCategory() const
-{ return _categoryName != 0; }
+{ return _categoryName != nullptr; }
 
 const Name *ObjCClass::categoryName() const
 { return _categoryName; }
@@ -954,10 +960,10 @@ ObjCBaseClass *ObjCClass::baseClass() const
 void ObjCClass::setBaseClass(ObjCBaseClass *baseClass)
 { _baseClass = baseClass; }
 
-unsigned ObjCClass::protocolCount() const
-{ return unsigned(_protocols.size()); }
+int ObjCClass::protocolCount() const
+{ return int(_protocols.size()); }
 
-ObjCBaseProtocol *ObjCClass::protocolAt(unsigned index) const
+ObjCBaseProtocol *ObjCClass::protocolAt(int index) const
 { return _protocols.at(index); }
 
 void ObjCClass::addProtocol(ObjCBaseProtocol *protocol)
@@ -972,10 +978,10 @@ void ObjCClass::visitSymbol0(SymbolVisitor *visitor)
         if (_baseClass)
             visitSymbol(_baseClass, visitor);
 
-        for (unsigned i = 0; i < _protocols.size(); ++i)
+        for (int i = 0; i < int(_protocols.size()); ++i)
             visitSymbol(_protocols.at(i), visitor);
 
-        for (unsigned i = 0; i < memberCount(); ++i)
+        for (int i = 0; i < memberCount(); ++i)
             visitSymbol(memberAt(i), visitor);
     }
 }
@@ -991,7 +997,7 @@ bool ObjCClass::match0(const Type *otherType, Matcher *matcher) const
     return false;
 }
 
-ObjCProtocol::ObjCProtocol(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name):
+ObjCProtocol::ObjCProtocol(TranslationUnit *translationUnit, int sourceLocation, const Name *name):
         Scope(translationUnit, sourceLocation, name)
 {
 }
@@ -1006,10 +1012,10 @@ ObjCProtocol::ObjCProtocol(Clone *clone, Subst *subst, ObjCProtocol *original)
 ObjCProtocol::~ObjCProtocol()
 {}
 
-unsigned ObjCProtocol::protocolCount() const
-{ return unsigned(_protocols.size()); }
+int ObjCProtocol::protocolCount() const
+{ return int(_protocols.size()); }
 
-ObjCBaseProtocol *ObjCProtocol::protocolAt(unsigned index) const
+ObjCBaseProtocol *ObjCProtocol::protocolAt(int index) const
 { return _protocols.at(index); }
 
 void ObjCProtocol::addProtocol(ObjCBaseProtocol *protocol)
@@ -1021,7 +1027,7 @@ FullySpecifiedType ObjCProtocol::type() const
 void ObjCProtocol::visitSymbol0(SymbolVisitor *visitor)
 {
     if (visitor->visit(this)) {
-        for (unsigned i = 0; i < _protocols.size(); ++i)
+        for (int i = 0; i < int(_protocols.size()); ++i)
             visitSymbol(_protocols.at(i), visitor);
     }
 }
@@ -1037,7 +1043,7 @@ bool ObjCProtocol::match0(const Type *otherType, Matcher *matcher) const
     return false;
 }
 
-ObjCForwardClassDeclaration::ObjCForwardClassDeclaration(TranslationUnit *translationUnit, unsigned sourceLocation,
+ObjCForwardClassDeclaration::ObjCForwardClassDeclaration(TranslationUnit *translationUnit, int sourceLocation,
                                                          const Name *name):
         Symbol(translationUnit, sourceLocation, name)
 {
@@ -1067,7 +1073,7 @@ bool ObjCForwardClassDeclaration::match0(const Type *otherType, Matcher *matcher
     return false;
 }
 
-ObjCForwardProtocolDeclaration::ObjCForwardProtocolDeclaration(TranslationUnit *translationUnit, unsigned sourceLocation,
+ObjCForwardProtocolDeclaration::ObjCForwardProtocolDeclaration(TranslationUnit *translationUnit, int sourceLocation,
                                                                const Name *name):
         Symbol(translationUnit, sourceLocation, name)
 {
@@ -1097,7 +1103,7 @@ bool ObjCForwardProtocolDeclaration::match0(const Type *otherType, Matcher *matc
     return false;
 }
 
-ObjCMethod::ObjCMethod(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
+ObjCMethod::ObjCMethod(TranslationUnit *translationUnit, int sourceLocation, const Name *name)
     : Scope(translationUnit, sourceLocation, name),
      _flags(0)
 { }
@@ -1137,15 +1143,15 @@ bool ObjCMethod::hasReturnType() const
     return ty.isValid() || ty.isSigned() || ty.isUnsigned();
 }
 
-unsigned ObjCMethod::argumentCount() const
+int ObjCMethod::argumentCount() const
 {
-    const unsigned c = memberCount();
+    const int c = memberCount();
     if (c > 0 && memberAt(c - 1)->isBlock())
         return c - 1;
     return c;
 }
 
-Symbol *ObjCMethod::argumentAt(unsigned index) const
+Symbol *ObjCMethod::argumentAt(int index) const
 {
     return memberAt(index);
 }
@@ -1165,18 +1171,18 @@ void ObjCMethod::setVariadic(bool isVariadic)
 void ObjCMethod::visitSymbol0(SymbolVisitor *visitor)
 {
     if (visitor->visit(this)) {
-        for (unsigned i = 0; i < memberCount(); ++i) {
+        for (int i = 0; i < memberCount(); ++i) {
             visitSymbol(memberAt(i), visitor);
         }
     }
 }
 
 ObjCPropertyDeclaration::ObjCPropertyDeclaration(TranslationUnit *translationUnit,
-                                                 unsigned sourceLocation,
+                                                 int sourceLocation,
                                                  const Name *name):
     Symbol(translationUnit, sourceLocation, name),
-    _getterName(0),
-    _setterName(0),
+    _getterName(nullptr),
+    _setterName(nullptr),
     _propertyAttributes(None)
 {}
 

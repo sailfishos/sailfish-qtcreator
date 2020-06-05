@@ -53,8 +53,8 @@ HEADERS += \
     cpppointerdeclarationformatter.h \
     cppprojectfile.h \
     cppprojectupdater.h \
+    cppprojectupdaterinterface.h \
     cppqtstyleindenter.h \
-    cpprawprojectpart.h \
     cpprefactoringchanges.h \
     cpprefactoringengine.h \
     cppselectionchanger.h \
@@ -100,12 +100,9 @@ HEADERS += \
     cursorineditor.h \
     wrappablelineedit.h \
     usages.h \
-    cpptools_clangtidychecks.h \
     cppmodelmanagerinterface.h \
     cppbuiltinmodelmanagersupport.h \
     headerpathfilter.h \
-    cppkitinfo.h \
-    cpptools_clazychecks.h
 
 SOURCES += \
     abstracteditorsupport.cpp \
@@ -155,7 +152,6 @@ SOURCES += \
     cppprojectfile.cpp \
     cppprojectupdater.cpp \
     cppqtstyleindenter.cpp \
-    cpprawprojectpart.cpp \
     cpprefactoringchanges.cpp \
     cpprefactoringengine.cpp \
     cppselectionchanger.cpp \
@@ -192,8 +188,7 @@ SOURCES += \
     cppprojectpartchooser.cpp \
     wrappablelineedit.cpp \
     cppbuiltinmodelmanagersupport.cpp \
-    headerpathfilter.cpp \
-    cppkitinfo.cpp
+    headerpathfilter.cpp
 
 FORMS += \
     clangdiagnosticconfigswidget.ui \
@@ -201,8 +196,6 @@ FORMS += \
     cppcodestylesettingspage.ui \
     cppfilesettingspage.ui \
     clangbasechecks.ui \
-    clazychecks.ui \
-    tidychecks.ui
 
 equals(TEST, 1) {
     HEADERS += \
@@ -227,6 +220,3 @@ equals(TEST, 1) {
 
     DEFINES += SRCDIR=\\\"$$PWD\\\"
 }
-
-RESOURCES += \
-    cpptools.qrc

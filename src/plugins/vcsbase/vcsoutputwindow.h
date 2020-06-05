@@ -29,7 +29,7 @@
 
 #include  <coreplugin/ioutputpane.h>
 
-namespace Utils { class FileName; }
+namespace Utils { class CommandLine; }
 namespace VcsBase {
 
 namespace Internal { class VcsPlugin; }
@@ -41,7 +41,6 @@ class VCSBASE_EXPORT VcsOutputWindow : public Core::IOutputPane
 
 public:
     QWidget *outputWidget(QWidget *parent) override;
-    QList<QWidget *> toolBarWidgets() const override;
     QString displayName() const override;
 
     int priorityInStatusBar() const override;
@@ -67,8 +66,7 @@ public:
     // 'Executing <dir>: <cmd> <args>'. Hides well-known password option
     // arguments.
     static QString msgExecutionLogEntry(const QString &workingDir,
-                                        const Utils::FileName &executable,
-                                        const QStringList &arguments);
+                                        const Utils::CommandLine &command);
 
     enum MessageStyle {
         None,
@@ -77,6 +75,9 @@ public:
         Command, // A bold command with timestamp "10:00 " + "Executing: vcs -diff"
         Message, // A blue message text (e.g. "command has finished successfully")
     };
+
+signals:
+    void referenceClicked(const QString &reference);
 
 public slots:
     static void setRepository(const QString &);
@@ -89,7 +90,7 @@ public slots:
 
     // Append text with a certain style (none by default),
     // and maybe pop up (silent by default)
-    static void append(const QString &text, enum MessageStyle style = None, bool silently = false);
+    static void append(const QString &text, MessageStyle style = None, bool silently = false);
 
     // Silently append text, do not pop up.
     static void appendSilently(const QString &text);
@@ -108,8 +109,7 @@ public slots:
     // Append a standard-formatted entry for command execution
     // (see msgExecutionLogEntry).
     static void appendCommand(const QString &workingDirectory,
-                       const Utils::FileName &binary,
-                       const QStringList &args);
+                              const Utils::CommandLine &command);
 
     // Append a blue message text and pop up.
     static void appendMessage(const QString &text);

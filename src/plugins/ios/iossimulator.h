@@ -26,19 +26,20 @@
 #pragma once
 
 #include <projectexplorer/devicesupport/idevice.h>
+#include <projectexplorer/devicesupport/idevicefactory.h>
+
 #include <utils/fileutils.h>
 
-#include <QMutex>
 #include <QDebug>
-#include <QSharedPointer>
 
-namespace ProjectExplorer { class Kit; }
 namespace Ios {
 namespace Internal {
+
 class IosConfigurations;
 class IosSimulatorFactory;
 
-class IosDeviceType {
+class IosDeviceType
+{
 public:
     enum Type {
         IosDevice,
@@ -58,38 +59,39 @@ public:
     QString identifier;
     QString displayName;
 };
+
 QDebug operator <<(QDebug debug, const IosDeviceType &deviceType);
 
-class IosSimulator : public ProjectExplorer::IDevice
+class IosSimulator final : public ProjectExplorer::IDevice
 {
+    Q_DECLARE_TR_FUNCTIONS(Ios::Internal::IosSimulator)
+
 public:
     using ConstPtr = QSharedPointer<const IosSimulator>;
     using Ptr = QSharedPointer<IosSimulator>;
     ProjectExplorer::IDevice::DeviceInfo deviceInformation() const override;
 
-    QString displayType() const override;
     ProjectExplorer::IDeviceWidget *createWidget() override;
     ProjectExplorer::DeviceProcessSignalOperation::Ptr signalOperation() const override;
-    void fromMap(const QVariantMap &map) override;
-    QVariantMap toMap() const override;
     Utils::Port nextPort() const;
     bool canAutoDetectPorts() const override;
-    Utils::OsType osType() const override;
 
-    ProjectExplorer::IDevice::Ptr clone() const override;
 protected:
     friend class IosSimulatorFactory;
     friend class IosConfigurations;
     IosSimulator();
     IosSimulator(Core::Id id);
-    IosSimulator(const IosSimulator &other);
+
 private:
     mutable quint16 m_lastPort;
 };
 
-namespace IosKitInformation {
-IosSimulator::ConstPtr simulator(ProjectExplorer::Kit *kit);
-} // namespace IosKitInformation
+class IosSimulatorFactory final : public ProjectExplorer::IDeviceFactory
+{
+public:
+    IosSimulatorFactory();
+};
+
 } // namespace Internal
 } // namespace Ios
 

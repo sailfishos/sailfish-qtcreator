@@ -40,16 +40,15 @@ public:
                               ClangPchManager::PchManagerClient &pchManagerClient,
                               CppTools::CppModelManagerInterface &cppModelManager,
                               ClangBackEnd::FilePathCachingInterface &filePathCache,
-                              ClangBackEnd::ProjectPartsStorageInterface &projectPartsStorage)
-        : ClangPchManager::ProjectUpdater(server, filePathCache, projectPartsStorage)
+                              ClangBackEnd::ProjectPartsStorageInterface &projectPartsStorage,
+                              ClangPchManager::ClangIndexingSettingsManager &settingsManager)
+        : ClangPchManager::ProjectUpdater(server, filePathCache, projectPartsStorage, settingsManager)
         , ClangPchManager::PchManagerNotifierInterface(pchManagerClient)
         , m_cppModelManager(cppModelManager)
     {
     }
 
-    void precompiledHeaderUpdated(ClangBackEnd::ProjectPartId projectPartId,
-                                  const QString &pchFilePath,
-                                  long long lastModified) override;
+    void precompiledHeaderUpdated(ClangBackEnd::ProjectPartId projectPartId) override;
     void precompiledHeaderRemoved(ClangBackEnd::ProjectPartId projectPartId) override;
 
 private:

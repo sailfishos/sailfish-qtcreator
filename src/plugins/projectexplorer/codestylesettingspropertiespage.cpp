@@ -40,12 +40,7 @@ CodeStyleSettingsWidget::CodeStyleSettingsWidget(Project *project) : QWidget(), 
 
     const EditorConfiguration *config = m_project->editorConfiguration();
 
-    QMap<Core::Id, ICodeStylePreferencesFactory *> factories
-            = TextEditorSettings::codeStyleFactories();
-    QMapIterator<Core::Id, ICodeStylePreferencesFactory *> it(factories);
-    while (it.hasNext()) {
-        it.next();
-        ICodeStylePreferencesFactory *factory = it.value();
+    for (ICodeStylePreferencesFactory *factory : TextEditorSettings::codeStyleFactories()) {
         Core::Id languageId = factory->languageId();
         ICodeStylePreferences *codeStylePreferences = config->codeStyle(languageId);
 
@@ -56,7 +51,7 @@ CodeStyleSettingsWidget::CodeStyleSettingsWidget(Project *project) : QWidget(), 
         m_ui.languageComboBox->addItem(factory->displayName());
     }
 
-    connect(m_ui.languageComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+    connect(m_ui.languageComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             m_ui.stackedWidget, &QStackedWidget::setCurrentIndex);
 }
 

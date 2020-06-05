@@ -50,6 +50,7 @@
 #include <utils/qtcassert.h>
 
 #include <QDebug>
+#include <QElapsedTimer>
 #include <QFileInfo>
 #include <QLoggingCategory>
 #include <QSharedPointer>
@@ -234,9 +235,9 @@ bool OpenProjectCommand::run()
     QTC_ASSERT(openProjectSucceeded, return false);
 
     Project *project = openProjectSucceeded.project();
-    project->configureAsExampleProject({});
+    project->configureAsExampleProject();
 
-    return CppTools::Tests::TestCase::waitUntilCppModelManagerIsAwareOf(project, timeOutInMs());
+    return CppTools::Tests::TestCase::waitUntilProjectIsFullyOpened(project, timeOutInMs());
 }
 
 Command::Ptr OpenProjectCommand::parse(BatchFileLineTokenizer &arguments,
@@ -302,7 +303,7 @@ WaitForUpdatedCodeWarnings::WaitForUpdatedCodeWarnings(ClangEditorDocumentProces
 
 bool WaitForUpdatedCodeWarnings::wait(int timeOutInMs) const
 {
-    QTime time;
+    QElapsedTimer time;
     time.start();
 
     forever {
@@ -580,7 +581,7 @@ bool ProcessEventsCommand::run()
 {
     qCDebug(debug) << "line" << context().lineNumber << "ProcessEventsCommand" << m_durationInMs;
 
-    QTime time;
+    QElapsedTimer time;
     time.start();
 
     forever {

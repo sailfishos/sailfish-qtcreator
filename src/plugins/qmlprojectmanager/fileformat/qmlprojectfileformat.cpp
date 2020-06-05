@@ -37,7 +37,7 @@ enum {
 
 namespace   {
 
-void setupFileFilterItem(QmlProjectManager::FileFilterBaseItem *fileFilterItem, const QmlJS::SimpleReaderNode::Ptr &node)
+QmlProjectManager::FileFilterBaseItem *setupFileFilterItem(QmlProjectManager::FileFilterBaseItem *fileFilterItem, const QmlJS::SimpleReaderNode::Ptr &node)
 {
     const QVariant directoryProperty = node->property(QLatin1String("directory"));
     if (directoryProperty.isValid())
@@ -57,13 +57,14 @@ void setupFileFilterItem(QmlProjectManager::FileFilterBaseItem *fileFilterItem, 
 
     if (debug)
         qDebug() << "directory:" << directoryProperty << "recursive" << recursiveProperty << "paths" << pathsProperty;
+    return fileFilterItem;
 }
 
 } //namespace
 
 namespace QmlProjectManager {
 
-QmlProjectItem *QmlProjectFileFormat::parseProjectFile(const Utils::FileName &fileName, QString *errorMessage)
+QmlProjectItem *QmlProjectFileFormat::parseProjectFile(const Utils::FilePath &fileName, QString *errorMessage)
 {
     QmlJS::SimpleReader simpleQmlJSReader;
 
@@ -88,45 +89,41 @@ QmlProjectItem *QmlProjectFileFormat::parseProjectFile(const Utils::FileName &fi
         if (importPathsProperty.isValid())
             projectItem->setImportPaths(importPathsProperty.toStringList());
 
+        const QVariant fileSelectorsProperty = rootNode->property(QLatin1String("fileSelectors"));
+        if (fileSelectorsProperty.isValid())
+            projectItem->setFileSelectors(fileSelectorsProperty.toStringList());
+
+        const QVariant forceFreeTypeProperty = rootNode->property("forceFreeType");
+        if (forceFreeTypeProperty.isValid())
+            projectItem->setForceFreeType(forceFreeTypeProperty.toBool());
+
         const QVariant targetDirectoryPropery = rootNode->property("targetDirectory");
         if (targetDirectoryPropery.isValid())
             projectItem->setTargetDirectory(targetDirectoryPropery.toString());
+
+        const QVariant qtForMCUProperty = rootNode->property("qtForMCUs");
+        if (qtForMCUProperty.isValid() && qtForMCUProperty.toBool())
+            projectItem->setQtForMCUs(qtForMCUProperty.toBool());
 
         if (debug)
             qDebug() << "importPath:" << importPathsProperty << "mainFile:" << mainFileProperty;
 
         foreach (const QmlJS::SimpleReaderNode::Ptr &childNode, rootNode->children()) {
-            if (childNode->name() == QLatin1String("QmlFiles")) {
-                if (debug)
-                    qDebug() << "QmlFiles";
-                auto qmlFileFilterItem = new QmlFileFilterItem(projectItem);
-                setupFileFilterItem(qmlFileFilterItem, childNode);
-                projectItem->appendContent(qmlFileFilterItem);
-            } else if (childNode->name() == QLatin1String("JavaScriptFiles")) {
-                if (debug)
-                    qDebug() << "JavaScriptFiles";
-                auto jsFileFilterItem = new JsFileFilterItem(projectItem);
-                setupFileFilterItem(jsFileFilterItem, childNode);
-                projectItem->appendContent(jsFileFilterItem);
-            } else if (childNode->name() == QLatin1String("ImageFiles")) {
-                if (debug)
-                    qDebug() << "ImageFiles";
-                auto imageFileFilterItem = new ImageFileFilterItem(projectItem);
-                setupFileFilterItem(imageFileFilterItem, childNode);
-                projectItem->appendContent(imageFileFilterItem);
+            if (debug)
+                qDebug() << "reading type:" << childNode->name();
 
+            if (childNode->name() == QLatin1String("QmlFiles")) {
+                projectItem->appendContent(setupFileFilterItem(new FileFilterItem("*.qml"), childNode));
+            } else if (childNode->name() == QLatin1String("JavaScriptFiles")) {
+                projectItem->appendContent(setupFileFilterItem(new FileFilterItem("*.js"), childNode));
+            } else if (childNode->name() == QLatin1String("ImageFiles")) {
+                projectItem->appendContent(setupFileFilterItem(new ImageFileFilterItem(projectItem), childNode));
             } else if (childNode->name() == QLatin1String("CssFiles")) {
-                if (debug)
-                    qDebug() << "CssFiles";
-                auto cssFileFilterItem = new CssFileFilterItem(projectItem);
-                setupFileFilterItem(cssFileFilterItem, childNode);
-                projectItem->appendContent(cssFileFilterItem);
+                projectItem->appendContent(setupFileFilterItem(new FileFilterItem("*.css"), childNode));
+            } else if (childNode->name() == QLatin1String("FontFiles")) {
+                projectItem->appendContent(setupFileFilterItem(new FileFilterItem("*.ttf;*.otf"), childNode));
             } else if (childNode->name() == QLatin1String("Files")) {
-                if (debug)
-                    qDebug() << "Files";
-                auto otherFileFilterItem = new OtherFileFilterItem(projectItem);
-                setupFileFilterItem(otherFileFilterItem, childNode);
-                projectItem->appendContent(otherFileFilterItem);
+                projectItem->appendContent(setupFileFilterItem(new FileFilterBaseItem(), childNode));
             } else if (childNode->name() == "Environment") {
                 const auto properties = childNode->properties();
                 auto i = properties.constBegin();

@@ -27,14 +27,14 @@
 
 #include "stackframe.h"
 
-#include <QAbstractItemModel>
-
-namespace Utils { class ItemViewEvent; }
+#include <utils/basetreeview.h>
+#include <utils/treemodel.h>
 
 namespace Debugger {
 namespace Internal {
 
 class DebuggerEngine;
+class StackHandler;
 
 enum StackColumns
 {
@@ -46,7 +46,46 @@ enum StackColumns
     StackColumnCount
 };
 
-class StackHandler : public QAbstractTableModel
+class StackFrameItem : public Utils::TreeItem
+{
+public:
+    StackFrameItem(StackHandler *handler, const StackFrame &frame, int row = -1)
+        : handler(handler), frame(frame), row(row)
+    {}
+
+    QVariant data(int column, int role) const override;
+    Qt::ItemFlags flags(int column) const override;
+
+public:
+    StackHandler *handler = nullptr;
+    StackFrame frame;
+    int row = -1;
+};
+
+
+class SpecialStackItem : public StackFrameItem
+{
+public:
+    SpecialStackItem(StackHandler *handler)
+        : StackFrameItem(handler, StackFrame{})
+    {}
+
+    QVariant data(int column, int role) const override;
+};
+
+// FIXME: Move ThreadItem over here.
+class ThreadDummyItem : public Utils::TypedTreeItem<StackFrameItem>
+{
+public:
+};
+
+using StackHandlerModel = Utils::TreeModel<
+    Utils::TypedTreeItem<ThreadDummyItem>,
+    Utils::TypedTreeItem<StackFrameItem>,
+    StackFrameItem
+>;
+
+class StackHandler : public StackHandlerModel
 {
     Q_OBJECT
 
@@ -58,34 +97,34 @@ public:
     void setFramesAndCurrentIndex(const GdbMi &frames, bool isFull);
     int updateTargetFrame(bool isFull);
     void prependFrames(const StackFrames &frames);
-    const StackFrames &frames() const;
+    bool isSpecialFrame(int index) const;
     void setCurrentIndex(int index);
     int currentIndex() const { return m_currentIndex; }
     int firstUsableIndex() const;
     StackFrame currentFrame() const;
-    const StackFrame &frameAt(int index) const { return m_stackFrames.at(index); }
-    int stackSize() const { return m_stackFrames.size(); }
-    quint64 topAddress() const { return m_stackFrames.at(0).address; }
+    StackFrame frameAt(int index) const;
+    int stackSize() const;
+    quint64 topAddress() const;
 
     // Called from StackHandler after a new stack list has been received
     void removeAll();
     QAbstractItemModel *model() { return this; }
     bool isContentsValid() const { return m_contentsValid; }
+    bool operatesByInstruction() const;
     void scheduleResetLocation();
     void resetLocation();
-    void resetModel() { beginResetModel(); endResetModel(); }
+
+    QIcon iconForRow(int row) const;
 
 signals:
     void stackChanged();
     void currentIndexChanged();
 
 private:
-    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
-    int columnCount(const QModelIndex &parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex &index, int role) const override;
-    QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
-    Qt::ItemFlags flags(const QModelIndex &index) const override;
+    int stackRowCount() const; // Including the <more...> "frame"
+
     bool setData(const QModelIndex &idx, const QVariant &data, int role) override;
+    ThreadDummyItem *dummyThreadItem() const;
 
     bool contextMenuEvent(const Utils::ItemViewEvent &event);
     void reloadFullStack();
@@ -93,10 +132,8 @@ private:
     void saveTaskFile();
 
     DebuggerEngine *m_engine;
-    StackFrames m_stackFrames;
     int m_currentIndex = -1;
     bool m_canExpand = false;
-    bool m_resetLocationScheduled = false;
     bool m_contentsValid = false;
 };
 

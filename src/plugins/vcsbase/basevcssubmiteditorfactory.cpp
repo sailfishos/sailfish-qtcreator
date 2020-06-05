@@ -31,8 +31,6 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <utils/qtcassert.h>
 
-#include <QAction>
-
 using namespace Core;
 
 namespace VcsBase {
@@ -41,38 +39,39 @@ const char SUBMIT[] = "Vcs.Submit";
 const char DIFF_SELECTED[] = "Vcs.DiffSelectedFiles";
 
 VcsSubmitEditorFactory::VcsSubmitEditorFactory
-        (const VcsBaseSubmitEditorParameters *parameters,
+        (const VcsBaseSubmitEditorParameters &parameters,
          const EditorCreator &editorCreator,
-         VcsBasePlugin *plugin)
-    : IEditorFactory(plugin), m_editorCreator(editorCreator)
+         VcsBasePluginPrivate *plugin)
 {
-    setId(parameters->id);
-    setDisplayName(QLatin1String(parameters->displayName));
-    addMimeType(parameters->mimeType);
+    setId(parameters.id);
+    setDisplayName(QLatin1String(parameters.displayName));
+    addMimeType(QLatin1String(parameters.mimeType));
 
-    Context context(parameters->id);
-    m_undoAction = new QAction(tr("&Undo"), this);
-    ActionManager::registerAction(m_undoAction, Core::Constants::UNDO, context);
+    setEditorCreator([this, editorCreator, parameters] {
+        VcsBaseSubmitEditor *editor = editorCreator();
+        editor->setParameters(parameters);
+        editor->registerActions(&m_undoAction, &m_redoAction, &m_submitAction, &m_diffAction);
+        return editor;
+    });
 
-    m_redoAction = new QAction(tr("&Redo"), this);
-    ActionManager::registerAction(m_redoAction, Core::Constants::REDO, context);
+    Context context(parameters.id);
+    m_undoAction.setText(tr("&Undo"));
+    ActionManager::registerAction(&m_undoAction, Core::Constants::UNDO, context);
+
+    m_redoAction.setText(tr("&Redo"));
+    ActionManager::registerAction(&m_redoAction, Core::Constants::REDO, context);
 
     QTC_ASSERT(plugin, return);
-    m_submitAction = new QAction(VcsBaseSubmitEditor::submitIcon(),
-                                 plugin->commitDisplayName(), this);
-    Command *command = ActionManager::registerAction(m_submitAction, SUBMIT, context);
+    m_submitAction.setIcon(VcsBaseSubmitEditor::submitIcon());
+    m_submitAction.setText(plugin->commitDisplayName());
+
+    Command *command = ActionManager::registerAction(&m_submitAction, SUBMIT, context);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_submitAction, &QAction::triggered, plugin, &VcsBasePlugin::commitFromEditor);
+    QObject::connect(&m_submitAction, &QAction::triggered, plugin, &VcsBasePluginPrivate::commitFromEditor);
 
-    m_diffAction = new QAction(VcsBaseSubmitEditor::diffIcon(), tr("Diff &Selected Files"), this);
-    ActionManager::registerAction(m_diffAction, DIFF_SELECTED, context);
-}
-
-Core::IEditor *VcsSubmitEditorFactory::createEditor()
-{
-    VcsBaseSubmitEditor *editor = m_editorCreator();
-    editor->registerActions(m_undoAction, m_redoAction, m_submitAction, m_diffAction);
-    return editor;
+    m_diffAction.setIcon(VcsBaseSubmitEditor::diffIcon());
+    m_diffAction.setText(tr("Diff &Selected Files"));
+    ActionManager::registerAction(&m_diffAction, DIFF_SELECTED, context);
 }
 
 } // namespace VcsBase

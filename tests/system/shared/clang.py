@@ -30,7 +30,7 @@ def startCreatorVerifyingClang(useClang):
     try:
         # start Qt Creator with / without enabled ClangCodeModel plugin (without modifying settings)
         loadOrNoLoad = '-load' if useClang else '-noload'
-        startQC([loadOrNoLoad, 'ClangCodeModel'], cancelTour=firstStart)
+        startQC([loadOrNoLoad, 'ClangCodeModel'], closeLinkToQt=firstStart, cancelTour=firstStart)
         firstStart = False
     except RuntimeError:
         t, v = sys.exc_info()[:2]
@@ -53,8 +53,7 @@ def startCreatorVerifyingClang(useClang):
 
 def __openCodeModelOptions__():
     invokeMenuItem("Tools", "Options...")
-    waitForObjectItem(":Options_QListView", "C++")
-    clickItem(":Options_QListView", "C++", 14, 15, 0, Qt.LeftButton)
+    mouseClick(waitForObjectItem(":Options_QListView", "C++"))
     clickOnTab(":Options.qt_tabwidget_tabbar_QTabBar", "Code Model")
 
 def getCodeModelString(useClang):

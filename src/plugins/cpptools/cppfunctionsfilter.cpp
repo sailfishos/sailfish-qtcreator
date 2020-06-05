@@ -45,7 +45,7 @@ CppFunctionsFilter::~CppFunctionsFilter() = default;
 
 Core::LocatorFilterEntry CppFunctionsFilter::filterEntryFromIndexItem(IndexItem::Ptr info)
 {
-    const QVariant id = qVariantFromValue(info);
+    const QVariant id = QVariant::fromValue(info);
 
     QString name = info->symbolName();
     QString extraInfo = info->symbolScope();
@@ -53,7 +53,7 @@ Core::LocatorFilterEntry CppFunctionsFilter::filterEntryFromIndexItem(IndexItem:
     if (extraInfo.isEmpty()) {
         extraInfo = info->shortNativeFilePath();
     } else {
-        extraInfo.append(" (" + Utils::FileName::fromString(info->fileName()).fileName() + ')');
+        extraInfo.append(" (" + Utils::FilePath::fromString(info->fileName()).fileName() + ')');
     }
 
     Core::LocatorFilterEntry filterEntry(this, name + info->symbolType(), id, info->icon());

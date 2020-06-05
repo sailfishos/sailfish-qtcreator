@@ -1578,7 +1578,7 @@ void CppEditorPlugin::test_quickfix_data()
              "    f2(&str);\n"
              "}\n")
         << _("void foo() {\n"
-             "    QString *str;\n"
+             "    QString *str = new QString;\n"
              "    if (!str->isEmpty())\n"
              "        str->clear();\n"
              "    f1(*str);\n"
@@ -1612,7 +1612,7 @@ void CppEditorPlugin::test_quickfix_data()
              "        str->clear();\n"
              "}\n")
         << _("void foo() {\n"
-             "    QString str = QLatin1String(\"schnurz\");\n"
+             "    QString str(QLatin1String(\"schnurz\"));\n"
              "    if (!str.isEmpty())\n"
              "        str.clear();\n"
              "}\n");
@@ -1731,7 +1731,7 @@ void CppEditorPlugin::test_quickfix_data()
              "    f1(str);\n"
              "}\n")
         << _("void foo() {\n"
-             "    QString *str;\n"
+             "    QString *str = new QString;\n"
              "    str->clear();\n"
              "    {\n"
              "        QString str;\n"
@@ -1807,6 +1807,45 @@ void CppEditorPlugin::test_quickfix_data()
              "    int bar;\n"
              "    BAR = *foo;\n"
              "}\n");
+
+    QString testObjAndFunc = "struct Object\n"
+                             "{\n"
+                             "    Object(%1){}\n"
+                             "};\n"
+                             "void func()\n"
+                             "{\n"
+                             "    %2\n"
+                             "}\n";
+
+    QTest::newRow("ConvertToStack1_QTCREATORBUG23181")
+        << CppQuickFixFactoryPtr(new ConvertFromAndToPointer)
+        << _(testObjAndFunc.arg("int").arg("Object *@obj = new Object(0);").toUtf8())
+        << _(testObjAndFunc.arg("int").arg("Object obj(0);").toUtf8());
+
+    QTest::newRow("ConvertToStack2_QTCREATORBUG23181")
+        << CppQuickFixFactoryPtr(new ConvertFromAndToPointer)
+        << _(testObjAndFunc.arg("int").arg("Object *@obj = new Object{0};").toUtf8())
+        << _(testObjAndFunc.arg("int").arg("Object obj{0};").toUtf8());
+
+    QTest::newRow("ConvertToPointer1_QTCREATORBUG23181")
+        << CppQuickFixFactoryPtr(new ConvertFromAndToPointer)
+        << _(testObjAndFunc.arg("").arg("Object @obj;").toUtf8())
+        << _(testObjAndFunc.arg("").arg("Object *obj = new Object;").toUtf8());
+
+    QTest::newRow("ConvertToPointer2_QTCREATORBUG23181")
+        << CppQuickFixFactoryPtr(new ConvertFromAndToPointer)
+        << _(testObjAndFunc.arg("").arg("Object @obj();").toUtf8())
+        << _(testObjAndFunc.arg("").arg("Object *obj = new Object();").toUtf8());
+
+    QTest::newRow("ConvertToPointer3_QTCREATORBUG23181")
+        << CppQuickFixFactoryPtr(new ConvertFromAndToPointer)
+        << _(testObjAndFunc.arg("").arg("Object @obj{};").toUtf8())
+        << _(testObjAndFunc.arg("").arg("Object *obj = new Object{};").toUtf8());
+
+    QTest::newRow("ConvertToPointer4_QTCREATORBUG23181")
+        << CppQuickFixFactoryPtr(new ConvertFromAndToPointer)
+        << _(testObjAndFunc.arg("int").arg("Object @obj(0);").toUtf8())
+        << _(testObjAndFunc.arg("int").arg("Object *obj = new Object(0);").toUtf8());
 
     QTest::newRow("InsertQtPropertyMembers_noTriggerInvalidCode")
         << CppQuickFixFactoryPtr(new InsertQtPropertyMembers)
@@ -2494,6 +2533,29 @@ void CppEditorPlugin::test_quickfix_InsertDefFromDecl_respectWsInOperatorNames2(
         "};\n"
         "\n"
         "Foo &Foo::operator=()\n"
+        "{\n"
+        "\n"
+        "}\n";
+
+    InsertDefFromDecl factory;
+    QuickFixOperationTest(singleDocument(original, expected), &factory);
+}
+
+/// Check that the noexcept exception specifier is transferred
+void CppEditorPlugin::test_quickfix_InsertDefFromDecl_noexcept_specifier()
+{
+    QByteArray original =
+        "class Foo\n"
+        "{\n"
+        "    void @foo() noexcept(false);\n"
+        "};\n";
+    QByteArray expected =
+        "class Foo\n"
+        "{\n"
+        "    void foo() noexcept(false);\n"
+        "};\n"
+        "\n"
+        "void Foo::foo() noexcept(false)\n"
         "{\n"
         "\n"
         "}\n";

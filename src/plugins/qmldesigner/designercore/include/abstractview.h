@@ -39,16 +39,18 @@
 #include <QObject>
 #include <QPointer>
 
+#include <functional>
+
 QT_BEGIN_NAMESPACE
 class QStyle;
 class QToolButton;
+class QImage;
 QT_END_NAMESPACE
 
 namespace QmlDesigner {
     namespace Internal {
         class InternalNode;
         using InternalNodePointer = QSharedPointer<InternalNode>;
-        using InternalNodeWeakPointer = QWeakPointer<InternalNode>;
     }
 }
 
@@ -163,6 +165,7 @@ public:
     bool hasModelNodeForInternalId(qint32 internalId) const;
 
     QList<ModelNode> allModelNodes() const;
+    QList<ModelNode> allModelNodesOfType(const TypeName &typeName) const;
 
     void emitDocumentMessage(const QList<DocumentMessage> &errors, const QList<DocumentMessage> &warnings = QList<DocumentMessage>());
     void emitDocumentMessage(const QString &error);
@@ -180,6 +183,8 @@ public:
     void emitRewriterBeginTransaction();
     void emitRewriterEndTransaction();
     void emitInstanceToken(const QString &token, int number, const QVector<ModelNode> &nodeVector);
+    void emitRenderImage3DChanged(const QImage &image);
+    void emitUpdateActiveScene3D(const QVariantMap &sceneState);
 
     void sendTokenToInstances(const QString &token, int number, const QVector<ModelNode> &nodeVector);
 
@@ -224,6 +229,8 @@ public:
     virtual void nodeOrderChanged(const NodeListProperty &listProperty, const ModelNode &movedNode, int oldIndex);
 
     virtual void importsChanged(const QList<Import> &addedImports, const QList<Import> &removedImports);
+    virtual void possibleImportsChanged(const QList<Import> &possibleImports);
+    virtual void usedImportsChanged(const QList<Import> &usedImports);
 
     virtual void auxiliaryDataChanged(const ModelNode &node, const PropertyName &name, const QVariant &data);
 
@@ -234,6 +241,9 @@ public:
     virtual void documentMessagesChanged(const QList<DocumentMessage> &errors, const QList<DocumentMessage> &warnings);
 
     virtual void currentTimelineChanged(const ModelNode &node);
+
+    virtual void renderImage3DChanged(const QImage &image);
+    virtual void updateActiveScene3D(const QVariantMap &sceneState);
 
     void changeRootNodeType(const TypeName &type, int majorVersion, int minorVersion);
 
@@ -262,6 +272,9 @@ public:
     void activateTimeline(const ModelNode &timeline);
     void activateTimelineRecording(const ModelNode &timeline);
     void deactivateTimelineRecording();
+
+    using OperationBlock = std::function<void()>;
+    bool executeInTransaction(const QByteArray &identifier, const OperationBlock &lambda);
 
 protected:
     void setModel(Model * model);

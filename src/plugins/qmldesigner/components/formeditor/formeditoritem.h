@@ -1,3 +1,4 @@
+
 /****************************************************************************
 **
 ** Copyright (C) 2016 The Qt Company Ltd.
@@ -32,6 +33,7 @@
 
 QT_BEGIN_NAMESPACE
 class QTimeLine;
+class QPainterPath;
 QT_END_NAMESPACE
 
 namespace QmlDesigner {
@@ -88,7 +90,7 @@ public:
     QPainterPath shape() const override;
     bool contains(const QPointF &point) const override;
 
-    void updateGeometry();
+    virtual void updateGeometry();
     void updateVisibilty();
 
     void showAttention();
@@ -107,15 +109,29 @@ public:
     QPointF center() const;
     qreal selectionWeigth(const QPointF &point, int iteration);
 
+    virtual void synchronizeOtherProperty(const QByteArray &propertyName);
+    virtual void setDataModelPosition(const QPointF &position);
+    virtual void setDataModelPositionInBaseState(const QPointF &position);
+    virtual QPointF instancePosition() const;
+    virtual QTransform instanceSceneTransform() const;
+    virtual QTransform instanceSceneContentItemTransform() const;
+
+    virtual bool flowHitTest(const QPointF &point) const;
+
 protected:
     AbstractFormEditorTool* tool() const;
     void paintBoundingRect(QPainter *painter) const;
     void paintPlaceHolderForInvisbleItem(QPainter *painter) const;
     void paintComponentContentVisualisation(QPainter *painter, const QRectF &clippinRectangle) const;
     QList<FormEditorItem*> offspringFormEditorItemsRecursive(const FormEditorItem *formEditorItem) const;
+    FormEditorItem(const QmlItemNode &qmlItemNode, FormEditorScene* scene);
+    QTransform viewportTransform() const;
+
+    QRectF m_boundingRect;
+    QRectF m_paintedBoundingRect;
+    QRectF m_selectionBoundingRect;
 
 private: // functions
-    FormEditorItem(const QmlItemNode &qmlItemNode, FormEditorScene* scene);
     void setup();
 
 private: // variables
@@ -123,9 +139,7 @@ private: // variables
     QmlItemNode m_qmlItemNode;
     QPointer<QTimeLine> m_attentionTimeLine;
     QTransform m_inverseAttentionTransform;
-    QRectF m_boundingRect;
-    QRectF m_paintedBoundingRect;
-    QRectF m_selectionBoundingRect;
+
     double m_borderWidth;
     bool m_highlightBoundingRect;
     bool m_blurContent;
@@ -133,6 +147,83 @@ private: // variables
     bool m_isFormEditorVisible;
 };
 
+class FormEditorFlowItem : public FormEditorItem
+{
+    friend class QmlDesigner::FormEditorScene;
+public:
+    void synchronizeOtherProperty(const QByteArray &propertyName) override;
+    void setDataModelPosition(const QPointF &position) override;
+    void setDataModelPositionInBaseState(const QPointF &position) override;
+    void updateGeometry() override;
+    QPointF instancePosition() const override;
+
+protected:
+    FormEditorFlowItem(const QmlItemNode &qmlItemNode, FormEditorScene* scene)
+        : FormEditorItem(qmlItemNode, scene)
+    {}
+};
+
+class FormEditorFlowActionItem : public FormEditorItem
+{
+    friend class QmlDesigner::FormEditorScene;
+public:
+    void paint(QPainter * painter, const QStyleOptionGraphicsItem * option, QWidget * widget = nullptr ) override;
+    QTransform instanceSceneTransform() const override;
+    QTransform instanceSceneContentItemTransform() const override;
+
+protected:
+    FormEditorFlowActionItem(const QmlItemNode &qmlItemNode, FormEditorScene* scene)
+        : FormEditorItem(qmlItemNode, scene)
+    {}
+};
+
+class FormEditorTransitionItem : public FormEditorItem
+{
+    friend class QmlDesigner::FormEditorScene;
+public:
+    void synchronizeOtherProperty(const QByteArray &propertyName) override;
+    void setDataModelPosition(const QPointF &position) override;
+    void setDataModelPositionInBaseState(const QPointF &position) override;
+    void updateGeometry() override;
+    QPointF instancePosition() const override;
+    void paint(QPainter * painter, const QStyleOptionGraphicsItem * option, QWidget * widget = nullptr ) override;
+    bool flowHitTest(const QPointF &point) const override;
+
+protected:
+    FormEditorTransitionItem(const QmlItemNode &qmlItemNode, FormEditorScene* scene)
+        : FormEditorItem(qmlItemNode, scene)
+    {}
+private:
+    mutable bool m_hitTest = false;
+};
+
+class FormEditorFlowDecisionItem : FormEditorFlowItem
+{
+    friend class QmlDesigner::FormEditorScene;
+
+public:
+    void updateGeometry() override;
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem * option, QWidget * widget = nullptr ) override;
+    bool flowHitTest(const QPointF &point) const override;
+
+protected:
+    FormEditorFlowDecisionItem(const QmlItemNode &qmlItemNode, FormEditorScene* scene)
+        : FormEditorFlowItem(qmlItemNode, scene)
+    {}
+};
+
+class FormEditorFlowWildcardItem : FormEditorFlowDecisionItem
+{
+    friend class QmlDesigner::FormEditorScene;
+
+public:
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem * option, QWidget * widget = nullptr ) override;
+
+protected:
+    FormEditorFlowWildcardItem(const QmlItemNode &qmlItemNode, FormEditorScene* scene)
+        : FormEditorFlowDecisionItem(qmlItemNode, scene)
+    {}
+};
 
 inline int FormEditorItem::type() const
 {

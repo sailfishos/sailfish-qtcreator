@@ -44,6 +44,7 @@
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/icore.h>
 
+#include <utils/algorithm.h>
 #include <utils/icon.h>
 #include <utils/utilsicons.h>
 
@@ -71,57 +72,9 @@ namespace QmlDesigner {
 
 NavigatorView::NavigatorView(QObject* parent) :
     AbstractView(parent),
-    m_blockSelectionChangedSignal(false),
-    m_widget(new NavigatorWidget(this)),
-    m_treeModel(new NavigatorTreeModel(this))
+    m_blockSelectionChangedSignal(false)
 {
-#ifndef QMLDESIGNER_TEST
-    auto navigatorContext = new Internal::NavigatorContext(m_widget.data());
-    Core::ICore::addContextObject(navigatorContext);
-#endif
 
-    m_treeModel->setView(this);
-    m_widget->setTreeModel(m_treeModel.data());
-    m_currentModelInterface = m_treeModel;
-
-    connect(treeWidget()->selectionModel(), &QItemSelectionModel::selectionChanged, this, &NavigatorView::changeSelection);
-
-    connect(m_widget.data(), &NavigatorWidget::leftButtonClicked, this, &NavigatorView::leftButtonClicked);
-    connect(m_widget.data(), &NavigatorWidget::rightButtonClicked, this, &NavigatorView::rightButtonClicked);
-    connect(m_widget.data(), &NavigatorWidget::downButtonClicked, this, &NavigatorView::downButtonClicked);
-    connect(m_widget.data(), &NavigatorWidget::upButtonClicked, this, &NavigatorView::upButtonClicked);
-    connect(m_widget.data(), &NavigatorWidget::filterToggled, this, &NavigatorView::filterToggled);
-
-#ifndef QMLDESIGNER_TEST
-    auto idDelegate = new NameItemDelegate(this);
-    IconCheckboxItemDelegate *showDelegate =
-            new IconCheckboxItemDelegate(this,
-                                         Utils::Icons::EYE_OPEN_TOOLBAR.icon(),
-                                         Utils::Icons::EYE_CLOSED_TOOLBAR.icon());
-
-    IconCheckboxItemDelegate *exportDelegate =
-            new IconCheckboxItemDelegate(this,
-                                         Icons::EXPORT_CHECKED.icon(),
-                                         Icons::EXPORT_UNCHECKED.icon());
-
-#ifdef _LOCK_ITEMS_
-    IconCheckboxItemDelegate *lockDelegate =
-            new IconCheckboxItemDelegate(this,
-                                         Utils::Icons::LOCKED_TOOLBAR.icon(),
-                                         Utils::Icons::UNLOCKED_TOOLBAR.icon());
-#endif
-
-
-    treeWidget()->setItemDelegateForColumn(0, idDelegate);
-#ifdef _LOCK_ITEMS_
-    treeWidget()->setItemDelegateForColumn(1,lockDelegate);
-    treeWidget()->setItemDelegateForColumn(2,showDelegate);
-#else
-    treeWidget()->setItemDelegateForColumn(1, exportDelegate);
-    treeWidget()->setItemDelegateForColumn(2, showDelegate);
-#endif
-
-#endif //QMLDESIGNER_TEST
 }
 
 NavigatorView::~NavigatorView()
@@ -137,11 +90,15 @@ bool NavigatorView::hasWidget() const
 
 WidgetInfo NavigatorView::widgetInfo()
 {
+    if (!m_widget)
+        setupWidget();
+
     return createWidgetInfo(m_widget.data(),
                             new WidgetInfo::ToolBarWidgetDefaultFactory<NavigatorWidget>(m_widget.data()),
                             QStringLiteral("Navigator"),
                             WidgetInfo::LeftPane,
-                            0);
+                            0,
+                            tr("Navigator"));
 }
 
 void NavigatorView::modelAttached(Model *model)
@@ -198,22 +155,16 @@ void NavigatorView::handleChangedExport(const ModelNode &modelNode, bool exporte
     if (rootNode.hasProperty(modelNodeId))
         rootNode.removeProperty(modelNodeId);
     if (exported) {
-        try {
-            RewriterTransaction transaction =
-                    beginRewriterTransaction(QByteArrayLiteral("NavigatorTreeModel:exportItem"));
-
+        executeInTransaction("NavigatorTreeModel:exportItem", [this, modelNode](){
             QmlObjectNode qmlObjectNode(modelNode);
             qmlObjectNode.ensureAliasExport();
-            transaction.commit();
-        }  catch (RewritingException &exception) { //better safe than sorry! There always might be cases where we fail
-            exception.showException();
-        }
+        });
     }
 }
 
 bool NavigatorView::isNodeInvisible(const ModelNode &modelNode) const
 {
-    return modelNode.auxiliaryData("invisible").toBool();
+    return QmlVisualNode(modelNode).visibilityOverride();
 }
 
 void NavigatorView::disableWidget()
@@ -254,6 +205,9 @@ void NavigatorView::nodeReparented(const ModelNode &modelNode,
     else
         m_currentModelInterface->notifyModelNodesMoved({modelNode});
     treeWidget()->expand(indexForModelNode(modelNode));
+
+    // make sure selection is in sync again
+    QTimer::singleShot(0, this, &NavigatorView::updateItemSelection);
 }
 
 void NavigatorView::nodeIdChanged(const ModelNode& modelNode, const QString & /*newId*/, const QString & /*oldId*/)
@@ -305,14 +259,10 @@ void NavigatorView::nodeOrderChanged(const NodeListProperty & listProperty,
                                      const ModelNode & /*node*/,
                                      int /*oldIndex*/)
 {
-    bool blocked = blockSelectionChangedSignal(true);
-
     m_currentModelInterface->notifyModelNodesMoved(listProperty.directSubNodes());
 
     // make sure selection is in sync again
-    updateItemSelection();
-
-    blockSelectionChangedSignal(blocked);
+    QTimer::singleShot(0, this, &NavigatorView::updateItemSelection);
 }
 
 void NavigatorView::changeToComponent(const QModelIndex &index)
@@ -400,7 +350,8 @@ void NavigatorView::upButtonClicked()
             index--;
             if (index < 0)
                 index = node.parentProperty().count() - 1; //wrap around
-            node.parentProperty().toNodeListProperty().slide(oldIndex, index);
+            if (oldIndex != index)
+                node.parentProperty().toNodeListProperty().slide(oldIndex, index);
         }
     }
     updateItemSelection();
@@ -417,7 +368,8 @@ void NavigatorView::downButtonClicked()
             index++;
             if (index >= node.parentProperty().count())
                 index = 0; //wrap around
-            node.parentProperty().toNodeListProperty().slide(oldIndex, index);
+            if (oldIndex != index)
+                node.parentProperty().toNodeListProperty().slide(oldIndex, index);
         }
     }
     updateItemSelection();
@@ -446,17 +398,21 @@ void NavigatorView::changeSelection(const QItemSelection & /*newSelection*/, con
     }
 
     bool blocked = blockSelectionChangedSignal(true);
-    setSelectedModelNodes(nodeSet.toList());
+    setSelectedModelNodes(Utils::toList(nodeSet));
     blockSelectionChangedSignal(blocked);
 }
 
 void NavigatorView::selectedNodesChanged(const QList<ModelNode> &/*selectedNodeList*/, const QList<ModelNode> &/*lastSelectedNodeList*/)
 {
-    updateItemSelection();
+    // Update selection asynchronously to ensure NavigatorTreeModel's index cache is up to date
+    QTimer::singleShot(0, this, &NavigatorView::updateItemSelection);
 }
 
 void NavigatorView::updateItemSelection()
 {
+    if (!isAttached())
+        return;
+
     QItemSelection itemSelection;
     foreach (const ModelNode &node, selectedModelNodes()) {
         const QModelIndex index = indexForModelNode(node);
@@ -519,6 +475,60 @@ void NavigatorView::reparentAndCatch(NodeAbstractProperty property, const ModelN
     }  catch (Exception &exception) {
         exception.showException();
     }
+}
+
+void NavigatorView::setupWidget()
+{
+    m_widget = new NavigatorWidget(this);
+    m_treeModel = new NavigatorTreeModel(this);
+
+#ifndef QMLDESIGNER_TEST
+    auto navigatorContext = new Internal::NavigatorContext(m_widget.data());
+    Core::ICore::addContextObject(navigatorContext);
+#endif
+
+    m_treeModel->setView(this);
+    m_widget->setTreeModel(m_treeModel.data());
+    m_currentModelInterface = m_treeModel;
+
+    connect(treeWidget()->selectionModel(), &QItemSelectionModel::selectionChanged, this, &NavigatorView::changeSelection);
+
+    connect(m_widget.data(), &NavigatorWidget::leftButtonClicked, this, &NavigatorView::leftButtonClicked);
+    connect(m_widget.data(), &NavigatorWidget::rightButtonClicked, this, &NavigatorView::rightButtonClicked);
+    connect(m_widget.data(), &NavigatorWidget::downButtonClicked, this, &NavigatorView::downButtonClicked);
+    connect(m_widget.data(), &NavigatorWidget::upButtonClicked, this, &NavigatorView::upButtonClicked);
+    connect(m_widget.data(), &NavigatorWidget::filterToggled, this, &NavigatorView::filterToggled);
+
+#ifndef QMLDESIGNER_TEST
+    auto idDelegate = new NameItemDelegate(this);
+    IconCheckboxItemDelegate *showDelegate =
+            new IconCheckboxItemDelegate(this,
+                                         Utils::Icons::EYE_OPEN_TOOLBAR.icon(),
+                                         Utils::Icons::EYE_CLOSED_TOOLBAR.icon());
+
+    IconCheckboxItemDelegate *exportDelegate =
+            new IconCheckboxItemDelegate(this,
+                                         Icons::EXPORT_CHECKED.icon(),
+                                         Icons::EXPORT_UNCHECKED.icon());
+
+#ifdef _LOCK_ITEMS_
+    IconCheckboxItemDelegate *lockDelegate =
+            new IconCheckboxItemDelegate(this,
+                                         Utils::Icons::LOCKED_TOOLBAR.icon(),
+                                         Utils::Icons::UNLOCKED_TOOLBAR.icon());
+#endif
+
+
+    treeWidget()->setItemDelegateForColumn(0, idDelegate);
+#ifdef _LOCK_ITEMS_
+    treeWidget()->setItemDelegateForColumn(1,lockDelegate);
+    treeWidget()->setItemDelegateForColumn(2,showDelegate);
+#else
+    treeWidget()->setItemDelegateForColumn(1, exportDelegate);
+    treeWidget()->setItemDelegateForColumn(2, showDelegate);
+#endif
+
+#endif //QMLDESIGNER_TEST
 }
 
 } // namespace QmlDesigner

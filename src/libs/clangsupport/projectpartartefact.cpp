@@ -33,8 +33,6 @@
 
 namespace ClangBackEnd {
 
-
-
 Utils::SmallStringVector ProjectPartArtefact::toStringVector(Utils::SmallStringView jsonText)
 {
     if (jsonText.isEmpty())
@@ -92,9 +90,9 @@ QJsonDocument ProjectPartArtefact::createJsonDocument(Utils::SmallStringView jso
                                                       const char *whatError)
 {
     QJsonParseError error;
-    QJsonDocument document = QJsonDocument::fromJson(QByteArray::fromRawData(jsonText.data(),
-                                                                             jsonText.size()),
-                                                     &error);
+    QJsonDocument document = QJsonDocument::fromJson(
+                QByteArray::fromRawData(jsonText.data(), int(jsonText.size())),
+                &error);
     checkError(whatError, error);
 
     return document;

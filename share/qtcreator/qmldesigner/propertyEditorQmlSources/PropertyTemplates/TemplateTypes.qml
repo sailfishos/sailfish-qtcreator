@@ -49,6 +49,26 @@ AutoTypes {
 
     Type {
         typeNames: ["color", "QColor"]
-        sourceFile: "StringEditorTemplate.template"
+        sourceFile: "ColorEditorTemplate.template"
+        separateSection: true
     }
+
+    Type {
+        typeNames: ["Text"]
+        sourceFile: "TextEditorTemplate.template"
+        separateSection: true
+    }
+
+    Type {
+        typeNames: ["font", "QFont"]
+        sourceFile: "FontEditorTemplate.template"
+        separateSection: true
+    }
+
+     Type {
+        typeNames: ["Rectangle"]
+        sourceFile: "RectangleEditorTemplate.template"
+        separateSection: true
+    }
+
 }

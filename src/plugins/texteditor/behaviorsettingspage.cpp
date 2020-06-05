@@ -34,6 +34,7 @@
 #include "simplecodestylepreferences.h"
 #include "texteditorconstants.h"
 #include "codestylepool.h"
+#include "texteditorsettings.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/coreconstants.h>
@@ -47,19 +48,16 @@
 
 #include <QPointer>
 #include <QSettings>
-#include <QTextCodec>
 
-using namespace TextEditor;
+namespace TextEditor {
 
-struct BehaviorSettingsPage::BehaviorSettingsPagePrivate
+struct BehaviorSettingsPage::BehaviorSettingsPagePrivate : public QObject
 {
-    explicit BehaviorSettingsPagePrivate(const BehaviorSettingsPageParameters &p);
+    BehaviorSettingsPagePrivate();
 
-    const BehaviorSettingsPageParameters m_parameters;
+    const QString m_settingsPrefix{"text"};
     QPointer<QWidget> m_widget;
     Internal::Ui::BehaviorSettingsPage *m_page = nullptr;
-
-    void init();
 
     CodeStylePool *m_defaultCodeStylePool = nullptr;
     SimpleCodeStylePreferences *m_codeStyle = nullptr;
@@ -70,39 +68,35 @@ struct BehaviorSettingsPage::BehaviorSettingsPagePrivate
     ExtraEncodingSettings m_extraEncodingSettings;
 };
 
-BehaviorSettingsPage::BehaviorSettingsPagePrivate::BehaviorSettingsPagePrivate
-    (const BehaviorSettingsPageParameters &p)
-    : m_parameters(p)
-{
-}
-
-void BehaviorSettingsPage::BehaviorSettingsPagePrivate::init()
-{
-    const QSettings *s = Core::ICore::settings();
-    m_codeStyle->fromSettings(m_parameters.settingsPrefix, s);
-    m_typingSettings.fromSettings(m_parameters.settingsPrefix, s);
-    m_storageSettings.fromSettings(m_parameters.settingsPrefix, s);
-    m_behaviorSettings.fromSettings(m_parameters.settingsPrefix, s);
-    m_extraEncodingSettings.fromSettings(m_parameters.settingsPrefix, s);
-}
-
-BehaviorSettingsPage::BehaviorSettingsPage(const BehaviorSettingsPageParameters &p,
-                                           QObject *parent)
-  : TextEditorOptionsPage(parent),
-    d(new BehaviorSettingsPagePrivate(p))
+BehaviorSettingsPage::BehaviorSettingsPagePrivate::BehaviorSettingsPagePrivate()
 {
     // global tab preferences for all other languages
-    d->m_codeStyle = new SimpleCodeStylePreferences(this);
-    d->m_codeStyle->setDisplayName(tr("Global", "Settings"));
-    d->m_codeStyle->setId(Constants::GLOBAL_SETTINGS_ID);
+    m_codeStyle = new SimpleCodeStylePreferences(this);
+    m_codeStyle->setDisplayName(tr("Global", "Settings"));
+    m_codeStyle->setId(Constants::GLOBAL_SETTINGS_ID);
 
     // default pool for all other languages
-    d->m_defaultCodeStylePool = new CodeStylePool(nullptr, this); // Any language
-    d->m_defaultCodeStylePool->addCodeStyle(d->m_codeStyle);
-    d->init();
+    m_defaultCodeStylePool = new CodeStylePool(nullptr, this); // Any language
+    m_defaultCodeStylePool->addCodeStyle(m_codeStyle);
 
-    setId(p.id);
-    setDisplayName(p.displayName);
+    const QSettings *s = Core::ICore::settings();
+    m_codeStyle->fromSettings(m_settingsPrefix, s);
+    m_typingSettings.fromSettings(m_settingsPrefix, s);
+    m_storageSettings.fromSettings(m_settingsPrefix, s);
+    m_behaviorSettings.fromSettings(m_settingsPrefix, s);
+    m_extraEncodingSettings.fromSettings(m_settingsPrefix, s);
+}
+
+BehaviorSettingsPage::BehaviorSettingsPage()
+  : d(new BehaviorSettingsPagePrivate)
+{
+    // Add the GUI used to configure the tab, storage and interaction settings
+    setId(Constants::TEXT_EDITOR_BEHAVIOR_SETTINGS);
+    setDisplayName(tr("Behavior"));
+
+    setCategory(TextEditor::Constants::TEXT_EDITOR_SETTINGS_CATEGORY);
+    setDisplayCategory(QCoreApplication::translate("TextEditor", "Text Editor"));
+    setCategoryIconPath(TextEditor::Constants::TEXT_EDITOR_SETTINGS_CATEGORY_ICON_PATH);
 }
 
 BehaviorSettingsPage::~BehaviorSettingsPage()
@@ -152,50 +146,52 @@ void BehaviorSettingsPage::apply()
     if (d->m_codeStyle->tabSettings() != d->m_pageCodeStyle->tabSettings()) {
         d->m_codeStyle->setTabSettings(d->m_pageCodeStyle->tabSettings());
         if (s)
-            d->m_codeStyle->toSettings(d->m_parameters.settingsPrefix, s);
+            d->m_codeStyle->toSettings(d->m_settingsPrefix, s);
     }
 
     if (d->m_codeStyle->currentDelegate() != d->m_pageCodeStyle->currentDelegate()) {
         d->m_codeStyle->setCurrentDelegate(d->m_pageCodeStyle->currentDelegate());
         if (s)
-            d->m_codeStyle->toSettings(d->m_parameters.settingsPrefix, s);
+            d->m_codeStyle->toSettings(d->m_settingsPrefix, s);
     }
 
     if (newTypingSettings != d->m_typingSettings) {
         d->m_typingSettings = newTypingSettings;
         if (s)
-            d->m_typingSettings.toSettings(d->m_parameters.settingsPrefix, s);
+            d->m_typingSettings.toSettings(d->m_settingsPrefix, s);
 
-        emit typingSettingsChanged(newTypingSettings);
+        emit TextEditorSettings::instance()->typingSettingsChanged(newTypingSettings);
     }
 
     if (newStorageSettings != d->m_storageSettings) {
         d->m_storageSettings = newStorageSettings;
         if (s)
-            d->m_storageSettings.toSettings(d->m_parameters.settingsPrefix, s);
+            d->m_storageSettings.toSettings(d->m_settingsPrefix, s);
 
-        emit storageSettingsChanged(newStorageSettings);
+        emit TextEditorSettings::instance()->storageSettingsChanged(newStorageSettings);
     }
 
     if (newBehaviorSettings != d->m_behaviorSettings) {
         d->m_behaviorSettings = newBehaviorSettings;
         if (s)
-            d->m_behaviorSettings.toSettings(d->m_parameters.settingsPrefix, s);
+            d->m_behaviorSettings.toSettings(d->m_settingsPrefix, s);
 
-        emit behaviorSettingsChanged(newBehaviorSettings);
+        emit TextEditorSettings::instance()->behaviorSettingsChanged(newBehaviorSettings);
     }
 
     if (newExtraEncodingSettings != d->m_extraEncodingSettings) {
         d->m_extraEncodingSettings = newExtraEncodingSettings;
         if (s)
-            d->m_extraEncodingSettings.toSettings(d->m_parameters.settingsPrefix, s);
+            d->m_extraEncodingSettings.toSettings(d->m_settingsPrefix, s);
 
-        emit extraEncodingSettingsChanged(newExtraEncodingSettings);
+        emit TextEditorSettings::instance()->extraEncodingSettingsChanged(newExtraEncodingSettings);
     }
 
     if (s) {
         s->setValue(QLatin1String(Core::Constants::SETTINGS_DEFAULTTEXTENCODING),
-                    d->m_page->behaviorWidget->assignedCodec()->name());
+                    d->m_page->behaviorWidget->assignedCodecName());
+        s->setValue(QLatin1String(Core::Constants::SETTINGS_DEFAULT_LINE_TERMINATOR),
+                    d->m_page->behaviorWidget->assignedLineEnding());
     }
 }
 
@@ -217,6 +213,7 @@ void BehaviorSettingsPage::settingsToUI()
     d->m_page->behaviorWidget->setAssignedBehaviorSettings(d->m_behaviorSettings);
     d->m_page->behaviorWidget->setAssignedExtraEncodingSettings(d->m_extraEncodingSettings);
     d->m_page->behaviorWidget->setAssignedCodec(Core::EditorManager::defaultTextCodec());
+    d->m_page->behaviorWidget->setAssignedLineEnding(Core::EditorManager::defaultLineEnding());
 }
 
 void BehaviorSettingsPage::finish()
@@ -270,3 +267,5 @@ void BehaviorSettingsPage::openCodingStylePreferences(TabSettingsWidget::CodingS
         break;
     }
 }
+
+} // namespace TextEditor

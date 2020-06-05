@@ -8,19 +8,19 @@
     "trDisplayCategory": "Other Project",
     "icon": "autotest.png",
     "featuresRequired": [ "QtSupport.Wizards.FeatureDesktop" ],
-    "enabled": "%{JS: [ %{Plugins} ].indexOf('AutoTest') >= 0}",
+    "enabled": "%{JS: value('Plugins').indexOf('AutoTest') >= 0}",
 
     "options":
     [
         { "key": "ProjectFilePath",
-          "value": "%{JS: '%{BuildSystem}' == 'qmake' ? '%{ProFileName}' : ('%{BuildSystem}' == 'qbs' ? '%{QbsFileName}' : '%{CMakeFileName}') }"
+          "value": "%{JS: value('BuildSystem') == 'qmake' ? value('ProFileName') : (value('BuildSystem') == 'qbs' ? value('QbsFileName') : value('CMakeFileName')) }"
         },
         { "key": "ProFileName",
-          "value": "%{JS: Util.fileName('%{ProjectDirectory}/%{ProjectName}', 'pro')}"
+          "value": "%{JS: Util.fileName(value('ProjectDirectory') + '/' + value('ProjectName'), 'pro')}"
         },
         {
           "key": "QbsFileName",
-          "value": "%{JS: Util.fileName('%{ProjectDirectory}/%{ProjectName}', 'qbs')}"
+          "value": "%{JS: Util.fileName(value('ProjectDirectory') + '/' + value('ProjectName'), 'qbs')}"
         },
         {
           "key": "CMakeFileName",
@@ -34,19 +34,19 @@
         },
         {
           "key": "TestCaseFileWithHeaderSuffix",
-          "value": "%{JS: 'tst_%{TestCaseName}.'.toLowerCase() + Util.preferredSuffix('text/x-c++hdr') }"
+          "value": "%{JS: 'tst_' + value('TestCaseName').toLowerCase() + '.' + Util.preferredSuffix('text/x-c++hdr') }"
         },
         {
           "key": "GUARD",
-          "value": "%{JS: '%{TestCaseFileWithHeaderSuffix}'.toUpperCase().replace('.', '_') }"
+          "value": "%{JS: value('TestCaseFileWithHeaderSuffix').toUpperCase().replace('.', '_') }"
         },
         {
           "key": "TestCaseFileWithCppSuffix",
-          "value": "%{JS: 'tst_%{TestCaseName}.'.toLowerCase() + Util.preferredSuffix('text/x-c++src') }"
+          "value": "%{JS: 'tst_' + value('TestCaseName').toLowerCase() + '.' + Util.preferredSuffix('text/x-c++src') }"
         },
         {
             "key": "TestCaseFileWithQmlSuffix",
-            "value": "%{JS: 'tst_%{TestCaseName}.qml'.toLowerCase() }"
+            "value": "%{JS: 'tst_' + value('TestCaseName').toLowerCase() + '.qml' }"
         }
     ],
 
@@ -87,6 +87,10 @@
                             {
                                 "trKey": "Qt Quick Test",
                                 "value": "QtQuickTest"
+                            },
+                            {
+                                "trKey": "Boost Test",
+                                "value": "BoostTest"
                             }
 
                         ]
@@ -95,11 +99,19 @@
                 {
                     "name": "RequireGUI",
                     "trDisplayName": "GUI Application",
-                    "visible": "%{JS: '%{TestFrameWork}' === 'QtTest'}",
+                    "visible": "%{JS: value('TestFrameWork') === 'QtTest'}",
                     "type": "CheckBox",
                     "data": {
                         "checked": false
                     }
+                },
+                {
+                    "name": "TestSuiteName",
+                    "trDisplayName": "Test suite name:",
+                    "visible": "%{JS: ['BoostTest', 'GTest'].indexOf(value('TestFrameWork')) >= 0}",
+                    "mandatory": true,
+                    "type": "LineEdit",
+                    "data": { "validator": "^[a-zA-Z_0-9]+$" }
                 },
                 {
                     "name": "TestCaseName",
@@ -111,7 +123,7 @@
                 {
                     "name": "RequireApplication",
                     "trDisplayName": "Requires QApplication",
-                    "visible": "%{JS: '%{TestFrameWork}' === 'QtTest'}",
+                    "visible": "%{JS: value('TestFrameWork') === 'QtTest'}",
                     "type": "CheckBox",
                     "data": {
                         "checked": false
@@ -120,23 +132,16 @@
                 {
                     "name": "GenerateInitAndCleanup",
                     "trDisplayName": "Generate initialization and cleanup code",
-                    "visible": "%{JS: [ 'QtTest', 'QtQuickTest' ].indexOf('%{TestFrameWork}') >= 0 }",
+                    "visible": "%{JS: [ 'QtTest', 'QtQuickTest' ].indexOf(value('TestFrameWork')) >= 0 }",
                     "type": "CheckBox",
                     "data": {
                         "checked": false
                     }
                 },
                 {
-                    "name": "TestSetName",
-                    "trDisplayName": "Test set name:",
-                    "visible": "%{JS: '%{TestFrameWork}' === 'GTest'}",
-                    "type": "LineEdit",
-                    "data": { "validator": "^[a-zA-Z0-9]+$" }
-                },
-                {
                     "name": "GTestCXX11",
                     "trDisplayName": "Enable C++11",
-                    "visible": "%{JS: '%{TestFrameWork}' === 'GTest'}",
+                    "visible": "%{JS: value('TestFrameWork') === 'GTest'}",
                     "type": "CheckBox",
                     "data": {
                         "checked": false
@@ -144,8 +149,19 @@
                 },
                 {
                     "name": "GTestRepository",
-                    "trDisplayName": "Googletest repository:",
-                    "visible": "%{JS: '%{TestFrameWork}' === 'GTest'}",
+                    "trDisplayName": "Googletest source directory (optional):",
+                    "visible": "%{JS: value('TestFrameWork') === 'GTest'}",
+                    "mandatory": false,
+                    "type": "PathChooser",
+                    "data": {
+                        "kind": "existingDirectory"
+                    }
+                },
+                {
+                    "name": "BoostIncDir",
+                    "trDisplayName": "Boost include directory (optional):",
+                    "visible": "%{JS: value('TestFrameWork') == 'BoostTest'}",
+                    "mandatory": false,
                     "type": "PathChooser",
                     "data": {
                         "kind": "existingDirectory"
@@ -155,6 +171,7 @@
                     "name": "BuildSystem",
                     "trDisplayName": "Build system:",
                     "type": "ComboBox",
+                    "persistenceKey": "BuildSystemType",
                     "data":
                     {
                         "index": 0,
@@ -163,17 +180,17 @@
                             {
                                 "trKey": "qmake",
                                 "value": "qmake",
-                                "condition": "%{JS: [ %{Plugins} ].indexOf('QmakeProjectManager') >= 0}"
+                                "condition": "%{JS: value('Plugins').indexOf('QmakeProjectManager') >= 0}"
                             },
                             {
                                 "trKey": "CMake",
                                 "value": "cmake",
-                                "condition": "%{JS: [ %{Plugins} ].indexOf('CMakeProjectManager') >= 0}"
+                                "condition": "%{JS: value('Plugins').indexOf('CMakeProjectManager') >= 0}"
                             },
                             {
                                 "trKey": "Qbs",
                                 "value": "qbs",
-                                "condition": "%{JS: [ %{Plugins} ].indexOf('QbsProjectManager') >= 0}"
+                                "condition": "%{JS: value('Plugins').indexOf('QbsProjectManager') >= 0}"
                             }
                         ]
                     }
@@ -187,7 +204,7 @@
             "enabled": "%{IsTopLevelProject}",
             "data": {
                  "projectFilePath": "%{ProjectFilePath}",
-                 "requiredFeatures": [ "%{JS: ('%{TestFrameWork}' === 'QtQuickTest' ? 'QtSupport.Wizards.FeatureQt.5' : (('%{BuildSystem}' === 'qmake' || '%{TestFrameWork}' === 'QtTest') ? 'QtSupport.Wizards.FeatureQt' : 'DeviceType.Desktop' )) }" ]
+                 "requiredFeatures": [ "%{JS: (value('TestFrameWork') === 'QtQuickTest' ? 'QtSupport.Wizards.FeatureQt.5' : ((value('BuildSystem') === 'qmake' || value('TestFrameWork') === 'QtTest') ? 'QtSupport.Wizards.FeatureQt' : 'DeviceType.Desktop' )) }" ]
             }
         },
         {
@@ -205,64 +222,64 @@
                 {
                     "source": "files/gtest_dependency.pri",
                     "target": "gtest_dependency.pri",
-                    "condition": "%{JS: '%{TestFrameWork}' == 'GTest' && '%{BuildSystem}' == 'qmake'}",
+                    "condition": "%{JS: value('TestFrameWork') == 'GTest' && value('BuildSystem') == 'qmake'}",
                     "openInEditor": false
                 },
                 {
                     "source": "files/googlecommon.js",
                     "target": "googlecommon.js",
-                    "condition": "%{JS: '%{TestFrameWork}' == 'GTest' && '%{BuildSystem}' == 'qbs'}",
+                    "condition": "%{JS: value('TestFrameWork') == 'GTest' && value('BuildSystem') == 'qbs'}",
                     "openInEditor": false
                 },
                 {
                     "source": "files/tst.pro",
                     "target": "%{ProjectFilePath}",
-                    "condition": "%{JS: '%{BuildSystem}' == 'qmake'}",
+                    "condition": "%{JS: value('BuildSystem') == 'qmake'}",
                     "openInEditor": false,
                     "openAsProject": true
                 },
                 {
                     "source": "files/tst.qbs",
                     "target": "%{ProjectFilePath}",
-                    "condition": "%{JS: '%{BuildSystem}' == 'qbs'}",
+                    "condition": "%{JS: value('BuildSystem') == 'qbs'}",
                     "openInEditor": false,
                     "openAsProject": true
                 },
                 {
                     "source": "files/tst.txt",
                     "target": "CMakeLists.txt",
-                    "condition": "%{JS: '%{BuildSystem}' == 'cmake'}",
+                    "condition": "%{JS: value('BuildSystem') == 'cmake'}",
                     "openInEditor": false,
                     "openAsProject": true
                 },
                 {
                     "source": "files/tst_src.h",
                     "target": "%{TestCaseFileWithHeaderSuffix}",
-                    "condition": "%{JS: '%{TestFrameWork}' == 'GTest'}",
+                    "condition": "%{JS: value('TestFrameWork') == 'GTest'}",
                     "openInEditor": true
                 },
                 {
                     "source": "files/tst_src.cpp",
                     "target": "%{TestCaseFileWithCppSuffix}",
-                    "condition": "%{JS: '%{TestFrameWork}' == 'QtTest'}",
+                    "condition": "%{JS: value('TestFrameWork') == 'QtTest'}",
                     "openInEditor": true
                 },
                 {
                     "source": "files/tst_main.cpp",
                     "target": "%{MainCppName}",
-                    "condition": "%{JS: ['GTest', 'QtQuickTest'].indexOf('%{TestFrameWork}') >= 0}",
+                    "condition": "%{JS: ['GTest', 'QtQuickTest', 'BoostTest'].indexOf(value('TestFrameWork')) >= 0}",
                     "openInEditor": true
                 },
                 {
                     "source": "files/tst_qml.tmpl",
                     "target": "%{TestCaseFileWithQmlSuffix}",
-                    "condition": "%{JS: '%{TestFrameWork}' === 'QtQuickTest'}",
+                    "condition": "%{JS: value('TestFrameWork') === 'QtQuickTest'}",
                     "openInEditor": true
                 },
                 {
                     "source": "../projects/git.ignore",
                     "target": ".gitignore",
-                    "condition": "%{JS: ( %{IsTopLevelProject} && '%{VersionControl}' === 'G.Git' )}"
+                    "condition": "%{JS: ( %{IsTopLevelProject} && value('VersionControl') === 'G.Git' )}"
                 }
             ]
         }

@@ -1,0 +1,118 @@
+/****************************************************************************
+**
+** Copyright (c) 2012 Digia Plc and/or its subsidiary(-ies).
+** Contact: http://www.qt-project.org/legal
+**
+** This file is part of Qt Creator
+**
+**
+** GNU Free Documentation License
+**
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of this
+** file.
+**
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \previouspage accelbubble
+    \page creator-mer-application.html
+    \nextpage creator-project-managing.html
+
+    \title Creating a Sailfish OS Application
+
+    This tutorial describes how to use \QC to create a Sailfish OS application.
+
+    \image creator-sailfish-tutorial.png "Sailfish OS sample application"
+
+    \section1 Creating the Project
+
+    \list 1
+
+        \li Select \gui File > \gui {New File or Project} > \gui {Sailfish OS} >
+            \gui {Sailfish OS Qt Quick Application} > \gui Choose.
+
+            \image creator-sailfish-tutorial-1.png "New project wizard"
+
+            The \gui {Introduction and Project Location} dialog opens.
+
+            \image creator-sailfish-tutorial-1a.png "Introduction and Project Location"
+
+        \li In the \gui{Name} field, type \b {HelloWorld}.
+
+        \li In the \gui {Create in} field, enter the path for the project files,
+            and then click \gui{Next} (on
+            Windows and Linux) or \gui Continue (on Mac OS).
+
+        \li Select the Sailfish OS \l{glossary-buildandrun-kit}{kit} for running
+            and building your project, and then click \gui{Next}. You can create
+            applications in the Sailfish SDK installation directory and in an
+            additional source directory that you specify during the installation
+            of the Sailfish SDK. These directories are shared with the
+            Sailfish OS build engine virtual machine. If you select some other
+            directory, a warning is displayed.
+
+            \image creator-sailfish-tutorial-2.png "Kit Selection dialog"
+
+            \note Kits are listed if they have been specified in \gui Tools >
+            \gui Options > \gui {Build & Run} > \gui Kits. If a suitable kit is
+            missing, see \l{Connecting Sailfish OS Devices}.
+
+        \li In the \gui {Application Details} dialog, specify information about the
+            application. The information can be displayed in the app store and
+            on the device.
+
+            \image creator-sailfish-tutorial-3.png "Application Details dialog"
+
+        \li Select \gui Next.
+
+        \li Review the project settings, and click \gui{Finish} (on Windows and
+            Linux) or \gui Done (on Mac OS) to create the project.
+
+    \endlist
+
+    \QC generates a default QML file that you can modify to create the main view
+    of the application.
+
+    \section1 Building and Running the Project
+
+    To build, deploy, and run the application, select \gui Build > \gui Run.
+    \QC builds the application, copies the necessary files to the connected
+    Sailfish OS device or to the emulator, and runs the application on it.
+
+    \section2 Running on the Emulator
+
+    If no device is connected, \QC runs the application on the emulator
+    running in a virtual machine.
+
+    When you create your first Sailfish OS application, the buttons for
+    starting the Sailfish OS build engine and the emulator become visible on the
+    taskbar.
+
+    \list 1
+
+        \li Select
+            \inlineimage creator-mer-start-sdk-button.png
+            (\gui {Start Sailfish OS Build Engine}) to start the build engine
+            virtual machine.
+
+        \li Select
+            \inlineimage creator-mer-start-emulator-button.png
+            (\gui {Start Sailfish OS Emulator}) to start the emulator virtual
+            machine.
+
+        \li In the target selector, select the Sailfish OS kit.
+
+        \li Press \key {Ctrl+R} to build, deploy, and run the application.
+
+    \endlist
+
+*/

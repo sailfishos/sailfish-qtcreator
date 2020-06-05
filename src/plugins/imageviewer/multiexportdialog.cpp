@@ -184,8 +184,6 @@ MultiExportDialog::MultiExportDialog(QWidget *parent)
     , m_pathChooser(new Utils::PathChooser(this))
     , m_sizesLineEdit(new QLineEdit)
 {
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
-
     auto formLayout = new QFormLayout(this);
 
     m_pathChooser->setMinimumWidth(QApplication::desktop()->availableGeometry(this).width() / 5);
@@ -339,7 +337,7 @@ void MultiExportDialog::setExportFileName(QString f)
     const int lastDot = f.lastIndexOf('.');
     if (lastDot != -1)
         f.insert(lastDot, "-%1");
-    m_pathChooser->setFileName(Utils::FileName::fromString(f));
+    m_pathChooser->setFileName(Utils::FilePath::fromString(f));
 }
 
 } // namespace Internal

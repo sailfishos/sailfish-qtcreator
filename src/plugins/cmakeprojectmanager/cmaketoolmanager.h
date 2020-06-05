@@ -40,24 +40,25 @@ class CMAKE_EXPORT CMakeToolManager : public QObject
 {
     Q_OBJECT
 public:
-    CMakeToolManager(QObject *parent);
+    CMakeToolManager();
     ~CMakeToolManager() override;
 
     static CMakeToolManager *instance();
 
     static QList<CMakeTool *> cmakeTools();
 
-    static Core::Id registerOrFindCMakeTool(const Utils::FileName &command);
     static bool registerCMakeTool(std::unique_ptr<CMakeTool> &&tool);
     static void deregisterCMakeTool(const Core::Id &id);
 
     static CMakeTool *defaultCMakeTool();
     static void setDefaultCMakeTool(const Core::Id &id);
-    static CMakeTool *findByCommand(const Utils::FileName &command);
+    static CMakeTool *findByCommand(const Utils::FilePath &command);
     static CMakeTool *findById(const Core::Id &id);
 
     static void notifyAboutUpdate(CMakeTool *);
     static void restoreCMakeTools();
+
+    static void updateDocumentation();
 
 signals:
     void cmakeAdded (const Core::Id &id);

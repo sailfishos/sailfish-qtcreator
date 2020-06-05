@@ -64,8 +64,8 @@ Lexer::Lexer(TranslationUnit *unit)
 }
 
 Lexer::Lexer(const char *firstChar, const char *lastChar)
-    : _translationUnit(0),
-      _control(0),
+    : _translationUnit(nullptr),
+      _control(nullptr),
       _state(0),
       _flags(0),
       _currentLine(1)
@@ -747,7 +747,7 @@ void Lexer::scanRawStringLiteral(Token *tok, unsigned char hint)
     const char *yytext = _currentChar;
 
     int delimLength = -1;
-    const char *closingDelimCandidate = 0;
+    const char *closingDelimCandidate = nullptr;
     bool closed = false;
     while (_yychar) {
         if (_yychar == '(' && delimLength == -1) {
@@ -781,7 +781,7 @@ void Lexer::scanRawStringLiteral(Token *tok, unsigned char hint)
 
                     // Make sure this continues to be a valid candidate.
                     if (_yychar != *(yytext + (_currentChar - closingDelimCandidate)))
-                        closingDelimCandidate = 0;
+                        closingDelimCandidate = nullptr;
 
                     yyinp();
                 }
@@ -954,7 +954,8 @@ void Lexer::scanNumericLiteral(Token *tok)
             yyinp();
             while (std::isdigit(_yychar) ||
                    (_yychar >= 'a' && _yychar <= 'f') ||
-                   (_yychar >= 'A' && _yychar <= 'F')) {
+                   (_yychar >= 'A' && _yychar <= 'F') ||
+                   ((_yychar == '\'') && _languageFeatures.cxx14Enabled)) {
                 yyinp();
             }
             if (!scanOptionalIntegerSuffix())
@@ -962,7 +963,8 @@ void Lexer::scanNumericLiteral(Token *tok)
             goto theEnd;
         } else if (_yychar == 'b' || _yychar == 'B') { // see n3472
             yyinp();
-            while (_yychar == '0' || _yychar == '1')
+            while (_yychar == '0' || _yychar == '1' ||
+                   ((_yychar == '\'') && _languageFeatures.cxx14Enabled))
                 yyinp();
             if (!scanOptionalIntegerSuffix())
                 scanOptionalUserDefinedLiteral(tok);
@@ -970,7 +972,8 @@ void Lexer::scanNumericLiteral(Token *tok)
         } else if (_yychar >= '0' && _yychar <= '7') {
             do {
                 yyinp();
-            } while (_yychar >= '0' && _yychar <= '7');
+            } while ((_yychar >= '0' && _yychar <= '7') ||
+                     ((_yychar == '\'') && _languageFeatures.cxx14Enabled));
             if (!scanOptionalIntegerSuffix())
                 scanOptionalUserDefinedLiteral(tok);
             goto theEnd;
@@ -989,7 +992,8 @@ void Lexer::scanNumericLiteral(Token *tok)
             if (scanExponentPart() && !scanOptionalFloatingSuffix())
                 scanOptionalUserDefinedLiteral(tok);
             break;
-        } else if (std::isdigit(_yychar)) {
+        } else if (std::isdigit(_yychar) ||
+                   ((_yychar == '\'') && _languageFeatures.cxx14Enabled)) {
             yyinp();
         } else {
             if (!scanOptionalIntegerSuffix())

@@ -25,12 +25,15 @@
 
 #pragma once
 
-#include <QPointer>
-#include <QVector>
+#include "projectexplorersettings.h"
 
 #include <coreplugin/ioutputpane.h>
+#include <coreplugin/dialogs/ioptionspage.h>
 
 #include <utils/outputformat.h>
+
+#include <QPointer>
+#include <QVector>
 
 QT_BEGIN_NAMESPACE
 class QTabWidget;
@@ -59,11 +62,6 @@ public:
         CloseTabWithPrompt
     };
 
-    enum BehaviorOnOutput {
-        Flash,
-        Popup
-    };
-
     AppOutputPane();
     ~AppOutputPane() override;
 
@@ -85,7 +83,7 @@ public:
 
     void createNewOutputWindow(RunControl *rc);
     void showTabFor(RunControl *rc);
-    void setBehaviorOnOutput(RunControl *rc, BehaviorOnOutput mode);
+    void setBehaviorOnOutput(RunControl *rc, AppOutputPaneMode mode);
 
     bool aboutToClose() const;
     void closeTabs(CloseTabMode mode);
@@ -97,6 +95,9 @@ public:
 
     void appendMessage(ProjectExplorer::RunControl *rc, const QString &out,
                        Utils::OutputFormat format);
+
+    const AppOutputSettings &settings() const { return m_settings; }
+    void setSettings(const AppOutputSettings &settings);
 
 private:
     void reRunRunControl();
@@ -112,8 +113,9 @@ private:
     void updateFromSettings();
     void enableDefaultButtons();
 
-    void zoomIn();
-    void zoomOut();
+    void zoomIn(int range);
+    void zoomOut(int range);
+    void resetZoom();
 
     void enableButtons(const RunControl *rc);
 
@@ -123,7 +125,7 @@ private:
                                Core::OutputWindow *window = nullptr);
         QPointer<RunControl> runControl;
         QPointer<Core::OutputWindow> window;
-        BehaviorOnOutput behaviorOnOutput = Flash;
+        AppOutputPaneMode behaviorOnOutput = AppOutputPaneMode::FlashOnOutput;
     };
 
     void closeTab(int index, CloseTabMode cm = CloseTabWithPrompt);
@@ -136,9 +138,10 @@ private:
     int tabWidgetIndexOf(int runControlIndex) const;
     void handleOldOutput(Core::OutputWindow *window) const;
     void updateCloseActions();
-    void updateFontSettings();
-    void saveSettings();
-    void updateBehaviorSettings();
+    void updateFilter() override;
+
+    void loadSettings();
+    void storeSettings() const;
 
     QWidget *m_mainWidget;
     TabWidget *m_tabWidget;
@@ -151,10 +154,15 @@ private:
     QToolButton *m_reRunButton;
     QToolButton *m_stopButton;
     QToolButton *m_attachButton;
-    QToolButton *m_zoomInButton;
-    QToolButton *m_zoomOutButton;
+    QToolButton * const m_settingsButton;
     QWidget *m_formatterWidget;
-    float m_zoom;
+    AppOutputSettings m_settings;
+};
+
+class AppOutputSettingsPage final : public Core::IOptionsPage
+{
+public:
+    AppOutputSettingsPage();
 };
 
 } // namespace Internal

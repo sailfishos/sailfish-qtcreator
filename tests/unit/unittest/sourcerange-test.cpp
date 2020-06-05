@@ -25,7 +25,7 @@
 
 #include "googletest.h"
 #include "rundocumentparse-utility.h"
-#include "testenvironment.h"
+#include "unittest-utility-functions.h"
 
 #include <clangtranslationunit.h>
 #include <diagnostic.h>
@@ -75,7 +75,7 @@ struct Data {
     ClangBackEnd::Documents documents{unsavedFiles};
     Utf8String filePath{Utf8StringLiteral(TESTDATA_DIR"/diagnostic_source_range.cpp")};
     Document document{filePath,
-                      {TestEnvironment::addPlatformArguments({Utf8StringLiteral("-pedantic")})},
+                      {UnitTest::addPlatformArguments({Utf8StringLiteral("-pedantic")})},
                       {},
                       documents};
     UnitTest::RunDocumentParse _1{document};
@@ -125,17 +125,17 @@ TEST_F(SourceRange, Size)
 TEST_F(SourceRange, DISABLED_ON_WINDOWS(Start))
 {
     ASSERT_THAT(sourceRange.start(), IsSourceLocation(Utf8StringLiteral("diagnostic_source_range.cpp"),
-                                                      8u,
-                                                      5u,
-                                                      43u));
+                                                      8,
+                                                      5,
+                                                      43));
 }
 
 TEST_F(SourceRange, DISABLED_ON_WINDOWS(End))
 {
     ASSERT_THAT(sourceRange.end(), IsSourceLocation(Utf8StringLiteral("diagnostic_source_range.cpp"),
-                                                      8u,
-                                                      6u,
-                                                      44u));
+                                                      8,
+                                                      6,
+                                                      44));
 }
 
 TEST_F(SourceRange, Create)

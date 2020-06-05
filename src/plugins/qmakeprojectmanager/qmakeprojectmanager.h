@@ -45,11 +45,9 @@ class QMAKEPROJECTMANAGER_EXPORT QmakeManager : public QObject
     Q_OBJECT
 
 public:
-    void notifyChanged(const Utils::FileName &name);
+    void notifyChanged(const Utils::FilePath &name);
 
     // Context information used in the slot implementations
-    static ProjectExplorer::Node *contextNode();
-    static ProjectExplorer::Project *contextProject();
     static ProjectExplorer::FileNode *contextBuildableFileNode();
 
     enum Action { BUILD, REBUILD, CLEAN };
@@ -64,9 +62,11 @@ public:
     void buildFileContextMenu();
     void buildFile();
 
+    static void buildProduct(ProjectExplorer::Project *project, ProjectExplorer::Node *proFileNode);
+
 private:
     void handleSubDirContextMenu(Action action, bool isFileBuild);
-    void handleSubDirContextMenu(QmakeManager::Action action, bool isFileBuild,
+    static void handleSubDirContextMenu(QmakeManager::Action action, bool isFileBuild,
                                  ProjectExplorer::Project *contextProject,
                                  ProjectExplorer::Node *contextProFileNode,
                                  ProjectExplorer::FileNode *buildableFile);

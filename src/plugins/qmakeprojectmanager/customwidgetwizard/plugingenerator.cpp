@@ -29,6 +29,7 @@
 #include <coreplugin/generatedfile.h>
 #include <cpptools/abstracteditorsupport.h>
 
+#include <utils/algorithm.h>
 #include <utils/fileutils.h>
 #include <utils/macroexpander.h>
 #include <utils/templateengine.h>
@@ -130,7 +131,7 @@ QList<Core::GeneratedFile>  PluginGenerator::generatePlugin(const GenerationPara
         QString iconResource;
         if (!wo.iconFile.isEmpty()) {
             iconResource = QLatin1String("QLatin1String(\":/");
-            iconResource += Utils::FileName::fromString(wo.iconFile).fileName();
+            iconResource += Utils::FilePath::fromString(wo.iconFile).fileName();
             iconResource += QLatin1String("\")");
         }
         sm.insert(QLatin1String("WIDGET_ICON"),iconResource);
@@ -293,8 +294,8 @@ QList<Core::GeneratedFile>  PluginGenerator::generatePlugin(const GenerationPara
     sm.insert(QLatin1String("PLUGIN_HEADERS"), pluginHeaders);
     sm.insert(QLatin1String("PLUGIN_SOURCES"), pluginSources);
     sm.insert(QLatin1String("PLUGIN_RESOURCES"), options.resourceFile);
-    sm.insert(QLatin1String("WIDGET_LIBS"), QStringList(widgetLibraries.toList()).join(blank));
-    sm.insert(QLatin1String("INCLUSIONS"), QStringList(widgetProjects.toList()).join(QLatin1Char('\n')));
+    sm.insert(QLatin1String("WIDGET_LIBS"), QStringList(Utils::toList(widgetLibraries)).join(blank));
+    sm.insert(QLatin1String("INCLUSIONS"), QStringList(Utils::toList(widgetProjects)).join(QLatin1Char('\n')));
     const QString proFileContents = processTemplate(p.templatePath + QLatin1String("/tpl_plugin.pro"), sm, errorMessage);
     if (proFileContents.isEmpty())
         return QList<Core::GeneratedFile>();

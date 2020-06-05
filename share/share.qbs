@@ -11,6 +11,7 @@ Product {
         qbs.installSourceBase: "qtcreator"
         prefix: "qtcreator/"
         files: [
+            "android/**/*",
             "cplusplus/**/*",
             "debugger/**/*",
             "designer/**/*",
@@ -21,6 +22,7 @@ Product {
             "qmlicons/**/*",
             "qml-type-descriptions/**/*",
             "schemes/**/*",
+            "scripts/**/*",
             "snippets/**/*",
             "styles/**/*",
             "templates/**/*",
@@ -40,7 +42,7 @@ Product {
         qbs.installSourceBase: project.ide_source_tree + "/src/share/3rdparty"
         prefix: project.ide_source_tree + "/src/share/3rdparty/"
         files: [
-            "generic-highlighter/**/*"
+            "fonts/**/*"
         ]
     }
 

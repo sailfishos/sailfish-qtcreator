@@ -44,7 +44,7 @@
 #include <QSortFilterProxyModel>
 
 namespace {
-Q_LOGGING_CATEGORY(androidSdkMgrUiLog, "qtc.android.sdkManagerUi", QtWarningMsg)
+static Q_LOGGING_CATEGORY(androidSdkMgrUiLog, "qtc.android.sdkManagerUi", QtWarningMsg)
 }
 
 namespace Android {
@@ -76,8 +76,7 @@ AndroidSdkManagerWidget::AndroidSdkManagerWidget(AndroidConfig &config,
     m_ui->setupUi(this);
     m_ui->sdkLicensebuttonBox->hide();
     m_ui->sdkLicenseLabel->hide();
-    m_ui->warningLabel->setElideMode(Qt::ElideRight);
-    m_ui->warningIconLabel->setPixmap(Utils::Icons::WARNING.pixmap());
+    m_ui->warningLabel->setType(Utils::InfoLabel::Warning);
     m_ui->viewStack->setCurrentWidget(m_ui->packagesStack);
 
     m_formatter = new Utils::OutputFormatter;
@@ -161,7 +160,6 @@ void AndroidSdkManagerWidget::setSdkManagerControlsEnabled(bool enable)
 {
     m_ui->packagesTypeGroup->setEnabled(enable);
     m_ui->expandCheck->setVisible(enable);
-    m_ui->warningIconLabel->setVisible(!enable);
     m_ui->warningLabel->setVisible(!enable);
     m_ui->packagesView->setEnabled(enable);
     m_ui->updateInstalledButton->setEnabled(enable);
@@ -251,7 +249,7 @@ void AndroidSdkManagerWidget::onCancel()
 void AndroidSdkManagerWidget::onNativeSdkManager()
 {
     if (m_androidConfig.useNativeUiTools()) {
-        QProcess::startDetached(m_androidConfig.androidToolPath().toString());
+        QProcess::startDetached(m_androidConfig.androidToolPath().toString(), {});
     } else {
         QMessageBox::warning(this, tr("Native SDK Manager Not Available"),
                              tr("SDK manager UI tool is not available in the installed SDK tools "
@@ -447,6 +445,9 @@ void AndroidSdkManagerWidget::switchView(AndroidSdkManagerWidget::View view)
         emit updatingSdkFinished();
     else
         emit updatingSdk();
+
+    if (m_currentView == LicenseWorkflow)
+        emit licenseWorkflowStarted();
 
     m_ui->operationProgress->setValue(0);
     m_ui->viewStack->setCurrentWidget(m_currentView == PackageListing ?

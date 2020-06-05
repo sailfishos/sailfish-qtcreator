@@ -25,6 +25,7 @@ SOURCES += \
     addsfdkdevicemodeloperation.cpp \
     addsfdkemulatoroperation.cpp \
     addtoolchainoperation.cpp \
+    addvalueoperation.cpp \
     findkeyoperation.cpp \
     findvalueoperation.cpp \
     getoperation.cpp \
@@ -41,11 +42,16 @@ SOURCES += \
     rmtoolchainoperation.cpp \
     settings.cpp \
     sfdkutils.cpp \
+    $$UTILS/environment.cpp \
     $$UTILS/fileutils.cpp \
     $$UTILS/hostosinfo.cpp \
+    $$UTILS/namevaluedictionary.cpp \
+    $$UTILS/namevalueitem.cpp \
     $$UTILS/persistentsettings.cpp \
     $$UTILS/qtcassert.cpp \
+    $$UTILS/qtcprocess.cpp \
     $$UTILS/savefile.cpp \
+    $$UTILS/stringutils.cpp
 
 HEADERS += \
     addabiflavor.h \
@@ -59,6 +65,7 @@ HEADERS += \
     addsfdkdevicemodeloperation.h \
     addsfdkemulatoroperation.h \
     addtoolchainoperation.h \
+    addvalueoperation.h \
     findkeyoperation.h \
     findvalueoperation.h \
     getoperation.h \
@@ -75,10 +82,14 @@ HEADERS += \
     rmtoolchainoperation.h \
     settings.h \
     sfdkutils.h \
+    $$UTILS/environment.h \
     $$UTILS/fileutils.h \
     $$UTILS/hostosinfo.h \
+    $$UTILS/namevaluedictionary.h \
+    $$UTILS/namevalueitem.h \
     $$UTILS/persistentsettings.h \
     $$UTILS/qtcassert.h \
+    $$UTILS/qtcprocess.h \
     $$UTILS/savefile.h \
 
 macos {

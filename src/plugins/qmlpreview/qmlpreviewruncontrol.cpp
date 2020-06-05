@@ -25,6 +25,9 @@
 
 #include "qmlpreviewruncontrol.h"
 
+#include <qmlprojectmanager/qmlproject.h>
+#include <qmlprojectmanager/qmlmainfileaspect.h>
+
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
@@ -36,6 +39,7 @@
 #include <utils/port.h>
 #include <utils/qtcprocess.h>
 #include <utils/url.h>
+#include <utils/fileutils.h>
 
 namespace QmlPreview {
 
@@ -50,21 +54,20 @@ QmlPreviewRunner::QmlPreviewRunner(ProjectExplorer::RunControl *runControl,
     : RunWorker(runControl)
 {
     setId("QmlPreviewRunner");
-    m_connectionManager.reset(new Internal::QmlPreviewConnectionManager(this));
-    m_connectionManager->setFileLoader(fileLoader);
-    m_connectionManager->setFileClassifier(fileClassifier);
-    m_connectionManager->setFpsHandler(fpsHandler);
+    m_connectionManager.setFileLoader(fileLoader);
+    m_connectionManager.setFileClassifier(fileClassifier);
+    m_connectionManager.setFpsHandler(fpsHandler);
 
     connect(this, &QmlPreviewRunner::loadFile,
-            m_connectionManager.data(), &Internal::QmlPreviewConnectionManager::loadFile);
+            &m_connectionManager, &Internal::QmlPreviewConnectionManager::loadFile);
     connect(this, &QmlPreviewRunner::rerun,
-            m_connectionManager.data(), &Internal::QmlPreviewConnectionManager::rerun);
+            &m_connectionManager, &Internal::QmlPreviewConnectionManager::rerun);
 
     connect(this, &QmlPreviewRunner::zoom,
-            m_connectionManager.data(), &Internal::QmlPreviewConnectionManager::zoom);
+            &m_connectionManager, &Internal::QmlPreviewConnectionManager::zoom);
     connect(this, &QmlPreviewRunner::language,
-            m_connectionManager.data(), &Internal::QmlPreviewConnectionManager::language);
-    connect(m_connectionManager.data(), &Internal::QmlPreviewConnectionManager::connectionOpened,
+            &m_connectionManager, &Internal::QmlPreviewConnectionManager::language);
+    connect(&m_connectionManager, &Internal::QmlPreviewConnectionManager::connectionOpened,
             this, [this, initialZoom, initialLocale]() {
         if (initialZoom > 0)
             emit zoom(initialZoom);
@@ -73,15 +76,15 @@ QmlPreviewRunner::QmlPreviewRunner(ProjectExplorer::RunControl *runControl,
         emit ready();
     });
 
-    connect(m_connectionManager.data(), &Internal::QmlPreviewConnectionManager::restart,
-            runControl, [runControl, this]() {
+    connect(&m_connectionManager, &Internal::QmlPreviewConnectionManager::restart,
+            runControl, [this, runControl]() {
         if (!runControl->isRunning())
             return;
 
-        ProjectExplorer::RunConfiguration *runConfig = runControl->runConfiguration();
-        connect(runControl, &ProjectExplorer::RunControl::stopped, runConfig, [runConfig](){
+        this->connect(runControl, &ProjectExplorer::RunControl::stopped, runControl, [runControl]() {
             ProjectExplorer::ProjectExplorerPlugin::runRunConfiguration(
-                        runConfig, ProjectExplorer::Constants::QML_PREVIEW_RUN_MODE, true);
+                        runControl->runConfiguration(),
+                        ProjectExplorer::Constants::QML_PREVIEW_RUN_MODE, true);
         });
 
         runControl->initiateStop();
@@ -90,17 +93,14 @@ QmlPreviewRunner::QmlPreviewRunner(ProjectExplorer::RunControl *runControl,
 
 void QmlPreviewRunner::start()
 {
-    ProjectExplorer::Target *target = nullptr;
-    if (ProjectExplorer::RunConfiguration *config = runControl()->runConfiguration())
-        target = config->target();
-    m_connectionManager->setTarget(target);
-    m_connectionManager->connectToServer(serverUrl());
+    m_connectionManager.setTarget(runControl()->target());
+    m_connectionManager.connectToServer(serverUrl());
     reportStarted();
 }
 
 void QmlPreviewRunner::stop()
 {
-    m_connectionManager->disconnectFromServer();
+    m_connectionManager.disconnectFromServer();
     reportStopped();
 }
 
@@ -121,18 +121,42 @@ LocalQmlPreviewSupport::LocalQmlPreviewSupport(ProjectExplorer::RunControl *runC
     const QUrl serverUrl = Utils::urlFromLocalSocket();
 
     QmlPreviewRunner *preview = qobject_cast<QmlPreviewRunner *>(
-                runControl->createWorker(ProjectExplorer::Constants::QML_PREVIEW_RUN_MODE));
+                runControl->createWorker(ProjectExplorer::Constants::QML_PREVIEW_RUNNER));
     preview->setServerUrl(serverUrl);
 
     addStopDependency(preview);
     addStartDependency(preview);
 
-    ProjectExplorer::Runnable run = runnable();
+    setStarter([this, runControl, serverUrl] {
+        ProjectExplorer::Runnable runnable = runControl->runnable();
+        QStringList qmlProjectRunConfigurationArguments = runnable.commandLine().splitArguments();
 
-    Utils::QtcProcess::addArg(&run.commandLineArguments,
-                              QmlDebug::qmlDebugLocalArguments(QmlDebug::QmlPreviewServices,
-                                                               serverUrl.path()));
-    setRunnable(run);
+        const auto currentTarget = runControl->target();
+        const auto *qmlBuildSystem = qobject_cast<QmlProjectManager::QmlBuildSystem *>(currentTarget->buildSystem());
+
+        if (const auto aspect = runControl->aspect<QmlProjectManager::QmlMainFileAspect>()) {
+            const QString mainScript = aspect->mainScript();
+            const QString currentFile = aspect->currentFile();
+
+            const QString mainScriptFromProject = qmlBuildSystem->targetFile(
+                Utils::FilePath::fromString(mainScript)).toString();
+
+            const QString currentFileFromProject = qmlBuildSystem->targetFile(
+                Utils::FilePath::fromString(currentFile)).toString();
+
+            if (!currentFile.isEmpty() && qmlProjectRunConfigurationArguments.last().contains(mainScriptFromProject)) {
+                qmlProjectRunConfigurationArguments.removeLast();
+                auto commandLine = Utils::CommandLine(runnable.commandLine().executable(), qmlProjectRunConfigurationArguments);
+                commandLine.addArg(currentFile);
+                runnable.setCommandLine(commandLine);
+            }
+        }
+
+        Utils::QtcProcess::addArg(&runnable.commandLineArguments,
+                                  QmlDebug::qmlDebugLocalArguments(QmlDebug::QmlPreviewServices,
+                                                                   serverUrl.path()));
+        doStart(runnable, {});
+    });
 }
 
 } // namespace QmlPreview

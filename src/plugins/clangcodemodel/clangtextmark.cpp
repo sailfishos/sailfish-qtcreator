@@ -127,8 +127,8 @@ void disableDiagnosticInConfig(ClangDiagnosticConfig &config,
     }
 }
 
-ClangDiagnosticConfig diagnosticConfig(ClangProjectSettings &projectSettings,
-                                       CppCodeModelSettings &globalSettings)
+ClangDiagnosticConfig diagnosticConfig(const ClangProjectSettings &projectSettings,
+                                       const CppCodeModelSettings &globalSettings)
 {
     ProjectExplorer::Project *project = projectForCurrentEditor();
     QTC_ASSERT(project, return {});
@@ -139,7 +139,7 @@ ClangDiagnosticConfig diagnosticConfig(ClangProjectSettings &projectSettings,
         currentConfigId = globalSettings.clangDiagnosticConfigId();
 
     // Get config
-    ClangDiagnosticConfigsModel configsModel(globalSettings.clangCustomDiagnosticConfigs());
+    ClangDiagnosticConfigsModel configsModel = CppTools::diagnosticConfigsModel();
     QTC_ASSERT(configsModel.hasConfigWithId(currentConfigId), return {});
     return configsModel.configWithId(currentConfigId);
 }
@@ -152,10 +152,10 @@ bool isDiagnosticConfigChangable(ProjectExplorer::Project *project,
 
     ClangProjectSettings &projectSettings = ClangModelManagerSupport::instance()->projectSettings(
         project);
-    const QSharedPointer<CppCodeModelSettings> globalSettings = codeModelSettings();
+    const CppCodeModelSettings *globalSettings = codeModelSettings();
     const ClangDiagnosticConfig config = diagnosticConfig(projectSettings, *globalSettings);
 
-    if (config.clangTidyMode() == ClangDiagnosticConfig::TidyMode::File
+    if (config.clangTidyMode() == ClangDiagnosticConfig::TidyMode::UseConfigFile
         && diagnosticType(diagnostic) == DiagnosticType::Tidy) {
         return false;
     }
@@ -170,11 +170,11 @@ void disableDiagnosticInCurrentProjectConfig(const ClangBackEnd::DiagnosticConta
     // Get settings
     ClangProjectSettings &projectSettings = ClangModelManagerSupport::instance()->projectSettings(
         project);
-    const QSharedPointer<CppCodeModelSettings> globalSettings = codeModelSettings();
+    CppCodeModelSettings *globalSettings = codeModelSettings();
 
     // Get config
     ClangDiagnosticConfig config = diagnosticConfig(projectSettings, *globalSettings);
-    ClangDiagnosticConfigsModel configsModel(globalSettings->clangCustomDiagnosticConfigs());
+    ClangDiagnosticConfigsModel configsModel = CppTools::diagnosticConfigsModel();
 
     // Create copy if needed
     if (config.isReadOnly()) {
@@ -209,7 +209,7 @@ void disableDiagnosticInCurrentProjectConfig(const ClangBackEnd::DiagnosticConta
 
 } // anonymous namespace
 
-ClangTextMark::ClangTextMark(const FileName &fileName,
+ClangTextMark::ClangTextMark(const FilePath &fileName,
                              const ClangBackEnd::DiagnosticContainer &diagnostic,
                              const RemovedFromEditorHandler &removedHandler,
                              bool fullVisualization)

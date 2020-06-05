@@ -38,10 +38,9 @@
 using namespace ClearCase;
 using namespace ClearCase::Internal;
 
-ActivitySelector::ActivitySelector(QWidget *parent) : QWidget(parent),
-    m_plugin(ClearCasePlugin::instance())
+ActivitySelector::ActivitySelector(QWidget *parent) : QWidget(parent)
 {
-    QTC_ASSERT(m_plugin->isUcm(), return);
+    QTC_ASSERT(ClearCasePlugin::viewData().isUcm, return);
 
     auto hboxLayout = new QHBoxLayout(this);
     hboxLayout->setContentsMargins(0, 0, 0, 0);
@@ -55,7 +54,7 @@ ActivitySelector::ActivitySelector(QWidget *parent) : QWidget(parent),
     hboxLayout->addWidget(m_cmbActivity);
 
     QString addText = tr("Add");
-    if (!m_plugin->settings().autoAssignActivityName)
+    if (!ClearCasePlugin::settings().autoAssignActivityName)
         addText.append(QLatin1String("..."));
     auto btnAdd = new QToolButton;
     btnAdd->setText(addText);
@@ -66,7 +65,7 @@ ActivitySelector::ActivitySelector(QWidget *parent) : QWidget(parent),
     connect(btnAdd, &QToolButton::clicked, this, &ActivitySelector::newActivity);
 
     refresh();
-    connect(m_cmbActivity, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+    connect(m_cmbActivity, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &ActivitySelector::userChanged);
 }
 
@@ -78,7 +77,7 @@ void ActivitySelector::userChanged()
 bool ActivitySelector::refresh()
 {
     int current;
-    QList<QStringPair> activities = m_plugin->activities(&current);
+    QList<QStringPair> activities = ClearCasePlugin::activities(&current);
     m_cmbActivity->clear();
     foreach (const QStringPair &activity, activities)
         m_cmbActivity->addItem(activity.second, activity.first);
@@ -103,16 +102,16 @@ void ActivitySelector::setActivity(const QString &act)
 {
     int index = m_cmbActivity->findData(act);
     if (index != -1) {
-        disconnect(m_cmbActivity, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+        disconnect(m_cmbActivity, QOverload<int>::of(&QComboBox::currentIndexChanged),
                    this, &ActivitySelector::userChanged);
         m_cmbActivity->setCurrentIndex(index);
-        connect(m_cmbActivity, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+        connect(m_cmbActivity, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, &ActivitySelector::userChanged);
     }
 }
 
 void ActivitySelector::newActivity()
 {
-    if (m_plugin->newActivity())
+    if (ClearCasePlugin::newActivity())
         refresh();
 }

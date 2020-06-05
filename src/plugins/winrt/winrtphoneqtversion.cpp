@@ -35,30 +35,34 @@
 namespace WinRt {
 namespace Internal {
 
-WinRtPhoneQtVersion::WinRtPhoneQtVersion(const Utils::FileName &path, bool isAutodetected,
-                                         const QString &autodetectionSource)
-    : WinRtQtVersion(path, isAutodetected, autodetectionSource)
-{
-}
-
 QString WinRtPhoneQtVersion::description() const
 {
     return tr("Windows Phone");
 }
 
-QtSupport::BaseQtVersion *WinRtPhoneQtVersion::clone() const
-{
-    return new WinRtPhoneQtVersion(*this);
-}
-
-QString WinRtPhoneQtVersion::type() const
-{
-    return QLatin1String(Constants::WINRT_WINPHONEQT);
-}
-
 QSet<Core::Id> WinRtPhoneQtVersion::targetDeviceTypes() const
 {
     return {Constants::WINRT_DEVICE_TYPE_PHONE, Constants::WINRT_DEVICE_TYPE_EMULATOR};
+}
+
+QSet<Core::Id> WinRtPhoneQtVersion::availableFeatures() const
+{
+    QSet<Core::Id> features = QtSupport::BaseQtVersion::availableFeatures();
+    features.insert(QtSupport::Constants::FEATURE_MOBILE);
+    features.remove(QtSupport::Constants::FEATURE_QT_CONSOLE);
+    features.remove(Core::Id::versionedId(QtSupport::Constants::FEATURE_QT_QUICK_CONTROLS_PREFIX, 1));
+    features.remove(QtSupport::Constants::FEATURE_QT_WEBKIT);
+    return features;
+}
+
+// Factory
+
+WinRtPhoneQtVersionFactory::WinRtPhoneQtVersionFactory()
+{
+    setQtVersionCreator([] { return new WinRtPhoneQtVersion; });
+    setSupportedType(Constants::WINRT_WINPHONEQT);
+    setRestrictionChecker([](const SetupData &setup) { return setup.platforms.contains("winphone"); });
+    setPriority(10);
 }
 
 } // Internal

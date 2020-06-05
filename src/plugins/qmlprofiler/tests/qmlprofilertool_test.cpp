@@ -29,7 +29,7 @@
 #include <coreplugin/icore.h>
 #include <projectexplorer/kit.h>
 #include <projectexplorer/kitmanager.h>
-#include <projectexplorer/runconfiguration.h>
+#include <projectexplorer/runcontrol.h>
 #include <qmlprofiler/qmlprofilerattachdialog.h>
 #include <qmlprofiler/qmlprofilerclientmanager.h>
 #include <qmlprofiler/qmlprofilermodelmanager.h>
@@ -44,16 +44,15 @@ namespace Internal {
 
 void QmlProfilerToolTest::testAttachToWaitingApplication()
 {
-    auto newKit = std::make_unique<ProjectExplorer::Kit>("fookit");
-    ProjectExplorer::Kit * newKitPtr = newKit.get();
     ProjectExplorer::KitManager *kitManager = ProjectExplorer::KitManager::instance();
     QVERIFY(kitManager);
-    QVERIFY(kitManager->registerKit(std::move(newKit)));
+    ProjectExplorer::Kit * const newKit = kitManager->registerKit({}, "fookit");
+    QVERIFY(newKit);
     QSettings *settings = Core::ICore::settings();
     QVERIFY(settings);
-    settings->setValue(QLatin1String("AnalyzerQmlAttachDialog/kitId"), newKitPtr->id().toSetting());
+    settings->setValue(QLatin1String("AnalyzerQmlAttachDialog/kitId"), newKit->id().toSetting());
 
-    QmlProfilerTool profilerTool;
+    QmlProfilerTool &profilerTool = *QmlProfilerTool::instance();
 
     QmlProfilerClientManager *clientManager = profilerTool.clientManager();
     clientManager->setRetryInterval(10);
@@ -108,7 +107,7 @@ void QmlProfilerToolTest::testAttachToWaitingApplication()
 
 void QmlProfilerToolTest::testClearEvents()
 {
-    QmlProfilerTool profilerTool;
+    QmlProfilerTool &profilerTool = *QmlProfilerTool::instance();
     QmlProfilerModelManager *modelManager = profilerTool.modelManager();
     QVERIFY(modelManager);
     QmlProfilerStateManager *stateManager = profilerTool.stateManager();

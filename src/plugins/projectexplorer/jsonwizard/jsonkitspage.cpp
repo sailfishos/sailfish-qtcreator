@@ -58,14 +58,21 @@ void JsonKitsPage::initializePage()
     const Id platform = Id::fromString(wiz->stringValue(QLatin1String("Platform")));
     const QSet<Id> preferred
             = evaluate(m_preferredFeatures, wiz->value(QLatin1String("PreferredFeatures")), wiz);
-    const QSet<Id> required
-            = evaluate(m_requiredFeatures, wiz->value(QLatin1String("RequiredFeatures")), wiz);
+    const QSet<Id> required = evaluate(m_requiredFeatures,
+                                       wiz->value(QLatin1String("RequiredFeatures")),
+                                       wiz);
 
-    setRequiredKitPredicate([required](const Kit *k) { return k->hasFeatures(required); });
-    setPreferredKitPredicate([platform, preferred](const Kit *k) {
-        return k->supportedPlatforms().contains(platform) && k->hasFeatures(preferred);
+    setTasksGenerator([required, preferred, platform](const Kit *k) -> Tasks {
+        if (!k->hasFeatures(required))
+            return {CompileTask(Task::Error, tr("At least one required feature is not present."))};
+        if (!k->supportedPlatforms().contains(platform))
+            return {CompileTask(Task::Unknown, tr("Platform is not supported."))};
+        if (!k->hasFeatures(preferred))
+            return {
+                CompileTask(Task::Unknown, tr("At least one preferred feature is not present."))};
+        return {};
     });
-    setProjectPath(wiz->expander()->expand(unexpandedProjectPath()));
+    setProjectPath(wiz->expander()->expand(Utils::FilePath::fromString(unexpandedProjectPath())));
 
     TargetSetupPage::initializePage();
 }
@@ -107,7 +114,7 @@ void JsonKitsPage::setupProjectFiles(const JsonWizard::GeneratorFiles &files)
             const QFileInfo fi(f.file.path());
             const QString path = fi.absoluteFilePath();
             Project *project = ProjectManager::openProject(Utils::mimeTypeForFile(fi),
-                                                           Utils::FileName::fromString(path));
+                                                           Utils::FilePath::fromString(path));
             if (project) {
                 if (setupProject(project))
                     project->saveSettings();

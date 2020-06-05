@@ -24,56 +24,164 @@
 ****************************************************************************/
 
 #include "deploymentdataview.h"
-#include "ui_deploymentdataview.h"
 
-#include "deploymentdatamodel.h"
+#include "buildsystem.h"
+#include "deployconfiguration.h"
+#include "deploymentdata.h"
 #include "target.h"
+
+#include <utils/qtcassert.h>
+#include <utils/treemodel.h>
+
+#include <QAbstractTableModel>
+#include <QCheckBox>
+#include <QHBoxLayout>
+#include <QHeaderView>
+#include <QLabel>
+#include <QPushButton>
+#include <QTreeView>
+#include <QVBoxLayout>
+
+using namespace Utils;
 
 namespace ProjectExplorer {
 namespace Internal {
 
-class DeploymentDataViewPrivate
+class DeploymentDataItem : public TreeItem
 {
 public:
-    Ui::DeploymentDataView ui;
-    Target *target;
-    DeploymentDataModel deploymentDataModel;
+    DeploymentDataItem() = default;
+    DeploymentDataItem(const DeployableFile &file, bool isEditable)
+        : file(file), isEditable(isEditable) {}
+
+    Qt::ItemFlags flags(int column) const override
+    {
+        Qt::ItemFlags f = TreeItem::flags(column);
+        if (isEditable)
+            f |= Qt::ItemIsEditable;
+        return f;
+    }
+
+    QVariant data(int column, int role) const override
+    {
+        if (role == Qt::DisplayRole || role == Qt::EditRole)
+            return column == 0 ? file.localFilePath().toUserOutput() : file.remoteDirectory();
+        return QVariant();
+    }
+
+    bool setData(int column, const QVariant &data, int role) override
+    {
+        if (role != Qt::EditRole)
+            return false;
+        if (column == 0)
+            file = DeployableFile(data.toString(), file.remoteDirectory());
+        else if (column == 1)
+            file = DeployableFile(file.localFilePath().toString(), data.toString());
+        return true;
+    }
+
+    DeployableFile file;
+    bool isEditable = false;
 };
 
-} // namespace Internal
 
-using namespace Internal;
-
-DeploymentDataView::DeploymentDataView(Target *target, QWidget *parent) : NamedWidget(parent),
-    d(std::make_unique<DeploymentDataViewPrivate>())
+DeploymentDataView::DeploymentDataView(DeployConfiguration *dc)
 {
-    d->ui.setupUi(this);
-    d->ui.deploymentDataView->setTextElideMode(Qt::ElideMiddle);
-    d->ui.deploymentDataView->setWordWrap(false);
-    d->ui.deploymentDataView->setUniformRowHeights(true);
-    d->ui.deploymentDataView->setModel(&d->deploymentDataModel);
+    auto model = new TreeModel<DeploymentDataItem>(this);
+    model->setHeader({tr("Local File Path"), tr("Remote Directory")});
 
-    d->target = target;
+    auto view = new QTreeView(this);
+    view->setMinimumSize(QSize(100, 100));
+    view->setTextElideMode(Qt::ElideMiddle);
+    view->setWordWrap(false);
+    view->setUniformRowHeights(true);
+    view->setModel(model);
 
-    connect(target, &Target::deploymentDataChanged,
-            this, &DeploymentDataView::updateDeploymentDataModel);
-    updateDeploymentDataModel();
+    const auto buttonsLayout = new QVBoxLayout;
+    const auto addButton = new QPushButton(tr("Add"));
+    const auto removeButton = new QPushButton(tr("Remove"));
+    buttonsLayout->addWidget(addButton);
+    buttonsLayout->addWidget(removeButton);
+    buttonsLayout->addStretch(1);
+
+    const auto viewLayout = new QHBoxLayout;
+    viewLayout->addWidget(view);
+    viewLayout->addLayout(buttonsLayout);
+
+    auto label = new QLabel(tr("Files to deploy:"), this);
+    const auto sourceCheckBox = new QCheckBox(tr("Override deployment data from build system"));
+    sourceCheckBox->setChecked(dc->usesCustomDeploymentData());
+
+    auto layout = new QVBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(label);
+    layout->addWidget(sourceCheckBox);
+    layout->addLayout(viewLayout);
+
+    const auto updateModel = [dc, model, view] {
+        model->clear();
+        for (const DeployableFile &file : dc->target()->deploymentData().allFiles()) {
+            model->rootItem()->appendChild(
+                        new DeploymentDataItem(file, dc->usesCustomDeploymentData()));
+        }
+
+        QHeaderView *header = view->header();
+        header->setSectionResizeMode(0, QHeaderView::Interactive);
+        header->setSectionResizeMode(1, QHeaderView::Interactive);
+        view->resizeColumnToContents(0);
+        view->resizeColumnToContents(1);
+        if (header->sectionSize(0) + header->sectionSize(1) < header->width())
+            header->setSectionResizeMode(1, QHeaderView::Stretch);
+    };
+
+    const auto deploymentDataFromModel = [model] {
+        DeploymentData deployData;
+        for (int i = 0; i < model->rowCount(); ++i) {
+            const auto item = static_cast<DeploymentDataItem *>(
+                        model->itemForIndex(model->index(i, 0)));
+            if (!item->file.localFilePath().isEmpty() && !item->file.remoteDirectory().isEmpty())
+                deployData.addFile(item->file);
+        }
+        return deployData;
+    };
+
+    const auto updateButtons = [dc, view, addButton, removeButton] {
+        addButton->setEnabled(dc->usesCustomDeploymentData());
+        removeButton->setEnabled(dc->usesCustomDeploymentData()
+                                 && view->selectionModel()->hasSelection());
+    };
+
+    connect(dc->target(), &Target::deploymentDataChanged, this, [dc, updateModel] {
+        if (!dc->usesCustomDeploymentData())
+            updateModel();
+    });
+    connect(sourceCheckBox, &QCheckBox::toggled, this, [dc, updateModel, updateButtons](bool checked) {
+        dc->setUseCustomDeploymentData(checked);
+        updateModel();
+        updateButtons();
+    });
+    connect(addButton, &QPushButton::clicked, this, [model, view] {
+        const auto newItem = new DeploymentDataItem(DeployableFile(), true);
+        model->rootItem()->appendChild(newItem);
+        view->edit(model->indexForItem(newItem));
+    });
+    connect(removeButton, &QPushButton::clicked, this, [dc, model, view, deploymentDataFromModel] {
+        const QModelIndexList selectedIndexes = view->selectionModel()->selectedIndexes();
+        if (!selectedIndexes.isEmpty()) {
+            model->destroyItem(model->itemForIndex(selectedIndexes.first()));
+            dc->setCustomDeploymentData(deploymentDataFromModel());
+        }
+    });
+    connect(model, &QAbstractItemModel::dataChanged, this, [dc, deploymentDataFromModel] {
+        if (dc->usesCustomDeploymentData())
+            dc->setCustomDeploymentData(deploymentDataFromModel());
+    });
+    connect(view->selectionModel(), &QItemSelectionModel::selectionChanged, this, [updateButtons] {
+        updateButtons();
+    });
+    updateModel();
+    updateButtons();
 }
 
-DeploymentDataView::~DeploymentDataView() = default;
-
-void DeploymentDataView::updateDeploymentDataModel()
-{
-    d->deploymentDataModel.setDeploymentData(d->target->deploymentData());
-    QHeaderView *header = d->ui.deploymentDataView->header();
-    header->setSectionResizeMode(0, QHeaderView::Interactive);
-    header->setSectionResizeMode(1, QHeaderView::Interactive);
-    d->ui.deploymentDataView->resizeColumnToContents(0);
-    d->ui.deploymentDataView->resizeColumnToContents(1);
-    if (header->sectionSize(0) + header->sectionSize(1)
-            < d->ui.deploymentDataView->header()->width()) {
-        d->ui.deploymentDataView->header()->setSectionResizeMode(1, QHeaderView::Stretch);
-    }
-}
-
-} // namespace ProjectExplorer
+} // Internal
+} // ProjectExplorer

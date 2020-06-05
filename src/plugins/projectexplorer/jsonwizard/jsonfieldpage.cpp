@@ -29,6 +29,7 @@
 #include "jsonwizard.h"
 #include "jsonwizardfactory.h"
 
+#include <coreplugin/icore.h>
 #include <utils/algorithm.h>
 #include <utils/fancylineedit.h>
 #include <utils/qtcassert.h>
@@ -57,6 +58,7 @@ const char NAME_KEY[] = "name";
 const char DISPLAY_NAME_KEY[] = "trDisplayName";
 const char TOOLTIP_KEY[] = "trToolTip";
 const char MANDATORY_KEY[] = "mandatory";
+const char PERSISTENCE_KEY_KEY[] = "persistenceKey";
 const char VISIBLE_KEY[] = "visible";
 const char ENABLED_KEY[] = "enabled";
 const char SPAN_KEY[] = "span";
@@ -153,6 +155,21 @@ QString JsonFieldPage::Field::type()
     return d->m_type;
 }
 
+void JsonFieldPage::Field::setHasUserChanges()
+{
+    d->m_hasUserChanges = true;
+}
+
+void JsonFieldPage::Field::fromSettings(const QVariant &value)
+{
+    Q_UNUSED(value);
+}
+
+QVariant JsonFieldPage::Field::toSettings() const
+{
+    return {};
+}
+
 JsonFieldPage::Field *JsonFieldPage::Field::parse(const QVariant &input, QString *errorMessage)
 {
     if (input.type() != QVariant::Map) {
@@ -192,6 +209,7 @@ JsonFieldPage::Field *JsonFieldPage::Field::parse(const QVariant &input, QString
     data->setHasSpan(consumeValue(tmp, SPAN_KEY, false).toBool());
     data->setIsCompleteExpando(consumeValue(tmp, IS_COMPLETE_KEY, true),
                                consumeValue(tmp, IS_COMPLETE_MESSAGE_KEY).toString());
+    data->setPersistenceKey(consumeValue(tmp, PERSISTENCE_KEY_KEY).toString());
 
     QVariant dataVal = consumeValue(tmp, DATA_KEY);
     if (!data->parseData(dataVal, errorMessage)) {
@@ -295,6 +313,11 @@ QString JsonFieldPage::Field::toolTip()
     return d->m_toolTip;
 }
 
+QString JsonFieldPage::Field::persistenceKey() const
+{
+    return d->m_persistenceKey;
+}
+
 bool JsonFieldPage::Field::isMandatory()
 {
     return d->m_isMandatory;
@@ -303,6 +326,11 @@ bool JsonFieldPage::Field::isMandatory()
 bool JsonFieldPage::Field::hasSpan()
 {
     return d->m_hasSpan;
+}
+
+bool JsonFieldPage::Field::hasUserChanges() const
+{
+    return d->m_hasUserChanges;
 }
 
 QVariant JsonFieldPage::value(const QString &key)
@@ -353,6 +381,11 @@ void JsonFieldPage::Field::setIsCompleteExpando(const QVariant &v, const QString
     d->m_isCompleteExpandoMessage = m;
 }
 
+void JsonFieldPage::Field::setPersistenceKey(const QString &key)
+{
+    d->m_persistenceKey = key;
+}
+
 // --------------------------------------------------------------------
 // LabelFieldData:
 // --------------------------------------------------------------------
@@ -383,11 +416,12 @@ bool LabelField::parseData(const QVariant &data, QString *errorMessage)
 
 QWidget *LabelField::createWidget(const QString &displayName, JsonFieldPage *page)
 {
-    Q_UNUSED(displayName);
-    Q_UNUSED(page);
+    Q_UNUSED(displayName)
+    Q_UNUSED(page)
     auto w = new QLabel;
     w->setWordWrap(m_wordWrap);
     w->setText(m_text);
+    w->setSizePolicy(QSizePolicy::Expanding, w->sizePolicy().verticalPolicy());
     return w;
 }
 
@@ -425,8 +459,8 @@ bool SpacerField::parseData(const QVariant &data, QString *errorMessage)
 
 QWidget *SpacerField::createWidget(const QString &displayName, JsonFieldPage *page)
 {
-    Q_UNUSED(displayName);
-    Q_UNUSED(page);
+    Q_UNUSED(displayName)
+    Q_UNUSED(page)
     int size = QApplication::style()->pixelMetric(QStyle::PM_DefaultLayoutSpacing) * m_factor;
 
     auto w = new QWidget();
@@ -480,7 +514,7 @@ bool LineEditField::parseData(const QVariant &data, QString *errorMessage)
 
 QWidget *LineEditField::createWidget(const QString &displayName, JsonFieldPage *page)
 {
-    Q_UNUSED(displayName);
+    Q_UNUSED(displayName)
     auto w = new FancyLineEdit;
 
     if (m_validatorRegExp.isValid()) {
@@ -493,6 +527,7 @@ QWidget *LineEditField::createWidget(const QString &displayName, JsonFieldPage *
         w->setHistoryCompleter(m_historyId, m_restoreLastHistoryItem);
 
     w->setEchoMode(m_isPassword ? QLineEdit::Password : QLineEdit::Normal);
+    QObject::connect(w, &FancyLineEdit::textEdited, [this] { setHasUserChanges(); });
 
     return w;
 }
@@ -550,6 +585,16 @@ void LineEditField::initializeData(MacroExpander *expander)
     m_isValidating = false;
 }
 
+void LineEditField::fromSettings(const QVariant &value)
+{
+    m_defaultText = value.toString();
+}
+
+QVariant LineEditField::toSettings() const
+{
+    return qobject_cast<FancyLineEdit *>(widget())->text();
+}
+
 // --------------------------------------------------------------------
 // TextEditFieldData:
 // --------------------------------------------------------------------
@@ -580,10 +625,14 @@ bool TextEditField::parseData(const QVariant &data, QString *errorMessage)
 QWidget *TextEditField::createWidget(const QString &displayName, JsonFieldPage *page)
 {
     // TODO: Set up modification monitoring...
-    Q_UNUSED(displayName);
-    Q_UNUSED(page);
+    Q_UNUSED(displayName)
+    Q_UNUSED(page)
     auto w = new QTextEdit;
     w->setAcceptRichText(m_acceptRichText);
+    QObject::connect(w, &QTextEdit::textChanged, [this, w] {
+       if (w->toPlainText() != m_defaultText)
+           setHasUserChanges();
+    });
     return w;
 }
 
@@ -619,6 +668,16 @@ void TextEditField::initializeData(MacroExpander *expander)
     auto w = qobject_cast<QTextEdit *>(widget());
     QTC_ASSERT(w, return);
     w->setPlainText(expander->expand(m_defaultText));
+}
+
+void TextEditField::fromSettings(const QVariant &value)
+{
+    m_defaultText = value.toString();
+}
+
+QVariant TextEditField::toSettings() const
+{
+    return qobject_cast<QTextEdit *>(widget())->toPlainText();
 }
 
 // --------------------------------------------------------------------
@@ -672,11 +731,15 @@ bool PathChooserField::parseData(const QVariant &data, QString *errorMessage)
 
 QWidget *PathChooserField::createWidget(const QString &displayName, JsonFieldPage *page)
 {
-    Q_UNUSED(displayName);
-    Q_UNUSED(page);
+    Q_UNUSED(displayName)
+    Q_UNUSED(page)
     auto w = new PathChooser;
     if (!m_historyId.isEmpty())
         w->setHistoryCompleter(m_historyId);
+    QObject::connect(w, &PathChooser::pathChanged, [this, w] {
+        if (w->path() != m_path)
+            setHasUserChanges();
+    });
     return w;
 }
 
@@ -710,13 +773,23 @@ void PathChooserField::initializeData(MacroExpander *expander)
 {
     auto w = qobject_cast<PathChooser *>(widget());
     QTC_ASSERT(w, return);
-    w->setBaseDirectory(expander->expand(m_basePath));
+    w->setBaseDirectory(expander->expand(FilePath::fromString(m_basePath)));
     w->setExpectedKind(m_kind);
 
     if (m_currentPath.isNull())
         w->setPath(expander->expand(m_path));
     else
         w->setPath(m_currentPath);
+}
+
+void PathChooserField::fromSettings(const QVariant &value)
+{
+    m_path = value.toString();
+}
+
+QVariant PathChooserField::toSettings() const
+{
+    return qobject_cast<PathChooser *>(widget())->path();
 }
 
 // --------------------------------------------------------------------
@@ -753,7 +826,7 @@ bool CheckBoxField::parseData(const QVariant &data, QString *errorMessage)
 
 QWidget *CheckBoxField::createWidget(const QString &displayName, JsonFieldPage *page)
 {
-    Q_UNUSED(page);
+    Q_UNUSED(page)
     return new QCheckBox(displayName);
 }
 
@@ -769,6 +842,7 @@ void CheckBoxField::setup(JsonFieldPage *page, const QString &name)
 
     QObject::connect(w, &QCheckBox::stateChanged, page, [this, page]() {
         m_isModified = true;
+        setHasUserChanges();
         emit page->completeChanged();
     });
 }
@@ -794,6 +868,16 @@ void CheckBoxField::initializeData(MacroExpander *expander)
     w->setChecked(JsonWizard::boolFromVariant(m_checkedExpression, expander));
 }
 
+void CheckBoxField::fromSettings(const QVariant &value)
+{
+    m_checkedExpression = value;
+}
+
+QVariant CheckBoxField::toSettings() const
+{
+    return qobject_cast<QCheckBox *>(widget())->isChecked();
+}
+
 // --------------------------------------------------------------------
 // ListFieldData:
 // --------------------------------------------------------------------
@@ -809,7 +893,7 @@ std::unique_ptr<QStandardItem> createStandardItemFromListItem(const QVariant &it
     if (item.type() == QVariant::Map) {
         QVariantMap tmp = item.toMap();
         const QString key = JsonWizardFactory::localizedString(consumeValue(tmp, "trKey", QString()).toString());
-        const QString value = consumeValue(tmp, "value", key).toString();
+        const QVariant value = consumeValue(tmp, "value", key);
 
         if (key.isNull() || key.isEmpty()) {
             *errorMessage  = QCoreApplication::translate("ProjectExplorer::JsonFieldPage",
@@ -893,9 +977,7 @@ bool ListField::validate(MacroExpander *expander, QString *message)
         return false;
 
     updateIndex();
-    if (selectionModel()->hasSelection())
-        return true;
-    return false;
+    return selectionModel()->hasSelection();
 }
 
 void ListField::initializeData(MacroExpander *expander)
@@ -919,7 +1001,7 @@ void ListField::initializeData(MacroExpander *expander)
         if (item.get() == currentItem)
             currentItem = expandedValuesItem;
         expandedValuesItem->setText(expander->expand(item->text()));
-        expandedValuesItem->setData(expander->expand(item->data(ValueRole).toString()), ValueRole);
+        expandedValuesItem->setData(expander->expandVariant(item->data(ValueRole)), ValueRole);
         expandedValuesItem->setData(expander->expand(item->data(IconStringRole).toString()), IconStringRole);
         expandedValuesItem->setData(condition, ConditionRole);
 
@@ -957,7 +1039,7 @@ QStandardItemModel *ListField::itemModel()
     return m_itemModel;
 }
 
-QItemSelectionModel *ListField::selectionModel()
+QItemSelectionModel *ListField::selectionModel() const
 {
     return m_selectionModel;
 }
@@ -990,6 +1072,22 @@ void ListField::updateIndex()
     }
 }
 
+void ListField::fromSettings(const QVariant &value)
+{
+    for (decltype(m_itemList)::size_type i = 0; i < m_itemList.size(); ++i) {
+        if (m_itemList.at(i)->data(ValueRole) == value) {
+            m_index = int(i);
+            break;
+        }
+    }
+}
+
+QVariant ListField::toSettings() const
+{
+    const int idx = selectionModel()->currentIndex().row();
+    return idx >= 0 ? m_itemList.at(idx)->data(ValueRole) : QVariant();
+}
+
 void ComboBoxField::setup(JsonFieldPage *page, const QString &name)
 {
     auto w = qobject_cast<QComboBox*>(widget());
@@ -1006,7 +1104,7 @@ void ComboBoxField::setup(JsonFieldPage *page, const QString &name)
     // the selectionModel does not behave like expected and wanted - so we block signals here
     // (for example there was some losing focus thing when hovering over items, ...)
     selectionModel()->blockSignals(true);
-    QObject::connect(w, static_cast<void(QComboBox::*)(int)>(&QComboBox::activated), [w, this](int index) {
+    QObject::connect(w, QOverload<int>::of(&QComboBox::activated), [w, this](int index) {
         w->blockSignals(true);
         selectionModel()->clearSelection();
 
@@ -1016,11 +1114,8 @@ void ComboBoxField::setup(JsonFieldPage *page, const QString &name)
         selectionModel()->blockSignals(true);
         w->blockSignals(false);
     });
-    page->registerObjectAsFieldWithName<QItemSelectionModel>(name, selectionModel(), &QItemSelectionModel::selectionChanged, [this]() {
-        const QModelIndex i = selectionModel()->currentIndex();
-        if (i.isValid())
-            return i.data(ValueRole).toString();
-        return QString();
+    page->registerObjectAsFieldWithName<QComboBox>(name, w, QOverload<int>::of(&QComboBox::activated), [w]() {
+        return w->currentData(ValueRole);
     });
     QObject::connect(selectionModel(), &QItemSelectionModel::selectionChanged, page, [page]() {
         emit page->completeChanged();
@@ -1029,7 +1124,10 @@ void ComboBoxField::setup(JsonFieldPage *page, const QString &name)
 
 QWidget *ComboBoxField::createWidget(const QString & /*displayName*/, JsonFieldPage * /*page*/)
 {
-    return new QComboBox;
+    const auto comboBox = new QComboBox;
+    QObject::connect(comboBox, QOverload<int>::of(&QComboBox::activated),
+                     [this] { setHasUserChanges(); });
+    return comboBox;
 }
 
 void ComboBoxField::initializeData(MacroExpander *expander)
@@ -1038,6 +1136,13 @@ void ComboBoxField::initializeData(MacroExpander *expander)
     // refresh also the current text of the combobox
     auto w = qobject_cast<QComboBox*>(widget());
     w->setCurrentIndex(selectionModel()->currentIndex().row());
+}
+
+QVariant ComboBoxField::toSettings() const
+{
+    if (auto w = qobject_cast<QComboBox*>(widget()))
+        return w->currentData(ValueRole);
+    return {};
 }
 
 void IconListField::setup(JsonFieldPage *page, const QString &name)
@@ -1057,8 +1162,8 @@ void IconListField::setup(JsonFieldPage *page, const QString &name)
     page->registerObjectAsFieldWithName<QItemSelectionModel>(name, selectionModel(), &QItemSelectionModel::selectionChanged, [this]() {
         const QModelIndex i = selectionModel()->currentIndex();
         if (i.isValid())
-            return i.data(ValueRole).toString();
-        return QString();
+            return i.data(ValueRole);
+        return QVariant();
     });
     QObject::connect(selectionModel(), &QItemSelectionModel::selectionChanged, page, [page]() {
         emit page->completeChanged();
@@ -1067,7 +1172,10 @@ void IconListField::setup(JsonFieldPage *page, const QString &name)
 
 QWidget *IconListField::createWidget(const QString & /*displayName*/, JsonFieldPage * /*page*/)
 {
-    return new QListView;
+    const auto listView = new QListView;
+    QObject::connect(listView->selectionModel(), &QItemSelectionModel::currentChanged,
+                     [this] { setHasUserChanges(); });
+    return listView;
 }
 
 void IconListField::initializeData(MacroExpander *expander)
@@ -1130,6 +1238,13 @@ bool JsonFieldPage::setup(const QVariant &data)
         if (!f)
             continue;
         f->createWidget(this);
+        if (!f->persistenceKey().isEmpty()) {
+            f->setPersistenceKey(m_expander->expand(f->persistenceKey()));
+            const QVariant value = Core::ICore::settings()
+                    ->value(fullSettingsKey(f->persistenceKey()));
+            if (value.isValid())
+                f->fromSettings(value);
+        }
         m_fields.append(f);
     }
     return true;
@@ -1171,6 +1286,17 @@ void JsonFieldPage::cleanupPage()
         f->cleanup(m_expander);
 }
 
+bool JsonFieldPage::validatePage()
+{
+    for (Field * const f : qAsConst(m_fields))
+        if (!f->persistenceKey().isEmpty() && f->hasUserChanges()) {
+            const QVariant value = f->toSettings();
+            if (value.isValid())
+                Core::ICore::settings()->setValue(fullSettingsKey(f->persistenceKey()), value);
+    }
+    return true;
+}
+
 void JsonFieldPage::showError(const QString &m) const
 {
     m_errorLabel->setText(m);
@@ -1196,6 +1322,11 @@ JsonFieldPage::Field *JsonFieldPage::createFieldData(const QString &type)
         return field;
     }
     return nullptr;
+}
+
+QString JsonFieldPage::fullSettingsKey(const QString &fieldKey)
+{
+    return "Wizards/" + fieldKey;
 }
 
 } // namespace ProjectExplorer

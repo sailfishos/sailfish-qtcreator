@@ -3,8 +3,7 @@ QT += network
 include(../../qtcreatorplugin.pri)
 
 HEADERS += \
-    embeddedlinuxqtversion.h \
-    embeddedlinuxqtversionfactory.h \
+    makeinstallstep.h \
     remotelinuxenvironmentaspect.h \
     remotelinuxenvironmentaspectwidget.h \
     remotelinuxplugin.h \
@@ -13,7 +12,6 @@ HEADERS += \
     remotelinuxrunconfiguration.h \
     publickeydeploymentdialog.h \
     genericlinuxdeviceconfigurationwizard.h \
-    genericlinuxdeviceconfigurationfactory.h \
     remotelinuxdebugsupport.h \
     genericlinuxdeviceconfigurationwizardpages.h \
     abstractremotelinuxdeploystep.h \
@@ -48,8 +46,7 @@ HEADERS += \
     deploymenttimeinfo.h
 
 SOURCES += \
-    embeddedlinuxqtversion.cpp \
-    embeddedlinuxqtversionfactory.cpp \
+    makeinstallstep.cpp \
     remotelinuxenvironmentaspect.cpp \
     remotelinuxenvironmentaspectwidget.cpp \
     remotelinuxplugin.cpp \
@@ -57,7 +54,6 @@ SOURCES += \
     remotelinuxrunconfiguration.cpp \
     publickeydeploymentdialog.cpp \
     genericlinuxdeviceconfigurationwizard.cpp \
-    genericlinuxdeviceconfigurationfactory.cpp \
     remotelinuxdebugsupport.cpp \
     genericlinuxdeviceconfigurationwizardpages.cpp \
     abstractremotelinuxdeploystep.cpp \
@@ -92,8 +88,7 @@ SOURCES += \
 
 FORMS += \
     genericlinuxdeviceconfigurationwizardsetuppage.ui \
-    genericlinuxdeviceconfigurationwidget.ui \
-    remotelinuxcheckforfreediskspacestepwidget.ui
+    genericlinuxdeviceconfigurationwidget.ui
 
 RESOURCES += remotelinux.qrc
 

@@ -31,36 +31,16 @@
 
 #include <texteditor/texteditorconstants.h>
 
-#include <QCoreApplication>
-#include <QWidget>
-#include <QIcon>
+namespace Macros {
+namespace Internal {
 
-using namespace Macros;
-using namespace Macros::Internal;
-
-
-MacroOptionsPage::MacroOptionsPage(QObject *parent)
-    : Core::IOptionsPage(parent)
+MacroOptionsPage::MacroOptionsPage()
 {
     setId(Constants::M_OPTIONS_PAGE);
-    setDisplayName(QCoreApplication::translate("Macros", Constants::M_OPTIONS_TR_PAGE));
+    setDisplayName(MacroOptionsWidget::tr("Macros"));
     setCategory(TextEditor::Constants::TEXT_EDITOR_SETTINGS_CATEGORY);
+    setWidgetCreator([] { return new MacroOptionsWidget; });
 }
 
-QWidget *MacroOptionsPage::widget()
-{
-    if (!m_widget)
-        m_widget = new MacroOptionsWidget;
-    return m_widget;
-}
-
-void MacroOptionsPage::apply()
-{
-    if (m_widget)
-        m_widget->apply();
-}
-
-void MacroOptionsPage::finish()
-{
-    delete m_widget;
-}
+} // Internal
+} // Macros

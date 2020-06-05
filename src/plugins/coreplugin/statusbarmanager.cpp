@@ -47,7 +47,7 @@ static QPointer<QSplitter> m_splitter;
 static QList<QPointer<QWidget>> m_statusBarWidgets;
 static QList<QPointer<IContext>> m_contexts;
 
-/*!
+/*
     Context that always returns the context of the active's mode widget (if available).
 */
 class StatusBarContext : public IContext
@@ -63,7 +63,7 @@ static QWidget *createWidget(QWidget *parent)
     QWidget *w = new QWidget(parent);
     w->setLayout(new QHBoxLayout);
     w->setVisible(true);
-    w->layout()->setMargin(0);
+    w->layout()->setContentsMargins(0, 0, 0, 0);
     return w;
 }
 

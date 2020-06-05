@@ -27,6 +27,7 @@
 #include "designmode.h"
 #include "editmode.h"
 #include "helpmanager.h"
+#include "icore.h"
 #include "idocument.h"
 #include "infobar.h"
 #include "iwizardfactory.h"
@@ -57,12 +58,13 @@
 #include <utils/theme/theme.h>
 #include <utils/theme/theme_p.h>
 
-#include <QtPlugin>
-
 #include <QDateTime>
 #include <QDebug>
 #include <QDir>
+#include <QJsonObject>
 #include <QMenu>
+#include <QMessageBox>
+#include <QSettings>
 #include <QUuid>
 
 #include <cstdlib>
@@ -77,6 +79,8 @@ CorePlugin::CorePlugin()
 {
     qRegisterMetaType<Id>();
     qRegisterMetaType<Core::Search::TextPosition>();
+    qRegisterMetaType<Utils::CommandLine>();
+    qRegisterMetaType<Utils::FilePath>();
     m_instance = this;
 }
 
@@ -146,6 +150,7 @@ bool CorePlugin::initialize(const QStringList &arguments, QString *errorMessage)
     Theme *themeFromArg = ThemeEntry::createTheme(args.themeId);
     setCreatorTheme(themeFromArg ? themeFromArg
                                  : ThemeEntry::createTheme(ThemeEntry::themeSetting()));
+    InfoBar::initialize(ICore::settings(), creatorTheme());
     new ActionManager(this);
     ActionManager::setPresentationModeEnabled(args.presentationMode);
     m_mainWindow = new MainWindow;
@@ -156,7 +161,6 @@ bool CorePlugin::initialize(const QStringList &arguments, QString *errorMessage)
     m_mainWindow->init();
     m_editMode = new EditMode;
     ModeManager::activateMode(m_editMode->id());
-    InfoBar::initialize(ICore::settings(), creatorTheme());
 
     IWizardFactory::initialize();
 
@@ -232,6 +236,7 @@ void CorePlugin::extensionsInitialized()
         errorOverview->setModal(true);
         errorOverview->show();
     }
+    checkSettings();
 }
 
 bool CorePlugin::delayedInitialize()
@@ -276,7 +281,7 @@ void CorePlugin::addToPathChooserContextMenu(Utils::PathChooser *pathChooser, QM
         });
         menu->insertAction(firstAction, showInGraphicalShell);
 
-        auto *showInTerminal = new QAction(Core::FileUtils::msgTerminalAction(), menu);
+        auto *showInTerminal = new QAction(Core::FileUtils::msgTerminalHereAction(), menu);
         connect(showInTerminal, &QAction::triggered, pathChooser, [pathChooser]() {
             Core::FileUtils::openTerminal(pathChooser->path());
         });
@@ -293,6 +298,45 @@ void CorePlugin::addToPathChooserContextMenu(Utils::PathChooser *pathChooser, QM
 
     if (firstAction)
         menu->insertSeparator(firstAction);
+}
+
+void CorePlugin::checkSettings()
+{
+    const auto showMsgBox = [this](const QString &msg, QMessageBox::Icon icon) {
+        connect(ICore::instance(), &ICore::coreOpened, this, [msg, icon]() {
+            QMessageBox msgBox(ICore::dialogParent());
+            msgBox.setWindowTitle(tr("Settings File Error"));
+            msgBox.setText(msg);
+            msgBox.setIcon(icon);
+            msgBox.exec();
+        }, Qt::QueuedConnection);
+    };
+    const QSettings * const userSettings = ICore::settings();
+    QString errorDetails;
+    switch (userSettings->status()) {
+    case QSettings::NoError: {
+        const QFileInfo fi(userSettings->fileName());
+        if (fi.exists() && !fi.isWritable()) {
+            const QString errorMsg = tr("The settings file \"%1\" is not writable.\n"
+                    "You will not be able to store any %2 settings.")
+                    .arg(QDir::toNativeSeparators(userSettings->fileName()),
+                         QLatin1String(Core::Constants::IDE_DISPLAY_NAME));
+            showMsgBox(errorMsg, QMessageBox::Warning);
+        }
+        return;
+    }
+    case QSettings::AccessError:
+        errorDetails = tr("The file is not readable.");
+        break;
+    case QSettings::FormatError:
+        errorDetails = tr("The file is invalid.");
+        break;
+    }
+    const QString errorMsg = tr("Error reading settings file \"%1\": %2\n"
+            "You will likely experience further problems using this instance of %3.")
+            .arg(QDir::toNativeSeparators(userSettings->fileName()), errorDetails,
+                 QLatin1String(Core::Constants::IDE_DISPLAY_NAME));
+    showMsgBox(errorMsg, QMessageBox::Critical);
 }
 
 ExtensionSystem::IPlugin::ShutdownFlag CorePlugin::aboutToShutdown()

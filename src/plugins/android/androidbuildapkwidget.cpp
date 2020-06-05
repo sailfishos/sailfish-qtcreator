@@ -24,16 +24,18 @@
 **
 ****************************************************************************/
 
-#include "androidbuildapkstep.h"
 #include "androidbuildapkwidget.h"
+
+#include "androidbuildapkstep.h"
 #include "androidconfigurations.h"
+#include "androidextralibrarylistmodel.h"
 #include "androidcreatekeystorecertificate.h"
 #include "androidmanager.h"
 #include "androidsdkmanager.h"
 #include "createandroidmanifestwizard.h"
-#include "ui_androidbuildapkwidget.h"
 
 #include <projectexplorer/buildconfiguration.h>
+#include <projectexplorer/buildsystem.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectnodes.h>
 #include <projectexplorer/runconfiguration.h>
@@ -41,12 +43,14 @@
 
 #include <qtsupport/qtkitinformation.h>
 
+#include <utils/infolabel.h>
 #include <utils/fancylineedit.h>
 #include <utils/pathchooser.h>
-#include <utils/utilsicons.h>
 
-#include <QFileDialog>
+#include <QCheckBox>
+#include <QComboBox>
 #include <QGroupBox>
+#include <QFileDialog>
 #include <QLabel>
 #include <QListView>
 #include <QPushButton>
@@ -56,99 +60,287 @@
 #include <algorithm>
 
 using namespace ProjectExplorer;
+using namespace Utils;
 
 namespace Android {
 namespace Internal {
 
-AndroidBuildApkInnerWidget::AndroidBuildApkInnerWidget(AndroidBuildApkStep *step)
-    : ProjectExplorer::BuildStepConfigWidget(step),
-      m_ui(new Ui::AndroidBuildApkWidget),
-      m_step(step)
+AndroidBuildApkWidget::AndroidBuildApkWidget(AndroidBuildApkStep *step)
+    : BuildStepConfigWidget(step), m_step(step)
 {
-    m_ui->setupUi(this);
     setDisplayName("<b>" + tr("Build Android APK") + "</b>");
     setSummaryText(displayName());
 
-    // Target sdk combobox
+    auto vbox = new QVBoxLayout(this);
+    vbox->addWidget(createSignPackageGroup());
+    vbox->addWidget(createApplicationGroup());
+    vbox->addWidget(createAdvancedGroup());
+    vbox->addWidget(createCreateTemplatesGroup());
+    vbox->addWidget(createAdditionalLibrariesGroup());
+
+    connect(m_step->buildConfiguration(), &BuildConfiguration::buildTypeChanged,
+            this, &AndroidBuildApkWidget::updateSigningWarning);
+
+    connect(m_signPackageCheckBox, &QAbstractButton::clicked,
+            m_addDebuggerCheckBox, &QWidget::setEnabled);
+
+    signPackageCheckBoxToggled(m_step->signPackage());
+    updateSigningWarning();
+}
+
+QWidget *AndroidBuildApkWidget::createApplicationGroup()
+{
     const int minApiSupported = AndroidManager::apiLevelRange().first;
     QStringList targets = AndroidConfig::apiLevelNamesFor(AndroidConfigurations::sdkManager()->
                                                           filteredSdkPlatforms(minApiSupported));
     targets.removeDuplicates();
-    m_ui->targetSDKComboBox->addItems(targets);
-    m_ui->targetSDKComboBox->setCurrentIndex(targets.indexOf(AndroidManager::buildTargetSDK(step->target())));
 
-    // Ministro
-    if (m_step->useMinistro())
-        m_ui->ministroOption->setChecked(true);
+    auto group = new QGroupBox(tr("Application"), this);
 
-    // signing
-    m_ui->signPackageCheckBox->setChecked(m_step->signPackage());
-    m_ui->KeystoreLocationPathChooser->setExpectedKind(Utils::PathChooser::File);
-    m_ui->KeystoreLocationPathChooser->lineEdit()->setReadOnly(true);
-    m_ui->KeystoreLocationPathChooser->setPath(m_step->keystorePath().toUserOutput());
-    m_ui->KeystoreLocationPathChooser->setInitialBrowsePathBackup(QDir::homePath());
-    m_ui->KeystoreLocationPathChooser->setPromptDialogFilter(tr("Keystore files (*.keystore *.jks)"));
-    m_ui->KeystoreLocationPathChooser->setPromptDialogTitle(tr("Select Keystore File"));
-    m_ui->signingDebugWarningIcon->setPixmap(Utils::Icons::WARNING.pixmap());
-    m_ui->signingDebugWarningIcon->hide();
-    m_ui->signingDebugWarningLabel->hide();
-    signPackageCheckBoxToggled(m_step->signPackage());
+    auto targetSDKComboBox = new QComboBox(group);
+    targetSDKComboBox->addItems(targets);
+    targetSDKComboBox->setCurrentIndex(targets.indexOf(m_step->buildTargetSdk()));
 
-    m_ui->verboseOutputCheckBox->setChecked(m_step->verboseOutput());
-    m_ui->openPackageLocationCheckBox->setChecked(m_step->openPackageLocation());
-    m_ui->addDebuggerCheckBox->setChecked(m_step->addDebugger());
+    const auto cbActivated = QOverload<int>::of(&QComboBox::activated);
+    connect(targetSDKComboBox, cbActivated, this, [this, targetSDKComboBox](int idx) {
+       const QString sdk = targetSDKComboBox->itemText(idx);
+       m_step->setBuildTargetSdk(sdk);
+       AndroidManager::updateGradleProperties(step()->target(), QString()); // FIXME: Use real key.
+   });
 
-    // target sdk
-    connect(m_ui->targetSDKComboBox,
-            static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::activated),
-            this, &AndroidBuildApkInnerWidget::setTargetSdk);
+    auto hbox = new QHBoxLayout(group);
+    hbox->addWidget(new QLabel(tr("Android build SDK:"), group));
+    hbox->addWidget(targetSDKComboBox);
 
-    // deployment options
-    connect(m_ui->ministroOption, &QAbstractButton::clicked,
-            m_step, &AndroidBuildApkStep::setUseMinistro);
+    return group;
+}
 
-    connect(m_ui->openPackageLocationCheckBox, &QAbstractButton::toggled,
-            this, &AndroidBuildApkInnerWidget::openPackageLocationCheckBoxToggled);
-    connect(m_ui->verboseOutputCheckBox, &QAbstractButton::toggled,
-            this, &AndroidBuildApkInnerWidget::verboseOutputCheckBoxToggled);
-    connect(m_ui->addDebuggerCheckBox, &QAbstractButton::toggled,
+QWidget *AndroidBuildApkWidget::createSignPackageGroup()
+{
+    QSizePolicy sizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+    sizePolicy.setHorizontalStretch(0);
+    sizePolicy.setVerticalStretch(0);
+
+    auto group = new QGroupBox(tr("Sign package"), this);
+
+    auto keystoreLocationLabel = new QLabel(tr("Keystore:"), group);
+    keystoreLocationLabel->setAlignment(Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter);
+
+    auto keystoreLocationChooser = new PathChooser(group);
+    keystoreLocationChooser->setExpectedKind(PathChooser::File);
+    keystoreLocationChooser->lineEdit()->setReadOnly(true);
+    keystoreLocationChooser->setPath(m_step->keystorePath().toUserOutput());
+    keystoreLocationChooser->setInitialBrowsePathBackup(QDir::homePath());
+    keystoreLocationChooser->setPromptDialogFilter(tr("Keystore files (*.keystore *.jks)"));
+    keystoreLocationChooser->setPromptDialogTitle(tr("Select Keystore File"));
+    connect(keystoreLocationChooser, &PathChooser::pathChanged, this, [this](const QString &path) {
+        FilePath file = FilePath::fromString(path);
+        m_step->setKeystorePath(file);
+        m_signPackageCheckBox->setChecked(!file.isEmpty());
+        if (!file.isEmpty())
+            setCertificates();
+    });
+
+    auto keystoreCreateButton = new QPushButton(tr("Create..."), group);
+    connect(keystoreCreateButton, &QAbstractButton::clicked, this, [this, keystoreLocationChooser] {
+        AndroidCreateKeystoreCertificate d;
+        if (d.exec() != QDialog::Accepted)
+            return;
+        keystoreLocationChooser->setPath(d.keystoreFilePath().toUserOutput());
+        m_step->setKeystorePath(d.keystoreFilePath());
+        m_step->setKeystorePassword(d.keystorePassword());
+        m_step->setCertificateAlias(d.certificateAlias());
+        m_step->setCertificatePassword(d.certificatePassword());
+        setCertificates();
+    });
+
+    m_signPackageCheckBox = new QCheckBox(tr("Sign package"), group);
+    m_signPackageCheckBox->setChecked(m_step->signPackage());
+
+    m_signingDebugWarningLabel = new Utils::InfoLabel(tr("Signing a debug package"),
+                                                      Utils::InfoLabel::Warning, group);
+    m_signingDebugWarningLabel->hide();
+
+    auto certificateAliasLabel = new QLabel(tr("Certificate alias:"), group);
+    certificateAliasLabel->setAlignment(Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter);
+
+    m_certificatesAliasComboBox = new QComboBox(group);
+    m_certificatesAliasComboBox->setEnabled(false);
+    QSizePolicy sizePolicy2(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    sizePolicy2.setHorizontalStretch(0);
+    sizePolicy2.setVerticalStretch(0);
+    m_certificatesAliasComboBox->setSizePolicy(sizePolicy2);
+    m_certificatesAliasComboBox->setMinimumSize(QSize(300, 0));
+
+    auto horizontalLayout_2 = new QHBoxLayout;
+    horizontalLayout_2->addWidget(keystoreLocationLabel);
+    horizontalLayout_2->addWidget(keystoreLocationChooser);
+    horizontalLayout_2->addWidget(keystoreCreateButton);
+
+    auto horizontalLayout_3 = new QHBoxLayout;
+    horizontalLayout_3->addWidget(m_signingDebugWarningLabel);
+    horizontalLayout_3->addWidget(certificateAliasLabel);
+    horizontalLayout_3->addWidget(m_certificatesAliasComboBox);
+
+    auto vbox = new QVBoxLayout(group);
+    vbox->addLayout(horizontalLayout_2);
+    vbox->addWidget(m_signPackageCheckBox);
+    vbox->addLayout(horizontalLayout_3);
+
+    connect(m_signPackageCheckBox, &QAbstractButton::toggled,
+            this, &AndroidBuildApkWidget::signPackageCheckBoxToggled);
+
+    auto updateAlias = [this](int idx) {
+        QString alias = m_certificatesAliasComboBox->itemText(idx);
+        if (!alias.isEmpty())
+            m_step->setCertificateAlias(alias);
+    };
+
+    const auto cbActivated = QOverload<int>::of(&QComboBox::activated);
+    const auto cbCurrentIndexChanged = QOverload<int>::of(&QComboBox::currentIndexChanged);
+
+    connect(m_certificatesAliasComboBox, cbActivated, this, updateAlias);
+    connect(m_certificatesAliasComboBox, cbCurrentIndexChanged, this, updateAlias);
+
+    return group;
+}
+
+QWidget *AndroidBuildApkWidget::createAdvancedGroup()
+{
+    auto group = new QGroupBox(tr("Advanced Actions"), this);
+
+    auto openPackageLocationCheckBox = new QCheckBox(tr("Open package location after build"), group);
+    openPackageLocationCheckBox->setChecked(m_step->openPackageLocation());
+    connect(openPackageLocationCheckBox, &QAbstractButton::toggled,
+            this, [this](bool checked) { m_step->setOpenPackageLocation(checked); });
+
+    m_addDebuggerCheckBox = new QCheckBox(tr("Add debug server"), group);
+    m_addDebuggerCheckBox->setEnabled(false);
+    m_addDebuggerCheckBox->setToolTip(tr("Packages debug server with "
+           "the APK to enable debugging. For the signed APK this option is unchecked by default."));
+    m_addDebuggerCheckBox->setChecked(m_step->addDebugger());
+    connect(m_addDebuggerCheckBox, &QAbstractButton::toggled,
             m_step, &AndroidBuildApkStep::setAddDebugger);
 
-    //signing
-    connect(m_ui->signPackageCheckBox, &QAbstractButton::toggled,
-            this, &AndroidBuildApkInnerWidget::signPackageCheckBoxToggled);
-    connect(m_ui->KeystoreCreatePushButton, &QAbstractButton::clicked,
-            this, &AndroidBuildApkInnerWidget::createKeyStore);
-    connect(m_ui->KeystoreLocationPathChooser, &Utils::PathChooser::pathChanged,
-            this, &AndroidBuildApkInnerWidget::updateKeyStorePath);
-    connect(m_ui->certificatesAliasComboBox,
-            static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::activated),
-            this, &AndroidBuildApkInnerWidget::certificatesAliasComboBoxActivated);
-    connect(m_ui->certificatesAliasComboBox,
-            static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::currentIndexChanged),
-            this, &AndroidBuildApkInnerWidget::certificatesAliasComboBoxCurrentIndexChanged);
+    auto verboseOutputCheckBox = new QCheckBox(tr("Verbose output"), group);
+    verboseOutputCheckBox->setChecked(m_step->verboseOutput());
 
-    connect(m_step->buildConfiguration(), &ProjectExplorer::BuildConfiguration::buildTypeChanged,
-            this, &AndroidBuildApkInnerWidget::updateSigningWarning);
+    auto ministroOption = new QCheckBox(tr("Use Ministro service to install Qt"), group);
+    ministroOption->setToolTip(tr("Uses the external Ministro application to download and maintain Qt libraries."));
+    ministroOption->setChecked(m_step->useMinistro());
+    connect(ministroOption, &QAbstractButton::clicked,
+            m_step, &AndroidBuildApkStep::setUseMinistro);
 
-    updateSigningWarning();
+    auto vbox = new QVBoxLayout(group);
+    QtSupport::BaseQtVersion *version = QtSupport::QtKitAspect::qtVersion(step()->target()->kit());
+    if (version && version->qtVersion() >= QtSupport::QtVersionNumber{5,14}) {
+        auto buildAAB = new QCheckBox(tr("Build .aab (Android App Bundle)"), group);
+        buildAAB->setChecked(m_step->buildAAB());
+        connect(buildAAB, &QAbstractButton::toggled, m_step, &AndroidBuildApkStep::setBuildAAB);
+        vbox->addWidget(buildAAB);
+    }
+    vbox->addWidget(openPackageLocationCheckBox);
+    vbox->addWidget(verboseOutputCheckBox);
+    vbox->addWidget(m_addDebuggerCheckBox);
+    vbox->addWidget(ministroOption);
+
+    connect(verboseOutputCheckBox, &QAbstractButton::toggled,
+            this, [this](bool checked) { m_step->setVerboseOutput(checked); });
+
+    return group;
 }
 
-AndroidBuildApkInnerWidget::~AndroidBuildApkInnerWidget()
+QWidget *AndroidBuildApkWidget::createCreateTemplatesGroup()
 {
-    delete m_ui;
+    auto createTemplatesGroupBox = new QGroupBox(tr("Android"));
+    createTemplatesGroupBox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    auto createAndroidTemplatesButton = new QPushButton(tr("Create Templates"));
+    connect(createAndroidTemplatesButton, &QAbstractButton::clicked, this, [this] {
+        CreateAndroidManifestWizard wizard(m_step->buildConfiguration()->buildSystem());
+        wizard.exec();
+    });
+
+    auto horizontalLayout = new QHBoxLayout(createTemplatesGroupBox);
+    horizontalLayout->addWidget(createAndroidTemplatesButton);
+    horizontalLayout->addStretch(1);
+
+    return createTemplatesGroupBox;
 }
 
-void AndroidBuildApkInnerWidget::setTargetSdk(const QString &sdk)
+QWidget *AndroidBuildApkWidget::createAdditionalLibrariesGroup()
 {
-    m_step->setBuildTargetSdk(sdk);
+    auto group = new QGroupBox(tr("Additional Libraries"));
+    group->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+
+    auto libsModel = new AndroidExtraLibraryListModel(m_step->target(), this);
+    connect(libsModel, &AndroidExtraLibraryListModel::enabledChanged, this,
+            [this, group](const bool enabled) {
+                group->setEnabled(enabled);
+                m_openSslCheckBox->setChecked(isOpenSslLibsIncluded());
+    });
+
+    auto libsView = new QListView;
+    libsView->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    libsView->setToolTip(tr("List of extra libraries to include in Android package and load on startup."));
+    libsView->setModel(libsModel);
+
+    auto addLibButton = new QToolButton;
+    addLibButton->setText(tr("Add..."));
+    addLibButton->setToolTip(tr("Select library to include in package."));
+    addLibButton->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
+    addLibButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    connect(addLibButton, &QAbstractButton::clicked, this, [this, libsModel] {
+        QStringList fileNames = QFileDialog::getOpenFileNames(this,
+                                                              tr("Select additional libraries"),
+                                                              QDir::homePath(),
+                                                              tr("Libraries (*.so)"));
+        if (!fileNames.isEmpty())
+            libsModel->addEntries(fileNames);
+    });
+
+    auto removeLibButton = new QToolButton;
+    removeLibButton->setText(tr("Remove"));
+    removeLibButton->setToolTip(tr("Remove currently selected library from list."));
+    connect(removeLibButton, &QAbstractButton::clicked, this, [libsModel, libsView] {
+        QModelIndexList removeList = libsView->selectionModel()->selectedIndexes();
+        libsModel->removeEntries(removeList);
+    });
+
+    auto libsButtonLayout = new QVBoxLayout;
+    libsButtonLayout->addWidget(addLibButton);
+    libsButtonLayout->addWidget(removeLibButton);
+    libsButtonLayout->addStretch(1);
+
+    m_openSslCheckBox = new QCheckBox(tr("Include prebuilt OpenSSL libraries"));
+    m_openSslCheckBox->setToolTip(tr("This is useful for apps that use SSL operations. The path "
+                                     "can be defined in Tools > Options > Devices > Android."));
+    connect(m_openSslCheckBox, &QAbstractButton::clicked, this,
+            &AndroidBuildApkWidget::onOpenSslCheckBoxChanged);
+
+    auto grid = new QGridLayout(group);
+    grid->addWidget(m_openSslCheckBox, 0, 0);
+    grid->addWidget(libsView, 1, 0);
+    grid->addLayout(libsButtonLayout, 1, 1);
+
+    QItemSelectionModel *libSelection = libsView->selectionModel();
+    connect(libSelection, &QItemSelectionModel::selectionChanged, this, [libSelection, removeLibButton] {
+        removeLibButton->setEnabled(libSelection->hasSelection());
+    });
+
+    Target *target = m_step->target();
+    RunConfiguration *rc = target->activeRunConfiguration();
+    const ProjectNode *node = rc ? target->project()->findNodeForBuildKey(rc->buildKey()) : nullptr;
+    group->setEnabled(node && !node->parseInProgress());
+
+    return group;
 }
 
-void AndroidBuildApkInnerWidget::signPackageCheckBoxToggled(bool checked)
+void AndroidBuildApkWidget::signPackageCheckBoxToggled(bool checked)
 {
-    m_ui->certificatesAliasComboBox->setEnabled(checked);
+    m_certificatesAliasComboBox->setEnabled(checked);
     m_step->setSignPackage(checked);
-    m_ui->addDebuggerCheckBox->setChecked(!checked);
+    m_addDebuggerCheckBox->setChecked(!checked);
     updateSigningWarning();
     if (!checked)
         return;
@@ -156,171 +348,67 @@ void AndroidBuildApkInnerWidget::signPackageCheckBoxToggled(bool checked)
         setCertificates();
 }
 
-void AndroidBuildApkInnerWidget::createKeyStore()
+void AndroidBuildApkWidget::onOpenSslCheckBoxChanged()
 {
-    AndroidCreateKeystoreCertificate d;
-    if (d.exec() != QDialog::Accepted)
+    Utils::FilePath projectPath = m_step->buildConfiguration()->buildSystem()->projectFilePath();
+    QFile projectFile(projectPath.toString());
+    if (!projectFile.open(QIODevice::ReadWrite | QIODevice::Text)) {
+        qWarning() << "Cound't open project file to add OpenSSL extra libs: " << projectPath;
         return;
-    m_ui->KeystoreLocationPathChooser->setPath(d.keystoreFilePath().toUserOutput());
-    m_step->setKeystorePath(d.keystoreFilePath());
-    m_step->setKeystorePassword(d.keystorePassword());
-    m_step->setCertificateAlias(d.certificateAlias());
-    m_step->setCertificatePassword(d.certificatePassword());
-    setCertificates();
+    }
+
+    const QString searchStr = openSslIncludeFileContent(projectPath);
+    QTextStream textStream(&projectFile);
+
+    QString fileContent = textStream.readAll();
+    if (!m_openSslCheckBox->isChecked()) {
+        fileContent.remove("\n" + searchStr);
+    } else if (!fileContent.contains(searchStr, Qt::CaseSensitive)) {
+        fileContent.append(searchStr + "\n");
+    }
+
+    projectFile.resize(0);
+    textStream << fileContent;
+    projectFile.close();
 }
 
-void AndroidBuildApkInnerWidget::setCertificates()
+bool AndroidBuildApkWidget::isOpenSslLibsIncluded()
+{
+    Utils::FilePath projectPath = m_step->buildConfiguration()->buildSystem()->projectFilePath();
+    const QString searchStr = openSslIncludeFileContent(projectPath);
+    QFile projectFile(projectPath.toString());
+    projectFile.open(QIODevice::ReadOnly);
+    QTextStream textStream(&projectFile);
+    QString fileContent = textStream.readAll();
+    projectFile.close();
+    return fileContent.contains(searchStr, Qt::CaseSensitive);
+}
+
+QString AndroidBuildApkWidget::openSslIncludeFileContent(const Utils::FilePath &projectPath)
+{
+    QString openSslPath = AndroidConfigurations::currentConfig().openSslLocation().toString();
+    if (projectPath.endsWith(".pro"))
+        return "android: include(" + openSslPath + "/openssl.pri)";
+    if (projectPath.endsWith("CMakeLists.txt"))
+        return "if (ANDROID)\n    include(" + openSslPath + "/CMakeLists.txt)\nendif()";
+
+    return QString();
+}
+
+void AndroidBuildApkWidget::setCertificates()
 {
     QAbstractItemModel *certificates = m_step->keystoreCertificates();
     if (certificates) {
-        m_ui->signPackageCheckBox->setChecked(certificates);
-        m_ui->certificatesAliasComboBox->setModel(certificates);
+        m_signPackageCheckBox->setChecked(certificates);
+        m_certificatesAliasComboBox->setModel(certificates);
     }
 }
 
-void AndroidBuildApkInnerWidget::updateKeyStorePath(const QString &path)
+void AndroidBuildApkWidget::updateSigningWarning()
 {
-    Utils::FileName file = Utils::FileName::fromString(path);
-    m_step->setKeystorePath(file);
-    m_ui->signPackageCheckBox->setChecked(!file.isEmpty());
-    if (!file.isEmpty())
-        setCertificates();
-}
-
-void AndroidBuildApkInnerWidget::certificatesAliasComboBoxActivated(const QString &alias)
-{
-    if (alias.length())
-        m_step->setCertificateAlias(alias);
-}
-
-void AndroidBuildApkInnerWidget::certificatesAliasComboBoxCurrentIndexChanged(const QString &alias)
-{
-    if (alias.length())
-        m_step->setCertificateAlias(alias);
-}
-
-void AndroidBuildApkInnerWidget::openPackageLocationCheckBoxToggled(bool checked)
-{
-    m_step->setOpenPackageLocation(checked);
-}
-
-void AndroidBuildApkInnerWidget::verboseOutputCheckBoxToggled(bool checked)
-{
-    m_step->setVerboseOutput(checked);
-}
-
-void AndroidBuildApkInnerWidget::updateSigningWarning()
-{
-    bool nonRelease = m_step->buildConfiguration()->buildType()
-            != ProjectExplorer::BuildConfiguration::Release;
-    if (m_step->signPackage() && nonRelease) {
-        m_ui->signingDebugWarningIcon->setVisible(true);
-        m_ui->signingDebugWarningLabel->setVisible(true);
-    } else {
-        m_ui->signingDebugWarningIcon->setVisible(false);
-        m_ui->signingDebugWarningLabel->setVisible(false);
-    }
-}
-
-
-// AndroidBuildApkWidget
-
-AndroidBuildApkWidget::AndroidBuildApkWidget(AndroidBuildApkStep *step) :
-    BuildStepConfigWidget(step),
-    m_step(step)
-{
-    setDisplayName("<b>" + tr("Build Android APK") + "</b>");
-    setSummaryText("<b>" + tr("Build Android APK") + "</b>");
-
-    m_extraLibraryListModel = new AndroidExtraLibraryListModel(m_step->target(), this);
-
-    auto base = new AndroidBuildApkInnerWidget(step);
-    base->layout()->setContentsMargins(0, 0, 0, 0);
-
-    auto createTemplatesGroupBox = new QGroupBox(tr("Android"));
-    createTemplatesGroupBox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-
-    auto createAndroidTemplatesButton = new QPushButton(tr("Create Templates"));
-
-    auto horizontalLayout = new QHBoxLayout(createTemplatesGroupBox);
-    horizontalLayout->addWidget(createAndroidTemplatesButton);
-    horizontalLayout->addStretch(1);
-
-    auto additionalLibrariesGroupBox = new QGroupBox(tr("Additional Libraries"));
-    additionalLibrariesGroupBox->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
-
-    m_androidExtraLibsListView = new QListView;
-    m_androidExtraLibsListView->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    m_androidExtraLibsListView->setToolTip(tr("List of extra libraries to include in Android package and load on startup."));
-    m_androidExtraLibsListView->setModel(m_extraLibraryListModel);
-
-    auto addAndroidExtraLibButton = new QToolButton;
-    addAndroidExtraLibButton->setText(tr("Add..."));
-    addAndroidExtraLibButton->setToolTip(tr("Select library to include in package."));
-    addAndroidExtraLibButton->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-    addAndroidExtraLibButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
-
-    m_removeAndroidExtraLibButton = new QToolButton;
-    m_removeAndroidExtraLibButton->setText(tr("Remove"));
-    m_removeAndroidExtraLibButton->setToolTip(tr("Remove currently selected library from list."));
-
-    auto androidExtraLibsButtonLayout = new QVBoxLayout();
-    androidExtraLibsButtonLayout->addWidget(addAndroidExtraLibButton);
-    androidExtraLibsButtonLayout->addWidget(m_removeAndroidExtraLibButton);
-    androidExtraLibsButtonLayout->addStretch(1);
-
-    auto androidExtraLibsLayout = new QHBoxLayout(additionalLibrariesGroupBox);
-    androidExtraLibsLayout->addWidget(m_androidExtraLibsListView);
-    androidExtraLibsLayout->addLayout(androidExtraLibsButtonLayout);
-
-    auto topLayout = new QVBoxLayout(this);
-    topLayout->addWidget(base);
-    topLayout->addWidget(createTemplatesGroupBox);
-    topLayout->addWidget(additionalLibrariesGroupBox);
-
-    connect(createAndroidTemplatesButton, &QAbstractButton::clicked, this, [this] {
-        CreateAndroidManifestWizard wizard(m_step->target());
-        wizard.exec();
-    });
-
-    connect(addAndroidExtraLibButton, &QAbstractButton::clicked,
-            this, &AndroidBuildApkWidget::addAndroidExtraLib);
-
-    connect(m_removeAndroidExtraLibButton, &QAbstractButton::clicked,
-            this, &AndroidBuildApkWidget::removeAndroidExtraLib);
-
-    connect(m_androidExtraLibsListView->selectionModel(), &QItemSelectionModel::selectionChanged,
-            this, &AndroidBuildApkWidget::checkEnableRemoveButton);
-
-    connect(m_extraLibraryListModel, &AndroidExtraLibraryListModel::enabledChanged,
-            additionalLibrariesGroupBox, &QWidget::setEnabled);
-
-    Target *target = m_step->target();
-    RunConfiguration *rc = target->activeRunConfiguration();
-    const ProjectNode *node = rc ? target->project()->findNodeForBuildKey(rc->buildKey()) : nullptr;
-    additionalLibrariesGroupBox->setEnabled(node && !node->parseInProgress());
-}
-
-void AndroidBuildApkWidget::addAndroidExtraLib()
-{
-    QStringList fileNames = QFileDialog::getOpenFileNames(this,
-                                                          tr("Select additional libraries"),
-                                                          QDir::homePath(),
-                                                          tr("Libraries (*.so)"));
-
-    if (!fileNames.isEmpty())
-        m_extraLibraryListModel->addEntries(fileNames);
-}
-
-void AndroidBuildApkWidget::removeAndroidExtraLib()
-{
-    QModelIndexList removeList = m_androidExtraLibsListView->selectionModel()->selectedIndexes();
-    m_extraLibraryListModel->removeEntries(removeList);
-}
-
-void AndroidBuildApkWidget::checkEnableRemoveButton()
-{
-    m_removeAndroidExtraLibButton->setEnabled(m_androidExtraLibsListView->selectionModel()->hasSelection());
+    bool nonRelease = m_step->buildConfiguration()->buildType() != BuildConfiguration::Release;
+    bool visible = m_step->signPackage() && nonRelease;
+    m_signingDebugWarningLabel->setVisible(visible);
 }
 
 } // Internal

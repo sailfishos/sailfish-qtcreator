@@ -24,7 +24,6 @@
 ****************************************************************************/
 
 #include "qmakestep.h"
-#include "ui_qmakestep.h"
 
 #include "qmakemakestep.h"
 #include "qmakebuildconfiguration.h"
@@ -33,6 +32,7 @@
 #include "qmakeparser.h"
 #include "qmakeproject.h"
 #include "qmakeprojectmanagerconstants.h"
+#include "qmakesettings.h"
 
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/buildsteplist.h>
@@ -53,8 +53,15 @@
 #include <utils/qtcprocess.h>
 #include <utils/utilsicons.h>
 
+#include <QCheckBox>
+#include <QComboBox>
 #include <QDir>
+#include <QFormLayout>
+#include <QLabel>
+#include <QLineEdit>
+#include <QListWidget>
 #include <QMessageBox>
+#include <QPlainTextEdit>
 
 using namespace QmakeProjectManager;
 using namespace QmakeProjectManager::Internal;
@@ -63,25 +70,27 @@ using namespace ProjectExplorer;
 using namespace Utils;
 
 namespace {
-const char QMAKE_BS_ID[] = "QtProjectManager.QMakeBuildStep";
-
 const char QMAKE_ARGUMENTS_KEY[] = "QtProjectManager.QMakeBuildStep.QMakeArguments";
 const char QMAKE_FORCED_KEY[] = "QtProjectManager.QMakeBuildStep.QMakeForced";
-const char QMAKE_USE_QTQUICKCOMPILER[] = "QtProjectManager.QMakeBuildStep.UseQtQuickCompiler";
-const char QMAKE_SEPARATEDEBUGINFO_KEY[] = "QtProjectManager.QMakeBuildStep.SeparateDebugInfo";
-const char QMAKE_QMLDEBUGLIBAUTO_KEY[] = "QtProjectManager.QMakeBuildStep.LinkQmlDebuggingLibraryAuto";
-const char QMAKE_QMLDEBUGLIB_KEY[] = "QtProjectManager.QMakeBuildStep.LinkQmlDebuggingLibrary";
+const char QMAKE_SELECTED_ABIS_KEY[] = "QtProjectManager.QMakeBuildStep.SelectedAbis";
 }
 
-QMakeStep::QMakeStep(BuildStepList *bsl) : AbstractProcessStep(bsl, QMAKE_BS_ID)
+QMakeStep::QMakeStep(BuildStepList *bsl, Core::Id id)
+    : AbstractProcessStep(bsl, id)
 {
     //: QMakeStep default display name
     setDefaultDisplayName(tr("qmake"));
+    setLowPriority();
 }
 
 QmakeBuildConfiguration *QMakeStep::qmakeBuildConfiguration() const
 {
-    return static_cast<QmakeBuildConfiguration *>(buildConfiguration());
+    return qobject_cast<QmakeBuildConfiguration *>(buildConfiguration());
+}
+
+QmakeBuildSystem *QMakeStep::qmakeBuildSystem() const
+{
+    return qmakeBuildConfiguration()->qmakeBuildSystem();
 }
 
 ///
@@ -114,9 +123,9 @@ QString QMakeStep::allArguments(const BaseQtVersion *v, ArgumentFlags flags) con
             }
         }
     }
-    FileName specArg = mkspec();
+    const QString specArg = mkspec();
     if (!userProvidedMkspec && !specArg.isEmpty())
-        arguments << "-spec" << specArg.toUserOutput();
+        arguments << "-spec" << QDir::toNativeSeparators(specArg);
 
     // Find out what flags we pass on to qmake
     arguments << bc->configCommandLineArguments();
@@ -136,29 +145,24 @@ QMakeStepConfig QMakeStep::deducedArguments() const
     ProjectExplorer::Kit *kit = target()->kit();
     QMakeStepConfig config;
     ProjectExplorer::ToolChain *tc
-            = ProjectExplorer::ToolChainKitInformation::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
+            = ProjectExplorer::ToolChainKitAspect::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
     ProjectExplorer::Abi targetAbi;
     if (tc) {
         targetAbi = tc->targetAbi();
         if (HostOsInfo::isWindowsHost()
             && tc->typeId() == ProjectExplorer::Constants::CLANG_TOOLCHAIN_TYPEID) {
-            config.sysRoot = ProjectExplorer::SysRootKitInformation::sysRoot(kit).toString();
+            config.sysRoot = ProjectExplorer::SysRootKitAspect::sysRoot(kit).toString();
             config.targetTriple = tc->originalTargetTriple();
         }
     }
 
-    BaseQtVersion *version = QtKitInformation::qtVersion(target()->kit());
+    BaseQtVersion *version = QtKitAspect::qtVersion(target()->kit());
 
     config.archConfig = QMakeStepConfig::targetArchFor(targetAbi, version);
     config.osType = QMakeStepConfig::osTypeFor(targetAbi, version);
-    if (linkQmlDebuggingLibrary() && version && version->qtVersion().majorVersion >= 5)
-        config.linkQmlDebuggingQQ2 = true;
-
-    if (useQtQuickCompiler() && version)
-        config.useQtQuickCompiler = true;
-
-    if (separateDebugInfo())
-        config.separateDebugInfo = true;
+    config.separateDebugInfo = qmakeBuildConfiguration()->separateDebugInfo();
+    config.linkQmlDebuggingQQ2 = qmakeBuildConfiguration()->qmlDebugging();
+    config.useQtQuickCompiler = qmakeBuildConfiguration()->useQtQuickCompiler();
 
     return config;
 }
@@ -167,25 +171,24 @@ bool QMakeStep::init()
 {
     m_wasSuccess = true;
     QmakeBuildConfiguration *qmakeBc = qmakeBuildConfiguration();
-    const BaseQtVersion *qtVersion = QtKitInformation::qtVersion(target()->kit());
+    const BaseQtVersion *qtVersion = QtKitAspect::qtVersion(target()->kit());
 
     if (!qtVersion) {
         emit addOutput(tr("No Qt version configured."), BuildStep::OutputFormat::ErrorMessage);
         return false;
     }
 
-    QString workingDirectory;
+    FilePath workingDirectory;
 
     if (qmakeBc->subNodeBuild())
-        workingDirectory = qmakeBc->subNodeBuild()->buildDir();
+        workingDirectory = qmakeBc->subNodeBuild()->buildDir(qmakeBc);
     else
-        workingDirectory = qmakeBc->buildDirectory().toString();
+        workingDirectory = qmakeBc->buildDirectory();
 
-    m_qmakeExecutable = qtVersion->qmakeCommand().toString();
-    m_qmakeArguments = allArguments(qtVersion);
+    m_qmakeCommand = CommandLine{qtVersion->qmakeCommand(), allArguments(qtVersion), CommandLine::Raw};
     m_runMakeQmake = m_recursive && (qtVersion->qtVersion() >= QtVersionNumber(5, 0 ,0));
 
-    QString makefile = workingDirectory + '/';
+    QString makefile = workingDirectory.toString() + '/';
 
     if (qmakeBc->subNodeBuild()) {
         QmakeProFileNode *pro = qmakeBc->subNodeBuild();
@@ -200,23 +203,23 @@ bool QMakeStep::init()
     }
 
     if (m_runMakeQmake) {
-        m_makeExecutable = makeCommand();
-        if (m_makeExecutable.isEmpty()) {
+        const FilePath make = makeCommand();
+        if (make.isEmpty()) {
             emit addOutput(tr("Could not determine which \"make\" command to run. "
                               "Check the \"make\" step in the build configuration."),
                            BuildStep::OutputFormat::ErrorMessage);
             return false;
         }
-        m_makeArguments = makeArguments(makefile);
+        m_makeCommand = CommandLine{make, makeArguments(makefile), CommandLine::Raw};
     } else {
-        m_makeExecutable.clear();
-        m_makeArguments.clear();
+        m_makeCommand = {};
     }
 
     // Check whether we need to run qmake
-    bool makefileOutDated = (qmakeBc->compareToImportFrom(makefile) != QmakeBuildConfiguration::MakefileMatches);
-    if (m_forced || makefileOutDated)
+    if (m_forced || QmakeSettings::alwaysRunQmake()
+            || qmakeBc->compareToImportFrom(makefile) != QmakeBuildConfiguration::MakefileMatches) {
         m_needToRunQMake = true;
+    }
     m_forced = false;
 
     ProcessParameters *pp = processParameters();
@@ -226,13 +229,13 @@ bool QMakeStep::init()
 
     setOutputParser(new QMakeParser);
 
-    QmakeProFileNode *node = static_cast<QmakeProject *>(qmakeBc->target()->project())->rootProjectNode();
+    QmakeProFileNode *node = static_cast<QmakeProFileNode *>(qmakeBc->project()->rootProjectNode());
     if (qmakeBc->subNodeBuild())
         node = qmakeBc->subNodeBuild();
     QTC_ASSERT(node, return false);
     QString proFile = node->filePath().toString();
 
-    QList<ProjectExplorer::Task> tasks = qtVersion->reportIssues(proFile, workingDirectory);
+    Tasks tasks = qtVersion->reportIssues(proFile, workingDirectory.toString());
     Utils::sort(tasks);
 
     if (!tasks.isEmpty()) {
@@ -299,8 +302,7 @@ bool QMakeStep::processSucceeded(int exitCode, QProcess::ExitStatus status)
     bool result = AbstractProcessStep::processSucceeded(exitCode, status);
     if (!result)
         m_needToRunQMake = true;
-    auto *project = static_cast<QmakeProject *>(qmakeBuildConfiguration()->target()->project());
-    project->emitBuildDirectoryInitialized();
+    emit buildConfiguration()->buildDirectoryChanged();
     return result;
 }
 
@@ -315,12 +317,10 @@ void QMakeStep::finish(bool success)
     runNextCommand();
 }
 
-void QMakeStep::startOneCommand(const QString &command, const QString &args)
+void QMakeStep::startOneCommand(const CommandLine &command)
 {
     ProcessParameters *pp = processParameters();
-    pp->setCommand(command);
-    pp->setArguments(args);
-    pp->resolveAll();
+    pp->setCommandLine(command);
 
     AbstractProcessStep::doRun();
 }
@@ -342,15 +342,15 @@ void QMakeStep::runNextCommand()
     case State::RUN_QMAKE:
         setOutputParser(new QMakeParser);
         m_nextState = (m_runMakeQmake ? State::RUN_MAKE_QMAKE_ALL : State::POST_PROCESS);
-        startOneCommand(m_qmakeExecutable, m_qmakeArguments);
+        startOneCommand(m_qmakeCommand);
         return;
     case State::RUN_MAKE_QMAKE_ALL:
         {
             auto *parser = new GnuMakeParser;
-            parser->setWorkingDirectory(processParameters()->workingDirectory());
+            parser->setWorkingDirectory(processParameters()->workingDirectory().toString());
             setOutputParser(parser);
             m_nextState = State::POST_PROCESS;
-            startOneCommand(m_makeExecutable, m_makeArguments);
+            startOneCommand(m_makeCommand);
         }
         return;
     case State::POST_PROCESS:
@@ -358,6 +358,16 @@ void QMakeStep::runNextCommand()
         emit finished(m_wasSuccess);
         return;
     }
+}
+
+QStringList QMakeStep::selectedAbis() const
+{
+    return m_selectedAbis;
+}
+
+void QMakeStep::setSelectedAbis(const QStringList &selectedAbis)
+{
+    m_selectedAbis = selectedAbis;
 }
 
 void QMakeStep::setUserArguments(const QString &arguments)
@@ -368,8 +378,8 @@ void QMakeStep::setUserArguments(const QString &arguments)
 
     emit userArgumentsChanged();
 
-    qmakeBuildConfiguration()->emitQMakeBuildConfigurationChanged();
-    qmakeBuildConfiguration()->emitProFileEvaluateNeeded();
+    emit qmakeBuildConfiguration()->qmakeBuildConfigurationChanged();
+    qmakeBuildSystem()->scheduleUpdateAllNowOrLater();
 }
 
 QStringList QMakeStep::extraArguments() const
@@ -382,68 +392,26 @@ void QMakeStep::setExtraArguments(const QStringList &args)
     if (m_extraArgs != args) {
         m_extraArgs = args;
         emit extraArgumentsChanged();
-        qmakeBuildConfiguration()->emitQMakeBuildConfigurationChanged();
-        qmakeBuildConfiguration()->emitProFileEvaluateNeeded();
+        emit qmakeBuildConfiguration()->qmakeBuildConfigurationChanged();
+        qmakeBuildSystem()->scheduleUpdateAllNowOrLater();
     }
 }
 
-bool QMakeStep::linkQmlDebuggingLibrary() const
+QStringList QMakeStep::extraParserArguments() const
 {
-    return m_linkQmlDebuggingLibrary;
+    return m_extraParserArgs;
 }
 
-void QMakeStep::setLinkQmlDebuggingLibrary(bool enable)
+void QMakeStep::setExtraParserArguments(const QStringList &args)
 {
-    if (enable == m_linkQmlDebuggingLibrary)
-        return;
-
-    m_linkQmlDebuggingLibrary = enable;
-
-    emit linkQmlDebuggingLibraryChanged();
-
-    qmakeBuildConfiguration()->emitQMakeBuildConfigurationChanged();
-    qmakeBuildConfiguration()->emitProFileEvaluateNeeded();
+    m_extraParserArgs = args;
 }
 
-bool QMakeStep::useQtQuickCompiler() const
+FilePath QMakeStep::makeCommand() const
 {
-    return m_useQtQuickCompiler;
-}
-
-void QMakeStep::setUseQtQuickCompiler(bool enable)
-{
-    if (enable == m_useQtQuickCompiler)
-        return;
-
-    m_useQtQuickCompiler = enable;
-
-    emit useQtQuickCompilerChanged();
-
-    qmakeBuildConfiguration()->emitQMakeBuildConfigurationChanged();
-    qmakeBuildConfiguration()->emitProFileEvaluateNeeded();
-}
-
-bool QMakeStep::separateDebugInfo() const
-{
-    return m_separateDebugInfo;
-}
-
-void QMakeStep::setSeparateDebugInfo(bool enable)
-{
-    if (enable == m_separateDebugInfo)
-        return;
-    m_separateDebugInfo = enable;
-
-    emit separateDebugInfoChanged();
-
-    qmakeBuildConfiguration()->emitQMakeBuildConfigurationChanged();
-    qmakeBuildConfiguration()->emitProFileEvaluateNeeded();
-}
-
-QString QMakeStep::makeCommand() const
-{
-    auto *ms = qobject_cast<BuildStepList *>(parent())->firstOfType<MakeStep>();
-    return ms ? ms->effectiveMakeCommand() : QString();
+    if (auto ms = stepList()->firstOfType<MakeStep>())
+        return ms->makeExecutable();
+    return FilePath();
 }
 
 QString QMakeStep::makeArguments(const QString &makefile) const
@@ -459,11 +427,11 @@ QString QMakeStep::makeArguments(const QString &makefile) const
 
 QString QMakeStep::effectiveQMakeCall() const
 {
-    BaseQtVersion *qtVersion = QtKitInformation::qtVersion(target()->kit());
+    BaseQtVersion *qtVersion = QtKitAspect::qtVersion(target()->kit());
     QString qmake = qtVersion ? qtVersion->qmakeCommand().toUserOutput() : QString();
     if (qmake.isEmpty())
         qmake = tr("<no Qt version>");
-    QString make = makeCommand();
+    QString make = makeCommand().toString();
     if (make.isEmpty())
         make = tr("<no Make step found>");
 
@@ -482,8 +450,8 @@ QStringList QMakeStep::parserArguments()
 {
     // NOTE: extra parser args placed before the other args intentionally
     QStringList result = m_extraParserArgs;
-    BaseQtVersion *qt = QtKitInformation::qtVersion(target()->kit());
-    QTC_ASSERT(qt, return result);
+    BaseQtVersion *qt = QtKitAspect::qtVersion(target()->kit());
+    QTC_ASSERT(qt, return QStringList());
     for (QtcProcess::ConstArgIterator ait(allArguments(qt, ArgumentFlag::Expand)); ait.next(); ) {
         if (ait.isSimple())
             result << ait.value();
@@ -491,43 +459,31 @@ QStringList QMakeStep::parserArguments()
     return result;
 }
 
-QStringList QMakeStep::extraParserArguments() const
-{
-    return m_extraParserArgs;
-}
-
-void QMakeStep::setExtraParserArguments(const QStringList &args)
-{
-    m_extraParserArgs = args;
-}
-
 QString QMakeStep::userArguments()
 {
     return m_userArgs;
 }
 
-FileName QMakeStep::mkspec() const
+QString QMakeStep::mkspec() const
 {
     QString additionalArguments = m_userArgs;
     QtcProcess::addArgs(&additionalArguments, m_extraArgs);
     for (QtcProcess::ArgIterator ait(&additionalArguments); ait.next(); ) {
         if (ait.value() == "-spec") {
             if (ait.next())
-                return FileName::fromUserInput(ait.value());
+                return FilePath::fromUserInput(ait.value()).toString();
         }
     }
 
-    return QmakeProjectManager::QmakeKitInformation::effectiveMkspec(target()->kit());
+    return QmakeKitAspect::effectiveMkspec(target()->kit());
 }
 
 QVariantMap QMakeStep::toMap() const
 {
     QVariantMap map(AbstractProcessStep::toMap());
     map.insert(QMAKE_ARGUMENTS_KEY, m_userArgs);
-    map.insert(QMAKE_QMLDEBUGLIB_KEY, m_linkQmlDebuggingLibrary);
     map.insert(QMAKE_FORCED_KEY, m_forced);
-    map.insert(QMAKE_USE_QTQUICKCOMPILER, m_useQtQuickCompiler);
-    map.insert(QMAKE_SEPARATEDEBUGINFO_KEY, m_separateDebugInfo);
+    map.insert(QMAKE_SELECTED_ABIS_KEY, m_selectedAbis);
     return map;
 }
 
@@ -535,19 +491,21 @@ bool QMakeStep::fromMap(const QVariantMap &map)
 {
     m_userArgs = map.value(QMAKE_ARGUMENTS_KEY).toString();
     m_forced = map.value(QMAKE_FORCED_KEY, false).toBool();
-    m_useQtQuickCompiler = map.value(QMAKE_USE_QTQUICKCOMPILER, false).toBool();
+    m_selectedAbis = map.value(QMAKE_SELECTED_ABIS_KEY).toStringList();
 
-    // QMAKE_QMLDEBUGLIBAUTO_KEY was used in versions 2.3 to 3.5 (both included) to automatically
-    // change the qml_debug CONFIG flag based no the qmake build configuration.
-    if (map.value(QMAKE_QMLDEBUGLIBAUTO_KEY, false).toBool()) {
-        m_linkQmlDebuggingLibrary =
-                project()->projectLanguages().contains(
-                    ProjectExplorer::Constants::QMLJS_LANGUAGE_ID) &&
-                (qmakeBuildConfiguration()->qmakeBuildConfiguration() & BaseQtVersion::DebugBuild);
-    } else {
-        m_linkQmlDebuggingLibrary = map.value(QMAKE_QMLDEBUGLIB_KEY, false).toBool();
-    }
-    m_separateDebugInfo = map.value(QMAKE_SEPARATEDEBUGINFO_KEY, false).toBool();
+    // Backwards compatibility with < Creator 4.12.
+    const QVariant separateDebugInfo
+            = map.value("QtProjectManager.QMakeBuildStep.SeparateDebugInfo");
+    if (separateDebugInfo.isValid())
+        qmakeBuildConfiguration()->forceSeparateDebugInfo(separateDebugInfo.toBool());
+    const QVariant qmlDebugging
+            = map.value("QtProjectManager.QMakeBuildStep.LinkQmlDebuggingLibrary");
+    if (qmlDebugging.isValid())
+        qmakeBuildConfiguration()->forceQmlDebugging(qmlDebugging.toBool());
+    const QVariant useQtQuickCompiler
+            = map.value("QtProjectManager.QMakeBuildStep.UseQtQuickCompiler");
+    if (useQtQuickCompiler.isValid())
+        qmakeBuildConfiguration()->forceQtQuickCompiler(useQtQuickCompiler.toBool());
 
     return BuildStep::fromMap(map);
 }
@@ -557,73 +515,103 @@ bool QMakeStep::fromMap(const QVariantMap &map)
 ////
 
 QMakeStepConfigWidget::QMakeStepConfigWidget(QMakeStep *step)
-    : BuildStepConfigWidget(step), m_ui(new Internal::Ui::QMakeStep), m_step(step)
+    : BuildStepConfigWidget(step), m_step(step)
 {
-    m_ui->setupUi(this);
+    auto label_0 = new QLabel(tr("qmake build configuration:"), this);
 
-    m_ui->qmakeAdditonalArgumentsLineEdit->setText(m_step->userArguments());
-    m_ui->qmlDebuggingLibraryCheckBox->setChecked(m_step->linkQmlDebuggingLibrary());
-    m_ui->qtQuickCompilerCheckBox->setChecked(m_step->useQtQuickCompiler());
-    m_ui->separateDebugInfoCheckBox->setChecked(m_step->separateDebugInfo());
-    const QPixmap warning = Utils::Icons::WARNING.pixmap();
-    m_ui->qmlDebuggingWarningIcon->setPixmap(warning);
-    m_ui->qtQuickCompilerWarningIcon->setPixmap(warning);
+    auto buildConfigurationWidget = new QWidget(this);
+
+    buildConfigurationComboBox = new QComboBox(buildConfigurationWidget);
+    buildConfigurationComboBox->addItem(tr("Debug"));
+    buildConfigurationComboBox->addItem(tr("Release"));
+
+    QSizePolicy sizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    sizePolicy.setHorizontalStretch(0);
+    sizePolicy.setVerticalStretch(0);
+    sizePolicy.setHeightForWidth(buildConfigurationComboBox->sizePolicy().hasHeightForWidth());
+    buildConfigurationComboBox->setSizePolicy(sizePolicy);
+
+    auto horizontalLayout_0 = new QHBoxLayout(buildConfigurationWidget);
+    horizontalLayout_0->setContentsMargins(0, 0, 0, 0);
+    horizontalLayout_0->addWidget(buildConfigurationComboBox);
+    horizontalLayout_0->addItem(new QSpacerItem(71, 20, QSizePolicy::Expanding, QSizePolicy::Minimum));
+
+    auto qmakeArgsLabel = new QLabel(tr("Additional arguments:"), this);
+
+    qmakeAdditonalArgumentsLineEdit = new QLineEdit(this);
+
+    auto label = new QLabel(tr("Effective qmake call:"), this);
+    label->setAlignment(Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop);
+
+    qmakeArgumentsEdit = new QPlainTextEdit(this);
+    qmakeArgumentsEdit->setEnabled(true);
+    qmakeArgumentsEdit->setMaximumSize(QSize(16777215, 120));
+    qmakeArgumentsEdit->setTextInteractionFlags(Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse);
+
+    abisLabel = new QLabel(tr("ABIs:"), this);
+    abisLabel->setAlignment(Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop);
+
+    abisListWidget = new QListWidget(this);
+    qmakeAdditonalArgumentsLineEdit->setText(m_step->userArguments());
+
+    auto formLayout = new QFormLayout(this);
+    formLayout->addRow(label_0, buildConfigurationWidget);
+    formLayout->addRow(qmakeArgsLabel, qmakeAdditonalArgumentsLineEdit);
+    formLayout->addRow(label, qmakeArgumentsEdit);
+    formLayout->addRow(abisLabel, abisListWidget);
 
     qmakeBuildConfigChanged();
 
     updateSummaryLabel();
     updateEffectiveQMakeCall();
-    updateQmlDebuggingOption();
-    updateQtQuickCompilerOption();
 
-    connect(m_ui->qmakeAdditonalArgumentsLineEdit, &QLineEdit::textEdited,
+    connect(qmakeAdditonalArgumentsLineEdit, &QLineEdit::textEdited,
             this, &QMakeStepConfigWidget::qmakeArgumentsLineEdited);
-    connect(m_ui->buildConfigurationComboBox,
-            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+    connect(buildConfigurationComboBox,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &QMakeStepConfigWidget::buildConfigurationSelected);
-    connect(m_ui->qmlDebuggingLibraryCheckBox, &QCheckBox::toggled,
-            this, &QMakeStepConfigWidget::linkQmlDebuggingLibraryChecked);
-    connect(m_ui->qmlDebuggingLibraryCheckBox, &QCheckBox::clicked,
-            this, [this] { askForRebuild(tr("QML Debugging")); });
-    connect(m_ui->qtQuickCompilerCheckBox, &QAbstractButton::toggled,
-            this, &QMakeStepConfigWidget::useQtQuickCompilerChecked);
-    connect(m_ui->qtQuickCompilerCheckBox, &QCheckBox::clicked,
-            this, [this] { askForRebuild(tr("QML Debugging")); });
-    connect(m_ui->separateDebugInfoCheckBox, &QAbstractButton::toggled,
-            this, &QMakeStepConfigWidget::separateDebugInfoChecked);
-    connect(m_ui->separateDebugInfoCheckBox, &QCheckBox::clicked,
-            this, [this] { askForRebuild(tr("QMake Configuration")); });
     connect(step, &QMakeStep::userArgumentsChanged,
             this, &QMakeStepConfigWidget::userArgumentsChanged);
-    connect(step, &QMakeStep::linkQmlDebuggingLibraryChanged,
-            this, &QMakeStepConfigWidget::linkQmlDebuggingLibraryChanged);
+    connect(step->qmakeBuildConfiguration(), &QmakeBuildConfiguration::qmlDebuggingChanged,
+            this, [this] {
+        linkQmlDebuggingLibraryChanged();
+        askForRebuild(tr("QML Debugging"));
+    });
     connect(step->project(), &Project::projectLanguagesUpdated,
             this, &QMakeStepConfigWidget::linkQmlDebuggingLibraryChanged);
-    connect(step, &QMakeStep::useQtQuickCompilerChanged,
+    connect(step->target(), &Target::parsingFinished,
+            this, &QMakeStepConfigWidget::updateEffectiveQMakeCall);
+    connect(step->qmakeBuildConfiguration(), &QmakeBuildConfiguration::useQtQuickCompilerChanged,
             this, &QMakeStepConfigWidget::useQtQuickCompilerChanged);
-    connect(step, &QMakeStep::separateDebugInfoChanged,
+    connect(step->qmakeBuildConfiguration(), &QmakeBuildConfiguration::separateDebugInfoChanged,
             this, &QMakeStepConfigWidget::separateDebugInfoChanged);
     connect(step->qmakeBuildConfiguration(), &QmakeBuildConfiguration::qmakeBuildConfigurationChanged,
             this, &QMakeStepConfigWidget::qmakeBuildConfigChanged);
     connect(step->target(), &Target::kitChanged, this, &QMakeStepConfigWidget::qtVersionChanged);
-    connect(QtVersionManager::instance(), &QtVersionManager::dumpUpdatedFor,
-            this, &QMakeStepConfigWidget::qtVersionChanged);
-    auto chooser = new Core::VariableChooser(m_ui->qmakeAdditonalArgumentsLineEdit);
+    connect(abisListWidget, &QListWidget::itemChanged, this, [this]{
+        abisChanged();
+        QmakeBuildConfiguration *bc = m_step->qmakeBuildConfiguration();
+        if (!bc)
+            return;
+
+        QList<ProjectExplorer::BuildStepList *> stepLists;
+        const Core::Id clean = ProjectExplorer::Constants::BUILDSTEPS_CLEAN;
+        stepLists << bc->cleanSteps();
+        BuildManager::buildLists(stepLists, {ProjectExplorerPlugin::displayNameForStepId(clean)});
+    });
+    auto chooser = new Core::VariableChooser(qmakeAdditonalArgumentsLineEdit);
     chooser->addMacroExpanderProvider([step] { return step->macroExpander(); });
-    chooser->addSupportedWidget(m_ui->qmakeAdditonalArgumentsLineEdit);
+    chooser->addSupportedWidget(qmakeAdditonalArgumentsLineEdit);
 }
 
 QMakeStepConfigWidget::~QMakeStepConfigWidget()
 {
-    delete m_ui;
 }
 
 void QMakeStepConfigWidget::qtVersionChanged()
 {
     updateSummaryLabel();
     updateEffectiveQMakeCall();
-    updateQmlDebuggingOption();
-    updateQtQuickCompilerOption();
 }
 
 void QMakeStepConfigWidget::qmakeBuildConfigChanged()
@@ -631,7 +619,7 @@ void QMakeStepConfigWidget::qmakeBuildConfigChanged()
     QmakeBuildConfiguration *bc = m_step->qmakeBuildConfiguration();
     bool debug = bc->qmakeBuildConfiguration() & BaseQtVersion::DebugBuild;
     m_ignoreChange = true;
-    m_ui->buildConfigurationComboBox->setCurrentIndex(debug? 0 : 1);
+    buildConfigurationComboBox->setCurrentIndex(debug? 0 : 1);
     m_ignoreChange = false;
     updateSummaryLabel();
     updateEffectiveQMakeCall();
@@ -641,37 +629,53 @@ void QMakeStepConfigWidget::userArgumentsChanged()
 {
     if (m_ignoreChange)
         return;
-    m_ui->qmakeAdditonalArgumentsLineEdit->setText(m_step->userArguments());
+    qmakeAdditonalArgumentsLineEdit->setText(m_step->userArguments());
     updateSummaryLabel();
     updateEffectiveQMakeCall();
 }
 
 void QMakeStepConfigWidget::linkQmlDebuggingLibraryChanged()
 {
-    if (m_ignoreChange)
-        return;
-    m_ui->qmlDebuggingLibraryCheckBox->setChecked(m_step->linkQmlDebuggingLibrary());
-
     updateSummaryLabel();
     updateEffectiveQMakeCall();
-    updateQmlDebuggingOption();
 }
 
 void QMakeStepConfigWidget::useQtQuickCompilerChanged()
 {
-    if (m_ignoreChange)
-        return;
-
     updateSummaryLabel();
     updateEffectiveQMakeCall();
-    updateQtQuickCompilerOption();
-    updateQmlDebuggingOption();
+    askForRebuild(tr("Qt Quick Compiler"));
 }
 
 void QMakeStepConfigWidget::separateDebugInfoChanged()
 {
-    if (m_ignoreChange)
-        return;
+    updateSummaryLabel();
+    updateEffectiveQMakeCall();
+    askForRebuild(tr("Separate Debug Information"));
+}
+
+void QMakeStepConfigWidget::abisChanged()
+{
+    QStringList abis;
+    for (int i = 0; i < abisListWidget->count(); ++i) {
+        auto item = abisListWidget->item(i);
+        if (item->checkState() == Qt::CheckState::Checked)
+            abis << item->text();
+    }
+    m_step->setSelectedAbis(abis);
+
+    if (isAndroidKit()) {
+        const QString prefix = "ANDROID_ABIS=";
+        QStringList args = m_step->extraArguments();
+        for (auto it = args.begin(); it != args.end(); ++it) {
+            if (it->startsWith(prefix)) {
+                args.erase(it);
+                break;
+            }
+        }
+        args << prefix + '"' + abis.join(' ') + '"';
+        m_step->setExtraArguments(args);
+    }
 
     updateSummaryLabel();
     updateEffectiveQMakeCall();
@@ -680,7 +684,7 @@ void QMakeStepConfigWidget::separateDebugInfoChanged()
 void QMakeStepConfigWidget::qmakeArgumentsLineEdited()
 {
     m_ignoreChange = true;
-    m_step->setUserArguments(m_ui->qmakeAdditonalArgumentsLineEdit->text());
+    m_step->setUserArguments(qmakeAdditonalArgumentsLineEdit->text());
     m_ignoreChange = false;
 
     updateSummaryLabel();
@@ -693,7 +697,7 @@ void QMakeStepConfigWidget::buildConfigurationSelected()
         return;
     QmakeBuildConfiguration *bc = m_step->qmakeBuildConfiguration();
     BaseQtVersion::QmakeBuildConfigs buildConfiguration = bc->qmakeBuildConfiguration();
-    if (m_ui->buildConfigurationComboBox->currentIndex() == 0) { // debug
+    if (buildConfigurationComboBox->currentIndex() == 0) { // debug
         buildConfiguration = buildConfiguration | BaseQtVersion::DebugBuild;
     } else {
         buildConfiguration = buildConfiguration & ~BaseQtVersion::DebugBuild;
@@ -704,20 +708,6 @@ void QMakeStepConfigWidget::buildConfigurationSelected()
 
     updateSummaryLabel();
     updateEffectiveQMakeCall();
-}
-
-void QMakeStepConfigWidget::linkQmlDebuggingLibraryChecked(bool checked)
-{
-    if (m_ignoreChange)
-        return;
-
-    m_ignoreChange = true;
-    m_step->setLinkQmlDebuggingLibrary(checked);
-    m_ignoreChange = false;
-
-    updateSummaryLabel();
-    updateEffectiveQMakeCall();
-    updateQmlDebuggingOption();
 }
 
 void QMakeStepConfigWidget::askForRebuild(const QString &title)
@@ -731,101 +721,78 @@ void QMakeStepConfigWidget::askForRebuild(const QString &title)
     question->show();
 }
 
-void QMakeStepConfigWidget::useQtQuickCompilerChecked(bool checked)
+bool QMakeStepConfigWidget::isAndroidKit() const
 {
-    if (m_ignoreChange)
-        return;
+    BaseQtVersion *qtVersion = QtKitAspect::qtVersion(m_step->target()->kit());
+    if (!qtVersion)
+        return false;
 
-    m_ignoreChange = true;
-    m_step->setUseQtQuickCompiler(checked);
-    m_ignoreChange = false;
-
-    updateSummaryLabel();
-    updateEffectiveQMakeCall();
-    updateQmlDebuggingOption();
-    updateQtQuickCompilerOption();
-}
-
-void QMakeStepConfigWidget::separateDebugInfoChecked(bool checked)
-{
-    if (m_ignoreChange)
-        return;
-
-    m_ignoreChange = true;
-    m_step->setSeparateDebugInfo(checked);
-    m_ignoreChange = false;
-
-    updateSummaryLabel();
-    updateEffectiveQMakeCall();
+    const Abis abis = qtVersion->qtAbis();
+    return Utils::anyOf(abis, [](const Abi &abi) {
+        return abi.osFlavor() == Abi::OSFlavor::AndroidLinuxFlavor;
+    });
 }
 
 void QMakeStepConfigWidget::updateSummaryLabel()
 {
-    BaseQtVersion *qtVersion = QtKitInformation::qtVersion(m_step->target()->kit());
+    BaseQtVersion *qtVersion = QtKitAspect::qtVersion(m_step->target()->kit());
     if (!qtVersion) {
         setSummaryText(tr("<b>qmake:</b> No Qt version set. Cannot run qmake."));
         return;
     }
-    // We don't want the full path to the .pro file
-    const QString args = m_step->allArguments(
-                qtVersion,
-                QMakeStep::ArgumentFlag::OmitProjectPath
-                | QMakeStep::ArgumentFlag::Expand);
-    // And we only use the .pro filename not the full path
+    const Abis abis = qtVersion->qtAbis();
+    const bool enableAbisSelect = abis.size() > 1;
+    abisLabel->setVisible(enableAbisSelect);
+    abisListWidget->setVisible(enableAbisSelect);
+
+    if (enableAbisSelect && abisListWidget->count() != abis.size()) {
+        abisListWidget->clear();
+        QStringList selectedAbis = m_step->selectedAbis();
+
+        if (selectedAbis.isEmpty() && isAndroidKit()) {
+            // Prefer ARM for Android, prefer 32bit.
+            for (const Abi &abi : abis) {
+                if (abi.param() == "armeabi-v7a")
+                    selectedAbis.append(abi.param());
+            }
+            if (selectedAbis.isEmpty()) {
+                for (const Abi &abi : abis) {
+                    if (abi.param() == "arm64-v8a")
+                        selectedAbis.append(abi.param());
+                }
+            }
+        }
+
+        for (const Abi &abi : abis) {
+            const QString param = abi.param();
+            auto item = new QListWidgetItem{param, abisListWidget};
+            item->setFlags(Qt::ItemIsUserCheckable | Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+            item->setCheckState(selectedAbis.contains(param) ? Qt::Checked : Qt::Unchecked);
+        }
+        abisChanged();
+    }
+
     const QString program = qtVersion->qmakeCommand().fileName();
-    setSummaryText(tr("<b>qmake:</b> %1 %2").arg(program, args));
-}
-
-void QMakeStepConfigWidget::updateQmlDebuggingOption()
-{
-    QString warningText;
-    bool supported = BaseQtVersion::isQmlDebuggingSupported(m_step->target()->kit(),
-                                                                       &warningText);
-
-    m_ui->qmlDebuggingLibraryCheckBox->setEnabled(supported);
-    m_ui->debuggingLibraryLabel->setText(tr("Enable QML debugging and profiling:"));
-
-    if (supported && m_step->linkQmlDebuggingLibrary())
-        warningText = tr("Might make your application vulnerable. Only use in a safe environment.");
-
-    m_ui->qmlDebuggingWarningText->setText(warningText);
-    m_ui->qmlDebuggingWarningIcon->setVisible(!warningText.isEmpty());
-
-    updateQtQuickCompilerOption(); // show or clear compiler warning text
-}
-
-void QMakeStepConfigWidget::updateQtQuickCompilerOption()
-{
-    QString warningText;
-    bool supported = BaseQtVersion::isQtQuickCompilerSupported(m_step->target()->kit(),
-                                                                          &warningText);
-    m_ui->qtQuickCompilerCheckBox->setEnabled(supported);
-    m_ui->qtQuickCompilerLabel->setText(tr("Enable Qt Quick Compiler:"));
-
-    if (supported && m_step->useQtQuickCompiler() && m_step->linkQmlDebuggingLibrary())
-        warningText = tr("Disables QML debugging. QML profiling will still work.");
-
-    m_ui->qtQuickCompilerWarningText->setText(warningText);
-    m_ui->qtQuickCompilerWarningIcon->setVisible(!warningText.isEmpty());
+    setSummaryText(tr("<b>qmake:</b> %1 %2").arg(program,
+                                                 m_step->project()->projectFilePath().fileName()));
 }
 
 void QMakeStepConfigWidget::updateEffectiveQMakeCall()
 {
-    m_ui->qmakeArgumentsEdit->setPlainText(m_step->effectiveQMakeCall());
+    qmakeArgumentsEdit->setPlainText(m_step->effectiveQMakeCall());
 }
 
 void QMakeStepConfigWidget::recompileMessageBoxFinished(int button)
 {
     if (button == QMessageBox::Yes) {
-        QmakeBuildConfiguration *bc = m_step->qmakeBuildConfiguration();
+        BuildConfiguration *bc = m_step->buildConfiguration();
         if (!bc)
             return;
 
-        QList<ProjectExplorer::BuildStepList *> stepLists;
         const Core::Id clean = ProjectExplorer::Constants::BUILDSTEPS_CLEAN;
         const Core::Id build = ProjectExplorer::Constants::BUILDSTEPS_BUILD;
-        stepLists << bc->stepList(clean) << bc->stepList(build);
-        BuildManager::buildLists(stepLists, QStringList() << ProjectExplorerPlugin::displayNameForStepId(clean)
+        BuildManager::buildLists({bc->cleanSteps(), bc->buildSteps()},
+                                 QStringList() << ProjectExplorerPlugin::displayNameForStepId(clean)
                        << ProjectExplorerPlugin::displayNameForStepId(build));
     }
 }
@@ -836,7 +803,7 @@ void QMakeStepConfigWidget::recompileMessageBoxFinished(int button)
 
 QMakeStepFactory::QMakeStepFactory()
 {
-    registerStep<QMakeStep>(QMAKE_BS_ID);
+    registerStep<QMakeStep>(Constants::QMAKE_BS_ID);
     setSupportedConfiguration(Constants::QMAKE_BC_ID);
     setSupportedStepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD);
     setDisplayName(QMakeStep::tr("qmake"));
@@ -900,14 +867,20 @@ QStringList QMakeStepConfig::toArguments() const
     else if (osType == IphoneOS)
         arguments << "CONFIG+=iphoneos" << "CONFIG+=device" /*since Qt 5.7*/;
 
-    if (linkQmlDebuggingQQ2)
+    if (linkQmlDebuggingQQ2 == TriState::Enabled)
         arguments << "CONFIG+=qml_debug";
+    else if (linkQmlDebuggingQQ2 == TriState::Disabled)
+        arguments << "CONFIG-=qml_debug";
 
-    if (useQtQuickCompiler)
+    if (useQtQuickCompiler == TriState::Enabled)
         arguments << "CONFIG+=qtquickcompiler";
+    else if (useQtQuickCompiler == TriState::Disabled)
+        arguments << "CONFIG-=qtquickcompiler";
 
-    if (separateDebugInfo)
+    if (separateDebugInfo == TriState::Enabled)
         arguments << "CONFIG+=force_debug_info" << "CONFIG+=separate_debug_info";
+    else if (separateDebugInfo == TriState::Disabled)
+        arguments << "CONFIG-=separate_debug_info";
 
     if (!sysRoot.isEmpty()) {
         arguments << ("QMAKE_CFLAGS+=--sysroot=\"" + sysRoot + "\"");

@@ -61,6 +61,8 @@ SOURCES += $$PWD/model/abstractview.cpp \
     $$PWD/model/componenttextmodifier.cpp \
     $$PWD/model/textmodifier.cpp \
     $$PWD/model/qmlitemnode.cpp \
+    $$PWD/model/qmlvisualnode.cpp \
+    $$PWD/model/qml3dnode.cpp \
     $$PWD/model/qmlstate.cpp \
     $$PWD/model/qmlchangeset.cpp \
     $$PWD/model/qmlmodelnodefacade.cpp \
@@ -80,7 +82,8 @@ SOURCES += $$PWD/model/abstractview.cpp \
     $$PWD/model/anchorline.cpp \
     $$PWD/instances/puppetdialog.cpp \
     $$PWD/model/qmltimeline.cpp \
-    $$PWD/model/qmltimelinekeyframegroup.cpp
+    $$PWD/model/qmltimelinekeyframegroup.cpp \
+    $$PWD/model/annotation.cpp
 
 HEADERS += $$PWD/include/qmldesignercorelib_global.h \
     $$PWD/include/abstractview.h \
@@ -156,7 +159,8 @@ HEADERS += $$PWD/include/qmldesignercorelib_global.h \
     $$PWD/include/anchorline.h \
     $$PWD/instances/puppetdialog.h \
     $$PWD/include/qmltimeline.h \
-    $$PWD/include/qmltimelinekeyframegroup.h
+    $$PWD/include/qmltimelinekeyframegroup.h \
+    $$PWD/include/annotation.h
 
 FORMS += \
     $$PWD/instances/puppetdialog.ui

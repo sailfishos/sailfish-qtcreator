@@ -45,13 +45,17 @@ wrapper.sh
 *.pyqtc.user*
 *.qbs.user*
 *.qmlproject.user*
-/share/qtcreator/externaltools
+CMakeLists.txt.user*
+/share/qtcreator/examples/
+/share/qtcreator/externaltools/
 /share/qtcreator/fonts/
 /share/qtcreator/generic-highlighter/
+/share/qtcreator/qmldesigner/QtProject/
 /src/app/Info.plist
 /src/plugins/**/*.json
 /src/plugins/coreplugin/ide_version.h
 /src/libs/qt-breakpad/bin
+/.cmake/
 app_version.h
 phony.c
 
@@ -99,6 +103,9 @@ phony.c
 # Squish generated files
 /tests/system/suite_*/config.xml
 
+# Clang tooling files
+compile_commands.json
+
 # Directories to ignore
 # ---------------------
 
@@ -115,9 +122,10 @@ phony.c
 /dist/gdb/source/
 /dist/gdb/staging/
 /doc/qbs/
-/doc/qtcreator/
-/doc/qtcreator-dev/
-/doc/pluginhowto/html/
+/doc/html/qtcreator/
+/doc/html/qtcreator-dev/
+/doc/html/qtdesignstudio/
+/doc/qtdesignstudio/doc/html
 /lib/
 /lib64/
 /libexec/

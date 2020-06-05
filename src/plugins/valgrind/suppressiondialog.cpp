@@ -208,7 +208,7 @@ void SuppressionDialog::accept()
         return;
 
     // Add file to project if there is a project containing this file on the file system.
-    if (!ProjectExplorer::SessionManager::projectForFile(Utils::FileName::fromString(path))) {
+    if (!ProjectExplorer::SessionManager::projectForFile(Utils::FilePath::fromString(path))) {
         for (ProjectExplorer::Project *p : ProjectExplorer::SessionManager::projects()) {
             if (path.startsWith(p->projectDirectory().toString())) {
                 p->rootProjectNode()->addFiles(QStringList() << path);
@@ -227,7 +227,7 @@ void SuppressionDialog::accept()
     foreach (const QModelIndex &index, indices) {
         bool removed = model->removeRow(index.row());
         QTC_ASSERT(removed, qt_noop());
-        Q_UNUSED(removed);
+        Q_UNUSED(removed)
     }
 
     // One suppression might hide multiple rows, care for that.

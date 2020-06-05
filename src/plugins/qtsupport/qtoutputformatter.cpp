@@ -25,13 +25,18 @@
 
 #include "qtoutputformatter.h"
 
+#include "qtkitinformation.h"
+#include "qtsupportconstants.h"
+
 #include <coreplugin/editormanager/editormanager.h>
 #include <projectexplorer/project.h>
+#include <projectexplorer/target.h>
 
 #include <utils/algorithm.h>
 #include <utils/ansiescapecodehandler.h>
 #include <utils/fileinprojectfinder.h>
 #include <utils/hostosinfo.h>
+#include <utils/outputformatter.h>
 #include <utils/theme/theme.h>
 
 #include <QPlainTextEdit>
@@ -51,10 +56,17 @@ namespace QtSupport {
 
 namespace Internal {
 
+struct LinkResult
+{
+    int start = -1;
+    int end = -1;
+    QString href;
+};
+
 class QtOutputFormatterPrivate
 {
 public:
-    QtOutputFormatterPrivate(Project *proj)
+    QtOutputFormatterPrivate()
         : qmlError("^" SAILFISH_PREFIX_REGEXP "(" QT_QML_URL_REGEXP  // url
                    ":\\d+"              // colon, line
                    "(?::\\d+)?)"        // colon, column (optional)
@@ -64,11 +76,6 @@ public:
         , qtAssertX(QT_ASSERT_X_REGEXP)
         , qtTestFailUnix(QT_TEST_FAIL_UNIX_REGEXP)
         , qtTestFailWin(QT_TEST_FAIL_WIN_REGEXP)
-        , project(proj)
-    {
-    }
-
-    ~QtOutputFormatterPrivate()
     {
     }
 
@@ -79,22 +86,50 @@ public:
     const QRegularExpression qtTestFailUnix;
     const QRegularExpression qtTestFailWin;
     QPointer<Project> project;
-    QString lastLine;
+    QList<FormattedText> lastLine;
     FileInProjectFinder projectFinder;
     QTextCursor cursor;
 };
 
-} // namespace Internal
-
-QtOutputFormatter::QtOutputFormatter(Project *project)
-    : d(new Internal::QtOutputFormatterPrivate(project))
+class QtOutputFormatter : public OutputFormatter
 {
-    if (project) {
-        d->projectFinder.setProjectFiles(project->files(Project::SourceFiles));
-        d->projectFinder.setProjectDirectory(project->projectDirectory());
+public:
+    explicit QtOutputFormatter(Target *target);
+    ~QtOutputFormatter() override;
 
-        connect(project, &Project::fileListChanged,
-                this, &QtOutputFormatter::updateProjectFileList);
+    void appendMessage(const QString &text, Utils::OutputFormat format) override;
+    void handleLink(const QString &href) override;
+    void setPlainTextEdit(QPlainTextEdit *plainText) override;
+
+protected:
+    void clearLastLine() override;
+    virtual void openEditor(const QString &fileName, int line, int column = -1);
+
+private:
+    void updateProjectFileList();
+    LinkResult matchLine(const QString &line) const;
+    void appendMessagePart(const QString &txt, const QTextCharFormat &fmt);
+    void appendLine(const LinkResult &lr, const QString &line, Utils::OutputFormat format);
+    void appendLine(const LinkResult &lr, const QString &line, const QTextCharFormat &format);
+    void appendMessage(const QString &text, const QTextCharFormat &format) override;
+
+    QtOutputFormatterPrivate *d;
+    friend class QtSupportPlugin; // for testing
+};
+
+QtOutputFormatter::QtOutputFormatter(Target *target)
+    : d(new QtOutputFormatterPrivate)
+{
+    d->project = target ? target->project() : nullptr;
+    if (d->project) {
+        d->projectFinder.setProjectFiles(d->project->files(Project::SourceFiles));
+        d->projectFinder.setProjectDirectory(d->project->projectDirectory());
+
+        connect(d->project,
+                &Project::fileListChanged,
+                this,
+                &QtOutputFormatter::updateProjectFileList,
+                Qt::QueuedConnection);
     }
 }
 
@@ -139,36 +174,45 @@ void QtOutputFormatter::appendMessage(const QString &txt, OutputFormat format)
     appendMessage(txt, charFormat(format));
 }
 
-void QtOutputFormatter::appendMessagePart(const QString &txt, const QTextCharFormat &format)
+void QtOutputFormatter::appendMessagePart(const QString &txt, const QTextCharFormat &fmt)
 {
     QString deferredText;
 
     const int length = txt.length();
     for (int start = 0, pos = -1; start < length; start = pos + 1) {
+        bool linkHandled = false;
         pos = txt.indexOf('\n', start);
         const QString newPart = txt.mid(start, (pos == -1) ? -1 : pos - start + 1);
-        const QString line = d->lastLine + newPart;
+        QString line = newPart;
+        QTextCharFormat format = fmt;
+        if (!d->lastLine.isEmpty()) {
+            line = d->lastLine.last().text + newPart;
+            format = d->lastLine.last().format;
+        }
 
         LinkResult lr = matchLine(line);
         if (!lr.href.isEmpty()) {
             // Found something && line continuation
-            d->cursor.insertText(deferredText, format);
+            d->cursor.insertText(deferredText, fmt);
             deferredText.clear();
             if (!d->lastLine.isEmpty())
                 clearLastLine();
             appendLine(lr, line, format);
+            linkHandled = true;
         } else {
             // Found nothing, just emit the new part
             deferredText += newPart;
         }
 
         if (pos == -1) {
-            d->lastLine = line;
+            d->lastLine.clear();
+            if (!linkHandled)
+                d->lastLine.append(FormattedText(line, format));
             break;
         }
         d->lastLine.clear(); // Handled line continuation
     }
-    d->cursor.insertText(deferredText, format);
+    d->cursor.insertText(deferredText, fmt);
 }
 
 void QtOutputFormatter::appendMessage(const QString &txt, const QTextCharFormat &format)
@@ -182,22 +226,13 @@ void QtOutputFormatter::appendMessage(const QString &txt, const QTextCharFormat 
         appendMessagePart(output.text, output.format);
 
     d->cursor.endEditBlock();
+
+    emit contentChanged();
 }
 
 void QtOutputFormatter::appendLine(const LinkResult &lr, const QString &line, OutputFormat format)
 {
     appendLine(lr, line, charFormat(format));
-}
-
-static QTextCharFormat linkFormat(const QTextCharFormat &inputFormat, const QString &href)
-{
-    QTextCharFormat result = inputFormat;
-    result.setForeground(creatorTheme()->color(Theme::TextColorLink));
-    result.setUnderlineStyle(QTextCharFormat::SingleUnderline);
-    result.setAnchor(true);
-    result.setAnchorHref(href);
-
-    return result;
 }
 
 void QtOutputFormatter::appendLine(const LinkResult &lr, const QString &line,
@@ -216,13 +251,14 @@ void QtOutputFormatter::handleLink(const QString &href)
                                                           ":(\\d+)$");               // column
         const QRegularExpressionMatch qmlLineColumnMatch = qmlLineColumnLink.match(href);
 
+        const auto getFileToOpen = [this](const QUrl &fileUrl) {
+            return chooseFileFromList(d->projectFinder.findFile(fileUrl)).toString();
+        };
         if (qmlLineColumnMatch.hasMatch()) {
             const QUrl fileUrl = QUrl(qmlLineColumnMatch.captured(1));
             const int line = qmlLineColumnMatch.captured(2).toInt();
             const int column = qmlLineColumnMatch.captured(3).toInt();
-
-            openEditor(d->projectFinder.findFile(fileUrl), line, column - 1);
-
+            openEditor(getFileToOpen(fileUrl), line, column - 1);
             return;
         }
 
@@ -231,9 +267,13 @@ void QtOutputFormatter::handleLink(const QString &href)
         const QRegularExpressionMatch qmlLineMatch = qmlLineLink.match(href);
 
         if (qmlLineMatch.hasMatch()) {
-            const QUrl fileUrl = QUrl(qmlLineMatch.captured(1));
+            const char scheme[] = "file://";
+            const QString filePath = qmlLineMatch.captured(1);
+            QUrl fileUrl = QUrl(filePath);
+            if (!fileUrl.isValid() && filePath.startsWith(scheme))
+                fileUrl = QUrl::fromLocalFile(filePath.mid(int(strlen(scheme))));
             const int line = qmlLineMatch.captured(2).toInt();
-            openEditor(d->projectFinder.findFile(fileUrl), line);
+            openEditor(getFileToOpen(fileUrl), line);
             return;
         }
 
@@ -262,7 +302,7 @@ void QtOutputFormatter::handleLink(const QString &href)
         }
 
         if (!fileName.isEmpty()) {
-            fileName = d->projectFinder.findFile(QUrl::fromLocalFile(fileName));
+            fileName = getFileToOpen(QUrl::fromLocalFile(fileName));
             openEditor(fileName, line);
             return;
         }
@@ -278,7 +318,8 @@ void QtOutputFormatter::setPlainTextEdit(QPlainTextEdit *plainText)
 void QtOutputFormatter::clearLastLine()
 {
     OutputFormatter::clearLastLine();
-    d->lastLine.clear();
+    if (!d->lastLine.isEmpty())
+        d->lastLine.removeLast();
 }
 
 void QtOutputFormatter::openEditor(const QString &fileName, int line, int column)
@@ -292,6 +333,17 @@ void QtOutputFormatter::updateProjectFileList()
         d->projectFinder.setProjectFiles(d->project->files(Project::SourceFiles));
 }
 
+// QtOutputFormatterFactory
+
+QtOutputFormatterFactory::QtOutputFormatterFactory()
+{
+    setFormatterCreator([](Target *t) -> OutputFormatter * {
+        BaseQtVersion *qt = QtKitAspect::qtVersion(t->kit());
+        return qt ? new QtOutputFormatter(t) : nullptr;
+    });
+}
+
+} // namespace Internal
 } // namespace QtSupport
 
 // Unit tests:
@@ -406,15 +458,37 @@ void QtSupportPlugin::testQtOutputFormatter_data()
             << "   Loc: [../TestProject/test.cpp(123)]"
             << 9 << 37 << "../TestProject/test.cpp(123)"
             << "../TestProject/test.cpp" << 123 << -1;
+
+    QTest::newRow("Unix failed QTest link (alternate)")
+            << "   Loc: [/Projects/TestProject/test.cpp:123]"
+            << 9 << 43 << "/Projects/TestProject/test.cpp:123"
+            << "/Projects/TestProject/test.cpp" << 123 << -1;
+
+    QTest::newRow("Unix relative file link")
+            << "file://../main.cpp:157"
+            << 0 << 22 << "file://../main.cpp:157"
+            << "../main.cpp" << 157 << -1;
+
     if (HostOsInfo::isWindowsHost()) {
         QTest::newRow("Windows failed QTest link")
                 << "..\\TestProject\\test.cpp(123) : failure location"
                 << 0 << 28 << "..\\TestProject\\test.cpp(123)"
                 << "../TestProject/test.cpp" << 123 << -1;
+
+        QTest::newRow("Windows failed QTest link (alternate)")
+                << "   Loc: [c:\\Projects\\TestProject\\test.cpp:123]"
+                << 9 << 45 << "c:\\Projects\\TestProject\\test.cpp:123"
+                << "c:/Projects/TestProject/test.cpp" << 123 << -1;
+
         QTest::newRow("Windows failed QTest link with carriage return")
                 << "..\\TestProject\\test.cpp(123) : failure location\r"
                 << 0 << 28 << "..\\TestProject\\test.cpp(123)"
                 << "../TestProject/test.cpp" << 123 << -1;
+
+        QTest::newRow("Windows relative file link with native separator")
+                << "file://..\\main.cpp:157"
+                << 0 << 22 << "file://..\\main.cpp:157"
+                << "../main.cpp" << 157 << -1;
     }
 }
 
@@ -451,6 +525,13 @@ static QTextCharFormat blueFormat()
     return result;
 }
 
+static QTextCharFormat greenFormat()
+{
+    QTextCharFormat result;
+    result.setForeground(QColor(0, 127, 0));
+    return result;
+}
+
 void QtSupportPlugin::testQtOutputFormatter_appendMessage_data()
 {
     QTest::addColumn<QString>("inputText");
@@ -467,7 +548,7 @@ void QtSupportPlugin::testQtOutputFormatter_appendMessage_data()
             << "Object::Test in test.cpp:123"
             << "Object::Test in test.cpp:123"
             << QTextCharFormat()
-            << linkFormat(QTextCharFormat(), "test.cpp:123");
+            << OutputFormatter::linkFormat(QTextCharFormat(), "test.cpp:123");
     QTest::newRow("colored")
             << "blue da ba dee"
             << "blue da ba dee"
@@ -504,24 +585,24 @@ void QtSupportPlugin::testQtOutputFormatter_appendMixedAssertAndAnsi()
     formatter.setPlainTextEdit(&edit);
 
     const QString inputText =
-                "\x1b[38;2;0;0;127mHello\n"
-                "Object::Test in test.cpp:123\n"
-                "\x1b[38;2;0;0;127mHello\n";
+                "\x1b[38;2;0;127;0mGreen "
+                "file://test.cpp:123 "
+                "\x1b[38;2;0;0;127mBlue\n";
     const QString outputText =
-                "Hello\n"
-                "Object::Test in test.cpp:123\n"
-                "Hello\n";
+                "Green "
+                "file://test.cpp:123 "
+                "Blue\n";
 
     formatter.appendMessage(inputText, QTextCharFormat());
 
     QCOMPARE(edit.toPlainText(), outputText);
 
     edit.moveCursor(QTextCursor::Start);
-    QCOMPARE(edit.currentCharFormat(), blueFormat());
+    QCOMPARE(edit.currentCharFormat(), greenFormat());
 
-    edit.moveCursor(QTextCursor::Down);
-    edit.moveCursor(QTextCursor::EndOfLine);
-    QCOMPARE(edit.currentCharFormat(), linkFormat(QTextCharFormat(), "test.cpp:123"));
+    edit.moveCursor(QTextCursor::WordRight);
+    edit.moveCursor(QTextCursor::Right);
+    QCOMPARE(edit.currentCharFormat(), OutputFormatter::linkFormat(QTextCharFormat(), "file://test.cpp:123"));
 
     edit.moveCursor(QTextCursor::End);
     QCOMPARE(edit.currentCharFormat(), blueFormat());

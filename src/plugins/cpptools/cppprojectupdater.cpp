@@ -46,7 +46,7 @@ CppProjectUpdater::~CppProjectUpdater()
     cancelAndWaitForFinished();
 }
 
-void CppProjectUpdater::update(const ProjectUpdateInfo &projectUpdateInfo)
+void CppProjectUpdater::update(const ProjectExplorer::ProjectUpdateInfo &projectUpdateInfo)
 {
     // Stop previous update.
     cancelAndWaitForFinished();
@@ -61,7 +61,10 @@ void CppProjectUpdater::update(const ProjectUpdateInfo &projectUpdateInfo)
 
     // Run the project info generator in a worker thread and continue if that one is finished.
     const QFuture<ProjectInfo> future = Utils::runAsync([=]() {
-        Internal::ProjectInfoGenerator generator(m_futureInterface, projectUpdateInfo);
+        ProjectUpdateInfo fullProjectUpdateInfo = projectUpdateInfo;
+        if (fullProjectUpdateInfo.rppGenerator)
+            fullProjectUpdateInfo.rawProjectParts = fullProjectUpdateInfo.rppGenerator();
+        Internal::ProjectInfoGenerator generator(m_futureInterface, fullProjectUpdateInfo);
         return generator.generate();
     });
     m_generateFutureWatcher.setFuture(future);
@@ -99,6 +102,16 @@ void CppProjectUpdater::onProjectInfoGenerated()
     QFuture<void> future = CppModelManager::instance()
             ->updateProjectInfo(m_futureInterface, m_generateFutureWatcher.result());
     QTC_CHECK(future != QFuture<void>());
+}
+
+CppProjectUpdaterFactory::CppProjectUpdaterFactory()
+{
+    setObjectName("CppProjectUpdaterFactory");
+}
+
+CppProjectUpdaterInterface *CppProjectUpdaterFactory::create()
+{
+    return new CppProjectUpdater;
 }
 
 } // namespace CppTools

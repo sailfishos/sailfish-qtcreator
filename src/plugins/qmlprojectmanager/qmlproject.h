@@ -28,29 +28,41 @@
 #include "qmlprojectmanager_global.h"
 #include "qmlprojectnodes.h"
 
+#include <projectexplorer/buildsystem.h>
 #include <projectexplorer/project.h>
 
 #include <utils/environment.h>
 
 #include <QPointer>
 
-namespace ProjectExplorer { class RunConfiguration; }
-
 namespace QmlProjectManager {
 
+class QmlProject;
 class QmlProjectItem;
 
-class QMLPROJECTMANAGER_EXPORT QmlProject : public ProjectExplorer::Project
+class QMLPROJECTMANAGER_EXPORT QmlBuildSystem : public ProjectExplorer::BuildSystem
 {
     Q_OBJECT
 
 public:
-    explicit QmlProject(const Utils::FileName &filename);
-    ~QmlProject() override;
+    explicit QmlBuildSystem(ProjectExplorer::Target *target);
+    ~QmlBuildSystem();
 
-    QList<ProjectExplorer::Task> projectIssues(const ProjectExplorer::Kit *k) const final;
+    void triggerParsing() final;
 
-    bool validProjectFile() const;
+    bool supportsAction(ProjectExplorer::Node *context,
+                        ProjectExplorer::ProjectAction action,
+                        const ProjectExplorer::Node *node) const override;
+    bool addFiles(ProjectExplorer::Node *context,
+                  const QStringList &filePaths, QStringList *notAdded = nullptr) override;
+    bool deleteFiles(ProjectExplorer::Node *context,
+                     const QStringList &filePaths) override;
+    bool renameFile(ProjectExplorer::Node *context,
+                    const QString &filePath, const QString &newFilePath) override;
+
+    QmlProject *qmlProject() const;
+
+    QVariant additionalData(Core::Id id) const override;
 
     enum RefreshOption {
         ProjectFile   = 0x01,
@@ -62,44 +74,76 @@ public:
 
     void refresh(RefreshOptions options);
 
-    Utils::FileName canonicalProjectDir() const;
+    Utils::FilePath canonicalProjectDir() const;
     QString mainFile() const;
+    bool qtForMCUs() const;
     void setMainFile(const QString &mainFilePath);
-    Utils::FileName targetDirectory(const ProjectExplorer::Target *target) const;
-    Utils::FileName targetFile(const Utils::FileName &sourceFile,
-                               const ProjectExplorer::Target *target) const;
+    Utils::FilePath targetDirectory() const;
+    Utils::FilePath targetFile(const Utils::FilePath &sourceFile) const;
 
-    QList<Utils::EnvironmentItem> environment() const;
+    Utils::EnvironmentItems environment() const;
     QStringList customImportPaths() const;
+    QStringList customFileSelectors() const;
+    bool forceFreeType() const;
 
     bool addFiles(const QStringList &filePaths);
 
     void refreshProjectFile();
 
-    bool needsBuildConfigurations() const final;
+    static QStringList makeAbsolute(const Utils::FilePath &path, const QStringList &relativePaths);
 
-    static QStringList makeAbsolute(const Utils::FileName &path, const QStringList &relativePaths);
-protected:
-    RestoreResult fromMap(const QVariantMap &map, QString *errorMessage) override;
-
-private:
     void generateProjectTree();
-    void updateDeploymentData(ProjectExplorer::Target *target);
+    void updateDeploymentData();
     void refreshFiles(const QSet<QString> &added, const QSet<QString> &removed);
     void refreshTargetDirectory();
-    void addedTarget(ProjectExplorer::Target *target);
     void onActiveTargetChanged(ProjectExplorer::Target *target);
     void onKitChanged();
 
     // plain format
     void parseProject(RefreshOptions options);
 
-    ProjectExplorer::Target *m_activeTarget = nullptr;
-
     QPointer<QmlProjectItem> m_projectItem;
-    Utils::FileName m_canonicalProjectDir;
+    Utils::FilePath m_canonicalProjectDir;
+
+private:
+    bool m_blockFilesUpdate = false;
+    friend class FilesUpdateBlocker;
+};
+
+class FilesUpdateBlocker {
+public:
+    FilesUpdateBlocker(QmlBuildSystem* bs): m_bs(bs) {
+        if (m_bs)
+            m_bs->m_blockFilesUpdate = true;
+    }
+
+    ~FilesUpdateBlocker() {
+        if (m_bs) {
+            m_bs->m_blockFilesUpdate = false;
+            m_bs->refresh(QmlBuildSystem::Everything);
+        }
+    }
+private:
+    QPointer<QmlBuildSystem> m_bs;
+};
+
+class QMLPROJECTMANAGER_EXPORT QmlProject : public ProjectExplorer::Project
+{
+    Q_OBJECT
+
+public:
+    explicit QmlProject(const Utils::FilePath &filename);
+
+    ProjectExplorer::Tasks projectIssues(const ProjectExplorer::Kit *k) const final;
+
+protected:
+    RestoreResult fromMap(const QVariantMap &map, QString *errorMessage) override;
+
+private:
+    ProjectExplorer::DeploymentKnowledge deploymentKnowledge() const override;
+
 };
 
 } // namespace QmlProjectManager
 
-Q_DECLARE_OPERATORS_FOR_FLAGS(QmlProjectManager::QmlProject::RefreshOptions)
+Q_DECLARE_OPERATORS_FOR_FLAGS(QmlProjectManager::QmlBuildSystem::RefreshOptions)

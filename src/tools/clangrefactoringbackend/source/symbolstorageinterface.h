@@ -28,6 +28,9 @@
 #include "sourcelocationentry.h"
 #include "symbolentry.h"
 
+#include <filestatus.h>
+#include <sourceentry.h>
+
 #include <compilermacro.h>
 #include <sqlitetransaction.h>
 

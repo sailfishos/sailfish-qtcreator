@@ -29,6 +29,7 @@
 
 #include <texteditor/texteditor.h>
 
+#include <cpptools/clangdiagnosticconfig.h>
 #include <cpptools/compileroptionsbuilder.h>
 
 #include <cplusplus/CppDocument.h>
@@ -74,13 +75,16 @@ QString CPPTOOLS_EXPORT correspondingHeaderOrSource(const QString &fileName, boo
 void CPPTOOLS_EXPORT switchHeaderSource();
 
 class CppCodeModelSettings;
-QSharedPointer<CppCodeModelSettings> CPPTOOLS_EXPORT codeModelSettings();
+CppCodeModelSettings CPPTOOLS_EXPORT *codeModelSettings();
 
 UsePrecompiledHeaders CPPTOOLS_EXPORT getPchUsage();
 
 int indexerFileSizeLimitInMb();
 bool fileSizeExceedsLimit(const QFileInfo &fileInfo, int sizeLimitInMb);
 
-QString clazyChecksForLevel(int level);
+class ClangDiagnosticConfigsModel;
+ClangDiagnosticConfigsModel CPPTOOLS_EXPORT diagnosticConfigsModel();
+ClangDiagnosticConfigsModel CPPTOOLS_EXPORT
+diagnosticConfigsModel(const CppTools::ClangDiagnosticConfigs &customConfigs);
 
 } // CppTools

@@ -9,6 +9,8 @@ Text {
     property int foo
     property alias bar: x
     property list<QtObject> pro
+    property Part.Particles particles
+    property list<Part.Particles> particlesList
     default property int def
     property var baz: Rectangle {
         width: 20
@@ -45,4 +47,6 @@ Text {
     function foo(a, b) {
         x = a + 12 * b
     }
+
+    value: Rectangle {}
 }

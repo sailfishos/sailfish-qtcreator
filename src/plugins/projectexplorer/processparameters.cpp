@@ -28,6 +28,7 @@
 #include <utils/fileutils.h>
 #include <utils/macroexpander.h>
 #include <utils/qtcprocess.h>
+#include <utils/theme/theme.h>
 
 #include <QDir>
 
@@ -44,7 +45,9 @@
     \sa ProjectExplorer::AbstractProcessStep
 */
 
-using namespace ProjectExplorer;
+using namespace Utils;
+
+namespace ProjectExplorer {
 
 ProcessParameters::ProcessParameters() :
     m_macroExpander(nullptr),
@@ -53,24 +56,16 @@ ProcessParameters::ProcessParameters() :
 }
 
 /*!
-    Sets the executable to run.
+    Sets the command to run.
 */
-
-void ProcessParameters::setCommand(const QString &cmd)
+void ProcessParameters::setCommandLine(const CommandLine &cmdLine)
 {
-    m_command = cmd;
+    m_command = cmdLine;
     m_effectiveCommand.clear();
-}
-
-/*!
-    Sets the command line arguments used by the process.
-*/
-
-void ProcessParameters::setArguments(const QString &arguments)
-{
-    m_arguments = arguments;
     m_effectiveArguments.clear();
+    resolveAll();
 }
+
 
 /*!
     Sets the \a workingDirectory for the process for a build configuration.
@@ -78,7 +73,7 @@ void ProcessParameters::setArguments(const QString &arguments)
     Should be called from init().
 */
 
-void ProcessParameters::setWorkingDirectory(const QString &workingDirectory)
+void ProcessParameters::setWorkingDirectory(const FilePath &workingDirectory)
 {
     m_workingDirectory = workingDirectory;
     m_effectiveWorkingDirectory.clear();
@@ -103,13 +98,14 @@ void ProcessParameters::setWorkingDirectory(const QString &workingDirectory)
     Gets the fully expanded working directory.
 */
 
-QString ProcessParameters::effectiveWorkingDirectory() const
+FilePath ProcessParameters::effectiveWorkingDirectory() const
 {
     if (m_effectiveWorkingDirectory.isEmpty()) {
-        QString wds = m_workingDirectory;
+        QString wds = m_workingDirectory.toString();
         if (m_macroExpander)
             wds = m_macroExpander->expand(wds);
-        m_effectiveWorkingDirectory = QDir::cleanPath(m_environment.expandVariables(wds));
+        m_effectiveWorkingDirectory
+                = FilePath::fromString(QDir::cleanPath(m_environment.expandVariables(wds)));
     }
     return m_effectiveWorkingDirectory;
 }
@@ -118,14 +114,15 @@ QString ProcessParameters::effectiveWorkingDirectory() const
     Gets the fully expanded command name to run.
 */
 
-QString ProcessParameters::effectiveCommand() const
+FilePath ProcessParameters::effectiveCommand() const
 {
     if (m_effectiveCommand.isEmpty()) {
-        QString cmd = m_command;
+        FilePath cmd = m_command.executable();
         if (m_macroExpander)
             cmd = m_macroExpander->expand(cmd);
         m_effectiveCommand =
-                m_environment.searchInPath(cmd, {Utils::FileName::fromString(effectiveWorkingDirectory())}).toString();
+                m_environment.searchInPath(cmd.toString(),
+                    {effectiveWorkingDirectory()});
         m_commandMissing = m_effectiveCommand.isEmpty();
         if (m_commandMissing)
             m_effectiveCommand = cmd;
@@ -141,9 +138,12 @@ Utils::Environment ProcessParameters::effectiveEnvironment() const
 {
     if (m_macroExpander) {
         m_effectiveEnvironment.clear();
-         Utils::Environment::const_iterator i;
-        for (i = environment().constBegin(); i != environment().constEnd(); ++i)
-            m_effectiveEnvironment.appendOrSet(m_macroExpander->expand(i.key()), m_macroExpander->expand(i.value()));
+        Utils::Environment::const_iterator i;
+        for (i = environment().constBegin(); i != environment().constEnd(); ++i) {
+            m_effectiveEnvironment.set(m_macroExpander->expand(i.key().name),
+                    m_macroExpander->expand(i.value().first),
+                    i.value().second);
+        }
     }
     return m_effectiveEnvironment;
 }
@@ -161,7 +161,7 @@ bool ProcessParameters::commandMissing() const
 QString ProcessParameters::effectiveArguments() const
 {
     if (m_effectiveArguments.isEmpty()) {
-        m_effectiveArguments = m_arguments;
+        m_effectiveArguments = m_command.arguments();
         if (m_macroExpander)
             m_effectiveArguments = m_macroExpander->expand(m_effectiveArguments);
     }
@@ -170,16 +170,16 @@ QString ProcessParameters::effectiveArguments() const
 
 QString ProcessParameters::prettyCommand() const
 {
-    QString cmd = m_command;
+    QString cmd = m_command.executable().toString();
     if (m_macroExpander)
         cmd = m_macroExpander->expand(cmd);
-    return Utils::FileName::fromString(cmd).fileName();
+    return Utils::FilePath::fromString(cmd).fileName();
 }
 
 QString ProcessParameters::prettyArguments() const
 {
     QString margs = effectiveArguments();
-    QString workDir = effectiveWorkingDirectory();
+    QString workDir = effectiveWorkingDirectory().toString();
     Utils::QtcProcess::SplitError err;
     Utils::QtcProcess::Arguments args =
             Utils::QtcProcess::prepareArgs(margs, &err, Utils::HostOsInfo::hostOs(), &m_environment, &workDir);
@@ -188,8 +188,19 @@ QString ProcessParameters::prettyArguments() const
     return args.toString();
 }
 
+static QString invalidCommandMessage(const QString &displayName)
+{
+    return QString("<b>%1:</b> <font color='%3'>%2</font>")
+                    .arg(displayName,
+                         QtcProcess::tr("Invalid command"),
+                         creatorTheme()->color(Theme::TextColorError).name());
+}
+
 QString ProcessParameters::summary(const QString &displayName) const
 {
+    if (m_commandMissing)
+        return invalidCommandMessage(displayName);
+
     return QString::fromLatin1("<b>%1:</b> %2 %3")
             .arg(displayName,
                  Utils::QtcProcess::quoteArg(prettyCommand()),
@@ -198,11 +209,14 @@ QString ProcessParameters::summary(const QString &displayName) const
 
 QString ProcessParameters::summaryInWorkdir(const QString &displayName) const
 {
+    if (m_commandMissing)
+        return invalidCommandMessage(displayName);
+
     return QString::fromLatin1("<b>%1:</b> %2 %3 in %4")
             .arg(displayName,
                  Utils::QtcProcess::quoteArg(prettyCommand()),
                  prettyArguments(),
-                 QDir::toNativeSeparators(effectiveWorkingDirectory()));
+                 QDir::toNativeSeparators(effectiveWorkingDirectory().toString()));
 }
 
 void ProcessParameters::resolveAll()
@@ -212,3 +226,5 @@ void ProcessParameters::resolveAll()
     effectiveWorkingDirectory();
     effectiveEnvironment();
 }
+
+} // ProcessExplorer

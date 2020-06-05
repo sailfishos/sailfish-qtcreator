@@ -32,6 +32,8 @@
 
 #include <filecontainerv2.h>
 
+#include <utils/algorithm.h>
+
 #include <QObject>
 
 namespace ProjectExplorer {
@@ -46,7 +48,8 @@ namespace ClangPchManager {
 
 namespace Internal {
 CLANGPCHMANAGER_EXPORT CppTools::CppModelManager *cppModelManager();
-CLANGPCHMANAGER_EXPORT std::vector<ClangBackEnd::V2::FileContainer> createGeneratedFiles();
+CLANGPCHMANAGER_EXPORT std::vector<ClangBackEnd::V2::FileContainer> createGeneratedFiles(
+    ClangBackEnd::FilePathCachingInterface &filePathCache);
 CLANGPCHMANAGER_EXPORT std::vector<CppTools::ProjectPart*> createProjectParts(ProjectExplorer::Project *project);
 }
 
@@ -59,8 +62,9 @@ public:
     QtCreatorProjectUpdater(ClangBackEnd::ProjectManagementServerInterface &server,
                             ClientType &client,
                             ClangBackEnd::FilePathCachingInterface &filePathCache,
-                            ClangBackEnd::ProjectPartsStorageInterface &projectPartsStorage)
-        : ProjectUpdaterType(server, client, filePathCache, projectPartsStorage)
+                            ClangBackEnd::ProjectPartsStorageInterface &projectPartsStorage,
+                            ClangIndexingSettingsManager &settingsManager)
+        : ProjectUpdaterType(server, client, filePathCache, projectPartsStorage, settingsManager)
     {
         connectToCppModelManager();
     }
@@ -74,7 +78,6 @@ public:
 
     void projectPartsUpdated(ProjectExplorer::Project *project)
     {
-
         ProjectUpdaterType::updateProjectParts(Internal::createProjectParts(project), {}); // TODO add support for toolchainarguments
     }
 
@@ -83,9 +86,13 @@ public:
         ProjectUpdaterType::removeProjectParts(projectPartIds);
     }
 
-    void abstractEditorUpdated(const QString &filePath, const QByteArray &contents)
+    void abstractEditorUpdated(const QString &qFilePath, const QByteArray &contents)
     {
-        ProjectUpdaterType::updateGeneratedFiles({{ClangBackEnd::FilePath{filePath}, contents}});
+        ClangBackEnd::FilePath filePath{qFilePath};
+        ClangBackEnd::FilePathId filePathId = ProjectUpdaterType::m_filePathCache.filePathId(
+            filePath);
+
+        ProjectUpdaterType::updateGeneratedFiles({{std::move(filePath), filePathId, contents}});
     }
 
     void abstractEditorRemoved(const QString &filePath)
@@ -95,17 +102,26 @@ public:
 
 protected:
     void newExtraCompiler(const ProjectExplorer::Project *,
-                          const Utils::FileName &,
-                          const Utils::FileNameList &targets) override
+                          const Utils::FilePath &,
+                          const Utils::FilePaths &targets) override
     {
-        for (const Utils::FileName &target : targets)
+        auto filePaths = Utils::transform<ClangBackEnd::FilePaths>(targets,
+                                                                   [](const Utils::FilePath &filePath) {
+                                                                       return ClangBackEnd::FilePath{
+                                                                           filePath.toString()};
+                                                                   });
+
+        ProjectUpdater::m_filePathCache.addFilePaths(filePaths);
+
+        for (const Utils::FilePath &target : targets)
             abstractEditorUpdated(target.toString(), {});
     }
 
 private:
     void connectToCppModelManager()
     {
-        ProjectUpdaterType::updateGeneratedFiles(Internal::createGeneratedFiles());
+        ProjectUpdaterType::updateGeneratedFiles(
+            Internal::createGeneratedFiles(ProjectUpdaterType::m_filePathCache));
 
         QObject::connect(Internal::cppModelManager(),
                          &CppTools::CppModelManager::projectPartsUpdated,

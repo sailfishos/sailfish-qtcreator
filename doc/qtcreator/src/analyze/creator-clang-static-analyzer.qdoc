@@ -1,0 +1,216 @@
+/****************************************************************************
+**
+** Copyright (C) 2020 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \previouspage creator-running-valgrind-remotely.html
+    \page creator-clang-tools.html
+    \nextpage creator-heob.html
+
+    \title Using Clang Tools
+
+    \QC integrates the following Clang tools for finding problems in C, C++, and
+    Objective-C source code by using static analysis:
+
+    \list
+
+        \li \l{https://clang.llvm.org/extra/clang-tidy/}{Clang-Tidy}, which
+            provides diagnostics and fixes for typical programming errors,
+            such as style violations or interface misuse.
+
+        \li \l{https://github.com/KDE/clazy/blob/master/README.md}{Clazy}, which
+            helps Clang understand Qt semantics. It displays Qt related compiler
+            warnings, ranging from unnecessary memory allocation to misuse of
+            API and provides refactoring actions for fixing some of the issues.
+
+    \endlist
+
+    \note The Clang static analyzer checks are a part of Clang-Tidy. To use
+    the checks you must create a custom configuration for the Clang tools and
+    enable them for Clang-Tidy.
+
+    Clang tools are delivered and installed with \QC, and therefore you do not
+    need to set them up separately.
+
+    In addition to running the tools to collect diagnostics, you can select
+    \inlineimage open.png
+    to load diagnostics from \l{https://yaml.org/}{YAML} files that you exported
+    using the \c {-export fixes} option.
+
+    \section1 Running Clang Tools
+
+    To run the Clang tools to analyze the currently open file, select
+    \uicontrol Tools > \uicontrol {C++} > \uicontrol {Analyze Current File}.
+
+    To run the Clang tools to analyze an open project:
+
+    \list 1
+
+        \li Select \uicontrol Analyze > \uicontrol {Clang-Tidy and Clazy}.
+
+            \image qtcreator-files-to-analyze.png "Files to Analyze dialog"
+
+        \li Select the files to apply the checks to.
+
+        \li Select \uicontrol Analyze to start the checks.
+
+    \endlist
+
+    The found issues are displayed in the \uicontrol {Clang-Tidy and Clazy}
+    view:
+
+    \image qtcreator-clang-tools.png "Clang-Tidy and Clazy view"
+
+    \note If you select \uicontrol Debug in the mode selector to open the
+    \uicontrol Debug mode and then select \uicontrol {Clang-Tidy and Clazy},
+    you must select the \inlineimage qtcreator-analyze-start-button.png
+    (\uicontrol Start) button to open the \uicontrol {Files to Analyze}
+    dialog.
+
+    Double-click an issue to move to the location where the issue appears in
+    the code editor.
+
+    If a fixit exists for an issue, you can select the check box next to the
+    issue to schedule it for fixing. Select the \uicontrol {Select Fixits}
+    check box to select all fixits. You can see the status of an issue by
+    hovering the mouse pointer over the icon next to the check box.
+
+    To see more information about an issue that is marked with the
+    \inlineimage refactormarker.png
+    icon, hover the mouse pointer over the line.
+
+    Select the \inlineimage settings.png
+    button to configure Clang diagnostics globally for Clang tools.
+
+    \image qtcreator-clang-tools-options-customized.png "Clang Tools customized settings"
+
+    \section1 Configuring Clang Tools
+
+    To configure Clang diagnostics globally for Clang tools:
+
+    \list 1
+
+        \li Select \uicontrol Tools > \uicontrol Options > \uicontrol Analyzer >
+            \uicontrol {Clang Tools}.
+
+            \image qtcreator-clang-tools-options.png "Clang Tools options tab"
+
+        \li To build the project before running the Clang tools, select the
+            \uicontrol {Build the project before analysis} check box. The Clang
+            tools do not require the project to be built before analysis, but
+            they might display misleading warnings about files missing that are
+            generated during the build. For big projects, not building the
+            project might save some time.
+
+        \li In the \uicontrol {Simultaneous processes} field, select the number
+            of processes to run simultaneously to make the analysis faster on
+            multi-core processors.
+
+        \li In the \uicontrol {Diagnostic Configuration} group, select
+            \uicontrol Manage to create or edit a custom configuration.
+
+        \li Select \uicontrol Copy to create a custom Clang configuration.
+
+            \image qtcreator-diagnostics-configuration.png "Diagnostics Configuration dialog"
+
+        \li In the \uicontrol {Diagnostic configuration name} field, give the
+            configuration a name, and then select \uicontrol OK.
+
+        \li In the \uicontrol {Clang Warnings} tab, select the
+            \uicontrol {Use diagnostic flags from the build system} check box
+            to forward diagnostic flags, such as warning flags, from the build
+            system to the Clang code model for displaying annotations in the
+            code editor.
+
+        \li In the \uicontrol {Clang-Tidy Checks} tab, select
+            \uicontrol {Select Checks} to select the checks to perform.
+
+            \image qtcreator-clang-tidy.png "Clang-Tidy Checks tab"
+
+            For more information about the available checkers, see
+            \l{https://clang-analyzer.llvm.org/available_checks.html}
+            {Clang Static Analyzer documentation}.
+
+        \li To edit the selected check as plain text, select
+            \uicontrol {Edit Checks as String}.
+
+        \li In the \uicontrol {Clazy Checks} tab, select the level of Clazy
+            checks to perform.
+
+            \image qtcreator-clazy.png "Clazy Checks tab"
+
+        \li In the \uicontrol {Topic Filter} field, select a topic to view
+            only checks related to that area in the \uicontrol Checks field.
+
+        \li To view all checks again, select \uicontrol {Reset to All}.
+
+        \li To view more information about the checks online, select the
+            \uicontrol {Web Page} links next to them.
+
+    \endlist
+
+    To suppress diagnostics, select \uicontrol {Suppress This Diagnostic} in the
+    context menu. To view the suppression list for a project and to remove
+    diagnostics from it, select \uicontrol Projects >
+    \uicontrol {Project Settings} > \uicontrol {Clang Tools}.
+
+    \section2 Selecting Clazy Check Levels
+
+    The Clazy checks are divided into levels from 0 to 3. The checks at level 0
+    are very stable and provide hardly any false positives, while the checks at
+    level 3 can be considered experimental. You can select the checks to perform
+    at each level. To include the checks from the lower levels automatically,
+    select the \uicontrol {Enable lower levels automatically} check box.
+
+    \section2 Creating Clang-Tidy Configuration Files
+
+    Clang-Tidy reads the configuration for each source file from a .clang-tidy
+    file located in the closest parent directory of the source file. If any
+    configuration options have a corresponding command-line option, the
+    command-line option takes precedence. The effective configuration can be
+    inspected using \c {-dump-config}.
+
+    \QC creates the configuration for you based on the checks you select. To
+    store the checks in file format, you can create a .clang-tidy file, as
+    follows:
+
+    \list 1
+        \li Select \uicontrol {Edit Checks as String} and copy the contents of
+            the field.
+        \li Pipe the output of \c {clang-tidy -dump-config} into a file named
+            \c {.clang-tidy}. For example:
+            \c {clang-tidy -checks=-*,bugprone-*,cppcoreguidelines-avoid-* -dump-config > .clang-tidy}
+        \li Move the .clang-tidy file to the parent directory of the sources.
+    \endlist
+
+    To add more checks using \QC later on, copy the checks from your .clang-tidy
+    file into the \uicontrol {Edit Checks as String} field, select additional
+    checks, and copy-paste the contents of the field to the .clang-tidy file.
+*/

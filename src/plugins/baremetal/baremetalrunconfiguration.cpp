@@ -23,10 +23,10 @@
 **
 ****************************************************************************/
 
+#include "baremetalconstants.h"
 #include "baremetalrunconfiguration.h"
 
-#include "baremetalconstants.h"
-
+#include <projectexplorer/buildsystem.h>
 #include <projectexplorer/buildtargetinfo.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/runconfigurationaspects.h>
@@ -38,43 +38,82 @@ using namespace Utils;
 namespace BareMetal {
 namespace Internal {
 
-// BareMetalRunConfiguration
+// RunConfigurations
 
-BareMetalRunConfiguration::BareMetalRunConfiguration(Target *target, Core::Id id)
-    : RunConfiguration(target, id)
+class BareMetalRunConfiguration final : public RunConfiguration
 {
-    auto exeAspect = addAspect<ExecutableAspect>();
-    exeAspect->setDisplayStyle(BaseStringAspect::LabelDisplay);
-    exeAspect->setPlaceHolderText(tr("Unknown"));
+    Q_DECLARE_TR_FUNCTIONS(BareMetal::Internal::BareMetalRunConfiguration)
 
-    addAspect<ArgumentsAspect>();
-    addAspect<WorkingDirectoryAspect>();
+public:
+    explicit BareMetalRunConfiguration(Target *target, Core::Id id)
+        : RunConfiguration(target, id)
+    {
+        const auto exeAspect = addAspect<ExecutableAspect>();
+        exeAspect->setDisplayStyle(BaseStringAspect::LabelDisplay);
+        exeAspect->setPlaceHolderText(tr("Unknown"));
 
-    connect(target, &Target::deploymentDataChanged,
-            this, &BareMetalRunConfiguration::updateTargetInformation);
-    connect(target, &Target::applicationTargetsChanged,
-            this, &BareMetalRunConfiguration::updateTargetInformation);
-    connect(target, &Target::kitChanged,
-            this, &BareMetalRunConfiguration::updateTargetInformation); // Handles device changes, etc.
-    connect(target->project(), &Project::parsingFinished,
-            this, &BareMetalRunConfiguration::updateTargetInformation);
-}
+        addAspect<ArgumentsAspect>();
+        addAspect<WorkingDirectoryAspect>();
 
-void BareMetalRunConfiguration::updateTargetInformation()
+        setUpdater([this, exeAspect] {
+            const BuildTargetInfo bti = buildTargetInfo();
+            exeAspect->setExecutable(bti.targetFilePath);
+        });
+
+        connect(target, &Target::buildSystemUpdated, this, &RunConfiguration::update);
+    }
+};
+
+class BareMetalCustomRunConfiguration final : public RunConfiguration
 {
-    const BuildTargetInfo bti = target()->applicationTargets().buildTargetInfo(buildKey());
-    aspect<ExecutableAspect>()->setExecutable(bti.targetFilePath);
-    emit enabledChanged();
-}
+    Q_DECLARE_TR_FUNCTIONS(BareMetal::Internal::BareMetalCustomRunConfiguration)
 
-const char *BareMetalRunConfiguration::IdPrefix = "BareMetalCustom";
+public:
+    explicit BareMetalCustomRunConfiguration(Target *target, Core::Id id)
+        : RunConfiguration(target, id)
+    {
+        const auto exeAspect = addAspect<ExecutableAspect>();
+        exeAspect->setSettingsKey("BareMetal.CustomRunConfig.Executable");
+        exeAspect->setPlaceHolderText(tr("Unknown"));
+        exeAspect->setDisplayStyle(BaseStringAspect::PathChooserDisplay);
+        exeAspect->setHistoryCompleter("BareMetal.CustomRunConfig.History");
+        exeAspect->setExpectedKind(PathChooser::Any);
+
+        addAspect<ArgumentsAspect>();
+        addAspect<WorkingDirectoryAspect>();
+
+        setDefaultDisplayName(RunConfigurationFactory::decoratedTargetName(tr("Custom Executable"), target));
+    }
+
+public:
+    Tasks checkForIssues() const final;
+};
+
+Tasks BareMetalCustomRunConfiguration::checkForIssues() const
+{
+    Tasks tasks;
+    if (aspect<ExecutableAspect>()->executable().isEmpty()) {
+        tasks << createConfigurationIssue(tr("The remote executable must be set in order to run "
+                                             "a custom remote run configuration."));
+    }
+    return tasks;
+}
 
 // BareMetalRunConfigurationFactory
 
 BareMetalRunConfigurationFactory::BareMetalRunConfigurationFactory()
 {
-    registerRunConfiguration<BareMetalRunConfiguration>(BareMetalRunConfiguration::IdPrefix);
+    registerRunConfiguration<BareMetalRunConfiguration>("BareMetalCustom");
     setDecorateDisplayNames(true);
+    addSupportedTargetDeviceType(BareMetal::Constants::BareMetalOsType);
+}
+
+// BaseMetalCustomRunConfigurationFactory
+
+BareMetalCustomRunConfigurationFactory::BareMetalCustomRunConfigurationFactory()
+    : FixedRunConfigurationFactory(BareMetalCustomRunConfiguration::tr("Custom Executable"), true)
+{
+    registerRunConfiguration<BareMetalCustomRunConfiguration>("BareMetal");
     addSupportedTargetDeviceType(BareMetal::Constants::BareMetalOsType);
 }
 

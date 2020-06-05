@@ -1,8 +1,9 @@
 var Environment = require("qbs.Environment")
 var File = require("qbs.File")
 var FileInfo = require("qbs.FileInfo")
-var MinimumLLVMVersion = "6.0.0" // CLANG-UPGRADE-CHECK: Adapt minimum version numbers.
+var MinimumLLVMVersion = "8.0.0" // CLANG-UPGRADE-CHECK: Adapt minimum version numbers.
 var Process = require("qbs.Process")
+var Utilities = require("qbs.Utilities")
 
 function readOutput(executable, args)
 {
@@ -36,7 +37,8 @@ function llvmConfig(hostOS, qtcFunctions)
 {
     var llvmInstallDirFromEnv = Environment.getEnv("LLVM_INSTALL_DIR")
     var llvmConfigVariants = [
-        "llvm-config", "llvm-config-7", "llvm-config-8", "llvm-config-9"
+        // CLANG-UPGRADE-CHECK: Adapt once we require a new minimum version.
+        "llvm-config", "llvm-config-8", "llvm-config-9", "llvm-config-10", "llvm-config-11", "llvm-config-12"
     ];
 
     // Prefer llvm-config* from LLVM_INSTALL_DIR
@@ -108,9 +110,11 @@ function formattingLibs(llvmConfig, qtcFunctions, targetOS)
         return [];
 
     var clangVersion = version(llvmConfig)
+    if (Utilities.versionCompare(clangVersion, "10") >= 0)
+        return [];
     var libs = []
     if (qtcFunctions.versionIsAtLeast(clangVersion, MinimumLLVMVersion)) {
-        if (qtcFunctions.versionIsAtLeast(clangVersion, "7.0.0")) {
+        if (qtcFunctions.versionIsAtLeast(clangVersion, "8.0.0")) {
             libs.push(
                 "clangFormat",
                 "clangToolingInclusions",

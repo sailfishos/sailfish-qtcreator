@@ -26,6 +26,7 @@
 #pragma once
 
 #include "abi.h"
+#include "abiwidget.h"
 #include "toolchain.h"
 #include "toolchaincache.h"
 #include "toolchainconfigwidget.h"
@@ -56,85 +57,69 @@ public:
     enum Type { WindowsSDK, VS };
     enum Platform { x86, amd64, x86_amd64, ia64, x86_ia64, arm, x86_arm, amd64_arm, amd64_x86 };
 
-    explicit MsvcToolChain(const QString &name,
-                           const Abi &abi,
-                           const QString &varsBat,
-                           const QString &varsBatArg,
-                           Core::Id l,
-                           Detection d = ManualDetection);
-    MsvcToolChain(const MsvcToolChain &other);
-    MsvcToolChain();
+    explicit MsvcToolChain(Core::Id typeId);
     ~MsvcToolChain() override;
 
     Abi targetAbi() const override;
+    Abis supportedAbis() const override;
+    void setTargetAbi(const Abi &abi);
 
     bool isValid() const override;
 
     QString originalTargetTriple() const override;
 
-    Utils::FileNameList suggestedMkspecList() const override;
-
-    QString typeDisplayName() const override;
+    QStringList suggestedMkspecList() const override;
 
     QVariantMap toMap() const override;
     bool fromMap(const QVariantMap &data) override;
 
     std::unique_ptr<ToolChainConfigWidget> createConfigurationWidget() override;
 
-    bool canClone() const override;
-    ToolChain *clone() const override;
-
     MacroInspectionRunner createMacroInspectionRunner() const override;
     Macros predefinedMacros(const QStringList &cxxflags) const override;
     Utils::LanguageExtensions languageExtensions(const QStringList &cxxflags) const override;
-    WarningFlags warningFlags(const QStringList &cflags) const override;
-    BuiltInHeaderPathsRunner createBuiltInHeaderPathsRunner() const override;
+    Utils::WarningFlags warningFlags(const QStringList &cflags) const override;
+    BuiltInHeaderPathsRunner createBuiltInHeaderPathsRunner(
+            const Utils::Environment &env) const override;
     HeaderPaths builtInHeaderPaths(const QStringList &cxxflags,
-                                   const Utils::FileName &sysRoot) const override;
+                                   const Utils::FilePath &sysRoot,
+                                   const Utils::Environment &env) const override;
     void addToEnvironment(Utils::Environment &env) const override;
 
-    QString makeCommand(const Utils::Environment &environment) const override;
-    Utils::FileName compilerCommand() const override;
+    Utils::FilePath makeCommand(const Utils::Environment &environment) const override;
+    Utils::FilePath compilerCommand() const override;
     IOutputParser *outputParser() const override;
 
     QString varsBatArg() const { return m_varsBatArg; }
     QString varsBat() const { return m_vcvarsBat; }
-    void setVarsBatArg(const QString &varsBA) { m_varsBatArg = varsBA; }
+    void setupVarsBat(const Abi &abi, const QString &varsBat, const QString &varsBatArg);
+    void resetVarsBat();
 
     bool operator==(const ToolChain &) const override;
+
+    bool isJobCountSupported() const override { return false; }
 
     static void cancelMsvcToolChainDetection();
     static Utils::optional<QString> generateEnvironmentSettings(const Utils::Environment &env,
                                                                 const QString &batchFile,
                                                                 const QString &batchArgs,
                                                                 QMap<QString, QString> &envPairs);
-
 protected:
     class WarningFlagAdder
     {
         int m_warningCode = 0;
-        WarningFlags &m_flags;
+        Utils::WarningFlags &m_flags;
         bool m_doesEnable = false;
         bool m_triggered = false;
 
     public:
-        WarningFlagAdder(const QString &flag, WarningFlags &flags);
-        void operator()(int warningCode, WarningFlags flagsSet);
+        WarningFlagAdder(const QString &flag, Utils::WarningFlags &flags);
+        void operator()(int warningCode, Utils::WarningFlags flagsSet);
 
         bool triggered() const;
     };
 
-    explicit MsvcToolChain(Core::Id typeId,
-                           const QString &name,
-                           const Abi &abi,
-                           const QString &varsBat,
-                           const QString &varsBatArg,
-                           Core::Id l,
-                           Detection d);
-    explicit MsvcToolChain(Core::Id typeId);
-
-    static void inferWarningsForLevel(int warningLevel, WarningFlags &flags);
-    void toolChainUpdated() override;
+    static void inferWarningsForLevel(int warningLevel, Utils::WarningFlags &flags);
 
     Utils::Environment readEnvironmentSetting(const Utils::Environment &env) const;
     // Function must be thread-safe!
@@ -147,7 +132,7 @@ protected:
     struct GenerateEnvResult
     {
         Utils::optional<QString> error;
-        QList<Utils::EnvironmentItem> environmentItems;
+        Utils::EnvironmentItems environmentItems;
     };
     static void environmentModifications(QFutureInterface<GenerateEnvResult> &future,
                                          QString vcvarsBat,
@@ -155,52 +140,50 @@ protected:
     void initEnvModWatcher(const QFuture<GenerateEnvResult> &future);
 
 protected:
-    mutable QMutex *m_headerPathsMutex = nullptr;
+    mutable QMutex m_headerPathsMutex;
     mutable HeaderPaths m_headerPaths;
 
 private:
-    void updateEnvironmentModifications(QList<Utils::EnvironmentItem> modifications);
+    void updateEnvironmentModifications(Utils::EnvironmentItems modifications);
+    void rescanForCompiler();
+    void detectInstalledAbis();
 
-    mutable QList<Utils::EnvironmentItem> m_environmentModifications;
+    mutable Utils::EnvironmentItems m_environmentModifications;
     mutable QFutureWatcher<GenerateEnvResult> m_envModWatcher;
-
-    Utils::FileName m_debuggerCommand;
-
-    mutable std::shared_ptr<Cache<MacroInspectionReport, 64>> m_predefinedMacrosCache;
 
     mutable Utils::Environment m_lastEnvironment;   // Last checked 'incoming' environment.
     mutable Utils::Environment m_resultEnvironment; // Resulting environment for VC
 
+    Utils::FilePath m_compilerCommand;
+
 protected:
     Abi m_abi;
+    Abis m_supportedAbis;
 
     QString m_vcvarsBat;
     QString m_varsBatArg; // Argument
 };
 
-class ClangClToolChain : public MsvcToolChain
+class PROJECTEXPLORER_EXPORT ClangClToolChain : public MsvcToolChain
 {
 public:
-    ClangClToolChain(const QString &name, const QString &llvmDir, Core::Id language, Detection d);
     ClangClToolChain();
 
     bool isValid() const override;
-    QString typeDisplayName() const override;
-    QList<Utils::FileName> suggestedMkspecList() const override;
+    QStringList suggestedMkspecList() const override;
     void addToEnvironment(Utils::Environment &env) const override;
-    Utils::FileName compilerCommand() const override;
+    Utils::FilePath compilerCommand() const override;
     IOutputParser *outputParser() const override;
-    ToolChain *clone() const override;
     QVariantMap toMap() const override;
     bool fromMap(const QVariantMap &data) override;
     std::unique_ptr<ToolChainConfigWidget> createConfigurationWidget() override;
-    BuiltInHeaderPathsRunner createBuiltInHeaderPathsRunner() const override;
+    BuiltInHeaderPathsRunner createBuiltInHeaderPathsRunner(
+            const Utils::Environment &env) const override;
 
     const QList<MsvcToolChain *> &msvcToolchains() const;
     QString clangPath() const { return m_clangPath; }
     void setClangPath(const QString &path) { m_clangPath = path; }
 
-    void resetMsvcToolChain(const MsvcToolChain *base = nullptr);
     Macros msvcPredefinedMacros(const QStringList &cxxflags,
                                 const Utils::Environment &env) const override;
     Utils::LanguageVersion msvcLanguageVersion(const QStringList &cxxflags,
@@ -208,9 +191,6 @@ public:
                                                const Macros &macros) const override;
 
     bool operator==(const ToolChain &) const override;
-
-private:
-    void toolChainUpdated() override;
 
 private:
     QString m_clangPath;
@@ -226,19 +206,17 @@ class MsvcToolChainFactory : public ToolChainFactory
 
 public:
     MsvcToolChainFactory();
-    QSet<Core::Id> supportedLanguages() const override;
 
     QList<ToolChain *> autoDetect(const QList<ToolChain *> &alreadyKnown) override;
 
-    bool canRestore(const QVariantMap &data) override;
-    ToolChain *restore(const QVariantMap &data) override;
+    bool canCreate() const override;
 
     static QString vcVarsBatFor(const QString &basePath,
                                 MsvcToolChain::Platform platform,
                                 const QVersionNumber &v);
 };
 
-class ClangClToolChainFactory : public MsvcToolChainFactory
+class ClangClToolChainFactory : public ToolChainFactory
 {
     Q_OBJECT
 
@@ -247,11 +225,7 @@ public:
 
     QList<ToolChain *> autoDetect(const QList<ToolChain *> &alreadyKnown) override;
 
-    bool canRestore(const QVariantMap &data) override;
-    ToolChain *restore(const QVariantMap &data) override;
-
-    bool canCreate() override;
-    ToolChain *create(Core::Id l) override;
+    bool canCreate() const override;
 };
 
 // --------------------------------------------------------------------------
@@ -288,6 +262,24 @@ class MsvcToolChainConfigWidget : public MsvcBasedToolChainConfigWidget
 
 public:
     explicit MsvcToolChainConfigWidget(ToolChain *);
+
+private:
+    void applyImpl() override;
+    void discardImpl() override;
+    bool isDirtyImpl() const override;
+    void makeReadOnlyImpl() override;
+
+    void setFromMsvcToolChain();
+
+    void handleVcVarsChange(const QString &vcVars);
+    void handleVcVarsArchChange(const QString &arch);
+
+    QString vcVarsArguments() const;
+
+    QComboBox *m_varsBatPathCombo;
+    QComboBox *m_varsBatArchCombo;
+    QLineEdit *m_varsBatArgumentsEdit;
+    AbiWidget *m_abiWidget;
 };
 
 // --------------------------------------------------------------------------
@@ -304,6 +296,7 @@ public:
 protected:
     void applyImpl() override;
     void discardImpl() override;
+    bool isDirtyImpl() const override { return false; }
     void makeReadOnlyImpl() override;
 
 private:

@@ -34,8 +34,8 @@
 #include <memory>
 
 namespace Utils {
-class FileName;
-using FileNameList = QList<FileName>;
+class FilePath;
+using FilePaths = QList<FilePath>;
 }
 
 namespace CppTools {
@@ -49,9 +49,8 @@ class Project;
 namespace Cppcheck {
 namespace Internal {
 
-class Diagnostic;
 class CppcheckRunner;
-class CppcheckTextMarkManager;
+class CppcheckDiagnosticManager;
 class CppcheckOptions;
 
 class CppcheckTool final : public QObject
@@ -59,13 +58,13 @@ class CppcheckTool final : public QObject
     Q_OBJECT
 
 public:
-    explicit CppcheckTool(CppcheckTextMarkManager &marks);
+    CppcheckTool(CppcheckDiagnosticManager &manager, const Core::Id &progressId);
     ~CppcheckTool() override;
 
     void updateOptions(const CppcheckOptions &options);
     void setProject(ProjectExplorer::Project *project);
-    void check(const Utils::FileNameList &files);
-    void stop(const Utils::FileNameList &files);
+    void check(const Utils::FilePaths &files);
+    void stop(const Utils::FilePaths &files);
 
     void startParsing();
     void parseOutputLine(const QString &line);
@@ -76,10 +75,10 @@ public:
 
 private:
     void updateArguments();
-    void addToQueue(const Utils::FileNameList &files, CppTools::ProjectPart &part);
+    void addToQueue(const Utils::FilePaths &files, CppTools::ProjectPart &part);
     QStringList additionalArguments(const CppTools::ProjectPart &part) const;
 
-    CppcheckTextMarkManager &m_marks;
+    CppcheckDiagnosticManager &m_manager;
     CppcheckOptions m_options;
     QPointer<ProjectExplorer::Project> m_project;
     std::unique_ptr<CppcheckRunner> m_runner;
@@ -88,6 +87,7 @@ private:
     QVector<QRegExp> m_filters;
     QRegularExpression m_progressRegexp;
     QRegularExpression m_messageRegexp;
+    Core::Id m_progressId;
 };
 
 } // namespace Internal

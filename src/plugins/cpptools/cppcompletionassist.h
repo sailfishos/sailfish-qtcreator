@@ -111,7 +111,7 @@ private:
     bool tryObjCCompletion();
     bool objcKeywordsWanted() const;
     int startCompletionInternal(const QString &fileName,
-                                unsigned line, unsigned positionInBlock,
+                                int line, int positionInBlock,
                                 const QString &expression,
                                 int endOfExpression);
 
@@ -138,6 +138,7 @@ private:
                                    CPlusPlus::Scope *cursorScope);
     bool globalCompletion(CPlusPlus::Scope *scope);
 
+    void addKeywordCompletionItem(const QString &text);
     void addCompletionItem(const QString &text,
                            const QIcon &icon = QIcon(),
                            int order = 0,

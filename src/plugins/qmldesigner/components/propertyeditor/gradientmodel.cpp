@@ -27,6 +27,8 @@
 
 #include "qmlanchorbindingproxy.h"
 #include "propertyeditorview.h"
+#include "gradientpresetitem.h"
+#include "gradientpresetcustomlistmodel.h"
 
 #include <exception.h>
 #include <nodeproperty.h>
@@ -34,14 +36,14 @@
 #include <variantproperty.h>
 #include <abstractview.h>
 #include <nodemetainfo.h>
-#include <rewritertransaction.h>
+#include <exception.h>
 
 #include <utils/qtcassert.h>
 
 #include <QTimer>
 
 GradientModel::GradientModel(QObject *parent) :
-    QAbstractListModel(parent), m_gradientTypeName("Gradient"), m_locked(false)
+    QAbstractListModel(parent)
 {
 }
 
@@ -145,17 +147,15 @@ void GradientModel::addGradient()
         return;
 
     if (!m_itemNode.modelNode().hasNodeProperty(gradientPropertyName().toUtf8())) {
-        try {
 
+        if (m_gradientTypeName != "Gradient")
+            ensureShapesImport();
+
+        view()->executeInTransaction("GradientModel::addGradient", [this](){
             QColor color = m_itemNode.instanceValue("color").value<QColor>();
 
             if (!color.isValid())
                 color = QColor(Qt::white);
-
-            if (m_gradientTypeName != "Gradient")
-                ensureShapesImport();
-
-            QmlDesigner::RewriterTransaction transaction = view()->beginRewriterTransaction(QByteArrayLiteral("GradientModel::addGradient"));
 
             QmlDesigner::ModelNode gradientNode = createGradientNode();
 
@@ -170,16 +170,12 @@ void GradientModel::addGradient()
             gradientStopNode.variantProperty("position").setValue(1.0);
             gradientStopNode.variantProperty("color").setValue(QColor(Qt::black));
             gradientNode.nodeListProperty("stops").reparentHere(gradientStopNode);
-
-        } catch (const QmlDesigner::Exception &e) {
-            e.showException();
-        }
-
+        });
     }
     setupModel();
 
     if (m_gradientTypeName != "Gradient")
-        QTimer::singleShot(100, [this](){ view()->resetPuppet(); }); /*Unfortunately required */
+        resetPuppet(); /*Unfortunately required */
     emit hasGradientChanged();
     emit gradientTypeChanged();
 }
@@ -187,6 +183,9 @@ void GradientModel::addGradient()
 void GradientModel::setColor(int index, const QColor &color)
 {
     if (locked())
+        return;
+
+    if (!m_itemNode.isValid())
         return;
 
     if (!m_itemNode.modelNode().isSelected())
@@ -242,17 +241,17 @@ qreal GradientModel::getPosition(int index) const
 void GradientModel::removeStop(int index)
 {
     if (index < rowCount() - 1 && index != 0) {
-        QmlDesigner::RewriterTransaction transaction = view()->beginRewriterTransaction(QByteArrayLiteral("GradientModel::removeStop"));
-        QmlDesigner::ModelNode gradientNode =  m_itemNode.modelNode().nodeProperty(gradientPropertyName().toUtf8()).modelNode();
-        QmlDesigner::QmlObjectNode stop = gradientNode.nodeListProperty("stops").at(index);
-        if (stop.isValid()) {
-            stop.destroy();
-            setupModel();
-        }
+        view()->executeInTransaction("GradientModel::removeStop", [this, index](){
+            QmlDesigner::ModelNode gradientNode =  m_itemNode.modelNode().nodeProperty(gradientPropertyName().toUtf8()).modelNode();
+            QmlDesigner::QmlObjectNode stop = gradientNode.nodeListProperty("stops").at(index);
+            if (stop.isValid()) {
+                stop.destroy();
+                setupModel();
+            }
+        });
     }
     qWarning() << Q_FUNC_INFO << "invalid index";
 }
-
 
 void GradientModel::deleteGradient()
 {
@@ -262,16 +261,7 @@ void GradientModel::deleteGradient()
     if (!m_itemNode.modelNode().metaInfo().hasProperty(gradientPropertyName().toUtf8()))
         return;
 
-    QmlDesigner::ModelNode modelNode = m_itemNode.modelNode();
-
-    if (m_itemNode.isInBaseState()) {
-        if (modelNode.hasProperty(gradientPropertyName().toUtf8())) {
-            QmlDesigner::RewriterTransaction transaction = view()->beginRewriterTransaction(QByteArrayLiteral("GradientModel::deleteGradient"));
-            QmlDesigner::ModelNode gradientNode = modelNode.nodeProperty(gradientPropertyName().toUtf8()).modelNode();
-            if (QmlDesigner::QmlObjectNode(gradientNode).isValid())
-                QmlDesigner::QmlObjectNode(gradientNode).destroy();
-        }
-    }
+    deleteGradientNode(true);
 
     emit hasGradientChanged();
     emit gradientTypeChanged();
@@ -392,7 +382,11 @@ void GradientModel::ensureShapesImport()
 {
     if (!hasShapesImport()) {
         QmlDesigner::Import timelineImport = QmlDesigner::Import::createLibraryImport("QtQuick.Shapes", "1.0");
-        model()->changeImports({timelineImport}, {});
+        try {
+            model()->changeImports({timelineImport}, {});
+        } catch (const QmlDesigner::Exception &) {
+            QTC_ASSERT(false, return);
+        }
     }
 }
 
@@ -444,6 +438,11 @@ QmlDesigner::AbstractView *GradientModel::view() const
     return m_itemNode.view();
 }
 
+void GradientModel::resetPuppet()
+{
+    QTimer::singleShot(1000, [this]() { view()->resetPuppet(); });
+}
+
 QmlDesigner::ModelNode GradientModel::createGradientNode()
 {
     QByteArray fullTypeName = m_gradientTypeName.toUtf8();
@@ -477,6 +476,23 @@ QmlDesigner::ModelNode GradientModel::createGradientStopNode()
     return view()->createModelNode(fullTypeName, majorVersion, minorVersion);
 }
 
+void GradientModel::deleteGradientNode(bool saveTransaction)
+{
+    QmlDesigner::ModelNode modelNode = m_itemNode.modelNode();
+
+    if (m_itemNode.isInBaseState()) {
+        if (modelNode.hasProperty(gradientPropertyName().toUtf8())) {
+            if (saveTransaction)
+                QmlDesigner::RewriterTransaction transaction = view()->beginRewriterTransaction(
+                    QByteArrayLiteral("GradientModel::deleteGradient"));
+            QmlDesigner::ModelNode gradientNode
+                = modelNode.nodeProperty(gradientPropertyName().toUtf8()).modelNode();
+            if (QmlDesigner::QmlObjectNode(gradientNode).isValid())
+                QmlDesigner::QmlObjectNode(gradientNode).destroy();
+        }
+    }
+}
+
 void GradientModel::setGradientProperty(const QString &propertyName, qreal value)
 {
     QTC_ASSERT(m_itemNode.isValid(), return);
@@ -493,4 +509,103 @@ void GradientModel::setGradientProperty(const QString &propertyName, qreal value
     } catch (const QmlDesigner::Exception &e) {
         e.showException();
     }
+}
+
+void GradientModel::setPresetByID(int presetID)
+{
+    const QGradient gradient(GradientPresetItem::createGradientFromPreset(
+        static_cast<GradientPresetItem::Preset>(presetID)));
+    const QList<QGradientStop> gradientStops = gradient.stops().toList();
+
+    QList<qreal> stopsPositions;
+    QList<QString> stopsColors;
+    for (const QGradientStop &stop : gradientStops) {
+        stopsPositions.append(stop.first);
+        stopsColors.append(stop.second.name());
+    }
+
+    setPresetByStops(stopsPositions, stopsColors, gradientStops.size());
+}
+
+void GradientModel::setPresetByStops(const QList<qreal> &stopsPositions,
+                                     const QList<QString> &stopsColors,
+                                     int stopsCount)
+{
+    if (m_locked)
+        return;
+
+    if (!m_itemNode.isValid() || gradientPropertyName().isEmpty())
+        return;
+
+    QmlDesigner::RewriterTransaction transaction = view()->beginRewriterTransaction(
+        QByteArrayLiteral("GradientModel::setCustomPreset"));
+
+    deleteGradientNode(false);
+
+    if (!m_itemNode.modelNode().hasNodeProperty(gradientPropertyName().toUtf8())) {
+        try {
+
+            if (m_gradientTypeName != "Gradient")
+                ensureShapesImport();
+
+            QmlDesigner::ModelNode gradientNode = createGradientNode();
+
+            m_itemNode.modelNode()
+                .nodeProperty(gradientPropertyName().toUtf8())
+                .reparentHere(gradientNode);
+
+            for (int i = 0; i < stopsCount; i++) {
+                QmlDesigner::ModelNode gradientStopNode = createGradientStopNode();
+                gradientStopNode.variantProperty("position").setValue(stopsPositions.at(i));
+                gradientStopNode.variantProperty("color").setValue(stopsColors.at(i));
+                gradientNode.nodeListProperty("stops").reparentHere(gradientStopNode);
+            }
+
+        } catch (const QmlDesigner::Exception &e) {
+            e.showException();
+        }
+    }
+    setupModel();
+
+    if (m_gradientTypeName != "Gradient")
+        resetPuppet(); /*Unfortunately required */
+
+    emit hasGradientChanged();
+    emit gradientTypeChanged();
+}
+
+void GradientModel::savePreset()
+{
+    //preparing qgradient:
+    QGradient currentGradient;
+    QGradientStops currentStops;
+    QGradientStop stop; //double, color
+
+    for (int i = 0; i < rowCount(); i++) {
+        stop.first = getPosition(i);
+        stop.second = getColor(i);
+        currentStops.append(stop);
+    }
+    currentGradient.setStops(currentStops);
+    const GradientPresetItem item(currentGradient, "Custom Gradient");
+
+    //reading the custom gradient file
+    //filling the file with old data + new data
+    const QString filename(GradientPresetCustomListModel::getFilename());
+    QList<GradientPresetItem> items = GradientPresetCustomListModel::storedPresets(filename);
+    items.append(item);
+    GradientPresetCustomListModel::storePresets(filename, items);
+}
+
+void GradientModel::updateGradient()
+{
+    QList<qreal> stops;
+    QList<QString> colors;
+    int stopsCount = rowCount();
+    for (int i = 0; i < stopsCount; i++) {
+        stops.append(getPosition(i));
+        colors.append(getColor(i).name(QColor::HexArgb));
+    }
+
+    setPresetByStops(stops, colors, stopsCount);
 }

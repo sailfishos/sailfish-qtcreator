@@ -25,42 +25,17 @@
 
 #pragma once
 
-#include <vcsbase/vcsbaseoptionspage.h>
-
-#include "ui_settingspage.h"
-
-#include <QPointer>
-#include <QWidget>
-
-namespace VcsBase {
-class VcsBaseClientSettings;
-} // namespace VcsBase
+#include <coreplugin/dialogs/ioptionspage.h>
 
 namespace Git {
 namespace Internal {
 
-class SettingsPageWidget : public VcsBase::VcsClientOptionsPageWidget {
-    Q_OBJECT
+class GitSettings;
 
-public:
-    explicit SettingsPageWidget(QWidget *parent = nullptr);
-
-    VcsBase::VcsBaseClientSettings settings() const override;
-    void setSettings(const VcsBase::VcsBaseClientSettings &s) override;
-
-private:
-    void updateNoteField();
-
-    Ui::SettingsPage m_ui;
-};
-
-class SettingsPage : public VcsBase::VcsClientOptionsPage
+class GitSettingsPage final : public Core::IOptionsPage
 {
-    Q_OBJECT
-
 public:
-    SettingsPage(Core::IVersionControl *control, QObject *parent);
-    void apply() override;
+    GitSettingsPage(GitSettings *settings, const std::function<void()> &onChange);
 };
 
 } // namespace Internal

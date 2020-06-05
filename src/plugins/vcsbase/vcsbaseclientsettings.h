@@ -35,7 +35,7 @@ QT_BEGIN_NAMESPACE
 class QSettings;
 QT_END_NAMESPACE
 
-namespace Utils { class FileName; }
+namespace Utils { class FilePath; }
 namespace VcsBase {
 
 namespace Internal { class VcsBaseClientSettingsPrivate; }
@@ -77,9 +77,10 @@ public:
     void setValue(const QString &key, const QVariant &v);
     QVariant::Type valueType(const QString &key) const;
 
-    Utils::FileName binaryPath() const;
+    Utils::FilePath binaryPath() const;
 
     QStringList searchPathList() const;
+    int vcsTimeoutS() const;
 
 protected:
     QString settingsGroup() const;

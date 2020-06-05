@@ -27,46 +27,52 @@
 #pragma once
 
 #include <projectexplorer/devicesupport/idevice.h>
+#include <projectexplorer/devicesupport/idevicefactory.h>
 
 namespace BareMetal {
 namespace Internal {
 
-class GdbServerProvider;
+class IDebugServerProvider;
 
-class BareMetalDevice : public ProjectExplorer::IDevice
+// BareMetalDevice
+
+class BareMetalDevice final : public ProjectExplorer::IDevice
 {
+    Q_DECLARE_TR_FUNCTIONS(BareMetal::Internal::BareMetalDevice)
+
 public:
     using Ptr = QSharedPointer<BareMetalDevice>;
     using ConstPtr = QSharedPointer<const BareMetalDevice>;
 
     static Ptr create() { return Ptr(new BareMetalDevice); }
-    ~BareMetalDevice() override;
+    ~BareMetalDevice() final;
 
-    QString displayType() const override;
-    ProjectExplorer::IDeviceWidget *createWidget() override;
-    Utils::OsType osType() const override;
-    ProjectExplorer::IDevice::Ptr clone() const override;
+    static QString defaultDisplayName();
 
-    ProjectExplorer::DeviceProcessSignalOperation::Ptr signalOperation() const override;
+    ProjectExplorer::IDeviceWidget *createWidget() final;
 
-    bool canCreateProcess() const override { return true; }
-    ProjectExplorer::DeviceProcess *createProcess(QObject *parent) const override;
+    ProjectExplorer::DeviceProcessSignalOperation::Ptr signalOperation() const final;
 
-    QString gdbServerProviderId() const;
-    void setGdbServerProviderId(const QString &id);
-    void unregisterProvider(GdbServerProvider *provider);
-    void providerUpdated(GdbServerProvider *provider);
+    QString debugServerProviderId() const;
+    void setDebugServerProviderId(const QString &id);
+    void unregisterDebugServerProvider(IDebugServerProvider *provider);
 
-    void fromMap(const QVariantMap &map) override;
-    QVariantMap toMap() const override;
+    void fromMap(const QVariantMap &map) final;
+    QVariantMap toMap() const final;
 
 private:
-    BareMetalDevice() = default;
-    BareMetalDevice(const BareMetalDevice &other);
+    BareMetalDevice();
+    QString m_debugServerProviderId;
+};
 
-    void setChannelByServerProvider(GdbServerProvider *provider);
-    BareMetalDevice &operator=(const BareMetalDevice &);
-    QString m_gdbServerProviderId;
+// BareMetalDeviceFactory
+
+class BareMetalDeviceFactory final : public ProjectExplorer::IDeviceFactory
+{
+public:
+   explicit BareMetalDeviceFactory();
+
+   ProjectExplorer::IDevice::Ptr create() const final;
 };
 
 } //namespace Internal

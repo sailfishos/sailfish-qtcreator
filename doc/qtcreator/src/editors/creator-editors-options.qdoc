@@ -1,0 +1,102 @@
+/****************************************************************************
+**
+** Copyright (C) 2018 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \page creator-editor-options.html
+    \if defined(qtdesignstudio)
+    \previouspage creator-editor-refactoring.html
+    \else
+    \previouspage creator-beautifier.html
+    \endif
+    \nextpage creator-editor-options-text.html
+
+    \title Configuring the Editor
+
+    \QC allows you to configure the text editor to suit your specific
+    needs. To configure the editor, select \uicontrol Tools >
+    \uicontrol Options > \uicontrol{Text Editor}.
+
+    These settings apply to all projects. To specify editor behavior for an open
+    project, select \uicontrol Projects > \uicontrol Editor.
+    \if defined(qtcreator)
+    For more information, see \l{Specifying Editor Settings}.
+    \endif
+
+    You can also specify indentation settings separately for C++ and QML files
+    either globally or for the open project. For more information, see
+    \l{Indenting Text or Code}.
+
+    You can perform the following configuration actions:
+
+    \list
+
+        \li Set the \l{Specifying Text Editor Settings}{font preferences and
+            apply color schemes} for syntax highlighting in
+            \uicontrol {Font & Colors}.
+
+        \li Specify \l{Generic Highlighting}
+            {definition files for syntax highlighting} for other types of files
+             than C++ or QML in \uicontrol {Generic Highlighter}.
+
+        \li Set \l{Indenting Text or Code}{tabs, indentation, the handling of
+            whitespace, and mouse operations} in \uicontrol Behavior.
+
+        \li Set various display properties, such as
+            \l{Highlighting and folding blocks}
+            {highlighting and folding blocks} or text
+            wrapping in \uicontrol Display.
+
+        \li Add, modify, and remove \l{Editing Code Snippets}{code snippets} in
+            \uicontrol Snippets.
+
+        \if defined(qtcreator)
+        \li View and remove \l{Using Text Editing Macros}{text editing macros}
+            in \uicontrol Macros.
+        \endif
+
+        \li Configure \l{Completing Code}{code completion} in \uicontrol Completion.
+
+    \endlist
+
+    \if defined(qtcreator)
+    \section1 Related Topics
+
+    \list
+
+        \li \l{Using FakeVim Mode}
+
+            Run the main editor in a manner similar to the Vim editor in the
+            FakeVim mode.
+
+    \endlist
+    \endif
+
+*/

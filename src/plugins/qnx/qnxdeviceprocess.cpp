@@ -26,6 +26,7 @@
 #include "qnxdeviceprocess.h"
 
 #include <projectexplorer/devicesupport/sshdeviceprocess.h>
+#include <projectexplorer/runcontrol.h>
 
 #include <utils/qtcprocess.h>
 
@@ -46,7 +47,7 @@ QnxDeviceProcess::QnxDeviceProcess(const QSharedPointer<const IDevice> &device, 
 QString QnxDeviceProcess::fullCommandLine(const Runnable &runnable) const
 {
     QStringList args = QtcProcess::splitArgs(runnable.commandLineArguments);
-    args.prepend(runnable.executable);
+    args.prepend(runnable.executable.toString());
     QString cmd = QtcProcess::Arguments::createUnixArgs(args).toString();
 
     QString fullCommandLine = QLatin1String(
@@ -58,8 +59,10 @@ QString QnxDeviceProcess::fullCommandLine(const Runnable &runnable) const
         fullCommandLine += QString::fromLatin1("cd %1 ; ").arg(QtcProcess::quoteArg(runnable.workingDirectory));
 
     const Environment env = runnable.environment;
-    for (auto it = env.constBegin(); it != env.constEnd(); ++it)
-        fullCommandLine += QString::fromLatin1("%1='%2' ").arg(env.key(it)).arg(env.value(it));
+    for (auto it = env.constBegin(); it != env.constEnd(); ++it) {
+        fullCommandLine += QString::fromLatin1("%1='%2' ")
+                .arg(env.key(it)).arg(env.expandedValueForKey(env.key(it)));
+    }
 
     fullCommandLine += QString::fromLatin1("%1 & echo $! > %2").arg(cmd).arg(m_pidFile);
 
@@ -70,7 +73,7 @@ void QnxDeviceProcess::doSignal(int sig)
 {
     auto signaler = new SshDeviceProcess(device(), this);
     Runnable r;
-    r.executable = QString::fromLatin1("kill -%2 `cat %1`").arg(m_pidFile).arg(sig);
+    r.executable = FilePath::fromString(QString("kill -%2 `cat %1`").arg(m_pidFile).arg(sig));
     connect(signaler, &SshDeviceProcess::finished, signaler, &QObject::deleteLater);
     signaler->start(r);
 }

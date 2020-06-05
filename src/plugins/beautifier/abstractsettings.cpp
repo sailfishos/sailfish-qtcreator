@@ -32,6 +32,7 @@
 #include <coreplugin/idocument.h>
 #include <utils/algorithm.h>
 #include <utils/fileutils.h>
+#include <utils/genericconstants.h>
 #include <utils/mimetypes/mimedatabase.h>
 
 #include <QFile>
@@ -120,9 +121,9 @@ QString AbstractSettings::styleFileName(const QString &key) const
     return m_styleDir.absoluteFilePath(key + m_ending);
 }
 
-QString AbstractSettings::command() const
+Utils::FilePath AbstractSettings::command() const
 {
-    return m_command;
+    return Utils::FilePath::fromString(m_command);
 }
 
 void AbstractSettings::setCommand(const QString &command)
@@ -204,7 +205,7 @@ void AbstractSettings::save()
 {
     // Save settings, except styles
     QSettings *s = Core::ICore::settings();
-    s->beginGroup(Constants::SETTINGS_GROUP);
+    s->beginGroup(Utils::Constants::BEAUTIFIER_SETTINGS_GROUP);
     s->beginGroup(m_name);
     QMap<QString, QVariant>::const_iterator iSettings = m_settings.constBegin();
     while (iSettings != m_settings.constEnd()) {
@@ -276,7 +277,7 @@ void AbstractSettings::read()
 
     // Read settings, except styles
     QSettings *s = Core::ICore::settings();
-    s->beginGroup(Constants::SETTINGS_GROUP);
+    s->beginGroup(Utils::Constants::BEAUTIFIER_SETTINGS_GROUP);
     s->beginGroup(m_name);
     const QStringList keys = s->allKeys();
     for (const QString &key : keys) {

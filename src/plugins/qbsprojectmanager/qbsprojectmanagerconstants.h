@@ -69,6 +69,8 @@ const char QBS_CONFIG_PROFILE_KEY[] = "qbs.profile";
 const char QBS_INSTALL_ROOT_KEY[] = "qbs.installRoot";
 const char QBS_CONFIG_DECLARATIVE_DEBUG_KEY[] = "modules.Qt.declarative.qmlDebugging";
 const char QBS_CONFIG_QUICK_DEBUG_KEY[] = "modules.Qt.quick.qmlDebugging";
+const char QBS_CONFIG_QUICK_COMPILER_KEY[] = "modules.Qt.quick.useCompiler";
+const char QBS_CONFIG_SEPARATE_DEBUG_INFO_KEY[] = "modules.cpp.separateDebugInformation";
 const char QBS_FORCE_PROBES_KEY[] = "qbspm.forceProbes";
 
 // Icons:
@@ -88,11 +90,12 @@ const char CPP_CCOMPILERNAME[] = "cpp.cCompilerName";
 const char CPP_CXXCOMPILERNAME[] = "cpp.cxxCompilerName";
 const char CPP_PLATFORMCOMMONCOMPILERFLAGS[] = "cpp.platformCommonCompilerFlags";
 const char CPP_PLATFORMLINKERFLAGS[] = "cpp.platformLinkerFlags";
+const char CPP_VCVARSALLPATH[] = "cpp.vcvarsallPath";
 const char XCODE_DEVELOPERPATH[] = "xcode.developerPath";
 const char XCODE_SDK[] = "xcode.sdk";
 
 // Settings page
-const char QBS_SETTINGS_CATEGORY[]  = "YM.qbs";
+const char QBS_SETTINGS_CATEGORY[]  = "K.Qbs";
 const char QBS_SETTINGS_TR_CATEGORY[] = QT_TRANSLATE_NOOP("QbsProjectManager", "Qbs");
 const char QBS_SETTINGS_CATEGORY_ICON[]  = ":/projectexplorer/images/build.png";
 

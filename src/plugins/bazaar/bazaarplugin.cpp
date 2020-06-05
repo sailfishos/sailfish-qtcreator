@@ -24,17 +24,22 @@
 ****************************************************************************/
 
 #include "bazaarplugin.h"
-#include "constants.h"
+
 #include "bazaarclient.h"
-#include "bazaarcontrol.h"
-#include "optionspage.h"
 #include "bazaarcommitwidget.h"
 #include "bazaareditor.h"
-#include "pullorpushdialog.h"
-#include "uncommitdialog.h"
+#include "bazaarsettings.h"
 #include "commiteditor.h"
+#include "constants.h"
+#include "optionspage.h"
+#include "pullorpushdialog.h"
 
 #include "ui_revertdialog.h"
+#include "ui_uncommitdialog.h"
+
+#include <vcsbase/vcsbaseclient.h>
+#include <vcsbase/vcsbaseplugin.h>
+#include <vcsbase/vcscommand.h>
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
@@ -57,12 +62,12 @@
 #include <vcsbase/vcsbaseeditor.h>
 #include <vcsbase/vcsoutputwindow.h>
 
-#include <QtPlugin>
 #include <QAction>
-#include <QMenu>
 #include <QDebug>
-#include <QDir>
 #include <QDialog>
+#include <QDir>
+#include <QMenu>
+#include <QPushButton>
 
 #ifdef WITH_TESTS
 #include <QTest>
@@ -71,6 +76,7 @@
 using namespace Core;
 using namespace Utils;
 using namespace VcsBase;
+using namespace std::placeholders;
 
 namespace Bazaar {
 namespace Internal {
@@ -104,89 +110,218 @@ const char COMMIT[] = "Bazaar.Action.Commit";
 const char UNCOMMIT[] = "Bazaar.Action.UnCommit";
 const char CREATE_REPOSITORY[] = "Bazaar.Action.CreateRepository";
 
-const VcsBaseEditorParameters editorParameters[] = {
-    {   LogOutput, // type
-        Constants::FILELOG_ID, // id
-        Constants::FILELOG_DISPLAY_NAME, // display name
-        Constants::LOGAPP}, // mime type
-
-    {    AnnotateOutput,
-         Constants::ANNOTATELOG_ID,
-         Constants::ANNOTATELOG_DISPLAY_NAME,
-         Constants::ANNOTATEAPP},
-
-    {   DiffOutput,
-        Constants::DIFFLOG_ID,
-        Constants::DIFFLOG_DISPLAY_NAME,
-        Constants::DIFFAPP}
+const VcsBaseEditorParameters logEditorParameters {
+    LogOutput, // type
+    Constants::FILELOG_ID, // id
+    Constants::FILELOG_DISPLAY_NAME, // display name
+    Constants::LOGAPP // mime type
 };
 
-const VcsBaseSubmitEditorParameters submitEditorParameters = {
+const VcsBaseEditorParameters annotateEditorParameters {
+    AnnotateOutput,
+    Constants::ANNOTATELOG_ID,
+    Constants::ANNOTATELOG_DISPLAY_NAME,
+    Constants::ANNOTATEAPP
+};
+
+const VcsBaseEditorParameters diffEditorParameters {
+    DiffOutput,
+    Constants::DIFFLOG_ID,
+    Constants::DIFFLOG_DISPLAY_NAME,
+    Constants::DIFFAPP
+};
+
+const VcsBaseSubmitEditorParameters submitEditorParameters {
     COMMITMIMETYPE,
     COMMIT_ID,
     COMMIT_DISPLAY_NAME,
     VcsBaseSubmitEditorParameters::DiffFiles
 };
 
-
-BazaarPlugin *BazaarPlugin::m_instance = nullptr;
-
-BazaarPlugin::BazaarPlugin()
+class BazaarPluginPrivate final : public VcsBasePluginPrivate
 {
-    m_instance = this;
-}
+    Q_DECLARE_TR_FUNCTIONS(Bazaar::Internal::BazaarPlugin)
+
+public:
+    BazaarPluginPrivate();
+
+    QString displayName() const final;
+    Core::Id id() const final;
+
+    bool isVcsFileOrDirectory(const Utils::FilePath &fileName) const final;
+
+    bool managesDirectory(const QString &filename, QString *topLevel) const final;
+    bool managesFile(const QString &workingDirectory, const QString &fileName) const final;
+    bool isConfigured() const final;
+    bool supportsOperation(Operation operation) const final;
+    bool vcsOpen(const QString &fileName) final;
+    bool vcsAdd(const QString &filename) final;
+    bool vcsDelete(const QString &filename) final;
+    bool vcsMove(const QString &from, const QString &to) final;
+    bool vcsCreateRepository(const QString &directory) final;
+    bool vcsAnnotate(const QString &file, int line) final;
+
+    Core::ShellCommand *createInitialCheckoutCommand(const QString &url,
+                                                     const Utils::FilePath &baseDirectory,
+                                                     const QString &localName,
+                                                     const QStringList &extraArgs) final;
+
+    // To be connected to the VCSTask's success signal to emit the repository/
+    // files changed signals according to the variant's type:
+    // String -> repository, StringList -> files
+    void changed(const QVariant &);
+    void updateActions(VcsBase::VcsBasePluginPrivate::ActionState) final;
+    bool submitEditorAboutToClose() final;
+
+    // File menu action slots
+    void addCurrentFile();
+    void annotateCurrentFile();
+    void diffCurrentFile();
+    void logCurrentFile();
+    void revertCurrentFile();
+    void statusCurrentFile();
+
+    // Directory menu action slots
+    void diffRepository();
+    void logRepository();
+    void revertAll();
+    void statusMulti();
+
+    // Repository menu action slots
+    void pull();
+    void push();
+    void update();
+    void commit();
+    void showCommitWidget(const QList<VcsBase::VcsBaseClient::StatusItem> &status);
+    void commitFromEditor() override;
+    void uncommit();
+    void diffFromEditorSelected(const QStringList &files);
+
+    // Functions
+    void createFileActions(const Core::Context &context);
+    void createDirectoryActions(const Core::Context &context);
+    void createRepositoryActions(const Core::Context &context);
+
+    void describe(const QString &source, const QString &id) { m_client.view(source, id); }
+
+    // Variables
+    BazaarSettings m_settings;
+    BazaarClient m_client{&m_settings};
+
+    OptionsPage m_optionsPage{[this] { configurationChanged(); }, &m_settings};
+
+    VcsSubmitEditorFactory m_submitEditorFactory {
+        submitEditorParameters,
+        [] { return new CommitEditor; },
+        this
+    };
+    Core::CommandLocator *m_commandLocator = nullptr;
+    Core::ActionContainer *m_bazaarContainer = nullptr;
+
+    QList<QAction *> m_repositoryActionList;
+
+    // Menu Items (file actions)
+    ParameterAction *m_addAction = nullptr;
+    ParameterAction *m_deleteAction = nullptr;
+    ParameterAction *m_annotateFile = nullptr;
+    ParameterAction *m_diffFile = nullptr;
+    ParameterAction *m_logFile = nullptr;
+    ParameterAction *m_revertFile = nullptr;
+    ParameterAction *m_statusFile = nullptr;
+
+    QAction *m_menuAction = nullptr;
+
+    QString m_submitRepository;
+    bool m_submitActionTriggered = false;
+
+    VcsEditorFactory logEditorFactory {
+        &logEditorParameters,
+        [] { return new BazaarEditorWidget; },
+        std::bind(&BazaarPluginPrivate::describe, this, _1, _2)
+    };
+
+    VcsEditorFactory annotateEditorFactory {
+        &annotateEditorParameters,
+        [] { return new BazaarEditorWidget; },
+        std::bind(&BazaarPluginPrivate::describe, this, _1, _2)
+    };
+
+    VcsEditorFactory diffEditorFactory {
+        &diffEditorParameters,
+        [] { return new BazaarEditorWidget; },
+        std::bind(&BazaarPluginPrivate::describe, this, _1, _2)
+    };
+};
+
+class UnCommitDialog : public QDialog
+{
+    Q_DECLARE_TR_FUNCTIONS(Bazaar::Internal::UnCommitDialog)
+
+public:
+    explicit UnCommitDialog(BazaarPluginPrivate *plugin)
+        : QDialog(ICore::dialogParent())
+    {
+        m_ui.setupUi(this);
+
+        auto dryRunBtn = new QPushButton(tr("Dry Run"));
+        dryRunBtn->setToolTip(tr("Test the outcome of removing the last committed revision, without actually removing anything."));
+        m_ui.buttonBox->addButton(dryRunBtn, QDialogButtonBox::ApplyRole);
+        connect(dryRunBtn, &QPushButton::clicked, this, [this, plugin] {
+            QTC_ASSERT(plugin->currentState().hasTopLevel(), return);
+            plugin->m_client.synchronousUncommit(plugin->currentState().topLevel(),
+                                                 revision(),
+                                                 extraOptions() << "--dry-run");
+        });
+    }
+
+    QStringList extraOptions() const
+    {
+        QStringList opts;
+        if (m_ui.keepTagsCheckBox->isChecked())
+            opts += "--keep-tags";
+        if (m_ui.localCheckBox->isChecked())
+            opts += "--local";
+        return opts;
+    }
+
+    QString revision() const
+    {
+        return m_ui.revisionLineEdit->text().trimmed();
+    }
+
+private:
+    Ui::UnCommitDialog m_ui;
+};
 
 BazaarPlugin::~BazaarPlugin()
 {
-    delete m_client;
-    m_client = nullptr;
-    m_instance = nullptr;
+    delete d;
+    d = nullptr;
 }
 
 bool BazaarPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
-    Q_UNUSED(arguments);
-    Q_UNUSED(errorMessage);
+    Q_UNUSED(arguments)
+    Q_UNUSED(errorMessage)
+    d = new BazaarPluginPrivate;
+    return true;
+}
 
+void BazaarPlugin::extensionsInitialized()
+{
+    d->extensionsInitialized();
+}
+
+BazaarPluginPrivate::BazaarPluginPrivate()
+    : VcsBasePluginPrivate(Context(Constants::BAZAAR_CONTEXT))
+{
     Context context(Constants::BAZAAR_CONTEXT);
 
-    m_client = new BazaarClient;
-    auto vcsCtrl = initializeVcs<BazaarControl>(context, m_client);
-    connect(m_client, &VcsBaseClient::changed, vcsCtrl, &BazaarControl::changed);
-
-    new OptionsPage(vcsCtrl, this);
-
-    const auto describeFunc = [this](const QString &source, const QString &id) {
-        m_client->view(source, id);
-    };
-    const int editorCount = sizeof(editorParameters) / sizeof(VcsBaseEditorParameters);
-    const auto widgetCreator = []() { return new BazaarEditorWidget; };
-    for (int i = 0; i < editorCount; i++)
-        new VcsEditorFactory(editorParameters + i, widgetCreator, describeFunc, this);
-
-    (void) new VcsSubmitEditorFactory(&submitEditorParameters,
-        []() { return new CommitEditor(&submitEditorParameters); }, this);
+    connect(&m_client, &VcsBaseClient::changed, this, &BazaarPluginPrivate::changed);
 
     const QString prefix = QLatin1String("bzr");
     m_commandLocator = new CommandLocator("Bazaar", prefix, prefix, this);
 
-    createMenu(context);
-
-    return true;
-}
-
-BazaarPlugin *BazaarPlugin::instance()
-{
-    return m_instance;
-}
-
-BazaarClient *BazaarPlugin::client() const
-{
-    return m_client;
-}
-
-void BazaarPlugin::createMenu(const Context &context)
-{
     // Create menu item for Bazaar
     m_bazaarContainer = ActionManager::createMenu("Bazaar.BazaarMenu");
     QMenu *menu = m_bazaarContainer->menu();
@@ -205,12 +340,12 @@ void BazaarPlugin::createMenu(const Context &context)
     m_menuAction = m_bazaarContainer->menu()->menuAction();
 }
 
-void BazaarPlugin::createFileActions(const Context &context)
+void BazaarPluginPrivate::createFileActions(const Context &context)
 {
     m_annotateFile = new ParameterAction(tr("Annotate Current File"), tr("Annotate \"%1\""), ParameterAction::EnabledWithParameter, this);
     Command *command = ActionManager::registerAction(m_annotateFile, ANNOTATE, context);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_annotateFile, &QAction::triggered, this, &BazaarPlugin::annotateCurrentFile);
+    connect(m_annotateFile, &QAction::triggered, this, &BazaarPluginPrivate::annotateCurrentFile);
     m_bazaarContainer->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -218,7 +353,7 @@ void BazaarPlugin::createFileActions(const Context &context)
     command = ActionManager::registerAction(m_diffFile, DIFF, context);
     command->setAttribute(Command::CA_UpdateText);
     command->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Meta+Z,Meta+D") : tr("ALT+Z,Alt+D")));
-    connect(m_diffFile, &QAction::triggered, this, &BazaarPlugin::diffCurrentFile);
+    connect(m_diffFile, &QAction::triggered, this, &BazaarPluginPrivate::diffCurrentFile);
     m_bazaarContainer->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -226,7 +361,7 @@ void BazaarPlugin::createFileActions(const Context &context)
     command = ActionManager::registerAction(m_logFile, LOG, context);
     command->setAttribute(Command::CA_UpdateText);
     command->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Meta+Z,Meta+L") : tr("ALT+Z,Alt+L")));
-    connect(m_logFile, &QAction::triggered, this, &BazaarPlugin::logCurrentFile);
+    connect(m_logFile, &QAction::triggered, this, &BazaarPluginPrivate::logCurrentFile);
     m_bazaarContainer->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -234,7 +369,7 @@ void BazaarPlugin::createFileActions(const Context &context)
     command = ActionManager::registerAction(m_statusFile, STATUS, context);
     command->setAttribute(Command::CA_UpdateText);
     command->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Meta+Z,Meta+S") : tr("ALT+Z,Alt+S")));
-    connect(m_statusFile, &QAction::triggered, this, &BazaarPlugin::statusCurrentFile);
+    connect(m_statusFile, &QAction::triggered, this, &BazaarPluginPrivate::statusCurrentFile);
     m_bazaarContainer->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -243,55 +378,55 @@ void BazaarPlugin::createFileActions(const Context &context)
     m_addAction = new ParameterAction(tr("Add"), tr("Add \"%1\""), ParameterAction::EnabledWithParameter, this);
     command = ActionManager::registerAction(m_addAction, ADD, context);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_addAction, &QAction::triggered, this, &BazaarPlugin::addCurrentFile);
+    connect(m_addAction, &QAction::triggered, this, &BazaarPluginPrivate::addCurrentFile);
     m_bazaarContainer->addAction(command);
     m_commandLocator->appendCommand(command);
 
     m_deleteAction = new ParameterAction(tr("Delete..."), tr("Delete \"%1\"..."), ParameterAction::EnabledWithParameter, this);
     command = ActionManager::registerAction(m_deleteAction, DELETE, context);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_deleteAction, &QAction::triggered, this, &BazaarPlugin::promptToDeleteCurrentFile);
+    connect(m_deleteAction, &QAction::triggered, this, &BazaarPluginPrivate::promptToDeleteCurrentFile);
     m_bazaarContainer->addAction(command);
     m_commandLocator->appendCommand(command);
 
     m_revertFile = new ParameterAction(tr("Revert Current File..."), tr("Revert \"%1\"..."), ParameterAction::EnabledWithParameter, this);
     command = ActionManager::registerAction(m_revertFile, REVERT, context);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_revertFile, &QAction::triggered, this, &BazaarPlugin::revertCurrentFile);
+    connect(m_revertFile, &QAction::triggered, this, &BazaarPluginPrivate::revertCurrentFile);
     m_bazaarContainer->addAction(command);
     m_commandLocator->appendCommand(command);
 }
 
-void BazaarPlugin::addCurrentFile()
+void BazaarPluginPrivate::addCurrentFile()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
-    m_client->synchronousAdd(state.currentFileTopLevel(), state.relativeCurrentFile());
+    m_client.synchronousAdd(state.currentFileTopLevel(), state.relativeCurrentFile());
 }
 
-void BazaarPlugin::annotateCurrentFile()
+void BazaarPluginPrivate::annotateCurrentFile()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
-    m_client->annotate(state.currentFileTopLevel(), state.relativeCurrentFile());
+    m_client.annotate(state.currentFileTopLevel(), state.relativeCurrentFile());
 }
 
-void BazaarPlugin::diffCurrentFile()
+void BazaarPluginPrivate::diffCurrentFile()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
-    m_client->diff(state.currentFileTopLevel(), QStringList(state.relativeCurrentFile()));
+    m_client.diff(state.currentFileTopLevel(), QStringList(state.relativeCurrentFile()));
 }
 
-void BazaarPlugin::logCurrentFile()
+void BazaarPluginPrivate::logCurrentFile()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
-    m_client->log(state.currentFileTopLevel(), QStringList(state.relativeCurrentFile()),
+    m_client.log(state.currentFileTopLevel(), QStringList(state.relativeCurrentFile()),
                   QStringList(), true);
 }
 
-void BazaarPlugin::revertCurrentFile()
+void BazaarPluginPrivate::revertCurrentFile()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
@@ -301,67 +436,66 @@ void BazaarPlugin::revertCurrentFile()
     revertUi.setupUi(&dialog);
     if (dialog.exec() != QDialog::Accepted)
         return;
-    m_client->revertFile(state.currentFileTopLevel(),
+    m_client.revertFile(state.currentFileTopLevel(),
                          state.relativeCurrentFile(),
                          revertUi.revisionLineEdit->text());
 }
 
-void BazaarPlugin::statusCurrentFile()
+void BazaarPluginPrivate::statusCurrentFile()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
-    m_client->status(state.currentFileTopLevel(), state.relativeCurrentFile());
+    m_client.status(state.currentFileTopLevel(), state.relativeCurrentFile());
 }
 
-void BazaarPlugin::createDirectoryActions(const Context &context)
+void BazaarPluginPrivate::createDirectoryActions(const Context &context)
 {
     auto action = new QAction(tr("Diff"), this);
     m_repositoryActionList.append(action);
     Command *command = ActionManager::registerAction(action, DIFFMULTI, context);
-    connect(action, &QAction::triggered, this, &BazaarPlugin::diffRepository);
+    connect(action, &QAction::triggered, this, &BazaarPluginPrivate::diffRepository);
     m_bazaarContainer->addAction(command);
     m_commandLocator->appendCommand(command);
 
     action = new QAction(tr("Log"), this);
     m_repositoryActionList.append(action);
     command = ActionManager::registerAction(action, LOGMULTI, context);
-    connect(action, &QAction::triggered, this, &BazaarPlugin::logRepository);
+    connect(action, &QAction::triggered, this, &BazaarPluginPrivate::logRepository);
     m_bazaarContainer->addAction(command);
     m_commandLocator->appendCommand(command);
 
     action = new QAction(tr("Revert..."), this);
     m_repositoryActionList.append(action);
     command = ActionManager::registerAction(action, REVERTMULTI, context);
-    connect(action, &QAction::triggered, this, &BazaarPlugin::revertAll);
+    connect(action, &QAction::triggered, this, &BazaarPluginPrivate::revertAll);
     m_bazaarContainer->addAction(command);
     m_commandLocator->appendCommand(command);
 
     action = new QAction(tr("Status"), this);
     m_repositoryActionList.append(action);
     command = ActionManager::registerAction(action, STATUSMULTI, context);
-    connect(action, &QAction::triggered, this, &BazaarPlugin::statusMulti);
+    connect(action, &QAction::triggered, this, &BazaarPluginPrivate::statusMulti);
     m_bazaarContainer->addAction(command);
     m_commandLocator->appendCommand(command);
 }
 
-
-void BazaarPlugin::diffRepository()
+void BazaarPluginPrivate::diffRepository()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
-    m_client->diff(state.topLevel());
+    m_client.diff(state.topLevel());
 }
 
-void BazaarPlugin::logRepository()
+void BazaarPluginPrivate::logRepository()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
     QStringList extraOptions;
-    extraOptions += QLatin1String("--limit=") + QString::number(m_client->settings().intValue(BazaarSettings::logCountKey));
-    m_client->log(state.topLevel(), QStringList(), extraOptions);
+    extraOptions += QLatin1String("--limit=") + QString::number(m_settings.intValue(BazaarSettings::logCountKey));
+    m_client.log(state.topLevel(), QStringList(), extraOptions);
 }
 
-void BazaarPlugin::revertAll()
+void BazaarPluginPrivate::revertAll()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
@@ -371,36 +505,36 @@ void BazaarPlugin::revertAll()
     revertUi.setupUi(&dialog);
     if (dialog.exec() != QDialog::Accepted)
         return;
-    m_client->revertAll(state.topLevel(), revertUi.revisionLineEdit->text());
+    m_client.revertAll(state.topLevel(), revertUi.revisionLineEdit->text());
 }
 
-void BazaarPlugin::statusMulti()
+void BazaarPluginPrivate::statusMulti()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
-    m_client->status(state.topLevel());
+    m_client.status(state.topLevel());
 }
 
-void BazaarPlugin::createRepositoryActions(const Context &context)
+void BazaarPluginPrivate::createRepositoryActions(const Context &context)
 {
     auto action = new QAction(tr("Pull..."), this);
     m_repositoryActionList.append(action);
     Command *command = ActionManager::registerAction(action, PULL, context);
-    connect(action, &QAction::triggered, this, &BazaarPlugin::pull);
+    connect(action, &QAction::triggered, this, &BazaarPluginPrivate::pull);
     m_bazaarContainer->addAction(command);
     m_commandLocator->appendCommand(command);
 
     action = new QAction(tr("Push..."), this);
     m_repositoryActionList.append(action);
     command = ActionManager::registerAction(action, PUSH, context);
-    connect(action, &QAction::triggered, this, &BazaarPlugin::push);
+    connect(action, &QAction::triggered, this, &BazaarPluginPrivate::push);
     m_bazaarContainer->addAction(command);
     m_commandLocator->appendCommand(command);
 
     action = new QAction(tr("Update..."), this);
     m_repositoryActionList.append(action);
     command = ActionManager::registerAction(action, UPDATE, context);
-    connect(action, &QAction::triggered, this, &BazaarPlugin::update);
+    connect(action, &QAction::triggered, this, &BazaarPluginPrivate::update);
     m_bazaarContainer->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -408,24 +542,24 @@ void BazaarPlugin::createRepositoryActions(const Context &context)
     m_repositoryActionList.append(action);
     command = ActionManager::registerAction(action, COMMIT, context);
     command->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Meta+Z,Meta+C") : tr("ALT+Z,Alt+C")));
-    connect(action, &QAction::triggered, this, &BazaarPlugin::commit);
+    connect(action, &QAction::triggered, this, &BazaarPluginPrivate::commit);
     m_bazaarContainer->addAction(command);
     m_commandLocator->appendCommand(command);
 
     action = new QAction(tr("Uncommit..."), this);
     m_repositoryActionList.append(action);
     command = ActionManager::registerAction(action, UNCOMMIT, context);
-    connect(action, &QAction::triggered, this, &BazaarPlugin::uncommit);
+    connect(action, &QAction::triggered, this, &BazaarPluginPrivate::uncommit);
     m_bazaarContainer->addAction(command);
     m_commandLocator->appendCommand(command);
 
     auto createRepositoryAction = new QAction(tr("Create Repository..."), this);
     command = ActionManager::registerAction(createRepositoryAction, CREATE_REPOSITORY, context);
-    connect(createRepositoryAction, &QAction::triggered, this, &BazaarPlugin::createRepository);
+    connect(createRepositoryAction, &QAction::triggered, this, &BazaarPluginPrivate::createRepository);
     m_bazaarContainer->addAction(command);
 }
 
-void BazaarPlugin::pull()
+void BazaarPluginPrivate::pull()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
@@ -442,10 +576,10 @@ void BazaarPlugin::pull()
         extraOptions += QLatin1String("--local");
     if (!dialog.revision().isEmpty())
         extraOptions << QLatin1String("-r") << dialog.revision();
-    m_client->synchronousPull(state.topLevel(), dialog.branchLocation(), extraOptions);
+    m_client.synchronousPull(state.topLevel(), dialog.branchLocation(), extraOptions);
 }
 
-void BazaarPlugin::push()
+void BazaarPluginPrivate::push()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
@@ -464,10 +598,10 @@ void BazaarPlugin::push()
         extraOptions += QLatin1String("--create-prefix");
     if (!dialog.revision().isEmpty())
         extraOptions << QLatin1String("-r") << dialog.revision();
-    m_client->synchronousPush(state.topLevel(), dialog.branchLocation(), extraOptions);
+    m_client.synchronousPush(state.topLevel(), dialog.branchLocation(), extraOptions);
 }
 
-void BazaarPlugin::update()
+void BazaarPluginPrivate::update()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
@@ -478,10 +612,10 @@ void BazaarPlugin::update()
     dialog.setWindowTitle(tr("Update"));
     if (dialog.exec() != QDialog::Accepted)
         return;
-    m_client->update(state.topLevel(), revertUi.revisionLineEdit->text());
+    m_client.update(state.topLevel(), revertUi.revisionLineEdit->text());
 }
 
-void BazaarPlugin::commit()
+void BazaarPluginPrivate::commit()
 {
     if (!promptBeforeCommit())
         return;
@@ -494,17 +628,17 @@ void BazaarPlugin::commit()
 
     m_submitRepository = state.topLevel();
 
-    QObject::connect(m_client, &VcsBaseClient::parsedStatus,
-                     this, &BazaarPlugin::showCommitWidget);
+    QObject::connect(&m_client, &VcsBaseClient::parsedStatus,
+                     this, &BazaarPluginPrivate::showCommitWidget);
     // The "--short" option allows to easily parse status output
-    m_client->emitParsedStatus(m_submitRepository, QStringList(QLatin1String("--short")));
+    m_client.emitParsedStatus(m_submitRepository, QStringList(QLatin1String("--short")));
 }
 
-void BazaarPlugin::showCommitWidget(const QList<VcsBaseClient::StatusItem> &status)
+void BazaarPluginPrivate::showCommitWidget(const QList<VcsBaseClient::StatusItem> &status)
 {
     //Once we receive our data release the connection so it can be reused elsewhere
-    QObject::disconnect(m_client, &VcsBaseClient::parsedStatus,
-                        this, &BazaarPlugin::showCommitWidget);
+    QObject::disconnect(&m_client, &VcsBaseClient::parsedStatus,
+                        this, &BazaarPluginPrivate::showCommitWidget);
 
     if (status.isEmpty()) {
         VcsOutputWindow::appendError(tr("There are no changes to commit."));
@@ -535,23 +669,22 @@ void BazaarPlugin::showCommitWidget(const QList<VcsBaseClient::StatusItem> &stat
     setSubmitEditor(commitEditor);
 
     connect(commitEditor, &VcsBaseSubmitEditor::diffSelectedFiles,
-            this, &BazaarPlugin::diffFromEditorSelected);
+            this, &BazaarPluginPrivate::diffFromEditorSelected);
     commitEditor->setCheckScriptWorkingDirectory(m_submitRepository);
 
     const QString msg = tr("Commit changes for \"%1\".").
             arg(QDir::toNativeSeparators(m_submitRepository));
     commitEditor->document()->setPreferredDisplayName(msg);
 
-    const BranchInfo branch = m_client->synchronousBranchQuery(m_submitRepository);
-    const VcsBaseClientSettings &s = m_client->settings();
+    const BranchInfo branch = m_client.synchronousBranchQuery(m_submitRepository);
     commitEditor->setFields(m_submitRepository, branch,
-                            s.stringValue(BazaarSettings::userNameKey),
-                            s.stringValue(BazaarSettings::userEmailKey), status);
+                            m_settings.stringValue(BazaarSettings::userNameKey),
+                            m_settings.stringValue(BazaarSettings::userEmailKey), status);
 }
 
-void BazaarPlugin::diffFromEditorSelected(const QStringList &files)
+void BazaarPluginPrivate::diffFromEditorSelected(const QStringList &files)
 {
-    m_client->diff(m_submitRepository, files);
+    m_client.diff(m_submitRepository, files);
 }
 
 #ifdef WITH_TESTS
@@ -583,7 +716,7 @@ void BazaarPlugin::testDiffFileResolving_data()
 
 void BazaarPlugin::testDiffFileResolving()
 {
-    VcsBaseEditorWidget::testDiffFileResolving(editorParameters[2].id);
+    VcsBaseEditorWidget::testDiffFileResolving(d->diffEditorFactory);
 }
 
 void BazaarPlugin::testLogResolving()
@@ -606,11 +739,11 @@ void BazaarPlugin::testLogResolving()
                 "  (gz) Set approved revision and vote \"Approve\" when using lp-propose\n"
                 "   --approve (Jonathan Lange)\n"
                 );
-    VcsBaseEditorWidget::testLogResolving(editorParameters[0].id, data, "6572", "6571");
+    VcsBaseEditorWidget::testLogResolving(d->logEditorFactory, data, "6572", "6571");
 }
 #endif
 
-void BazaarPlugin::commitFromEditor()
+void BazaarPluginPrivate::commitFromEditor()
 {
     // Close the submit editor
     m_submitActionTriggered = true;
@@ -618,17 +751,17 @@ void BazaarPlugin::commitFromEditor()
     EditorManager::closeDocument(submitEditor()->document());
 }
 
-void BazaarPlugin::uncommit()
+void BazaarPluginPrivate::uncommit()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
 
-    UnCommitDialog dialog(ICore::dialogParent());
+    UnCommitDialog dialog(this);
     if (dialog.exec() == QDialog::Accepted)
-        m_client->synchronousUncommit(state.topLevel(), dialog.revision(), dialog.extraOptions());
+        m_client.synchronousUncommit(state.topLevel(), dialog.revision(), dialog.extraOptions());
 }
 
-bool BazaarPlugin::submitEditorAboutToClose()
+bool BazaarPluginPrivate::submitEditorAboutToClose()
 {
     auto commitEditor = qobject_cast<CommitEditor *>(submitEditor());
     QTC_ASSERT(commitEditor, return true);
@@ -675,12 +808,12 @@ bool BazaarPlugin::submitEditorAboutToClose()
         // Whether local commit or not
         if (commitWidget->isLocalOptionEnabled())
             extraOptions += QLatin1String("--local");
-        m_client->commit(m_submitRepository, files, editorDocument->filePath().toString(), extraOptions);
+        m_client.commit(m_submitRepository, files, editorDocument->filePath().toString(), extraOptions);
     }
     return true;
 }
 
-void BazaarPlugin::updateActions(VcsBasePlugin::ActionState as)
+void BazaarPluginPrivate::updateActions(VcsBasePluginPrivate::ActionState as)
 {
     if (!enableMenuAction(as, m_menuAction)) {
         m_commandLocator->setEnabled(false);
@@ -700,6 +833,132 @@ void BazaarPlugin::updateActions(VcsBasePlugin::ActionState as)
 
     foreach (QAction *repoAction, m_repositoryActionList)
         repoAction->setEnabled(repoEnabled);
+}
+
+QString BazaarPluginPrivate::displayName() const
+{
+    return tr("Bazaar");
+}
+
+Core::Id BazaarPluginPrivate::id() const
+{
+    return Core::Id(VcsBase::Constants::VCS_ID_BAZAAR);
+}
+
+bool BazaarPluginPrivate::isVcsFileOrDirectory(const Utils::FilePath &fileName) const
+{
+    return m_client.isVcsDirectory(fileName);
+}
+
+bool BazaarPluginPrivate::managesDirectory(const QString &directory, QString *topLevel) const
+{
+    QFileInfo dir(directory);
+    const QString topLevelFound = m_client.findTopLevelForFile(dir);
+    if (topLevel)
+        *topLevel = topLevelFound;
+    return !topLevelFound.isEmpty();
+}
+
+bool BazaarPluginPrivate::managesFile(const QString &workingDirectory, const QString &fileName) const
+{
+    return m_client.managesFile(workingDirectory, fileName);
+}
+
+bool BazaarPluginPrivate::isConfigured() const
+{
+    const Utils::FilePath binary = m_settings.binaryPath();
+    if (binary.isEmpty())
+        return false;
+    QFileInfo fi = binary.toFileInfo();
+    return fi.exists() && fi.isFile() && fi.isExecutable();
+}
+
+bool BazaarPluginPrivate::supportsOperation(Operation operation) const
+{
+    bool supported = isConfigured();
+
+    switch (operation) {
+    case Core::IVersionControl::AddOperation:
+    case Core::IVersionControl::DeleteOperation:
+    case Core::IVersionControl::MoveOperation:
+    case Core::IVersionControl::CreateRepositoryOperation:
+    case Core::IVersionControl::AnnotateOperation:
+    case Core::IVersionControl::InitialCheckoutOperation:
+        break;
+    case Core::IVersionControl::SnapshotOperations:
+        supported = false;
+        break;
+    }
+    return supported;
+}
+
+bool BazaarPluginPrivate::vcsOpen(const QString &filename)
+{
+    Q_UNUSED(filename)
+    return true;
+}
+
+bool BazaarPluginPrivate::vcsAdd(const QString &filename)
+{
+    const QFileInfo fi(filename);
+    return m_client.synchronousAdd(fi.absolutePath(), fi.fileName());
+}
+
+bool BazaarPluginPrivate::vcsDelete(const QString &filename)
+{
+    const QFileInfo fi(filename);
+    return m_client.synchronousRemove(fi.absolutePath(), fi.fileName());
+}
+
+bool BazaarPluginPrivate::vcsMove(const QString &from, const QString &to)
+{
+    const QFileInfo fromInfo(from);
+    const QFileInfo toInfo(to);
+    return m_client.synchronousMove(fromInfo.absolutePath(),
+                                           fromInfo.absoluteFilePath(),
+                                           toInfo.absoluteFilePath());
+}
+
+bool BazaarPluginPrivate::vcsCreateRepository(const QString &directory)
+{
+    return m_client.synchronousCreateRepository(directory);
+}
+
+bool BazaarPluginPrivate::vcsAnnotate(const QString &file, int line)
+{
+    const QFileInfo fi(file);
+    m_client.annotate(fi.absolutePath(), fi.fileName(), QString(), line);
+    return true;
+}
+
+Core::ShellCommand *BazaarPluginPrivate::createInitialCheckoutCommand(const QString &url,
+                                                                const Utils::FilePath &baseDirectory,
+                                                                const QString &localName,
+                                                                const QStringList &extraArgs)
+{
+    QStringList args;
+    args << m_client.vcsCommandString(BazaarClient::CloneCommand)
+         << extraArgs << url << localName;
+
+    QProcessEnvironment env = m_client.processEnvironment();
+    env.insert(QLatin1String("BZR_PROGRESS_BAR"), QLatin1String("text"));
+    auto command = new VcsBase::VcsCommand(baseDirectory.toString(), env);
+    command->addJob({m_client.vcsBinary(), args}, -1);
+    return command;
+}
+
+void BazaarPluginPrivate::changed(const QVariant &v)
+{
+    switch (v.type()) {
+    case QVariant::String:
+        emit repositoryChanged(v.toString());
+        break;
+    case QVariant::StringList:
+        emit filesChanged(v.toStringList());
+        break;
+    default:
+        break;
+    }
 }
 
 } // namespace Internal

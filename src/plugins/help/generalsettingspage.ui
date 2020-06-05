@@ -289,6 +289,13 @@
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_4">
       <item>
+       <widget class="QCheckBox" name="scrollWheelZooming">
+        <property name="text">
+         <string>Enable scroll wheel zooming</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QCheckBox" name="m_returnOnClose">
         <property name="toolTip">
          <string>Switches to editor context after last help page is closed.</string>
@@ -297,6 +304,40 @@
          <string>Return to editor on closing the last page</string>
         </property>
        </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_5">
+        <item>
+         <widget class="QLabel" name="viewerBackendLabel">
+          <property name="text">
+           <string>Viewer backend:</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="viewerBackend"/>
+        </item>
+        <item>
+         <widget class="QLabel" name="viewerBackendDescription">
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
       </item>
      </layout>
     </widget>

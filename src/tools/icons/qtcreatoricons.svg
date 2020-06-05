@@ -14,7 +14,7 @@
    height="600"
    id="svg2"
    version="1.1"
-   inkscape:version="0.92.1 r15371"
+   inkscape:version="0.92.4 5da689c313, 2019-01-14"
    sodipodi:docname="qtcreatoricons.svg">
   <defs
      id="defs4">
@@ -158,17 +158,6 @@
        gradientUnits="userSpaceOnUse" />
     <clipPath
        clipPathUnits="userSpaceOnUse"
-       id="clipPath4754">
-      <rect
-         style="fill:none;stroke:none"
-         id="rect4756"
-         width="9"
-         height="9"
-         x="187"
-         y="592" />
-    </clipPath>
-    <clipPath
-       clipPathUnits="userSpaceOnUse"
        id="clipPath4845">
       <rect
          style="opacity:0.60100002;fill:#ffffff;fill-opacity:0"
@@ -299,45 +288,6 @@
          id="rect3235"
          style="fill:none;stroke:none" />
     </clipPath>
-    <filter
-       id="filter4057"
-       inkscape:label="Inner Shadow"
-       inkscape:menu="Shadows and Glows"
-       inkscape:menu-tooltip="Adds a colorizable drop shadow inside"
-       color-interpolation-filters="sRGB">
-      <feGaussianBlur
-         id="feGaussianBlur4059"
-         stdDeviation="1.5"
-         result="result8" />
-      <feOffset
-         id="feOffset4061"
-         dx="0"
-         dy="2"
-         result="result11" />
-      <feComposite
-         id="feComposite4063"
-         in2="result11"
-         result="result6"
-         in="SourceGraphic"
-         operator="in" />
-      <feFlood
-         id="feFlood4065"
-         result="result10"
-         in="result6"
-         flood-opacity="1"
-         flood-color="rgb(0,0,0)" />
-      <feBlend
-         id="feBlend4067"
-         in2="result10"
-         mode="normal"
-         in="result6"
-         result="result12" />
-      <feComposite
-         id="feComposite4069"
-         in2="SourceGraphic"
-         result="result2"
-         operator="atop" />
-    </filter>
     <clipPath
        clipPathUnits="userSpaceOnUse"
        id="clipPath3231">
@@ -553,6 +503,90 @@
        fy="91.5"
        r="18.5"
        gradientUnits="userSpaceOnUse" />
+    <filter
+       style="color-interpolation-filters:sRGB;"
+       height="1"
+       width="1"
+       y="0"
+       x="0"
+       inkscape:label="Outline"
+       id="filter4057">
+      <feGaussianBlur
+         in="SourceAlpha"
+         stdDeviation="1"
+         result="blur1"
+         id="feGaussianBlur4140" />
+      <feComposite
+         in="blur1"
+         in2="SourceGraphic"
+         operator="out"
+         result="composite1"
+         id="feComposite4142" />
+      <feColorMatrix
+         values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 -0 "
+         result="colormatrix1"
+         id="feColorMatrix4144" />
+      <feGaussianBlur
+         stdDeviation="0.40000000000000002"
+         result="blur2"
+         id="feGaussianBlur4146" />
+      <feComposite
+         in="blur2"
+         in2="blur2"
+         operator="out"
+         result="composite2"
+         id="feComposite4148" />
+      <feColorMatrix
+         values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 -0 "
+         result="colormatrix2"
+         id="feColorMatrix4150" />
+      <feGaussianBlur
+         stdDeviation="0.5"
+         result="blur3"
+         id="feGaussianBlur4152" />
+      <feColorMatrix
+         values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0 "
+         result="colormatrix3"
+         id="feColorMatrix4154" />
+      <feFlood
+         flood-opacity="1"
+         flood-color="rgb(0,0,0)"
+         result="flood"
+         id="feFlood4156" />
+      <feComposite
+         in="flood"
+         in2="colormatrix3"
+         k2="1"
+         operator="in"
+         result="composite3"
+         id="feComposite4158" />
+      <feComposite
+         in="SourceGraphic"
+         in2="colormatrix3"
+         operator="copy"
+         result="composite4"
+         id="feComposite4160" />
+      <feComposite
+         in="composite4"
+         in2="composite3"
+         k2="1"
+         k3="1"
+         operator="arithmetic"
+         result="composite5"
+         id="feComposite4162" />
+    </filter>
+    <filter
+       style="color-interpolation-filters:sRGB;"
+       inkscape:label="Lightness-Contrast"
+       id="filter2749"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         values="0.66 0 0 0.35 0.0182292 0.02 0.66 0.02 0.35 0.0182292 0.08 0.08 0.66 0.35 0.02 0 0 0 1 0 "
+         id="feColorMatrix2747" />
+    </filter>
   </defs>
   <sodipodi:namedview
      id="base"
@@ -561,19 +595,11 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="4"
-     inkscape:cx="407.31417"
-     inkscape:cy="170.08332"
      inkscape:document-units="px"
-     inkscape:current-layer="g4718"
      showgrid="true"
      showguides="true"
      inkscape:guide-bbox="true"
-     inkscape:window-width="2880"
-     inkscape:window-height="1503"
-     inkscape:window-x="-13"
-     inkscape:window-y="527"
-     inkscape:window-maximized="1"
+     inkscape:window-maximized="0"
      inkscape:snap-grids="true">
     <inkscape:grid
        type="xygrid"
@@ -612,7 +638,7 @@
        inkscape:locked="false" />
     <sodipodi:guide
        orientation="0,1"
-       position="0,80"
+       position="232,80"
        id="guide4545"
        inkscape:locked="false" />
     <sodipodi:guide
@@ -2214,7 +2240,8 @@
     </g>
     <g
        id="share/qtcreator/templates/wizards/projects/vcs/git/icon"
-       transform="translate(0,-60)">
+       transform="translate(0,-60)"
+       style="filter:url(#filter4057)">
       <use
          style="display:inline"
          x="0"
@@ -2233,7 +2260,8 @@
     </g>
     <g
        id="src/plugins/genericprojectmanager/images/genericprojectmanager"
-       transform="translate(60)">
+       transform="translate(60)"
+       style="filter:url(#filter4057)">
       <use
          style="display:inline"
          x="0"
@@ -2260,7 +2288,8 @@
        height="100%" />
     <g
        id="share/qtcreator/templates/wizards/projects/vcs/cvs/icon"
-       transform="translate(120)">
+       transform="translate(120)"
+       style="filter:url(#filter4057)">
       <use
          style="display:inline"
          x="0"
@@ -2816,6 +2845,41 @@
          transform="translate(169,-74)" />
     </g>
     <g
+       transform="translate(-245,-78)"
+       id="src/plugins/mcusupport/wizards/icon">
+      <g
+         id="g2653"
+         style="filter:url(#filter2749)">
+        <use
+           style="display:inline"
+           x="0"
+           y="0"
+           xlink:href="#transparentBackgroundRect_60_60"
+           id="use2529"
+           width="100%"
+           height="100%"
+           transform="translate(485,138)" />
+        <use
+           style="stroke-width:0.5"
+           height="100%"
+           width="100%"
+           id="use6254-7"
+           xlink:href="#baremetalchip_big"
+           y="0"
+           x="0"
+           transform="matrix(2,0,0,2,-631,-402)" />
+        <use
+           style="stroke-width:0.5"
+           transform="matrix(2,0,0,2,-514.5,199)"
+           x="0"
+           y="0"
+           xlink:href="#boottoqtscreen"
+           id="use6299-7"
+           width="100%"
+           height="100%" />
+      </g>
+    </g>
+    <g
        id="src/plugins/coreplugin/images/settingscategory_core"
        transform="translate(-364,-84)">
       <use
@@ -3190,6 +3254,51 @@
          inkscape:connector-curvature="0" />
     </g>
     <g
+       transform="translate(-213,-84)"
+       id="src/plugins/python/images/settingscategory_python">
+      <use
+         style="display:inline"
+         transform="translate(1128,148)"
+         height="100%"
+         width="100%"
+         id="use2493"
+         xlink:href="#backgroundRect_24"
+         y="0"
+         x="0" />
+      <path
+         sodipodi:nodetypes="ccccccsssscc"
+         inkscape:connector-curvature="0"
+         id="path1631-9"
+         d="m 1112,567 v 1 h 4 v 1 h -4 c -5.3,0 -5.3,7 0,7 v -1.5 c 0,-1.5 1.5,-2.5 2.5,-2.5 h 2 c 1.8137,0 2.5,-0.75 2.5,-2.5 V 567 c 0,-2.66 -7,-2.66 -7,0 z"
+         style="stroke-width:0" />
+      <use
+         x="0"
+         y="0"
+         xlink:href="#path1631-9"
+         id="use2537"
+         transform="rotate(-180,1116,572.5)"
+         width="100%"
+         height="100%" />
+      <path
+         style="fill:#ffffff"
+         d="m 1121,570.75 c 0,1.75 -1.5,3.25 -3.5,3.25 h -2.5 c -0.66,0 -1,0.33 -1,1 v 3 c 0,0 -0.031,1 2.3654,1 1.7918,0 2.6346,0.21875 2.6346,-0.99998 h -4 v -3 h 5 c 4,0 3.5,-4.75 1,-4.75 z"
+         id="path2539"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="sscccscccccs" />
+      <circle
+         style="fill:#ffffff"
+         id="path2541"
+         cx="1113.5"
+         cy="566.5"
+         r="0.625" />
+      <circle
+         style="fill:#000000"
+         id="path2541-4"
+         cx="1117.5"
+         cy="578.5"
+         r="0.5" />
+    </g>
+    <g
        id="src/plugins/autotest/images/settingscategory_autotest"
        transform="translate(-220,-84)">
       <use
@@ -3379,6 +3488,28 @@
          height="100%" />
     </g>
     <g
+       id="src/plugins/qbsprojectmanager/images/settingscategory_qbsprojectmanager">
+      <use
+         style="display:inline"
+         transform="translate(1040,64)"
+         height="100%"
+         width="100%"
+         id="use6243"
+         xlink:href="#backgroundRect_24"
+         y="0"
+         x="0" />
+      <path
+         style="fill:#b3b3b3"
+         d="m 1021.5,485.5 h 12 v 8 l 2,-2 v -8 h -12 z"
+         id="path6323"
+         inkscape:connector-curvature="0" />
+      <path
+         id="path6314"
+         style="fill:none;stroke:#000000"
+         d="m 1033.5,485.5 v 8 m -12,-8 h 12 l 2,-2 m -14,2 2,-2 h 12 v 8 l -2,2 h -12 z m 8,8 v -8 l 2,-2 m -6,10 v -8 l 2,-2 m -6,6 h 12 l 2,-2"
+         inkscape:connector-curvature="0" />
+    </g>
+    <g
        id="src/plugins/valgrind/images/kcachegrind"
        transform="translate(112)">
       <use
@@ -3452,6 +3583,276 @@
          transform="rotate(135,1732.4602,575.4038)"
          width="100%"
          height="100%" />
+    </g>
+    <g
+       transform="translate(128)"
+       id="src/libs/utils/images/settings">
+      <use
+         transform="translate(1740,132)"
+         height="100%"
+         width="100%"
+         id="use4105"
+         xlink:href="#backgroundRect"
+         y="0"
+         x="0" />
+      <circle
+         style="fill:none;stroke:#000000;stroke-width:1.75"
+         id="path4133"
+         cx="1732"
+         cy="576"
+         r="3.5" />
+      <path
+         style="fill:#000000"
+         d="m 1733.25,579.5 -0.5,2.5 h -1.5 l -0.5,-2.5 z"
+         id="path4135"
+         inkscape:connector-curvature="0"
+         inkscape:transform-center-y="5.25"
+         sodipodi:nodetypes="ccccc" />
+      <use
+         x="0"
+         y="0"
+         xlink:href="#path4135"
+         inkscape:transform-center-y="3.5355339"
+         id="use4137"
+         transform="rotate(45,1732,576)"
+         width="100%"
+         height="100%"
+         inkscape:transform-center-x="3.5355339" />
+      <use
+         x="0"
+         y="0"
+         xlink:href="#path4135"
+         id="use4139"
+         transform="rotate(90,1732,576)"
+         width="100%"
+         height="100%"
+         inkscape:transform-center-x="5.25" />
+      <use
+         x="0"
+         y="0"
+         xlink:href="#path4135"
+         inkscape:transform-center-y="-3.5355339"
+         id="use4141"
+         transform="rotate(135,1732,576)"
+         width="100%"
+         height="100%"
+         inkscape:transform-center-x="3.5355339" />
+      <use
+         x="0"
+         y="0"
+         xlink:href="#path4135"
+         inkscape:transform-center-y="-5.25"
+         id="use4143"
+         transform="rotate(-180,1732,576)"
+         width="100%"
+         height="100%" />
+      <use
+         x="0"
+         y="0"
+         xlink:href="#path4135"
+         inkscape:transform-center-y="-3.5355339"
+         id="use4145"
+         transform="rotate(-135,1732,576)"
+         width="100%"
+         height="100%"
+         inkscape:transform-center-x="-3.5355339" />
+      <use
+         x="0"
+         y="0"
+         xlink:href="#path4135"
+         id="use4147"
+         transform="rotate(-90,1732,576)"
+         width="100%"
+         height="100%"
+         inkscape:transform-center-x="-5.25" />
+      <use
+         x="0"
+         y="0"
+         xlink:href="#path4135"
+         inkscape:transform-center-y="3.5355339"
+         id="use4149"
+         transform="rotate(-45,1732,576)"
+         width="100%"
+         height="100%"
+         inkscape:transform-center-x="-3.5355339" />
+    </g>
+    <g
+       style="display:inline"
+       transform="translate(144)"
+       id="src/plugins/languageclient/images/languageclient">
+      <use
+         transform="translate(1740,132)"
+         height="100%"
+         width="100%"
+         id="use4105-8"
+         xlink:href="#backgroundRect"
+         y="0"
+         x="0" />
+      <ellipse
+         style="fill:none;stroke:#000000"
+         id="path4643-3"
+         cx="1729"
+         cy="580.5"
+         rx="3.5"
+         ry="2" />
+      <use
+         x="0"
+         y="0"
+         xlink:href="#path4643-3"
+         id="use4684-9"
+         width="100%"
+         height="100%"
+         transform="translate(0,-5)" />
+      <rect
+         style="fill:#ffffff"
+         id="rect4670-9"
+         width="8"
+         height="2.5"
+         x="1725"
+         y="578" />
+      <path
+         style="fill:none;stroke:#000000"
+         d="m 1725.5,575.5 v 5"
+         id="path4672-0"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="cc" />
+      <use
+         x="0"
+         y="0"
+         xlink:href="#path4672-0"
+         id="use4686-9"
+         transform="translate(7)"
+         width="100%"
+         height="100%" />
+      <path
+         style="display:inline;fill:#000000"
+         d="m 1733,569 h 4 c 1,0 2,1 2,2 v 3 c 0,2.5 -1.5,2.5 -5.5,4 l 2,-2 h -2.5 c -1,0 -2,-1 -2,-2 v -3 c 0,-1 1,-2 2,-2 z"
+         id="path4639-0"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="cccccccccc" />
+      <path
+         style="display:inline;fill:none;stroke:#ffffff"
+         d="m 1734.25,570.75 -1.75,1.75 1.75,1.75"
+         id="path4676-1"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="ccc" />
+      <use
+         style="display:inline"
+         x="0"
+         y="0"
+         xlink:href="#path4676-1"
+         id="use4682-2"
+         transform="matrix(-1,0,0,1,3470,0)"
+         width="100%"
+         height="100%" />
+    </g>
+    <g
+       style="display:inline"
+       transform="translate(160)"
+       id="src/libs/utils/images/toggleprogressdetails">
+      <use
+         style="display:inline"
+         transform="translate(1740,132)"
+         height="100%"
+         width="100%"
+         id="use4105-8-8"
+         xlink:href="#backgroundRect"
+         y="0"
+         x="0" />
+      <rect
+         style="display:inline;fill:#707070"
+         id="rect2566"
+         width="8"
+         height="2"
+         x="1726"
+         y="577" />
+      <rect
+         style="display:inline;fill:none;stroke:#000000"
+         id="rect2564"
+         width="13"
+         height="3"
+         x="1725.5"
+         y="576.5"
+         ry="1"
+         rx="1" />
+      <use
+         transform="matrix(1,0,0,-1,1529,1167)"
+         style="display:inline"
+         x="0"
+         y="0"
+         xlink:href="#expandarrow"
+         id="use2507"
+         width="100%"
+         height="100%" />
+    </g>
+    <g
+       id="src/libs/utils/images/online"
+       transform="translate(176)"
+       style="display:inline">
+      <use
+         x="0"
+         y="0"
+         xlink:href="#backgroundRect"
+         id="use6217"
+         width="100%"
+         height="100%"
+         transform="translate(1740,132)"
+         style="display:inline" />
+      <circle
+         style="fill:none;stroke:#000000"
+         id="path6227"
+         cx="1732.5"
+         cy="575.5"
+         r="6" />
+      <ellipse
+         cy="575.5"
+         cx="1732.5"
+         id="circle6239"
+         style="fill:none;stroke:#000000"
+         ry="6"
+         rx="2.8299999" />
+      <path
+         id="path2519"
+         style="fill:none;stroke:#000000"
+         d="m 1727,572.5 h 11 m -11,6 h 11 m -11,-3 h 11"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="cccccc" />
+    </g>
+    <g
+       id="src/libs/utils/images/download_arrow">
+      <use
+         style="display:inline"
+         transform="translate(1932,132)"
+         height="100%"
+         width="100%"
+         id="use2519"
+         xlink:href="#backgroundRect"
+         y="0"
+         x="0" />
+      <path
+         id="use2530"
+         style="fill:#000000"
+         d="m 1925,578 h -2 v -8 h 2 z m -1,-0.5 4,-4 v 2 l -4,4 -4,-4 v -2 z"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="cccccccccccc" />
+    </g>
+    <g
+       id="src/libs/utils/images/download_base">
+      <use
+         x="0"
+         y="0"
+         xlink:href="#backgroundRect"
+         id="use2547"
+         width="100%"
+         height="100%"
+         transform="translate(1948,132)"
+         style="display:inline" />
+      <path
+         style="fill:none;stroke:#000000"
+         d="m 1934.5,579 v 2.5 h 11 V 579"
+         id="path2553"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="cccc" />
     </g>
   </g>
   <g
@@ -3801,15 +4202,14 @@
     </g>
     <g
        id="src/libs/utils/images/extension"
-       style="display:inline;"
-       clip-path="url(#clipPath4754)"
+       style="display:inline"
        transform="translate(-171,-20)">
       <rect
          id="use4527"
          width="9"
-         height="9"
+         height="16"
          x="187"
-         y="592"
+         y="588"
          style="fill:#ffffff" />
       <path
          sodipodi:nodetypes="ccc"
@@ -4963,7 +5363,7 @@
     </g>
     <g
        style="display:inline"
-       id="src/plugins/autotest/images/sort"
+       id="src/libs/utils/images/sort_alphabetically"
        transform="translate(32,0)">
       <rect
          y="568"
@@ -6439,9 +6839,27 @@
       <path
          sodipodi:nodetypes="cccc"
          inkscape:connector-curvature="0"
-         id="path4784-17"
+         id="expandarrow"
          d="m 210,595 -2.5,2.5 -2.5,-2.5 z"
          style="fill:#000000;fill-opacity:1;stroke:none" />
+    </g>
+    <g
+       id="src/libs/utils/images/pinned">
+      <use
+         style="display:inline"
+         x="0"
+         y="0"
+         xlink:href="#backgroundRect"
+         id="use5933-0-2-3"
+         width="100%"
+         height="100%"
+         transform="translate(361,148)" />
+      <path
+         sodipodi:nodetypes="ccccccccccccccc"
+         inkscape:connector-curvature="0"
+         id="path6750"
+         d="m 347,597.33936 0.60019,0.60645 3.49128,-3.49127 3.09695,3.09695 c 0.29088,-0.96173 0.20375,-2.0863 -0.1875,-3.07155 l 3.68179,-3.68179 0.55968,0.52841 0.75761,-0.75762 -4.51473,-4.51475 -0.80193,0.80194 0.53076,0.51509 -3.60205,3.60206 c -1.04768,-0.37523 -2.22553,-0.48941 -3.20237,-0.15625 l 3.0615,3.0615 z"
+         style="fill:#000000" />
     </g>
   </g>
   <g
@@ -7761,7 +8179,7 @@
          style="opacity:0.2"
          clip-path="url(#clipPath3231)">
         <rect
-           style="fill:#ffffff;fill-opacity:1;stroke:none;filter:url(#filter4057)"
+           style="fill:#ffffff;fill-opacity:1;stroke:none;"
            id="rect4866"
            width="14"
            height="14"
@@ -8914,6 +9332,30 @@
       </g>
     </g>
     <g
+       transform="translate(111)"
+       id="src/plugins/projectexplorer/images/fileoverlay_py">
+      <use
+         x="0"
+         y="0"
+         xlink:href="#transparentBackgroundRect"
+         id="use2479"
+         width="100%"
+         height="100%"
+         transform="translate(113,68)" />
+      <path
+         style="opacity:0.75;fill:#ffffff"
+         d="m 104,535.99991 c 0.5,-9e-5 1,-0.49991 1,-0.99991 v -1 c 1,0 1.58286,0 2.58286,0 -0.5,0.5 -0.2217,1 0.0332,1.22379 L 108.50001,536 h 0.74644 c 0.27171,0 0.55533,-0.30177 0.75356,-0.5 l 2.24999,-2.25 c 0.25054,-0.25054 0.75001,-0.85547 0.75001,-1.41406 V 530 c 0,-0.5 -0.5,-1 -1,-1 0,0 -8.49999,0 -9,0 -0.50001,0 -1,0.5 -1,1 v 5 c 0,0.5 0.49999,1 0.99999,1 0.5,0 0.5,0 1,-9e-5 z"
+         id="path5194-1"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="zsccscscssszzsszz" />
+      <path
+         sodipodi:nodetypes="cccccccccccc"
+         inkscape:connector-curvature="0"
+         d="m 103.49859,532.5 v -2 c 1.02427,-0.0193 2.92783,-0.45188 3,1 0.0722,1.45188 -2,1 -3,1 z M 111.5,530 v 1.73815 c -0.36757,0.7971 -1.47164,1.64275 -3,3.26185 m 0,-5 v 1.97707 c 0.22805,0.82162 1.35083,0.8693 2,1.52293 m -7,-3.5 v 5"
+         style="fill:none;stroke:#1986a0;stroke-opacity:1"
+         id="path5210-3" />
+    </g>
+    <g
        id="src/libs/utils/images/filesave">
       <rect
          style="display:inline;fill:#ffffff;fill-opacity:1"
@@ -9432,52 +9874,55 @@
          id="use5913-0-8-1-5-6-8-1"
          width="100%"
          height="100%" />
-      <path
-         style="fill:#808080;fill-opacity:1;stroke:#000000;stroke-opacity:1"
-         d="m 564.5,351.5 h 13 l 2,2 v 13 l -2,2 h -13 l -2,-2 v -13 z"
-         id="rect5155"
-         inkscape:connector-curvature="0"
-         sodipodi:nodetypes="ccccccccc" />
+      <g
+         id="baremetalchip_big">
+        <path
+           sodipodi:nodetypes="ccccccccc"
+           inkscape:connector-curvature="0"
+           id="rect5155"
+           d="m 564.5,351.5 h 13 l 2,2 v 13 l -2,2 h -13 l -2,-2 v -13 z"
+           style="fill:#808080;stroke:#000000;stroke-width:1" />
+        <g
+           transform="translate(0.5,-4)"
+           id="g5189">
+          <path
+             sodipodi:nodetypes="cccccccccccccccccccc"
+             inkscape:connector-curvature="0"
+             d="m 565.5,352 h 1 v 3 h -1 z m 3,0 h 1 v 3 h -1 z m 3,0 h 1 v 3 h -1 z m 3,0 h 1 v 3 h -1 z"
+             style="color:#000000"
+             id="path5432-0" />
+        </g>
+        <use
+           height="100%"
+           width="100%"
+           transform="matrix(1,0,0,-1,0,720)"
+           id="use5200"
+           xlink:href="#g5189"
+           y="0"
+           x="0" />
+        <use
+           height="100%"
+           width="100%"
+           transform="rotate(90,571,360)"
+           id="use5202"
+           xlink:href="#g5189"
+           y="0"
+           x="0" />
+        <use
+           height="100%"
+           width="100%"
+           transform="rotate(-90,571,360)"
+           id="use5204"
+           xlink:href="#g5189"
+           y="0"
+           x="0" />
+      </g>
       <circle
          style="fill:#000000"
          id="path5159"
          cx="566"
          cy="365"
          r="1.5" />
-      <g
-         id="g5189"
-         transform="translate(0.5,-4)">
-        <path
-           id="path5432-0"
-           style="color:#000000"
-           d="m 565.5,352 h 1 v 3 h -1 z m 3,0 h 1 v 3 h -1 z m 3,0 h 1 v 3 h -1 z m 3,0 h 1 v 3 h -1 z"
-           inkscape:connector-curvature="0"
-           sodipodi:nodetypes="cccccccccccccccccccc" />
-      </g>
-      <use
-         x="0"
-         y="0"
-         xlink:href="#g5189"
-         id="use5200"
-         transform="matrix(1,0,0,-1,0,720)"
-         width="100%"
-         height="100%" />
-      <use
-         x="0"
-         y="0"
-         xlink:href="#g5189"
-         id="use5202"
-         transform="rotate(90,571,360)"
-         width="100%"
-         height="100%" />
-      <use
-         x="0"
-         y="0"
-         xlink:href="#g5189"
-         id="use5204"
-         transform="rotate(-90,571,360)"
-         width="100%"
-         height="100%" />
       <path
          id="rect5208-6-6"
          style="fill:#000000"
@@ -9496,42 +9941,45 @@
          width="100%"
          height="100%"
          transform="translate(586,-73)" />
-      <path
-         style="fill:#999999;fill-opacity:1;stroke:#000000;stroke-width:0.5"
-         d="m 575.5,367.25 h 6 l 1.25,1.25 v 6 l -1.25,1.25 h -6 l -1.25,-1.25 v -6 z"
-         id="rect5492"
-         inkscape:connector-curvature="0"
-         sodipodi:nodetypes="ccccccccc" />
-      <path
-         id="rect5494-5"
-         style="fill:#4d4d4d"
-         d="m 580,365 h 1 v 2 h -1 z m -2,0 h 1 v 2 h -1 z m -2,0 h 1 v 2 h -1 z"
-         inkscape:connector-curvature="0"
-         sodipodi:nodetypes="ccccccccccccscc" />
-      <use
-         x="0"
-         y="0"
-         xlink:href="#rect5494-5"
-         id="use5529"
-         transform="rotate(90,578.5,371.5)"
-         width="100%"
-         height="100%" />
-      <use
-         x="0"
-         y="0"
-         xlink:href="#rect5494-5"
-         id="use5531"
-         transform="matrix(1,0,0,-1,0,743)"
-         width="100%"
-         height="100%" />
-      <use
-         x="0"
-         y="0"
-         xlink:href="#rect5494-5"
-         id="use5533"
-         transform="rotate(-90,578.5,371.5)"
-         width="100%"
-         height="100%" />
+      <g
+         id="baremetalchip_small">
+        <path
+           sodipodi:nodetypes="ccccccccc"
+           inkscape:connector-curvature="0"
+           id="rect5492"
+           d="m 575.5,367.25 h 6 l 1.25,1.25 v 6 l -1.25,1.25 h -6 l -1.25,-1.25 v -6 z"
+           style="fill:#999999;fill-opacity:1;stroke:#000000;stroke-width:0.5" />
+        <path
+           sodipodi:nodetypes="ccccccccccccscc"
+           inkscape:connector-curvature="0"
+           d="m 580,365 h 1 v 2 h -1 z m -2,0 h 1 v 2 h -1 z m -2,0 h 1 v 2 h -1 z"
+           style="fill:#4d4d4d"
+           id="rect5494-5" />
+        <use
+           height="100%"
+           width="100%"
+           transform="rotate(90,578.5,371.5)"
+           id="use5529"
+           xlink:href="#rect5494-5"
+           y="0"
+           x="0" />
+        <use
+           height="100%"
+           width="100%"
+           transform="matrix(1,0,0,-1,0,743)"
+           id="use5531"
+           xlink:href="#rect5494-5"
+           y="0"
+           x="0" />
+        <use
+           height="100%"
+           width="100%"
+           transform="rotate(-90,578.5,371.5)"
+           id="use5533"
+           xlink:href="#rect5494-5"
+           y="0"
+           x="0" />
+      </g>
       <circle
          style="fill:#000000"
          id="path5159-4"
@@ -9933,6 +10381,107 @@
          id="use1449"
          width="100%"
          height="100%" />
+    </g>
+    <g
+       id="src/plugins/webassembly/images/webassemblydevice"
+       transform="translate(-67.75,310.5)">
+      <use
+         height="100%"
+         width="100%"
+         id="use6196"
+         xlink:href="#backgroundRect_32_28"
+         y="0"
+         x="0"
+         style="display:inline"
+         transform="translate(458.75,5.5)" />
+      <path
+         sodipodi:nodetypes="czcccccc"
+         style="fill:#000000"
+         inkscape:connector-curvature="0"
+         d="m 519.75,48.5 c 0,1.5 -1.25,3 -3,3 -1.75,0 -3,-1.5 -3,-3 h -9 v 24 h 24 v -24 z"
+         id="path2499" />
+      <path
+         sodipodi:nodetypes="cccccccccccccccccccccccccccc"
+         style="fill:#ffffff"
+         inkscape:connector-curvature="0"
+         d="m 510.13397,61.5 h 1.60194 l 1.1035,6.125017 L 514.1637,61.5 h 1.49846 l 1.19888,6.200194 L 518.11917,61.5 h 1.57114 l -2.04153,9 h -1.58969 L 514.86632,64.374983 513.59062,70.5 h -1.61932 z m 11.36247,0 h 2.52534 l 2.50797,9 h -1.65249 l -0.8658,-3 h -2.3347 l -0.64281,3 h -1.60945 z m 0.99617,2 -0.63495,3 h 1.97747 l -0.73843,-3 z"
+         id="path2501" />
+    </g>
+    <g
+       transform="translate(-138,27)"
+       id="src/plugins/webassembly/images/webassemblydevicesmall">
+      <use
+         transform="translate(586,-73)"
+         height="100%"
+         width="100%"
+         id="use6204"
+         xlink:href="#backgroundRect"
+         y="0"
+         x="0" />
+      <path
+         sodipodi:nodetypes="czcccccc"
+         style="fill:#000000"
+         inkscape:connector-curvature="0"
+         d="m 580,365 c 0,0.75 -0.5,2 -2,2 -1.5,0 -2,-1.25 -2,-2 h -4 v 12 h 12 v -12 z"
+         id="path2499-9" />
+      <path
+         id="path2526"
+         style="fill:none;stroke:#ffffff;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:bevel"
+         d="m 579.5,373.5 h 3 m -3,2.5 v -4 l 1.5,-2 1.5,2 v 4 m -9,-6 v 3 l 1,3 1,-4 1,4 1,-3 v -3"
+         inkscape:connector-curvature="0" />
+    </g>
+    <g
+       transform="translate(-31.75,310.5)"
+       id="src/plugins/mcusupport/images/mcusupportdevice">
+      <use
+         transform="translate(458.75,5.5)"
+         style="display:inline"
+         x="0"
+         y="0"
+         xlink:href="#backgroundRect_32_28"
+         id="use6222"
+         width="100%"
+         height="100%" />
+      <use
+         transform="translate(-54.25,-299.5)"
+         x="0"
+         y="0"
+         xlink:href="#baremetalchip_big"
+         id="use6254"
+         width="100%"
+         height="100%" />
+      <use
+         height="100%"
+         width="100%"
+         id="use6299"
+         xlink:href="#boottoqtscreen"
+         y="0"
+         x="0"
+         transform="translate(4,1)" />
+    </g>
+    <g
+       id="src/plugins/mcusupport/images/mcusupportdevicesmall"
+       transform="translate(-102,27)">
+      <use
+         x="0"
+         y="0"
+         xlink:href="#backgroundRect"
+         id="use6230"
+         width="100%"
+         height="100%"
+         transform="translate(586,-73)" />
+      <use
+         x="0"
+         y="0"
+         xlink:href="#baremetalchip_small"
+         id="use6282"
+         width="100%"
+         height="100%" />
+      <path
+         style="fill:none;stroke:#ffffff;stroke-width:0.89999998"
+         inkscape:connector-curvature="0"
+         d="m 579.5,371.5 h 2.5 m -1.48438,-1.54688 -0.0227,2.94133 c 0.002,0.96521 0.83838,0.77673 1.50706,0.60555 m -3.69064,0 1.19887,1.38951 M 577.5,370.5 c 1,0 1,0.28518 1,1.5 0,1.21481 0,1.5 -1,1.5 -1,0 -1,-0.30273 -1,-1.5 0,-1.19726 0,-1.5 1,-1.5 z"
+         id="path6333" />
     </g>
     <g
        id="src/plugins/winrt/images/winrtdevice"

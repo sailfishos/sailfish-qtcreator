@@ -35,8 +35,6 @@ QT_END_NAMESPACE
 namespace ClearCase {
 namespace Internal {
 
-class ClearCasePlugin;
-
 class ActivitySelector : public QWidget
 {
     Q_OBJECT
@@ -54,7 +52,6 @@ public:
 private:
     void userChanged();
 
-    ClearCasePlugin *m_plugin = nullptr;
     bool m_changed = false;
     QComboBox *m_cmbActivity = nullptr;
 };

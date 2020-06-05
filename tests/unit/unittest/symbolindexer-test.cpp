@@ -28,17 +28,21 @@
 #include "mockbuilddependenciesstorage.h"
 #include "mockclangpathwatcher.h"
 #include "mockfilepathcaching.h"
+#include "mockfilesystem.h"
+#include "mockmodifiedtimechecker.h"
 #include "mockprecompiledheaderstorage.h"
 #include "mockprojectpartsstorage.h"
 #include "mocksqlitetransactionbackend.h"
 #include "mocksymbolscollector.h"
 #include "mocksymbolstorage.h"
+#include "testenvironment.h"
 
 #include <filepathcaching.h>
 #include <filestatuscache.h>
+#include <processormanager.h>
 #include <projectpartcontainer.h>
 #include <refactoringdatabaseinitializer.h>
-#include <processormanager.h>
+#include <sqliteexception.h>
 #include <symbolindexer.h>
 #include <symbolindexertaskqueue.h>
 #include <taskscheduler.h>
@@ -107,13 +111,17 @@ protected:
         ON_CALL(mockCollector, sourceLocations()).WillByDefault(ReturnRef(sourceLocations));
         ON_CALL(mockCollector, sourceFiles()).WillByDefault(ReturnRef(sourceFileIds));
         ON_CALL(mockCollector, usedMacros()).WillByDefault(ReturnRef(usedMacros));
-        ON_CALL(mockCollector, fileStatuses()).WillByDefault(ReturnRef(fileStatus));
         ON_CALL(mockCollector, sourceDependencies()).WillByDefault(ReturnRef(sourceDependencies));
         ON_CALL(mockProjectPartsStorage, fetchProjectPartArtefact(A<FilePathId>()))
             .WillByDefault(Return(artefact));
         ON_CALL(mockBuildDependenciesStorage, fetchLowestLastModifiedTime(A<FilePathId>())).WillByDefault(Return(-1));
         ON_CALL(mockCollector, collectSymbols()).WillByDefault(Return(true));
-
+        ON_CALL(mockBuildDependenciesStorage, fetchDependentSourceIds(sourceFileIds))
+            .WillByDefault(Return(sourceFileIds));
+        ON_CALL(mockBuildDependenciesStorage, fetchDependentSourceIds(ElementsAre(sourceFileIds[0])))
+            .WillByDefault(Return(FilePathIds{sourceFileIds[0]}));
+        ON_CALL(mockBuildDependenciesStorage, fetchDependentSourceIds(ElementsAre(main1PathId)))
+            .WillByDefault(Return(FilePathIds{main1PathId}));
         mockCollector.setIsUsed(false);
 
         generatedFiles.update(unsaved);
@@ -140,13 +148,6 @@ protected:
     static void TearDownTestCase()
     {
         data.reset();
-    }
-
-    void touchFile(FilePathId filePathId)
-    {
-        std::ofstream ostream(std::string(filePathCache.filePath(filePathId)), std::ios::binary);
-        ostream.write("\n", 1);
-        ostream.close();
     }
 
     FilePathId filePathId(Utils::SmallStringView path) const
@@ -202,6 +203,7 @@ protected:
                                       Utils::LanguageVersion::CXX14,
                                       Utils::LanguageExtension::None};
     FileContainers unsaved{{{TESTDATA_DIR, "query_simplefunction.h"},
+                            filePathId(TESTDATA_DIR "/query_simplefunction.h"),
                             "void f();",
                             {}}};
     SymbolEntries symbolEntries{{1, {"function", "function", SymbolKind::Function}}};
@@ -230,19 +232,26 @@ protected:
                                                     Utils::Language::Cxx,
                                                     Utils::LanguageVersion::CXX14,
                                                     Utils::LanguageExtension::None};
+    ClangBackEnd::SourceTimeStamps dependentSourceTimeStamps1{{1, 32}};
+    ClangBackEnd::SourceTimeStamps dependentSourceTimeStamps2{{2, 35}};
+    ClangBackEnd::FileStatuses fileStatuses1{{1, 0, 32}};
+    ClangBackEnd::FileStatuses fileStatuses2{{2, 0, 35}};
     Utils::optional<ClangBackEnd::ProjectPartArtefact > nullArtefact;
-    ClangBackEnd::ProjectPartPch projectPartPch{74, "/path/to/pch", 4};
+    ClangBackEnd::PchPaths pchPaths{"/project/pch", "/system/pch"};
     NiceMock<MockSqliteTransactionBackend> mockSqliteTransactionBackend;
     NiceMock<MockSymbolStorage> mockSymbolStorage;
     NiceMock<MockBuildDependenciesStorage> mockBuildDependenciesStorage;
     NiceMock<MockPrecompiledHeaderStorage> mockPrecompiledHeaderStorage;
     NiceMock<MockProjectPartsStorage> mockProjectPartsStorage;
     NiceMock<MockClangPathWatcher> mockPathWatcher;
-    ClangBackEnd::FileStatusCache fileStatusCache{filePathCache};
+    NiceMock<MockFileSystem> mockFileSystem;
+    ClangBackEnd::FileStatusCache fileStatusCache{mockFileSystem};
     ClangBackEnd::GeneratedFiles generatedFiles;
     Manager collectorManger{generatedFiles};
     NiceMock<MockFunction<void(int, int)>> mockSetProgressCallback;
     ClangBackEnd::ProgressCounter progressCounter{mockSetProgressCallback.AsStdFunction()};
+    NiceMock<MockSourceTimeStampsModifiedTimeChecker> mockModifiedTimeChecker;
+    TestEnvironment testEnvironment;
     ClangBackEnd::SymbolIndexer indexer{indexerQueue,
                                         mockSymbolStorage,
                                         mockBuildDependenciesStorage,
@@ -251,8 +260,11 @@ protected:
                                         filePathCache,
                                         fileStatusCache,
                                         mockSqliteTransactionBackend,
-                                        mockProjectPartsStorage};
-    SymbolIndexerTaskQueue indexerQueue{indexerScheduler, progressCounter};
+                                        mockProjectPartsStorage,
+                                        mockModifiedTimeChecker,
+                                        testEnvironment};
+    NiceMock<MockSqliteDatabase> mockSqliteDatabase;
+    SymbolIndexerTaskQueue indexerQueue{indexerScheduler, progressCounter, mockSqliteDatabase};
     Scheduler indexerScheduler{collectorManger,
                                indexerQueue,
                                progressCounter,
@@ -278,6 +290,8 @@ TEST_F(SymbolIndexer, UpdateProjectPartsCallsAddFilesInCollector)
                                     "-nostdinc++",
                                     "-DBAR=1",
                                     "-DFOO=1",
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR "/preincludes"),
                                     "-I",
                                     toNativePath("/project/includes"),
                                     "-I",
@@ -294,8 +308,8 @@ TEST_F(SymbolIndexer, UpdateProjectPartsCallsAddFilesInCollector)
 
 TEST_F(SymbolIndexer, UpdateProjectPartsCallsAddFilesWithPrecompiledHeaderInCollector)
 {
-    ON_CALL(mockPrecompiledHeaderStorage, fetchPrecompiledHeader(Eq(projectPart1.projectPartId)))
-        .WillByDefault(Return(projectPartPch));
+    ON_CALL(mockPrecompiledHeaderStorage, fetchPrecompiledHeaders(Eq(projectPart1.projectPartId)))
+        .WillByDefault(Return(pchPaths));
 
     EXPECT_CALL(mockCollector,
                 setFile(main1PathId,
@@ -310,6 +324,8 @@ TEST_F(SymbolIndexer, UpdateProjectPartsCallsAddFilesWithPrecompiledHeaderInColl
                                     "-nostdinc++",
                                     "-DBAR=1",
                                     "-DFOO=1",
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR "/preincludes"),
                                     "-I",
                                     toNativePath("/project/includes"),
                                     "-I",
@@ -323,7 +339,7 @@ TEST_F(SymbolIndexer, UpdateProjectPartsCallsAddFilesWithPrecompiledHeaderInColl
                                     "-Xclang",
                                     "-include-pch",
                                     "-Xclang",
-                                    toNativePath("/path/to/pch"))));
+                                    toNativePath("/project/pch"))));
 
     indexer.updateProjectParts({projectPart1});
 }
@@ -346,6 +362,8 @@ TEST_F(SymbolIndexer, UpdateProjectPartsCallsAddFilesWithoutPrecompiledHeaderInC
                                     "-nostdinc++",
                                     "-DBAR=1",
                                     "-DFOO=1",
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR "/preincludes"),
                                     "-I",
                                     toNativePath("/project/includes"),
                                     "-I",
@@ -384,7 +402,7 @@ TEST_F(SymbolIndexer, UpdateProjectPartsDoesNotCallAddFilesInCollectorForEmptyEv
 
 TEST_F(SymbolIndexer, UpdateProjectPartsCallscollectSymbolsInCollector)
 {
-    EXPECT_CALL(mockCollector, collectSymbols()).Times(2);;
+    EXPECT_CALL(mockCollector, collectSymbols()).Times(2);
 
     indexer.updateProjectParts({projectPart1, projectPart2});
 }
@@ -421,9 +439,7 @@ TEST_F(SymbolIndexer, UpdateProjectPartsCallsInOrder)
 {
     InSequence s;
 
-    EXPECT_CALL(mockSqliteTransactionBackend, deferredBegin());
-    EXPECT_CALL(mockPrecompiledHeaderStorage, fetchPrecompiledHeader(Eq(projectPart1.projectPartId)));
-    EXPECT_CALL(mockSqliteTransactionBackend, commit());
+    EXPECT_CALL(mockPrecompiledHeaderStorage, fetchPrecompiledHeaders(Eq(projectPart1.projectPartId)));
     EXPECT_CALL(mockCollector,
                 setFile(main1PathId,
                         ElementsAre("clang++",
@@ -437,6 +453,8 @@ TEST_F(SymbolIndexer, UpdateProjectPartsCallsInOrder)
                                     "-nostdinc++",
                                     "-DBAR=1",
                                     "-DFOO=1",
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR "/preincludes"),
                                     "-I",
                                     toNativePath("/project/includes"),
                                     "-I",
@@ -455,13 +473,12 @@ TEST_F(SymbolIndexer, UpdateProjectPartsCallsInOrder)
     indexer.updateProjectParts({projectPart1});
 }
 
-TEST_F(SymbolIndexer, UpdateProjectPartsCallsInOrderButGetsAnErrorForCollectingSymbols)
+TEST_F(SymbolIndexer, UpdateProjectPartsCallsGetsProjectAndSystemPchPathsAndHasNoError)
 {
     InSequence s;
 
-    EXPECT_CALL(mockSqliteTransactionBackend, deferredBegin());
-    EXPECT_CALL(mockPrecompiledHeaderStorage, fetchPrecompiledHeader(Eq(projectPart1.projectPartId)));
-    EXPECT_CALL(mockSqliteTransactionBackend, commit());
+    EXPECT_CALL(mockPrecompiledHeaderStorage, fetchPrecompiledHeaders(Eq(projectPart1.projectPartId)))
+        .WillOnce(Return(ClangBackEnd::PchPaths{"/project/pch", "/system/pch"}));
     EXPECT_CALL(mockCollector,
                 setFile(main1PathId,
                         ElementsAre("clang++",
@@ -475,168 +492,8 @@ TEST_F(SymbolIndexer, UpdateProjectPartsCallsInOrderButGetsAnErrorForCollectingS
                                     "-nostdinc++",
                                     "-DBAR=1",
                                     "-DFOO=1",
-                                    "-I",
-                                    toNativePath("/project/includes"),
-                                    "-I",
-                                    toNativePath("/other/project/includes"),
                                     "-isystem",
-                                    toNativePath(TESTDATA_DIR),
-                                    "-isystem",
-                                    toNativePath("/other/includes"),
-                                    "-isystem",
-                                    toNativePath("/includes"))));
-    EXPECT_CALL(mockCollector, collectSymbols()).WillOnce(Return(false));
-    EXPECT_CALL(mockSqliteTransactionBackend, immediateBegin()).Times(0);
-    EXPECT_CALL(mockSymbolStorage, addSymbolsAndSourceLocations(symbolEntries, sourceLocations)).Times(0);
-    EXPECT_CALL(mockSqliteTransactionBackend, commit()).Times(0);
-
-    indexer.updateProjectParts({projectPart1});
-}
-
-TEST_F(SymbolIndexer, CallSetNotifier)
-{
-    EXPECT_CALL(mockPathWatcher, setNotifier(_));
-
-    ClangBackEnd::SymbolIndexer indexer{indexerQueue,
-                                        mockSymbolStorage,
-                                        mockBuildDependenciesStorage,
-                                        mockPrecompiledHeaderStorage,
-                                        mockPathWatcher,
-                                        filePathCache,
-                                        fileStatusCache,
-                                        mockSqliteTransactionBackend,
-                                        mockProjectPartsStorage};
-}
-
-TEST_F(SymbolIndexer, PathChangedCallsFetchProjectPartArtefactInStorage)
-{
-    EXPECT_CALL(mockProjectPartsStorage, fetchProjectPartArtefact(sourceFileIds[0]));
-    EXPECT_CALL(mockProjectPartsStorage, fetchProjectPartArtefact(sourceFileIds[1]));
-
-    indexer.pathsChanged(sourceFileIds);
-}
-
-TEST_F(SymbolIndexer, UpdateChangedPathCallsInOrder)
-{
-    InSequence s;
-
-    EXPECT_CALL(mockSqliteTransactionBackend, deferredBegin());
-    EXPECT_CALL(mockProjectPartsStorage,
-                fetchProjectPartArtefact(TypedEq<FilePathId>(sourceFileIds[0])))
-        .WillOnce(Return(artefact));
-    EXPECT_CALL(mockPrecompiledHeaderStorage, fetchPrecompiledHeader(Eq(artefact.projectPartId)));
-    EXPECT_CALL(mockSqliteTransactionBackend, commit());
-    EXPECT_CALL(mockCollector,
-                setFile(Eq(sourceFileIds[0]),
-                        ElementsAre("clang++",
-                                    "-w",
-                                    "-DFOO",
-                                    "-DNOMINMAX",
-                                    "-x",
-                                    "c++",
-                                    "-std=c++14",
-                                    "-nostdinc",
-                                    "-nostdinc++",
-                                    "-DBAR=1",
-                                    "-DFOO=1",
-                                    "-I",
-                                    toNativePath("/project/includes"),
-                                    "-I",
-                                    toNativePath("/other/project/includes"),
-                                    "-isystem",
-                                    toNativePath(TESTDATA_DIR),
-                                    "-isystem",
-                                    toNativePath("/other/includes"),
-                                    "-isystem",
-                                    toNativePath("/includes"))));
-    EXPECT_CALL(mockCollector, collectSymbols());
-    EXPECT_CALL(mockSqliteTransactionBackend, immediateBegin());
-    EXPECT_CALL(mockSymbolStorage, addSymbolsAndSourceLocations(symbolEntries, sourceLocations));
-    EXPECT_CALL(mockSqliteTransactionBackend, commit());
-
-    indexer.pathsChanged({sourceFileIds[0]});
-}
-
-TEST_F(SymbolIndexer, HandleEmptyOptionalArtifactInUpdateChangedPath)
-{
-    InSequence s;
-
-    EXPECT_CALL(mockSqliteTransactionBackend, deferredBegin());
-    EXPECT_CALL(mockProjectPartsStorage, fetchProjectPartArtefact(sourceFileIds[0]))
-        .WillOnce(Return(nullArtefact));
-    EXPECT_CALL(mockPrecompiledHeaderStorage, fetchPrecompiledHeader(_)).Times(0);
-    EXPECT_CALL(mockSqliteTransactionBackend, commit()).Times(0);
-    EXPECT_CALL(mockCollector, setFile(_, _)).Times(0);
-    EXPECT_CALL(mockCollector, collectSymbols()).Times(0);
-    EXPECT_CALL(mockSqliteTransactionBackend, immediateBegin()).Times(0);
-    EXPECT_CALL(mockSymbolStorage, addSymbolsAndSourceLocations(_, _)).Times(0);
-    EXPECT_CALL(mockSqliteTransactionBackend, commit()).Times(0);
-
-    indexer.pathsChanged({sourceFileIds[0]});
-}
-
-TEST_F(SymbolIndexer, UpdateChangedPathCallsInOrderButGetsAnErrorForCollectingSymbols)
-{
-    InSequence s;
-
-    EXPECT_CALL(mockSqliteTransactionBackend, deferredBegin());
-    EXPECT_CALL(mockProjectPartsStorage,
-                fetchProjectPartArtefact(TypedEq<FilePathId>(sourceFileIds[0])))
-        .WillOnce(Return(artefact));
-    EXPECT_CALL(mockPrecompiledHeaderStorage, fetchPrecompiledHeader(Eq(artefact.projectPartId)));
-    EXPECT_CALL(mockSqliteTransactionBackend, commit());
-    EXPECT_CALL(mockCollector,
-                setFile(Eq(sourceFileIds[0]),
-                        ElementsAre("clang++",
-                                    "-w",
-                                    "-DFOO",
-                                    "-DNOMINMAX",
-                                    "-x",
-                                    "c++",
-                                    "-std=c++14",
-                                    "-nostdinc",
-                                    "-nostdinc++",
-                                    "-DBAR=1",
-                                    "-DFOO=1",
-                                    "-I",
-                                    toNativePath("/project/includes"),
-                                    "-I",
-                                    toNativePath("/other/project/includes"),
-                                    "-isystem",
-                                    toNativePath(TESTDATA_DIR),
-                                    "-isystem",
-                                    toNativePath("/other/includes"),
-                                    "-isystem",
-                                    toNativePath("/includes"))));
-    EXPECT_CALL(mockCollector, collectSymbols()).WillOnce(Return(false));
-    EXPECT_CALL(mockSqliteTransactionBackend, immediateBegin()).Times(0);
-    EXPECT_CALL(mockSymbolStorage, addSymbolsAndSourceLocations(symbolEntries, sourceLocations)).Times(0);
-    EXPECT_CALL(mockSqliteTransactionBackend, commit()).Times(0);
-
-    indexer.pathsChanged({sourceFileIds[0]});
-}
-
-TEST_F(SymbolIndexer, UpdateChangedPathIsUsingPrecompiledHeader)
-{
-    ON_CALL(mockProjectPartsStorage, fetchProjectPartArtefact(TypedEq<FilePathId>(sourceFileIds[0])))
-        .WillByDefault(Return(artefact));
-    ON_CALL(mockPrecompiledHeaderStorage, fetchPrecompiledHeader(Eq(artefact.projectPartId)))
-        .WillByDefault(Return(projectPartPch));
-    std::vector<SymbolIndexerTask> symbolIndexerTask;
-
-    EXPECT_CALL(mockCollector,
-                setFile(Eq(sourceFileIds[0]),
-                        ElementsAre("clang++",
-                                    "-w",
-                                    "-DFOO",
-                                    "-DNOMINMAX",
-                                    "-x",
-                                    "c++",
-                                    "-std=c++14",
-                                    "-nostdinc",
-                                    "-nostdinc++",
-                                    "-DBAR=1",
-                                    "-DFOO=1",
+                                    toNativePath(TESTDATA_DIR "/preincludes"),
                                     "-I",
                                     toNativePath("/project/includes"),
                                     "-I",
@@ -650,22 +507,25 @@ TEST_F(SymbolIndexer, UpdateChangedPathIsUsingPrecompiledHeader)
                                     "-Xclang",
                                     "-include-pch",
                                     "-Xclang",
-                                    toNativePath("/path/to/pch"))));
+                                    toNativePath("/project/pch"))));
+    EXPECT_CALL(mockCollector, collectSymbols()).WillOnce(Return(true));
+    EXPECT_CALL(mockSymbolStorage, addSymbolsAndSourceLocations(symbolEntries, sourceLocations));
+    EXPECT_CALL(mockCollector, collectSymbols()).Times(0);
 
-    indexer.pathsChanged({sourceFileIds[0]});
+    indexer.updateProjectParts({projectPart1});
 }
 
-TEST_F(SymbolIndexer, UpdateChangedPathIsNotUsingPrecompiledHeaderIfItNotExists)
+TEST_F(SymbolIndexer, UpdateProjectPartsCallsGetsProjectAndSystemPchPathsAndHasErrorWithProjectPch)
 {
-    ON_CALL(mockProjectPartsStorage, fetchProjectPartArtefact(TypedEq<FilePathId>(sourceFileIds[0])))
-        .WillByDefault(Return(artefact));
-    std::vector<SymbolIndexerTask> symbolIndexerTask;
+    InSequence s;
 
+    EXPECT_CALL(mockPrecompiledHeaderStorage, fetchPrecompiledHeaders(Eq(projectPart1.projectPartId)))
+        .WillOnce(Return(ClangBackEnd::PchPaths{"/project/pch", "/system/pch"}));
     EXPECT_CALL(mockCollector,
-                setFile(Eq(sourceFileIds[0]),
+                setFile(main1PathId,
                         ElementsAre("clang++",
                                     "-w",
-                                    "-DFOO",
+                                    "-Wno-pragma-once-outside-header",
                                     "-DNOMINMAX",
                                     "-x",
                                     "c++",
@@ -674,6 +534,144 @@ TEST_F(SymbolIndexer, UpdateChangedPathIsNotUsingPrecompiledHeaderIfItNotExists)
                                     "-nostdinc++",
                                     "-DBAR=1",
                                     "-DFOO=1",
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR "/preincludes"),
+                                    "-I",
+                                    toNativePath("/project/includes"),
+                                    "-I",
+                                    toNativePath("/other/project/includes"),
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR),
+                                    "-isystem",
+                                    toNativePath("/other/includes"),
+                                    "-isystem",
+                                    toNativePath("/includes"),
+                                    "-Xclang",
+                                    "-include-pch",
+                                    "-Xclang",
+                                    toNativePath("/project/pch"))));
+    EXPECT_CALL(mockCollector, collectSymbols()).WillOnce(Return(false));
+    EXPECT_CALL(mockSymbolStorage, addSymbolsAndSourceLocations(symbolEntries, sourceLocations)).Times(0);
+    EXPECT_CALL(mockCollector,
+                setFile(main1PathId,
+                        ElementsAre("clang++",
+                                    "-w",
+                                    "-Wno-pragma-once-outside-header",
+                                    "-DNOMINMAX",
+                                    "-x",
+                                    "c++",
+                                    "-std=c++14",
+                                    "-nostdinc",
+                                    "-nostdinc++",
+                                    "-DBAR=1",
+                                    "-DFOO=1",
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR "/preincludes"),
+                                    "-I",
+                                    toNativePath("/project/includes"),
+                                    "-I",
+                                    toNativePath("/other/project/includes"),
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR),
+                                    "-isystem",
+                                    toNativePath("/other/includes"),
+                                    "-isystem",
+                                    toNativePath("/includes"),
+                                    "-Xclang",
+                                    "-include-pch",
+                                    "-Xclang",
+                                    toNativePath("/system/pch"))));
+    EXPECT_CALL(mockCollector, collectSymbols()).WillOnce(Return(true));
+    EXPECT_CALL(mockSymbolStorage, addSymbolsAndSourceLocations(symbolEntries, sourceLocations));
+    EXPECT_CALL(mockCollector, collectSymbols()).Times(0);
+
+    indexer.updateProjectParts({projectPart1});
+}
+
+TEST_F(SymbolIndexer,
+       UpdateProjectPartsCallsGetsProjectAndSystemPchPathsAndHasErrorWithProjectAndSystemPch)
+{
+    InSequence s;
+
+    EXPECT_CALL(mockPrecompiledHeaderStorage, fetchPrecompiledHeaders(Eq(projectPart1.projectPartId)))
+        .WillOnce(Return(ClangBackEnd::PchPaths{"/project/pch", "/system/pch"}));
+    EXPECT_CALL(mockCollector,
+                setFile(main1PathId,
+                        ElementsAre("clang++",
+                                    "-w",
+                                    "-Wno-pragma-once-outside-header",
+                                    "-DNOMINMAX",
+                                    "-x",
+                                    "c++",
+                                    "-std=c++14",
+                                    "-nostdinc",
+                                    "-nostdinc++",
+                                    "-DBAR=1",
+                                    "-DFOO=1",
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR "/preincludes"),
+                                    "-I",
+                                    toNativePath("/project/includes"),
+                                    "-I",
+                                    toNativePath("/other/project/includes"),
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR),
+                                    "-isystem",
+                                    toNativePath("/other/includes"),
+                                    "-isystem",
+                                    toNativePath("/includes"),
+                                    "-Xclang",
+                                    "-include-pch",
+                                    "-Xclang",
+                                    toNativePath("/project/pch"))));
+    EXPECT_CALL(mockCollector, collectSymbols()).WillOnce(Return(false));
+    EXPECT_CALL(mockSymbolStorage, addSymbolsAndSourceLocations(symbolEntries, sourceLocations)).Times(0);
+    EXPECT_CALL(mockCollector,
+                setFile(main1PathId,
+                        ElementsAre("clang++",
+                                    "-w",
+                                    "-Wno-pragma-once-outside-header",
+                                    "-DNOMINMAX",
+                                    "-x",
+                                    "c++",
+                                    "-std=c++14",
+                                    "-nostdinc",
+                                    "-nostdinc++",
+                                    "-DBAR=1",
+                                    "-DFOO=1",
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR "/preincludes"),
+                                    "-I",
+                                    toNativePath("/project/includes"),
+                                    "-I",
+                                    toNativePath("/other/project/includes"),
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR),
+                                    "-isystem",
+                                    toNativePath("/other/includes"),
+                                    "-isystem",
+                                    toNativePath("/includes"),
+                                    "-Xclang",
+                                    "-include-pch",
+                                    "-Xclang",
+                                    toNativePath("/system/pch"))));
+    EXPECT_CALL(mockCollector, collectSymbols()).WillOnce(Return(false));
+    EXPECT_CALL(mockSymbolStorage, addSymbolsAndSourceLocations(symbolEntries, sourceLocations)).Times(0);
+    EXPECT_CALL(mockCollector,
+                setFile(main1PathId,
+                        ElementsAre("clang++",
+                                    "-w",
+                                    "-Wno-pragma-once-outside-header",
+                                    "-DNOMINMAX",
+                                    "-x",
+                                    "c++",
+                                    "-std=c++14",
+                                    "-nostdinc",
+                                    "-nostdinc++",
+                                    "-DBAR=1",
+                                    "-DFOO=1",
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR "/preincludes"),
                                     "-I",
                                     toNativePath("/project/includes"),
                                     "-I",
@@ -684,10 +682,241 @@ TEST_F(SymbolIndexer, UpdateChangedPathIsNotUsingPrecompiledHeaderIfItNotExists)
                                     toNativePath("/other/includes"),
                                     "-isystem",
                                     toNativePath("/includes"))));
+    EXPECT_CALL(mockCollector, collectSymbols()).WillOnce(Return(true));
+    EXPECT_CALL(mockSymbolStorage, addSymbolsAndSourceLocations(symbolEntries, sourceLocations));
 
-    indexer.pathsChanged({sourceFileIds[0]});
+    indexer.updateProjectParts({projectPart1});
 }
 
+TEST_F(SymbolIndexer, UpdateProjectPartsCallsGetsProjectAndSystemPchPathsAndHasOnlyError)
+{
+    InSequence s;
+
+    EXPECT_CALL(mockPrecompiledHeaderStorage, fetchPrecompiledHeaders(Eq(projectPart1.projectPartId)))
+        .WillOnce(Return(ClangBackEnd::PchPaths{"/project/pch", "/system/pch"}));
+    EXPECT_CALL(mockCollector,
+                setFile(main1PathId,
+                        ElementsAre("clang++",
+                                    "-w",
+                                    "-Wno-pragma-once-outside-header",
+                                    "-DNOMINMAX",
+                                    "-x",
+                                    "c++",
+                                    "-std=c++14",
+                                    "-nostdinc",
+                                    "-nostdinc++",
+                                    "-DBAR=1",
+                                    "-DFOO=1",
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR "/preincludes"),
+                                    "-I",
+                                    toNativePath("/project/includes"),
+                                    "-I",
+                                    toNativePath("/other/project/includes"),
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR),
+                                    "-isystem",
+                                    toNativePath("/other/includes"),
+                                    "-isystem",
+                                    toNativePath("/includes"),
+                                    "-Xclang",
+                                    "-include-pch",
+                                    "-Xclang",
+                                    toNativePath("/project/pch"))));
+    EXPECT_CALL(mockCollector, collectSymbols()).WillOnce(Return(false));
+    EXPECT_CALL(mockSymbolStorage, addSymbolsAndSourceLocations(symbolEntries, sourceLocations)).Times(0);
+    EXPECT_CALL(mockCollector,
+                setFile(main1PathId,
+                        ElementsAre("clang++",
+                                    "-w",
+                                    "-Wno-pragma-once-outside-header",
+                                    "-DNOMINMAX",
+                                    "-x",
+                                    "c++",
+                                    "-std=c++14",
+                                    "-nostdinc",
+                                    "-nostdinc++",
+                                    "-DBAR=1",
+                                    "-DFOO=1",
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR "/preincludes"),
+                                    "-I",
+                                    toNativePath("/project/includes"),
+                                    "-I",
+                                    toNativePath("/other/project/includes"),
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR),
+                                    "-isystem",
+                                    toNativePath("/other/includes"),
+                                    "-isystem",
+                                    toNativePath("/includes"),
+                                    "-Xclang",
+                                    "-include-pch",
+                                    "-Xclang",
+                                    toNativePath("/system/pch"))));
+    EXPECT_CALL(mockCollector, collectSymbols()).WillOnce(Return(false));
+    EXPECT_CALL(mockSymbolStorage, addSymbolsAndSourceLocations(symbolEntries, sourceLocations)).Times(0);
+    EXPECT_CALL(mockCollector,
+                setFile(main1PathId,
+                        ElementsAre("clang++",
+                                    "-w",
+                                    "-Wno-pragma-once-outside-header",
+                                    "-DNOMINMAX",
+                                    "-x",
+                                    "c++",
+                                    "-std=c++14",
+                                    "-nostdinc",
+                                    "-nostdinc++",
+                                    "-DBAR=1",
+                                    "-DFOO=1",
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR "/preincludes"),
+                                    "-I",
+                                    toNativePath("/project/includes"),
+                                    "-I",
+                                    toNativePath("/other/project/includes"),
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR),
+                                    "-isystem",
+                                    toNativePath("/other/includes"),
+                                    "-isystem",
+                                    toNativePath("/includes"))));
+    EXPECT_CALL(mockCollector, collectSymbols()).WillOnce(Return(false));
+    EXPECT_CALL(mockSymbolStorage, addSymbolsAndSourceLocations(symbolEntries, sourceLocations)).Times(0);
+
+    indexer.updateProjectParts({projectPart1});
+}
+
+TEST_F(SymbolIndexer, UpdateProjectPartsCallsGetsSystemPchPathsAndHasErrorWithProjectPch)
+{
+    InSequence s;
+
+    EXPECT_CALL(mockPrecompiledHeaderStorage, fetchPrecompiledHeaders(Eq(projectPart1.projectPartId)))
+        .WillOnce(Return(ClangBackEnd::PchPaths{{}, "/system/pch"}));
+    EXPECT_CALL(mockCollector,
+                setFile(main1PathId,
+                        ElementsAre("clang++",
+                                    "-w",
+                                    "-Wno-pragma-once-outside-header",
+                                    "-DNOMINMAX",
+                                    "-x",
+                                    "c++",
+                                    "-std=c++14",
+                                    "-nostdinc",
+                                    "-nostdinc++",
+                                    "-DBAR=1",
+                                    "-DFOO=1",
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR "/preincludes"),
+                                    "-I",
+                                    toNativePath("/project/includes"),
+                                    "-I",
+                                    toNativePath("/other/project/includes"),
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR),
+                                    "-isystem",
+                                    toNativePath("/other/includes"),
+                                    "-isystem",
+                                    toNativePath("/includes"),
+                                    "-Xclang",
+                                    "-include-pch",
+                                    "-Xclang",
+                                    toNativePath("/system/pch"))));
+    EXPECT_CALL(mockCollector, collectSymbols()).WillOnce(Return(true));
+    EXPECT_CALL(mockSymbolStorage, addSymbolsAndSourceLocations(symbolEntries, sourceLocations));
+    EXPECT_CALL(mockCollector, collectSymbols()).Times(0);
+
+    indexer.updateProjectParts({projectPart1});
+}
+
+TEST_F(SymbolIndexer, UpdateProjectPartsCallsGetsNoPchPathsAndHasErrors)
+{
+    InSequence s;
+
+    EXPECT_CALL(mockPrecompiledHeaderStorage, fetchPrecompiledHeaders(Eq(projectPart1.projectPartId)));
+    EXPECT_CALL(mockCollector,
+                setFile(main1PathId,
+                        ElementsAre("clang++",
+                                    "-w",
+                                    "-Wno-pragma-once-outside-header",
+                                    "-DNOMINMAX",
+                                    "-x",
+                                    "c++",
+                                    "-std=c++14",
+                                    "-nostdinc",
+                                    "-nostdinc++",
+                                    "-DBAR=1",
+                                    "-DFOO=1",
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR "/preincludes"),
+                                    "-I",
+                                    toNativePath("/project/includes"),
+                                    "-I",
+                                    toNativePath("/other/project/includes"),
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR),
+                                    "-isystem",
+                                    toNativePath("/other/includes"),
+                                    "-isystem",
+                                    toNativePath("/includes"))));
+    EXPECT_CALL(mockCollector, collectSymbols()).WillOnce(Return(true));
+    EXPECT_CALL(mockSymbolStorage, addSymbolsAndSourceLocations(symbolEntries, sourceLocations));
+    EXPECT_CALL(mockCollector, collectSymbols()).Times(0);
+
+    indexer.updateProjectParts({projectPart1});
+}
+
+TEST_F(SymbolIndexer, UpdateProjectPartsFetchIncludedIndexingTimeStamps)
+{
+    InSequence s;
+
+    EXPECT_CALL(mockSqliteTransactionBackend, immediateBegin());
+    EXPECT_CALL(mockBuildDependenciesStorage,
+                insertOrUpdateIndexingTimeStampsWithoutTransaction(_, _));
+    EXPECT_CALL(mockSymbolStorage, addSymbolsAndSourceLocations(_, _));
+    EXPECT_CALL(mockSqliteTransactionBackend, commit());
+
+    indexer.updateProjectParts({projectPart1});
+}
+
+TEST_F(SymbolIndexer, UpdateProjectPartsIsBusyInStoringData)
+{
+    InSequence s;
+
+    EXPECT_CALL(mockSqliteTransactionBackend, immediateBegin())
+        .WillOnce(Throw(Sqlite::StatementIsBusy{""}));
+    EXPECT_CALL(mockSqliteTransactionBackend, immediateBegin());
+    EXPECT_CALL(mockBuildDependenciesStorage,
+                insertOrUpdateIndexingTimeStampsWithoutTransaction(_, _));
+    EXPECT_CALL(mockSymbolStorage, addSymbolsAndSourceLocations(_, _));
+    EXPECT_CALL(mockSqliteTransactionBackend, commit());
+
+    indexer.updateProjectParts({projectPart1});
+}
+
+TEST_F(SymbolIndexer, DependentSourceAreNotUpToDate)
+{
+    InSequence s;
+
+    EXPECT_CALL(mockModifiedTimeChecker, isUpToDate(_)).WillOnce(Return(false));
+    EXPECT_CALL(mockCollector, setFile(main1PathId, _));
+    EXPECT_CALL(mockCollector, collectSymbols()).WillOnce(Return(true));
+    EXPECT_CALL(mockSymbolStorage, addSymbolsAndSourceLocations(symbolEntries, sourceLocations));
+
+    indexer.updateProjectParts({projectPart1});
+}
+
+TEST_F(SymbolIndexer, DependentSourceAreUpToDate)
+{
+    InSequence s;
+
+    EXPECT_CALL(mockModifiedTimeChecker, isUpToDate(_)).WillOnce(Return(true));
+    EXPECT_CALL(mockCollector, setFile(main1PathId, _)).Times(0);
+    EXPECT_CALL(mockCollector, collectSymbols()).Times(0);
+    EXPECT_CALL(mockSymbolStorage, addSymbolsAndSourceLocations(symbolEntries, sourceLocations)).Times(0);
+
+    indexer.updateProjectParts({projectPart1});
+}
 
 TEST_F(SymbolIndexer, CompilerMacrosAndIncludeSearchPathsAreNotDifferent)
 {
@@ -795,12 +1024,22 @@ TEST_F(SymbolIndexer, DISABLED_DontReparseInUpdateProjectPartsIfDefinesAreTheSam
 TEST_F(SymbolIndexer, PathsChangedUpdatesFileStatusCache)
 {
     auto sourceId = filePathId(TESTDATA_DIR "/symbolindexer_pathChanged.cpp");
-    auto oldLastModified = fileStatusCache.lastModifiedTime(sourceId);
-    touchFile(sourceId);
+    ON_CALL(mockFileSystem, lastModified(Eq(sourceId))).WillByDefault(Return(65));
+    ON_CALL(mockBuildDependenciesStorage, fetchDependentSourceIds(_))
+        .WillByDefault(Return(FilePathIds{sourceId}));
 
     indexer.pathsChanged({sourceId});
 
-    ASSERT_THAT(fileStatusCache.lastModifiedTime(sourceId), Gt(oldLastModified));
+    ASSERT_THAT(fileStatusCache.lastModifiedTime(sourceId), 65);
+}
+
+TEST_F(SymbolIndexer, PathsChangedCallsModifiedTimeChecker)
+{
+    auto sourceId = filePathId(TESTDATA_DIR "/symbolindexer_pathChanged.cpp");
+
+    EXPECT_CALL(mockModifiedTimeChecker, pathsChanged(ElementsAre(sourceId)));
+
+    indexer.pathsChanged({sourceId});
 }
 
 TEST_F(SymbolIndexer, GetUpdatableFilePathIdsIfCompilerMacrosAreDifferent)
@@ -836,6 +1075,7 @@ TEST_F(SymbolIndexer, GetNoUpdatableFilePathIdsIfArtefactsAreTheSame)
 
 TEST_F(SymbolIndexer, OutdatedFilesPassUpdatableFilePathIds)
 {
+    ON_CALL(mockFileSystem, lastModified(Eq(main1PathId))).WillByDefault(Return(65));
     indexer.pathsChanged({main1PathId});
     ON_CALL(mockProjectPartsStorage, fetchProjectPartArtefact(A<ProjectPartId>()))
         .WillByDefault(Return(artefact));
@@ -889,4 +1129,68 @@ TEST_F(SymbolIndexer, DISABLED_UpToDateFilesAreNotParsedInUpdateProjectParts)
     indexer.updateProjectParts({projectPart1});
 }
 
+TEST_F(SymbolIndexer, MultipleSourceFiles)
+{
+    ProjectPartContainer projectPart{0,
+                                     {},
+                                     {{"BAR", "1", 1}, {"FOO", "1", 2}},
+                                     Utils::clone(systemIncludeSearchPaths),
+                                     Utils::clone(projectIncludeSearchPaths),
+                                     {header1PathId, header2PathId},
+                                     {main1PathId, main2PathId},
+                                     Utils::Language::Cxx,
+                                     Utils::LanguageVersion::CXX14,
+                                     Utils::LanguageExtension::None};
+
+    EXPECT_CALL(mockCollector,
+                setFile(main1PathId,
+                        ElementsAre("clang++",
+                                    "-w",
+                                    "-DNOMINMAX",
+                                    "-x",
+                                    "c++",
+                                    "-std=c++14",
+                                    "-nostdinc",
+                                    "-nostdinc++",
+                                    "-DBAR=1",
+                                    "-DFOO=1",
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR "/preincludes"),
+                                    "-I",
+                                    toNativePath("/project/includes"),
+                                    "-I",
+                                    toNativePath("/other/project/includes"),
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR),
+                                    "-isystem",
+                                    toNativePath("/other/includes"),
+                                    "-isystem",
+                                    toNativePath("/includes"))));
+    EXPECT_CALL(mockCollector,
+                setFile(main2PathId,
+                        ElementsAre("clang++",
+                                    "-w",
+                                    "-DNOMINMAX",
+                                    "-x",
+                                    "c++",
+                                    "-std=c++14",
+                                    "-nostdinc",
+                                    "-nostdinc++",
+                                    "-DBAR=1",
+                                    "-DFOO=1",
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR "/preincludes"),
+                                    "-I",
+                                    toNativePath("/project/includes"),
+                                    "-I",
+                                    toNativePath("/other/project/includes"),
+                                    "-isystem",
+                                    toNativePath(TESTDATA_DIR),
+                                    "-isystem",
+                                    toNativePath("/other/includes"),
+                                    "-isystem",
+                                    toNativePath("/includes"))));
+
+    indexer.updateProjectParts({projectPart});
 }
+} // namespace

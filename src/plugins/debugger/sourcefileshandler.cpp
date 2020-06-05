@@ -78,7 +78,7 @@ QVariant SourceFilesHandler::headerData(int section,
 Qt::ItemFlags SourceFilesHandler::flags(const QModelIndex &index) const
 {
     if (index.row() >= m_fullNames.size())
-        return nullptr;
+        return {};
     QFileInfo fi(m_fullNames.at(index.row()));
     return fi.isReadable() ? QAbstractItemModel::flags(index) : Qt::ItemFlags({});
 }
@@ -110,7 +110,7 @@ QVariant SourceFilesHandler::data(const QModelIndex &index, int role) const
 bool SourceFilesHandler::setData(const QModelIndex &idx, const QVariant &data, int role)
 {
     if (role == BaseTreeView::ItemActivatedRole) {
-        m_engine->gotoLocation(idx.data().toString());
+        m_engine->gotoLocation(FilePath::fromString(idx.data().toString()));
         return true;
     }
 
@@ -135,9 +135,9 @@ bool SourceFilesHandler::setData(const QModelIndex &idx, const QVariant &data, i
                 addAction(tr("Open File"), false, {});
             else
                 addAction(tr("Open File \"%1\"").arg(name), true,
-                          [this, name] { m_engine->gotoLocation(name); });
+                          [this, name] { m_engine->gotoLocation(FilePath::fromString(name)); });
 
-            menu->addSeparator();
+            Internal::addHideColumnActions(menu, ev.view());
             menu->addAction(action(SettingsDialog));
             menu->popup(ev.globalPos());
             return true;

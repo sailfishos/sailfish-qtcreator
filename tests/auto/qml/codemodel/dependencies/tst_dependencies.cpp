@@ -74,7 +74,7 @@ struct TestData
 static TestData testData(const QString &path) {
     QFile file(path);
     file.open(QFile::ReadOnly | QFile::Text);
-    const QString content = QString(file.readAll());
+    const QString content = QString::fromUtf8(file.readAll());
     file.close();
 
     Document::MutablePtr doc = Document::create(path, Dialect::Qml);
@@ -112,7 +112,7 @@ private:
 
 void tst_Dependencies::initTestCase()
 {
-    m_path = QLatin1Literal(TESTSRCDIR "/samples");
+    m_path = QLatin1String(TESTSRCDIR "/samples");
 
     m_basePaths.append(QLibraryInfo::location(QLibraryInfo::Qml2ImportsPath));
 
@@ -148,7 +148,7 @@ void tst_Dependencies::test()
     QStringList paths(m_basePaths);
     paths << m_path;
     for (auto p: paths)
-        lPaths.maybeInsert(Utils::FileName::fromString(p), Dialect::Qml);
+        lPaths.maybeInsert(Utils::FilePath::fromString(p), Dialect::Qml);
     ModelManagerInterface::importScan(result, ModelManagerInterface::workingCopy(), lPaths,
                                       ModelManagerInterface::instance(), false);
 

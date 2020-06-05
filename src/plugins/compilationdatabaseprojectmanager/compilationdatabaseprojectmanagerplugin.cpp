@@ -29,37 +29,91 @@
 #include "compilationdatabaseproject.h"
 #include "compilationdatabasetests.h"
 
+#include <coreplugin/actionmanager/actioncontainer.h>
+#include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/actionmanager/command.h>
 #include <coreplugin/fileiconprovider.h>
+
+#include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/projectmanager.h>
+#include <projectexplorer/projecttree.h>
+#include <projectexplorer/session.h>
+
+#include <utils/parameteraction.h>
 #include <utils/utilsicons.h>
+
+using namespace Core;
+using namespace ProjectExplorer;
 
 namespace CompilationDatabaseProjectManager {
 namespace Internal {
 
+const char CHANGEROOTDIR[] = "CompilationDatabaseProjectManager.ChangeRootDirectory";
+const char COMPILE_COMMANDS_JSON[] = "compile_commands.json";
+
+class CompilationDatabaseProjectManagerPluginPrivate
+{
+public:
+    CompilationDatabaseEditorFactory editorFactory;
+    CompilationDatabaseBuildConfigurationFactory buildConfigFactory;
+    QAction changeRootAction{CompilationDatabaseProjectManagerPlugin::tr("Change Root Directory")};
+};
+
+CompilationDatabaseProjectManagerPlugin::~CompilationDatabaseProjectManagerPlugin()
+{
+    delete d;
+}
+
 bool CompilationDatabaseProjectManagerPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
-    Q_UNUSED(arguments);
-    Q_UNUSED(errorMessage);
-    Core::FileIconProvider::registerIconOverlayForFilename(Utils::Icons::PROJECT.imageFileName(),
-                                                           "compile_commands.json");
+    Q_UNUSED(arguments)
+    Q_UNUSED(errorMessage)
 
-    ProjectExplorer::ProjectManager::registerProjectType<CompilationDatabaseProject>(
+    d = new CompilationDatabaseProjectManagerPluginPrivate;
+
+    FileIconProvider::registerIconOverlayForFilename(
+                Utils::Icons::PROJECT.imageFileName(),
+                COMPILE_COMMANDS_JSON);
+    FileIconProvider::registerIconOverlayForFilename(
+                Utils::Icons::PROJECT.imageFileName(),
+                QString(COMPILE_COMMANDS_JSON) + Constants::COMPILATIONDATABASEPROJECT_FILES_SUFFIX);
+
+    ProjectManager::registerProjectType<CompilationDatabaseProject>(
                 Constants::COMPILATIONDATABASEMIMETYPE);
+
+    Command *cmd = ActionManager::registerAction(&d->changeRootAction, CHANGEROOTDIR);
+
+    ActionContainer *mprojectContextMenu = ActionManager::actionContainer(
+        ProjectExplorer::Constants::M_PROJECTCONTEXT);
+    mprojectContextMenu->addSeparator(ProjectExplorer::Constants::G_PROJECT_TREE);
+    mprojectContextMenu->addAction(cmd, ProjectExplorer::Constants::G_PROJECT_TREE);
+
+    connect(&d->changeRootAction, &QAction::triggered,
+            ProjectTree::instance(), &ProjectTree::changeProjectRootDirectory);
+
+    const auto onProjectChanged = [this] {
+        const auto currentProject = qobject_cast<CompilationDatabaseProject *>(
+                    ProjectTree::currentProject());
+
+        d->changeRootAction.setEnabled(currentProject);
+    };
+
+    connect(SessionManager::instance(), &SessionManager::startupProjectChanged,
+            this, onProjectChanged);
+
+    connect(ProjectTree::instance(), &ProjectTree::currentProjectChanged,
+            this, onProjectChanged);
 
     return true;
 }
 
-void CompilationDatabaseProjectManagerPlugin::extensionsInitialized()
+QVector<QObject *> CompilationDatabaseProjectManagerPlugin::createTestObjects() const
 {
-}
-
-QList<QObject *> CompilationDatabaseProjectManagerPlugin::createTestObjects() const
-{
-    QList<QObject *> tests;
+    return {
 #ifdef WITH_TESTS
-    tests << new CompilationDatabaseTests;
+        new CompilationDatabaseTests
 #endif
-    return tests;
+    };
 }
 
 } // namespace Internal

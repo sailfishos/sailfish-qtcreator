@@ -25,11 +25,13 @@
 
 #include "taskmodel.h"
 
+#include "fileinsessionfinder.h"
 #include "task.h"
 #include "taskhub.h"
 
 #include <utils/qtcassert.h>
 
+#include <QFileInfo>
 #include <QFontMetrics>
 
 #include <algorithm>
@@ -84,12 +86,12 @@ void TaskModel::addCategory(Core::Id categoryId, const QString &categoryName)
     m_categories.insert(categoryId, data);
 }
 
-QList<Task> TaskModel::tasks(Core::Id categoryId) const
+Tasks TaskModel::tasks(Core::Id categoryId) const
 {
     if (!categoryId.isValid())
         return m_tasks;
 
-    QList<Task> taskList;
+    Tasks taskList;
     foreach (const Task &t, m_tasks) {
         if (t.category == categoryId)
             taskList.append(t);
@@ -117,17 +119,18 @@ void TaskModel::addTask(const Task &task)
     endInsertRows();
 }
 
-void TaskModel::removeTask(const Task &task)
+void TaskModel::removeTask(unsigned int id)
 {
-    int index = m_tasks.indexOf(task);
-    if (index >= 0) {
+    for (int index = 0; index < m_tasks.length(); ++index) {
+        if (m_tasks.at(index).taskId != id)
+            continue;
         const Task &t = m_tasks.at(index);
-
         beginRemoveRows(QModelIndex(), index, index);
-        m_categories[task.category].removeTask(t);
+        m_categories[t.category].removeTask(t);
         m_categories[Core::Id()].removeTask(t);
         m_tasks.removeAt(index);
         endRemoveRows();
+        break;
     }
 }
 
@@ -144,8 +147,9 @@ void TaskModel::updateTaskFileName(unsigned int id, const QString &fileName)
     int i = rowForId(id);
     QTC_ASSERT(i != -1, return);
     if (m_tasks.at(i).taskId == id) {
-        m_tasks[i].file = Utils::FileName::fromString(fileName);
-        emit dataChanged(index(i, 0), index(i, 0));
+        m_tasks[i].file = Utils::FilePath::fromString(fileName);
+        const QModelIndex itemIndex = index(i, 0);
+        emit dataChanged(itemIndex, itemIndex);
     }
 }
 
@@ -155,7 +159,8 @@ void TaskModel::updateTaskLineNumber(unsigned int id, int line)
     QTC_ASSERT(i != -1, return);
     if (m_tasks.at(i).taskId == id) {
         m_tasks[i].movedLine = line;
-        emit dataChanged(index(i, 0), index(i, 0));
+        const QModelIndex itemIndex = index(i, 0);
+        emit dataChanged(itemIndex, itemIndex);
     }
 }
 
@@ -294,7 +299,7 @@ int TaskModel::sizeOfFile(const QFont &font)
         if (pos != -1)
             filename = filename.mid(pos +1);
 
-        m_maxSizeOfFileName = qMax(m_maxSizeOfFileName, fm.width(filename));
+        m_maxSizeOfFileName = qMax(m_maxSizeOfFileName, fm.horizontalAdvance(filename));
     }
     m_lastMaxSizeIndex = count - 1;
     return m_maxSizeOfFileName;
@@ -305,7 +310,7 @@ int TaskModel::sizeOfLineNumber(const QFont &font)
     if (m_sizeOfLineNumber == 0 || font != m_lineMeasurementFont) {
         QFontMetrics fm(font);
         m_lineMeasurementFont = font;
-        m_sizeOfLineNumber = fm.width(QLatin1String("88888"));
+        m_sizeOfLineNumber = fm.horizontalAdvance(QLatin1String("88888"));
     }
     return m_sizeOfLineNumber;
 }
@@ -323,174 +328,58 @@ void TaskModel::setFileNotFound(const QModelIndex &idx, bool b)
 // TaskFilterModel
 /////
 
-TaskFilterModel::TaskFilterModel(TaskModel *sourceModel, QObject *parent) : QAbstractItemModel(parent),
-    m_sourceModel(sourceModel)
+TaskFilterModel::TaskFilterModel(TaskModel *sourceModel, QObject *parent)
+    : QSortFilterProxyModel(parent)
 {
-    Q_ASSERT(m_sourceModel);
-    updateMapping();
-
-    connect(m_sourceModel, &QAbstractItemModel::rowsInserted,
-            this, &TaskFilterModel::handleNewRows);
-
-    connect(m_sourceModel, &QAbstractItemModel::rowsAboutToBeRemoved,
-            this, &TaskFilterModel::handleRowsAboutToBeRemoved);
-    connect(m_sourceModel, &QAbstractItemModel::rowsRemoved,
-            this, [this](const QModelIndex &parent, int, int) {
-        QTC_ASSERT(!parent.isValid(), return);
-        if (m_beginRemoveRowsSent) {
-            m_beginRemoveRowsSent = false;
-            endRemoveRows();
-        }
-    });
-
-    connect(m_sourceModel, &QAbstractItemModel::modelReset,
-            this, &TaskFilterModel::invalidateFilter);
-
-    connect(m_sourceModel, &QAbstractItemModel::dataChanged,
-            this, &TaskFilterModel::handleDataChanged);
-
+    QTC_ASSERT(sourceModel, return);
+    setSourceModel(sourceModel);
     m_includeUnknowns = m_includeWarnings = m_includeErrors = true;
 }
 
-QModelIndex TaskFilterModel::index(int row, int column, const QModelIndex &parent) const
+void TaskFilterModel::setFilterIncludesWarnings(bool b)
 {
-    if (parent.isValid())
-        return QModelIndex();
-    return createIndex(row, column);
+    m_includeWarnings = b;
+    m_includeUnknowns = b; // "Unknowns" are often associated with warnings
+    invalidateFilter();
 }
 
-QModelIndex TaskFilterModel::parent(const QModelIndex &child) const
+int TaskFilterModel::issuesCount(int startRow, int endRow) const
 {
-    Q_UNUSED(child)
-    return QModelIndex();
-}
-
-int TaskFilterModel::rowCount(const QModelIndex &parent) const
-{
-    if (parent.isValid())
-        return 0;
-
-    return m_mapping.count();
-}
-
-int TaskFilterModel::columnCount(const QModelIndex &parent) const
-{
-    if (parent.isValid())
-        return 0;
-    return m_sourceModel->columnCount(parent);
-}
-
-QVariant TaskFilterModel::data(const QModelIndex &index, int role) const
-{
-    return m_sourceModel->data(mapToSource(index), role);
-}
-
-static QPair<int, int> findFilteredRange(int first, int last, const QList<int> &list)
-{
-    auto filteredFirst = std::lower_bound(list.constBegin(), list.constEnd(), first);
-    auto filteredLast = std::upper_bound(filteredFirst, list.constEnd(), last);
-    return qMakePair(filteredFirst - list.constBegin(), filteredLast - list.constBegin() - 1);
-}
-
-void TaskFilterModel::handleNewRows(const QModelIndex &index, int first, int last)
-{
-    QTC_ASSERT(!index.isValid(), return);
-
-    const int newItemCount = last - first + 1;
-
-    QList<int> newMapping;
-    for (int i = first; i <= last; ++i) {
-        const Task &task = m_sourceModel->task(m_sourceModel->index(i, 0));
-        if (filterAcceptsTask(task))
-            newMapping.append(i);
+    int count = 0;
+    for (int r = startRow; r <= endRow; ++r) {
+        if (task(index(r, 0)).type != Task::Unknown)
+            ++count;
     }
+    return count;
+}
 
-    const int newMappingCount = newMapping.count();
-    if (!newMappingCount)
+void TaskFilterModel::updateFilterProperties(
+        const QString &filterText,
+        Qt::CaseSensitivity caseSensitivity,
+        bool isRegexp,
+        bool isInverted)
+{
+    if (filterText == m_filterText && m_filterCaseSensitivity == caseSensitivity
+            && m_filterStringIsRegexp == isRegexp && m_filterIsInverted == isInverted) {
         return;
-
-    int filteredFirst = -1;
-    if (last == m_sourceModel->rowCount() - 1)
-        filteredFirst = m_mapping.count();
-    else
-        filteredFirst = std::lower_bound(m_mapping.constBegin(), m_mapping.constEnd(), first) - m_mapping.constBegin();
-
-    const int filteredLast = filteredFirst + newMappingCount - 1;
-    beginInsertRows(QModelIndex(), filteredFirst, filteredLast);
-    if (filteredFirst == m_mapping.count()) {
-        m_mapping.append(newMapping);
-    } else {
-        const QList<int> rest = m_mapping.mid(filteredFirst);
-
-        m_mapping.reserve(m_mapping.count() + newMappingCount);
-        m_mapping.erase(m_mapping.begin() + filteredFirst, m_mapping.end());
-        m_mapping.append(newMapping);
-        for (int pos : rest)
-            m_mapping.append(pos + newItemCount);
     }
-    endInsertRows();
-}
-
-void TaskFilterModel::handleRowsAboutToBeRemoved(const QModelIndex &index, int first, int last)
-{
-    m_beginRemoveRowsSent = false;
-    QTC_ASSERT(!index.isValid(), return);
-
-    const QPair<int, int> range = findFilteredRange(first, last, m_mapping);
-    if (range.first <= range.second) { // remove corresponding rows in filtermodel
-        beginRemoveRows(QModelIndex(), range.first, range.second);
-        m_beginRemoveRowsSent = true;
-        m_mapping.erase(m_mapping.begin() + range.first, m_mapping.begin() + range.second + 1);
+    m_filterText = filterText;
+    m_filterCaseSensitivity = caseSensitivity;
+    m_filterStringIsRegexp = isRegexp;
+    m_filterIsInverted = isInverted;
+    if (m_filterStringIsRegexp) {
+        m_filterRegexp.setPattern(m_filterText);
+        m_filterRegexp.setPatternOptions(m_filterCaseSensitivity == Qt::CaseInsensitive
+                                         ? QRegularExpression::CaseInsensitiveOption
+                                         : QRegularExpression::NoPatternOption);
     }
-    // adapt existing mapping to removed source indices
-    const int sourceRemovedCount = (last - first) + 1;
-    for (int i = range.first; i < m_mapping.count(); ++i)
-        m_mapping[i] = m_mapping.at(i) - sourceRemovedCount;
+    invalidateFilter();
 }
 
-void TaskFilterModel::handleDataChanged(const QModelIndex &top, const QModelIndex &bottom)
+bool TaskFilterModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const
 {
-    const QPair<int, int> range = findFilteredRange(top.row(), bottom.row(), m_mapping);
-    if (range.first > range.second)
-        return;
-
-    emit dataChanged(index(range.first, top.column()), index(range.second, bottom.column()));
-}
-
-QModelIndex TaskFilterModel::mapFromSource(const QModelIndex &idx) const
-{
-    if (!idx.isValid())
-        return QModelIndex();
-    auto it = std::lower_bound(m_mapping.constBegin(), m_mapping.constEnd(), idx.row());
-    QTC_ASSERT(it != m_mapping.constEnd() && idx.row() == *it, return QModelIndex());
-    return index(it - m_mapping.constBegin(), 0);
-}
-
-QModelIndex TaskFilterModel::mapToSource(const QModelIndex &index) const
-{
-    if (!index.isValid())
-        return QModelIndex();
-    int row = index.row();
-    QTC_ASSERT(row >= 0 && row < m_mapping.count(), return QModelIndex());
-    return m_sourceModel->index(m_mapping.at(row), index.column(), index.parent());
-}
-
-void TaskFilterModel::invalidateFilter()
-{
-    beginResetModel();
-    updateMapping();
-    endResetModel();
-}
-
-void TaskFilterModel::updateMapping() const
-{
-    m_mapping.clear();
-    for (int i = 0; i < m_sourceModel->rowCount(); ++i) {
-        QModelIndex index = m_sourceModel->index(i, 0);
-        const Task &task = m_sourceModel->task(index);
-        if (filterAcceptsTask(task))
-            m_mapping.append(i);
-    }
+    Q_UNUSED(source_parent)
+    return filterAcceptsTask(taskModel()->tasks().at(source_row));
 }
 
 bool TaskFilterModel::filterAcceptsTask(const Task &task) const
@@ -508,8 +397,17 @@ bool TaskFilterModel::filterAcceptsTask(const Task &task) const
         break;
     }
 
-    if (m_categoryIds.contains(task.category))
+    if (accept && m_categoryIds.contains(task.category))
         accept = false;
+
+    if (accept && !m_filterText.isEmpty()) {
+        const auto accepts = [this](const QString &s) {
+            return m_filterStringIsRegexp ? m_filterRegexp.isValid() && s.contains(m_filterRegexp)
+                                          : s.contains(m_filterText, m_filterCaseSensitivity);
+        };
+        if ((accepts(task.file.toString()) || accepts(task.description)) == m_filterIsInverted)
+            accept = false;
+    }
 
     return accept;
 }

@@ -27,48 +27,69 @@
 #include "bazaarclient.h"
 #include "bazaarsettings.h"
 #include "bazaarplugin.h"
+#include "ui_optionspage.h"
 
 #include <coreplugin/icore.h>
 #include <vcsbase/vcsbaseconstants.h>
 
-#include <QTextStream>
-
-using namespace Bazaar::Internal;
-using namespace Bazaar;
 using namespace VcsBase;
 
-OptionsPageWidget::OptionsPageWidget(QWidget *parent) : VcsClientOptionsPageWidget(parent)
-{
-    m_ui.setupUi(this);
-    m_ui.commandChooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
-    m_ui.commandChooser->setPromptDialogTitle(tr("Bazaar Command"));
-    m_ui.commandChooser->setHistoryCompleter(QLatin1String("Bazaar.Command.History"));
-}
+namespace Bazaar {
+namespace Internal {
 
-VcsBaseClientSettings OptionsPageWidget::settings() const
+class OptionsPageWidget final : public Core::IOptionsPageWidget
 {
-    VcsBaseClientSettings s = BazaarPlugin::instance()->client()->settings();
+    Q_DECLARE_TR_FUNCTIONS(Bazaar::Internal::OptionsPageWidget)
+
+public:
+    OptionsPageWidget(const std::function<void()> &onApply, BazaarSettings *settings);
+
+    void apply() final;
+
+private:
+    Ui::OptionsPage m_ui;
+    const std::function<void()> m_onApply;
+    BazaarSettings *m_settings;
+};
+
+void OptionsPageWidget::apply()
+{
+    BazaarSettings s = *m_settings;
     s.setValue(BazaarSettings::binaryPathKey, m_ui.commandChooser->rawPath());
     s.setValue(BazaarSettings::userNameKey, m_ui.defaultUsernameLineEdit->text().trimmed());
     s.setValue(BazaarSettings::userEmailKey, m_ui.defaultEmailLineEdit->text().trimmed());
     s.setValue(BazaarSettings::logCountKey, m_ui.logEntriesCount->value());
     s.setValue(BazaarSettings::timeoutKey, m_ui.timeout->value());
-    return s;
+
+    if (*m_settings == s)
+        return;
+
+    *m_settings = s;
+    m_onApply();
 }
 
-void OptionsPageWidget::setSettings(const VcsBaseClientSettings &s)
+OptionsPageWidget::OptionsPageWidget(const std::function<void(void)> &onApply, BazaarSettings *settings)
+    : m_onApply(onApply), m_settings(settings)
 {
-    m_ui.commandChooser->setPath(s.stringValue(BazaarSettings::binaryPathKey));
-    m_ui.defaultUsernameLineEdit->setText(s.stringValue(BazaarSettings::userNameKey));
-    m_ui.defaultEmailLineEdit->setText(s.stringValue(BazaarSettings::userEmailKey));
-    m_ui.logEntriesCount->setValue(s.intValue(BazaarSettings::logCountKey));
-    m_ui.timeout->setValue(s.intValue(BazaarSettings::timeoutKey));
+    m_ui.setupUi(this);
+    m_ui.commandChooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
+    m_ui.commandChooser->setPromptDialogTitle(tr("Bazaar Command"));
+    m_ui.commandChooser->setHistoryCompleter(QLatin1String("Bazaar.Command.History"));
+
+    m_ui.commandChooser->setPath(m_settings->stringValue(BazaarSettings::binaryPathKey));
+    m_ui.defaultUsernameLineEdit->setText(m_settings->stringValue(BazaarSettings::userNameKey));
+    m_ui.defaultEmailLineEdit->setText(m_settings->stringValue(BazaarSettings::userEmailKey));
+    m_ui.logEntriesCount->setValue(m_settings->intValue(BazaarSettings::logCountKey));
+    m_ui.timeout->setValue(m_settings->intValue(BazaarSettings::timeoutKey));
 }
 
-OptionsPage::OptionsPage(Core::IVersionControl *control, QObject *parent) :
-    VcsClientOptionsPage(control, BazaarPlugin::instance()->client(), parent)
+OptionsPage::OptionsPage(const std::function<void(void)> &onApply, BazaarSettings *settings)
 {
     setId(VcsBase::Constants::VCS_ID_BAZAAR);
-    setDisplayName(tr("Bazaar"));
-    setWidgetFactory([]() { return new OptionsPageWidget; });
+    setDisplayName(OptionsPageWidget::tr("Bazaar"));
+    setWidgetCreator([onApply, settings] { return new OptionsPageWidget(onApply, settings); });
+    setCategory(Constants::VCS_SETTINGS_CATEGORY);
 }
+
+} // Internal
+} // Bazaar

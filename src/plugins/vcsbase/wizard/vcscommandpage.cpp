@@ -71,9 +71,9 @@ VcsCommandPageFactory::VcsCommandPageFactory()
 
 WizardPage *VcsCommandPageFactory::create(JsonWizard *wizard, Id typeId, const QVariant &data)
 {
-    Q_UNUSED(wizard);
+    Q_UNUSED(wizard)
 
-    QTC_ASSERT(canCreate(typeId), return 0);
+    QTC_ASSERT(canCreate(typeId), return nullptr);
 
     QVariantMap tmp = data.toMap();
 
@@ -89,7 +89,7 @@ WizardPage *VcsCommandPageFactory::create(JsonWizard *wizard, Id typeId, const Q
         } else if (argsVar.type() == QVariant::List) {
             args = Utils::transform(argsVar.toList(), &QVariant::toString);
         } else {
-            return 0;
+            return nullptr;
         }
     }
 
@@ -287,7 +287,7 @@ void VcsCommandPage::delayedInitialize()
     }
 
     Core::ShellCommand *command
-            = vc->createInitialCheckoutCommand(repo, FileName::fromString(base),
+            = vc->createInitialCheckoutCommand(repo, FilePath::fromString(base),
                                                name, extraArgs);
 
     foreach (const JobData &job, m_additionalJobs) {
@@ -310,7 +310,7 @@ void VcsCommandPage::delayedInitialize()
 
         const QString dir = wiz->expander()->expand(job.workDirectory);
         const int timeoutS = command->defaultTimeoutS() * job.timeOutFactor;
-        command->addJob(FileName::fromUserInput(commandString), args, timeoutS, dir);
+        command->addJob({FilePath::fromUserInput(commandString), args}, timeoutS, dir);
     }
 
     start(command);

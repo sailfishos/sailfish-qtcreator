@@ -24,8 +24,9 @@
 ****************************************************************************/
 
 #include "qmljsreformatter.h"
-
 #include "qmljscodeformatter.h"
+#include "qmljsbind.h"
+
 #include "parser/qmljsast_p.h"
 #include "parser/qmljsastvisitor_p.h"
 #include "parser/qmljsengine_p.h"
@@ -96,6 +97,7 @@ class Rewriter : protected Visitor
     int _lastNewlineOffset = -1;
     bool _hadEmptyLine = false;
     int _binaryExpDepth = 0;
+    bool _hasOpenComment = false;
 
 public:
     Rewriter(Document::Ptr doc)
@@ -121,6 +123,10 @@ public:
 
 
         // emit directives
+        if (_doc->bind()->isJsLibrary()) {
+            out(QLatin1String(".pragma library"));
+            newLine();
+        }
         const QList<SourceLocation> &directives = _doc->jsDirectives();
         for (const auto &d: directives) {
             quint32 line = 1;
@@ -201,6 +207,9 @@ protected:
 
     void out(const QString &str, const SourceLocation &lastLoc = SourceLocation())
     {
+        if (_hasOpenComment) {
+            newLine();
+        }
         if (lastLoc.isValid()) {
             QList<SourceLocation> comments = _doc->engine()->comments();
             for (; _nextComment < comments.size(); ++_nextComment) {
@@ -371,6 +380,7 @@ protected:
     {
         // if preceded by a newline, it's an empty line!
         _hadEmptyLine = _line.trimmed().isEmpty();
+        _hasOpenComment = false;
 
         // if the preceding line wasn't empty, reindent etc.
         if (!_hadEmptyLine) {
@@ -524,6 +534,7 @@ protected:
 
                 out(" ");
                 out(toString(nextCommentLoc));
+                _hasOpenComment = true;
             }
         }
     }
@@ -531,6 +542,39 @@ protected:
     bool visit(UiPragma *ast) override
     {
         out("pragma ", ast->pragmaToken);
+        out(ast->name.toString());
+        newLine();
+        return false;
+    }
+
+    bool visit(UiEnumDeclaration *ast) override
+    {
+        out(ast->enumToken);
+        out(" ");
+        out(ast->name.toString());
+        out(" ");
+        out("{"); // TODO: out(ast->lbraceToken);
+        newLine();
+
+        accept(ast->members);
+
+        out(ast->rbraceToken);
+        return false;
+    }
+
+    bool visit(UiEnumMemberList *list) override
+    {
+        for (UiEnumMemberList *it = list; it; it = it->next) {
+            out(it->memberToken);
+            if (it->valueToken.isValid()) {
+                out(" = ");
+                out(it->valueToken);
+            }
+            if (it->next) {
+                out(",");
+            }
+            newLine();
+        }
         return false;
     }
 
@@ -541,9 +585,11 @@ protected:
             out(QString::fromLatin1("\"%1\"").arg(ast->fileName.toString()));
         else
             accept(ast->importUri);
-        if (ast->versionToken.isValid()) {
+        if (ast->version) {
             out(" ");
-            out(ast->versionToken);
+            out(QString::number(ast->version->majorVersion));
+            out(".");
+            out(QString::number(ast->version->minorVersion));
         }
         if (!ast->importId.isNull()) {
             out(" as ", ast->asToken);
@@ -563,9 +609,10 @@ protected:
     bool visit(UiObjectInitializer *ast) override
     {
         out(ast->lbraceToken);
-        if (ast->members)
+        if (ast->members) {
             lnAcceptIndented(ast->members);
-        newLine();
+            newLine();
+        }
         out(ast->rbraceToken);
         return false;
     }
@@ -593,10 +640,10 @@ protected:
             if (!ast->typeModifier.isNull()) {
                 out(ast->typeModifierToken);
                 out("<");
-                out(ast->typeToken);
+                accept(ast->memberType);
                 out(">");
             } else {
-                out(ast->typeToken);
+                accept(ast->memberType);
             }
             out(" ");
             if (ast->statement) {
@@ -677,8 +724,10 @@ protected:
     bool visit(ObjectPattern *ast) override
     {
         out(ast->lbraceToken);
-        lnAcceptIndented(ast->properties);
-        newLine();
+        if (ast->properties) {
+            lnAcceptIndented(ast->properties);
+            newLine();
+        }
         out(ast->rbraceToken);
         return false;
     }
@@ -914,14 +963,23 @@ protected:
 
     bool visit(VariableStatement *ast) override
     {
-        out("var ", ast->declarationKindToken);
+        out(ast->declarationKindToken);
+        out(" ");
         accept(ast->declarations);
         return false;
     }
 
     bool visit(PatternElement *ast) override
     {
-
+        if (ast->isForDeclaration) {
+            if (ast->scope == VariableScope::Var) {
+                out("var ");
+            } else if (ast->scope == VariableScope::Let) {
+                out("let ");
+            } else if (ast->scope == VariableScope::Const) {
+                out("const ");
+            }
+        }
         out(ast->identifierToken);
         if (ast->initializer) {
             if (ast->isVariableDeclaration())
@@ -985,7 +1043,12 @@ protected:
         out(ast->forToken);
         out(" ");
         out(ast->lparenToken);
-        accept(ast->initialiser);
+        if (ast->initialiser) {
+            accept(ast->initialiser);
+        } else if (ast->declarations) {
+            out("var ");
+            accept(ast->declarations);
+        }
         out("; ", ast->firstSemicolonToken);
         accept(ast->condition);
         out("; ", ast->secondSemicolonToken);
@@ -1273,8 +1336,14 @@ protected:
     {
         for (FormalParameterList *it = ast; it; it = it->next) {
             out(it->element->bindingIdentifier.toString()); // TODO
+            if (it->next)
+                out(", ");
         }
         return false;
+    }
+
+    void throwRecursionDepthError() override {
+        out("/* ERROR: Hit recursion limit visiting AST, rewrite failed */");
     }
 };
 

@@ -35,11 +35,11 @@ using namespace Utils;
 // As of MSVC 2015: "foo.cpp(42) :" -> "foo.cpp(42):"
 static const char FILE_POS_PATTERN[] = "^(?:\\d+>)?(cl|LINK|.+[^ ]) ?: ";
 
-static QPair<FileName, int> parseFileName(const QString &input)
+static QPair<FilePath, int> parseFileName(const QString &input)
 {
     QString fileName = input;
     if (fileName.startsWith("LINK") || fileName.startsWith("cl"))
-        return qMakePair(FileName(), -1);
+        return qMakePair(FilePath(), -1);
 
     // Extract linenumber (if it is there):
     int linenumber = -1;
@@ -59,7 +59,7 @@ static QPair<FileName, int> parseFileName(const QString &input)
         }
     }
     const QString normalized = FileUtils::normalizePathName(fileName);
-    return qMakePair(FileName::fromUserInput(normalized), linenumber);
+    return qMakePair(FilePath::fromUserInput(normalized), linenumber);
 }
 
 using namespace ProjectExplorer;
@@ -76,11 +76,7 @@ static bool handleNmakeJomMessage(const QString &line, Task *task)
     if (!matchLength)
         return false;
 
-    *task = Task(Task::Error,
-                 line.mid(matchLength).trimmed(), /* description */
-                 FileName(), /* fileName */
-                 -1, /* linenumber */
-                 Constants::TASK_CATEGORY_COMPILE);
+    *task = CompileTask(Task::Error, line.mid(matchLength).trimmed());
     return true;
 }
 
@@ -145,10 +141,9 @@ void MsvcParser::stdOutput(const QString &line)
                 + match.captured(4).trimmed();
         if (!match.captured(1).isEmpty())
             description.chop(1); // Remove trailing quote
-        m_lastTask = Task(Task::Unknown, description,
-                          FileName::fromUserInput(match.captured(2)), /* fileName */
-                          match.captured(3).toInt(), /* linenumber */
-                          Constants::TASK_CATEGORY_COMPILE);
+        m_lastTask = CompileTask(Task::Unknown, description,
+                                 FilePath::fromUserInput(match.captured(2)), /* fileName */
+                                 match.captured(3).toInt() /* linenumber */);
         m_lines = 1;
         return;
     }
@@ -178,11 +173,10 @@ bool MsvcParser::processCompileLine(const QString &line)
 
     QRegularExpressionMatch match = m_compileRegExp.match(line);
     if (match.hasMatch()) {
-        QPair<FileName, int> position = parseFileName(match.captured(1));
-        m_lastTask = Task(taskType(match.captured(2)),
-                          match.captured(3) + match.captured(4).trimmed(), // description
-                          position.first, position.second,
-                          Constants::TASK_CATEGORY_COMPILE);
+        QPair<FilePath, int> position = parseFileName(match.captured(1));
+        m_lastTask = CompileTask(taskType(match.captured(2)),
+                                 match.captured(3) + match.captured(4).trimmed(), // description
+                                 position.first, position.second);
         m_lines = 1;
         return true;
     }
@@ -208,7 +202,7 @@ void MsvcParser::doFlush()
 // ".\qwindowsgdinativeinterface.cpp(48,3) :  error: unknown type name 'errr'"
 static inline QString clangClCompilePattern()
 {
-    return QLatin1String(FILE_POS_PATTERN) + " (warning|error): (.*)$";
+    return QLatin1String(FILE_POS_PATTERN) + " ?(warning|error): (.*)$";
 }
 
 ClangClParser::ClangClParser()
@@ -261,10 +255,9 @@ void ClangClParser::stdError(const QString &lineIn)
     QRegularExpressionMatch match = m_compileRegExp.match(line);
     if (match.hasMatch()) {
         doFlush();
-        const QPair<FileName, int> position = parseFileName(match.captured(1));
-        m_lastTask = Task(taskType(match.captured(2)), match.captured(3).trimmed(),
-                          position.first, position.second,
-                          Constants::TASK_CATEGORY_COMPILE);
+        const QPair<FilePath, int> position = parseFileName(match.captured(1));
+        m_lastTask = CompileTask(taskType(match.captured(2)), match.captured(3).trimmed(),
+                                 position.first, position.second);
         m_linkedLines = 1;
         return;
     }
@@ -307,62 +300,58 @@ void ProjectExplorerPlugin::testMsvcOutputParsers_data()
     QTest::addColumn<OutputParserTester::Channel>("inputChannel");
     QTest::addColumn<QString>("childStdOutLines");
     QTest::addColumn<QString>("childStdErrLines");
-    QTest::addColumn<QList<Task> >("tasks");
+    QTest::addColumn<Tasks >("tasks");
     QTest::addColumn<QString>("outputLines");
 
     QTest::newRow("pass-through stdout")
             << "Sometext" << OutputParserTester::STDOUT
             << "Sometext\n" << ""
-            << QList<Task>()
+            << Tasks()
             << "";
     QTest::newRow("pass-through stderr")
             << "Sometext" << OutputParserTester::STDERR
             << "" << "Sometext\n"
-            << QList<Task>()
+            << Tasks()
             << "";
 
     QTest::newRow("labeled error")
             << "qmlstandalone\\main.cpp(54) : error C4716: 'findUnresolvedModule' : must return a value"
             << OutputParserTester::STDOUT
             << "" << ""
-            << (QList<Task>()
-                << Task(Task::Error,
-                        "C4716: 'findUnresolvedModule' : must return a value",
-                        FileName::fromUserInput("qmlstandalone\\main.cpp"), 54,
-                        Constants::TASK_CATEGORY_COMPILE))
+            << (Tasks()
+                << CompileTask(Task::Error,
+                               "C4716: 'findUnresolvedModule' : must return a value",
+                               FilePath::fromUserInput("qmlstandalone\\main.cpp"), 54))
             << "";
 
     QTest::newRow("labeled error-2015")
             << "qmlstandalone\\main.cpp(54): error C4716: 'findUnresolvedModule' : must return a value"
             << OutputParserTester::STDOUT
             << "" << ""
-            << (QList<Task>()
-                << Task(Task::Error,
-                        "C4716: 'findUnresolvedModule' : must return a value",
-                        FileName::fromUserInput("qmlstandalone\\main.cpp"), 54,
-                        Constants::TASK_CATEGORY_COMPILE))
+            << (Tasks()
+                << CompileTask(Task::Error,
+                               "C4716: 'findUnresolvedModule' : must return a value",
+                               FilePath::fromUserInput("qmlstandalone\\main.cpp"), 54))
             << "";
 
     QTest::newRow("labeled error with number prefix")
             << "1>qmlstandalone\\main.cpp(54) : error C4716: 'findUnresolvedModule' : must return a value"
             << OutputParserTester::STDOUT
             << "" << ""
-            << (QList<Task>()
-                << Task(Task::Error,
-                        "C4716: 'findUnresolvedModule' : must return a value",
-                        FileName::fromUserInput("qmlstandalone\\main.cpp"), 54,
-                        Constants::TASK_CATEGORY_COMPILE))
+            << (Tasks()
+                << CompileTask(Task::Error,
+                               "C4716: 'findUnresolvedModule' : must return a value",
+                               FilePath::fromUserInput("qmlstandalone\\main.cpp"), 54))
             << "";
 
     QTest::newRow("labeled warning")
             << "x:\\src\\plugins\\projectexplorer\\msvcparser.cpp(69) : warning C4100: 'something' : unreferenced formal parameter"
             << OutputParserTester::STDOUT
             << "" << ""
-            << (QList<Task>()
-                << Task(Task::Warning,
-                        "C4100: 'something' : unreferenced formal parameter",
-                        FileName::fromUserInput("x:\\src\\plugins\\projectexplorer\\msvcparser.cpp"), 69,
-                        Constants::TASK_CATEGORY_COMPILE))
+            << (Tasks()
+                << CompileTask(Task::Warning,
+                               "C4100: 'something' : unreferenced formal parameter",
+                               FilePath::fromUserInput("x:\\src\\plugins\\projectexplorer\\msvcparser.cpp"), 69))
             << "";
 
 
@@ -370,11 +359,10 @@ void ProjectExplorerPlugin::testMsvcOutputParsers_data()
             << "1>x:\\src\\plugins\\projectexplorer\\msvcparser.cpp(69) : warning C4100: 'something' : unreferenced formal parameter"
             << OutputParserTester::STDOUT
             << "" << ""
-            << (QList<Task>()
-                << Task(Task::Warning,
-                        "C4100: 'something' : unreferenced formal parameter",
-                        FileName::fromUserInput("x:\\src\\plugins\\projectexplorer\\msvcparser.cpp"), 69,
-                        Constants::TASK_CATEGORY_COMPILE))
+            << (Tasks()
+                << CompileTask(Task::Warning,
+                               "C4100: 'something' : unreferenced formal parameter",
+                               FilePath::fromUserInput("x:\\src\\plugins\\projectexplorer\\msvcparser.cpp"), 69))
             << "";
 
     QTest::newRow("additional information")
@@ -382,15 +370,13 @@ void ProjectExplorerPlugin::testMsvcOutputParsers_data()
                "        x:\\src\\plugins\\texteditor\\completionsupport.h(39) : see declaration of 'TextEditor::CompletionItem'"
             << OutputParserTester::STDOUT
             << "" << ""
-            << (QList<Task>()
-                << Task(Task::Warning,
-                        "C4099: 'TextEditor::CompletionItem' : type name first seen using 'struct' now seen using 'class'",
-                        FileName::fromUserInput("x:\\src\\plugins\\texteditor\\icompletioncollector.h"), 50,
-                        Constants::TASK_CATEGORY_COMPILE)
-                << Task(Task::Unknown,
-                        "see declaration of 'TextEditor::CompletionItem'",
-                        FileName::fromUserInput("x:\\src\\plugins\\texteditor\\completionsupport.h"), 39,
-                        Constants::TASK_CATEGORY_COMPILE))
+            << (Tasks()
+                << CompileTask(Task::Warning,
+                               "C4099: 'TextEditor::CompletionItem' : type name first seen using 'struct' now seen using 'class'",
+                               FilePath::fromUserInput("x:\\src\\plugins\\texteditor\\icompletioncollector.h"), 50)
+                << CompileTask(Task::Unknown,
+                               "see declaration of 'TextEditor::CompletionItem'",
+                               FilePath::fromUserInput("x:\\src\\plugins\\texteditor\\completionsupport.h"), 39))
             << "";
 
     QTest::newRow("additional information with prefix")
@@ -398,26 +384,22 @@ void ProjectExplorerPlugin::testMsvcOutputParsers_data()
                "        x:\\src\\plugins\\texteditor\\completionsupport.h(39) : see declaration of 'TextEditor::CompletionItem'"
             << OutputParserTester::STDOUT
             << "" << ""
-            << (QList<Task>()
-                << Task(Task::Warning,
-                        "C4099: 'TextEditor::CompletionItem' : type name first seen using 'struct' now seen using 'class'",
-                        FileName::fromUserInput("x:\\src\\plugins\\texteditor\\icompletioncollector.h"), 50,
-                        Constants::TASK_CATEGORY_COMPILE)
-                << Task(Task::Unknown,
-                        "see declaration of 'TextEditor::CompletionItem'",
-                        FileName::fromUserInput("x:\\src\\plugins\\texteditor\\completionsupport.h"), 39,
-                        Constants::TASK_CATEGORY_COMPILE))
+            << (Tasks()
+                << CompileTask(Task::Warning,
+                               "C4099: 'TextEditor::CompletionItem' : type name first seen using 'struct' now seen using 'class'",
+                               FilePath::fromUserInput("x:\\src\\plugins\\texteditor\\icompletioncollector.h"), 50)
+                << CompileTask(Task::Unknown,
+                               "see declaration of 'TextEditor::CompletionItem'",
+                               FilePath::fromUserInput("x:\\src\\plugins\\texteditor\\completionsupport.h"), 39))
             << "";
 
     QTest::newRow("fatal linker error")
             << "LINK : fatal error LNK1146: no argument specified with option '/LIBPATH:'"
             << OutputParserTester::STDOUT
             << "" << ""
-            << (QList<Task>()
-                << Task(Task::Error,
-                        "LNK1146: no argument specified with option '/LIBPATH:'",
-                        FileName(), -1,
-                        Constants::TASK_CATEGORY_COMPILE))
+            << (Tasks()
+                << CompileTask(Task::Error,
+                               "LNK1146: no argument specified with option '/LIBPATH:'"))
             << "";
 
     // This actually comes through stderr!
@@ -425,12 +407,11 @@ void ProjectExplorerPlugin::testMsvcOutputParsers_data()
             << "cl : Command line warning D9002 : ignoring unknown option '-fopenmp'"
             << OutputParserTester::STDERR
             << "" << ""
-            << (QList<Task>()
-                << Task(Task::Warning,
-                        "D9002 : ignoring unknown option '-fopenmp'",
-                        FileName(), -1,
-                        Constants::TASK_CATEGORY_COMPILE))
+            << (Tasks()
+                << CompileTask(Task::Warning,
+                               "D9002 : ignoring unknown option '-fopenmp'"))
             << "";
+
     QTest::newRow("complex error")
             << "..\\untitled\\main.cpp(19) : error C2440: 'initializing' : cannot convert from 'int' to 'std::_Tree<_Traits>::iterator'\n"
                "        with\n"
@@ -440,57 +421,53 @@ void ProjectExplorerPlugin::testMsvcOutputParsers_data()
                "        No constructor could take the source type, or constructor overload resolution was ambiguous"
             << OutputParserTester::STDOUT
             << "" << ""
-            << (QList<Task>()
-                << Task(Task::Error,
-                        "C2440: 'initializing' : cannot convert from 'int' to 'std::_Tree<_Traits>::iterator'\n"
-                        "with\n"
-                        "[\n"
-                        "    _Traits=std::_Tmap_traits<int,double,std::less<int>,std::allocator<std::pair<const int,double>>,false>\n"
-                        "]\n"
-                        "No constructor could take the source type, or constructor overload resolution was ambiguous",
-                        FileName::fromUserInput("..\\untitled\\main.cpp"), 19,
-                        Constants::TASK_CATEGORY_COMPILE))
+            << (Tasks()
+                << CompileTask(Task::Error,
+                               "C2440: 'initializing' : cannot convert from 'int' to 'std::_Tree<_Traits>::iterator'\n"
+                               "with\n"
+                               "[\n"
+                               "    _Traits=std::_Tmap_traits<int,double,std::less<int>,std::allocator<std::pair<const int,double>>,false>\n"
+                               "]\n"
+                               "No constructor could take the source type, or constructor overload resolution was ambiguous",
+                               FilePath::fromUserInput("..\\untitled\\main.cpp"), 19))
             << "";
+
     QTest::newRow("Linker error 1")
             << "main.obj : error LNK2019: unresolved external symbol \"public: void __thiscall Data::doit(void)\" (?doit@Data@@QAEXXZ) referenced in function _main"
             << OutputParserTester::STDOUT
             << "" << ""
-            << (QList<Task>()
-                << Task(Task::Error,
-                        "LNK2019: unresolved external symbol \"public: void __thiscall Data::doit(void)\" (?doit@Data@@QAEXXZ) referenced in function _main",
-                        FileName::fromUserInput("main.obj"), -1,
-                        Constants::TASK_CATEGORY_COMPILE))
+            << (Tasks()
+                << CompileTask(Task::Error,
+                               "LNK2019: unresolved external symbol \"public: void __thiscall Data::doit(void)\" (?doit@Data@@QAEXXZ) referenced in function _main",
+                               FilePath::fromUserInput("main.obj"), -1))
             << "";
+
     QTest::newRow("Linker error 2")
             << "debug\\Experimentation.exe : fatal error LNK1120: 1 unresolved externals"
             << OutputParserTester::STDOUT
             << "" << ""
-            << (QList<Task>()
-                << Task(Task::Error,
-                        "LNK1120: 1 unresolved externals",
-                        FileName::fromUserInput("debug\\Experimentation.exe"), -1,
-                        Constants::TASK_CATEGORY_COMPILE))
+            << (Tasks()
+                << CompileTask(Task::Error,
+                               "LNK1120: 1 unresolved externals",
+                               FilePath::fromUserInput("debug\\Experimentation.exe")))
             << "";
 
     QTest::newRow("nmake error")
             << "Error: dependent '..\\..\\..\\..\\creator-2.5\\src\\plugins\\coreplugin\\ifile.h' does not exist."
             << OutputParserTester::STDOUT
             << "" << ""
-            << (QList<Task>()
-                << Task(Task::Error,
-                        "dependent '..\\..\\..\\..\\creator-2.5\\src\\plugins\\coreplugin\\ifile.h' does not exist.",
-                        FileName(), -1,
-                        Constants::TASK_CATEGORY_COMPILE))
+            << (Tasks()
+                << CompileTask(Task::Error,
+                               "dependent '..\\..\\..\\..\\creator-2.5\\src\\plugins\\coreplugin\\ifile.h' does not exist."))
             << "";
+
     QTest::newRow("jom error")
             << "Error: dependent 'main.cpp' does not exist."
             << OutputParserTester::STDERR
             << "" << ""
-            << (QList<Task>()
-                << Task(Task::Error,
-                        "dependent 'main.cpp' does not exist.",
-                        FileName(), -1,
-                        Constants::TASK_CATEGORY_COMPILE))
+            << (Tasks()
+                << CompileTask(Task::Error,
+                               "dependent 'main.cpp' does not exist."))
             << "";
 
     QTest::newRow("Multiline error")
@@ -504,24 +481,21 @@ void ProjectExplorerPlugin::testMsvcOutputParsers_data()
                "        ]"
             << OutputParserTester::STDOUT
             << "" << ""
-            << (QList<Task>()
-                << Task(Task::Warning,
+            << (Tasks()
+                << CompileTask(Task::Warning,
                         "C4996: 'std::_Copy_impl': Function call with parameters that may be unsafe - this call relies on the caller to check that the passed values are correct. To disable this warning, use -D_SCL_SECURE_NO_WARNINGS. See documentation on how to use Visual C++ 'Checked Iterators'",
-                        FileName::fromUserInput("c:\\Program Files (x86)\\Microsoft Visual Studio 10.0\\VC\\INCLUDE\\xutility"), 2227,
-                        Constants::TASK_CATEGORY_COMPILE)
-                << Task(Task::Unknown,
+                        FilePath::fromUserInput("c:\\Program Files (x86)\\Microsoft Visual Studio 10.0\\VC\\INCLUDE\\xutility"), 2227)
+                << CompileTask(Task::Unknown,
                         "see declaration of 'std::_Copy_impl'",
-                        FileName::fromUserInput("c:\\Program Files (x86)\\Microsoft Visual Studio 10.0\\VC\\INCLUDE\\xutility"), 2212,
-                        Constants::TASK_CATEGORY_COMPILE)
-                << Task(Task::Unknown,
+                        FilePath::fromUserInput("c:\\Program Files (x86)\\Microsoft Visual Studio 10.0\\VC\\INCLUDE\\xutility"), 2212)
+                << CompileTask(Task::Unknown,
                         "see reference to function template instantiation '_OutIt std::copy<const unsigned char*,unsigned short*>(_InIt,_InIt,_OutIt)' being compiled\n"
                         "with\n"
                         "[\n"
                         "    _OutIt=unsigned short *,\n"
                         "    _InIt=const unsigned char *\n"
                         "]",
-                        FileName::fromUserInput("symbolgroupvalue.cpp"), 2314,
-                        Constants::TASK_CATEGORY_COMPILE))
+                        FilePath::fromUserInput("symbolgroupvalue.cpp"), 2314))
             << "";
 
     QTest::newRow("Ambiguous symbol")
@@ -530,25 +504,23 @@ void ProjectExplorerPlugin::testMsvcOutputParsers_data()
                "        or       'D:\\Project\\types.h(71) : Types::UINT64'"
             << OutputParserTester::STDOUT
             << "" << ""
-            << (QList<Task>()
-                << Task(Task::Error,
+            << (Tasks()
+                << CompileTask(Task::Error,
                         "C2872: 'UINT64' : ambiguous symbol",
-                        FileName::fromUserInput("D:\\Project\\file.h"), 98,
-                        Constants::TASK_CATEGORY_COMPILE)
-                << Task(Task::Unknown,
+                        FilePath::fromUserInput("D:\\Project\\file.h"), 98)
+                << CompileTask(Task::Unknown,
                         "could be unsigned __int64 UINT64",
-                        FileName::fromUserInput("C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v7.0A\\include\\basetsd.h"), 83,
-                        Constants::TASK_CATEGORY_COMPILE)
-                << Task(Task::Unknown,
+                        FilePath::fromUserInput("C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v7.0A\\include\\basetsd.h"), 83)
+                << CompileTask(Task::Unknown,
                         "or Types::UINT64",
-                        FileName::fromUserInput("D:\\Project\\types.h"), 71,
-                        Constants::TASK_CATEGORY_COMPILE))
+                        FilePath::fromUserInput("D:\\Project\\types.h"), 71))
             << "";
+
     QTest::newRow("ignore moc note")
             << "/home/qtwebkithelpviewer.h:0: Note: No relevant classes found. No output generated."
             << OutputParserTester::STDERR
             << "" << "/home/qtwebkithelpviewer.h:0: Note: No relevant classes found. No output generated.\n"
-            << (QList<ProjectExplorer::Task>())
+            << (Tasks())
             << "";
 
     QTest::newRow("error with note")
@@ -556,25 +528,22 @@ void ProjectExplorerPlugin::testMsvcOutputParsers_data()
                "main.cpp(6): note: see declaration of 'func'"
             << OutputParserTester::STDOUT
             << "" << ""
-            << (QList<Task>()
-                << Task(Task::Error,
-                        "C2733: 'func': second C linkage of overloaded function not allowed",
-                        FileName::fromUserInput("main.cpp"), 7,
-                        Constants::TASK_CATEGORY_COMPILE)
-                << Task(Task::Unknown,
-                        "see declaration of 'func'",
-                        FileName::fromUserInput("main.cpp"), 6,
-                        Constants::TASK_CATEGORY_COMPILE))
+            << (Tasks()
+                << CompileTask(Task::Error,
+                               "C2733: 'func': second C linkage of overloaded function not allowed",
+                               FilePath::fromUserInput("main.cpp"), 7)
+                << CompileTask(Task::Unknown,
+                               "see declaration of 'func'",
+                               FilePath::fromUserInput("main.cpp"), 6))
             << "";
 
     QTest::newRow("cyrillic warning") // QTCREATORBUG-20297
             << QString::fromUtf8("cl: командная строка warning D9025: переопределение \"/MDd\" на \"/MTd\"")
             << OutputParserTester::STDERR
             << "" << ""
-            << (QList<ProjectExplorer::Task>()
-                << Task(Task::Warning,
-                        QString::fromUtf8("D9025: переопределение \"/MDd\" на \"/MTd\""),
-                        FileName(), -1, Constants::TASK_CATEGORY_COMPILE))
+            << (Tasks()
+                << CompileTask(Task::Warning,
+                               QString::fromUtf8("D9025: переопределение \"/MDd\" на \"/MTd\"")))
             << "";
 }
 
@@ -584,7 +553,7 @@ void ProjectExplorerPlugin::testMsvcOutputParsers()
     testbench.appendOutputParser(new MsvcParser);
     QFETCH(QString, input);
     QFETCH(OutputParserTester::Channel, inputChannel);
-    QFETCH(QList<Task>, tasks);
+    QFETCH(Tasks, tasks);
     QFETCH(QString, childStdOutLines);
     QFETCH(QString, childStdErrLines);
     QFETCH(QString, outputLines);
@@ -600,7 +569,7 @@ void ProjectExplorerPlugin::testClangClOutputParsers_data()
     QTest::addColumn<OutputParserTester::Channel>("inputChannel");
     QTest::addColumn<QString>("childStdOutLines");
     QTest::addColumn<QString>("childStdErrLines");
-    QTest::addColumn<QList<Task> >("tasks");
+    QTest::addColumn<Tasks >("tasks");
     QTest::addColumn<QString>("outputLines");
 
     const QString warning1 = "private field 'm_version' is not used [-Wunused-private-field]\n"
@@ -643,22 +612,38 @@ void ProjectExplorerPlugin::testClangClOutputParsers_data()
             << input
             << OutputParserTester::STDERR
             << "" << expectedStderr
-            << (QList<Task>()
-                << Task(Task::Warning, warning1.trimmed(),
-                        FileName::fromUserInput("./qwindowseglcontext.h"), 282,
-                        Constants::TASK_CATEGORY_COMPILE)
-                << Task(Task::Warning, warning2.trimmed(),
-                        FileName::fromUserInput(".\\qwindowsclipboard.cpp"), 60,
-                        Constants::TASK_CATEGORY_COMPILE)
-                << Task(Task::Warning, warning3.trimmed(),
-                        FileName::fromUserInput(".\\qwindowsclipboard.cpp"), 61,
-                        Constants::TASK_CATEGORY_COMPILE)
-                << Task(Task::Error, expectedError1,
-                        FileName::fromUserInput(".\\qwindowsgdinativeinterface.cpp"), 48,
-                        Constants::TASK_CATEGORY_COMPILE)
-                << Task(Task::Error, error2.trimmed(),
-                        FileName::fromUserInput(".\\qwindowsgdinativeinterface.cpp"), 51,
-                        Constants::TASK_CATEGORY_COMPILE))
+            << (Tasks()
+                << CompileTask(Task::Warning, warning1.trimmed(),
+                               FilePath::fromUserInput("./qwindowseglcontext.h"), 282)
+                << CompileTask(Task::Warning, warning2.trimmed(),
+                               FilePath::fromUserInput(".\\qwindowsclipboard.cpp"), 60)
+                << CompileTask(Task::Warning, warning3.trimmed(),
+                               FilePath::fromUserInput(".\\qwindowsclipboard.cpp"), 61)
+                << CompileTask(Task::Error, expectedError1,
+                               FilePath::fromUserInput(".\\qwindowsgdinativeinterface.cpp"), 48)
+                << CompileTask(Task::Error, error2.trimmed(),
+                               FilePath::fromUserInput(".\\qwindowsgdinativeinterface.cpp"), 51))
+            << "";
+
+    QTest::newRow("other error")
+            << "C:\\Program Files\\LLVM\\bin\\clang-cl.exe /nologo /c /EHsc /Od -m64 /Zi /MDd "
+               "/DUNICODE /D_UNICODE /DWIN32 /FdTestForError.cl.pdb "
+               "/FoC:\\MyData\\Project_home\\cpp\build-TestForError-msvc_2017_clang-Debug\\Debug_msvc_201_47eca974c876c8b3\\TestForError.b6dd39ae\\3a52ce780950d4d9\\main.cpp.obj "
+               "C:\\MyData\\Project_home\\cpp\\TestForError\\main.cpp /TP\r\n"
+               "C:\\MyData\\Project_home\\cpp\\TestForError\\main.cpp(3,10): error: expected ';' after return statement\r\n"
+               "return 0\r\n"
+               "              ^\r\n"
+               "              ;"
+            << OutputParserTester::STDERR
+            << ""
+            << "C:\\Program Files\\LLVM\\bin\\clang-cl.exe /nologo /c /EHsc /Od -m64 /Zi /MDd "
+               "/DUNICODE /D_UNICODE /DWIN32 /FdTestForError.cl.pdb "
+               "/FoC:\\MyData\\Project_home\\cpp\build-TestForError-msvc_2017_clang-Debug\\Debug_msvc_201_47eca974c876c8b3\\TestForError.b6dd39ae\\3a52ce780950d4d9\\main.cpp.obj "
+               "C:\\MyData\\Project_home\\cpp\\TestForError\\main.cpp /TP\r\n"
+               "              ;\n"
+            << Tasks{CompileTask(Task::Error, "expected ';' after return statement\nreturn 0",
+                                 FilePath::fromUserInput("C:\\MyData\\Project_home\\cpp\\TestForError\\main.cpp"),
+                                 3)}
             << "";
 }
 
@@ -668,9 +653,9 @@ void ProjectExplorerPlugin::testClangClOutputParsers()
     testbench.appendOutputParser(new ClangClParser);
     QFETCH(QString, input);
     QFETCH(OutputParserTester::Channel, inputChannel);
-    QFETCH(QList<Task>, tasks);
     QFETCH(QString, childStdOutLines);
     QFETCH(QString, childStdErrLines);
+    QFETCH(Tasks, tasks);
     QFETCH(QString, outputLines);
 
     testbench.testParsing(input, inputChannel,

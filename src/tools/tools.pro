@@ -13,7 +13,8 @@ SUBDIRS = qtpromaker \
 
 isEmpty(QTC_SKIP_SDKTOOL): SUBDIRS += sdktool
 
-qtHaveModule(quick-private): SUBDIRS += qml2puppet
+QTC_DO_NOT_BUILD_QMLDESIGNER = $$(QTC_DO_NOT_BUILD_QMLDESIGNER)
+isEmpty(QTC_DO_NOT_BUILD_QMLDESIGNER):qtHaveModule(quick-private): SUBDIRS += qml2puppet
 
 win32 {
     SUBDIRS += qtcdebugger \
@@ -28,12 +29,10 @@ mac {
 
 SUBDIRS += clangbackend
 
-QTC_ENABLE_CLANG_LIBTOOLING=$$(QTC_ENABLE_CLANG_LIBTOOLING)
-!isEmpty(QTC_ENABLE_CLANG_LIBTOOLING) {
+QTC_DISABLE_CLANG_REFACTORING=$$(QTC_DISABLE_CLANG_REFACTORING)
+isEmpty(QTC_DISABLE_CLANG_REFACTORING) {
     SUBDIRS += clangrefactoringbackend
     SUBDIRS += clangpchmanagerbackend
-} else {
-    warning("Not building the clang refactoring backend and the pch manager backend.")
 }
 
 isEmpty(BUILD_CPLUSPLUS_TOOLS):BUILD_CPLUSPLUS_TOOLS=$$(BUILD_CPLUSPLUS_TOOLS)
@@ -82,7 +81,10 @@ exists(perfparser/perfparser.pro) {
     cache(PERFPARSER_APP_INSTALLDIR)
 }
 
-OTHER_FILES += tools.qbs
+OTHER_FILES += \
+    tools.qbs \
+    icons/exportapplicationicons.sh \
+    icons/exportdocumenttypeicons.sh
 
 # delegate deployqt target
 deployqt.CONFIG += recursive

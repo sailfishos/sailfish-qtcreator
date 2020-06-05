@@ -25,7 +25,6 @@
 
 #include "contentwindow.h"
 
-#include <centralwidget.h>
 #include <helpviewer.h>
 #include <localhelpmanager.h>
 #include <openpagesmanager.h>
@@ -56,7 +55,7 @@ ContentWindow::ContentWindow()
     setFocusProxy(m_contentWidget);
 
     QVBoxLayout *layout = new QVBoxLayout(this);
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_contentWidget);
 
     connect(m_contentWidget, &QWidget::customContextMenuRequested,

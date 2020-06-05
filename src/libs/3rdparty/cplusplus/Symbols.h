@@ -29,10 +29,12 @@
 
 namespace CPlusPlus {
 
+class StringLiteral;
+
 class CPLUSPLUS_EXPORT UsingNamespaceDirective: public Symbol
 {
 public:
-    UsingNamespaceDirective(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    UsingNamespaceDirective(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     UsingNamespaceDirective(Clone *clone, Subst *subst, UsingNamespaceDirective *original);
     virtual ~UsingNamespaceDirective();
 
@@ -52,7 +54,7 @@ protected:
 class CPLUSPLUS_EXPORT UsingDeclaration: public Symbol
 {
 public:
-    UsingDeclaration(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    UsingDeclaration(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     UsingDeclaration(Clone *clone, Subst *subst, UsingDeclaration *original);
     virtual ~UsingDeclaration();
 
@@ -72,7 +74,7 @@ protected:
 class CPLUSPLUS_EXPORT NamespaceAlias: public Symbol
 {
 public:
-    NamespaceAlias(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    NamespaceAlias(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     NamespaceAlias(Clone *clone, Subst *subst, NamespaceAlias *original);
     virtual ~NamespaceAlias();
 
@@ -98,7 +100,7 @@ private:
 class CPLUSPLUS_EXPORT Declaration: public Symbol
 {
 public:
-    Declaration(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    Declaration(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     Declaration(Clone *clone, Subst *subst, Declaration *original);
     virtual ~Declaration();
 
@@ -116,10 +118,10 @@ public:
     { return this; }
 
     virtual EnumeratorDeclaration *asEnumeratorDeclarator()
-    { return 0; }
+    { return nullptr; }
 
     virtual const EnumeratorDeclaration *asEnumeratorDeclarator() const
-    { return 0; }
+    { return nullptr; }
 
 protected:
     virtual void visitSymbol0(SymbolVisitor *visitor);
@@ -132,7 +134,7 @@ private:
 class CPLUSPLUS_EXPORT EnumeratorDeclaration: public Declaration
 {
 public:
-    EnumeratorDeclaration(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    EnumeratorDeclaration(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     virtual ~EnumeratorDeclaration();
 
     const StringLiteral *constantValue() const;
@@ -151,7 +153,7 @@ private:
 class CPLUSPLUS_EXPORT Argument: public Symbol
 {
 public:
-    Argument(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    Argument(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     Argument(Clone *clone, Subst *subst, Argument *original);
     virtual ~Argument();
 
@@ -182,7 +184,7 @@ private:
 class CPLUSPLUS_EXPORT TypenameArgument: public Symbol
 {
 public:
-    TypenameArgument(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    TypenameArgument(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     TypenameArgument(Clone *clone, Subst *subst, TypenameArgument *original);
     virtual ~TypenameArgument();
 
@@ -210,7 +212,7 @@ private:
 class CPLUSPLUS_EXPORT Block: public Scope
 {
 public:
-    Block(TranslationUnit *translationUnit, unsigned sourceLocation);
+    Block(TranslationUnit *translationUnit, int sourceLocation);
     Block(Clone *clone, Subst *subst, Block *original);
     virtual ~Block();
 
@@ -230,7 +232,7 @@ protected:
 class CPLUSPLUS_EXPORT ForwardClassDeclaration: public Symbol, public Type
 {
 public:
-    ForwardClassDeclaration(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    ForwardClassDeclaration(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     ForwardClassDeclaration(Clone *clone, Subst *subst, ForwardClassDeclaration *original);
     virtual ~ForwardClassDeclaration();
 
@@ -259,7 +261,7 @@ protected:
 class CPLUSPLUS_EXPORT Enum: public Scope, public Type
 {
 public:
-    Enum(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    Enum(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     Enum(Clone *clone, Subst *subst, Enum *original);
     virtual ~Enum();
 
@@ -308,7 +310,7 @@ public:
     };
 
 public:
-    Function(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    Function(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     Function(Clone *clone, Subst *subst, Function *original);
     virtual ~Function();
 
@@ -325,12 +327,12 @@ public:
     /** Convenience function that returns whether the function returns something (including void). */
     bool hasReturnType() const;
 
-    unsigned argumentCount() const;
-    Symbol *argumentAt(unsigned index) const;
+    int argumentCount() const;
+    Symbol *argumentAt(int index) const;
 
     /** Convenience function that returns whether the function receives any arguments. */
     bool hasArguments() const;
-    unsigned minimumArgumentCount() const;
+    int minimumArgumentCount() const;
 
     bool isVirtual() const;
     void setVirtual(bool isVirtual);
@@ -356,12 +358,15 @@ public:
     RefQualifier refQualifier() const;
     void setRefQualifier(RefQualifier refQualifier);
 
-    bool isSignatureEqualTo(const Function *other, Matcher *matcher = 0) const;
+    bool isSignatureEqualTo(const Function *other, Matcher *matcher = nullptr) const;
 
     bool isAmbiguous() const; // internal
     void setAmbiguous(bool isAmbiguous); // internal
 
-    bool maybeValidPrototype(unsigned actualArgumentCount) const;
+    bool maybeValidPrototype(int actualArgumentCount) const;
+
+    const StringLiteral *exceptionSpecification();
+    void setExceptionSpecification(const StringLiteral *spec);
 
     // Symbol's interface
     virtual FullySpecifiedType type() const;
@@ -386,6 +391,7 @@ protected:
 
 private:
     FullySpecifiedType _returnType;
+    const StringLiteral *_exceptionSpecification = nullptr;
     struct Flags {
         unsigned _isVirtual: 1;
         unsigned _isOverride: 1;
@@ -407,12 +413,12 @@ private:
 class CPLUSPLUS_EXPORT Template: public Scope, public Type
 {
 public:
-    Template(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    Template(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     Template(Clone *clone, Subst *subst, Template *original);
     virtual ~Template();
 
-    unsigned templateParameterCount() const;
-    Symbol *templateParameterAt(unsigned index) const;
+    int templateParameterCount() const;
+    Symbol *templateParameterAt(int index) const;
     Symbol *declaration() const;
 
     // Symbol's interface
@@ -441,7 +447,7 @@ protected:
 class CPLUSPLUS_EXPORT Namespace: public Scope, public Type
 {
 public:
-    Namespace(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    Namespace(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     Namespace(Clone *clone, Subst *subst, Namespace *original);
     virtual ~Namespace();
 
@@ -479,7 +485,7 @@ private:
 class CPLUSPLUS_EXPORT BaseClass: public Symbol
 {
 public:
-    BaseClass(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    BaseClass(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     BaseClass(Clone *clone, Subst *subst, BaseClass *original);
     virtual ~BaseClass();
 
@@ -511,7 +517,7 @@ private:
 class CPLUSPLUS_EXPORT Class: public Scope, public Type
 {
 public:
-    Class(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    Class(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     Class(Clone *clone, Subst *subst, Class *original);
     virtual ~Class();
 
@@ -527,8 +533,8 @@ public:
     Key classKey() const;
     void setClassKey(Key key);
 
-    unsigned baseClassCount() const;
-    BaseClass *baseClassAt(unsigned index) const;
+    int baseClassCount() const;
+    BaseClass *baseClassAt(int index) const;
     void addBaseClass(BaseClass *baseClass);
 
     // Symbol's interface
@@ -580,7 +586,7 @@ public:
     };
 
 public:
-    QtPropertyDeclaration(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    QtPropertyDeclaration(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     QtPropertyDeclaration(Clone *clone, Subst *subst, QtPropertyDeclaration *original);
     virtual ~QtPropertyDeclaration();
 
@@ -609,7 +615,7 @@ private:
 class CPLUSPLUS_EXPORT QtEnum: public Symbol
 {
 public:
-    QtEnum(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    QtEnum(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     QtEnum(Clone *clone, Subst *subst, QtEnum *original);
     virtual ~QtEnum();
 
@@ -629,7 +635,7 @@ protected:
 class CPLUSPLUS_EXPORT ObjCBaseClass: public Symbol
 {
 public:
-    ObjCBaseClass(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    ObjCBaseClass(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     ObjCBaseClass(Clone *clone, Subst *subst, ObjCBaseClass *original);
     virtual ~ObjCBaseClass();
 
@@ -649,7 +655,7 @@ protected:
 class CPLUSPLUS_EXPORT ObjCBaseProtocol: public Symbol
 {
 public:
-    ObjCBaseProtocol(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    ObjCBaseProtocol(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     ObjCBaseProtocol(Clone *clone, Subst *subst, ObjCBaseProtocol *original);
     virtual ~ObjCBaseProtocol();
 
@@ -669,7 +675,7 @@ protected:
 class CPLUSPLUS_EXPORT ObjCForwardProtocolDeclaration: public Symbol, public Type
 {
 public:
-    ObjCForwardProtocolDeclaration(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    ObjCForwardProtocolDeclaration(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     ObjCForwardProtocolDeclaration(Clone *clone, Subst *subst, ObjCForwardProtocolDeclaration *original);
     virtual ~ObjCForwardProtocolDeclaration();
 
@@ -698,12 +704,12 @@ protected:
 class CPLUSPLUS_EXPORT ObjCProtocol: public Scope, public Type
 {
 public:
-    ObjCProtocol(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    ObjCProtocol(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     ObjCProtocol(Clone *clone, Subst *subst, ObjCProtocol *original);
     virtual ~ObjCProtocol();
 
-    unsigned protocolCount() const;
-    ObjCBaseProtocol *protocolAt(unsigned index) const;
+    int protocolCount() const;
+    ObjCBaseProtocol *protocolAt(int index) const;
     void addProtocol(ObjCBaseProtocol *protocol);
 
     // Symbol's interface
@@ -734,7 +740,7 @@ private:
 class CPLUSPLUS_EXPORT ObjCForwardClassDeclaration: public Symbol, public Type
 {
 public:
-    ObjCForwardClassDeclaration(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    ObjCForwardClassDeclaration(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     ObjCForwardClassDeclaration(Clone *clone, Subst *subst, ObjCForwardClassDeclaration *original);
     virtual ~ObjCForwardClassDeclaration();
 
@@ -763,7 +769,7 @@ protected:
 class CPLUSPLUS_EXPORT ObjCClass: public Scope, public Type
 {
 public:
-    ObjCClass(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    ObjCClass(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     ObjCClass(Clone *clone, Subst *subst, ObjCClass *original);
     virtual ~ObjCClass();
 
@@ -777,8 +783,8 @@ public:
     ObjCBaseClass *baseClass() const;
     void setBaseClass(ObjCBaseClass *baseClass);
 
-    unsigned protocolCount() const;
-    ObjCBaseProtocol *protocolAt(unsigned index) const;
+    int protocolCount() const;
+    ObjCBaseProtocol *protocolAt(int index) const;
     void addProtocol(ObjCBaseProtocol *protocol);
 
     // Symbol's interface
@@ -812,7 +818,7 @@ private:
 class CPLUSPLUS_EXPORT ObjCMethod: public Scope, public Type
 {
 public:
-    ObjCMethod(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    ObjCMethod(TranslationUnit *translationUnit, int sourceLocation, const Name *name);
     ObjCMethod(Clone *clone, Subst *subst, ObjCMethod *original);
     virtual ~ObjCMethod();
 
@@ -822,8 +828,8 @@ public:
     /** Convenience function that returns whether the function returns something (including void). */
     bool hasReturnType() const;
 
-    unsigned argumentCount() const;
-    Symbol *argumentAt(unsigned index) const;
+    int argumentCount() const;
+    Symbol *argumentAt(int index) const;
 
     /** Convenience function that returns whether the function receives any arguments. */
     bool hasArguments() const;
@@ -883,7 +889,7 @@ public:
 
 public:
     ObjCPropertyDeclaration(TranslationUnit *translationUnit,
-                            unsigned sourceLocation,
+                            int sourceLocation,
                             const Name *name);
     ObjCPropertyDeclaration(Clone *clone, Subst *subst, ObjCPropertyDeclaration *original);
     virtual ~ObjCPropertyDeclaration();

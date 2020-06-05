@@ -1,8 +1,8 @@
 SOURCES += \
-    tst_crumblepath.cpp
+    tst_manual_widgets_crumblepath.cpp
 
 RESOURCES += \
-    tst_crumblepath.qrc
+    ../themes.qrc
 
 QTC_LIB_DEPENDS += \
     utils

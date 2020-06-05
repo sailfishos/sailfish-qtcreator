@@ -657,18 +657,14 @@ IosDeviceToolHandlerPrivate::IosDeviceToolHandlerPrivate(const IosDeviceType &de
         if (k.startsWith(QLatin1String("DYLD_")))
             env.remove(k);
     QStringList frameworkPaths;
-    Utils::FileName xcPath = IosConfigurations::developerPath();
-    QString privateFPath = xcPath.appendPath(QLatin1String("Platforms/iPhoneSimulator.platform/Developer/Library/PrivateFrameworks")).toFileInfo().canonicalFilePath();
-    if (!privateFPath.isEmpty())
-        frameworkPaths << privateFPath;
-    QString otherFPath = xcPath.appendPath(QLatin1String("../OtherFrameworks")).toFileInfo().canonicalFilePath();
-    if (!otherFPath.isEmpty())
-        frameworkPaths << otherFPath;
-    QString sharedFPath = xcPath.appendPath(QLatin1String("../SharedFrameworks")).toFileInfo().canonicalFilePath();
-    if (!sharedFPath.isEmpty())
-        frameworkPaths << sharedFPath;
-    frameworkPaths << QLatin1String("/System/Library/Frameworks")
-                   << QLatin1String("/System/Library/PrivateFrameworks");
+    const Utils::FilePath libPath = IosConfigurations::developerPath().pathAppended("Platforms/iPhoneSimulator.platform/Developer/Library");
+    for (const auto framework : {"PrivateFrameworks", "OtherFrameworks", "SharedFrameworks"}) {
+        const QString frameworkPath =
+                libPath.pathAppended(QLatin1String(framework)).toFileInfo().canonicalFilePath();
+        if (!frameworkPath.isEmpty())
+            frameworkPaths << frameworkPath;
+    }
+    frameworkPaths << "/System/Library/Frameworks" << "/System/Library/PrivateFrameworks";
     env.insert(QLatin1String("DYLD_FALLBACK_FRAMEWORK_PATH"), frameworkPaths.join(QLatin1Char(':')));
     qCDebug(toolHandlerLog) << "IosToolHandler runEnv:" << env.toStringList();
     process->setProcessEnvironment(env);
@@ -676,7 +672,7 @@ IosDeviceToolHandlerPrivate::IosDeviceToolHandlerPrivate(const IosDeviceType &de
     QObject::connect(process.get(), &QProcess::readyReadStandardOutput,
                      std::bind(&IosDeviceToolHandlerPrivate::subprocessHasData,this));
 
-    QObject::connect(process.get(), static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+    QObject::connect(process.get(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                      std::bind(&IosDeviceToolHandlerPrivate::subprocessFinished,this, _1,_2));
 
     QObject::connect(process.get(), &QProcess::errorOccurred,
@@ -822,7 +818,7 @@ IosSimulatorToolHandlerPrivate::~IosSimulatorToolHandlerPrivate()
 void IosSimulatorToolHandlerPrivate::requestTransferApp(const QString &appBundlePath,
                                                         const QString &deviceIdentifier, int timeout)
 {
-    Q_UNUSED(timeout);
+    Q_UNUSED(timeout)
     m_bundlePath = appBundlePath;
     m_deviceId = deviceIdentifier;
     isTransferringApp(m_bundlePath, m_deviceId, 0, 100, "");
@@ -851,13 +847,13 @@ void IosSimulatorToolHandlerPrivate::requestRunApp(const QString &appBundlePath,
                                                    IosToolHandler::RunKind runType,
                                                    const QString &deviceIdentifier, int timeout)
 {
-    Q_UNUSED(timeout);
-    Q_UNUSED(deviceIdentifier);
+    Q_UNUSED(timeout)
+    Q_UNUSED(deviceIdentifier)
     m_bundlePath = appBundlePath;
     m_deviceId = m_devType.identifier;
     m_runKind = runType;
 
-    Utils::FileName appBundle = Utils::FileName::fromString(m_bundlePath);
+    Utils::FilePath appBundle = Utils::FilePath::fromString(m_bundlePath);
     if (!appBundle.exists()) {
         errorMsg(IosToolHandler::tr("Application launch on simulator failed. Invalid bundle path %1")
                  .arg(m_bundlePath));
@@ -884,8 +880,8 @@ void IosSimulatorToolHandlerPrivate::requestRunApp(const QString &appBundlePath,
 
 void IosSimulatorToolHandlerPrivate::requestDeviceInfo(const QString &deviceId, int timeout)
 {
-    Q_UNUSED(timeout);
-    Q_UNUSED(deviceId);
+    Q_UNUSED(timeout)
+    Q_UNUSED(deviceId)
 }
 
 bool IosSimulatorToolHandlerPrivate::isRunning() const
@@ -931,13 +927,13 @@ void IosSimulatorToolHandlerPrivate::installAppOnSimulator()
     };
 
     isTransferringApp(m_bundlePath, m_deviceId, 20, 100, "");
-    auto installFuture = simCtl->installApp(m_deviceId, Utils::FileName::fromString(m_bundlePath));
+    auto installFuture = simCtl->installApp(m_deviceId, Utils::FilePath::fromString(m_bundlePath));
     futureList << Utils::onResultReady(installFuture, onResponseAppInstall);
 }
 
 void IosSimulatorToolHandlerPrivate::launchAppOnSimulator(const QStringList &extraArgs)
 {
-    const Utils::FileName appBundle = Utils::FileName::fromString(m_bundlePath);
+    const Utils::FilePath appBundle = Utils::FilePath::fromString(m_bundlePath);
     const QString bundleId = SimulatorControl::bundleIdentifier(appBundle);
     const bool debugRun = m_runKind == IosToolHandler::DebugRun;
     bool captureConsole = IosConfigurations::xcodeVersion() >= QVersionNumber(8);
@@ -966,7 +962,7 @@ void IosSimulatorToolHandlerPrivate::launchAppOnSimulator(const QStringList &ext
             QThread::msleep(1000);
         } while (!fi.isCanceled() && kill(pid, 0) == 0);
 #else
-    Q_UNUSED(pid);
+    Q_UNUSED(pid)
 #endif
         // Future is cancelled if the app is stopped from the qt creator.
         if (!fi.isCanceled())

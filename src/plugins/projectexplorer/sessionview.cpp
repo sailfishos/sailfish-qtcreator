@@ -27,9 +27,12 @@
 
 #include "session.h"
 
-#include <QItemSelection>
-#include <QStyledItemDelegate>
+#include <utils/algorithm.h>
+
 #include <QHeaderView>
+#include <QItemSelection>
+#include <QStringList>
+#include <QStyledItemDelegate>
 
 namespace ProjectExplorer {
 namespace Internal {
@@ -57,11 +60,13 @@ SessionView::SessionView(QWidget *parent)
 {
     setItemDelegate(new RemoveItemFocusDelegate(this));
     setSelectionBehavior(QAbstractItemView::SelectRows);
-    setSelectionMode(QAbstractItemView::SingleSelection);
+    setSelectionMode(QAbstractItemView::ExtendedSelection);
     setWordWrap(false);
     setRootIsDecorated(false);
+    setSortingEnabled(true);
 
     setModel(&m_sessionModel);
+    sortByColumn(0, Qt::AscendingOrder);
 
     // Ensure that the full session name is visible.
     header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
@@ -74,9 +79,8 @@ SessionView::SessionView(QWidget *parent)
     connect(this, &Utils::TreeView::activated, [this](const QModelIndex &index){
         emit activated(m_sessionModel.sessionAt(index.row()));
     });
-    connect(selectionModel(), &QItemSelectionModel::currentRowChanged, [this]
-            (const QModelIndex &index) {
-        emit selected(m_sessionModel.sessionAt(index.row()));
+    connect(selectionModel(), &QItemSelectionModel::selectionChanged, [this] {
+        emit selected(selectedSessions());
     });
 
     connect(&m_sessionModel, &SessionModel::sessionSwitched,
@@ -92,9 +96,14 @@ void SessionView::createNewSession()
     m_sessionModel.newSession(this);
 }
 
-void SessionView::deleteCurrentSession()
+void SessionView::deleteSelectedSessions()
 {
-    m_sessionModel.deleteSession(currentSession());
+    deleteSessions(selectedSessions());
+}
+
+void SessionView::deleteSessions(const QStringList &sessions)
+{
+    m_sessionModel.deleteSessions(sessions);
 }
 
 void SessionView::cloneCurrentSession()
@@ -139,6 +148,26 @@ void SessionView::showEvent(QShowEvent *event)
     Utils::TreeView::showEvent(event);
     selectActiveSession();
     setFocus();
+}
+
+void SessionView::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() != Qt::Key_Delete) {
+        TreeView::keyPressEvent(event);
+        return;
+    }
+    const QStringList sessions = selectedSessions();
+    if (!sessions.contains("default") && !Utils::anyOf(sessions,
+            [](const QString &session) { return session == SessionManager::activeSession(); })) {
+        deleteSessions(sessions);
+    }
+}
+
+QStringList SessionView::selectedSessions() const
+{
+    return Utils::transform(selectionModel()->selectedRows(), [this](const QModelIndex &index) {
+        return m_sessionModel.sessionAt(index.row());
+    });
 }
 
 } // namespace Internal

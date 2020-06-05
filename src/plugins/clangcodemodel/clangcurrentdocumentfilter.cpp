@@ -75,8 +75,8 @@ static Core::LocatorFilterEntry makeEntry(Core::ILocatorFilter *filter,
 {
     const ClangBackEnd::ExtraInfo &extraInfo = info.extraInfo;
     QString displayName = extraInfo.token;
-    ::Utils::LineColumn lineColumn(static_cast<int>(info.line), static_cast<int>(info.column));
-    Core::LocatorFilterEntry entry(filter, displayName, qVariantFromValue(lineColumn));
+    ::Utils::LineColumn lineColumn(info.line, info.column);
+    Core::LocatorFilterEntry entry(filter, displayName, QVariant::fromValue(lineColumn));
     QString extra;
     ClangBackEnd::HighlightingType mainType = info.types.mainHighlightingType;
     if (mainType == ClangBackEnd::HighlightingType::VirtualFunction

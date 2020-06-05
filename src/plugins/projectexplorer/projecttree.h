@@ -31,15 +31,17 @@
 
 #include <functional>
 
-namespace Utils { class FileName; }
+namespace Utils { class FilePath; }
 
 namespace ProjectExplorer {
+class BuildSystem;
 class FileNode;
 class FolderNode;
 class Node;
 class Project;
 class ProjectNode;
 class SessionNode;
+class Target;
 
 namespace Internal { class ProjectTreeWidget; }
 
@@ -53,8 +55,10 @@ public:
     static ProjectTree *instance();
 
     static Project *currentProject();
-    static Node *findCurrentNode();
-    static Utils::FileName currentFilePath();
+    static Target *currentTarget();
+    static BuildSystem *currentBuildSystem();
+    static Node *currentNode();
+    static Utils::FilePath currentFilePath();
 
     // Integration with ProjectTreeWidget
     static void registerWidget(Internal::ProjectTreeWidget *widget);
@@ -76,10 +80,12 @@ public:
     static void forEachNode(const std::function<void(Node *)> &task);
 
     static Project *projectForNode(const Node *node);
-    static Node *nodeForFile(const Utils::FileName &fileName);
+    static Node *nodeForFile(const Utils::FilePath &fileName);
 
     void collapseAll();
     void expandAll();
+
+    void changeProjectRootDirectory();
 
     // for nodes to emit signals, do not call unless you are a node
     static void emitSubtreeChanged(FolderNode *node);

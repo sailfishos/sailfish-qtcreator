@@ -52,9 +52,7 @@ class QmlJSEditorDocument;
 class QuickToolBar;
 class FindReferences;
 
-namespace Internal {
-
-class QmlJSEditorWidget : public TextEditor::TextEditorWidget
+class QMLJSEDITOR_EXPORT QmlJSEditorWidget : public TextEditor::TextEditorWidget
 {
     Q_OBJECT
 
@@ -62,6 +60,7 @@ public:
     QmlJSEditorWidget();
 
     void finalizeInitialization() override;
+    bool restoreState(const QByteArray &state) override;
 
     QmlJSEditorDocument *qmlJsEditorDocument() const;
 
@@ -94,6 +93,7 @@ private:
     void semanticInfoUpdated(const QmlJSTools::SemanticInfo &semanticInfo);
 
     void updateCodeWarnings(QmlJS::Document::Ptr doc);
+    void foldAuxiliaryData();
 
 protected:
     void contextMenuEvent(QContextMenuEvent *e) override;
@@ -131,25 +131,24 @@ private:
 };
 
 
-class QmlJSEditor : public TextEditor::BaseTextEditor
+class QMLJSEDITOR_EXPORT QmlJSEditor : public TextEditor::BaseTextEditor
 {
     Q_OBJECT
 
 public:
     QmlJSEditor();
 
+    QmlJSEditorDocument *qmlJSDocument() const;
     bool isDesignModePreferred() const override;
 };
 
-class QmlJSEditorFactory : public TextEditor::TextEditorFactory
+class QMLJSEDITOR_EXPORT QmlJSEditorFactory : public TextEditor::TextEditorFactory
 {
-    Q_OBJECT
-
 public:
     QmlJSEditorFactory();
+    QmlJSEditorFactory(Core::Id id);
 
     static void decorateEditor(TextEditor::TextEditorWidget *editor);
 };
 
-} // namespace Internal
 } // namespace QmlJSEditor

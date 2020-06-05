@@ -34,15 +34,12 @@ namespace Internal {
 class QnxToolChain : public ProjectExplorer::GccToolChain
 {
 public:
-    explicit QnxToolChain(Detection d);
-    explicit QnxToolChain(Core::Id l, Detection d);
-
-    QString typeDisplayName() const override;
+    QnxToolChain();
 
     std::unique_ptr<ProjectExplorer::ToolChainConfigWidget> createConfigurationWidget() override;
 
     void addToEnvironment(Utils::Environment &env) const override;
-    Utils::FileNameList suggestedMkspecList() const override;
+    QStringList suggestedMkspecList() const override;
 
     QVariantMap toMap() const override;
     bool fromMap(const QVariantMap &data) override;
@@ -75,14 +72,6 @@ public:
 
     QList<ProjectExplorer::ToolChain *> autoDetect(
             const QList<ProjectExplorer::ToolChain *> &alreadyKnown) override;
-
-    QSet<Core::Id> supportedLanguages() const override;
-
-    bool canRestore(const QVariantMap &data) override;
-    ProjectExplorer::ToolChain *restore(const QVariantMap &data) override;
-
-    bool canCreate() override;
-    ProjectExplorer::ToolChain *create(Core::Id l) override;
 };
 
 //----------------------------------------------------------------------------

@@ -58,11 +58,7 @@ ValgrindToolRunner::ValgrindToolRunner(RunControl *runControl)
     runControl->setIcon(ProjectExplorer::Icons::ANALYZER_START_SMALL_TOOLBAR);
     setSupportsReRunning(false);
 
-    m_settings = runControl->runConfiguration()
-            ->currentSettings<ValgrindBaseSettings>(ANALYZER_VALGRIND_SETTINGS);
-
-    if (!m_settings)
-        m_settings = ValgrindPlugin::globalSettings();
+    m_settings.fromMap(runControl->settingsData(ANALYZER_VALGRIND_SETTINGS));
 }
 
 void ValgrindToolRunner::start()
@@ -81,12 +77,15 @@ void ValgrindToolRunner::start()
     emit outputReceived(tr("Command line arguments: %1").arg(runnable().debuggeeArgs), DebugFormat);
 #endif
 
-    m_runner.setValgrindExecutable(m_settings->valgrindExecutable());
-    m_runner.setValgrindArguments(genericToolArguments() + toolArguments());
+    CommandLine valgrind{m_settings.valgrindExecutable()};
+    valgrind.addArgs(genericToolArguments());
+    valgrind.addArgs(toolArguments());
+
+    m_runner.setValgrindCommand(valgrind);
     m_runner.setDevice(device());
     m_runner.setDebuggee(runnable());
 
-    if (auto aspect = runControl()->runConfiguration()->aspect<TerminalAspect>())
+    if (auto aspect = runControl()->aspect<TerminalAspect>())
         m_runner.setUseTerminal(aspect->useTerminal());
 
     connect(&m_runner, &ValgrindRunner::processOutputReceived,
@@ -115,16 +114,16 @@ void ValgrindToolRunner::stop()
     m_runner.stop();
 }
 
-QString ValgrindToolRunner::executable() const
+FilePath ValgrindToolRunner::executable() const
 {
     return runnable().executable;
 }
 
 QStringList ValgrindToolRunner::genericToolArguments() const
 {
-    QTC_ASSERT(m_settings, return QStringList());
     QString smcCheckValue;
-    switch (m_settings->selfModifyingCodeDetection()) {
+
+    switch (m_settings.selfModifyingCodeDetection()) {
     case ValgrindBaseSettings::DetectSmcNo:
         smcCheckValue = "none";
         break;
@@ -175,7 +174,7 @@ void ValgrindToolRunner::receiveProcessOutput(const QString &output, OutputForma
 void ValgrindToolRunner::receiveProcessError(const QString &message, QProcess::ProcessError error)
 {
     if (error == QProcess::FailedToStart) {
-        const QString valgrind = m_settings->valgrindExecutable();
+        const QString valgrind = m_settings.valgrindExecutable();
         if (!valgrind.isEmpty())
             appendMessage(tr("Error: \"%1\" could not be started: %2").arg(valgrind, message), ErrorMessageFormat);
         else

@@ -27,60 +27,15 @@
 
 #pragma once
 
-#include <projectexplorer/abstractprocessstep.h>
-#include <projectexplorer/projectconfigurationaspects.h>
+#include <projectexplorer/buildstep.h>
 
 namespace AutotoolsProjectManager {
 namespace Internal {
 
-//////////////////////////////////
-// ConfigureStepFactory Class
-//////////////////////////////////
-/**
- * @brief Implementation of the ProjectExplorer::IBuildStepFactory interface.
- *
- * The factory is used to create instances of ConfigureStep.
- */
-class ConfigureStepFactory : public ProjectExplorer::BuildStepFactory
+class ConfigureStepFactory final : public ProjectExplorer::BuildStepFactory
 {
 public:
     ConfigureStepFactory();
-};
-
-//////////////////////////
-//// ConfigureStep class
-//////////////////////////
-///**
-// * @brief Implementation of the ProjectExplorer::AbstractProcessStep interface.
-// *
-// * A configure step can be configured by selecting the "Projects" button of Qt
-// * Creator (in the left hand side menu) and under "Build Settings".
-// *
-// * It is possible for the user to specify custom arguments. The corresponding
-// * configuration widget is created by MakeStep::createConfigWidget and is
-// * represented by an instance of the class MakeStepConfigWidget.
-// */
-class ConfigureStep : public ProjectExplorer::AbstractProcessStep
-{
-    Q_OBJECT
-
-public:
-    explicit ConfigureStep(ProjectExplorer::BuildStepList *bsl);
-
-    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
-
-    void setAdditionalArguments(const QString &list);
-    void notifyBuildDirectoryChanged();
-
-private:
-    bool init() override;
-    void doRun() override;
-
-    void updateDetails();
-
-    ProjectExplorer::BaseStringAspect *m_additionalArgumentsAspect = nullptr;
-    bool m_runConfigure = false;
-    QPointer<ProjectExplorer::BuildStepConfigWidget> m_widget;
 };
 
 } // namespace Internal

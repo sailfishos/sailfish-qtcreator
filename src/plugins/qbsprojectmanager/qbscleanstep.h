@@ -31,46 +31,40 @@
 #include <projectexplorer/projectconfigurationaspects.h>
 #include <projectexplorer/task.h>
 
-#include <qbs.h>
-
 namespace QbsProjectManager {
 namespace Internal {
+class ErrorInfo;
+class QbsSession;
 
 class QbsCleanStep : public ProjectExplorer::BuildStep
 {
     Q_OBJECT
 
 public:
-    explicit QbsCleanStep(ProjectExplorer::BuildStepList *bsl);
+    QbsCleanStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
     ~QbsCleanStep() override;
 
-    bool dryRun() const { return m_dryRunAspect->value(); }
-    bool keepGoing() const { return m_keepGoingAspect->value(); }
+    QbsBuildStepData stepData() const;
 
-signals:
-    void stateChanged();
+    void dropSession();
 
 private:
     bool init() override;
     void doRun() override;
     void doCancel() override;
-    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
 
-    void cleaningDone(bool success);
+    void cleaningDone(const ErrorInfo &error);
     void handleTaskStarted(const QString &desciption, int max);
     void handleProgress(int value);
-    void updateState();
 
     void createTaskAndOutput(ProjectExplorer::Task::TaskType type,
                              const QString &message, const QString &file, int line);
 
     ProjectExplorer::BaseBoolAspect *m_dryRunAspect = nullptr;
     ProjectExplorer::BaseBoolAspect *m_keepGoingAspect = nullptr;
-    ProjectExplorer::BaseStringAspect *m_effectiveCommandAspect = nullptr;
 
     QStringList m_products;
-
-    qbs::CleanJob *m_job = nullptr;
+    QbsSession *m_session = nullptr;
     QString m_description;
     int m_maxProgress;
     bool m_showCompilerOutput = true;

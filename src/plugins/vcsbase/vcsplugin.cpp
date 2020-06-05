@@ -73,6 +73,7 @@ VcsPlugin::~VcsPlugin()
 {
     VcsOutputWindow::destroy();
     m_instance = nullptr;
+    delete d;
 }
 
 bool VcsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
@@ -98,7 +99,7 @@ bool VcsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     JsonWizardFactory::registerPageFactory(new Internal::VcsConfigurationPageFactory);
     JsonWizardFactory::registerPageFactory(new Internal::VcsCommandPageFactory);
 
-    JsExpander::registerQObjectForJs(QLatin1String("Vcs"), new VcsJsExtension);
+    JsExpander::registerGlobalObject<VcsJsExtension>("Vcs");
 
     Utils::MacroExpander *expander = Utils::globalMacroExpander();
     expander->registerVariable(Constants::VAR_VCS_NAME,
@@ -132,10 +133,6 @@ bool VcsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     VcsOutputWindow::instance();
 
     return true;
-}
-
-void VcsPlugin::extensionsInitialized()
-{
 }
 
 VcsPlugin *VcsPlugin::instance()

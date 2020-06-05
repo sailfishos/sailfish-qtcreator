@@ -29,15 +29,12 @@
 
 namespace Nim {
 
-class NimEditorFactory : public TextEditor::TextEditorFactory
+class NimEditorFactory final : public TextEditor::TextEditorFactory
 {
-    Q_OBJECT
-
 public:
     NimEditorFactory();
 
-    Core::IEditor *createEditor() override;
     static void decorateEditor(TextEditor::TextEditorWidget *editor);
 };
 
-}
+} // Nim

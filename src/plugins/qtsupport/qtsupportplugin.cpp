@@ -27,21 +27,27 @@
 
 #include "codegenerator.h"
 #include "codegensettingspage.h"
-#include "desktopqtversionfactory.h"
 #include "gettingstartedwelcomepage.h"
+#include "profilereader.h"
+#include "qscxmlcgenerator.h"
 #include "qtkitinformation.h"
 #include "qtoptionspage.h"
+#include "qtoutputformatter.h"
+#include "qtsupportconstants.h"
 #include "qtversionmanager.h"
+#include "qtversions.h"
+#include "translationwizardpage.h"
 #include "uicgenerator.h"
-#include "qscxmlcgenerator.h"
-
-#include "profilereader.h"
 
 #include <coreplugin/icore.h>
+#include <coreplugin/infobar.h>
 #include <coreplugin/jsexpander.h>
 
+#include <projectexplorer/jsonwizard/jsonwizardfactory.h>
 #include <projectexplorer/project.h>
+#include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/projecttree.h>
+#include <projectexplorer/runcontrol.h>
 #include <projectexplorer/target.h>
 
 #include <utils/macroexpander.h>
@@ -50,6 +56,7 @@ const char kHostBins[] = "CurrentProject:QT_HOST_BINS";
 const char kInstallBins[] = "CurrentProject:QT_INSTALL_BINS";
 
 using namespace Core;
+using namespace ProjectExplorer;
 
 namespace QtSupport {
 namespace Internal {
@@ -58,13 +65,22 @@ class QtSupportPluginPrivate
 {
 public:
     QtVersionManager qtVersionManager;
+
     DesktopQtVersionFactory desktopQtVersionFactory;
+    EmbeddedLinuxQtVersionFactory embeddedLinuxQtVersionFactory;
 
     CodeGenSettingsPage codeGenSettingsPage;
     QtOptionsPage qtOptionsPage;
 
     ExamplesWelcomePage examplesPage{true};
     ExamplesWelcomePage tutorialPage{false};
+
+    QtKitAspect qtKiAspect;
+
+    QtOutputFormatterFactory qtOutputFormatterFactory;
+
+    UicGeneratorFactory uicGeneratorFactory;
+    QScxmlcGeneratorFactory qscxmlcGeneratorFactory;
 };
 
 QtSupportPlugin::~QtSupportPlugin()
@@ -74,50 +90,79 @@ QtSupportPlugin::~QtSupportPlugin()
 
 bool QtSupportPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
-    Q_UNUSED(arguments);
-    Q_UNUSED(errorMessage);
+    Q_UNUSED(arguments)
+    Q_UNUSED(errorMessage)
     QMakeParser::initialize();
     ProFileEvaluator::initialize();
     new ProFileCacheManager(this);
 
-    JsExpander::registerQObjectForJs(QLatin1String("QtSupport"), new CodeGenerator);
+    JsExpander::registerGlobalObject<CodeGenerator>("QtSupport");
+    ProjectExplorer::JsonWizardFactory::registerPageFactory(new TranslationWizardPageFactory);
+    ProjectExplorerPlugin::showQtSettings();
 
     d = new QtSupportPluginPrivate;
-
-    ProjectExplorer::KitManager::registerKitInformation<QtKitInformation>();
-
-    (void) new UicGeneratorFactory(this);
-    (void) new QScxmlcGeneratorFactory(this);
 
     QtVersionManager::initialized();
 
     return true;
 }
 
-static QString qmakeProperty(const char *propertyName)
+static BaseQtVersion *qtVersion()
 {
     ProjectExplorer::Project *project = ProjectExplorer::ProjectTree::currentProject();
     if (!project || !project->activeTarget())
-        return QString();
+        return nullptr;
 
-    const BaseQtVersion *qtVersion = QtKitInformation::qtVersion(project->activeTarget()->kit());
-    if (!qtVersion)
-        return QString();
-    return qtVersion->qmakeProperty(propertyName);
+    return QtKitAspect::qtVersion(project->activeTarget()->kit());
+}
+
+const char kLinkWithQtInstallationSetting[] = "LinkWithQtInstallation";
+
+static void askAboutQtInstallation()
+{
+    // if the install settings exist, the Qt Creator installation is (probably) already linked to
+    // a Qt installation, so don't ask
+    if (!QtOptionsPage::canLinkWithQt() || QtOptionsPage::isLinkedWithQt()
+        || !ICore::infoBar()->canInfoBeAdded(kLinkWithQtInstallationSetting))
+        return;
+
+    InfoBarEntry info(
+        kLinkWithQtInstallationSetting,
+        QtSupportPlugin::tr(
+            "Link with a Qt installation to automatically register Qt versions and kits? To do "
+            "this later, select Options > Kits > Qt Versions > Link with Qt."),
+        InfoBarEntry::GlobalSuppression::Enabled);
+    info.setCustomButtonInfo(QtSupportPlugin::tr("Link with Qt"), [] {
+        ICore::infoBar()->removeInfo(kLinkWithQtInstallationSetting);
+        ICore::infoBar()->globallySuppressInfo(kLinkWithQtInstallationSetting);
+        QTimer::singleShot(0, ICore::mainWindow(), &QtOptionsPage::linkWithQt);
+    });
+    ICore::infoBar()->addInfo(info);
 }
 
 void QtSupportPlugin::extensionsInitialized()
 {
     Utils::MacroExpander *expander = Utils::globalMacroExpander();
 
-    expander->registerVariable(kHostBins,
+    expander->registerVariable(
+        kHostBins,
         tr("Full path to the host bin directory of the current project's Qt version."),
-        []() { return qmakeProperty("QT_HOST_BINS"); });
+        []() {
+            BaseQtVersion *qt = qtVersion();
+            return qt ? qt->hostBinPath().toUserOutput() : QString();
+        });
 
-    expander->registerVariable(kInstallBins,
+    expander->registerVariable(
+        kInstallBins,
         tr("Full path to the target bin directory of the current project's Qt version.<br>"
-           "You probably want %1 instead.").arg(QString::fromLatin1(kHostBins)),
-        []() { return qmakeProperty("QT_INSTALL_BINS"); });
+           "You probably want %1 instead.")
+            .arg(QString::fromLatin1(kInstallBins)),
+        []() {
+            BaseQtVersion *qt = qtVersion();
+            return qt ? qt->binPath().toUserOutput() : QString();
+        });
+
+    askAboutQtInstallation();
 }
 
 } // Internal

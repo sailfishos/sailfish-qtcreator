@@ -25,8 +25,6 @@
 
 #include "openpagesswitcher.h"
 
-#include "centralwidget.h"
-#include "openpagesmodel.h"
 #include "openpageswidget.h"
 
 #include <utils/hostosinfo.h>
@@ -41,7 +39,7 @@ using namespace Help::Internal;
 const int gWidth = 300;
 const int gHeight = 200;
 
-OpenPagesSwitcher::OpenPagesSwitcher(OpenPagesModel *model)
+OpenPagesSwitcher::OpenPagesSwitcher(QAbstractItemModel *model)
     : QFrame(nullptr, Qt::Popup)
     , m_openPagesModel(model)
 {
@@ -59,7 +57,7 @@ OpenPagesSwitcher::OpenPagesSwitcher(OpenPagesModel *model)
     m_openPagesWidget->installEventFilter(this);
 
     auto layout = new QVBoxLayout(this);
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_openPagesWidget);
 
     connect(m_openPagesWidget, &OpenPagesWidget::closePage,
@@ -86,9 +84,9 @@ void OpenPagesSwitcher::selectAndHide()
     emit setCurrentPage(m_openPagesWidget->currentIndex());
 }
 
-void OpenPagesSwitcher::selectCurrentPage()
+void OpenPagesSwitcher::selectCurrentPage(int index)
 {
-    m_openPagesWidget->selectCurrentPage();
+    m_openPagesWidget->selectCurrentPage(index);
 }
 
 void OpenPagesSwitcher::setVisible(bool visible)

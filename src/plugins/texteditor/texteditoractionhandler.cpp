@@ -31,6 +31,8 @@
 #include "texteditorconstants.h"
 #include "texteditorplugin.h"
 
+#include <aggregation/aggregate.h>
+
 #include <coreplugin/locator/locatormanager.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/editormanager/editormanager.h>
@@ -52,11 +54,9 @@ namespace Internal {
 class TextEditorActionHandlerPrivate : public QObject
 {
     Q_DECLARE_TR_FUNCTIONS(TextEditor::Internal::TextEditorActionHandler)
+
 public:
-    TextEditorActionHandlerPrivate(TextEditorActionHandler *parent,
-                                   Core::Id editorId,
-                                   Core::Id contextId,
-                                   uint optionalActions);
+    TextEditorActionHandlerPrivate(Core::Id editorId, Core::Id contextId, uint optionalActions);
 
     QAction *registerActionHelper(Core::Id id, bool scriptable, const QString &title,
                             const QKeySequence &keySequence, Core::Id menueGroup,
@@ -121,7 +121,6 @@ public:
     void updateCurrentEditor(Core::IEditor *editor);
 
 public:
-    TextEditorActionHandler *q = nullptr;
     TextEditorActionHandler::TextEditorWidgetResolver m_findTextWidget;
     QAction *m_undoAction = nullptr;
     QAction *m_redoAction = nullptr;
@@ -133,7 +132,8 @@ public:
     QAction *m_selectAllAction = nullptr;
     QAction *m_gotoAction = nullptr;
     QAction *m_printAction = nullptr;
-    QAction *m_formatAction = nullptr;
+    QAction *m_autoIndentAction = nullptr;
+    QAction *m_autoFormatAction = nullptr;
     QAction *m_rewrapParagraphAction = nullptr;
     QAction *m_visualizeWhitespaceAction = nullptr;
     QAction *m_cleanWhitespaceAction = nullptr;
@@ -192,16 +192,9 @@ public:
     Core::Id m_contextId;
 };
 
-static TextEditorWidget *castWidgetToTextEditorWidget(Core::IEditor *editor)
-{
-    return qobject_cast<TextEditorWidget *>(editor->widget());
-}
-
 TextEditorActionHandlerPrivate::TextEditorActionHandlerPrivate
-    (TextEditorActionHandler *parent, Core::Id editorId, Core::Id contextId, uint optionalActions)
-  : q(parent)
-  , m_findTextWidget(castWidgetToTextEditorWidget)
-  , m_optionalActions(optionalActions)
+    (Core::Id editorId, Core::Id contextId, uint optionalActions)
+  : m_optionalActions(optionalActions)
   , m_editorId(editorId)
   , m_contextId(contextId)
 {
@@ -231,7 +224,7 @@ void TextEditorActionHandlerPrivate::createActions()
             QString locatorString = TextEditorPlugin::lineNumberFilter()->shortcutString();
             locatorString += QLatin1Char(' ');
             const int selectionStart = locatorString.size();
-            locatorString += TextEditorActionHandler::tr("<line>:<column>");
+            locatorString += tr("<line>:<column>");
             Core::LocatorManager::show(locatorString, selectionStart, locatorString.size() - selectionStart);
         });
     m_printAction = registerAction(PRINT,
@@ -323,9 +316,13 @@ void TextEditorActionHandlerPrivate::createActions()
 
     // register "Edit -> Advanced" Menu Actions
     Core::ActionContainer *advancedEditMenu = Core::ActionManager::actionContainer(M_EDIT_ADVANCED);
-    m_formatAction = registerAction(AUTO_INDENT_SELECTION,
-            [] (TextEditorWidget *w) { w->format(); }, true, tr("Auto-&indent Selection"),
+    m_autoIndentAction = registerAction(AUTO_INDENT_SELECTION,
+            [] (TextEditorWidget *w) { w->autoIndent(); }, true, tr("Auto-&indent Selection"),
             QKeySequence(tr("Ctrl+I")),
+            G_EDIT_FORMAT, advancedEditMenu);
+    m_autoFormatAction = registerAction(AUTO_FORMAT_SELECTION,
+            [] (TextEditorWidget *w) { w->autoFormat(); }, true, tr("Auto-&format Selection"),
+            QKeySequence(tr("Ctrl+;")),
             G_EDIT_FORMAT, advancedEditMenu);
     m_rewrapParagraphAction = registerAction(REWRAP_PARAGRAPH,
             [] (TextEditorWidget *w) { w->rewrapParagraph(); }, true, tr("&Rewrap Paragraph"),
@@ -499,7 +496,8 @@ void TextEditorActionHandlerPrivate::createActions()
     m_modifyingActions << m_deleteStartOfWordCamelCaseAction;
     m_modifyingActions << m_duplicateSelectionAction;
     m_modifyingActions << m_duplicateSelectionAndCommentAction;
-    m_modifyingActions << m_formatAction;
+    m_modifyingActions << m_autoIndentAction;
+    m_modifyingActions << m_autoFormatAction;
     m_modifyingActions << m_indentAction;
     m_modifyingActions << m_insertLineAboveAction;
     m_modifyingActions << m_insertLineBelowAction;
@@ -528,7 +526,8 @@ void TextEditorActionHandlerPrivate::updateActions()
     bool isWritable = m_currentEditorWidget && !m_currentEditorWidget->isReadOnly();
     foreach (QAction *a, m_modifyingActions)
         a->setEnabled(isWritable);
-    m_formatAction->setEnabled((m_optionalActions & TextEditorActionHandler::Format) && isWritable);
+    m_autoIndentAction->setEnabled((m_optionalActions & TextEditorActionHandler::Format) && isWritable);
+    m_autoFormatAction->setEnabled((m_optionalActions & TextEditorActionHandler::Format) && isWritable);
     m_unCommentSelectionAction->setEnabled((m_optionalActions & TextEditorActionHandler::UnCommentSelection) && isWritable);
     m_visualizeWhitespaceAction->setEnabled(m_currentEditorWidget);
     m_textWrappingAction->setEnabled(m_currentEditorWidget);
@@ -586,21 +585,21 @@ void TextEditorActionHandlerPrivate::updateCurrentEditor(Core::IEditor *editor)
 
 } // namespace Internal
 
-TextEditorActionHandler::TextEditorActionHandler(QObject *parent, Core::Id editorId,
-                                                 Core::Id contextId, uint optionalActions)
-    : QObject(parent), d(new Internal::TextEditorActionHandlerPrivate(this, editorId, contextId,
-                                                                      optionalActions))
+TextEditorActionHandler::TextEditorActionHandler(Core::Id editorId,
+                                                 Core::Id contextId,
+                                                 uint optionalActions,
+                                                 const TextEditorWidgetResolver &resolver)
+    : d(new Internal::TextEditorActionHandlerPrivate(editorId, contextId, optionalActions))
 {
+    if (resolver)
+        d->m_findTextWidget = resolver;
+    else
+        d->m_findTextWidget = TextEditorWidget::fromEditor;
 }
 
 TextEditorActionHandler::~TextEditorActionHandler()
 {
     delete d;
-}
-
-void TextEditorActionHandler::setTextEditorWidgetResolver(const TextEditorWidgetResolver &resolver)
-{
-    d->m_findTextWidget = resolver;
 }
 
 } // namespace TextEditor

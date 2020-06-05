@@ -483,6 +483,42 @@ static QString replaceIllegalPropertyNameChars(const QString &str)
     return ret;
 }
 
+static bool idIsQmlKeyWord(const QString& id)
+{
+    static const QSet<QString> keywords = {
+        "as",
+        "break",
+        "case",
+        "catch",
+        "continue",
+        "debugger",
+        "default",
+        "delete",
+        "do",
+        "else",
+        "finally",
+        "for",
+        "function",
+        "if",
+        "import",
+        "in",
+        "instanceof",
+        "new",
+        "return",
+        "switch",
+        "this",
+        "throw",
+        "try",
+        "typeof",
+        "var",
+        "void",
+        "while",
+        "with"
+    };
+
+    return keywords.contains(id);
+}
+
 QString RewriterView::auxiliaryDataAsQML() const
 {
     bool hasAuxData = false;
@@ -523,6 +559,9 @@ QString RewriterView::auxiliaryDataAsQML() const
                 if (key.endsWith("@Internal"))
                     continue;
 
+                if (idIsQmlKeyWord(key))
+                    continue;
+
                 const QVariant value = data.value(key.toUtf8());
                 QString strValue = value.toString();
 
@@ -530,6 +569,14 @@ QString RewriterView::auxiliaryDataAsQML() const
 
                 if (metaType == QMetaType::QString
                         || metaType == QMetaType::QColor) {
+
+                    strValue.replace(QStringLiteral("\\"), QStringLiteral("\\\\"));
+                    strValue.replace(QStringLiteral("\""), QStringLiteral("\\\""));
+                    strValue.replace(QStringLiteral("\t"), QStringLiteral("\\t"));
+                    strValue.replace(QStringLiteral("\r"), QStringLiteral("\\r"));
+                    strValue.replace(QStringLiteral("\n"), QStringLiteral("\\n"));
+                    strValue.replace(QStringLiteral("*/"), QStringLiteral("*\\/"));
+
                     strValue = "\"" + strValue + "\"";
                 }
 
@@ -733,8 +780,8 @@ void RewriterView::setupCanonicalHashes() const
 
     for (const ModelNode &node : allModelNodes()) {
         int offset = nodeOffset(node);
-        QTC_ASSERT(offset > 0, qDebug() << Q_FUNC_INFO << "no offset" << node; return);
-        data.emplace_back(std::make_pair(node, offset));
+        if (offset > 0)
+            data.emplace_back(std::make_pair(node, offset));
     }
 
     std::sort(data.begin(), data.end(), [](myPair a, myPair b) {
@@ -969,13 +1016,13 @@ void RewriterView::delayedSetup()
 
 static QString annotationsEnd()
 {
-    const static QString end = QString(" %1*/").arg(annotationsEscapeSequence);
+    const static QString end = QString("%1*/").arg(annotationsEscapeSequence);
     return end;
 }
 
 static QString annotationsStart()
 {
-    const static QString start = QString("/*%1 ").arg(annotationsEscapeSequence);
+    const static QString start = QString("/*%1").arg(annotationsEscapeSequence);
     return start;
 }
 
@@ -1000,26 +1047,27 @@ void RewriterView::writeAuxiliaryData()
 
     const QString oldText = m_textModifier->text();
 
-    QString newText = oldText;
-
-    int startIndex = newText.indexOf(annotationsStart());
-    int endIndex = newText.indexOf(annotationsEnd());
-
-    if (startIndex > 0 && endIndex > 0)
-        newText.remove(startIndex, endIndex - startIndex + annotationsEnd().length());
+    const int startIndex = oldText.indexOf(annotationsStart());
+    const int endIndex = oldText.indexOf(annotationsEnd());
 
     QString auxData = auxiliaryDataAsQML();
 
+    const bool replace = startIndex > 0 && endIndex > 0;
+
     if (!auxData.isEmpty()) {
-        auxData.prepend("\n" + annotationsStart());
-        auxData.append(annotationsEnd() + "\n");
-        newText.append(auxData);
+        auxData.prepend("\n");
+        auxData.prepend(annotationsStart());
+        if (!replace)
+            auxData.prepend("\n");
+        auxData.append(annotationsEnd());
+        if (!replace)
+            auxData.append("\n");
     }
 
-    QTextCursor tc(m_textModifier->textDocument());
-    Utils::ChangeSet changeSet;
-    changeSet.replace(0, oldText.length(), newText);
-    changeSet.apply(&tc);
+    if (replace)
+        m_textModifier->replace(startIndex, endIndex - startIndex + annotationsEnd().length(), auxData);
+    else
+        m_textModifier->replace(oldText.length(), 0, auxData);
 }
 
 static void checkNode(const QmlJS::SimpleReaderNode::Ptr &node, RewriterView *view);
@@ -1058,8 +1106,11 @@ void checkNode(const QmlJS::SimpleReaderNode::Ptr &node, RewriterView *view)
     auto properties = node->properties();
 
     for (auto i = properties.begin(); i != properties.end(); ++i) {
-        if (i.key() != "i")
-            modelNode.setAuxiliaryData(fixUpIllegalChars(i.key()).toUtf8(), i.value());
+        if (i.key() != "i") {
+            const PropertyName name = fixUpIllegalChars(i.key()).toUtf8();
+            if (!modelNode.hasAuxiliaryData(name))
+                modelNode.setAuxiliaryData(name, i.value());
+        }
     }
 
     checkChildNodes(node, view);
@@ -1073,7 +1124,8 @@ void RewriterView::restoreAuxiliaryData()
 
     setupCanonicalHashes();
 
-    QTC_ASSERT(!m_canonicalIntModelNode.isEmpty(), return);
+    if (m_canonicalIntModelNode.isEmpty())
+        return;
 
     const QString text = m_textModifier->text();
 

@@ -48,6 +48,16 @@ public:
         : m_statementFactory(statementFactory)
     {}
 
+    int fetchDirectoryIdUnguarded(Utils::SmallStringView directoryPath)
+    {
+        Utils::optional<int> optionalDirectoryId = readDirectoryId(directoryPath);
+
+        if (optionalDirectoryId)
+            return optionalDirectoryId.value();
+
+        return writeDirectoryId(directoryPath);
+    }
+
     int fetchDirectoryId(Utils::SmallStringView directoryPath)
     {
         try {
@@ -125,19 +135,22 @@ public:
         }
     }
 
+    int fetchSourceIdUnguarded(int directoryId, Utils::SmallStringView sourceName)
+    {
+        Utils::optional<int> optionalSourceId = readSourceId(directoryId, sourceName);
+
+        if (optionalSourceId)
+            return optionalSourceId.value();
+
+        return writeSourceId(directoryId, sourceName);
+    }
+
     int fetchSourceId(int directoryId, Utils::SmallStringView sourceName)
     {
         try {
             Sqlite::DeferredTransaction transaction{m_statementFactory.database};
 
-            Utils::optional<int> optionalSourceId = readSourceId(directoryId, sourceName);
-
-            int sourceId = -1;
-
-            if (optionalSourceId)
-                sourceId = optionalSourceId.value();
-            else
-                sourceId = writeSourceId(directoryId, sourceName);
+            int sourceId = fetchSourceIdUnguarded(directoryId, sourceName);
 
             transaction.commit();
 
@@ -179,9 +192,29 @@ public:
 
             transaction.commit();
 
-            return optionalSourceName.value();
+            return *optionalSourceName;
         } catch (const Sqlite::StatementIsBusy &) {
             return fetchSourceNameAndDirectoryId(sourceId);
+        }
+    }
+
+    int fetchDirectoryId(int sourceId)
+    {
+        try {
+            Sqlite::DeferredTransaction transaction{m_statementFactory.database};
+
+            ReadStatement &statement = m_statementFactory.selectDirectoryIdFromSourcesBySourceId;
+
+            auto optionalDirectoryId = statement.template value<int>(sourceId);
+
+            if (!optionalDirectoryId)
+                throw SourceNameIdDoesNotExists();
+
+            transaction.commit();
+
+            return *optionalDirectoryId;
+        } catch (const Sqlite::StatementIsBusy &) {
+            return fetchDirectoryId(sourceId);
         }
     }
 
@@ -192,7 +225,7 @@ public:
 
             ReadStatement &statement = m_statementFactory.selectAllSources;
 
-            auto sources =  statement.template values<Sources::Source, 2>(8192);
+            auto sources = statement.template values<Sources::Source, 3>(8192);
 
             transaction.commit();
 
@@ -201,6 +234,8 @@ public:
             return fetchAllSources();
         }
     }
+
+    Database &database() { return m_statementFactory.database; }
 
 private:
     StatementFactory &m_statementFactory;

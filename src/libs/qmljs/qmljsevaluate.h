@@ -41,7 +41,7 @@ class FunctionValue;
 class QMLJS_EXPORT Evaluate: protected AST::Visitor
 {
 public:
-    Evaluate(const ScopeChain *scopeChain, ReferenceContext *referenceContext = 0);
+    Evaluate(const ScopeChain *scopeChain, ReferenceContext *referenceContext = nullptr);
     ~Evaluate();
 
     // same as value()
@@ -144,6 +144,8 @@ protected:
     bool visit(AST::Program *ast) override;
     bool visit(AST::StatementList *ast) override;
     bool visit(AST::DebuggerStatement *ast) override;
+
+    void throwRecursionDepthError() override;
 
 private:
     QmlJS::Document::Ptr _doc;

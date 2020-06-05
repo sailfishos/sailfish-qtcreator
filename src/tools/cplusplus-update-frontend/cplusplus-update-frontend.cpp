@@ -100,9 +100,7 @@ static void closeAndPrintFilePath(QFile &file)
 class ASTNodes
 {
 public:
-    ASTNodes(): base(0) {}
-
-    ClassSpecifierAST *base; // points to "class AST"
+    ClassSpecifierAST *base = nullptr; // points to "class AST"
     QList<ClassSpecifierAST *> deriveds; // n where n extends AST
     QList<QTextCursor> endOfPublicClassSpecifiers;
 };
@@ -112,7 +110,7 @@ static ASTNodes astNodes;
 
 static QTextCursor createCursor(TranslationUnit *unit, AST *ast, QTextDocument *document)
 {
-    unsigned startLine, startColumn, endLine, endColumn;
+    int startLine, startColumn, endLine, endColumn;
     unit->getTokenStartPosition(ast->firstToken(), &startLine, &startColumn);
     unit->getTokenEndPosition(ast->lastToken() - 1, &endLine, &endColumn);
 
@@ -156,7 +154,7 @@ protected:
     virtual bool visit(ClassSpecifierAST *ast)
     {
         Class *klass = ast->symbol;
-        Q_ASSERT(klass != 0);
+        Q_ASSERT(klass != nullptr);
 
         const QString className = oo(klass->name());
 
@@ -166,7 +164,7 @@ protected:
             else {
                 _nodes.deriveds.append(ast);
 
-                AccessDeclarationAST *accessDeclaration = 0;
+                AccessDeclarationAST *accessDeclaration = nullptr;
                 for (DeclarationListAST *it = ast->member_specifier_list; it; it = it->next) {
                     if (AccessDeclarationAST *decl = it->value->asAccessDeclaration()) {
                         if (tokenKind(decl->access_specifier_token) == T_PUBLIC)
@@ -177,7 +175,7 @@ protected:
                 if (! accessDeclaration)
                     qDebug() << "no access declaration for class:" << className;
 
-                Q_ASSERT(accessDeclaration != 0);
+                Q_ASSERT(accessDeclaration != nullptr);
 
                 QTextCursor tc = createCursor(translationUnit(), accessDeclaration, document);
                 tc.setPosition(tc.position());
@@ -198,11 +196,11 @@ private:
 class Accept0CG: protected ASTVisitor
 {
     QDir _cplusplusDir;
-    QTextStream *out;
+    QTextStream *out = nullptr;
 
 public:
     Accept0CG(const QDir &cplusplusDir, TranslationUnit *unit)
-        : ASTVisitor(unit), _cplusplusDir(cplusplusDir), out(0)
+        : ASTVisitor(unit), _cplusplusDir(cplusplusDir)
     { }
 
     QList<QByteArray> classes() const { return classMap.keys(); }
@@ -248,7 +246,7 @@ protected:
     void visitMembers(Class *klass)
     {
         // *out << "        // visit " << className.constData() << endl;
-        for (unsigned i = 0; i < klass->memberCount(); ++i) {
+        for (int i = 0; i < klass->memberCount(); ++i) {
             Symbol *member = klass->memberAt(i);
             if (! member->name())
                 continue;
@@ -259,7 +257,7 @@ protected:
                 continue;
 
             const QByteArray memberName = QByteArray::fromRawData(id->chars(), id->size());
-            if (member->type().isUnsigned() && memberName.endsWith("_token")) {
+            if (member->type()->isIntegerType() && memberName.endsWith("_token")) {
                 // nothing to do. The member is a token.
 
             } else if (PointerType *ptrTy = member->type()->asPointerType()) {
@@ -273,10 +271,10 @@ protected:
             }
         }
 
-        for (unsigned i = 0; i < klass->baseClassCount(); ++i) {
+        for (int i = 0; i < klass->baseClassCount(); ++i) {
             const QByteArray baseClassName = klass->baseClassAt(i)->identifier()->chars();
 
-            if (ClassSpecifierAST *baseClassSpec = classMap.value(baseClassName, 0))
+            if (ClassSpecifierAST *baseClassSpec = classMap.value(baseClassName, nullptr))
                 visitMembers(baseClassSpec->symbol);
         }
     }
@@ -337,11 +335,11 @@ protected:
 class Match0CG: protected ASTVisitor
 {
     QDir _cplusplusDir;
-    QTextStream *out;
+    QTextStream *out = nullptr;
 
 public:
     Match0CG(const QDir &cplusplusDir, TranslationUnit *unit)
-        : ASTVisitor(unit), _cplusplusDir(cplusplusDir), out(0)
+        : ASTVisitor(unit), _cplusplusDir(cplusplusDir)
     { }
 
     void operator()(AST *ast)
@@ -448,11 +446,11 @@ protected:
 class MatcherCPPCG: protected ASTVisitor
 {
     QDir _cplusplusDir;
-    QTextStream *out;
+    QTextStream *out = nullptr;
 
 public:
     MatcherCPPCG(const QDir &cplusplusDir, TranslationUnit *unit)
-        : ASTVisitor(unit), _cplusplusDir(cplusplusDir), out(0)
+        : ASTVisitor(unit), _cplusplusDir(cplusplusDir)
     { }
 
     void operator()(AST *ast)
@@ -502,7 +500,7 @@ protected:
 
     void visitMembers(Class *klass)
     {
-        for (unsigned i = 0; i < klass->memberCount(); ++i) {
+        for (int i = 0; i < klass->memberCount(); ++i) {
             Symbol *member = klass->memberAt(i);
             if (! member->name())
                 continue;
@@ -513,7 +511,7 @@ protected:
                 continue;
 
             const QByteArray memberName = QByteArray::fromRawData(id->chars(), id->size());
-            if (member->type().isUnsigned() && memberName.endsWith("_token")) {
+            if (member->type()->isIntegerType() && memberName.endsWith("_token")) {
 
                 *out
                         << "    pattern->" << memberName << " = node->" << memberName << ";" << endl
@@ -536,10 +534,10 @@ protected:
             }
         }
 
-        for (unsigned i = 0; i < klass->baseClassCount(); ++i) {
+        for (int i = 0; i < klass->baseClassCount(); ++i) {
             const QByteArray baseClassName = klass->baseClassAt(i)->identifier()->chars();
 
-            if (ClassSpecifierAST *baseClassSpec = classMap.value(baseClassName, 0))
+            if (ClassSpecifierAST *baseClassSpec = classMap.value(baseClassName, nullptr))
                 visitMembers(baseClassSpec->symbol);
         }
     }
@@ -601,11 +599,11 @@ protected:
 class CloneCPPCG: protected ASTVisitor
 {
     QDir _cplusplusDir;
-    QTextStream *out;
+    QTextStream *out = nullptr;
 
 public:
     CloneCPPCG(const QDir &cplusplusDir, TranslationUnit *unit)
-        : ASTVisitor(unit), _cplusplusDir(cplusplusDir), out(0)
+        : ASTVisitor(unit), _cplusplusDir(cplusplusDir)
     { }
 
     void operator()(AST *ast)
@@ -649,7 +647,7 @@ protected:
 
     void visitMembers(Class *klass)
     {
-        for (unsigned i = 0; i < klass->memberCount(); ++i) {
+        for (int i = 0; i < klass->memberCount(); ++i) {
             Symbol *member = klass->memberAt(i);
             if (! member->name())
                 continue;
@@ -660,7 +658,7 @@ protected:
                 continue;
 
             const QByteArray memberName = QByteArray::fromRawData(id->chars(), id->size());
-            if (member->type().isUnsigned() && memberName.endsWith("_token")) {
+            if (member->type()->isIntegerType() && memberName.endsWith("_token")) {
                 *out << "    ast->" << memberName << " = " << memberName << ";" << endl;
             } else if (PointerType *ptrTy = member->type()->asPointerType()) {
                 if (NamedType *namedTy = ptrTy->elementType()->asNamedType()) {
@@ -678,10 +676,10 @@ protected:
             }
         }
 
-        for (unsigned i = 0; i < klass->baseClassCount(); ++i) {
+        for (int i = 0; i < klass->baseClassCount(); ++i) {
             const QByteArray baseClassName = klass->baseClassAt(i)->identifier()->chars();
 
-            if (ClassSpecifierAST *baseClassSpec = classMap.value(baseClassName, 0))
+            if (ClassSpecifierAST *baseClassSpec = classMap.value(baseClassName, nullptr))
                 visitMembers(baseClassSpec->symbol);
         }
     }
@@ -782,7 +780,7 @@ protected:
 
     void visitMembers(Class *klass)
     {
-        for (unsigned i = 0; i < klass->memberCount(); ++i) {
+        for (int i = 0; i < klass->memberCount(); ++i) {
             Symbol *member = klass->memberAt(i);
             if (! member->name())
                 continue;
@@ -793,7 +791,7 @@ protected:
                 continue;
 
             const QByteArray memberName = QByteArray::fromRawData(id->chars(), id->size());
-            if (member->type().isUnsigned() && memberName.endsWith("_token")) {
+            if (member->type()->isIntegerType() && memberName.endsWith("_token")) {
                 out << "    if (ast->" << memberName << ")" << endl;
                 out << "        terminal(ast->" << memberName << ", ast);" << endl;
             } else if (PointerType *ptrTy = member->type()->asPointerType()) {
@@ -810,10 +808,10 @@ protected:
             }
         }
 
-        for (unsigned i = 0; i < klass->baseClassCount(); ++i) {
+        for (int i = 0; i < klass->baseClassCount(); ++i) {
             const QByteArray baseClassName = klass->baseClassAt(i)->identifier()->chars();
 
-            if (ClassSpecifierAST *baseClassSpec = classMap.value(baseClassName, 0))
+            if (ClassSpecifierAST *baseClassSpec = classMap.value(baseClassName, nullptr))
                 visitMembers(baseClassSpec->symbol);
         }
     }
@@ -905,35 +903,12 @@ private:
     Overview oo;
 };
 
-static QList<QTextCursor> removeConstructors(ClassSpecifierAST *classAST,
-                                             TranslationUnit *translationUnit,
-                                             QTextDocument *document)
-{
-    Overview oo;
-    QList<QTextCursor> cursors;
-    const QString className = oo(classAST->symbol->name());
-
-    for (DeclarationListAST *iter = classAST->member_specifier_list; iter; iter = iter->next) {
-        if (FunctionDefinitionAST *funDef = iter->value->asFunctionDefinition()) {
-            if (oo(funDef->symbol->name()) == className) {
-                // found it:
-                QTextCursor tc = createCursor(translationUnit, funDef, document);
-                tc.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
-                tc.setPosition(tc.position() + 1, QTextCursor::KeepAnchor);
-                cursors.append(tc);
-            }
-        }
-    }
-
-    return cursors;
-}
-
 static QStringList collectFieldNames(ClassSpecifierAST *classAST, bool onlyTokensAndASTNodes)
 {
     QStringList fields;
     Overview oo;
     Class *clazz = classAST->symbol;
-    for (unsigned i = 0; i < clazz->memberCount(); ++i) {
+    for (int i = 0; i < clazz->memberCount(); ++i) {
         Symbol *s = clazz->memberAt(i);
         if (Declaration *decl = s->asDeclaration()) {
             const QString declName = oo(decl->name());
@@ -947,38 +922,12 @@ static QStringList collectFieldNames(ClassSpecifierAST *classAST, bool onlyToken
                 } else {
                     fields.append(declName);
                 }
-            } else if (ty.isUnsigned()) {
+            } else if (ty->isIntegerType()) {
                 fields.append(declName);
             }
         }
     }
     return fields;
-}
-
-static QString createConstructor(ClassSpecifierAST *classAST)
-{
-    Overview oo;
-    Class *clazz = classAST->symbol;
-
-    QString result(QLatin1String("    "));
-    result.append(oo(clazz->name()));
-    result.append(QLatin1String("()\n"));
-
-    QStringList classFields = collectFieldNames(classAST, false);
-    for (int i = 0; i < classFields.size(); ++i) {
-        if (i == 0) {
-            result.append(QLatin1String("        : "));
-            result.append(classFields.at(i));
-            result.append(QLatin1String("(0)\n"));
-        } else {
-            result.append(QLatin1String("        , "));
-            result.append(classFields.at(i));
-            result.append(QLatin1String("(0)\n"));
-        }
-    }
-
-    result.append(QLatin1String("    {}\n"));
-    return result;
 }
 
 bool checkGenerated(const QTextCursor &cursor, int *doxyStart)
@@ -993,36 +942,27 @@ bool checkGenerated(const QTextCursor &cursor, int *doxyStart)
     return tokens.text(tokens.startToken() - 1).contains(QLatin1String("\\generated"));
 }
 
-struct GenInfo {
-    GenInfo()
-        : classAST(0)
-        , start(0)
-        , end(0)
-        , firstToken(false)
-        , lastToken(false)
-        , remove(false)
-    {}
-
-    ClassSpecifierAST *classAST;
-    int start;
-    int end;
-    bool firstToken;
-    bool lastToken;
-    bool remove;
+struct GenInfo
+{
+    ClassSpecifierAST *classAST = nullptr;
+    int start = 0;
+    int end = 0;
+    bool firstToken = false;
+    bool lastToken = false;
+    bool remove = false;
 };
 
 void generateFirstToken(QTextStream &os, const QString &className, const QStringList &fields)
 {
-    os << "unsigned "<< className << "::firstToken() const" << endl
-            << "{" << endl;
+    os << "int " << className << "::firstToken() const" << endl << "{" << endl;
 
-    foreach (const QString &field, fields) {
+    for (const QString &field : fields) {
         os << "    if (" << field << ")" << endl;
 
         if (field.endsWith(QLatin1String("_token"))) {
             os << "        return " << field << ";" << endl;
         } else {
-            os << "        if (unsigned candidate = " << field << "->firstToken())" << endl;
+            os << "        if (int candidate = " << field << "->firstToken())" << endl;
             os << "            return candidate;" << endl;
         }
     }
@@ -1033,7 +973,7 @@ void generateFirstToken(QTextStream &os, const QString &className, const QString
 
 void generateLastToken(QTextStream &os, const QString &className, const QStringList &fields)
 {
-    os << "unsigned "<< className << "::lastToken() const" << endl
+    os << "int "<< className << "::lastToken() const" << endl
             << "{" << endl;
 
     for (int i = fields.size() - 1; i >= 0; --i) {
@@ -1044,7 +984,7 @@ void generateLastToken(QTextStream &os, const QString &className, const QStringL
         if (field.endsWith(QLatin1String("_token"))) {
             os << "        return " << field << " + 1;" << endl;
         } else {
-            os << "        if (unsigned candidate = " << field << "->lastToken())" << endl;
+            os << "        if (int candidate = " << field << "->lastToken())" << endl;
             os << "            return candidate;" << endl;
         }
     }
@@ -1083,7 +1023,7 @@ void generateAST_cpp(const Snapshot &snapshot, const QDir &cplusplusDir)
     StringClassSpecifierASTMap classesNeedingLastToken;
 
     // find all classes with method declarations for firstToken/lastToken
-    foreach (ClassSpecifierAST *classAST, astNodes.deriveds) {
+    for (ClassSpecifierAST *classAST : qAsConst(astNodes.deriveds)) {
         const QString className = oo(classAST->symbol->name());
         if (className.isEmpty())
             continue;
@@ -1120,7 +1060,7 @@ void generateAST_cpp(const Snapshot &snapshot, const QDir &cplusplusDir)
 
                     QTextCursor cursor(&cpp_document);
 
-                    unsigned line = 0, column = 0;
+                    int line = 0, column = 0;
                     AST_cpp_document->translationUnit()->getTokenStartPosition(funDef->firstToken(), &line, &column);
                     const int start = cpp_document.findBlockByNumber(line - 1).position() + column - 1;
                     cursor.setPosition(start);
@@ -1134,7 +1074,7 @@ void generateAST_cpp(const Snapshot &snapshot, const QDir &cplusplusDir)
                         ++end;
 
                     if (methodName == QLatin1String("firstToken")) {
-                        ClassSpecifierAST *classAST = classesNeedingFirstToken.value(className, 0);
+                        ClassSpecifierAST *classAST = classesNeedingFirstToken.value(className, nullptr);
                         GenInfo info;
                         info.end = end;
                         if (classAST) {
@@ -1149,7 +1089,7 @@ void generateAST_cpp(const Snapshot &snapshot, const QDir &cplusplusDir)
                         if (isGenerated)
                             todo.append(info);
                     } else if (methodName == QLatin1String("lastToken")) {
-                        ClassSpecifierAST *classAST = classesNeedingLastToken.value(className, 0);
+                        ClassSpecifierAST *classAST = classesNeedingLastToken.value(className, nullptr);
                         GenInfo info;
                         info.end = end;
                         if (classAST) {
@@ -1173,7 +1113,7 @@ void generateAST_cpp(const Snapshot &snapshot, const QDir &cplusplusDir)
     const int documentEnd = cpp_document.lastBlock().position() + cpp_document.lastBlock().length() - 1;
 
     Utils::ChangeSet changes;
-    foreach (GenInfo info, todo) {
+    for (GenInfo info : qAsConst(todo)) {
         if (info.end > documentEnd)
             info.end = documentEnd;
 
@@ -1209,7 +1149,7 @@ void generateAST_cpp(const Snapshot &snapshot, const QDir &cplusplusDir)
         const QStringList fields = collectFieldNames(it.value(), true);
         os << "/** \\generated */" << endl;
         generateFirstToken(os, className, fields);
-        if (ClassSpecifierAST *classAST = classesNeedingLastToken.value(className, 0)) {
+        if (ClassSpecifierAST *classAST = classesNeedingLastToken.value(className, nullptr)) {
             const QStringList fields = collectFieldNames(classAST, true);
             os << "/** \\generated */" << endl;
             generateLastToken(os, className, fields);
@@ -1266,27 +1206,27 @@ void generateASTVisitor_H(const Snapshot &, const QDir &cplusplusDir,
 "    void setTranslationUnit(TranslationUnit *translationUnit);\n"
 "\n"
 "    Control *control() const;\n"
-"    unsigned tokenCount() const;\n"
-"    const Token &tokenAt(unsigned index) const;\n"
-"    int tokenKind(unsigned index) const;\n"
-"    const char *spell(unsigned index) const;\n"
-"    const Identifier *identifier(unsigned index) const;\n"
-"    const Literal *literal(unsigned index) const;\n"
-"    const NumericLiteral *numericLiteral(unsigned index) const;\n"
-"    const StringLiteral *stringLiteral(unsigned index) const;\n"
+"    int tokenCount() const;\n"
+"    const Token &tokenAt(int index) const;\n"
+"    int tokenKind(int index) const;\n"
+"    const char *spell(int index) const;\n"
+"    const Identifier *identifier(int index) const;\n"
+"    const Literal *literal(int index) const;\n"
+"    const NumericLiteral *numericLiteral(int index) const;\n"
+"    const StringLiteral *stringLiteral(int index) const;\n"
 "\n"
-"    void getPosition(unsigned offset,\n"
-"                     unsigned *line,\n"
-"                     unsigned *column = 0,\n"
-"                     const StringLiteral **fileName = 0) const;\n"
+"    void getPosition(int offset,\n"
+"                     int *line,\n"
+"                     int *column = nullptr,\n"
+"                     const StringLiteral **fileName = nullptr) const;\n"
 "\n"
-"    void getTokenPosition(unsigned index,\n"
-"                          unsigned *line,\n"
-"                          unsigned *column = 0,\n"
-"                          const StringLiteral **fileName = 0) const;\n"
+"    void getTokenPosition(int index,\n"
+"                          int *line,\n"
+"                          int *column = nullptr,\n"
+"                          const StringLiteral **fileName = nullptr) const;\n"
 "\n"
-"    void getTokenStartPosition(unsigned index, unsigned *line, unsigned *column) const;\n"
-"    void getTokenEndPosition(unsigned index, unsigned *line, unsigned *column) const;\n"
+"    void getTokenStartPosition(int index, int *line, int *column) const;\n"
+"    void getTokenEndPosition(int index, int *line, int *column) const;\n"
 "\n"
 "    void accept(AST *ast);\n"
 "\n"
@@ -1301,14 +1241,12 @@ void generateASTVisitor_H(const Snapshot &, const QDir &cplusplusDir,
 "    virtual void postVisit(AST *) {}\n";
 
   out << "\n";
-  foreach (const QByteArray &klass, classes) {
+  for (const QByteArray &klass : classes)
     out << "    virtual bool visit(" << klass << " *) { return true; }\n";
-  }
 
   out << "\n";
-  foreach (const QByteArray &klass, classes) {
+  for (const QByteArray &klass : classes)
     out << "    virtual void endVisit(" << klass << " *) {}\n";
-  }
   out << "\n";
 
   out <<
@@ -1391,8 +1329,6 @@ QStringList generateAST_H(const Snapshot &snapshot, const QDir &cplusplusDir, co
     QList<QTextCursor> baseCastMethodCursors = removeCastMethods(astNodes.base);
     QMap<ClassSpecifierAST *, QList<QTextCursor> > cursors;
     QMap<ClassSpecifierAST *, QString> replacementCastMethods;
-    QMap<ClassSpecifierAST *, QList<QTextCursor> > constructors;
-    QMap<ClassSpecifierAST *, QString> replacementConstructors;
 
     Overview oo;
 
@@ -1405,13 +1341,9 @@ QStringList generateAST_H(const Snapshot &snapshot, const QDir &cplusplusDir, co
                 = QString::fromLatin1("    virtual %1 *%2() { return this; }\n")
                     .arg(className, methodName);
         castMethods.append(
-                QString::fromLatin1("    virtual %1 *%2() { return 0; }\n")
+                QString::fromLatin1("    virtual %1 *%2() { return nullptr; }\n")
                     .arg(className, methodName));
         astDerivedClasses.append(className);
-
-        constructors[classAST] = removeConstructors(classAST, AST_h_document->translationUnit(),
-                                                    &document);
-        replacementConstructors[classAST] = createConstructor(classAST);
     }
 
     if (! baseCastMethodCursors.isEmpty()) {
@@ -1432,16 +1364,8 @@ QStringList generateAST_H(const Snapshot &snapshot, const QDir &cplusplusDir, co
                 c[i].removeSelectedText();
             }
         }
-        { // remove the constructors.
-            QList<QTextCursor> c = constructors.value(classAST);
-            for (int i = 0; i < c.length(); ++i) {
-                c[i].removeSelectedText();
-            }
-        }
 
         astNodes.endOfPublicClassSpecifiers[classIndex].insertText(
-                replacementConstructors.value(classAST) +
-                QLatin1String("\n") +
                 replacementCastMethods.value(classAST));
     }
 
@@ -1540,9 +1464,8 @@ void generateASTFwd_h(const Snapshot &snapshot, const QDir &cplusplusDir, const 
         cursors[i].removeSelectedText();
 
     QString replacement;
-    foreach (const QString &astDerivedClass, astDerivedClasses) {
-        replacement += QString(QLatin1String("class %1;\n")).arg(astDerivedClass);
-    }
+    for (const QString &astDerivedClass : astDerivedClasses)
+        replacement += QString("class %1;\n").arg(astDerivedClass);
 
     cursors.first().insertText(replacement);
 
@@ -1589,7 +1512,7 @@ void generateASTPatternBuilder_h(const QDir &cplusplusDir)
     Control *control = AST_h_document->control();
     QSet<QString> classesSet;
 
-    foreach (ClassSpecifierAST *classNode, astNodes.deriveds) {
+    for (ClassSpecifierAST *classNode : qAsConst(astNodes.deriveds)) {
         Class *klass = classNode->symbol;
 
         const Identifier *match0_id = control->identifier("match0");
@@ -1616,7 +1539,7 @@ void generateASTPatternBuilder_h(const QDir &cplusplusDir)
         QList<StringPair> args;
 
         bool first = true;
-        for (unsigned index = 0; index < klass->memberCount(); ++index) {
+        for (int index = 0; index < klass->memberCount(); ++index) {
             Declaration *member = klass->memberAt(index)->asDeclaration();
             if (! member)
                 continue;
@@ -1634,7 +1557,7 @@ void generateASTPatternBuilder_h(const QDir &cplusplusDir)
 
                 const QString memberName = oo(member->name());
 
-                out << tyName << " *" << memberName << " = 0";
+                out << tyName << " *" << memberName << " = nullptr";
                 args.append(qMakePair(tyName, memberName));
                 first = false;
             }
@@ -1646,9 +1569,8 @@ void generateASTPatternBuilder_h(const QDir &cplusplusDir)
                 << "        " << className << " *ast = new (&pool) " << className << ';' << endl;
 
 
-        foreach (const StringPair &p, args) {
+        for (const StringPair &p : qAsConst(args))
             out << "        ast->" << p.second << " = " << p.second << ';' << endl;
-        }
 
         out
                 << "        return ast;" << endl
@@ -1658,7 +1580,7 @@ void generateASTPatternBuilder_h(const QDir &cplusplusDir)
 
     QStringList classesList = classesSet.toList();
     Utils::sort(classesList);
-    foreach (const QString &className, classesList) {
+    for (const QString &className : qAsConst(classesList)) {
         const QString methodName = className.left(className.length() - 3);
         const QString elementName = className.left(className.length() - 7) + QLatin1String("AST");
         out

@@ -25,45 +25,15 @@
 
 #pragma once
 
-#include "ui_codegensettingspagewidget.h"
-
-#include "codegensettings.h"
-
 #include <coreplugin/dialogs/ioptionspage.h>
-
-#include <QPointer>
 
 namespace QtSupport {
 namespace Internal {
 
-class CodeGenSettingsPageWidget : public QWidget
-{
-    Q_OBJECT
-public:
-    explicit CodeGenSettingsPageWidget(QWidget *parent = nullptr);
-
-    CodeGenSettings parameters() const;
-    void setParameters(const CodeGenSettings &p);
-
-private:
-    int uiEmbedding() const;
-    void setUiEmbedding(int);
-
-    Ui::CodeGenSettingsPageWidget m_ui;
-};
-
-class CodeGenSettingsPage : public Core::IOptionsPage
+class CodeGenSettingsPage final : public Core::IOptionsPage
 {
 public:
-    explicit CodeGenSettingsPage(QObject *parent = nullptr);
-
-    QWidget *widget() override;
-    void apply() override;
-    void finish() override;
-
-private:
-    QPointer<CodeGenSettingsPageWidget> m_widget;
-    CodeGenSettings m_parameters;
+    CodeGenSettingsPage();
 };
 
 } // namespace Internal

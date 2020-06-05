@@ -28,6 +28,7 @@
 #include <projectexplorer/toolchain.h>
 
 #include "builddirreader.h"
+#include "cmakeprocess.h"
 
 #include <QRegularExpression>
 
@@ -36,9 +37,7 @@ namespace Utils { class QtcProcess; }
 namespace CMakeProjectManager {
 namespace Internal {
 
-class CMakeFile;
-
-class TeaLeafReader : public BuildDirReader
+class TeaLeafReader final : public BuildDirReader
 {
     Q_OBJECT
 
@@ -46,47 +45,43 @@ public:
     TeaLeafReader();
     ~TeaLeafReader() final;
 
+    void setParameters(const BuildDirParameters &p) final;
+
     bool isCompatible(const BuildDirParameters &p) final;
     void resetData() final;
-    void parse(bool forceConfiguration) final;
+    void parse(bool forceCMakeRun, bool forceConfiguration) final;
     void stop() final;
 
     bool isParsing() const final;
 
-    QList<CMakeBuildTarget> takeBuildTargets() final;
-    CMakeConfig takeParsedConfiguration() final;
-    void generateProjectTree(CMakeProjectNode *root,
-                             const QList<const ProjectExplorer::FileNode *> &allFiles) final;
-    CppTools::RawProjectParts createRawProjectParts() const final;
+    QSet<Utils::FilePath> projectFilesToWatch() const final;
+    QList<CMakeBuildTarget> takeBuildTargets(QString &errorMessage) final;
+    CMakeConfig takeParsedConfiguration(QString &errorMessage) final;
+    std::unique_ptr<CMakeProjectNode> generateProjectTree(
+        const QList<const ProjectExplorer::FileNode *> &allFiles, QString &errorMessage) final;
+    ProjectExplorer::RawProjectParts createRawProjectParts(QString &errorMessage) final;
 
 private:
-    void cleanUpProcess();
     void extractData();
 
     void startCMake(const QStringList &configurationArguments);
 
     void cmakeFinished(int code, QProcess::ExitStatus status);
-    void processCMakeOutput();
-    void processCMakeError();
 
     QStringList getFlagsFor(const CMakeBuildTarget &buildTarget, QHash<QString, QStringList> &cache, Core::Id lang) const;
     bool extractFlagsFromMake(const CMakeBuildTarget &buildTarget, QHash<QString, QStringList> &cache, Core::Id lang) const;
     bool extractFlagsFromNinja(const CMakeBuildTarget &buildTarget, QHash<QString, QStringList> &cache, Core::Id lang) const;
 
-    Utils::QtcProcess *m_cmakeProcess = nullptr;
+    // Process data:
+    std::unique_ptr<CMakeProcess> m_cmakeProcess;
     bool m_stopping = false;
     bool m_cmakeQueue = false;
     QStringList m_queuedArguments;
 
-    // For error reporting:
-    ProjectExplorer::IOutputParser *m_parser = nullptr;
-    QFutureInterface<void> *m_future = nullptr;
-
-    QSet<Utils::FileName> m_cmakeFiles;
+    QSet<Utils::FilePath> m_cmakeFiles;
     QString m_projectName;
     QList<CMakeBuildTarget> m_buildTargets;
     std::vector<std::unique_ptr<ProjectExplorer::FileNode>> m_files;
-    QSet<Internal::CMakeFile *> m_watchedFiles;
 
     // RegExps for function-like macrosses names fixups
     QRegularExpression m_macroFixupRe1;

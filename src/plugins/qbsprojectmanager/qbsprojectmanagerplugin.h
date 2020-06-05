@@ -29,7 +29,7 @@
 #include <extensionsystem/iplugin.h>
 #include <utils/parameteraction.h>
 
-namespace ProjectExplorer { class Project; }
+namespace ProjectExplorer { class Target; }
 
 namespace QbsProjectManager {
 namespace Internal {
@@ -37,17 +37,20 @@ namespace Internal {
 class QbsProject;
 class QbsProjectManagerPluginPrivate;
 
-class QbsProjectManagerPlugin : public ExtensionSystem::IPlugin
+class QbsProjectManagerPlugin final : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "QbsProjectManager.json")
 
+public:
+    static void buildNamedProduct(QbsProject *project, const QString &product);
+
+private:
     ~QbsProjectManagerPlugin() final;
 
     bool initialize(const QStringList &arguments, QString *errorMessage) final;
-    void extensionsInitialized() final;
 
-    void projectWasAdded(ProjectExplorer::Project *project);
+    void targetWasAdded(ProjectExplorer::Target *target);
     void projectChanged();
 
     void buildFileContextMenu();
@@ -64,10 +67,6 @@ class QbsProjectManagerPlugin : public ExtensionSystem::IPlugin
     void cleanSubprojectContextMenu();
     void rebuildSubprojectContextMenu();
     void runStepsForSubprojectContextMenu(const QList<Core::Id> &stepTypes);
-    void buildSubproject();
-    void cleanSubproject();
-    void rebuildSubproject();
-    void runStepsForSubproject(const QList<Core::Id> &stepTypes);
 
     void reparseSelectedProject();
     void reparseCurrentProject();
@@ -81,8 +80,8 @@ class QbsProjectManagerPlugin : public ExtensionSystem::IPlugin
                     const QStringList &activeFileTags);
     void buildSingleFile(QbsProject *project, const QString &file);
 
-    void runStepsForProducts(QbsProject *project, const QStringList &products,
-                                  const QList<Core::Id> &stepTypes);
+    static void runStepsForProducts(QbsProject *project, const QStringList &products,
+                                    const QList<Core::Id> &stepTypes);
 
     QbsProjectManagerPluginPrivate *d = nullptr;
     QAction *m_reparseQbs = nullptr;
@@ -98,9 +97,6 @@ class QbsProjectManagerPlugin : public ExtensionSystem::IPlugin
     Utils::ParameterAction *m_buildProduct = nullptr;
     Utils::ParameterAction *m_cleanProduct = nullptr;
     Utils::ParameterAction *m_rebuildProduct = nullptr;
-    Utils::ParameterAction *m_buildSubproject = nullptr;
-    Utils::ParameterAction *m_cleanSubproject = nullptr;
-    Utils::ParameterAction *m_rebuildSubproject = nullptr;
 };
 
 } // namespace Internal

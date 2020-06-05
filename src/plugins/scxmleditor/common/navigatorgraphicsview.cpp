@@ -75,12 +75,16 @@ void NavigatorGraphicsView::paintEvent(QPaintEvent *e)
 void NavigatorGraphicsView::wheelEvent(QWheelEvent *event)
 {
     if (Qt::ControlModifier & event->modifiers()) {
-        if (event->delta() > 0)
+        if (event->angleDelta().y() > 0)
             emit zoomIn();
         else
             emit zoomOut();
 
+#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
         emit moveMainViewTo(mapToScene(event->pos()));
+#else
+        emit moveMainViewTo(mapToScene(event->position().toPoint()));
+#endif
     } else
         QGraphicsView::wheelEvent(event);
 }

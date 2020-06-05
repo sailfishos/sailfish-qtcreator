@@ -25,7 +25,6 @@
 
 #include "changeselectiondialog.h"
 #include "logchangedialog.h"
-#include "gitplugin.h"
 #include "gitclient.h"
 #include "ui_changeselectiondialog.h"
 
@@ -57,13 +56,12 @@ ChangeSelectionDialog::ChangeSelectionDialog(const QString &workingDirectory, Co
                                              QWidget *parent) :
     QDialog(parent), m_ui(new Ui::ChangeSelectionDialog)
 {
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
-    m_gitExecutable = GitPlugin::client()->vcsBinary();
+    m_gitExecutable = GitClient::instance()->vcsBinary();
     m_ui->setupUi(this);
     m_ui->workingDirectoryChooser->setExpectedKind(PathChooser::ExistingDirectory);
     m_ui->workingDirectoryChooser->setPromptDialogTitle(tr("Select Git Directory"));
     m_ui->workingDirectoryChooser->setPath(workingDirectory);
-    m_gitEnvironment = GitPlugin::client()->processEnvironment();
+    m_gitEnvironment = GitClient::instance()->processEnvironment();
     m_ui->changeNumberEdit->setFocus();
     m_ui->changeNumberEdit->selectAll();
 
@@ -76,13 +74,15 @@ ChangeSelectionDialog::ChangeSelectionDialog(const QString &workingDirectory, Co
     connect(m_ui->selectFromHistoryButton, &QPushButton::clicked,
             this, &ChangeSelectionDialog::selectCommitFromRecentHistory);
     connect(m_ui->showButton, &QPushButton::clicked,
-            this, &ChangeSelectionDialog::acceptShow);
+            this, std::bind(&ChangeSelectionDialog::accept, this, Show));
     connect(m_ui->cherryPickButton, &QPushButton::clicked,
-            this, &ChangeSelectionDialog::acceptCherryPick);
+            this, std::bind(&ChangeSelectionDialog::accept, this, CherryPick));
     connect(m_ui->revertButton, &QPushButton::clicked,
-            this, &ChangeSelectionDialog::acceptRevert);
+            this, std::bind(&ChangeSelectionDialog::accept, this, Revert));
     connect(m_ui->checkoutButton, &QPushButton::clicked,
-            this, &ChangeSelectionDialog::acceptCheckout);
+            this, std::bind(&ChangeSelectionDialog::accept, this, Checkout));
+    connect(m_ui->archiveButton, &QPushButton::clicked,
+            this, std::bind(&ChangeSelectionDialog::accept, this, Archive));
 
     if (id == "Git.Revert")
         m_ui->revertButton->setDefault(true);
@@ -90,6 +90,8 @@ ChangeSelectionDialog::ChangeSelectionDialog(const QString &workingDirectory, Co
         m_ui->cherryPickButton->setDefault(true);
     else if (id == "Git.Checkout")
         m_ui->checkoutButton->setDefault(true);
+    else if (id == "Git.Archive")
+        m_ui->archiveButton->setDefault(true);
     else
         m_ui->showButton->setDefault(true);
     m_changeModel = new QStringListModel(this);
@@ -147,28 +149,10 @@ ChangeCommand ChangeSelectionDialog::command() const
     return m_command;
 }
 
-void ChangeSelectionDialog::acceptCheckout()
+void ChangeSelectionDialog::accept(ChangeCommand command)
 {
-    m_command = Checkout;
-    accept();
-}
-
-void ChangeSelectionDialog::acceptCherryPick()
-{
-    m_command = CherryPick;
-    accept();
-}
-
-void ChangeSelectionDialog::acceptRevert()
-{
-    m_command = Revert;
-    accept();
-}
-
-void ChangeSelectionDialog::acceptShow()
-{
-    m_command = Show;
-    accept();
+    m_command = command;
+    QDialog::accept();
 }
 
 //! Set commit message in details
@@ -218,7 +202,7 @@ void ChangeSelectionDialog::recalculateCompletion()
     if (workingDir.isEmpty())
         return;
 
-    GitClient *client = GitPlugin::client();
+    GitClient *client = GitClient::instance();
     VcsBase::VcsCommand *command = client->asyncForEachRefCmd(
                 workingDir, {"--format=%(refname:short)"});
     connect(this, &QObject::destroyed, command, &VcsBase::VcsCommand::abort);

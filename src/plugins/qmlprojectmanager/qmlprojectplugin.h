@@ -30,7 +30,7 @@
 namespace QmlProjectManager {
 namespace Internal {
 
-class QmlProjectPlugin: public ExtensionSystem::IPlugin
+class QmlProjectPlugin final : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "QmlProjectManager.json")
@@ -41,9 +41,8 @@ public:
 
 private:
     bool initialize(const QStringList &arguments, QString *errorString) final;
-    void extensionsInitialized() final {}
 
-    class QmlProjectRunConfigurationFactory *m_rcFactory = nullptr;
+    class QmlProjectPluginPrivate *d = nullptr;
 };
 
 } // namespace Internal

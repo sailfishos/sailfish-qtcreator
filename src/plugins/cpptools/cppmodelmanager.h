@@ -68,7 +68,7 @@ class WorkingCopy;
 namespace Internal {
 class CppSourceProcessor;
 class CppModelManagerPrivate;
-class CppToolsPlugin;
+class CppToolsPluginPrivate;
 }
 
 namespace Tests {
@@ -88,15 +88,15 @@ class CPPTOOLS_EXPORT CppModelManager final : public CPlusPlus::CppModelManagerB
 {
     Q_OBJECT
 
-public:
-    using Document = CPlusPlus::Document;
-
-public:
+private:
+    friend class Internal::CppToolsPluginPrivate;
     CppModelManager();
     ~CppModelManager() override;
 
+public:
+    using Document = CPlusPlus::Document;
+
     static CppModelManager *instance();
-    static void createCppModelManager(Internal::CppToolsPlugin *parent);
 
      // Documented in source file.
      enum ProgressNotificationMode {
@@ -121,12 +121,12 @@ public:
     /// \return The project part with the given project file
     ProjectPart::Ptr projectPartForId(const QString &projectPartId) const override;
     /// \return All project parts that mention the given file name as one of the sources/headers.
-    QList<ProjectPart::Ptr> projectPart(const Utils::FileName &fileName) const;
+    QList<ProjectPart::Ptr> projectPart(const Utils::FilePath &fileName) const;
     QList<ProjectPart::Ptr> projectPart(const QString &fileName) const
-    { return projectPart(Utils::FileName::fromString(fileName)); }
+    { return projectPart(Utils::FilePath::fromString(fileName)); }
     /// This is a fall-back function: find all files that includes the file directly or indirectly,
     /// and return its \c ProjectPart list for use with this file.
-    QList<ProjectPart::Ptr> projectPartFromDependencies(const Utils::FileName &fileName) const;
+    QList<ProjectPart::Ptr> projectPartFromDependencies(const Utils::FilePath &fileName) const;
     /// \return A synthetic \c ProjectPart which consists of all defines/includes/frameworks from
     ///         all loaded projects.
     ProjectPart::Ptr fallbackProjectPart();
@@ -229,6 +229,9 @@ public:
     Core::ILocatorFilter *currentDocumentFilter() const;
 
     void renameIncludes(const QString &oldFileName, const QString &newFileName);
+
+    // for VcsBaseSubmitEditor
+    Q_INVOKABLE QSet<QString> symbolsInFiles(const QSet<Utils::FilePath> &files) const;
 
 signals:
     /// Project data might be locked while this is emitted.

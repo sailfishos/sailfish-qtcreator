@@ -13,9 +13,14 @@ QtcPlugin {
     Depends { name: "Utils" }
 
     Depends { name: "libclang"; required: false }
+    Depends { name: "yaml-cpp" }
     Depends { name: "clang_defines" }
 
     Depends { name: "Qt.widgets" }
+
+    pluginRecommends: [
+        "CppEditor"
+    ]
 
     pluginTestDepends: [
         "QbsProjectManager",
@@ -24,7 +29,6 @@ QtcPlugin {
 
     condition: libclang.present
 
-    cpp.defines: base.concat("CLANGPCHMANAGER_LIB")
     cpp.includePaths: base.concat(libclang.llvmIncludeDir)
     cpp.libraryPaths: base.concat(libclang.llvmLibDir)
     cpp.dynamicLibraries: base.concat(libclang.llvmLibs)
@@ -37,12 +41,8 @@ QtcPlugin {
         "clangselectablefilesdialog.cpp",
         "clangselectablefilesdialog.h",
         "clangselectablefilesdialog.ui",
-        "clangtidyclazyruncontrol.cpp",
-        "clangtidyclazyruncontrol.h",
         "clangtidyclazyrunner.cpp",
         "clangtidyclazyrunner.h",
-        "clangtidyclazytool.cpp",
-        "clangtidyclazytool.h",
         "clangtool.cpp",
         "clangtool.h",
         "clangtoolruncontrol.cpp",
@@ -50,12 +50,6 @@ QtcPlugin {
         "clangtoolrunner.cpp",
         "clangtoolrunner.h",
         "clangtools_global.h",
-        "clangtoolsbasicsettings.cpp",
-        "clangtoolsbasicsettings.h",
-        "clangtoolsbasicsettings.ui",
-        "clangtoolsconfigwidget.cpp",
-        "clangtoolsconfigwidget.h",
-        "clangtoolsconfigwidget.ui",
         "clangtoolsconstants.h",
         "clangtoolsdiagnostic.cpp",
         "clangtoolsdiagnostic.h",
@@ -65,6 +59,8 @@ QtcPlugin {
         "clangtoolsdiagnosticview.h",
         "clangtoolslogfilereader.cpp",
         "clangtoolslogfilereader.h",
+        "clangtoolsplugin.cpp",
+        "clangtoolsplugin.h",
         "clangtoolsprojectsettings.cpp",
         "clangtoolsprojectsettings.h",
         "clangtoolsprojectsettingswidget.cpp",
@@ -74,8 +70,21 @@ QtcPlugin {
         "clangtoolssettings.h",
         "clangtoolsutils.cpp",
         "clangtoolsutils.h",
-        "clangtoolsplugin.cpp",
-        "clangtoolsplugin.h",
+        "clazychecks.ui",
+        "diagnosticconfigswidget.cpp",
+        "diagnosticconfigswidget.h",
+        "executableinfo.cpp",
+        "executableinfo.h",
+        "filterdialog.cpp",
+        "filterdialog.h",
+        "filterdialog.ui",
+        "runsettingswidget.cpp",
+        "runsettingswidget.h",
+        "runsettingswidget.ui",
+        "settingswidget.cpp",
+        "settingswidget.h",
+        "settingswidget.ui",
+        "tidychecks.ui",
     ]
 
     Group {
@@ -101,7 +110,7 @@ QtcPlugin {
         name: "Other files"
         fileTags: []
         files: [
-            project.ide_source_tree + "/doc/src/analyze/creator-clang-static-analyzer.qdoc",
+            project.ide_source_tree + "/doc/qtcreator/src/analyze/creator-clang-static-analyzer.qdoc",
         ]
     }
 }

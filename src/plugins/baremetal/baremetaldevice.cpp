@@ -24,109 +24,87 @@
 **
 ****************************************************************************/
 
+#include "baremetalconstants.h"
 #include "baremetaldevice.h"
 #include "baremetaldeviceconfigurationwidget.h"
-#include "defaultgdbserverprovider.h"
-#include "gdbserverprovidermanager.h"
-#include "gdbserverproviderprocess.h"
+#include "baremetaldeviceconfigurationwizard.h"
+#include "debugserverprovidermanager.h"
+#include "idebugserverprovider.h"
 
-#include <coreplugin/id.h>
-
-#include <ssh/sshconnection.h>
 #include <utils/qtcassert.h>
-
-#include <QCoreApplication>
 
 using namespace ProjectExplorer;
 
 namespace BareMetal {
 namespace Internal {
 
-const char gdbServerProviderIdKeyC[] = "GdbServerProviderId";
+const char debugServerProviderIdKeyC[] = "IDebugServerProviderId";
+
+// BareMetalDevice
+
+BareMetalDevice::BareMetalDevice()
+{
+    setDisplayType(tr("Bare Metal"));
+    setDefaultDisplayName(defaultDisplayName());
+    setOsType(Utils::OsTypeOther);
+}
 
 BareMetalDevice::~BareMetalDevice()
 {
-    if (GdbServerProvider *provider = GdbServerProviderManager::findProvider(m_gdbServerProviderId))
+    if (IDebugServerProvider *provider = DebugServerProviderManager::findProvider(
+                m_debugServerProviderId))
         provider->unregisterDevice(this);
 }
 
-QString BareMetalDevice::gdbServerProviderId() const
+QString BareMetalDevice::defaultDisplayName()
 {
-    return m_gdbServerProviderId;
+    return tr("Bare Metal Device");
 }
 
-void BareMetalDevice::setGdbServerProviderId(const QString &id)
+QString BareMetalDevice::debugServerProviderId() const
 {
-    if (id == m_gdbServerProviderId)
+    return m_debugServerProviderId;
+}
+
+void BareMetalDevice::setDebugServerProviderId(const QString &id)
+{
+    if (id == m_debugServerProviderId)
         return;
-    if (GdbServerProvider *currentProvider = GdbServerProviderManager::findProvider(m_gdbServerProviderId))
+    if (IDebugServerProvider *currentProvider =
+            DebugServerProviderManager::findProvider(m_debugServerProviderId))
         currentProvider->unregisterDevice(this);
-    m_gdbServerProviderId = id;
-    if (GdbServerProvider *provider = GdbServerProviderManager::findProvider(id)) {
-        setChannelByServerProvider(provider);
+    m_debugServerProviderId = id;
+    if (IDebugServerProvider *provider = DebugServerProviderManager::findProvider(id))
         provider->registerDevice(this);
-    }
 }
 
-void BareMetalDevice::unregisterProvider(GdbServerProvider *provider)
+void BareMetalDevice::unregisterDebugServerProvider(IDebugServerProvider *provider)
 {
-    if (provider->id() == m_gdbServerProviderId)
-        m_gdbServerProviderId.clear();
-}
-
-void BareMetalDevice::providerUpdated(GdbServerProvider *provider)
-{
-    GdbServerProvider *myProvider = GdbServerProviderManager::findProvider(m_gdbServerProviderId);
-    if (provider == myProvider)
-        setChannelByServerProvider(provider);
-}
-
-void BareMetalDevice::setChannelByServerProvider(GdbServerProvider *provider)
-{
-    QTC_ASSERT(provider, return);
-    const QString channel = provider->channel();
-    const int colon = channel.indexOf(QLatin1Char(':'));
-    if (colon < 0)
-        return;
-    QSsh::SshConnectionParameters sshParams = sshParameters();
-    sshParams.setHost(channel.left(colon));
-    sshParams.setPort(channel.midRef(colon + 1).toUShort());
-    setSshParameters(sshParams);
+    if (provider->id() == m_debugServerProviderId)
+        m_debugServerProviderId.clear();
 }
 
 void BareMetalDevice::fromMap(const QVariantMap &map)
 {
     IDevice::fromMap(map);
-    QString gdbServerProvider = map.value(QLatin1String(gdbServerProviderIdKeyC)).toString();
-    if (gdbServerProvider.isEmpty()) {
+    QString providerId = map.value(debugServerProviderIdKeyC).toString();
+    if (providerId.isEmpty()) {
         const QString name = displayName();
-        if (GdbServerProvider *provider = GdbServerProviderManager::findByDisplayName(name)) {
-            gdbServerProvider = provider->id();
-        } else {
-            const QSsh::SshConnectionParameters sshParams = sshParameters();
-            auto newProvider = new DefaultGdbServerProvider;
-            newProvider->setDisplayName(name);
-            newProvider->m_host = sshParams.host();
-            newProvider->m_port = sshParams.port();
-            if (GdbServerProviderManager::registerProvider(newProvider))
-                gdbServerProvider = newProvider->id();
-            else
-                delete newProvider;
+        if (IDebugServerProvider *provider =
+                DebugServerProviderManager::findByDisplayName(name)) {
+            providerId = provider->id();
+            setDebugServerProviderId(providerId);
         }
+    } else {
+        setDebugServerProviderId(providerId);
     }
-    setGdbServerProviderId(gdbServerProvider);
 }
 
 QVariantMap BareMetalDevice::toMap() const
 {
     QVariantMap map = IDevice::toMap();
-    map.insert(QLatin1String(gdbServerProviderIdKeyC), gdbServerProviderId());
+    map.insert(debugServerProviderIdKeyC, debugServerProviderId());
     return map;
-}
-
-BareMetalDevice::IDevice::Ptr BareMetalDevice::clone() const
-{
-    return Ptr(new BareMetalDevice(*this));
 }
 
 DeviceProcessSignalOperation::Ptr BareMetalDevice::signalOperation() const
@@ -134,30 +112,29 @@ DeviceProcessSignalOperation::Ptr BareMetalDevice::signalOperation() const
     return DeviceProcessSignalOperation::Ptr();
 }
 
-QString BareMetalDevice::displayType() const
-{
-    return QCoreApplication::translate("BareMetal::Internal::BareMetalDevice", "Bare Metal");
-}
-
 IDeviceWidget *BareMetalDevice::createWidget()
 {
     return new BareMetalDeviceConfigurationWidget(sharedFromThis());
 }
 
-Utils::OsType BareMetalDevice::osType() const
+// Factory
+
+BareMetalDeviceFactory::BareMetalDeviceFactory()
+    : IDeviceFactory(Constants::BareMetalOsType)
 {
-    return Utils::OsTypeOther;
+    setDisplayName(BareMetalDevice::tr("Bare Metal Device"));
+    setCombinedIcon(":/baremetal/images/baremetaldevicesmall.png",
+                    ":/baremetal/images/baremetaldevice.png");
+    setCanCreate(true);
+    setConstructionFunction(&BareMetalDevice::create);
 }
 
-DeviceProcess *BareMetalDevice::createProcess(QObject *parent) const
+IDevice::Ptr BareMetalDeviceFactory::create() const
 {
-    return new GdbServerProviderProcess(sharedFromThis(), parent);
-}
-
-BareMetalDevice::BareMetalDevice(const BareMetalDevice &other)
-    : IDevice(other)
-{
-    setGdbServerProviderId(other.gdbServerProviderId());
+    BareMetalDeviceConfigurationWizard wizard;
+    if (wizard.exec() != QDialog::Accepted)
+        return {};
+    return wizard.device();
 }
 
 } //namespace Internal

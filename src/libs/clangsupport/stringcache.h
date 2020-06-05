@@ -25,9 +25,12 @@
 
 #pragma once
 
+#include "set_algorithm.h"
 #include "stringcachealgorithms.h"
+#include "stringcacheentry.h"
 #include "stringcachefwd.h"
 
+#include <utils/algorithm.h>
 #include <utils/optional.h>
 #include <utils/smallstringfwd.h>
 
@@ -90,42 +93,24 @@ private:
     QReadWriteLock m_mutex;
 };
 
-template <typename StringType,
-          typename StringViewType,
-          typename IndexType>
-class StringCacheEntry
-{
-public:
-    StringCacheEntry(StringType &&string, IndexType id)
-        : string(std::move(string)),
-          id(id)
-    {}
-
-    operator StringViewType() const
-    {
-        return string;
-    }
-
-    StringType string;
-    IndexType id;
-};
-
-template <typename StringType,
-          typename StringViewType,
-          typename IndexType>
-using StringCacheEntries = std::vector<StringCacheEntry<StringType, StringViewType, IndexType>>;
-
-template <typename StringType,
-          typename StringViewType,
-          typename IndexType,
-          typename Mutex,
-          typename Compare,
-          Compare compare = Utils::compare>
+template<typename StringType,
+         typename StringViewType,
+         typename IndexType,
+         typename Mutex,
+         typename Compare,
+         Compare compare = Utils::compare,
+         typename CacheEntry = StringCacheEntry<StringType, StringViewType, IndexType>>
 class StringCache
 {
+    template<typename T, typename V, typename I, typename M, typename C, C c, typename CE>
+    friend class StringCache;
+
+    using StringResultType = std::
+        conditional_t<std::is_base_of<NonLockingMutex, Mutex>::value, StringViewType, StringType>;
+
 public:
-    using CacheEntry = StringCacheEntry<StringType, StringViewType, IndexType>;
-    using CacheEntries = StringCacheEntries<StringType, StringViewType, IndexType>;
+    using MutexType = Mutex;
+    using CacheEntries = std::vector<CacheEntry>;
     using const_iterator = typename CacheEntries::const_iterator;
     using Found = ClangBackEnd::Found<const_iterator>;
 
@@ -135,8 +120,33 @@ public:
         m_indices.reserve(reserveSize);
     }
 
-    StringCache(const StringCache &) = delete;
-    StringCache &operator=(const StringCache &) = delete;
+    StringCache(const StringCache &other)
+        : m_strings(other.m_strings)
+        , m_indices(other.m_indices)
+    {}
+
+    template<typename Cache>
+    Cache clone()
+    {
+        Cache cache;
+        cache.m_strings = m_strings;
+        cache.m_indices = m_indices;
+
+        return cache;
+    }
+
+    StringCache(StringCache &&other)
+        : m_strings(std::move(other.m_strings))
+        , m_indices(std::move(other.m_indices))
+    {}
+
+    StringCache &operator=(StringCache &&other)
+    {
+        m_strings = std::move(other.m_strings);
+        m_indices = std::move(other.m_indices);
+
+        return *this;
+    }
 
     void populate(CacheEntries &&entries)
     {
@@ -147,20 +157,79 @@ public:
 
     void uncheckedPopulate(CacheEntries &&entries)
     {
-        std::sort(entries.begin(),
-                  entries.end(),
-                  [] (StringViewType first, StringViewType second) {
+        std::sort(entries.begin(), entries.end(), [](StringViewType first, StringViewType second) {
             return compare(first, second) < 0;
         });
 
         m_strings = std::move(entries);
-        m_indices.resize(m_strings.size());
 
-        auto begin = m_strings.cbegin();
-        for (auto current = begin; current != m_strings.end(); ++current)
-            m_indices.at(current->id) = std::distance(begin, current);
+        int max_id = 0;
+
+        auto found = std::max_element(m_strings.begin(),
+                                      m_strings.end(),
+                                      [](const auto &first, const auto &second) {
+                                          return first.id < second.id;
+                                      });
+
+        if (found != m_strings.end())
+            max_id = found->id + 1;
+
+        m_indices.resize(max_id, -1);
+
+        updateIndices();
     }
 
+    template<typename Function>
+    void addStrings(std::vector<StringViewType> &&strings, Function storageFunction)
+    {
+        auto less = [](StringViewType first, StringViewType second) {
+            return compare(first, second) < 0;
+        };
+
+        std::sort(strings.begin(), strings.end(), less);
+
+        strings.erase(std::unique(strings.begin(), strings.end()), strings.end());
+
+        CacheEntries newCacheEntries;
+        newCacheEntries.reserve(strings.size());
+
+        std::set_difference(strings.begin(),
+                            strings.end(),
+                            m_strings.begin(),
+                            m_strings.end(),
+                            make_iterator([&](StringViewType newString) {
+                                IndexType index = storageFunction(newString);
+                                newCacheEntries.emplace_back(newString, index);
+                            }),
+                            less);
+
+        if (newCacheEntries.size()) {
+            auto found = std::max_element(newCacheEntries.begin(),
+                                          newCacheEntries.end(),
+                                          [](const auto &first, const auto &second) {
+                                              return first.id < second.id;
+                                          });
+
+            int max_id = found->id + 1;
+
+            if (max_id > int(m_indices.size()))
+                m_indices.resize(max_id, -1);
+
+            CacheEntries mergedCacheEntries;
+            mergedCacheEntries.reserve(newCacheEntries.size() + m_strings.size());
+
+            std::merge(std::make_move_iterator(m_strings.begin()),
+                       std::make_move_iterator(m_strings.end()),
+                       std::make_move_iterator(newCacheEntries.begin()),
+                       std::make_move_iterator(newCacheEntries.end()),
+                       std::back_inserter(mergedCacheEntries),
+                       less);
+
+            m_strings = std::move(mergedCacheEntries);
+
+            updateIndices();
+        }
+    }
 
     IndexType stringId(StringViewType stringView)
     {
@@ -173,10 +242,11 @@ public:
         sharedLock.unlock();
         std::lock_guard<Mutex> exclusiveLock(m_mutex);
 
-        found = find(stringView);
+        if (!std::is_base_of<NonLockingMutex, Mutex>::value)
+            found = find(stringView);
         if (!found.wasFound) {
             IndexType index = insertString(found.iterator, stringView, IndexType(m_indices.size()));
-            found.iterator = m_strings.begin() + index;;
+            found.iterator = m_strings.begin() + index;
         }
 
         return found.iterator->id;
@@ -196,12 +266,33 @@ public:
         return ids;
     }
 
+    template<typename Container, typename Function>
+    std::vector<IndexType> stringIds(const Container &strings, Function storageFunction)
+    {
+        std::vector<IndexType> ids;
+        ids.reserve(strings.size());
+
+        std::transform(strings.begin(),
+                       strings.end(),
+                       std::back_inserter(ids),
+                       [&](const auto &string) { return this->stringId(string, storageFunction); });
+
+        return ids;
+    }
+
     std::vector<IndexType> stringIds(std::initializer_list<StringType> strings)
     {
         return stringIds<std::initializer_list<StringType>>(strings);
     }
 
-    StringType string(IndexType id) const
+    template<typename Function>
+    std::vector<IndexType> stringIds(std::initializer_list<StringType> strings,
+                                     Function storageFunction)
+    {
+        return stringIds<std::initializer_list<StringType>>(strings, storageFunction);
+    }
+
+    StringResultType string(IndexType id) const
     {
         std::shared_lock<Mutex> sharedLock(m_mutex);
 
@@ -209,7 +300,7 @@ public:
     }
 
     template<typename Function>
-    StringType string(IndexType id, Function storageFunction)
+    StringResultType string(IndexType id, Function storageFunction)
     {
         std::shared_lock<Mutex> sharedLock(m_mutex);
 
@@ -227,17 +318,15 @@ public:
         return m_strings[index].string;
     }
 
-    std::vector<StringType> strings(const std::vector<IndexType> &ids) const
+    std::vector<StringResultType> strings(const std::vector<IndexType> &ids) const
     {
         std::shared_lock<Mutex> sharedLock(m_mutex);
 
-        std::vector<StringType> strings;
+        std::vector<StringResultType> strings;
         strings.reserve(ids.size());
 
-        std::transform(ids.begin(),
-                       ids.end(),
-                       std::back_inserter(strings),
-                       [&] (IndexType id) { return m_strings.at(m_indices.at(id)).string; });
+        for (IndexType id : ids)
+            strings.emplace_back(m_strings.at(m_indices.at(id)).string);
 
         return strings;
     }
@@ -260,7 +349,8 @@ public:
         sharedLock.unlock();
         std::lock_guard<Mutex> exclusiveLock(m_mutex);
 
-        found = find(stringView);
+        if (!std::is_base_of<NonLockingMutex, Mutex>::value)
+            found = find(stringView);
         if (!found.wasFound) {
             IndexType index = insertString(found.iterator, stringView, storageFunction(stringView));
             found.iterator = m_strings.begin() + index;
@@ -275,6 +365,13 @@ public:
     }
 
 private:
+    void updateIndices()
+    {
+        auto begin = m_strings.cbegin();
+        for (auto current = begin; current != m_strings.cend(); ++current)
+            m_indices[current->id] = std::distance(begin, current);
+    }
+
     Found find(StringViewType stringView)
     {
         return findInSorted(m_strings.cbegin(), m_strings.cend(), stringView, compare);
@@ -300,7 +397,7 @@ private:
                            StringViewType stringView,
                            IndexType id)
     {
-        auto inserted = m_strings.emplace(beforeIterator, StringType(stringView), id);
+        auto inserted = m_strings.emplace(beforeIterator, stringView, id);
 
         auto newIndex = IndexType(std::distance(m_strings.begin(), inserted));
 

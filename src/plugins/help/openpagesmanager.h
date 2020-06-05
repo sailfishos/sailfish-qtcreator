@@ -27,18 +27,21 @@
 
 #include <QObject>
 
-QT_FORWARD_DECLARE_CLASS(QComboBox)
-QT_FORWARD_DECLARE_CLASS(QListView)
-QT_FORWARD_DECLARE_CLASS(QModelIndex)
-QT_FORWARD_DECLARE_CLASS(QPoint)
-QT_FORWARD_DECLARE_CLASS(QUrl)
-QT_FORWARD_DECLARE_CLASS(QWidget)
+QT_BEGIN_NAMESPACE
+class QAbstractItemModel;
+class QComboBox;
+class QListView;
+class QModelIndex;
+class QPoint;
+class QUrl;
+class QWidget;
+QT_END_NAMESPACE
 
 namespace Help {
-    namespace Internal {
+namespace Internal {
 
+class HelpWidget;
 class HelpViewer;
-class OpenPagesModel;
 class OpenPagesSwitcher;
 class OpenPagesWidget;
 
@@ -47,22 +50,13 @@ class OpenPagesManager : public QObject
     Q_OBJECT
 
 public:
-    OpenPagesManager(QObject *parent = nullptr);
+    OpenPagesManager(HelpWidget *helpWidget);
     ~OpenPagesManager() override;
-
-    static OpenPagesManager &instance();
 
     QWidget *openPagesWidget() const;
     QComboBox *openPagesComboBox() const;
 
-    int pageCount() const;
     void setupInitialPages();
-
-    HelpViewer *createPage();
-    HelpViewer *createPage(const QUrl &url);
-
-    void setCurrentPageByRow(int index);
-    void setCurrentPage(const QModelIndex &index);
 
     void closeCurrentPage();
     void closePage(const QModelIndex &index);
@@ -71,21 +65,16 @@ public:
     void gotoNextPage();
     void gotoPreviousPage();
 
-signals:
-    void pagesChanged();
-
 private:
     void removePage(int index);
     void showTwicherOrSelectPage() const;
     void openPagesContextMenu(const QPoint &point);
 
     QComboBox *m_comboBox = nullptr;
-    OpenPagesModel *m_model = nullptr;
+    HelpWidget *m_helpWidget = nullptr;
     mutable OpenPagesWidget *m_openPagesWidget = nullptr;
     OpenPagesSwitcher *m_openPagesSwitcher = nullptr;
-
-    static OpenPagesManager *m_instance;
 };
 
-    } // namespace Internal
+} // namespace Internal
 } // namespace Help

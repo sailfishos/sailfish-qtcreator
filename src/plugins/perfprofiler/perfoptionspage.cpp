@@ -23,40 +23,24 @@
 **
 ****************************************************************************/
 
-#include "perfconfigwidget.h"
 #include "perfoptionspage.h"
+
+#include "perfconfigwidget.h"
 #include "perfprofilerconstants.h"
-#include "perfprofilerplugin.h"
 
 #include <debugger/analyzer/analyzericons.h>
 
 namespace PerfProfiler {
 namespace Internal {
 
-PerfOptionsPage::PerfOptionsPage(QObject *parent) : Core::IOptionsPage(parent)
+PerfOptionsPage::PerfOptionsPage(PerfSettings *settings)
 {
     setId(Constants::PerfSettingsId);
     setDisplayName(QCoreApplication::translate("PerfProfiler::PerfOptionsPage", "CPU Usage"));
     setCategory("T.Analyzer");
     setDisplayCategory(QCoreApplication::translate("Analyzer", "Analyzer"));
-    setCategoryIcon(Analyzer::Icons::SETTINGSCATEGORY_ANALYZER);
-}
-
-QWidget *PerfOptionsPage::widget()
-{
-    if (!m_widget)
-        m_widget = new PerfConfigWidget(PerfProfilerPlugin::globalSettings());
-    return m_widget;
-}
-
-void PerfOptionsPage::apply()
-{
-    PerfProfilerPlugin::globalSettings()->writeGlobalSettings();
-}
-
-void PerfOptionsPage::finish()
-{
-    delete m_widget;
+    setCategoryIconPath(Analyzer::Icons::SETTINGSCATEGORY_ANALYZER);
+    setWidgetCreator([settings] { return new PerfConfigWidget(settings); });
 }
 
 } // namespace Internal

@@ -28,6 +28,7 @@
 #include "core_global.h"
 #include "id.h"
 
+#include <QList>
 #include <QMainWindow>
 #include <QObject>
 #include <QRect>
@@ -39,13 +40,13 @@ QT_BEGIN_NAMESPACE
 class QPrinter;
 class QStatusBar;
 class QWidget;
-template <typename T> class QList;
 QT_END_NAMESPACE
 
 namespace Core {
-class IWizardFactory;
 class Context;
 class IContext;
+class InfoBar;
+class IWizardFactory;
 class SettingsDatabase;
 
 namespace Internal { class MainWindow; }
@@ -99,6 +100,8 @@ public:
     static QString installerResourcePath();
     static QString libexecPath();
     static QString clangExecutable(const QString &clangBinDirectory);
+    static QString clangTidyExecutable(const QString &clangBinDirectory);
+    static QString clazyStandaloneExecutable(const QString &clangBinDirectory);
     static QString clangIncludeDirectory(const QString &clangVersion,
                                          const QString &clangResourceDirectory);
 
@@ -108,6 +111,8 @@ public:
     static QMainWindow *mainWindow();
     static QWidget *dialogParent();
     static QStatusBar *statusBar();
+    static InfoBar *infoBar();
+
     /* Raises and activates the window for the widget. This contains workarounds for X11. */
     static void raiseWindow(QWidget *widget);
 
@@ -142,14 +147,23 @@ public:
     static QString systemInformation();
     static void setupScreenShooter(const QString &name, QWidget *w, const QRect &rc = QRect());
 
+    enum SaveSettingsReason {
+        InitializationDone,
+        SettingsDialogDone,
+        ModeChanged,
+        MainWindowClosing,
+    };
+
+    static void restart();
+
 public slots:
-    static void saveSettings();
+    static void saveSettings(SaveSettingsReason reason);
 
 signals:
     void coreAboutToOpen();
     void coreOpened();
     void newItemDialogStateChanged();
-    void saveSettingsRequested();
+    void saveSettingsRequested(SaveSettingsReason reason);
     void coreAboutToClose();
     void contextAboutToChange(const QList<Core::IContext *> &context);
     void contextChanged(const Core::Context &context);

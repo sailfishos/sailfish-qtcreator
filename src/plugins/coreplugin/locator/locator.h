@@ -30,6 +30,7 @@
 
 #include <coreplugin/actionmanager/command.h>
 
+#include <QFuture>
 #include <QObject>
 #include <QTimer>
 
@@ -37,7 +38,6 @@ namespace Core {
 namespace Internal {
 
 class LocatorData;
-class LocatorSettingsPage;
 
 class Locator : public QObject
 {
@@ -64,7 +64,7 @@ signals:
     void filtersChanged();
 
 public slots:
-    void refresh(QList<ILocatorFilter *> filters = QList<ILocatorFilter *>());
+    void refresh(QList<ILocatorFilter *> filters);
     void saveSettings() const;
 
 private:
@@ -72,7 +72,6 @@ private:
     void updateFilterActions();
     void updateEditorManagerPlaceholderText();
 
-    LocatorSettingsPage *m_settingsPage = nullptr;
     LocatorData *m_locatorData = nullptr;
 
     bool m_settingsInitialized = false;
@@ -80,6 +79,8 @@ private:
     QList<ILocatorFilter *> m_customFilters;
     QMap<Id, QAction *> m_filterActionMap;
     QTimer m_refreshTimer;
+    QFuture<void> m_refreshTask;
+    QList<ILocatorFilter *> m_refreshingFilters;
 };
 
 } // namespace Internal

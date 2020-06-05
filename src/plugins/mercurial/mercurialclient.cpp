@@ -58,18 +58,15 @@ namespace Internal  {
 class MercurialDiffEditorController : public VcsBaseDiffEditorController
 {
 public:
-    MercurialDiffEditorController(IDocument *document, const QString &workingDirectory);
+    MercurialDiffEditorController(IDocument *document)
+        : VcsBaseDiffEditorController(document)
+    {
+        setDisplayName("Hg Diff");
+    }
 
-protected:
     void runCommand(const QList<QStringList> &args, QTextCodec *codec = nullptr);
     QStringList addConfigurationArguments(const QStringList &args) const;
 };
-
-MercurialDiffEditorController::MercurialDiffEditorController(IDocument *document, const QString &workingDirectory):
-    VcsBaseDiffEditorController(document, MercurialPlugin::client(), workingDirectory)
-{
-    setDisplayName("Hg Diff");
-}
 
 void MercurialDiffEditorController::runCommand(const QList<QStringList> &args, QTextCodec *codec)
 {
@@ -87,61 +84,9 @@ QStringList MercurialDiffEditorController::addConfigurationArguments(const QStri
     return args + configArgs;
 }
 
-class FileDiffController : public MercurialDiffEditorController
-{
-public:
-    FileDiffController(IDocument *document, const QString &dir, const QString &fileName) :
-        MercurialDiffEditorController(document, dir),
-        m_fileName(fileName)
-    { }
-
-    void reload() override
-    {
-        QStringList args = { "diff", m_fileName };
-        runCommand({ addConfigurationArguments(args) });
-    }
-
-private:
-    const QString m_fileName;
-};
-
-class FileListDiffController : public MercurialDiffEditorController
-{
-public:
-    FileListDiffController(IDocument *document, const QString &dir, const QStringList &fileNames) :
-        MercurialDiffEditorController(document, dir),
-        m_fileNames(fileNames)
-    { }
-
-    void reload() override
-    {
-        QStringList args { "diff" };
-        args << m_fileNames;
-        runCommand({addConfigurationArguments(args)});
-    }
-
-private:
-    const QStringList m_fileNames;
-};
-
-
-class RepositoryDiffController : public MercurialDiffEditorController
-{
-public:
-    RepositoryDiffController(IDocument *document, const QString &dir) :
-        MercurialDiffEditorController(document, dir)
-    { }
-
-    void reload() override
-    {
-        QStringList args = { "diff" };
-        runCommand({addConfigurationArguments(args)});
-    }
-};
-
 /////////////////////////////////////////////////////////////
 
-MercurialClient::MercurialClient() : VcsBaseClient(new MercurialSettings)
+MercurialClient::MercurialClient(MercurialSettings *settings) : VcsBaseClient(settings)
 {
 }
 
@@ -170,8 +115,8 @@ bool MercurialClient::synchronousClone(const QString &workingDir,
                                        const QString &dstLocation,
                                        const QStringList &extraOptions)
 {
-    Q_UNUSED(workingDir);
-    Q_UNUSED(extraOptions);
+    Q_UNUSED(workingDir)
+    Q_UNUSED(extraOptions)
     QDir workingDirectory(srcLocation);
     const unsigned flags = VcsCommand::SshPasswordPrompt |
             VcsCommand::ShowStdOut |
@@ -231,8 +176,8 @@ bool MercurialClient::synchronousPull(const QString &workingDir, const QString &
     // cause mercurial doesn`t understand LANG
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     env.insert(QLatin1String("LANGUAGE"), QLatin1String("C"));
-    const SynchronousProcessResponse resp = VcsBasePlugin::runVcs(
-                workingDir, vcsBinary(), args, vcsTimeoutS(), flags, nullptr, env);
+    const SynchronousProcessResponse resp = VcsBase::runVcs(
+                workingDir, {vcsBinary(), args}, vcsTimeoutS(), flags, nullptr, env);
     const bool ok = resp.result == SynchronousProcessResponse::Finished;
 
     parsePullOutput(resp.stdOut().trimmed());
@@ -391,7 +336,7 @@ void MercurialClient::commit(const QString &repositoryRoot, const QStringList &f
 void MercurialClient::diff(const QString &workingDir, const QStringList &files,
                            const QStringList &extraOptions)
 {
-    Q_UNUSED(extraOptions);
+    Q_UNUSED(extraOptions)
 
     QString fileName;
 
@@ -400,29 +345,20 @@ void MercurialClient::diff(const QString &workingDir, const QStringList &files,
         const QString sourceFile = VcsBaseEditor::getSource(workingDir, fileName);
         const QString documentId = QString(Constants::MERCURIAL_PLUGIN)
                 + ".DiffRepo." + sourceFile;
-        requestReload(documentId, sourceFile, title,
-                      [workingDir](IDocument *doc) {
-                          return new RepositoryDiffController(doc, workingDir);
-                      });
+        requestReload(documentId, sourceFile, title, workingDir, {"diff"});
     } else if (files.size() == 1) {
         fileName = files.at(0);
         const QString title = tr("Mercurial Diff \"%1\"").arg(fileName);
         const QString sourceFile = VcsBaseEditor::getSource(workingDir, fileName);
         const QString documentId = QString(Constants::MERCURIAL_PLUGIN)
                 + ".DiffFile." + sourceFile;
-        requestReload(documentId, sourceFile, title,
-                      [workingDir, fileName](IDocument *doc) {
-                          return new FileDiffController(doc, workingDir, fileName);
-                      });
+        requestReload(documentId, sourceFile, title, workingDir, {"diff", fileName});
     } else {
         const QString title = tr("Mercurial Diff \"%1\"").arg(workingDir);
         const QString sourceFile = VcsBaseEditor::getSource(workingDir, fileName);
         const QString documentId = QString(Constants::MERCURIAL_PLUGIN)
                 + ".DiffFile." + workingDir;
-        requestReload(documentId, sourceFile, title,
-                      [workingDir, files](IDocument *doc) {
-                          return new FileListDiffController(doc, workingDir, files);
-                      });
+        requestReload(documentId, sourceFile, title, workingDir, QStringList{"diff"} + files);
     }
 }
 
@@ -440,9 +376,9 @@ void MercurialClient::revertAll(const QString &workingDir, const QString &revisi
                              QStringList(extraOptions) << QLatin1String("--all"));
 }
 
-bool MercurialClient::isVcsDirectory(const FileName &fileName) const
+bool MercurialClient::isVcsDirectory(const FilePath &fileName) const
 {
-    return fileName.toFileInfo().isDir()
+    return fileName.isDir()
             && !fileName.fileName().compare(Constants::MERCURIALREPO, HostOsInfo::fileNameCaseSensitivity());
 }
 
@@ -459,8 +395,8 @@ QString MercurialClient::findTopLevelForFile(const QFileInfo &file) const
 {
     const QString repositoryCheckFile = QLatin1String(Constants::MERCURIALREPO) + QLatin1String("/requires");
     return file.isDir() ?
-                VcsBasePlugin::findRepositoryForDirectory(file.absoluteFilePath(), repositoryCheckFile) :
-                VcsBasePlugin::findRepositoryForDirectory(file.absolutePath(), repositoryCheckFile);
+                VcsBase::findRepositoryForDirectory(file.absoluteFilePath(), repositoryCheckFile) :
+                VcsBase::findRepositoryForDirectory(file.absolutePath(), repositoryCheckFile);
 }
 
 Core::Id MercurialClient::vcsEditorKind(VcsCommandTag cmd) const
@@ -511,17 +447,23 @@ MercurialClient::StatusItem MercurialClient::parseStatusLine(const QString &line
 }
 
 void MercurialClient::requestReload(const QString &documentId, const QString &source, const QString &title,
-                   std::function<DiffEditor::DiffEditorController *(Core::IDocument *)> factory) const
+                                    const QString &workingDirectory, const QStringList &args)
 {
     // Creating document might change the referenced source. Store a copy and use it.
     const QString sourceCopy = source;
 
     IDocument *document = DiffEditorController::findOrCreateDocument(documentId, title);
     QTC_ASSERT(document, return);
-    DiffEditorController *controller = factory(document);
-    QTC_ASSERT(controller, return);
+    auto controller = new MercurialDiffEditorController(document);
+    controller->setReloader([controller, args] {
+        controller->runCommand({controller->addConfigurationArguments(args)});
+    });
+    controller->setVcsBinary(settings().binaryPath());
+    controller->setVcsTimeoutS(settings().vcsTimeoutS());
+    controller->setProcessEnvironment(processEnvironment());
+    controller->setWorkingDirectory(workingDirectory);
 
-    VcsBasePlugin::setSource(document, sourceCopy);
+    VcsBase::setSource(document, sourceCopy);
     EditorManager::activateEditorForDocument(document);
     controller->requestReload();
 }

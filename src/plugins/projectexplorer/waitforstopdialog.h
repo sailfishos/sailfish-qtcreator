@@ -27,9 +27,9 @@
 
 #include <QList>
 #include <QDialog>
-#include <QTime>
+#include <QElapsedTimer>
 
-#include "runconfiguration.h"
+#include "runcontrol.h"
 
 QT_BEGIN_NAMESPACE
 class QLabel;
@@ -51,7 +51,7 @@ private:
 
     QList<ProjectExplorer::RunControl *> m_runControls;
     QLabel *m_progressLabel;
-    QTime m_timer;
+    QElapsedTimer m_timer;
 };
 
 } // namespace Internal

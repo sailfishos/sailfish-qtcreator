@@ -45,22 +45,22 @@ using namespace ProjectExplorer;
 
 namespace QtSupport {
 
-QtProjectImporter::QtProjectImporter(const Utils::FileName &path) : ProjectImporter(path)
+QtProjectImporter::QtProjectImporter(const Utils::FilePath &path) : ProjectImporter(path)
 {
-    useTemporaryKitInformation(QtKitInformation::id(),
+    useTemporaryKitAspect(QtKitAspect::id(),
                                [this](Kit *k, const QVariantList &vl) {cleanupTemporaryQt(k, vl);},
                                [this](Kit *k, const QVariantList &vl) {persistTemporaryQt(k, vl);});
 }
 
 QtProjectImporter::QtVersionData
-QtProjectImporter::findOrCreateQtVersion(const Utils::FileName &qmakePath) const
+QtProjectImporter::findOrCreateQtVersion(const Utils::FilePath &qmakePath) const
 {
     QtVersionData result;
     result.qt = QtVersionManager::version(Utils::equal(&BaseQtVersion::qmakeCommand, qmakePath));
     if (result.qt) {
         // Check if version is a temporary qt
         const int qtId = result.qt->uniqueId();
-        result.isTemporary = hasKitWithTemporaryData(QtKitInformation::id(), qtId);
+        result.isTemporary = hasKitWithTemporaryData(QtKitAspect::id(), qtId);
         return result;
     }
 
@@ -80,10 +80,10 @@ Kit *QtProjectImporter::createTemporaryKit(const QtVersionData &versionData,
                                            const ProjectImporter::KitSetupFunction &additionalSetup) const
 {
     return ProjectImporter::createTemporaryKit([&additionalSetup, &versionData, this](Kit *k) -> void {
-        QtKitInformation::setQtVersion(k, versionData.qt);
+        QtKitAspect::setQtVersion(k, versionData.qt);
         if (versionData.qt) {
             if (versionData.isTemporary)
-                addTemporaryData(QtKitInformation::id(), versionData.qt->uniqueId(), k);
+                addTemporaryData(QtKitAspect::id(), versionData.qt->uniqueId(), k);
 
             k->setUnexpandedDisplayName(versionData.qt->displayName());;
         }
@@ -108,7 +108,7 @@ void QtProjectImporter::cleanupTemporaryQt(Kit *k, const QVariantList &vl)
     BaseQtVersion *version = versionFromVariant(vl.at(0));
     QTC_ASSERT(version, return);
     QtVersionManager::removeVersion(version);
-    QtKitInformation::setQtVersion(k, nullptr); // Always mark Kit as not using this Qt
+    QtKitAspect::setQtVersion(k, nullptr); // Always mark Kit as not using this Qt
 }
 
 void QtProjectImporter::persistTemporaryQt(Kit *k, const QVariantList &vl)
@@ -118,7 +118,7 @@ void QtProjectImporter::persistTemporaryQt(Kit *k, const QVariantList &vl)
     QTC_ASSERT(vl.count() == 1, return);
     const QVariant data = vl.at(0);
     BaseQtVersion *tmpVersion = versionFromVariant(data);
-    BaseQtVersion *actualVersion = QtKitInformation::qtVersion(k);
+    BaseQtVersion *actualVersion = QtKitAspect::qtVersion(k);
 
     // User changed Kit away from temporary Qt that was set up:
     if (tmpVersion && actualVersion != tmpVersion)
@@ -129,7 +129,7 @@ void QtProjectImporter::persistTemporaryQt(Kit *k, const QVariantList &vl)
 } // namespace QtSupport
 
 #include "qtsupportplugin.h"
-#include "desktopqtversion.h"
+#include "qtversions.h"
 
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/buildinfo.h>
@@ -144,9 +144,9 @@ namespace Internal {
 struct DirectoryData {
     DirectoryData(const QString &ip,
                   Kit *k = nullptr, bool ink = false,
-                  const Utils::FileName &qp = Utils::FileName(), bool inq = false) :
+                  const Utils::FilePath &qp = Utils::FilePath(), bool inq = false) :
         isNewKit(ink), isNewQt(inq),
-        importPath(Utils::FileName::fromString(ip)),
+        importPath(Utils::FilePath::fromString(ip)),
         kit(k), qmakePath(qp)
     { }
 
@@ -160,15 +160,15 @@ struct DirectoryData {
 
     const bool isNewKit = false;
     const bool isNewQt = false;
-    const Utils::FileName importPath;
+    const Utils::FilePath importPath;
     Kit *const kit = nullptr;
-    const Utils::FileName qmakePath;
+    const Utils::FilePath qmakePath;
 };
 
 class TestQtProjectImporter : public QtProjectImporter
 {
 public:
-    TestQtProjectImporter(const Utils::FileName &pp, const QList<void *> &testData) :
+    TestQtProjectImporter(const Utils::FilePath &pp, const QList<void *> &testData) :
         QtProjectImporter(pp),
         m_testData(testData)
     { }
@@ -178,15 +178,15 @@ public:
     bool allDeleted() const { return m_deletedTestData.count() == m_testData.count();}
 
 protected:
-    QList<void *> examineDirectory(const Utils::FileName &importPath) const override;
+    QList<void *> examineDirectory(const Utils::FilePath &importPath) const override;
     bool matchKit(void *directoryData, const Kit *k) const override;
     Kit *createKit(void *directoryData) const override;
-    const QList<BuildInfo> buildInfoListForKit(const Kit *k, void *directoryData) const override;
+    const QList<BuildInfo> buildInfoList(void *directoryData) const override;
     void deleteDirectoryData(void *directoryData) const override;
 
 private:
     const QList<void *> m_testData;
-    mutable Utils::FileName m_path;
+    mutable Utils::FilePath m_path;
     mutable QVector<void*> m_deletedTestData;
 
     QList<Kit *> m_deletedKits;
@@ -197,7 +197,7 @@ QStringList TestQtProjectImporter::importCandidates()
     return QStringList();
 }
 
-QList<void *> TestQtProjectImporter::examineDirectory(const Utils::FileName &importPath) const
+QList<void *> TestQtProjectImporter::examineDirectory(const Utils::FilePath &importPath) const
 {
     m_path = importPath;
 
@@ -228,7 +228,7 @@ Kit *TestQtProjectImporter::createKit(void *directoryData) const
     // New temporary kit:
     return createTemporaryKit(findOrCreateQtVersion(dd->qmakePath),
                               [dd](Kit *k) {
-        BaseQtVersion *qt = QtKitInformation::qtVersion(k);
+        BaseQtVersion *qt = QtKitAspect::qtVersion(k);
         QMap<Core::Id, QVariant> toKeep;
         for (const Core::Id &key : k->allKeys()) {
             if (key.toString().startsWith("PE.tmp."))
@@ -237,13 +237,13 @@ Kit *TestQtProjectImporter::createKit(void *directoryData) const
         k->copyFrom(dd->kit);
         for (auto i = toKeep.constBegin(); i != toKeep.constEnd(); ++i)
             k->setValue(i.key(), i.value());
-        QtKitInformation::setQtVersion(k, qt);
+        QtKitAspect::setQtVersion(k, qt);
     });
 }
 
-const QList<BuildInfo> TestQtProjectImporter::buildInfoListForKit(const Kit *k, void *directoryData) const
+const QList<BuildInfo> TestQtProjectImporter::buildInfoList(void *directoryData) const
 {
-    Q_UNUSED(directoryData);
+    Q_UNUSED(directoryData)
     assert(m_testData.contains(directoryData));
     assert(!m_deletedTestData.contains(directoryData));
     assert(static_cast<const DirectoryData *>(directoryData)->importPath == m_path);
@@ -252,7 +252,6 @@ const QList<BuildInfo> TestQtProjectImporter::buildInfoListForKit(const Kit *k, 
     info.displayName = "Test Build info";
     info.typeName = "Debug";
     info.buildDirectory = m_path;
-    info.kitId = k->id();
     info.buildType = BuildConfiguration::Debug;
     return {info};
 }
@@ -268,14 +267,14 @@ void TestQtProjectImporter::deleteDirectoryData(void *directoryData) const
     delete static_cast<DirectoryData *>(directoryData);
 }
 
-static Utils::FileName setupQmake(const BaseQtVersion *qt, const QString &path)
+static Utils::FilePath setupQmake(const BaseQtVersion *qt, const QString &path)
 {
     const QFileInfo fi = QFileInfo(qt->qmakeCommand().toFileInfo().canonicalFilePath());
     const QString qmakeFile = path + "/" + fi.fileName();
     if (!QFile::copy(fi.absoluteFilePath(), qmakeFile))
-        return Utils::FileName();
+        return Utils::FilePath();
 
-    return Utils::FileName::fromString(qmakeFile);
+    return Utils::FilePath::fromString(qmakeFile);
 }
 
 void QtSupportPlugin::testQtProjectImporter_oneProject_data()
@@ -362,7 +361,7 @@ void QtSupportPlugin::testQtProjectImporter_oneProject()
     Kit *defaultKit = KitManager::defaultKit();
     QVERIFY(defaultKit);
 
-    BaseQtVersion *defaultQt = QtKitInformation::qtVersion(defaultKit);
+    BaseQtVersion *defaultQt = QtKitAspect::qtVersion(defaultKit);
     QVERIFY(defaultQt);
 
     const Utils::TemporaryDirectory tempDir1("tmp1");
@@ -373,12 +372,12 @@ void QtSupportPlugin::testQtProjectImporter_oneProject()
     // Templates referrenced by test data:
     QVector<Kit *> kitTemplates = {defaultKit, defaultKit->clone(), defaultKit->clone()};
     // Customize kit numbers 1 and 2:
-    QtKitInformation::setQtVersion(kitTemplates[1], nullptr);
-    QtKitInformation::setQtVersion(kitTemplates[2], nullptr);
-    SysRootKitInformation::setSysRoot(kitTemplates[1], Utils::FileName::fromString("/some/path"));
-    SysRootKitInformation::setSysRoot(kitTemplates[2], Utils::FileName::fromString("/some/other/path"));
+    QtKitAspect::setQtVersion(kitTemplates[1], nullptr);
+    QtKitAspect::setQtVersion(kitTemplates[2], nullptr);
+    SysRootKitAspect::setSysRoot(kitTemplates[1], Utils::FilePath::fromString("/some/path"));
+    SysRootKitAspect::setSysRoot(kitTemplates[2], Utils::FilePath::fromString("/some/other/path"));
 
-    QVector<Utils::FileName> qmakePaths = {defaultQt->qmakeCommand(),
+    QVector<Utils::FilePath> qmakePaths = {defaultQt->qmakeCommand(),
                                            setupQmake(defaultQt, tempDir1.path()),
                                            setupQmake(defaultQt, tempDir2.path())};
 
@@ -405,13 +404,13 @@ void QtSupportPlugin::testQtProjectImporter_oneProject()
         testData.append(new DirectoryData(appDir,
                                           (kitIndex < 0) ? nullptr : kitTemplates.at(kitIndex),
                                           (kitIndex > 0), /* new Kit */
-                                          (qtIndex < 0) ? Utils::FileName() : qmakePaths.at(qtIndex),
+                                          (qtIndex < 0) ? Utils::FilePath() : qmakePaths.at(qtIndex),
                                           (qtIndex > 0) /* new Qt */));
     }
 
     // Finally set up importer:
     // Copy the directoryData so that importer is free to delete it later.
-    TestQtProjectImporter importer(Utils::FileName::fromString(tempDir1.path()),
+    TestQtProjectImporter importer(Utils::FilePath::fromString(tempDir1.path()),
                                    Utils::transform(testData, [](DirectoryData *i) {
                                        return static_cast<void *>(new DirectoryData(*i));
                                    }));
@@ -421,7 +420,7 @@ void QtSupportPlugin::testQtProjectImporter_oneProject()
     // --------------------------------------------------------------------
 
     // choose an existing directory to "import"
-    const QList<BuildInfo> buildInfo = importer.import(Utils::FileName::fromString(appDir), true);
+    const QList<BuildInfo> buildInfo = importer.import(Utils::FilePath::fromString(appDir), true);
 
     // VALIDATE: Basic TestImporter state:
     QCOMPARE(importer.projectFilePath().toString(), tempDir1.path());
@@ -445,7 +444,7 @@ void QtSupportPlugin::testQtProjectImporter_oneProject()
         Kit *newKit = KitManager::kit(bi.kitId);
         QVERIFY(newKit);
 
-        const int newQtId = QtKitInformation::qtVersionId(newKit);
+        const int newQtId = QtKitAspect::qtVersionId(newKit);
 
         // VALIDATE: Qt id is unchanged (unless it is a new Qt)
         if (!dd->isNewQt)
@@ -468,7 +467,7 @@ void QtSupportPlugin::testQtProjectImporter_oneProject()
             QCOMPARE(templateKeys.count(), newKitKeys.count()); // existing kit needs to be unchanged!
 
         for (Core::Id id : templateKeys) {
-            if (id == QtKitInformation::id())
+            if (id == QtKitAspect::id())
                 continue; // with the exception of the Qt one...
             QVERIFY(newKit->hasValue(id));
             QVERIFY(dd->kit->value(id) == newKit->value(id));
@@ -497,7 +496,7 @@ void QtSupportPlugin::testQtProjectImporter_oneProject()
             templateKit = defaultKit;
         } else {
             templateKit = dd->kit->clone(true);
-            QtKitInformation::setQtVersionId(templateKit, QtKitInformation::qtVersionId(newKit));
+            QtKitAspect::setQtVersionId(templateKit, QtKitAspect::qtVersionId(newKit));
         }
         const QList<Core::Id> templateKitKeys = templateKit->allKeys();
 
@@ -522,7 +521,7 @@ void QtSupportPlugin::testQtProjectImporter_oneProject()
 
         const QList<Core::Id> newKitKeys = newKit->allKeys();
         const Core::Id newKitId = newKit->id();
-        const int qtId = QtKitInformation::qtVersionId(newKit);
+        const int qtId = QtKitAspect::qtVersionId(newKit);
 
         // VALIDATE: Kit Id has not changed
         QCOMPARE(newKitId, newKitIdAfterImport);
@@ -539,7 +538,7 @@ void QtSupportPlugin::testQtProjectImporter_oneProject()
             // VALIDATE: All the kit values are as set up in the template before
             QCOMPARE(newKitKeys.count(), templateKitKeys.count());
             for (Core::Id id : templateKitKeys) {
-                if (id == QtKitInformation::id())
+                if (id == QtKitAspect::id())
                     continue;
                 QVERIFY(newKit->hasValue(id));
                 QVERIFY(newKit->value(id) == templateKit->value(id));
@@ -553,7 +552,7 @@ void QtSupportPlugin::testQtProjectImporter_oneProject()
             // VALIDATE: All keys that got added during import are gone
             QCOMPARE(newKitKeys.count(), templateKitKeys.count());
             for (Core::Id id : newKitKeys) {
-                if (id == QtKitInformation::id())
+                if (id == QtKitAspect::id())
                     continue; // Will be checked by Qt version later
                 QVERIFY(templateKit->hasValue(id));
                 QVERIFY(newKit->value(id) == templateKit->value(id));
@@ -562,7 +561,7 @@ void QtSupportPlugin::testQtProjectImporter_oneProject()
 
         if (qtIsPersistent) {
             // VALIDATE: Qt is used in the Kit:
-            QVERIFY(QtKitInformation::qtVersionId(newKit) == qtId);
+            QVERIFY(QtKitAspect::qtVersionId(newKit) == qtId);
 
             // VALIDATE: Qt is still in QtVersionManager
             QVERIFY(QtVersionManager::version(qtId));
@@ -571,10 +570,10 @@ void QtSupportPlugin::testQtProjectImporter_oneProject()
             QCOMPARE(QtVersionManager::version(qtId)->qmakeCommand(), dd->qmakePath);
 
             // VALIDATE: Kit uses the expected Qt
-            QCOMPARE(QtKitInformation::qtVersionId(newKit), qtId);
+            QCOMPARE(QtKitAspect::qtVersionId(newKit), qtId);
         } else {
             // VALIDATE: Qt was reset in the kit
-            QVERIFY(QtKitInformation::qtVersionId(newKit) == -1);
+            QVERIFY(QtKitAspect::qtVersionId(newKit) == -1);
 
             // VALIDATE: New kit is still visible in KitManager
             QVERIFY(KitManager::kit(newKitId)); // Cleanup Kit does not unregister Kits, so it does
@@ -584,7 +583,7 @@ void QtSupportPlugin::testQtProjectImporter_oneProject()
             QVERIFY(!QtVersionManager::version(qtId));
 
             // VALIDATE: Qt version was reset on the kit
-            QVERIFY(newKit->value(QtKitInformation::id()).toInt() == -1); // new Qt will be reset to invalid!
+            QVERIFY(newKit->value(QtKitAspect::id()).toInt() == -1); // new Qt will be reset to invalid!
         }
 
         if (templateKit != defaultKit)

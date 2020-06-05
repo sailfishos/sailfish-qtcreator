@@ -128,7 +128,7 @@ static int countSkippedChars(const QString &blockText, const QString &textToProc
     return skippedChars;
 }
 
-static const Token tokenAtPosition(const Tokens &tokens, const unsigned pos)
+static const Token tokenAtPosition(const Tokens &tokens, const int pos)
 {
     for (int i = tokens.size() - 1; i >= 0; --i) {
         const Token tk = tokens.at(i);
@@ -145,6 +145,7 @@ static LanguageFeatures languageFeatures()
     features.qtKeywordsEnabled = false;
     features.qtMocRunEnabled = false;
     features.cxx11Enabled = true;
+    features.cxx14Enabled = true;
     features.cxxEnabled = true;
     features.c99Enabled = true;
     features.objCEnabled = true;
@@ -358,6 +359,32 @@ static bool isAfterRecordLikeDefinition(const BackwardsScanner &tokens, int inde
     return false;
 }
 
+static bool isControlFlowKeywordRequiringParentheses(const Token &token)
+{
+    return token.is(T_IF)
+        || token.is(T_WHILE)
+        || token.is(T_FOR)
+        || token.is(T_SWITCH)
+        || token.is(T_CATCH);
+}
+
+static bool isAfterControlFlow(const BackwardsScanner &tokens, int index)
+{
+    const Token &token = tokens[index];
+    if (token.is(T_DO) || token.is(T_ELSE) || token.is(T_TRY))
+        return true;
+
+    if (token.is(T_RPAREN)) {
+        const int startIndex = index + 1;
+        const int matchingBraceIndex = tokens.startOfMatchingBrace(startIndex);
+        if (matchingBraceIndex == startIndex)
+            return false; // No matching paren found.
+        return isControlFlowKeywordRequiringParentheses(tokens[matchingBraceIndex - 1]);
+    }
+
+    return false;
+}
+
 static bool allowAutoClosingBrace(const QTextCursor &cursor,
                                   MatchingText::IsNextBlockDeeperIndented isNextIndented)
 {
@@ -368,6 +395,9 @@ static bool allowAutoClosingBrace(const QTextCursor &cursor,
     const int index = tokens.startToken() - 1;
 
     if (tokens[index].isStringLiteral())
+        return false;
+
+    if (isAfterControlFlow(tokens, index))
         return false;
 
     if (isAfterNamespaceDefinition(tokens, index))
@@ -420,7 +450,7 @@ bool MatchingText::contextAllowsElectricCharacters(const QTextCursor &cursor)
         return false;
 
     if (token.isStringLiteral() || token.isCharLiteral()) {
-        const unsigned pos = cursor.selectionEnd() - cursor.block().position();
+        const int pos = cursor.selectionEnd() - cursor.block().position();
         if (pos <= token.utf16charsEnd())
             return false;
     }
@@ -455,7 +485,7 @@ bool MatchingText::isInCommentHelper(const QTextCursor &cursor, Token *retToken)
     int prevState = 0;
     const Tokens tokens = getTokens(cursor, prevState);
 
-    const unsigned pos = cursor.selectionEnd() - cursor.block().position();
+    const int pos = cursor.selectionEnd() - cursor.block().position();
 
     if (tokens.isEmpty() || pos < tokens.first().utf16charsBegin())
         return prevState > 0;
@@ -480,7 +510,7 @@ Kind MatchingText::stringKindAtCursor(const QTextCursor &cursor)
     int prevState = 0;
     const Tokens tokens = getTokens(cursor, prevState);
 
-    const unsigned pos = cursor.selectionEnd() - cursor.block().position();
+    const int pos = cursor.selectionEnd() - cursor.block().position();
 
     if (tokens.isEmpty() || pos <= tokens.first().utf16charsBegin())
         return T_EOF_SYMBOL;

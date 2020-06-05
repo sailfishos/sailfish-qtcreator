@@ -34,7 +34,6 @@ const char ACTION_ID[]              = "Beautifier.Action";
 const char MENU_ID[]                = "Beautifier.Menu";
 const char OPTION_CATEGORY[]        = "II.Beautifier";
 const char OPTION_GENERAL_ID[]      = "aaa.General";
-const char SETTINGS_GROUP[]         = "Beautifier";
 const char SETTINGS_DIRNAME[]       = "beautifier";
 const char DOCUMENTATION_DIRNAME[]  = "documentation";
 const char DOCUMENTATION_XMLROOT[]  = "beautifier_documentation";

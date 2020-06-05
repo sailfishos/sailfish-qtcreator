@@ -26,7 +26,6 @@
 #include "debuggeritem.h"
 #include "debuggeritemmanager.h"
 #include "debuggerkitinformation.h"
-#include "debuggerkitconfigwidget.h"
 #include "debuggerprotocol.h"
 
 #include <projectexplorer/abi.h>
@@ -38,6 +37,7 @@
 #include <utils/qtcassert.h>
 #include <utils/synchronousprocess.h>
 #include <utils/utilsicons.h>
+#include <utils/winutils.h>
 
 #include <QFileInfo>
 #include <QProcess>
@@ -65,12 +65,12 @@ const char DEBUGGER_INFORMATION_WORKINGDIRECTORY[] = "WorkingDirectory";
 
 //! Return the configuration of gdb as a list of --key=value
 //! \note That the list will also contain some output not in this format.
-static QString getConfigurationOfGdbCommand(const QString &command)
+static QString getConfigurationOfGdbCommand(const FilePath &command)
 {
     // run gdb with the --configuration opion
     Utils::SynchronousProcess gdbConfigurationCall;
     Utils::SynchronousProcessResponse output =
-            gdbConfigurationCall.runBlocking(command, {QString("--configuration")});
+            gdbConfigurationCall.runBlocking({command, {"--configuration"}});
     return output.allOutput();
 }
 
@@ -107,8 +107,8 @@ DebuggerItem::DebuggerItem(const QVariant &id)
 DebuggerItem::DebuggerItem(const QVariantMap &data)
 {
     m_id = data.value(DEBUGGER_INFORMATION_ID).toString();
-    m_command = FileName::fromUserInput(data.value(DEBUGGER_INFORMATION_COMMAND).toString());
-    m_workingDirectory = FileName::fromUserInput(data.value(DEBUGGER_INFORMATION_WORKINGDIRECTORY).toString());
+    m_command = FilePath::fromUserInput(data.value(DEBUGGER_INFORMATION_COMMAND).toString());
+    m_workingDirectory = FilePath::fromUserInput(data.value(DEBUGGER_INFORMATION_WORKINGDIRECTORY).toString());
     m_unexpandedDisplayName = data.value(DEBUGGER_INFORMATION_DISPLAYNAME).toString();
     m_isAutoDetected = data.value(DEBUGGER_INFORMATION_AUTODETECTED, false).toBool();
     m_version = data.value(DEBUGGER_INFORMATION_VERSION).toString();
@@ -116,7 +116,8 @@ DebuggerItem::DebuggerItem(const QVariantMap &data)
                                                  static_cast<int>(NoEngineType)).toInt());
     m_lastModified = data.value(DEBUGGER_INFORMATION_LASTMODIFIED).toDateTime();
 
-    foreach (const QString &a, data.value(DEBUGGER_INFORMATION_ABIS).toStringList()) {
+    const QStringList abis = data.value(DEBUGGER_INFORMATION_ABIS).toStringList();
+    for (const QString &a : abis) {
         Abi abi = Abi::fromString(a);
         if (!abi.isNull())
             m_abis.append(abi);
@@ -138,20 +139,39 @@ void DebuggerItem::createId()
     m_id = QUuid::createUuid().toString();
 }
 
+static bool isUVisionExecutable(const QFileInfo &fileInfo)
+{
+    if (!HostOsInfo::isWindowsHost())
+        return false;
+    const QString baseName = fileInfo.baseName();
+    return baseName == "UV4";
+}
+
 void DebuggerItem::reinitializeFromFile()
 {
     // CDB only understands the single-dash -version, whereas GDB and LLDB are
     // happy with both -version and --version. So use the "working" -version
     // except for the experimental LLDB-MI which insists on --version.
-    const char *version = "-version";
+    QString version = "-version";
     const QFileInfo fileInfo = m_command.toFileInfo();
     m_lastModified = fileInfo.lastModified();
     if (fileInfo.baseName().toLower().contains("lldb-mi"))
         version = "--version";
 
+    // We don't need to start the uVision executable to
+    // determine its version.
+    if (isUVisionExecutable(fileInfo)) {
+        QString errorMessage;
+        m_version = winGetDLLVersion(WinDLLFileVersion,
+                                     fileInfo.absoluteFilePath(),
+                                     &errorMessage);
+        m_engineType = UvscEngineType;
+        m_abis.clear();
+        return;
+    }
+
     SynchronousProcess proc;
-    SynchronousProcessResponse response
-            = proc.runBlocking(m_command.toString(), {QLatin1String(version)});
+    SynchronousProcessResponse response = proc.runBlocking({m_command, {version}});
     if (response.result != SynchronousProcessResponse::Finished) {
         m_engineType = NoEngineType;
         return;
@@ -174,7 +194,7 @@ void DebuggerItem::reinitializeFromFile()
         const bool unableToFindAVersion = (0 == version);
         const bool gdbSupportsConfigurationFlag = (version >= 70700);
         if (gdbSupportsConfigurationFlag || unableToFindAVersion) {
-            const auto gdbConfiguration = getConfigurationOfGdbCommand(m_command.toString());
+            const auto gdbConfiguration = getConfigurationOfGdbCommand(m_command);
             const auto gdbTargetAbiString =
                     extractGdbTargetAbiStringFromGdbOutput(gdbConfiguration);
             if (!gdbTargetAbiString.isEmpty()) {
@@ -237,6 +257,8 @@ QString DebuggerItem::engineTypeName() const
         return QLatin1String("CDB");
     case LldbEngineType:
         return QLatin1String("LLDB");
+    case UvscEngineType:
+        return QLatin1String("UVSC");
     default:
         return QString();
     }
@@ -261,7 +283,7 @@ QIcon DebuggerItem::decoration() const
         return Utils::Icons::CRITICAL.icon();
     if (!m_command.toFileInfo().isExecutable())
         return Utils::Icons::WARNING.icon();
-    if (!m_workingDirectory.isEmpty() && !m_workingDirectory.toFileInfo().isDir())
+    if (!m_workingDirectory.isEmpty() && !m_workingDirectory.isDir())
         return Utils::Icons::WARNING.icon();
     return QIcon();
 }
@@ -303,14 +325,14 @@ QString DebuggerItem::displayName() const
         return m_unexpandedDisplayName;
 
     MacroExpander expander;
-    expander.registerVariable("Debugger:Type", DebuggerKitInformation::tr("Type of Debugger Backend"),
+    expander.registerVariable("Debugger:Type", DebuggerKitAspect::tr("Type of Debugger Backend"),
         [this] { return engineTypeName(); });
-    expander.registerVariable("Debugger:Version", DebuggerKitInformation::tr("Debugger"),
+    expander.registerVariable("Debugger:Version", DebuggerKitAspect::tr("Debugger"),
         [this] { return !m_version.isEmpty() ? m_version :
-                                               DebuggerKitInformation::tr("Unknown debugger version"); });
-    expander.registerVariable("Debugger:Abi", DebuggerKitInformation::tr("Debugger"),
+                                               DebuggerKitAspect::tr("Unknown debugger version"); });
+    expander.registerVariable("Debugger:Abi", DebuggerKitAspect::tr("Debugger"),
         [this] { return !m_abis.isEmpty() ? abiNames().join(' ') :
-                                            DebuggerKitInformation::tr("Unknown debugger ABI"); });
+                                            DebuggerKitAspect::tr("Unknown debugger ABI"); });
     return expander.expand(m_unexpandedDisplayName);
 }
 
@@ -324,7 +346,7 @@ void DebuggerItem::setEngineType(const DebuggerEngineType &engineType)
     m_engineType = engineType;
 }
 
-void DebuggerItem::setCommand(const FileName &command)
+void DebuggerItem::setCommand(const FilePath &command)
 {
     m_command = command;
 }
@@ -344,7 +366,7 @@ void DebuggerItem::setVersion(const QString &version)
     m_version = version;
 }
 
-void DebuggerItem::setAbis(const QList<Abi> &abis)
+void DebuggerItem::setAbis(const Abis &abis)
 {
     m_abis = abis;
 }
@@ -382,6 +404,11 @@ static DebuggerItem::MatchLevel matchSingle(const Abi &debuggerAbi, const Abi &t
         return DebuggerItem::DoesNotMatch;
 
     // We have at least 'Matches well' now. Mark the combinations we really like.
+    if (HostOsInfo::isWindowsHost() && engineType == CdbEngineType
+        && targetAbi.osFlavor() >= Abi::WindowsMsvc2005Flavor
+        && targetAbi.osFlavor() <= Abi::WindowsLastMsvcFlavor) {
+        return DebuggerItem::MatchesPerfectly;
+    }
     if (HostOsInfo::isWindowsHost() && engineType == GdbEngineType && targetAbi.osFlavor() == Abi::WindowsMSysFlavor)
         return DebuggerItem::MatchesPerfectly;
     if (HostOsInfo::isLinuxHost() && engineType == GdbEngineType && targetAbi.os() == Abi::LinuxOS)

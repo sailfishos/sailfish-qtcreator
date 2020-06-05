@@ -34,6 +34,7 @@
 #include <nodemetainfo.h>
 
 #include <utils/algorithm.h>
+#include <utils/qtcassert.h>
 
 #include <QVariant>
 #include <QMetaProperty>
@@ -62,6 +63,13 @@ void ItemLibraryModel::setExpanded(bool expanded, const QString &section)
 
     if (!expanded) //default is true
         collapsedStateHash.insert(section, expanded);
+}
+
+void ItemLibraryModel::setFlowMode(bool b)
+{
+    m_flowMode = b;
+    bool changed;
+    updateVisibility(&changed);
 }
 
 ItemLibraryModel::ItemLibraryModel(QObject *parent)
@@ -179,13 +187,16 @@ void ItemLibraryModel::update(ItemLibraryInfo *itemLibraryInfo, Model *model)
 
         qCInfo(itemlibraryPopulate) << "required import: " << entry.requiredImport() << entryToImport(entry).toImportString();
 
-        if (!isItem && valid) {
-            qDebug() << Q_FUNC_INFO;
-            qDebug() << metaInfo.typeName() << "is not a QtQuick.Item";
-            qDebug() << Utils::transform(metaInfo.superClasses(), &NodeMetaInfo::typeName);
+        bool forceVisiblity = valid && NodeHints::fromItemLibraryEntry(entry).visibleInLibrary();
+
+        if (m_flowMode && metaInfo.isValid()) {
+
+            isItem = metaInfo.isSubclassOf("FlowView.FlowItem")
+                    || metaInfo.isSubclassOf("FlowView.FlowWildcard")
+                    || metaInfo.isSubclassOf("FlowView.FlowDecision");
+            forceVisiblity = isItem;
         }
 
-        bool forceVisiblity = valid && NodeHints::fromItemLibraryEntry(entry).visibleInLibrary();
 
         if (valid
                 && (isItem || forceVisiblity) //We can change if the navigator does support pure QObjects
@@ -227,11 +238,6 @@ QMimeData *ItemLibraryModel::getMimeData(const ItemLibraryEntry &itemLibraryEntr
     return mimeData;
 }
 
-QList<ItemLibrarySection *> ItemLibraryModel::sections() const
-{
-    return m_sections;
-}
-
 void ItemLibraryModel::clearSections()
 {
     qDeleteAll(m_sections);
@@ -262,6 +268,7 @@ void ItemLibraryModel::updateVisibility(bool *changed)
         bool sectionChanged = false;
         bool sectionVisibility = itemLibrarySection->updateSectionVisibility(sectionSearchText,
                                                                              &sectionChanged);
+
         *changed |= sectionChanged;
         *changed |= itemLibrarySection->setVisible(sectionVisibility);
     }
@@ -279,13 +286,15 @@ void ItemLibraryModel::addRoleNames()
 
 void ItemLibraryModel::sortSections()
 {
+    int nullPointerSectionCount = m_sections.removeAll(QPointer<ItemLibrarySection>());
+    QTC_ASSERT(nullPointerSectionCount == 0,;);
     auto sectionSort = [](ItemLibrarySection *first, ItemLibrarySection *second) {
-        return QString::localeAwareCompare(first->sortingName(), second->sortingName()) < 1;
+        return QString::localeAwareCompare(first->sortingName(), second->sortingName()) < 0;
     };
 
     std::sort(m_sections.begin(), m_sections.end(), sectionSort);
 
-    foreach (ItemLibrarySection *itemLibrarySection, m_sections)
+    for (auto itemLibrarySection : m_sections)
         itemLibrarySection->sortItems();
 }
 

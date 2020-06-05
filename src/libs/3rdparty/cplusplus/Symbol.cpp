@@ -86,11 +86,11 @@ private:
     unsigned _value;
 };
 
-Symbol::Symbol(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
-    : _name(0),
-      _enclosingScope(0),
-      _next(0),
-      _fileId(0),
+Symbol::Symbol(TranslationUnit *translationUnit, int sourceLocation, const Name *name)
+    : _name(nullptr),
+      _enclosingScope(nullptr),
+      _next(nullptr),
+      _fileId(nullptr),
       _sourceLocation(0),
       _hashCode(0),
       _storage(Symbol::NoStorage),
@@ -108,8 +108,8 @@ Symbol::Symbol(TranslationUnit *translationUnit, unsigned sourceLocation, const 
 
 Symbol::Symbol(Clone *clone, Subst *subst, Symbol *original)
     : _name(clone->name(original->_name, subst)),
-      _enclosingScope(0),
-      _next(0),
+      _enclosingScope(nullptr),
+      _next(nullptr),
       _fileId(clone->control()->stringLiteral(original->fileName(), original->fileNameLength())),
       _sourceLocation(original->_sourceLocation),
       _hashCode(original->_hashCode),
@@ -142,7 +142,7 @@ void Symbol::visitSymbol(Symbol *symbol, SymbolVisitor *visitor)
     symbol->visitSymbol(visitor);
 }
 
-unsigned Symbol::sourceLocation() const
+int Symbol::sourceLocation() const
 { return _sourceLocation; }
 
 bool Symbol::isGenerated() const
@@ -160,7 +160,7 @@ bool Symbol::isUnavailable() const
 void Symbol::setUnavailable(bool isUnavailable)
 { _isUnavailable = isUnavailable; }
 
-void Symbol::setSourceLocation(unsigned sourceLocation, TranslationUnit *translationUnit)
+void Symbol::setSourceLocation(int sourceLocation, TranslationUnit *translationUnit)
 {
     _sourceLocation = sourceLocation;
 
@@ -172,16 +172,16 @@ void Symbol::setSourceLocation(unsigned sourceLocation, TranslationUnit *transla
         _isGenerated = false;
         _line = 0;
         _column = 0;
-        _fileId = 0;
+        _fileId = nullptr;
     }
 }
 
-unsigned Symbol::line() const
+int Symbol::line() const
 {
     return _line;
 }
 
-unsigned Symbol::column() const
+int Symbol::column() const
 {
     return _column;
 }
@@ -194,13 +194,13 @@ const StringLiteral *Symbol::fileId() const
 const char *Symbol::fileName() const
 { return _fileId ? _fileId->chars() : ""; }
 
-unsigned Symbol::fileNameLength() const
+int Symbol::fileNameLength() const
 { return _fileId ? _fileId->size() : 0; }
 
 const Name *Symbol::unqualifiedName() const
 {
     if (! _name)
-        return 0;
+        return nullptr;
 
     else if (const QualifiedNameId *q = _name->asQualifiedNameId())
         return q->name();
@@ -228,7 +228,7 @@ const Identifier *Symbol::identifier() const
     if (_name)
         return _name->identifier();
 
-    return 0;
+    return nullptr;
 }
 
 Scope *Symbol::enclosingScope() const
@@ -242,7 +242,7 @@ void Symbol::setEnclosingScope(Scope *scope)
 
 void Symbol::resetEnclosingScope()
 {
-    _enclosingScope = 0;
+    _enclosingScope = nullptr;
 }
 
 Namespace *Symbol::enclosingNamespace() const
@@ -251,7 +251,7 @@ Namespace *Symbol::enclosingNamespace() const
         if (Namespace *ns = s->asNamespace())
             return ns;
     }
-    return 0;
+    return nullptr;
 }
 
 Template *Symbol::enclosingTemplate() const
@@ -260,7 +260,7 @@ Template *Symbol::enclosingTemplate() const
         if (Template *templ = s->asTemplate())
             return templ;
     }
-    return 0;
+    return nullptr;
 }
 
 Class *Symbol::enclosingClass() const
@@ -269,7 +269,7 @@ Class *Symbol::enclosingClass() const
         if (Class *klass = s->asClass())
             return klass;
     }
-    return 0;
+    return nullptr;
 }
 
 Enum *Symbol::enclosingEnum() const
@@ -278,7 +278,7 @@ Enum *Symbol::enclosingEnum() const
         if (Enum *e = s->asEnum())
             return e;
     }
-    return 0;
+    return nullptr;
 }
 
 Function *Symbol::enclosingFunction() const
@@ -287,7 +287,7 @@ Function *Symbol::enclosingFunction() const
         if (Function *fun = s->asFunction())
             return fun;
     }
-    return 0;
+    return nullptr;
 }
 
 Block *Symbol::enclosingBlock() const
@@ -296,7 +296,7 @@ Block *Symbol::enclosingBlock() const
         if (Block *block = s->asBlock())
             return block;
     }
-    return 0;
+    return nullptr;
 }
 
 unsigned Symbol::index() const
@@ -348,76 +348,76 @@ bool Symbol::isPrivate() const
 { return _visibility == Private; }
 
 bool Symbol::isScope() const
-{ return asScope() != 0; }
+{ return asScope() != nullptr; }
 
 bool Symbol::isEnum() const
-{ return asEnum()  != 0; }
+{ return asEnum()  != nullptr; }
 
 bool Symbol::isFunction() const
-{ return asFunction() != 0; }
+{ return asFunction() != nullptr; }
 
 bool Symbol::isNamespace() const
-{ return asNamespace() != 0; }
+{ return asNamespace() != nullptr; }
 
 bool Symbol::isTemplate() const
-{ return asTemplate() != 0; }
+{ return asTemplate() != nullptr; }
 
 bool Symbol::isClass() const
-{ return asClass() != 0; }
+{ return asClass() != nullptr; }
 
 bool Symbol::isForwardClassDeclaration() const
-{ return asForwardClassDeclaration() != 0; }
+{ return asForwardClassDeclaration() != nullptr; }
 
 bool Symbol::isQtPropertyDeclaration() const
-{ return asQtPropertyDeclaration() != 0; }
+{ return asQtPropertyDeclaration() != nullptr; }
 
 bool Symbol::isQtEnum() const
-{ return asQtEnum() != 0; }
+{ return asQtEnum() != nullptr; }
 
 bool Symbol::isBlock() const
-{ return asBlock() != 0; }
+{ return asBlock() != nullptr; }
 
 bool Symbol::isUsingNamespaceDirective() const
-{ return asUsingNamespaceDirective() != 0; }
+{ return asUsingNamespaceDirective() != nullptr; }
 
 bool Symbol::isUsingDeclaration() const
-{ return asUsingDeclaration() != 0; }
+{ return asUsingDeclaration() != nullptr; }
 
 bool Symbol::isDeclaration() const
-{ return asDeclaration() != 0; }
+{ return asDeclaration() != nullptr; }
 
 bool Symbol::isArgument() const
-{ return asArgument() != 0; }
+{ return asArgument() != nullptr; }
 
 bool Symbol::isTypenameArgument() const
-{ return asTypenameArgument() != 0; }
+{ return asTypenameArgument() != nullptr; }
 
 bool Symbol::isBaseClass() const
-{ return asBaseClass() != 0; }
+{ return asBaseClass() != nullptr; }
 
 bool Symbol::isObjCBaseClass() const
-{ return asObjCBaseClass() != 0; }
+{ return asObjCBaseClass() != nullptr; }
 
 bool Symbol::isObjCBaseProtocol() const
-{ return asObjCBaseProtocol() != 0; }
+{ return asObjCBaseProtocol() != nullptr; }
 
 bool Symbol::isObjCClass() const
-{ return asObjCClass() != 0; }
+{ return asObjCClass() != nullptr; }
 
 bool Symbol::isObjCForwardClassDeclaration() const
-{ return asObjCForwardClassDeclaration() != 0; }
+{ return asObjCForwardClassDeclaration() != nullptr; }
 
 bool Symbol::isObjCProtocol() const
-{ return asObjCProtocol() != 0; }
+{ return asObjCProtocol() != nullptr; }
 
 bool Symbol::isObjCForwardProtocolDeclaration() const
-{ return asObjCForwardProtocolDeclaration() != 0; }
+{ return asObjCForwardProtocolDeclaration() != nullptr; }
 
 bool Symbol::isObjCMethod() const
-{ return asObjCMethod() != 0; }
+{ return asObjCMethod() != nullptr; }
 
 bool Symbol::isObjCPropertyDeclaration() const
-{ return asObjCPropertyDeclaration() != 0; }
+{ return asObjCPropertyDeclaration() != nullptr; }
 
 void Symbol::copy(Symbol *other)
 {
@@ -439,10 +439,10 @@ void Symbol::copy(Symbol *other)
 
 Utils::Link Symbol::toLink() const
 {
-    const QString filename = QString::fromUtf8(fileName(), static_cast<int>(fileNameLength()));
+    const QString filename = QString::fromUtf8(fileName(), fileNameLength());
 
-    int line = static_cast<int>(this->line());
-    int column = static_cast<int>(this->column());
+    int line = this->line();
+    int column = this->column();
 
     if (column)
         --column;

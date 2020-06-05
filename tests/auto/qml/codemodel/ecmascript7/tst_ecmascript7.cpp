@@ -76,7 +76,7 @@ static TestData testData(const QString &path)
 {
     QFile file(path);
     file.open(QFile::ReadOnly | QFile::Text);
-    const QString content = QString(file.readAll());
+    const QString content = QString::fromUtf8(file.readAll());
     file.close();
 
     Document::MutablePtr doc = Document::create(path, Dialect::Qml);
@@ -96,7 +96,7 @@ static QStringList readSkipList(const QDir &dir, const QString &filename)
         return QStringList();
 
     while (!f.atEnd()) {
-        const QString s = f.readLine().trimmed();
+        const QString s = QString::fromUtf8(f.readLine().trimmed());
         if (!s.isEmpty())
             result << dir.absoluteFilePath(s);
     }
@@ -124,7 +124,7 @@ private slots:
     void test();
 
 private:
-    QList<QFileInfo> m_files;
+    QFileInfoList m_files;
     QStringList m_basePaths;
 };
 
@@ -134,13 +134,13 @@ void tst_Ecmascript::initTestCase()
 
     QDirIterator it(sampledir, QDirIterator::Subdirectories);
 
-    QStringList skipList = readSkipList(sampledir, QLatin1Literal("skip.txt"));
+    QStringList skipList = readSkipList(sampledir, QLatin1String("skip.txt"));
     while (it.hasNext()) {
         QString path = it.next();
         if (skipList.contains(path))
             continue;
         QFileInfo f(path);
-        if (f.isFile() && f.suffix() == QLatin1Literal("js"))
+        if (f.isFile() && f.suffix() == QLatin1String("js"))
             m_files << f;
     }
 
@@ -174,7 +174,7 @@ void tst_Ecmascript::test()
     PathsAndLanguages lPaths;
     QStringList paths(m_basePaths);
     for (auto p: paths)
-        lPaths.maybeInsert(Utils::FileName::fromString(p), Dialect::Qml);
+        lPaths.maybeInsert(Utils::FilePath::fromString(p), Dialect::Qml);
     ModelManagerInterface::importScan(result, ModelManagerInterface::workingCopy(), lPaths,
                                       ModelManagerInterface::instance(), false);
 

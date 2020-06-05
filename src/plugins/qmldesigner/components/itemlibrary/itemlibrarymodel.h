@@ -58,36 +58,32 @@ public:
 
     QMimeData *getMimeData(const ItemLibraryEntry &itemLibraryEntry);
 
-    QList<ItemLibrarySection*> sections() const;
-
-    void clearSections();
-
     static void registerQmlTypes();
-
-    int visibleSectionCount() const;
-    QList<ItemLibrarySection*> visibleSections() const;
-
-    ItemLibrarySection *sectionByName(const QString &sectionName);
 
     void setSearchText(const QString &searchText);
 
     void setExpanded(bool, const QString &section);
+
+    void setFlowMode(bool);
 
 signals:
     void qmlModelChanged();
     void searchTextChanged();
 
 private: // functions
+    ItemLibrarySection *sectionByName(const QString &sectionName);
     void updateVisibility(bool *changed);
     void addRoleNames();
     void sortSections();
+    void clearSections();
 
 
 private: // variables
-    QList<ItemLibrarySection*> m_sections;
+    QList<QPointer<ItemLibrarySection>> m_sections;
     QHash<int, QByteArray> m_roleNames;
 
     QString m_searchText;
+    bool m_flowMode = false;
 };
 
 } // namespace QmlDesigner

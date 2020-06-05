@@ -50,8 +50,13 @@ public:
         ThreadStartTypeId      = -2,
         ThreadEndTypeId        = -3,
         LostTypeId             = -4,
-        LastSpecialTypeId      = -5
+        ContextSwitchTypeId    = -5,
+        LastSpecialTypeId      = -6
     };
+
+    int numAttributes() const { return m_values.length() + 1; }
+    qint32 attributeId(int i) const { return i == 0 ? typeIndex() : m_values[i - 1].first; }
+    quint64 attributeValue(int i) const { return i == 0 ? m_value : m_values[i - 1].second; }
 
     const QVector<qint32> &origFrames() const { return m_origFrames; }
     quint8 origNumGuessedFrames() const { return m_origNumGuessedFrames; }
@@ -67,25 +72,27 @@ public:
     quint8 numGuessedFrames() const { return m_numGuessedFrames; }
     void setNumGuessedFrames(quint8 numGuessedFrames) { m_numGuessedFrames = numGuessedFrames; }
 
-    quint64 period() const { return m_period; }
-    quint64 weight() const { return m_weight; }
-
     quint8 feature() const { return m_feature; }
+
+    quint8 extra() const { return m_extra; }
+    void setExtra(quint8 extra) { m_extra = extra; }
 
 private:
     friend QDataStream &operator>>(QDataStream &stream, PerfEvent &event);
     friend QDataStream &operator<<(QDataStream &stream, const PerfEvent &event);
 
+    QVector<QPair<qint32, quint64>> m_values;
     QVector<qint32> m_origFrames;
     QVector<qint32> m_frames;
     QHash<qint32, QVariant> m_traceData;
     quint32 m_pid = 0;
     quint32 m_tid = 0;
-    quint64 m_period = 0;
-    quint64 m_weight = 0;
+    quint64 m_value = 0;
+    quint32 m_cpu = 0;
     quint8 m_origNumGuessedFrames = 0;
     quint8 m_numGuessedFrames = 0;
     quint8 m_feature = PerfEventType::InvalidFeature;
+    quint8 m_extra = 0;
 };
 
 inline QDataStream &operator>>(QDataStream &stream, PerfEvent &event)
@@ -105,16 +112,16 @@ inline QDataStream &operator>>(QDataStream &stream, PerfEvent &event)
     case PerfEventType::ThreadStart:
     case PerfEventType::ThreadEnd:
     case PerfEventType::LostDefinition:
-    case PerfEventType::Sample43:
     case PerfEventType::Sample:
     case PerfEventType::TracePointSample:
+    case PerfEventType::ContextSwitchDefinition:
         break;
     case PerfEventType::InvalidFeature:
         QTC_ASSERT(false, return stream);
     }
 
     quint64 timestamp;
-    stream >> event.m_pid >> event.m_tid >> timestamp;
+    stream >> event.m_pid >> event.m_tid >> timestamp >> event.m_cpu;
 
     static const quint64 qint64Max = static_cast<quint64>(std::numeric_limits<qint64>::max());
     event.setTimestamp(static_cast<qint64>(qMin(timestamp, qint64Max)));
@@ -129,15 +136,30 @@ inline QDataStream &operator>>(QDataStream &stream, PerfEvent &event)
     case PerfEventType::LostDefinition:
         event.setTypeIndex(PerfEvent::LostTypeId);
         break;
+    case PerfEventType::ContextSwitchDefinition:
+        event.setTypeIndex(PerfEvent::ContextSwitchTypeId);
+        bool isSwitchOut;
+        stream >> isSwitchOut;
+        event.setExtra(isSwitchOut);
+        break;
     default: {
-        qint32 typeIndex;
-        stream >> event.m_origFrames >> event.m_origNumGuessedFrames >> typeIndex;
-        if (event.m_feature != PerfEventType::Sample43) {
-            stream >> event.m_period >> event.m_weight;
-            if (event.m_feature == PerfEventType::TracePointSample)
-                stream >> event.m_traceData;
+        qint32 firstAttributeId;
+        stream >> event.m_origFrames >> event.m_origNumGuessedFrames;
+        QVector<QPair<qint32, quint64>> values;
+        stream >> values;
+        if (values.isEmpty()) {
+            firstAttributeId = PerfEvent::LastSpecialTypeId;
+        } else {
+            firstAttributeId = PerfEvent::LastSpecialTypeId - values.first().first;
+            event.m_value = values.first().second;
+            for (auto it = values.constBegin() + 1, end = values.constEnd(); it != end; ++it) {
+                event.m_values.push_back({ PerfEvent::LastSpecialTypeId - it->first,
+                                           it->second });
+            }
         }
-        event.setTypeIndex(PerfEvent::LastSpecialTypeId - typeIndex);
+        if (event.m_feature == PerfEventType::TracePointSample)
+            stream >> event.m_traceData;
+        event.setTypeIndex(firstAttributeId);
     }
     }
 
@@ -148,23 +170,31 @@ inline QDataStream &operator<<(QDataStream &stream, const PerfEvent &event)
 {
     quint8 feature = event.feature();
     stream << feature << event.m_pid << event.m_tid
-           << (event.timestamp() < 0ll ? 0ull : static_cast<quint64>(event.timestamp()));
+           << (event.timestamp() < 0ll ? 0ull : static_cast<quint64>(event.timestamp()))
+           << event.m_cpu;
     switch (feature) {
     case PerfEventType::ThreadStart:
     case PerfEventType::ThreadEnd:
     case PerfEventType::LostDefinition:
         break;
-    case PerfEventType::Sample43:
-    case PerfEventType::Sample:
-    case PerfEventType::TracePointSample:
-        stream << event.m_origFrames << event.m_origNumGuessedFrames
-               << static_cast<qint32>(PerfEvent::LastSpecialTypeId - event.typeIndex());
-        if (feature != PerfEventType::Sample43) {
-            stream << event.m_period << event.m_weight;
-            if (feature == PerfEventType::TracePointSample)
-                stream << event.m_traceData;
-        }
+    case PerfEventType::ContextSwitchDefinition:
+        stream << bool(event.extra());
         break;
+    case PerfEventType::Sample:
+    case PerfEventType::TracePointSample: {
+        stream << event.m_origFrames << event.m_origNumGuessedFrames;
+
+        QVector<QPair<qint32, quint64>> values;
+        for (int i = 0, end = event.numAttributes(); i < end; ++i) {
+            values.push_back({ PerfEvent::LastSpecialTypeId - event.attributeId(i),
+                               event.attributeValue(i) });
+        }
+        stream << values;
+
+        if (feature == PerfEventType::TracePointSample)
+            stream << event.m_traceData;
+        break;
+    }
     default:
         QTC_CHECK(false);
     }

@@ -26,8 +26,10 @@
 import QtQuick 2.0
 import HelperWidgets 2.0
 import QtQuick.Layouts 1.0
-import QtQuick.Controls 1.0 as Controls
 import QtQuickDesignerTheme 1.0
+
+import StudioControls 1.0 as StudioControls
+import StudioTheme 1.0 as StudioTheme
 
 RowLayout {
     id: anchorRow
@@ -59,7 +61,7 @@ RowLayout {
 
     property alias buttonRow: buttonRow
 
-    readonly property color __defaultTextColor: Theme.color(Theme.PanelTextColorLight)
+    readonly property color __defaultTextColor: StudioTheme.Values.themeTextColor
 
     IconLabel {
         id: icon
@@ -71,7 +73,7 @@ RowLayout {
         rows: 2
         columns: 2
 
-        Controls.Label {
+        Label {
             text: qsTr("Target")
             color: __defaultTextColor
             elide: Text.ElideRight
@@ -85,8 +87,8 @@ RowLayout {
             }
         }
 
-        Controls.Label {
-            text: "Margin"
+        Label {
+            text: qsTr("Margin")
             color: __defaultTextColor
             elide: Text.ElideRight
             Layout.minimumWidth: Math.min(60, Layout.preferredWidth + 10)
@@ -97,8 +99,83 @@ RowLayout {
                 maximumValue: 0xffff
                 minimumValue: -0xffff
                 backendValue: anchorMargin
+                realDragRange: 5000
             }
 
+            StudioControls.ButtonRow {
+                id: buttonRow
+                actionIndicatorVisible: false
+
+                property variant relativeTarget: anchorBackend.relativeAnchorTargetTop
+
+                onRelativeTargetChanged: {
+
+                    buttonSameEdge.checked = false
+                    buttonCenter.checked = false
+                    buttonOppositeEdge.checked = false
+
+                    if (relativeTarget == AnchorBindingProxy.SameEdge) {
+                        if (!invertRelativeTargets) {
+                            buttonSameEdge.checked = true
+                        } else {
+                            buttonOppositeEdge.checked = true
+                        }
+                    } else if (relativeTarget == AnchorBindingProxy.OppositeEdge) {
+                        if (!invertRelativeTargets) {
+                            buttonOppositeEdge.checked = true
+                        } else {
+                            buttonSameEdge.checked = true
+                        }
+                    } else if (relativeTarget == AnchorBindingProxy.Center) {
+                        buttonCenter.checked = true
+                    }
+                }
+
+                StudioControls.ButtonGroup {
+                    id: group
+                }
+
+                AbstractButton {
+                    id: buttonSameEdge
+                    buttonIcon: verticalAnchor ? StudioTheme.Constants.anchorTop : StudioTheme.Constants.anchorLeft
+                    checkable: true
+                    autoExclusive: true
+                    StudioControls.ButtonGroup.group: group
+                    tooltip: verticalAnchor ? qsTr("Anchor to the top of the target.") : qsTr("Anchor to the left of the target.")
+                    onClicked: {
+                        if (!invertRelativeTargets)
+                            sameEdgeButtonClicked();
+                        else
+                            oppositeEdgeButtonClicked();
+                    }
+                }
+                AbstractButton {
+                    id: buttonCenter
+                    buttonIcon: verticalAnchor ? StudioTheme.Constants.centerVertical : StudioTheme.Constants.centerHorizontal
+                    checkable: true
+                    autoExclusive: true
+                    StudioControls.ButtonGroup.group: group
+                    tooltip: verticalAnchor ? qsTr("Anchor to the vertical center of the target.") : qsTr("Anchor to the horizontal center of the target.")
+                    onClicked: centerButtonClicked();
+                }
+                AbstractButton {
+                    id: buttonOppositeEdge
+                    buttonIcon: verticalAnchor ? StudioTheme.Constants.anchorBottom : StudioTheme.Constants.anchorRight
+                    checkable: true
+                    autoExclusive: true
+                    StudioControls.ButtonGroup.group: group
+                    tooltip: verticalAnchor ? qsTr("Anchor to the bottom of the target.") : qsTr("Anchor to the right of the target.")
+                    onClicked: {
+                        if (!invertRelativeTargets)
+                            oppositeEdgeButtonClicked();
+                        else
+                            sameEdgeButtonClicked();
+                    }
+                }
+            }
+
+
+/*
             ButtonRow {
                 id: buttonRow
 
@@ -157,6 +234,7 @@ RowLayout {
                     }
                 }
             }
+*/
         }
     }
 }

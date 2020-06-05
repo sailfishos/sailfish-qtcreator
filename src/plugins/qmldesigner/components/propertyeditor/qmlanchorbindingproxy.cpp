@@ -24,7 +24,9 @@
 ****************************************************************************/
 
 #include "qmlanchorbindingproxy.h"
-#include "abstractview.h"
+
+#include <exception.h>
+#include <abstractview.h>
 #include <qmlanchors.h>
 #include <nodeabstractproperty.h>
 #include <variantproperty.h>
@@ -290,9 +292,9 @@ void QmlAnchorBindingProxy::setDefaultRelativeRightTarget()
     }
 }
 
-RewriterTransaction QmlAnchorBindingProxy::beginRewriterTransaction(const QByteArray &identifier)
+bool QmlAnchorBindingProxy::executeInTransaction(const QByteArray &identifier, const AbstractView::OperationBlock &lambda)
 {
-     return m_qmlItemNode.modelNode().view()->beginRewriterTransaction(identifier);
+    return m_qmlItemNode.modelNode().view()->executeInTransaction(identifier, lambda);
 }
 
 bool QmlAnchorBindingProxy::hasParent() const
@@ -359,14 +361,11 @@ void QmlAnchorBindingProxy::setTopTarget(const QString &target)
     if (!newTarget.isValid())
         return;
 
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::setTopTarget"));
-
-    m_topTarget = newTarget;
-
-    setDefaultRelativeTopTarget();
-
-    anchorTop();
+    executeInTransaction("QmlAnchorBindingProxy::setTopTarget", [this, newTarget](){
+        m_topTarget = newTarget;
+        setDefaultRelativeTopTarget();
+        anchorTop();
+    });
 
     emit topTargetChanged();
 }
@@ -385,12 +384,12 @@ void QmlAnchorBindingProxy::setBottomTarget(const QString &target)
     if (!newTarget.isValid())
         return;
 
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::setBottomTarget"));
+    executeInTransaction("QmlAnchorBindingProxy::setBottomTarget", [this, newTarget](){
+        m_bottomTarget = newTarget;
+        setDefaultRelativeBottomTarget();
+        anchorBottom();
 
-    m_bottomTarget = newTarget;
-    setDefaultRelativeBottomTarget();
-    anchorBottom();
+    });
 
     emit bottomTargetChanged();
 }
@@ -408,12 +407,11 @@ void QmlAnchorBindingProxy::setLeftTarget(const QString &target)
     if (!newTarget.isValid())
         return;
 
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::setLeftTarget"));
-
-    m_leftTarget = newTarget;
-    setDefaultRelativeLeftTarget();
-    anchorLeft();
+    executeInTransaction("QmlAnchorBindingProxy::setLeftTarget", [this, newTarget](){
+        m_leftTarget = newTarget;
+        setDefaultRelativeLeftTarget();
+        anchorLeft();
+    });
 
     emit leftTargetChanged();
 }
@@ -431,12 +429,11 @@ void QmlAnchorBindingProxy::setRightTarget(const QString &target)
     if (!newTarget.isValid())
         return;
 
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::setRightTarget"));
-
-    m_rightTarget = newTarget;
-    setDefaultRelativeRightTarget();
-    anchorRight();
+    executeInTransaction("QmlAnchorBindingProxy::setRightTarget", [this, newTarget](){
+        m_rightTarget = newTarget;
+        setDefaultRelativeRightTarget();
+        anchorRight();
+    });
 
     emit rightTargetChanged();
 }
@@ -454,11 +451,10 @@ void QmlAnchorBindingProxy::setVerticalTarget(const QString &target)
     if (!newTarget.isValid())
         return;
 
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::setVerticalTarget"));
-
-    m_verticalTarget = newTarget;
-    anchorVertical();
+    executeInTransaction("QmlAnchorBindingProxy::setVerticalTarget", [this, newTarget](){
+        m_verticalTarget = newTarget;
+        anchorVertical();
+    });
 
     emit verticalTargetChanged();
 }
@@ -476,11 +472,10 @@ void QmlAnchorBindingProxy::setHorizontalTarget(const QString &target)
     if (!newTarget.isValid())
         return;
 
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::setHorizontalTarget"));
-
-    m_horizontalTarget = newTarget;
-    anchorHorizontal();
+    executeInTransaction("QmlAnchorBindingProxy::setHorizontalTarget", [this, newTarget](){
+        m_horizontalTarget = newTarget;
+        anchorHorizontal();
+    });
 
     emit horizontalTargetChanged();
 }
@@ -493,12 +488,10 @@ void QmlAnchorBindingProxy::setRelativeAnchorTargetTop(QmlAnchorBindingProxy::Re
     if (target == m_relativeTopTarget)
         return;
 
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::setRelativeAnchorTargetTop"));
-
-    m_relativeTopTarget = target;
-
-    anchorTop();
+    executeInTransaction("QmlAnchorBindingProxy::setRelativeAnchorTargetTop", [this, target](){
+        m_relativeTopTarget = target;
+        anchorTop();
+    });
 
     emit relativeAnchorTargetTopChanged();
 }
@@ -511,12 +504,10 @@ void QmlAnchorBindingProxy::setRelativeAnchorTargetBottom(QmlAnchorBindingProxy:
     if (target == m_relativeBottomTarget)
         return;
 
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::setRelativeAnchorTargetBottom"));
-
-    m_relativeBottomTarget = target;
-
-    anchorBottom();
+    executeInTransaction("QmlAnchorBindingProxy::setRelativeAnchorTargetBottom", [this, target](){
+        m_relativeBottomTarget = target;
+        anchorBottom();
+    });
 
     emit relativeAnchorTargetBottomChanged();
 }
@@ -529,12 +520,11 @@ void QmlAnchorBindingProxy::setRelativeAnchorTargetLeft(QmlAnchorBindingProxy::R
     if (target == m_relativeLeftTarget)
         return;
 
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::setRelativeAnchorTargetLeft"));
+    executeInTransaction("QmlAnchorBindingProxy::setRelativeAnchorTargetLeft", [this, target](){
+        m_relativeLeftTarget = target;
+        anchorLeft();
 
-    m_relativeLeftTarget = target;
-
-    anchorLeft();
+    });
 
     emit relativeAnchorTargetLeftChanged();
 }
@@ -547,12 +537,10 @@ void QmlAnchorBindingProxy::setRelativeAnchorTargetRight(QmlAnchorBindingProxy::
     if (target == m_relativeRightTarget)
         return;
 
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::setRelativeAnchorTargetRight"));
-
-    m_relativeRightTarget = target;
-
-    anchorRight();
+    executeInTransaction("QmlAnchorBindingProxy::setRelativeAnchorTargetRight", [this, target](){
+        m_relativeRightTarget = target;
+        anchorRight();
+    });
 
     emit relativeAnchorTargetRightChanged();
 
@@ -566,12 +554,11 @@ void QmlAnchorBindingProxy::setRelativeAnchorTargetVertical(QmlAnchorBindingProx
     if (target == m_relativeVerticalTarget)
         return;
 
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::setRelativeAnchorTargetVertical"));
 
-    m_relativeVerticalTarget = target;
-
-    anchorVertical();
+    executeInTransaction("QmlAnchorBindingProxy::setRelativeAnchorTargetVertical", [this, target](){
+        m_relativeVerticalTarget = target;
+        anchorVertical();
+    });
 
     emit relativeAnchorTargetVerticalChanged();
 }
@@ -584,12 +571,10 @@ void QmlAnchorBindingProxy::setRelativeAnchorTargetHorizontal(QmlAnchorBindingPr
     if (target == m_relativeHorizontalTarget)
         return;
 
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::setRelativeAnchorTargetHorizontal"));
-
-    m_relativeHorizontalTarget = target;
-
-    anchorHorizontal();
+    executeInTransaction("QmlAnchorBindingProxy::setRelativeAnchorTargetHorizontal", [this, target](){
+        m_relativeHorizontalTarget = target;
+        anchorHorizontal();
+    });
 
     emit relativeAnchorTargetHorizontalChanged();
 }
@@ -634,10 +619,10 @@ int QmlAnchorBindingProxy::indexOfPossibleTargetItem(const QString &targetName) 
     return possibleTargetItems().indexOf(targetName);
 }
 
-void QmlAnchorBindingProxy::resetLayout() {
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::resetLayout"));
+void QmlAnchorBindingProxy::resetLayout()
+{
 
+    executeInTransaction("QmlAnchorBindingProxy::resetLayout", [this](){
         m_qmlItemNode.anchors().removeAnchors();
         m_qmlItemNode.anchors().removeMargins();
 
@@ -645,6 +630,7 @@ void QmlAnchorBindingProxy::resetLayout() {
         restoreProperty(modelNode(), "y");
         restoreProperty(modelNode(), "width");
         restoreProperty(modelNode(), "height");
+    });
 
         emit topAnchorChanged();
         emit bottomAnchorChanged();
@@ -661,17 +647,17 @@ void QmlAnchorBindingProxy::setBottomAnchor(bool anchor)
     if (bottomAnchored() == anchor)
         return;
 
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::setBottomAnchor"));
+    executeInTransaction("QmlAnchorBindingProxy::setBottomAnchor", [this, anchor](){
+        if (!anchor) {
+            removeBottomAnchor();
+        } else {
+            setDefaultRelativeBottomTarget();
+            anchorBottom();
+            if (topAnchored())
+                backupPropertyAndRemove(modelNode(), "height");
+        }
 
-    if (!anchor) {
-        removeBottomAnchor();
-    } else {
-        setDefaultRelativeBottomTarget();
-        anchorBottom();
-        if (topAnchored())
-            backupPropertyAndRemove(modelNode(), "height");
-    }
+    });
 
     emit relativeAnchorTargetBottomChanged();
     emit bottomAnchorChanged();
@@ -688,19 +674,20 @@ void QmlAnchorBindingProxy::setLeftAnchor(bool anchor)
     if (leftAnchored() == anchor)
         return;
 
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::setLeftAnchor"));
 
-    if (!anchor) {
-        removeLeftAnchor();
-    } else {
-        setDefaultRelativeLeftTarget();
+    executeInTransaction("QmlAnchorBindingProxy::setLeftAnchor", [this, anchor](){
+        if (!anchor) {
+            removeLeftAnchor();
+        } else {
+            setDefaultRelativeLeftTarget();
 
-        anchorLeft();
-        backupPropertyAndRemove(modelNode(), "x");
-        if (rightAnchored())
-            backupPropertyAndRemove(modelNode(), "width");
-    }
+            anchorLeft();
+            backupPropertyAndRemove(modelNode(), "x");
+            if (rightAnchored())
+                backupPropertyAndRemove(modelNode(), "width");
+        }
+
+    });
 
     emit relativeAnchorTargetLeftChanged();
     emit leftAnchorChanged();
@@ -716,18 +703,18 @@ void QmlAnchorBindingProxy::setRightAnchor(bool anchor)
     if (rightAnchored() == anchor)
         return;
 
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::setRightAnchor"));
+    executeInTransaction("QmlAnchorBindingProxy::setRightAnchor", [this, anchor](){
+        if (!anchor) {
+            removeRightAnchor();
+        } else {
+            setDefaultRelativeRightTarget();
 
-    if (!anchor) {
-        removeRightAnchor();
-    } else {
-        setDefaultRelativeRightTarget();
+            anchorRight();
+            if (leftAnchored())
+                backupPropertyAndRemove(modelNode(), "width");
+        }
 
-        anchorRight();
-        if (leftAnchored())
-            backupPropertyAndRemove(modelNode(), "width");
-    }
+    });
 
     emit relativeAnchorTargetRightChanged();
     emit rightAnchorChanged();
@@ -907,6 +894,7 @@ QmlItemNode QmlAnchorBindingProxy::targetIdToNode(const QString &id) const
 
 QString QmlAnchorBindingProxy::idForNode(const QmlItemNode &qmlItemNode) const
 {
+    QTC_ASSERT(qmlItemNode.isValid(), return {});
     if (m_qmlItemNode.instanceParent().modelNode() == qmlItemNode)
         return QStringLiteral("parent");
 
@@ -926,19 +914,18 @@ void QmlAnchorBindingProxy::setTopAnchor(bool anchor)
     if (topAnchored() == anchor)
         return;
 
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::setTopAnchor"));
+    executeInTransaction("QmlAnchorBindingProxy::setTopAnchor", [this, anchor](){
+        if (!anchor) {
+            removeTopAnchor();
+        } else {
+            setDefaultRelativeTopTarget();
 
-    if (!anchor) {
-        removeTopAnchor();
-    } else {
-        setDefaultRelativeTopTarget();
-
-        anchorTop();
-        backupPropertyAndRemove(modelNode(), "y");
-        if (bottomAnchored())
-            backupPropertyAndRemove(modelNode(), "height");
-    }
+            anchorTop();
+            backupPropertyAndRemove(modelNode(), "y");
+            if (bottomAnchored())
+                backupPropertyAndRemove(modelNode(), "height");
+        }
+    });
 
     emit relativeAnchorTargetTopChanged();
     emit topAnchorChanged();
@@ -947,47 +934,44 @@ void QmlAnchorBindingProxy::setTopAnchor(bool anchor)
 }
 
 void QmlAnchorBindingProxy::removeTopAnchor() {
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::removeTopAnchor"));
+    executeInTransaction("QmlAnchorBindingProxy::removeTopAnchor", [this](){
+        m_qmlItemNode.anchors().removeAnchor(AnchorLineTop);
+        m_qmlItemNode.anchors().removeMargin(AnchorLineTop);
 
-    m_qmlItemNode.anchors().removeAnchor(AnchorLineTop);
-    m_qmlItemNode.anchors().removeMargin(AnchorLineTop);
-
-    restoreProperty(modelNode(), "y");
-    restoreProperty(modelNode(), "height");
-
+        restoreProperty(modelNode(), "y");
+        restoreProperty(modelNode(), "height");
+    });
 }
 
-void QmlAnchorBindingProxy::removeBottomAnchor() {
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::removeBottomAnchor"));
+void QmlAnchorBindingProxy::removeBottomAnchor()
+{
+    executeInTransaction("QmlAnchorBindingProxy::removeBottomAnchor", [this](){
+        m_qmlItemNode.anchors().removeAnchor(AnchorLineBottom);
+        m_qmlItemNode.anchors().removeMargin(AnchorLineBottom);
 
-    m_qmlItemNode.anchors().removeAnchor(AnchorLineBottom);
-    m_qmlItemNode.anchors().removeMargin(AnchorLineBottom);
-
-
-    restoreProperty(modelNode(), "height");
+        restoreProperty(modelNode(), "height");
+    });
 }
 
-void QmlAnchorBindingProxy::removeLeftAnchor() {
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::removeLeftAnchor"));
+void QmlAnchorBindingProxy::removeLeftAnchor()
+{
+    executeInTransaction("QmlAnchorBindingProxy::removeLeftAnchor", [this](){
+        m_qmlItemNode.anchors().removeAnchor(AnchorLineLeft);
+        m_qmlItemNode.anchors().removeMargin(AnchorLineLeft);
 
-    m_qmlItemNode.anchors().removeAnchor(AnchorLineLeft);
-    m_qmlItemNode.anchors().removeMargin(AnchorLineLeft);
-
-    restoreProperty(modelNode(), "x");
-    restoreProperty(modelNode(), "width");
+        restoreProperty(modelNode(), "x");
+        restoreProperty(modelNode(), "width");
+    });
 }
 
-void QmlAnchorBindingProxy::removeRightAnchor() {
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::removeRightAnchor"));
+void QmlAnchorBindingProxy::removeRightAnchor()
+{
+    executeInTransaction("QmlAnchorBindingProxy::removeRightAnchor", [this](){
+        m_qmlItemNode.anchors().removeAnchor(AnchorLineRight);
+        m_qmlItemNode.anchors().removeMargin(AnchorLineRight);
 
-    m_qmlItemNode.anchors().removeAnchor(AnchorLineRight);
-    m_qmlItemNode.anchors().removeMargin(AnchorLineRight);
-
-    restoreProperty(modelNode(), "width");
+        restoreProperty(modelNode(), "width");
+    });
 }
 
 void QmlAnchorBindingProxy::setVerticalCentered(bool centered)
@@ -1000,18 +984,17 @@ void QmlAnchorBindingProxy::setVerticalCentered(bool centered)
 
     m_locked = true;
 
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::setVerticalCentered"));
+    executeInTransaction("QmlAnchorBindingProxy::setVerticalCentered", [this, centered](){
+        if (!centered) {
+            m_qmlItemNode.anchors().removeAnchor(AnchorLineVerticalCenter);
+            m_qmlItemNode.anchors().removeMargin(AnchorLineVerticalCenter);
+        } else {
+            m_relativeVerticalTarget = Center;
 
-    if (!centered) {
-        m_qmlItemNode.anchors().removeAnchor(AnchorLineVerticalCenter);
-        m_qmlItemNode.anchors().removeMargin(AnchorLineVerticalCenter);
-    } else {
-        m_relativeVerticalTarget = Center;
+            anchorVertical();
+        }
 
-        anchorVertical();
-    }
-
+    });
     m_locked = false;
 
     emit relativeAnchorTargetVerticalChanged();
@@ -1028,18 +1011,16 @@ void QmlAnchorBindingProxy::setHorizontalCentered(bool centered)
 
     m_locked = true;
 
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::setHorizontalCentered"));
+    executeInTransaction("QmlAnchorBindingProxy::setHorizontalCentered", [this, centered](){
+        if (!centered) {
+            m_qmlItemNode.anchors().removeAnchor(AnchorLineHorizontalCenter);
+            m_qmlItemNode.anchors().removeMargin(AnchorLineHorizontalCenter);
+        } else {
+            m_relativeHorizontalTarget = Center;
 
-    if (!centered) {
-        m_qmlItemNode.anchors().removeAnchor(AnchorLineHorizontalCenter);
-        m_qmlItemNode.anchors().removeMargin(AnchorLineHorizontalCenter);
-    } else {
-        m_relativeHorizontalTarget = Center;
-
-        anchorHorizontal();
-    }
-
+            anchorHorizontal();
+        }
+    });
     m_locked = false;
 
     emit relativeAnchorTargetHorizontalChanged();
@@ -1118,25 +1099,23 @@ bool QmlAnchorBindingProxy::horizontalCentered()
 
 void QmlAnchorBindingProxy::fill()
 {
+    executeInTransaction("QmlAnchorBindingProxy::fill", [this](){
+        backupPropertyAndRemove(modelNode(), "x");
+        backupPropertyAndRemove(modelNode(), "y");
+        backupPropertyAndRemove(modelNode(), "width");
+        backupPropertyAndRemove(modelNode(), "height");
 
-    RewriterTransaction transaction = beginRewriterTransaction(
-                QByteArrayLiteral("QmlAnchorBindingProxy::fill"));
+        m_qmlItemNode.anchors().fill();
 
+        setHorizontalCentered(false);
+        setVerticalCentered(false);
 
-    backupPropertyAndRemove(modelNode(), "x");
-    backupPropertyAndRemove(modelNode(), "y");
-    backupPropertyAndRemove(modelNode(), "width");
-    backupPropertyAndRemove(modelNode(), "height");
+        m_qmlItemNode.anchors().removeMargin(AnchorLineRight);
+        m_qmlItemNode.anchors().removeMargin(AnchorLineLeft);
+        m_qmlItemNode.anchors().removeMargin(AnchorLineTop);
+        m_qmlItemNode.anchors().removeMargin(AnchorLineBottom);
 
-    m_qmlItemNode.anchors().fill();
-
-    setHorizontalCentered(false);
-    setVerticalCentered(false);
-
-    m_qmlItemNode.anchors().removeMargin(AnchorLineRight);
-    m_qmlItemNode.anchors().removeMargin(AnchorLineLeft);
-    m_qmlItemNode.anchors().removeMargin(AnchorLineTop);
-    m_qmlItemNode.anchors().removeMargin(AnchorLineBottom);
+    });
 
     emit topAnchorChanged();
     emit bottomAnchorChanged();

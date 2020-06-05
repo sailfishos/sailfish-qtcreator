@@ -28,8 +28,11 @@
 #include "projectexplorer_export.h"
 
 #include <utils/environment.h>
+#include <utils/fileutils.h>
 
-namespace Utils { class MacroExpander; }
+namespace Utils {
+class MacroExpander;
+} // Utils
 
 namespace ProjectExplorer {
 
@@ -39,14 +42,11 @@ class PROJECTEXPLORER_EXPORT ProcessParameters
 public:
     ProcessParameters();
 
-    void setCommand(const QString &cmd);
-    QString command() const { return m_command; }
+    void setCommandLine(const Utils::CommandLine &cmdLine);
+    Utils::CommandLine command() const { return m_command; }
 
-    void setArguments(const QString &arguments);
-    QString arguments() const { return m_arguments; }
-
-    void setWorkingDirectory(const QString &workingDirectory);
-    QString workingDirectory() const { return m_workingDirectory; }
+    void setWorkingDirectory(const Utils::FilePath &workingDirectory);
+    Utils::FilePath workingDirectory() const { return m_workingDirectory; }
 
     void setEnvironment(const Utils::Environment &env) { m_environment = env; }
     Utils::Environment environment() const { return m_environment; }
@@ -55,9 +55,9 @@ public:
     Utils::MacroExpander *macroExpander() const { return m_macroExpander; }
 
     /// Get the fully expanded working directory:
-    QString effectiveWorkingDirectory() const;
+    Utils::FilePath effectiveWorkingDirectory() const;
     /// Get the fully expanded command name to run:
-    QString effectiveCommand() const;
+    Utils::FilePath effectiveCommand() const;
     /// Get the fully expanded arguments to use:
     QString effectiveArguments() const;
     /// Get the fully expanded environment to use:
@@ -73,14 +73,13 @@ public:
 
     void resolveAll();
 private:
-    QString m_workingDirectory;
-    QString m_command;
-    QString m_arguments;
+    Utils::FilePath m_workingDirectory;
+    Utils::CommandLine m_command;
     Utils::Environment m_environment;
     Utils::MacroExpander *m_macroExpander;
 
-    mutable QString m_effectiveWorkingDirectory;
-    mutable QString m_effectiveCommand;
+    mutable Utils::FilePath m_effectiveWorkingDirectory;
+    mutable Utils::FilePath m_effectiveCommand;
     mutable QString m_effectiveArguments;
     mutable Utils::Environment m_effectiveEnvironment;
     mutable bool m_commandMissing;

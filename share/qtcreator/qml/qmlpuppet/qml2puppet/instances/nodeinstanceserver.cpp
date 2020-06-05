@@ -66,6 +66,9 @@
 #include <changenodesourcecommand.h>
 #include <tokencommand.h>
 #include <removesharedmemorycommand.h>
+#include <changeselectioncommand.h>
+#include <inputeventcommand.h>
+#include <view3dactioncommand.h>
 
 #include <QDebug>
 #include <QQmlEngine>
@@ -88,7 +91,10 @@
 #include <algorithm>
 
 namespace {
-bool testImportStatements(const QStringList &importStatementList, const QUrl &url, QString *errorMessage = 0) {
+
+bool testImportStatements(const QStringList &importStatementList,
+                          const QUrl &url, QString *errorMessage = nullptr)
+{
     if (importStatementList.isEmpty())
         return false;
     // ToDo: move engine outside of this function, this makes it expensive
@@ -184,7 +190,7 @@ QList<ServerNodeInstance> NodeInstanceServer::createInstances(const QVector<Inst
 {
     Q_ASSERT(declarativeView() || quickView());
     QList<ServerNodeInstance> instanceList;
-    foreach (const InstanceContainer &instanceContainer, containerVector) {
+    for (const InstanceContainer &instanceContainer : containerVector) {
         ServerNodeInstance instance;
         if (instanceContainer.nodeSourceType() == InstanceContainer::ComponentSource) {
             instance = ServerNodeInstance::create(this, instanceContainer, ServerNodeInstance::WrapAsComponent);
@@ -327,6 +333,14 @@ void NodeInstanceServer::clearScene(const ClearSceneCommand &/*command*/)
     m_fileUrl.clear();
 }
 
+void NodeInstanceServer::update3DViewState(const Update3dViewStateCommand &/*command*/)
+{
+}
+
+void NodeInstanceServer::changeSelection(const ChangeSelectionCommand & /*command*/)
+{
+}
+
 void NodeInstanceServer::removeInstances(const RemoveInstancesCommand &command)
 {
     ServerNodeInstance oldState = activeStateInstance();
@@ -455,7 +469,7 @@ void NodeInstanceServer::setupImports(const QVector<AddImportContainer> &contain
 
     delete m_importComponent.data();
     delete m_importComponentObject.data();
-    const QStringList importStatementList(importStatementSet.toList());
+    const QStringList importStatementList = QtHelpers::toList(importStatementSet);
     const QStringList fullImportStatementList(QStringList(qtQuickImport) + importStatementList);
 
     // check possible import statements combinations
@@ -582,13 +596,8 @@ QList<ServerNodeInstance> NodeInstanceServer::setupInstances(const CreateSceneCo
         setInstanceAuxiliaryData(container);
     }
 
-
-    QListIterator<ServerNodeInstance> instanceListIterator(instanceList);
-    instanceListIterator.toBack();
-    while (instanceListIterator.hasPrevious()) {
-        ServerNodeInstance instance = instanceListIterator.previous();
-        instance.doComponentComplete();
-    }
+    for (int i = instanceList.size(); --i >= 0; )
+        instanceList[i].doComponentComplete();
 
     return instanceList;
 }
@@ -960,7 +969,6 @@ void NodeInstanceServer::setInstancePropertyVariant(const PropertyValueContainer
 
 void NodeInstanceServer::setInstanceAuxiliaryData(const PropertyValueContainer &auxiliaryContainer)
 {
-    //instanceId() == 0: the item is root
     if (auxiliaryContainer.instanceId() == 0 && (auxiliaryContainer.name() == "width" ||
                                         auxiliaryContainer.name() == "height")) {
 
@@ -979,6 +987,14 @@ void NodeInstanceServer::setInstanceAuxiliaryData(const PropertyValueContainer &
                                                               auxiliaryContainer.dynamicTypeName()));
         } else {
             rootNodeInstance().resetProperty(propertyName);
+        }
+    } else if (auxiliaryContainer.name() == "invisible") {
+        if (hasInstanceForId(auxiliaryContainer.instanceId())) {
+            ServerNodeInstance instance = instanceForId(auxiliaryContainer.instanceId());
+            if (!auxiliaryContainer.value().isNull())
+                instance.setHideInEditor(auxiliaryContainer.value().toBool());
+            else
+                instance.setHideInEditor(false);
         }
     }
 }
@@ -1045,6 +1061,7 @@ static QVector<InformationContainer> createInformationVector(const QList<ServerN
             informationVector.append(InformationContainer(instance.instanceId(), PenWidth, instance.penWidth()));
             informationVector.append(InformationContainer(instance.instanceId(), IsAnchoredByChildren, instance.isAnchoredByChildren()));
             informationVector.append(InformationContainer(instance.instanceId(), IsAnchoredBySibling, instance.isAnchoredBySibling()));
+            informationVector.append(InformationContainer(instance.instanceId(), AllStates, instance.allStates()));
 
             informationVector.append(InformationContainer(instance.instanceId(), HasAnchor, PropertyName("anchors.fill"), instance.hasAnchor("anchors.fill")));
             informationVector.append(InformationContainer(instance.instanceId(), HasAnchor, PropertyName("anchors.centerIn"), instance.hasAnchor("anchors.centerIn")));
@@ -1150,6 +1167,17 @@ ComponentCompletedCommand NodeInstanceServer::createComponentCompletedCommand(co
     return ComponentCompletedCommand(idVector);
 }
 
+ChangeSelectionCommand NodeInstanceServer::createChangeSelectionCommand(const QList<ServerNodeInstance> &instanceList)
+{
+    QVector<qint32> idVector;
+    for (const ServerNodeInstance &instance : instanceList) {
+        if (instance.instanceId() >= 0)
+            idVector.append(instance.instanceId());
+    }
+
+    return ChangeSelectionCommand(idVector);
+}
+
 ValuesChangedCommand NodeInstanceServer::createValuesChangedCommand(const QVector<InstancePropertyPair> &propertyList) const
 {
     QVector<PropertyValueContainer> valueVector;
@@ -1168,6 +1196,31 @@ ValuesChangedCommand NodeInstanceServer::createValuesChangedCommand(const QVecto
 
     return ValuesChangedCommand(valueVector);
 }
+
+ValuesModifiedCommand NodeInstanceServer::createValuesModifiedCommand(
+    const QVector<InstancePropertyValueTriple> &propertyList) const
+{
+    QVector<PropertyValueContainer> valueVector;
+
+    for (const InstancePropertyValueTriple &property : propertyList) {
+        const PropertyName propertyName = property.propertyName;
+        const ServerNodeInstance instance = property.instance;
+        const QVariant propertyValue = property.propertyValue;
+
+        if (instance.isValid()) {
+            if (QMetaType::isRegistered(propertyValue.userType())
+                && supportedVariantType(propertyValue.type())) {
+                valueVector.append(PropertyValueContainer(instance.instanceId(),
+                                                          propertyName,
+                                                          propertyValue,
+                                                          PropertyName()));
+            }
+        }
+    }
+
+    return ValuesModifiedCommand(valueVector);
+}
+
 
 QByteArray NodeInstanceServer::importCode() const
 {
@@ -1278,7 +1331,7 @@ void NodeInstanceServer::loadDummyContextObjectFile(const QFileInfo& qmlFileInfo
 void NodeInstanceServer::loadDummyDataFiles(const QString& directory)
 {
     QDir dir(directory, "*.qml");
-    QList<QFileInfo> filePathList = dir.entryInfoList();
+    QFileInfoList filePathList = dir.entryInfoList();
     foreach (const QFileInfo &qmlFileInfo, filePathList) {
         loadDummyDataFile(qmlFileInfo);
     }
@@ -1287,7 +1340,7 @@ void NodeInstanceServer::loadDummyDataFiles(const QString& directory)
 void NodeInstanceServer::loadDummyDataContext(const QString& directory)
 {
     QDir dir(directory+"/context", "*.qml");
-    QList<QFileInfo> filePathList = dir.entryInfoList();
+    QFileInfoList filePathList = dir.entryInfoList();
     QString baseName = QFileInfo(fileUrl().toLocalFile()).completeBaseName();
     foreach (const QFileInfo &qmlFileInfo, filePathList) {
         if (qmlFileInfo.completeBaseName() == baseName)
@@ -1332,6 +1385,16 @@ QStringList NodeInstanceServer::dummyDataDirectories(const QString& directoryPat
 
         directory.cdUp();
     }
+}
+
+void NodeInstanceServer::inputEvent(const InputEventCommand &command)
+{
+    Q_UNUSED(command)
+}
+
+void NodeInstanceServer::view3DAction(const View3DActionCommand &command)
+{
+    Q_UNUSED(command)
 }
 
 }

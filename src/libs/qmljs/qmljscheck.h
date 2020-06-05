@@ -65,6 +65,7 @@ protected:
     void postVisit(AST::Node *ast) override;
 
     bool visit(AST::UiProgram *ast) override;
+    bool visit(AST::UiImport *ast) override;
     bool visit(AST::UiObjectDefinition *ast) override;
     bool visit(AST::UiObjectBinding *ast) override;
     bool visit(AST::UiScriptBinding *ast) override;
@@ -98,12 +99,13 @@ protected:
 
     void endVisit(QmlJS::AST::UiObjectInitializer *) override;
 
+    void throwRecursionDepthError() override;
 private:
     void visitQmlObject(AST::Node *ast, AST::UiQualifiedId *typeId,
                         AST::UiObjectInitializer *initializer);
     const Value *checkScopeObjectMember(const AST::UiQualifiedId *id);
     void checkAssignInCondition(AST::ExpressionNode *condition);
-    void checkCaseFallthrough(AST::StatementList *statements, AST::SourceLocation errorLoc, AST::SourceLocation nextLoc);
+    void checkCaseFallthrough(AST::StatementList *statements, SourceLocation errorLoc, SourceLocation nextLoc);
     void checkProperty(QmlJS::AST::UiQualifiedId *);
     void checkNewExpression(AST::ExpressionNode *node);
     void checkBindingRhs(AST::Statement *statement);
@@ -111,7 +113,7 @@ private:
 
     void addMessages(const QList<StaticAnalysis::Message> &messages);
     void addMessage(const StaticAnalysis::Message &message);
-    void addMessage(StaticAnalysis::Type type, const AST::SourceLocation &location,
+    void addMessage(StaticAnalysis::Type type, const SourceLocation &location,
                     const QString &arg1 = QString(), const QString &arg2 = QString());
 
     void scanCommentsForAnnotations();
@@ -136,10 +138,13 @@ private:
     QStack<StringSet> m_propertyStack;
     QStack<QString> m_typeStack;
 
+    using ShortImportInfo = QPair<QString, LanguageUtils::ComponentVersion>;
+    QList<ShortImportInfo> m_importInfo;
+
     class MessageTypeAndSuppression
     {
     public:
-        AST::SourceLocation suppressionSource;
+        SourceLocation suppressionSource;
         StaticAnalysis::Type type;
         bool wasSuppressed;
     };
@@ -149,7 +154,6 @@ private:
     bool _importsOk;
     bool _inStatementBinding;
     const Imports *_imports;
-    bool _isQtQuick2;
 };
 
 } // namespace QmlJS

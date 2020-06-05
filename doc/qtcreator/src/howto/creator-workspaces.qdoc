@@ -1,0 +1,85 @@
+/****************************************************************************
+**
+** Copyright (C) 2020 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+/*!
+    \previouspage creator-sidebars.html
+    \page creator-project-managing-workspaces.html
+    \nextpage creator-output-panes.html
+
+    \title Managing Workspaces
+
+    In the Design and Debug modes, you can arrange a set of \QC
+    views as a \e workspace on the screen.
+
+    To detach views:
+
+    \list
+        \li Double-click the title bar of the view.
+        \li Start dragging the view to another position.
+        \li Select the \inlineimage icons/detach-group-icon.png
+            (\uicontrol {Detach Group}) button.
+    \endlist
+
+    You can move detached views or groups of views anywhere on the screen.
+
+    To attach views, drag them over the dock area markers until the dock area
+    where you want to attach the view is highlighted, and then drop them into
+    the dock area.
+
+    \image qtcreator-workspace-attaching-views.png "Attaching views"
+
+    To close groups of views, select the \uicontrol {Close Group} button.
+
+    To open closed views, select \uicontrol Window > \uicontrol Views.
+
+    \section1 Saving Workspaces
+
+    The changes you make to a workspace are saved when you exit \QC.
+    In \QMLD, you can select \uicontrol Window > \uicontrol Workspaces >
+    \uicontrol Manage > \uicontrol {Restore last workspace on startup}
+    to restore the current workspace the next time you start \QC.
+
+    \image qtcreator-workspace-manager.png "Workspace Manager"
+
+    To save a workspace under a new name, select \uicontrol Clone.
+
+    To revert the changes you made to a preset workspace, select
+    \uicontrol Reset.
+
+    To switch between workspaces, select \uicontrol {Switch To}.
+
+    To create a new workspace:
+
+    \list 1
+        \li Select \uicontrol New.
+        \li In the \uicontrol {Enter the name of the workspace} field,
+            enter a name for the workspace.
+        \li Select \uicontrol Create to create a new empty workspace or
+            \uicontrol {Create and Open} to create a workspace and to
+            switch to it.
+    \endlist
+
+    To delete the selected workspace, select \uicontrol Delete.
+*/
