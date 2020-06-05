@@ -116,7 +116,7 @@ public:
 
     void addConfigWidgets(const std::function<void (NamedWidget *)> &adder);
 
-    void doInitialize(const BuildInfo &info);
+    virtual void doInitialize(const BuildInfo &info);
 
 signals:
     void environmentChanged();
