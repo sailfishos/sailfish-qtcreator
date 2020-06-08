@@ -43,7 +43,7 @@ public:
     void setBuildTargetName(const QString &name);
     QString buildTargetName() const;
 
-    QList<ProjectExplorer::Abi> detectQtAbis() const override;
+    ProjectExplorer::Abis detectQtAbis() const override;
 
     QString description() const override;
 
