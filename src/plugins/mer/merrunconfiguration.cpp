@@ -27,6 +27,7 @@
 #include "merrunconfigurationaspect.h"
 #include "projectexplorer/kitinformation.h"
 
+#include <projectexplorer/buildsystem.h>
 #include <projectexplorer/deployconfiguration.h>
 #include <projectexplorer/deploymentdata.h>
 #include <projectexplorer/kitinformation.h>
@@ -78,33 +79,35 @@ MerRunConfiguration::MerRunConfiguration(Target *target, Core::Id id)
 
     connect(target, &Target::buildSystemUpdated, this, &RunConfiguration::update);
     connect(target, &Target::kitChanged, this, &RunConfiguration::update);
-    connect(target, &Target::activeDeployConfigurationChanged,
-            this, &MerRunConfiguration::updateEnabledState);
+    connect(target, &Target::activeDeployConfigurationChanged, this, &RunConfiguration::update);
 }
 
 QString MerRunConfiguration::disabledReason() const
 {
-    if (!m_disabledReason.isEmpty())
-        return m_disabledReason;
+    if (!RunConfiguration::isEnabled())
+        return RunConfiguration::disabledReason();
 
-    return RunConfiguration::disabledReason();
+    QTC_ASSERT(target()->kit(), return {});
+
+    DeployConfiguration *const dc = target()->activeDeployConfiguration();
+    if (dc->id() == MerMb2RpmBuildConfigurationFactory::configurationId())
+        return tr("This deployment method does not support run configuration");
+
+    return {};
 }
 
-void MerRunConfiguration::updateEnabledState()
+bool MerRunConfiguration::isEnabled() const
 {   
-    //TODO Hack
+    if (!RunConfiguration::isEnabled())
+        return false;
 
-    DeployConfiguration* conf = target()->activeDeployConfiguration();
-    if(target()->kit())
-    {
-        if (conf->id() == MerMb2RpmBuildConfigurationFactory::configurationId()) {
-            m_disabledReason = tr("This deployment method does not support run configuration");
-            setEnabled(false);
-            return;
-        }
-    }
+    QTC_ASSERT(target()->kit(), return {});
 
-    RunConfiguration::updateEnabledState();
+    DeployConfiguration *const dc = target()->activeDeployConfiguration();
+    if (dc->id() == MerMb2RpmBuildConfigurationFactory::configurationId())
+        return false;
+
+    return true;
 }
 
 Runnable MerRunConfiguration::runnable() const

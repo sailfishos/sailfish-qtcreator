@@ -36,8 +36,8 @@ public:
 
     ProjectExplorer::Runnable runnable() const override;
     QString disabledReason() const override;
-protected:
-    void updateEnabledState() override;
+    bool isEnabled() const override;
+
 private:
     mutable QString m_disabledReason;
 };

@@ -58,33 +58,35 @@ MerQmlRunConfiguration::MerQmlRunConfiguration(Target *target, Core::Id id)
     : RunConfiguration(target, id)
 {
     addAspect<RemoteLinuxEnvironmentAspect>(target);
-    connect(target, &Target::activeDeployConfigurationChanged,
-            this, &MerQmlRunConfiguration::updateEnabledState);
+    connect(target, &Target::activeDeployConfigurationChanged, this, &RunConfiguration::update);
 }
 
 QString MerQmlRunConfiguration::disabledReason() const
 {
-    if(m_disabledReason.isEmpty())
+    if (!RunConfiguration::isEnabled())
         return RunConfiguration::disabledReason();
-    else
-        return m_disabledReason;
+
+    QTC_ASSERT(target()->kit(), return {});
+
+    DeployConfiguration *const dc = target()->activeDeployConfiguration();
+    if (dc->id() == MerMb2RpmBuildConfigurationFactory::configurationId())
+        return tr("This deployment method does not support run configuration");
+
+    return {};
 }
 
-void MerQmlRunConfiguration::updateEnabledState()
+bool MerQmlRunConfiguration::isEnabled() const
 {
-    //TODO Hack
+    if (!RunConfiguration::isEnabled())
+        return false;
 
-    DeployConfiguration* conf = target()->activeDeployConfiguration();
-    if(target()->kit())
-    {
-        if (conf->id() == MerMb2RpmBuildConfigurationFactory::configurationId()) {
-            m_disabledReason = tr("This deployment method does not support run configuration");
-            setEnabled(false);
-            return;
-        }
-    }
+    QTC_ASSERT(target()->kit(), return {});
 
-    RunConfiguration::updateEnabledState();
+    DeployConfiguration *const dc = target()->activeDeployConfiguration();
+    if (dc->id() == MerMb2RpmBuildConfigurationFactory::configurationId())
+        return false;
+
+    return true;
 }
 
 Runnable MerQmlRunConfiguration::runnable() const

@@ -37,11 +37,9 @@ public:
 
     ProjectExplorer::Runnable runnable() const override;
     QString disabledReason() const override;
+    bool isEnabled() const override;
 
     QWidget *createConfigurationWidget() override;
-
-protected:
-    void updateEnabledState() override;
 
 private:
     mutable QString m_disabledReason;
