@@ -45,7 +45,7 @@ public:
     typedef QSharedPointer<const MerEmulatorDevice> ConstPtr;
 
     static Ptr create() { return Ptr(new MerEmulatorDevice); }
-    ProjectExplorer::IDevice::Ptr clone() const;
+    ProjectExplorer::IDevice::Ptr clone() const override;
     ~MerEmulatorDevice() override;
 
     ProjectExplorer::IDeviceWidget *createWidget() override;
@@ -67,7 +67,6 @@ public:
 
 private:
     MerEmulatorDevice();
-    MerEmulatorDevice(const MerEmulatorDevice &other);
     void init();
 
 private:

@@ -64,7 +64,9 @@ MerHardwareDevice::MerHardwareDevice()
 
 IDevice::Ptr MerHardwareDevice::clone() const
 {
-    return Ptr(new MerHardwareDevice(*this));
+    IDevice::Ptr device = create();
+    device->fromMap(toMap());
+    return device;
 }
 
 IDeviceWidget *MerHardwareDevice::createWidget()

@@ -186,7 +186,9 @@ private:
 
 IDevice::Ptr MerEmulatorDevice::clone() const
 {
-    return Ptr(new MerEmulatorDevice(*this));
+    IDevice::Ptr device = create();
+    device->fromMap(toMap());
+    return device;
 }
 
 MerEmulatorDevice::MerEmulatorDevice()
@@ -194,12 +196,6 @@ MerEmulatorDevice::MerEmulatorDevice()
     setMachineType(IDevice::Emulator);
     setArchitecture(Abi::X86Architecture);
     init();
-}
-
-MerEmulatorDevice::MerEmulatorDevice(const MerEmulatorDevice &other)
-    : MerDevice(other)
-    , m_sdkDevice(other.m_sdkDevice)
-{
 }
 
 MerEmulatorDevice::~MerEmulatorDevice()
