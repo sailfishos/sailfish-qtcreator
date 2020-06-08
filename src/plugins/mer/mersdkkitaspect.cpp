@@ -81,14 +81,6 @@ bool MerSdkKitAspect::isApplicableToKit(const Kit *kit) const
     return DeviceTypeKitAspect::deviceTypeId(kit) == Constants::MER_DEVICE_TYPE;
 }
 
-QVariant MerSdkKitAspect::defaultValue(const Kit *kit) const
-{
-    BuildEngine *const engine = MerSdkKitAspect::buildEngine(kit);
-    if (!engine || engine->buildTargets().isEmpty())
-        return {};
-    return toMap(engine->uri(), engine->buildTargets().first().name);
-}
-
 QList<Task> MerSdkKitAspect::validate(const Kit *kit) const
 {
     if (DeviceTypeKitAspect::deviceTypeId(kit) == Constants::MER_DEVICE_TYPE) {

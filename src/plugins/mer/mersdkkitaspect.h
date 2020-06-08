@@ -73,7 +73,6 @@ public:
     ~MerSdkKitAspect() override;
 
     bool isApplicableToKit(const ProjectExplorer::Kit *kit) const override;
-    QVariant defaultValue(const ProjectExplorer::Kit *kit) const override;
     QList<ProjectExplorer::Task> validate(const ProjectExplorer::Kit *kit) const override;
     ItemList toUserOutput(const ProjectExplorer::Kit *kit) const override;
     ProjectExplorer::KitAspectWidget *createConfigWidget(ProjectExplorer::Kit *kit) const override;
