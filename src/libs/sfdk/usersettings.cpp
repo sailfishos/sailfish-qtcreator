@@ -59,7 +59,7 @@ private:
         const QString suffix = type == ReadLock
 		? QStringLiteral(".rlock")
 		: QStringLiteral(".wlock");
-        const QString dotFile = file.parentDir().appendPath("." + file.fileName()).toString();
+        const QString dotFile = file.parentDir().pathAppended("." + file.fileName()).toString();
         return dotFile + suffix;
     }
 };

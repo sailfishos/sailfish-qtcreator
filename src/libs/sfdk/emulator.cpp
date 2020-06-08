@@ -249,12 +249,12 @@ void Emulator::setDisplayProperties(const DeviceModelData &deviceModel, Qt::Orie
     QSize virtualResolution = realResolution;
     realResolution /= scaleDownFactor;
 
-    const QString dconfDbFile = FilePath(d->sharedConfigPath)
-        .appendPath(Constants::EMULATOR_DCONF_DB_FILENAME).toString();
+    const QString dconfDbFile = d->sharedConfigPath
+        .pathAppended(Constants::EMULATOR_DCONF_DB_FILENAME).toString();
     allOk &= d->updateDconfDb(dconfDbFile, d->deviceModel.dconf);
 
-    const QString compositorConfigFile = FilePath(d->sharedConfigPath)
-        .appendPath(Constants::EMULATOR_COMPOSITOR_CONFIG_FILENAME).toString();
+    const QString compositorConfigFile = d->sharedConfigPath
+        .pathAppended(Constants::EMULATOR_COMPOSITOR_CONFIG_FILENAME).toString();
     allOk &= d->updateCompositorConfig(compositorConfigFile, d->deviceModel.displaySize,
             virtualResolution, d->viewScaled);
 

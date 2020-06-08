@@ -910,7 +910,7 @@ Utils::FilePath VirtualMachineInfoCache::cacheFilePath()
 
 QString VirtualMachineInfoCache::lockFilePath(const Utils::FilePath &file)
 {
-    const QString dotFile = file.parentDir().appendPath("." + file.fileName()).toString();
+    const QString dotFile = file.parentDir().pathAppended("." + file.fileName()).toString();
     return dotFile + ".lock";
 }
 

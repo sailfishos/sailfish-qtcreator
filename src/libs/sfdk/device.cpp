@@ -628,14 +628,13 @@ void DeviceManager::updateDevicesXml() const
         xmlData.m_subNet = Constants::VIRTUAL_BOX_VIRTUAL_SUBNET;
 
         const QString file =
-            engine->sharedConfigPath().appendPath(DEVICES_XML_FILE_NAME).toString();
+            engine->sharedConfigPath().pathAppended(DEVICES_XML_FILE_NAME).toString();
         if (!file.isEmpty())
             writeDevicesXml(file, devices, xmlData);
 
         // The emulators only seek their own data in the XML
         for (const FilePath &emulatorConfigPath : emulatorConfigPaths) {
-            const QString file =
-                FilePath(emulatorConfigPath).appendPath(DEVICES_XML_FILE_NAME).toString();
+            const QString file = emulatorConfigPath.pathAppended(DEVICES_XML_FILE_NAME).toString();
             writeDevicesXml(file, devices, xmlData);
         }
     }

@@ -82,7 +82,7 @@ bool BuildTargetData::isValid() const
 Utils::FilePath BuildTargetData::toolsPathCommonPrefix()
 {
     return SdkPrivate::settingsLocation(SdkPrivate::UserScope)
-        .appendPath(Constants::BUILD_TARGET_TOOLS);
+        .pathAppended(Constants::BUILD_TARGET_TOOLS);
 }
 
 /*!
@@ -513,8 +513,8 @@ void BuildEnginePrivate::setSharedConfigPath(const Utils::FilePath &sharedConfig
 
     SshConnectionParameters sshParameters = virtualMachine->sshParameters();
     // FIXME hardcoded
-    sshParameters.privateKeyFile = FilePath(sharedConfigPath).appendPath("/ssh/private_keys/engine")
-        .appendPath(Constants::BUILD_ENGINE_DEFAULT_USER_NAME).toString();
+    sshParameters.privateKeyFile = sharedConfigPath.pathAppended("/ssh/private_keys/engine")
+        .pathAppended(Constants::BUILD_ENGINE_DEFAULT_USER_NAME).toString();
     setSshParameters(sshParameters);
 }
 
@@ -580,8 +580,8 @@ void BuildEnginePrivate::syncWwwProxy()
         args.append(wwwProxyExcludes);
     }
 
-    const QString wrapperBinaryPath = SdkPrivate::libexecPath().appendPath("merssh")
-        .appendString(QTC_HOST_EXE_SUFFIX).toString();
+    const QString wrapperBinaryPath = SdkPrivate::libexecPath().pathAppended("merssh")
+        .stringAppended(QTC_HOST_EXE_SUFFIX).toString();
 
     qCDebug(engine) << "About to sync WWW proxy. merssh arguments:" << args;
     QProcess::startDetached(wrapperBinaryPath, args);
@@ -714,7 +714,7 @@ void BuildEnginePrivate::initBuildTargetAt(int index) const
             sysRootForTarget(dump->name).fileName(-1).prepend(' ').append('/'));
 
     auto cacheFile = [=](const QString &baseName) {
-        return FilePath(toolsPath).appendPath(baseName);
+        return toolsPath.pathAppended(baseName);
     };
 
     bool ok = true;
@@ -765,9 +765,9 @@ bool BuildEnginePrivate::createSimpleWrapper(const QString &targetName, const Fi
         : wrapperName;
 
     const QString wrapperBinaryPath = SdkPrivate::libexecPath()
-        .appendPath("merssh").appendString(QTC_HOST_EXE_SUFFIX).toString();
+        .pathAppended("merssh").stringAppended(QTC_HOST_EXE_SUFFIX).toString();
 
-    const QString scriptCopyPath = FilePath(toolsPath).appendPath(wrapperName).toString();
+    const QString scriptCopyPath = toolsPath.pathAppended(wrapperName).toString();
 
     QString scriptContent;
     if (HostOsInfo::isWindowsHost()) {
@@ -819,20 +819,19 @@ bool BuildEnginePrivate::createPkgConfigWrapper(const FilePath &toolsPath, const
     const
 {
     auto nativeSysRooted = [=](const QString &path) {
-        return QDir::toNativeSeparators(FilePath(sysRoot).appendPath(path).toString());
+        return QDir::toNativeSeparators(sysRoot.pathAppended(path).toString());
     };
 
     const QStringList libDirs = {"/usr/lib/pkgconfig",  "/usr/share/pkgconfig"};
     const QString libDir = Utils::transform(libDirs, nativeSysRooted)
         .join(QDir::listSeparator());
 
-    const QString fileName =
-        FilePath(toolsPath).appendPath(Constants::WRAPPER_PKG_CONFIG).toString();
+    const QString fileName = toolsPath.pathAppended(Constants::WRAPPER_PKG_CONFIG).toString();
 
     QString scriptContent;
     if (HostOsInfo::isWindowsHost()) {
         const QString real = QDir::toNativeSeparators(SdkPrivate::libexecPath()
-                    .appendPath("pkg-config.exe").toString());
+                    .pathAppended("pkg-config.exe").toString());
         scriptContent = QStringLiteral(R"(@echo off
 set PKG_CONFIG_DIR=
 set PKG_CONFIG_LIBDIR={libDir}
@@ -873,19 +872,19 @@ exec ${real?} "$@"
 Utils::FilePath BuildEnginePrivate::targetsXmlFile() const
 {
     // FIXME
-    return FilePath(sharedTargetsPath).appendPath("targets.xml");
+    return sharedTargetsPath.pathAppended("targets.xml");
 }
 
 Utils::FilePath BuildEnginePrivate::sysRootForTarget(const QString &targetName) const
 {
     // FIXME inside MerTarget::finalizeKitCreation FilePath::fromUserInput was used in this context
-    return FilePath(sharedTargetsPath).appendPath(targetName);
+    return sharedTargetsPath.pathAppended(targetName);
 }
 
 Utils::FilePath BuildEnginePrivate::toolsPathForTarget(const QString &targetName) const
 {
-    return BuildTargetData::toolsPathCommonPrefix().appendPath(virtualMachine->name())
-        .appendPath(targetName);
+    return BuildTargetData::toolsPathCommonPrefix().pathAppended(virtualMachine->name())
+        .pathAppended(targetName);
 }
 
 /*!

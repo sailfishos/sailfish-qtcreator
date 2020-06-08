@@ -312,7 +312,7 @@ int Debugger::exec(const QString &executable, const QList<QStringList> &gdbLateI
 
     gdbInit << QStringList{"set", "sysroot", m_target.sysRoot.toString()};
     gdbInit << QStringList{"set", "substitute-path", "/usr/src",
-        FilePath(m_target.sysRoot).appendPath("usr/src").toString()};
+        m_target.sysRoot.pathAppended("usr/src").toString()};
 
     gdbInit << QStringList{"target", "extended-remote", gdbRemote};
     gdbInit << QStringList{"set", "remote", "exec-file", executable};

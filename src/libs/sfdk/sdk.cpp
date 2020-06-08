@@ -327,7 +327,7 @@ Utils::FilePath SdkPrivate::settingsFile(SettingsScope scope, const QString &bas
     const QString prefix = scope == SessionScope
         ? QString::fromLatin1(Constants::LIB_ID) + '-'
         : QString();
-    return settingsLocation(scope).appendPath(prefix + basename);
+    return settingsLocation(scope).pathAppended(prefix + basename);
 }
 
 Utils::FilePath SdkPrivate::settingsLocation(SettingsScope scope)
@@ -379,7 +379,7 @@ Utils::FilePath SdkPrivate::settingsLocation(SettingsScope scope)
 
 Utils::FilePath SdkPrivate::cacheFile(const QString &basename)
 {
-    return cacheLocation().appendPath(basename);
+    return cacheLocation().pathAppended(basename);
 }
 
 Utils::FilePath SdkPrivate::cacheLocation()
@@ -397,8 +397,8 @@ Utils::FilePath SdkPrivate::cacheLocation()
     QTC_CHECK(!genericCacheLocation.isEmpty());
     if (!genericCacheLocation.isEmpty()) {
         cacheLocation = FilePath::fromString(genericCacheLocation)
-            .appendPath(QCoreApplication::organizationName())
-            .appendPath(Constants::LIB_ID);
+            .pathAppended(QCoreApplication::organizationName())
+            .pathAppended(Constants::LIB_ID);
     } else {
         cacheLocation = FilePath::fromString(
                 QStandardPaths::writableLocation(QStandardPaths::CacheLocation));
