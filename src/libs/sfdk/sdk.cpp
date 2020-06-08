@@ -350,7 +350,7 @@ Utils::FilePath SdkPrivate::settingsLocation(SettingsScope scope)
     }
     Q_ASSERT(location);
 
-    if (!location->isNull())
+    if (!location->isEmpty())
         return *location;
 
     QTC_CHECK(!QCoreApplication::organizationName().isEmpty());
