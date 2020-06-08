@@ -29,7 +29,7 @@
 #include <memory>
 
 namespace Utils {
-class FileName;
+class FilePath;
 class FileSystemWatcher;
 }
 
@@ -62,11 +62,11 @@ signals:
 
 private:
     void checkUpdates();
-    std::tuple<int, QVariantMap> load(const Utils::FileName &fileName) const;
-    bool save(const Utils::FileName &fileName, const QVariantMap &data,
+    std::tuple<int, QVariantMap> load(const Utils::FilePath &fileName) const;
+    bool save(const Utils::FilePath &fileName, const QVariantMap &data,
             QString *errorString) const;
-    Utils::FileName sessionScopeFile() const;
-    Utils::FileName userScopeFile() const;
+    Utils::FilePath sessionScopeFile() const;
+    Utils::FilePath userScopeFile() const;
 
 private:
     static UserSettings *s_instanceApplyingUpdates;

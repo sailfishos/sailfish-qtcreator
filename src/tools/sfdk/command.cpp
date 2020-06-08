@@ -1580,7 +1580,7 @@ void BuiltinWorker::listDevices()
             ? autodetected
             : userDefined;
         const QString privateKeyFile = FileUtils::shortNativePath(
-                FileName::fromString(device->sshParameters().privateKeyFile));
+                FilePath::fromString(device->sshParameters().privateKeyFile));
 
         qout() << '#' << index << ' ' << '"' << device->name() << '"' << endl;
         qout() << indent(1) << qSetFieldWidth(typeFieldWidth) << left << type << qSetFieldWidth(0)
@@ -1625,7 +1625,7 @@ void BuiltinWorker::listEmulators()
             ? sdkProvided
             : userDefined;
         const QString privateKeyFile = FileUtils::shortNativePath(
-                FileName::fromString(emulator->virtualMachine()->sshParameters().privateKeyFile));
+                FilePath::fromString(emulator->virtualMachine()->sshParameters().privateKeyFile));
 
         qout() << '#' << index << ' ' << '"' << emulator->name() << '"' << endl;
         qout() << indent(1) << qSetFieldWidth(stateFieldWidth) << left << state

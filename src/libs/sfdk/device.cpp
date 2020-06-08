@@ -577,10 +577,10 @@ void DeviceManager::scheduleUpdateDeviceXmlIfPrimary()
 // TODO multiple build engines
 void DeviceManager::updateDevicesXml() const
 {
-    const FileName homePath = FileName::fromString(QDir::cleanPath(QDir::homePath()));
+    const FilePath homePath = FilePath::fromString(QDir::cleanPath(QDir::homePath()));
 
     QList<DeviceData> devices;
-    QList<FileName> emulatorConfigPaths;
+    QList<FilePath> emulatorConfigPaths;
 
     for (const std::unique_ptr<Device> &device : m_devices) {
         DeviceData xmlData;
@@ -592,7 +592,7 @@ void DeviceManager::updateDevicesXml() const
             xmlData.m_userName = device->sshParameters().userName();
             if (device->sshParameters().authenticationType
                     == SshConnectionParameters::AuthenticationTypeSpecificKey) {
-                const FileName path = FileName::fromString(device->sshParameters().privateKeyFile);
+                const FilePath path = FilePath::fromString(device->sshParameters().privateKeyFile);
                 QTC_ASSERT(path.isChildOf(homePath), continue);
                 xmlData.m_sshKeyPath = MAGIC_HOME_PREFIX
                     + QDir::fromNativeSeparators(path.relativeChildPath(homePath).toString());
@@ -608,12 +608,12 @@ void DeviceManager::updateDevicesXml() const
             xmlData.m_mac = mac;
             xmlData.m_type = TYPE_VBOX;
             xmlData.m_userName = device->sshParameters().userName();
-            const FileName sharedConfigPath = !Sdk::buildEngines().isEmpty()
+            const FilePath sharedConfigPath = !Sdk::buildEngines().isEmpty()
                 ? Sdk::buildEngines().first()->sharedConfigPath()
-                : FileName();
+                : FilePath();
             if (!sharedConfigPath.isEmpty()) {
                 xmlData.m_sshKeyPath =
-                    FileName::fromString(device->sshParameters().privateKeyFile).parentDir()
+                    FilePath::fromString(device->sshParameters().privateKeyFile).parentDir()
                     .relativeChildPath(sharedConfigPath).toString();
                 emulatorConfigPaths << emulatorDevice->emulator()->sharedConfigPath();
             }
@@ -633,9 +633,9 @@ void DeviceManager::updateDevicesXml() const
             writeDevicesXml(file, devices, xmlData);
 
         // The emulators only seek their own data in the XML
-        for (const FileName &emulatorConfigPath : emulatorConfigPaths) {
+        for (const FilePath &emulatorConfigPath : emulatorConfigPaths) {
             const QString file =
-                FileName(emulatorConfigPath).appendPath(DEVICES_XML_FILE_NAME).toString();
+                FilePath(emulatorConfigPath).appendPath(DEVICES_XML_FILE_NAME).toString();
             writeDevicesXml(file, devices, xmlData);
         }
     }

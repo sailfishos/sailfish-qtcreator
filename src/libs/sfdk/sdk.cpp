@@ -315,14 +315,14 @@ QDateTime SdkPrivate::lastMaintained()
     return maintenanceDataInfo.lastModified();
 }
 
-Utils::FileName SdkPrivate::libexecPath()
+Utils::FilePath SdkPrivate::libexecPath()
 {
     // See ICore::libexecPath()
-    return FileName::fromString(QDir::cleanPath(QCoreApplication::applicationDirPath()
+    return FilePath::fromString(QDir::cleanPath(QCoreApplication::applicationDirPath()
                 + '/' + RELATIVE_LIBEXEC_PATH));
 }
 
-Utils::FileName SdkPrivate::settingsFile(SettingsScope scope, const QString &basename)
+Utils::FilePath SdkPrivate::settingsFile(SettingsScope scope, const QString &basename)
 {
     const QString prefix = scope == SessionScope
         ? QString::fromLatin1(Constants::LIB_ID) + '-'
@@ -330,13 +330,13 @@ Utils::FileName SdkPrivate::settingsFile(SettingsScope scope, const QString &bas
     return settingsLocation(scope).appendPath(prefix + basename);
 }
 
-Utils::FileName SdkPrivate::settingsLocation(SettingsScope scope)
+Utils::FilePath SdkPrivate::settingsLocation(SettingsScope scope)
 {
-    static FileName systemLocation;
-    static FileName userLocation;
-    static FileName sessionLocation;
+    static FilePath systemLocation;
+    static FilePath userLocation;
+    static FilePath sessionLocation;
 
-    FileName *location = nullptr;
+    FilePath *location = nullptr;
     switch (scope) {
     case SystemScope:
         location = &systemLocation;
@@ -370,21 +370,21 @@ Utils::FileName SdkPrivate::settingsLocation(SettingsScope scope)
     QTC_CHECK(settings.fileName().endsWith(".ini"));
     const auto iniInfo = QFileInfo(settings.fileName());
     const QString resourceDir = iniInfo.completeBaseName().toLower();
-    *location = FileName::fromString(iniInfo.path() + '/' + resourceDir);
+    *location = FilePath::fromString(iniInfo.path() + '/' + resourceDir);
 
     qCDebug(lib) << "Settings location" << scope << *location;
 
     return *location;
 }
 
-Utils::FileName SdkPrivate::cacheFile(const QString &basename)
+Utils::FilePath SdkPrivate::cacheFile(const QString &basename)
 {
     return cacheLocation().appendPath(basename);
 }
 
-Utils::FileName SdkPrivate::cacheLocation()
+Utils::FilePath SdkPrivate::cacheLocation()
 {
-    static FileName cacheLocation;
+    static FilePath cacheLocation;
     if (!cacheLocation.isEmpty())
         return cacheLocation;
 
@@ -396,11 +396,11 @@ Utils::FileName SdkPrivate::cacheLocation()
 
     QTC_CHECK(!genericCacheLocation.isEmpty());
     if (!genericCacheLocation.isEmpty()) {
-        cacheLocation = FileName::fromString(genericCacheLocation)
+        cacheLocation = FilePath::fromString(genericCacheLocation)
             .appendPath(QCoreApplication::organizationName())
             .appendPath(Constants::LIB_ID);
     } else {
-        cacheLocation = FileName::fromString(
+        cacheLocation = FilePath::fromString(
                 QStandardPaths::writableLocation(QStandardPaths::CacheLocation));
     }
 

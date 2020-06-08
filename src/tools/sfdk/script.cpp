@@ -211,7 +211,7 @@ public:
     }
 
 private:
-    QString enginePath(Utils::FileName (BuildEngine::*getter)() const) const
+    QString enginePath(Utils::FilePath (BuildEngine::*getter)() const) const
     {
         return withEngine([=](BuildEngine *engine) {
             return (engine->*getter)().toString();

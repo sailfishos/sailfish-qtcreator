@@ -52,12 +52,12 @@ public:
     bool isValid() const;
 
     QString name;
-    Utils::FileName sysRoot;
-    Utils::FileName toolsPath;
-    Utils::FileName gdb;
+    Utils::FilePath sysRoot;
+    Utils::FilePath toolsPath;
+    Utils::FilePath gdb;
     QList<RpmValidationSuiteData> rpmValidationSuites;
 
-    static Utils::FileName toolsPathCommonPrefix();
+    static Utils::FilePath toolsPathCommonPrefix();
 };
 
 class BuildEngineManager;
@@ -79,13 +79,13 @@ public:
 
     bool isAutodetected() const;
 
-    Utils::FileName sharedInstallPath() const;
-    Utils::FileName sharedHomePath() const;
-    Utils::FileName sharedTargetsPath() const;
-    Utils::FileName sharedConfigPath() const;
-    Utils::FileName sharedSrcPath() const;
-    Utils::FileName sharedSshPath() const;
-    void setSharedSrcPath(const Utils::FileName &sharedSrcPath, const QObject *context,
+    Utils::FilePath sharedInstallPath() const;
+    Utils::FilePath sharedHomePath() const;
+    Utils::FilePath sharedTargetsPath() const;
+    Utils::FilePath sharedConfigPath() const;
+    Utils::FilePath sharedSrcPath() const;
+    Utils::FilePath sharedSshPath() const;
+    void setSharedSrcPath(const Utils::FilePath &sharedSrcPath, const QObject *context,
             const Functor<bool> &functor);
 
     quint16 sshPort() const;
@@ -104,12 +104,12 @@ public:
     BuildTargetData buildTarget(const QString &name) const;
 
 signals:
-    void sharedInstallPathChanged(const Utils::FileName &sharedInstallPath);
-    void sharedHomePathChanged(const Utils::FileName &sharedHomePath);
-    void sharedTargetsPathChanged(const Utils::FileName &sharedTargetsPath);
-    void sharedConfigPathChanged(const Utils::FileName &sharedConfigPath);
-    void sharedSrcPathChanged(const Utils::FileName &sharedSrcPath);
-    void sharedSshPathChanged(const Utils::FileName &sharedSshPath);
+    void sharedInstallPathChanged(const Utils::FilePath &sharedInstallPath);
+    void sharedHomePathChanged(const Utils::FilePath &sharedHomePath);
+    void sharedTargetsPathChanged(const Utils::FilePath &sharedTargetsPath);
+    void sharedConfigPathChanged(const Utils::FilePath &sharedConfigPath);
+    void sharedSrcPathChanged(const Utils::FilePath &sharedSrcPath);
+    void sharedSshPathChanged(const Utils::FilePath &sharedSshPath);
     void sshPortChanged(quint16 sshPort);
     void wwwPortChanged(quint16 wwwPort);
     void wwwProxyChanged(const QString &type, const QString &servers, const QString &excludes);

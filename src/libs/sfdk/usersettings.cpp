@@ -48,13 +48,13 @@ public:
         WriteLock
     };
 
-    LockFile(const FileName &file, LockType type)
+    LockFile(const FilePath &file, LockType type)
         : QLockFile(lockFileName(file, type))
     {
     }
 
 private:
-    static QString lockFileName(const FileName &file, LockType type)
+    static QString lockFileName(const FilePath &file, LockType type)
     {
         const QString suffix = type == ReadLock
 		? QStringLiteral(".rlock")
@@ -88,7 +88,7 @@ Utils::optional<QVariantMap> UserSettings::load()
 
     qCDebug(lib) << "Loading" << m_baseName;
 
-    const FileName fileName = SdkPrivate::isVersionedSettingsEnabled()
+    const FilePath fileName = SdkPrivate::isVersionedSettingsEnabled()
         ? sessionScopeFile()
         : userScopeFile();
 
@@ -111,7 +111,7 @@ void UserSettings::enableUpdates()
 
     qCDebug(lib) << "Enabling receiving updates to" << m_baseName;
 
-    const FileName userScopeFile = this->userScopeFile();
+    const FilePath userScopeFile = this->userScopeFile();
 
     // FileSystemWatcher needs them existing
     const bool mkpathOk = QDir(userScopeFile.parentDir().toString()).mkpath(".");
@@ -141,7 +141,7 @@ bool UserSettings::save(const QVariantMap &data, QString *errorString)
     QString tmpErrorString;
     QString *errorString_ = errorString ? errorString : &tmpErrorString;
 
-    const FileName userScopeFile = this->userScopeFile();
+    const FilePath userScopeFile = this->userScopeFile();
 
     // QLockFile does not make the path
     const bool mkpathOk = QDir(userScopeFile.parentDir().toString()).mkpath(".");
@@ -219,7 +219,7 @@ void UserSettings::checkUpdates()
     }
 }
 
-std::tuple<int, QVariantMap> UserSettings::load(const Utils::FileName &fileName) const
+std::tuple<int, QVariantMap> UserSettings::load(const Utils::FilePath &fileName) const
 {
     if (!fileName.exists())
         return {};
@@ -237,7 +237,7 @@ std::tuple<int, QVariantMap> UserSettings::load(const Utils::FileName &fileName)
 #endif
 }
 
-bool UserSettings::save(const Utils::FileName &fileName, const QVariantMap &data,
+bool UserSettings::save(const Utils::FilePath &fileName, const QVariantMap &data,
         QString *errorString) const
 {
     QVariantMap versionedData = data;
@@ -246,12 +246,12 @@ bool UserSettings::save(const Utils::FileName &fileName, const QVariantMap &data
     return writer.save(versionedData, errorString);
 }
 
-Utils::FileName UserSettings::sessionScopeFile() const
+Utils::FilePath UserSettings::sessionScopeFile() const
 {
     return SdkPrivate::settingsFile(SdkPrivate::SessionScope, m_baseName);
 }
 
-Utils::FileName UserSettings::userScopeFile() const
+Utils::FilePath UserSettings::userScopeFile() const
 {
     return SdkPrivate::settingsFile(SdkPrivate::UserScope, m_baseName);
 }

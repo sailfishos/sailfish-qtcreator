@@ -442,7 +442,7 @@ void DockerVirtualMachinePrivate::doSetStorageSizeMb(int storageSizeMb, const QO
     QTC_CHECK(false);
 }
 
-void DockerVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FileName &path,
+void DockerVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FilePath &path,
         const QObject *context, const Functor<bool> &functor)
 {
     Q_ASSERT(context);

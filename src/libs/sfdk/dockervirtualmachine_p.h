@@ -77,7 +77,7 @@ protected:
     void doSetStorageSizeMb(int storageSizeMb, const QObject *context,
             const Functor<bool> &functor) override;
 
-    void doSetSharedPath(SharedPath which, const Utils::FileName &path, const QObject *context,
+    void doSetSharedPath(SharedPath which, const Utils::FilePath &path, const QObject *context,
             const Functor<bool> &functor) override;
 
     void doAddPortForwarding(const QString &ruleName,

@@ -29,7 +29,7 @@
 
 #include <memory>
 
-namespace Utils { class FileName; }
+namespace Utils { class FilePath; }
 
 namespace Sfdk {
 

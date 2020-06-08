@@ -79,7 +79,7 @@ bool BuildTargetData::isValid() const
         && !gdb.isEmpty();
 }
 
-Utils::FileName BuildTargetData::toolsPathCommonPrefix()
+Utils::FilePath BuildTargetData::toolsPathCommonPrefix()
 {
     return SdkPrivate::settingsLocation(SdkPrivate::UserScope)
         .appendPath(Constants::BUILD_TARGET_TOOLS);
@@ -128,37 +128,37 @@ bool BuildEngine::isAutodetected() const
     return d_func()->autodetected;
 }
 
-Utils::FileName BuildEngine::sharedInstallPath() const
+Utils::FilePath BuildEngine::sharedInstallPath() const
 {
     return d_func()->sharedInstallPath;
 }
 
-Utils::FileName BuildEngine::sharedHomePath() const
+Utils::FilePath BuildEngine::sharedHomePath() const
 {
     return d_func()->sharedHomePath;
 }
 
-Utils::FileName BuildEngine::sharedTargetsPath() const
+Utils::FilePath BuildEngine::sharedTargetsPath() const
 {
     return d_func()->sharedTargetsPath;
 }
 
-Utils::FileName BuildEngine::sharedConfigPath() const
+Utils::FilePath BuildEngine::sharedConfigPath() const
 {
     return d_func()->sharedConfigPath;
 }
 
-Utils::FileName BuildEngine::sharedSrcPath() const
+Utils::FilePath BuildEngine::sharedSrcPath() const
 {
     return d_func()->sharedSrcPath;
 }
 
-Utils::FileName BuildEngine::sharedSshPath() const
+Utils::FilePath BuildEngine::sharedSshPath() const
 {
     return d_func()->sharedSshPath;
 }
 
-void BuildEngine::setSharedSrcPath(const FileName &sharedSrcPath, const QObject *context,
+void BuildEngine::setSharedSrcPath(const FilePath &sharedSrcPath, const QObject *context,
         const Functor<bool> &functor)
 {
     QTC_CHECK(virtualMachine()->isLockedDown());
@@ -341,13 +341,13 @@ bool BuildEnginePrivate::fromMap(const QVariantMap &data)
     creationTime = data.value(Constants::BUILD_ENGINE_CREATION_TIME).toDateTime();
     autodetected = data.value(Constants::BUILD_ENGINE_AUTODETECTED).toBool();
 
-    auto toFileName = [](const QVariant &v) { return FileName::fromString(v.toString()); };
-    setSharedInstallPath(toFileName(data.value(Constants::BUILD_ENGINE_SHARED_INSTALL)));
-    setSharedHomePath(toFileName(data.value(Constants::BUILD_ENGINE_SHARED_HOME)));
-    setSharedTargetsPath(toFileName(data.value(Constants::BUILD_ENGINE_SHARED_TARGET)));
-    setSharedConfigPath(toFileName(data.value(Constants::BUILD_ENGINE_SHARED_CONFIG)));
-    setSharedSrcPath(toFileName(data.value(Constants::BUILD_ENGINE_SHARED_SRC)));
-    setSharedSshPath(toFileName(data.value(Constants::BUILD_ENGINE_SHARED_SSH)));
+    auto toFilePath = [](const QVariant &v) { return FilePath::fromString(v.toString()); };
+    setSharedInstallPath(toFilePath(data.value(Constants::BUILD_ENGINE_SHARED_INSTALL)));
+    setSharedHomePath(toFilePath(data.value(Constants::BUILD_ENGINE_SHARED_HOME)));
+    setSharedTargetsPath(toFilePath(data.value(Constants::BUILD_ENGINE_SHARED_TARGET)));
+    setSharedConfigPath(toFilePath(data.value(Constants::BUILD_ENGINE_SHARED_CONFIG)));
+    setSharedSrcPath(toFilePath(data.value(Constants::BUILD_ENGINE_SHARED_SRC)));
+    setSharedSshPath(toFilePath(data.value(Constants::BUILD_ENGINE_SHARED_SSH)));
 
     SshConnectionParameters sshParameters = virtualMachine->sshParameters();
     sshParameters.setHost(data.value(Constants::BUILD_ENGINE_HOST).toString());
@@ -461,13 +461,13 @@ void BuildEnginePrivate::updateVmProperties(const QObject *context, const Functo
         const VirtualMachineInfo info =
             VirtualMachinePrivate::get(virtualMachine.get())->cachedInfo();
 
-        setSharedInstallPath(FileName::fromString(info.sharedInstall));
-        setSharedHomePath(FileName::fromString(info.sharedHome));
-        setSharedTargetsPath(FileName::fromString(info.sharedTargets));
+        setSharedInstallPath(FilePath::fromString(info.sharedInstall));
+        setSharedHomePath(FilePath::fromString(info.sharedHome));
+        setSharedTargetsPath(FilePath::fromString(info.sharedTargets));
         // FIXME if sharedConfig changes, at least privateKeyFile path needs to be updated
-        setSharedConfigPath(FileName::fromString(info.sharedConfig));
-        setSharedSrcPath(FileName::fromString(info.sharedSrc));
-        setSharedSshPath(FileName::fromString(info.sharedSsh));
+        setSharedConfigPath(FilePath::fromString(info.sharedConfig));
+        setSharedSrcPath(FilePath::fromString(info.sharedSrc));
+        setSharedSshPath(FilePath::fromString(info.sharedSsh));
 
         SshConnectionParameters sshParameters = virtualMachine->sshParameters();
         sshParameters.setPort(info.sshPort);
@@ -480,7 +480,7 @@ void BuildEnginePrivate::updateVmProperties(const QObject *context, const Functo
     });
 }
 
-void BuildEnginePrivate::setSharedInstallPath(const Utils::FileName &sharedInstallPath)
+void BuildEnginePrivate::setSharedInstallPath(const Utils::FilePath &sharedInstallPath)
 {
     if (this->sharedInstallPath == sharedInstallPath)
         return;
@@ -488,7 +488,7 @@ void BuildEnginePrivate::setSharedInstallPath(const Utils::FileName &sharedInsta
     emit q_func()->sharedInstallPathChanged(sharedInstallPath);
 }
 
-void BuildEnginePrivate::setSharedHomePath(const Utils::FileName &sharedHomePath)
+void BuildEnginePrivate::setSharedHomePath(const Utils::FilePath &sharedHomePath)
 {
     if (this->sharedHomePath == sharedHomePath)
         return;
@@ -496,7 +496,7 @@ void BuildEnginePrivate::setSharedHomePath(const Utils::FileName &sharedHomePath
     emit q_func()->sharedHomePathChanged(sharedHomePath);
 }
 
-void BuildEnginePrivate::setSharedTargetsPath(const Utils::FileName &sharedTargetsPath)
+void BuildEnginePrivate::setSharedTargetsPath(const Utils::FilePath &sharedTargetsPath)
 {
     if (this->sharedTargetsPath == sharedTargetsPath)
         return;
@@ -504,7 +504,7 @@ void BuildEnginePrivate::setSharedTargetsPath(const Utils::FileName &sharedTarge
     emit q_func()->sharedTargetsPathChanged(sharedTargetsPath);
 }
 
-void BuildEnginePrivate::setSharedConfigPath(const Utils::FileName &sharedConfigPath)
+void BuildEnginePrivate::setSharedConfigPath(const Utils::FilePath &sharedConfigPath)
 {
     if (this->sharedConfigPath == sharedConfigPath)
         return;
@@ -513,12 +513,12 @@ void BuildEnginePrivate::setSharedConfigPath(const Utils::FileName &sharedConfig
 
     SshConnectionParameters sshParameters = virtualMachine->sshParameters();
     // FIXME hardcoded
-    sshParameters.privateKeyFile = FileName(sharedConfigPath).appendPath("/ssh/private_keys/engine")
+    sshParameters.privateKeyFile = FilePath(sharedConfigPath).appendPath("/ssh/private_keys/engine")
         .appendPath(Constants::BUILD_ENGINE_DEFAULT_USER_NAME).toString();
     setSshParameters(sshParameters);
 }
 
-void BuildEnginePrivate::setSharedSrcPath(const Utils::FileName &sharedSrcPath)
+void BuildEnginePrivate::setSharedSrcPath(const Utils::FilePath &sharedSrcPath)
 {
     if (this->sharedSrcPath == sharedSrcPath)
         return;
@@ -526,7 +526,7 @@ void BuildEnginePrivate::setSharedSrcPath(const Utils::FileName &sharedSrcPath)
     emit q_func()->sharedSrcPathChanged(sharedSrcPath);
 }
 
-void BuildEnginePrivate::setSharedSshPath(const Utils::FileName &sharedSshPath)
+void BuildEnginePrivate::setSharedSshPath(const Utils::FilePath &sharedSshPath)
 {
     if (this->sharedSshPath == sharedSshPath)
         return;
@@ -638,9 +638,9 @@ BuildTargetData BuildEnginePrivate::createTargetData(const BuildTargetDump &targ
     data.toolsPath = toolsPathForTarget(data.name);
 
     if (targetDump.gccDumpMachine.contains(Constants::i486_IDENTIFIER))
-        data.gdb = FileName::fromLatin1(Constants::DEFAULT_DEBUGGER_i486_FILENAME);
+        data.gdb = FilePath::fromLatin1(Constants::DEFAULT_DEBUGGER_i486_FILENAME);
     else if (targetDump.gccDumpMachine.contains(Constants::ARM_IDENTIFIER))
-        data.gdb = FileName::fromLatin1(Constants::DEFAULT_DEBUGGER_ARM_FILENAME);
+        data.gdb = FilePath::fromLatin1(Constants::DEFAULT_DEBUGGER_ARM_FILENAME);
 
     data.rpmValidationSuites = rpmValidationSuitesFromString(targetDump.rpmValidationSuites);
 
@@ -697,7 +697,7 @@ void BuildEnginePrivate::initBuildTargetAt(int index) const
     const BuildTargetDump *dump = &buildTargets[index];
     const BuildTargetData *data = &buildTargetsData[index];
 
-    const FileName toolsPath = toolsPathForTarget(data->name);
+    const FilePath toolsPath = toolsPathForTarget(data->name);
 
     QDir toolsDir(toolsPath.toString());
     if (!toolsDir.exists()) {
@@ -714,7 +714,7 @@ void BuildEnginePrivate::initBuildTargetAt(int index) const
             sysRootForTarget(dump->name).fileName(-1).prepend(' ').append('/'));
 
     auto cacheFile = [=](const QString &baseName) {
-        return FileName(toolsPath).appendPath(baseName);
+        return FilePath(toolsPath).appendPath(baseName);
     };
 
     bool ok = true;
@@ -742,9 +742,9 @@ void BuildEnginePrivate::deinitBuildTargetAt(int index) const
     FileUtils::removeRecursively(toolsPathForTarget(buildTargets.at(index).name));
 }
 
-bool BuildEnginePrivate::createCacheFile(const FileName &fileName, const QString &data) const
+bool BuildEnginePrivate::createCacheFile(const FilePath &filePath, const QString &data) const
 {
-    FileSaver saver(fileName.toString(), QIODevice::WriteOnly);
+    FileSaver saver(filePath.toString(), QIODevice::WriteOnly);
     saver.write(data.toUtf8());
     if (!data.endsWith('\n'))
         saver.write("\n");
@@ -753,7 +753,7 @@ bool BuildEnginePrivate::createCacheFile(const FileName &fileName, const QString
     return true;
 }
 
-bool BuildEnginePrivate::createSimpleWrapper(const QString &targetName, const FileName &toolsPath,
+bool BuildEnginePrivate::createSimpleWrapper(const QString &targetName, const FilePath &toolsPath,
         const QString &wrapperName) const
 {
     const QString commandName = HostOsInfo::isWindowsHost()
@@ -767,7 +767,7 @@ bool BuildEnginePrivate::createSimpleWrapper(const QString &targetName, const Fi
     const QString wrapperBinaryPath = SdkPrivate::libexecPath()
         .appendPath("merssh").appendString(QTC_HOST_EXE_SUFFIX).toString();
 
-    const QString scriptCopyPath = FileName(toolsPath).appendPath(wrapperName).toString();
+    const QString scriptCopyPath = FilePath(toolsPath).appendPath(wrapperName).toString();
 
     QString scriptContent;
     if (HostOsInfo::isWindowsHost()) {
@@ -815,11 +815,11 @@ exec "{wrapperBinaryPath}" {commandName} ${ARGUMENTS}
     return ok;
 }
 
-bool BuildEnginePrivate::createPkgConfigWrapper(const FileName &toolsPath, const FileName &sysRoot)
+bool BuildEnginePrivate::createPkgConfigWrapper(const FilePath &toolsPath, const FilePath &sysRoot)
     const
 {
     auto nativeSysRooted = [=](const QString &path) {
-        return QDir::toNativeSeparators(FileName(sysRoot).appendPath(path).toString());
+        return QDir::toNativeSeparators(FilePath(sysRoot).appendPath(path).toString());
     };
 
     const QStringList libDirs = {"/usr/lib/pkgconfig",  "/usr/share/pkgconfig"};
@@ -827,7 +827,7 @@ bool BuildEnginePrivate::createPkgConfigWrapper(const FileName &toolsPath, const
         .join(QDir::listSeparator());
 
     const QString fileName =
-        FileName(toolsPath).appendPath(Constants::WRAPPER_PKG_CONFIG).toString();
+        FilePath(toolsPath).appendPath(Constants::WRAPPER_PKG_CONFIG).toString();
 
     QString scriptContent;
     if (HostOsInfo::isWindowsHost()) {
@@ -870,19 +870,19 @@ exec ${real?} "$@"
     return true;
 }
 
-Utils::FileName BuildEnginePrivate::targetsXmlFile() const
+Utils::FilePath BuildEnginePrivate::targetsXmlFile() const
 {
     // FIXME
-    return FileName(sharedTargetsPath).appendPath("targets.xml");
+    return FilePath(sharedTargetsPath).appendPath("targets.xml");
 }
 
-Utils::FileName BuildEnginePrivate::sysRootForTarget(const QString &targetName) const
+Utils::FilePath BuildEnginePrivate::sysRootForTarget(const QString &targetName) const
 {
-    // FIXME inside MerTarget::finalizeKitCreation FileName::fromUserInput was used in this context
-    return FileName(sharedTargetsPath).appendPath(targetName);
+    // FIXME inside MerTarget::finalizeKitCreation FilePath::fromUserInput was used in this context
+    return FilePath(sharedTargetsPath).appendPath(targetName);
 }
 
-Utils::FileName BuildEnginePrivate::toolsPathForTarget(const QString &targetName) const
+Utils::FilePath BuildEnginePrivate::toolsPathForTarget(const QString &targetName) const
 {
     return BuildTargetData::toolsPathCommonPrefix().appendPath(virtualMachine->name())
         .appendPath(targetName);
@@ -1245,7 +1245,7 @@ void BuildEngineManager::completeHostNameLookup(const QHostInfo &info)
     Q_ASSERT(!m_defaultBuildHostName.isEmpty());
 }
 
-FileName BuildEngineManager::systemSettingsFile()
+FilePath BuildEngineManager::systemSettingsFile()
 {
     return SdkPrivate::settingsFile(SdkPrivate::SystemScope,
             Constants::BUILD_ENGINES_SETTINGS_FILE_NAME);

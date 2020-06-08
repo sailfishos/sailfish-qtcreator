@@ -74,8 +74,8 @@ public:
 
     bool isAutodetected() const;
 
-    Utils::FileName sharedConfigPath() const;
-    Utils::FileName sharedSshPath() const;
+    Utils::FilePath sharedConfigPath() const;
+    Utils::FilePath sharedSshPath() const;
 
     quint16 sshPort() const;
     void setSshPort(quint16 sshPort, const QObject *context, const Functor<bool> &functor);
@@ -99,8 +99,8 @@ public:
             bool viewScaled, const QObject *context, const Functor<bool> &functor);
 
 signals:
-    void sharedConfigPathChanged(const Utils::FileName &sharedConfigPath);
-    void sharedSshPathChanged(const Utils::FileName &sharedSshPath);
+    void sharedConfigPathChanged(const Utils::FilePath &sharedConfigPath);
+    void sharedSshPathChanged(const Utils::FilePath &sharedSshPath);
     void sshPortChanged(quint16 sshPort);
     void freePortsChanged();
     void qmlLivePortsChanged();

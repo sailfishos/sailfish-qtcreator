@@ -557,7 +557,7 @@ void VBoxVirtualMachinePrivate::doSetStorageSizeMb(int storageSizeMb, const QObj
     });
 }
 
-void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FileName &path,
+void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FilePath &path,
         const QObject *context, const Functor<bool> &functor)
 {
     Q_Q(VBoxVirtualMachine);

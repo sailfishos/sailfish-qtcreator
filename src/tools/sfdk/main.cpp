@@ -67,14 +67,14 @@ void initQSsh()
     const QStringList rawGitSearchPaths = qtcSettings.value("Git/Path")
         .toString().split(':', QString::SkipEmptyParts);
     const auto searchPathRetriever = [=] {
-        Utils::FileNameList searchPaths;
+        Utils::FilePaths searchPaths;
         const QString libexecPath = QDir::cleanPath(QCoreApplication::applicationDirPath() + '/'
                 + RELATIVE_LIBEXEC_PATH);
-        searchPaths << Utils::FileName::fromString(libexecPath);
+        searchPaths << Utils::FilePath::fromString(libexecPath);
         if (Utils::HostOsInfo::isWindowsHost()) {
-            const Utils::FileNameList gitSearchPaths = Utils::transform(rawGitSearchPaths,
-                    [](const QString &rawPath) { return Utils::FileName::fromString(rawPath); });
-            const Utils::FileName fullGitPath = Utils::Environment::systemEnvironment()
+            const Utils::FilePaths gitSearchPaths = Utils::transform(rawGitSearchPaths,
+                    [](const QString &rawPath) { return Utils::FilePath::fromString(rawPath); });
+            const Utils::FilePath fullGitPath = Utils::Environment::systemEnvironment()
                     .searchInPath(gitBinary, gitSearchPaths);
             if (!fullGitPath.isEmpty()) {
                 searchPaths << fullGitPath.parentDir()

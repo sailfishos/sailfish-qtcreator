@@ -32,7 +32,7 @@
 #include <utils/optional.h>
 
 namespace Utils {
-class FileName;
+class FilePath;
 class Port;
 class PortList;
 }
@@ -134,7 +134,7 @@ public:
     virtual void probe(const QObject *context,
             const Functor<BasicState, bool> &functor) const = 0;
 
-    void setSharedPath(SharedPath which, const Utils::FileName &path,
+    void setSharedPath(SharedPath which, const Utils::FilePath &path,
             const QObject *context, const Functor<bool> &functor);
 
     void setReservedPortForwarding(ReservedPort which, quint16 port,
@@ -162,7 +162,7 @@ protected:
     virtual void doSetStorageSizeMb(int storageSizeMb, const QObject *context,
             const Functor<bool> &functor) = 0;
 
-    virtual void doSetSharedPath(SharedPath which, const Utils::FileName &path,
+    virtual void doSetSharedPath(SharedPath which, const Utils::FilePath &path,
             const QObject *context, const Functor<bool> &functor) = 0;
 
     virtual void doAddPortForwarding(const QString &ruleName,

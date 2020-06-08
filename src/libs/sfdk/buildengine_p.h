@@ -81,12 +81,12 @@ public:
     QDateTime creationTime_() const { return creationTime; }
 
 private:
-    void setSharedInstallPath(const Utils::FileName &sharedInstallPath);
-    void setSharedHomePath(const Utils::FileName &sharedHomePath);
-    void setSharedTargetsPath(const Utils::FileName &sharedTargetsPath);
-    void setSharedConfigPath(const Utils::FileName &sharedConfigPath);
-    void setSharedSrcPath(const Utils::FileName &sharedSrcPath);
-    void setSharedSshPath(const Utils::FileName &sharedSshPath);
+    void setSharedInstallPath(const Utils::FilePath &sharedInstallPath);
+    void setSharedHomePath(const Utils::FilePath &sharedHomePath);
+    void setSharedTargetsPath(const Utils::FilePath &sharedTargetsPath);
+    void setSharedConfigPath(const Utils::FilePath &sharedConfigPath);
+    void setSharedSrcPath(const Utils::FilePath &sharedSrcPath);
+    void setSharedSshPath(const Utils::FilePath &sharedSshPath);
     void setSshParameters(const QSsh::SshConnectionParameters &sshParameters);
     void setWwwPort(quint16 wwwPort);
 
@@ -99,27 +99,27 @@ private:
 
     void initBuildTargetAt(int index) const;
     void deinitBuildTargetAt(int index) const;
-    bool createCacheFile(const Utils::FileName &fileName, const QString &data) const;
-    bool createSimpleWrapper(const QString &targetName, const Utils::FileName &toolsPath,
+    bool createCacheFile(const Utils::FilePath &filePath, const QString &data) const;
+    bool createSimpleWrapper(const QString &targetName, const Utils::FilePath &toolsPath,
         const QString &wrapperName) const;
-    bool createPkgConfigWrapper(const Utils::FileName &toolsPath,
-            const Utils::FileName &sysRoot) const;
-    Utils::FileName targetsXmlFile() const;
-    Utils::FileName sysRootForTarget(const QString &targetName) const;
-    Utils::FileName toolsPathForTarget(const QString &targetName) const;
-    Utils::FileName toolsPath() const;
+    bool createPkgConfigWrapper(const Utils::FilePath &toolsPath,
+            const Utils::FilePath &sysRoot) const;
+    Utils::FilePath targetsXmlFile() const;
+    Utils::FilePath sysRootForTarget(const QString &targetName) const;
+    Utils::FilePath toolsPathForTarget(const QString &targetName) const;
+    Utils::FilePath toolsPath() const;
 
 private:
     BuildEngine *const q_ptr;
     QDateTime creationTime;
     std::unique_ptr<VirtualMachine> virtualMachine;
     bool autodetected = false;
-    Utils::FileName sharedInstallPath;
-    Utils::FileName sharedHomePath;
-    Utils::FileName sharedTargetsPath;
-    Utils::FileName sharedConfigPath;
-    Utils::FileName sharedSrcPath;
-    Utils::FileName sharedSshPath;
+    Utils::FilePath sharedInstallPath;
+    Utils::FilePath sharedHomePath;
+    Utils::FilePath sharedTargetsPath;
+    Utils::FilePath sharedConfigPath;
+    Utils::FilePath sharedSrcPath;
+    Utils::FilePath sharedSshPath;
     quint16 wwwPort = 0;
     QString wwwProxyType;
     QString wwwProxyServers;
@@ -166,7 +166,7 @@ private:
     void checkSystemSettings();
     void saveSettings(QStringList *errorStrings) const;
     void completeHostNameLookup(const QHostInfo &info);
-    static Utils::FileName systemSettingsFile();
+    static Utils::FilePath systemSettingsFile();
 
 private:
     static BuildEngineManager *s_instance;

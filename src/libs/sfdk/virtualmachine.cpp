@@ -100,8 +100,8 @@ protected:
 
 private:
     void enableUpdates();
-    static Utils::FileName cacheFileName();
-    static QString lockFileName(const Utils::FileName &file);
+    static Utils::FilePath cacheFilePath();
+    static QString lockFilePath(const Utils::FilePath &file);
     static QString docType();
 
 private:
@@ -527,7 +527,7 @@ VirtualMachinePrivate::~VirtualMachinePrivate()
 {
 }
 
-void VirtualMachinePrivate::setSharedPath(SharedPath which, const Utils::FileName &path,
+void VirtualMachinePrivate::setSharedPath(SharedPath which, const Utils::FilePath &path,
         const QObject *context, const Functor<bool> &functor)
 {
     const QPointer<const QObject> context_{context};
@@ -792,24 +792,24 @@ VirtualMachineInfoCache::~VirtualMachineInfoCache()
 
 Utils::optional<VirtualMachineInfo> VirtualMachineInfoCache::info(const QUrl &vmUri)
 {
-    const FileName fileName = cacheFileName();
-    if (!fileName.exists())
+    const FilePath filePath = cacheFilePath();
+    if (!filePath.exists())
         return {};
 
-    QLockFile lockFile(lockFileName(fileName));
+    QLockFile lockFile(lockFilePath(filePath));
     if (!lockFile.lock()) {
         qCWarning(vms) << "Failed to acquire access to VM info cache file:" << lockFile.error();
         return {};
     }
 
-    if (!FileUtils::isFileNewerThan(fileName, SdkPrivate::lastMaintained())) {
+    if (!FileUtils::isFileNewerThan(filePath, SdkPrivate::lastMaintained())) {
         qCDebug(vms) << "Dropping possibly outdated VM info cache";
-        QFile::remove(fileName.toString());
+        QFile::remove(filePath.toString());
         return {};
     }
 
     PersistentSettingsReader reader;
-    if (!reader.load(fileName))
+    if (!reader.load(filePath))
         return {};
     QVariantMap data = reader.restoreValues();
     QVariantMap vmInfos = data.value(VM_INFO_MAP).toMap();
@@ -827,12 +827,12 @@ Utils::optional<VirtualMachineInfo> VirtualMachineInfoCache::info(const QUrl &vm
 
 void VirtualMachineInfoCache::insert(const QUrl &vmUri, const VirtualMachineInfo &info)
 {
-    const FileName fileName = cacheFileName();
+    const FilePath filePath = cacheFilePath();
 
-    const bool mkpathOk = QDir(fileName.parentDir().toString()).mkpath(".");
+    const bool mkpathOk = QDir(filePath.parentDir().toString()).mkpath(".");
     QTC_CHECK(mkpathOk);
 
-    QLockFile lockFile(lockFileName(fileName));
+    QLockFile lockFile(lockFilePath(filePath));
     if (!lockFile.lock()) {
         qCWarning(vms) << "Failed to acquire access to VM info cache file:" << lockFile.error();
         return;
@@ -840,9 +840,9 @@ void VirtualMachineInfoCache::insert(const QUrl &vmUri, const VirtualMachineInfo
 
     QVariantMap data;
 
-    if (fileName.exists()) {
+    if (filePath.exists()) {
         PersistentSettingsReader reader;
-        if (!reader.load(fileName))
+        if (!reader.load(filePath))
             return;
         data = reader.restoreValues();
     }
@@ -861,7 +861,7 @@ void VirtualMachineInfoCache::insert(const QUrl &vmUri, const VirtualMachineInfo
     vmInfos.insert(vmUri.toString(), info_);
     data.insert(VM_INFO_MAP, vmInfos);
 
-    PersistentSettingsWriter writer(fileName, docType());
+    PersistentSettingsWriter writer(filePath, docType());
     QString errorString;
     if (!writer.save(data, &errorString))
         qCWarning(vms) << "Failed to write VM info cache:" << errorString;
@@ -883,18 +883,18 @@ void VirtualMachineInfoCache::enableUpdates()
 
     qCDebug(vms) << "Enabling receiving updates to VM info cache";
 
-    const FileName cacheFileName = this->cacheFileName();
+    const FilePath cacheFilePath = this->cacheFilePath();
 
     // FileSystemWatcher needs them existing
-    const bool mkpathOk = QDir(cacheFileName.parentDir().toString()).mkpath(".");
+    const bool mkpathOk = QDir(cacheFilePath.parentDir().toString()).mkpath(".");
     QTC_CHECK(mkpathOk);
-    if (!cacheFileName.exists()) {
-        const bool createFileOk = QFile(cacheFileName.toString()).open(QIODevice::WriteOnly);
+    if (!cacheFilePath.exists()) {
+        const bool createFileOk = QFile(cacheFilePath.toString()).open(QIODevice::WriteOnly);
         QTC_CHECK(createFileOk);
     }
 
     m_watcher = std::make_unique<FileSystemWatcher>(this);
-    m_watcher->addFile(cacheFileName.toString(), FileSystemWatcher::WatchModifiedDate);
+    m_watcher->addFile(cacheFilePath.toString(), FileSystemWatcher::WatchModifiedDate);
     connect(m_watcher.get(), &FileSystemWatcher::fileChanged, this, [this]() {
         m_updateTimer.start(VM_INFO_CACHE_UPDATE_DELAY_MS, this);
     });
@@ -903,12 +903,12 @@ void VirtualMachineInfoCache::enableUpdates()
     // initial refresh of VM properties.
 }
 
-Utils::FileName VirtualMachineInfoCache::cacheFileName()
+Utils::FilePath VirtualMachineInfoCache::cacheFilePath()
 {
     return SdkPrivate::cacheFile(VM_INFO_CACHE_FILE);
 }
 
-QString VirtualMachineInfoCache::lockFileName(const Utils::FileName &file)
+QString VirtualMachineInfoCache::lockFilePath(const Utils::FilePath &file)
 {
     const QString dotFile = file.parentDir().appendPath("." + file.fileName()).toString();
     return dotFile + ".lock";

@@ -25,7 +25,7 @@
 #include "sdk.h"
 
 namespace Utils {
-class FileName;
+class FilePath;
 }
 
 namespace Sfdk {
@@ -64,11 +64,11 @@ public:
 
     static CommandQueue *commandQueue() { return instance()->commandQueue_.get(); }
 
-    static Utils::FileName libexecPath();
-    static Utils::FileName settingsFile(SettingsScope scope, const QString &basename);
-    static Utils::FileName settingsLocation(SettingsScope scope);
-    static Utils::FileName cacheFile(const QString &basename);
-    static Utils::FileName cacheLocation();
+    static Utils::FilePath libexecPath();
+    static Utils::FilePath settingsFile(SettingsScope scope, const QString &basename);
+    static Utils::FilePath settingsLocation(SettingsScope scope);
+    static Utils::FilePath cacheFile(const QString &basename);
+    static Utils::FilePath cacheLocation();
 
     static QString customVBoxManagePath() { return instance()->customVBoxManagePath_; }
     static QString customDockerPath() { return instance()->customDockerPath_; }

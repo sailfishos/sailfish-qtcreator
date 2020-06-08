@@ -111,12 +111,12 @@ bool Emulator::isAutodetected() const
     return d_func()->autodetected;
 }
 
-Utils::FileName Emulator::sharedConfigPath() const
+Utils::FilePath Emulator::sharedConfigPath() const
 {
     return d_func()->sharedConfigPath;
 }
 
-Utils::FileName Emulator::sharedSshPath() const
+Utils::FilePath Emulator::sharedSshPath() const
 {
     return d_func()->sharedSshPath;
 }
@@ -249,11 +249,11 @@ void Emulator::setDisplayProperties(const DeviceModelData &deviceModel, Qt::Orie
     QSize virtualResolution = realResolution;
     realResolution /= scaleDownFactor;
 
-    const QString dconfDbFile = FileName(d->sharedConfigPath)
+    const QString dconfDbFile = FilePath(d->sharedConfigPath)
         .appendPath(Constants::EMULATOR_DCONF_DB_FILENAME).toString();
     allOk &= d->updateDconfDb(dconfDbFile, d->deviceModel.dconf);
 
-    const QString compositorConfigFile = FileName(d->sharedConfigPath)
+    const QString compositorConfigFile = FilePath(d->sharedConfigPath)
         .appendPath(Constants::EMULATOR_COMPOSITOR_CONFIG_FILENAME).toString();
     allOk &= d->updateCompositorConfig(compositorConfigFile, d->deviceModel.displaySize,
             virtualResolution, d->viewScaled);
@@ -326,9 +326,9 @@ bool EmulatorPrivate::fromMap(const QVariantMap &data)
     creationTime = data.value(Constants::EMULATOR_CREATION_TIME).toDateTime();
     autodetected = data.value(Constants::EMULATOR_AUTODETECTED).toBool();
 
-    auto toFileName = [](const QVariant &v) { return FileName::fromString(v.toString()); };
-    setSharedConfigPath(toFileName(data.value(Constants::EMULATOR_SHARED_CONFIG)));
-    setSharedSshPath(toFileName(data.value(Constants::EMULATOR_SHARED_SSH)));
+    auto toFilePath = [](const QVariant &v) { return FilePath::fromString(v.toString()); };
+    setSharedConfigPath(toFilePath(data.value(Constants::EMULATOR_SHARED_CONFIG)));
+    setSharedSshPath(toFilePath(data.value(Constants::EMULATOR_SHARED_SSH)));
 
     SshConnectionParameters sshParameters = virtualMachine->sshParameters();
     sshParameters.setHost(data.value(Constants::EMULATOR_HOST).toString());
@@ -421,8 +421,8 @@ void EmulatorPrivate::updateVmProperties(const QObject *context, const Functor<b
 
         // FIXME if sharedConfig changes for a build engine, at least privateKeyFile path needs to
         // be updated - what should be done for an emulator?
-        setSharedConfigPath(FileName::fromString(info.sharedConfig));
-        setSharedSshPath(FileName::fromString(info.sharedSsh));
+        setSharedConfigPath(FilePath::fromString(info.sharedConfig));
+        setSharedSshPath(FilePath::fromString(info.sharedSsh));
 
         SshConnectionParameters sshParameters = virtualMachine->sshParameters();
         sshParameters.setPort(info.sshPort);
@@ -442,7 +442,7 @@ void EmulatorPrivate::updateVmProperties(const QObject *context, const Functor<b
     });
 }
 
-void EmulatorPrivate::setSharedConfigPath(const Utils::FileName &sharedConfigPath)
+void EmulatorPrivate::setSharedConfigPath(const Utils::FilePath &sharedConfigPath)
 {
     if (this->sharedConfigPath == sharedConfigPath)
         return;
@@ -450,7 +450,7 @@ void EmulatorPrivate::setSharedConfigPath(const Utils::FileName &sharedConfigPat
     emit q_func()->sharedConfigPathChanged(sharedConfigPath);
 }
 
-void EmulatorPrivate::setSharedSshPath(const Utils::FileName &sharedSshPath)
+void EmulatorPrivate::setSharedSshPath(const Utils::FilePath &sharedSshPath)
 {
     if (this->sharedSshPath == sharedSshPath)
         return;
@@ -937,7 +937,7 @@ void EmulatorManager::fixDeviceModelsInUse(const QObject *context, const Functor
     SdkPrivate::commandQueue()->enqueueCheckPoint(context, [=]() { functor(*allOk); });
 }
 
-FileName EmulatorManager::systemSettingsFile()
+FilePath EmulatorManager::systemSettingsFile()
 {
     return SdkPrivate::settingsFile(SdkPrivate::SystemScope,
             Constants::EMULATORS_SETTINGS_FILE_NAME);

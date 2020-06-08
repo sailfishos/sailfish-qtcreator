@@ -64,8 +64,8 @@ public:
     QDateTime creationTime_() const { return creationTime; }
 
 private:
-    void setSharedConfigPath(const Utils::FileName &sharedConfigPath);
-    void setSharedSshPath(const Utils::FileName &sharedSshPath);
+    void setSharedConfigPath(const Utils::FilePath &sharedConfigPath);
+    void setSharedSshPath(const Utils::FilePath &sharedSshPath);
     void setSshParameters(const QSsh::SshConnectionParameters &sshParameters);
     void setFreePorts(const Utils::PortList &freePorts);
     void setQmlLivePorts(const Utils::PortList &qmlLivePorts);
@@ -81,8 +81,8 @@ private:
     QDateTime creationTime;
     std::unique_ptr<VirtualMachine> virtualMachine;
     bool autodetected = false;
-    Utils::FileName sharedConfigPath;
-    Utils::FileName sharedSshPath;
+    Utils::FilePath sharedConfigPath;
+    Utils::FilePath sharedSshPath;
     Utils::PortList freePorts;
     Utils::PortList qmlLivePorts;
     QString factorySnapshot;
@@ -132,7 +132,7 @@ private:
     void checkSystemSettings();
     void saveSettings(QStringList *errorStrings) const;
     void fixDeviceModelsInUse(const QObject *context, const Functor<bool> &functor);
-    static Utils::FileName systemSettingsFile();
+    static Utils::FilePath systemSettingsFile();
 
 private:
     static EmulatorManager *s_instance;
