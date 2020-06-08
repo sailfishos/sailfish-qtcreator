@@ -76,9 +76,7 @@ public:
         setConfigBaseId(Configuration::configurationId());
         addSupportedTargetDeviceType(Constants::MER_DEVICE_TYPE);
         setDefaultDisplayName(Configuration::displayName());
-        setConfigWidgetCreator([](ProjectExplorer::Target *target) {
-            return new ProjectExplorer::DeploymentDataView(target);
-        });
+        setUseDeploymentDataView();
     }
 };
 
