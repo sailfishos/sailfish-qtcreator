@@ -31,10 +31,10 @@ namespace Internal {
 
 class MerQtVersion : public QtSupport::BaseQtVersion
 {
+    Q_DECLARE_TR_FUNCTIONS(Mer::MerQtVersion)
+
 public:
     MerQtVersion();
-    MerQtVersion(const Utils::FilePath &path, bool isAutodetected = false,
-                 const QString &autodetectionSource = QString());
     ~MerQtVersion() override;
 
     void setBuildEngineUri(const QUrl &uri);
@@ -57,6 +57,9 @@ public:
     void fromMap(const QVariantMap &data) override;
     void addToEnvironment(const ProjectExplorer::Kit *k, Utils::Environment &env) const override;
     Utils::Environment qmakeRunEnvironment() const override;
+
+    bool isValid() const override;
+    QString invalidReason() const override;
 
 protected:
     ProjectExplorer::Tasks reportIssuesImpl(const QString &proFile,

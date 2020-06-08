@@ -47,25 +47,19 @@ MerQtVersionFactory::MerQtVersionFactory()
     setSupportedType(Constants::MER_QT);
     setPriority(50);
     setQtVersionCreator([]() { return new MerQtVersion; });
+    setRestrictionChecker([](const SetupData &setup) {
+        // sdk-manage adds that during target synchronization
+        return setup.platforms.contains("sailfishos");
+    });
 }
 
 MerQtVersionFactory::~MerQtVersionFactory()
 {
 }
 
-BaseQtVersion *MerQtVersionFactory::create(const FilePath &qmakeCommand,
-                                           ProFileEvaluator * /*evaluator*/,
-                                           bool isAutoDetected,
-                                           const QString &autoDetectionSource)
+BaseQtVersion *MerQtVersionFactory::create(ProFileEvaluator * /*evaluator*/)
 {
-    const QFileInfo fi = qmakeCommand.toFileInfo();
-    if (!fi.exists() || !fi.isExecutable() || !fi.isFile())
-        return 0;
-
-    // Check for the location of qmake
-    if (!qmakeCommand.toString().contains(BuildTargetData::toolsPathCommonPrefix().toString()))
-        return 0;
-    return new MerQtVersion(qmakeCommand, isAutoDetected, autoDetectionSource);
+    return new MerQtVersion;
 }
 
 } // Internal

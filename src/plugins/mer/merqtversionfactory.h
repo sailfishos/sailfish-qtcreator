@@ -34,10 +34,7 @@ public:
     MerQtVersionFactory();
     ~MerQtVersionFactory() override;
 
-    QtSupport::BaseQtVersion *create(const Utils::FilePath &qmakePath,
-                                     ProFileEvaluator *evaluator,
-                                     bool isAutoDetected,
-                                     const QString &autoDetectionSource) override;
+    QtSupport::BaseQtVersion *create(ProFileEvaluator *evaluator) override;
 };
 
 } // Internal

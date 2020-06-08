@@ -57,13 +57,6 @@ MerQtVersion::MerQtVersion()
 {
 }
 
-MerQtVersion::MerQtVersion(const FilePath &path,
-                           bool isAutodetected,
-                           const QString &autodetectionSource)
-    : BaseQtVersion(path, isAutodetected, autodetectionSource)
-{
-}
-
 MerQtVersion::~MerQtVersion()
 {
 }
@@ -243,6 +236,28 @@ Environment MerQtVersion::qmakeRunEnvironment() const
     env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS),
             qmakeCommand().parentDir().toString());
     return env;
+}
+
+bool MerQtVersion::isValid() const
+{
+    if (!BaseQtVersion::isValid())
+        return false;
+
+    if (!qmakeCommand().toString().contains(BuildTargetData::toolsPathCommonPrefix().toString()))
+        return false;
+
+    return true;
+}
+
+QString MerQtVersion::invalidReason() const
+{
+    if (!BaseQtVersion::isValid())
+        return BaseQtVersion::invalidReason();
+
+    if (!qmakeCommand().toString().contains(BuildTargetData::toolsPathCommonPrefix().toString()))
+        return tr("qmake not recognized as provided by %1").arg(Sdk::sdkVariant());
+
+    return {};
 }
 
 } // namespace Interal

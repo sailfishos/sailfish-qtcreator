@@ -614,14 +614,19 @@ std::unique_ptr<MerQtVersion> MerSdkManager::createQtVersion(const BuildEngine *
     const FilePath qmake = buildTarget.toolsPath.pathAppended(Sfdk::Constants::WRAPPER_QMAKE);
 
     QTC_CHECK(!QtVersionManager::qtVersionForQMakeBinary(qmake));
-    auto qtVersion = std::make_unique<MerQtVersion>(qmake, true, buildTarget.toolsPath.toString());
+
+    // Hack
+    BaseQtVersion *const baseQtVersion =
+            QtVersionFactory::createQtVersionFromQMakePath(qmake, true, buildTarget.toolsPath.toString());
+    auto const qtVersion = dynamic_cast<MerQtVersion *>(baseQtVersion);
+    QTC_ASSERT(qtVersion, delete baseQtVersion; return {});
 
     qtVersion->setBuildEngineUri(buildEngine->uri());
     qtVersion->setBuildTargetName(buildTargetName);
     qtVersion->setUnexpandedDisplayName(
                 QString::fromLatin1("Qt %1 for %2 in %3").arg(qtVersion->qtVersionString(),
                                                               buildTargetName, buildEngine->name()));
-    return qtVersion;
+    return std::unique_ptr<MerQtVersion>(qtVersion);
 }
 
 std::unique_ptr<MerToolChain> MerSdkManager::createToolChain(const BuildEngine *buildEngine,
