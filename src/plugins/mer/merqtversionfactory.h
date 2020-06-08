@@ -34,9 +34,6 @@ public:
     explicit MerQtVersionFactory(QObject *parent = 0);
     ~MerQtVersionFactory() override;
 
-    bool canRestore(const QString &type) override;
-
-    int priority() const override;
     QtSupport::BaseQtVersion *create(const Utils::FilePath &qmakePath,
                                      ProFileEvaluator *evaluator,
                                      bool isAutoDetected,

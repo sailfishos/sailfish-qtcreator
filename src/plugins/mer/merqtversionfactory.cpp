@@ -45,21 +45,13 @@ namespace Internal {
 MerQtVersionFactory::MerQtVersionFactory(QObject *parent)
     : QtVersionFactory(parent)
 {
+    setSupportedType(Constants::MER_QT);
+    setPriority(50);
     setQtVersionCreator([]() { return new MerQtVersion; });
 }
 
 MerQtVersionFactory::~MerQtVersionFactory()
 {
-}
-
-bool MerQtVersionFactory::canRestore(const QString &type)
-{
-    return type == QLatin1String(Constants::MER_QT);
-}
-
-int MerQtVersionFactory::priority() const
-{
-    return 50;
 }
 
 BaseQtVersion *MerQtVersionFactory::create(const FilePath &qmakeCommand,
