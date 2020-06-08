@@ -30,6 +30,6 @@ using namespace Utils;
 void useSfdkSettingsPath()
 {
     FilePath &sdkPath = Settings::instance()->sdkPath;
-    sdkPath.appendPath(QLatin1String("../libsfdk"));
+    sdkPath = sdkPath.pathAppended(QLatin1String("../libsfdk"));
     sdkPath = FilePath::fromString(QDir::cleanPath(sdkPath.toString()));
 }
