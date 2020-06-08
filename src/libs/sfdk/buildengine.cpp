@@ -707,11 +707,11 @@ void BuildEnginePrivate::initBuildTargetAt(int index) const
 
     QString patchedQmakeQuery = dump->qmakeQuery;
     patchedQmakeQuery.replace(":/",
-            sysRootForTarget(dump->name).fileName(-1).prepend(':').append('/'));
+            sysRootForTarget(dump->name).fileNameWithPathComponents(-1).prepend(':').append('/'));
 
     QString patchedGccDumpIncludes = dump->gccDumpIncludes;
     patchedGccDumpIncludes.replace(" /",
-            sysRootForTarget(dump->name).fileName(-1).prepend(' ').append('/'));
+            sysRootForTarget(dump->name).fileNameWithPathComponents(-1).prepend(' ').append('/'));
 
     auto cacheFile = [=](const QString &baseName) {
         return toolsPath.pathAppended(baseName);
