@@ -23,12 +23,12 @@
 #ifndef MERRUNCONFIGURATION_H
 #define MERRUNCONFIGURATION_H
 
-#include <remotelinux/remotelinuxrunconfiguration.h>
+#include <projectexplorer/runconfiguration.h>
 
 namespace Mer {
 namespace Internal {
 
-class MerRunConfiguration : public RemoteLinux::RemoteLinuxRunConfiguration
+class MerRunConfiguration : public ProjectExplorer::RunConfiguration
 {
     Q_OBJECT
 public:

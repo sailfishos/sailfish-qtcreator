@@ -31,8 +31,11 @@
 #include <projectexplorer/deploymentdata.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
+#include <projectexplorer/runconfigurationaspects.h>
+#include <projectexplorer/runcontrol.h>
 #include <projectexplorer/target.h>
 #include <remotelinux/remotelinuxenvironmentaspect.h>
+#include <remotelinux/remotelinuxx11forwardingaspect.h>
 
 using namespace ProjectExplorer;
 using namespace RemoteLinux;
@@ -42,18 +45,49 @@ namespace Mer {
 namespace Internal {
 
 MerRunConfiguration::MerRunConfiguration(Target *target, Core::Id id)
-    : RemoteLinuxRunConfiguration(target, id)
+    : RunConfiguration(target, id)
 {
+    auto exeAspect = addAspect<ExecutableAspect>();
+    exeAspect->setLabelText(tr("Executable on device:"));
+    exeAspect->setExecutablePathStyle(OsTypeLinux);
+    exeAspect->setPlaceHolderText(tr("Remote path not set"));
+    exeAspect->makeOverridable("Mer.RunConfig.AlternateRemoteExecutable",
+                               "Mer.RunConfig.UseAlternateRemoteExecutable");
+    exeAspect->setHistoryCompleter("Mer.AlternateExecutable.History");
+
+    auto symbolsAspect = addAspect<SymbolFileAspect>();
+    symbolsAspect->setLabelText(tr("Executable on host:"));
+    symbolsAspect->setDisplayStyle(SymbolFileAspect::LabelDisplay);
+
+    addAspect<ArgumentsAspect>();
+    addAspect<WorkingDirectoryAspect>();
+    if (HostOsInfo::isAnyUnixHost())
+        addAspect<TerminalAspect>();
+    addAspect<RemoteLinuxEnvironmentAspect>(target);
+    if (HostOsInfo::isAnyUnixHost())
+        addAspect<X11ForwardingAspect>();
+
+    setUpdater([this, target, exeAspect, symbolsAspect] {
+        BuildTargetInfo bti = buildTargetInfo();
+        const FilePath localExecutable = bti.targetFilePath;
+        DeployableFile depFile = target->deploymentData().deployableForLocalFile(localExecutable);
+
+        exeAspect->setExecutable(FilePath::fromString(depFile.remoteFilePath()));
+        symbolsAspect->setFilePath(localExecutable);
+    });
+
+    connect(target, &Target::buildSystemUpdated, this, &RunConfiguration::update);
+    connect(target, &Target::kitChanged, this, &RunConfiguration::update);
     connect(target, &Target::activeDeployConfigurationChanged,
             this, &MerRunConfiguration::updateEnabledState);
 }
 
 QString MerRunConfiguration::disabledReason() const
 {
-    if(m_disabledReason.isEmpty())
-        return RemoteLinuxRunConfiguration::disabledReason();
-    else
+    if (!m_disabledReason.isEmpty())
         return m_disabledReason;
+
+    return RunConfiguration::disabledReason();
 }
 
 void MerRunConfiguration::updateEnabledState()
@@ -70,12 +104,16 @@ void MerRunConfiguration::updateEnabledState()
         }
     }
 
-    RemoteLinuxRunConfiguration::updateEnabledState();
+    RunConfiguration::updateEnabledState();
 }
 
 Runnable MerRunConfiguration::runnable() const
 {
-    auto r = RemoteLinuxRunConfiguration::runnable();
+    Runnable r = RunConfiguration::runnable();
+    const auto * const forwardingAspect = aspect<X11ForwardingAspect>();
+    if (forwardingAspect)
+        r.extraData.insert("Ssh.X11ForwardToDisplay", forwardingAspect->display(macroExpander()));
+
     // required by qtbase not to direct logs to journald
     // for Qt < 5.4
     r.environment.appendOrSet(QLatin1String("QT_NO_JOURNALD_LOG"), QLatin1String("1"));
