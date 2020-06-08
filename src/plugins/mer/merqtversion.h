@@ -25,6 +25,7 @@
 #define MERQTVERSION_H
 
 #include <qtsupport/baseqtversion.h>
+#include <qtsupport/qtversionfactory.h>
 
 namespace Mer {
 namespace Internal {
@@ -70,6 +71,13 @@ protected:
 private:
     QUrl m_buildEngineUri;
     QString m_buildTargetName;
+};
+
+class MerQtVersionFactory : public QtSupport::QtVersionFactory
+{
+public:
+    MerQtVersionFactory();
+    ~MerQtVersionFactory() override;
 };
 
 } // Internal

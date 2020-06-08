@@ -40,7 +40,7 @@
 #include "merhardwaredevice.h"
 #include "merqmllivebenchmanager.h"
 #include "merqmlrunconfigurationfactory.h"
-#include "merqtversionfactory.h"
+#include "merqtversion.h"
 #include "merrunconfigurationaspect.h"
 #include "merrunconfigurationfactory.h"
 #include "mersdkmanager.h"

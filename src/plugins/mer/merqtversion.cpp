@@ -260,5 +260,25 @@ QString MerQtVersion::invalidReason() const
     return {};
 }
 
+/*!
+ * \class MerQtVersionFactory
+ * \internal
+ */
+
+MerQtVersionFactory::MerQtVersionFactory()
+{
+    setSupportedType(Constants::MER_QT);
+    setPriority(50);
+    setQtVersionCreator([]() { return new MerQtVersion; });
+    setRestrictionChecker([](const SetupData &setup) {
+        // sdk-manage adds that during target synchronization
+        return setup.platforms.contains("sailfishos");
+    });
+}
+
+MerQtVersionFactory::~MerQtVersionFactory()
+{
+}
+
 } // namespace Interal
 } // namespace Mer
