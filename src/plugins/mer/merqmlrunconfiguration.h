@@ -39,8 +39,6 @@ public:
     QString disabledReason() const override;
     bool isEnabled() const override;
 
-    QWidget *createConfigurationWidget() override;
-
 private:
     mutable QString m_disabledReason;
 };

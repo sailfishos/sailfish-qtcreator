@@ -70,7 +70,6 @@ SOURCES += \
     merqmllivebenchmanager.cpp \
     merqmlrunconfiguration.cpp \
     merqmlrunconfigurationfactory.cpp \
-    merqmlrunconfigurationwidget.cpp \
     merqtversion.cpp \
     merqtversionfactory.cpp \
     merrpminstaller.cpp \
@@ -127,7 +126,6 @@ HEADERS += \
     merqmllivebenchmanager.h \
     merqmlrunconfiguration.h \
     merqmlrunconfigurationfactory.h \
-    merqmlrunconfigurationwidget.h \
     merqtversion.h \
     merqtversionfactory.h \
     merrpminstaller.h \

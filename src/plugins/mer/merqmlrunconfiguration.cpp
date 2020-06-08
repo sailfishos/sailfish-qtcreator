@@ -25,7 +25,6 @@
 
 #include "merconstants.h"
 #include "merdeployconfiguration.h"
-#include "merqmlrunconfigurationwidget.h"
 #include "merrunconfigurationaspect.h"
 #include "mersdkkitaspect.h"
 
@@ -58,6 +57,20 @@ MerQmlRunConfiguration::MerQmlRunConfiguration(Target *target, Core::Id id)
     : RunConfiguration(target, id)
 {
     addAspect<RemoteLinuxEnvironmentAspect>(target);
+
+    auto exeAspect = addAspect<ExecutableAspect>();
+    exeAspect->setExecutable(QLatin1String(Constants::SAILFISH_QML_LAUNCHER));
+
+    auto argsAspect = addAspect<ArgumentsAspect>();
+
+    setUpdater([this, argsAspect] {
+        auto project = qobject_cast<QmakeProject *>(this->target()->project());
+        const QString appName{project->rootProFile()->targetInformation().target};
+        // FIXME Overwrites (unlikely) user changes
+        argsAspect->setArguments(appName);
+    });
+
+    connect(target, &Target::buildSystemUpdated, this, &RunConfiguration::update);
     connect(target, &Target::activeDeployConfigurationChanged, this, &RunConfiguration::update);
 }
 
@@ -91,13 +104,7 @@ bool MerQmlRunConfiguration::isEnabled() const
 
 Runnable MerQmlRunConfiguration::runnable() const
 {
-    auto project = qobject_cast<QmakeProject *>(target()->project());
-    const QString appName{project->rootProFile()->targetInformation().target};
-
-    Runnable r;
-    r.environment = aspect<RemoteLinuxEnvironmentAspect>()->environment();
-    r.executable = QLatin1String(Constants::SAILFISH_QML_LAUNCHER);
-    r.commandLineArguments = appName;
+    Runnable r = RunConfiguration::runnable();
 
     // required by qtbase not to direct logs to journald
     // for Qt < 5.4
@@ -113,11 +120,6 @@ Runnable MerQmlRunConfiguration::runnable() const
     merAspect->applyTo(&r);
 
     return r;
-}
-
-QWidget *MerQmlRunConfiguration::createConfigurationWidget()
-{
-    return new MerQmlRunConfigurationWidget(this);
 }
 
 } // Internal
