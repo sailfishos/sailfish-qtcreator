@@ -54,8 +54,7 @@ MerDeviceFactory::MerDeviceFactory()
 {
     QTC_CHECK(!s_instance);
     s_instance = this;
-    setObjectName(QLatin1String("MerDeviceFactory"));
-    setDisplayName(tr("%1 Device").arg(Sdk::osVariant()));
+    setDisplayName(MerDevice::tr("%1 Device").arg(Sdk::osVariant()));
     setIcon(Utils::creatorTheme()->flag(Utils::Theme::FlatSideBarIcons)
             ? Utils::Icon::combinedIcon({Icons::MER_DEVICE_FLAT,
                                          Icons::MER_DEVICE_FLAT_SMALL})
