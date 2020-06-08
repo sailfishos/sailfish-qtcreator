@@ -124,7 +124,7 @@ QString MerQmlRunConfiguration::localExecutableFilePath() const
     QTC_ASSERT(buildTarget.isValid(), return {});
 
     const QString path =
-        FileName(buildTarget.sysRoot).appendPath(Constants::SAILFISH_QML_LAUNCHER).toString();
+        FilePath(buildTarget.sysRoot).appendPath(Constants::SAILFISH_QML_LAUNCHER).toString();
     return QDir::cleanPath(path);
 }
 

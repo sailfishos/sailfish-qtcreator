@@ -271,9 +271,9 @@ bool MerProcessStep::init(InitOptions options)
         projectDirectory = qobject_cast<MerCMakeBuildConfiguration*>(bc)->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory().toString();
     else
         projectDirectory = qobject_cast<MerQmakeBuildConfiguration*>(bc)->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory().toString();
-    const FileName toolsPath = engine->buildTarget(target).toolsPath;
+    const FilePath toolsPath = engine->buildTarget(target).toolsPath;
     const QString deployCommand =
-        FileName(toolsPath).appendPath(Sfdk::Constants::WRAPPER_DEPLOY).toString();
+        FilePath(toolsPath).appendPath(Sfdk::Constants::WRAPPER_DEPLOY).toString();
 
     ProcessParameters *pp = processParameters();
 
@@ -810,7 +810,7 @@ void MerRpmValidationStep::doRun()
         const QString message(tr("No RPM validation suite is available for the current "
                     "%1 build target, the package will not be validated").arg(Sdk::osVariant()));
         emit addOutput(message, OutputFormat::ErrorMessage);
-        emit addTask(Task(Task::Error, message, Utils::FileName(), -1,
+        emit addTask(Task(Task::Error, message, Utils::FilePath(), -1,
                     ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM),
                 2);
         emit addOutput("  " + tr("Disable the RPM Validation deploy step to avoid this error"),
@@ -821,7 +821,7 @@ void MerRpmValidationStep::doRun()
         const QString message(tr("No RPM validation suite is selected in deployment settings,"
                     " the package will not be validated"));
         emit addOutput(message, OutputFormat::ErrorMessage);
-        emit addTask(Task(Task::Error, message, Utils::FileName(), -1,
+        emit addTask(Task(Task::Error, message, Utils::FilePath(), -1,
                     ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM),
                 2);
         emit addOutput("  " + tr("Either select at least one suite or disable the RPM Validation "
@@ -835,7 +835,7 @@ void MerRpmValidationStep::doRun()
     const QString packageFile = m_packagingStep->packagesFilePath().first();
     if(!packageFile.endsWith(QLatin1String(".rpm"))){
         const QString message((tr("No package to validate found in %1")).arg(packageFile));
-        emit addTask(Task(Task::Error, message, Utils::FileName(), -1,
+        emit addTask(Task(Task::Error, message, Utils::FilePath(), -1,
                     ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM),
                 1);
         emit addOutput(message, OutputFormat::ErrorMessage);

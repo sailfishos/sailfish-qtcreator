@@ -81,7 +81,7 @@ public:
 
         VariableChooser::addSupportForChildWidgets(details, m_aspect->buildConfiguration()->macroExpander());
 
-        FileName specDir = m_aspect->buildConfiguration()->project()->projectDirectory()
+        FilePath specDir = m_aspect->buildConfiguration()->project()->projectDirectory()
             .appendPath("rpm");
         if (!specDir.exists())
             specDir = specDir.parentDir();

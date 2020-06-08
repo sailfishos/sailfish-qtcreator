@@ -57,7 +57,7 @@ MerQtVersion::MerQtVersion()
 {
 }
 
-MerQtVersion::MerQtVersion(const FileName &path,
+MerQtVersion::MerQtVersion(const FilePath &path,
                            bool isAutodetected,
                            const QString &autodetectionSource)
     : BaseQtVersion(path, isAutodetected, autodetectionSource)
@@ -143,14 +143,14 @@ QList<Task> MerQtVersion::validateKit(const Kit *kit)
         const QString message =
                 QCoreApplication::translate("QtVersion", "No available toolchains found to build "
                                             "for Qt version \"%1\".").arg(version->displayName());
-        result << Task(Task::Error, message, FileName(), -1,
+        result << Task(Task::Error, message, FilePath(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
 
     } else if (!MerSdkManager::validateKit(kit)) {
         const QString message =
                 QCoreApplication::translate("QtVersion", "This Qt version \"%1\" does not match %2 or toolchain.").
                 arg(version->displayName()).arg(Sdk::sdkVariant());
-        result << Task(Task::Error, message, FileName(), -1,
+        result << Task(Task::Error, message, FilePath(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     }
     return result;
@@ -167,7 +167,7 @@ QList<Task> MerQtVersion::reportIssuesImpl(const QString &proFile,
         Task task(Task::Error,
                   QCoreApplication::translate("QtVersion",
                                               "Qt version \"%1\" is missing build engine").arg(displayName()),
-                  FileName(), -1, Core::Id());
+                  FilePath(), -1, Core::Id());
         results.append(task);
     } 
     else {
@@ -210,7 +210,7 @@ QList<Task> MerQtVersion::reportIssuesImpl(const QString &proFile,
             else if(!buildEngine->sharedHomePath().isEmpty())
               message = QCoreApplication::translate("QtVersion", "Project is outside of shared home \"%1\"")
                       .arg(QDir::toNativeSeparators(buildEngine->sharedHomePath().toString()));
-            Task task(Task::Error,message,FileName(), -1, Core::Id());
+            Task task(Task::Error,message,FilePath(), -1, Core::Id());
             results.append(task);
         }
 

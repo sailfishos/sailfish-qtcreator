@@ -33,7 +33,7 @@ class MerQtVersion : public QtSupport::BaseQtVersion
 {
 public:
     MerQtVersion();
-    MerQtVersion(const Utils::FileName &path, bool isAutodetected = false,
+    MerQtVersion(const Utils::FilePath &path, bool isAutodetected = false,
                  const QString &autodetectionSource = QString());
     ~MerQtVersion() override;
 

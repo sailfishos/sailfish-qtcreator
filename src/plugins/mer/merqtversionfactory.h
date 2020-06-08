@@ -38,7 +38,7 @@ public:
     QtSupport::BaseQtVersion *restore(const QString &type, const QVariantMap &data) override;
 
     int priority() const override;
-    QtSupport::BaseQtVersion *create(const Utils::FileName &qmakePath,
+    QtSupport::BaseQtVersion *create(const Utils::FilePath &qmakePath,
                                      ProFileEvaluator *evaluator,
                                      bool isAutoDetected,
                                      const QString &autoDetectionSource) override;

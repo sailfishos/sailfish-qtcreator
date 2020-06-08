@@ -86,7 +86,7 @@ QList<Task> MerSdkKitInformation::validate(const Kit *kit) const
 {
     if (DeviceTypeKitInformation::deviceTypeId(kit) == Constants::MER_DEVICE_TYPE) {
         auto error = [](const QString &message) {
-            return Task(Task::Error, message, FileName(), -1,
+            return Task(Task::Error, message, FilePath(), -1,
                     Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
         };
 

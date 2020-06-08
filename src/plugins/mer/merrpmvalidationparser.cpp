@@ -65,7 +65,7 @@ void MerRpmValidationParser::stdOutput(const QString &line)
         const QString message(tr("RPM Validation: %1: %2")
                 .arg(m_section)
                 .arg(trimmed));
-        newTask(Task(Task::Error, message, FileName(), -1,
+        newTask(Task(Task::Error, message, FilePath(), -1,
                      Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM)));
         return;
     } else if (m_warningRexp.indexIn(trimmed) != -1) {
@@ -73,7 +73,7 @@ void MerRpmValidationParser::stdOutput(const QString &line)
         const QString message(tr("RPM Validation: %1: %2")
                 .arg(m_section)
                 .arg(trimmed));
-        newTask(Task(Task::Warning, message, FileName(), -1,
+        newTask(Task(Task::Warning, message, FilePath(), -1,
                      Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM)));
         return;
     } else if (m_infoRexp.indexIn(trimmed) != -1) {

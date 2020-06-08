@@ -45,11 +45,11 @@ public:
     QVariantMap toMap() const override;
     bool fromMap(const QVariantMap &data) override;
 
-    Utils::FileName makeCommand(const Utils::Environment &environment) const override;
+    Utils::FilePath makeCommand(const Utils::Environment &environment) const override;
 
     ToolChain *clone() const override;
     ProjectExplorer::IOutputParser *outputParser() const override;
-    QList<Utils::FileName> suggestedMkspecList() const override;
+    QList<Utils::FilePath> suggestedMkspecList() const override;
     QList<ProjectExplorer::Task> validateKit(const ProjectExplorer::Kit *kit) const override;
 
     bool isJobCountSupported() const override { return false; }

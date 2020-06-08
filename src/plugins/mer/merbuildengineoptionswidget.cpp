@@ -600,7 +600,7 @@ void MerBuildEngineOptionsWidget::onSrcFolderApplyButtonClicked(const QString &n
 
     bool ok;
     execAsynchronous(std::tie(ok), std::mem_fn(&BuildEngine::setSharedSrcPath), buildEngine,
-            FileName::fromUserInput(newFolder));
+            FilePath::fromUserInput(newFolder));
 
     buildEngine->virtualMachine()->lockDown(false);
 

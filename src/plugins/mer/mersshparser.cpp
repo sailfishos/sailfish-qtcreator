@@ -40,7 +40,7 @@ void MerSshParser::stdError(const QString &line)
         const QString description = lne.mid(15);
         emit addTask(Task(Task::Error,
                           description,
-                          FileName() /* filename */,
+                          FilePath(),
                           -1 /* linenumber */,
                           Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM)));
         return;
@@ -93,7 +93,7 @@ void MerPlugin::testMerSshOutputParsers_data()
             << (QList<Task>()
                 << Task(Task::Error,
                         tr("%1 build engine is not running.").arg(Sdk::osVariant()),
-                        FileName(), -1,
+                        FilePath(), -1,
                         categoryBuildSystem))
             << QString();
 }

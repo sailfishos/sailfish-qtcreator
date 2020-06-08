@@ -78,7 +78,7 @@ int MerQtVersionFactory::priority() const
     return 50;
 }
 
-BaseQtVersion *MerQtVersionFactory::create(const FileName &qmakeCommand,
+BaseQtVersion *MerQtVersionFactory::create(const FilePath &qmakeCommand,
                                            ProFileEvaluator * /*evaluator*/,
                                            bool isAutoDetected,
                                            const QString &autoDetectionSource)

@@ -76,21 +76,21 @@ QString MerToolChain::buildTargetName() const
     return m_buildTargetName;
 }
 
-Utils::FileName MerToolChain::makeCommand(const Environment &environment) const
+Utils::FilePath MerToolChain::makeCommand(const Environment &environment) const
 {
     const QString make = QLatin1String(Sfdk::Constants::WRAPPER_MAKE);
-    const FileName makePath = environment.searchInPath(make);
+    const FilePath makePath = environment.searchInPath(make);
     if (!makePath.isEmpty())
         return makePath;
 
-    return FileName::fromString(make);
+    return FilePath::fromString(make);
 }
 
-QList<FileName> MerToolChain::suggestedMkspecList() const
+QList<FilePath> MerToolChain::suggestedMkspecList() const
 {
-    QList<FileName> mkSpecList = GccToolChain::suggestedMkspecList();
+    QList<FilePath> mkSpecList = GccToolChain::suggestedMkspecList();
     if (mkSpecList.isEmpty())
-        mkSpecList << FileName::fromString(QLatin1String("linux-g++"));
+        mkSpecList << FilePath::fromString(QLatin1String("linux-g++"));
     return mkSpecList;
 }
 
@@ -137,7 +137,7 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
                 QCoreApplication::translate("ProjectExplorer::MerToolChain",
                                             "Toolchain \"%1\" can not be used for device with %2 architecture")
                 .arg(displayName()).arg(Abi::toString(device->architecture()));
-        result << Task(Task::Error, message, FileName(), -1,
+        result << Task(Task::Error, message, FilePath(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     }
 
@@ -148,7 +148,7 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
                 QCoreApplication::translate("ProjectExplorer::MerToolChain",
                                             "No available Qt version found which can be used with "
                                             "toolchain \"%1\".").arg(displayName());
-        result << Task(Task::Error, message, FileName(), -1,
+        result << Task(Task::Error, message, FilePath(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
 
     } else if (!Internal::MerSdkManager::validateKit(kit)) {
@@ -156,7 +156,7 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
                 QCoreApplication::translate("ProjectExplorer::MerToolChain",
                                             "The toolchain \"%1\" does not match %2 build engine or Qt version").
                                                                 arg(displayName()).arg(Sdk::osVariant());
-        result << Task(Task::Error, message, FileName(), -1,
+        result << Task(Task::Error, message, FilePath(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     }
     return result;
@@ -193,7 +193,7 @@ QList<ToolChain *> MerToolChainFactory::autoDetect()
                                             QLatin1String(Sfdk::Constants::WRAPPER_GCC),
                                             QDir::Files);
             if (gcc.count()) {
-                MerToolChain *tc = new MerToolChain(true, FileName(gcc.first()));
+                MerToolChain *tc = new MerToolChain(true, FilePath(gcc.first()));
                 tc->setDisplayName(QString::fromLocal8Bit("GCC (%1 %2)").arg(sdkName,
                                                                              target.baseName()));
                 result.append(tc);
