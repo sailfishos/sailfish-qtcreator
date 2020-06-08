@@ -33,8 +33,6 @@ class MerQtVersionFactory : public QtSupport::QtVersionFactory
 public:
     MerQtVersionFactory();
     ~MerQtVersionFactory() override;
-
-    QtSupport::BaseQtVersion *create(ProFileEvaluator *evaluator) override;
 };
 
 } // Internal

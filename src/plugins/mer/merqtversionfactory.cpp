@@ -57,11 +57,6 @@ MerQtVersionFactory::~MerQtVersionFactory()
 {
 }
 
-BaseQtVersion *MerQtVersionFactory::create(ProFileEvaluator * /*evaluator*/)
-{
-    return new MerQtVersion;
-}
-
 } // Internal
 } // Mer
 
