@@ -37,8 +37,7 @@ class MerHardwareDeviceWidget : public ProjectExplorer::IDeviceWidget
 {
     Q_OBJECT
 public:
-    explicit MerHardwareDeviceWidget(const ProjectExplorer::IDevice::Ptr &deviceConfig,
-                                          QWidget *parent = 0);
+    explicit MerHardwareDeviceWidget(const ProjectExplorer::IDevice::Ptr &deviceConfig);
     ~MerHardwareDeviceWidget() override;
 
 private slots:

@@ -54,10 +54,9 @@ using namespace Utils;
 namespace Mer {
 namespace Internal {
 
-MerHardwareDeviceWidget::MerHardwareDeviceWidget(
-        const IDevice::Ptr &deviceConfig, QWidget *parent) :
-    IDeviceWidget(deviceConfig, parent),
-    m_ui(new Ui::MerHardwareDeviceWidget)
+MerHardwareDeviceWidget::MerHardwareDeviceWidget(const IDevice::Ptr &deviceConfig)
+    : IDeviceWidget(deviceConfig)
+    , m_ui(new Ui::MerHardwareDeviceWidget)
 {
     m_ui->setupUi(this);
     connect(m_ui->hostLineEdit, &QLineEdit::editingFinished,
