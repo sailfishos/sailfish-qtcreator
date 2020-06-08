@@ -63,6 +63,8 @@ MerSdkKitAspect::MerSdkKitAspect()
     s_instance = this;
 
     setId(MerSdkKitAspect::id());
+    setDisplayName(Sdk::sdkVariant());
+    setDescription(tr("%1 build engine and build target.").arg(Sdk::osVariant()));
     setPriority(24);
 
     connect(MerSettings::instance(), &MerSettings::environmentFilterChanged,
@@ -72,6 +74,11 @@ MerSdkKitAspect::MerSdkKitAspect()
 MerSdkKitAspect::~MerSdkKitAspect()
 {
     s_instance = nullptr;
+}
+
+bool MerSdkKitAspect::isApplicableToKit(const Kit *kit) const
+{
+    return DeviceTypeKitAspect::deviceTypeId(kit) == Constants::MER_DEVICE_TYPE;
 }
 
 QVariant MerSdkKitAspect::defaultValue(const Kit *kit) const
@@ -296,16 +303,6 @@ MerSdkKitAspectWidget::MerSdkKitAspectWidget(Kit *kit,
     handleSdksUpdated();
 }
 
-QString MerSdkKitAspectWidget::displayName() const
-{
-    return Sdk::sdkVariant();
-}
-
-QString MerSdkKitAspectWidget::toolTip() const
-{
-    return tr("%1 build engine and build target.").arg(Sdk::osVariant());
-}
-
 void MerSdkKitAspectWidget::makeReadOnly()
 {
     m_buildEngineComboBox->setEnabled(false);
@@ -326,11 +323,6 @@ void MerSdkKitAspectWidget::refresh()
     }
 
     m_buildEngineComboBox->setCurrentIndex(i);
-}
-
-bool MerSdkKitAspectWidget::visibleInKit()
-{
-    return DeviceTypeKitAspect::deviceTypeId(m_kit) == Constants::MER_DEVICE_TYPE;
 }
 
 QWidget *MerSdkKitAspectWidget::mainWidget() const

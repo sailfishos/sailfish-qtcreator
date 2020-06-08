@@ -45,11 +45,8 @@ class MerSdkKitAspectWidget : public ProjectExplorer::KitAspectWidget
 public:
     MerSdkKitAspectWidget(ProjectExplorer::Kit *kit, const MerSdkKitAspect *kitAspect);
 
-    QString displayName() const override;
-    QString toolTip() const override;
     void makeReadOnly() override;
     void refresh() override;
-    bool visibleInKit() override;
 
     QWidget *mainWidget() const override;
     QWidget *buttonWidget() const override;
@@ -75,6 +72,7 @@ public:
     explicit MerSdkKitAspect();
     ~MerSdkKitAspect() override;
 
+    bool isApplicableToKit(const ProjectExplorer::Kit *kit) const override;
     QVariant defaultValue(const ProjectExplorer::Kit *kit) const override;
     QList<ProjectExplorer::Task> validate(const ProjectExplorer::Kit *kit) const override;
     ItemList toUserOutput(const ProjectExplorer::Kit *kit) const override;
