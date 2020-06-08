@@ -29,7 +29,7 @@ using namespace Utils;
 // HACK
 void useSfdkSettingsPath()
 {
-    FileName &sdkPath = Settings::instance()->sdkPath;
+    FilePath &sdkPath = Settings::instance()->sdkPath;
     sdkPath.appendPath(QLatin1String("../libsfdk"));
-    sdkPath = FileName::fromString(QDir::cleanPath(sdkPath.toString()));
+    sdkPath = FilePath::fromString(QDir::cleanPath(sdkPath.toString()));
 }
