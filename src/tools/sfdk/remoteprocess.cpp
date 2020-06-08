@@ -160,9 +160,9 @@ void RemoteProcess::start()
     fullCommand.append(Utils::QtcProcess::joinArgs(m_arguments, Utils::OsTypeLinux));
 
     if (m_runInTerminal)
-        m_runner->runInTerminal(fullCommand.toUtf8(), m_sshConnectionParams, m_inputChannelMode);
+        m_runner->runInTerminal(fullCommand, m_sshConnectionParams, m_inputChannelMode);
     else
-        m_runner->run(fullCommand.toUtf8(), m_sshConnectionParams);
+        m_runner->run(fullCommand, m_sshConnectionParams);
 
     started();
 }
@@ -231,7 +231,7 @@ void RemoteProcess::kill(const QString &signal, void (RemoteProcess::*callback)(
     QString killCommand = QString("kill -%1 -- -%2 %2").arg(signal).arg(m_processId);
     qCDebug(sfdk) << "Attempting to send signal to the remote process using" << killCommand;
 
-    m_killRunner->run(killCommand.toUtf8(), m_sshConnectionParams);
+    m_killRunner->run(killCommand, m_sshConnectionParams);
 }
 
 void RemoteProcess::finish()

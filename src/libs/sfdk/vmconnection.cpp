@@ -90,7 +90,7 @@ public:
             done
         )");
 
-        m_runner->run(watcher.toUtf8(), sshParams);
+        m_runner->run(watcher, sshParams);
     }
 
     bool isFinished() const { return m_finished; }
