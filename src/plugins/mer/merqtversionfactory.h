@@ -31,7 +31,7 @@ namespace Internal {
 class MerQtVersionFactory : public QtSupport::QtVersionFactory
 {
 public:
-    explicit MerQtVersionFactory(QObject *parent = 0);
+    MerQtVersionFactory();
     ~MerQtVersionFactory() override;
 
     QtSupport::BaseQtVersion *create(const Utils::FilePath &qmakePath,

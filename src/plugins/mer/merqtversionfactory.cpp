@@ -42,8 +42,7 @@ using namespace Utils;
 namespace Mer {
 namespace Internal {
 
-MerQtVersionFactory::MerQtVersionFactory(QObject *parent)
-    : QtVersionFactory(parent)
+MerQtVersionFactory::MerQtVersionFactory()
 {
     setSupportedType(Constants::MER_QT);
     setPriority(50);
