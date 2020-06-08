@@ -45,6 +45,7 @@ namespace Internal {
 MerQtVersionFactory::MerQtVersionFactory(QObject *parent)
     : QtVersionFactory(parent)
 {
+    setQtVersionCreator([]() { return new MerQtVersion; });
 }
 
 MerQtVersionFactory::~MerQtVersionFactory()
@@ -54,23 +55,6 @@ MerQtVersionFactory::~MerQtVersionFactory()
 bool MerQtVersionFactory::canRestore(const QString &type)
 {
     return type == QLatin1String(Constants::MER_QT);
-}
-
-BaseQtVersion *MerQtVersionFactory::restore(const QString &type,
-                                            const QVariantMap &data)
-{
-    QTC_ASSERT(canRestore(type), return 0);
-    MerQtVersion *v = new MerQtVersion();
-    v->fromMap(data);
-
-    // Check if the qtVersion is still valid
-    QFileInfo fi = v->qmakeCommand().toFileInfo();
-    if (!fi.exists() || v->buildEngineUri().isEmpty() || v->buildTargetName().isEmpty()) {
-        delete v;
-        return 0;
-    }
-
-    return v;
 }
 
 int MerQtVersionFactory::priority() const
