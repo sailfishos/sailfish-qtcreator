@@ -66,11 +66,10 @@ class MerBuildConfigurationWidget : public ProjectExplorer::NamedWidget
 
 public:
     explicit MerBuildConfigurationWidget(MerBuildConfigurationAspect *aspect)
-        : m_ui(new Ui::MerBuildConfigurationWidget)
+        : NamedWidget(aspect->displayName())
+        , m_ui(new Ui::MerBuildConfigurationWidget)
         , m_aspect(aspect)
     {
-        setDisplayName(aspect->displayName());
-
         auto vbox = new QVBoxLayout(this);
         vbox->setMargin(0);
 
