@@ -1047,32 +1047,8 @@ void MerNamedCommandDeployService::handleProcessClosed(const QString &error)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-MerNamedCommandDeployStep::MerNamedCommandDeployStep(ProjectExplorer::BuildStepList *bsl, Core::Id id)
-    : AbstractRemoteLinuxDeployStep(bsl, id)
-    , m_deployService(new MerNamedCommandDeployService(this))
-{
-}
-
-AbstractRemoteLinuxDeployService *MerNamedCommandDeployStep::deployService() const
-{
-    return m_deployService;
-}
-
-bool MerNamedCommandDeployStep::initInternal(QString *error)
-{
-    return m_deployService->isDeploymentPossible(error);
-}
-
-void MerNamedCommandDeployStep::setCommand(const QString &description, const QString &command)
-{
-    m_deployService->setDescription(description);
-    m_deployService->setCommand(command);
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 MerResetAmbienceDeployStep::MerResetAmbienceDeployStep(ProjectExplorer::BuildStepList *bsl)
-    : MerNamedCommandDeployStep(bsl, stepId())
+    : AbstractRemoteLinuxDeployStep(bsl, stepId())
 {
     setDefaultDisplayName(displayName());
     QString ambienceName = target()->project()->displayName();
@@ -1083,7 +1059,13 @@ MerResetAmbienceDeployStep::MerResetAmbienceDeployStep(ProjectExplorer::BuildSte
     QString script = QString::fromUtf8(scriptFile.readAll());
     script.prepend(QStringLiteral("AMBIENCE_URL='file:///usr/share/ambience/%1/%1.ambience'\n").arg(ambienceName));
 
-    setCommand(tr("Starting remote command to reset ambience '%1'...").arg(ambienceName), script);
+    auto service = createDeployService<MerNamedCommandDeployService>();
+    service->setDescription(tr("Starting remote command to reset ambience '%1'...").arg(ambienceName));
+    service->setCommand(script);
+
+    setInternalInitializer([service]() {
+        return service->isDeploymentPossible();
+    });
 }
 
 Core::Id MerResetAmbienceDeployStep::stepId()

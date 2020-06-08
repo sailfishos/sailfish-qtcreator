@@ -252,20 +252,7 @@ private:
     Ui::MerDeployStepWidget m_ui;
 };
 
-class MerNamedCommandDeployStep : public RemoteLinux::AbstractRemoteLinuxDeployStep
-{
-    Q_OBJECT
-public:
-    MerNamedCommandDeployStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
-    RemoteLinux::AbstractRemoteLinuxDeployService *deployService() const override;
-protected:
-    bool initInternal(QString *error = 0) override;
-    void setCommand(const QString &name, const QString &command);
-private:
-    MerNamedCommandDeployService *m_deployService;
-};
-
-class MerResetAmbienceDeployStep : public MerNamedCommandDeployStep
+class MerResetAmbienceDeployStep : public RemoteLinux::AbstractRemoteLinuxDeployStep
 {
     Q_OBJECT
 public:
