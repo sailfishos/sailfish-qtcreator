@@ -549,7 +549,7 @@ void MerSdkManager::ensureDebuggerIsSet(Kit *k, const BuildEngine *buildEngine,
         dir.cdUp();
         gdbDir = dir.path();
     }
-    const FilePath gdbFilePath = FilePath::fromString(gdbDir).appendPath(gdb);
+    const FilePath gdbFilePath = FilePath::fromString(gdbDir).pathAppended(gdb);
 
     if (gdbFilePath.exists()) {
         if (const DebuggerItem *existing = DebuggerItemManager::findByCommand(gdbFilePath)) {
@@ -577,7 +577,7 @@ void MerSdkManager::ensureCmakeToolIsSet(Kit *k, const BuildEngine *buildEngine,
 {
     const BuildTargetData buildTarget = buildEngine->buildTarget(buildTargetName);
 
-    const FilePath cmakeWrapper = FilePath(buildTarget.toolsPath).appendPath(Sfdk::Constants::WRAPPER_CMAKE);
+    const FilePath cmakeWrapper = buildTarget.toolsPath.pathAppended(Sfdk::Constants::WRAPPER_CMAKE);
 
     if (cmakeWrapper.exists()) {
         if (const CMakeTool *existing = CMakeToolManager::findByCommand(cmakeWrapper)) {
@@ -611,7 +611,7 @@ std::unique_ptr<MerQtVersion> MerSdkManager::createQtVersion(const BuildEngine *
 {
     const BuildTargetData buildTarget = buildEngine->buildTarget(buildTargetName);
 
-    const FilePath qmake = FilePath(buildTarget.toolsPath).appendPath(Sfdk::Constants::WRAPPER_QMAKE);
+    const FilePath qmake = buildTarget.toolsPath.pathAppended(Sfdk::Constants::WRAPPER_QMAKE);
 
     QTC_CHECK(!QtVersionManager::qtVersionForQMakeBinary(qmake));
     auto qtVersion = std::make_unique<MerQtVersion>(qmake, true, buildTarget.toolsPath.toString());
@@ -629,7 +629,7 @@ std::unique_ptr<MerToolChain> MerSdkManager::createToolChain(const BuildEngine *
 {
     const BuildTargetData buildTarget = buildEngine->buildTarget(buildTargetName);
 
-    const FilePath gcc = FilePath(buildTarget.toolsPath).appendPath(Sfdk::Constants::WRAPPER_GCC);
+    const FilePath gcc = buildTarget.toolsPath.pathAppended(Sfdk::Constants::WRAPPER_GCC);
 
     QTC_CHECK(!Utils::contains(ToolChainManager::toolChains(),
                 Utils::equal(&ToolChain::compilerCommand, gcc)));

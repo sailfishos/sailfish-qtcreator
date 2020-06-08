@@ -123,8 +123,8 @@ QString MerQmlRunConfiguration::localExecutableFilePath() const
     const BuildTargetData buildTarget = MerSdkKitInformation::buildTarget(target()->kit());
     QTC_ASSERT(buildTarget.isValid(), return {});
 
-    const QString path =
-        FilePath(buildTarget.sysRoot).appendPath(Constants::SAILFISH_QML_LAUNCHER).toString();
+    const QString path = buildTarget.sysRoot.pathAppended(Constants::SAILFISH_QML_LAUNCHER)
+        .toString();
     return QDir::cleanPath(path);
 }
 

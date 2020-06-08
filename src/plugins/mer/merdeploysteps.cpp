@@ -272,8 +272,7 @@ bool MerProcessStep::init(InitOptions options)
     else
         projectDirectory = qobject_cast<MerQmakeBuildConfiguration*>(bc)->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory().toString();
     const FilePath toolsPath = engine->buildTarget(target).toolsPath;
-    const QString deployCommand =
-        FilePath(toolsPath).appendPath(Sfdk::Constants::WRAPPER_DEPLOY).toString();
+    const QString deployCommand = toolsPath.pathAppended(Sfdk::Constants::WRAPPER_DEPLOY).toString();
 
     ProcessParameters *pp = processParameters();
 
