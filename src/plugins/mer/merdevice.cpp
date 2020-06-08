@@ -61,11 +61,6 @@ QVariantMap MerDevice::toMap() const
     return map;
 }
 
-QString MerDevice::displayType() const
-{
-    return tr("%1 Device").arg(Sdk::osVariant());
-}
-
 Abi::Architecture MerDevice::architecture() const
 {
     return m_architecture;
@@ -107,6 +102,7 @@ MerDevice::MerDevice()
     : m_architecture(ProjectExplorer::Abi::UnknownArchitecture)
 {
     setType(Core::Id(Constants::MER_DEVICE_TYPE));
+    setDisplayType(tr("%1 Device").arg(Sdk::osVariant()));
     setDeviceState(IDevice::DeviceStateUnknown);
 }
 

@@ -43,8 +43,6 @@ public:
     void fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
 
-    QString displayType() const override;
-
     ProjectExplorer::Abi::Architecture architecture() const;
     void setArchitecture(const ProjectExplorer::Abi::Architecture &architecture);
 
