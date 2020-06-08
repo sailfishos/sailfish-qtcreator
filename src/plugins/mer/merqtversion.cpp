@@ -24,7 +24,7 @@
 #include "merqtversion.h"
 
 #include "merconstants.h"
-#include "mersdkkitinformation.h"
+#include "mersdkkitaspect.h"
 #include "mersdkmanager.h"
 
 #include <sfdk/buildengine.h>
@@ -134,10 +134,10 @@ QList<Task> MerQtVersion::validateKit(const Kit *kit)
     if (!result.isEmpty())
         return result;
 
-    BaseQtVersion *version = QtKitInformation::qtVersion(kit);
+    BaseQtVersion *version = QtKitAspect::qtVersion(kit);
     QTC_ASSERT(version == this, return result);
 
-    ToolChain *tc = ToolChainKitInformation::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
+    ToolChain *tc = ToolChainKitAspect::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
 
     if (!tc) {
         const QString message =

@@ -27,7 +27,7 @@
 #include "merbuildsteps.h"
 #include "merlogging.h"
 #include "mersettings.h"
-#include "mersdkkitinformation.h"
+#include "mersdkkitaspect.h"
 
 #include <sfdk/buildengine.h>
 #include <sfdk/virtualmachine.h>
@@ -122,7 +122,7 @@ MerCMakeBuildConfigurationFactory::MerCMakeBuildConfigurationFactory()
 
 void MerCMakeBuildConfiguration::startBuildEngine()
 {
-    MerSdkKitInformation::buildEngine(target()->kit())->virtualMachine()->connectTo(
+    MerSdkKitAspect::buildEngine(target()->kit())->virtualMachine()->connectTo(
         Sfdk::VirtualMachine::AskStartVm|Sfdk::VirtualMachine::Block);
 }
 

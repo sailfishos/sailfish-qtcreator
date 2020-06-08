@@ -35,6 +35,7 @@
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/runconfiguration.h>
+#include <projectexplorer/runcontrol.h>
 #include <projectexplorer/target.h>
 #include <utils/detailsbutton.h>
 #include <utils/detailswidget.h>
@@ -265,7 +266,7 @@ void MerRunConfigurationAspect::applyTo(ProjectExplorer::Runnable *r) const
 
         Port qmlLiveIpcPort = this->qmlLiveIpcPort();
         if (!qmlLiveIpcPort.isValid()) {
-            const IDevice::ConstPtr device = DeviceKitInformation::device(m_target->kit());
+            const IDevice::ConstPtr device = DeviceKitAspect::device(m_target->kit());
             const auto merDevice = device.dynamicCast<const MerDevice>();
             if (merDevice) {
                 Utils::PortList ports = merDevice->qmlLivePorts();

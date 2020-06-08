@@ -27,7 +27,7 @@
 #include "merdeployconfiguration.h"
 #include "merqmlrunconfigurationwidget.h"
 #include "merrunconfigurationaspect.h"
-#include "mersdkkitinformation.h"
+#include "mersdkkitaspect.h"
 
 #include <sfdk/buildengine.h>
 
@@ -120,7 +120,7 @@ QWidget *MerQmlRunConfiguration::createConfigurationWidget()
 
 QString MerQmlRunConfiguration::localExecutableFilePath() const
 {
-    const BuildTargetData buildTarget = MerSdkKitInformation::buildTarget(target()->kit());
+    const BuildTargetData buildTarget = MerSdkKitAspect::buildTarget(target()->kit());
     QTC_ASSERT(buildTarget.isValid(), return {});
 
     const QString path = buildTarget.sysRoot.pathAppended(Constants::SAILFISH_QML_LAUNCHER)

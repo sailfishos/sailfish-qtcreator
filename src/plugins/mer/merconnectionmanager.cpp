@@ -26,7 +26,7 @@
 #include "merconstants.h"
 #include "meremulatordevice.h"
 #include "mericons.h"
-#include "mersdkkitinformation.h"
+#include "mersdkkitaspect.h"
 #include "mersdkmanager.h"
 
 #include <sfdk/buildengine.h>
@@ -359,7 +359,7 @@ void MerConnectionManager::update()
                 sdkRemoteButtonVisible = true;
                 if (t == activeTarget) {
                     sdkRemoteButtonEnabled = true;
-                    BuildEngine *const engine = MerSdkKitInformation::buildEngine(t->kit());
+                    BuildEngine *const engine = MerSdkKitAspect::buildEngine(t->kit());
                     QTC_ASSERT(engine, continue);
                     m_sdkAction->setVirtualMachine(engine->virtualMachine());
                 }
@@ -367,7 +367,7 @@ void MerConnectionManager::update()
 
             if (MerSdkManager::hasMerDevice(t->kit())) {
                 if (t == activeTarget) {
-                    const IDevice::ConstPtr device = DeviceKitInformation::device(t->kit());
+                    const IDevice::ConstPtr device = DeviceKitAspect::device(t->kit());
                     const auto emu = dynamic_cast<const MerEmulatorDevice *>(device.data());
                     if (emu) {
                           emulatorRemoteButtonVisible = true;

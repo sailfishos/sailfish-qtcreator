@@ -28,7 +28,7 @@
 #include "merbuildsteps.h"
 #include "merlogging.h"
 #include "mersettings.h"
-#include "mersdkkitinformation.h"
+#include "mersdkkitaspect.h"
 
 #include <sfdk/buildengine.h>
 #include <sfdk/virtualmachine.h>
@@ -190,7 +190,7 @@ void MerQmakeBuildConfiguration::setupExtraParserArguments()
     QStringList args;
     if (MerSettings::isImportQmakeVariablesEnabled()) {
         QFile file(buildDirectory().toString() + "/.mb2/qmake_variables."
-                   + MerSdkKitInformation::buildTargetName(target()->kit()) + ".cache");
+                   + MerSdkKitAspect::buildTargetName(target()->kit()) + ".cache");
         if (!file.exists()) {
             // Do not ask again
             const bool mkpathOk = QFileInfo(file.fileName()).dir().mkpath(".");
@@ -277,7 +277,7 @@ void MerQmakeBuildConfiguration::maybeUpdateExtraParserArguments(bool now)
 
 void MerQmakeBuildConfiguration::updateExtraParserArguments()
 {
-    const BuildEngine *const buildEngine = MerSdkKitInformation::buildEngine(target()->kit());
+    const BuildEngine *const buildEngine = MerSdkKitAspect::buildEngine(target()->kit());
     QTC_ASSERT(buildEngine, return);
 
     if (buildEngine->virtualMachine()->state() != VirtualMachine::Connected) {

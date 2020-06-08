@@ -130,7 +130,7 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
     if (!result.isEmpty())
         return result;
 
-    IDevice::ConstPtr d = DeviceKitInformation::device(kit);
+    IDevice::ConstPtr d = DeviceKitAspect::device(kit);
     const MerDevice* device = dynamic_cast<const MerDevice*>(d.data());
     if (device && device->architecture() != targetAbi().architecture()) {
         const QString message =
@@ -141,7 +141,7 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     }
 
-    BaseQtVersion *version = QtKitInformation::qtVersion(kit);
+    BaseQtVersion *version = QtKitAspect::qtVersion(kit);
 
     if (!version) {
         const QString message =

@@ -31,7 +31,7 @@
 #include "merlogging.h"
 #include "merplugin.h"
 #include "merqtversion.h"
-#include "mersdkkitinformation.h"
+#include "mersdkkitaspect.h"
 #include "mertoolchain.h"
 
 #include <sfdk/buildengine.h>
@@ -92,7 +92,7 @@ MerSdkManager::MerSdkManager()
     m_instance = this;
     connect(KitManager::instance(), &KitManager::kitsLoaded,
             this, &MerSdkManager::initialize);
-    KitManager::registerKitInformation<MerSdkKitInformation>();
+    KitManager::registerKitAspect<MerSdkKitAspect>();
 }
 
 MerSdkManager::~MerSdkManager()
@@ -204,11 +204,11 @@ bool MerSdkManager::isMerKit(const Kit *kit)
 {
     if (!kit)
         return false;
-    if (!MerSdkKitInformation::buildEngine(kit))
+    if (!MerSdkKitAspect::buildEngine(kit))
         return false;
 
-    ToolChain* tc = ToolChainKitInformation::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
-    const Core::Id deviceType = DeviceTypeKitInformation::deviceTypeId(kit);
+    ToolChain* tc = ToolChainKitAspect::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
+    const Core::Id deviceType = DeviceTypeKitAspect::deviceTypeId(kit);
     if (tc && tc->typeId() == Constants::MER_TOOLCHAIN_ID)
         return true;
     if (deviceType.isValid() && deviceType == Constants::MER_DEVICE_TYPE)
@@ -221,7 +221,7 @@ QString MerSdkManager::buildTargetNameForKit(const Kit *kit)
 {
     if (!kit || !isMerKit(kit))
         return QString();
-    ToolChain *toolchain = ToolChainKitInformation::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
+    ToolChain *toolchain = ToolChainKitAspect::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
     if (toolchain && toolchain->typeId() == Constants::MER_TOOLCHAIN_ID) {
         MerToolChain *mertoolchain = static_cast<MerToolChain *>(toolchain);
         return mertoolchain->buildTargetName();
@@ -244,7 +244,7 @@ QList<Kit *> MerSdkManager::kitsForTarget(const QString &buildTargetName)
 
 bool MerSdkManager::hasMerDevice(Kit *kit)
 {
-    IDevice::ConstPtr dev = DeviceKitInformation::device(kit);
+    IDevice::ConstPtr dev = DeviceKitAspect::device(kit);
     if (dev.isNull())
         return false;
     return dev->type() == Constants::MER_DEVICE_TYPE;
@@ -319,10 +319,10 @@ bool MerSdkManager::validateKit(const Kit *kit)
 {
     if (!kit)
         return false;
-    ToolChain* toolchain = ToolChainKitInformation::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
-    BaseQtVersion* version = QtKitInformation::qtVersion(kit);
-    Core::Id deviceType = DeviceTypeKitInformation::deviceTypeId(kit);
-    BuildEngine* engine = MerSdkKitInformation::buildEngine(kit);
+    ToolChain* toolchain = ToolChainKitAspect::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
+    BaseQtVersion* version = QtKitAspect::qtVersion(kit);
+    Core::Id deviceType = DeviceTypeKitAspect::deviceTypeId(kit);
+    BuildEngine* engine = MerSdkKitAspect::buildEngine(kit);
 
     if (!version || !toolchain || !deviceType.isValid() || !engine)
         return false;
@@ -404,8 +404,8 @@ void MerSdkManager::startWatching(BuildEngine *buildEngine)
         removeKit(buildEngine, buildEngine->buildTargetNames().at(index));
     });
 
-    // FIXME Let MerSdkKitInformation take care of these?
-    auto notifyKitsUpdated = [=]() { MerSdkKitInformation::notifyAboutUpdate(buildEngine); };
+    // FIXME Let MerSdkKitAspect take care of these?
+    auto notifyKitsUpdated = [=]() { MerSdkKitAspect::notifyAboutUpdate(buildEngine); };
     connect(buildEngine, &BuildEngine::sharedHomePathChanged, this, notifyKitsUpdated);
     connect(buildEngine, &BuildEngine::sharedTargetsPathChanged, this, notifyKitsUpdated);
     connect(buildEngine, &BuildEngine::sharedConfigPathChanged, this, notifyKitsUpdated);
@@ -454,9 +454,9 @@ bool MerSdkManager::addKit(const BuildEngine *buildEngine, const QString &buildT
     ToolChainManager::registerToolChain(toolchain.get());
     ToolChainManager::registerToolChain(toolchain_c.get());
     QtVersionManager::addVersion(version.get());
-    QtKitInformation::setQtVersion(kitptr, version.get());
-    ToolChainKitInformation::setToolChain(kitptr, toolchain.get());
-    ToolChainKitInformation::setToolChain(kitptr, toolchain_c.get());
+    QtKitAspect::setQtVersion(kitptr, version.get());
+    ToolChainKitAspect::setToolChain(kitptr, toolchain.get());
+    ToolChainKitAspect::setToolChain(kitptr, toolchain_c.get());
     if (kit)
         KitManager::registerKit(std::move(kit));
     toolchain.release();
@@ -474,8 +474,8 @@ bool MerSdkManager::removeKit(const BuildEngine *buildEngine, const QString &bui
     foreach (Kit *kit, KitManager::kits()) {
         if (!kit->isAutoDetected())
             continue;
-        ToolChain* tc = ToolChainKitInformation::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
-        ToolChain* tc_c = ToolChainKitInformation::toolChain(kit, ProjectExplorer::Constants::C_LANGUAGE_ID);
+        ToolChain* tc = ToolChainKitAspect::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
+        ToolChain* tc_c = ToolChainKitAspect::toolChain(kit, ProjectExplorer::Constants::C_LANGUAGE_ID);
         if (!tc ) {
             continue;
         }
@@ -483,8 +483,8 @@ bool MerSdkManager::removeKit(const BuildEngine *buildEngine, const QString &bui
             MerToolChain *mertoolchain = static_cast<MerToolChain*>(tc);
             if (mertoolchain->buildEngineUri() == buildEngine->uri() &&
                     mertoolchain->buildTargetName() == buildTargetName) {
-                 BaseQtVersion *v = QtKitInformation::qtVersion(kit);
-                 Core::Id cmakeId = CMakeKitInformation::cmakeToolId(kit);
+                 BaseQtVersion *v = QtKitAspect::qtVersion(kit);
+                 Core::Id cmakeId = CMakeKitAspect::cmakeToolId(kit);
                  KitManager::deregisterKit(kit);
                  ToolChainManager::deregisterToolChain(tc);
                  if (tc_c)
@@ -520,16 +520,16 @@ bool MerSdkManager::finalizeKitCreation(const BuildEngine *buildEngine,
     k->setUnexpandedDisplayName(QString::fromLatin1("%1 (in %2)")
             .arg(buildTargetName, buildEngine->name()));
 
-    SysRootKitInformation::setSysRoot(k, buildTarget.sysRoot);
+    SysRootKitAspect::setSysRoot(k, buildTarget.sysRoot);
 
-    DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE);
-    k->setMutable(DeviceKitInformation::id(), true);
+    DeviceTypeKitAspect::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE);
+    k->setMutable(DeviceKitAspect::id(), true);
 
     ensureDebuggerIsSet(k, buildEngine, buildTargetName);
 
     ensureCmakeToolIsSet(k, buildEngine, buildTargetName);
 
-    MerSdkKitInformation::setBuildTarget(k, buildEngine, buildTargetName);
+    MerSdkKitAspect::setBuildTarget(k, buildEngine, buildTargetName);
     return true;
 }
 
@@ -553,7 +553,7 @@ void MerSdkManager::ensureDebuggerIsSet(Kit *k, const BuildEngine *buildEngine,
 
     if (gdbFilePath.exists()) {
         if (const DebuggerItem *existing = DebuggerItemManager::findByCommand(gdbFilePath)) {
-            DebuggerKitInformation::setDebugger(k, existing->id());
+            DebuggerKitAspect::setDebugger(k, existing->id());
         } else {
             DebuggerItem debugger;
             debugger.setCommand(gdbFilePath);
@@ -564,11 +564,11 @@ void MerSdkManager::ensureDebuggerIsSet(Kit *k, const BuildEngine *buildEngine,
             const int prefixLength = QString(Sfdk::Constants::DEBUGGER_FILENAME_PREFIX).length();
             debugger.setAbi(Abi::abiFromTargetTriplet(buildTarget.gdb.toString().mid(prefixLength)));
             QVariant id = DebuggerItemManager::registerDebugger(debugger);
-            DebuggerKitInformation::setDebugger(k, id);
+            DebuggerKitAspect::setDebugger(k, id);
         }
     } else {
         qCWarning(Log::sdks) << "Debugger binary" << buildTarget.gdb << "not found";
-        k->setValue(DebuggerKitInformation::id(), QVariant(QString()));
+        k->setValue(DebuggerKitAspect::id(), QVariant(QString()));
     }
 }
 
@@ -581,7 +581,7 @@ void MerSdkManager::ensureCmakeToolIsSet(Kit *k, const BuildEngine *buildEngine,
 
     if (cmakeWrapper.exists()) {
         if (const CMakeTool *existing = CMakeToolManager::findByCommand(cmakeWrapper)) {
-            CMakeKitInformation::setCMakeTool(k, existing->id());
+            CMakeKitAspect::setCMakeTool(k, existing->id());
         } else {
             auto cmakeTool = std::make_unique<CMakeTool>(CMakeTool::AutoDetectionByPlugin, CMakeTool::createId());
             cmakeTool->setCMakeExecutable(cmakeWrapper);
@@ -591,18 +591,18 @@ void MerSdkManager::ensureCmakeToolIsSet(Kit *k, const BuildEngine *buildEngine,
             const Core::Id id = cmakeTool->id();
             const bool registeredOk = CMakeToolManager::registerCMakeTool(std::move(cmakeTool));
             QTC_ASSERT(registeredOk, return);
-            CMakeKitInformation::setCMakeTool(k, id);
+            CMakeKitAspect::setCMakeTool(k, id);
             // Qt Creator warns if these are not set or do not match Kit configuration, so we are
             // adding them here and later filtering out in merssh.
             QStringList cmakeConf = { "CMAKE_CXX_COMPILER:STRING=%{Compiler:Executable:Cxx}",
                                       "CMAKE_C_COMPILER:STRING=%{Compiler:Executable:C}",
                                       "CMAKE_PREFIX_PATH:STRING=%{Qt:QT_INSTALL_PREFIX}",
                                       "QT_QMAKE_EXECUTABLE:STRING=%{Qt:qmakeExecutable}" };
-            CMakeConfigurationKitInformation::fromStringList(k, cmakeConf);
+            CMakeConfigurationKitAspect::fromStringList(k, cmakeConf);
         }
     } else {
         qCWarning(Log::sdks) << "CMake wrapper script" << cmakeWrapper.toString() << "not found";
-        k->setValue(CMakeKitInformation::id(), QVariant(QString()));
+        k->setValue(CMakeKitAspect::id(), QVariant(QString()));
     }
 }
 

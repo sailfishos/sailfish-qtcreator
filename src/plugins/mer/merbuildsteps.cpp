@@ -23,7 +23,7 @@
 
 #include "merbuildsteps.h"
 
-#include "mersdkkitinformation.h"
+#include "mersdkkitaspect.h"
 
 #include <sfdk/buildengine.h>
 #include <sfdk/sdk.h>
@@ -45,7 +45,7 @@ MerSdkStartStep::MerSdkStartStep(BuildStepList *bsl)
 
 bool MerSdkStartStep::init()
 {
-    const BuildEngine *const engine = MerSdkKitInformation::buildEngine(target()->kit());
+    const BuildEngine *const engine = MerSdkKitAspect::buildEngine(target()->kit());
     if (!engine) {
         addOutput(tr("Cannot start SDK: Missing %1 build-engine information in the kit").arg(Sdk::osVariant()),
                 OutputFormat::ErrorMessage);

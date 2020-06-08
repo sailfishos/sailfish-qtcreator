@@ -21,7 +21,7 @@
 **
 ****************************************************************************/
 
-#include "mersdkkitinformation.h"
+#include "mersdkkitaspect.h"
 
 #include "merbuildengineoptionspage.h"
 #include "merconstants.h"
@@ -55,42 +55,42 @@ using namespace Utils;
 namespace Mer {
 namespace Internal {
 
-MerSdkKitInformation *MerSdkKitInformation::s_instance = nullptr;
+MerSdkKitAspect *MerSdkKitAspect::s_instance = nullptr;
 
-MerSdkKitInformation::MerSdkKitInformation()
+MerSdkKitAspect::MerSdkKitAspect()
 {
     Q_ASSERT(!s_instance);
     s_instance = this;
 
-    setId(MerSdkKitInformation::id());
+    setId(MerSdkKitAspect::id());
     setPriority(24);
 
     connect(MerSettings::instance(), &MerSettings::environmentFilterChanged,
-            this, &MerSdkKitInformation::notifyAllUpdated);
+            this, &MerSdkKitAspect::notifyAllUpdated);
 }
 
-MerSdkKitInformation::~MerSdkKitInformation()
+MerSdkKitAspect::~MerSdkKitAspect()
 {
     s_instance = nullptr;
 }
 
-QVariant MerSdkKitInformation::defaultValue(const Kit *kit) const
+QVariant MerSdkKitAspect::defaultValue(const Kit *kit) const
 {
-    BuildEngine *const engine = MerSdkKitInformation::buildEngine(kit);
+    BuildEngine *const engine = MerSdkKitAspect::buildEngine(kit);
     if (!engine || engine->buildTargets().isEmpty())
         return {};
     return toMap(engine->uri(), engine->buildTargets().first().name);
 }
 
-QList<Task> MerSdkKitInformation::validate(const Kit *kit) const
+QList<Task> MerSdkKitAspect::validate(const Kit *kit) const
 {
-    if (DeviceTypeKitInformation::deviceTypeId(kit) == Constants::MER_DEVICE_TYPE) {
+    if (DeviceTypeKitAspect::deviceTypeId(kit) == Constants::MER_DEVICE_TYPE) {
         auto error = [](const QString &message) {
             return Task(Task::Error, message, FilePath(), -1,
                     Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
         };
 
-        QVariantMap data = kit->value(MerSdkKitInformation::id()).toMap();
+        QVariantMap data = kit->value(MerSdkKitAspect::id()).toMap();
         QUrl buildEngineUri;
         QString buildTargetName;
         if (!fromMap(data, &buildEngineUri, &buildTargetName)) {
@@ -116,11 +116,11 @@ QList<Task> MerSdkKitInformation::validate(const Kit *kit) const
     return {};
 }
 
-BuildEngine* MerSdkKitInformation::buildEngine(const Kit *kit)
+BuildEngine* MerSdkKitAspect::buildEngine(const Kit *kit)
 {
     if (!kit)
         return nullptr;
-    QVariantMap data = kit->value(MerSdkKitInformation::id()).toMap();
+    QVariantMap data = kit->value(MerSdkKitAspect::id()).toMap();
     QUrl buildEngineUri;
     QString buildTargetName;
     if (!fromMap(data, &buildEngineUri, &buildTargetName))
@@ -128,11 +128,11 @@ BuildEngine* MerSdkKitInformation::buildEngine(const Kit *kit)
     return Sdk::buildEngine(buildEngineUri);
 }
 
-Sfdk::BuildTargetData MerSdkKitInformation::buildTarget(const Kit *kit)
+Sfdk::BuildTargetData MerSdkKitAspect::buildTarget(const Kit *kit)
 {
     if (!kit)
         return {};
-    QVariantMap data = kit->value(MerSdkKitInformation::id()).toMap();
+    QVariantMap data = kit->value(MerSdkKitAspect::id()).toMap();
     QUrl buildEngineUri;
     QString buildTargetName;
     if (!fromMap(data, &buildEngineUri, &buildTargetName))
@@ -143,11 +143,11 @@ Sfdk::BuildTargetData MerSdkKitInformation::buildTarget(const Kit *kit)
     return buildEngine->buildTarget(buildTargetName);
 }
 
-QString MerSdkKitInformation::buildTargetName(const Kit *kit)
+QString MerSdkKitAspect::buildTargetName(const Kit *kit)
 {
     if (!kit)
         return {};
-    QVariantMap data = kit->value(MerSdkKitInformation::id()).toMap();
+    QVariantMap data = kit->value(MerSdkKitAspect::id()).toMap();
     QUrl buildEngineUri;
     QString buildTargetName;
     if (!fromMap(data, &buildEngineUri, &buildTargetName))
@@ -155,48 +155,48 @@ QString MerSdkKitInformation::buildTargetName(const Kit *kit)
     return buildTargetName;
 }
 
-KitInformation::ItemList MerSdkKitInformation::toUserOutput(const Kit *kit) const
+KitAspect::ItemList MerSdkKitAspect::toUserOutput(const Kit *kit) const
 {
-    if (DeviceTypeKitInformation::deviceTypeId(kit) == Constants::MER_DEVICE_TYPE) {
+    if (DeviceTypeKitAspect::deviceTypeId(kit) == Constants::MER_DEVICE_TYPE) {
         QString buildEngineName;
-        BuildEngine *const engine = MerSdkKitInformation::buildEngine(kit);
+        BuildEngine *const engine = MerSdkKitAspect::buildEngine(kit);
         if (engine)
             buildEngineName = engine->name();
 
-        const QString buildTargetName = MerSdkKitInformation::buildTargetName(kit);
+        const QString buildTargetName = MerSdkKitAspect::buildTargetName(kit);
 
-        return KitInformation::ItemList()
+        return KitAspect::ItemList()
                 << qMakePair(tr("%1 build engine").arg(Sdk::osVariant()), buildEngineName)
                 << qMakePair(tr("%1 build target").arg(Sdk::osVariant()), buildTargetName);
     }
-    return KitInformation::ItemList();
+    return KitAspect::ItemList();
 }
 
-KitConfigWidget *MerSdkKitInformation::createConfigWidget(Kit *kit) const
+KitAspectWidget *MerSdkKitAspect::createConfigWidget(Kit *kit) const
 {
-    return new MerSdkKitInformationWidget(kit, this);
+    return new MerSdkKitAspectWidget(kit, this);
 }
 
-Core::Id MerSdkKitInformation::id()
+Core::Id MerSdkKitAspect::id()
 {
     return "Mer.Sdk.Kit.Information";
 }
 
-void MerSdkKitInformation::setBuildTarget(Kit *kit, const BuildEngine *buildEngine,
+void MerSdkKitAspect::setBuildTarget(Kit *kit, const BuildEngine *buildEngine,
         const QString &buildTargetName)
 {
     QTC_ASSERT(buildEngine, return);
     QTC_ASSERT(buildEngine->buildTargetNames().contains(buildTargetName), return);
 
     QVariantMap data = toMap(buildEngine->uri(), buildTargetName);
-    if (kit->value(MerSdkKitInformation::id()) != data)
-        kit->setValue(MerSdkKitInformation::id(), data);
+    if (kit->value(MerSdkKitAspect::id()) != data)
+        kit->setValue(MerSdkKitAspect::id(), data);
 }
 
-void MerSdkKitInformation::addToEnvironment(const Kit *kit, Environment &env) const
+void MerSdkKitAspect::addToEnvironment(const Kit *kit, Environment &env) const
 {
-    const BuildEngine *engine = MerSdkKitInformation::buildEngine(kit);
-    const QString targetName = MerSdkKitInformation::buildTargetName(kit);
+    const BuildEngine *engine = MerSdkKitAspect::buildEngine(kit);
+    const QString targetName = MerSdkKitAspect::buildTargetName(kit);
     if (engine) {
         const QString sshPort = QString::number(engine->sshPort());
         const QString sharedHome = QDir::fromNativeSeparators(engine->sharedHomePath().toString());
@@ -222,22 +222,22 @@ void MerSdkKitInformation::addToEnvironment(const Kit *kit, Environment &env) co
     }
 }
 
-void MerSdkKitInformation::notifyAboutUpdate(const Sfdk::BuildEngine *buildEngine)
+void MerSdkKitAspect::notifyAboutUpdate(const Sfdk::BuildEngine *buildEngine)
 {
     auto related = [=](const Kit *k) {
-        return MerSdkKitInformation::buildEngine(k) == buildEngine;
+        return MerSdkKitAspect::buildEngine(k) == buildEngine;
     };
     for (Kit *k : KitManager::kits(related))
         s_instance->notifyAboutUpdate(k);
 }
 
-void MerSdkKitInformation::notifyAllUpdated()
+void MerSdkKitAspect::notifyAllUpdated()
 {
-    for (Kit *k : KitManager::kits([](const Kit *k) { return k->hasValue(MerSdkKitInformation::id()); }))
+    for (Kit *k : KitManager::kits([](const Kit *k) { return k->hasValue(MerSdkKitAspect::id()); }))
         notifyAboutUpdate(k);
 }
 
-QVariantMap MerSdkKitInformation::toMap(const QUrl &buildEngineUri, const QString &buildTargetName)
+QVariantMap MerSdkKitAspect::toMap(const QUrl &buildEngineUri, const QString &buildTargetName)
 {
     QVariantMap data;
     data.insert(Constants::BUILD_ENGINE_URI, buildEngineUri);
@@ -245,7 +245,7 @@ QVariantMap MerSdkKitInformation::toMap(const QUrl &buildEngineUri, const QStrin
     return data;
 }
 
-bool MerSdkKitInformation::fromMap(const QVariantMap &data, QUrl *buildEngineUri,
+bool MerSdkKitAspect::fromMap(const QVariantMap &data, QUrl *buildEngineUri,
         QString *buildTargetName)
 {
     Q_ASSERT(buildEngineUri);
@@ -257,9 +257,9 @@ bool MerSdkKitInformation::fromMap(const QVariantMap &data, QUrl *buildEngineUri
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
-MerSdkKitInformationWidget::MerSdkKitInformationWidget(Kit *kit,
-        const MerSdkKitInformation *kitInformation)
-    : KitConfigWidget(kit, kitInformation)
+MerSdkKitAspectWidget::MerSdkKitAspectWidget(Kit *kit,
+        const MerSdkKitAspect *kitAspect)
+    : KitAspectWidget(kit, kitAspect)
 {
     m_mainWidget = new QWidget;
     m_mainWidget->setContentsMargins(0, 0, 0, 0);
@@ -280,41 +280,41 @@ MerSdkKitInformationWidget::MerSdkKitInformationWidget(Kit *kit,
             m_buildTargetComboBox->sizePolicy().verticalPolicy());
     layout->addWidget(m_buildTargetComboBox, 1, 1);
 
-    m_manageButton = new QPushButton(KitConfigWidget::msgManage());
+    m_manageButton = new QPushButton(KitAspectWidget::msgManage());
     m_manageButton->setContentsMargins(0, 0, 0, 0);
 
     connect(m_buildEngineComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &MerSdkKitInformationWidget::handleCurrentEngineIndexChanged);
+            this, &MerSdkKitAspectWidget::handleCurrentEngineIndexChanged);
     connect(m_buildTargetComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &MerSdkKitInformationWidget::handleCurrentTargetIndexChanged);
+            this, &MerSdkKitAspectWidget::handleCurrentTargetIndexChanged);
     connect(Sdk::instance(), &Sdk::buildEngineAdded,
-            this, &MerSdkKitInformationWidget::handleSdksUpdated);
+            this, &MerSdkKitAspectWidget::handleSdksUpdated);
     connect(Sdk::instance(), &Sdk::aboutToRemoveBuildEngine,
-            this, &MerSdkKitInformationWidget::handleSdksUpdated, Qt::QueuedConnection);
+            this, &MerSdkKitAspectWidget::handleSdksUpdated, Qt::QueuedConnection);
     connect(m_manageButton, &QPushButton::clicked,
-            this, &MerSdkKitInformationWidget::handleManageClicked);
+            this, &MerSdkKitAspectWidget::handleManageClicked);
     handleSdksUpdated();
 }
 
-QString MerSdkKitInformationWidget::displayName() const
+QString MerSdkKitAspectWidget::displayName() const
 {
     return Sdk::sdkVariant();
 }
 
-QString MerSdkKitInformationWidget::toolTip() const
+QString MerSdkKitAspectWidget::toolTip() const
 {
     return tr("%1 build engine and build target.").arg(Sdk::osVariant());
 }
 
-void MerSdkKitInformationWidget::makeReadOnly()
+void MerSdkKitAspectWidget::makeReadOnly()
 {
     m_buildEngineComboBox->setEnabled(false);
     m_buildTargetComboBox->setEnabled(false);
 }
 
-void MerSdkKitInformationWidget::refresh()
+void MerSdkKitAspectWidget::refresh()
 {
-    const BuildEngine* engine = MerSdkKitInformation::buildEngine(m_kit);
+    const BuildEngine* engine = MerSdkKitAspect::buildEngine(m_kit);
     int i;
     if (engine) {
         for (i = m_buildEngineComboBox->count() - 1; i >= 0; --i) {
@@ -328,22 +328,22 @@ void MerSdkKitInformationWidget::refresh()
     m_buildEngineComboBox->setCurrentIndex(i);
 }
 
-bool MerSdkKitInformationWidget::visibleInKit()
+bool MerSdkKitAspectWidget::visibleInKit()
 {
-    return DeviceTypeKitInformation::deviceTypeId(m_kit) == Constants::MER_DEVICE_TYPE;
+    return DeviceTypeKitAspect::deviceTypeId(m_kit) == Constants::MER_DEVICE_TYPE;
 }
 
-QWidget *MerSdkKitInformationWidget::mainWidget() const
+QWidget *MerSdkKitAspectWidget::mainWidget() const
 {
     return m_mainWidget;
 }
 
-QWidget *MerSdkKitInformationWidget::buttonWidget() const
+QWidget *MerSdkKitAspectWidget::buttonWidget() const
 {
     return m_manageButton;
 }
 
-void MerSdkKitInformationWidget::handleSdksUpdated()
+void MerSdkKitAspectWidget::handleSdksUpdated()
 {
     const QList<BuildEngine *> engines = Sdk::buildEngines();
     m_buildEngineComboBox->blockSignals(true);
@@ -358,14 +358,14 @@ void MerSdkKitInformationWidget::handleSdksUpdated()
     refresh();
 }
 
-void MerSdkKitInformationWidget::handleManageClicked()
+void MerSdkKitAspectWidget::handleManageClicked()
 {
     MerPlugin::buildEngineOptionsPage()->setBuildEngine(
             m_buildEngineComboBox->currentData().toUrl());
     ICore::showOptionsDialog(Constants::MER_BUILD_ENGINE_OPTIONS_ID);
 }
 
-void MerSdkKitInformationWidget::handleCurrentEngineIndexChanged()
+void MerSdkKitAspectWidget::handleCurrentEngineIndexChanged()
 {
     BuildEngine *const engine = Sdk::buildEngine(m_buildEngineComboBox->currentData().toUrl());
 
@@ -379,7 +379,7 @@ void MerSdkKitInformationWidget::handleCurrentEngineIndexChanged()
     }
     m_buildTargetComboBox->blockSignals(false);
 
-    const QString targetName = MerSdkKitInformation::buildTargetName(m_kit);
+    const QString targetName = MerSdkKitAspect::buildTargetName(m_kit);
     int i;
     if (!targetName.isEmpty()) {
         for (i = m_buildTargetComboBox->count() - 1; i >= 0; --i) {
@@ -392,12 +392,12 @@ void MerSdkKitInformationWidget::handleCurrentEngineIndexChanged()
     m_buildTargetComboBox->setCurrentIndex(i);
 }
 
-void MerSdkKitInformationWidget::handleCurrentTargetIndexChanged()
+void MerSdkKitAspectWidget::handleCurrentTargetIndexChanged()
 {
     BuildEngine *const engine = Sdk::buildEngine(m_buildEngineComboBox->currentData().toUrl());
     const QString targetName = m_buildTargetComboBox->currentText();
     if (engine)
-        MerSdkKitInformation::setBuildTarget(m_kit, engine, targetName);
+        MerSdkKitAspect::setBuildTarget(m_kit, engine, targetName);
 }
 
 }

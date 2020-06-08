@@ -21,11 +21,10 @@
 **
 ****************************************************************************/
 
-#ifndef MERSDKKITINFORMATION_H
-#define MERSDKKITINFORMATION_H
+#ifndef MERSDKKITASPECT_H
+#define MERSDKKITASPECT_H
 
-#include <projectexplorer/kitconfigwidget.h>
-#include <projectexplorer/kitinformation.h>
+#include <projectexplorer/kitmanager.h>
 
 QT_FORWARD_DECLARE_CLASS(QComboBox);
 QT_FORWARD_DECLARE_CLASS(QPushButton);
@@ -38,13 +37,13 @@ class BuildTargetData;
 namespace Mer {
 namespace Internal {
 
-class MerSdkKitInformation;
+class MerSdkKitAspect;
 
-class MerSdkKitInformationWidget : public ProjectExplorer::KitConfigWidget
+class MerSdkKitAspectWidget : public ProjectExplorer::KitAspectWidget
 {
     Q_OBJECT
 public:
-    MerSdkKitInformationWidget(ProjectExplorer::Kit *kit, const MerSdkKitInformation *kitInformation);
+    MerSdkKitAspectWidget(ProjectExplorer::Kit *kit, const MerSdkKitAspect *kitAspect);
 
     QString displayName() const override;
     QString toolTip() const override;
@@ -69,17 +68,17 @@ private:
 };
 
 
-class MerSdkKitInformation : public ProjectExplorer::KitInformation
+class MerSdkKitAspect : public ProjectExplorer::KitAspect
 {
     Q_OBJECT
 public:
-    explicit MerSdkKitInformation();
-    ~MerSdkKitInformation() override;
+    explicit MerSdkKitAspect();
+    ~MerSdkKitAspect() override;
 
     QVariant defaultValue(const ProjectExplorer::Kit *kit) const override;
     QList<ProjectExplorer::Task> validate(const ProjectExplorer::Kit *kit) const override;
     ItemList toUserOutput(const ProjectExplorer::Kit *kit) const override;
-    ProjectExplorer::KitConfigWidget *createConfigWidget(ProjectExplorer::Kit *kit) const override;
+    ProjectExplorer::KitAspectWidget *createConfigWidget(ProjectExplorer::Kit *kit) const override;
     void addToEnvironment(const ProjectExplorer::Kit *kit, Utils::Environment &env) const override;
 
     static Core::Id id();
@@ -93,7 +92,7 @@ public:
     static void notifyAboutUpdate(const Sfdk::BuildEngine *buildEngine);
 
 protected:
-    using KitInformation::notifyAboutUpdate;
+    using KitAspect::notifyAboutUpdate;
 
 private:
     void notifyAllUpdated();
@@ -101,10 +100,10 @@ private:
     static bool fromMap(const QVariantMap &data, QUrl *buildEngineUri, QString *buildTargetName);
 
 private:
-    static MerSdkKitInformation *s_instance;
+    static MerSdkKitAspect *s_instance;
 };
 
 }
 }
 
-#endif // MERSDKKITINFORMATION_H
+#endif // MERSDKKITASPECT_H

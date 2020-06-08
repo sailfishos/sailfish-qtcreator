@@ -78,7 +78,7 @@ SOURCES += \
     merrunconfiguration.cpp \
     merrunconfigurationaspect.cpp \
     merrunconfigurationfactory.cpp \
-    mersdkkitinformation.cpp \
+    mersdkkitaspect.cpp \
     mersdkmanager.cpp \
     mersettings.cpp \
     mersshparser.cpp \
@@ -135,7 +135,7 @@ HEADERS += \
     merrunconfiguration.h \
     merrunconfigurationaspect.h \
     merrunconfigurationfactory.h \
-    mersdkkitinformation.h \
+    mersdkkitaspect.h \
     mersdkmanager.h \
     mersettings.h \
     mersshparser.h \

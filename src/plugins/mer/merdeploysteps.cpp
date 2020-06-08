@@ -36,7 +36,7 @@
 #include "meremulatordevice.h"
 #include "merqmakebuildconfiguration.h"
 #include "merrpmvalidationparser.h"
-#include "mersdkkitinformation.h"
+#include "mersdkkitaspect.h"
 #include "mersdkmanager.h"
 #include "mersettings.h"
 #include "ui_merrpminfo.h"
@@ -241,7 +241,7 @@ bool MerProcessStep::init(InitOptions options)
         return false;
     }
 
-    const BuildEngine *const engine = MerSdkKitInformation::buildEngine(target()->kit());
+    const BuildEngine *const engine = MerSdkKitAspect::buildEngine(target()->kit());
 
     if (!engine) {
         addOutput(tr("Cannot deploy: Missing %1 build-engine information in the kit").arg(Sdk::osVariant()),
@@ -249,7 +249,7 @@ bool MerProcessStep::init(InitOptions options)
         return false;
     }
 
-    const QString target = MerSdkKitInformation::buildTargetName(this->target()->kit());
+    const QString target = MerSdkKitAspect::buildTargetName(this->target()->kit());
 
     if (target.isEmpty()) {
         addOutput(tr("Cannot deploy: Missing %1 build-target information in the kit").arg(Sdk::osVariant()),
@@ -257,7 +257,7 @@ bool MerProcessStep::init(InitOptions options)
         return false;
     }
 
-    IDevice::ConstPtr device = DeviceKitInformation::device(this->target()->kit());
+    IDevice::ConstPtr device = DeviceKitAspect::device(this->target()->kit());
 
     //TODO: HACK
     if (device.isNull() && !(options & DoNotNeedDevice)) {
@@ -319,7 +319,7 @@ MerEmulatorStartStep::MerEmulatorStartStep(BuildStepList *bsl)
 
 bool MerEmulatorStartStep::init()
 {
-    IDevice::ConstPtr d = DeviceKitInformation::device(this->target()->kit());
+    IDevice::ConstPtr d = DeviceKitAspect::device(this->target()->kit());
     const MerEmulatorDevice* device = dynamic_cast<const MerEmulatorDevice*>(d.data());
     if (!device) {
         setEnabled(false);
@@ -352,7 +352,7 @@ MerConnectionTestStep::MerConnectionTestStep(BuildStepList *bsl)
 
 bool MerConnectionTestStep::init()
 {
-    IDevice::ConstPtr d = DeviceKitInformation::device(this->target()->kit());
+    IDevice::ConstPtr d = DeviceKitAspect::device(this->target()->kit());
     if (!d) {
         setEnabled(false);
         return false;
@@ -363,7 +363,7 @@ bool MerConnectionTestStep::init()
 
 void MerConnectionTestStep::doRun()
 {
-    IDevice::ConstPtr d = DeviceKitInformation::device(this->target()->kit());
+    IDevice::ConstPtr d = DeviceKitAspect::device(this->target()->kit());
     if (!d) {
         emit finished(false);
         return;
@@ -434,7 +434,7 @@ MerPrepareTargetStep::MerPrepareTargetStep(BuildStepList *bsl)
 
 bool MerPrepareTargetStep::init()
 {
-    IDevice::ConstPtr d = DeviceKitInformation::device(this->target()->kit());
+    IDevice::ConstPtr d = DeviceKitAspect::device(this->target()->kit());
     if (!d) {
         setEnabled(false);
         return false;
@@ -548,7 +548,7 @@ bool MerLocalRsyncDeployStep::init()
         return false;
     }
 
-    BuildEngine *const engine = MerSdkKitInformation::buildEngine(target()->kit());
+    BuildEngine *const engine = MerSdkKitAspect::buildEngine(target()->kit());
 
     if (!engine) {
         addOutput(tr("Cannot deploy: Missing %1 build-engine information in the kit").arg(Sdk::osVariant()),
@@ -556,7 +556,7 @@ bool MerLocalRsyncDeployStep::init()
         return false;
     }
 
-    const QString target = MerSdkKitInformation::buildTargetName(this->target()->kit());
+    const QString target = MerSdkKitAspect::buildTargetName(this->target()->kit());
 
     if (target.isEmpty()) {
         addOutput(tr("Cannot deploy: Missing %1 build-target information in the kit").arg(Sdk::osVariant()),
@@ -662,7 +662,7 @@ bool MerMb2RpmBuildStep::init()
 {
     bool success = MerProcessStep::init(DoNotNeedDevice);
     m_packages.clear();
-    BuildEngine *const engine = MerSdkKitInformation::buildEngine(target()->kit());
+    BuildEngine *const engine = MerSdkKitAspect::buildEngine(target()->kit());
     m_sharedHome = QDir::cleanPath(engine->sharedHomePath().toString());
     m_sharedSrc = QDir::cleanPath(engine->sharedSrcPath().toString());
 
@@ -780,7 +780,7 @@ MerRpmValidationStep::MerRpmValidationStep(BuildStepList *bsl)
     setEnabled(MerSettings::rpmValidationByDefault());
     setDefaultDisplayName(displayName());
 
-    m_target = MerSdkKitInformation::buildTarget(target()->kit());
+    m_target = MerSdkKitAspect::buildTarget(target()->kit());
     m_selectedSuites = defaultSuites();
 }
 

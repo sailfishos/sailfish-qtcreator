@@ -174,7 +174,7 @@ void MerEmulatorModeDialog::onKitUpdated(Kit *kit)
         return;
     }
 
-    auto device = DeviceKitInformation::device(m_kit);
+    auto device = DeviceKitAspect::device(m_kit);
     auto emulatorDevice = device.dynamicCast<const MerEmulatorDevice>();
     setEmulator(emulatorDevice ? emulatorDevice->emulator() : nullptr);
 }
@@ -184,7 +184,7 @@ void MerEmulatorModeDialog::onDeviceListReplaced()
     if (m_kit == nullptr)
         return;
 
-    auto device = DeviceKitInformation::device(m_kit);
+    auto device = DeviceKitAspect::device(m_kit);
     auto emulatorDevice = device.dynamicCast<const MerEmulatorDevice>();
     setEmulator(emulatorDevice ? emulatorDevice->emulator() : nullptr);
 }

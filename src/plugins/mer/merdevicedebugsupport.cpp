@@ -28,7 +28,7 @@
 #include "merrunconfigurationaspect.h"
 #include "merqmllivebenchmanager.h"
 #include "merqmlrunconfiguration.h"
-#include "mersdkkitinformation.h"
+#include "mersdkkitaspect.h"
 #include "mersdkmanager.h"
 #include "mertoolchain.h"
 
@@ -147,7 +147,7 @@ void MerDeviceDebugSupport::start()
         });
     }
 
-    BuildEngine *const engine = MerSdkKitInformation::buildEngine(runConfig->target()->kit());
+    BuildEngine *const engine = MerSdkKitAspect::buildEngine(runConfig->target()->kit());
 
     if (engine && !engine->sharedHomePath().isEmpty()) {
         addSourcePathMap(Sfdk::Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT,
