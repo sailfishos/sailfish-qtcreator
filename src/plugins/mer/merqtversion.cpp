@@ -81,11 +81,6 @@ QString MerQtVersion::buildTargetName() const
     return m_buildTargetName;
 }
 
-Abis MerQtVersion::detectQtAbis() const
-{
-    return qtAbisFromLibrary(qtCorePaths());
-}
-
 QString MerQtVersion::description() const
 {
     return Sdk::osVariant();

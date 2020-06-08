@@ -43,8 +43,6 @@ public:
     void setBuildTargetName(const QString &name);
     QString buildTargetName() const;
 
-    ProjectExplorer::Abis detectQtAbis() const override;
-
     QString description() const override;
 
     QSet<Core::Id> targetDeviceTypes() const;
