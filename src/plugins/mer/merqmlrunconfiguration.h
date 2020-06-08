@@ -40,8 +40,6 @@ public:
 
     QWidget *createConfigurationWidget() override;
 
-    QString localExecutableFilePath() const;
-
 protected:
     void updateEnabledState() override;
 

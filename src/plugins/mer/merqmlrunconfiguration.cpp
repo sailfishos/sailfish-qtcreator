@@ -118,15 +118,5 @@ QWidget *MerQmlRunConfiguration::createConfigurationWidget()
     return new MerQmlRunConfigurationWidget(this);
 }
 
-QString MerQmlRunConfiguration::localExecutableFilePath() const
-{
-    const BuildTargetData buildTarget = MerSdkKitAspect::buildTarget(target()->kit());
-    QTC_ASSERT(buildTarget.isValid(), return {});
-
-    const QString path = buildTarget.sysRoot.pathAppended(Constants::SAILFISH_QML_LAUNCHER)
-        .toString();
-    return QDir::cleanPath(path);
-}
-
 } // Internal
 } // Mer
