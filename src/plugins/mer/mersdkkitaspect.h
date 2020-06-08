@@ -73,7 +73,7 @@ public:
     ~MerSdkKitAspect() override;
 
     bool isApplicableToKit(const ProjectExplorer::Kit *kit) const override;
-    QList<ProjectExplorer::Task> validate(const ProjectExplorer::Kit *kit) const override;
+    ProjectExplorer::Tasks validate(const ProjectExplorer::Kit *kit) const override;
     ItemList toUserOutput(const ProjectExplorer::Kit *kit) const override;
     ProjectExplorer::KitAspectWidget *createConfigWidget(ProjectExplorer::Kit *kit) const override;
     void addToEnvironment(const ProjectExplorer::Kit *kit, Utils::Environment &env) const override;

@@ -124,9 +124,9 @@ bool MerToolChain::fromMap(const QVariantMap &data)
     return !m_buildEngineUri.isEmpty() && !m_buildTargetName.isEmpty();
 }
 
-QList<Task> MerToolChain::validateKit(const Kit *kit) const
+Tasks MerToolChain::validateKit(const Kit *kit) const
 {
-    QList<Task> result = GccToolChain::validateKit(kit);
+    Tasks result = GccToolChain::validateKit(kit);
     if (!result.isEmpty())
         return result;
 

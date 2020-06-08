@@ -81,7 +81,7 @@ bool MerSdkKitAspect::isApplicableToKit(const Kit *kit) const
     return DeviceTypeKitAspect::deviceTypeId(kit) == Constants::MER_DEVICE_TYPE;
 }
 
-QList<Task> MerSdkKitAspect::validate(const Kit *kit) const
+Tasks MerSdkKitAspect::validate(const Kit *kit) const
 {
     if (DeviceTypeKitAspect::deviceTypeId(kit) == Constants::MER_DEVICE_TYPE) {
         auto error = [](const QString &message) {

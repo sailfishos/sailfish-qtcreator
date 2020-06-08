@@ -128,9 +128,9 @@ void MerQtVersion::fromMap(const QVariantMap &data)
     m_buildTargetName = data.value(QLatin1String(Constants::BUILD_TARGET_NAME)).toString();
 }
 
-QList<Task> MerQtVersion::validateKit(const Kit *kit)
+Tasks MerQtVersion::validateKit(const Kit *kit)
 {
-    QList<Task> result = BaseQtVersion::validateKit(kit);
+    Tasks result = BaseQtVersion::validateKit(kit);
     if (!result.isEmpty())
         return result;
 
@@ -156,10 +156,10 @@ QList<Task> MerQtVersion::validateKit(const Kit *kit)
     return result;
 }
 
-QList<Task> MerQtVersion::reportIssuesImpl(const QString &proFile,
+Tasks MerQtVersion::reportIssuesImpl(const QString &proFile,
                                            const QString &buildDir) const
 {
-    QList<Task> results;
+    Tasks results;
 
     BuildEngine* buildEngine = Sdk::buildEngine(m_buildEngineUri);
 

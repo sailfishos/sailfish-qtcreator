@@ -52,14 +52,14 @@ public:
 
     QSet<Core::Id> targetDeviceTypes() const;
 
-    QList<ProjectExplorer::Task> validateKit(const ProjectExplorer::Kit *k) override;
+    ProjectExplorer::Tasks validateKit(const ProjectExplorer::Kit *k) override;
     QVariantMap toMap() const override;
     void fromMap(const QVariantMap &data) override;
     void addToEnvironment(const ProjectExplorer::Kit *k, Utils::Environment &env) const override;
     Utils::Environment qmakeRunEnvironment() const override;
 
 protected:
-    QList<ProjectExplorer::Task> reportIssuesImpl(const QString &proFile,
+    ProjectExplorer::Tasks reportIssuesImpl(const QString &proFile,
                                                   const QString &buildDir) const override;
 
     QSet<Core::Id> availableFeatures() const override;

@@ -50,7 +50,7 @@ public:
     ToolChain *clone() const override;
     ProjectExplorer::IOutputParser *outputParser() const override;
     QList<Utils::FilePath> suggestedMkspecList() const override;
-    QList<ProjectExplorer::Task> validateKit(const ProjectExplorer::Kit *kit) const override;
+    ProjectExplorer::Tasks validateKit(const ProjectExplorer::Kit *kit) const override;
 
     bool isJobCountSupported() const override { return false; }
 
