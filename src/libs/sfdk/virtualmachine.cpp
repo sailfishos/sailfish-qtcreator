@@ -802,7 +802,7 @@ Utils::optional<VirtualMachineInfo> VirtualMachineInfoCache::info(const QUrl &vm
         return {};
     }
 
-    if (!FileUtils::isFileNewerThan(filePath, SdkPrivate::lastMaintained())) {
+    if (!filePath.isNewerThan(SdkPrivate::lastMaintained())) {
         qCDebug(vms) << "Dropping possibly outdated VM info cache";
         QFile::remove(filePath.toString());
         return {};
