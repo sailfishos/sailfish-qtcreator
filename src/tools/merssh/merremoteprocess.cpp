@@ -76,7 +76,7 @@ int MerRemoteProcess::executeAndWait()
             &loop, &QEventLoop::quit);
     connect(this, &MerRemoteProcess::processClosed,
             &loop, &QEventLoop::quit);
-    QSsh::SshRemoteProcessRunner::run(forwardEnvironment(m_command).toUtf8(), m_sshConnectionParams);
+    QSsh::SshRemoteProcessRunner::run(forwardEnvironment(m_command), m_sshConnectionParams);
     loop.exec();
     if(processExitStatus() == QSsh::SshRemoteProcess::NormalExit)
         return processExitCode();

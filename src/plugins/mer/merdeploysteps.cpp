@@ -1004,7 +1004,7 @@ void MerNamedCommandDeployService::doDeploy()
 
     emit progressMessage(m_description);
     m_state = Running;
-    m_runner->run(m_command.toUtf8(), deviceConfiguration()->sshParameters());
+    m_runner->run(m_command, deviceConfiguration()->sshParameters());
 }
 
 void MerNamedCommandDeployService::stopDeployment()
