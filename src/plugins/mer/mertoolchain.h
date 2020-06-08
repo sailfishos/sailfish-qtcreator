@@ -45,7 +45,7 @@ public:
     QVariantMap toMap() const override;
     bool fromMap(const QVariantMap &data) override;
 
-    QString makeCommand(const Utils::Environment &environment) const override;
+    Utils::FileName makeCommand(const Utils::Environment &environment) const override;
 
     ToolChain *clone() const override;
     ProjectExplorer::IOutputParser *outputParser() const override;

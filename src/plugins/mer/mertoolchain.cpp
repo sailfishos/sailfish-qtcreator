@@ -76,14 +76,14 @@ QString MerToolChain::buildTargetName() const
     return m_buildTargetName;
 }
 
-QString MerToolChain::makeCommand(const Environment &environment) const
+Utils::FileName MerToolChain::makeCommand(const Environment &environment) const
 {
     const QString make = QLatin1String(Sfdk::Constants::WRAPPER_MAKE);
-    const QString makePath = environment.searchInPath(make).toString();
+    const FileName makePath = environment.searchInPath(make);
     if (!makePath.isEmpty())
         return makePath;
 
-    return make;
+    return FileName::fromString(make);
 }
 
 QList<FileName> MerToolChain::suggestedMkspecList() const
