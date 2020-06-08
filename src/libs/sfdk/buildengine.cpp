@@ -638,9 +638,9 @@ BuildTargetData BuildEnginePrivate::createTargetData(const BuildTargetDump &targ
     data.toolsPath = toolsPathForTarget(data.name);
 
     if (targetDump.gccDumpMachine.contains(Constants::i486_IDENTIFIER))
-        data.gdb = FilePath::fromLatin1(Constants::DEFAULT_DEBUGGER_i486_FILENAME);
+        data.gdb = FilePath::fromString(Constants::DEFAULT_DEBUGGER_i486_FILENAME);
     else if (targetDump.gccDumpMachine.contains(Constants::ARM_IDENTIFIER))
-        data.gdb = FilePath::fromLatin1(Constants::DEFAULT_DEBUGGER_ARM_FILENAME);
+        data.gdb = FilePath::fromString(Constants::DEFAULT_DEBUGGER_ARM_FILENAME);
 
     data.rpmValidationSuites = rpmValidationSuitesFromString(targetDump.rpmValidationSuites);
 
