@@ -81,16 +81,6 @@ QString MerQtVersion::buildTargetName() const
     return m_buildTargetName;
 }
 
-QString MerQtVersion::type() const
-{
-    return QLatin1String(Constants::MER_QT);
-}
-
-MerQtVersion *MerQtVersion::clone() const
-{
-    return new MerQtVersion(*this);
-}
-
 QList<Abi> MerQtVersion::detectQtAbis() const
 {
     return qtAbisFromLibrary(qtCorePaths());

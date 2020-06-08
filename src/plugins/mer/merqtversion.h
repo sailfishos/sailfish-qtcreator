@@ -43,10 +43,6 @@ public:
     void setBuildTargetName(const QString &name);
     QString buildTargetName() const;
 
-    MerQtVersion *clone() const override;
-
-    QString type() const override;
-
     QList<ProjectExplorer::Abi> detectQtAbis() const override;
 
     QString description() const override;
