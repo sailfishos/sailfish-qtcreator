@@ -86,11 +86,11 @@ Utils::FilePath MerToolChain::makeCommand(const Environment &environment) const
     return FilePath::fromString(make);
 }
 
-QList<FilePath> MerToolChain::suggestedMkspecList() const
+QStringList MerToolChain::suggestedMkspecList() const
 {
-    QList<FilePath> mkSpecList = GccToolChain::suggestedMkspecList();
+    QStringList mkSpecList = GccToolChain::suggestedMkspecList();
     if (mkSpecList.isEmpty())
-        mkSpecList << FilePath::fromString(QLatin1String("linux-g++"));
+        mkSpecList << "linux-g++";
     return mkSpecList;
 }
 

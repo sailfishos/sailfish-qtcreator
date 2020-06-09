@@ -48,7 +48,7 @@ public:
     Utils::FilePath makeCommand(const Utils::Environment &environment) const override;
 
     ProjectExplorer::IOutputParser *outputParser() const override;
-    QList<Utils::FilePath> suggestedMkspecList() const override;
+    QStringList suggestedMkspecList() const override;
     ProjectExplorer::Tasks validateKit(const ProjectExplorer::Kit *kit) const override;
 
     bool isJobCountSupported() const override { return false; }
