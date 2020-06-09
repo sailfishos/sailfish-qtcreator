@@ -168,6 +168,7 @@ MerToolChainFactory::MerToolChainFactory()
 {
     setDisplayName(Sdk::osVariant());
     setSupportedToolChainType(Constants::MER_TOOLCHAIN_ID);
+    setToolchainConstructor([] { return new MerToolChain; });
 }
 
 /*
@@ -205,22 +206,6 @@ QList<ToolChain *> MerToolChainFactory::autoDetect(const QList<ToolChain *> &alr
     return Utils::filtered(alreadyKnown, [](const ToolChain *tc) {
         return tc->typeId() == Constants::MER_TOOLCHAIN_ID;
     });
-}
-
-ToolChain *MerToolChainFactory::restore(const QVariantMap &data)
-{
-    MerToolChain *tc = new MerToolChain;
-    if (!tc->fromMap(data)) {
-        delete tc;
-        return 0;
-    }
-    QFileInfo fi = tc->compilerCommand().toFileInfo();
-    if (!fi.exists()) {
-        delete tc;
-        return 0;
-    }
-
-    return tc;
 }
 
 QSet<Core::Id> MerToolChainFactory::supportedLanguages() const
