@@ -213,6 +213,10 @@ void TeaLeafReader::parse(bool forceConfiguration)
 
 void TeaLeafReader::stop()
 {
+    if (isParsing()) {
+        m_stopping = true;
+        return;
+    }
     cleanUpProcess();
 
     if (m_future) {
@@ -465,6 +469,11 @@ void TeaLeafReader::extractData()
 
 void TeaLeafReader::startCMake(const QStringList &configurationArguments)
 {
+    if (isParsing()) {
+        m_queuedArguments = configurationArguments;
+        m_cmakeQueue = true;
+        return;
+    }
     CMakeTool *cmake = m_parameters.cmakeTool();
     QTC_ASSERT(m_parameters.isValid() && cmake, return);
 
@@ -529,6 +538,17 @@ void TeaLeafReader::startCMake(const QStringList &configurationArguments)
 void TeaLeafReader::cmakeFinished(int code, QProcess::ExitStatus status)
 {
     QTC_ASSERT(m_cmakeProcess, return);
+
+    if (m_stopping) {
+        m_stopping = false;
+        stop();
+
+        if (m_cmakeQueue) {
+            m_cmakeQueue = false;
+            startCMake(m_queuedArguments);
+        }
+        return;
+    }
 
     // process rest of the output:
     processCMakeOutput();

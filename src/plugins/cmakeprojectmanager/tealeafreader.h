@@ -74,6 +74,9 @@ private:
     bool extractFlagsFromNinja(const CMakeBuildTarget &buildTarget, QHash<QString, QStringList> &cache, Core::Id lang) const;
 
     Utils::QtcProcess *m_cmakeProcess = nullptr;
+    bool m_stopping = false;
+    bool m_cmakeQueue = false;
+    QStringList m_queuedArguments;
 
     // For error reporting:
     ProjectExplorer::IOutputParser *m_parser = nullptr;
