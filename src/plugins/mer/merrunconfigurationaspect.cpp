@@ -193,7 +193,8 @@ private:
         // Init benchWorkspace PathChooser
 
         m_qmlLiveDetailsUi->benchWorkspace->setExpectedKind(PathChooser::ExistingDirectory);
-        m_qmlLiveDetailsUi->benchWorkspace->setBaseDirectory(m_aspect->defaultQmlLiveBenchWorkspace());
+        m_qmlLiveDetailsUi->benchWorkspace->setBaseDirectory(
+                FilePath::fromString(m_aspect->defaultQmlLiveBenchWorkspace()));
         m_qmlLiveDetailsUi->benchWorkspace->setPath(m_aspect->qmlLiveBenchWorkspace());
         auto updateQmlLiveBenchWorkspace = [this] {
             m_aspect->setQmlLiveBenchWorkspace(m_qmlLiveDetailsUi->benchWorkspace->path());
