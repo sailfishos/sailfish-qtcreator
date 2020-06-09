@@ -94,11 +94,6 @@ QList<FilePath> MerToolChain::suggestedMkspecList() const
     return mkSpecList;
 }
 
-ToolChain *MerToolChain::clone() const
-{
-    return new MerToolChain(*this);
-}
-
 IOutputParser *MerToolChain::outputParser() const
 {
     IOutputParser *parser = new Internal::MerSshParser;
