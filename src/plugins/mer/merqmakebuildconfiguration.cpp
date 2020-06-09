@@ -111,9 +111,9 @@ MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target, Core::Id 
     });
 }
 
-void MerQmakeBuildConfiguration::initialize(const ProjectExplorer::BuildInfo &info)
+void MerQmakeBuildConfiguration::doInitialize(const ProjectExplorer::BuildInfo &info)
 {
-    QmakeBuildConfiguration::initialize(info);
+    QmakeBuildConfiguration::doInitialize(info);
 
     BuildStepList *buildSteps = stepList(Core::Id(ProjectExplorer::Constants::BUILDSTEPS_BUILD));
     Q_ASSERT(buildSteps);

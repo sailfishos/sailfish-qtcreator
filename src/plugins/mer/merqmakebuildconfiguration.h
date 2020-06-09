@@ -38,11 +38,12 @@ class MerQmakeBuildConfiguration : public QmakeProjectManager::QmakeBuildConfigu
 
 public:
     MerQmakeBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
-    void initialize(const ProjectExplorer::BuildInfo &info) override;
     bool fromMap(const QVariantMap &map) override;
 
     QList<ProjectExplorer::NamedWidget *> createSubConfigWidgets() override;
     void addToEnvironment(Utils::Environment &env) const override;
+
+    void doInitialize(const ProjectExplorer::BuildInfo &info) override;
 
 protected:
     void timerEvent(QTimerEvent *event) override;

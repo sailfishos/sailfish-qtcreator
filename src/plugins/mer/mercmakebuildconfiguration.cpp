@@ -59,9 +59,9 @@ MerCMakeBuildConfiguration::MerCMakeBuildConfiguration(Target *target, Core::Id 
             this, &BuildConfiguration::updateCacheAndEmitEnvironmentChanged);
 }
 
-void MerCMakeBuildConfiguration::initialize(const ProjectExplorer::BuildInfo &info)
+void MerCMakeBuildConfiguration::doInitialize(const ProjectExplorer::BuildInfo &info)
 {
-    CMakeBuildConfiguration::initialize(info);
+    CMakeBuildConfiguration::doInitialize(info);
 
     BuildStepList *buildSteps = stepList(Core::Id(ProjectExplorer::Constants::BUILDSTEPS_BUILD));
     Q_ASSERT(buildSteps);

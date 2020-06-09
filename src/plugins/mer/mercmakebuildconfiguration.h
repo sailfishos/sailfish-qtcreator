@@ -36,12 +36,13 @@ class MerCMakeBuildConfiguration : public CMakeProjectManager::Internal::CMakeBu
 
 public:
     MerCMakeBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
-    void initialize(const ProjectExplorer::BuildInfo &info) override;
     bool fromMap(const QVariantMap &map) override;
     QList<ProjectExplorer::NamedWidget *> createSubConfigWidgets() override;
     void addToEnvironment(Utils::Environment &env) const override;
 
     bool isShadowBuild() const;
+
+    void doInitialize(const ProjectExplorer::BuildInfo &info) override;
 
 private:
     void startBuildEngine();
