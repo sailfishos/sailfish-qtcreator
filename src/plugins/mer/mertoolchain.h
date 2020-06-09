@@ -68,8 +68,6 @@ public:
     MerToolChainFactory();
 
     QList<ProjectExplorer::ToolChain *> autoDetect(const QList<ProjectExplorer::ToolChain *> &alreadyKnown) override;
-
-    QSet<Core::Id> supportedLanguages() const override;
 };
 
 } // Internal
