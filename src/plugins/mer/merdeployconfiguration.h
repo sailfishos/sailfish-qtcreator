@@ -132,16 +132,16 @@ protected:
     void timerEvent(QTimerEvent *event) override;
 
 private slots:
-    void scheduleProjectUpdate();
+    void scheduleTargetUpdate();
 
 private:
-    void updateProject(ProjectExplorer::Project *project);
-    static bool isAmbienceProject(ProjectExplorer::Project *project);
+    void updateTarget(ProjectExplorer::Target *target);
+    static bool isAmbienceProject(ProjectExplorer::Target *target);
     static void removeStep(ProjectExplorer::BuildStepList *stepList, Core::Id stepId);
 
 private:
-    QQueue<ProjectExplorer::Project *> m_updateProjectsQueue;
-    QBasicTimer m_updateProjectsTimer;
+    QQueue<ProjectExplorer::Target *> m_updateTargetsQueue;
+    QBasicTimer m_updateTargetsTimer;
 };
 
 } // namespace Internal

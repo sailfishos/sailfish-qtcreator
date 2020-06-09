@@ -89,10 +89,7 @@ MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target, Core::Id 
     connect(ModeManager::instance(), &ModeManager::currentModeChanged,
             this, &MerQmakeBuildConfiguration::maybeSetupExtraParserArguments);
 
-    QmakeProject *qmakeProject = static_cast<QmakeProject *>(project());
-    // Note that this is emited more than once during qmake step execution - once
-    // for each executed process
-    connect(qmakeProject, &QmakeProject::buildDirectoryInitialized,
+    connect(this, &BuildConfiguration::buildDirectoryChanged,
             this, &MerQmakeBuildConfiguration::maybeSetupExtraParserArguments);
 
     connect(EditorManager::instance(), &EditorManager::saved,
@@ -225,8 +222,7 @@ void MerQmakeBuildConfiguration::setupExtraParserArguments()
 
     if (qmakeStep()->extraParserArguments() != args) {
         qmakeStep()->setExtraParserArguments(args);
-        auto *const qmakeProject = static_cast<QmakeProject *>(project());
-        qmakeProject->rootProFile()->scheduleUpdate(QmakeProFile::ParseLater);
+        qmakeBuildSystem()->rootProFile()->scheduleUpdate(QmakeProFile::ParseLater);
     }
 }
 

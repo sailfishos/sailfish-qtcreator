@@ -53,11 +53,11 @@ MerQmlRunConfigurationFactory::MerQmlRunConfigurationFactory()
 
 bool MerQmlRunConfigurationFactory::canHandle(Target *parent) const
 {
-    QmakeProject *qmakeProject = qobject_cast<QmakeProject *>(parent->project());
-    if (!qmakeProject)
+    auto qmakeBuildSystem = qobject_cast<QmakeBuildSystem *>(parent->buildSystem());
+    if (!qmakeBuildSystem)
         return false;
 
-    QmakeProFile *root = qmakeProject->rootProFile();
+    QmakeProFile *root = qmakeBuildSystem->rootProFile();
     if (root->projectType() != ProjectType::AuxTemplate ||
             ! root->variableValue(Variable::Config).contains(QLatin1String(SAILFISHAPP_QML_CONFIG))) {
         return false;

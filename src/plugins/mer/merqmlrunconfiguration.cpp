@@ -64,8 +64,8 @@ MerQmlRunConfiguration::MerQmlRunConfiguration(Target *target, Core::Id id)
     auto argsAspect = addAspect<ArgumentsAspect>();
 
     setUpdater([this, argsAspect] {
-        auto project = qobject_cast<QmakeProject *>(this->target()->project());
-        const QString appName{project->rootProFile()->targetInformation().target};
+        auto buildSystem = qobject_cast<QmakeBuildSystem *>(this->target()->buildSystem());
+        const QString appName{buildSystem->rootProFile()->targetInformation().target};
         // FIXME Overwrites (unlikely) user changes
         argsAspect->setArguments(appName);
     });

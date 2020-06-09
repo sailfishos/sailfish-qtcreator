@@ -113,77 +113,80 @@ Core::Id MerMb2RpmBuildConfigurationFactory::configurationId()
 
 bool MerAddRemoveSpecialDeployStepsProjectListener::handleProject(Project *project)
 {
-    connect(project, &Project::parsingFinished,
-            this, &MerAddRemoveSpecialDeployStepsProjectListener::scheduleProjectUpdate,
-            Qt::UniqueConnection);
+    // FIXME rewrite MerProjectListener to work on Target scope?
+    for (Target *const target : project->targets()) {
+        connect(target, &Target::parsingFinished,
+                this, &MerAddRemoveSpecialDeployStepsProjectListener::scheduleTargetUpdate,
+                Qt::UniqueConnection);
+    }
 
     return true;
 }
 
 bool MerAddRemoveSpecialDeployStepsProjectListener::forgetProject(Project *project)
 {
-    Utils::erase(m_updateProjectsQueue, [project](Project *enqueued) {
-        return enqueued == project;
+    Utils::erase(m_updateTargetsQueue, [project](Target *enqueued) {
+        return enqueued->project() == project;
     });
 
-    disconnect(project, &Project::parsingFinished,
-            this, &MerAddRemoveSpecialDeployStepsProjectListener::scheduleProjectUpdate);
+    for (Target *const target : project->targets()) {
+        disconnect(target, &Target::parsingFinished,
+                this, &MerAddRemoveSpecialDeployStepsProjectListener::scheduleTargetUpdate);
+    }
 
     return true;
 }
 
 void MerAddRemoveSpecialDeployStepsProjectListener::timerEvent(QTimerEvent *event)
 {
-    if (event->timerId() == m_updateProjectsTimer.timerId()) {
-        m_updateProjectsTimer.stop();
-        while (!m_updateProjectsQueue.isEmpty())
-            updateProject(m_updateProjectsQueue.dequeue());
+    if (event->timerId() == m_updateTargetsTimer.timerId()) {
+        m_updateTargetsTimer.stop();
+        while (!m_updateTargetsQueue.isEmpty())
+            updateTarget(m_updateTargetsQueue.dequeue());
     } else {
         MerProjectListener::timerEvent(event);
     }
 }
 
 // Avoid temporary changes to project configuration
-void MerAddRemoveSpecialDeployStepsProjectListener::scheduleProjectUpdate()
+void MerAddRemoveSpecialDeployStepsProjectListener::scheduleTargetUpdate()
 {
-    Project *project = qobject_cast<Project *>(sender());
-    QTC_ASSERT(project, return);
+    Target *target = qobject_cast<Target *>(sender());
+    QTC_ASSERT(target, return);
 
-    m_updateProjectsQueue.enqueue(project);
-    m_updateProjectsTimer.start(ADD_REMOVE_SPECIAL_STEPS_DELAY_MS, this);
+    m_updateTargetsQueue.enqueue(target);
+    m_updateTargetsTimer.start(ADD_REMOVE_SPECIAL_STEPS_DELAY_MS, this);
 }
 
-void MerAddRemoveSpecialDeployStepsProjectListener::updateProject(Project *project)
+void MerAddRemoveSpecialDeployStepsProjectListener::updateTarget(Target *target)
 {
-    const bool isAmbienceProject = this->isAmbienceProject(project);
+    const bool isAmbienceProject = this->isAmbienceProject(target);
 
-    for (Target *const target : project->targets()) {
-        for (DeployConfiguration *const dc : target->deployConfigurations()) {
-            if (dc->id() == MerMb2RpmBuildConfigurationFactory::configurationId()) {
-                if (!isAmbienceProject) {
-                    if (!dc->stepList()->contains(MerRpmValidationStep::stepId()))
-                        dc->stepList()->appendStep(new MerRpmValidationStep(dc->stepList()));
-                } else {
-                    removeStep(dc->stepList(), MerRpmValidationStep::stepId());
-                }
-            } else if (dc->id() == MerRpmDeployConfigurationFactory::configurationId()
-                    || dc->id() == MerRsyncDeployConfigurationFactory::configurationId()) {
-                if (isAmbienceProject) {
-                    if (!dc->stepList()->contains(MerResetAmbienceDeployStep::stepId()))
-                        dc->stepList()->appendStep(new MerResetAmbienceDeployStep(dc->stepList()));
-                } else {
-                    removeStep(dc->stepList(), MerResetAmbienceDeployStep::stepId());
-                }
+    for (DeployConfiguration *const dc : target->deployConfigurations()) {
+        if (dc->id() == MerMb2RpmBuildConfigurationFactory::configurationId()) {
+            if (!isAmbienceProject) {
+                if (!dc->stepList()->contains(MerRpmValidationStep::stepId()))
+                    dc->stepList()->appendStep(new MerRpmValidationStep(dc->stepList()));
+            } else {
+                removeStep(dc->stepList(), MerRpmValidationStep::stepId());
+            }
+        } else if (dc->id() == MerRpmDeployConfigurationFactory::configurationId()
+                || dc->id() == MerRsyncDeployConfigurationFactory::configurationId()) {
+            if (isAmbienceProject) {
+                if (!dc->stepList()->contains(MerResetAmbienceDeployStep::stepId()))
+                    dc->stepList()->appendStep(new MerResetAmbienceDeployStep(dc->stepList()));
+            } else {
+                removeStep(dc->stepList(), MerResetAmbienceDeployStep::stepId());
             }
         }
     }
 }
 
-bool MerAddRemoveSpecialDeployStepsProjectListener::isAmbienceProject(Project *project)
+bool MerAddRemoveSpecialDeployStepsProjectListener::isAmbienceProject(Target *target)
 {
-    auto *qmakeProject = qobject_cast<QmakeProject*>(project);
-    if (qmakeProject) {
-        QmakeProFile *root = qmakeProject->rootProFile();
+    auto *qmakeBuildSystem = qobject_cast<QmakeBuildSystem*>(target);
+    if (qmakeBuildSystem) {
+        QmakeProFile *root = qmakeBuildSystem->rootProFile();
         return root->projectType() == ProjectType::AuxTemplate &&
             root->variableValue(Variable::Config).contains(QLatin1String(SAILFISH_AMBIENCE_CONFIG));
     }
