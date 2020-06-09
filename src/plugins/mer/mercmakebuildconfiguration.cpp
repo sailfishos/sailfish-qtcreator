@@ -71,14 +71,18 @@ void MerCMakeBuildConfiguration::doInitialize(const ProjectExplorer::BuildInfo &
     QTC_ASSERT(cleanSteps, return);
     cleanSteps->insertStep(0, new MerSdkStartStep(cleanSteps));
 
-    connect(project(), &Project::parsingStarted, this, &MerCMakeBuildConfiguration::startBuildEngine);
+    connect(buildSystem(), &BuildSystem::parsingStarted,
+            this, &MerCMakeBuildConfiguration::startBuildEngine);
 }
 
 bool MerCMakeBuildConfiguration::fromMap(const QVariantMap &map)
 {
     if (!CMakeBuildConfiguration::fromMap(map))
         return false;
-    connect(project(), &Project::parsingStarted, this, &MerCMakeBuildConfiguration::startBuildEngine);
+
+    connect(buildSystem(), &BuildSystem::parsingStarted,
+            this, &MerCMakeBuildConfiguration::startBuildEngine);
+
     return true;
 }
 
