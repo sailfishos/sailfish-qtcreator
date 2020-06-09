@@ -60,6 +60,7 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/modemanager.h>
 #include <projectexplorer/kitmanager.h>
+#include <projectexplorer/runcontrol.h>
 #include <remotelinux/remotelinuxcustomrunconfiguration.h>
 #include <remotelinux/remotelinuxqmltoolingsupport.h>
 #include <remotelinux/remotelinuxrunconfiguration.h>
@@ -123,6 +124,30 @@ public:
     MerQmlLiveBenchManager qmlLiveBenchManager;
     MerCMakeBuildConfigurationFactory cmakeBuildConfigurationFactory;
     MerQmakeBuildConfigurationFactory qmakeBuildConfigurationFactory;
+
+    const QList<Core::Id> supportedRunConfigs{
+        Constants::MER_QMLRUNCONFIGURATION,
+        Constants::MER_RUNCONFIGURATION_PREFIX
+    };
+
+    RunWorkerFactory runnerFactory{
+        RunWorkerFactory::make<SimpleTargetRunner>(),
+        {ProjectExplorer::Constants::NORMAL_RUN_MODE},
+        supportedRunConfigs,
+        {Constants::MER_DEVICE_TYPE}
+    };
+    RunWorkerFactory debuggerFactory{
+        RunWorkerFactory::make<MerDeviceDebugSupport>(),
+        {ProjectExplorer::Constants::DEBUG_RUN_MODE},
+        supportedRunConfigs,
+        {Constants::MER_DEVICE_TYPE}
+    };
+    RunWorkerFactory qmlProfilerFactory{
+        RunWorkerFactory::make<RemoteLinuxQmlProfilerSupport>(),
+        {ProjectExplorer::Constants::QML_PROFILER_RUN_MODE},
+        supportedRunConfigs,
+        {Constants::MER_DEVICE_TYPE}
+    };
 };
 
 static MerPluginPrivate *dd = nullptr;
@@ -146,17 +171,6 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     new MerSettings(this);
 
     RunConfiguration::registerAspect<MerRunConfigurationAspect>();
-
-    auto constraint = [](RunConfiguration *runConfig) {
-        const Core::Id id = runConfig->id();
-        return id == Constants::MER_QMLRUNCONFIGURATION
-            || id.name().startsWith(Constants::MER_RUNCONFIGURATION_PREFIX);
-    };
-
-    RunControl::registerWorker<SimpleTargetRunner>(NORMAL_RUN_MODE, constraint);
-    RunControl::registerWorker<MerDeviceDebugSupport>(DEBUG_RUN_MODE, constraint);
-    RunControl::registerWorker<RemoteLinuxQmlProfilerSupport>(QML_PROFILER_RUN_MODE, constraint);
-    //RunControl::registerWorker<RemoteLinuxPerfSupport>(PERFPROFILER_RUN_MODE, constraint);
 
     VirtualMachine::registerConnectionUi<MerVmConnectionUi>();
 
