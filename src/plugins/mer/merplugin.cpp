@@ -45,7 +45,7 @@
 #include "merrunconfigurationfactory.h"
 #include "mersdkmanager.h"
 #include "mersettings.h"
-#include "mertoolchainfactory.h"
+#include "mertoolchain.h"
 #include "mervmconnectionui.h"
 #include "meremulatormodeoptionspage.h"
 

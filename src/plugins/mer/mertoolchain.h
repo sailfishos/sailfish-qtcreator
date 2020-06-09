@@ -60,6 +60,19 @@ private:
     mutable ProjectExplorer::HeaderPaths m_headerPathsOnHost;
 };
 
+class MerToolChainFactory : public ProjectExplorer::ToolChainFactory
+{
+    Q_OBJECT
+
+public:
+    MerToolChainFactory();
+
+    QList<ProjectExplorer::ToolChain *> autoDetect(const QList<ProjectExplorer::ToolChain *> &alreadyKnown) override;
+
+    ProjectExplorer::ToolChain *restore(const QVariantMap &data) override;
+    QSet<Core::Id> supportedLanguages() const override;
+};
+
 } // Internal
 } // Mer
 

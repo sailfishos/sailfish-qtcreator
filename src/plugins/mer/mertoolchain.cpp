@@ -26,7 +26,6 @@
 #include "meremulatordevice.h"
 #include "mersdkmanager.h"
 #include "mersshparser.h"
-#include "mertoolchainfactory.h"
 
 #include <sfdk/sdk.h>
 #include <sfdk/sfdkconstants.h>

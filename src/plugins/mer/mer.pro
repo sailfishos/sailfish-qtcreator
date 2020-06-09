@@ -137,7 +137,6 @@ HEADERS += \
     mersshparser.h \
     mertargetmanagementdialog.h \
     mertoolchain.h \
-    mertoolchainfactory.h \
     mervmconnectionui.h \
     mervmselectiondialog.h \
     merdevicemodelcombobox.h \
