@@ -38,6 +38,7 @@
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/runcontrol.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
 #include <ssh/sshconnection.h>
@@ -588,11 +589,7 @@ void MerQmlLiveBenchManager::startProbing(ProjectExplorer::RunControl *rc) { if
         letRunningBenchProbeHosts(merDeviceName, ports);
     });
 
-    auto RunControl_appendMessage = static_cast<
-        void (RunControl::*)(RunControl *, const QString &, Utils::OutputFormat)
-        >(&RunControl::appendMessageRequested);
-    connect(rc, RunControl_appendMessage, period, [period](RunControl *rc, const QString &msg) {
-        Q_UNUSED(rc);
+    connect(rc, &RunControl::appendMessage, period, [period](const QString &msg) {
         if (msg.contains(QLatin1String(APP_READY_PATTERN)))
             period->setInterval(0);
     });
