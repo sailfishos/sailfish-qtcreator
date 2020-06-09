@@ -131,7 +131,8 @@ Runnable MerRunConfiguration::runnable() const
 
     if (conf->id() == MerRsyncDeployConfigurationFactory::configurationId()) {
         QString projectName = target()->project()->displayName();
-        r.executable = QLatin1String("/opt/sdk/") + projectName + r.executable;
+        r.executable = FilePath::fromString("/opt/sdk/").pathAppended(projectName)
+            .stringAppended(r.executable.toString());
     }
 
     if (conf->id() == MerRpmDeployConfigurationFactory::configurationId()) {

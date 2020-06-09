@@ -35,6 +35,7 @@
 #include <projectexplorer/deploymentdata.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
+#include <projectexplorer/runcontrol.h>
 #include <projectexplorer/target.h>
 #include <qmakeprojectmanager/qmakeproject.h>
 #include <remotelinux/remotelinuxenvironmentaspect.h>
@@ -59,7 +60,7 @@ MerQmlRunConfiguration::MerQmlRunConfiguration(Target *target, Core::Id id)
     addAspect<RemoteLinuxEnvironmentAspect>(target);
 
     auto exeAspect = addAspect<ExecutableAspect>();
-    exeAspect->setExecutable(QLatin1String(Constants::SAILFISH_QML_LAUNCHER));
+    exeAspect->setExecutable(FilePath::fromString(Constants::SAILFISH_QML_LAUNCHER));
 
     auto argsAspect = addAspect<ArgumentsAspect>();
 
