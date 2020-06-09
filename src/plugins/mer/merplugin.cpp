@@ -40,6 +40,7 @@
 #include "merhardwaredevice.h"
 #include "merqmllivebenchmanager.h"
 #include "merqmlrunconfigurationfactory.h"
+#include "merqmltoolingsupport.h"
 #include "merqtversion.h"
 #include "merrunconfigurationaspect.h"
 #include "merrunconfigurationfactory.h"
@@ -142,9 +143,11 @@ public:
         supportedRunConfigs,
         {Constants::MER_DEVICE_TYPE}
     };
-    RunWorkerFactory qmlProfilerFactory{
-        RunWorkerFactory::make<RemoteLinuxQmlProfilerSupport>(),
-        {ProjectExplorer::Constants::QML_PROFILER_RUN_MODE},
+    RunWorkerFactory qmlToolingFactory{
+        RunWorkerFactory::make<MerQmlToolingSupport>(),
+        {ProjectExplorer::Constants::QML_PROFILER_RUN_MODE,
+        // FIXME
+        /* ProjectExplorer::Constants::QML_PREVIEW_RUN_MODE */},
         supportedRunConfigs,
         {Constants::MER_DEVICE_TYPE}
     };

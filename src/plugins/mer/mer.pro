@@ -70,6 +70,7 @@ SOURCES += \
     merqmllivebenchmanager.cpp \
     merqmlrunconfiguration.cpp \
     merqmlrunconfigurationfactory.cpp \
+    merqmltoolingsupport.cpp \
     merqtversion.cpp \
     merrpminstaller.cpp \
     merrpmvalidationparser.cpp \
@@ -125,6 +126,7 @@ HEADERS += \
     merqmllivebenchmanager.h \
     merqmlrunconfiguration.h \
     merqmlrunconfigurationfactory.h \
+    merqmltoolingsupport.h \
     merqtversion.h \
     merrpminstaller.h \
     merrpmvalidationparser.h \
