@@ -168,6 +168,7 @@ void MerToolChain::addToEnvironment(Environment &env) const
 MerToolChainFactory::MerToolChainFactory()
 {
     setDisplayName(Sdk::osVariant());
+    setSupportedToolChainType(Constants::MER_TOOLCHAIN_ID);
 }
 
 /*
@@ -205,11 +206,6 @@ QList<ToolChain *> MerToolChainFactory::autoDetect(const QList<ToolChain *> &alr
     return Utils::filtered(alreadyKnown, [](const ToolChain *tc) {
         return tc->typeId() == Constants::MER_TOOLCHAIN_ID;
     });
-}
-
-bool MerToolChainFactory::canRestore(const QVariantMap &data)
-{
-    return typeIdFromMap(data) == Constants::MER_TOOLCHAIN_ID;
 }
 
 ToolChain *MerToolChainFactory::restore(const QVariantMap &data)
