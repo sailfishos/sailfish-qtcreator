@@ -43,6 +43,7 @@
 #include "merqtversion.h"
 #include "merrunconfigurationaspect.h"
 #include "merrunconfigurationfactory.h"
+#include "mersdkkitaspect.h"
 #include "mersdkmanager.h"
 #include "mersettings.h"
 #include "mertoolchain.h"
@@ -93,6 +94,7 @@ public:
     }
 
     Sdk sdk;
+    MerSdkKitAspect merSdkKitAspect;
     MerSdkManager sdkManager;
     MerConnectionManager connectionManager;
     MerBuildEngineOptionsPage buildEngineOptionsPage;

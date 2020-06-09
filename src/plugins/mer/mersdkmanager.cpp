@@ -92,7 +92,6 @@ MerSdkManager::MerSdkManager()
     m_instance = this;
     connect(KitManager::instance(), &KitManager::kitsLoaded,
             this, &MerSdkManager::initialize);
-    KitManager::registerKitAspect<MerSdkKitAspect>();
 }
 
 MerSdkManager::~MerSdkManager()
