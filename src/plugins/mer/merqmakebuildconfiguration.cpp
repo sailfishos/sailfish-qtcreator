@@ -115,12 +115,12 @@ void MerQmakeBuildConfiguration::doInitialize(const ProjectExplorer::BuildInfo &
 {
     QmakeBuildConfiguration::doInitialize(info);
 
-    BuildStepList *buildSteps = stepList(Core::Id(ProjectExplorer::Constants::BUILDSTEPS_BUILD));
-    Q_ASSERT(buildSteps);
+    BuildStepList *buildSteps = this->buildSteps();
+    QTC_ASSERT(buildSteps, return);
     buildSteps->insertStep(0, new MerSdkStartStep(buildSteps));
 
-    BuildStepList *cleanSteps = stepList(Core::Id(ProjectExplorer::Constants::BUILDSTEPS_CLEAN));
-    Q_ASSERT(cleanSteps);
+    BuildStepList *cleanSteps = this->cleanSteps();
+    QTC_ASSERT(cleanSteps, return);
     cleanSteps->insertStep(0, new MerSdkStartStep(cleanSteps));
 }
 
@@ -277,7 +277,7 @@ void MerQmakeBuildConfiguration::updateExtraParserArguments()
     QTC_ASSERT(buildEngine, return);
 
     if (buildEngine->virtualMachine()->state() != VirtualMachine::Connected) {
-        BuildStepList *steps = stepList(Core::Id(ProjectExplorer::Constants::BUILDSTEPS_BUILD));
+        BuildStepList *steps = buildSteps();
         QTC_ASSERT(steps, return);
         Mer::Internal::MerSdkStartStep *sdkStartStep = steps->firstOfType<Mer::Internal::MerSdkStartStep>();
         QTC_ASSERT(sdkStartStep, return);
