@@ -35,7 +35,7 @@ namespace Internal {
 class MerToolChain : public ProjectExplorer::GccToolChain
 {
 public:
-    MerToolChain(Detection autodetect, Core::Id typeId = Constants::MER_TOOLCHAIN_ID);
+    MerToolChain(Core::Id typeId = Constants::MER_TOOLCHAIN_ID);
 
     void setBuildEngineUri(const QUrl &uri);
     QUrl buildEngineUri() const;

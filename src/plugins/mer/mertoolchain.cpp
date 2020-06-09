@@ -49,8 +49,8 @@ namespace Internal {
 
 using namespace ProjectExplorer;
 
-MerToolChain::MerToolChain(Detection autodetected, Core::Id typeId)
-    : GccToolChain(typeId, autodetected)
+MerToolChain::MerToolChain(Core::Id typeId)
+    : GccToolChain(typeId)
 {
 
 }
@@ -209,7 +209,7 @@ QList<ToolChain *> MerToolChainFactory::autoDetect(const QList<ToolChain *> &alr
 
 ToolChain *MerToolChainFactory::restore(const QVariantMap &data)
 {
-    MerToolChain *tc = new MerToolChain(ToolChain::AutoDetection); // TODO: unsure
+    MerToolChain *tc = new MerToolChain;
     if (!tc->fromMap(data)) {
         delete tc;
         return 0;

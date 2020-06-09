@@ -639,7 +639,7 @@ std::unique_ptr<MerToolChain> MerSdkManager::createToolChain(const BuildEngine *
     QTC_CHECK(!Utils::contains(ToolChainManager::toolChains(),
                 Utils::equal(&ToolChain::compilerCommand, gcc)));
 
-    auto mertoolchain = std::make_unique<MerToolChain>(ToolChain::AutoDetection);
+    auto mertoolchain = std::make_unique<MerToolChain>();
     mertoolchain->setDisplayName(QString::fromLatin1("GCC (%1 in %2)")
             .arg(buildTargetName, buildEngine->name()));
     mertoolchain->setBuildEngineUri(buildEngine->uri());
