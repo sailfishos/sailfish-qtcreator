@@ -36,6 +36,7 @@
 
 #include <coreplugin/icore.h>
 #include <extensionsystem/pluginmanager.h>
+#include <projectexplorer/kitinformation.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <ssh/sshconnection.h>
 #include <utils/qtcassert.h>
@@ -223,17 +224,18 @@ void MerSdkKitAspect::addToEnvironment(const Kit *kit, Environment &env) const
 
 void MerSdkKitAspect::notifyAboutUpdate(const Sfdk::BuildEngine *buildEngine)
 {
-    auto related = [=](const Kit *k) {
-        return MerSdkKitAspect::buildEngine(k) == buildEngine;
-    };
-    for (Kit *k : KitManager::kits(related))
-        s_instance->notifyAboutUpdate(k);
+    for (Kit *const k : KitManager::kits()) {
+        if (MerSdkKitAspect::buildEngine(k) == buildEngine)
+            s_instance->notifyAboutUpdate(k);
+    }
 }
 
 void MerSdkKitAspect::notifyAllUpdated()
 {
-    for (Kit *k : KitManager::kits([](const Kit *k) { return k->hasValue(MerSdkKitAspect::id()); }))
-        notifyAboutUpdate(k);
+    for (Kit *const k : KitManager::kits()) {
+        if (k->hasValue(MerSdkKitAspect::id()))
+            notifyAboutUpdate(k);
+    }
 }
 
 QVariantMap MerSdkKitAspect::toMap(const QUrl &buildEngineUri, const QString &buildTargetName)
