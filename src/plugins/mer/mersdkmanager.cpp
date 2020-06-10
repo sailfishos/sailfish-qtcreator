@@ -618,7 +618,9 @@ std::unique_ptr<MerQtVersion> MerSdkManager::createQtVersion(const BuildEngine *
 
     const FilePath qmake = buildTarget.toolsPath.pathAppended(Sfdk::Constants::WRAPPER_QMAKE);
 
-    QTC_CHECK(!QtVersionManager::qtVersionForQMakeBinary(qmake));
+    BaseQtVersion *const duplicateQtVersion = QtVersionManager::version(
+            Utils::equal(&BaseQtVersion::qmakeCommand, qmake));
+    QTC_CHECK(!duplicateQtVersion);
 
     // Hack
     BaseQtVersion *const baseQtVersion =
