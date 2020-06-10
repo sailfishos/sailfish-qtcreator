@@ -439,7 +439,8 @@ bool MerSdkManager::addKit(const BuildEngine *buildEngine, const QString &buildT
     if (!version)
         return false;
 
-    // FIXME this was needed when kits were preconfigured with sdktool
+    // Incomplete kits are precreated with sdktool to avoid automatic creation
+    // of the Desktop kit
     Kit* kitptr = kit(buildEngine, buildTargetName);
     std::unique_ptr<Kit> kit(nullptr);
     if (!kitptr) {
