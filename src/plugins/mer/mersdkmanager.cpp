@@ -427,6 +427,12 @@ bool MerSdkManager::addKit(const BuildEngine *buildEngine, const QString &buildT
     qCDebug(Log::sdks) << "Adding kit for" << buildTargetName << "inside"
         << buildEngine->uri().toString();
 
+    const BuildTargetData buildTarget = buildEngine->buildTarget(buildTargetName);
+    if (!buildTarget.sysRoot.exists()) {
+        qCWarning(Log::mer) << "Sysroot does not exist" << buildTarget.sysRoot.toString();
+        return false;
+    }
+
     std::unique_ptr<MerToolChain> toolchain = createToolChain(buildEngine, buildTargetName,
             ProjectExplorer::Constants::CXX_LANGUAGE_ID);
     if (!toolchain)
@@ -439,26 +445,28 @@ bool MerSdkManager::addKit(const BuildEngine *buildEngine, const QString &buildT
     if (!version)
         return false;
 
+    Core::Id id;
+
     // Incomplete kits are precreated with sdktool to avoid automatic creation
     // of the Desktop kit
-    Kit* kitptr = kit(buildEngine, buildTargetName);
-    std::unique_ptr<Kit> kit(nullptr);
-    if (!kitptr) {
-        kit = std::make_unique<Kit>();
-        kitptr = kit.get();
+    if (Kit* placeholderKit = kit(buildEngine, buildTargetName)) {
+        id = placeholderKit->id();
+        KitManager::deregisterKit(placeholderKit);
     }
-
-    if (!finalizeKitCreation(buildEngine, buildTargetName, kitptr))
-        return false;
 
     ToolChainManager::registerToolChain(toolchain.get());
     ToolChainManager::registerToolChain(toolchain_c.get());
     QtVersionManager::addVersion(version.get());
-    QtKitAspect::setQtVersion(kitptr, version.get());
-    ToolChainKitAspect::setToolChain(kitptr, toolchain.get());
-    ToolChainKitAspect::setToolChain(kitptr, toolchain_c.get());
-    if (kit)
-        KitManager::registerKit(std::move(kit));
+
+    auto initializeKit = [&](Kit *kit) {
+        finalizeKitCreation(buildEngine, buildTargetName, kit);
+
+        QtKitAspect::setQtVersion(kit, version.get());
+        ToolChainKitAspect::setToolChain(kit, toolchain.get());
+        ToolChainKitAspect::setToolChain(kit, toolchain_c.get());
+    };
+    KitManager::registerKit(initializeKit, id);
+
     toolchain.release();
     toolchain_c.release();
     version.release();
@@ -507,16 +515,14 @@ Kit *MerSdkManager::kit(const BuildEngine *buildEngine, const QString &buildTarg
     return KitManager::kit(Core::Id::fromSetting(QVariant(buildTargetName)));
 }
 
-bool MerSdkManager::finalizeKitCreation(const BuildEngine *buildEngine,
+void MerSdkManager::finalizeKitCreation(const BuildEngine *buildEngine,
         const QString &buildTargetName, Kit* k)
 {
     const BuildTargetData buildTarget = buildEngine->buildTarget(buildTargetName);
-    if (!buildTarget.sysRoot.exists()) {
-        qCWarning(Log::mer) << "Sysroot does not exist" << buildTarget.sysRoot.toString();
-        return false;
-    }
+    QTC_ASSERT(buildTarget.sysRoot.exists(), return);
 
     k->setAutoDetected(true);
+    k->setSdkProvided(true);
     k->setUnexpandedDisplayName(QString::fromLatin1("%1 (in %2)")
             .arg(buildTargetName, buildEngine->name()));
 
@@ -530,7 +536,6 @@ bool MerSdkManager::finalizeKitCreation(const BuildEngine *buildEngine,
     ensureCmakeToolIsSet(k, buildEngine, buildTargetName);
 
     MerSdkKitAspect::setBuildTarget(k, buildEngine, buildTargetName);
-    return true;
 }
 
 void MerSdkManager::ensureDebuggerIsSet(Kit *k, const BuildEngine *buildEngine,

@@ -77,7 +77,7 @@ private:
     static ProjectExplorer::Kit *kit(const Sfdk::BuildEngine *buildEngine,
             const QString &buildTargetName);
     void checkPkgConfigAvailability();
-    static bool finalizeKitCreation(const Sfdk::BuildEngine *buildEngine,
+    static void finalizeKitCreation(const Sfdk::BuildEngine *buildEngine,
             const QString &buildTargetName, ProjectExplorer::Kit* k);
     static void ensureDebuggerIsSet(ProjectExplorer::Kit *k, const Sfdk::BuildEngine *buildEngine,
             const QString &buildTargetName);
