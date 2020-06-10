@@ -589,7 +589,7 @@ void MerSdkManager::ensureCmakeToolIsSet(Kit *k, const BuildEngine *buildEngine,
             CMakeKitAspect::setCMakeTool(k, existing->id());
         } else {
             auto cmakeTool = std::make_unique<CMakeTool>(CMakeTool::AutoDetectionByPlugin, CMakeTool::createId());
-            cmakeTool->setCMakeExecutable(cmakeWrapper);
+            cmakeTool->setFilePath(cmakeWrapper);
             cmakeTool->setDisplayName(QString::fromLatin1("CMake for %1 in %2").arg(buildTargetName, buildEngine->name()));
             cmakeTool->setAutorun(true);
             cmakeTool->setAutoCreateBuildDirectory(true);
