@@ -277,7 +277,8 @@ bool MerProcessStep::init(InitOptions options)
         ? bc->rawBuildDirectory()
         : project()->projectDirectory();
     const FilePath toolsPath = engine->buildTarget(target).toolsPath;
-    const QString deployCommand = toolsPath.pathAppended(Sfdk::Constants::WRAPPER_DEPLOY).toString();
+    CommandLine deployCommand(toolsPath.pathAppended(Sfdk::Constants::WRAPPER_DEPLOY));
+    deployCommand.addArgs(arguments(), CommandLine::Raw);
 
     ProcessParameters *pp = processParameters();
 
@@ -289,8 +290,7 @@ bool MerProcessStep::init(InitOptions options)
     pp->setMacroExpander(bc ? bc->macroExpander() : Utils::globalMacroExpander());
     pp->setEnvironment(env);
     pp->setWorkingDirectory(projectDirectory);
-    pp->setCommand(deployCommand);
-    pp->setArguments(arguments());
+    pp->setCommandLine(deployCommand);
     return AbstractProcessStep::init();
 }
 
@@ -580,7 +580,8 @@ bool MerLocalRsyncDeployStep::init()
     const FilePath projectDirectory = isShadowBuild
         ? bc->rawBuildDirectory()
         : project()->projectDirectory();
-    const QString deployCommand = QLatin1String("rsync");
+    CommandLine deployCommand("rsync");
+    deployCommand.addArgs(arguments(), CommandLine::Raw);
 
     ProcessParameters *pp = processParameters();
 
@@ -588,8 +589,7 @@ bool MerLocalRsyncDeployStep::init()
     pp->setMacroExpander(bc ? bc->macroExpander() : Utils::globalMacroExpander());
     pp->setEnvironment(env);
     pp->setWorkingDirectory(projectDirectory);
-    pp->setCommand(deployCommand);
-    pp->setArguments(arguments());
+    pp->setCommandLine(deployCommand);
 
     return AbstractProcessStep::init();
 }
@@ -678,10 +678,13 @@ bool MerMb2RpmBuildStep::init()
 
     //hack
     ProcessParameters *pp = processParameters();
-    QString deployCommand = pp->command();
-    deployCommand.replace(QLatin1String(Sfdk::Constants::WRAPPER_DEPLOY),
+    QString rpm = pp->command().executable().toString();
+    rpm.replace(
+            QLatin1String(Sfdk::Constants::WRAPPER_DEPLOY),
             QLatin1String(Sfdk::Constants::WRAPPER_RPM));
-    pp->setCommand(deployCommand);
+    CommandLine rpmCommand(rpm);
+    rpmCommand.addArgs(pp->command().arguments(), CommandLine::Raw);
+    pp->setCommandLine(rpmCommand);
     return success;
 }
 
@@ -854,12 +857,14 @@ void MerRpmValidationStep::doRun()
 
     // hack
     ProcessParameters *pp = processParameters();
-    QString deployCommand = pp->command();
-    deployCommand.replace(QLatin1String(Sfdk::Constants::WRAPPER_DEPLOY),
+    QString rpmValidation = pp->command().executable().toString();
+    rpmValidation.replace(
+            QLatin1String(Sfdk::Constants::WRAPPER_DEPLOY),
             QLatin1String(Sfdk::Constants::WRAPPER_RPMVALIDATION));
-    pp->setCommand(deployCommand);
+    CommandLine rpmValidationCommand(rpmValidation);
     QStringList arguments{ m_fixedArguments, this->arguments(), packageFile };
-    pp->setArguments(arguments.join(' '));
+    rpmValidationCommand.addArgs(arguments.join(' '), CommandLine::Raw);
+    pp->setCommandLine(rpmValidationCommand);
 
     AbstractProcessStep::doRun();
 }
