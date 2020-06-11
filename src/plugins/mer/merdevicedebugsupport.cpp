@@ -53,6 +53,7 @@ using namespace Mer;
 using namespace Mer::Internal;
 using namespace RemoteLinux;
 using namespace Sfdk;
+using namespace Utils;
 
 namespace {
 const int GDB_SERVER_READY_TIMEOUT_MS = 10000;
@@ -89,7 +90,8 @@ private:
 
     void handlePortListReady()
     {
-        if (!m_usedPortsGatherer.usedPorts().contains(m_gdbServerPortsGatherer->gdbServerPort())) {
+        const Port gdbServerPort(m_gdbServerPortsGatherer->gdbServer().port());
+        if (!m_usedPortsGatherer.usedPorts().contains(gdbServerPort)) {
             if (m_startTime.elapsed() > GDB_SERVER_READY_TIMEOUT_MS) {
                 reportFailure(tr("Timeout waiting for gdbserver to become ready."));
                 return;
