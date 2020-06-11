@@ -166,7 +166,8 @@ void MerAddRemoveSpecialDeployStepsProjectListener::updateTarget(Target *target)
         if (dc->id() == MerMb2RpmBuildConfigurationFactory::configurationId()) {
             if (!isAmbienceProject) {
                 if (!dc->stepList()->contains(MerRpmValidationStep::stepId()))
-                    dc->stepList()->appendStep(new MerRpmValidationStep(dc->stepList()));
+                    dc->stepList()->appendStep(new MerRpmValidationStep(dc->stepList(),
+                                MerRpmValidationStep::stepId()));
             } else {
                 removeStep(dc->stepList(), MerRpmValidationStep::stepId());
             }
@@ -174,7 +175,8 @@ void MerAddRemoveSpecialDeployStepsProjectListener::updateTarget(Target *target)
                 || dc->id() == MerRsyncDeployConfigurationFactory::configurationId()) {
             if (isAmbienceProject) {
                 if (!dc->stepList()->contains(MerResetAmbienceDeployStep::stepId()))
-                    dc->stepList()->appendStep(new MerResetAmbienceDeployStep(dc->stepList()));
+                    dc->stepList()->appendStep(new MerResetAmbienceDeployStep(dc->stepList(),
+                                MerResetAmbienceDeployStep::stepId()));
             } else {
                 removeStep(dc->stepList(), MerResetAmbienceDeployStep::stepId());
             }

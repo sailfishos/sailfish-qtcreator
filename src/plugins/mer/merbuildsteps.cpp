@@ -37,8 +37,8 @@ using namespace Sfdk;
 namespace Mer {
 namespace Internal {
 
-MerSdkStartStep::MerSdkStartStep(BuildStepList *bsl)
-    : MerAbstractVmStartStep(bsl, stepId())
+MerSdkStartStep::MerSdkStartStep(BuildStepList *bsl, Core::Id id)
+    : MerAbstractVmStartStep(bsl, id)
 {
     setDefaultDisplayName(displayName());
 }

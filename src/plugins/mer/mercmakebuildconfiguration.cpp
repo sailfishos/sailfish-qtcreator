@@ -65,11 +65,11 @@ void MerCMakeBuildConfiguration::doInitialize(const ProjectExplorer::BuildInfo &
 
     BuildStepList *buildSteps = this->buildSteps();
     QTC_ASSERT(buildSteps, return);
-    buildSteps->insertStep(0, new MerSdkStartStep(buildSteps));
+    buildSteps->insertStep(0, new MerSdkStartStep(buildSteps, MerSdkStartStep::stepId()));
 
     BuildStepList *cleanSteps = this->cleanSteps();
     QTC_ASSERT(cleanSteps, return);
-    cleanSteps->insertStep(0, new MerSdkStartStep(cleanSteps));
+    cleanSteps->insertStep(0, new MerSdkStartStep(cleanSteps, MerSdkStartStep::stepId()));
 
     connect(buildSystem(), &BuildSystem::parsingStarted,
             this, &MerCMakeBuildConfiguration::startBuildEngine);

@@ -83,7 +83,7 @@ class MerEmulatorStartStep : public MerAbstractVmStartStep
 {
     Q_OBJECT
 public:
-    explicit MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl);
+    explicit MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
     bool init() override;
     static Core::Id stepId();
     static QString displayName();
@@ -94,7 +94,7 @@ class MerConnectionTestStep : public ProjectExplorer::BuildStep
     Q_OBJECT
 
 public:
-    explicit MerConnectionTestStep(ProjectExplorer::BuildStepList *bsl);
+    explicit MerConnectionTestStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
 
     bool init() override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
@@ -122,7 +122,7 @@ class MerPrepareTargetStep : public ProjectExplorer::BuildStep
     Q_OBJECT
 
 public:
-    explicit MerPrepareTargetStep(ProjectExplorer::BuildStepList *bsl);
+    explicit MerPrepareTargetStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
 
     bool init() override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
@@ -143,7 +143,7 @@ class MerMb2RsyncDeployStep : public MerProcessStep
 {
     Q_OBJECT
 public:
-    explicit MerMb2RsyncDeployStep(ProjectExplorer::BuildStepList *bsl);
+    explicit MerMb2RsyncDeployStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
     bool init() override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
@@ -156,7 +156,7 @@ class MerLocalRsyncDeployStep : public MerProcessStep
 {
     Q_OBJECT
 public:
-    explicit MerLocalRsyncDeployStep(ProjectExplorer::BuildStepList *bsl);
+    explicit MerLocalRsyncDeployStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
     bool init() override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
@@ -169,7 +169,7 @@ class MerMb2RpmDeployStep : public MerProcessStep
 {
     Q_OBJECT
 public:
-    explicit MerMb2RpmDeployStep(ProjectExplorer::BuildStepList *bsl);
+    explicit MerMb2RpmDeployStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
     bool init() override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
@@ -183,7 +183,7 @@ class MerMb2RpmBuildStep : public MerProcessStep
 {
     Q_OBJECT
 public:
-    explicit MerMb2RpmBuildStep(ProjectExplorer::BuildStepList *bsl);
+    explicit MerMb2RpmBuildStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
     bool init() override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
@@ -217,7 +217,7 @@ class MerRpmValidationStep : public MerProcessStep
 {
     Q_OBJECT
 public:
-    explicit MerRpmValidationStep(ProjectExplorer::BuildStepList *bsl);
+    explicit MerRpmValidationStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
     bool init() override;
     bool fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
@@ -256,7 +256,7 @@ class MerResetAmbienceDeployStep : public RemoteLinux::AbstractRemoteLinuxDeploy
 {
     Q_OBJECT
 public:
-    explicit MerResetAmbienceDeployStep(ProjectExplorer::BuildStepList *bsl);
+    explicit MerResetAmbienceDeployStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
     static Core::Id stepId();
     static QString displayName();
 };
