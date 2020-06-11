@@ -57,6 +57,9 @@ MerCMakeBuildConfiguration::MerCMakeBuildConfiguration(Target *target, Core::Id 
     auto aspect = addAspect<MerBuildConfigurationAspect>(this);
     connect(aspect, &ProjectConfigurationAspect::changed,
             this, &BuildConfiguration::updateCacheAndEmitEnvironmentChanged);
+
+    connect(target, &Target::parsingStarted,
+            this, &MerCMakeBuildConfiguration::startBuildEngine);
 }
 
 void MerCMakeBuildConfiguration::doInitialize(const ProjectExplorer::BuildInfo &info)
@@ -70,20 +73,6 @@ void MerCMakeBuildConfiguration::doInitialize(const ProjectExplorer::BuildInfo &
     BuildStepList *cleanSteps = this->cleanSteps();
     QTC_ASSERT(cleanSteps, return);
     cleanSteps->insertStep(0, new MerSdkStartStep(cleanSteps, MerSdkStartStep::stepId()));
-
-    connect(buildSystem(), &BuildSystem::parsingStarted,
-            this, &MerCMakeBuildConfiguration::startBuildEngine);
-}
-
-bool MerCMakeBuildConfiguration::fromMap(const QVariantMap &map)
-{
-    if (!CMakeBuildConfiguration::fromMap(map))
-        return false;
-
-    connect(buildSystem(), &BuildSystem::parsingStarted,
-            this, &MerCMakeBuildConfiguration::startBuildEngine);
-
-    return true;
 }
 
 QList<NamedWidget *> MerCMakeBuildConfiguration::createSubConfigWidgets()

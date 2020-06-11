@@ -36,7 +36,6 @@ class MerCMakeBuildConfiguration : public CMakeProjectManager::Internal::CMakeBu
 
 public:
     MerCMakeBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
-    bool fromMap(const QVariantMap &map) override;
     QList<ProjectExplorer::NamedWidget *> createSubConfigWidgets() override;
     void addToEnvironment(Utils::Environment &env) const override;
 
