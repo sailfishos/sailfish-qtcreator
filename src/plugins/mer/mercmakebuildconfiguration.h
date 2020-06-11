@@ -39,8 +39,6 @@ public:
     QList<ProjectExplorer::NamedWidget *> createSubConfigWidgets() override;
     void addToEnvironment(Utils::Environment &env) const override;
 
-    bool isShadowBuild() const;
-
     void doInitialize(const ProjectExplorer::BuildInfo &info) override;
 
 private:

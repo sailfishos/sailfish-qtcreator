@@ -98,15 +98,6 @@ void MerCMakeBuildConfiguration::addToEnvironment(Utils::Environment &env) const
     aspect->addToEnvironment(env);
 }
 
-/// returns whether this is a shadow build configuration or not
-/// note, even if shadowBuild() returns true, it might be using the
-/// source directory as the shadow build directory, thus it
-/// still is a in-source build
-bool MerCMakeBuildConfiguration::isShadowBuild() const
-{
-    return buildDirectory() != target()->project()->projectDirectory();
-}
-
 MerCMakeBuildConfigurationFactory::MerCMakeBuildConfigurationFactory()
 {
     registerBuildConfiguration<MerCMakeBuildConfiguration>(CMakeProjectManager::Constants::CMAKEPROJECT_BC_ID);

@@ -51,6 +51,7 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/idocument.h>
 #include <extensionsystem/pluginmanager.h>
+#include <projectexplorer/buildaspects.h>
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/buildstep.h>
 #include <projectexplorer/buildsteplist.h>
@@ -266,11 +267,15 @@ bool MerProcessStep::init(InitOptions options)
         return false;
     }
 
-    QString projectDirectory;
-    if (qobject_cast<MerCMakeBuildConfiguration*>(bc))
-        projectDirectory = qobject_cast<MerCMakeBuildConfiguration*>(bc)->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory().toString();
-    else
-        projectDirectory = qobject_cast<MerQmakeBuildConfiguration*>(bc)->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory().toString();
+    // BuildDirectoryAspect::isShadowBuild reports false when
+    // BuildDirectoryAspect::allowInSourceBuilds is not set, which is the case of
+    // CMakeBuildConfiguration.
+    const bool isShadowBuild = bc->buildDirectoryAspect()->isShadowBuild()
+        || qobject_cast<CMakeBuildConfiguration *>(bc) != nullptr;
+
+    const FilePath projectDirectory = isShadowBuild
+        ? bc->rawBuildDirectory()
+        : project()->projectDirectory();
     const FilePath toolsPath = engine->buildTarget(target).toolsPath;
     const QString deployCommand = toolsPath.pathAppended(Sfdk::Constants::WRAPPER_DEPLOY).toString();
 
@@ -566,12 +571,15 @@ bool MerLocalRsyncDeployStep::init()
         return false;
     }
 
-    QString projectDirectory;
-    if (qobject_cast<MerCMakeBuildConfiguration*>(bc))
-        projectDirectory = qobject_cast<MerCMakeBuildConfiguration*>(bc)->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory().toString();
-    else
-        projectDirectory = qobject_cast<MerQmakeBuildConfiguration*>(bc)->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory().toString();
+    // BuildDirectoryAspect::isShadowBuild reports false when
+    // BuildDirectoryAspect::allowInSourceBuilds is not set, which is the case of
+    // CMakeBuildConfiguration.
+    const bool isShadowBuild = bc->buildDirectoryAspect()->isShadowBuild()
+        || qobject_cast<CMakeBuildConfiguration *>(bc) != nullptr;
 
+    const FilePath projectDirectory = isShadowBuild
+        ? bc->rawBuildDirectory()
+        : project()->projectDirectory();
     const QString deployCommand = QLatin1String("rsync");
 
     ProcessParameters *pp = processParameters();
