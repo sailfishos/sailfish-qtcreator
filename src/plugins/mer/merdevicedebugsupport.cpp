@@ -65,9 +65,9 @@ class GdbServerReadyWatcher : public ProjectExplorer::RunWorker
 
 public:
     explicit GdbServerReadyWatcher(ProjectExplorer::RunControl *runControl,
-                             GdbServerPortsGatherer *gdbServerPortsGatherer)
+                             DebugServerPortsGatherer *debugServerPortsGatherer)
         : RunWorker(runControl)
-        , m_gdbServerPortsGatherer(gdbServerPortsGatherer)
+        , m_debugServerPortsGatherer(debugServerPortsGatherer)
     {
         setId("GdbServerReadyWatcher");
 
@@ -90,7 +90,7 @@ private:
 
     void handlePortListReady()
     {
-        const Port gdbServerPort(m_gdbServerPortsGatherer->gdbServer().port());
+        const Port gdbServerPort(m_debugServerPortsGatherer->gdbServer().port());
         if (!m_usedPortsGatherer.usedPorts().contains(gdbServerPort)) {
             if (m_startTime.elapsed() > GDB_SERVER_READY_TIMEOUT_MS) {
                 reportFailure(tr("Timeout waiting for gdbserver to become ready."));
@@ -101,7 +101,7 @@ private:
         reportDone();
     }
 
-    GdbServerPortsGatherer *m_gdbServerPortsGatherer;
+    DebugServerPortsGatherer *m_debugServerPortsGatherer;
     DeviceUsedPortsGatherer m_usedPortsGatherer;
     QTime m_startTime;
 };
@@ -113,7 +113,7 @@ MerDeviceDebugSupport::MerDeviceDebugSupport(RunControl *runControl)
 
     setUsePortsGatherer(isCppDebugging(), isQmlDebugging());
 
-    auto gdbServer = new GdbServerRunner(runControl, portsGatherer());
+    auto gdbServer = new DebugServerRunner(runControl, portsGatherer());
 
     addStartDependency(gdbServer);
 
