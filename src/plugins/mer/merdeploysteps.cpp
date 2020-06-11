@@ -445,13 +445,10 @@ bool MerPrepareTargetStep::init()
         return false;
     }
 
-    if (d->machineType() == IDevice::Emulator) {
-        m_impl = new MerEmulatorStartStep(qobject_cast<BuildStepList *>(parent()),
-                MerEmulatorStartStep::stepId());
-    } else {
-        m_impl = new MerConnectionTestStep(qobject_cast<BuildStepList *>(parent()),
-                MerConnectionTestStep::stepId());
-    }
+    if (d->machineType() == IDevice::Emulator)
+        m_impl = new MerEmulatorStartStep(stepList(), MerEmulatorStartStep::stepId());
+    else
+        m_impl = new MerConnectionTestStep(stepList(), MerConnectionTestStep::stepId());
 
     if (!m_impl->init()) {
         delete m_impl, m_impl = 0;
