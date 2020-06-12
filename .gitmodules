@@ -1,11 +1,3 @@
-[submodule "qbs"]
-	path = src/shared/qbs
-	url = ../../qbs/qbs.git
-	ignore = dirty
-[submodule "perfparser"]
-	path = src/tools/perfparser
-	url = ../perfparser.git
-	ignore = dirty
 [submodule "googletest"]
 	path = tests/unit/unittest/3rdparty/googletest
 	url = https://github.com/google/googletest.git
