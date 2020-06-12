@@ -1408,7 +1408,7 @@ QProcessEnvironment SdkManager::environmentToForwardToEngine() const
     QStringList keys = systemEnvironment.keys();
     keys.sort();
 
-    for (const QString key : qAsConst(keys)) {
+    for (const QString &key : qAsConst(keys)) {
         if (key == Mer::Constants::SAILFISH_SDK_ENVIRONMENT_FILTER)
             continue;
         if (filter.match(key).hasMatch()) {

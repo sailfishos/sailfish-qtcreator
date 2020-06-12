@@ -104,7 +104,7 @@ QString MerRemoteProcess::forwardEnvironment(const QString &command)
     keys.sort();
 
     QStringList environmentToForward;
-    for (const QString key : keys) {
+    for (const QString &key : keys) {
         if (key == Mer::Constants::SAILFISH_SDK_ENVIRONMENT_FILTER)
             continue;
         if (filter.match(key).hasMatch()) {

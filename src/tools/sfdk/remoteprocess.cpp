@@ -264,7 +264,7 @@ QString RemoteProcess::environmentString(const QProcessEnvironment &environment)
     keys.sort();
 
     QStringList assignments;
-    for (const QString key : qAsConst(keys)) {
+    for (const QString &key : qAsConst(keys)) {
         const QString value = Utils::QtcProcess::quoteArgUnix(environment.value(key));
         assignments.append(key + "=" + value);
     }
