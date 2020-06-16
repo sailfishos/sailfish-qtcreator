@@ -345,26 +345,31 @@ void Command::maybeDoCMakePathMapping()
         data.replace(Sfdk::Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, sharedHomePath());
         data.replace(Sfdk::Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, sharedSourcePath());
 
-        data.replace(QRegularExpression("CMAKE_CXX_COMPILER:(FILEPATH|STRING)=.*"),
-                "CMAKE_CXX_COMPILER:\\1=" + sdkToolsPath() + "/gcc");
-        data.replace(QRegularExpression("CMAKE_C_COMPILER:(FILEPATH|STRING)=.*"),
-                "CMAKE_C_COMPILER:\\1=" + sdkToolsPath() + "/gcc");
+        if (QFileInfo(path).fileName() == "CMakeCache.txt") {
+            auto fixVar = [](QString *data, const QString &name, const QString &preferredType,
+                    const QString &value, bool addIfMissing) {
+                const QRegularExpression re(QString("%1:(FILEPATH|INTERNAL|PATH|STRING)=.*")
+                        .arg(QRegularExpression::escape(name)));
+                if (data->contains(re)) {
+                    data->replace(re, name + ":\\1=" + value);
+                } else if (addIfMissing) {
+                    data->append("\n");
+                    data->append("//No help, variable specified on the command line.\n");
+                    data->append(name + ":" + preferredType + "=" + value + "\n");
+                }
+            };
 
-        data.replace(QRegularExpression("CMAKE_COMMAND:INTERNAL=.*"),
-                "CMAKE_COMMAND:INTERNAL=" + sdkToolsPath() + "/cmake");
+            const bool usesQt = data.contains(QRegularExpression("Qt5Core_DIR:(PATH|STRING)=.*"));
 
-        data.replace(QRegularExpression("CMAKE_SYSROOT:(PATH|STRING)=/"),
-                "CMAKE_SYSROOT:\\1=" + sharedTargetRoot);
-
-        // See qmakeFromCMakeCache() in cmakeprojectimporter.cpp
-        const QRegularExpression qmakeRe("QT_QMAKE_EXECUTABLE:(FILEPATH|STRING)=.*");
-        const QRegularExpression qt5CoreDirRe("Qt5Core_DIR:(PATH|STRING)=.*");
-        if (data.contains(qmakeRe)) {
-            data.replace(qmakeRe, "QT_QMAKE_EXECUTABLE:\\1=" + sdkToolsPath() + "/qmake");
-        } else if (data.contains(qt5CoreDirRe)) {
-            data.append("\n");
-            data.append("//No help, variable specified on the command line.\n");
-            data.append("QT_QMAKE_EXECUTABLE:FILEPATH=" + sdkToolsPath() + "/qmake\n");
+            // Map paths and add variables that were filtered out by
+            // CMakeCommand::filterQtcSettings(). If not added, QtC would complain
+            // about changed configuration.
+            fixVar(&data, "CMAKE_CXX_COMPILER", "FILEPATH", sdkToolsPath() + "/gcc", true);
+            fixVar(&data, "CMAKE_C_COMPILER", "FILEPATH", sdkToolsPath() + "/gcc", true);
+            fixVar(&data, "CMAKE_COMMAND", "INTERNAL", sdkToolsPath() + "/cmake", true);
+            fixVar(&data, "CMAKE_SYSROOT", "PATH", sharedTargetRoot, true);
+            fixVar(&data, "CMAKE_PREFIX_PATH", "PATH", sharedTargetRoot + "/usr", true);
+            fixVar(&data, "QT_QMAKE_EXECUTABLE", "FILEPATH", sdkToolsPath() + "/qmake", usesQt);
         }
 
         data.replace("/usr/include/", sharedTargetRoot + "/usr/include/");

@@ -28,6 +28,7 @@
 #include <utils/qtcprocess.h>
 
 #include <QDir>
+#include <QRegularExpression>
 
 using namespace Utils;
 
@@ -83,11 +84,12 @@ int CMakeCommand::execute()
 
     QStringList filteredArguments;
     for (const QString &argument : splitArguments) {
-        // See MerSdkManager::ensureCmakeToolIsSet()
-        if (argument.startsWith(QLatin1String("-DCMAKE_CXX_COMPILER:STRING="))
-                || argument.startsWith(QLatin1String("-DCMAKE_C_COMPILER:STRING="))
-                || argument.startsWith(QLatin1String("-DCMAKE_PREFIX_PATH:STRING="))
-                || argument.startsWith(QLatin1String("-DQT_QMAKE_EXECUTABLE:STRING="))) {
+        // See CMakeProjectManager::BuildDirManager::writeConfigurationIntoBuildDirectory()
+        if (argument.endsWith(QDir::separator() + QLatin1String("qtcsettings.cmake"))) {
+            const QString filteredPath = filterQtcSettings(argument);
+            if (filteredPath.isNull())
+                return 1;
+            filteredArguments.append(filteredPath);
             continue;
         }
 
@@ -126,4 +128,53 @@ QByteArray CMakeCommand::capabilities()
         ],
         "serverMode": false
     })";
+}
+
+QString CMakeCommand::filterQtcSettings(const QString &path)
+{
+    const QFileInfo info(path);
+    const QString filteredPath = info.path() + QDir::separator() + info.baseName() + "-filtered."
+        + info.completeSuffix();
+
+    if (!QFile::exists(path)) {
+        fprintf(stderr, "%s", qPrintable(QString::fromLatin1("File does not exist \"%1\"").arg(path)));
+        fflush(stderr);
+        return {};
+    }
+
+    bool ok;
+
+    FileReader reader;
+    ok = reader.fetch(path);
+    if (!ok) {
+        fprintf(stderr, "%s", qPrintable(reader.errorString()));
+        fflush(stderr);
+        return {};
+    }
+
+    QString data = QString::fromUtf8(reader.data());
+
+    auto removeVariable = [](QString *data, const QString &name) {
+        const QString re = QString(R"(^set\("%1".*\n?)")
+            .arg(QRegularExpression::escape(name));
+        data->remove(QRegularExpression(re, QRegularExpression::MultilineOption));
+    };
+
+    // See MerSdkManager::ensureCmakeToolIsSet() and Command::maybeDoCMakePathMapping()
+    removeVariable(&data, "CMAKE_CXX_COMPILER");
+    removeVariable(&data, "CMAKE_C_COMPILER");
+    removeVariable(&data, "CMAKE_PREFIX_PATH");
+    removeVariable(&data, "CMAKE_SYSROOT");
+    removeVariable(&data, "QT_QMAKE_EXECUTABLE");
+
+    FileSaver saver(filteredPath);
+    saver.write(data.toUtf8());
+    ok = saver.finalize();
+    if (!ok) {
+        fprintf(stderr, "%s", qPrintable(saver.errorString()));
+        fflush(stderr);
+        return {};
+    }
+
+    return filteredPath;
 }

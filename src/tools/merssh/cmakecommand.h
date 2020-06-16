@@ -37,6 +37,7 @@ public:
 
 private:
     QByteArray capabilities();
+    static QString filterQtcSettings(const QString &path);
 
 private:
     QString m_cacheFile;
