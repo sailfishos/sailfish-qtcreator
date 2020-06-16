@@ -78,6 +78,9 @@ int CMakeCommand::execute()
             OsTypeLinux, abortOnMeta, &splitError);
     QTC_ASSERT(splitError == QtcProcess::SplitOk, return 1);
 
+    QTC_ASSERT(splitArguments.count() > 1, return 1);
+    QTC_ASSERT(splitArguments.first() == "cmake", return 1);
+
     QStringList filteredArguments;
     for (const QString &argument : splitArguments) {
         // See MerSdkManager::ensureCmakeToolIsSet()
@@ -89,6 +92,15 @@ int CMakeCommand::execute()
         }
 
         filteredArguments.append(argument);
+    }
+
+    if (filteredArguments.at(1) != "--build") {
+        // sfdk-cmake requires path to source directory to appear as the very first argument
+        bool lastArgLooksLikePathToSource = QFile::exists(filteredArguments.last() + "/CMakeLists.txt")
+            || QDir(filteredArguments.last() + "/rpm").exists();
+        QTC_ASSERT(lastArgLooksLikePathToSource, return 1);
+        filteredArguments.insert(1, "--");
+        filteredArguments.insert(1, filteredArguments.takeLast());
     }
 
     return executeSfdk(filteredArguments);
