@@ -75,6 +75,7 @@ const char BUILD_TARGET_NAME[] = "Name";
 const char BUILD_TARGET_GCC_DUMP_MACHINE[] = "GccDumpMachine";
 const char BUILD_TARGET_GCC_DUMP_MACROS[] = "GccDumpMacros";
 const char BUILD_TARGET_GCC_DUMP_INCLUDES[] = "GccDumpIncludes";
+const char BUILD_TARGET_GCC_DUMP_INSTALL_DIR[] = "GccDumpInstallDir";
 const char BUILD_TARGET_QMAKE_QUERY[] = "QmakeQuery";
 const char BUILD_TARGET_CMAKE_VERSION[] = "CMakeVersion";
 const char BUILD_TARGET_RPM_VALIDATION_SUITES[] = "RpmValidationSuites";
@@ -100,6 +101,7 @@ const char CMAKE_VERSION_CACHE[] = "cmake.version";
 const char GCC_DUMP_MACHINE_CACHE[] = "gcc.dumpmachine";
 const char GCC_DUMP_MACROS_CACHE[] = "gcc.dumpmacros";
 const char GCC_DUMP_INCLUDES_CACHE[] = "gcc.dumpincludes";
+const char GCC_DUMP_INSTALL_DIR_CACHE[] = "gcc.dumpinstalldir";
 
 #undef SCRIPT_EXTENSION
 

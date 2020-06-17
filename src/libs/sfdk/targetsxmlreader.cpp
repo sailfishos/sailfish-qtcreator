@@ -49,6 +49,7 @@ const char VERSION[] = "version";
 const char GCCDUMPMACHINE[] = "GccDumpMachine";
 const char GCCDUMPMACROS[] = "GccDumpMacros";
 const char GCCDUMPINCLUDES[] = "GccDumpIncludes";
+const char GCCDUMPINSTALLDIR[] = "GccDumpInstallDir";
 const char QMAKEQUERY[] = "QmakeQuery";
 const char CMAKEVERSION[] = "CMakeVersion";
 const char RPMVALIDATIONSUITES[] = "RpmValidationSuites";
@@ -134,6 +135,8 @@ protected:
                 m_currentTarget.gccDumpMacros = value.toString();
             else if (m_attributeValue == QLatin1String(GCCDUMPINCLUDES))
                 m_currentTarget.gccDumpIncludes = value.toString();
+            else if (m_attributeValue == QLatin1String(GCCDUMPINSTALLDIR))
+                m_currentTarget.gccDumpInstallDir = value.toString();
             else if (m_attributeValue == QLatin1String(QMAKEQUERY))
                 m_currentTarget.qmakeQuery = value.toString();
             else if (m_attributeValue == QLatin1String(CMAKEVERSION))

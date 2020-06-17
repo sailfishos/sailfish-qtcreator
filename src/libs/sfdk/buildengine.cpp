@@ -713,6 +713,9 @@ void BuildEnginePrivate::initBuildTargetAt(int index) const
     patchedGccDumpIncludes.replace(" /",
             sysRootForTarget(dump->name).fileNameWithPathComponents(-1).prepend(' ').append('/'));
 
+    QString patchedGccDumpInstallDir = dump->gccDumpInstallDir;
+    patchedGccDumpInstallDir.replace(" /",
+            sysRootForTarget(dump->name).fileNameWithPathComponents(-1).prepend(' ').append('/'));
     auto cacheFile = [=](const QString &baseName) {
         return toolsPath.pathAppended(baseName);
     };
@@ -724,6 +727,7 @@ void BuildEnginePrivate::initBuildTargetAt(int index) const
     ok &= createCacheFile(cacheFile(Constants::GCC_DUMP_MACHINE_CACHE), dump->gccDumpMachine);
     ok &= createCacheFile(cacheFile(Constants::GCC_DUMP_MACROS_CACHE), dump->gccDumpMacros);
     ok &= createCacheFile(cacheFile(Constants::GCC_DUMP_INCLUDES_CACHE), patchedGccDumpIncludes);
+    ok &= createCacheFile(cacheFile(Constants::GCC_DUMP_INSTALL_DIR_CACHE), patchedGccDumpInstallDir);
 
     QTC_ASSERT(ok, return);
 
@@ -897,6 +901,7 @@ bool BuildTargetDump::operator==(const BuildTargetDump &other) const
         && gccDumpMachine == other.gccDumpMachine
         && gccDumpMacros == other.gccDumpMacros
         && gccDumpIncludes == other.gccDumpIncludes
+        && gccDumpInstallDir == other.gccDumpInstallDir
         && qmakeQuery == other.qmakeQuery
         && cmakeVersion == other.cmakeVersion
         && rpmValidationSuites == other.rpmValidationSuites;
@@ -909,6 +914,7 @@ QVariantMap BuildTargetDump::toMap() const
     data.insert(Constants::BUILD_TARGET_GCC_DUMP_MACHINE, gccDumpMachine);
     data.insert(Constants::BUILD_TARGET_GCC_DUMP_MACROS, gccDumpMacros);
     data.insert(Constants::BUILD_TARGET_GCC_DUMP_INCLUDES, gccDumpIncludes);
+    data.insert(Constants::BUILD_TARGET_GCC_DUMP_INSTALL_DIR, gccDumpInstallDir);
     data.insert(Constants::BUILD_TARGET_QMAKE_QUERY, qmakeQuery);
     data.insert(Constants::BUILD_TARGET_CMAKE_VERSION, cmakeVersion);
     data.insert(Constants::BUILD_TARGET_RPM_VALIDATION_SUITES, rpmValidationSuites);
@@ -921,6 +927,7 @@ void BuildTargetDump::fromMap(const QVariantMap &data)
     gccDumpMachine = data.value(Constants::BUILD_TARGET_GCC_DUMP_MACHINE).toString();
     gccDumpMacros = data.value(Constants::BUILD_TARGET_GCC_DUMP_MACROS).toString();
     gccDumpIncludes = data.value(Constants::BUILD_TARGET_GCC_DUMP_INCLUDES).toString();
+    gccDumpInstallDir = data.value(Constants::BUILD_TARGET_GCC_DUMP_INSTALL_DIR).toString();
     qmakeQuery = data.value(Constants::BUILD_TARGET_QMAKE_QUERY).toString();
     cmakeVersion = data.value(Constants::BUILD_TARGET_CMAKE_VERSION).toString();
     rpmValidationSuites = data.value(Constants::BUILD_TARGET_RPM_VALIDATION_SUITES).toString();

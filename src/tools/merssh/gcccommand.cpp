@@ -44,6 +44,8 @@ int GccCommand::execute()
         m_cacheFile = QLatin1String(Sfdk::Constants::GCC_DUMP_MACROS_CACHE);
     else if (arguments().contains(QLatin1String("-E")) && arguments().contains(QLatin1String("-")))
         m_cacheFile = QLatin1String(Sfdk::Constants::GCC_DUMP_INCLUDES_CACHE);
+    else if (arguments().contains(QLatin1String("-print-search-dirs")))
+        m_cacheFile = QLatin1String(Sfdk::Constants::GCC_DUMP_INSTALL_DIR_CACHE);
 
     if (!m_cacheFile.isEmpty())
             m_cacheFile.prepend(sdkToolsPath() + QDir::separator());
