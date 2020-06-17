@@ -322,6 +322,9 @@ void Command::maybeDoCMakePathMapping()
 
         bool ok;
 
+        if (QFile::exists(backupPath))
+            QFile::remove(backupPath);
+
         ok = QFile::rename(path, backupPath);
         if (!ok) {
             fprintf(stderr, "%s", qPrintable(QString::fromLatin1("Could not back up file \"%1\"").arg(path)));
@@ -401,11 +404,15 @@ void Command::maybeUndoCMakePathMapping()
         if (QFile::exists(path))
             QFile::remove(path);
 
-        ok = QFile::rename(backupPath, path);
+        // Use copy instead of rename to get timestamps updated. Without that
+        // QtC could continue using old data
+        ok = QFile::copy(backupPath, path);
         if (!ok) {
             fprintf(stderr, "%s", qPrintable(QString::fromLatin1("Could not restore file \"%1\"").arg(path)));
             fflush(stderr);
             continue;
         }
+
+        QFile::remove(backupPath);
     }
 }
