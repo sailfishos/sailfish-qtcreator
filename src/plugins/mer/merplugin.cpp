@@ -60,12 +60,14 @@
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/modemanager.h>
+#include <projectexplorer/buildenvironmentwidget.h>
 #include <projectexplorer/kitmanager.h>
 #include <projectexplorer/runcontrol.h>
 #include <remotelinux/remotelinuxcustomrunconfiguration.h>
 #include <remotelinux/remotelinuxqmltoolingsupport.h>
 #include <remotelinux/remotelinuxrunconfiguration.h>
 #include <utils/checkablemessagebox.h>
+#include <utils/utilsicons.h>
 
 #include <QCheckBox>
 #include <QMenu>
@@ -157,6 +159,7 @@ static MerPluginPrivate *dd = nullptr;
 
 MerPlugin::MerPlugin()
 {
+    BuildEnvironmentWidget::setExtender(addInfoOnBuildEngineEnvironment);
 }
 
 MerPlugin::~MerPlugin()
@@ -349,6 +352,30 @@ void MerPlugin::handleLockDownFailed()
     if (m_stopList.isEmpty()) {
         emit asynchronousShutdownFinished();
     }
+}
+
+void MerPlugin::addInfoOnBuildEngineEnvironment(QVBoxLayout *vbox)
+{
+    QWidget *const parent = vbox->parentWidget();
+
+    auto filterInfoHBox = new QHBoxLayout;
+    filterInfoHBox->setSpacing(6);
+
+    QLabel *filterInfoIcon = new QLabel(parent);
+    filterInfoIcon->setPixmap(Utils::Icons::INFO.pixmap());
+    filterInfoHBox->addWidget(filterInfoIcon);
+
+    QLabel *filterInfoLabel = new QLabel(parent);
+    filterInfoLabel->setWordWrap(true);
+    filterInfoLabel->setText(tr("Not all variables will be forwarded to a %1 build engine. "
+                "<a href='environment-filter'>Configure…</a>").arg(Sdk::osVariant()));
+    filterInfoLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    connect(filterInfoLabel, &QLabel::linkActivated, [] {
+        Core::ICore::showOptionsDialog(Mer::Constants::MER_GENERAL_OPTIONS_ID, Core::ICore::dialogParent());
+    });
+    filterInfoHBox->addWidget(filterInfoLabel, 1);
+
+    vbox->insertItem(0, filterInfoHBox);
 }
 
 } // Internal

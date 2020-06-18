@@ -28,6 +28,10 @@
 
 #include <QMap>
 
+QT_BEGIN_NAMESPACE
+class QVBoxLayout;
+QT_END_NAMESPACE
+
 namespace Sfdk {
 class VirtualMachine;
 }
@@ -62,6 +66,9 @@ private slots:
     void handlePromptClosed(int result);
     void handleConnectionStateChanged();
     void handleLockDownFailed();
+
+private:
+    static void addInfoOnBuildEngineEnvironment(QVBoxLayout *vbox);
 
 private:
     QMap<QString, Sfdk::VirtualMachine *> m_stopList;
