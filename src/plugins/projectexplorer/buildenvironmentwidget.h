@@ -27,8 +27,11 @@
 
 #include <projectexplorer/namedwidget.h>
 
+#include <functional>
+
 QT_BEGIN_NAMESPACE
 class QCheckBox;
+class QVBoxLayout;
 QT_END_NAMESPACE
 
 namespace ProjectExplorer {
@@ -43,11 +46,17 @@ class PROJECTEXPLORER_EXPORT BuildEnvironmentWidget : public NamedWidget
 public:
     explicit BuildEnvironmentWidget(BuildConfiguration *bc);
 
+    static void setExtender(const std::function<void(QVBoxLayout *)> &extender)
+    {
+        s_extender = extender;
+    }
+
 private:
     void environmentModelUserChangesChanged();
     void clearSystemEnvironmentCheckBoxClicked(bool checked);
     void environmentChanged();
 
+    static std::function<void(QVBoxLayout *)> s_extender;
     EnvironmentWidget *m_buildEnvironmentWidget;
     QCheckBox *m_clearSystemEnvironmentCheckBox;
     BuildConfiguration *m_buildConfiguration;

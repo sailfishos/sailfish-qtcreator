@@ -35,6 +35,8 @@
 
 namespace ProjectExplorer {
 
+std::function<void(QVBoxLayout *)> BuildEnvironmentWidget::s_extender;
+
 BuildEnvironmentWidget::BuildEnvironmentWidget(BuildConfiguration *bc)
     : NamedWidget(tr("Build Environment")), m_buildConfiguration(bc)
 {
@@ -59,6 +61,9 @@ BuildEnvironmentWidget::BuildEnvironmentWidget(BuildConfiguration *bc)
     m_buildEnvironmentWidget->setBaseEnvironment(m_buildConfiguration->baseEnvironment());
     m_buildEnvironmentWidget->setBaseEnvironmentText(m_buildConfiguration->baseEnvironmentText());
     m_buildEnvironmentWidget->setUserChanges(m_buildConfiguration->userEnvironmentChanges());
+
+    if (s_extender)
+        s_extender(vbox);
 }
 
 void BuildEnvironmentWidget::environmentModelUserChangesChanged()
