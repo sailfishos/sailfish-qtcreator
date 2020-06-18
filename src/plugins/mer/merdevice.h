@@ -46,6 +46,8 @@ public:
     ProjectExplorer::Abi::Architecture architecture() const;
     void setArchitecture(const ProjectExplorer::Abi::Architecture &architecture);
 
+    bool isCompatibleWith(const ProjectExplorer::Kit *kit) const override;
+
     static MachineType workaround_machineTypeFromMap(const QVariantMap &map);
 
     Utils::PortList qmlLivePorts() const;

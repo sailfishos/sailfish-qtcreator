@@ -26,6 +26,7 @@
 #include <sfdk/sdk.h>
 #include <sfdk/sfdkconstants.h>
 
+#include <projectexplorer/kitinformation.h>
 #include <utils/qtcassert.h>
 
 #include "merconstants.h"
@@ -69,6 +70,14 @@ Abi::Architecture MerDevice::architecture() const
 void MerDevice::setArchitecture(const Abi::Architecture &architecture)
 {
     m_architecture = architecture;
+}
+
+bool MerDevice::isCompatibleWith(const Kit *kit) const
+{
+    if (!IDevice::isCompatibleWith(kit))
+        return false;
+
+    return architecture() == ToolChainKitAspect::targetAbi(kit).architecture();
 }
 
 IDevice::MachineType
