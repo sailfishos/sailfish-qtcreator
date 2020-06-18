@@ -364,7 +364,7 @@ void Command::maybeDoCMakePathMapping()
         } else if (data.contains(qt5CoreDirRe)) {
             data.append("\n");
             data.append("//No help, variable specified on the command line.\n");
-            data.append("QT_QMAKE_EXECUTABLE:FILEPATH=" + sdkToolsPath() + "/qmake");
+            data.append("QT_QMAKE_EXECUTABLE:FILEPATH=" + sdkToolsPath() + "/qmake\n");
         }
 
         data.replace("/usr/include/", sharedTargetRoot + "/usr/include/");
