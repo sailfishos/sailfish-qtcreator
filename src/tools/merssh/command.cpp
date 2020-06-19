@@ -375,7 +375,8 @@ void Command::maybeDoCMakePathMapping()
             fixVar(&data, "QT_QMAKE_EXECUTABLE", "FILEPATH", sdkToolsPath() + "/qmake", usesQt);
         }
 
-        data.replace("/usr/include/", sharedTargetRoot + "/usr/include/");
+        data.replace(QRegularExpression("((?<!INCLUDE_INSTALL_DIR:PATH=)/usr/(local/)?include\\b)"),
+                sharedTargetRoot + "\\1");
 
         FileSaver saver(path);
         saver.write(data.toUtf8());
