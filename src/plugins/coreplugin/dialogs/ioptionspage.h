@@ -30,14 +30,20 @@
 #include <utils/icon.h>
 
 #include <QObject>
+#include <QPointer>
 #include <QStringList>
+#include <QWidget>
 
-QT_BEGIN_NAMESPACE
-class QIcon;
-class QWidget;
-QT_END_NAMESPACE
+#include <functional>
 
 namespace Core {
+
+class CORE_EXPORT IOptionsPageWidget : public QWidget
+{
+public:
+    virtual void apply() = 0;
+    virtual void finish() {}
+};
 
 class CORE_EXPORT IOptionsPage : public QObject
 {
@@ -55,10 +61,13 @@ public:
     QString displayCategory() const { return m_displayCategory; }
     QIcon categoryIcon() const;
 
+    using WidgetCreator = std::function<IOptionsPageWidget *()>;
+    void setWidgetCreator(const WidgetCreator &widgetCreator);
+
     virtual bool matches(const QString &searchKeyWord) const;
-    virtual QWidget *widget() = 0;
-    virtual void apply() = 0;
-    virtual void finish() = 0;
+    virtual QWidget *widget();
+    virtual void apply();
+    virtual void finish();
 
 protected:
     void setId(Id id) { m_id = id; }
@@ -66,12 +75,15 @@ protected:
     void setCategory(Id category) { m_category = category; }
     void setDisplayCategory(const QString &displayCategory) { m_displayCategory = displayCategory; }
     void setCategoryIcon(const Utils::Icon &categoryIcon) { m_categoryIcon = categoryIcon; }
+    void setCategoryIconPath(const QString &categoryIconPath);
 
     Id m_id;
     Id m_category;
     QString m_displayName;
     QString m_displayCategory;
     Utils::Icon m_categoryIcon;
+    WidgetCreator m_widgetCreator;
+    QPointer<IOptionsPageWidget> m_widget; // Used in conjunction with m_widgetCreator
 
     mutable bool m_keywordsInitialized = false;
     mutable QStringList m_keywords;

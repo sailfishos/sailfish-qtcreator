@@ -14,13 +14,20 @@ SUBDIRS   += \
     qmleditorwidgets \
     glsl \
     ssh \
-    sqlite \
     clangsupport \
-    languageserverprotocol
+    languageserverprotocol \
+    sqlite
 
 qtHaveModule(quick) {
     SUBDIRS += \
         tracing
+}
+
+QTC_DO_NOT_BUILD_QMLDESIGNER = $$(QTC_DO_NOT_BUILD_QMLDESIGNER)
+isEmpty(QTC_DO_NOT_BUILD_QMLDESIGNER):qtHaveModule(quick-private) {
+    exists($$[QT_INSTALL_QML]/QtQuick/Controls/qmldir) {
+        SUBDIRS += advanceddockingsystem
+    }
 }
 
 for(l, SUBDIRS) {
@@ -32,6 +39,9 @@ for(l, SUBDIRS) {
 
 SUBDIRS += \
     utils/process_stub.pro
+
+include(../shared/yaml-cpp/yaml-cpp_installation.pri)
+isEmpty(EXTERNAL_YAML_CPP_FOUND): SUBDIRS += 3rdparty/yaml-cpp
 
 isEmpty(KSYNTAXHIGHLIGHTING_LIB_DIR): KSYNTAXHIGHLIGHTING_LIB_DIR=$$(KSYNTAXHIGHLIGHTING_LIB_DIR)
 !isEmpty(KSYNTAXHIGHLIGHTING_LIB_DIR) {

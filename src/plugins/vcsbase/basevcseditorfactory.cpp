@@ -52,14 +52,13 @@ namespace VcsBase {
 VcsEditorFactory::VcsEditorFactory(const VcsBaseEditorParameters *parameters,
                                    // Force copy, see QTCREATORBUG-13218
                                    const EditorWidgetCreator editorWidgetCreator,
-                                   std::function<void(const QString &, const QString &)> describeFunc, QObject *parent)
-    : TextEditorFactory(parent)
+                                   std::function<void(const QString &, const QString &)> describeFunc)
 {
     setProperty("VcsEditorFactoryName", QByteArray(parameters->id));
     setId(parameters->id);
     setDisplayName(QCoreApplication::translate("VCS", parameters->displayName));
     if (QLatin1String(parameters->mimeType) != QLatin1String(DiffEditor::Constants::DIFF_EDITOR_MIMETYPE))
-        addMimeType(parameters->mimeType);
+        addMimeType(QLatin1String(parameters->mimeType));
 
     setEditorActionHandlers(TextEditorActionHandler::None);
     setDuplicatedSupported(false);
@@ -72,26 +71,16 @@ VcsEditorFactory::VcsEditorFactory(const VcsBaseEditorParameters *parameters,
         return document;
     });
 
-    setEditorWidgetCreator([parameters, editorWidgetCreator, describeFunc]() -> TextEditorWidget * {
-        auto widget = qobject_cast<VcsBaseEditorWidget *>(editorWidgetCreator());
-        widget->setDescribeFunc(describeFunc);
-        widget->setParameters(parameters);
+    setEditorWidgetCreator([parameters, editorWidgetCreator, describeFunc]() {
+        auto widget = editorWidgetCreator();
+        auto editorWidget = Aggregation::query<VcsBaseEditorWidget>(widget);
+        editorWidget->setDescribeFunc(describeFunc);
+        editorWidget->setParameters(parameters);
         return widget;
     });
 
     setEditorCreator([]() { return new VcsBaseEditor(); });
     setMarksVisible(false);
-}
-
-VcsBaseEditor *VcsEditorFactory::createEditorById(const char *id)
-{
-    for (IEditorFactory *factory : allEditorFactories()) {
-        if (auto vcsFactory = qobject_cast<VcsEditorFactory *>(factory)) {
-            if (vcsFactory->property("VcsEditorFactoryName").toByteArray() == id)
-                return qobject_cast<VcsBaseEditor *>(factory->createEditor());
-        }
-    }
-    return nullptr;
 }
 
 } // namespace VcsBase

@@ -28,7 +28,7 @@ source("../../shared/qtcreator.py")
 # entry of test
 def main():
     # prepare example project
-    sourceExample = os.path.join(Qt5Path.examplesPath(Targets.DESKTOP_5_6_1_DEFAULT),
+    sourceExample = os.path.join(Qt5Path.examplesPath(Targets.DESKTOP_5_14_1_DEFAULT),
                                  "gui", "openglwindow")
     proFile = "openglwindow.pro"
 
@@ -44,7 +44,7 @@ def main():
             # open example project
             openQmakeProject(examplePath)
             # wait for parsing to complete
-            progressBarWait(30000)
+            waitForProjectParsing()
             checkCodeModelSettings(useClang)
             # open .cpp file in editor
             if not openDocument("openglwindow.Sources.main\\.cpp"):
@@ -76,6 +76,5 @@ def main():
             # wait until search finished and verify search results
             waitForSearchResults()
             validateSearchResult(5 if JIRA.isBugStillOpen(2863) else 3)
-            invokeMenuItem("File", "Close All")
             invokeMenuItem("File", "Exit")
             waitForCleanShutdown()

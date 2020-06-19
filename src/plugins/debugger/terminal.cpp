@@ -128,7 +128,7 @@ int Terminal::write(const QByteArray &msg)
 #ifdef DEBUGGER_USE_TERMINAL
     return ::write(m_masterFd, msg.constData(), msg.size());
 #else
-    Q_UNUSED(msg);
+    Q_UNUSED(msg)
     return -1;
 #endif
 }
@@ -164,7 +164,7 @@ void Terminal::onSlaveReaderActivated(int fd)
     if (got >= 0)
         stdOutReady(QString::fromUtf8(buffer));
 #else
-    Q_UNUSED(fd);
+    Q_UNUSED(fd)
 #endif
 }
 
@@ -196,7 +196,8 @@ void TerminalRunner::start()
     }
 
     // Error message for user is delivered via a signal.
-    m_stubProc.start(m_stubRunnable.executable, m_stubRunnable.commandLineArguments);
+    m_stubProc.setCommand(m_stubRunnable.commandLine());
+    m_stubProc.start();
 }
 
 void TerminalRunner::stop()

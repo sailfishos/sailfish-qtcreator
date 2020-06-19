@@ -23,7 +23,6 @@
 **
 ****************************************************************************/
 
-#include "iosdeploystepwidget.h"
 #include "iosdeploystep.h"
 #include "iosbuildstep.h"
 #include "iosconstants.h"
@@ -31,6 +30,7 @@
 #include "iostoolhandler.h"
 
 #include <coreplugin/messagemanager.h>
+
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
@@ -50,12 +50,13 @@
 #define ASSERT_STATE(state) ASSERT_STATE_GENERIC(State, state, m_state)
 
 using namespace ProjectExplorer;
+using namespace Utils;
 
 namespace Ios {
 namespace Internal {
 
-IosDeployStep::IosDeployStep(BuildStepList *parent)
-    : BuildStep(parent, stepId())
+IosDeployStep::IosDeployStep(BuildStepList *parent, Core::Id id)
+    : BuildStep(parent, id)
 {
     setImmutable(true);
     updateDisplayNames();
@@ -73,7 +74,7 @@ Core::Id IosDeployStep::stepId()
 void IosDeployStep::updateDisplayNames()
 {
     IDevice::ConstPtr dev =
-            DeviceKitInformation::device(target()->kit());
+            DeviceKitAspect::device(target()->kit());
     const QString devName = dev.isNull() ? IosDevice::name() : dev->displayName();
     setDefaultDisplayName(tr("Deploy to %1").arg(devName));
     setDisplayName(tr("Deploy to %1").arg(devName));
@@ -82,11 +83,11 @@ void IosDeployStep::updateDisplayNames()
 bool IosDeployStep::init()
 {
     QTC_ASSERT(m_transferStatus == NoTransfer, return false);
-    m_device = DeviceKitInformation::device(target()->kit());
+    m_device = DeviceKitAspect::device(target()->kit());
     auto runConfig = qobject_cast<const IosRunConfiguration *>(
         this->target()->activeRunConfiguration());
     QTC_ASSERT(runConfig, return false);
-    m_bundlePath = runConfig->bundleDirectory().toString();
+    m_bundlePath = runConfig->bundleDirectory();
 
     if (iosdevice()) {
         m_deviceType = IosDeviceType(IosDeviceType::IosDevice, deviceId());
@@ -104,8 +105,8 @@ void IosDeployStep::doRun()
 {
     QTC_CHECK(m_transferStatus == NoTransfer);
     if (device().isNull()) {
-        TaskHub::addTask(Task::Error, tr("Deployment failed. No iOS device found."),
-                         ProjectExplorer::Constants::TASK_CATEGORY_DEPLOYMENT);
+        TaskHub::addTask(
+                    DeploymentTask(Task::Error, tr("Deployment failed. No iOS device found.")));
         emit finished(!iossimulator().isNull());
         cleanup();
         return;
@@ -122,7 +123,7 @@ void IosDeployStep::doRun()
     connect(m_toolHandler, &IosToolHandler::errorMsg,
             this, &IosDeployStep::handleErrorMsg);
     checkProvisioningProfile();
-    m_toolHandler->requestTransferApp(appBundle(), m_deviceType.identifier);
+    m_toolHandler->requestTransferApp(m_bundlePath.toString(), m_deviceType.identifier);
 }
 
 void IosDeployStep::doCancel()
@@ -144,7 +145,7 @@ void IosDeployStep::handleIsTransferringApp(IosToolHandler *handler, const QStri
                                             const QString &deviceId, int progress, int maxProgress,
                                             const QString &info)
 {
-    Q_UNUSED(handler); Q_UNUSED(bundlePath); Q_UNUSED(deviceId);
+    Q_UNUSED(handler); Q_UNUSED(bundlePath); Q_UNUSED(deviceId)
     QTC_CHECK(m_transferStatus == TransferInProgress);
     emit this->progress(progress * 100 / maxProgress, info);
 }
@@ -152,16 +153,15 @@ void IosDeployStep::handleIsTransferringApp(IosToolHandler *handler, const QStri
 void IosDeployStep::handleDidTransferApp(IosToolHandler *handler, const QString &bundlePath,
                                          const QString &deviceId, IosToolHandler::OpStatus status)
 {
-    Q_UNUSED(handler); Q_UNUSED(bundlePath); Q_UNUSED(deviceId);
+    Q_UNUSED(handler); Q_UNUSED(bundlePath); Q_UNUSED(deviceId)
     QTC_CHECK(m_transferStatus == TransferInProgress);
     if (status == IosToolHandler::Success) {
         m_transferStatus = TransferOk;
     } else {
         m_transferStatus = TransferFailed;
         if (!m_expectFail)
-            TaskHub::addTask(Task::Error,
-                             tr("Deployment failed. The settings in the Devices window of Xcode might be incorrect."),
-                             ProjectExplorer::Constants::TASK_CATEGORY_DEPLOYMENT);
+            TaskHub::addTask(DeploymentTask(Task::Error,
+                 tr("Deployment failed. The settings in the Devices window of Xcode might be incorrect.")));
     }
     emit finished(status == IosToolHandler::Success);
 }
@@ -171,8 +171,7 @@ void IosDeployStep::handleFinished(IosToolHandler *handler)
     switch (m_transferStatus) {
     case TransferInProgress:
         m_transferStatus = TransferFailed;
-        TaskHub::addTask(Task::Error, tr("Deployment failed."),
-                         ProjectExplorer::Constants::TASK_CATEGORY_DEPLOYMENT);
+        TaskHub::addTask(DeploymentTask(Task::Error, tr("Deployment failed.")));
         emit finished(false);
         break;
     case NoTransfer:
@@ -187,28 +186,25 @@ void IosDeployStep::handleFinished(IosToolHandler *handler)
 
 void IosDeployStep::handleErrorMsg(IosToolHandler *handler, const QString &msg)
 {
-    Q_UNUSED(handler);
+    Q_UNUSED(handler)
     if (msg.contains(QLatin1String("AMDeviceInstallApplication returned -402653103")))
-        TaskHub::addTask(Task::Warning,
-                         tr("The Info.plist might be incorrect."),
-                         ProjectExplorer::Constants::TASK_CATEGORY_DEPLOYMENT);
+        TaskHub::addTask(DeploymentTask(Task::Warning, tr("The Info.plist might be incorrect.")));
+
     emit addOutput(msg, BuildStep::OutputFormat::ErrorMessage);
 }
 
 BuildStepConfigWidget *IosDeployStep::createConfigWidget()
 {
-    return new IosDeployStepWidget(this);
-}
+    auto widget = new BuildStepConfigWidget(this);
 
-bool IosDeployStep::fromMap(const QVariantMap &map)
-{
-    return BuildStep::fromMap(map);
-}
+    widget->setObjectName("IosDeployStepWidget");
+    widget->setDisplayName(QString("<b>%1</b>").arg(displayName()));
+    widget->setSummaryText(widget->displayName());
 
-QVariantMap IosDeployStep::toMap() const
-{
-    QVariantMap map = BuildStep::toMap();
-    return map;
+    connect(this, &ProjectConfiguration::displayNameChanged,
+            widget, &BuildStepConfigWidget::updateSummary);
+
+    return widget;
 }
 
 QString IosDeployStep::deviceId() const
@@ -218,30 +214,13 @@ QString IosDeployStep::deviceId() const
     return iosdevice()->uniqueDeviceID();
 }
 
-QString IosDeployStep::appBundle() const
-{
-    return m_bundlePath;
-}
-
-void IosDeployStep::raiseError(const QString &errorString)
-{
-    emit addTask(Task(Task::Error, errorString, Utils::FileName::fromString(QString()), -1,
-        ProjectExplorer::Constants::TASK_CATEGORY_DEPLOYMENT));
-}
-
-void IosDeployStep::writeOutput(const QString &text, OutputFormat format)
-{
-    emit addOutput(text, format);
-}
-
 void IosDeployStep::checkProvisioningProfile()
 {
     IosDevice::ConstPtr device = iosdevice();
     if (device.isNull())
         return;
 
-    Utils::FileName provisioningFilePath = Utils::FileName::fromString(appBundle());
-    provisioningFilePath.appendPath(QLatin1String("embedded.mobileprovision"));
+    const FilePath provisioningFilePath = m_bundlePath.pathAppended("embedded.mobileprovision");
 
     // the file is a signed plist stored in DER format
     // we simply search for start and end of the plist instead of decoding the DER payload
@@ -276,14 +255,11 @@ void IosDeployStep::checkProvisioningProfile()
     m_expectFail = true;
     QString provisioningProfile = provisionPlist.value(QLatin1String("Name")).toString();
     QString provisioningUid = provisionPlist.value(QLatin1String("UUID")).toString();
-    Task task(Task::Warning,
+    CompileTask task(Task::Warning,
               tr("The provisioning profile \"%1\" (%2) used to sign the application "
                  "does not cover the device %3 (%4). Deployment to it will fail.")
               .arg(provisioningProfile, provisioningUid, device->displayName(),
-                   targetId),
-              Utils::FileName(), /* filename */
-              -1, /* line */
-              ProjectExplorer::Constants::TASK_CATEGORY_COMPILE);
+                   targetId));
     emit addTask(task);
 }
 

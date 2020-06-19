@@ -53,10 +53,54 @@ Rectangle {
                     }
 
                     SecondColumnLayout {
+                        z: 2
 
-                        Label {
-                            text: backendValues.className.value
-                            width: lineEdit.width
+                        RoundedPanel {
+                            Layout.fillWidth: true
+                            height: 24
+
+                            Label {
+                                x: 6
+                                anchors.fill: parent
+                                anchors.leftMargin: 16
+
+                                text: backendValues.className.value
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                            ToolTipArea {
+                                anchors.fill: parent
+                                onDoubleClicked: {
+                                    typeLineEdit.text = backendValues.className.value
+                                    typeLineEdit.visible = ! typeLineEdit.visible
+                                    typeLineEdit.forceActiveFocus()
+                                }
+                                tooltip: qsTr("Change the type of this item.")
+                                enabled: !modelNodeBackend.multiSelection
+                            }
+
+                            ExpressionTextField {
+                                z: 2
+                                id: typeLineEdit
+                                completeOnlyTypes: true
+
+                                anchors.fill: parent
+
+                                visible: false
+
+                                showButtons: false
+                                fixedSize: true
+
+                                onEditingFinished: {
+                                    if (visible)
+                                        changeTypeName(typeLineEdit.text.trim())
+                                    visible = false
+                                }
+                            }
+
+                        }
+                        Item {
+                            Layout.preferredWidth: 16
+                            Layout.preferredHeight: 16
                         }
                     }
 
@@ -67,19 +111,28 @@ Rectangle {
                     SecondColumnLayout {
                         LineEdit {
                             id: lineEdit
-                            enabled: isBaseState
+
                             backendValue: backendValues.id
                             placeholderText: qsTr("id")
                             text: backendValues.id.value
                             Layout.fillWidth: true
+                            width: 240
                             showTranslateCheckBox: false
                             showExtendedFunctionButton: false
+                            enabled: !modelNodeBackend.multiSelection
                         }
-                        // workaround: without this item the lineedit does not shrink to the
-                        // right size after resizing to a wider width
-                        Item {
-                            width: 0
-                            height: 1
+
+                        Image {
+                            visible: !modelNodeBackend.multiSelection
+                            Layout.preferredWidth: 16
+                            Layout.preferredHeight: 16
+                            source: hasAliasExport ? "image://icons/alias-export-checked" : "image://icons/alias-export-unchecked"
+                            ToolTipArea {
+                                enabled: !modelNodeBackend.multiSelection
+                                anchors.fill: parent
+                                onClicked: toogleExportAlias()
+                                tooltip: qsTr("Toggles whether this item is exported as an alias property of the root item.")
+                            }
                         }
                     }
                 }
@@ -95,7 +148,19 @@ Rectangle {
                 anchors.right: parent.right
                 frameVisible: false
 
+                id: tabView
+                height: Math.max(layoutSectionHeight, specficsHeight)
+
+                property int layoutSectionHeight: 400
+                property int specficsOneHeight: 0
+                property int specficsTwoHeight: 0
+
+                property int specficsHeight: Math.max(specficsOneHeight, specficsTwoHeight)
+
+                property int extraHeight: 40
+
                 Tab {
+                    id: tab
                     title: backendValues.className.value
 
                     component: Column {
@@ -116,6 +181,13 @@ Rectangle {
                                 active = false
                                 active = true
                             }
+
+                            property int loaderHeight: specificsTwo.item.height + tabView.extraHeight
+                            onLoaderHeightChanged: tabView.specficsTwoHeight = loaderHeight
+
+                            onLoaded: {
+                                tabView.specficsTwoHeight = loaderHeight
+                            }
                         }
 
                         Loader {
@@ -124,6 +196,13 @@ Rectangle {
 
                             id: specificsOne;
                             source: specificsUrl;
+
+                            property int loaderHeight: specificsOne.item.height + tabView.extraHeight
+                            onLoaderHeightChanged: tabView.specficsHeight = loaderHeight
+
+                            onLoaded: {
+                                tabView.specficsOneHeight = loaderHeight
+                            }
                         }
                     }
                 }

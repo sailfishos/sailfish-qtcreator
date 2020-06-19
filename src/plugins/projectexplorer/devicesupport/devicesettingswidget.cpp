@@ -85,9 +85,8 @@ private:
     const DeviceManager * const m_deviceManager;
 };
 
-DeviceSettingsWidget::DeviceSettingsWidget(QWidget *parent)
-    : QWidget(parent),
-      m_ui(new Ui::DeviceSettingsWidget),
+DeviceSettingsWidget::DeviceSettingsWidget()
+    : m_ui(new Ui::DeviceSettingsWidget),
       m_deviceManager(DeviceManager::cloneInstance()),
       m_deviceManagerModel(new DeviceManagerModel(m_deviceManager, this)),
       m_nameValidator(new NameValidator(m_deviceManager, this)),
@@ -122,7 +121,7 @@ void DeviceSettingsWidget::initGui()
         lastIndex = 0;
     if (lastIndex < m_ui->configurationComboBox->count())
         m_ui->configurationComboBox->setCurrentIndex(lastIndex);
-    connect(m_ui->configurationComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+    connect(m_ui->configurationComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &DeviceSettingsWidget::currentDeviceChanged);
     currentDeviceChanged(currentIndex());
     connect(m_ui->defaultDeviceButton, &QAbstractButton::clicked,

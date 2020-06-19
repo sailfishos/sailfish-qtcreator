@@ -55,8 +55,8 @@ protected:
     TestResultPtr createDefaultResult() const override;
 
 private:
-    void processXMLOutput(const QByteArray &outputLineWithNewline);
-    void processPlainTextOutput(const QByteArray &outputLineWithNewline);
+    void processXMLOutput(const QByteArray &outputLine);
+    void processPlainTextOutput(const QByteArray &outputLine);
     void processResultOutput(const QString &result, const QString &message);
     void processLocationOutput(const QString &fileWithLine);
     void processSummaryFinishOutput();
@@ -83,7 +83,7 @@ private:
     QString m_testCase;
     QString m_formerTestCase;
     QString m_dataTag;
-    Result::Type m_result = Result::Invalid;
+    ResultType m_result = ResultType::Invalid;
     QString m_description;
     QString m_file;
     int m_lineNumber = 0;
@@ -91,7 +91,7 @@ private:
     QXmlStreamReader m_xmlReader;
     OutputMode m_mode = XML;
     TestType m_testType = TestType::QtTest;
-
+    bool m_expectTag = true;
 };
 
 } // namespace Internal

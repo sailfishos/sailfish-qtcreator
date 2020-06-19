@@ -34,46 +34,24 @@
 #include <utils/algorithm.h>
 #include <utils/stringutils.h>
 
-using namespace ProjectExplorer;
-
 /*!
-    \class ProjectExplorer::BuildConfigurationModel
-    \brief The BuildConfigurationModel class is a model to represent the build
-    configurations of a target.
+    \class ProjectExplorer::ProjectConfigurationModel
+    \brief The ProjectConfigurationModel class is a model to represent the build,
+    deploy and run configurations of a target.
 
     To be used in the dropdown lists of comboboxes.
-    Automatically adjusts itself to added and removed BuildConfigurations.
-    Very similar to the Run Configuration Model.
-
-    TODO might it possible to share code without making the code a complete mess.
 */
 
-namespace {
+namespace ProjectExplorer {
 
-const auto ComparisonOperator =
-    [](const ProjectConfiguration *a, const ProjectConfiguration *b) {
-        return Utils::caseFriendlyCompare(a->displayName(), b->displayName()) < 0;
-    };
-
-} // namespace
-
-ProjectConfigurationModel::ProjectConfigurationModel(Target *target, FilterFunction filter,
-                                                     QObject *parent) :
-    QAbstractListModel(parent),
-    m_target(target),
-    m_filter(filter)
+static bool isOrderedBefore(const ProjectConfiguration *a, const ProjectConfiguration *b)
 {
-    m_projectConfigurations = Utils::filtered(m_target->projectConfigurations(), m_filter);
-    Utils::sort(m_projectConfigurations, ComparisonOperator);
+    return Utils::caseFriendlyCompare(a->displayName(), b->displayName()) < 0;
+}
 
-    connect(target, &Target::addedProjectConfiguration,
-            this, &ProjectConfigurationModel::addedProjectConfiguration);
-    connect(target, &Target::removedProjectConfiguration,
-            this, &ProjectConfigurationModel::removedProjectConfiguration);
-
-    foreach (ProjectConfiguration *pc, m_projectConfigurations)
-        connect(pc, &ProjectConfiguration::displayNameChanged,
-                this, &ProjectConfigurationModel::displayNameChanged);
+ProjectConfigurationModel::ProjectConfigurationModel(Target *target) :
+    m_target(target)
+{
 }
 
 int ProjectConfigurationModel::rowCount(const QModelIndex &parent) const
@@ -97,10 +75,11 @@ void ProjectConfigurationModel::displayNameChanged()
     if (oldPos < 0)
         return;
 
-    if (oldPos >= 1 && ComparisonOperator(m_projectConfigurations.at(oldPos), m_projectConfigurations.at(oldPos - 1))) {
+    QModelIndex itemIndex;
+    if (oldPos >= 1 && isOrderedBefore(m_projectConfigurations.at(oldPos), m_projectConfigurations.at(oldPos - 1))) {
         // We need to move up
         int newPos = oldPos - 1;
-        while (newPos >= 0 && ComparisonOperator(m_projectConfigurations.at(oldPos), m_projectConfigurations.at(newPos))) {
+        while (newPos >= 0 && isOrderedBefore(m_projectConfigurations.at(oldPos), m_projectConfigurations.at(newPos))) {
             --newPos;
         }
         ++newPos;
@@ -110,13 +89,13 @@ void ProjectConfigurationModel::displayNameChanged()
         m_projectConfigurations.removeAt(oldPos + 1);
         endMoveRows();
         // Not only did we move, we also changed...
-        emit dataChanged(index(newPos, 0), index(newPos,0));
+        itemIndex = index(newPos, 0);
     } else if (oldPos < m_projectConfigurations.size() - 1
-               && ComparisonOperator(m_projectConfigurations.at(oldPos + 1), m_projectConfigurations.at(oldPos))) {
+               && isOrderedBefore(m_projectConfigurations.at(oldPos + 1), m_projectConfigurations.at(oldPos))) {
         // We need to move down
         int newPos = oldPos + 1;
         while (newPos < m_projectConfigurations.size()
-            && ComparisonOperator(m_projectConfigurations.at(newPos), m_projectConfigurations.at(oldPos))) {
+            && isOrderedBefore(m_projectConfigurations.at(newPos), m_projectConfigurations.at(oldPos))) {
             ++newPos;
         }
         beginMoveRows(QModelIndex(), oldPos, oldPos, QModelIndex(), newPos);
@@ -125,10 +104,11 @@ void ProjectConfigurationModel::displayNameChanged()
         endMoveRows();
 
         // We need to subtract one since removing at the old place moves the newIndex down
-        emit dataChanged(index(newPos - 1, 0), index(newPos - 1, 0));
+        itemIndex = index(newPos - 1, 0);
     } else {
-        emit dataChanged(index(oldPos, 0), index(oldPos, 0));
+        itemIndex = index(oldPos, 0);
     }
+    emit dataChanged(itemIndex, itemIndex);
 }
 
 QVariant ProjectConfigurationModel::data(const QModelIndex &index, int role) const
@@ -142,37 +122,24 @@ QVariant ProjectConfigurationModel::data(const QModelIndex &index, int role) con
     return QVariant();
 }
 
-ProjectConfiguration *ProjectConfigurationModel::projectConfigurationAt(int i)
+ProjectConfiguration *ProjectConfigurationModel::projectConfigurationAt(int i) const
 {
     if (i > m_projectConfigurations.size() || i < 0)
         return nullptr;
     return m_projectConfigurations.at(i);
 }
 
-ProjectConfiguration *ProjectConfigurationModel::projectConfigurationFor(const QModelIndex &idx)
+int ProjectConfigurationModel::indexFor(ProjectConfiguration *pc) const
 {
-    if (idx.row() > m_projectConfigurations.size() || idx.row() < 0)
-        return nullptr;
-    return m_projectConfigurations.at(idx.row());
+    return m_projectConfigurations.indexOf(pc);
 }
 
-QModelIndex ProjectConfigurationModel::indexFor(ProjectConfiguration *pc)
+void ProjectConfigurationModel::addProjectConfiguration(ProjectConfiguration *pc)
 {
-    int idx = m_projectConfigurations.indexOf(pc);
-    if (idx == -1)
-        return QModelIndex();
-    return index(idx, 0);
-}
-
-void ProjectConfigurationModel::addedProjectConfiguration(ProjectConfiguration *pc)
-{
-    if (!m_filter(pc))
-        return;
-
     // Find the right place to insert
     int i = 0;
     for (; i < m_projectConfigurations.size(); ++i) {
-        if (ComparisonOperator(pc, m_projectConfigurations.at(i)))
+        if (isOrderedBefore(pc, m_projectConfigurations.at(i)))
             break;
     }
 
@@ -184,7 +151,7 @@ void ProjectConfigurationModel::addedProjectConfiguration(ProjectConfiguration *
             this, &ProjectConfigurationModel::displayNameChanged);
 }
 
-void ProjectConfigurationModel::removedProjectConfiguration(ProjectConfiguration *pc)
+void ProjectConfigurationModel::removeProjectConfiguration(ProjectConfiguration *pc)
 {
     int i = m_projectConfigurations.indexOf(pc);
     if (i < 0)
@@ -194,26 +161,4 @@ void ProjectConfigurationModel::removedProjectConfiguration(ProjectConfiguration
     endRemoveRows();
 }
 
-BuildConfigurationModel::BuildConfigurationModel(Target *t, QObject *parent) :
-    ProjectConfigurationModel(t,
-                              [](const ProjectConfiguration *pc) {
-                                  return qobject_cast<const BuildConfiguration *>(pc) != nullptr;
-                              },
-                              parent)
-{ }
-
-DeployConfigurationModel::DeployConfigurationModel(Target *t, QObject *parent) :
-    ProjectConfigurationModel(t,
-                              [](const ProjectConfiguration *pc) {
-                                  return qobject_cast<const DeployConfiguration *>(pc) != nullptr;
-                              },
-                              parent)
-{ }
-
-RunConfigurationModel::RunConfigurationModel(Target *t, QObject *parent) :
-    ProjectConfigurationModel(t,
-                              [](const ProjectConfiguration *pc) {
-                                  return qobject_cast<const RunConfiguration *>(pc) != nullptr;
-                              },
-                              parent)
-{ }
+} // ProjectExplorer

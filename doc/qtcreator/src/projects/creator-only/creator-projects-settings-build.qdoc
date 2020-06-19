@@ -1,0 +1,214 @@
+/****************************************************************************
+**
+** Copyright (C) 2018 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \previouspage creator-debuggers.html
+    \page creator-build-settings.html
+    \nextpage creator-run-settings.html
+
+    \title Specifying Build Settings
+
+    Different build configurations allow you to quickly switch between
+    different build settings. By default, \QC creates \e debug, \e release, and
+    \e profile build configurations. A debug build contains additional
+    debug symbols that you need for debugging the application but that you
+    can leave out from the release version. Generally, you use the debug
+    configuration for testing and the release configuration for creating
+    the final installation file. A profile configuration is an optimized release
+    build that is delivered with separate debug information. It is best suited
+    for analyzing applications.
+
+    \section1 Managing Build Configurations
+
+    You specify build settings in the \uicontrol Projects mode.
+    To add a new build configuration, click \uicontrol Add and select the type of
+    configuration you would like to add. You can add as many build
+    configurations as you need. You can also select \uicontrol Clone to
+    add a build configuration that is based on the currently selected one.
+
+    Select \uicontrol Rename to give the currently selected build configuration
+    a new name.
+
+    To delete the build configuration currently selected, click \uicontrol Remove.
+
+    \section1 Editing Build Configurations
+
+    Select the build configuration to edit in the
+    \uicontrol {Edit build configuration} field.
+
+    The available build settings depend on the build system that you selected
+    for the project.
+
+    \section2 qmake Build Configuration
+
+    \image qtcreator-projectpane.png "qmake general build settings pane"
+
+    By default, \QC builds projects in a separate directory from the source
+    directory, as \l{glossary-shadow-build} {shadow builds}. This keeps the
+    files generated for each \l{glossary-buildandrun-kit}{build and run kit} separate.
+    If you only build and run with a single \l{glossary-buildandrun-kit}{kit},
+    you can deselect the \uicontrol {Shadow build}
+    checkbox.
+
+    To make in-source builds the default option for all projects, select
+    \uicontrol Tools > \uicontrol Options > \uicontrol {Build & Run} >
+    \uicontrol {Default Build Properties}, and enter a period (.) in the
+    \uicontrol {Default build directory} field.
+
+    You can create separate versions of project files to keep platform-dependent
+    code separate. You can use qmake \l{Adding Platform Specific Source Files}
+    {scopes} to select the file to process depending on which platform qmake is
+    run on.
+
+    To generate debug symbols also for applications compiled in release mode,
+    select \uicontrol Enable in the \uicontrol {Separate debug info} field. For
+    more information, see \l{Using the Performance Analyzer}. To use default
+    settings, select \uicontrol {Leave at Default}.
+
+    To set the default build properties, select \uicontrol Tools
+    > \uicontrol Options > \uicontrol {Build & Run} >
+    \uicontrol {Default Build Properties}.
+
+    \section3 Compiling QML
+
+    Since Qt 5.11, you can compile QML source code into the final binary. This
+    improves the startup time of the application and eliminates the need to
+    deploy QML files together with the application. For more information, see
+    \l{Ahead-of-Time Compilation}.
+
+    \QC new project wizards create Qt Quick projects that can be compiled,
+    because they are set up to use the Qt Resource System. To compile Qt Quick
+    code, select \uicontrol Enable in the \uicontrol {Qt Quick Compiler}
+    field. To use default settings, select \uicontrol {Leave at Default}.
+
+    \note In earlier Qt versions, this was a commercial feature. For more
+    information, see \l{http://doc.qt.io/QtQuickCompiler/}{Qt Quick Compiler}.
+
+    \include creator-projects-cmake-building.qdocinc cmake build configuration
+
+    \section1 Starting External Processes
+
+    \QC executes external processes to accomplish tasks such as building
+    and running applications. To execute the processes, \QC uses shell
+    commands that are native to the system. It constructs the commands from
+    an executable name and optional command line arguments.
+
+    The executable name is specified in the executable fields: \uicontrol qmake,
+    \uicontrol Make, \uicontrol Command, or \uicontrol Executable. It is either derived from the
+    project or specified manually. When you specify executables manually, you
+    can reference environment variables and \QC variables. However, no
+    quoting rules
+    apply.
+
+    You can specify command-line arguments in the arguments fields:
+    \uicontrol {Additional arguments}, \uicontrol {Command arguments},
+    \uicontrol {Make arguments}, \uicontrol Arguments, \uicontrol {Default Arguments},
+    or \uicontrol {Extra arguments}. You can create shell command lines
+    that can contain redirection and other advanced constructs. However, some
+    more complex use cases, such as piping test data into the application being
+    tested or grouping commands, are not supported because the value of the
+    \uicontrol Executable field is always placed first when constructing the command.
+
+    You can use \l {Using Environment Variables}{environment variables} as
+    values in the fields. In addition, you can \l {Using Qt Creator Variables}
+    {use \QC variables} in arguments, executable paths, and working
+    directories.
+
+    \section1 Build Steps
+
+    In \uicontrol{Build Steps} you can change the settings for the build system
+    selected for building the project: qmake, CMake, or Qbs.
+
+    \section2 qmake Build Steps
+
+    \QC builds qmake projects by running the \c make or \c nmake command from
+    the Qt version defined for the current build configuration.
+
+    \image qtcreator-build-steps.png "Build steps"
+
+    To override the shell command that \QC constructs by default, disable or remove
+    the build step and add a custom build step that specifies another shell
+    command.
+
+    By default, \QC uses all the CPU cores available to achieve maximum build
+    parallelization. On Linux and \macos, you can specify the number of parallel
+    jobs to use for building in the \uicontrol {Parallel jobs} field. Select the
+    \uicontrol {Override MAKEFLAGS} check box to override existing MAKEFLAGS
+    variables.
+
+    \include creator-projects-cmake-building.qdocinc cmake build steps
+    \include creator-projects-settings-build-qbs.qdocinc qbs build steps
+
+    \section2 Adding Custom Build Steps
+
+    To add custom steps to the build settings, select
+    \uicontrol {Add Build Step} > \uicontrol {Custom Process Step}.
+
+    By default, custom steps are enabled. To disable a custom step, select
+    the \inlineimage buildstepdisable.png
+    (\uicontrol Disable) button.
+
+    \image qtcreator-build-steps-custom.png "Custom Process Step"
+
+    \section2 Executing Custom Commands
+
+    To execute custom commands when building for embedded devices, select
+    \uicontrol {Add Build Step} > \uicontrol {Custom Remote Command
+    (via adb shell)} (commercial only) and enter the command to execute.
+
+    \section1 Clean Steps
+
+    You can use the cleaning process to remove intermediate files. This process
+    might help you to fix obscure issues during the process of building a
+    project.
+
+    \image qtcreator-clean-steps.png "Clean steps"
+
+    You can define the cleaning steps for your builds in the \uicontrol{Clean Steps}.
+
+    \list
+
+        \li To add a clean step using make or a custom process, click
+            \uicontrol{Add Clean Step} and select the type of step you want to add.
+
+            By default, custom steps are enabled. To disable a custom step,
+            select the \uicontrol Disable button.
+
+        \li To remove a clean step, click \uicontrol{Remove Item}.
+
+        \li To change the order of steps, click \inlineimage arrowup.png
+            (\uicontrol {Move Up}) and \inlineimage arrowdown.png
+            (\uicontrol {Move Down}).
+    \endlist
+
+    \include creator-projects-cmake-building.qdocinc cmake clean steps
+    \include creator-projects-settings-build-qbs.qdocinc qbs clean steps
+*/

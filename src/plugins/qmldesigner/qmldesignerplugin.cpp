@@ -30,16 +30,21 @@
 #include "settingspage.h"
 #include "designmodecontext.h"
 #include "openuiqmlfiledialog.h"
+#include "generateresource.h"
+#include "nodeinstanceview.h"
 
 #include <metainfo.h>
 #include <connectionview.h>
 #include <sourcetool/sourcetool.h>
 #include <colortool/colortool.h>
+#include <annotationeditor/annotationtool.h>
 #include <texttool/texttool.h>
 #include <timelineeditor/timelineview.h>
 #include <pathtool/pathtool.h>
 
+#include <qmljseditor/qmljseditor.h>
 #include <qmljseditor/qmljseditorconstants.h>
+#include <qmljseditor/qmljseditordocument.h>
 
 #include <qmljstools/qmljstoolsconstants.h>
 
@@ -70,12 +75,38 @@
 #include <QProcessEnvironment>
 #include <QScreen>
 #include <QWindow>
+#include <QApplication>
 
-Q_LOGGING_CATEGORY(qmldesignerLog, "qtc.qmldesigner", QtWarningMsg)
+static Q_LOGGING_CATEGORY(qmldesignerLog, "qtc.qmldesigner", QtWarningMsg)
 
 using namespace QmlDesigner::Internal;
 
 namespace QmlDesigner {
+
+namespace Internal {
+
+class QtQuickDesignerFactory : public QmlJSEditor::QmlJSEditorFactory
+{
+public:
+    QtQuickDesignerFactory();
+};
+
+QtQuickDesignerFactory::QtQuickDesignerFactory()
+    : QmlJSEditorFactory(QmlJSEditor::Constants::C_QTQUICKDESIGNEREDITOR_ID)
+{
+    setDisplayName(QCoreApplication::translate("OpenWith::Editors", "Qt Quick Designer"));
+
+    addMimeType(QmlJSTools::Constants::QMLUI_MIMETYPE);
+    setDocumentCreator([this]() {
+        auto document = new QmlJSEditor::QmlJSEditorDocument(id());
+        document->setIsDesignModePreferred(
+                    QmlDesigner::DesignerSettings::getValue(
+                        QmlDesigner::DesignerSettingsKey::ALWAYS_DESIGN_MODE).toBool());
+        return document;
+    });
+}
+
+} // namespace Internal
 
 class QmlDesignerPluginPrivate
 {
@@ -87,6 +118,7 @@ public:
     DesignModeWidget mainWidget;
     DesignerSettings settings;
     DesignModeContext *context = nullptr;
+    QtQuickDesignerFactory m_qtQuickDesignerFactory;
     bool blockEditorChange = false;
 };
 
@@ -99,7 +131,9 @@ static bool isInDesignerMode()
 
 static bool checkIfEditorIsQtQuick(Core::IEditor *editor)
 {
-    if (editor && editor->document()->id() == QmlJSEditor::Constants::C_QMLJSEDITOR_ID) {
+    if (editor
+        && (editor->document()->id() == QmlJSEditor::Constants::C_QMLJSEDITOR_ID
+            || editor->document()->id() == QmlJSEditor::Constants::C_QTQUICKDESIGNEREDITOR_ID)) {
         QmlJS::ModelManagerInterface *modelManager = QmlJS::ModelManagerInterface::instance();
         QmlJS::Document::Ptr document = modelManager->ensuredGetDocumentForPath(editor->document()->filePath().toString());
         if (!document.isNull())
@@ -174,11 +208,14 @@ QmlDesignerPlugin::~QmlDesignerPlugin()
 // INHERITED FROM ExtensionSystem::Plugin
 //
 ////////////////////////////////////////////////////
-bool QmlDesignerPlugin::initialize(const QStringList & /*arguments*/, QString *errorMessage/* = 0*/) // =0;
+bool QmlDesignerPlugin::initialize(const QStringList & /*arguments*/, QString *errorMessage/* = 0*/)
 {
     if (!Utils::HostOsInfo::canCreateOpenGLContext(errorMessage))
         return false;
     d = new QmlDesignerPluginPrivate;
+    if (DesignerSettings::getValue(DesignerSettingsKey::STANDALONE_MODE).toBool())
+        GenerateResource::generateMenuEntry();
+
     return true;
 }
 
@@ -202,6 +239,7 @@ bool QmlDesignerPlugin::delayedInitialize()
 
     d->viewManager.registerFormEditorToolTakingOwnership(new QmlDesigner::SourceTool);
     d->viewManager.registerFormEditorToolTakingOwnership(new QmlDesigner::ColorTool);
+    d->viewManager.registerFormEditorToolTakingOwnership(new QmlDesigner::AnnotationTool);
     d->viewManager.registerFormEditorToolTakingOwnership(new QmlDesigner::TextTool);
     d->viewManager.registerFormEditorToolTakingOwnership(new QmlDesigner::PathTool);
 
@@ -217,13 +255,13 @@ void QmlDesignerPlugin::extensionsInitialized()
     });
 }
 
-static QStringList allUiQmlFilesforCurrentProject(const Utils::FileName &fileName)
+static QStringList allUiQmlFilesforCurrentProject(const Utils::FilePath &fileName)
 {
     QStringList list;
     ProjectExplorer::Project *currentProject = ProjectExplorer::SessionManager::projectForFile(fileName);
 
     if (currentProject) {
-        foreach (const Utils::FileName &fileName, currentProject->files(ProjectExplorer::Project::SourceFiles)) {
+        foreach (const Utils::FilePath &fileName, currentProject->files(ProjectExplorer::Project::SourceFiles)) {
             if (fileName.endsWith(".ui.qml"))
                 list.append(fileName.toString());
         }
@@ -232,7 +270,7 @@ static QStringList allUiQmlFilesforCurrentProject(const Utils::FileName &fileNam
     return list;
 }
 
-static QString projectPath(const Utils::FileName &fileName)
+static QString projectPath(const Utils::FilePath &fileName)
 {
     QString path;
     ProjectExplorer::Project *currentProject = ProjectExplorer::SessionManager::projectForFile(fileName);
@@ -249,14 +287,17 @@ void QmlDesignerPlugin::integrateIntoQtCreator(QWidget *modeWidget)
     Core::ICore::addContextObject(d->context);
     Core::Context qmlDesignerMainContext(Constants::C_QMLDESIGNER);
     Core::Context qmlDesignerFormEditorContext(Constants::C_QMLFORMEDITOR);
+    Core::Context qmlDesignerEditor3dContext(Constants::C_QMLEDITOR3D);
     Core::Context qmlDesignerNavigatorContext(Constants::C_QMLNAVIGATOR);
 
     d->context->context().add(qmlDesignerMainContext);
     d->context->context().add(qmlDesignerFormEditorContext);
+    d->context->context().add(qmlDesignerEditor3dContext);
     d->context->context().add(qmlDesignerNavigatorContext);
     d->context->context().add(ProjectExplorer::Constants::QMLJS_LANGUAGE_ID);
 
-    d->shortCutManager.registerActions(qmlDesignerMainContext, qmlDesignerFormEditorContext, qmlDesignerNavigatorContext);
+    d->shortCutManager.registerActions(qmlDesignerMainContext, qmlDesignerFormEditorContext,
+                                       qmlDesignerEditor3dContext, qmlDesignerNavigatorContext);
 
     const QStringList mimeTypes = { QmlJSTools::Constants::QML_MIMETYPE,
                                     QmlJSTools::Constants::QMLUI_MIMETYPE };
@@ -304,7 +345,7 @@ void QmlDesignerPlugin::showDesigner()
 
     d->mainWidget.initialize();
 
-    const Utils::FileName fileName = Core::EditorManager::currentEditor()->document()->filePath();
+    const Utils::FilePath fileName = Core::EditorManager::currentEditor()->document()->filePath();
     const QStringList allUiQmlFiles = allUiQmlFilesforCurrentProject(fileName);
     if (warningsForQmlFilesInsteadOfUiQmlEnabled() && !fileName.endsWith(".ui.qml") && !allUiQmlFiles.isEmpty()) {
         OpenUiQmlFileDialog dialog(&d->mainWidget);
@@ -402,8 +443,8 @@ void QmlDesignerPlugin::activateAutoSynchronization()
     if (!currentDesignDocument()->isDocumentLoaded())
         currentDesignDocument()->loadDocument(currentDesignDocument()->plainTextEdit());
 
-    currentDesignDocument()->updateActiveQtVersion();
-    currentDesignDocument()->updateCurrentProject();
+    currentDesignDocument()->updateActiveTarget();
+    currentDesignDocument()->updateActiveTarget();
     d->mainWidget.enableWidgets();
     currentDesignDocument()->attachRewriterToModel();
 
@@ -545,4 +586,4 @@ void QmlDesignerPlugin::setSettings(const DesignerSettings &s)
     }
 }
 
-}
+} // namespace QmlDesigner

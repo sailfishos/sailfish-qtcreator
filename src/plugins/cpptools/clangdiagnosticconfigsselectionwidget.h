@@ -31,13 +31,16 @@
 
 #include <QWidget>
 
+#include <functional>
+
 QT_BEGIN_NAMESPACE
-class QComboBox;
 class QLabel;
 class QPushButton;
 QT_END_NAMESPACE
 
 namespace CppTools {
+
+class ClangDiagnosticConfigsWidget;
 
 class CPPTOOLS_EXPORT ClangDiagnosticConfigsSelectionWidget : public QWidget
 {
@@ -46,23 +49,31 @@ class CPPTOOLS_EXPORT ClangDiagnosticConfigsSelectionWidget : public QWidget
 public:
     explicit ClangDiagnosticConfigsSelectionWidget(QWidget *parent = nullptr);
 
-    Core::Id currentConfigId() const;
+    using CreateEditWidget
+        = std::function<ClangDiagnosticConfigsWidget *(const ClangDiagnosticConfigs &configs,
+                                                       const Core::Id &configToSelect)>;
 
-    void refresh(Core::Id id);
+    void refresh(const ClangDiagnosticConfigsModel &model,
+                 const Core::Id &configToSelect,
+                 const CreateEditWidget &createEditWidget);
+
+    Core::Id currentConfigId() const;
+    ClangDiagnosticConfigs customConfigs() const;
 
 signals:
-    void currentConfigChanged(const Core::Id &currentConfigId);
+    void changed();
 
 private:
-    void connectToClangDiagnosticConfigsDialog(QPushButton *button);
-    void connectToCurrentIndexChanged();
-    void disconnectFromCurrentIndexChanged();
+    void onButtonClicked();
 
-    QMetaObject::Connection m_currentIndexChangedConnection;
     ClangDiagnosticConfigsModel m_diagnosticConfigsModel;
+    Core::Id m_currentConfigId;
+    bool m_showTidyClazyUi = true;
 
     QLabel *m_label = nullptr;
-    QComboBox *m_selectionComboBox = nullptr;
+    QPushButton *m_button = nullptr;
+
+    CreateEditWidget m_createEditWidget;
 };
 
 } // CppTools namespace

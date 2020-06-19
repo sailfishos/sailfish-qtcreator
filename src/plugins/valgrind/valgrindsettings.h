@@ -59,7 +59,7 @@ public:
         LeakCheckOnFinishYes
     };
 
-    ValgrindBaseSettings(const ConfigWidgetCreator &creator);
+    ValgrindBaseSettings();
 
     void toMap(QVariantMap &map) const override;
     void fromMap(const QVariantMap &map) override;
@@ -186,6 +186,8 @@ class ValgrindGlobalSettings : public ValgrindBaseSettings
 
 public:
     ValgrindGlobalSettings();
+
+    static ValgrindGlobalSettings *instance();
 
     void toMap(QVariantMap &map) const override;
     void fromMap(const QVariantMap &map) override;

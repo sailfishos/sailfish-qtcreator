@@ -30,7 +30,6 @@
 #include <utils/textfileformat.h>
 
 namespace Autotest {
-namespace Internal {
 
 static CppParser *s_parserInstance = nullptr;
 
@@ -41,8 +40,8 @@ CppParser::CppParser()
 
 void CppParser::init(const QStringList &filesToParse, bool fullParse)
 {
-    Q_UNUSED(filesToParse);
-    Q_UNUSED(fullParse);
+    Q_UNUSED(filesToParse)
+    Q_UNUSED(fullParse)
     m_cppSnapshot = CppTools::CppModelManager::instance()->snapshot();
     m_workingCopy = CppTools::CppModelManager::instance()->workingCopy();
 }
@@ -52,7 +51,7 @@ bool CppParser::selectedForBuilding(const QString &fileName)
     QList<CppTools::ProjectPart::Ptr> projParts =
             CppTools::CppModelManager::instance()->projectPart(fileName);
 
-    return projParts.size() && projParts.at(0)->selectedForBuilding;
+    return !projParts.isEmpty() && projParts.at(0)->selectedForBuilding;
 }
 
 QByteArray CppParser::getFileContent(const QString &filePath)
@@ -78,5 +77,9 @@ void CppParser::release()
     m_workingCopy = CppTools::WorkingCopy();
 }
 
-} // namespace Internal
+CPlusPlus::Document::Ptr CppParser::document(const QString &fileName)
+{
+    return selectedForBuilding(fileName) ? m_cppSnapshot.document(fileName) : nullptr;
+}
+
 } // namespace Autotest

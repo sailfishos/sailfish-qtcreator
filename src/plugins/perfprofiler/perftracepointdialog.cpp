@@ -29,8 +29,12 @@
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
+#include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/runcontrol.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
+
+#include <utils/qtcassert.h>
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -47,16 +51,14 @@ PerfTracePointDialog::PerfTracePointDialog() :
 {
     m_ui->setupUi(this);
 
-    if (Project *currentProject = SessionManager::startupProject()) {
-        if (const Target *target = currentProject->activeTarget()) {
-            const Kit *kit = target->kit();
-            QTC_ASSERT(kit, return);
+    if (const Target *target = SessionManager::startupTarget()) {
+        const Kit *kit = target->kit();
+        QTC_ASSERT(kit, return);
 
-            m_device = DeviceKitInformation::device(kit);
-            if (!m_device) {
-                m_ui->textEdit->setPlainText(tr("Error: No device available for active target."));
-                return;
-            }
+        m_device = DeviceKitAspect::device(kit);
+        if (!m_device) {
+            m_ui->textEdit->setPlainText(tr("Error: No device available for active target."));
+            return;
         }
     }
 
@@ -102,10 +104,10 @@ void PerfTracePointDialog::runScript()
     Runnable runnable;
     const QString elevate = m_ui->privilegesChooser->currentText();
     if (elevate != QLatin1String("n.a.")) {
-        runnable.executable = elevate;
+        runnable.executable = Utils::FilePath::fromString(elevate);
         runnable.commandLineArguments = "sh";
     } else {
-        runnable.executable = "sh";
+        runnable.executable = Utils::FilePath::fromString("sh");
     }
 
     connect(m_process.get(), &DeviceProcess::started,

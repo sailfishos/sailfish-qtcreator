@@ -29,11 +29,24 @@
     See std(::experimental)::variant.
 */
 
-// TODO: replace by #include <(experimental/)variant> depending on compiler and C++ version
+#if __cplusplus >= 201703L
+#include <variant>
+
+namespace Utils {
+using std::get;
+using std::get_if;
+using std::holds_alternative;
+using std::variant;
+} // namespace Utils
+
+#else
 #include <3rdparty/variant/variant.hpp>
 
 namespace Utils {
-
-using namespace mpark;
-
+using mpark::get;
+using mpark::get_if;
+using mpark::holds_alternative;
+using mpark::variant;
 } // namespace Utils
+
+#endif

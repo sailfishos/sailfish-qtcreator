@@ -25,6 +25,7 @@
 
 import QtQuick 2.1
 import QtQuickDesignerTheme 1.0
+import StudioTheme 1.0 as StudioTheme
 
 Item {
     width: grid.width
@@ -41,10 +42,22 @@ Item {
     readonly property color selectedColor: Theme.qmlDesignerBackgroundColorDarkAlternate()
     readonly property color unselectedColor: Theme.qmlDesignerBackgroundColorDarker()
 
-    ExtendedFunctionButton {
+    property bool enabled: true
+
+    ExtendedFunctionLogic {
+        id: extFuncLogic
         backendValue: originControl.backendValue
+    }
+
+    ActionIndicator {
+        anchors.right: grid.left
+        anchors.leftMargin: grid.spacing
+
         visible: originControl.enabled
-        anchors.left: grid.right
+        icon.color: extFuncLogic.color
+        icon.text: extFuncLogic.glyph
+        onClicked: extFuncLogic.show()
+        forceVisible: true
     }
 
     ColorLogic {
@@ -59,6 +72,8 @@ Item {
     }
 
     Grid {
+        x: StudioTheme.Values.squareComponentWidth
+        opacity: originControl.enabled ? 1 : 0.5
         rows: 3
         columns: 3
         spacing: 5
@@ -66,7 +81,8 @@ Item {
         id: grid
 
         function setValue(myValue) {
-            originControl.backendValue.setEnumeration("Item", myValue)
+            if (originControl.enabled)
+                originControl.backendValue.setEnumeration("Item", myValue)
         }
 
         function select(myValue) {
@@ -100,8 +116,8 @@ Item {
         Rectangle {
             property bool selected: false
             id: topLeft
-            width: 15
-            height: 15
+            width: StudioTheme.Values.height
+            height: StudioTheme.Values.height
             color: selected ? selectedColor : unselectedColor
             border.width: selected ? 2 : 1
             border.color: selected ? originControl.borderColorSelected : originControl.borderColor

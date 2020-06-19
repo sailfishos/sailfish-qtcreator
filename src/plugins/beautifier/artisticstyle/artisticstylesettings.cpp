@@ -82,11 +82,10 @@ static int parseVersion(const QString &text)
     return 0;
 }
 
-static int updateVersionHelper(const QString &command)
+static int updateVersionHelper(const Utils::FilePath &command)
 {
     Utils::SynchronousProcess process;
-    Utils::SynchronousProcessResponse response
-            = process.runBlocking(command, QStringList("--version"));
+    Utils::SynchronousProcessResponse response = process.runBlocking({command, {"--version"}});
     if (response.result != Utils::SynchronousProcessResponse::Finished)
         return 0;
 
@@ -131,12 +130,12 @@ void ArtisticStyleSettings::setUseSpecificConfigFile(bool useSpecificConfigFile)
     m_settings.insert(USE_SPECIFIC_CONFIG_FILE, QVariant(useSpecificConfigFile));
 }
 
-Utils::FileName ArtisticStyleSettings::specificConfigFile() const
+Utils::FilePath ArtisticStyleSettings::specificConfigFile() const
 {
-    return Utils::FileName::fromString(m_settings.value(SPECIFIC_CONFIG_FILE).toString());
+    return Utils::FilePath::fromString(m_settings.value(SPECIFIC_CONFIG_FILE).toString());
 }
 
-void ArtisticStyleSettings::setSpecificConfigFile(const Utils::FileName &specificConfigFile)
+void ArtisticStyleSettings::setSpecificConfigFile(const Utils::FilePath &specificConfigFile)
 {
     m_settings.insert(SPECIFIC_CONFIG_FILE, QVariant(specificConfigFile.toString()));
 }
@@ -182,8 +181,7 @@ void ArtisticStyleSettings::createDocumentationFile() const
 {
     Utils::SynchronousProcess process;
     process.setTimeoutS(2);
-    Utils::SynchronousProcessResponse response
-            = process.runBlocking(command(), QStringList("-h"));
+    Utils::SynchronousProcessResponse response = process.runBlocking({command(), {"-h"}});
     if (response.result != Utils::SynchronousProcessResponse::Finished)
         return;
 

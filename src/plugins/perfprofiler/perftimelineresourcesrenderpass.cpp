@@ -36,7 +36,7 @@
 namespace PerfProfiler {
 namespace Internal {
 
-class ResourcesRenderPassState : public Timeline::TimelineRenderPass::State
+class ResourcesRenderPassState final : public Timeline::TimelineRenderPass::State
 {
 public:
     ResourcesRenderPassState();
@@ -140,8 +140,8 @@ Timeline::TimelineRenderPass::State *PerfTimelineResourcesRenderPass::update(
         Timeline::TimelineRenderPass::State *oldState, int indexFrom, int indexTo,
         bool stateChanged, float spacing) const
 {
-    Q_UNUSED(stateChanged);
-    Q_UNUSED(spacing);
+    Q_UNUSED(stateChanged)
+    Q_UNUSED(spacing)
 
     const PerfTimelineModel *model = qobject_cast<const PerfTimelineModel *>(renderer->model());
 

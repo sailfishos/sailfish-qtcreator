@@ -47,7 +47,6 @@ const Icon REBUILD({
         {":/projectexplorer/images/buildhammerhandle.png", Theme::IconsBuildHammerHandleColor},
         {":/projectexplorer/images/rebuildhammerheads.png", Theme::IconsBuildHammerHeadColor},
         {":/projectexplorer/images/buildhammerhead.png", Theme::IconsBuildHammerHeadColor}}, Icon::Tint);
-const Icon DEPLOY(":/projectexplorer/images/deploy.png");
 const Icon RUN(":/projectexplorer/images/run.png");
 const Icon RUN_FLAT({
         {":/projectexplorer/images/run_mask.png", Theme::IconsRunToolBarColor}});

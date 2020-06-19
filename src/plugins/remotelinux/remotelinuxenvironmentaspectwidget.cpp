@@ -25,11 +25,15 @@
 
 #include "remotelinuxenvironmentaspectwidget.h"
 
+#include "linuxdevice.h"
 #include "remotelinuxrunconfiguration.h"
 #include "remotelinuxenvironmentreader.h"
 
-#include <projectexplorer/target.h>
+#include <coreplugin/icore.h>
+#include <projectexplorer/environmentwidget.h>
 #include <projectexplorer/kitinformation.h>
+#include <projectexplorer/target.h>
+#include <utils/qtcassert.h>
 
 #include <QCoreApplication>
 #include <QMessageBox>
@@ -50,7 +54,7 @@ RemoteLinuxEnvironmentAspectWidget::RemoteLinuxEnvironmentAspectWidget
         (RemoteLinuxEnvironmentAspect *aspect, Target *target) :
     EnvironmentAspectWidget(aspect, new QPushButton)
 {
-    IDevice::ConstPtr device = DeviceKitInformation::device(target->kit());
+    IDevice::ConstPtr device = DeviceKitAspect::device(target->kit());
 
     deviceEnvReader = new RemoteLinuxEnvironmentReader(device, this);
     connect(target, &ProjectExplorer::Target::kitChanged,
@@ -63,6 +67,20 @@ RemoteLinuxEnvironmentAspectWidget::RemoteLinuxEnvironmentAspectWidget
             this, &RemoteLinuxEnvironmentAspectWidget::fetchEnvironmentFinished);
     connect(deviceEnvReader, &RemoteLinuxEnvironmentReader::error,
             this, &RemoteLinuxEnvironmentAspectWidget::fetchEnvironmentError);
+
+    const EnvironmentWidget::OpenTerminalFunc openTerminalFunc
+            = [target](const Utils::Environment &env) {
+        IDevice::ConstPtr device = DeviceKitAspect::device(target->kit());
+        if (!device) {
+            QMessageBox::critical(Core::ICore::mainWindow(), tr("Cannot Open Terminal"),
+                                  tr("Cannot open remote terminal: Current kit has no device."));
+            return;
+        }
+        const auto linuxDevice = device.dynamicCast<const LinuxDevice>();
+        QTC_ASSERT(linuxDevice, return);
+        linuxDevice->openTerminal(env, QString());
+    };
+    envWidget()->setOpenTerminalFunc(openTerminalFunc);
 }
 
 RemoteLinuxEnvironmentAspect *RemoteLinuxEnvironmentAspectWidget::aspect() const

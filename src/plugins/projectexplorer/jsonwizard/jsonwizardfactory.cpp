@@ -34,6 +34,7 @@
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icontext.h>
 #include <coreplugin/icore.h>
+#include <coreplugin/jsexpander.h>
 #include <coreplugin/messagemanager.h>
 
 #include <extensionsystem/pluginmanager.h>
@@ -46,10 +47,11 @@
 
 #include <QDebug>
 #include <QDir>
-#include <QMap>
+#include <QJSEngine>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonParseError>
+#include <QMap>
 #include <QUuid>
 
 namespace ProjectExplorer {
@@ -209,7 +211,7 @@ QList<Core::IWizardFactory *> JsonWizardFactory::createWizardFactories()
     const QString wizardFileName = QLatin1String(WIZARD_FILE);
 
     QList <Core::IWizardFactory *> result;
-    foreach (const Utils::FileName &path, searchPaths()) {
+    foreach (const Utils::FilePath &path, searchPaths()) {
         if (path.isEmpty())
             continue;
 
@@ -223,7 +225,7 @@ QList<Core::IWizardFactory *> JsonWizardFactory::createWizardFactories()
 
         const QDir::Filters filters = QDir::Dirs|QDir::Readable|QDir::NoDotAndDotDot;
         const QDir::SortFlags sortflags = QDir::Name|QDir::IgnoreCase;
-        QList<QFileInfo> dirs = dir.entryInfoList(filters, sortflags);
+        QFileInfoList dirs = dir.entryInfoList(filters, sortflags);
 
         while (!dirs.isEmpty()) {
             const QFileInfo dirFi = dirs.takeFirst();
@@ -283,7 +285,7 @@ QList<Core::IWizardFactory *> JsonWizardFactory::createWizardFactories()
 
                 result << factory;
             } else {
-                QList<QFileInfo> subDirs = current.entryInfoList(filters, sortflags);
+                QFileInfoList subDirs = current.entryInfoList(filters, sortflags);
                 if (!subDirs.isEmpty()) {
                     // There is no QList::prepend(QList)...
                     dirs.swap(subDirs);
@@ -332,20 +334,20 @@ static QStringList environmentTemplatesPaths()
     return paths;
 }
 
-Utils::FileNameList &JsonWizardFactory::searchPaths()
+Utils::FilePaths &JsonWizardFactory::searchPaths()
 {
-    static Utils::FileNameList m_searchPaths = Utils::FileNameList()
-            << Utils::FileName::fromString(Core::ICore::userResourcePath() + QLatin1Char('/') +
+    static Utils::FilePaths m_searchPaths = Utils::FilePaths()
+            << Utils::FilePath::fromString(Core::ICore::userResourcePath() + QLatin1Char('/') +
                                            QLatin1String(WIZARD_PATH))
-            << Utils::FileName::fromString(Core::ICore::resourcePath() + QLatin1Char('/') +
+            << Utils::FilePath::fromString(Core::ICore::resourcePath() + QLatin1Char('/') +
                                            QLatin1String(WIZARD_PATH));
     for (const QString &environmentTemplateDirName : environmentTemplatesPaths())
-        m_searchPaths << Utils::FileName::fromString(environmentTemplateDirName);
+        m_searchPaths << Utils::FilePath::fromString(environmentTemplateDirName);
 
     return m_searchPaths;
 }
 
-void JsonWizardFactory::addWizardPath(const Utils::FileName &path)
+void JsonWizardFactory::addWizardPath(const Utils::FilePath &path)
 {
     searchPaths().append(path);
 }
@@ -513,9 +515,17 @@ bool JsonWizardFactory::isAvailable(Core::Id platformId) const
                               [platformId]() { return platformId.toString(); });
     expander.registerVariable("Features", tr("The features available to this wizard."),
                               [this, e, platformId]() { return JsonWizard::stringListToArrayString(Core::Id::toStringList(availableFeatures(platformId)), e); });
-    expander.registerVariable("Plugins", tr("The plugins loaded."),
-                              [this, e]() { return JsonWizard::stringListToArrayString(Core::Id::toStringList(pluginFeatures()), e); });
-
+    expander.registerVariable("Plugins", tr("The plugins loaded."), [this, e]() {
+        return JsonWizard::stringListToArrayString(Core::Id::toStringList(pluginFeatures()), e);
+    });
+    Core::JsExpander jsExpander;
+    jsExpander.registerObject("Wizard",
+                              new Internal::JsonWizardFactoryJsExtension(platformId,
+                                                                         availableFeatures(
+                                                                             platformId),
+                                                                         pluginFeatures()));
+    jsExpander.engine().evaluate("var value = Wizard.value");
+    jsExpander.registerForExpander(e);
     return JsonWizard::boolFromVariant(m_enabledExpression, &expander);
 }
 
@@ -650,7 +660,7 @@ bool JsonWizardFactory::initialize(const QVariantMap &data, const QDir &baseDir,
             return false;
     }
 
-    WizardFlags flags = {};
+    WizardFlags flags;
     if (data.value(QLatin1String(PLATFORM_INDEPENDENT_KEY), false).toBool())
         flags |= PlatformIndependent;
     setFlags(flags);
@@ -660,4 +670,26 @@ bool JsonWizardFactory::initialize(const QVariantMap &data, const QDir &baseDir,
     return errorMessage->isEmpty();
 }
 
+namespace Internal {
+
+JsonWizardFactoryJsExtension::JsonWizardFactoryJsExtension(Core::Id platformId,
+                                                           const QSet<Core::Id> &availableFeatures,
+                                                           const QSet<Core::Id> &pluginFeatures)
+    : m_platformId(platformId)
+    , m_availableFeatures(availableFeatures)
+    , m_pluginFeatures(pluginFeatures)
+{}
+
+QVariant JsonWizardFactoryJsExtension::value(const QString &name) const
+{
+    if (name == "Platform")
+        return m_platformId.toString();
+    if (name == "Features")
+        return Core::Id::toStringList(m_availableFeatures);
+    if (name == "Plugins")
+        return Core::Id::toStringList(m_pluginFeatures);
+    return QVariant();
+}
+
+} // namespace Internal
 } // namespace ProjectExplorer

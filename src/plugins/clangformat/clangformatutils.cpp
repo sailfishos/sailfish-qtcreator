@@ -57,7 +57,11 @@ static clang::format::FormatStyle qtcStyle()
     style.AlignOperands = true;
     style.AlignTrailingComments = true;
     style.AllowAllParametersOfDeclarationOnNextLine = true;
+#if LLVM_VERSION_MAJOR >= 10
+    style.AllowShortBlocksOnASingleLine = FormatStyle::SBS_Never;
+#else
     style.AllowShortBlocksOnASingleLine = false;
+#endif
     style.AllowShortCaseLabelsOnASingleLine = false;
     style.AllowShortFunctionsOnASingleLine = FormatStyle::SFS_Inline;
 #if LLVM_VERSION_MAJOR >= 9
@@ -72,7 +76,11 @@ static clang::format::FormatStyle qtcStyle()
     style.BinPackArguments = false;
     style.BinPackParameters = false;
     style.BraceWrapping.AfterClass = true;
+#if LLVM_VERSION_MAJOR >= 10
+    style.BraceWrapping.AfterControlStatement = FormatStyle::BWACS_Never;
+#else
     style.BraceWrapping.AfterControlStatement = false;
+#endif
     style.BraceWrapping.AfterEnum = false;
     style.BraceWrapping.AfterFunction = true;
     style.BraceWrapping.AfterNamespace = false;
@@ -169,21 +177,21 @@ static bool useProjectOverriddenSettings()
     return project ? project->namedSettings(Constants::OVERRIDE_FILE_ID).toBool() : false;
 }
 
-static Utils::FileName globalPath()
+static Utils::FilePath globalPath()
 {
-    return Utils::FileName::fromString(Core::ICore::userResourcePath());
+    return Utils::FilePath::fromString(Core::ICore::userResourcePath());
 }
 
-static Utils::FileName projectPath()
+static Utils::FilePath projectPath()
 {
     const Project *project = SessionManager::startupProject();
     if (project)
-        return globalPath().appendPath("clang-format").appendPath(currentProjectUniqueId());
+        return globalPath().pathAppended("clang-format/" + currentProjectUniqueId());
 
-    return Utils::FileName();
+    return Utils::FilePath();
 }
 
-static QString findConfig(Utils::FileName fileName)
+static QString findConfig(Utils::FilePath fileName)
 {
     QDir parentDir(fileName.parentDir().toString());
     while (!parentDir.exists(Constants::SETTINGS_FILE_NAME)
@@ -197,17 +205,17 @@ static QString findConfig(Utils::FileName fileName)
     return parentDir.filePath(Constants::SETTINGS_FILE_ALT_NAME);
 }
 
-static QString configForFile(Utils::FileName fileName, bool checkForSettings)
+static QString configForFile(Utils::FilePath fileName, bool checkForSettings)
 {
     QDir overrideDir;
     if (!checkForSettings || useProjectOverriddenSettings()) {
-        overrideDir = projectPath().toString();
+        overrideDir.setPath(projectPath().toString());
         if (!overrideDir.isEmpty() && overrideDir.exists(Constants::SETTINGS_FILE_NAME))
             return overrideDir.filePath(Constants::SETTINGS_FILE_NAME);
     }
 
     if (!checkForSettings || useGlobalOverriddenSettings()) {
-        overrideDir = globalPath().toString();
+        overrideDir.setPath(globalPath().toString());
         if (!overrideDir.isEmpty() && overrideDir.exists(Constants::SETTINGS_FILE_NAME))
             return overrideDir.filePath(Constants::SETTINGS_FILE_NAME);
     }
@@ -215,15 +223,15 @@ static QString configForFile(Utils::FileName fileName, bool checkForSettings)
     return findConfig(fileName);
 }
 
-QString configForFile(Utils::FileName fileName)
+QString configForFile(Utils::FilePath fileName)
 {
     return configForFile(fileName, true);
 }
 
-Utils::FileName assumedPathForConfig(const QString &configFile)
+Utils::FilePath assumedPathForConfig(const QString &configFile)
 {
-    Utils::FileName fileName = Utils::FileName::fromString(configFile);
-    return fileName.parentDir().appendPath("test.cpp");
+    Utils::FilePath fileName = Utils::FilePath::fromString(configFile);
+    return fileName.parentDir().pathAppended("test.cpp");
 }
 
 static clang::format::FormatStyle constructStyle(const QByteArray &baseStyle = QByteArray())
@@ -247,16 +255,16 @@ static clang::format::FormatStyle constructStyle(const QByteArray &baseStyle = Q
 
 void createStyleFileIfNeeded(bool isGlobal)
 {
-    Utils::FileName path = isGlobal ? globalPath() : projectPath();
-    const QString configFile = path.appendPath(Constants::SETTINGS_FILE_NAME).toString();
+    const Utils::FilePath path = isGlobal ? globalPath() : projectPath();
+    const QString configFile = path.pathAppended(Constants::SETTINGS_FILE_NAME).toString();
 
     if (QFile::exists(configFile))
         return;
 
-    QDir().mkpath(path.parentDir().toString());
+    QDir().mkpath(path.toString());
     if (!isGlobal) {
         const Project *project = SessionManager::startupProject();
-        Utils::FileName possibleProjectConfig = project->rootProjectDirectory().appendPath(
+        Utils::FilePath possibleProjectConfig = project->rootProjectDirectory().pathAppended(
             Constants::SETTINGS_FILE_NAME);
         if (possibleProjectConfig.exists()) {
             // Just copy th .clang-format if current project has one.
@@ -294,13 +302,13 @@ static QByteArray configBaseStyleName(const QString &configFile)
         .trimmed();
 }
 
-static clang::format::FormatStyle styleForFile(Utils::FileName fileName, bool checkForSettings)
+static clang::format::FormatStyle styleForFile(Utils::FilePath fileName, bool checkForSettings)
 {
     QString configFile = configForFile(fileName, checkForSettings);
     if (configFile.isEmpty()) {
         // If no configuration is found create a global one (if it does not yet exist) and use it.
         createStyleFileIfNeeded(true);
-        configFile = globalPath().appendPath(Constants::SETTINGS_FILE_NAME).toString();
+        configFile = globalPath().pathAppended(Constants::SETTINGS_FILE_NAME).toString();
     }
 
     fileName = assumedPathForConfig(configFile);
@@ -317,18 +325,44 @@ static clang::format::FormatStyle styleForFile(Utils::FileName fileName, bool ch
     return constructStyle(configBaseStyleName(configFile));
 }
 
-clang::format::FormatStyle styleForFile(Utils::FileName fileName)
+clang::format::FormatStyle styleForFile(Utils::FilePath fileName)
 {
     return styleForFile(fileName, true);
 }
 
+static std::string readFile(const QString &path)
+{
+    QFile file(path);
+    if (!file.open(QFile::ReadOnly)) {
+        clang::format::FormatStyle defaultStyle = qtcStyle();
+        return clang::format::configurationAsText(defaultStyle);
+    }
+
+    const QByteArray content = file.readAll();
+    file.close();
+
+    return content.toStdString();
+}
+
+std::string currentProjectConfigText()
+{
+    const QString configPath = projectPath().pathAppended(Constants::SETTINGS_FILE_NAME).toString();
+    return readFile(configPath);
+}
+
+std::string currentGlobalConfigText()
+{
+    const QString configPath = globalPath().pathAppended(Constants::SETTINGS_FILE_NAME).toString();
+    return readFile(configPath);
+}
+
 clang::format::FormatStyle currentProjectStyle()
 {
-    return styleForFile(projectPath().appendPath(Constants::SAMPLE_FILE_NAME), false);
+    return styleForFile(projectPath().pathAppended(Constants::SAMPLE_FILE_NAME), false);
 }
 
 clang::format::FormatStyle currentGlobalStyle()
 {
-    return styleForFile(globalPath().appendPath(Constants::SAMPLE_FILE_NAME), false);
+    return styleForFile(globalPath().pathAppended(Constants::SAMPLE_FILE_NAME), false);
 }
 } // namespace ClangFormat

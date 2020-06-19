@@ -40,7 +40,7 @@ class CPLUSPLUS_EXPORT Subst
     Subst &operator = (const Subst &other);
 
 public:
-    Subst(Control *control, Subst *previous = 0)
+    Subst(Control *control, Subst *previous = nullptr)
         : _control(control)
         , _previous(previous)
     { }
@@ -196,8 +196,8 @@ public:
     Symbol *symbol(Symbol *symbol, Subst *subst);
 
     Symbol *instantiate(Template *templ,
-                        const FullySpecifiedType *const args, unsigned argc,
-                        Subst *subst = 0);
+                        const FullySpecifiedType *const args, int argc,
+                        Subst *subst = nullptr);
 
 private:
     CloneType _type;

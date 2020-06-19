@@ -4,20 +4,20 @@ import qbs.FileInfo
 import "qtc.js" as HelperFunctions
 
 Module {
-    property string qtcreator_display_version: '4.9.1'
+    property string qtcreator_display_version: '4.12.2'
     property string ide_version_major: '4'
-    property string ide_version_minor: '9'
-    property string ide_version_release: '1'
+    property string ide_version_minor: '12'
+    property string ide_version_release: '2'
     property string qtcreator_version: ide_version_major + '.' + ide_version_minor + '.'
                                        + ide_version_release
 
     property string ide_compat_version_major: '4'
-    property string ide_compat_version_minor: '9'
+    property string ide_compat_version_minor: '12'
     property string ide_compat_version_release: '0'
     property string qtcreator_compat_version: ide_compat_version_major + '.'
             + ide_compat_version_minor + '.' + ide_compat_version_release
 
-    property string qtcreator_copyright_year: '2019'
+    property string qtcreator_copyright_year: '2020'
     property string qtcreator_copyright_string: "(C) " + qtcreator_copyright_year + " The Qt Company Ltd"
 
     property string ide_display_name: 'Qt Creator'
@@ -48,7 +48,7 @@ Module {
             ? ide_app_target + ".app/Contents/Resources"
             : "share/qtcreator"
     property string ide_libexec_path: qbs.targetOS.contains("macos")
-            ? ide_data_path : qbs.targetOS.contains("windows")
+            ? ide_data_path + "/libexec" : qbs.targetOS.contains("windows")
             ? ide_app_path
             : "libexec/qtcreator"
     property string ide_bin_path: qbs.targetOS.contains("macos")
@@ -62,6 +62,8 @@ Module {
     property string ide_qbs_modules_path: ide_qbs_resources_path + "/modules"
     property string ide_qbs_imports_path: ide_qbs_resources_path + "/imports"
     property string ide_shared_sources_path: "src/shared"
+
+    property string litehtmlInstallDir: Environment.getEnv("LITEHTML_INSTALL_DIR")
 
     property bool make_dev_package: false
 

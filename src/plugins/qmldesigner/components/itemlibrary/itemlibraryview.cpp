@@ -27,6 +27,7 @@
 #include "itemlibrarywidget.h"
 #include <import.h>
 #include <importmanagerview.h>
+#include <qmlitemnode.h>
 #include <rewriterview.h>
 
 namespace QmlDesigner {
@@ -57,7 +58,8 @@ WidgetInfo ItemLibraryView::widgetInfo()
                             new WidgetInfo::ToolBarWidgetDefaultFactory<ItemLibraryWidget>(m_widget.data()),
                             QStringLiteral("Library"),
                             WidgetInfo::LeftPane,
-                            0);
+                            0,
+                            tr("Library"));
 }
 
 void ItemLibraryView::modelAttached(Model *model)
@@ -68,6 +70,7 @@ void ItemLibraryView::modelAttached(Model *model)
     updateImports();
     model->attachView(m_importManagerView);
     m_hasErrors = !rewriterView()->errors().isEmpty();
+    m_widget->setFlowMode(QmlItemNode(rootModelNode()).isFlowView());
 }
 
 void ItemLibraryView::modelAboutToBeDetached(Model *model)
@@ -95,15 +98,14 @@ void ItemLibraryView::setResourcePath(const QString &resourcePath)
 void ItemLibraryView::documentMessagesChanged(const QList<DocumentMessage> &errors, const QList<DocumentMessage> &)
 {
     if (m_hasErrors && errors.isEmpty())
-        /* For some reason we have to call update from the event loop */
-        QTimer::singleShot(0, m_widget, &ItemLibraryWidget::updateModel);
+        updateImports();
 
      m_hasErrors = !errors.isEmpty();
 }
 
 void ItemLibraryView::updateImports()
 {
-    m_widget->updateModel();
+    m_widget->delayedUpdateModel();
 }
 
 } //QmlDesigner

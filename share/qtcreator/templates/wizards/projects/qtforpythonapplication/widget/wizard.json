@@ -1,0 +1,98 @@
+{
+    "version": 1,
+    "supportedProjectTypes": [ "PythonProject" ],
+    "id": "F.QtForPythonApplicationWindowWidget",
+    "category": "F.ApplicationPySide",
+    "trDescription": "Creates a Qt for Python application that includes a Qt Designer-based widget (ui file)",
+    "trDisplayName": "Qt for Python - Window (UI file)",
+    "trDisplayCategory": "Application (Qt for Python)",
+    "icon": "../icons/icon.png",
+    "enabled": "%{JS: value('Plugins').indexOf('Python') >= 0}",
+
+    "options":
+    [
+        { "key": "SrcFileName", "value": "main.py" },
+        { "key": "PyProjectFile", "value": "main.pyproject" }
+    ],
+
+    "pages":
+    [
+        {
+            "trDisplayName": "Project Location",
+            "trShortTitle": "Location",
+            "typeId": "Project",
+            "name": "ProjectPath"
+        },
+        {
+            "trDisplayName": "Define Class",
+            "trShortTitle": "Details",
+            "typeId": "Fields",
+            "data" :
+            [
+                {
+                    "name": "Class",
+                    "trDisplayName": "Class name:",
+                    "mandatory": true,
+                    "type": "LineEdit",
+                    "data": { "validator": "(?:(?:[a-zA-Z_][a-zA-Z_0-9]*::)*[a-zA-Z_][a-zA-Z_0-9]*|)" }
+                },
+                {
+                    "name": "BaseCB",
+                    "trDisplayName": "Base class:",
+                    "type": "ComboBox",
+                    "data":
+                    {
+                        "items": [ "QWidget", "QDialog", "QMainWindow" ]
+                    }
+                },
+                {
+                    "name": "SrcFileName",
+                    "type": "LineEdit",
+                    "trDisplayName": "Source file:",
+                    "mandatory": true,
+                    "data": { "trText": "%{JS: Cpp.classToFileName(value('Class'), Util.preferredSuffix('text/x-python'))}" }
+                },
+                {
+                    "name": "ProjectFileName",
+                    "type": "LineEdit",
+                    "trDisplayName": "Project file:",
+                    "mandatory": true,
+                    "data": { "trText": "%{JS: Cpp.classToFileName(value('Class'), 'pyproject')}" }
+                }
+            ]
+        },
+        {
+            "trDisplayName": "Project Management",
+            "trShortTitle": "Summary",
+            "typeId": "Summary"
+        }
+    ],
+    "generators":
+    [
+        {
+            "typeId": "File",
+            "data":
+            [
+                {
+                    "source": "main.pyproject",
+                    "target": "%{PyProjectFile}",
+                    "openAsProject": true
+                },
+                {
+                    "source": "../main_widget.py",
+                    "target": "%{SrcFileName}",
+                    "openInEditor": true
+                },
+                {
+                    "source": "../main_widget.ui",
+                    "target": "form.ui"
+                },
+                {
+                    "source": "../../git.ignore",
+                    "target": ".gitignore",
+                    "condition": "%{JS: !value('IsSubproject') && value('VersionControl') === 'G.Git'}"
+                }
+            ]
+        }
+    ]
+}

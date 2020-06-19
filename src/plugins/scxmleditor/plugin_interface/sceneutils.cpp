@@ -224,7 +224,11 @@ void layout(const QList<QGraphicsItem*> &items)
         firstItem = initialItem->outputTransitions().constFirst()->connectedItem(initialItem);
         int index = childItems.indexOf(firstItem);
         if (index > 0)
+#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0)
             childItems.swap(index, 0);
+#else
+            childItems.swapItemsAt(index, 0);
+#endif
     }
 
     // Search final-item
@@ -234,7 +238,7 @@ void layout(const QList<QGraphicsItem*> &items)
 
     int startAngle = qrand() % 2 == 0 ? 180 : 90;
     int startDistance = 40 + childItems.count() * 10;
-    if (childItems.count() > 0) {
+    if (!childItems.isEmpty()) {
         // Init position of the items
         int angleDiff = 360 / (childItems.count() + 1);
         for (int i = 0; i < childItems.count(); ++i) {

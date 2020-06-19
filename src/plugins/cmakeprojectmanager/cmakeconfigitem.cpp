@@ -42,15 +42,10 @@ namespace CMakeProjectManager {
 
 CMakeConfigItem::CMakeConfigItem() = default;
 
-CMakeConfigItem::CMakeConfigItem(const CMakeConfigItem &other) : // What about inCMakeCache?
-    key(other.key), type(other.type), isAdvanced(other.isAdvanced),
-    isUnset(other.isUnset), value(other.value),
-    documentation(other.documentation), values(other.values)
-{}
-
 CMakeConfigItem::CMakeConfigItem(const QByteArray &k, Type t,
-                                 const QByteArray &d, const QByteArray &v) :
-    key(k), type(t), value(v), documentation(d)
+                                 const QByteArray &d, const QByteArray &v,
+                                 const QStringList &s) :
+    key(k), type(t), value(v), documentation(d), values(s)
 { }
 
 CMakeConfigItem::CMakeConfigItem(const QByteArray &k, const QByteArray &v) :
@@ -154,6 +149,45 @@ CMakeConfigItem::Type CMakeConfigItem::typeStringToType(const QByteArray &type)
     return CMakeConfigItem::INTERNAL;
 }
 
+QString CMakeConfigItem::typeToTypeString(const CMakeConfigItem::Type t)
+{
+    switch (t) {
+    case CMakeProjectManager::CMakeConfigItem::FILEPATH:
+        return {"FILEPATH"};
+    case CMakeProjectManager::CMakeConfigItem::PATH:
+        return {"PATH"};
+    case CMakeProjectManager::CMakeConfigItem::STRING:
+        return {"STRING"};
+    case CMakeProjectManager::CMakeConfigItem::INTERNAL:
+        return {"INTERNAL"};
+    case CMakeProjectManager::CMakeConfigItem::STATIC:
+        return {"STATIC"};
+    case CMakeConfigItem::BOOL:
+        return {"BOOL"};
+    }
+    QTC_CHECK(false);
+    return {};
+}
+
+Utils::optional<bool> CMakeConfigItem::toBool(const QByteArray &value)
+{
+    // Taken from CMakes if(<constant>) documentation:
+    // "Named boolean constants are case-insensitive."
+    const QString v = QString::fromUtf8(value).toUpper();
+
+    bool isInt = false;
+    v.toInt(&isInt);
+
+    // "False if the constant is 0, OFF, NO, FALSE, N, IGNORE, NOTFOUND, the empty string, or ends in the suffix -NOTFOUND."
+    if (v == "0" || v == "OFF" || v == "NO" || v == "FALSE" || v == "N" || v == "IGNORE" || v == "NOTFOUND" || v == "" || v.endsWith("-NOTFOUND"))
+        return false;
+    // "True if the constant is 1, ON, YES, TRUE, Y, or a non-zero number."
+    if (v == "1" || v == "ON" || v == "YES" || v == "TRUE" || v == "Y" || isInt)
+        return true;
+
+    return {};
+}
+
 QString CMakeConfigItem::expandedValue(const ProjectExplorer::Kit *k) const
 {
     return expandedValue(k->macroExpander());
@@ -249,7 +283,7 @@ static QByteArrayList splitCMakeCacheLine(const QByteArray &line) {
                             << line.mid(equalPos + 1);
 }
 
-QList<CMakeConfigItem> CMakeConfigItem::itemsFromFile(const Utils::FileName &cacheFile, QString *errorMessage)
+QList<CMakeConfigItem> CMakeConfigItem::itemsFromFile(const Utils::FilePath &cacheFile, QString *errorMessage)
 {
     CMakeConfig result;
     QFile cache(cacheFile.toString());
@@ -351,6 +385,18 @@ QString CMakeConfigItem::toArgument(const Utils::MacroExpander *expander) const
     if (isUnset)
         return "-U" + QString::fromUtf8(key);
     return "-D" + toString(expander);
+}
+
+QString CMakeConfigItem::toCMakeSetLine(const Utils::MacroExpander *expander) const
+{
+    if (isUnset) {
+        return QString("unset(\"%1\" CACHE)").arg(QString::fromUtf8(key));
+    }
+    return QString("set(\"%1\" \"%2\" CACHE \"%3\" \"%4\" FORCE)")
+        .arg(QString::fromUtf8(key))
+        .arg(expandedValue(expander))
+        .arg(typeToTypeString(type))
+        .arg(QString::fromUtf8(documentation));
 }
 
 bool CMakeConfigItem::operator==(const CMakeConfigItem &o) const

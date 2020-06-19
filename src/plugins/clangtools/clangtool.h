@@ -26,60 +26,160 @@
 #pragma once
 
 #include "clangfileinfo.h"
+#include "clangtoolsdiagnostic.h"
+#include "clangtoolsdiagnosticmodel.h"
+#include "clangtoolslogfilereader.h"
+
+#include <debugger/debuggermainwindow.h>
 
 #include <projectexplorer/runconfiguration.h>
 #include <cpptools/projectinfo.h>
 
-namespace Debugger { class DetailedErrorView; }
-namespace Utils { class FileName; }
+QT_BEGIN_NAMESPACE
+class QFrame;
+class QToolButton;
+QT_END_NAMESPACE
+
+namespace CppTools {
+class ClangDiagnosticConfig;
+}
+namespace Debugger {
+class DetailedErrorView;
+}
+namespace ProjectExplorer {
+class RunControl;
+}
+namespace Utils {
+class FilePath;
+class FancyLineEdit;
+} // namespace Utils
 
 namespace ClangTools {
 namespace Internal {
 
+class InfoBarWidget;
 class ClangToolsDiagnosticModel;
+class ClangToolRunWorker;
 class Diagnostic;
+class DiagnosticFilterModel;
+class DiagnosticView;
+class RunSettings;
+class SelectFixitsCheckBox;
+
+const char ClangTidyClazyPerspectiveId[] = "ClangTidyClazy.Perspective";
 
 class ClangTool : public QObject
 {
     Q_OBJECT
 
 public:
-    ClangTool(const QString &name);
-    ~ClangTool() override;
+    static ClangTool *instance();
 
-    virtual void startTool(bool askUserForFileSelection) = 0;
+    ClangTool();
 
-    virtual QList<Diagnostic> read(const QString &filePath,
-                                   const Utils::FileName &projectRootDir,
-                                   const QString &logFilePath,
-                                   QString *errorMessage) const = 0;
+    void selectPerspective();
+
+    enum class FileSelection {
+        AllFiles,
+        CurrentFile,
+        AskUser,
+    };
+    void startTool(FileSelection fileSelection);
+    void startTool(FileSelection fileSelection,
+                   const RunSettings &runSettings,
+                   const CppTools::ClangDiagnosticConfig &diagnosticConfig);
+
+    Diagnostics read(OutputFileFormat outputFileFormat,
+                     const QString &logFilePath,
+                     const QString &mainFilePath,
+                     const QSet<Utils::FilePath> &projectFiles,
+                     QString *errorMessage) const;
 
     FileInfos collectFileInfos(ProjectExplorer::Project *project,
-                               bool askUserForFileSelection) const;
+                               FileSelection fileSelection);
 
     // For testing.
     QSet<Diagnostic> diagnostics() const;
 
     const QString &name() const;
 
-    virtual void onNewDiagnosticsAvailable(const QList<Diagnostic> &diagnostics);
+    void onNewDiagnosticsAvailable(const Diagnostics &diagnostics);
+
+    QAction *startAction() const { return m_startAction; }
+    QAction *startOnCurrentFileAction() const { return m_startOnCurrentFileAction; }
 
 signals:
-    void finished(bool success); // For testing.
+    void finished(const QString &errorText); // For testing.
 
-protected:
-    virtual void handleStateUpdate() = 0;
+private:
+    enum class State {
+        Initial,
+        PreparationStarted,
+        PreparationFailed,
+        AnalyzerRunning,
+        StoppedByUser,
+        AnalyzerFinished,
+        ImportFinished,
+    };
+    void setState(State state);
+    void update();
+    void updateForCurrentState();
+    void updateForInitialState();
 
-    void setToolBusy(bool busy);
+    void help();
+
+    void filter();
+    void clearFilter();
+    void filterForCurrentKind();
+    void filterOutCurrentKind();
+    void setFilterOptions(const OptionalFilterOptions &filterOptions);
+
+    void onBuildFailed();
+    void onStartFailed();
+    void onStarted();
+    void onRunControlStopped();
+
     void initDiagnosticView();
+    void loadDiagnosticsFromFiles();
+
+    DiagnosticItem *diagnosticItem(const QModelIndex &index) const;
+    void showOutputPane();
+
+    void reset();
+
+    FileInfoProviders fileInfoProviders(ProjectExplorer::Project *project,
+                                        const FileInfos &allFileInfos);
 
     ClangToolsDiagnosticModel *m_diagnosticModel = nullptr;
-    QPointer<Debugger::DetailedErrorView> m_diagnosticView;
+    ProjectExplorer::RunControl *m_runControl = nullptr;
+    ClangToolRunWorker *m_runWorker = nullptr;
+
+    InfoBarWidget *m_infoBarWidget = nullptr;
+    DiagnosticView *m_diagnosticView = nullptr;;
 
     QAction *m_startAction = nullptr;
+    QAction *m_startOnCurrentFileAction = nullptr;
     QAction *m_stopAction = nullptr;
-    bool m_running = false;
-    bool m_toolBusy = false;
+
+    State m_state = State::Initial;
+    int m_filesCount = 0;
+    int m_filesSucceeded = 0;
+    int m_filesFailed = 0;
+
+    DiagnosticFilterModel *m_diagnosticFilterModel = nullptr;
+
+    QAction *m_showFilter = nullptr;
+    SelectFixitsCheckBox *m_selectFixitsCheckBox = nullptr;
+    QToolButton *m_applyFixitsButton = nullptr;
+
+    QAction *m_openProjectSettings = nullptr;
+    QAction *m_goBack = nullptr;
+    QAction *m_goNext = nullptr;
+    QAction *m_loadExported = nullptr;
+    QAction *m_clear = nullptr;
+    QAction *m_expandCollapse = nullptr;
+
+    Utils::Perspective m_perspective{ClangTidyClazyPerspectiveId, tr("Clang-Tidy and Clazy")};
 
 private:
     const QString m_name;

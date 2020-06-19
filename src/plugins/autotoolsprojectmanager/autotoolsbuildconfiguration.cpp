@@ -26,84 +26,51 @@
 ****************************************************************************/
 
 #include "autotoolsbuildconfiguration.h"
-#include "autotoolsbuildsettingswidget.h"
-#include "makestep.h"
-#include "autotoolsproject.h"
-#include "autotoolsprojectconstants.h"
-#include "autogenstep.h"
-#include "autoreconfstep.h"
-#include "configurestep.h"
 
-#include <coreplugin/icore.h>
+#include "autotoolsprojectconstants.h"
+
 #include <projectexplorer/buildinfo.h>
 #include <projectexplorer/buildsteplist.h>
-#include <projectexplorer/kitinformation.h>
+#include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
-#include <projectexplorer/toolchain.h>
-#include <utils/mimetypes/mimedatabase.h>
-#include <utils/qtcassert.h>
 
-#include <QFileInfo>
-#include <QInputDialog>
-
-using namespace AutotoolsProjectManager;
-using namespace AutotoolsProjectManager::Constants;
-using namespace Internal;
 using namespace ProjectExplorer;
-using namespace ProjectExplorer::Constants;
+using namespace Utils;
 
+namespace AutotoolsProjectManager {
+namespace Internal {
 
 // AutotoolsBuildConfiguration
 
-AutotoolsBuildConfiguration::AutotoolsBuildConfiguration(Target *parent, Core::Id id)
-    : BuildConfiguration(parent, id)
+class AutotoolsBuildConfiguration : public BuildConfiguration
 {
-    // /<foobar> is used so the un-changed check in setBuildDirectory() works correctly.
-    // The leading / is to avoid the relative the path expansion in BuildConfiguration::buildDirectory.
-    setBuildDirectory(Utils::FileName::fromString("/<foobar>"));
-}
+    Q_DECLARE_TR_FUNCTIONS(AutotoolsProjectManager::Internal::AutotoolsBuildConfiguration)
 
-void AutotoolsBuildConfiguration::initialize(const BuildInfo &info)
-{
-    BuildConfiguration::initialize(info);
+public:
+    AutotoolsBuildConfiguration(Target *target, Core::Id id)
+        : BuildConfiguration(target, id)
+    {
+        // /<foobar> is used so the un-changed check in setBuildDirectory() works correctly.
+        // The leading / is to avoid the relative the path expansion in BuildConfiguration::buildDirectory.
+        setBuildDirectory(Utils::FilePath::fromString("/<foobar>"));
+        setBuildDirectoryHistoryCompleter("AutoTools.BuildDir.History");
+        setConfigWidgetDisplayName(tr("Autotools Manager"));
 
-    BuildStepList *buildSteps = stepList(BUILDSTEPS_BUILD);
+        // ### Build Steps Build ###
+        QFile autogenFile(target->project()->projectDirectory().toString() + "/autogen.sh");
+        if (autogenFile.exists())
+            appendInitialBuildStep(Constants::AUTOGEN_STEP_ID); // autogen.sh
+        else
+            appendInitialBuildStep(Constants::AUTORECONF_STEP_ID); // autoreconf
 
-    // ### Build Steps Build ###
-    // autogen.sh or autoreconf
-    QFile autogenFile(target()->project()->projectDirectory().toString() + "/autogen.sh");
-    if (autogenFile.exists()) {
-        auto autogenStep = new AutogenStep(buildSteps);
-        buildSteps->appendStep(autogenStep);
-    } else {
-        auto autoreconfStep = new AutoreconfStep(buildSteps);
-        buildSteps->appendStep(autoreconfStep);
+        appendInitialBuildStep(Constants::CONFIGURE_STEP_ID); // ./configure.
+        appendInitialBuildStep(Constants::MAKE_STEP_ID); // make
+
+        // ### Build Steps Clean ###
+        appendInitialBuildStep(Constants::MAKE_STEP_ID);
     }
-
-    // ./configure.
-    auto configureStep = new ConfigureStep(buildSteps);
-    buildSteps->appendStep(configureStep);
-    connect(this, &BuildConfiguration::buildDirectoryChanged,
-            configureStep, &ConfigureStep::notifyBuildDirectoryChanged);
-
-    // make
-    auto makeStep = new MakeStep(buildSteps);
-    buildSteps->appendStep(makeStep);
-
-    // ### Build Steps Clean ###
-    BuildStepList *cleanSteps = stepList(BUILDSTEPS_CLEAN);
-    auto cleanMakeStep = new MakeStep(cleanSteps);
-    cleanSteps->appendStep(cleanMakeStep);
-}
-
-NamedWidget *AutotoolsBuildConfiguration::createConfigWidget()
-{
-    return new AutotoolsBuildSettingsWidget(this);
-}
-
-
-// AutotoolsBuildConfiguration class
+};
 
 AutotoolsBuildConfigurationFactory::AutotoolsBuildConfigurationFactory()
 {
@@ -112,34 +79,19 @@ AutotoolsBuildConfigurationFactory::AutotoolsBuildConfigurationFactory()
 
     setSupportedProjectType(Constants::AUTOTOOLS_PROJECT_ID);
     setSupportedProjectMimeTypeName(Constants::MAKEFILE_MIMETYPE);
+
+    setBuildGenerator([](const Kit *, const FilePath &projectPath, bool forSetup) {
+        BuildInfo info;
+        info.typeName = BuildConfiguration::tr("Build");
+        info.buildDirectory = forSetup
+                ? FilePath::fromString(projectPath.toFileInfo().absolutePath()) : projectPath;
+        if (forSetup) {
+            //: The name of the build configuration created by default for a autotools project.
+            info.displayName = BuildConfiguration::tr("Default");
+        }
+        return QList<BuildInfo>{info};
+    });
 }
 
-QList<BuildInfo> AutotoolsBuildConfigurationFactory::availableBuilds(const Target *parent) const
-{
-    return {createBuildInfo(parent->kit(), parent->project()->projectDirectory())};
-}
-
-QList<BuildInfo> AutotoolsBuildConfigurationFactory::availableSetups(const Kit *k, const QString &projectPath) const
-{
-    BuildInfo info = createBuildInfo(k,
-                                     Utils::FileName::fromString(AutotoolsProject::defaultBuildDirectory(projectPath)));
-    //: The name of the build configuration created by default for a autotools project.
-    info.displayName = tr("Default");
-    return {info};
-}
-
-BuildInfo AutotoolsBuildConfigurationFactory::createBuildInfo(const Kit *k,
-                                                              const Utils::FileName &buildDir) const
-{
-    BuildInfo info(this);
-    info.typeName = tr("Build");
-    info.buildDirectory = buildDir;
-    info.kitId = k->id();
-    return info;
-}
-
-BuildConfiguration::BuildType AutotoolsBuildConfiguration::buildType() const
-{
-    // TODO: Should I return something different from Unknown?
-    return Unknown;
-}
+} // Internal
+} // AutotoolsProjectManager

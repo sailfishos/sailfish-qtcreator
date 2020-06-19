@@ -29,7 +29,7 @@
 
 #include <QProcess>
 
-namespace Utils { class FileName; }
+namespace Utils { class FilePath; }
 namespace ProjectExplorer {
 
 class IOutputParser;
@@ -57,6 +57,8 @@ protected:
     ~AbstractProcessStep() override;
     bool init() override;
     void doRun() override;
+    void setLowPriority();
+    virtual void finish(bool success);
 
     virtual void processStarted();
     virtual void processFinished(int exitCode, QProcess::ExitStatus status);
@@ -68,7 +70,6 @@ protected:
     void doCancel() override;
 
 private:
-    virtual void finish(bool success);
 
     void processReadyReadStdOutput();
     void processReadyReadStdError();
@@ -79,9 +80,6 @@ private:
     void taskAdded(const Task &task, int linkedOutputLines = 0, int skipLines = 0);
 
     void outputAdded(const QString &string, BuildStep::OutputFormat format);
-
-    void purgeCache(bool useSoftLimit);
-    void insertInCache(const QString &relativePath, const Utils::FileName &absPath);
 
     class Private;
     Private *d;

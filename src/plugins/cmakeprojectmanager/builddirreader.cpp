@@ -25,6 +25,7 @@
 
 #include "builddirreader.h"
 
+#include "fileapireader.h"
 #include "servermodereader.h"
 #include "tealeafreader.h"
 
@@ -39,18 +40,19 @@ namespace Internal {
 // BuildDirReader:
 // --------------------------------------------------------------------
 
-BuildDirReader *BuildDirReader::createReader(const BuildDirParameters &p)
+std::unique_ptr<BuildDirReader> BuildDirReader::createReader(const BuildDirParameters &p)
 {
     CMakeTool *cmake = p.cmakeTool();
-    QTC_ASSERT(p.isValid() && cmake, return nullptr);
-    if (cmake->hasServerMode())
-        return new ServerModeReader;
-    return new TeaLeafReader;
-}
+    QTC_ASSERT(p.isValid() && cmake, return {});
 
-void BuildDirReader::setParameters(const BuildDirParameters &p)
-{
-    m_parameters = p;
+    switch (cmake->readerType()) {
+    case CMakeTool::FileApi:
+        return std::make_unique<FileApiReader>();
+    case CMakeTool::ServerMode:
+        return std::make_unique<ServerModeReader>();
+    default:
+        return std::make_unique<TeaLeafReader>();
+    }
 }
 
 } // namespace Internal

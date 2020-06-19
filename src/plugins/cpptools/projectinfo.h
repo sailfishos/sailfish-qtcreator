@@ -27,10 +27,10 @@
 
 #include "cpptools_global.h"
 
-#include "cpprawprojectpart.h"
 #include "projectpart.h"
 
 #include <projectexplorer/project.h>
+#include <projectexplorer/rawprojectpart.h>
 #include <projectexplorer/toolchain.h>
 
 #include <QHash>
@@ -39,49 +39,6 @@
 #include <QVector>
 
 namespace CppTools {
-
-class KitInfo;
-
-class ToolChainInfo
-{
-public:
-    ToolChainInfo() = default;
-    ToolChainInfo(const ProjectExplorer::ToolChain *toolChain,
-                  const QString &sysRootPath);
-
-    bool isValid() const { return type.isValid(); }
-
-public:
-    Core::Id type;
-    bool isMsvc2015ToolChain = false;
-    unsigned wordWidth = 0;
-    QString targetTriple;
-    QStringList extraCodeModelFlags;
-
-    QString sysRootPath; // For headerPathsRunner.
-    ProjectExplorer::ToolChain::BuiltInHeaderPathsRunner headerPathsRunner;
-    ProjectExplorer::ToolChain::MacroInspectionRunner macroInspectionRunner;
-};
-
-class CPPTOOLS_EXPORT ProjectUpdateInfo
-{
-public:
-    ProjectUpdateInfo() = default;
-    ProjectUpdateInfo(ProjectExplorer::Project *project,
-                      const KitInfo &kitInfo,
-                      const RawProjectParts &rawProjectParts);
-    bool isValid() const { return project && !rawProjectParts.isEmpty(); }
-
-public:
-    QPointer<ProjectExplorer::Project> project;
-    QVector<RawProjectPart> rawProjectParts;
-
-    const ProjectExplorer::ToolChain *cToolChain = nullptr;
-    const ProjectExplorer::ToolChain *cxxToolChain = nullptr;
-
-    ToolChainInfo cToolChainInfo;
-    ToolChainInfo cxxToolChainInfo;
-};
 
 class CPPTOOLS_EXPORT ProjectInfo
 {

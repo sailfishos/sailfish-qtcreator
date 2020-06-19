@@ -51,18 +51,27 @@ public:
     QString targetDirectory() const { return m_targetDirectory; }
     void setTargetDirectory(const QString &directoryPath);
 
+    bool qtForMCUs() const { return m_qtForMCUs; }
+    void setQtForMCUs(bool qtForMCUs);
+
     QStringList importPaths() const { return m_importPaths; }
     void setImportPaths(const QStringList &paths);
 
+    QStringList fileSelectors() const { return m_fileSelectors; }
+    void setFileSelectors(const QStringList &selectors);
+
     QStringList files() const;
     bool matchesFile(const QString &filePath) const;
+
+    bool forceFreeType() const { return m_forceFreeType; };
+    void setForceFreeType(bool);
 
     QString mainFile() const { return m_mainFile; }
     void setMainFile(const QString &mainFilePath) { m_mainFile = mainFilePath; }
 
     void appendContent(QmlProjectContentItem *item) { m_content.append(item); }
 
-    QList<Utils::EnvironmentItem> environment() const;
+    Utils::EnvironmentItems environment() const;
     void addToEnviroment(const QString &key, const QString &value);
 
 signals:
@@ -72,9 +81,12 @@ protected:
     QString m_sourceDirectory;
     QString m_targetDirectory;
     QStringList m_importPaths;
+    QStringList m_fileSelectors;
     QString m_mainFile;
-    QList<Utils::EnvironmentItem> m_environment;
-    QList<QmlProjectContentItem *> m_content; // content property
+    Utils::EnvironmentItems m_environment;
+    QVector<QmlProjectContentItem *> m_content; // content property
+    bool m_forceFreeType = false;
+    bool m_qtForMCUs = false;
 };
 
 } // namespace QmlProjectManager

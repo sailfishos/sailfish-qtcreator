@@ -26,21 +26,23 @@
 #pragma once
 
 #include "clangfileinfo.h"
+#include "clangtoolssettings.h"
 
-#include <projectexplorer/runconfiguration.h>
+#include <cpptools/clangdiagnosticconfig.h>
 #include <cpptools/projectinfo.h>
+#include <projectexplorer/runcontrol.h>
 #include <utils/environment.h>
 #include <utils/temporarydirectory.h>
 
+#include <QElapsedTimer>
 #include <QFutureInterface>
+#include <QSet>
 #include <QStringList>
 
 namespace ClangTools {
 namespace Internal {
 
-class ClangTool;
 class ClangToolRunner;
-class Diagnostic;
 class ProjectBuilder;
 
 struct AnalyzeUnit {
@@ -52,30 +54,44 @@ struct AnalyzeUnit {
 };
 using AnalyzeUnits = QList<AnalyzeUnit>;
 
-class ClangToolRunControl : public ProjectExplorer::RunWorker
+using RunnerCreator = std::function<ClangToolRunner*()>;
+
+struct QueueItem {
+    AnalyzeUnit unit;
+    RunnerCreator runnerCreator;
+};
+using QueueItems = QList<QueueItem>;
+
+class ClangToolRunWorker : public ProjectExplorer::RunWorker
 {
     Q_OBJECT
 
 public:
-    ClangToolRunControl(ProjectExplorer::RunControl *runControl,
-                        ProjectExplorer::Target *target,
-                        const FileInfos &fileInfos);
+    ClangToolRunWorker(ProjectExplorer::RunControl *runControl,
+                       const RunSettings &runSettings,
+                       const CppTools::ClangDiagnosticConfig &diagnosticConfig,
+                       const FileInfos &fileInfos,
+                       bool buildBeforeAnalysis);
 
-    bool success() const { return m_success; } // For testing.
+    int filesAnalyzed() const { return m_filesAnalyzed.size(); }
+    int filesNotAnalyzed() const { return m_filesNotAnalyzed.size(); }
+    int totalFilesToAnalyze() const { return m_fileInfos.size(); }
 
-    virtual ClangTool *tool() = 0;
+signals:
+    void buildFailed();
+    void runnerFinished();
+    void startFailed();
 
 protected:
-    void init();
-
-    virtual ClangToolRunner *createRunner() = 0;
-
     void onRunnerFinishedWithSuccess(const QString &filePath);
     void onRunnerFinishedWithFailure(const QString &errorMessage, const QString &errorDetails);
 
 private:
     void start() final;
     void stop() final;
+
+    QList<RunnerCreator> runnerCreators();
+    template <class T> ClangToolRunner *createRunner();
 
     AnalyzeUnits unitsToAnalyze();
     void analyzeNextFile();
@@ -87,15 +103,14 @@ private:
 
     void finalize();
 
-protected:
-    ProjectBuilder *m_projectBuilder;
-    Utils::Environment m_environment;
-    QString m_clangExecutable;
-    Utils::TemporaryDirectory m_temporaryDir;
-
 private:
-    QPointer<ProjectExplorer::Target> m_target;
+    RunSettings m_runSettings;
+    CppTools::ClangDiagnosticConfig m_diagnosticConfig;
     FileInfos m_fileInfos;
+
+    ProjectBuilder *m_projectBuilder = nullptr;
+    Utils::Environment m_environment;
+    Utils::TemporaryDirectory m_temporaryDir;
 
     CppTools::ProjectInfo m_projectInfoBeforeBuild;
     CppTools::ProjectInfo m_projectInfo;
@@ -103,12 +118,14 @@ private:
     Core::Id m_toolChainType;
 
     QFutureInterface<void> m_progress;
-    AnalyzeUnits m_unitsToProcess;
+    QueueItems m_queue;
+    QSet<Utils::FilePath> m_projectFiles;
     QSet<ClangToolRunner *> m_runners;
-    int m_initialFilesToProcessSize = 0;
-    int m_filesAnalyzed = 0;
-    int m_filesNotAnalyzed = 0;
-    bool m_success = false;
+    int m_initialQueueSize = 0;
+    QSet<QString> m_filesAnalyzed;
+    QSet<QString> m_filesNotAnalyzed;
+
+    QElapsedTimer m_elapsed;
 };
 
 } // namespace Internal

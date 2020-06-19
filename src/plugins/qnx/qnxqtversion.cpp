@@ -46,23 +46,6 @@ static char SDP_PATH_KEY[] = "SDKPath";
 
 QnxQtVersion::QnxQtVersion() = default;
 
-QnxQtVersion::QnxQtVersion(const Utils::FileName &path, bool isAutoDetected,
-                           const QString &autoDetectionSource) :
-    QtSupport::BaseQtVersion(path, isAutoDetected, autoDetectionSource)
-{
-    setUnexpandedDisplayName(defaultUnexpandedDisplayName(path, false));
-}
-
-QnxQtVersion *QnxQtVersion::clone() const
-{
-    return new QnxQtVersion(*this);
-}
-
-QString QnxQtVersion::type() const
-{
-    return QLatin1String(Constants::QNX_QNX_QT);
-}
-
 QString QnxQtVersion::description() const
 {
     //: Qt Version is meant for QNX
@@ -97,29 +80,25 @@ QString QnxQtVersion::qnxHost() const
     return QString();
 }
 
-Utils::FileName QnxQtVersion::qnxTarget() const
+Utils::FilePath QnxQtVersion::qnxTarget() const
 {
     if (!m_environmentUpToDate)
         updateEnvironment();
 
     foreach (const Utils::EnvironmentItem &item, m_qnxEnv) {
         if (item.name == QLatin1String(Constants::QNX_TARGET_KEY))
-            return Utils::FileName::fromUserInput(item.value);
+            return Utils::FilePath::fromUserInput(item.value);
     }
 
-    return Utils::FileName();
+    return Utils::FilePath();
 }
 
 QString QnxQtVersion::cpuDir() const
 {
-    ensureMkSpecParsed();
-    return m_cpuDir;
-}
-
-void QnxQtVersion::parseMkSpec(ProFileEvaluator *evaluator) const
-{
-    m_cpuDir = evaluator->value(QLatin1String("QNX_CPUDIR"));
-    BaseQtVersion::parseMkSpec(evaluator);
+    const Abis abis = qtAbis();
+    if (abis.empty())
+        return QString();
+    return QnxUtils::cpuDirFromAbi(abis.at(0));
 }
 
 QVariantMap QnxQtVersion::toMap() const
@@ -135,10 +114,10 @@ void QnxQtVersion::fromMap(const QVariantMap &map)
     setSdpPath(QDir::fromNativeSeparators(map.value(QLatin1String(SDP_PATH_KEY)).toString()));
 }
 
-QList<ProjectExplorer::Abi> QnxQtVersion::detectQtAbis() const
+ProjectExplorer::Abis QnxQtVersion::detectQtAbis() const
 {
     ensureMkSpecParsed();
-    return QnxUtils::convertAbis(qtAbisFromLibrary(qtCorePaths()));
+    return QnxUtils::convertAbis(BaseQtVersion::detectQtAbis());
 }
 
 void QnxQtVersion::addToEnvironment(const ProjectExplorer::Kit *k, Utils::Environment &env) const
@@ -147,7 +126,7 @@ void QnxQtVersion::addToEnvironment(const ProjectExplorer::Kit *k, Utils::Enviro
     updateEnvironment();
     env.modify(m_qnxEnv);
 
-    env.prependOrSetLibrarySearchPath(qmakeProperty("QT_INSTALL_LIBS", PropertyVariantDev));
+    env.prependOrSetLibrarySearchPath(libraryPath().toString());
 }
 
 Utils::Environment QnxQtVersion::qmakeRunEnvironment() const
@@ -201,9 +180,20 @@ void QnxQtVersion::updateEnvironment() const
     }
 }
 
-QList<Utils::EnvironmentItem> QnxQtVersion::environment() const
+Utils::EnvironmentItems QnxQtVersion::environment() const
 {
     return QnxUtils::qnxEnvironment(sdpPath());
+}
+
+
+// Factory
+
+QnxQtVersionFactory::QnxQtVersionFactory()
+{
+    setQtVersionCreator([] { return new QnxQtVersion; });
+    setSupportedType(Constants::QNX_QNX_QT);
+    setPriority(50);
+    setRestrictionChecker([](const SetupData &setup) { return setup.isQnx; });
 }
 
 } // namespace Internal

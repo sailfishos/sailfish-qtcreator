@@ -25,13 +25,12 @@
 
 #include "baremetaldebugsupport.h"
 #include "baremetaldevice.h"
-#include "baremetalgdbcommandsdeploystep.h"
 
-#include "gdbserverprovider.h"
-#include "gdbserverprovidermanager.h"
+#include "debugserverprovidermanager.h"
+#include "idebugserverprovider.h"
 
-#include <debugger/debuggerruncontrol.h>
 #include <debugger/debuggerkitinformation.h>
+#include <debugger/debuggerruncontrol.h>
 
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/buildsteplist.h>
@@ -48,93 +47,46 @@
 
 using namespace Debugger;
 using namespace ProjectExplorer;
+using namespace Utils;
 
 namespace BareMetal {
 namespace Internal {
 
+// BareMetalDebugSupport
+
 BareMetalDebugSupport::BareMetalDebugSupport(RunControl *runControl)
     : Debugger::DebuggerRunTool(runControl)
 {
-    auto dev = qSharedPointerCast<const BareMetalDevice>(device());
+    const auto dev = qSharedPointerCast<const BareMetalDevice>(device());
     if (!dev) {
         reportFailure(tr("Cannot debug: Kit has no device."));
         return;
     }
 
-    const QString providerId = dev->gdbServerProviderId();
-    const GdbServerProvider *p = GdbServerProviderManager::findProvider(providerId);
+    const QString providerId = dev->debugServerProviderId();
+    IDebugServerProvider *p = DebugServerProviderManager::findProvider(providerId);
     if (!p) {
-        reportFailure(tr("No GDB server provider found for %1").arg(providerId));
+        reportFailure(tr("No debug server provider found for %1").arg(providerId));
         return;
     }
 
-    if (p->startupMode() == GdbServerProvider::StartupOnNetwork) {
-        Runnable r;
-        r.executable = p->executable();
-        // We need to wrap the command arguments depending on a host OS,
-        // as the bare metal's GDB servers are launched on a host,
-        // but not on a target.
-        r.commandLineArguments = Utils::QtcProcess::joinArgs(p->arguments(), Utils::HostOsInfo::hostOs());
-        m_gdbServer = new SimpleTargetRunner(runControl);
-        m_gdbServer->setRunnable(r);
-        addStartDependency(m_gdbServer);
-    }
+    if (RunWorker *runner = p->targetRunner(runControl))
+        addStartDependency(runner);
 }
 
 void BareMetalDebugSupport::start()
 {
-    const auto rc = runControl()->runConfiguration();
-    QTC_ASSERT(rc, reportFailure(); return);
-    const auto exeAspect = rc->aspect<ExecutableAspect>();
-    QTC_ASSERT(exeAspect, reportFailure(); return);
-
-    const QString bin = exeAspect->executable().toString();
-    if (bin.isEmpty()) {
-        reportFailure(tr("Cannot debug: Local executable is not set."));
-        return;
-    }
-    if (!QFile::exists(bin)) {
-        reportFailure(tr("Cannot debug: Could not find executable for \"%1\".").arg(bin));
-        return;
-    }
-
-    const Target *target = rc->target();
-    QTC_ASSERT(target, reportFailure(); return);
-
-    auto dev = qSharedPointerCast<const BareMetalDevice>(device());
+    const auto dev = qSharedPointerCast<const BareMetalDevice>(device());
     QTC_ASSERT(dev, reportFailure(); return);
-    const GdbServerProvider *p = GdbServerProviderManager::findProvider(dev->gdbServerProviderId());
+    IDebugServerProvider *p = DebugServerProviderManager::findProvider(
+                dev->debugServerProviderId());
     QTC_ASSERT(p, reportFailure(); return);
 
-#if 0
-    // Currently baremetal plugin does not provide way to configure deployments steps
-    // FIXME: Should it?
-    QString commands;
-    if (const BuildConfiguration *bc = target->activeBuildConfiguration()) {
-        if (BuildStepList *bsl = bc->stepList(BareMetalGdbCommandsDeployStep::stepId())) {
-            foreach (const BareMetalGdbCommandsDeployStep *bs, bsl->allOfType<BareMetalGdbCommandsDeployStep>()) {
-                if (!commands.endsWith("\n"))
-                    commands.append("\n");
-                commands.append(bs->gdbCommands());
-            }
-        }
-    }
-    setCommandsAfterConnect(commands);
-#endif
-
-    Runnable inferior;
-    inferior.executable = bin;
-    if (auto aspect = rc->aspect<ArgumentsAspect>())
-        inferior.commandLineArguments = aspect->arguments(rc->macroExpander());
-    setInferior(inferior);
-    setSymbolFile(bin);
-    setStartMode(AttachToRemoteServer);
-    setCommandsAfterConnect(p->initCommands()); // .. and here?
-    setCommandsForReset(p->resetCommands());
-    setRemoteChannel(p->channel());
-    setUseContinueInsteadOfRun(true);
-
-    DebuggerRunTool::start();
+    QString errorMessage;
+    if (!p->aboutToRun(this, errorMessage))
+        reportFailure(errorMessage);
+    else
+        DebuggerRunTool::start();
 }
 
 } // namespace Internal

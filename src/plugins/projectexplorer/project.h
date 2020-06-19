@@ -27,30 +27,34 @@
 
 #include "projectexplorer_export.h"
 
+#include "deploymentdata.h"
 #include "kit.h"
-#include "subscription.h"
 
 #include <coreplugin/id.h>
 #include <coreplugin/idocument.h>
 
+#include <utils/environmentfwd.h>
 #include <utils/fileutils.h>
 
 #include <QObject>
 #include <QFileSystemModel>
-#include <QSet>
 
 #include <functional>
 
 namespace Core { class Context; }
-namespace Utils { class MacroExpander; }
+namespace Utils {
+class Environment;
+class MacroExpander;
+}
 
 namespace ProjectExplorer {
 
 class BuildInfo;
+class BuildSystem;
+class BuildConfiguration;
 class ContainerNode;
 class EditorConfiguration;
 class FolderNode;
-class NamedWidget;
 class Node;
 class ProjectConfiguration;
 class ProjectImporter;
@@ -58,29 +62,10 @@ class ProjectNode;
 class ProjectPrivate;
 class Target;
 
-// Auto-registers with the DocumentManager if a callback is set!
-class PROJECTEXPLORER_EXPORT ProjectDocument : public Core::IDocument
-{
-public:
-    using ProjectCallback = std::function<void()>;
-
-    ProjectDocument(const QString &mimeType, const Utils::FileName &fileName,
-                    const ProjectCallback &callback = {});
-
-    Core::IDocument::ReloadBehavior reloadBehavior(Core::IDocument::ChangeTrigger state,
-                                                   Core::IDocument::ChangeType type) const final;
-    bool reload(QString *errorString, Core::IDocument::ReloadFlag flag,
-                Core::IDocument::ChangeType type) final;
-
-private:
-    ProjectCallback m_callback;
-};
-
 // Documentation inside.
 class PROJECTEXPLORER_EXPORT Project : public QObject
 {
     friend class SessionManager; // for setActiveTarget
-    friend class ProjectExplorerPlugin; // for projectLoaded
     Q_OBJECT
 
 public:
@@ -91,43 +76,44 @@ public:
         isParsingRole
     };
 
-    Project(const QString &mimeType, const Utils::FileName &fileName,
-            const ProjectDocument::ProjectCallback &callback = {});
+    Project(const QString &mimeType, const Utils::FilePath &fileName);
     ~Project() override;
 
     QString displayName() const;
     Core::Id id() const;
 
     QString mimeType() const;
+    bool canBuildProducts() const;
 
-    Core::IDocument *document() const;
-    Utils::FileName projectFilePath() const;
-    Utils::FileName projectDirectory() const;
-    Utils::FileName rootProjectDirectory() const;
-    static Utils::FileName projectDirectory(const Utils::FileName &top);
+    BuildSystem *createBuildSystem(Target *target) const;
+
+    Utils::FilePath projectFilePath() const;
+    Utils::FilePath projectDirectory() const;
+    static Utils::FilePath projectDirectory(const Utils::FilePath &top);
+
+    // This does not affect nodes, only the root path.
+    void changeRootProjectDirectory();
+    Utils::FilePath rootProjectDirectory() const;
 
     virtual ProjectNode *rootProjectNode() const;
     ContainerNode *containerNode() const;
-
-    bool hasActiveBuildSettings() const;
 
     // EditorConfiguration:
     EditorConfiguration *editorConfiguration() const;
 
     // Target:
-    void addTarget(std::unique_ptr<Target> &&target);
+    Target *addTargetForDefaultKit();
+    Target *addTargetForKit(Kit *kit);
     bool removeTarget(Target *target);
 
-    QList<Target *> targets() const;
+    const QList<Target *> targets() const;
     // Note: activeTarget can be 0 (if no targets are defined).
     Target *activeTarget() const;
     Target *target(Core::Id id) const;
     Target *target(Kit *k) const;
-    virtual QList<Task> projectIssues(const Kit *k) const;
+    virtual Tasks projectIssues(const Kit *k) const;
 
-    std::unique_ptr<Target> createTarget(Kit *k);
     static bool copySteps(Target *sourceTarget, Target *newTarget);
-    std::unique_ptr<Target> restoreTarget(const QVariantMap &data);
 
     void saveSettings();
     enum class RestoreResult { Ok, Error, UserAbort };
@@ -138,9 +124,8 @@ public:
     static const NodeMatcher SourceFiles;
     static const NodeMatcher GeneratedFiles;
 
-    Utils::FileNameList files(const NodeMatcher &matcher) const;
-    virtual QStringList filesGeneratedFrom(const QString &sourceFile) const;
-    bool isKnownFile(const Utils::FileName &filename) const;
+    Utils::FilePaths files(const NodeMatcher &matcher) const;
+    bool isKnownFile(const Utils::FilePath &filename) const;
 
     virtual QVariantMap toMap() const;
 
@@ -150,66 +135,56 @@ public:
     QVariant namedSettings(const QString &name) const;
     void setNamedSettings(const QString &name, const QVariant &value);
 
+    void setAdditionalEnvironment(const Utils::EnvironmentItems &envItems);
+    Utils::EnvironmentItems additionalEnvironment() const;
+
     virtual bool needsConfiguration() const;
-    virtual bool needsBuildConfigurations() const;
-    virtual void configureAsExampleProject(const QSet<Core::Id> &platforms,
-                                           const QSet<Core::Id> &preferredFeauters = QSet<Core::Id>());
+    bool needsBuildConfigurations() const;
+    virtual void configureAsExampleProject();
 
     virtual ProjectImporter *projectImporter() const;
 
-    Kit::Predicate requiredKitPredicate() const;
-    Kit::Predicate preferredKitPredicate() const;
-
     // The build system is able to report all executables that can be built, independent
     // of configuration.
-    virtual bool knowsAllBuildExecutables() const;
+    bool knowsAllBuildExecutables() const;
+
+    virtual DeploymentKnowledge deploymentKnowledge() const { return DeploymentKnowledge::Bad; }
+    bool hasMakeInstallEquivalent() const;
+    virtual MakeInstallCommand makeInstallCommand(const Target *target, const QString &installRoot);
 
     void setup(const QList<BuildInfo> &infoList);
     Utils::MacroExpander *macroExpander() const;
 
-    virtual QVariant additionalData(Core::Id id, const Target *target) const;
-
-    bool isParsing() const;
-    bool hasParsingData() const;
-
     ProjectNode *findNodeForBuildKey(const QString &buildKey) const;
-
-    template<typename S, typename R, typename T, typename ...Args1, typename ...Args2>
-    void subscribeSignal(void (S::*sig)(Args1...), R*recv, T (R::*sl)(Args2...)) {
-        new Internal::ProjectSubscription([sig, recv, sl, this](ProjectConfiguration *pc) {
-            if (S* sender = qobject_cast<S*>(pc))
-                return connect(sender, sig, recv, sl);
-            return QMetaObject::Connection();
-        }, recv, this);
-    }
-
-    template<typename S, typename R, typename T, typename ...Args1>
-    void subscribeSignal(void (S::*sig)(Args1...), R*recv, T sl) {
-        new Internal::ProjectSubscription([sig, recv, sl, this](ProjectConfiguration *pc) {
-            if (S* sender = qobject_cast<S*>(pc))
-                return connect(sender, sig, recv, sl);
-            return QMetaObject::Connection();
-        }, recv, this);
-    }
 
     bool needsInitialExpansion() const;
     void setNeedsInitialExpansion(bool needsInitialExpansion);
 
+    void setRootProjectNode(std::unique_ptr<ProjectNode> &&root);
+
+    // Set project files that will be watched and trigger the same callback
+    // as the main project file.
+    void setExtraProjectFiles(const QSet<Utils::FilePath> &projectDocumentPaths);
+
+    void setDisplayName(const QString &name);
+    void setProjectLanguage(Core::Id id, bool enabled);
+    void addProjectLanguage(Core::Id id);
+
+    void setExtraData(const QString &key, const QVariant &data);
+    QVariant extraData(const QString &key) const;
+
 signals:
+    void projectFileIsDirty(const Utils::FilePath &path);
+
     void displayNameChanged();
     void fileListChanged();
+    void environmentChanged();
 
     // Note: activeTarget can be 0 (if no targets are defined).
     void activeTargetChanged(ProjectExplorer::Target *target);
 
-    void aboutToRemoveProjectConfiguration(ProjectExplorer::ProjectConfiguration *pc);
     void removedProjectConfiguration(ProjectExplorer::ProjectConfiguration *pc);
     void addedProjectConfiguration(ProjectExplorer::ProjectConfiguration *pc);
-
-    // *ANY* active project configuration changed somewhere in the tree. This might not be
-    // the one that would get started right now, since some part of the tree in between might
-    // not be active.
-    void activeProjectConfigurationChanged(ProjectExplorer::ProjectConfiguration *pc);
 
     void aboutToRemoveTarget(ProjectExplorer::Target *target);
     void removedTarget(ProjectExplorer::Target *target);
@@ -220,44 +195,40 @@ signals:
 
     void projectLanguagesUpdated();
 
-    void parsingStarted();
-    void parsingFinished(bool success);
+    void anyParsingStarted(Target *target);
+    void anyParsingFinished(Target *target, bool success);
+
+    void rootProjectDirectoryChanged();
 
 protected:
     virtual RestoreResult fromMap(const QVariantMap &map, QString *errorMessage);
     void createTargetFromMap(const QVariantMap &map, int index);
     virtual bool setupTarget(Target *t);
 
-    // Helper methods to manage parsing state and signalling
-    // Call in GUI thread before the actual parsing starts
-    void emitParsingStarted();
-    // Call in GUI thread right after the actual parsing is done
-    void emitParsingFinished(bool success);
-
-    void setDisplayName(const QString &name);
-    // Used to pre-check kits in the TargetSetupPage. RequiredKitPredicate
-    // is used to select kits available in the TargetSetupPage
-    void setPreferredKitPredicate(const Kit::Predicate &predicate);
-    // The predicate used to select kits available in TargetSetupPage.
-    void setRequiredKitPredicate(const Kit::Predicate &predicate);
+    void setCanBuildProducts();
 
     void setId(Core::Id id);
-    void setRootProjectNode(std::unique_ptr<ProjectNode> &&root); // takes ownership!
     void setProjectLanguages(Core::Context language);
-    void addProjectLanguage(Core::Id id);
     void removeProjectLanguage(Core::Id id);
-    void setProjectLanguage(Core::Id id, bool enabled);
-    virtual void projectLoaded(); // Called when the project is fully loaded.
+    void setHasMakeInstallEquivalent(bool enabled);
+
+    void setKnowsAllBuildExecutables(bool value);
+    void setNeedsBuildConfigurations(bool value);
+    void setNeedsDeployConfigurations(bool value);
 
     static ProjectExplorer::Task createProjectTask(ProjectExplorer::Task::TaskType type,
                                                    const QString &description);
 
+    void setBuildSystemCreator(const std::function<BuildSystem *(Target *)> &creator);
+
 private:
+    void addTarget(std::unique_ptr<Target> &&target);
+
     void handleSubTreeChanged(FolderNode *node);
     void setActiveTarget(Target *target);
-    ProjectPrivate *d;
 
     friend class ContainerNode;
+    ProjectPrivate *d;
 };
 
 } // namespace ProjectExplorer

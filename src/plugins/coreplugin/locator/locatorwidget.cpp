@@ -210,7 +210,7 @@ QVariant LocatorModel::data(const QModelIndex &index, int role) const
             return QColor(Qt::darkGray);
         break;
     case LocatorEntryRole:
-        return qVariantFromValue(mEntries.at(index.row()));
+        return QVariant::fromValue(mEntries.at(index.row()));
     case int(HighlightingItemRole::StartColumn):
     case int(HighlightingItemRole::Length): {
         LocatorFilterEntry &entry = mEntries[index.row()];
@@ -558,7 +558,7 @@ LocatorWidget::LocatorWidget(Locator *locator) :
 
     auto layout = new QHBoxLayout(this);
     setLayout(layout);
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_fileLineEdit);
 
     const QIcon icon = Utils::Icons::MAGNIFIER.icon();
@@ -579,8 +579,9 @@ LocatorWidget::LocatorWidget(Locator *locator) :
 
     m_fileLineEdit->setButtonMenu(Utils::FancyLineEdit::Left, m_filterMenu);
 
-    connect(m_refreshAction, &QAction::triggered,
-            locator, [locator]() { locator->refresh(); });
+    connect(m_refreshAction, &QAction::triggered, locator, [locator]() {
+        locator->refresh(locator->filters());
+    });
     connect(m_configureAction, &QAction::triggered, this, &LocatorWidget::showConfigureDialog);
     connect(m_fileLineEdit, &QLineEdit::textChanged,
         this, &LocatorWidget::showPopupDelayed);

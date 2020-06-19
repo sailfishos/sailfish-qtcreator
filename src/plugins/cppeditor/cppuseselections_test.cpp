@@ -101,7 +101,6 @@ UseSelectionsTestCase::UseSelectionsTestCase(TestDocument &testFile,
     bool hasTimedOut;
     const SelectionList selections = waitForUseSelections(&hasTimedOut);
     QEXPECT_FAIL("non-local use as macro argument - argument expanded 1", "TODO", Abort);
-    QEXPECT_FAIL("macro use 2", "TODO", Abort);
     QVERIFY(!hasTimedOut);
 //    foreach (const Selection &selection, selections)
 //        qDebug() << QTest::toString(selection);
@@ -165,7 +164,7 @@ void CppEditorPlugin::test_useSelections_data()
                 );
 
     QTest::newRow("local use as macro argument 1 - argument expanded")
-            << _("#define Q_UNUSED(x) (void)x;\n"
+            << _("#define Q_UNUSED(x) (void)x\n"
                  "void f(int arg)\n"
                  "{\n"
                  "    Q_UNUSED(@arg)\n"

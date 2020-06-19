@@ -25,6 +25,7 @@
 
 #include "filefilteritems.h"
 
+#include <utils/algorithm.h>
 #include <utils/filesystemwatcher.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
@@ -160,7 +161,7 @@ void FileFilterBaseItem::setPathsProperty(const QStringList &path)
 
 QStringList FileFilterBaseItem::files() const
 {
-    return m_files.toList();
+    return Utils::toList(m_files);
 }
 
 /**
@@ -175,7 +176,7 @@ bool FileFilterBaseItem::matchesFile(const QString &filePath) const
             return true;
     }
 
-    const QString &fileName = Utils::FileName::fromString(filePath).fileName();
+    const QString &fileName = Utils::FilePath::fromString(filePath).fileName();
 
     if (!fileMatches(fileName))
         return false;
@@ -243,16 +244,16 @@ void FileFilterBaseItem::updateFileListNow()
     }
 
     // update watched directories
-    const QSet<QString> oldDirs = watchedDirectories().toSet();
+    const QSet<QString> oldDirs = Utils::toSet(watchedDirectories());
     const QSet<QString> unwatchDirs = oldDirs - dirsToBeWatched;
     const QSet<QString> watchDirs = dirsToBeWatched - oldDirs;
 
     if (!unwatchDirs.isEmpty()) {
         QTC_ASSERT(m_dirWatcher, return);
-        m_dirWatcher->removeDirectories(unwatchDirs.toList());
+        m_dirWatcher->removeDirectories(Utils::toList(unwatchDirs));
     }
     if (!watchDirs.isEmpty())
-        dirWatcher()->addDirectories(watchDirs.toList(), Utils::FileSystemWatcher::WatchAllChanges);
+        dirWatcher()->addDirectories(Utils::toList(watchDirs), Utils::FileSystemWatcher::WatchAllChanges);
 }
 
 bool FileFilterBaseItem::fileMatches(const QString &fileName) const
@@ -292,24 +293,6 @@ QSet<QString> FileFilterBaseItem::filesInSubTree(const QDir &rootDir, const QDir
     return fileSet;
 }
 
-QmlFileFilterItem::QmlFileFilterItem(QObject *parent)
-    : FileFilterBaseItem(parent)
-{
-    setFilter(QLatin1String("*.qml"));
-}
-
-JsFileFilterItem::JsFileFilterItem(QObject *parent)
-    : FileFilterBaseItem(parent)
-{
-    setFilter(QLatin1String("*.js"));
-}
-
-void JsFileFilterItem::setFilter(const QString &filter)
-{
-    FileFilterBaseItem::setFilter(filter);
-    emit filterChanged();
-}
-
 ImageFileFilterItem::ImageFileFilterItem(QObject *parent)
     : FileFilterBaseItem(parent)
 {
@@ -322,33 +305,10 @@ ImageFileFilterItem::ImageFileFilterItem(QObject *parent)
     setFilter(filter);
 }
 
-void ImageFileFilterItem::setFilter(const QString &filter)
-{
-    FileFilterBaseItem::setFilter(filter);
-    emit filterChanged();
-}
-
-CssFileFilterItem::CssFileFilterItem(QObject *parent)
+FileFilterItem::FileFilterItem(const QString &fileFilter, QObject *parent)
     : FileFilterBaseItem(parent)
 {
-    setFilter(QLatin1String("*.css"));
-}
-
-void CssFileFilterItem::setFilter(const QString &filter)
-{
-    FileFilterBaseItem::setFilter(filter);
-    emit filterChanged();
-}
-
-OtherFileFilterItem::OtherFileFilterItem(QObject *parent)
-    : FileFilterBaseItem(parent)
-{
-}
-
-void OtherFileFilterItem::setFilter(const QString &filter)
-{
-    FileFilterBaseItem::setFilter(filter);
-    emit filterChanged();
+    setFilter(fileFilter);
 }
 
 } // namespace QmlProjectManager

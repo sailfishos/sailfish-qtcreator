@@ -33,8 +33,7 @@
 #include <coreplugin/id.h>
 
 namespace ProjectExplorer {
-class Kit;
-class Project;
+class Target;
 } // namespace ProjectExplorer
 
 namespace QmlDesigner {
@@ -50,9 +49,7 @@ public:
         UserSpacePuppet
     };
 
-    PuppetCreator(ProjectExplorer::Kit *kit,
-                  ProjectExplorer::Project *project,
-                  const Model *model);
+    PuppetCreator(ProjectExplorer::Target *target, const Model *model);
 
     void createQml2PuppetExecutableIfMissing();
 
@@ -60,7 +57,8 @@ public:
                                   const QString &socketToken,
                                   QObject *handlerObject,
                                   const char *outputSlot,
-                                  const char *finishSlot) const;
+                                  const char *finishSlot,
+                                  const QStringList &customOptions = {}) const;
 
     void setQrcMappingString(const QString qrcMapping);
 
@@ -90,7 +88,8 @@ protected:
                             const QString &socketToken,
                             QObject *handlerObject,
                             const char *outputSlot,
-                            const char *finishSlot) const;
+                            const char *finishSlot,
+                            const QStringList &customOptions) const;
 
     QProcessEnvironment processEnvironment() const;
 
@@ -106,7 +105,7 @@ protected:
 
 private:
     mutable QString m_compileLog;
-    ProjectExplorer::Kit *m_kit = nullptr;
+    ProjectExplorer::Target *m_target = nullptr;
     PuppetType m_availablePuppetType;
     static QHash<Core::Id, PuppetType> m_qml2PuppetForKitPuppetHash;
     const Model *m_model = nullptr;
@@ -114,7 +113,6 @@ private:
     const DesignerSettings m_designerSettings;
 #endif
     QString m_qrcMapping;
-    ProjectExplorer::Project *m_currentProject = nullptr;
 };
 
 } // namespace QmlDesigner

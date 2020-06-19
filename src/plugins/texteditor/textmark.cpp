@@ -58,7 +58,7 @@ private:
     void documentRenamed(Core::IDocument *document, const QString &oldName, const QString &newName);
     void allDocumentsRenamed(const QString &oldName, const QString &newName);
 
-    QHash<Utils::FileName, QSet<TextMark *> > m_marks;
+    QHash<Utils::FilePath, QSet<TextMark *> > m_marks;
 };
 
 class AnnotationColors
@@ -78,7 +78,7 @@ private:
 
 TextMarkRegistry *m_instance = nullptr;
 
-TextMark::TextMark(const FileName &fileName, int lineNumber, Id category, double widthFactor)
+TextMark::TextMark(const FilePath &fileName, int lineNumber, Id category, double widthFactor)
     : m_fileName(fileName)
     , m_lineNumber(lineNumber)
     , m_visible(true)
@@ -100,12 +100,12 @@ TextMark::~TextMark()
     m_baseTextDocument = nullptr;
 }
 
-FileName TextMark::fileName() const
+FilePath TextMark::fileName() const
 {
     return m_fileName;
 }
 
-void TextMark::updateFileName(const FileName &fileName)
+void TextMark::updateFileName(const FilePath &fileName)
 {
     if (fileName == m_fileName)
         return;
@@ -136,8 +136,9 @@ void TextMark::paintAnnotation(QPainter &painter, QRectF *annotationRect,
 
     const AnnotationRects &rects = annotationRects(*annotationRect, painter.fontMetrics(),
                                                    fadeInOffset, fadeOutOffset);
-    const QColor &markColor = m_hasColor ? Utils::creatorTheme()->color(m_color).toHsl()
-                                         : painter.pen().color();
+    const QColor &markColor = m_color.has_value()
+                                  ? Utils::creatorTheme()->color(m_color.value()).toHsl()
+                                  : painter.pen().color();
     const AnnotationColors &colors = AnnotationColors::getAnnotationColors(
                 markColor, painter.background().color());
 
@@ -182,7 +183,7 @@ TextMark::AnnotationRects TextMark::annotationRects(const QRectF &boundingRect,
     if (drawIcon)
         rects.iconRect.setWidth(rects.iconRect.height() * m_widthFactor);
     rects.textRect = QRectF(rects.iconRect.right() + margin, boundingRect.top(),
-                            qreal(fm.width(rects.text)), boundingRect.height());
+                            qreal(fm.horizontalAdvance(rects.text)), boundingRect.height());
     rects.annotationRect.setRight(rects.textRect.right() + margin);
     if (rects.annotationRect.right() > boundingRect.right()) {
         rects.textRect.setRight(boundingRect.right() - margin);
@@ -267,7 +268,7 @@ bool TextMark::isDraggable() const
 
 void TextMark::dragToLine(int lineNumber)
 {
-    Q_UNUSED(lineNumber);
+    Q_UNUSED(lineNumber)
 }
 
 void TextMark::addToToolTipLayout(QGridLayout *target) const
@@ -327,15 +328,13 @@ bool TextMark::addToolTipContent(QLayout *target) const
     return true;
 }
 
-Theme::Color TextMark::color() const
+Utils::optional<Theme::Color> TextMark::color() const
 {
-    QTC_CHECK(m_hasColor);
     return m_color;
 }
 
 void TextMark::setColor(const Theme::Color &color)
 {
-    m_hasColor = true;
     m_color = color;
 }
 
@@ -364,7 +363,7 @@ TextMarkRegistry::TextMarkRegistry(QObject *parent)
 void TextMarkRegistry::add(TextMark *mark)
 {
     instance()->m_marks[mark->fileName()].insert(mark);
-    if (TextDocument *document = TextDocument::textDocumentForFileName(mark->fileName()))
+    if (TextDocument *document = TextDocument::textDocumentForFilePath(mark->fileName()))
         document->addMark(mark);
 }
 
@@ -398,8 +397,8 @@ void TextMarkRegistry::documentRenamed(IDocument *document, const
     auto baseTextDocument = qobject_cast<TextDocument *>(document);
     if (!baseTextDocument)
         return;
-    FileName oldFileName = FileName::fromString(oldName);
-    FileName newFileName = FileName::fromString(newName);
+    FilePath oldFileName = FilePath::fromString(oldName);
+    FilePath newFileName = FilePath::fromString(newName);
     if (!m_marks.contains(oldFileName))
         return;
 
@@ -416,8 +415,8 @@ void TextMarkRegistry::documentRenamed(IDocument *document, const
 
 void TextMarkRegistry::allDocumentsRenamed(const QString &oldName, const QString &newName)
 {
-    FileName oldFileName = FileName::fromString(oldName);
-    FileName newFileName = FileName::fromString(newName);
+    FilePath oldFileName = FilePath::fromString(oldName);
+    FilePath newFileName = FilePath::fromString(newName);
     if (!m_marks.contains(oldFileName))
         return;
 

@@ -39,14 +39,17 @@ public:
     bool isValid() const {
         return !fileName.isEmpty() && lineNumber > 0;
     }
+    bool operator==(const Diagnostic& diagnostic) const;
 
     Severity severity = Severity::Information;
     QString severityText;
     QString checkId;
     QString message;
-    Utils::FileName fileName;
+    Utils::FilePath fileName;
     int lineNumber = 0;
 };
+
+quint32 qHash(const Diagnostic &diagnostic);
 
 } // namespace Internal
 } // namespace Cppcheck

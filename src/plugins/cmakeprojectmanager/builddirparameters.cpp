@@ -27,6 +27,8 @@
 
 #include "cmakebuildconfiguration.h"
 #include "cmakekitinformation.h"
+#include "cmakeprojectplugin.h"
+#include "cmakespecificsettings.h"
 #include "cmaketoolmanager.h"
 
 #include <projectexplorer/kit.h>
@@ -45,7 +47,7 @@ BuildDirParameters::BuildDirParameters() = default;
 
 BuildDirParameters::BuildDirParameters(CMakeBuildConfiguration *bc)
 {
-    buildConfiguration = bc;
+    initialized = bc != nullptr;
 
     const Kit *k = bc->target()->kit();
 
@@ -61,28 +63,32 @@ BuildDirParameters::BuildDirParameters(CMakeBuildConfiguration *bc)
     if (Utils::HostOsInfo::isAnyUnixHost())
         environment.set("ICECC", "no");
 
-    cmakeToolId = CMakeKitInformation::cmakeToolId(k);
+    CMakeSpecificSettings *settings = CMakeProjectPlugin::projectTypeSpecificSettings();
+    if (!settings->ninjaPath().isEmpty())
+        environment.appendOrSetPath(settings->ninjaPath().toString());
 
-    auto tc = ToolChainKitInformation::toolChain(k, Constants::CXX_LANGUAGE_ID);
+    cmakeToolId = CMakeKitAspect::cmakeToolId(k);
+
+    auto tc = ToolChainKitAspect::toolChain(k, Constants::CXX_LANGUAGE_ID);
     if (tc)
         cxxToolChainId = tc->id();
-    tc = ToolChainKitInformation::toolChain(k, Constants::C_LANGUAGE_ID);
+    tc = ToolChainKitAspect::toolChain(k, Constants::C_LANGUAGE_ID);
     if (tc)
         cToolChainId = tc->id();
-    sysRoot = SysRootKitInformation::sysRoot(k);
+    sysRoot = SysRootKitAspect::sysRoot(k);
 
     expander = k->macroExpander();
 
     configuration = bc->configurationForCMake();
 
-    generator = CMakeGeneratorKitInformation::generator(k);
-    extraGenerator = CMakeGeneratorKitInformation::extraGenerator(k);
-    platform = CMakeGeneratorKitInformation::platform(k);
-    toolset = CMakeGeneratorKitInformation::toolset(k);
-    generatorArguments = CMakeGeneratorKitInformation::generatorArguments(k);
+    generator = CMakeGeneratorKitAspect::generator(k);
+    extraGenerator = CMakeGeneratorKitAspect::extraGenerator(k);
+    platform = CMakeGeneratorKitAspect::platform(k);
+    toolset = CMakeGeneratorKitAspect::toolset(k);
+    generatorArguments = CMakeGeneratorKitAspect::generatorArguments(k);
 }
 
-bool BuildDirParameters::isValid() const { return buildConfiguration && cmakeTool(); }
+bool BuildDirParameters::isValid() const { return initialized && cmakeTool(); }
 
 CMakeTool *BuildDirParameters::cmakeTool() const
 {
@@ -90,6 +96,7 @@ CMakeTool *BuildDirParameters::cmakeTool() const
 }
 
 BuildDirParameters::BuildDirParameters(const BuildDirParameters &) = default;
+BuildDirParameters &BuildDirParameters::operator=(const BuildDirParameters &) = default;
 
 } // namespace Internal
 } // namespace CMakeProjectManager

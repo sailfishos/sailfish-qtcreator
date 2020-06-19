@@ -28,6 +28,8 @@
 #include "cppmodelmanager.h"
 #include "headerpathfilter.h"
 
+#include <baremetal/baremetalconstants.h>
+
 #include <coreplugin/icore.h>
 
 #include <projectexplorer/headerpath.h>
@@ -136,11 +138,10 @@ QStringList CompilerOptionsBuilder::build(ProjectFile::Kind fileKind,
     addTargetTriple();
     updateFileLanguage(fileKind);
     addLanguageVersionAndExtensions();
+    enableExceptions();
 
     addPrecompiledHeaderOptions(usePrecompiledHeaders);
     addProjectConfigFileInclude();
-
-    addExtraCodeModelFlags();
 
     addMsvcCompatibilityVersion();
     addProjectMacros();
@@ -170,6 +171,14 @@ void CompilerOptionsBuilder::add(const QStringList &args, bool gccOnlyOptions)
 void CompilerOptionsBuilder::addSyntaxOnly()
 {
     isClStyle() ? add("/Zs") : add("-fsyntax-only");
+}
+
+void CompilerOptionsBuilder::remove(const QStringList &args)
+{
+    auto foundPos = std::search(m_options.begin(), m_options.end(),
+                                args.begin(), args.end());
+    if (foundPos != m_options.end())
+        m_options.erase(foundPos, std::next(foundPos, args.size()));
 }
 
 QStringList createLanguageOptionGcc(ProjectFile::Kind fileKind, bool objcExt)
@@ -264,6 +273,17 @@ void CompilerOptionsBuilder::addCompilerFlags()
     add(m_compilerFlags.flags);
 }
 
+void CompilerOptionsBuilder::enableExceptions()
+{
+    // With "--driver-mode=cl" exceptions are disabled (clang 8).
+    // This is most likely due to incomplete exception support of clang.
+    // However, as we need exception support only in the frontend,
+    // enabling them explicitly should be fine.
+    if (m_projectPart.languageVersion > ::Utils::LanguageVersion::LatestC)
+        add("-fcxx-exceptions");
+    add("-fexceptions");
+}
+
 static QString creatorResourcePath()
 {
 #ifndef UNIT_TESTS
@@ -320,11 +340,21 @@ void CompilerOptionsBuilder::addHeaderPathOptions()
 
 void CompilerOptionsBuilder::addPrecompiledHeaderOptions(UsePrecompiledHeaders usePrecompiledHeaders)
 {
-    if (usePrecompiledHeaders == UsePrecompiledHeaders::No)
-        return;
-
     for (const QString &pchFile : m_projectPart.precompiledHeaders) {
-        if (QFile::exists(pchFile)) {
+        // Bail if build system precompiled header artifacts exists.
+        // Clang cannot handle foreign PCH files.
+        if (QFile::exists(pchFile + ".gch") || QFile::exists(pchFile + ".pch"))
+            usePrecompiledHeaders = UsePrecompiledHeaders::No;
+
+        if (usePrecompiledHeaders == UsePrecompiledHeaders::No) {
+            // CMake PCH will already have force included the header file in
+            // command line options, remove it if exists.
+            // In case of Clang compilers, also remove the pch-inclusion arguments.
+            remove({"-Xclang", "-include-pch", "-Xclang", pchFile + ".gch"});
+            remove({"-Xclang", "-include-pch", "-Xclang", pchFile + ".pch"});
+            remove({isClStyle() ? QLatin1String(includeFileOptionCl)
+                                : QLatin1String(includeFileOptionGcc), pchFile});
+        } else if (QFile::exists(pchFile)) {
             add({isClStyle() ? QLatin1String(includeFileOptionCl)
                              : QLatin1String(includeFileOptionGcc),
                  QDir::toNativeSeparators(pchFile)});
@@ -334,6 +364,11 @@ void CompilerOptionsBuilder::addPrecompiledHeaderOptions(UsePrecompiledHeaders u
 
 void CompilerOptionsBuilder::addProjectMacros()
 {
+    static const int useMacros = qEnvironmentVariableIntValue("QTC_CLANG_USE_TOOLCHAIN_MACROS");
+
+    if (m_projectPart.toolchainType == BareMetal::Constants::IAREW_TOOLCHAIN_TYPEID || useMacros)
+        addMacros(m_projectPart.toolChainMacros);
+
     addMacros(m_projectPart.projectMacros);
 }
 
@@ -455,6 +490,8 @@ void CompilerOptionsBuilder::addLanguageVersionAndExtensions()
     case LanguageVersion::CXX2a:
         option = (gnuExtensions ? QLatin1String("-std=gnu++2a") : QLatin1String("-std=c++2a"));
         break;
+    case LanguageVersion::None:
+        break;
     }
 
     add(option, /*gccOnlyOption=*/true);
@@ -522,6 +559,7 @@ static QStringList languageFeatureMacros()
         "__cpp_guaranteed_copy_elision",
         "__cpp_hex_float",
         "__cpp_if_constexpr",
+        "__cpp_impl_destroying_delete",
         "__cpp_inheriting_constructors",
         "__cpp_init_captures",
         "__cpp_initializer_lists",
@@ -653,7 +691,7 @@ void CompilerOptionsBuilder::addWrappedQtHeadersIncludePath(QStringList &list) c
     static QString wrappedQtHeadersPath = resourcePath + "/cplusplus/wrappedQtHeaders";
     QTC_ASSERT(QDir(wrappedQtHeadersPath).exists(), return;);
 
-    if (m_projectPart.qtVersion != ProjectPart::NoQt) {
+    if (m_projectPart.qtVersion != Utils::QtVersion::None) {
         const QString wrappedQtCoreHeaderPath = wrappedQtHeadersPath + "/QtCore";
         list.append({includeUserPathOption,
                      QDir::toNativeSeparators(wrappedQtHeadersPath),
@@ -706,9 +744,11 @@ void CompilerOptionsBuilder::evaluateCompilerFlags()
                                            qgetenv("QTC_CLANG_CMD_OPTIONS_BLACKLIST"))
                                            .split(';', QString::SkipEmptyParts);
 
+    const Core::Id &toolChain = m_projectPart.toolchainType;
     bool containsDriverMode = false;
     bool skipNext = false;
-    for (const QString &option : m_projectPart.compilerFlags) {
+    const QStringList allFlags = m_projectPart.compilerFlags + m_projectPart.extraCodeModelFlags;
+    for (const QString &option : allFlags) {
         if (skipNext) {
             skipNext = false;
             continue;
@@ -717,6 +757,13 @@ void CompilerOptionsBuilder::evaluateCompilerFlags()
         if (userBlackList.contains(option))
             continue;
 
+        // TODO: Make it possible that the clang binary/driver ignores unknown options,
+        // as it is done for libclang/clangd (not checking for OPT_UNKNOWN).
+        if (toolChain == ProjectExplorer::Constants::MINGW_TOOLCHAIN_TYPEID) {
+            if (option == "-fkeep-inline-dllexport" || option == "-fno-keep-inline-dllexport")
+                continue;
+        }
+
         // Ignore warning flags as these interfere with our user-configured diagnostics.
         // Note that once "-w" is provided, no warnings will be emitted, even if "-Wall" follows.
         if (m_useBuildSystemWarnings == UseBuildSystemWarnings::No
@@ -724,6 +771,16 @@ void CompilerOptionsBuilder::evaluateCompilerFlags()
                 || option.startsWith("/w", Qt::CaseInsensitive) || option.startsWith("-pedantic"))) {
             // -w, -W, /w, /W...
             continue;
+        }
+
+        // As we always set the target explicitly, filter out target args.
+        if (!m_projectPart.toolChainTargetTriple.isEmpty()) {
+            if (option.startsWith("--target="))
+                continue;
+            if (option == "-target") {
+                skipNext = true;
+                continue;
+            }
         }
 
         if (option == includeUserPathOption || option == includeSystemPathOption
@@ -752,7 +809,7 @@ void CompilerOptionsBuilder::evaluateCompilerFlags()
 
         // Check whether a language version is already used.
         QString theOption = option;
-        if (theOption.startsWith("-std=")) {
+        if (theOption.startsWith("-std=") || theOption.startsWith("--std=")) {
             m_compilerFlags.isLanguageVersionSpecified = true;
             theOption.replace("=c18", "=c17");
             theOption.replace("=gnu18", "=gnu17");
@@ -766,10 +823,18 @@ void CompilerOptionsBuilder::evaluateCompilerFlags()
             containsDriverMode = true;
         }
 
+        // Transfrom the "/" starting commands into "-" commands, which if
+        // unknown will not cause clang to fail because it thinks
+        // it's a missing file.
+        if (theOption.startsWith("/") &&
+            (toolChain == ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID ||
+             toolChain == ProjectExplorer::Constants::CLANG_CL_TOOLCHAIN_TYPEID)) {
+            theOption[0] = '-';
+        }
+
         m_compilerFlags.flags.append(theOption);
     }
 
-    const Core::Id &toolChain = m_projectPart.toolchainType;
     if (!containsDriverMode
         && (toolChain == ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID
             || toolChain == ProjectExplorer::Constants::CLANG_CL_TOOLCHAIN_TYPEID)) {

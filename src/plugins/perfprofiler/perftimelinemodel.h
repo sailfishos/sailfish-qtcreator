@@ -88,8 +88,9 @@ public:
         return selectionId(index) <= PerfEvent::LastSpecialTypeId;
     }
 
-    int period(int index) const;
-    int weight(int index) const;
+    int numAttributes(int index) const;
+    qint32 attributeId(int index, int i) const;
+    quint64 attributeValue(int index, int i) const;
 
     QHash<qint32, QVariant> extraData(int index) const { return m_extraData.value(index); }
 
@@ -105,12 +106,12 @@ private:
         int numExpectedParallelSamples = 1;
         int displayRowCollapsed = MaximumSpecialRow;
         int displayRowExpanded = MaximumSpecialRow;
-        int period = 0;
-        int weight = 0;
 
+        quint64 attributeValue = 0;
         qint64 resourcePeak = 0;
         qint64 resourceDelta = 0;
         int resourceGuesses = 0;
+        int numAttributes = 0;
 
         static StackFrame sampleFrame()
         {
@@ -150,6 +151,7 @@ private:
 
     QVector<StackFrame> m_data;
     QHash<int, QHash<qint32, QVariant>> m_extraData;
+    QHash<int, QVector<QPair<qint32, quint64>>> m_attributeValues;
 
     void computeExpandedLevels();
     const PerfProfilerTraceManager *traceManager() const;

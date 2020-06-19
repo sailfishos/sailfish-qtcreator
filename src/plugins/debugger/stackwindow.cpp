@@ -40,23 +40,21 @@ namespace Internal {
 StackTreeView::StackTreeView(QWidget *parent)
     : BaseTreeView(parent)
 {
-    connect(action(UseAddressInStackView), &QAction::toggled,
-        this, &StackTreeView::showAddressColumn);
     setSpanColumn(StackFunctionNameColumn);
-    showAddressColumn(false);
 }
 
 void StackTreeView::setModel(QAbstractItemModel *model)
 {
     BaseTreeView::setModel(model);
+
+    if (model)
+        setRootIndex(model->index(0, 0, QModelIndex()));
+
     connect(static_cast<StackHandler*>(model), &StackHandler::stackChanged,
             this, [this]() {
         if (!m_contentsAdjusted)
             adjustForContents();
     });
-
-    // Resize for the current contents if any are available.
-    showAddressColumn(action(UseAddressInStackView)->isChecked());
 }
 
 void StackTreeView::showAddressColumn(bool on)

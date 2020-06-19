@@ -52,16 +52,18 @@
 #include "followsymbolinterface.h"
 
 #include <coreplugin/documentmanager.h>
-#include <coreplugin/icore.h>
-#include <coreplugin/vcsmanager.h>
-#include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/editormanager/editormanager.h>
-#include <texteditor/textdocument.h>
+#include <coreplugin/icore.h>
+#include <coreplugin/progressmanager/progressmanager.h>
+#include <coreplugin/vcsmanager.h>
+#include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/projectmacro.h>
 #include <projectexplorer/session.h>
+#include <texteditor/textdocument.h>
 #include <utils/fileutils.h>
+#include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 
 #include <QCoreApplication>
@@ -146,7 +148,7 @@ public:
     mutable QMutex m_projectMutex;
     QMap<ProjectExplorer::Project *, ProjectInfo> m_projectToProjectsInfo;
     QHash<ProjectExplorer::Project *, bool> m_projectToIndexerCanceled;
-    QMap<Utils::FileName, QList<ProjectPart::Ptr> > m_fileToProjectParts;
+    QMap<Utils::FilePath, QList<ProjectPart::Ptr> > m_fileToProjectParts;
     QMap<QString, ProjectPart::Ptr> m_projectPartIdToProjectProjectPart;
     // The members below are cached/(re)calculated from the projects and/or their project parts
     bool m_dirty;
@@ -463,14 +465,6 @@ CppModelManager *CppModelManager::instance()
     return m_instance;
 }
 
-void CppModelManager::createCppModelManager(Internal::CppToolsPlugin *parent)
-{
-    QTC_ASSERT(!m_instance, return;);
-    m_instance = new CppModelManager();
-    m_instance->initCppTools();
-    m_instance->setParent(parent);
-}
-
 void CppModelManager::initCppTools()
 {
     // Objects
@@ -478,7 +472,7 @@ void CppModelManager::initCppTools()
             this, &CppModelManager::updateModifiedSourceFiles);
     connect(Core::DocumentManager::instance(), &Core::DocumentManager::filesChangedInternally,
             [this](const QStringList &files) {
-        updateSourceFiles(files.toSet());
+        updateSourceFiles(Utils::toSet(files));
     });
 
     connect(this, &CppModelManager::documentUpdated,
@@ -510,8 +504,18 @@ CppModelManager::CppModelManager()
     : CppModelManagerBase(nullptr)
     , d(new CppModelManagerPrivate)
 {
+    m_instance = this;
+
+    // Used for weak dependency in VcsBaseSubmitEditor
+    setObjectName("CppModelManager");
+    ExtensionSystem::PluginManager::addObject(this);
+
     d->m_indexingSupporter = nullptr;
     d->m_enableGC = true;
+
+    // Visual C++ has 1MiB, macOSX has 512KiB
+    if (Utils::HostOsInfo::isWindowsHost() || Utils::HostOsInfo::isMacHost())
+        d->m_threadPool.setStackSize(2 * 1024 * 1024);
 
     qRegisterMetaType<QSet<QString> >();
     connect(this, &CppModelManager::sourceFilesRefreshed,
@@ -552,10 +556,14 @@ CppModelManager::CppModelManager()
     initializeBuiltinModelManagerSupport();
 
     d->m_internalIndexingSupport = new BuiltinIndexingSupport;
+
+    initCppTools();
 }
 
 CppModelManager::~CppModelManager()
 {
+    ExtensionSystem::PluginManager::removeObject(this);
+
     delete d->m_internalIndexingSupport;
     delete d;
 }
@@ -603,10 +611,7 @@ void CppModelManager::ensureUpdated()
 QStringList CppModelManager::internalProjectFiles() const
 {
     QStringList files;
-    QMapIterator<ProjectExplorer::Project *, ProjectInfo> it(d->m_projectToProjectsInfo);
-    while (it.hasNext()) {
-        it.next();
-        const ProjectInfo pinfo = it.value();
+    for (const ProjectInfo &pinfo : d->m_projectToProjectsInfo) {
         foreach (const ProjectPart::Ptr &part, pinfo.projectParts()) {
             foreach (const ProjectFile &file, part->files)
                 files += file.path;
@@ -619,10 +624,7 @@ QStringList CppModelManager::internalProjectFiles() const
 ProjectExplorer::HeaderPaths CppModelManager::internalHeaderPaths() const
 {
     ProjectExplorer::HeaderPaths headerPaths;
-    QMapIterator<ProjectExplorer::Project *, ProjectInfo> it(d->m_projectToProjectsInfo);
-    while (it.hasNext()) {
-        it.next();
-        const ProjectInfo pinfo = it.value();
+    for (const ProjectInfo &pinfo : d->m_projectToProjectsInfo) {
         foreach (const ProjectPart::Ptr &part, pinfo.projectParts()) {
             foreach (const ProjectExplorer::HeaderPath &path, part->headerPaths) {
                 ProjectExplorer::HeaderPath hp(QDir::cleanPath(path.path), path.type);
@@ -650,10 +652,7 @@ ProjectExplorer::Macros CppModelManager::internalDefinedMacros() const
 {
     ProjectExplorer::Macros macros;
     QSet<ProjectExplorer::Macro> alreadyIn;
-    QMapIterator<ProjectExplorer::Project *, ProjectInfo> it(d->m_projectToProjectsInfo);
-    while (it.hasNext()) {
-        it.next();
-        const ProjectInfo pinfo = it.value();
+    for (const ProjectInfo &pinfo : d->m_projectToProjectsInfo) {
         for (const ProjectPart::Ptr &part : pinfo.projectParts()) {
             addUnique(part->toolChainMacros, macros, alreadyIn);
             addUnique(part->projectMacros, macros, alreadyIn);
@@ -778,11 +777,8 @@ WorkingCopy CppModelManager::buildWorkingCopyList()
                            cppEditorDocument->revision());
     }
 
-    QSetIterator<AbstractEditorSupport *> it(d->m_extraEditorSupports);
-    while (it.hasNext()) {
-        AbstractEditorSupport *es = it.next();
+    for (AbstractEditorSupport *es : qAsConst(d->m_extraEditorSupports))
         workingCopy.insert(es->fileName(), es->contents(), es->revision());
-    }
 
     // Add the project configuration file
     QByteArray conf = codeModelConfiguration();
@@ -810,9 +806,7 @@ static QSet<QString> tooBigFilesRemoved(const QSet<QString> &files, int fileSize
     QSet<QString> result;
     QFileInfo fileInfo;
 
-    QSetIterator<QString> i(files);
-    while (i.hasNext()) {
-        const QString filePath = i.next();
+    for (const QString &filePath : files) {
         fileInfo.setFile(filePath);
         if (fileSizeExceedsLimit(fileInfo, fileSizeLimitInMb))
             continue;
@@ -882,9 +876,8 @@ QList<CppEditorDocumentHandle *> CppModelManager::cppEditorDocuments() const
 void CppModelManager::removeFilesFromSnapshot(const QSet<QString> &filesToRemove)
 {
     QMutexLocker snapshotLocker(&d->m_snapshotMutex);
-    QSetIterator<QString> i(filesToRemove);
-    while (i.hasNext())
-        d->m_snapshot.remove(i.next());
+    for (const QString &file : filesToRemove)
+        d->m_snapshot.remove(file);
 }
 
 class ProjectInfoComparer
@@ -920,7 +913,7 @@ public:
     {
         QSet<QString> removed = projectPartIds(m_old.projectParts());
         removed.subtract(projectPartIds(m_new.projectParts()));
-        return removed.toList();
+        return Utils::toList(removed);
     }
 
     /// Returns a list of common files that have a changed timestamp.
@@ -930,9 +923,7 @@ public:
         commonSourceFiles.intersect(m_oldSourceFiles);
 
         QList<Document::Ptr> documentsToCheck;
-        QSetIterator<QString> i(commonSourceFiles);
-        while (i.hasNext()) {
-            const QString file = i.next();
+        for (const QString &file : commonSourceFiles) {
             if (Document::Ptr document = snapshot.document(file))
                 documentsToCheck << document;
         }
@@ -968,7 +959,7 @@ void CppModelManager::recalculateProjectPartMappings()
         foreach (const ProjectPart::Ptr &projectPart, projectInfo.projectParts()) {
             d->m_projectPartIdToProjectProjectPart[projectPart->id()] = projectPart;
             foreach (const ProjectFile &cxxFile, projectPart->files)
-                d->m_fileToProjectParts[Utils::FileName::fromString(cxxFile.path)].append(
+                d->m_fileToProjectParts[Utils::FilePath::fromString(cxxFile.path)].append(
                             projectPart);
 
         }
@@ -980,8 +971,6 @@ void CppModelManager::recalculateProjectPartMappings()
 void CppModelManager::watchForCanceledProjectIndexer(const QVector<QFuture<void>> &futures,
                                                      ProjectExplorer::Project *project)
 {
-    d->m_projectToIndexerCanceled.insert(project, false);
-
     for (const QFuture<void> &future : futures) {
         if (future.isCanceled() || future.isFinished())
             continue;
@@ -992,7 +981,8 @@ void CppModelManager::watchForCanceledProjectIndexer(const QVector<QFuture<void>
                 d->m_projectToIndexerCanceled.insert(project, true);
             watcher->deleteLater();
         });
-        connect(watcher, &QFutureWatcher<void>::finished, this, [watcher]() {
+        connect(watcher, &QFutureWatcher<void>::finished, this, [this, project, watcher]() {
+            d->m_projectToIndexerCanceled.remove(project);
             watcher->deleteLater();
         });
         watcher->setFuture(future);
@@ -1015,7 +1005,7 @@ void CppModelManager::updateCppEditorDocuments(bool projectsUpdated) const
 
     // Mark invisible documents dirty
     QSet<Core::IDocument *> invisibleCppEditorDocuments
-        = Core::DocumentModel::openedDocuments().toSet();
+        = Utils::toSet(Core::DocumentModel::openedDocuments());
     invisibleCppEditorDocuments.subtract(visibleCppEditorDocuments);
     foreach (Core::IDocument *document, invisibleCppEditorDocuments) {
         const QString filePath = document->filePath().toString();
@@ -1080,7 +1070,7 @@ QFuture<void> CppModelManager::updateProjectInfo(QFutureInterface<void> &futureI
                 const QSet<QString> removedFiles = comparer.removedFiles();
                 if (!removedFiles.isEmpty()) {
                     filesRemoved = true;
-                    emit aboutToRemoveFiles(removedFiles.toList());
+                    emit aboutToRemoveFiles(Utils::toList(removedFiles));
                     removeFilesFromSnapshot(removedFiles);
                 }
             }
@@ -1123,6 +1113,9 @@ QFuture<void> CppModelManager::updateProjectInfo(QFutureInterface<void> &futureI
     // Trigger reindexing
     const QFuture<void> indexingFuture = updateSourceFiles(futureInterface, filesToReindex,
                                                            ForcedProgressNotification);
+    if (!filesToReindex.isEmpty()) {
+        d->m_projectToIndexerCanceled.insert(project, false);
+    }
     watchForCanceledProjectIndexer({futureInterface.future(), indexingFuture}, project);
     return indexingFuture;
 }
@@ -1132,22 +1125,21 @@ ProjectPart::Ptr CppModelManager::projectPartForId(const QString &projectPartId)
     return d->m_projectPartIdToProjectProjectPart.value(projectPartId);
 }
 
-QList<ProjectPart::Ptr> CppModelManager::projectPart(const Utils::FileName &fileName) const
+QList<ProjectPart::Ptr> CppModelManager::projectPart(const Utils::FilePath &fileName) const
 {
     QMutexLocker locker(&d->m_projectMutex);
     return d->m_fileToProjectParts.value(fileName);
 }
 
 QList<ProjectPart::Ptr> CppModelManager::projectPartFromDependencies(
-        const Utils::FileName &fileName) const
+        const Utils::FilePath &fileName) const
 {
     QSet<ProjectPart::Ptr> parts;
-    const Utils::FileNameList deps = snapshot().filesDependingOn(fileName);
+    const Utils::FilePaths deps = snapshot().filesDependingOn(fileName);
 
     QMutexLocker locker(&d->m_projectMutex);
-    foreach (const Utils::FileName &dep, deps) {
-        parts.unite(QSet<ProjectPart::Ptr>::fromList(d->m_fileToProjectParts.value(dep)));
-    }
+    for (const Utils::FilePath &dep : deps)
+        parts.unite(Utils::toSet(d->m_fileToProjectParts.value(dep)));
 
     return parts.values();
 }
@@ -1165,7 +1157,7 @@ ProjectPart::Ptr CppModelManager::fallbackProjectPart()
     part->languageExtensions &= ~Utils::LanguageExtensions(
         Utils::LanguageExtension::ObjectiveC);
 
-    part->qtVersion = ProjectPart::Qt5;
+    part->qtVersion = Utils::QtVersion::Qt5;
     part->updateLanguageFeatures();
 
     return part;
@@ -1213,10 +1205,10 @@ void CppModelManager::delayedGC()
 
 static QStringList removedProjectParts(const QStringList &before, const QStringList &after)
 {
-    QSet<QString> b = before.toSet();
-    b.subtract(after.toSet());
+    QSet<QString> b = Utils::toSet(before);
+    b.subtract(Utils::toSet(after));
 
-    return b.toList();
+    return Utils::toList(b);
 }
 
 void CppModelManager::onAboutToRemoveProject(ProjectExplorer::Project *project)
@@ -1318,6 +1310,60 @@ void CppModelManager::renameIncludes(const QString &oldFileName, const QString &
     }
 }
 
+// Return the class name which function belongs to
+static const char *belongingClassName(const Function *function)
+{
+    if (!function)
+        return nullptr;
+
+    if (auto funcName = function->name()) {
+        if (auto qualifiedNameId = funcName->asQualifiedNameId()) {
+            if (const Name *funcBaseName = qualifiedNameId->base()) {
+                if (auto identifier = funcBaseName->identifier())
+                    return identifier->chars();
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+QSet<QString> CppModelManager::symbolsInFiles(const QSet<Utils::FilePath> &files) const
+{
+    QSet<QString> uniqueSymbols;
+    const Snapshot cppSnapShot = snapshot();
+
+    // Iterate over the files and get interesting symbols
+    for (const Utils::FilePath &file : files) {
+        // Add symbols from the C++ code model
+        const CPlusPlus::Document::Ptr doc = cppSnapShot.document(file);
+        if (!doc.isNull() && doc->control()) {
+            const CPlusPlus::Control *ctrl = doc->control();
+            CPlusPlus::Symbol **symPtr = ctrl->firstSymbol(); // Read-only
+            while (symPtr != ctrl->lastSymbol()) {
+                const CPlusPlus::Symbol *sym = *symPtr;
+
+                const CPlusPlus::Identifier *symId = sym->identifier();
+                // Add any class, function or namespace identifiers
+                if ((sym->isClass() || sym->isFunction() || sym->isNamespace()) && symId
+                    && symId->chars()) {
+                    uniqueSymbols.insert(QString::fromUtf8(symId->chars()));
+                }
+
+                // Handle specific case : get "Foo" in "void Foo::function() {}"
+                if (sym->isFunction() && !sym->asFunction()->isDeclaration()) {
+                    const char *className = belongingClassName(sym->asFunction());
+                    if (className)
+                        uniqueSymbols.insert(QString::fromUtf8(className));
+                }
+
+                ++symPtr;
+            }
+        }
+    }
+    return uniqueSymbols;
+}
+
 void CppModelManager::onCoreAboutToClose()
 {
     Core::ProgressManager::cancelTasks(CppTools::Constants::TASK_INDEX);
@@ -1338,7 +1384,7 @@ void CppModelManager::GC()
         filesInEditorSupports << abstractEditorSupport->fileName();
 
     Snapshot currentSnapshot = snapshot();
-    QSet<Utils::FileName> reachableFiles;
+    QSet<Utils::FilePath> reachableFiles;
     // The configuration file is part of the project files, which is just fine.
     // If single files are open, without any project, then there is no need to
     // keep the configuration file around.
@@ -1349,7 +1395,7 @@ void CppModelManager::GC()
         const QString file = todo.last();
         todo.removeLast();
 
-        const Utils::FileName fileName = Utils::FileName::fromString(file);
+        const Utils::FilePath fileName = Utils::FilePath::fromString(file);
         if (reachableFiles.contains(fileName))
             continue;
         reachableFiles.insert(fileName);
@@ -1362,7 +1408,7 @@ void CppModelManager::GC()
     QStringList notReachableFiles;
     Snapshot newSnapshot;
     for (Snapshot::const_iterator it = currentSnapshot.begin(); it != currentSnapshot.end(); ++it) {
-        const Utils::FileName &fileName = it.key();
+        const Utils::FilePath &fileName = it.key();
 
         if (reachableFiles.contains(fileName))
             newSnapshot.insert(it.value());

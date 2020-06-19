@@ -42,6 +42,7 @@ namespace CppCodeModelInspector {
 struct CPPTOOLS_EXPORT Utils
 {
     static QString toString(bool value);
+    static QString toString(int value);
     static QString toString(unsigned value);
     static QString toString(const QDateTime &dateTime);
     static QString toString(CPlusPlus::Document::CheckMode checkMode);
@@ -49,11 +50,12 @@ struct CPPTOOLS_EXPORT Utils
     static QString toString(ProjectExplorer::HeaderPathType type);
     static QString toString(::Utils::LanguageVersion languageVersion);
     static QString toString(::Utils::LanguageExtensions languageExtension);
-    static QString toString(CppTools::ProjectPart::QtVersion qtVersion);
-    static QString toString(CppTools::ProjectPart::BuildTargetType buildTargetType);
+    static QString toString(::Utils::QtVersion qtVersion);
+    static QString toString(ProjectExplorer::BuildTargetType buildTargetType);
     static QString toString(const QVector<CppTools::ProjectFile> &projectFiles);
     static QString toString(CppTools::ProjectFile::Kind kind);
     static QString toString(CPlusPlus::Kind kind);
+    static QString toString(ProjectPart::ToolChainWordWidth width);
     static QString partsForFile(const QString &fileName);
     static QString unresolvedFileNameWithDelimiters(const CPlusPlus::Document::Include &include);
     static QString pathListToString(const QStringList &pathList);

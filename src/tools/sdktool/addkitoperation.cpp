@@ -57,7 +57,7 @@ const char SDK[] = "PE.Profile.SDK";
 const char ENV[] = "PE.Profile.Environment";
 const char DATA[] = "PE.Profile.Data";
 
-// Standard KitInformation:
+// Standard KitAspects:
 const char DEBUGGER[] = "Debugger.Information";
 const char DEBUGGER_ENGINE[] = "EngineType";
 const char DEBUGGER_BINARY[] = "Binary";
@@ -324,7 +324,7 @@ bool AddKitOperation::test() const
     devMap = AddDeviceOperation::addDevice(devMap, "{dev-id}", "Dev", 0, 0,
                                            "HWplatform", "SWplatform",
                                            "localhost", "10000-11000",
-                                           "localhost", "", 42, false,
+                                           "localhost", "", 42,
                                            "desktop", "", 22, 10000,
                                            "uname", 1,
                                            KeyValuePairList());
@@ -602,6 +602,11 @@ QVariantMap AddKitOperation::addKit(const QVariantMap &map, const QVariantMap &t
         std::cerr << "Error: Device " << qPrintable(device) << " does not exist." << std::endl;
         return QVariantMap();
     }
+
+    // Treat a qt that was explicitly set to '' as "no Qt"
+    if (!qtId.isNull() && qtId.isEmpty())
+        qtId = "-1";
+
     if (!cmakeId.isEmpty() && !AddCMakeOperation::exists(cmakeMap, cmakeId)) {
         std::cerr << "Error: CMake tool " << qPrintable(cmakeId) << " does not exist." << std::endl;
         return QVariantMap();

@@ -5,15 +5,16 @@ HEADERS = builddirmanager.h \
     builddirparameters.h \
     builddirreader.h \
     cmakebuildstep.h \
+    cmakebuildsystem.h \
     cmakebuildtarget.h \
     cmakeconfigitem.h \
+    cmakeprocess.h \
     cmakeproject.h \
     cmakeprojectimporter.h \
     cmakeprojectplugin.h \
     cmakeprojectmanager.h \
     cmakeprojectconstants.h \
     cmakeprojectnodes.h \
-    cmakerunconfiguration.h \
     cmakebuildconfiguration.h \
     cmakeeditor.h \
     cmakelocatorfilter.h \
@@ -25,7 +26,6 @@ HEADERS = builddirmanager.h \
     cmaketoolmanager.h \
     cmake_global.h \
     cmakekitinformation.h \
-    cmakekitconfigwidget.h \
     cmakecbpparser.h \
     cmakebuildsettingswidget.h \
     cmakeindenter.h \
@@ -34,23 +34,26 @@ HEADERS = builddirmanager.h \
     cmakespecificsettingspage.h \
     configmodel.h \
     configmodelitemdelegate.h \
+    fileapidataextractor.h \
+    fileapiparser.h \
+    fileapireader.h \
+    projecttreehelper.h \
     servermode.h \
     servermodereader.h \
-    tealeafreader.h \
-    treescanner.h
+    tealeafreader.h
 
 SOURCES = builddirmanager.cpp \
     builddirparameters.cpp \
     builddirreader.cpp \
     cmakebuildstep.cpp \
-    cmakebuildtarget.cpp \
+    cmakebuildsystem.cpp \
     cmakeconfigitem.cpp \
+    cmakeprocess.cpp \
     cmakeproject.cpp \
     cmakeprojectimporter.cpp \
     cmakeprojectplugin.cpp \
     cmakeprojectmanager.cpp \
     cmakeprojectnodes.cpp \
-    cmakerunconfiguration.cpp \
     cmakebuildconfiguration.cpp \
     cmakeeditor.cpp \
     cmakelocatorfilter.cpp \
@@ -61,7 +64,6 @@ SOURCES = builddirmanager.cpp \
     cmakesettingspage.cpp \
     cmaketoolmanager.cpp \
     cmakekitinformation.cpp \
-    cmakekitconfigwidget.cpp \
     cmakecbpparser.cpp \
     cmakebuildsettingswidget.cpp \
     cmakeindenter.cpp \
@@ -70,10 +72,13 @@ SOURCES = builddirmanager.cpp \
     cmakespecificsettingspage.cpp \
     configmodel.cpp \
     configmodelitemdelegate.cpp \
+    fileapidataextractor.cpp \
+    fileapiparser.cpp \
+    fileapireader.cpp \
+    projecttreehelper.cpp \
     servermode.cpp \
     servermodereader.cpp \
-    tealeafreader.cpp \
-    treescanner.cpp \
+    tealeafreader.cpp
 
 RESOURCES += cmakeproject.qrc
 

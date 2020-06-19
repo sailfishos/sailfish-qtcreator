@@ -38,6 +38,7 @@
 
 /*!
     \class Core::SettingsDatabase
+    \inmodule QtCreator
     \brief The SettingsDatabase class offers an alternative to the
     application-wide QSettings that is more
     suitable for storing large amounts of data.
@@ -241,9 +242,8 @@ QStringList SettingsDatabase::childKeys() const
     QStringList children;
 
     const QString g = group();
-    QMapIterator<QString, QVariant> i(d->m_settings);
-    while (i.hasNext()) {
-        const QString &key = i.next().key();
+    for (auto i = d->m_settings.cbegin(), end = d->m_settings.cend(); i != end; ++i) {
+        const QString &key = i.key();
         if (key.startsWith(g) && key.indexOf(QLatin1Char('/'), g.length() + 1) == -1)
             children.append(key.mid(g.length() + 1));
     }

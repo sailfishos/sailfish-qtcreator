@@ -27,6 +27,7 @@
 
 #include "clangpchmanagerbackend_global.h"
 
+#include <precompiledheaderstorageinterface.h>
 #include <projectpartsmanagerinterface.h>
 #include <projectpartsstorageinterface.h>
 
@@ -34,28 +35,54 @@
 
 namespace ClangBackEnd {
 
+class BuildDependenciesProviderInterface;
+class FilePathCachingInterface;
+class GeneratedFilesInterface;
+class ClangPathWatcherInterface;
+
 inline namespace Pch {
+
 class ProjectPartsManager final : public ProjectPartsManagerInterface
 {
 public:
-    ProjectPartsManager(ProjectPartsStorageInterface &projectPartsStorage)
+    ProjectPartsManager(ProjectPartsStorageInterface &projectPartsStorage,
+                        PrecompiledHeaderStorageInterface &precompiledHeaderStorage,
+                        BuildDependenciesProviderInterface &buildDependenciesProvider,
+                        FilePathCachingInterface &filePathCache,
+                        ClangPathWatcherInterface &clangPathwatcher,
+                        GeneratedFilesInterface &generatedFiles)
         : m_projectPartsStorage(projectPartsStorage)
+        , m_precompiledHeaderStorage(precompiledHeaderStorage)
+        , m_buildDependenciesProvider(buildDependenciesProvider)
+        , m_filePathCache(filePathCache)
+        , m_clangPathwatcher(clangPathwatcher)
+        , m_generatedFiles(generatedFiles)
     {}
 
-    ProjectPartContainers update(ProjectPartContainers &&projectsParts) override;
+    UpToDataProjectParts update(ProjectPartContainers &&projectsParts) override;
     void remove(const ProjectPartIds &projectPartIds) override;
     ProjectPartContainers projects(const ProjectPartIds &projectPartIds) const override;
-    void updateDeferred(const ProjectPartContainers &projectsParts) override;
-    ProjectPartContainers deferredUpdates() override;
+    void updateDeferred(ProjectPartContainers &&system, ProjectPartContainers &&project) override;
+    ProjectPartContainers deferredSystemUpdates() override;
+    ProjectPartContainers deferredProjectUpdates() override;
 
-    static ProjectPartContainers filterNewProjectParts(ProjectPartContainers &&newProjectsParts,
-                                                       const ProjectPartContainers &oldProjectParts);
+    static ProjectPartContainers filterProjectParts(const ProjectPartContainers &newProjectsParts,
+                                                    const ProjectPartContainers &oldProjectParts);
     void mergeProjectParts(const ProjectPartContainers &projectsParts);
     const ProjectPartContainers &projectParts() const;
+    UpToDataProjectParts checkDependeciesAndTime(ProjectPartContainers &&upToDateProjectParts,
+                                                 ProjectPartContainers &&updateSystemProjectParts);
 
 private:
     ProjectPartContainers m_projectParts;
+    ProjectPartContainers m_systemDeferredProjectParts;
+    ProjectPartContainers m_projectDeferredProjectParts;
     ProjectPartsStorageInterface &m_projectPartsStorage;
+    PrecompiledHeaderStorageInterface &m_precompiledHeaderStorage;
+    BuildDependenciesProviderInterface &m_buildDependenciesProvider;
+    FilePathCachingInterface &m_filePathCache;
+    ClangPathWatcherInterface &m_clangPathwatcher;
+    GeneratedFilesInterface &m_generatedFiles;
 };
 
 } // namespace Pch

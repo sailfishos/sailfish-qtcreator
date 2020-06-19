@@ -35,6 +35,8 @@
 #include <qmldesignerplugin.h>
 #include <viewmanager.h>
 #include <nodeinstanceview.h>
+#include "qmldesignerconstants.h"
+#include "qmlvisualnode.h"
 
 #include <projectexplorer/projecttree.h>
 #include <projectexplorer/project.h>
@@ -44,6 +46,7 @@
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtsupportconstants.h>
 #include <qtsupport/qtversionmanager.h>
+#include <coreplugin/icore.h>
 #include <coreplugin/idocument.h>
 #include <coreplugin/editormanager/editormanager.h>
 
@@ -64,7 +67,6 @@ enum {
 
 namespace QmlDesigner {
 
-
 /**
   \class QmlDesigner::DesignDocument
 
@@ -77,7 +79,7 @@ DesignDocument::DesignDocument(QObject *parent) :
         m_subComponentManager(new SubComponentManager(m_documentModel.data(), this)),
         m_rewriterView (new RewriterView(RewriterView::Amend, m_documentModel.data())),
         m_documentLoaded(false),
-        m_currentKit(nullptr)
+        m_currentTarget(nullptr)
 {
 }
 
@@ -197,7 +199,7 @@ QString DesignDocument::simplfiedDisplayName() const
         return rootModelNode().simplifiedTypeName();
 }
 
-void DesignDocument::updateFileName(const Utils::FileName & /*oldFileName*/, const Utils::FileName &newFileName)
+void DesignDocument::updateFileName(const Utils::FilePath & /*oldFileName*/, const Utils::FilePath &newFileName)
 {
     if (m_documentModel)
         m_documentModel->setFileUrl(QUrl::fromLocalFile(newFileName.toString()));
@@ -210,16 +212,16 @@ void DesignDocument::updateFileName(const Utils::FileName & /*oldFileName*/, con
     emit displayNameChanged(displayName());
 }
 
-Utils::FileName DesignDocument::fileName() const
+Utils::FilePath DesignDocument::fileName() const
 {
     if (editor())
         return editor()->document()->filePath();
-    return Utils::FileName();
+    return Utils::FilePath();
 }
 
-Kit *DesignDocument::currentKit() const
+ProjectExplorer::Target *DesignDocument::currentTarget() const
 {
-    return m_currentKit;
+    return m_currentTarget;
 }
 
 bool DesignDocument::isDocumentLoaded() const
@@ -251,7 +253,7 @@ void DesignDocument::loadDocument(QPlainTextEdit *edit)
 
     m_inFileComponentTextModifier.reset();
 
-    updateFileName(Utils::FileName(), fileName());
+    updateFileName(Utils::FilePath(), fileName());
 
     updateQrcFiles();
 
@@ -268,6 +270,14 @@ void DesignDocument::changeToDocumentModel()
 
     viewManager().attachRewriterView();
     viewManager().attachViewsExceptRewriterAndComponetView();
+}
+
+bool DesignDocument::isQtForMCUsProject() const
+{
+    if (m_currentTarget)
+        return m_currentTarget->additionalData("CustomQtForMCUs").toBool();
+
+    return true;
 }
 
 void DesignDocument::changeToInFileComponentModel(ComponentTextModifier *textModifer)
@@ -288,7 +298,7 @@ void DesignDocument::updateQrcFiles()
     ProjectExplorer::Project *currentProject = ProjectExplorer::SessionManager::projectForFile(fileName());
 
     if (currentProject) {
-        for (const Utils::FileName &fileName : currentProject->files(ProjectExplorer::Project::SourceFiles)) {
+        for (const Utils::FilePath &fileName : currentProject->files(ProjectExplorer::Project::SourceFiles)) {
             if (fileName.endsWith(".qrc"))
                 QmlJS::ModelManagerInterface::instance()->updateQrcFile(fileName.toString());
         }
@@ -366,18 +376,13 @@ void DesignDocument::deleteSelected()
     if (!currentModel())
         return;
 
-    try {
-        RewriterTransaction transaction(rewriterView(), QByteArrayLiteral("DesignDocument::deleteSelected"));
+    rewriterView()->executeInTransaction("DesignDocument::deleteSelected", [this](){
         QList<ModelNode> toDelete = view()->selectedModelNodes();
         foreach (ModelNode node, toDelete) {
             if (node.isValid() && !node.isRootNode() && QmlObjectNode::isValidQmlObjectNode(node))
                 QmlObjectNode(node).destroy();
         }
-
-        transaction.commit();
-    } catch (const RewritingException &e) {
-        e.showException();
-    }
+    });
 }
 
 void DesignDocument::copySelected()
@@ -398,6 +403,9 @@ void DesignDocument::cutSelected()
 static void scatterItem(const ModelNode &pastedNode, const ModelNode &targetNode, int offset = -2000)
 {
     if (targetNode.metaInfo().isValid() && targetNode.metaInfo().isLayoutable())
+        return;
+
+    if (!(pastedNode.hasVariantProperty("x") && pastedNode.hasVariantProperty("y")))
         return;
 
     bool scatter = false;
@@ -444,7 +452,7 @@ void DesignDocument::paste()
     if (rootNode.type() == "empty")
         return;
 
-    if (rootNode.id() == "designer__Selection") {
+    if (rootNode.id() == "designer__Selection") { // pasting multiple objects
         currentModel()->attachView(&view);
 
         ModelNode targetNode;
@@ -453,8 +461,22 @@ void DesignDocument::paste()
             targetNode = view.selectedModelNodes().constFirst();
 
         //In case we copy and paste a selection we paste in the parent item
-        if ((view.selectedModelNodes().count() == selectedNodes.count()) && targetNode.isValid() && targetNode.hasParentProperty())
+        if ((view.selectedModelNodes().count() == selectedNodes.count()) && targetNode.isValid() && targetNode.hasParentProperty()) {
             targetNode = targetNode.parentProperty().parentModelNode();
+        } else {
+            // if selection is empty and copied nodes are all 3D nodes, paste them under the active scene
+            bool all3DNodes = std::find_if(selectedNodes.begin(), selectedNodes.end(),
+                                           [](const ModelNode &node) { return !node.isSubclassOf("QtQuick3D.Node"); })
+                              == selectedNodes.end();
+            if (all3DNodes) {
+                int activeSceneId = rootModelNode().auxiliaryData("3d-active-scene").toInt();
+                if (activeSceneId != -1) {
+                    NodeListProperty sceneNodeProperty
+                            = QmlVisualNode::findSceneNodeProperty(rootModelNode().view(), activeSceneId);
+                    targetNode = sceneNodeProperty.parentModelNode();
+                }
+            }
+        }
 
         if (!targetNode.isValid())
             targetNode = view.rootModelNode();
@@ -466,10 +488,8 @@ void DesignDocument::paste()
             }
         }
 
-        QList<ModelNode> pastedNodeList;
-
-        try {
-            RewriterTransaction transaction(rewriterView(), QByteArrayLiteral("DesignDocument::paste1"));
+        rewriterView()->executeInTransaction("DesignDocument::paste1", [this, &view, selectedNodes, targetNode](){
+            QList<ModelNode> pastedNodeList;
 
             int offset = double(qrand()) / RAND_MAX * 20 - 10;
 
@@ -482,30 +502,37 @@ void DesignDocument::paste()
             }
 
             view.setSelectedModelNodes(pastedNodeList);
-            transaction.commit();
-        } catch (const RewritingException &e) {
-            qWarning() << e.description(); //silent error
-        }
-    } else {
-        try {
-            RewriterTransaction transaction(rewriterView(), QByteArrayLiteral("DesignDocument::paste2"));
+        });
 
+    } else { // pasting single object
+        rewriterView()->executeInTransaction("DesignDocument::paste1", [this, &view, selectedNodes, rootNode]() {
             currentModel()->attachView(&view);
             ModelNode pastedNode(view.insertModel(rootNode));
             ModelNode targetNode;
 
-            if (!view.selectedModelNodes().isEmpty())
+            if (!view.selectedModelNodes().isEmpty()) {
                 targetNode = view.selectedModelNodes().constFirst();
+            } else {
+                // if selection is empty and this is a 3D Node, paste it under the active scene
+                if (pastedNode.isSubclassOf("QtQuick3D.Node")) {
+                    int activeSceneId = rootModelNode().auxiliaryData("3d-active-scene").toInt();
+                    if (activeSceneId != -1) {
+                        NodeListProperty sceneNodeProperty
+                                = QmlVisualNode::findSceneNodeProperty(rootModelNode().view(), activeSceneId);
+                        targetNode = sceneNodeProperty.parentModelNode();
+                    }
+                }
+            }
 
             if (!targetNode.isValid())
                 targetNode = view.rootModelNode();
 
             if (targetNode.hasParentProperty() &&
-                (pastedNode.simplifiedTypeName() == targetNode.simplifiedTypeName()) &&
-                (pastedNode.variantProperty("width").value() == targetNode.variantProperty("width").value()) &&
-                (pastedNode.variantProperty("height").value() == targetNode.variantProperty("height").value()))
-
+                pastedNode.simplifiedTypeName() == targetNode.simplifiedTypeName() &&
+                pastedNode.variantProperty("width").value() == targetNode.variantProperty("width").value() &&
+                pastedNode.variantProperty("height").value() == targetNode.variantProperty("height").value()) {
                 targetNode = targetNode.parentProperty().parentModelNode();
+            }
 
             PropertyName defaultProperty(targetNode.metaInfo().defaultPropertyName());
 
@@ -515,15 +542,9 @@ void DesignDocument::paste()
             } else {
                 qWarning() << "Cannot reparent to" << targetNode;
             }
-
-            transaction.commit();
-            NodeMetaInfo::clearCache();
-
             view.setSelectedModelNodes({pastedNode});
-            transaction.commit();
-        } catch (const RewritingException &e) {
-            qWarning() << e.description(); //silent error
-        }
+        });
+        NodeMetaInfo::clearCache();
     }
 }
 
@@ -569,8 +590,8 @@ void DesignDocument::setEditor(Core::IEditor *editor)
     connect(editor->document(), &Core::IDocument::filePathChanged,
             this, &DesignDocument::updateFileName);
 
-    updateActiveQtVersion();
-    updateCurrentProject();
+    updateActiveTarget();
+    updateActiveTarget();
 }
 
 Core::IEditor *DesignDocument::editor() const
@@ -612,53 +633,38 @@ void DesignDocument::redo()
     viewManager().resetPropertyEditorView();
 }
 
-static inline Kit *getActiveKit(DesignDocument *designDocument)
+static Target *getActiveTarget(DesignDocument *designDocument)
 {
-    ProjectExplorer::Project *currentProject = ProjectExplorer::SessionManager::projectForFile(designDocument->fileName());
+    Project *currentProject = SessionManager::projectForFile(designDocument->fileName());
 
     if (!currentProject)
-        currentProject = ProjectExplorer::ProjectTree::currentProject();
+        currentProject = ProjectTree::currentProject();
 
     if (!currentProject)
         return nullptr;
 
 
     QObject::connect(ProjectTree::instance(), &ProjectTree::currentProjectChanged,
-                     designDocument, &DesignDocument::updateActiveQtVersion, Qt::UniqueConnection);
+                     designDocument, &DesignDocument::updateActiveTarget, Qt::UniqueConnection);
 
     QObject::connect(currentProject, &Project::activeTargetChanged,
-                     designDocument, &DesignDocument::updateActiveQtVersion, Qt::UniqueConnection);
-
-    QObject::connect(ProjectTree::instance(), &ProjectTree::currentProjectChanged,
-                     designDocument, &DesignDocument::updateCurrentProject, Qt::UniqueConnection);
-
-    QObject::connect(currentProject, &Project::activeTargetChanged,
-                     designDocument, &DesignDocument::updateCurrentProject, Qt::UniqueConnection);
-
+                     designDocument, &DesignDocument::updateActiveTarget, Qt::UniqueConnection);
 
     Target *target = currentProject->activeTarget();
 
-    if (!target)
+    if (!target || !target->kit()->isValid())
         return nullptr;
 
-    if (!target->kit() || !target->kit()->isValid())
-        return nullptr;
     QObject::connect(target, &Target::kitChanged,
-                     designDocument, &DesignDocument::updateActiveQtVersion, Qt::UniqueConnection);
+                     designDocument, &DesignDocument::updateActiveTarget, Qt::UniqueConnection);
 
-    return target->kit();
+    return target;
 }
 
-void DesignDocument::updateActiveQtVersion()
+void DesignDocument::updateActiveTarget()
 {
-    m_currentKit = getActiveKit(this);
-    viewManager().setNodeInstanceViewKit(m_currentKit);
-}
-
-void DesignDocument::updateCurrentProject()
-{
-    ProjectExplorer::Project *currentProject = ProjectExplorer::SessionManager::projectForFile(fileName());
-    viewManager().setNodeInstanceViewProject(currentProject);
+    m_currentTarget = getActiveTarget(this);
+    viewManager().setNodeInstanceViewTarget(m_currentTarget);
 }
 
 void DesignDocument::contextHelp(const Core::IContext::HelpCallback &callback) const

@@ -25,59 +25,47 @@
 
 #pragma once
 
+#include "qbssession.h"
+
 #include <utils/environment.h>
 
 #include <QFutureInterface>
+#include <QJsonObject>
 #include <QObject>
-
-#include <qbs.h>
 
 namespace QbsProjectManager {
 namespace Internal {
 
-class QbsProject;
+class QbsBuildSystem;
 
 class QbsProjectParser : public QObject
 {
     Q_OBJECT
 
 public:
-    QbsProjectParser(QbsProjectManager::Internal::QbsProject *project,
-                     QFutureInterface<bool> *fi);
+    QbsProjectParser(QbsBuildSystem *buildSystem, QFutureInterface<bool> *fi);
     ~QbsProjectParser() override;
 
     void parse(const QVariantMap &config, const Utils::Environment &env, const QString &dir,
                const QString &configName);
-    void startRuleExecution();
     void cancel();
+    Utils::Environment environment() const { return m_environment; }
 
-    qbs::Project qbsProject() const;
-    qbs::ErrorInfo error();
+    QbsSession *session() const { return m_session; }
+    QJsonObject projectData() const { return m_projectData; }
+    ErrorInfo error() const { return m_error; }
 
 signals:
     void done(bool success);
-    void ruleExecutionDone();
 
 private:
-    void handleQbsParsingDone(bool success);
-    void handleQbsParsingProgress(int progress);
-    void handleQbsParsingTaskSetup(const QString &description, int maximumProgressValue);
-
-    QString pluginsBaseDirectory() const;
-    QString resourcesBaseDirectory() const;
-    QString libExecDirectory() const;
-
-    void handleRuleExecutionDone();
-
-    QString m_projectFilePath;
-    qbs::SetupProjectJob *m_qbsSetupProjectJob = nullptr;
-    qbs::BuildJob *m_ruleExecutionJob = nullptr;
-    qbs::ErrorInfo m_error;
-    qbs::Project m_project;
-    bool m_dryRun;
-
+    Utils::Environment m_environment;
+    const QString m_projectFilePath;
+    QbsSession * const m_session;
+    ErrorInfo m_error;
+    QJsonObject m_projectData;
+    bool m_parsing = false;
     QFutureInterface<bool> *m_fi = nullptr;
-    int m_currentProgressBase = 0;
 };
 
 } // namespace Internal

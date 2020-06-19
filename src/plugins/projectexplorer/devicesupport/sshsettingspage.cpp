@@ -34,9 +34,7 @@
 #include <QCheckBox>
 #include <QCoreApplication>
 #include <QFormLayout>
-#include <QLabel>
 #include <QSpinBox>
-#include <QString>
 
 using namespace QSsh;
 using namespace Utils;
@@ -44,21 +42,24 @@ using namespace Utils;
 namespace ProjectExplorer {
 namespace Internal {
 
-class SshSettingsWidget : public QWidget
+class SshSettingsWidget : public Core::IOptionsPageWidget
 {
-    Q_OBJECT
+    Q_DECLARE_TR_FUNCTIONS(ProjectExplorer::Internal::SshSettingsWidget)
+
 public:
     SshSettingsWidget();
     void saveSettings();
 
 private:
+    void apply() final { saveSettings(); }
+
     void setupConnectionSharingCheckBox();
     void setupConnectionSharingSpinBox();
     void setupSshPathChooser();
     void setupSftpPathChooser();
     void setupAskpassPathChooser();
     void setupKeygenPathChooser();
-    void setupPathChooser(PathChooser &chooser, const FileName &initialPath, bool &changedFlag);
+    void setupPathChooser(PathChooser &chooser, const FilePath &initialPath, bool &changedFlag);
     void updateCheckboxEnabled();
     void updateSpinboxEnabled();
 
@@ -74,33 +75,15 @@ private:
     bool m_keygenPathChanged = false;
 };
 
-SshSettingsPage::SshSettingsPage(QObject *parent) : Core::IOptionsPage(parent)
+SshSettingsPage::SshSettingsPage()
 {
     setId(Constants::SSH_SETTINGS_PAGE_ID);
-    setDisplayName(tr("SSH"));
+    setDisplayName(SshSettingsWidget::tr("SSH"));
     setCategory(Constants::DEVICE_SETTINGS_CATEGORY);
     setDisplayCategory(QCoreApplication::translate("ProjectExplorer", "SSH"));
-    setCategoryIcon(Utils::Icon({{":/projectexplorer/images/settingscategory_devices.png",
-                    Utils::Theme::PanelTextColorDark}}, Utils::Icon::Tint));
+    setCategoryIconPath(":/projectexplorer/images/settingscategory_devices.png");
+    setWidgetCreator([] { return new SshSettingsWidget; });
 }
-
-QWidget *SshSettingsPage::widget()
-{
-    if (!m_widget)
-        m_widget = new SshSettingsWidget;
-    return m_widget;
-}
-
-void SshSettingsPage::apply()
-{
-    m_widget->saveSettings();
-}
-
-void SshSettingsPage::finish()
-{
-    delete m_widget;
-}
-
 
 SshSettingsWidget::SshSettingsWidget()
 {
@@ -170,7 +153,7 @@ void SshSettingsWidget::setupKeygenPathChooser()
     setupPathChooser(m_keygenChooser, SshSettings::keygenFilePath(), m_keygenPathChanged);
 }
 
-void SshSettingsWidget::setupPathChooser(PathChooser &chooser, const FileName &initialPath,
+void SshSettingsWidget::setupPathChooser(PathChooser &chooser, const FilePath &initialPath,
                                          bool &changedFlag)
 {
     chooser.setExpectedKind(PathChooser::ExistingCommand);
@@ -196,5 +179,3 @@ void SshSettingsWidget::updateSpinboxEnabled()
 
 } // namespace Internal
 } // namespace ProjectExplorer
-
-#include <sshsettingspage.moc>

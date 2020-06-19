@@ -1,0 +1,522 @@
+/****************************************************************************
+**
+** Copyright (C) 2020 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+/*!
+    \previouspage external-tool-spec.html
+    \page qtcreator-documentation.html
+    \nextpage coding-style.html
+
+    \title Writing Documentation
+
+    When you add plugins or contribute new features to \QC, you probably want
+    other people to know about them and to be able to use them. Therefore, you
+    should also contribute documentation for them. Follow the guidelines in this
+    section to make sure that your documentation fits in well with the rest of
+    the \QC documentation.
+
+    When you contribute a plugin, you should write documentation both for the
+    developers who use \QC and for the ones who develop it.
+
+    Write the following user documentation for addition to the \QC Manual:
+
+    \list
+        \li  Overview topic, which describes the purpose of your plugin from the
+             viewpoint of \QC users
+
+        \li  Procedure topics, which describe how to use your plugin as part of \QC
+
+        \li  Reference topics, which contain information that developers
+             occasionally need to look up (optional)
+    \endlist
+
+    Write the following developer documentation for addition to the Extending
+    \QC Manual:
+
+    \list
+        \li  Overview topic, which describes the architecture and use cases for
+             your plugin from the viewpoint of \QC developers
+
+        \li  API documentation, which is generated from code comments
+    \endlist
+
+    \section1 Configuring Documentation Projects
+
+    \QC documentation is written by using QDoc. For more information about using
+    QDoc, see the \l{http://doc.qt.io/qt-5/qdoc-index.html}{QDoc Manual}.
+
+    QDoc finds the new topics automatically, when you place them as \c {.qdoc}
+    files in a doc source folder. However, to make the topics accessible to
+    readers, you must also add them to the table of contents and fix the next
+    page and previous page links to them from other topics.
+
+    \section1 Creating Folders and Files
+
+    The \c qtcreator repository contains the sources for building the following
+    documents:
+
+    \list
+        \li \QC Manual
+        \li Extending \QC Manual
+        \li \QDS Manual
+    \endlist
+
+    The sources for each project are stored in the following subfolders of
+    the \QC project folder:
+
+    \list
+        \li \c \doc\qtcreator\src
+        \li \c \doc\qtcreatordev\src
+        \li \c \doc\qtdesignstudio\src
+    \endlist
+
+    The \QDS Manual is based on the \QC Manual, with additional topics.
+
+    The Extending \QC Manual has its own sources. In addition, it
+    pulls in API reference documentation from the \QC source files. Add
+    code documentation directly to the code source files. However, you can
+    write an API overview also as a separate \c {.qdoc} file.
+
+    Create a subfolder for your documentation in the appropriate \c src folder.
+    Create a separate file for each topic.
+
+    The easiest way is probably to copy an existing file, save it as a new file,
+    and modify it. This way, you already have samples of the necessary bits and
+    pieces in place, such as topic start and end commands, copyright statement,
+    links to next and previous topics, and topic title.
+
+    \section1 Integrating Topics to Documentation
+
+    You must integrate your new topics to the manuals by adding links to them
+    to the table of contents and to other relevant topics.
+
+    To link to the topic, you can use the topic title. For example:
+
+    \badcode
+    \l{Integrating Topics to Documentation}
+    \endcode
+
+    This does not work if topic titles are not unique. Also, if you change the
+    title, the link breaks. You can avoid this risk by adding the \c {\target}
+    command to your topic and then linking to the target.
+
+    \section2 Showing and Hiding Information
+
+    \QDS uses only a subset of \QC plugins and it has its own special plugins.
+    This means that their manuals have somewhat different structures. Which, in
+    turn breaks the navigation links to previous and next pages.
+
+    This also means that some of the \QC Manual source files are not needed at
+    all and some contain information that does not apply to the \QDS Manual. If
+    QDoc parsed all the \QC Manual sources, it would generate HTML files for each
+    topic and include those files and all the images that they refer to in the
+    \QDS help compilation files. This would unnecessarily increase the size of
+    the \QDS help database and pollute the help index with references to files
+    that are not actually listed in the table of contents of the \QDS Manual.
+    To avoid this, some files are excluded from the \QDS Manual builds.
+
+    \section3 Excluding Souce Files from \QDS Manual Builds
+
+    The directories to exclude from \QDS Manual builds are
+    listed as values of the \c excludedirs option in
+    \c {\doc\qtdesignstudio\config\qtdesignstudio.qdocconf}.
+
+    You only need to edit the values of the option if you want to show or hide
+    all the contents of a directory. For example, if you add support for a \QC
+    plugin that was previously not supported by \QDS, you should remove the
+    directory that contains the documentation for the plugin from the values.
+
+    To hide or show individual topics within individual \c {.qdoc} files, you
+    need to move the files in the \QC Manual source (\c \doc\qtcreator\src) to
+    or from the excluded directories.
+
+    For example, if support for iOS were added, you would need to check whether
+    the information about iOS support is applicable to \QDS Manual. If yes,
+    you would need to remove the following line from the \c excludedirs value:
+
+    \badcode
+    ../../src/ios \
+    \endcode
+
+    You would then use defines to hide any \QC specific information from the
+    source file in the directory.
+
+    If a directory contains some files that are needed in both manuals and some
+    that are only needed in the \QC Manual, the latter are located in a
+    subdirectory called \c {creator-only}, which is excluded from the \QDS
+    Manual builds.
+
+    \section3 Hiding Text in \QC Manual Sources
+
+    The \c qtcreator define is specified as a value of the
+    \c defines option in the \QC QDoc configuration file,
+    \c {\doc\qtcreator\config\qtcreator-project.qdocconf}.
+    It is mostly used in the \QC Manual sources to hide \QC
+    specific information when the \QDS Manual is built.
+
+    The \c {\else} command is sometimes used to replace some \QC specific text
+    with text that applies to \QDS. For example, the following \c if-else
+    statement is needed in the \QC Manual sources, because the project wizards
+    in \QDS are different from those in \QC, and are therefore described in
+    a new topic that is located in the \QDS Manual sources:
+
+    \badcode
+    For more information, see
+    \if defined(qtcreator)
+    \l{Creating Qt Quick Projects}.
+    \else
+    \l{Creating UI Prototype Projects}.
+    \endif
+    \endcode
+
+    \note Section titles in the two manuals can be identical only if the page is
+    excluded from the \QDS Manual. In this case, QDoc can correctly determine
+    the link target. If you add a link to a section title that appears twice in
+    the doc source files, QDoc uses the first reference to that title in the
+    \c {.index} file.
+
+    \section3 Writing About \QDS Specific Features
+
+    \QDS specific plugins and features are described in a set of doc
+    source files located in the \c {\doc\qtdesignstudio\src} directory. Some
+    files are used to include subsections in topics in the \QC Manual sources.
+
+    Screenshots and other illustrations are stored in the
+    \c {\qtdesignstudio\images} directory.
+
+    If you add new topics to the \QDS Manual, add links to them to the table
+    of contents in \c {qtdesignstudio-toc.qdoc} and check the values of the
+    navigation links around them.
+
+    \section3 Including Sections in \QC Manual Sources
+
+    \QMLD is an integral part of both \QC and \QDS. Therefore, most topics that
+    describe it are needed in the manuals of both tools. You can use the
+    \c {\include} command in the \QC Manual sources to include \c {.qdocinc}
+    files from the \QDS Manual sources when building the \QDS Manual.
+
+    For example, the following lines in the
+    \c {\doc\qtcreator\src\qtquick\qtquick-components.qdoc}
+    file add information about creating and using \QDS Components
+    to the \e {Creating Components} topic that is pulled from the
+    \QC Manual sources:
+
+    \badcode
+    \if defined(qtdesignstudio)
+    \include qtdesignstudio-components.qdocinc creating studio components
+    \include qtdesignstudio-components.qdocinc studio components
+    \endif
+    \endcode
+
+    Similarly, you can use include files to include subsections in different
+    main level topics in the two manuals.
+
+    \section2 Updating Next and Previous Links
+
+    When you add new topics to a document, you must also change the navigation
+    links of the topics around them.
+
+    The navigation order of the topics in the \QC Manual is specified in
+    \c {\doc\qtcreator\src\qtcreator-toc.qdoc} and that of the topics in the
+    \QDS Manual in \c {\doc\qtdesignstudio\src\qtdesignstudio-toc.qdoc}. If
+    you add topics to or move them around in a TOC file, you must adjust the
+    navigation links accordingly.
+
+    The \c qtdesignstudio define is specified as a value of
+    the \c defines option in the \QDS Manual configuration file,
+    \c {qtcreator\doc\qtdesignstudio\config\qtdesignstudio.qdocconf}.
+    It is mostly used in the \QC Manual sources to specify values for the
+    \c {\previouspage} and \c {\nextpage} commands depending on whether
+    the \QDS Manual or \QC Manual is being built. For example, the
+    following \c if-else statement is needed, because only the Git
+    version control system is integrated to \QDS, and information about
+    the other systems integrated to \QC is hidden:
+
+    \badcode
+    \page creator-vcs-git.html
+    \if defined(qtdesignstudio)
+    \previouspage studio-projects.html
+    \nextpage studio-importing-designs.html
+    \else
+    \previouspage creator-vcs-cvs.html
+    \nextpage creator-vcs-mercurial.html
+    \endif
+    \endcode
+
+    \section1 Writing Text
+
+    Follow the guidelines for
+    \l{http://wiki.qt.io/Writing_Qt_Documentation}{writing Qt documentation}.
+
+    The documentation must be grammatically correct English and use the standard
+    form of written language. Do not use dialect or slang words. Use idiomatic
+    language, that is, expressions that are characteristic for English. If
+    possible, ask a native English speaker for a review.
+
+    \section2 Capitalizing Headings
+
+    Use the book title capitalization style for all titles and section headings
+    (\c {\title}, \c {\section1}, \c {\section2}, and so on). For more
+    information, see \l{Using Book Style Capitalization}.
+
+    \section1 Using Images
+
+    You can illustrate your documentation by using screen shots, diagrams, and
+    other images.
+
+    Use the \c {\image} and \c {\inlineimage} QDoc commands to refer to images
+    from the text. You do not need to add paths to image names. For example:
+
+    \badcode
+    \image riot.png
+    \endcode
+
+    \section2 Taking Screen Shots
+
+    \QC has the native look and feel on Windows, Linux, and \macos, and therefore,
+    screen shots can end up looking very different, depending on who takes them
+    and which system they use. To try to preserve a consistent look and feel in
+    the \QC Manual, observe the guidelines listed in this section when taking
+    screen shots.
+
+    \note Do not rely on screen shots present reasonable example values to
+    users, but always place example values also in the text.
+
+    \list
+        \li Use the screen resolution of 1366x768 (available on the most
+            commonly used screens, as of this writing).
+
+        \li Use the aspect ratio of 16:9.
+
+        \li Open the application in the maximum size on full screen.
+
+        \li Use your favorite tool to take the screen shot.
+
+        \li Include only the part of the screen that you need (you can crop the
+            image also in the screen capture tool).
+
+        \li To highlight parts of the screen shot, use the images of numbers
+            that are stored in \c{doc/images/numbers} in the \QC repository.
+
+        \li Before you submit the images to the repository, optimize them to
+            save space.
+    \endlist
+
+    \section2 Hightlighting Parts of the Screen
+
+    You can use number icons in screenshots to highlight parts of the screenshot
+    (instead of using red arrows or borders, or something similar). You can then
+    refer to the numbers in text. For and example, see the
+    \l{http://doc.qt.io/qt-5/topics-app-development.html}{Development Tools}
+    topic in the Qt reference documentation.
+
+    This improves the consistency of the look and feel of Qt documentation,
+    and eliminates the need to describe parts of the UI in the text, because
+    you can just insert the number of the element you are referring to in
+    brackets.
+
+    You can find a set of images that show the numbers from 1 to 10 in the
+    \c doc/images/numbers directory (or in the \c qtdoc module sources in
+    \c doc/images/numbers).
+
+    To use the numbers, copy-paste the number images on the screenshot to the
+    places that you want to refer to from text.
+
+    \section2 Optimizing Images
+
+    Save images in the PNG format in the \QC project folder in the
+    \c {doc/images} folder. Binary images can easily add megabytes to the Git
+    history. To keep the history as small as possible, the Git post-commit hooks
+    remind you to try to keep image size below 50 kilobytes. To achieve this
+    goal, crop images so that only relevant information is visible in them.
+    Before committing images, optimize them by using an image optimization tool.
+
+    Optimization should not visibly reduce image quality. If it does, do not do
+    it.
+
+    You can use a web service, such as \l{https://tinypng.com}, or an image
+    optimization tool to shrink the images. For example, you can use the Radical
+    Image Optimization Tool (RIOT) or OptiPNG on Windows, ImageOptim on
+    \macos, or some other tool available on Linux.
+
+    With ImageOptim, you simply drag and drop the image files to the
+    application. The following section describes the settings to use for RIOT.
+
+    \section3 Using RIOT
+
+    Download and install \l{http://luci.criosweb.ro/riot/}{RIOT}.
+
+    \image riot.png
+
+    Open your images in RIOT and use the following settings for them:
+
+    \list
+        \li  Color reduction: Optimal 256 colors palette
+
+        \li  Reduce colors to: 256
+
+        \li  Best compression (slow)
+
+        \li  Color quantization algorithm: NeuQuant neural-net (slow)
+
+        \li  External optimizers: OptiPNG o3
+    \endlist
+
+    Compare the initial and optimized images to check that image quality is
+    preserved. If the image quality deteriorates, do not use color reduction
+    (select the \uicontrol {True Color} option, instead).
+
+    You can also see the sizes of the initial and optimized image.
+
+    \section3 Using OptiPNG
+
+    Download and install \l{https://sourceforge.net/projects/optipng/}{OptiPNG}.
+
+    OptiPNG is a command-line tool that you can invoke from the \QC project
+    folder (or any folder that contains your project). To optimize a screenshot,
+    enter the following command (here, from the \QC project folder):
+
+    \badcode
+    optipng -o 7 -strip all doc/images/<screenshot_name>
+    \endcode
+
+    \section1 Building Documentation
+
+    You use QDoc to build the documentation. Build the documentation before
+    submitting any documentation patches, to check its structure, contents,
+    and the validity of the QDoc commands. The error messages that QDoc
+    issues are generally very useful for troubleshooting.
+
+    \section2 Setting Up Documentation Builds
+
+    You can run \c qmake from an installed Qt to build documentation.
+
+    \note Since \QC version 4.12, only Qt 5.14.0 or later is supported
+    for building documentation.
+
+    For more information about setting up the build environment with a
+    self-built Qt if you do not want to build the whole Qt, see
+    \l{https://wiki.qt.io/Building_Qt_Documentation}{Building Qt Documentation}
+    on the Qt wiki.
+
+    The content and formatting of documentation are separated in QDoc.
+    The documentation configuration, style sheets, and templates have
+    changed over time, so they differ between Qt and \QC versions.
+
+    The templates to use are defined by the
+    \c {qt5/qtbase/doc/global/qt-html-templates-offline.qdocconf}
+    and \c {qt5/qtbase/doc/global/qt-html-templates-online.qdocconf}
+    configuration file. They are fetched from Qt sources by adding
+    the following lines to the qdocconf file:
+
+    \list
+        \li \c {include ($QT_INSTALL_DOCS/global/qt-html-templates-offline.qdocconf)}
+            for help files
+        \li \c {include ($QT_INSTALL_DOCS/global/qt-html-templates-online.qdocconf)}
+            for publishing on the web
+    \endlist
+
+    \note To have the correct fonts loaded for the online version, you must be
+    running it on a web server.
+
+    \note If the styles look wrong to you when reading help files in \QC or \QA,
+    you might be looking at them in the QTextBrowser instead of the Qt WebEngine
+    browser. This happens if you do not have Qt WebEngine installed.
+
+    \section2 Documentation Build Commands
+
+    To build documentation for the sources from the qtcreator master branch, use
+    build scripts defined in the doc.pri file. To build the docs in the
+    HTML format and to create help files (.qch), enter the following build
+    commands from the project folder (after running qmake):
+
+    \list
+        \li \c {nmake docs} (on Windows)
+
+        \li \c {make docs} (on Linux and \macos)
+    \endlist
+
+    The HTML documentation is generated in the following folders:
+
+    \list
+        \li \c doc/html/qtcreator
+        \li \c doc/html/qtcreatordev
+        \li \c doc/html/qtdesignstudio
+    \endlist
+
+    The help files (\c {.qch}) are generated in the
+    \c {share/doc/qtcreator} directory in the \QC build directory on Windows and
+    Linux, and in the \c {bin/Qt Creator.app/Contents/Resources/app} directory
+    on \macos.
+
+    You can view the HTML files in a browser and the help files in
+    the \QC \uicontrol Help mode. For more information about adding the help
+    files to \QC, see
+    \l{http://doc.qt.io/qtcreator/creator-help.html#adding-external-documentation}
+    {Adding External Documentation}.
+
+    Besides \c docs, you have the following options for building a particular
+    document in a particular format:
+
+    \list
+        \li \c html_docs_qtcreator - build \QC Manual in help format, but do not
+            generate a help file
+
+        \li \c html_docs_qtcreator-dev - build Extending \QC Manual in help
+            format, but do not generate a help file
+
+        \li \c qch_docs_qtcreator - build \QC Manual in help format and generate
+            a help file (.qch)
+
+        \li \c qch_docs_qtcreator-dev - build Extending \QC Manual in help format
+            and generate a help file (.qch)
+    \endlist
+
+    \section3 Building the \QDS Manual
+
+    To get the correct product name and version, you must run \c {qmake -r} on
+    \c {qtcreator.pro} with the \c IDE_BRANDING_PRI option set to the absolute
+    path of \c {ide_branding.pri} in the \QDS (private) repository.
+
+    For example, on Windows enter (all on one line):
+
+    \badcode
+    C:\dev\qtc-super\qtcreator>..\..\..\Qt\5.14.1\msvc2017_64\bin\qmake.exe
+        qtcreator.pro -r
+        IDE_BRANDING_PRI=C:\dev\tqtc-plugin-qtquickdesigner\studiodata\branding\ide_branding.pri
+    \endcode
+
+    To build the \QDS Manual:
+
+    \list 1
+        \li Run \c qmake from Qt 5.14.0, or later with the path to the branding
+            information as an option (all on one line):
+
+            \c {<relative_path_to>/qmake.exe
+            qtcreator.pro -r
+            IDE_BRANDING_PRI=<absolute_path_to>ide_branding.pri}
+        \li Run \c {make docs} on Linux and macOS or \c {nmake docs}
+            on Windows.
+    \endlist
+*/

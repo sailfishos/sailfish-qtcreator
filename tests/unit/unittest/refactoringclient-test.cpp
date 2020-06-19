@@ -38,6 +38,7 @@
 
 #include <cpptools/compileroptionsbuilder.h>
 #include <cpptools/projectpart.h>
+#include <projectexplorer/project.h>
 
 #include <utils/smallstringvector.h>
 
@@ -63,7 +64,26 @@ using Utils::SmallStringVector;
 
 class RefactoringClient : public ::testing::Test
 {
-    void SetUp();
+    void SetUp()
+    {
+        using Filter = ClangRefactoring::ClangQueryProjectsFindFilter;
+
+        client.setRefactoringEngine(&engine);
+
+        projectPart = CppTools::ProjectPart::Ptr(new CppTools::ProjectPart);
+        projectPart->project = &project;
+        projectPart->files.push_back(projectFile);
+
+        commandLine = Filter::compilerArguments(projectPart.data(), projectFile.kind);
+
+        client.setSearchHandle(&mockSearchHandle);
+        client.setExpectedResultCount(1);
+
+        ON_CALL(mockFilePathCaching, filePath(Eq(FilePathId{1})))
+            .WillByDefault(Return(FilePath(PathString("/path/to/file"))));
+        ON_CALL(mockFilePathCaching, filePath(Eq(FilePathId{42})))
+            .WillByDefault(Return(clangBackEndFilePath));
+    }
 
 protected:
     NiceMock<MockFilePathCaching> mockFilePathCaching;
@@ -81,50 +101,16 @@ protected:
     QTextDocument textDocument{fileContent};
     QTextCursor cursor{&textDocument};
     QString qStringFilePath{QStringLiteral("/home/user/file.cpp")};
-    Utils::FileName filePath{Utils::FileName::fromString(qStringFilePath)};
+    Utils::FilePath filePath{Utils::FilePath::fromString(qStringFilePath)};
     ClangBackEnd::FilePath clangBackEndFilePath{qStringFilePath};
     SmallStringVector commandLine;
+    ProjectExplorer::Project project;
     CppTools::ProjectPart::Ptr projectPart;
     CppTools::ProjectFile projectFile{qStringFilePath, CppTools::ProjectFile::CXXSource};
-    SourceLocationsForRenamingMessage renameMessage{"symbol",
-                                                    {{{42, 1, 1, 0}, {42, 2, 5, 10}}},
-                                                    1};
     SourceRangesForQueryMessage queryResultMessage{{{{42, 1, 1, 0, 1, 5, 4, ""},
                                                      {42, 2, 1, 5, 2, 5, 10, ""}}}};
     SourceRangesForQueryMessage emptyQueryResultMessage;
 };
-
-TEST_F(RefactoringClient, SourceLocationsForRenaming)
-{
-    client.setLocalRenamingCallback(mockLocalRenaming.AsStdFunction());
-
-    EXPECT_CALL(mockLocalRenaming, Call(renameMessage.symbolName.toQString(),
-                                        renameMessage.sourceLocations,
-                                        renameMessage.textDocumentRevision));
-
-    client.sourceLocationsForRenamingMessage(std::move(renameMessage));
-}
-
-TEST_F(RefactoringClient, AfterSourceLocationsForRenamingEngineIsUsableAgain)
-{
-    client.setLocalRenamingCallback(mockLocalRenaming.AsStdFunction());
-    EXPECT_CALL(mockLocalRenaming, Call(_,_,_));
-
-    client.sourceLocationsForRenamingMessage(std::move(renameMessage));
-
-    ASSERT_TRUE(engine.isRefactoringEngineAvailable());
-}
-
-TEST_F(RefactoringClient, AfterStartLocalRenameHasValidCallback)
-{
-    engine.startLocalRenaming(CppTools::CursorInEditor{cursor, filePath},
-                              projectPart.data(),
-                              [&] (const QString &,
-                                   const ClangBackEnd::SourceLocationsContainer &,
-                                   int) {});
-
-    ASSERT_TRUE(client.hasValidLocalRenamingCallback());
-}
 
 TEST_F(RefactoringClient, CallAddResultsForEmptyQueryMessage)
 {
@@ -228,25 +214,4 @@ TEST_F(RefactoringClient, SetProgress)
 
     client.progress({ClangBackEnd::ProgressType::Indexing, 10, 20});
 }
-
-void RefactoringClient::SetUp()
-{
-    using Filter = ClangRefactoring::ClangQueryProjectsFindFilter;
-
-    client.setRefactoringEngine(&engine);
-
-    projectPart = CppTools::ProjectPart::Ptr(new CppTools::ProjectPart);
-    projectPart->files.push_back(projectFile);
-
-    commandLine = Filter::compilerArguments(projectPart.data(), projectFile.kind);
-
-    client.setSearchHandle(&mockSearchHandle);
-    client.setExpectedResultCount(1);
-
-    ON_CALL(mockFilePathCaching, filePath(Eq(FilePathId{1})))
-            .WillByDefault(Return(FilePath(PathString("/path/to/file"))));
-    ON_CALL(mockFilePathCaching, filePath(Eq(FilePathId{42})))
-            .WillByDefault(Return(clangBackEndFilePath));
-}
-
 }

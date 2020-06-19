@@ -35,6 +35,7 @@
 #include <QTextStream>
 #include <QFileInfo>
 #include <QByteArray>
+#include <QElapsedTimer>
 #include <QSysInfo>
 #include <QString>
 #include <QDir>
@@ -322,7 +323,7 @@ bool startCreatorAsDebugger(bool asClient, QString *errorMessage)
         qDebug() << binary << args;
     QProcess p;
     p.setWorkingDirectory(dir);
-    QTime executionTime;
+    QElapsedTimer executionTime;
     executionTime.start();
     p.start(binary, args, QIODevice::NotOpen);
     if (!p.waitForStarted()) {
@@ -419,6 +420,15 @@ static bool registerDebuggerKey(const WCHAR *key,
     do {
         if (!openRegistryKey(HKEY_LOCAL_MACHINE, key, true, &handle, access, errorMessage))
             break;
+
+        // Make sure to automatically open the qtcdebugger dialog on a crash
+        QString autoVal;
+        registryReadStringKey(handle, autoRegistryValueNameC, &autoVal, errorMessage);
+        if (autoVal != "1") {
+            if (!registryWriteStringKey(handle, autoRegistryValueNameC, "1", errorMessage))
+                break;
+        }
+
         // Save old key, which might be missing
         QString oldDebugger;
         if (isRegistered(handle, call, errorMessage, &oldDebugger)) {

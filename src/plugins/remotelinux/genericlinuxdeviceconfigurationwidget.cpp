@@ -39,8 +39,8 @@ using namespace QSsh;
 using namespace Utils;
 
 GenericLinuxDeviceConfigurationWidget::GenericLinuxDeviceConfigurationWidget(
-        const IDevice::Ptr &deviceConfig, QWidget *parent) :
-    IDeviceWidget(deviceConfig, parent),
+        const IDevice::Ptr &deviceConfig) :
+    IDeviceWidget(deviceConfig),
     m_ui(new Ui::GenericLinuxDeviceConfigurationWidget)
 {
     m_ui->setupUi(this);
@@ -56,11 +56,11 @@ GenericLinuxDeviceConfigurationWidget::GenericLinuxDeviceConfigurationWidget(
             this, &GenericLinuxDeviceConfigurationWidget::authenticationTypeChanged);
     connect(m_ui->timeoutSpinBox, &QAbstractSpinBox::editingFinished,
             this, &GenericLinuxDeviceConfigurationWidget::timeoutEditingFinished);
-    connect(m_ui->timeoutSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+    connect(m_ui->timeoutSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &GenericLinuxDeviceConfigurationWidget::timeoutEditingFinished);
     connect(m_ui->sshPortSpinBox, &QAbstractSpinBox::editingFinished,
             this, &GenericLinuxDeviceConfigurationWidget::sshPortEditingFinished);
-    connect(m_ui->sshPortSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+    connect(m_ui->sshPortSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &GenericLinuxDeviceConfigurationWidget::sshPortEditingFinished);
     connect(m_ui->portsLineEdit, &QLineEdit::editingFinished,
             this, &GenericLinuxDeviceConfigurationWidget::handleFreePortsChanged);

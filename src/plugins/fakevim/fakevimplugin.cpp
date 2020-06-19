@@ -245,7 +245,7 @@ public:
         connect(&m_timerUpdate, &QTimer::timeout,
                 this, &RelativeNumbersColumn::followEditorLayout);
 
-        auto start = static_cast<void(QTimer::*)()>(&QTimer::start);
+        auto start = QOverload<>::of(&QTimer::start);
         connect(m_editor, &QPlainTextEdit::cursorPositionChanged,
                 &m_timerUpdate, start);
         connect(m_editor->verticalScrollBar(), &QAbstractSlider::valueChanged,
@@ -284,7 +284,7 @@ protected:
         QPainter p(this);
         QPalette pal = m_editor->extraArea()->palette();
         const QColor fg = pal.color(QPalette::Dark);
-        const QColor bg = pal.color(QPalette::Background);
+        const QColor bg = pal.color(QPalette::Window);
         p.setPen(fg);
 
         // Draw relative line numbers.
@@ -366,8 +366,7 @@ public:
         setDisplayName(Tr::tr("General"));
         setCategory(SETTINGS_CATEGORY);
         setDisplayCategory(Tr::tr("FakeVim"));
-        setCategoryIcon(Utils::Icon({{":/fakevim/images/settingscategory_fakevim.png",
-                        Utils::Theme::PanelTextColorDark}}, Utils::Icon::Tint));
+        setCategoryIconPath(":/fakevim/images/settingscategory_fakevim.png");
     }
 
     QWidget *widget() override;
@@ -970,7 +969,7 @@ public:
 
     void setActive(const QString &needle, bool forward, FakeVimHandler *handler)
     {
-        Q_UNUSED(forward);
+        Q_UNUSED(forward)
         m_handler = handler;
         if (!m_handler)
             return;
@@ -1268,7 +1267,7 @@ void FakeVimPluginPrivate::userActionTriggered(int key)
 
 void FakeVimPluginPrivate::createRelativeNumberWidget(IEditor *editor)
 {
-    if (auto textEditor = qobject_cast<TextEditorWidget *>(editor->widget())) {
+    if (auto textEditor = TextEditorWidget::fromEditor(editor)) {
         auto relativeNumbers = new RelativeNumbersColumn(textEditor);
         connect(theFakeVimSetting(ConfigRelativeNumber), &SavedAction::valueChanged,
                 relativeNumbers, &QObject::deleteLater);
@@ -1533,10 +1532,14 @@ void FakeVimPluginPrivate::editorOpened(IEditor *editor)
         return;
 
     // we can only handle QTextEdit and QPlainTextEdit
-    if (!qobject_cast<QTextEdit *>(widget) && !qobject_cast<QPlainTextEdit *>(widget))
+    if (auto edit = Aggregation::query<QTextEdit>(widget))
+        widget = edit;
+    else if (auto edit = Aggregation::query<QPlainTextEdit>(widget))
+        widget = edit;
+    else
         return;
 
-    auto tew = qobject_cast<TextEditorWidget *>(widget);
+    auto tew = TextEditorWidget::fromEditor(editor);
 
     //qDebug() << "OPENING: " << editor << editor->widget()
     //    << "MODE: " << theFakeVimSetting(ConfigUseFakeVim)->value();
@@ -1617,6 +1620,8 @@ void FakeVimPluginPrivate::editorOpened(IEditor *editor)
         tabSettings.m_tabSize = theFakeVimSetting(ConfigTabStop)->value().toInt();
         tabSettings.m_tabPolicy = theFakeVimSetting(ConfigExpandTab)->value().toBool()
                 ? TabSettings::SpacesOnlyTabPolicy : TabSettings::TabsOnlyTabPolicy;
+        tabSettings.m_continuationAlignBehavior =
+                tew->textDocument()->tabSettings().m_continuationAlignBehavior;
 
         QTextDocument *doc = tew->document();
         QTextBlock startBlock = doc->findBlockByNumber(beginBlock);
@@ -1675,11 +1680,11 @@ void FakeVimPluginPrivate::editorOpened(IEditor *editor)
         if (key == "C" || key == "<C-C>")
             triggerAction(Core::Constants::REMOVE_CURRENT_SPLIT);
         else if (key == "N" || key == "<C-N>")
-            triggerAction(Core::Constants::GOTONEXT);
+            triggerAction(Core::Constants::GOTO_NEXT_SPLIT);
         else if (key == "O" || key == "<C-O>")
             keepOnlyWindow();
         else if (key == "P" || key == "<C-P>")
-            triggerAction(Core::Constants::GOTOPREV);
+            triggerAction(Core::Constants::GOTO_PREV_SPLIT);
         else if (key == "S" || key == "<C-S>")
             triggerAction(Core::Constants::SPLIT);
         else if (key == "V" || key == "<C-V>")

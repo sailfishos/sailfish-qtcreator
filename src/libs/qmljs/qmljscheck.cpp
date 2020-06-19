@@ -29,6 +29,7 @@
 #include "qmljsutils.h"
 #include "parser/qmljsast_p.h"
 
+#include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
 #include <QColor>
@@ -65,7 +66,7 @@ public:
         return _message;
     }
 
-    void setMessage(Type type)
+    void setMessage(StaticAnalysis::Type type)
     {
         _message = Message(type, _location);
     }
@@ -312,6 +313,12 @@ protected:
             _state = ReachesEnd;
         return false;
     }
+
+    void throwRecursionDepthError() override
+    {
+         // handle differently? ReturnOrThrow declares unreachable code, but probably leads to bogus warnings
+        _state = ReachesEnd;
+    }
 };
 
 class MarkUnreachableCode : protected ReachesEndCheck
@@ -351,6 +358,11 @@ protected:
         if (message.isValid())
             _messages += message;
     }
+
+    void throwRecursionDepthError() override
+    {
+        _messages.append(Message(ErrHitMaximumRecursion, SourceLocation()));
+    }
 };
 
 class DeclarationsCheck : protected Visitor
@@ -384,9 +396,10 @@ protected:
         _possiblyUndeclaredUses.clear();
         _seenNonDeclarationStatement = false;
         _formalParameterNames.clear();
+        QTC_ASSERT(_block == 0, _block = 0);
     }
 
-    void postVisit(Node *ast)
+    void postVisit(Node *ast) override
     {
         if (!_seenNonDeclarationStatement && ast->statementCast()
                 && !cast<VariableStatement *>(ast)) {
@@ -394,35 +407,52 @@ protected:
         }
     }
 
-    bool visit(IdentifierExpression *ast)
+    bool visit(IdentifierExpression *ast) override
     {
         if (ast->name.isEmpty())
             return false;
         const QString &name = ast->name.toString();
-        if (!_declaredFunctions.contains(name) && !_declaredVariables.contains(name))
+        if (!_declaredFunctions.contains(name)
+                && !(_declaredVariables.contains(name)
+                     || _declaredBlockVariables.contains({name, _block}))) {
             _possiblyUndeclaredUses[name].append(ast->identifierToken);
+        }
         return false;
     }
 
-    bool visit(VariableStatement *ast)
+    bool visit(VariableStatement *ast) override
     {
         if (_seenNonDeclarationStatement)
             addMessage(HintDeclarationsShouldBeAtStartOfFunction, ast->declarationKindToken);
         return true;
     }
 
-    bool visit(PatternElement *ast)
+    bool visit(PatternElement *ast) override
     {
         if (ast->bindingIdentifier.isEmpty() || !ast->isVariableDeclaration())
             return true;
         const QString &name = ast->bindingIdentifier.toString();
-
-        if (_formalParameterNames.contains(name))
+        VariableScope scope = ast->scope;
+        if (_formalParameterNames.contains(name)) {
             addMessage(WarnAlreadyFormalParameter, ast->identifierToken, name);
-        else if (_declaredFunctions.contains(name))
+        } else if (_declaredFunctions.contains(name)) {
             addMessage(WarnAlreadyFunction, ast->identifierToken, name);
-        else if (_declaredVariables.contains(name))
-            addMessage(WarnDuplicateDeclaration, ast->identifierToken, name);
+        } else if (scope == VariableScope::Let || scope == VariableScope::Const) {
+            if (_declaredBlockVariables.contains({name, _block}))
+                addMessage(WarnDuplicateDeclaration, ast->identifierToken, name);
+        } else if (scope == VariableScope::Var) {
+            if (_declaredVariables.contains(name)) {
+                addMessage(WarnDuplicateDeclaration, ast->identifierToken, name);
+            } else {
+                const auto found = std::find_if(_declaredBlockVariables.keyBegin(),
+                                                _declaredBlockVariables.keyEnd(),
+                                                [name](const auto &key) {
+                                                    return key.first == name;
+                                                });
+                if (found != _declaredBlockVariables.keyEnd())
+                    addMessage(WarnDuplicateDeclaration, ast->identifierToken, name);
+            }
+        }
 
         if (_possiblyUndeclaredUses.contains(name)) {
             foreach (const SourceLocation &loc, _possiblyUndeclaredUses.value(name)) {
@@ -430,12 +460,15 @@ protected:
             }
             _possiblyUndeclaredUses.remove(name);
         }
-        _declaredVariables[name] = ast;
+        if (scope == VariableScope::Let || scope == VariableScope::Const)
+            _declaredBlockVariables[{name, _block}] = ast;
+        else
+            _declaredVariables[name] = ast;
 
         return true;
     }
 
-    bool visit(FunctionDeclaration *ast)
+    bool visit(FunctionDeclaration *ast) override
     {
         if (_seenNonDeclarationStatement)
             addMessage(HintDeclarationsShouldBeAtStartOfFunction, ast->functionToken);
@@ -443,7 +476,7 @@ protected:
         return visit(static_cast<FunctionExpression *>(ast));
     }
 
-    bool visit(FunctionExpression *ast)
+    bool visit(FunctionExpression *ast) override
     {
         if (ast->name.isEmpty())
             return false;
@@ -451,7 +484,7 @@ protected:
 
         if (_formalParameterNames.contains(name))
             addMessage(WarnAlreadyFormalParameter, ast->identifierToken, name);
-        else if (_declaredVariables.contains(name))
+        else if (_declaredVariables.contains(name) || _declaredBlockVariables.contains({name, _block}))
             addMessage(WarnAlreadyVar, ast->identifierToken, name);
         else if (_declaredFunctions.contains(name))
             addMessage(WarnDuplicateDeclaration, ast->identifierToken, name);
@@ -469,8 +502,32 @@ protected:
         return false;
     }
 
+    bool visit(Block *) override
+    {
+        ++_block;
+        return true;
+    }
+
+    void endVisit(Block *) override
+    {
+        auto it = _declaredBlockVariables.begin();
+        auto end = _declaredBlockVariables.end();
+        while (it != end) {
+            if (it.key().second == _block)
+                it = _declaredBlockVariables.erase(it);
+            else
+                ++it;
+        }
+        --_block;
+    }
+
+    void throwRecursionDepthError() override
+    {
+        addMessage(ErrHitMaximumRecursion, SourceLocation());
+    }
+
 private:
-    void addMessage(Type type, const SourceLocation &loc, const QString &arg1 = QString())
+    void addMessage(StaticAnalysis::Type type, const SourceLocation &loc, const QString &arg1 = QString())
     {
         _messages.append(Message(type, loc, arg1));
     }
@@ -478,9 +535,11 @@ private:
     QList<Message> _messages;
     QStringList _formalParameterNames;
     QHash<QString, PatternElement *> _declaredVariables;
+    QHash<QPair<QString, uint>, PatternElement *> _declaredBlockVariables;
     QHash<QString, FunctionDeclaration *> _declaredFunctions;
     QHash<QString, QList<SourceLocation> > _possiblyUndeclaredUses;
     bool _seenNonDeclarationStatement;
+    uint _block = 0;
 };
 
 class IdsThatShouldNotBeUsedInDesigner  : public QStringList
@@ -551,11 +610,7 @@ public:
 class UnsupportedTypesByVisualDesigner : public QStringList
 {
 public:
-    UnsupportedTypesByVisualDesigner() : QStringList({"Transform",
-                                                      "Timer",
-                                                      "Rotation",
-                                                      "Scale",
-                                                      "Translate",
+    UnsupportedTypesByVisualDesigner() : QStringList({"Timer",
                                                       "Package",
                                                       "Particles"})
     {}
@@ -564,16 +619,9 @@ public:
 class UnsupportedTypesByQmlUi : public QStringList
 {
 public:
-    UnsupportedTypesByQmlUi() : QStringList({"Binding",
-                                             "ShaderEffect",
-                                             "ShaderEffectSource",
+    UnsupportedTypesByQmlUi() : QStringList({"ShaderEffect",
                                              "Component",
                                              "Transition",
-                                             "PropertyAnimation",
-                                             "SequentialAnimation",
-                                             "PropertyAnimation",
-                                             "SequentialAnimation",
-                                             "ParallelAnimation",
                                              "Drawer"})
     {
         append(UnsupportedTypesByVisualDesigner());
@@ -616,16 +664,14 @@ Check::Check(Document::Ptr doc, const ContextPtr &context)
     , _importsOk(false)
     , _inStatementBinding(false)
     , _imports(nullptr)
-    , _isQtQuick2(false)
 
 {
     _imports = context->imports(doc.data());
     if (_imports && !_imports->importFailed()) {
         _importsOk = true;
-        _isQtQuick2 = isQtQuick2();
     }
 
-    _enabledMessages = Message::allMessageTypes().toSet();
+    _enabledMessages = Utils::toSet(Message::allMessageTypes());
     disableMessage(HintAnonymousFunctionSpacing);
     disableMessage(HintDeclareVarsInOneLine);
     disableMessage(HintDeclarationsShouldBeAtStartOfFunction);
@@ -633,12 +679,9 @@ Check::Check(Document::Ptr doc, const ContextPtr &context)
     disableMessage(HintOneStatementPerLine);
     disableMessage(HintExtraParentheses);
 
-    if (isQtQuick2Ui()) {
-        disableQmlDesignerChecks();
-    } else {
-        disableQmlDesignerChecks();
+    disableQmlDesignerChecks();
+    if (!isQtQuick2Ui())
         disableQmlDesignerUiFileChecks();
-    }
 }
 
 Check::~Check()
@@ -656,12 +699,12 @@ QList<Message> Check::operator()()
     return _messages;
 }
 
-void Check::enableMessage(Type type)
+void Check::enableMessage(StaticAnalysis::Type type)
 {
     _enabledMessages.insert(type);
 }
 
-void Check::disableMessage(Type type)
+void Check::disableMessage(StaticAnalysis::Type type)
 {
     _enabledMessages.remove(type);
 }
@@ -725,6 +768,26 @@ bool Check::visit(UiProgram *)
     return true;
 }
 
+bool Check::visit(UiImport *ast)
+{
+    ShortImportInfo info;
+    if (auto ver = ast->version)
+        info.second = LanguageUtils::ComponentVersion(ver->majorVersion, ver->minorVersion);
+
+    if (!ast->fileName.isNull())  // it must be a file import
+        info.first = ast->fileName.toString();
+    else                          // no file import - construct full uri
+        info.first = toString(ast->importUri);
+
+    if (m_importInfo.contains(info)) {
+        SourceLocation location = ast->firstSourceLocation();
+        location.length = ast->lastSourceLocation().end();
+        addMessage(WarnDuplicateImport, location, info.first);
+    }
+    m_importInfo.append(info);
+    return true;
+}
+
 bool Check::visit(UiObjectInitializer *)
 {
     QString typeName;
@@ -754,6 +817,11 @@ void Check::endVisit(UiObjectInitializer *)
     UiObjectBinding *objectBinding = cast<UiObjectBinding *>(parent());
     if (objectBinding && objectBinding->qualifiedTypeNameId->name == "Component")
         m_idStack.pop();
+}
+
+void Check::throwRecursionDepthError()
+{
+    addMessage(ErrHitMaximumRecursion, SourceLocation());
 }
 
 void Check::checkProperty(UiQualifiedId *qualifiedId)
@@ -837,7 +905,7 @@ static bool checkTopLevelBindingForParentReference(ExpressionStatement *expStmt,
         return false;
 
     SourceLocation location = locationFromRange(expStmt->firstSourceLocation(), expStmt->lastSourceLocation());
-    QString stmtSource = source.mid(location.begin(), location.length);
+    QString stmtSource = source.mid(int(location.begin()), int(location.length));
 
     if (stmtSource.contains(QRegExp("(^|\\W)parent\\.")))
         return true;
@@ -1203,8 +1271,8 @@ bool Check::visit(BinaryExpression *ast)
 
     // check spacing
     SourceLocation op = ast->operatorToken;
-    if ((op.begin() > 0 && !source.at(op.begin() - 1).isSpace())
-            || (int(op.end()) < source.size() && !source.at(op.end()).isSpace())) {
+    if ((op.begin() > 0 && !source.at(int(op.begin()) - 1).isSpace())
+        || (int(op.end()) < source.size() && !source.at(int(op.end())).isSpace())) {
         addMessage(HintBinaryOperatorSpacing, op);
     }
 
@@ -1228,7 +1296,7 @@ bool Check::visit(BinaryExpression *ast)
     const QLatin1Char newline('\n');
     if (ast->op == QSOperator::Add || ast->op == QSOperator::Sub) {
         QChar match;
-        Type msg;
+        StaticAnalysis::Type msg;
         if (ast->op == QSOperator::Add) {
             match = '+';
             msg = WarnConfusingPluses;
@@ -1239,15 +1307,13 @@ bool Check::visit(BinaryExpression *ast)
         }
 
         if (int(op.end()) + 1 < source.size()) {
-            const QChar next = source.at(op.end());
-            if (next.isSpace() && next != newline
-                    && source.at(op.end() + 1) == match)
-                addMessage(msg, SourceLocation(op.begin(), 3, op.startLine, op.startColumn));
+            const QChar next = source.at(int(op.end()));
+            if (next.isSpace() && next != newline && source.at(int(op.end()) + 1) == match)
+                addMessage(msg, SourceLocation((op.begin()), 3, op.startLine, op.startColumn));
         }
         if (op.begin() >= 2) {
-            const QChar prev = source.at(op.begin() - 1);
-            if (prev.isSpace() && prev != newline
-                    && source.at(op.begin() - 2) == match)
+            const QChar prev = source.at(int(op.begin()) - 1);
+            if (prev.isSpace() && prev != newline && source.at(int(op.begin()) - 2) == match)
                 addMessage(msg, SourceLocation(op.begin() - 2, 3, op.startLine, op.startColumn - 2));
         }
     }
@@ -1337,6 +1403,7 @@ bool Check::visit(ExpressionStatement *ast)
             case QSOperator::InplaceURightShift:
             case QSOperator::InplaceXor:
                 ok = true;
+                break;
             default: break;
             }
         }
@@ -1469,8 +1536,9 @@ static bool hasOnlySpaces(const QString &s)
 void Check::addMessage(const Message &message)
 {
     if (message.isValid() && _enabledMessages.contains(message.type)) {
-        if (m_disabledMessageTypesByLine.contains(message.location.startLine)) {
-            QList<MessageTypeAndSuppression> &disabledMessages = m_disabledMessageTypesByLine[message.location.startLine];
+        if (m_disabledMessageTypesByLine.contains(int(message.location.startLine))) {
+            QList<MessageTypeAndSuppression> &disabledMessages
+                = m_disabledMessageTypesByLine[int(message.location.startLine)];
             for (int i = 0; i < disabledMessages.size(); ++i) {
                 if (disabledMessages[i].type == message.type) {
                     disabledMessages[i].wasSuppressed = true;
@@ -1483,7 +1551,7 @@ void Check::addMessage(const Message &message)
     }
 }
 
-void Check::addMessage(Type type, const SourceLocation &location, const QString &arg1, const QString &arg2)
+void Check::addMessage(StaticAnalysis::Type type, const SourceLocation &location, const QString &arg1, const QString &arg2)
 {
     addMessage(Message(type, location, arg1, arg2));
 }
@@ -1494,11 +1562,11 @@ void Check::scanCommentsForAnnotations()
     QRegExp disableCommentPattern(Message::suppressionPattern());
 
     foreach (const SourceLocation &commentLoc, _doc->engine()->comments()) {
-        const QString &comment = _doc->source().mid(commentLoc.begin(), commentLoc.length);
+        const QString &comment = _doc->source().mid(int(commentLoc.begin()), int(commentLoc.length));
 
         // enable all checks annotation
         if (comment.contains("@enable-all-checks"))
-            _enabledMessages = Message::allMessageTypes().toSet();
+            _enabledMessages = Utils::toSet(Message::allMessageTypes());
 
         // find all disable annotations
         int lastOffset = -1;
@@ -1510,34 +1578,34 @@ void Check::scanCommentsForAnnotations()
             MessageTypeAndSuppression entry;
             entry.type = static_cast<StaticAnalysis::Type>(disableCommentPattern.cap(1).toInt());
             entry.wasSuppressed = false;
-            entry.suppressionSource = SourceLocation(commentLoc.offset + lastOffset,
-                                                     disableCommentPattern.matchedLength(),
+            entry.suppressionSource = SourceLocation(commentLoc.offset + quint32(lastOffset),
+                                                     quint32(disableCommentPattern.matchedLength()),
                                                      commentLoc.startLine,
-                                                     commentLoc.startColumn + lastOffset);
+                                                     commentLoc.startColumn + quint32(lastOffset));
             disabledMessageTypes += entry;
         }
         if (!disabledMessageTypes.isEmpty()) {
-            int appliesToLine = commentLoc.startLine;
+            quint32 appliesToLine = commentLoc.startLine;
 
             // if the comment is preceded by spaces only, it applies to the next line
             // note: startColumn is 1-based and *after* the starting // or /*
             if (commentLoc.startColumn >= 3) {
-                const QString &beforeComment = _doc->source().mid(commentLoc.begin() - commentLoc.startColumn + 1,
-                                                                  commentLoc.startColumn - 3);
+                const QString &beforeComment = _doc->source().mid(int(commentLoc.begin()
+                                                                      - commentLoc.startColumn + 1),
+                                                                  int(commentLoc.startColumn) - 3);
                 if (hasOnlySpaces(beforeComment))
                     ++appliesToLine;
             }
 
-            m_disabledMessageTypesByLine[appliesToLine] += disabledMessageTypes;
+            m_disabledMessageTypesByLine[int(appliesToLine)] += disabledMessageTypes;
         }
     }
 }
 
 void Check::warnAboutUnnecessarySuppressions()
 {
-    QHashIterator< int, QList<MessageTypeAndSuppression> > it(m_disabledMessageTypesByLine);
-    while (it.hasNext()) {
-        it.next();
+    for (auto it = m_disabledMessageTypesByLine.cbegin(), end = m_disabledMessageTypesByLine.cend();
+           it != end; ++it) {
         foreach (const MessageTypeAndSuppression &entry, it.value()) {
             if (!entry.wasSuppressed)
                 addMessage(WarnUnnecessaryMessageSuppression, entry.suppressionSource);
@@ -1635,7 +1703,8 @@ bool Check::visit(CallExpression *ast)
     if (!whiteListedFunction && !isMathFunction && !isDateFunction && !isDirectInConnectionsScope)
         addMessage(ErrFunctionsNotSupportedInQmlUi, location);
 
-    static const QStringList globalFunctions = {"String", "Boolean", "Date", "Number", "Object", "QT_TR_NOOP", "QT_TRANSLATE_NOOP", "QT_TRID_NOOP"};
+    static const QStringList globalFunctions = {"String", "Boolean", "Date", "Number", "Object", "Array", "Symbol", "Object", "Function", "RegExp",
+                                                "QT_TR_NOOP", "QT_TRANSLATE_NOOP", "QT_TRID_NOOP"};
 
     if (!name.isEmpty() && name.at(0).isUpper() && !globalFunctions.contains(name)) {
         addMessage(WarnExpectedNewWithUppercaseFunction, location);
@@ -1818,7 +1887,8 @@ void Check::checkCaseFallthrough(StatementList *statements, SourceLocation error
                         || comment.end() > nextLoc.begin())
                     continue;
 
-                const QString &commentText = _doc->source().mid(comment.begin(), comment.length);
+                const QString &commentText = _doc->source().mid(int(comment.begin()),
+                                                                int(comment.length));
                 if (commentText.contains("fall through")
                         || commentText.contains("fall-through")
                         || commentText.contains("fallthrough")) {

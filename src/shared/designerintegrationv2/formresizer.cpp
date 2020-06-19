@@ -42,20 +42,20 @@ using namespace SharedTools::Internal;
 
 FormResizer::FormResizer(QWidget *parent) :
     QWidget(parent),
-    m_frame(new QFrame),
-    m_formWindow(0)
+    m_frame(new QFrame)
 {
     // Make the resize grip of a mainwindow form find us as resizable window.
     setWindowFlags(windowFlags() | Qt::SubWindow);
     setBackgroundRole(QPalette::Base);
 
-    QVBoxLayout *handleLayout = new QVBoxLayout(this);
-    handleLayout->setMargin(SELECTION_MARGIN);
+    auto handleLayout = new QVBoxLayout(this);
+    handleLayout->setContentsMargins(SELECTION_MARGIN, SELECTION_MARGIN,
+                                     SELECTION_MARGIN, SELECTION_MARGIN);
     handleLayout->addWidget(m_frame);
 
     m_frame->setFrameStyle(QFrame::Panel | QFrame::Raised);
     QVBoxLayout *layout = new QVBoxLayout(m_frame);
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     // handles
     m_handles.reserve(SizeHandleRect::Left);
     for (int i = SizeHandleRect::LeftTop; i <= SizeHandleRect::Left; ++i) {
@@ -165,7 +165,7 @@ QWidget *FormResizer::mainContainer()
 {
     if (m_formWindow)
         return m_formWindow->mainContainer();
-    return 0;
+    return nullptr;
 }
 
 void FormResizer::mainContainerChanged()

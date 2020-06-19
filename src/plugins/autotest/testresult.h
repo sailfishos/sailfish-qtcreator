@@ -33,12 +33,11 @@
 #include <QSharedPointer>
 
 namespace Autotest {
-namespace Internal {
 
 class TestTreeItem;
 
-namespace Result{
-enum Type {
+enum class ResultType {
+    // result types (have icon, color, short text)
     Pass, FIRST_TYPE = Pass,
     Fail,
     ExpectedFail,
@@ -48,37 +47,41 @@ enum Type {
     BlacklistedFail,
     BlacklistedXPass,
     BlacklistedXFail,
+
+    // special (message) types (have icon, color, short text)
     Benchmark,
     MessageDebug,
     MessageInfo,
     MessageWarn,
     MessageFatal,
     MessageSystem,
-    MessageLocation,
+    MessageError,
 
+    // special message - get's icon (but no color/short text) from parent
+    MessageLocation,
+    // anything below is an internal message (or a pure message without icon)
     MessageInternal, INTERNAL_MESSAGES_BEGIN = MessageInternal,
-    MessageDisabledTests,
-    MessageTestCaseStart,
-    MessageTestCaseSuccess,
-    MessageTestCaseSuccessWarn,
-    MessageTestCaseFail,
-    MessageTestCaseFailWarn,
-    MessageTestCaseEnd,
-    MessageIntermediate,
+    // start item (get icon/short text depending on children)
+    TestStart,
+    // usually no icon/short text - more or less an indicator (and can contain test duration)
+    TestEnd,
+    // special global (temporary) message
     MessageCurrentTest, INTERNAL_MESSAGES_END = MessageCurrentTest,
 
-    Application,
-
-    Invalid,
+    Application,        // special.. not to be used outside of testresultmodel
+    Invalid,            // indicator for unknown result items
     LAST_TYPE = Invalid
 };
+
+inline uint qHash(const ResultType &result)
+{
+    return QT_PREPEND_NAMESPACE(qHash(int(result)));
 }
 
 class TestResult
 {
 public:
-    TestResult();
-    explicit TestResult(const QString &name);
+    TestResult() = default;
     TestResult(const QString &id, const QString &name);
     virtual ~TestResult() {}
 
@@ -87,7 +90,7 @@ public:
 
     QString id() const { return m_id; }
     QString name() const { return m_name; }
-    Result::Type result() const { return m_result; }
+    ResultType result() const { return m_result; }
     QString description() const { return m_description; }
     QString fileName() const { return m_file; }
     int line() const { return m_line; }
@@ -95,22 +98,20 @@ public:
     void setDescription(const QString &description) { m_description = description; }
     void setFileName(const QString &fileName) { m_file = fileName; }
     void setLine(int line) { m_line = line; }
-    void setResult(Result::Type type) { m_result = type; }
+    void setResult(ResultType type) { m_result = type; }
 
-    static Result::Type resultFromString(const QString &resultString);
-    static Result::Type toResultType(int rt);
-    static QString resultToString(const Result::Type type);
-    static QColor colorForType(const Result::Type type);
-    static bool isMessageCaseStart(const Result::Type type);
+    static ResultType resultFromString(const QString &resultString);
+    static ResultType toResultType(int rt);
+    static QString resultToString(const ResultType type);
+    static QColor colorForType(const ResultType type);
 
     virtual bool isDirectParentOf(const TestResult *other, bool *needsIntermediate) const;
     virtual bool isIntermediateFor(const TestResult *other) const;
     virtual TestResult *createIntermediateResultFor(const TestResult *other);
-
 private:
     QString m_id;
     QString m_name;
-    Result::Type m_result = Result::Invalid;
+    ResultType m_result = ResultType::Invalid;  // the real result..
     QString m_description;
     QString m_file;
     int m_line = 0;
@@ -118,14 +119,7 @@ private:
 
 using TestResultPtr = QSharedPointer<TestResult>;
 
-class FaultyTestResult : public TestResult
-{
-public:
-    FaultyTestResult(Result::Type result, const QString &description);
-};
-
-} // namespace Internal
 } // namespace Autotest
 
-Q_DECLARE_METATYPE(Autotest::Internal::TestResult)
-Q_DECLARE_METATYPE(Autotest::Internal::Result::Type)
+Q_DECLARE_METATYPE(Autotest::TestResult)
+Q_DECLARE_METATYPE(Autotest::ResultType)

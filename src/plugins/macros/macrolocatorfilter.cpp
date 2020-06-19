@@ -37,8 +37,8 @@
 using namespace Macros;
 using namespace Macros::Internal;
 
-MacroLocatorFilter::MacroLocatorFilter(QObject *parent)
-    : Core::ILocatorFilter(parent), m_icon(QPixmap(":/macros/images/macro.png"))
+MacroLocatorFilter::MacroLocatorFilter()
+    : m_icon(QPixmap(":/macros/images/macro.png"))
 {
     setId("Macros");
     setDisplayName(tr("Text Editing Macros"));
@@ -56,10 +56,8 @@ QList<Core::LocatorFilterEntry> MacroLocatorFilter::matchesFor(QFutureInterface<
     const Qt::CaseSensitivity entryCaseSensitivity = caseSensitivity(entry);
 
     const QMap<QString, Macro*> &macros = MacroManager::macros();
-    QMapIterator<QString, Macro*> it(macros);
 
-    while (it.hasNext()) {
-        it.next();
+    for (auto it = macros.cbegin(), end = macros.cend(); it != end; ++it) {
         const QString displayName = it.key();
         const QString description = it.value()->description();
 

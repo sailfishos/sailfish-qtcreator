@@ -50,11 +50,15 @@ namespace Core {
 
 /*!
     \class Core::ModeManager
+    \inmodule QtCreator
+
+    \brief The ModeManager class implements a mode manager.
 
     The mode manager handles everything related to the instances of IMode
-    that were added to the plugin manager's object pool as well as their
-    buttons and the tool bar with the round buttons in the lower left
-    corner of Qt Creator.
+    that were added to the plugin manager's object pool.
+
+    In addition, it handles the mode buttons and the tool bar buttons in the
+    lower left corner of \QC.
 */
 
 struct ModeManagerPrivate
@@ -238,6 +242,9 @@ void ModeManager::removeMode(IMode *mode)
 {
     const int index = d->m_modes.indexOf(mode);
     d->m_modes.remove(index);
+    if (d->m_startingUp)
+        return;
+
     d->m_modeCommands.remove(index);
     d->m_modeStack->removeTab(index);
 

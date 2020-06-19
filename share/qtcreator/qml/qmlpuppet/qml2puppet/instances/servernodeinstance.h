@@ -60,6 +60,7 @@ namespace Internal {
     class GraphicsObjectNodeInstance;
     class QmlStateNodeInstance;
     class QuickItemNodeInstance;
+    class Quick3DNodeInstance;
 }
 
 class ServerNodeInstance
@@ -67,6 +68,7 @@ class ServerNodeInstance
     friend class NodeInstanceServer;
     friend class Qt4NodeInstanceServer;
     friend class Qt4PreviewNodeInstanceServer;
+    friend class Qt5InformationNodeInstanceServer;
     friend class Qt5NodeInstanceServer;
     friend class Qt5PreviewNodeInstanceServer;
     friend class Qt5TestNodeInstanceServer;
@@ -81,6 +83,7 @@ class ServerNodeInstance
     friend class QmlDesigner::Internal::ObjectNodeInstance;
     friend class QmlDesigner::Internal::QmlPropertyChangesNodeInstance;
     friend class QmlDesigner::Internal::QmlStateNodeInstance;
+    friend class QmlDesigner::Internal::Quick3DNodeInstance;
 
 public:
     enum ComponentWrap {
@@ -123,7 +126,7 @@ public:
     PropertyNameList propertyNames() const;
 
 
-    bool hasBindingForProperty(const PropertyName &name, bool *hasChanged = 0) const;
+    bool hasBindingForProperty(const PropertyName &name, bool *hasChanged = nullptr) const;
 
     bool isValid() const;
     void makeInvalid();
@@ -161,6 +164,11 @@ public:
     QSharedPointer<Internal::ObjectNodeInstance> internalInstance() const;
 
     QList<ServerNodeInstance> stateInstances() const;
+    QStringList allStates() const;
+
+    static bool isSubclassOf(QObject *object, const QByteArray &superTypeName);
+
+    void setModifiedFlag(bool b);
 
 private: // functions
     ServerNodeInstance(const QSharedPointer<Internal::ObjectNodeInstance> &abstractInstance);
@@ -168,6 +176,8 @@ private: // functions
     void setPropertyVariant(const PropertyName &name, const QVariant &value);
 
     void setPropertyBinding(const PropertyName &name, const QString &expression);
+
+    void setHideInEditor(bool b);
 
     void resetProperty(const PropertyName &name);
     void refreshProperty(const PropertyName &name);
@@ -191,8 +201,6 @@ private: // functions
     static QSharedPointer<Internal::ObjectNodeInstance> createInstance(QObject *objectToBeWrapped);
 
     void paintUpdate();
-
-    static bool isSubclassOf(QObject *object, const QByteArray &superTypeName);
 
     void setNodeSource(const QString &source);
 

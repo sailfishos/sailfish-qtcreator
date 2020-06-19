@@ -209,9 +209,9 @@ static void verticalGradientHelper(QPainter *p, const QRect &spanRect, const QRe
 void StyleHelper::verticalGradient(QPainter *painter, const QRect &spanRect, const QRect &clipRect, bool lightColored)
 {
     if (StyleHelper::usePixmapCache()) {
-        QString key;
+
         QColor keyColor = baseColor(lightColored);
-        key.sprintf("mh_vertical %d %d %d %d %d",
+        const QString key = QString::asprintf("mh_vertical %d %d %d %d %d",
             spanRect.width(), spanRect.height(), clipRect.width(),
             clipRect.height(), keyColor.rgb());
 
@@ -267,9 +267,9 @@ QRect &rect, bool lightColored)
 void StyleHelper::horizontalGradient(QPainter *painter, const QRect &spanRect, const QRect &clipRect, bool lightColored)
 {
     if (StyleHelper::usePixmapCache()) {
-        QString key;
+
         QColor keyColor = baseColor(lightColored);
-        key.sprintf("mh_horizontal %d %d %d %d %d %d",
+        const QString key = QString::asprintf("mh_horizontal %d %d %d %d %d %d",
             spanRect.width(), spanRect.height(), clipRect.width(),
             clipRect.height(), keyColor.rgb(), spanRect.x());
 
@@ -309,8 +309,7 @@ void StyleHelper::drawArrow(QStyle::PrimitiveElement element, QPainter *painter,
     QRect r = option->rect;
     int size = qMin(r.height(), r.width());
     QPixmap pixmap;
-    QString pixmapName;
-    pixmapName.sprintf("StyleHelper::drawArrow-%d-%d-%d-%f",
+    const QString pixmapName = QString::asprintf("StyleHelper::drawArrow-%d-%d-%d-%f",
                        element, size, enabled, devicePixelRatio);
     if (!QPixmapCache::find(pixmapName, &pixmap)) {
         QImage image(size * devicePixelRatio, size * devicePixelRatio, QImage::Format_ARGB32_Premultiplied);
@@ -351,8 +350,7 @@ void StyleHelper::drawArrow(QStyle::PrimitiveElement element, QPainter *painter,
 void StyleHelper::menuGradient(QPainter *painter, const QRect &spanRect, const QRect &clipRect)
 {
     if (StyleHelper::usePixmapCache()) {
-        QString key;
-        key.sprintf("mh_menu %d %d %d %d %d",
+        const QString key = QString::asprintf("mh_menu %d %d %d %d %d",
             spanRect.width(), spanRect.height(), clipRect.width(),
             clipRect.height(), StyleHelper::baseColor().rgb());
 
@@ -573,6 +571,41 @@ QList<int> StyleHelper::availableImageResolutions(const QString &fileName)
         if (QFile::exists(imageFileWithResolution(fileName, i)))
             result.append(i);
     return result;
+}
+
+double StyleHelper::luminance(const QColor &color)
+{
+    // calculate the luminance based on
+    // https://www.w3.org/TR/2008/REC-WCAG20-20081211/#relativeluminancedef
+    auto val = [](const double &colorVal) {
+        return colorVal < 0.03928 ? colorVal / 12.92 : std::pow((colorVal + 0.055) / 1.055, 2.4);
+    };
+
+    static QHash<QRgb, double> cache;
+    QHash<QRgb, double>::iterator it = cache.find(color.rgb());
+    if (it == cache.end()) {
+        it = cache.insert(color.rgb(), 0.2126 * val(color.redF())
+                          + 0.7152 * val(color.greenF())
+                          + 0.0722 * val(color.blueF()));
+    }
+    return it.value();
+}
+
+static double contrastRatio(const QColor &color1, const QColor &color2)
+{
+    // calculate the contrast ratio based on
+    // https://www.w3.org/TR/2008/REC-WCAG20-20081211/#contrast-ratiodef
+    auto contrast = (StyleHelper::luminance(color1) + .05) / (StyleHelper::luminance(color2) + .05);
+    if (contrast < 1)
+        return 1 / contrast;
+    return contrast;
+}
+
+bool StyleHelper::isReadableOn(const QColor &background, const QColor &foreground)
+{
+    // following the W3C Recommendation on contrast for large Text
+    // https://www.w3.org/TR/2008/REC-WCAG20-20081211/#contrast-ratiodef
+    return contrastRatio(background, foreground) > 3;
 }
 
 } // namespace Utils

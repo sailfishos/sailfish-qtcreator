@@ -39,7 +39,6 @@
 
 #include <cpptools/builtincursorinfo.h>
 #include <cpptools/clangdiagnosticconfigsmodel.h>
-#include <cpptools/clangdiagnosticconfigsmodel.h>
 #include <cpptools/compileroptionsbuilder.h>
 #include <cpptools/cppcodemodelsettings.h>
 #include <cpptools/cppmodelmanager.h>
@@ -442,6 +441,7 @@ public:
     {
         // Determine the driver mode from toolchain and flags.
         m_builder.evaluateCompilerFlags();
+        m_isClMode = m_builder.isClStyle();
 
         addLanguageOptions();
         addGlobalDiagnosticOptions(); // Before addDiagnosticOptions() so users still can overwrite.
@@ -480,8 +480,8 @@ private:
             ClangProjectSettings &projectSettings = getProjectSettings(m_projectPart.project);
             if (!projectSettings.useGlobalConfig()) {
                 const Core::Id warningConfigId = projectSettings.warningConfigId();
-                const CppTools::ClangDiagnosticConfigsModel configsModel(
-                            CppTools::codeModelSettings()->clangCustomDiagnosticConfigs());
+                const CppTools::ClangDiagnosticConfigsModel configsModel
+                    = CppTools::diagnosticConfigsModel();
                 if (configsModel.hasConfigWithId(warningConfigId)) {
                     addDiagnosticOptionsForConfig(configsModel.configWithId(warningConfigId));
                     return;
@@ -499,43 +499,10 @@ private:
                                        ? CppTools::UseBuildSystemWarnings::Yes
                                        : CppTools::UseBuildSystemWarnings::No;
 
-        m_options.append(diagnosticConfig.clangOptions());
-        addClangTidyOptions(diagnosticConfig);
-        addClazyOptions(diagnosticConfig.clazyChecks());
-    }
-
-    void addClangTidyOptions(const CppTools::ClangDiagnosticConfig &diagnosticConfig)
-    {
-        using Mode = CppTools::ClangDiagnosticConfig::TidyMode;
-        Mode tidyMode = diagnosticConfig.clangTidyMode();
-        if (tidyMode == Mode::Disabled)
-            return;
-
-        m_options.append(CppTools::XclangArgs({"-add-plugin", "clang-tidy"}));
-
-        if (tidyMode == Mode::File)
-            return;
-
-        const QString checks = diagnosticConfig.clangTidyChecks();
-        if (!checks.isEmpty())
-            m_options.append(CppTools::XclangArgs({"-plugin-arg-clang-tidy", "-checks=" + checks}));
-    }
-
-    void addClazyOptions(const QString &checks)
-    {
-        if (checks.isEmpty())
-            return;
-
-        m_options.append(CppTools::XclangArgs({"-add-plugin",
-                                               "clang-lazy",
-                                               "-plugin-arg-clang-lazy",
-                                               "enable-all-fixits",
-                                               "-plugin-arg-clang-lazy",
-                                               "no-autowrite-fixits",
-                                               "-plugin-arg-clang-lazy",
-                                               checks,
-                                               "-plugin-arg-clang-lazy",
-                                               "ignore-included-files"}));
+        const QStringList options = m_isClMode
+                                        ? CppTools::clangArgsForCl(diagnosticConfig.clangOptions())
+                                        : diagnosticConfig.clangOptions();
+        m_options.append(options);
     }
 
     void addGlobalDiagnosticOptions()
@@ -574,6 +541,7 @@ private:
     Core::Id m_diagnosticConfigId;
     CppTools::UseBuildSystemWarnings m_useBuildSystemWarnings = CppTools::UseBuildSystemWarnings::No;
     CppTools::CompilerOptionsBuilder m_builder;
+    bool m_isClMode = false;
     QStringList m_options;
 };
 } // namespace
@@ -637,7 +605,6 @@ ClangEditorDocumentProcessor::creatorForHeaderErrorDiagnosticWidget(
 
     return [firstHeaderErrorDiagnostic]() {
         auto vbox = new QVBoxLayout;
-        vbox->setMargin(0);
         vbox->setContentsMargins(10, 0, 0, 2);
         vbox->setSpacing(2);
 

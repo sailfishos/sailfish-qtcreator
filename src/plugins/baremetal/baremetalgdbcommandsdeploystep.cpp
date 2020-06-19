@@ -34,11 +34,13 @@ namespace Internal {
 
 const char GdbCommandsKey[] = "BareMetal.GdbCommandsStep.Commands";
 
+// BareMetalGdbCommandsDeployStepWidget
+
 BareMetalGdbCommandsDeployStepWidget::BareMetalGdbCommandsDeployStepWidget(BareMetalGdbCommandsDeployStep &step)
     : BuildStepConfigWidget(&step), m_step(step)
 {
-    auto fl = new QFormLayout(this);
-    fl->setMargin(0);
+    const auto fl = new QFormLayout(this);
+    fl->setContentsMargins(0, 0, 0, 0);
     fl->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
     setLayout(fl);
     m_commands = new QPlainTextEdit(this);
@@ -61,6 +63,8 @@ QString BareMetalGdbCommandsDeployStepWidget::summaryText() const
 {
     return displayName();
 }
+
+// BareMetalGdbCommandsDeployStep
 
 BareMetalGdbCommandsDeployStep::BareMetalGdbCommandsDeployStep(BuildStepList *bsl)
     : BuildStep(bsl, stepId())

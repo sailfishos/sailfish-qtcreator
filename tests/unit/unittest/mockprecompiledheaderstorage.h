@@ -35,17 +35,26 @@ public:
     MOCK_METHOD3(insertProjectPrecompiledHeader,
                  void(ClangBackEnd::ProjectPartId projectPartId,
                       Utils::SmallStringView pchPath,
-                      long long pchBuildTime));
-    MOCK_METHOD1(deleteProjectPrecompiledHeader, void(ClangBackEnd::ProjectPartId projectPartId));
+                      ClangBackEnd::TimeStamp pchBuildTime));
+    MOCK_METHOD2(deleteProjectPrecompiledHeader,
+                 void(ClangBackEnd::ProjectPartId projectPartId, ClangBackEnd::TimeStamp buildTime));
+    MOCK_METHOD1(deleteProjectPrecompiledHeaders,
+                 void(const ClangBackEnd::ProjectPartIds &projectPartIds));
     MOCK_METHOD3(insertSystemPrecompiledHeaders,
                  void(const ClangBackEnd::ProjectPartIds &projectPartIds,
                       Utils::SmallStringView pchPath,
-                      long long pchBuildTime));
+                      ClangBackEnd::TimeStamp pchBuildTime));
     MOCK_METHOD1(deleteSystemPrecompiledHeaders,
+                 void(const ClangBackEnd::ProjectPartIds &projectPartIds));
+    MOCK_METHOD1(deleteSystemAndProjectPrecompiledHeaders,
                  void(const ClangBackEnd::ProjectPartIds &projectPartIds));
     MOCK_METHOD1(fetchSystemPrecompiledHeaderPath,
                  ClangBackEnd::FilePath(ClangBackEnd::ProjectPartId projectPartId));
+    MOCK_CONST_METHOD1(fetchPrecompiledHeader,
+                       ClangBackEnd::FilePath(ClangBackEnd::ProjectPartId projectPartId));
+    MOCK_CONST_METHOD1(fetchPrecompiledHeaders,
+                       ClangBackEnd::PchPaths(ClangBackEnd::ProjectPartId projectPartId));
     MOCK_CONST_METHOD1(
-        fetchPrecompiledHeader,
-        Utils::optional<ClangBackEnd::ProjectPartPch>(ClangBackEnd::ProjectPartId projectPartId));
+        fetchTimeStamps,
+        ClangBackEnd::PrecompiledHeaderTimeStamps(ClangBackEnd::ProjectPartId projectPartId));
 };

@@ -104,20 +104,6 @@ void QActionPushButton::actionChanged()
     }
 }
 
-// A helper parented on a QAction,
-// making QAction::setText() a slot (which it currently is not).
-class QActionSetTextSlotHelper : public QObject
-{
-    Q_OBJECT
-public:
-    explicit QActionSetTextSlotHelper(QAction *a) : QObject(a) {}
-
-public slots:
-    void setText(const QString &t) {
-        if (auto action = qobject_cast<QAction *>(parent()))
-            action->setText(t);
-    }
-};
 
 // Helpers to retrieve model data
 // Convenience to extract a list of selected indexes
@@ -206,12 +192,8 @@ void SubmitEditorWidget::registerActions(QAction *editorUndoAction, QAction *edi
         d->m_commitEnabled = !canSubmit();
         connect(this, &SubmitEditorWidget::submitActionEnabledChanged,
                 submitAction, &QAction::setEnabled);
-        // Wire setText via QActionSetTextSlotHelper.
-        auto actionSlotHelper = submitAction->findChild<QActionSetTextSlotHelper *>();
-        if (!actionSlotHelper)
-            actionSlotHelper = new QActionSetTextSlotHelper(submitAction);
         connect(this, &SubmitEditorWidget::submitActionTextChanged,
-                actionSlotHelper, &QActionSetTextSlotHelper::setText);
+                submitAction, &QAction::setText);
         d->m_submitButton = new QActionPushButton(submitAction);
         d->m_ui.buttonLayout->addWidget(d->m_submitButton);
         if (!d->m_submitShortcut)
@@ -640,16 +622,6 @@ void SubmitEditorWidget::checkAllToggled()
     d->m_ui.checkAllCheckBox->setTristate(false);
 }
 
-void SubmitEditorWidget::checkAll()
-{
-    fileModel()->setAllChecked(true);
-}
-
-void SubmitEditorWidget::uncheckAll()
-{
-    fileModel()->setAllChecked(false);
-}
-
 void SubmitEditorWidget::fileListCustomContextMenuRequested(const QPoint & pos)
 {
     // Execute menu offering to check/uncheck all
@@ -660,11 +632,11 @@ void SubmitEditorWidget::fileListCustomContextMenuRequested(const QPoint & pos)
     QAction *uncheckAllAction = menu.addAction(tr("Unselect All"));
     QAction *action = menu.exec(d->m_ui.fileView->mapToGlobal(pos));
     if (action == checkAllAction) {
-        checkAll();
+        fileModel()->setAllChecked(true);;
         return;
     }
     if (action == uncheckAllAction) {
-        uncheckAll();
+        fileModel()->setAllChecked(false);
         return;
     }
 }

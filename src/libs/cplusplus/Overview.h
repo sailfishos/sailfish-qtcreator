@@ -43,12 +43,12 @@ public:
     QString operator()(const QList<const Name *> &fullyQualifiedName) const
     { return prettyName(fullyQualifiedName); }
 
-    QString operator()(const FullySpecifiedType &type, const Name *name = 0) const
+    QString operator()(const FullySpecifiedType &type, const Name *name = nullptr) const
     { return prettyType(type, name); }
 
     QString prettyName(const Name *name) const;
     QString prettyName(const QList<const Name *> &fullyQualifiedName) const;
-    QString prettyType(const FullySpecifiedType &type, const Name *name = 0) const;
+    QString prettyType(const FullySpecifiedType &type, const Name *name = nullptr) const;
     QString prettyType(const FullySpecifiedType &type, const QString &name) const;
 
 public:
@@ -70,7 +70,7 @@ public:
     bool showEnclosingTemplate: 1;
     bool includeWhiteSpaceInOperatorName: 1; /// "operator =()" vs "operator=()"
 
-    unsigned markedArgument;
+    int markedArgument;
     int markedArgumentBegin;
     int markedArgumentEnd;
 };

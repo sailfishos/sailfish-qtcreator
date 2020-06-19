@@ -135,7 +135,7 @@ def performEditCombo():
     test.compare(dumpItems(itemListWidget.model()), expectedItems,
                  "Verifying last item has moved to top of the list.")
     # remove the "Combo Item 1" item from the list
-    clickItem(itemListWidget, "Combo Item 1", 5, 5, 0, Qt.LeftButton)
+    mouseClick(waitForObjectItem(itemListWidget, "Combo Item 1"))
     clickButton("{name='deleteListItemButton' type='QToolButton' visible='1' window=%s}"
                 % edComboWin)
     waitFor("itemListWidget.model().rowCount() == len(expectedItems) - 1", 2000)
@@ -152,7 +152,7 @@ def verifyPreview(menuItems, comboItems):
     prev = "{name='MainWindow' type='QMainWindow' visible='1' windowTitle='MainWindow - [Preview]'}"
     invokeMenuItem("Tools", "Form Editor", "Preview...")
     # verify menu
-    menuBar = waitForObject("{name='menuBar' type='QMenuBar' visible='1' window=%s}" % prev)
+    menuBar = waitForObject("{name='menubar' type='QMenuBar' visible='1' window=%s}" % prev)
     menu = None
     activateItem(menuBar, "SquishTestFile")
     # known issue for Squish using Qt5 on Mac
@@ -201,7 +201,7 @@ def main():
     comboItems = performEditCombo()
     verifyPreview(menuItems, comboItems)
     invokeMenuItem("File", "Save All")
-    invokeMenuItem("Build", "Build All")
+    invokeMenuItem("Build", "Build All Projects")
     waitForCompile()
     checkCompile()
     invokeMenuItem("File", "Exit")

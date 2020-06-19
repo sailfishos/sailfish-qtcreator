@@ -38,6 +38,8 @@ QtcTool {
         "addqtoperation.h",
         "addtoolchainoperation.cpp",
         "addtoolchainoperation.h",
+        "addvalueoperation.cpp",
+        "addvalueoperation.h",
         "findkeyoperation.cpp",
         "findkeyoperation.h",
         "findvalueoperation.cpp",
@@ -66,11 +68,16 @@ QtcTool {
         name: "Utils"
         prefix: libsDir + "/utils/"
         files: [
+            "environment.cpp", "environment.h",
             "fileutils.cpp", "fileutils.h",
             "hostosinfo.cpp", "hostosinfo.h",
+            "namevaluedictionary.cpp", "namevaluedictionary.h",
+            "namevalueitem.cpp", "namevalueitem.h",
             "persistentsettings.cpp", "persistentsettings.h",
             "qtcassert.cpp", "qtcassert.h",
-            "savefile.cpp", "savefile.h"
+            "qtcprocess.cpp", "qtcprocess.h",
+            "savefile.cpp", "savefile.h",
+            "stringutils.cpp"
         ]
     }
     Group {

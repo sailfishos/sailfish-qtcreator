@@ -52,6 +52,8 @@
 #include "qmt/tasks/diagramscenecontroller.h"
 #include "qmt/tasks/ielementtasks.h"
 
+#include <utils/algorithm.h>
+
 #include <QGraphicsScene>
 #include <QGraphicsRectItem>
 #include <QGraphicsSimpleTextItem>
@@ -168,7 +170,8 @@ void ClassItem::update()
             m_baseClasses->setBrush(style->textBrush());
             m_baseClasses->setText(baseClasses.join('\n'));
         } else if (m_baseClasses) {
-            m_baseClasses->scene()->removeItem(m_baseClasses);
+            if (m_baseClasses->scene())
+                m_baseClasses->scene()->removeItem(m_baseClasses);
             delete m_baseClasses;
             m_baseClasses = nullptr;
         }
@@ -346,7 +349,7 @@ void ClassItem::relationDrawn(const QString &id, ObjectItem *targetItem, const Q
                                 { CustomRelation::Relationship::Aggregation, MAssociationEnd::Aggregation },
                                 { CustomRelation::Relationship::Composition, MAssociationEnd::Composition } };
                             diagramSceneController->modelController()->startUpdateRelation(mAssociation);
-                            mAssociation->setStereotypes(customRelation.stereotypes().toList());
+                            mAssociation->setStereotypes(Utils::toList(customRelation.stereotypes()));
                             mAssociation->setName(customRelation.name());
                             MAssociationEnd endA;
                             endA.setCardinality(customRelation.endA().cardinality());

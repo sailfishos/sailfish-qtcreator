@@ -28,19 +28,56 @@
 #include "projectexplorer_export.h"
 
 #include <coreplugin/id.h>
+#include <utils/displayname.h>
 #include <utils/macroexpander.h>
 
 #include <QObject>
+#include <QPointer>
 #include <QString>
 #include <QVariantMap>
-
-QT_BEGIN_NAMESPACE
-class QFormLayout;
-QT_END_NAMESPACE
+#include <QWidget>
 
 namespace ProjectExplorer {
 
 class Project;
+class ProjectConfigurationAspects;
+class Target;
+
+class PROJECTEXPLORER_EXPORT LayoutBuilder
+{
+public:
+    explicit LayoutBuilder(QWidget *parent);
+    ~LayoutBuilder();
+
+    class LayoutItem
+    {
+    public:
+        LayoutItem(QLayout *layout) : layout(layout) {}
+        LayoutItem(QWidget *widget) : widget(widget) {}
+        LayoutItem(const QString &text) : text(text) {}
+
+        QLayout *layout = nullptr;
+        QWidget *widget = nullptr;
+        QString text;
+    };
+
+    template<typename ...Items>
+    LayoutBuilder &addItems(LayoutItem first, Items... rest) {
+        return addItem(first).addItems(rest...);
+    }
+    LayoutBuilder &addItems() { return *this; }
+    LayoutBuilder &addItem(LayoutItem item);
+
+    LayoutBuilder &startNewRow();
+
+    QLayout *layout() const;
+
+private:
+    void flushPendingItems();
+
+    QLayout *m_layout = nullptr;
+    QList<LayoutItem> m_pendingItems;
+};
 
 class PROJECTEXPLORER_EXPORT ProjectConfigurationAspect : public QObject
 {
@@ -67,12 +104,16 @@ public:
 
     virtual void fromMap(const QVariantMap &) {}
     virtual void toMap(QVariantMap &) const {}
-    virtual void addToConfigurationLayout(QFormLayout *) {}
+    virtual void acquaintSiblings(const ProjectConfigurationAspects &) {}
+
+    virtual void addToLayout(LayoutBuilder &builder);
 
 signals:
     void changed();
 
 protected:
+    virtual void setVisibleDynamic(bool visible) { Q_UNUSED(visible) } // TODO: Better name? Merge with setVisible() somehow?
+
     Core::Id m_id;
     QString m_displayName;
     QString m_settingsKey; // Name of data in settings.
@@ -133,9 +174,8 @@ public:
 
     Core::Id id() const;
 
-    QString displayName() const;
-
-    bool usesDefaultDisplayName() const;
+    QString displayName() const { return m_displayName.value(); }
+    bool usesDefaultDisplayName() const { return m_displayName.usesDefaultValue(); }
     void setDisplayName(const QString &name);
     void setDefaultDisplayName(const QString &name);
 
@@ -151,9 +191,8 @@ public:
     Utils::MacroExpander *macroExpander() { return &m_macroExpander; }
     const Utils::MacroExpander *macroExpander() const { return &m_macroExpander; }
 
-    virtual Project *project() const = 0;
-
-    virtual bool isActive() const = 0;
+    Target *target() const;
+    Project *project() const;
 
     static QString settingsIdKey();
 
@@ -168,6 +207,8 @@ public:
     ProjectConfigurationAspect *aspect(Core::Id id) const;
     template <typename T> T *aspect() const { return m_aspects.aspect<T>(); }
 
+    void acquaintAspects();
+
 signals:
     void displayNameChanged();
     void toolTipChanged();
@@ -176,34 +217,11 @@ protected:
     ProjectConfigurationAspects m_aspects;
 
 private:
+    QPointer<Target> m_target;
     const Core::Id m_id;
-    QString m_displayName;
-    QString m_defaultDisplayName;
+    Utils::DisplayName m_displayName;
     QString m_toolTip;
     Utils::MacroExpander m_macroExpander;
-};
-
-class PROJECTEXPLORER_EXPORT StatefulProjectConfiguration : public ProjectConfiguration
-{
-    Q_OBJECT
-
-public:
-    StatefulProjectConfiguration() = default;
-
-    bool isEnabled() const;
-
-    virtual QString disabledReason() const = 0;
-
-signals:
-    void enabledChanged();
-
-protected:
-    StatefulProjectConfiguration(QObject *parent, Core::Id id);
-
-    void setEnabled(bool enabled);
-
-private:
-    bool m_isEnabled = false;
 };
 
 // helper function:

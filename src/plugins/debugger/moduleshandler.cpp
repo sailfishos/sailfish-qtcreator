@@ -111,9 +111,6 @@ QVariant ModuleItem::data(int column, int role) const
                           "information.\nStepping into the module or setting "
                           "breakpoints by file and line will not work.");
             case PlainSymbols:
-                return tr("This module contains debug information.\nStepping "
-                          "into the module or setting breakpoints by file and "
-                          "line is expected to work.");
             case FastSymbols:
                 return tr("This module contains debug information.\nStepping "
                           "into the module or setting breakpoints by file and "
@@ -214,7 +211,7 @@ bool ModulesModel::contextMenuEvent(const ItemViewEvent &ev)
     addAction(menu, tr("Edit File \"%1\"").arg(moduleName),
               tr("Edit File"),
               moduleNameValid,
-              [this, modulePath] { engine->gotoLocation(modulePath); });
+              [this, modulePath] { engine->gotoLocation(FilePath::fromString(modulePath)); });
 
     addAction(menu, tr("Show Symbols in File \"%1\"").arg(moduleName),
               tr("Show Symbols"),
@@ -226,7 +223,7 @@ bool ModulesModel::contextMenuEvent(const ItemViewEvent &ev)
               canShowSymbols && moduleNameValid,
               [this, modulePath] { engine->requestModuleSections(modulePath); });
 
-    menu->addSeparator();
+    Internal::addHideColumnActions(menu, ev.view());
     menu->addAction(action(SettingsDialog));
 
     menu->popup(ev.globalPos());

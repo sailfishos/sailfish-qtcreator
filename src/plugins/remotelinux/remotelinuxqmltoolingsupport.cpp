@@ -25,52 +25,46 @@
 
 #include "remotelinuxqmltoolingsupport.h"
 
-#include <ssh/sshconnection.h>
-#include <utils/qtcprocess.h>
-#include <utils/url.h>
+#include <projectexplorer/devicesupport/deviceusedportsgatherer.h>
+
+#include <qmldebug/qmldebugcommandlinearguments.h>
 
 using namespace ProjectExplorer;
 using namespace Utils;
 
 namespace RemoteLinux {
+namespace Internal {
 
-// RemoteLinuxQmlProfilerSupport
-
-RemoteLinuxQmlToolingSupport::RemoteLinuxQmlToolingSupport(
-        RunControl *runControl, QmlDebug::QmlDebugServicesPreset services)
-    : SimpleTargetRunner(runControl), m_services(services)
+RemoteLinuxQmlToolingSupport::RemoteLinuxQmlToolingSupport(RunControl *runControl)
+    : SimpleTargetRunner(runControl)
 {
     setId("RemoteLinuxQmlToolingSupport");
 
-    m_portsGatherer = new PortsGatherer(runControl);
-    addStartDependency(m_portsGatherer);
+    auto portsGatherer = new PortsGatherer(runControl);
+    addStartDependency(portsGatherer);
 
     // The ports gatherer can safely be stopped once the process is running, even though it has to
     // be started before.
-    addStopDependency(m_portsGatherer);
+    addStopDependency(portsGatherer);
 
-    m_runworker = runControl->createWorker(runControl->runMode());
-    m_runworker->addStartDependency(this);
-    addStopDependency(m_runworker);
+    auto runworker = runControl->createWorker(QmlDebug::runnerIdForRunMode(runControl->runMode()));
+    runworker->addStartDependency(this);
+    addStopDependency(runworker);
+
+    setStarter([this, runControl, portsGatherer, runworker] {
+        const QUrl serverUrl = portsGatherer->findEndPoint();
+        runworker->recordData("QmlServerUrl", serverUrl);
+
+        QmlDebug::QmlDebugServicesPreset services = QmlDebug::servicesForRunMode(runControl->runMode());
+
+        Runnable r = runControl->runnable();
+        QtcProcess::addArg(&r.commandLineArguments,
+                           QmlDebug::qmlDebugTcpArguments(services, serverUrl),
+                           OsTypeLinux);
+
+        doStart(r, runControl->device());
+    });
 }
 
-void RemoteLinuxQmlToolingSupport::start()
-{
-    Port qmlPort = m_portsGatherer->findPort();
-
-    QUrl serverUrl;
-    serverUrl.setScheme(urlTcpScheme());
-    serverUrl.setHost(device()->sshParameters().host());
-    serverUrl.setPort(qmlPort.number());
-    m_runworker->recordData("QmlServerUrl", serverUrl);
-
-    Runnable r = runnable();
-    QtcProcess::addArg(&r.commandLineArguments, QmlDebug::qmlDebugTcpArguments(m_services, qmlPort),
-                       device()->osType());
-
-    setRunnable(r);
-
-    SimpleTargetRunner::start();
-}
-
+} // namespace Internal
 } // namespace RemoteLinux

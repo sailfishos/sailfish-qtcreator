@@ -26,7 +26,7 @@
 #include "giteditor.h"
 
 #include "annotationhighlighter.h"
-#include "gitplugin.h"
+#include "branchadddialog.h"
 #include "gitclient.h"
 #include "gitsettings.h"
 #include "gitsubmiteditorwidget.h"
@@ -34,23 +34,22 @@
 #include "githighlighters.h"
 
 #include <coreplugin/icore.h>
-#include <utils/qtcassert.h>
-#include <vcsbase/vcsoutputwindow.h>
 #include <texteditor/textdocument.h>
+#include <vcsbase/vcsbaseeditorconfig.h>
+#include <vcsbase/vcsoutputwindow.h>
 
+#include <utils/qtcassert.h>
 #include <utils/temporaryfile.h>
 
-#include <QMenu>
-
+#include <QDir>
 #include <QFileInfo>
+#include <QHBoxLayout>
+#include <QMenu>
 #include <QRegExp>
 #include <QSet>
-#include <QTextCodec>
-#include <QDir>
-
-#include <QTextCursor>
 #include <QTextBlock>
-#include <QMessageBox>
+#include <QTextCodec>
+#include <QTextCursor>
 
 #define CHANGE_PATTERN "[a-f0-9]{7,40}"
 
@@ -58,6 +57,54 @@ using namespace VcsBase;
 
 namespace Git {
 namespace Internal {
+
+class GitLogFilterWidget : public QToolBar
+{
+    Q_DECLARE_TR_FUNCTIONS(Git::Internal::GitLogFilterWidget);
+
+public:
+    GitLogFilterWidget(GitEditorWidget *editor)
+    {
+        auto addLineEdit = [this](const QString &placeholder,
+                const QString &tooltip,
+                GitEditorWidget *editor)
+        {
+            auto lineEdit = new Utils::FancyLineEdit;
+            lineEdit->setFiltering(true);
+            lineEdit->setToolTip(tooltip);
+            lineEdit->setPlaceholderText(placeholder);
+            lineEdit->setMaximumWidth(200);
+            connect(lineEdit, &QLineEdit::returnPressed,
+                    editor, &GitEditorWidget::refresh);
+            connect(lineEdit, &Utils::FancyLineEdit::rightButtonClicked,
+                    editor, &GitEditorWidget::refresh);
+            return lineEdit;
+        };
+        grepLineEdit = addLineEdit(tr("Filter by message"),
+                                   tr("Filter log entries by text in the commit message."),
+                                   editor);
+        pickaxeLineEdit = addLineEdit(tr("Filter by content"),
+                                      tr("Filter log entries by added or removed string."),
+                                      editor);
+        addWidget(new QLabel(tr("Filter:")));
+        addSeparator();
+        addWidget(grepLineEdit);
+        addSeparator();
+        addWidget(pickaxeLineEdit);
+        addSeparator();
+        caseAction = new QAction(tr("Case Sensitive"), this);
+        caseAction->setCheckable(true);
+        caseAction->setChecked(true);
+        connect(caseAction, &QAction::toggled, editor, &GitEditorWidget::refresh);
+        addAction(caseAction);
+        hide();
+        connect(editor, &GitEditorWidget::toggleFilters, this, &QWidget::setVisible);
+    }
+
+    Utils::FancyLineEdit *grepLineEdit;
+    Utils::FancyLineEdit *pickaxeLineEdit;
+    QAction *caseAction;
+};
 
 GitEditorWidget::GitEditorWidget() :
     m_changeNumberPattern(CHANGE_PATTERN)
@@ -69,32 +116,11 @@ GitEditorWidget::GitEditorWidget() :
         --- a/src/plugins/git/giteditor.cpp
         +++ b/src/plugins/git/giteditor.cpp
     */
-    setDiffFilePattern(QRegExp("^(?:diff --git a/|index |[+-]{3} (?:/dev/null|[ab]/(.+$)))"));
-    setLogEntryPattern(QRegExp("^commit ([0-9a-f]{8})[0-9a-f]{32}"));
+    setDiffFilePattern("^(?:diff --git a/|index |[+-]{3} (?:/dev/null|[ab]/(.+$)))");
+    setLogEntryPattern("^commit ([0-9a-f]{8})[0-9a-f]{32}");
     setAnnotateRevisionTextFormat(tr("&Blame %1"));
     setAnnotatePreviousRevisionTextFormat(tr("Blame &Parent Revision %1"));
-}
-
-QSet<QString> GitEditorWidget::annotationChanges() const
-{
-    QSet<QString> changes;
-    const QString txt = toPlainText();
-    if (txt.isEmpty())
-        return changes;
-    // Hunt for first change number in annotation: "<change>:"
-    QRegExp r("^(" CHANGE_PATTERN ") ");
-    QTC_ASSERT(r.isValid(), return changes);
-    if (r.indexIn(txt) != -1) {
-        changes.insert(r.cap(1));
-        r.setPattern("\n(" CHANGE_PATTERN ") ");
-        QTC_ASSERT(r.isValid(), return changes);
-        int pos = 0;
-        while ((pos = r.indexIn(txt, pos)) != -1) {
-            pos += r.matchedLength();
-            changes.insert(r.cap(1));
-        }
-    }
-    return changes;
+    setAnnotationEntryPattern("^(" CHANGE_PATTERN ") ");
 }
 
 QString GitEditorWidget::changeUnderCursor(const QTextCursor &c) const
@@ -125,7 +151,7 @@ static QString sanitizeBlameOutput(const QString &b)
     if (b.isEmpty())
         return b;
 
-    const bool omitDate = GitPlugin::client()->settings().boolValue(
+    const bool omitDate = GitClient::instance()->settings().boolValue(
                 GitSettings::omitAnnotationDateKey);
     const QChar space(' ');
     const int parenPos = b.indexOf(')');
@@ -189,12 +215,6 @@ void GitEditorWidget::setPlainText(const QString &text)
     textDocument()->setPlainText(modText);
 }
 
-void GitEditorWidget::resetChange(const QByteArray &resetType)
-{
-    GitPlugin::client()->reset(
-                sourceWorkingDirectory(), QLatin1String("--" + resetType), m_currentChange);
-}
-
 void GitEditorWidget::applyDiffChunk(const DiffChunk& chunk, bool revert)
 {
     Utils::TemporaryFile patchFile("git-apply-chunk");
@@ -210,7 +230,7 @@ void GitEditorWidget::applyDiffChunk(const DiffChunk& chunk, bool revert)
     if (revert)
         args << "--reverse";
     QString errorMessage;
-    if (GitPlugin::client()->synchronousApplyPatch(baseDir, patchFile.fileName(), &errorMessage, args)) {
+    if (GitClient::instance()->synchronousApplyPatch(baseDir, patchFile.fileName(), &errorMessage, args)) {
         if (errorMessage.isEmpty())
             VcsOutputWindow::append(tr("Chunk successfully staged"));
         else
@@ -259,14 +279,14 @@ void GitEditorWidget::aboutToOpen(const QString &fileName, const QString &realFi
         const QString gitPath = fi.absolutePath();
         setSource(gitPath);
         textDocument()->setCodec(
-                    GitPlugin::client()->encoding(gitPath, "i18n.commitEncoding"));
+                    GitClient::instance()->encoding(gitPath, "i18n.commitEncoding"));
     }
 }
 
 QString GitEditorWidget::decorateVersion(const QString &revision) const
 {
     // Format verbose, SHA1 being first token
-    return GitPlugin::client()->synchronousShortDescription(sourceWorkingDirectory(), revision);
+    return GitClient::instance()->synchronousShortDescription(sourceWorkingDirectory(), revision);
 }
 
 QStringList GitEditorWidget::annotationPreviousVersions(const QString &revision) const
@@ -274,8 +294,8 @@ QStringList GitEditorWidget::annotationPreviousVersions(const QString &revision)
     QStringList revisions;
     QString errorMessage;
     // Get the SHA1's of the file.
-    if (!GitPlugin::client()->synchronousParentRevisions(sourceWorkingDirectory(),
-                                                         revision, &revisions, &errorMessage)) {
+    if (!GitClient::instance()->synchronousParentRevisions(
+                sourceWorkingDirectory(), revision, &revisions, &errorMessage)) {
         VcsOutputWindow::appendSilently(errorMessage);
         return QStringList();
     }
@@ -284,40 +304,13 @@ QStringList GitEditorWidget::annotationPreviousVersions(const QString &revision)
 
 bool GitEditorWidget::isValidRevision(const QString &revision) const
 {
-    return GitPlugin::client()->isValidRevision(revision);
+    return GitClient::instance()->isValidRevision(revision);
 }
 
 void GitEditorWidget::addChangeActions(QMenu *menu, const QString &change)
 {
-    m_currentChange = change;
-    if (contentType() != OtherContent) {
-        connect(menu->addAction(tr("Cherr&y-Pick Change %1").arg(change)), &QAction::triggered,
-                this, [this]() {
-            GitPlugin::client()->synchronousCherryPick(sourceWorkingDirectory(), m_currentChange);
-        });
-        connect(menu->addAction(tr("Re&vert Change %1").arg(change)), &QAction::triggered,
-                this, [this]() {
-            GitPlugin::client()->synchronousRevert(sourceWorkingDirectory(), m_currentChange);
-        });
-        connect(menu->addAction(tr("C&heckout Change %1").arg(change)), &QAction::triggered,
-                this, [this]() {
-            GitPlugin::client()->checkout(sourceWorkingDirectory(), m_currentChange);
-        });
-        connect(menu->addAction(tr("&Log for Change %1").arg(change)), &QAction::triggered,
-                this, [this]() {
-            GitPlugin::client()->log(
-                        sourceWorkingDirectory(), QString(), false, {m_currentChange});
-        });
-
-        QMenu *resetMenu = new QMenu(tr("&Reset to Change %1").arg(change), menu);
-        connect(resetMenu->addAction(tr("&Hard")), &QAction::triggered,
-                this, [this]() { resetChange("hard"); });
-        connect(resetMenu->addAction(tr("&Mixed")), &QAction::triggered,
-                this, [this]() { resetChange("mixed"); });
-        connect(resetMenu->addAction(tr("&Soft")), &QAction::triggered,
-                this, [this]() { resetChange("soft"); });
-        menu->addMenu(resetMenu);
-    }
+    if (contentType() != OtherContent)
+        GitClient::addChangeActions(menu, sourceWorkingDirectory(), change);
 }
 
 QString GitEditorWidget::revisionSubject(const QTextBlock &inBlock) const
@@ -355,12 +348,44 @@ QString GitEditorWidget::fileNameForLine(int line) const
 
 QString GitEditorWidget::sourceWorkingDirectory() const
 {
-    Utils::FileName path = Utils::FileName::fromString(source());
-    if (!path.isEmpty() && !path.toFileInfo().isDir())
+    Utils::FilePath path = Utils::FilePath::fromString(source());
+    if (!path.isEmpty() && !path.isDir())
         path = path.parentDir();
     while (!path.isEmpty() && !path.exists())
         path = path.parentDir();
     return path.toString();
+}
+
+void GitEditorWidget::refresh()
+{
+    if (VcsBaseEditorConfig *config = editorConfig())
+        config->handleArgumentsChanged();
+}
+
+QWidget *GitEditorWidget::addFilterWidget()
+{
+    if (!m_logFilterWidget)
+        m_logFilterWidget = new GitLogFilterWidget(this);
+    return m_logFilterWidget;
+}
+
+QString GitEditorWidget::grepValue() const
+{
+    if (!m_logFilterWidget)
+        return QString();
+    return m_logFilterWidget->grepLineEdit->text();
+}
+
+QString GitEditorWidget::pickaxeValue() const
+{
+    if (!m_logFilterWidget)
+        return QString();
+    return m_logFilterWidget->pickaxeLineEdit->text();
+}
+
+bool GitEditorWidget::caseSensitive() const
+{
+    return m_logFilterWidget && m_logFilterWidget->caseAction->isChecked();
 }
 
 } // namespace Internal

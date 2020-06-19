@@ -168,21 +168,21 @@ bool ExternalQtEditor::getEditorLaunchData(const QString &fileName,
     // As fallback check PATH
     data->workingDirectory.clear();
     QVector<QtSupport::BaseQtVersion *> qtVersionsToCheck; // deduplicated after being filled
-    if (const Project *project = SessionManager::projectForFile(Utils::FileName::fromString(fileName))) {
+    if (const Project *project = SessionManager::projectForFile(Utils::FilePath::fromString(fileName))) {
         data->workingDirectory = project->projectDirectory().toString();
         // active kit
         if (const Target *target = project->activeTarget()) {
-            qtVersionsToCheck << QtSupport::QtKitInformation::qtVersion(target->kit());
+            qtVersionsToCheck << QtSupport::QtKitAspect::qtVersion(target->kit());
         }
         // all kits of project
         qtVersionsToCheck += Utils::transform<QVector>(project->targets(), [](Target *t) {
-            return QTC_GUARD(t) ? QtSupport::QtKitInformation::qtVersion(t->kit()) : nullptr;
+            return QTC_GUARD(t) ? QtSupport::QtKitAspect::qtVersion(t->kit()) : nullptr;
         });
     }
     // default kit
-    qtVersionsToCheck << QtSupport::QtKitInformation::qtVersion(KitManager::defaultKit());
+    qtVersionsToCheck << QtSupport::QtKitAspect::qtVersion(KitManager::defaultKit());
     // all kits
-    qtVersionsToCheck += Utils::transform<QVector>(KitManager::kits(), QtSupport::QtKitInformation::qtVersion);
+    qtVersionsToCheck += Utils::transform<QVector>(KitManager::kits(), QtSupport::QtKitAspect::qtVersion);
     qtVersionsToCheck = Utils::filteredUnique(qtVersionsToCheck); // can still contain nullptr
     data->binary = findFirstCommand(qtVersionsToCheck, m_commandForQtVersion);
     // fallback
@@ -288,8 +288,7 @@ bool DesignerExternalEditor::startEditor(const QString &fileName, QString *error
         m_processCache.insert(binary, socket);
         auto mapSlot = [this, binary] { processTerminated(binary); };
         connect(socket, &QAbstractSocket::disconnected, this, mapSlot);
-        connect(socket,
-                static_cast<void (QAbstractSocket::*)(QAbstractSocket::SocketError)>(&QAbstractSocket::error),
+        connect(socket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error),
                 this, mapSlot);
     }
     return true;

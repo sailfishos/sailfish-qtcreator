@@ -183,7 +183,7 @@ public:
         QAbstractItemModel *m = q->model();
         for (int i = 0; i < 100 && a.isValid(); ++i) {
             const QString s = m->data(a).toString();
-            int w = fm.width(s) + 10;
+            int w = fm.horizontalAdvance(s) + 10;
             if (column == 0) {
                 for (QModelIndex b = a.parent(); b.isValid(); b = b.parent())
                     w += ind;
@@ -204,7 +204,8 @@ public:
         QTC_ASSERT(m, return -1);
 
         QFontMetrics fm = q->fontMetrics();
-        int minimum = fm.width(m->headerData(column, Qt::Horizontal).toString()) + 2 * fm.width(QLatin1Char('m'));
+        int minimum = fm.horizontalAdvance(m->headerData(column, Qt::Horizontal).toString())
+            + 2 * fm.horizontalAdvance(QLatin1Char('m'));
         considerItems(column, q->indexAt(QPoint(1, 1)), &minimum, false);
 
         QVariant extraIndices = m->data(QModelIndex(), BaseTreeView::ExtraIndicesForColumnWidth);
@@ -254,8 +255,8 @@ public:
         // when we have that size already, in that case minimize.
         if (currentSize == suggestedSize) {
             QFontMetrics fm = q->fontMetrics();
-            int headerSize = fm.width(q->model()->headerData(logicalIndex, Qt::Horizontal).toString());
-            int minSize = 10 * fm.width(QLatin1Char('x'));
+            int headerSize = fm.horizontalAdvance(q->model()->headerData(logicalIndex, Qt::Horizontal).toString());
+            int minSize = 10 * fm.horizontalAdvance(QLatin1Char('x'));
             targetSize = qMax(minSize, headerSize);
         }
 
@@ -344,7 +345,7 @@ public:
     QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
                           const QModelIndex &index) const override
     {
-        Q_UNUSED(option);
+        Q_UNUSED(option)
         QLabel *label = new QLabel(parent);
         label->setAutoFillBackground(true);
         label->setTextInteractionFlags(Qt::TextSelectableByMouse

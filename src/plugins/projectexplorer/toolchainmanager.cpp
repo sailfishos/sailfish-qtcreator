@@ -63,11 +63,11 @@ class ToolChainManagerPrivate
 public:
     ~ToolChainManagerPrivate();
 
-    QMap<QString, FileName> m_abiToDebugger;
     std::unique_ptr<ToolChainSettingsAccessor> m_accessor;
 
     QList<ToolChain *> m_toolChains; // prioritized List
     QVector<LanguageDisplayPair> m_languages;
+    ToolchainDetectionSettings m_detectionSettings;
 };
 
 ToolChainManagerPrivate::~ToolChainManagerPrivate()
@@ -82,6 +82,8 @@ static ToolChainManagerPrivate *d = nullptr;
 } // namespace Internal
 
 using namespace Internal;
+
+const char DETECT_X64_AS_X32_KEY[] = "ProjectExplorer/Toolchains/DetectX64AsX32";
 
 // --------------------------------------------------------------------------
 // ToolChainManager
@@ -100,6 +102,9 @@ ToolChainManager::ToolChainManager(QObject *parent) :
     connect(this, &ToolChainManager::toolChainAdded, this, &ToolChainManager::toolChainsChanged);
     connect(this, &ToolChainManager::toolChainRemoved, this, &ToolChainManager::toolChainsChanged);
     connect(this, &ToolChainManager::toolChainUpdated, this, &ToolChainManager::toolChainsChanged);
+
+    QSettings * const s = Core::ICore::settings();
+    d->m_detectionSettings.detectX64AsX32 = s->value(DETECT_X64_AS_X32_KEY, false).toBool();
 }
 
 ToolChainManager::~ToolChainManager()
@@ -130,6 +135,8 @@ void ToolChainManager::saveToolChains()
     QTC_ASSERT(d->m_accessor, return);
 
     d->m_accessor->saveToolChains(d->m_toolChains, Core::ICore::dialogParent());
+    QSettings * const s = Core::ICore::settings();
+    s->setValue(DETECT_X64_AS_X32_KEY, d->m_detectionSettings.detectX64AsX32);
 }
 
 QList<ToolChain *> ToolChainManager::toolChains(const ToolChain::Predicate &predicate)
@@ -176,11 +183,6 @@ ToolChain *ToolChainManager::findToolChain(const QByteArray &id)
         tc = Utils::findOrDefault(d->m_toolChains, Utils::equal(&ToolChain::id, shortId));
     }
     return tc;
-}
-
-FileName ToolChainManager::defaultDebugger(const Abi &abi)
-{
-    return d->m_abiToDebugger.value(abi.toString());
 }
 
 bool ToolChainManager::isLoaded()
@@ -255,6 +257,16 @@ void ToolChainManager::aboutToShutdown()
 #ifdef Q_OS_WIN
     MsvcToolChain::cancelMsvcToolChainDetection();
 #endif
+}
+
+ToolchainDetectionSettings ToolChainManager::detectionSettings()
+{
+    return d->m_detectionSettings;
+}
+
+void ToolChainManager::setDetectionSettings(const ToolchainDetectionSettings &settings)
+{
+    d->m_detectionSettings = settings;
 }
 
 } // namespace ProjectExplorer

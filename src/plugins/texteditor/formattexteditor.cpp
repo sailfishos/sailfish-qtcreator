@@ -90,7 +90,7 @@ static FormatTask format(FormatTask task)
         options.replaceInStrings(QLatin1String("%file"), sourceFile.fileName());
         Utils::SynchronousProcess process;
         process.setTimeoutS(5);
-        Utils::SynchronousProcessResponse response = process.runBlocking(executable, options);
+        Utils::SynchronousProcessResponse response = process.runBlocking({executable, options});
         if (response.result != Utils::SynchronousProcessResponse::Finished) {
             task.error = QString(QT_TRANSLATE_NOOP("TextEditor", "Failed to format: %1."))
                     .arg(response.exitMessage(executable, 5));

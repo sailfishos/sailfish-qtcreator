@@ -203,7 +203,7 @@ CdbEngine::CdbEngine() :
 
     connect(action(CreateFullBacktrace), &QAction::triggered,
             this, &CdbEngine::createFullBacktrace);
-    connect(&m_process, static_cast<void(QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+    connect(&m_process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &CdbEngine::processFinished);
     connect(&m_process, &QProcess::errorOccurred, this, &CdbEngine::processError);
     connect(&m_process, &QProcess::readyReadStandardOutput,
@@ -251,12 +251,11 @@ void CdbEngine::init()
         }
     }
 
-    const QSharedPointer<GlobalDebuggerOptions> globalOptions = Internal::globalDebuggerOptions();
-    SourcePathMap sourcePathMap = globalOptions->sourcePathMap;
+    const SourcePathMap &sourcePathMap = Internal::globalDebuggerOptions()->sourcePathMap;
     if (!sourcePathMap.isEmpty()) {
         for (auto it = sourcePathMap.constBegin(), cend = sourcePathMap.constEnd(); it != cend; ++it) {
             m_sourcePathMappings.push_back({QDir::toNativeSeparators(it.key()),
-                                            QDir::toNativeSeparators(it.value())});
+                                            QDir::toNativeSeparators(expand(it.value()))});
         }
     }
     // update source path maps from debugger start params
@@ -277,7 +276,7 @@ void CdbEngine::adjustOperateByInstruction(bool operateByInstruction)
 
 bool CdbEngine::canHandleToolTip(const DebuggerToolTipContext &context) const
 {
-    Q_UNUSED(context);
+    Q_UNUSED(context)
     // Tooltips matching local variables are already handled in the
     // base class. We don't handle anything else here in CDB
     // as it can slow debugging down.
@@ -295,41 +294,9 @@ QString CdbEngine::extensionLibraryName(bool is64Bit)
     return rc;
 }
 
-// Determine environment for CDB.exe, start out with run config and
-// add CDB extension path merged with system value should there be one.
-static QStringList mergeEnvironment(QStringList runConfigEnvironment,
-                                    QString cdbExtensionPath)
+int CdbEngine::elapsedLogTime()
 {
-    // Determine CDB extension path from Qt Creator
-    static const char cdbExtensionPathVariableC[] = "_NT_DEBUGGER_EXTENSION_PATH";
-    const QByteArray oldCdbExtensionPath = qgetenv(cdbExtensionPathVariableC);
-    if (!oldCdbExtensionPath.isEmpty()) {
-        cdbExtensionPath.append(';');
-        cdbExtensionPath.append(QString::fromLocal8Bit(oldCdbExtensionPath));
-    }
-    // We do not assume someone sets _NT_DEBUGGER_EXTENSION_PATH in the run
-    // config, just to make sure, delete any existing entries
-    const QString cdbExtensionPathVariableAssign =
-            QLatin1String(cdbExtensionPathVariableC) + '=';
-    for (QStringList::iterator it = runConfigEnvironment.begin(); it != runConfigEnvironment.end() ; ) {
-        if (it->startsWith(cdbExtensionPathVariableAssign)) {
-            it = runConfigEnvironment.erase(it);
-            break;
-        } else {
-            ++it;
-        }
-    }
-    runConfigEnvironment.append(cdbExtensionPathVariableAssign +
-                                QDir::toNativeSeparators(cdbExtensionPath));
-    return runConfigEnvironment;
-}
-
-int CdbEngine::elapsedLogTime() const
-{
-    const int elapsed = m_logTime.elapsed();
-    const int delta = elapsed - m_elapsedLogTime;
-    m_elapsedLogTime = elapsed;
-    return delta;
+    return m_logTimer.restart();
 }
 
 void CdbEngine::createFullBacktrace()
@@ -352,8 +319,8 @@ void CdbEngine::setupEngine()
         qDebug(">setupEngine");
 
     init();
-    if (!m_logTime.elapsed())
-        m_logTime.start();
+    if (!m_logTimer.elapsed())
+        m_logTimer.start();
 
     // Console: Launch the stub with the suspended application and attach to it
     // CDB in theory has a command line option '-2' that launches a
@@ -372,18 +339,16 @@ void CdbEngine::setupEngine()
         m_effectiveStartMode = sp.startMode;
     }
 
-    const QChar blank(' ');
     // Start engine which will run until initial breakpoint:
     // Determine binary (force MSVC), extension lib name and path to use
     // The extension is passed as relative name with the path variable set
     //(does not work with absolute path names)
-    const QString executable = sp.debugger.executable;
-    if (executable.isEmpty()) {
+    if (sp.debugger.executable.isEmpty()) {
         handleSetupFailure(tr("There is no CDB executable specified."));
         return;
     }
 
-    bool cdbIs64Bit = Utils::is64BitWindowsBinary(executable);
+    bool cdbIs64Bit = Utils::is64BitWindowsBinary(sp.debugger.executable.toString());
     if (!cdbIs64Bit)
         m_wow64State = noWow64Stack;
     const QFileInfo extensionFi(CdbEngine::extensionLibraryName(cdbIs64Bit));
@@ -401,78 +366,66 @@ void CdbEngine::setupEngine()
                     Core::Constants::IDE_DISPLAY_NAME));
         return;
     }
+
+    // Prepare command line.
+    CommandLine debugger{sp.debugger.executable};
+
     const QString extensionFileName = extensionFi.fileName();
-    // Prepare arguments
-    QStringList arguments;
     const bool isRemote = sp.startMode == AttachToRemoteServer;
     if (isRemote) { // Must be first
-        arguments << "-remote" << sp.remoteChannel;
+        debugger.addArgs({"-remote", sp.remoteChannel});
     } else {
-        arguments << ("-a" + extensionFileName);
+        debugger.addArg("-a" + extensionFileName);
     }
+
     // Source line info/No terminal breakpoint / Pull extension
-    arguments << "-lines" << "-G"
-    // register idle (debuggee stop) notification
-              << "-c"
-              << ".idle_cmd " + m_extensionCommandPrefix + "idle";
+    debugger.addArgs({"-lines", "-G",
+                      // register idle (debuggee stop) notification
+                      "-c", ".idle_cmd " + m_extensionCommandPrefix + "idle"});
+
     if (sp.useTerminal) // Separate console
-        arguments << "-2";
+        debugger.addArg("-2");
+
     if (boolSetting(IgnoreFirstChanceAccessViolation))
-        arguments << "-x";
+        debugger.addArg("-x");
 
     const QStringList &sourcePaths = stringListSetting(CdbSourcePaths);
     if (!sourcePaths.isEmpty())
-        arguments << "-srcpath" << sourcePaths.join(';');
+        debugger.addArgs({"-srcpath", sourcePaths.join(';')});
 
-    QStringList symbolPaths = stringListSetting(CdbSymbolPaths);
-    QString symbolPath = sp.inferior.environment.value("_NT_ALT_SYMBOL_PATH");
-    if (!symbolPath.isEmpty())
-        symbolPaths += symbolPath;
-    symbolPath = sp.inferior.environment.value("_NT_SYMBOL_PATH");
-    if (!symbolPath.isEmpty())
-        symbolPaths += symbolPath;
-    arguments << "-y" << (symbolPaths.isEmpty() ? "\"\"" : symbolPaths.join(';'));
+    debugger.addArgs({"-y", QChar('"') + stringListSetting(CdbSymbolPaths).join(';') + '"'});
 
-    // Compile argument string preserving quotes
-    QString nativeArguments = expand(stringSetting(CdbAdditionalArguments));
     switch (sp.startMode) {
     case StartInternal:
     case StartExternal:
-        if (!nativeArguments.isEmpty())
-            nativeArguments.push_back(blank);
-        QtcProcess::addArgs(&nativeArguments,
-                            QStringList(QDir::toNativeSeparators(sp.inferior.executable)));
-        if (!sp.inferior.commandLineArguments.isEmpty()) { // Complete native argument string.
-            if (!nativeArguments.isEmpty())
-                nativeArguments.push_back(blank);
-            nativeArguments += sp.inferior.commandLineArguments;
-        }
+        debugger.addArg(sp.inferior.executable.toUserOutput());
+        // Complete native argument string.
+        debugger.addArgs(sp.inferior.commandLineArguments, CommandLine::Raw);
         break;
     case AttachToRemoteServer:
         break;
     case AttachExternal:
     case AttachCrashedExternal:
-        arguments << "-p" << QString::number(sp.attachPID.pid());
+        debugger.addArgs({"-p", QString::number(sp.attachPID.pid())});
         if (sp.startMode == AttachCrashedExternal) {
-            arguments << "-e" << sp.crashParameter << "-g";
+            debugger.addArgs({"-e", sp.crashParameter, "-g"});
         } else {
             if (terminal())
-                arguments << "-pr" << "-pb";
+                debugger.addArgs({"-pr", "-pb"});
         }
         break;
     case AttachCore:
-        arguments << "-z" << sp.coreFile;
+        debugger.addArgs({"-z", sp.coreFile});
         break;
     default:
         handleSetupFailure(QString("Internal error: Unsupported start mode %1.").arg(sp.startMode));
         return;
     }
 
-    const QString msg = QString("Launching %1 %2\nusing %3 of %4.").
-            arg(QDir::toNativeSeparators(executable),
-                arguments.join(blank) + blank + nativeArguments,
-                QDir::toNativeSeparators(extensionFi.absoluteFilePath()),
-                extensionFi.lastModified().toString(Qt::SystemLocaleShortDate));
+    const QString msg = QString("Launching %1\nusing %2 of %3.")
+                            .arg(debugger.toUserOutput(),
+                                 QDir::toNativeSeparators(extensionFi.absoluteFilePath()),
+                                 extensionFi.lastModified().toString(Qt::SystemLocaleShortDate));
     showMessage(msg, LogMisc);
 
     m_outputBuffer.clear();
@@ -486,25 +439,30 @@ void CdbEngine::setupEngine()
     if (!sp.useTerminal && !inferiorEnvironment.hasKey(qtLoggingToConsoleKey))
         inferiorEnvironment.set(qtLoggingToConsoleKey, "0");
 
-    m_process.setEnvironment(mergeEnvironment(inferiorEnvironment.toStringList(),
-                                              extensionFi.absolutePath()));
+    static const char cdbExtensionPathVariableC[] = "_NT_DEBUGGER_EXTENSION_PATH";
+    inferiorEnvironment.prependOrSet(cdbExtensionPathVariableC, extensionFi.absolutePath(), {";"});
+    const QByteArray oldCdbExtensionPath = qgetenv(cdbExtensionPathVariableC);
+    if (!oldCdbExtensionPath.isEmpty()) {
+        inferiorEnvironment.appendOrSet(cdbExtensionPathVariableC,
+                                        QString::fromLocal8Bit(oldCdbExtensionPath),
+                                        {";"});
+    }
+
+    m_process.setEnvironment(inferiorEnvironment);
     if (!sp.inferior.workingDirectory.isEmpty())
         m_process.setWorkingDirectory(sp.inferior.workingDirectory);
 
-#ifdef Q_OS_WIN
-    if (!nativeArguments.isEmpty()) // Appends
-        m_process.setNativeArguments(nativeArguments);
-#endif
-    m_process.start(executable, arguments);
+    m_process.setCommand(debugger);
+    m_process.start();
     if (!m_process.waitForStarted()) {
         handleSetupFailure(QString("Internal error: Cannot start process %1: %2").
-                arg(QDir::toNativeSeparators(executable), m_process.errorString()));
+                arg(debugger.toUserOutput(), m_process.errorString()));
         return;
     }
 
     const qint64 pid = m_process.processId();
-    showMessage(QString("%1 running as %2").
-                arg(QDir::toNativeSeparators(executable)).arg(pid), LogMisc);
+    showMessage(QString("%1 running as %2").arg(debugger.executable().toUserOutput()).arg(pid),
+                LogMisc);
     m_hasDebuggee = true;
     m_initialSessionIdleHandled = false;
     if (isRemote) { // We do not get an 'idle' in a remote session, but are accessible
@@ -526,8 +484,7 @@ void CdbEngine::handleInitialSessionIdle()
     if (rp.breakOnMain) {
         BreakpointParameters bp(BreakpointAtMain);
         if (rp.startMode == StartInternal || rp.startMode == StartExternal) {
-            const QString &moduleFileName = Utils::FileName::fromString(rp.inferior.executable)
-                                                .fileName();
+            const QString &moduleFileName = rp.inferior.executable.fileName();
             bp.module = moduleFileName.left(moduleFileName.indexOf('.'));
         }
         QString function = cdbAddBreakpointCommand(bp, m_sourcePathMappings);
@@ -537,6 +494,16 @@ void CdbEngine::handleInitialSessionIdle()
     }
     // Take ownership of the breakpoint. Requests insertion. TODO: Cpp only?
     BreakpointManager::claimBreakpointsForEngine(this);
+
+    QStringList symbolPaths = stringListSetting(CdbSymbolPaths);
+    QString symbolPath = rp.inferior.environment.expandedValueForKey("_NT_ALT_SYMBOL_PATH");
+    if (!symbolPath.isEmpty())
+        symbolPaths += symbolPath;
+    symbolPath = rp.inferior.environment.expandedValueForKey("_NT_SYMBOL_PATH");
+    if (!symbolPath.isEmpty())
+        symbolPaths += symbolPath;
+
+    runCommand({QString(".sympath \"") + symbolPaths.join(';') + '"'});
     runCommand({".symopt+0x8000"}); // disable searching public symbol table - improving the symbol lookup speed
     runCommand({"sxn 0x4000001f", NoFlags}); // Do not break on WowX86 exceptions.
     runCommand({"sxn ibp", NoFlags}); // Do not break on initial breakpoints.
@@ -861,7 +828,7 @@ void CdbEngine::doInterruptInferior(const InterruptCallback &callback)
     connect(m_signalOperation.data(), &DeviceProcessSignalOperation::finished,
             this, &CdbEngine::handleDoInterruptInferior);
 
-    m_signalOperation->setDebuggerCommand(runParameters().debugger.executable);
+    m_signalOperation->setDebuggerCommand(runParameters().debugger.executable.toString());
     m_signalOperation->interruptProcess(inferiorPid());
 }
 
@@ -912,7 +879,7 @@ void CdbEngine::executeJumpToLine(const ContextData &data)
         // Jump to source line: Resolve source line address and go to that location
         QString cmd;
         StringInputStream str(cmd);
-        str << "? `" << QDir::toNativeSeparators(data.fileName) << ':' << data.lineNumber << '`';
+        str << "? `" << data.fileName.toUserOutput() << ':' << data.lineNumber << '`';
         runCommand({cmd, BuiltinCommand, [this, data](const DebuggerResponse &r) {
                         handleJumpToLineAddressResolution(r, data); }});
     }
@@ -953,15 +920,6 @@ void CdbEngine::handleJumpToLineAddressResolution(const DebuggerResponse &respon
     }
 }
 
-static inline bool isAsciiWord(const QString &s)
-{
-    for (const QChar &c : s) {
-        if (!c.isLetterOrNumber() || c.toLatin1() == 0)
-            return false;
-    }
-    return true;
-}
-
 void CdbEngine::assignValueInDebugger(WatchItem *w, const QString &expr, const QVariant &value)
 {
     if (debug)
@@ -971,28 +929,15 @@ void CdbEngine::assignValueInDebugger(WatchItem *w, const QString &expr, const Q
         qWarning("Internal error: assignValueInDebugger: Invalid state or no stack frame.");
         return;
     }
-    QString cmd;
-    StringInputStream str(cmd);
-    switch (value.type()) {
-    case QVariant::String: {
-        // Convert qstring to Utf16 data not considering endianness for Windows.
-        const QString s = value.toString();
-        if (isAsciiWord(s)) {
-            str << m_extensionCommandPrefix << "assign \"" << w->iname << '=' << s << '"';
-        } else {
-            const QByteArray utf16(reinterpret_cast<const char *>(s.utf16()), 2 * s.size());
-            str << m_extensionCommandPrefix << "assign -u " << w->iname << '='
-                << QString::fromLatin1(utf16.toHex());
-        }
-    }
-        break;
-    default:
-        str << m_extensionCommandPrefix << "assign " << w->iname << '='
-            << value.toString();
-        break;
+    if (m_pythonVersion > 0x030000 && w->isWatcher()) {
+        runCommand({m_extensionCommandPrefix + "assign -h -e " + toHex(w->expression()) + '='
+                        + toHex(value.toString()),
+                    NoFlags});
+    } else {
+        runCommand({m_extensionCommandPrefix + "assign -h " + w->iname + '=' + toHex(value.toString()),
+                    NoFlags});
     }
 
-    runCommand({cmd, NoFlags});
     // Update all locals in case we change a union or something pointed to
     // that affects other variables, too.
     updateLocals();
@@ -1081,13 +1026,13 @@ void CdbEngine::activateFrame(int index)
     // TODO: assembler,etc
     if (index < 0)
         return;
-    const StackFrames &frames = stackHandler()->frames();
-    if (index >= frames.size()) {
+
+    if (stackHandler()->isSpecialFrame(index)) {
         reloadFullStack(); // Clicked on "More...".
         return;
     }
 
-    const StackFrame frame = frames.at(index);
+    const StackFrame frame = stackHandler()->frameAt(index);
     if (frame.language != CppLanguage) {
         gotoLocation(frame);
         return;
@@ -1119,6 +1064,7 @@ void CdbEngine::doUpdateLocals(const UpdateParameters &updateParameters)
         cmd.arg("dyntype", boolSetting(UseDynamicType));
         cmd.arg("partialvar", updateParameters.partialVariable);
         cmd.arg("qobjectnames", boolSetting(ShowQObjectNames));
+        cmd.arg("timestamps", boolSetting(LogTimeStamps));
 
         StackFrame frame = stackHandler()->currentFrame();
         cmd.arg("context", frame.context);
@@ -1142,6 +1088,7 @@ void CdbEngine::doUpdateLocals(const UpdateParameters &updateParameters)
                 showMessage(response.data["msg"].data(), LogError);
             }
             watchHandler()->notifyUpdateFinished();
+            updateToolTips();
         };
 
         runCommand(cmd);
@@ -1354,7 +1301,8 @@ void CdbEngine::handleResolveSymbol(const DebuggerResponse &response, const QStr
 {
     // Insert all matches of (potentially) ambiguous symbols
     if (!response.data.data().isEmpty()) {
-        foreach (const QString &line, response.data.data().split('\n')) {
+        const QStringList lines = response.data.data().split('\n');
+        for (const QString &line : lines) {
             if (const quint64 address = resolvedAddress(line)) {
                 m_symbolAddressCache.insert(symbol, address);
                 showMessage(QString("Obtained 0x%1 for %2").
@@ -1974,7 +1922,8 @@ void CdbEngine::ensureUsing32BitStackInWow64(const DebuggerResponse &response, c
 {
     // Parsing the header of the stack output to check which bitness
     // the cdb is currently using.
-    foreach (const QStringRef &line, response.data.data().splitRef('\n')) {
+    const QVector<QStringRef> lines = response.data.data().splitRef('\n');
+    for (const QStringRef &line : lines) {
         if (!line.startsWith("Child"))
             continue;
         if (line.startsWith("ChildEBP")) {
@@ -2204,12 +2153,12 @@ void CdbEngine::handleExtensionMessage(char t, int token, const QString &what, c
         if (!isDebuggerWinException(exception.exceptionCode)) {
             const Task::TaskType type =
                     isFatalWinException(exception.exceptionCode) ? Task::Error : Task::Warning;
-            const FileName fileName = FileName::fromUserInput(exception.file);
+            const FilePath fileName = FilePath::fromUserInput(exception.file);
             const QString taskEntry = tr("Debugger encountered an exception: %1").arg(
                         exception.toString(false).trimmed());
-            TaskHub::addTask(type, taskEntry,
-                             Constants::TASK_CATEGORY_DEBUGGER_RUNTIME,
-                             fileName, exception.lineNumber);
+            TaskHub::addTask(Task(type, taskEntry,
+                                  fileName, exception.lineNumber,
+                                  Constants::TASK_CATEGORY_DEBUGGER_RUNTIME));
         }
         return;
     }
@@ -2508,8 +2457,8 @@ void CdbEngine::insertBreakpoint(const Breakpoint &bp)
     if (!m_autoBreakPointCorrection
             && parameters.type == BreakpointByFileAndLine
             && boolSetting(CdbBreakPointCorrection)) {
-        response.lineNumber = int(lineCorrection->fixLineNumber(
-                                      parameters.fileName, unsigned(parameters.lineNumber)));
+        response.lineNumber = int(lineCorrection->fixLineNumber(parameters.fileName.toString(),
+                                                                unsigned(parameters.lineNumber)));
         QString cmd = cdbAddBreakpointCommand(response, m_sourcePathMappings, responseId);
         runCommand({cmd, BuiltinCommand, handleBreakInsertCB});
     } else {
@@ -2634,7 +2583,7 @@ static StackFrames parseFrames(const GdbMi &gdbmi, bool *incomplete = nullptr)
         frame.level = QString::number(i);
         const GdbMi fullName = frameMi["fullname"];
         if (fullName.isValid()) {
-            frame.file = fullName.data();
+            frame.file = Utils::FileUtils::normalizePathName(fullName.data());
             frame.line = frameMi["line"].data().toInt();
             frame.usable = false; // To be decided after source path mapping.
             const GdbMi languageMi = frameMi["language"];

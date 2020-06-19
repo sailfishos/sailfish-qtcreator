@@ -25,209 +25,212 @@
 
 #include "qbsnodetreebuilder.h"
 
+#include "qbsnodes.h"
 #include "qbsproject.h"
+#include "qbssession.h"
+
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QJsonValue>
 
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
-namespace {
-
-ProjectExplorer::FileType fileType(const qbs::ArtifactData &artifact)
-{
-    QTC_ASSERT(artifact.isValid(), return ProjectExplorer::FileType::Unknown);
-
-    if (artifact.fileTags().contains("c")
-            || artifact.fileTags().contains("cpp")
-            || artifact.fileTags().contains("objc")
-            || artifact.fileTags().contains("objcpp")) {
-        return ProjectExplorer::FileType::Source;
-    }
-    if (artifact.fileTags().contains("hpp"))
-        return ProjectExplorer::FileType::Header;
-    if (artifact.fileTags().contains("qrc"))
-        return ProjectExplorer::FileType::Resource;
-    if (artifact.fileTags().contains("ui"))
-        return ProjectExplorer::FileType::Form;
-    if (artifact.fileTags().contains("scxml"))
-        return ProjectExplorer::FileType::StateChart;
-    if (artifact.fileTags().contains("qt.qml.qml"))
-        return ProjectExplorer::FileType::QML;
-    return ProjectExplorer::FileType::Unknown;
-}
-
-void setupArtifacts(ProjectExplorer::FolderNode *root, const QList<qbs::ArtifactData> &artifacts)
-{
-    for (const qbs::ArtifactData &ad : artifacts) {
-        const Utils::FileName path = Utils::FileName::fromString(ad.filePath());
-        const ProjectExplorer::FileType type = fileType(ad);
-        const bool isGenerated = ad.isGenerated();
-
-        // A list of human-readable file types that we can reasonably expect
-        // to get generated during a build. Extend as needed.
-        static const QSet<QString> sourceTags = {
-            QLatin1String("c"), QLatin1String("cpp"), QLatin1String("hpp"),
-            QLatin1String("objc"), QLatin1String("objcpp"),
-            QLatin1String("c_pch_src"), QLatin1String("cpp_pch_src"),
-            QLatin1String("objc_pch_src"), QLatin1String("objcpp_pch_src"),
-            QLatin1String("asm"), QLatin1String("asm_cpp"),
-            QLatin1String("linkerscript"),
-            QLatin1String("qrc"), QLatin1String("java.java")
-        };
-        auto node = std::make_unique<ProjectExplorer::FileNode>(path, type, isGenerated);
-        node->setListInProject(!isGenerated || ad.fileTags().toSet().intersects(sourceTags));
-        root->addNestedNode(std::move(node));
-    }
-    root->compress();
-}
-
-std::unique_ptr<QbsProjectManager::Internal::QbsGroupNode>
-buildGroupNodeTree(const qbs::GroupData &grp, const QString &productPath, bool productIsEnabled)
-{
-    QTC_ASSERT(grp.isValid(), return nullptr);
-
-    auto result = std::make_unique<QbsProjectManager::Internal::QbsGroupNode>(grp, productPath);
-
-    result->setEnabled(productIsEnabled && grp.isEnabled());
-    result->setAbsoluteFilePathAndLine(
-                Utils::FileName::fromString(grp.location().filePath()).parentDir(), -1);
-    result->setDisplayName(grp.name());
-    result->addNode(std::make_unique<QbsProjectManager::Internal::QbsFileNode>(
-                        Utils::FileName::fromString(grp.location().filePath()),
-                        ProjectExplorer::FileType::Project, false,
-                        grp.location().line()));
-
-    ::setupArtifacts(result.get(), grp.allSourceArtifacts());
-
-    return result;
-}
-
-void setupQbsProductData(QbsProjectManager::Internal::QbsProductNode *node,
-                         const qbs::ProductData &prd)
-{
-    using namespace QbsProjectManager::Internal;
-
-    node->setEnabled(prd.isEnabled());
-
-    node->setDisplayName(prd.fullDisplayName());
-    node->setAbsoluteFilePathAndLine(Utils::FileName::fromString(prd.location().filePath()).parentDir(), -1);
-    const QString &productPath = QFileInfo(prd.location().filePath()).absolutePath();
-
-    // Add QbsFileNode:
-    node->addNode(std::make_unique<QbsFileNode>(Utils::FileName::fromString(prd.location().filePath()),
-                                                ProjectExplorer::FileType::Project, false,
-                                                prd.location().line()));
-
-
-    foreach (const qbs::GroupData &grp, prd.groups()) {
-        if (grp.name() == prd.name() && grp.location() == prd.location()) {
-            // Set implicit product group right onto this node:
-            setupArtifacts(node, grp.allSourceArtifacts());
-            continue;
-        }
-        node->addNode(buildGroupNodeTree(grp, productPath, prd.isEnabled()));
-    }
-
-    // Add "Generated Files" Node:
-    auto genFiles
-            = std::make_unique<ProjectExplorer::VirtualFolderNode>(node->filePath(),
-                                                                   ProjectExplorer::Node::DefaultProjectFilePriority - 10);
-    genFiles->setDisplayName(QCoreApplication::translate("QbsProductNode", "Generated files"));
-    setupArtifacts(genFiles.get(), prd.generatedArtifacts());
-    node->addNode(std::move(genFiles));
-}
-
-std::unique_ptr<QbsProjectManager::Internal::QbsProductNode>
-buildProductNodeTree(const qbs::ProductData &prd)
-{
-    auto result = std::make_unique<QbsProjectManager::Internal::QbsProductNode>(prd);
-
-    setupQbsProductData(result.get(), prd);
-    return result;
-}
-
-void setupProjectNode(QbsProjectManager::Internal::QbsProjectNode *node, const qbs::ProjectData &prjData,
-                      const qbs::Project &qbsProject)
-{
-    using namespace QbsProjectManager::Internal;
-    node->addNode(std::make_unique<QbsFileNode>(Utils::FileName::fromString(prjData.location().filePath()),
-                                                ProjectExplorer::FileType::Project, false,
-                                                prjData.location().line()));
-    foreach (const qbs::ProjectData &subData, prjData.subProjects()) {
-        auto subProject =
-                std::make_unique<QbsProjectManager::Internal::QbsProjectNode>(
-                    Utils::FileName::fromString(subData.location().filePath()).parentDir());
-        setupProjectNode(subProject.get(), subData, qbsProject);
-        node->addNode(std::move(subProject));
-    }
-
-    foreach (const qbs::ProductData &prd, prjData.products())
-        node->addNode(buildProductNodeTree(prd));
-
-    if (!prjData.name().isEmpty())
-        node->setDisplayName(prjData.name());
-    else
-        node->setDisplayName(node->project()->displayName());
-
-    node->setProjectData(prjData);
-}
-
-QSet<QString> referencedBuildSystemFiles(const qbs::ProjectData &data)
-{
-    QSet<QString> result;
-    result.insert(data.location().filePath());
-    foreach (const qbs::ProjectData &subProject, data.subProjects())
-        result.unite(referencedBuildSystemFiles(subProject));
-    foreach (const qbs::ProductData &product, data.products()) {
-        result.insert(product.location().filePath());
-        foreach (const qbs::GroupData &group, product.groups())
-            result.insert(group.location().filePath());
-    }
-
-    return result;
-}
-
-QStringList unreferencedBuildSystemFiles(const qbs::Project &p)
-{
-    QStringList result;
-    if (!p.isValid())
-        return result;
-
-    const std::set<QString> &available = p.buildSystemFiles();
-    QList<QString> referenced = referencedBuildSystemFiles(p.projectData()).toList();
-    Utils::sort(referenced);
-    std::set_difference(available.begin(), available.end(), referenced.begin(), referenced.end(),
-                        std::back_inserter(result));
-    return result;
-}
-
-} // namespace
+using namespace ProjectExplorer;
+using namespace Utils;
 
 namespace QbsProjectManager {
 namespace Internal {
 
-std::unique_ptr<QbsRootProjectNode> QbsNodeTreeBuilder::buildTree(QbsProject *project)
+static FileType fileType(const QJsonObject &artifact)
 {
-    if (!project->qbsProjectData().isValid())
-        return {};
+    const QJsonArray fileTags = artifact.value("file-tags").toArray();
+    if (fileTags.contains("c")
+            || fileTags.contains("cpp")
+            || fileTags.contains("objc")
+            || fileTags.contains("objcpp")) {
+        return FileType::Source;
+    }
+    if (fileTags.contains("hpp"))
+        return FileType::Header;
+    if (fileTags.contains("qrc"))
+        return FileType::Resource;
+    if (fileTags.contains("ui"))
+        return FileType::Form;
+    if (fileTags.contains("scxml"))
+        return FileType::StateChart;
+    if (fileTags.contains("qt.qml.qml"))
+        return FileType::QML;
+    return FileType::Unknown;
+}
 
-    auto root = std::make_unique<QbsRootProjectNode>(project);
-    setupProjectNode(root.get(), project->qbsProjectData(), project->qbsProject());
-    auto buildSystemFiles
-            = std::make_unique<ProjectExplorer::FolderNode>(project->projectDirectory(),
-                                                            ProjectExplorer::NodeType::Folder,
-                                                            QCoreApplication::translate("QbsRootProjectNode", "Qbs files"));
+void setupArtifact(FolderNode *root, const QJsonObject &artifact)
+{
+    const FilePath path = FilePath::fromString(artifact.value("file-path").toString());
+    const FileType type = fileType(artifact);
+    const bool isGenerated = artifact.value("is-generated").toBool();
 
-    Utils::FileName base = project->projectDirectory();
-    const QStringList &files = unreferencedBuildSystemFiles(project->qbsProject());
+    // A list of human-readable file types that we can reasonably expect
+    // to get generated during a build. Extend as needed.
+    static const QSet<QString> sourceTags = {
+        "c", "cpp", "hpp", "objc", "objcpp", "c_pch_src", "cpp_pch_src", "objc_pch_src",
+        "objcpp_pch_src", "asm", "asm_cpp", "linkerscript", "qrc", "java.java"
+    };
+    auto node = std::make_unique<FileNode>(path, type);
+    node->setIsGenerated(isGenerated);
+    QSet<QString> fileTags = toSet(transform<QStringList, QJsonArray>(
+                                       artifact.value("file-tags").toArray(),
+                                       [](const QJsonValue &v) { return v.toString(); }));
+    node->setListInProject(!isGenerated || fileTags.intersects(sourceTags));
+    root->addNestedNode(std::move(node));
+}
+
+static void setupArtifactsForGroup(FolderNode *root, const QJsonObject &group)
+{
+    forAllArtifacts(group, [root](const QJsonObject &artifact) { setupArtifact(root, artifact); });
+    root->compress();
+}
+
+static void setupGeneratedArtifacts(FolderNode *root, const QJsonObject &product)
+{
+    forAllArtifacts(product, ArtifactType::Generated,
+                    [root](const QJsonObject &artifact) { setupArtifact(root, artifact); });
+    root->compress();
+}
+
+
+static std::unique_ptr<QbsGroupNode> buildGroupNodeTree(const QJsonObject &grp)
+{
+    const Location location = locationFromObject(grp);
+    FilePath baseDir = location.filePath.parentDir();
+    QString prefix = grp.value("prefix").toString();
+    if (prefix.endsWith('/')) {
+        prefix.chop(1);
+        if (QFileInfo(prefix).isAbsolute())
+            baseDir = FilePath::fromString(prefix);
+        else
+            baseDir = baseDir.pathAppended(prefix);
+    }
+    auto result = std::make_unique<QbsGroupNode>(grp);
+    result->setAbsoluteFilePathAndLine(baseDir, -1);
+    auto fileNode = std::make_unique<FileNode>(FilePath(), FileType::Project);
+    fileNode->setAbsoluteFilePathAndLine(location.filePath, location.line);
+    result->addNode(std::move(fileNode));
+    setupArtifactsForGroup(result.get(), grp);
+    return result;
+}
+
+static std::unique_ptr<QbsProductNode> buildProductNodeTree(const QJsonObject &prd)
+{
+    const Location location = locationFromObject(prd);
+    auto result = std::make_unique<QbsProductNode>(prd);
+    result->setAbsoluteFilePathAndLine(location.filePath.parentDir(), -1);
+    auto fileNode = std::make_unique<FileNode>(FilePath(), FileType::Project);
+    fileNode->setAbsoluteFilePathAndLine(location.filePath, location.line);
+    result->addNode(std::move(fileNode));
+    for (const QJsonValue &v : prd.value("groups").toArray()) {
+        const QJsonObject grp = v.toObject();
+        if (grp.value("name") == prd.value("name")
+                && grp.value("location") == prd.value("location")) {
+            // Set implicit product group right onto this node:
+            setupArtifactsForGroup(result.get(), grp);
+            continue;
+        }
+        result->addNode(buildGroupNodeTree(grp));
+    }
+
+    // Add "Generated Files" Node:
+    auto genFiles = std::make_unique<VirtualFolderNode>(
+                FilePath::fromString(prd.value("build-directory").toString()));
+    genFiles->setDisplayName(QCoreApplication::translate("QbsProductNode", "Generated files"));
+    setupGeneratedArtifacts(genFiles.get(), prd);
+    result->addNode(std::move(genFiles));
+    return result;
+}
+
+static void setupProjectNode(QbsProjectNode *node)
+{
+    const Location loc = locationFromObject(node->projectData());
+    node->setAbsoluteFilePathAndLine(loc.filePath.parentDir(), -1);
+    auto fileNode = std::make_unique<FileNode>(node->filePath(), FileType::Project);
+    fileNode->setAbsoluteFilePathAndLine(loc.filePath, loc.line);
+    node->addNode(std::move(fileNode));
+
+    for (const QJsonValue &v : node->projectData().value("sub-projects").toArray()) {
+        auto subProject = std::make_unique<QbsProjectNode>(v.toObject());
+        setupProjectNode(subProject.get());
+        node->addNode(std::move(subProject));
+    }
+
+    for (const QJsonValue &v : node->projectData().value("products").toArray())
+        node->addNode(buildProductNodeTree(v.toObject()));
+}
+
+static QSet<QString> referencedBuildSystemFiles(const QJsonObject &prjData)
+{
+    QSet<QString> result;
+    result.insert(prjData.value("location").toObject().value("file-path").toString());
+    for (const QJsonValue &v : prjData.value("sub-projects").toArray())
+        result.unite(referencedBuildSystemFiles(v.toObject()));
+    for (const QJsonValue &v : prjData.value("products").toArray()) {
+        const QJsonObject product = v.toObject();
+        result.insert(product.value("location").toObject().value("file-path").toString());
+        for (const QJsonValue &v : product.value("groups").toArray())
+            result.insert(v.toObject().value("location").toObject().value("file-path").toString());
+    }
+    return result;
+}
+
+static QStringList unreferencedBuildSystemFiles(const QJsonObject &project)
+{
+    QStringList unreferenced = arrayToStringList(project.value("build-system-files"));
+    const QList<QString> referenced = toList(referencedBuildSystemFiles(project));
+    for (auto it = unreferenced.begin(); it != unreferenced.end(); ) {
+        if (referenced.contains(*it))
+            it = unreferenced.erase(it);
+        else
+            ++it;
+    }
+    return unreferenced;
+}
+
+QbsProjectNode *QbsNodeTreeBuilder::buildTree(const QString &projectName,
+                                              const Utils::FilePath &projectFile,
+                                              const Utils::FilePath &projectDir,
+                                              const QJsonObject &projectData)
+{
+    auto root = std::make_unique<QbsProjectNode>(projectData);
+
+    // If we have no project information at all (i.e. it could not be properly parsed),
+    // create the main project file node "manually".
+    if (projectData.isEmpty()) {
+        auto fileNode = std::make_unique<FileNode>(projectFile, FileType::Project);
+        root->addNode(std::move(fileNode));
+    } else {
+        setupProjectNode(root.get());
+    }
+
+    if (root->displayName().isEmpty())
+        root->setDisplayName(projectName);
+    if (root->displayName().isEmpty())
+        root->setDisplayName(projectFile.toFileInfo().completeBaseName());
+
+    auto buildSystemFiles = std::make_unique<FolderNode>(projectDir);
+    buildSystemFiles->setDisplayName(QCoreApplication::translate("QbsProjectNode", "Qbs files"));
+
+    const FilePath buildDir = FilePath::fromString(projectData.value("build-directory").toString());
+    const QStringList files = unreferencedBuildSystemFiles(projectData);
     for (const QString &f : files) {
-        const Utils::FileName filePath = Utils::FileName::fromString(f);
-        if (filePath.isChildOf(base))
-            buildSystemFiles->addNestedNode(std::make_unique<ProjectExplorer::FileNode>(filePath, ProjectExplorer::FileType::Project, false));
+        const FilePath filePath = FilePath::fromString(f);
+        if (filePath.isChildOf(projectDir)) {
+            auto fileNode = std::make_unique<FileNode>(filePath, FileType::Project);
+            fileNode->setIsGenerated(filePath.isChildOf(buildDir));
+            buildSystemFiles->addNestedNode(std::move(fileNode));
+        }
     }
     buildSystemFiles->compress();
     root->addNode(std::move(buildSystemFiles));
-
-    return root;
+    return root.release();
 }
 
 } // namespace Internal

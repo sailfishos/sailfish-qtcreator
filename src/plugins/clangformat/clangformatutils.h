@@ -40,11 +40,14 @@ void createStyleFileIfNeeded(bool isGlobal);
 
 QString currentProjectUniqueId();
 
+std::string currentProjectConfigText();
+std::string currentGlobalConfigText();
+
 clang::format::FormatStyle currentProjectStyle();
 clang::format::FormatStyle currentGlobalStyle();
 
 // Is the style from the matching .clang-format file or global one if it's not found.
-QString configForFile(Utils::FileName fileName);
-clang::format::FormatStyle styleForFile(Utils::FileName fileName);
+QString configForFile(Utils::FilePath fileName);
+clang::format::FormatStyle styleForFile(Utils::FilePath fileName);
 
 }

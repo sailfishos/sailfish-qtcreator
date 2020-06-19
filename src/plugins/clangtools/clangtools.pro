@@ -1,6 +1,5 @@
 include(../../qtcreatorplugin.pri)
 include(../../shared/clang/clang_installation.pri)
-
 include(../../shared/clang/clang_defines.pri)
 
 requires(!isEmpty(LLVM_VERSION))
@@ -8,18 +7,23 @@ requires(!isEmpty(LLVM_VERSION))
 LIBS += $$LIBCLANG_LIBS
 INCLUDEPATH += $$LLVM_INCLUDEPATH
 
+include(../../shared/yaml-cpp/yaml-cpp_installation.pri)
+isEmpty(EXTERNAL_YAML_CPP_FOUND) {
+    DEFINES += YAML_CPP_DLL
+} else {
+    LIBS += $$EXTERNAL_YAML_CPP_LIBS
+    QMAKE_CXXFLAGS += $$EXTERNAL_YAML_CPP_CXXFLAGS
+}
+
 SOURCES += \
     clangfixitsrefactoringchanges.cpp \
     clangselectablefilesdialog.cpp \
     clangtoolsdiagnosticview.cpp \
     clangtoolsprojectsettingswidget.cpp \
-    clangtidyclazyruncontrol.cpp \
     clangtidyclazyrunner.cpp \
-    clangtidyclazytool.cpp \
     clangtool.cpp \
     clangtoolruncontrol.cpp \
     clangtoolrunner.cpp \
-    clangtoolsbasicsettings.cpp \
     clangtoolsdiagnostic.cpp \
     clangtoolsdiagnosticmodel.cpp \
     clangtoolslogfilereader.cpp \
@@ -27,7 +31,11 @@ SOURCES += \
     clangtoolsprojectsettings.cpp \
     clangtoolssettings.cpp \
     clangtoolsutils.cpp \
-    clangtoolsconfigwidget.cpp
+    diagnosticconfigswidget.cpp \
+    executableinfo.cpp \
+    filterdialog.cpp \
+    runsettingswidget.cpp \
+    settingswidget.cpp \
 
 HEADERS += \
     clangfileinfo.h \
@@ -35,14 +43,11 @@ HEADERS += \
     clangselectablefilesdialog.h \
     clangtoolsdiagnosticview.h \
     clangtoolsprojectsettingswidget.h \
-    clangtidyclazyruncontrol.h \
     clangtidyclazyrunner.h \
-    clangtidyclazytool.h \
     clangtool.h \
     clangtoolruncontrol.h \
     clangtoolrunner.h \
     clangtools_global.h \
-    clangtoolsbasicsettings.h \
     clangtoolsconstants.h \
     clangtoolsdiagnostic.h \
     clangtoolsdiagnosticmodel.h \
@@ -51,13 +56,20 @@ HEADERS += \
     clangtoolsprojectsettings.h \
     clangtoolssettings.h \
     clangtoolsutils.h \
-    clangtoolsconfigwidget.h
+    diagnosticconfigswidget.h \
+    executableinfo.h \
+    filterdialog.h \
+    runsettingswidget.h \
+    settingswidget.h \
 
 FORMS += \
-    clangtoolsprojectsettingswidget.ui \
-    clangtoolsconfigwidget.ui \
     clangselectablefilesdialog.ui \
-    clangtoolsbasicsettings.ui
+    clangtoolsprojectsettingswidget.ui \
+    clazychecks.ui \
+    filterdialog.ui \
+    runsettingswidget.ui \
+    settingswidget.ui \
+    tidychecks.ui \
 
 equals(TEST, 1) {
     HEADERS += \

@@ -33,7 +33,6 @@
 #include <QProcess>
 
 namespace Autotest {
-namespace Internal {
 
 TestOutputReader::TestOutputReader(const QFutureInterface<TestResultPtr> &futureInterface,
                                    QProcess *testApplication, const QString &buildDirectory)
@@ -42,43 +41,51 @@ TestOutputReader::TestOutputReader(const QFutureInterface<TestResultPtr> &future
     , m_buildDir(buildDirectory)
     , m_id(testApplication ? testApplication->program() : QString())
 {
+    auto chopLineBreak = [](QByteArray line) {
+        if (line.endsWith('\n'))
+            line.chop(1);
+        if (line.endsWith('\r'))
+            line.chop(1);
+        return line;
+    };
+
     if (m_testApplication) {
-        connect(m_testApplication, &QProcess::readyRead,
-                this, [this] () {
-            while (m_testApplication->canReadLine()) {
-                const QByteArray output = m_testApplication->readLine();
-                processOutput(output);
-            }
+        connect(m_testApplication, &QProcess::readyReadStandardOutput,
+                this, [chopLineBreak, this] () {
+            m_testApplication->setReadChannel(QProcess::StandardOutput);
+            while (m_testApplication->canReadLine())
+                processStdOutput(chopLineBreak(m_testApplication->readLine()));
         });
         connect(m_testApplication, &QProcess::readyReadStandardError,
-                this, [this] () {
-            const QByteArray output = m_testApplication->readAllStandardError();
-            processStdError(output);
+                this, [chopLineBreak, this] () {
+            m_testApplication->setReadChannel(QProcess::StandardError);
+            while (m_testApplication->canReadLine())
+                processStdError(chopLineBreak(m_testApplication->readLine()));
         });
     }
 }
 
-void TestOutputReader::processOutput(const QByteArray &output)
+void TestOutputReader::processStdOutput(const QByteArray &outputLine)
 {
-    processOutputLine(output);
-    emit newOutputAvailable(output);
+    processOutputLine(outputLine);
+    emit newOutputLineAvailable(outputLine, OutputChannel::StdOut);
 }
 
-void TestOutputReader::processStdError(const QByteArray &outputLineWithNewLine)
+void TestOutputReader::processStdError(const QByteArray &outputLine)
 {
-    qWarning() << "AutoTest.Run: Ignored plain output:" << outputLineWithNewLine;
-    emit newOutputAvailable(outputLineWithNewLine);
+    qWarning() << "AutoTest.Run: Ignored plain output:" << outputLine;
+    emit newOutputLineAvailable(outputLine, OutputChannel::StdErr);
 }
 
 void TestOutputReader::reportCrash()
 {
     TestResultPtr result = createDefaultResult();
     result->setDescription(tr("Test executable crashed."));
-    result->setResult(Result::MessageFatal);
+    result->setResult(ResultType::MessageFatal);
     m_futureInterface.reportResult(result);
 }
 
-void TestOutputReader::createAndReportResult(const QString &message, Result::Type type)
+void TestOutputReader::createAndReportResult(const QString &message, ResultType type)
 {
     TestResultPtr result = createDefaultResult();
     result->setDescription(message);
@@ -86,14 +93,24 @@ void TestOutputReader::createAndReportResult(const QString &message, Result::Typ
     reportResult(result);
 }
 
-QByteArray TestOutputReader::chopLineBreak(const QByteArray &original)
+void TestOutputReader::resetCommandlineColor()
 {
-    QTC_ASSERT(original.endsWith('\n'), return original);
-    QByteArray output(original);
-    output.chop(1); // remove the newline from the output
-    if (output.endsWith('\r'))
-        output.chop(1);
-    return output;
+    emit newOutputLineAvailable("\u001B[m", OutputChannel::StdOut);
+    emit newOutputLineAvailable("\u001B[m", OutputChannel::StdErr);
+}
+
+QString TestOutputReader::removeCommandlineColors(const QString &original)
+{
+    static const QRegularExpression pattern("\u001B\\[.*?m");
+    QString result = original;
+    while (!result.isEmpty()) {
+        QRegularExpressionMatch match = pattern.match(result);
+        if (match.hasMatch())
+            result.remove(match.capturedStart(), match.captured().length());
+        else
+            break;
+    }
+    return result;
 }
 
 void TestOutputReader::reportResult(const TestResultPtr &result)
@@ -102,5 +119,4 @@ void TestOutputReader::reportResult(const TestResultPtr &result)
     m_hadValidOutput = true;
 }
 
-} // namespace Internal
 } // namespace Autotest

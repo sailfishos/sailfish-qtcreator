@@ -30,8 +30,8 @@
 
 namespace Utils {
 class QtcProcess;
-class FileName;
-using FileNameList = QList<FileName>;
+class FilePath;
+using FilePaths = QList<FilePath>;
 }
 
 namespace Cppcheck {
@@ -48,12 +48,12 @@ public:
     ~CppcheckRunner() override;
 
     void reconfigure(const QString &binary, const QString &arguments);
-    void addToQueue(const Utils::FileNameList &files,
+    void addToQueue(const Utils::FilePaths &files,
                     const QString &additionalArguments = {});
-    void removeFromQueue(const Utils::FileNameList &files);
-    void stop(const Utils::FileNameList &files = {});
+    void removeFromQueue(const Utils::FilePaths &files);
+    void stop(const Utils::FilePaths &files = {});
 
-    const Utils::FileNameList &currentFiles() const;
+    const Utils::FilePaths &currentFiles() const;
     QString currentCommand() const;
 
 private:
@@ -67,8 +67,8 @@ private:
     Utils::QtcProcess *m_process = nullptr;
     QString m_binary;
     QString m_arguments;
-    QHash<QString, Utils::FileNameList> m_queue;
-    Utils::FileNameList m_currentFiles;
+    QHash<QString, Utils::FilePaths> m_queue;
+    Utils::FilePaths m_currentFiles;
     QTimer m_queueTimer;
     int m_maxArgumentsLength = 32767;
     bool m_isRunning = false;

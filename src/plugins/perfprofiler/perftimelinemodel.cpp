@@ -166,11 +166,12 @@ QVariantMap PerfTimelineModel::details(int index) const
                                                             manager->traceDuration()));
         const int guessedFrames = -frame.numSamples;
         if (guessedFrames > 0)
-            result.insert(tr("Guessed"), tr("%1 frames").arg(guessedFrames));
-        if (const int sampleWeight = weight(index))
-            result.insert(tr("Weight"), sampleWeight);
-        if (const int samplePeriod = period(index))
-            result.insert(tr("Period"), samplePeriod);
+            result.insert(tr("Guessed"), tr("%n frames", nullptr, guessedFrames));
+        for (int i = 0, end = numAttributes(index); i < end; ++i) {
+            const auto &name = orUnknown(manager->string(
+                manager->attribute(attributeId(index, i)).name));
+            result.insert(QString::fromUtf8(name), attributeValue(index, i));
+        }
         if (attribute.type == PerfEventType::TypeTracepoint) {
             const PerfProfilerTraceManager::TracePoint &tracePoint
                     = manager->tracePoint(static_cast<int>(attribute.config));
@@ -196,6 +197,10 @@ QVariantMap PerfTimelineModel::details(int index) const
                                                             manager->traceDuration()));
     } else if (typeId == PerfEvent::LostTypeId) {
         result.insert(tr("Details"), tr("lost sample"));
+        result.insert(tr("Timestamp"), Timeline::formatTime(startTime(index),
+                                                            manager->traceDuration()));
+    } else if (typeId == PerfEvent::ContextSwitchTypeId) {
+        result.insert(tr("Details"), tr("context switch"));
         result.insert(tr("Timestamp"), Timeline::formatTime(startTime(index),
                                                             manager->traceDuration()));
     } else {
@@ -281,8 +286,11 @@ float PerfTimelineModel::relativeHeight(int index) const
 void PerfTimelineModel::updateTraceData(const PerfEvent &event)
 {
     const PerfProfilerTraceManager *manager = traceManager();
-    const PerfEventType::Attribute &attribute = manager->attribute(event.typeIndex());
-    if (attribute.type == PerfEventType::TypeTracepoint) {
+    for (int i = 0; i < event.numAttributes(); ++i) {
+        const PerfEventType::Attribute &attribute = manager->attribute(event.attributeId(i));
+        if (attribute.type != PerfEventType::TypeTracepoint)
+            continue;
+
         const PerfProfilerTraceManager::TracePoint &tracePoint
                 = manager->tracePoint(static_cast<int>(attribute.config));
 
@@ -400,29 +408,30 @@ void PerfTimelineModel::updateFrames(const PerfEvent &event, int numConcurrentTh
 
 void PerfTimelineModel::addSample(const PerfEvent &event, qint64 resourceDelta, int resourceGuesses)
 {
-    static const int intMax = std::numeric_limits<int>::max();
-    const int period = static_cast<int>(qMin(static_cast<quint64>(intMax), event.period()));
-    const int weight = static_cast<int>(qMin(static_cast<quint64>(intMax), event.weight()));
-
-    const int id = TimelineModel::insert(event.timestamp(), 1, event.typeIndex());
+    const int id = TimelineModel::insert(event.timestamp(), 1, event.attributeId(0));
     StackFrame sample = StackFrame::sampleFrame();
+    sample.attributeValue = event.attributeValue(0);
     sample.numSamples = event.numGuessedFrames() > 0 ? -event.numGuessedFrames() : 1;
-    sample.period = period;
-    sample.weight = weight;
     sample.resourcePeak = m_resourceBlocks.currentTotal();
     sample.resourceDelta = resourceDelta;
     sample.resourceGuesses = resourceGuesses;
+    sample.numAttributes = event.numAttributes();
     m_data.insert(id, std::move(sample));
     const QHash<qint32, QVariant> &traceData = event.traceData();
     if (!traceData.isEmpty())
         m_extraData.insert(id, traceData);
+
+    for (int i = 1, end = sample.numAttributes; i < end; ++i) {
+        m_attributeValues[id].append(QPair<qint32, quint64>(event.attributeId(i),
+                                                            event.attributeValue(i)));
+    }
 
     m_lastTimestamp = event.timestamp();
 }
 
 void PerfTimelineModel::loadEvent(const PerfEvent &event, int numConcurrentThreads)
 {
-    switch (event.typeIndex()) {
+    switch (event.attributeId(0)) {
     case PerfEvent::LostTypeId: {
         QVector<int> frames;
         for (int pos = m_currentStack.length() - 1; pos >= 0; --pos)
@@ -436,6 +445,11 @@ void PerfTimelineModel::loadEvent(const PerfEvent &event, int numConcurrentThrea
         // No updateTraceData() here
         updateFrames(guessed, numConcurrentThreads, 0, 0);
         addSample(guessed, 0, 0);
+        break;
+    }
+    case PerfEvent::ContextSwitchTypeId: {
+        const int id = TimelineModel::insert(event.timestamp(), 1, PerfEvent::ContextSwitchTypeId);
+        m_data.insert(id, StackFrame::sampleFrame());
         break;
     }
     case PerfEvent::ThreadStartTypeId: {
@@ -459,7 +473,7 @@ void PerfTimelineModel::loadEvent(const PerfEvent &event, int numConcurrentThrea
         break;
     }
     default: {
-        QTC_ASSERT(event.typeIndex() <= PerfEvent::LastSpecialTypeId, break);
+        QTC_ASSERT(event.attributeId(0) <= PerfEvent::LastSpecialTypeId, break);
 
         if (event.timestamp() < 0) {
             updateTraceData(event);
@@ -603,14 +617,19 @@ float PerfTimelineModel::resourceUsage(int index) const
             : 0.0f;
 }
 
-int PerfTimelineModel::period(int index) const
+qint32 PerfTimelineModel::attributeId(int index, int i) const
 {
-    return m_data[index].period;
+    return (i == 0) ? selectionId(index) : m_attributeValues[index][i].first;
 }
 
-int PerfTimelineModel::weight(int index) const
+int PerfTimelineModel::numAttributes(int index) const
 {
-    return m_data[index].weight;
+    return m_data[index].numAttributes;
+}
+
+quint64 PerfTimelineModel::attributeValue(int index, int i) const
+{
+    return (i == 0) ? m_data[index].attributeValue : m_attributeValues[index][i].second;
 }
 
 bool PerfTimelineModel::handlesTypeId(int typeId) const

@@ -80,10 +80,10 @@ void registerDocumentation(const QStringList &files)
         m_instance->registerDocumentation(files);
 }
 
-void unregisterDocumentation(const QStringList &nameSpaces)
+void unregisterDocumentation(const QStringList &fileNames)
 {
     if (checkInstance())
-        m_instance->unregisterDocumentation(nameSpaces);
+        m_instance->unregisterDocumentation(fileNames);
 }
 
 QMap<QString, QUrl> linksForIdentifier(const QString &id)

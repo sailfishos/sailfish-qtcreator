@@ -49,6 +49,7 @@ static char KEY_SELECTED_PROJECT[] = "SelectedProject";
 static char KEY_SELECTED_NODE[] = "SelectedFolderNode";
 static char KEY_IS_SUBPROJECT[] = "IsSubproject";
 static char KEY_VERSIONCONTROL[] = "VersionControl";
+static char KEY_QT_KEYWORDS_ENABLED[] = "QtKeywordsEnabled";
 
 namespace ProjectExplorer {
 
@@ -105,6 +106,7 @@ void JsonSummaryPage::initializePage()
     m_wizard->setValue(QLatin1String(KEY_SELECTED_NODE), QVariant());
     m_wizard->setValue(QLatin1String(KEY_IS_SUBPROJECT), false);
     m_wizard->setValue(QLatin1String(KEY_VERSIONCONTROL), QString());
+    m_wizard->setValue(QLatin1String(KEY_QT_KEYWORDS_ENABLED), false);
 
     connect(m_wizard, &JsonWizard::filesReady, this, &JsonSummaryPage::triggerCommit);
     connect(m_wizard, &JsonWizard::filesReady, this, &JsonSummaryPage::addToProject);
@@ -206,6 +208,10 @@ void JsonSummaryPage::addToProject(const JsonWizard::GeneratorFiles &files)
                                        nativeFilePaths.join(QLatin1String(", "))));
             return;
         }
+        const QStringList dependencies = m_wizard->stringValue("Dependencies")
+                .split(':', QString::SkipEmptyParts);
+        if (!dependencies.isEmpty())
+            folder->addDependencies(dependencies);
     }
     return;
 }
@@ -250,6 +256,23 @@ void JsonSummaryPage::updateProjectData(FolderNode *node)
     m_wizard->setValue(QLatin1String(KEY_SELECTED_PROJECT), QVariant::fromValue(project));
     m_wizard->setValue(QLatin1String(KEY_SELECTED_NODE), QVariant::fromValue(node));
     m_wizard->setValue(QLatin1String(KEY_IS_SUBPROJECT), node ? true : false);
+    bool qtKeyWordsEnabled = true;
+    if (ProjectTree::hasNode(node)) {
+        const ProjectNode *projectNode = node->asProjectNode();
+        if (!projectNode)
+            projectNode = node->parentProjectNode();
+        while (projectNode) {
+            const QVariant keywordsEnabled = projectNode->data(Constants::QT_KEYWORDS_ENABLED);
+            if (keywordsEnabled.isValid()) {
+                qtKeyWordsEnabled = keywordsEnabled.toBool();
+                break;
+            }
+            if (projectNode->isProduct())
+                break;
+            projectNode = projectNode->parentProjectNode();
+        }
+    }
+    m_wizard->setValue(QLatin1String(KEY_QT_KEYWORDS_ENABLED), qtKeyWordsEnabled);
 
     updateFileList();
 }

@@ -70,6 +70,7 @@ public:
     int rowCount(const QModelIndex &) const override;
     QVariant data(const QModelIndex &index, int role) const override;
 
+    enum UserRoles{ FixItRole = Qt::UserRole, DetailTextFormatRole };
 private:
     GenericProposalModelPtr m_completionModel;
 };
@@ -99,7 +100,9 @@ QVariant ModelAdapter::data(const QModelIndex &index, int role) const
         return m_completionModel->icon(index.row());
     } else if (role == Qt::WhatsThisRole) {
         return m_completionModel->detail(index.row());
-    } else if (role == Qt::UserRole) {
+    } else if (role == DetailTextFormatRole) {
+        return m_completionModel->detailFormat(index.row());
+    } else if (role == FixItRole) {
         return m_completionModel->proposalItem(index.row())->requiresFixIts();
     }
 
@@ -116,14 +119,13 @@ public:
         : FakeToolTip(parent), m_label(new QLabel(this))
     {
         auto layout = new QVBoxLayout(this);
-        layout->setMargin(0);
+        layout->setContentsMargins(0, 0, 0, 0);
         layout->setSpacing(0);
         layout->addWidget(m_label);
 
         // Limit horizontal width
         m_label->setSizePolicy(QSizePolicy::Fixed, m_label->sizePolicy().verticalPolicy());
 
-        m_label->setTextFormat(Qt::RichText);
         m_label->setForegroundRole(QPalette::ToolTipText);
         m_label->setBackgroundRole(QPalette::ToolTipBase);
     }
@@ -131,6 +133,11 @@ public:
     void setText(const QString &text)
     {
         m_label->setText(text);
+    }
+
+    void setTextFormat(Qt::TextFormat format)
+    {
+        m_label->setTextFormat(format);
     }
 
     // Workaround QTCREATORBUG-11653
@@ -189,7 +196,7 @@ public:
 
         QStyledItemDelegate::paint(painter, option, index);
 
-        if (m_parent->model()->data(index, Qt::UserRole).toBool()) {
+        if (m_parent->model()->data(index, ModelAdapter::FixItRole).toBool()) {
             const QRect itemRect = m_parent->rectForIndex(index);
             const QScrollBar *verticalScrollBar = m_parent->verticalScrollBar();
 
@@ -205,7 +212,7 @@ public:
     QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override
     {
         QSize size(QStyledItemDelegate::sizeHint(option, index));
-        if (m_parent->model()->data(index, Qt::UserRole).toBool())
+        if (m_parent->model()->data(index, ModelAdapter::FixItRole).toBool())
             size.setWidth(size.width() + m_parent->rectForIndex(index).height() - 5);
         return size;
     }
@@ -313,6 +320,8 @@ void GenericProposalWidgetPrivate::maybeShowInfoTip()
         m_infoFrame = new GenericProposalInfoFrame(m_completionListView);
 
     m_infoFrame->move(m_completionListView->infoFramePos());
+    m_infoFrame->setTextFormat(
+        current.data(ModelAdapter::DetailTextFormatRole).value<Qt::TextFormat>());
     m_infoFrame->setText(infoTip);
     m_infoFrame->calculateMaximumWidth();
     m_infoFrame->adjustSize();
@@ -352,7 +361,7 @@ GenericProposalWidget::GenericProposalWidget()
             this, &GenericProposalWidget::turnOnAutoWidth);
 
     auto layout = new QVBoxLayout(this);
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(d->m_completionListView);
 
     d->m_completionListView->installEventFilter(this);
@@ -395,7 +404,7 @@ void GenericProposalWidget::setModel(ProposalModelPtr model)
     d->m_completionListView->setModel(new ModelAdapter(d->m_model, d->m_completionListView));
 
     connect(d->m_completionListView->selectionModel(), &QItemSelectionModel::currentChanged,
-            &d->m_infoTimer, static_cast<void (QTimer::*)()>(&QTimer::start));
+            &d->m_infoTimer, QOverload<>::of(&QTimer::start));
 }
 
 void GenericProposalWidget::setDisplayRect(const QRect &rect)
@@ -467,7 +476,7 @@ bool GenericProposalWidget::updateAndCheck(const QString &prefix)
         d->m_model->sort(prefix);
     d->m_completionListView->reset();
 
-    // Try to find the previosly explicit selection (if any). If we can find the item set it
+    // Try to find the previously explicit selection (if any). If we can find the item set it
     // as the current. Otherwise (it might have been filtered out) select the first row.
     if (d->m_explicitlySelected) {
         Q_ASSERT(preferredItemId != -1);
@@ -656,8 +665,6 @@ bool GenericProposalWidget::eventFilter(QObject *o, QEvent *e)
         }
 
         QApplication::sendEvent(const_cast<QWidget *>(d->m_underlyingWidget), e);
-        if (isVisible())
-            d->m_assistant->notifyChange();
 
         return true;
     }

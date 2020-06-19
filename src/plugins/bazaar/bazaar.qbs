@@ -18,8 +18,6 @@ QtcPlugin {
         "bazaarcommitpanel.ui",
         "bazaarcommitwidget.cpp",
         "bazaarcommitwidget.h",
-        "bazaarcontrol.cpp",
-        "bazaarcontrol.h",
         "bazaareditor.cpp",
         "bazaareditor.h",
         "bazaarplugin.cpp",
@@ -38,8 +36,6 @@ QtcPlugin {
         "pullorpushdialog.h",
         "pullorpushdialog.ui",
         "revertdialog.ui",
-        "uncommitdialog.cpp",
-        "uncommitdialog.h",
         "uncommitdialog.ui",
     ]
 }

@@ -1,8 +1,11 @@
-Item {
-}
+
+Section {
+    anchors.left: parent.left
+    anchors.right: parent.right
+    caption: "%1"
 
 ColorEditor {
-    caption: "%1"
     backendValue: backendValues.%2
     supportGradient: false
+}
 }

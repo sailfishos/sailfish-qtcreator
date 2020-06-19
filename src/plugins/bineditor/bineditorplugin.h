@@ -38,22 +38,16 @@ class BinEditorPlugin : public ExtensionSystem::IPlugin
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "BinEditor.json")
 
-public:
-    BinEditorPlugin() = default;
     ~BinEditorPlugin() override;
 
     bool initialize(const QStringList &arguments, QString *errorMessage) final;
     void extensionsInitialized() final {}
 };
 
-class BinEditorFactory : public Core::IEditorFactory
+class BinEditorFactory final : public Core::IEditorFactory
 {
-    Q_OBJECT
-
 public:
     BinEditorFactory();
-
-    Core::IEditor *createEditor() final;
 };
 
 class FactoryServiceImpl : public QObject, public FactoryService

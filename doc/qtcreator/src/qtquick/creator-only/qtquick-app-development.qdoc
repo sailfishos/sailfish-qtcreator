@@ -1,0 +1,101 @@
+/****************************************************************************
+**
+** Copyright (C) 2020 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \page creator-visual-editor.html
+    \previouspage creator-design-mode.html
+    \nextpage quick-projects.html
+
+    \title Developing Qt Quick Applications
+
+    \list
+
+        \li \l {Creating Qt Quick Projects}
+
+            You can use wizards to create Qt Quick projects.
+
+        \li \l {Editing QML Files in Design Mode}
+
+            You can use several different editors and views in the
+            Design mode to develop Qt Quick applications.
+
+        \li \l {Creating UIs}
+
+            Qt Quick enables you to build UIs around the behavior of
+            \e components and how they connect with one another. You
+            create components using Qt Quick and QML types that are
+            available in the Design mode, manage their relationships,
+            and specify their properties.
+
+        \li \l {Adding Dynamics}
+
+            You can animate the properties of UI components and create
+            connections between them to enable them to communicate with
+            each other.
+
+        \li \l {Editing 3D Scenes}
+
+            You can use the 3D editor in the Design mode to edit files you
+            created using 3D graphics applications and stored in one of the
+            supported formats. You cannot create 3D models or other assets
+            in the editor, but you can import the assets you need and work
+            with them to create scenes and states, as well as the
+            transitions between them.
+
+    \endlist
+
+    \section1 Related Topics
+
+    \list
+
+        \li \l {Browsing ISO 7000 Icons}
+
+            You can add ISO 7000 icons from a library delivered with \QC to
+            UIs and change their color.
+
+        \li \l {Using QML Modules with Plugins}
+
+            QML modules may use plugins to expose components defined in C++ to
+            QML applications. \QC cannot load the plugins to determine the
+            details of the contained components, and therefore, the modules must
+            provide extra type information for code completion and the semantic
+            checks to work correctly.
+
+        \li \l {Converting UI Projects to Applications}
+
+            Qt Quick UI projects (.qmlproject) are useful for creating user
+            interfaces. To use them for application development, you have to
+            convert them to Qt Quick Application projects that contain .pro,
+            .cpp, and .qrc files.
+
+    \endlist
+
+*/

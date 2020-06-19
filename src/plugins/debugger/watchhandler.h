@@ -46,6 +46,8 @@ class WatchModelBase : public Utils::TreeModel<WatchItem, WatchItem>
 public:
     WatchModelBase() = default;
 
+    enum { NameColumn, TimeColumn, ValueColumn, TypeColumn };
+
 signals:
     void currentIndexRequested(const QModelIndex &idx);
     void itemIsExpanded(const QModelIndex &idx);
@@ -84,8 +86,8 @@ public:
     static QStringList watchedExpressions();
     static QMap<QString, int> watcherNames();
 
-    void appendFormatRequests(DebuggerCommand *cmd);
-    void appendWatchersAndTooltipRequests(DebuggerCommand *cmd);
+    void appendFormatRequests(DebuggerCommand *cmd) const;
+    void appendWatchersAndTooltipRequests(DebuggerCommand *cmd) const;
 
     QString typeFormatRequests() const;
     QString individualFormatRequests() const;
@@ -99,7 +101,6 @@ public:
     QString watcherName(const QString &exp);
 
     void scheduleResetLocation();
-    void resetLocation();
 
     void setCurrentItem(const QString &iname);
     void updateLocalsWindow();

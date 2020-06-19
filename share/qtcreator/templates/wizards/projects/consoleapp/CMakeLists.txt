@@ -1,12 +1,32 @@
-cmake_minimum_required(VERSION 3.0.0)
+cmake_minimum_required(VERSION 3.5)
 
-project(%{ProjectName} VERSION 0.1 LANGUAGES CXX)
+project(%{ProjectName} LANGUAGES CXX)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
 
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+@if %{HasTranslation}
+find_package(Qt5 COMPONENTS Core LinguistTools REQUIRED)
+
+set(TS_FILES %{TsFileName})
+@else
 find_package(Qt5Core)
+@endif
 
-add_executable(${PROJECT_NAME} "%{CppFileName}")
+add_executable(%{ProjectName}
+  %{CppFileName}
+@if %{HasTranslation}
+  ${TS_FILES}
+@endif
+)
+target_link_libraries(%{ProjectName} Qt5::Core)
+@if %{HasTranslation}
 
-target_link_libraries(${PROJECT_NAME} Qt5::Core)
+qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
+@endif

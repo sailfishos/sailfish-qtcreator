@@ -164,7 +164,7 @@ public:
                 qint32 inProgressSizeLE;
                 const qint64 read = dev->read((char *)&inProgressSizeLE, sizeof(qint32));
                 Q_ASSERT(read == sizeof(qint32));
-                Q_UNUSED(read);
+                Q_UNUSED(read)
                 inProgressSize = qFromLittleEndian(inProgressSizeLE);
 
                 // Check sizing constraints
@@ -254,7 +254,7 @@ qint64 QPacketProtocol::packetsAvailable() const
   */
 QByteArray QPacketProtocol::read()
 {
-    if (0 == d->packets.count())
+    if (d->packets.isEmpty())
         return QByteArray();
 
     return d->packets.takeFirst();

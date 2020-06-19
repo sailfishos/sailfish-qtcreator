@@ -69,6 +69,8 @@ public:
     const AndroidSdkPackageList &allSdkPackages();
     AndroidSdkPackageList availableSdkPackages();
     AndroidSdkPackageList installedSdkPackages();
+    SystemImageList installedSystemImages();
+    NdkList installedNdkPackages();
 
     SdkPlatform *latestAndroidSdkPlatform(AndroidSdkPackage::PackageState state
                                           = AndroidSdkPackage::Installed);
@@ -77,6 +79,8 @@ public:
                                          = AndroidSdkPackage::Installed);
     void reloadPackages(bool forceReload = false);
     bool isBusy() const;
+
+    bool packageListingSuccessful() const;
 
     QFuture<QString> availableArguments() const;
     QFuture<OperationOutput> updateAll();

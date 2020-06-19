@@ -1,0 +1,56 @@
+/****************************************************************************
+**
+** This file is part of Qt Creator
+**
+** Copyright (C) 2018 Blackberry
+**
+** Contact: Blackberry (qt@blackberry.com)
+** Contact: KDAB (info@kdab.com)
+**
+** This file is part of Qt Creator.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+** $QT_END_LICENSE$
+**
+****************************************************************************/
+
+/*!
+    \previouspage creator-developing-mcu.html
+    \page creator-developing-qnx.html
+    \nextpage creator-setup-webassembly.html
+
+    \title Connecting QNX Devices
+
+    You can connect QNX devices to the development PC to deploy, run and debug
+    applications on them from within \QC. The QNX Neutrino RTOS should provide
+    a few additional command line tools and services, as described in
+    \l {Qt Creator Target Requirements}.
+
+    \section1 Adding a QNX Neutrino Device in \QC
+
+    Adding a QNX Neutrino device is very similar to
+    \l{Connecting Generic Remote Linux Devices}, except that
+    you need to select \uicontrol {QNX Device} in the
+    \uicontrol {Device Configuration} wizard.
+
+    \section1 Adding Kits for QNX Devices
+
+    To view QNX device settings, select \uicontrol Tools > \uicontrol Options >
+    \uicontrol Devices > \uicontrol QNX. Select the \uicontrol {Generate kits}
+    check box to allow \QC to generate kits for QNX development. For more
+    information about how to create the kits manually, see \l {Adding Kits}.
+*/

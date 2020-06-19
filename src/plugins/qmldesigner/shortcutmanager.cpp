@@ -53,7 +53,6 @@
 
 #include "qmldesignerconstants.h"
 #include "qmldesignerplugin.h"
-#include "designmodewidget.h"
 
 #include <QApplication>
 #include <QClipboard>
@@ -71,10 +70,6 @@ ShortCutManager::ShortCutManager()
     m_pasteAction(tr("&Paste")),
     m_selectAllAction(tr("Select &All")),
     m_collapseExpandStatesAction(tr("Toggle States")),
-    m_restoreDefaultViewAction(tr("&Restore Default View")),
-    m_toggleLeftSidebarAction(tr("Toggle &Left Sidebar")),
-    m_toggleRightSidebarAction(tr("Toggle &Right Sidebar")),
-    m_switchTextFormAction(tr("Switch Text/Design")),
     m_escapeAction(this)
 {
 
@@ -82,6 +77,7 @@ ShortCutManager::ShortCutManager()
 
 void ShortCutManager::registerActions(const Core::Context &qmlDesignerMainContext,
                                       const Core::Context &qmlDesignerFormEditorContext,
+                                      const Core::Context &qmlDesignerEditor3DContext,
                                       const Core::Context &qmlDesignerNavigatorContext)
 {
     Core::ActionContainer *editMenu = Core::ActionManager::actionContainer(Core::Constants::M_EDIT);
@@ -100,26 +96,6 @@ void ShortCutManager::registerActions(const Core::Context &qmlDesignerMainContex
     connect(&m_pasteAction, &QAction::triggered, this, &ShortCutManager::paste);
 
     connect(&m_selectAllAction,&QAction::triggered, this, &ShortCutManager::selectAll);
-
-    connect(&m_restoreDefaultViewAction,
-            &QAction::triggered,
-            QmlDesignerPlugin::instance()->mainWidget(),
-            &Internal::DesignModeWidget::restoreDefaultView);
-
-    connect(&m_toggleLeftSidebarAction,
-            &QAction::triggered,
-            QmlDesignerPlugin::instance()->mainWidget(),
-            &Internal::DesignModeWidget::toggleLeftSidebar);
-
-    connect(&m_toggleRightSidebarAction,
-            &QAction::triggered,
-            QmlDesignerPlugin::instance()->mainWidget(),
-            &Internal::DesignModeWidget::toggleRightSidebar);
-
-    connect(&m_switchTextFormAction,
-            &QAction::triggered,
-            QmlDesignerPlugin::instance()->mainWidget(),
-            &Internal::DesignModeWidget::switchTextOrForm);
 
     connect(&m_collapseExpandStatesAction, &QAction::triggered, [] {
         QmlDesignerPlugin::instance()->viewManager().toggleStatesViewExpanded();
@@ -159,7 +135,7 @@ void ShortCutManager::registerActions(const Core::Context &qmlDesignerMainContex
 
     //Close All
     Core::ActionManager::registerAction(&m_closeAllEditorsAction, Core::Constants::CLOSEALL, qmlDesignerMainContext);
-    connect(&m_closeAllEditorsAction, &QAction::triggered, em,  &Core::EditorManager::closeAllEditors);
+    connect(&m_closeAllEditorsAction, &QAction::triggered, em,  &Core::EditorManager::closeAllDocuments);
 
     //Close All Others Action
     Core::ActionManager::registerAction(&m_closeOtherEditorsAction, Core::Constants::CLOSEOTHERS, qmlDesignerMainContext);
@@ -178,25 +154,34 @@ void ShortCutManager::registerActions(const Core::Context &qmlDesignerMainContex
     m_deleteAction.setIcon(QIcon::fromTheme(QLatin1String("edit-cut"), Utils::Icons::EDIT_CLEAR_TOOLBAR.icon()));
 
     command = Core::ActionManager::registerAction(&m_deleteAction, QmlDesigner::Constants::C_DELETE, qmlDesignerMainContext);
-    command->setDefaultKeySequence(QKeySequence::Delete);
+    if (Utils::HostOsInfo::isMacHost())
+        command->setDefaultKeySequence(QKeySequence::Backspace);
+    else
+        command->setDefaultKeySequence(QKeySequence::Delete);
+
+    Utils::HostOsInfo::isMacHost() ;
+
     command->setAttribute(Core::Command::CA_Hide); // don't show delete in other modes
     if (!Utils::HostOsInfo::isMacHost())
         editMenu->addAction(command, Core::Constants::G_EDIT_COPYPASTE);
     designerActionManager.addCreatorCommand(command, ComponentCoreConstants::editCategory, 280);
 
     Core::ActionManager::registerAction(&m_cutAction, Core::Constants::CUT, qmlDesignerFormEditorContext);
+    Core::ActionManager::registerAction(&m_cutAction, Core::Constants::CUT, qmlDesignerEditor3DContext);
     command = Core::ActionManager::registerAction(&m_cutAction, Core::Constants::CUT, qmlDesignerNavigatorContext);
     command->setDefaultKeySequence(QKeySequence::Cut);
     editMenu->addAction(command, Core::Constants::G_EDIT_COPYPASTE);
     designerActionManager.addCreatorCommand(command, ComponentCoreConstants::editCategory, 260, Utils::Icons::CUT_TOOLBAR.icon());
 
     Core::ActionManager::registerAction(&m_copyAction, Core::Constants::COPY, qmlDesignerFormEditorContext);
+    Core::ActionManager::registerAction(&m_copyAction, Core::Constants::COPY, qmlDesignerEditor3DContext);
     command = Core::ActionManager::registerAction(&m_copyAction,  Core::Constants::COPY, qmlDesignerNavigatorContext);
     command->setDefaultKeySequence(QKeySequence::Copy);
     editMenu->addAction(command, Core::Constants::G_EDIT_COPYPASTE);
     designerActionManager.addCreatorCommand(command, ComponentCoreConstants::editCategory, 250, Utils::Icons::COPY_TOOLBAR.icon());
 
     Core::ActionManager::registerAction(&m_pasteAction,  Core::Constants::PASTE, qmlDesignerFormEditorContext);
+    Core::ActionManager::registerAction(&m_pasteAction,  Core::Constants::PASTE, qmlDesignerEditor3DContext);
     command = Core::ActionManager::registerAction(&m_pasteAction,  Core::Constants::PASTE, qmlDesignerNavigatorContext);
     command->setDefaultKeySequence(QKeySequence::Paste);
     editMenu->addAction(command, Core::Constants::G_EDIT_COPYPASTE);
@@ -210,20 +195,10 @@ void ShortCutManager::registerActions(const Core::Context &qmlDesignerMainContex
 
     Core::ActionContainer *viewsMenu = Core::ActionManager::actionContainer(Core::Constants::M_WINDOW_VIEWS);
 
-    Core::ActionManager::registerAction(&m_toggleLeftSidebarAction, Core::Constants::TOGGLE_LEFT_SIDEBAR, qmlDesignerMainContext);
-    Core::ActionManager::registerAction(&m_toggleRightSidebarAction, Core::Constants::TOGGLE_RIGHT_SIDEBAR, qmlDesignerMainContext);
-
     command = Core::ActionManager::registerAction(&m_collapseExpandStatesAction,  Constants::TOGGLE_STATES_EDITOR, qmlDesignerMainContext);
     command->setAttribute(Core::Command::CA_Hide);
     command->setDefaultKeySequence(QKeySequence("Ctrl+Alt+s"));
     viewsMenu->addAction(command);
-
-    command = Core::ActionManager::registerAction(&m_restoreDefaultViewAction,  Constants::RESTORE_DEFAULT_VIEW, qmlDesignerMainContext);
-    command->setAttribute(Core::Command::CA_Hide);
-    viewsMenu->addAction(command);
-
-    command = Core::ActionManager::registerAction(&m_switchTextFormAction, QmlDesigner::Constants::SWITCH_TEXT_DESIGN, qmlDesignerMainContext);
-    command->setDefaultKeySequence(QKeySequence(Qt::Key_F4));
 
     /* Registering disabled action for Escape, because Qt Quick does not support shortcut overrides. */
     command = Core::ActionManager::registerAction(&m_escapeAction, Core::Constants::S_RETURNTOEDITOR, qmlDesignerMainContext);
@@ -238,14 +213,13 @@ void ShortCutManager::registerActions(const Core::Context &qmlDesignerMainContex
     });
 
     connect(Core::ICore::instance(), &Core::ICore::contextChanged, this, [&designerActionManager, this](const Core::Context &context){
-        if (!context.contains(Constants::C_QMLFORMEDITOR) && !context.contains(Constants::C_QMLNAVIGATOR)) {
+        if (!context.contains(Constants::C_QMLFORMEDITOR) && !context.contains(Constants::C_QMLEDITOR3D) && !context.contains(Constants::C_QMLNAVIGATOR)) {
             m_deleteAction.setEnabled(false);
             m_cutAction.setEnabled(false);
             m_copyAction.setEnabled(false);
             m_pasteAction.setEnabled(false);
         } else {
             designerActionManager.view()->emitSelectionChanged();
-
         }
     });
 }
@@ -318,16 +292,6 @@ void ShortCutManager::selectAll()
 {
     if (currentDesignDocument())
         currentDesignDocument()->selectAll();
-}
-
-void ShortCutManager::toggleLeftSidebar()
-{
-    QmlDesignerPlugin::instance()->mainWidget()->toggleLeftSidebar();
-}
-
-void ShortCutManager::toggleRightSidebar()
-{
-     QmlDesignerPlugin::instance()->mainWidget()->toggleRightSidebar();
 }
 
 void ShortCutManager::connectUndoActions(DesignDocument *designDocument)

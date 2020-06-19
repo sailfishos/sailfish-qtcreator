@@ -30,19 +30,13 @@
 #include <coreplugin/id.h>
 #include <projectexplorer/abi.h>
 
-#include <QObject>
-#include <QSharedPointer>
-
 #include <functional>
 
 QT_BEGIN_NAMESPACE
-class QMessageBox;
 class QWidget;
 class QMenu;
 class QAction;
 QT_END_NAMESPACE
-
-namespace CPlusPlus { class Snapshot; }
 
 namespace Utils {
 class BaseTreeView;
@@ -50,13 +44,8 @@ class SavedAction;
 }
 
 namespace Debugger {
-
-class DebuggerRunTool;
-
 namespace Internal {
 
-class Symbol;
-class Section;
 class GlobalDebuggerOptions;
 
 enum TestCases
@@ -68,23 +57,15 @@ enum TestCases
 // Some convenience.
 void openTextEditor(const QString &titlePattern, const QString &contents);
 
-void showModuleSymbols(const QString &moduleName, const QVector<Internal::Symbol> &symbols);
-void showModuleSections(const QString &moduleName, const QVector<Internal::Section> &sections);
-
-QSharedPointer<Internal::GlobalDebuggerOptions> globalDebuggerOptions();
-
-QVariant configValue(const QString &name);
-void setConfigValue(const QString &name, const QVariant &value);
+GlobalDebuggerOptions *globalDebuggerOptions();
 
 bool isTestRun();
 
 Utils::SavedAction *action(int code);
+
 bool boolSetting(int code);
 QString stringSetting(int code);
 QStringList stringListSetting(int code);
-
-QMessageBox *showMessageBox(int icon, const QString &title,
-    const QString &text, int buttons = 0);
 
 QAction *addAction(QMenu *menu, const QString &display, bool on,
                    const std::function<void()> &onTriggered = {});
@@ -93,10 +74,12 @@ QAction *addAction(QMenu *menu, const QString &d1, const QString &d2, bool on,
 QAction *addCheckableAction(QMenu *menu, const QString &display, bool on, bool checked,
                             const std::function<void()> &onTriggered);
 
+void addHideColumnActions(QMenu *menu, QWidget *widget);
+
+
 // Qt's various build paths for unpatched versions
 QStringList qtBuildPaths();
 
-void addDebugInfoTask(unsigned id, const QString &cmd);
 QWidget *addSearch(Utils::BaseTreeView *treeView);
 
 } // namespace Internal

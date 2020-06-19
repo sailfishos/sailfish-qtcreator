@@ -44,20 +44,14 @@ class IosRunConfiguration : public ProjectExplorer::RunConfiguration
 public:
     IosRunConfiguration(ProjectExplorer::Target *target, Core::Id id);
 
-    Utils::FileName profilePath() const;
     QString applicationName() const;
-    Utils::FileName bundleDirectory() const;
-    Utils::FileName localExecutable() const;
+    Utils::FilePath bundleDirectory() const;
+    Utils::FilePath localExecutable() const;
     QString disabledReason() const override;
     IosDeviceType deviceType() const;
 
-    void doAdditionalSetup(const ProjectExplorer::RunConfigurationCreationInfo &) override;
-
 private:
-    friend class IosDeviceTypeAspect;
-    void updateDisplayNames();
-    void updateEnabledState() final;
-    bool canRunForNode(const ProjectExplorer::Node *node) const final;
+    bool isEnabled() const final;
 
     IosDeviceTypeAspect *m_deviceTypeAspect = nullptr;
 };

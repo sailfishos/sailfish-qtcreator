@@ -24,20 +24,44 @@
 ****************************************************************************/
 
 import QtQuick 2.1
-import QtQuick.Controls 1.0
 import QtQuickDesignerTheme 1.0
+import StudioControls 1.0 as StudioControls
 
-SpinBox {
-    id: spinBox
-    width: 76
-    decimals: 2
-    stepSize: 0.1
-    minimumValue: 0
-    maximumValue: 1
+Item {
+    id: wrapper
 
-    property color textColor: Theme.color(Theme.PanelTextColorLight)
+    property alias decimals: spinBox.decimals
+    property alias hasSlider: spinBox.hasSlider
 
-    style: CustomSpinBoxStyle {
+    property alias value: spinBox.realValue
 
+    property alias minimumValue: spinBox.realFrom
+    property alias maximumValue: spinBox.realTo
+    property alias stepSize: spinBox.realStepSize
+
+    property alias sliderIndicatorVisible: spinBox.sliderIndicatorVisible
+
+    signal valueModified
+
+    width: 90
+    implicitHeight: spinBox.height
+
+    StudioControls.RealSpinBox {
+        id: spinBox
+
+        onDragStarted: hideCursor();
+        onDragEnded: restoreCursor();
+
+        property bool hasSlider: spinBox.sliderIndicatorVisible
+
+        width: wrapper.width
+        actionIndicatorVisible: false
+
+        realFrom: 0.0
+        realTo: 1.0
+        realStepSize: 0.1
+        decimals: 2
+
+        onRealValueModified: wrapper.valueModified()
     }
 }

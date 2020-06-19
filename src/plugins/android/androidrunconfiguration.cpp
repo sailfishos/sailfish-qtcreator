@@ -30,13 +30,12 @@
 #include "androidtoolchain.h"
 #include "androidmanager.h"
 #include "adbcommandswidget.h"
-#include "androidrunenvironmentaspect.h"
 
+#include <projectexplorer/buildsystem.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/target.h>
 
-#include <qtsupport/qtoutputformatter.h>
 #include <qtsupport/qtkitinformation.h>
 
 #include <utils/detailswidget.h>
@@ -64,13 +63,13 @@ BaseStringListAspect::BaseStringListAspect(const QString &settingsKey, Core::Id 
 
 BaseStringListAspect::~BaseStringListAspect() = default;
 
-void BaseStringListAspect::addToConfigurationLayout(QFormLayout *layout)
+void BaseStringListAspect::addToLayout(LayoutBuilder &builder)
 {
     QTC_CHECK(!m_widget);
-    m_widget = new AdbCommandsWidget(layout->parentWidget());
+    m_widget = new AdbCommandsWidget;
     m_widget->setCommandList(m_value);
     m_widget->setTitleText(m_label);
-    layout->addRow(m_widget);
+    builder.addItem(m_widget.data());
     connect(m_widget.data(), &AdbCommandsWidget::commandsChanged, this, [this] {
         m_value = m_widget->commandsList();
         emit changed();
@@ -108,7 +107,9 @@ void BaseStringListAspect::setLabel(const QString &label)
 AndroidRunConfiguration::AndroidRunConfiguration(Target *target, Core::Id id)
     : RunConfiguration(target, id)
 {
-    addAspect<AndroidRunEnvironmentAspect>();
+    auto envAspect = addAspect<EnvironmentAspect>();
+    envAspect->addSupportedBaseEnvironment(tr("Clean Environment"), {});
+
     addAspect<ArgumentsAspect>();
 
     auto amStartArgsAspect = addAspect<BaseStringAspect>();
@@ -132,45 +133,14 @@ AndroidRunConfiguration::AndroidRunConfiguration(Target *target, Core::Id id)
     postStartShellCmdAspect->setSettingsKey("Android.PostStartShellCmdListKey");
     postStartShellCmdAspect->setLabel(tr("Shell commands to run on Android device after application quits."));
 
-    setOutputFormatter<QtSupport::QtOutputFormatter>();
-    connect(target->project(), &Project::parsingFinished, this, [this] {
-        updateTargetInformation();
+    setUpdater([this, target] {
+        const BuildTargetInfo bti = buildTargetInfo();
+        setDisplayName(bti.displayName);
+        setDefaultDisplayName(bti.displayName);
+        AndroidManager::updateGradleProperties(target, buildKey());
     });
-}
 
-QWidget *AndroidRunConfiguration::createConfigurationWidget()
-{
-    auto wrapped = RunConfiguration::createConfigurationWidget();
-    auto detailsWidget = qobject_cast<DetailsWidget *>(wrapped);
-    QTC_ASSERT(detailsWidget, return wrapped);
-    detailsWidget->setState(DetailsWidget::Expanded);
-    detailsWidget->setSummaryText(tr("Android run settings"));
-    return detailsWidget;
-}
-
-void AndroidRunConfiguration::updateTargetInformation()
-{
-    const BuildTargetInfo bti = buildTargetInfo();
-    setDisplayName(bti.displayName);
-    setDefaultDisplayName(bti.displayName);
-}
-
-QString AndroidRunConfiguration::disabledReason() const
-{
-    const BuildTargetInfo bti = buildTargetInfo();
-    const QString projectFileName = bti.projectFilePath.toString();
-
-    if (project()->isParsing())
-        return tr("The project file \"%1\" is currently being parsed.").arg(projectFileName);
-
-    if (!project()->hasParsingData()) {
-        if (!bti.projectFilePath.exists())
-            return tr("The project file \"%1\" does not exist.").arg(projectFileName);
-
-        return tr("The project file \"%1\" could not be parsed.").arg(projectFileName);
-    }
-
-    return QString();
+    connect(target, &Target::buildSystemUpdated, this, &RunConfiguration::update);
 }
 
 } // namespace Android

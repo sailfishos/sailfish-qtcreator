@@ -884,7 +884,6 @@ PreviewDialog::PreviewDialog(QWidget *parent) : DragWidget(parent)
     QVBoxLayout *layout = new QVBoxLayout(this);
     QHBoxLayout *horizontalLayout = new QHBoxLayout();
     QHBoxLayout *horizontalLayout2 = new QHBoxLayout();
-    layout->setMargin(0);
     layout->setContentsMargins(2, 2, 2, 16);
     layout->setSpacing(4);
     QToolButton *toolButton = new QToolButton(this);
@@ -942,7 +941,7 @@ void PreviewDialog::setPixmap(const QPixmap &p, int zoom)
 
 void PreviewDialog::wheelEvent(QWheelEvent* event)
 {
-    int delta = event->delta();
+    const auto delta = event->angleDelta().y();
     event->accept();
     if (delta >  0) {
         if (m_zoom == 1)

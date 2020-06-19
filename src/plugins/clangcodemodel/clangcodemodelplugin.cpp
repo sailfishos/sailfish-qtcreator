@@ -36,6 +36,8 @@
 
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/messagemanager.h>
+#include <coreplugin/progressmanager/progressmanager.h>
 
 #include <cpptools/cppmodelmanager.h>
 
@@ -58,22 +60,24 @@ static void addProjectPanelWidget()
     auto panelFactory = new ProjectExplorer::ProjectPanelFactory();
     panelFactory->setPriority(60);
     panelFactory->setDisplayName(ClangProjectSettingsWidget::tr("Clang Code Model"));
-    panelFactory->setCreateWidgetFunction([](ProjectExplorer::Project *project) {
-        return new ClangProjectSettingsWidget(project);
-    });
+    panelFactory->setCreateWidgetFunction(
+        [&](ProjectExplorer::Project *project) { return new ClangProjectSettingsWidget(project); });
     ProjectExplorer::ProjectPanelFactory::registerFactory(panelFactory);
 }
 
-void ClangCodeModelPlugin::generateCompilationDB() {
+void ClangCodeModelPlugin::generateCompilationDB()
+{
     using namespace CppTools;
 
-    ProjectExplorer::Project *project = ProjectExplorer::SessionManager::startupProject();
-    if (!project || !project->activeTarget())
+    ProjectExplorer::Target *target = ProjectExplorer::SessionManager::startupTarget();
+    if (!target)
         return;
 
-    m_generatorWatcher.setFuture(
-        QtConcurrent::run(&Utils::generateCompilationDB,
-                          CppModelManager::instance()->projectInfo(project)));
+    QFuture<Utils::GenerateCompilationDbResult> task
+            = QtConcurrent::run(&Utils::generateCompilationDB,
+                                CppModelManager::instance()->projectInfo(target->project()));
+    Core::ProgressManager::addTask(task, tr("Generating Compilation DB"), "generate compilation db");
+    m_generatorWatcher.setFuture(task);
 }
 
 static bool isDBGenerationEnabled(ProjectExplorer::Project *project)
@@ -92,8 +96,8 @@ ClangCodeModelPlugin::~ClangCodeModelPlugin()
 
 bool ClangCodeModelPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
-    Q_UNUSED(arguments);
-    Q_UNUSED(errorMessage);
+    Q_UNUSED(arguments)
+    Q_UNUSED(errorMessage)
 
     ProjectExplorer::TaskHub::addCategory(Constants::TASK_CATEGORY_DIAGNOSTICS,
                                           tr("Clang Code Model"));
@@ -133,7 +137,17 @@ void ClangCodeModelPlugin::createCompilationDBButton()
     command->setDescription(m_generateCompilationDBAction->text());
     mbuild->addAction(command, ProjectExplorer::Constants::G_BUILD_BUILD);
 
-    connect(&m_generatorWatcher, &QFutureWatcher<void>::finished, this, [this] () {
+    connect(&m_generatorWatcher, &QFutureWatcher<Utils::GenerateCompilationDbResult>::finished,
+            this, [this] () {
+        const Utils::GenerateCompilationDbResult result = m_generatorWatcher.result();
+        QString message;
+        if (result.error.isEmpty()) {
+            message = tr("Clang compilation database generated at \"%1\".")
+                    .arg(QDir::toNativeSeparators(result.filePath));
+        } else {
+            message = tr("Generating Clang compilation database failed: %1").arg(result.error);
+        }
+        Core::MessageManager::write(message, Core::MessageManager::Flash);
         m_generateCompilationDBAction->setEnabled(
                     isDBGenerationEnabled(ProjectExplorer::SessionManager::startupProject()));
     });
@@ -170,10 +184,6 @@ void ClangCodeModelPlugin::createCompilationDBButton()
     });
 }
 
-void ClangCodeModelPlugin::extensionsInitialized()
-{
-}
-
 // For e.g. creation of profile-guided optimization builds.
 void ClangCodeModelPlugin::maybeHandleBatchFileAndExit() const
 {
@@ -187,7 +197,7 @@ void ClangCodeModelPlugin::maybeHandleBatchFileAndExit() const
 }
 
 #ifdef WITH_TESTS
-QList<QObject *> ClangCodeModelPlugin::createTestObjects() const
+QVector<QObject *> ClangCodeModelPlugin::createTestObjects() const
 {
     return {
         new Tests::ClangCodeCompletionTest,

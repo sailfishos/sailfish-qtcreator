@@ -2,17 +2,25 @@
 **
 ** Copyright (C) 2016 Alexander Drozdov.
 ** Contact: adrozdoff@gmail.com
+** Contact: https://www.qt.io/licensing/
 **
-** This file is part of CMakeProjectManager2 plugin.
+** This file is part of Qt Creator.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -28,7 +36,7 @@
 
 namespace CMakeProjectManager {
 
-ConfigModelItemDelegate::ConfigModelItemDelegate(const Utils::FileName &base, QObject* parent)
+ConfigModelItemDelegate::ConfigModelItemDelegate(const Utils::FilePath &base, QObject* parent)
     : QStyledItemDelegate(parent)
     , m_base(base)
 { }
@@ -42,7 +50,7 @@ QWidget *ConfigModelItemDelegate::createEditor(QWidget *parent, const QStyleOpti
         if (data.type == ConfigModel::DataItem::FILE || data.type == ConfigModel::DataItem::DIRECTORY) {
             auto edit = new Utils::PathChooser(parent);
             edit->setFocusPolicy(Qt::StrongFocus);
-            edit->setBaseFileName(m_base);
+            edit->setBaseDirectory(m_base);
             edit->setAutoFillBackground(true);
             if (data.type == ConfigModel::DataItem::FILE) {
                 edit->setExpectedKind(Utils::PathChooser::File);
@@ -78,7 +86,7 @@ void ConfigModelItemDelegate::setEditorData(QWidget *editor, const QModelIndex &
         ConfigModel::DataItem data = ConfigModel::dataItemFromIndex(index);
         if (data.type == ConfigModel::DataItem::FILE || data.type == ConfigModel::DataItem::DIRECTORY) {
             auto edit = static_cast<Utils::PathChooser *>(editor);
-            edit->setFileName(Utils::FileName::fromUserInput(data.value));
+            edit->setFileName(Utils::FilePath::fromUserInput(data.value));
             return;
         } else if (!data.values.isEmpty()) {
             auto edit = static_cast<QComboBox *>(editor);
@@ -106,7 +114,7 @@ void ConfigModelItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *
         if (data.type == ConfigModel::DataItem::FILE || data.type == ConfigModel::DataItem::DIRECTORY) {
             auto edit = static_cast<Utils::PathChooser *>(editor);
             if (edit->rawPath() != data.value)
-                model->setData(index, edit->fileName().toUserOutput(), Qt::EditRole);
+                model->setData(index, edit->fileName().toString(), Qt::EditRole);
             return;
         } else if (!data.values.isEmpty()) {
             auto edit = static_cast<QComboBox *>(editor);
@@ -126,8 +134,8 @@ void ConfigModelItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *
 QSize CMakeProjectManager::ConfigModelItemDelegate::sizeHint(const QStyleOptionViewItem &option,
                                                              const QModelIndex &index) const
 {
-    Q_UNUSED(option);
-    Q_UNUSED(index);
+    Q_UNUSED(option)
+    Q_UNUSED(index)
     return QSize(100, m_measurement.sizeHint().height());
 }
 

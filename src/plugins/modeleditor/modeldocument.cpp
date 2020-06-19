@@ -69,7 +69,7 @@ ModelDocument::~ModelDocument()
 Core::IDocument::OpenResult ModelDocument::open(QString *errorString, const QString &fileName,
                                                 const QString &realFileName)
 {
-    Q_UNUSED(fileName);
+    Q_UNUSED(fileName)
 
     OpenResult result = load(errorString, realFileName);
     return result;
@@ -96,7 +96,7 @@ bool ModelDocument::save(QString *errorString, const QString &name, bool autoSav
     if (autoSave) {
         d->documentController->projectController()->setModified();
     } else {
-        setFilePath(Utils::FileName::fromString(d->documentController->projectController()->project()->fileName()));
+        setFilePath(Utils::FilePath::fromString(d->documentController->projectController()->project()->fileName()));
         emit changed();
     }
 
@@ -152,7 +152,7 @@ Core::IDocument::OpenResult ModelDocument::load(QString *errorString, const QStr
 
     try {
         d->documentController->loadProject(fileName);
-        setFilePath(Utils::FileName::fromString(d->documentController->projectController()->project()->fileName()));
+        setFilePath(Utils::FilePath::fromString(d->documentController->projectController()->project()->fileName()));
     } catch (const qmt::FileNotFoundException &ex) {
         *errorString = ex.errorMessage();
         return OpenResult::ReadError;

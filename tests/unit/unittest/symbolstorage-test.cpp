@@ -28,17 +28,22 @@
 #include "mockfilepathcaching.h"
 #include "mocksqlitedatabase.h"
 
-#include <symbolstorage.h>
+#include <builddependenciesstorage.h>
+#include <refactoringdatabaseinitializer.h>
 #include <sqlitedatabase.h>
+#include <sqlitereadstatement.h>
+#include <sqlitewritestatement.h>
+#include <symbolstorage.h>
 
 #include <utils/optional.h>
 
 namespace {
-
 using ClangBackEnd::FilePathCachingInterface;
+using ClangBackEnd::FilePathId;
 using ClangBackEnd::SourceLocationEntries;
 using ClangBackEnd::SourceLocationEntry;
 using ClangBackEnd::SourceLocationKind;
+using ClangBackEnd::SourceTimeStamp;
 using ClangBackEnd::SymbolEntries;
 using ClangBackEnd::SymbolEntry;
 using ClangBackEnd::SymbolIndex;
@@ -183,5 +188,4 @@ TEST_F(SymbolStorage, AddTablesInConstructor)
     Storage storage{mockDatabase};
 }
 
-}
-
+} // namespace

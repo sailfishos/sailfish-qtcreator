@@ -23,10 +23,6 @@
 **
 ****************************************************************************/
 
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0400
-#endif
-
 #include "registerpostmortemaction.h"
 
 #include <registryaccess.h>
@@ -75,7 +71,7 @@ RegisterPostMortemAction::RegisterPostMortemAction(QObject *parent) : Utils::Sav
 
 void RegisterPostMortemAction::readSettings(const QSettings *)
 {
-    Q_UNUSED(debuggerRegistryValueNameC); // avoid warning from MinGW
+    Q_UNUSED(debuggerRegistryValueNameC) // avoid warning from MinGW
 
     bool registered = false;
     HKEY handle = NULL;

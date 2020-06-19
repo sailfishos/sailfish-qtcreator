@@ -51,14 +51,11 @@ class QTCREATOR_UTILS_EXPORT PathChooser : public QWidget
     Q_PROPERTY(QString promptDialogTitle READ promptDialogTitle WRITE setPromptDialogTitle DESIGNABLE true)
     Q_PROPERTY(QString promptDialogFilter READ promptDialogFilter WRITE setPromptDialogFilter DESIGNABLE true)
     Q_PROPERTY(Kind expectedKind READ expectedKind WRITE setExpectedKind DESIGNABLE true)
-    Q_PROPERTY(QString baseDirectory READ baseDirectory WRITE setBaseDirectory DESIGNABLE true)
+    Q_PROPERTY(Utils::FilePath baseDirectory READ baseDirectory WRITE setBaseDirectory DESIGNABLE true)
     Q_PROPERTY(QStringList commandVersionArguments READ commandVersionArguments WRITE setCommandVersionArguments)
     Q_PROPERTY(bool readOnly READ isReadOnly WRITE setReadOnly DESIGNABLE true)
     // Designer does not know this type, so force designable to false:
-    Q_PROPERTY(Utils::FileName fileName READ fileName WRITE setFileName DESIGNABLE false)
-    Q_PROPERTY(Utils::FileName baseFileName READ baseFileName WRITE setBaseFileName DESIGNABLE false)
-    Q_PROPERTY(QColor errorColor READ errorColor WRITE setErrorColor DESIGNABLE true)
-    Q_PROPERTY(QColor okColor READ okColor WRITE setOkColor DESIGNABLE true)
+    Q_PROPERTY(Utils::FilePath fileName READ fileName WRITE setFileName DESIGNABLE false)
 
 public:
     static QString browseButtonLabel();
@@ -93,17 +90,14 @@ public:
 
     QString path() const;
     QString rawPath() const; // The raw unexpanded input.
-    FileName rawFileName() const; // The raw unexpanded input.
-    FileName fileName() const;
+    FilePath rawFileName() const; // The raw unexpanded input.
+    FilePath fileName() const;
 
     static QString expandedDirectory(const QString &input, const Environment &env,
                                      const QString &baseDir);
 
-    QString baseDirectory() const;
-    void setBaseDirectory(const QString &directory);
-
-    FileName baseFileName() const;
-    void setBaseFileName(const FileName &base);
+    FilePath baseDirectory() const;
+    void setBaseDirectory(const FilePath &base);
 
     void setEnvironment(const Environment &env);
 
@@ -151,9 +145,6 @@ public:
     using AboutToShowContextMenuHandler = std::function<void (PathChooser *, QMenu *)>;
     static void setAboutToShowContextMenuHandler(AboutToShowContextMenuHandler handler);
 
-    QColor errorColor() const;
-    QColor okColor() const;
-
 private:
     bool validatePath(FancyLineEdit *edit, QString *errorMessage) const;
     // Returns overridden title or the one from <title>
@@ -172,10 +163,7 @@ signals:
 
 public slots:
     void setPath(const QString &);
-    void setFileName(const FileName &);
-
-    void setErrorColor(const QColor &errorColor);
-    void setOkColor(const QColor &okColor);
+    void setFileName(const FilePath &);
 
 private:
     PathChooserPrivate *d = nullptr;

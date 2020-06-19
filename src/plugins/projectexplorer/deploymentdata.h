@@ -28,9 +28,21 @@
 #include "deployablefile.h"
 #include "projectexplorer_export.h"
 
+#include <utils/environment.h>
+
 #include <QList>
 
 namespace ProjectExplorer {
+
+enum class DeploymentKnowledge { Perfect, Approximative, Bad };
+
+class PROJECTEXPLORER_EXPORT MakeInstallCommand
+{
+public:
+    Utils::FilePath command;
+    QStringList arguments;
+    Utils::Environment environment;
+};
 
 class PROJECTEXPLORER_EXPORT DeploymentData
 {
@@ -38,8 +50,8 @@ public:
     void setFileList(const QList<DeployableFile> &files) { m_files = files; }
     QList<DeployableFile> allFiles() const { return m_files; }
 
-    void setLocalInstallRoot(const Utils::FileName &installRoot);
-    Utils::FileName localInstallRoot() const { return m_localInstallRoot; }
+    void setLocalInstallRoot(const Utils::FilePath &installRoot);
+    Utils::FilePath localInstallRoot() const { return m_localInstallRoot; }
 
     void addFile(const DeployableFile &file);
     void addFile(const QString &localFilePath, const QString &remoteDirectory,
@@ -48,13 +60,13 @@ public:
 
     int fileCount() const { return m_files.count(); }
     DeployableFile fileAt(int index) const { return m_files.at(index); }
-    DeployableFile deployableForLocalFile(const QString &localFilePath) const;
+    DeployableFile deployableForLocalFile(const Utils::FilePath &localFilePath) const;
 
     bool operator==(const DeploymentData &other) const;
 
 private:
     QList<DeployableFile> m_files;
-    Utils::FileName m_localInstallRoot;
+    Utils::FilePath m_localInstallRoot;
 };
 
 inline bool operator!=(const DeploymentData &d1, const DeploymentData &d2) { return !(d1 == d2); }

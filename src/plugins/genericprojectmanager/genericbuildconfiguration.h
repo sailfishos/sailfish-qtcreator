@@ -26,12 +26,6 @@
 #pragma once
 
 #include <projectexplorer/buildconfiguration.h>
-#include <projectexplorer/namedwidget.h>
-
-namespace Utils {
-class FileName;
-class PathChooser;
-} // namespace Utils
 
 namespace GenericProjectManager {
 namespace Internal {
@@ -41,43 +35,15 @@ class GenericBuildConfiguration : public ProjectExplorer::BuildConfiguration
     Q_OBJECT
 
     friend class ProjectExplorer::BuildConfigurationFactory;
-    GenericBuildConfiguration(ProjectExplorer::Target *parent, Core::Id id);
+    GenericBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
 
-    void initialize(const ProjectExplorer::BuildInfo &info) override;
-    ProjectExplorer::NamedWidget *createConfigWidget() override;
-    BuildType buildType() const override;
     void addToEnvironment(Utils::Environment &env) const final;
 };
 
-class GenericBuildConfigurationFactory : public ProjectExplorer::BuildConfigurationFactory
+class GenericBuildConfigurationFactory final : public ProjectExplorer::BuildConfigurationFactory
 {
-    Q_OBJECT
-
 public:
     GenericBuildConfigurationFactory();
-    ~GenericBuildConfigurationFactory() override;
-
-private:
-    QList<ProjectExplorer::BuildInfo> availableBuilds(const ProjectExplorer::Target *parent) const override;
-    QList<ProjectExplorer::BuildInfo> availableSetups(const ProjectExplorer::Kit *k,
-                                                      const QString &projectPath) const override;
-
-    ProjectExplorer::BuildInfo createBuildInfo(const ProjectExplorer::Kit *k, const Utils::FileName &buildDir) const;
-};
-
-class GenericBuildSettingsWidget : public ProjectExplorer::NamedWidget
-{
-    Q_OBJECT
-
-public:
-    GenericBuildSettingsWidget(GenericBuildConfiguration *bc);
-
-private:
-    void buildDirectoryChanged();
-    void environmentHasChanged();
-
-    Utils::PathChooser *m_pathChooser;
-    GenericBuildConfiguration *m_buildConfiguration;
 };
 
 } // namespace Internal

@@ -51,7 +51,6 @@ class VcsBaseEditorWidget;
 class VcsBaseClientSettings;
 class VcsJob;
 class VcsBaseClientImplPrivate;
-class VcsBaseClientPrivate;
 class VcsBaseEditorConfig;
 
 class VCSBASE_EXPORT VcsBaseClientImpl : public QObject
@@ -60,11 +59,11 @@ class VCSBASE_EXPORT VcsBaseClientImpl : public QObject
 
 public:
     explicit VcsBaseClientImpl(VcsBaseClientSettings *settings);
-    ~VcsBaseClientImpl() override;
+    ~VcsBaseClientImpl() override = default;
 
     VcsBaseClientSettings &settings() const;
 
-    virtual Utils::FileName vcsBinary() const;
+    virtual Utils::FilePath vcsBinary() const;
     int vcsTimeoutS() const;
 
     enum JobOutputBindMode {
@@ -105,7 +104,7 @@ public:
     vcsFullySynchronousExec(const QString &workingDir, const QStringList &args,
                             unsigned flags = 0, int timeoutS = -1, QTextCodec *codec = nullptr) const;
     Utils::SynchronousProcessResponse
-    vcsFullySynchronousExec(const QString &workingDir, const Utils::FileName &binary, const QStringList &args,
+    vcsFullySynchronousExec(const QString &workingDir, const Utils::CommandLine &cmdLine,
                             unsigned flags = 0, int timeoutS = -1, QTextCodec *codec = nullptr) const;
 
 
@@ -129,7 +128,7 @@ protected:
 private:
     void saveSettings();
 
-    VcsBaseClientImplPrivate *d;
+    VcsBaseClientSettings *m_clientSettings;
 };
 
 class VCSBASE_EXPORT VcsBaseClient : public VcsBaseClientImpl
@@ -141,13 +140,12 @@ public:
     {
     public:
         StatusItem() = default;
-        StatusItem(const QString &s, const QString &f);
         QString flags;
         QString file;
     };
 
     explicit VcsBaseClient(VcsBaseClientSettings *settings);
-    ~VcsBaseClient() override;
+
     virtual bool synchronousCreateRepository(const QString &workingDir,
                                              const QStringList &extraOptions = QStringList());
     virtual bool synchronousClone(const QString &workingDir,
@@ -192,7 +190,7 @@ public:
                         const QString &commitMessageFile,
                         const QStringList &extraOptions = QStringList());
 
-    virtual QString findTopLevelForFile(const QFileInfo &file) const = 0;
+    virtual QString findTopLevelForFile(const QFileInfo &/*file*/) const { return {}; }
 
     virtual void view(const QString &source, const QString &id,
                       const QStringList &extraOptions = QStringList());
@@ -202,7 +200,7 @@ signals:
     // Passes on changed signals from VcsJob to Control
     void changed(const QVariant &v);
 
-protected:
+public:
     enum VcsCommandTag
     {
         CreateRepositoryCommand,
@@ -221,25 +219,26 @@ protected:
         LogCommand,
         StatusCommand
     };
+protected:
     virtual QString vcsCommandString(VcsCommandTag cmd) const;
     virtual Core::Id vcsEditorKind(VcsCommandTag cmd) const = 0;
     virtual Utils::ExitCodeInterpreter exitCodeInterpreter(VcsCommandTag cmd) const;
 
-    virtual QStringList revisionSpec(const QString &revision) const = 0;
+    virtual QStringList revisionSpec(const QString &/*revision*/) const { return {}; }
 
     typedef std::function<VcsBaseEditorConfig *(QToolBar *)> ConfigCreator;
     void setDiffConfigCreator(ConfigCreator creator);
     void setLogConfigCreator(ConfigCreator creator);
 
-    virtual StatusItem parseStatusLine(const QString &line) const = 0;
+    virtual StatusItem parseStatusLine(const QString &/*line*/) const { return {}; }
 
     QString vcsEditorTitle(const QString &vcsCmd, const QString &sourceId) const;
 
 private:
     void statusParser(const QString&);
 
-    friend class VcsBaseClientPrivate;
-    VcsBaseClientPrivate *d;
+    VcsBaseClient::ConfigCreator m_diffConfigCreator;
+    VcsBaseClient::ConfigCreator m_logConfigCreator;
 };
 
 } //namespace VcsBase

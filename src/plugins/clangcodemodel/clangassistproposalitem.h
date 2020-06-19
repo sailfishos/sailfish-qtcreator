@@ -47,6 +47,8 @@ public:
     QString text() const final;
     QIcon icon() const final;
     QString detail() const final;
+    bool isKeyword() const final;
+    Qt::TextFormat detailFormat() const final;
     bool isSnippet() const final;
     bool isValid() const final;
     quint64 hash() const final;

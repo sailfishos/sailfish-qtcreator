@@ -1,0 +1,206 @@
+/****************************************************************************
+**
+** Copyright (C) 2020 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \page creator-quick-ui-forms.html
+    \previouspage qtquick-annotations.html
+    \nextpage qtquick-adding-dynamics.html
+
+    \title Qt Quick UI Forms
+
+    You can use \QC wizards to create UI forms that have the filename extension
+    \e .ui.qml. The UI forms contain a purely declarative subset of the QML
+    language. It is recommended that you edit the forms in the \uicontrol Design mode.
+    \QC enforces the use of the supported QML features by displaying error
+    messages.
+
+    The following features are not supported:
+
+    \list
+        \li JavaScript blocks
+        \li Other bindings than pure expressions
+        \li Signal handlers
+        \li States in other items than the root item
+        \li Root items that are not derived from \l QQuickItem or \l [QML]{Item}
+    \endlist
+
+    The following types are not supported:
+
+    \list
+        \li Behavior
+        \li Binding
+        \li Canvas
+        \li Component
+        \li Shader Effect
+        \li Timer
+        \li Transform
+        \li Transition
+    \endlist
+
+    \section1 Supported Methods
+
+    \QC supports most JavaScript functions that are supported by the QML
+    engine, as well as a subset of Qt QML methods.
+
+    This section lists the functions that you can use in \e .ui.qml files.
+
+    \section2 JavaScript Functions
+
+    As a rule of thumb, \e {pure functions} are supported. They only depend on
+    and modify states of parameters that are within their scope, and therefore
+    always return the same results when given the same parameters. This makes
+    it possible to convert and reformat property bindings without breaking the
+    \e .ui.qml files.
+
+    The following JavaScript functions are supported:
+
+    \list
+        \li \c charAt()
+        \li \c charCodeAt()
+        \li \c concat()
+        \li \c endsWith()
+        \li \c includes()
+        \li \c indexOf()
+        \li \c isFinite()
+        \li \c isNaN()
+        \li \c lastIndexOf()
+        \li \c substring()
+        \li \c toExponential()
+        \li \c toFixed()
+        \li \c toLocaleLowerCase()
+        \li \c toLocaleString
+        \li \c toLocaleUpperCase()
+        \li \c toLowerCase()
+        \li \c toPrecision()
+        \li \c toString()
+        \li \c toUpperCase()
+        \li \c valueOf()
+    \endlist
+
+    In addition, all functions of the \c Math and \c Date objects are supported.
+
+    For more information, see
+    \l{https://doc.qt.io/qt-5/qtqml-javascript-functionlist.html}
+    {List of JavaScript Objects and Functions}.
+
+    \section2 Qt QML Methods
+
+    \QC supports color methods, helper methods for creating objects of
+    specific data types, and translation methods.
+
+    The following color methods are supported:
+
+    \list
+        \li \l{Qt::darker()}{Qt.darker()}
+        \li \l{Qt::hsla()}{Qt.hsla()}
+        \li \l{Qt::hsva()}{Qt.hsva()}
+        \li \l{Qt::lighter()}{Qt.lighter()}
+        \li \l{Qt::rgba()}{Qt.rgba()}
+        \li \l{Qt::tint()}{Qt.tint()}
+    \endlist
+
+    The following helper methods are supported:
+
+    \list
+        \li \l{Qt::formatDate()}{Qt.formatDate()}
+        \li \l{Qt::formatDateTime()}{Qt.formatDateTime()}
+        \li \l{Qt::formatTime()}{Qt.formatTime()}
+        \li \l{Qt::matrix4x4()}{Qt.matrix4x4()}
+        \li \l{Qt::point()}{Qt.point()}
+        \li \l{Qt::quaternion()}{Qt.quaternion()}
+        \li \l{Qt::rect()}{Qt.rect()}
+        \li \l{Qt::size()}{Qt.size()}
+        \li \l{Qt::vector2d()}{Qt.vector2d()}
+        \li \l{Qt::vector3d()}{Qt.vector3d()}
+        \li \l{Qt::vector4d()}{Qt.vector4d()}
+    \endlist
+
+    The following translation methods are supported:
+
+    \list
+        \li \l{Qt::}{qsTr()}
+        \li \l{Qt::}{qsTranslate()}
+        \li \l{Qt::}{qsTranslateNoOp()}
+        \li \l{Qt::}{qsTrId()}
+        \li \l{Qt::}{qsTrIdNoOp()}
+        \li \l{Qt::}{qsTrNoOp()}
+    \endlist
+
+    For more information about using the methods, see
+    \l{https://doc.qt.io/qt-5/qml-qtqml-qt.html}{Qt QML Methods}.
+
+    \section1 Using Qt Quick UI Forms
+
+    You can edit the forms in the \uicontrol {Form Editor} and
+    \uicontrol {Text Editor} tabs in the \uicontrol Design mode. Items that are
+    supposed to be used in QML code have to be exported as properties:
+
+    \code
+    Item {
+        width: 640
+        height: 480
+
+        property alias button: button
+
+        Button {
+            anchors.centerIn: parent
+            id: button
+            text: qsTr("Press Me")
+        }
+    }
+    \endcode
+
+    The property alias exports the button to the QML code that uses the form.
+    You can use the
+    \inlineimage export_checked.png
+    (\uicontrol Export) button in the \uicontrol Navigator to export an item as
+    a property:
+
+    \image qmldesigner-export-item.png
+
+    In the QML file that uses the form, you can use the \c button property alias
+    to implement signal handlers, for example. In the following code snippet,
+    the UI form is called \e MainForm.ui.qml:
+
+    \code
+    MainForm {
+        anchors.fill: parent
+        button.onClicked: messageDialog.show(qsTr("Button pressed"))
+    }
+    \endcode
+
+    You can also assign properties or define behavior or transitions.
+
+    To move from the \uicontrol Design mode directly to the implementation of a
+    type in the .qml file, right-click the type in the \uicontrol Navigator and
+    select \uicontrol {Go to Implementation} in the context menu.
+
+*/

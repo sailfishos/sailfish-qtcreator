@@ -38,13 +38,11 @@ class CollectBuildDependencyToolAction final : public clang::tooling::FrontendAc
 {
 public:
     CollectBuildDependencyToolAction(BuildDependency &buildDependency,
-                              const FilePathCachingInterface &filePathCache,
-                              const ClangBackEnd::FilePaths &excludedIncludes,
-                              SourcesManager &sourcesManager)
-        : m_buildDependency(buildDependency),
-          m_filePathCache(filePathCache),
-          m_excludedFilePaths(excludedIncludes),
-          m_sourcesManager(sourcesManager)
+                                     const FilePathCachingInterface &filePathCache,
+                                     const ClangBackEnd::FilePaths &excludedIncludes)
+        : m_buildDependency(buildDependency)
+        , m_filePathCache(filePathCache)
+        , m_excludedFilePaths(excludedIncludes)
     {}
 
 
@@ -62,23 +60,39 @@ public:
                                                                     diagnosticConsumer);
     }
 
+#if LLVM_VERSION_MAJOR >= 10
+    std::unique_ptr<clang::FrontendAction> create() override
+    {
+        return std::make_unique<CollectBuildDependencyAction>(
+                    m_buildDependency,
+                    m_filePathCache,
+                    m_excludedIncludeUIDs,
+                    m_alreadyIncludedFileUIDs);
+    }
+#else
     clang::FrontendAction *create() override
     {
         return new CollectBuildDependencyAction(m_buildDependency,
                                                 m_filePathCache,
                                                 m_excludedIncludeUIDs,
-                                                m_alreadyIncludedFileUIDs,
-                                                m_sourcesManager);
+                                                m_alreadyIncludedFileUIDs);
     }
+#endif
 
     std::vector<uint> generateExcludedIncludeFileUIDs(clang::FileManager &fileManager) const
     {
         std::vector<uint> fileUIDs;
         fileUIDs.reserve(m_excludedFilePaths.size());
 
-        for (const ClangBackEnd::FilePath &filePath : m_excludedFilePaths) {
-            const clang::FileEntry *file = fileManager.getFile({filePath.data(), filePath.size()},
-                                                               true);
+        for (const FilePath &filePath : m_excludedFilePaths) {
+            NativeFilePath nativeFilePath{filePath};
+            const clang::FileEntry *file = fileManager.getFile({nativeFilePath.path().data(),
+                                                                nativeFilePath.path().size()},
+                                                               true)
+#if LLVM_VERSION_MAJOR >= 10
+                    .get()
+#endif
+                    ;
 
             if (file)
                 fileUIDs.push_back(file->getUID());
@@ -95,7 +109,6 @@ private:
     BuildDependency &m_buildDependency;
     const FilePathCachingInterface &m_filePathCache;
     const ClangBackEnd::FilePaths &m_excludedFilePaths;
-    SourcesManager &m_sourcesManager;
 };
 
 } // namespace ClangBackEnd

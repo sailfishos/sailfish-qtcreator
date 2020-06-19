@@ -27,6 +27,8 @@
 
 #include "pchtaskqueueinterface.h"
 
+#include <utils/algorithm.h>
+
 namespace ClangBackEnd {
 
 void PchTasksMerger::mergeTasks(PchTaskSets &&taskSets,
@@ -48,11 +50,11 @@ Result merge(Container &&first, Container &&second)
     Result result;
     result.reserve(first.size() + second.size());
 
-    std::set_union(std::make_move_iterator(first.begin()),
-                   std::make_move_iterator(first.end()),
-                   std::make_move_iterator(second.begin()),
-                   std::make_move_iterator(second.end()),
-                   std::back_inserter(result));
+    Utils::set_union(std::make_move_iterator(first.begin()),
+                     std::make_move_iterator(first.end()),
+                     std::make_move_iterator(second.begin()),
+                     std::make_move_iterator(second.end()),
+                     std::back_inserter(result));
 
     return result;
 }
@@ -96,8 +98,8 @@ bool PchTasksMerger::mergePchTasks(PchTask &firstTask, PchTask &secondTask)
         firstTask.projectPartIds = merge(std::move(firstTask.projectPartIds),
                                          std::move(secondTask.projectPartIds));
         firstTask.includes = merge(std::move(firstTask.includes), std::move(secondTask.includes));
-        firstTask.sources = merge(std::move(firstTask.sources),
-                                      std::move(secondTask.sources));
+        firstTask.watchedSystemIncludes = merge(std::move(firstTask.watchedSystemIncludes),
+                                                std::move(secondTask.watchedSystemIncludes));
         firstTask.compilerMacros = std::move(macros);
         firstTask.systemIncludeSearchPaths = mergeIncludeSearchPaths(
             std::move(firstTask.systemIncludeSearchPaths),

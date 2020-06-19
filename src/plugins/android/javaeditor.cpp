@@ -29,7 +29,6 @@
 
 #include <texteditor/codeassist/keywordscompletionassist.h>
 #include <coreplugin/editormanager/ieditorfactory.h>
-#include <texteditor/normalindenter.h>
 #include <texteditor/textdocument.h>
 #include <texteditor/texteditoractionhandler.h>
 #include <texteditor/texteditorconstants.h>
@@ -68,7 +67,7 @@ JavaEditorFactory::JavaEditorFactory()
         "transient", "try", "void", "volatile", "while"
     };
     setId(Constants::JAVA_EDITOR_ID);
-    setDisplayName(tr("Java Editor"));
+    setDisplayName(QCoreApplication::translate("OpenWith::Editors", "Java Editor"));
     addMimeType(Constants::JAVA_MIMETYPE);
 
     setDocumentCreator(createJavaDocument);

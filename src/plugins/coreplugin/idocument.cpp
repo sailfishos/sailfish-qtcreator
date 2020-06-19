@@ -35,6 +35,8 @@
 
 /*!
     \class Core::IDocument
+    \inmodule QtCreator
+
     \brief The IDocument class describes a document that can be saved and reloaded.
 
     The most common use for implementing an IDocument subclass, is as a document for an IEditor
@@ -46,7 +48,7 @@
     Each IDocument subclass works only with the corresponding IEditor subclasses that it
     was designed to work with.
 
-    \mainclass
+    \ingroup mainclasses
 */
 
 /*!
@@ -69,7 +71,7 @@ public:
     }
 
     QString mimeType;
-    Utils::FileName filePath;
+    Utils::FilePath filePath;
     QString preferredDisplayName;
     QString uniqueDisplayName;
     QString autoSaveName;
@@ -156,9 +158,11 @@ QByteArray IDocument::contents() const
 }
 
 /*!
-    Used for example by EditorManager::openEditorWithContents() to set the contents
-    of this document.
-    Returns if setting the contents was successful.
+    Used for example by EditorManager::openEditorWithContents() to set
+    the \a contents of this document.
+
+    Returns whether setting the contents was successful.
+
     The base implementation does nothing and returns false.
 */
 bool IDocument::setContents(const QByteArray &contents)
@@ -167,7 +171,7 @@ bool IDocument::setContents(const QByteArray &contents)
     return false;
 }
 
-const Utils::FileName &IDocument::filePath() const
+const Utils::FilePath &IDocument::filePath() const
 {
     return d->filePath;
 }
@@ -322,25 +326,29 @@ InfoBar *IDocument::infoBar()
     signals. Can be reimplemented by subclasses to do more.
     \sa filePath()
 */
-void IDocument::setFilePath(const Utils::FileName &filePath)
+void IDocument::setFilePath(const Utils::FilePath &filePath)
 {
     if (d->filePath == filePath)
         return;
-    Utils::FileName oldName = d->filePath;
+    Utils::FilePath oldName = d->filePath;
     d->filePath = filePath;
     emit filePathChanged(oldName, d->filePath);
     emit changed();
 }
 
 /*!
-    Returns the string to display for this document, e.g. in the open document combo box
-    and pane.
-    The returned string has the following priority:
-      * Unique display name set by the document model
-      * Preferred display name set by the owner
-      * Base name of the document's file name
+    Returns the string to display for this document, in the open document combo
+    box and pane, for example.
 
-    \sa setDisplayName()
+    The returned string has the following priority:
+
+    \list 1
+        \li Unique display name set by the document model
+        \li Preferred display name set by the owner
+        \li Base name of the document's file name
+    \endlist
+
+    \sa setPreferredDisplayName()
 */
 QString IDocument::displayName() const
 {

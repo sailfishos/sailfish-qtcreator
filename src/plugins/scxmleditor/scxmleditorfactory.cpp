@@ -38,23 +38,26 @@
 using namespace ScxmlEditor::Constants;
 using namespace ScxmlEditor::Internal;
 
-ScxmlEditorFactory::ScxmlEditorFactory(QObject *parent)
-    : IEditorFactory(parent)
+ScxmlEditorFactory::ScxmlEditorFactory()
 {
     setId(K_SCXML_EDITOR_ID);
     setDisplayName(QCoreApplication::translate("ScxmlEditor", C_SCXMLEDITOR_DISPLAY_NAME));
     addMimeType(ProjectExplorer::Constants::SCXML_MIMETYPE);
 
     Core::FileIconProvider::registerIconOverlayForSuffix(":/projectexplorer/images/fileoverlay_scxml.png", "scxml");
+
+    setEditorCreator([this] {
+        if (!m_editorData) {
+            m_editorData = new ScxmlEditorData;
+            QGuiApplication::setOverrideCursor(Qt::WaitCursor);
+            m_editorData->fullInit();
+            QGuiApplication::restoreOverrideCursor();
+        }
+        return m_editorData->createEditor();
+    });
 }
 
-Core::IEditor *ScxmlEditorFactory::createEditor()
+ScxmlEditorFactory::~ScxmlEditorFactory()
 {
-    if (!m_editorData) {
-        m_editorData = new ScxmlEditorData(this);
-        QGuiApplication::setOverrideCursor(Qt::WaitCursor);
-        m_editorData->fullInit();
-        QGuiApplication::restoreOverrideCursor();
-    }
-    return m_editorData->createEditor();
+    delete m_editorData;
 }

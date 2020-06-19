@@ -36,10 +36,10 @@
 
 namespace Autotest {
 namespace Internal {
-
 class TestCodeParser;
-class TestParseResult;
+} // namespace Internal
 
+class TestParseResult;
 using TestParseResultPtr = QSharedPointer<TestParseResult>;
 
 class AUTOTESTSHARED_EXPORT TestTreeModel : public Utils::TreeModel<>
@@ -52,13 +52,13 @@ public:
     bool setData(const QModelIndex &index, const QVariant &value, int role) override;
     Qt::ItemFlags flags(const QModelIndex &index) const override;
 
-    TestCodeParser *parser() const { return m_parser; }
+    Internal::TestCodeParser *parser() const { return m_parser; }
     bool hasTests() const;
     QList<TestConfiguration *> getAllTestCases() const;
     QList<TestConfiguration *> getSelectedTests() const;
-    QList<TestConfiguration *> getTestsForFile(const Utils::FileName &fileName) const;
+    QList<TestConfiguration *> getTestsForFile(const Utils::FilePath &fileName) const;
     QList<TestTreeItem *> testItemsByName(const QString &testName);
-    void syncTestFrameworks();
+    void synchronizeTestFrameworks();
     void rebuild(const QList<Core::Id> &frameworkIds);
 
 #ifdef WITH_TESTS
@@ -70,6 +70,8 @@ public:
     int dataTagsCount() const;
     int gtestNamesCount() const;
     QMultiMap<QString, int> gtestNamesAndSets() const;
+    int boostTestNamesCount() const;
+    QMap<QString, int> boostTestSuitesAndTests() const;
 #endif
 
     void markAllForRemoval();
@@ -97,8 +99,10 @@ private:
     void filterAndInsert(TestTreeItem *item, TestTreeItem *root, bool groupingEnabled);
     QList<TestTreeItem *> testItemsByName(TestTreeItem *root, const QString &testName);
 
-    TestCodeParser *m_parser;
+    Internal::TestCodeParser *m_parser = nullptr;
 };
+
+namespace Internal {
 
 class TestTreeSortFilterModel : public QSortFilterProxyModel
 {
@@ -112,7 +116,7 @@ public:
     };
 
     explicit TestTreeSortFilterModel(TestTreeModel *sourceModel, QObject *parent = nullptr);
-    void setSortMode(TestTreeItem::SortMode sortMode);
+    void setSortMode(Autotest::TestTreeItem::SortMode sortMode);
     void setFilterMode(FilterMode filterMode);
     void toggleFilter(FilterMode filterMode);
     static FilterMode toFilterMode(int f);
@@ -122,7 +126,7 @@ protected:
     bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const;
 
 private:
-    TestTreeItem::SortMode m_sortMode = TestTreeItem::Alphabetically;
+    Autotest::TestTreeItem::SortMode m_sortMode = Autotest::TestTreeItem::Alphabetically;
     FilterMode m_filterMode = Basic;
 
 };

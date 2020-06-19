@@ -26,6 +26,7 @@
 #pragma once
 
 #include <qtsupport/baseqtversion.h>
+#include <qtsupport/qtversionfactory.h>
 
 #include <QCoreApplication>
 
@@ -38,15 +39,11 @@ class IosQtVersion : public QtSupport::BaseQtVersion
 
 public:
     IosQtVersion();
-    IosQtVersion(const Utils::FileName &path, bool isAutodetected = false,
-                 const QString &autodetectionSource = QString());
 
-    IosQtVersion *clone() const override;
-    QString type() const override;
     bool isValid() const override;
     QString invalidReason() const override;
 
-    QList<ProjectExplorer::Abi> detectQtAbis() const override;
+    ProjectExplorer::Abis detectQtAbis() const override;
 
     void addToEnvironment(const ProjectExplorer::Kit *k, Utils::Environment &env) const override;
 
@@ -54,6 +51,12 @@ public:
     QSet<Core::Id> targetDeviceTypes() const override;
 
     QString description() const override;
+};
+
+class IosQtVersionFactory : public QtSupport::QtVersionFactory
+{
+public:
+    IosQtVersionFactory();
 };
 
 } // namespace Internal

@@ -48,7 +48,7 @@ QWidget *SettingsPage::widget()
 {
     m_initialized = true;
     if (!m_widget)
-        m_widget = m_designerPage->createPage(0);
+        m_widget = m_designerPage->createPage(nullptr);
     return m_widget;
 
 }
@@ -66,8 +66,7 @@ void SettingsPage::finish()
     delete m_widget;
 }
 
-SettingsPageProvider::SettingsPageProvider(QObject *parent)
-    : IOptionsPageProvider(parent)
+SettingsPageProvider::SettingsPageProvider()
 {
     setCategory(Designer::Constants::SETTINGS_CATEGORY);
     setDisplayCategory(QCoreApplication::translate("Designer",

@@ -26,21 +26,61 @@
 #include "clangtoolssettings.h"
 
 #include "clangtoolsconstants.h"
+#include "clangtoolsutils.h"
 
 #include <coreplugin/icore.h>
+#include <cpptools/clangdiagnosticconfig.h>
+#include <cpptools/cppcodemodelsettings.h>
+#include <cpptools/cpptoolsreuse.h>
 
-#include <utils/hostosinfo.h>
-#include <utils/qtcassert.h>
+#include <utils/algorithm.h>
 
-#include <QFileInfo>
 #include <QThread>
 
-static const char simultaneousProcessesKey[] = "simultaneousProcesses";
-static const char buildBeforeAnalysisKey[] = "buildBeforeAnalysis";
-static const char diagnosticConfigIdKey[] = "diagnosticConfigId";
+static const char clangTidyExecutableKey[] = "ClangTidyExecutable";
+static const char clazyStandaloneExecutableKey[] = "ClazyStandaloneExecutable";
+
+static const char parallelJobsKey[] = "ParallelJobs";
+static const char buildBeforeAnalysisKey[] = "BuildBeforeAnalysis";
+
+static const char oldDiagnosticConfigIdKey[] = "diagnosticConfigId";
+
+using namespace CppTools;
 
 namespace ClangTools {
 namespace Internal {
+
+static Core::Id defaultDiagnosticId()
+{
+    return ClangTools::Constants::DIAG_CONFIG_TIDY_AND_CLAZY;
+}
+
+RunSettings::RunSettings()
+    : m_diagnosticConfigId(defaultDiagnosticId())
+    , m_parallelJobs(qMax(0, QThread::idealThreadCount() / 2))
+{
+}
+
+void RunSettings::fromMap(const QVariantMap &map, const QString &prefix)
+{
+    m_diagnosticConfigId = Core::Id::fromSetting(map.value(prefix + diagnosticConfigIdKey));
+    m_parallelJobs = map.value(prefix + parallelJobsKey).toInt();
+    m_buildBeforeAnalysis = map.value(prefix + buildBeforeAnalysisKey).toBool();
+}
+
+void RunSettings::toMap(QVariantMap &map, const QString &prefix) const
+{
+    map.insert(prefix + diagnosticConfigIdKey, m_diagnosticConfigId.toSetting());
+    map.insert(prefix + parallelJobsKey, m_parallelJobs);
+    map.insert(prefix + buildBeforeAnalysisKey, m_buildBeforeAnalysis);
+}
+
+Core::Id RunSettings::diagnosticConfigId() const
+{
+    if (!diagnosticConfigsModel().hasConfigWithId(m_diagnosticConfigId))
+        return defaultDiagnosticId();
+    return m_diagnosticConfigId;
+}
 
 ClangToolsSettings::ClangToolsSettings()
 {
@@ -53,95 +93,98 @@ ClangToolsSettings *ClangToolsSettings::instance()
     return &instance;
 }
 
-int ClangToolsSettings::savedSimultaneousProcesses() const
+static QVariantMap convertToMapFromVersionBefore410(QSettings *s)
 {
-    return m_savedSimultaneousProcesses;
+    const char oldParallelJobsKey[] = "simultaneousProcesses";
+    const char oldBuildBeforeAnalysisKey[] = "buildBeforeAnalysis";
+
+    QVariantMap map;
+    map.insert(diagnosticConfigIdKey, s->value(oldDiagnosticConfigIdKey));
+    map.insert(parallelJobsKey, s->value(oldParallelJobsKey));
+    map.insert(buildBeforeAnalysisKey, s->value(oldBuildBeforeAnalysisKey));
+
+    s->remove(oldDiagnosticConfigIdKey);
+    s->remove(oldParallelJobsKey);
+    s->remove(oldBuildBeforeAnalysisKey);
+
+    return map;
 }
 
-int ClangToolsSettings::simultaneousProcesses() const
+ClangDiagnosticConfigs importDiagnosticConfigsFromCodeModel()
 {
-    return m_simultaneousProcesses;
-}
+    const ClangDiagnosticConfigs configs = codeModelSettings()->clangCustomDiagnosticConfigs();
 
-void ClangToolsSettings::setSimultaneousProcesses(int processes)
-{
-    m_simultaneousProcesses = processes;
-}
+    ClangDiagnosticConfigs tidyClazyConfigs;
+    ClangDiagnosticConfigs clangOnlyConfigs;
+    std::tie(tidyClazyConfigs, clangOnlyConfigs)
+        = Utils::partition(configs, [](const ClangDiagnosticConfig &config) {
+              return !config.clazyChecks().isEmpty()
+                  || (!config.clangTidyChecks().isEmpty() && config.clangTidyChecks() != "-*");
+          });
 
-bool ClangToolsSettings::savedBuildBeforeAnalysis() const
-{
-    return m_savedBuildBeforeAnalysis;
-}
+    if (!tidyClazyConfigs.isEmpty()) {
+        codeModelSettings()->setClangCustomDiagnosticConfigs(clangOnlyConfigs);
+        codeModelSettings()->toSettings(Core::ICore::settings());
+    }
 
-bool ClangToolsSettings::buildBeforeAnalysis() const
-{
-    return m_buildBeforeAnalysis;
-}
-
-void ClangToolsSettings::setBuildBeforeAnalysis(bool build)
-{
-    m_buildBeforeAnalysis = build;
-}
-
-Core::Id ClangToolsSettings::savedDiagnosticConfigId() const
-{
-    return m_savedDiagnosticConfigId;
-}
-
-Core::Id ClangToolsSettings::diagnosticConfigId() const
-{
-    return m_diagnosticConfigId;
-}
-
-void ClangToolsSettings::setDiagnosticConfigId(Core::Id id)
-{
-    m_diagnosticConfigId = id;
-}
-
-void ClangToolsSettings::updateSavedBuildBeforeAnalysiIfRequired()
-{
-    if (m_savedBuildBeforeAnalysis == m_buildBeforeAnalysis)
-        return;
-    m_savedBuildBeforeAnalysis = m_buildBeforeAnalysis;
-    emit buildBeforeAnalysisChanged(m_savedBuildBeforeAnalysis);
+    return tidyClazyConfigs;
 }
 
 void ClangToolsSettings::readSettings()
 {
-    QSettings *settings = Core::ICore::settings();
-    settings->beginGroup(QLatin1String(Constants::SETTINGS_ID));
+    // Transfer tidy/clazy configs from code model
+    bool write = false;
+    ClangDiagnosticConfigs importedConfigs = importDiagnosticConfigsFromCodeModel();
+    m_diagnosticConfigs.append(importedConfigs);
+    if (!importedConfigs.isEmpty())
+        write = true;
 
-    const int defaultSimultaneousProcesses = qMax(0, QThread::idealThreadCount() / 2);
-    m_savedSimultaneousProcesses = m_simultaneousProcesses
-            = settings->value(QString(simultaneousProcessesKey),
-                              defaultSimultaneousProcesses).toInt();
+    QSettings *s = Core::ICore::settings();
+    s->beginGroup(Constants::SETTINGS_ID);
+    m_clangTidyExecutable = s->value(clangTidyExecutableKey).toString();
+    m_clazyStandaloneExecutable = s->value(clazyStandaloneExecutableKey).toString();
+    m_diagnosticConfigs.append(diagnosticConfigsFromSettings(s));
 
-    m_buildBeforeAnalysis = settings->value(QString(buildBeforeAnalysisKey), true).toBool();
+    QVariantMap map;
+    if (!s->value(oldDiagnosticConfigIdKey).isNull()) {
+        map = convertToMapFromVersionBefore410(s);
+        write = true;
+    } else {
+        QVariantMap defaults;
+        defaults.insert(diagnosticConfigIdKey, defaultDiagnosticId().toSetting());
+        defaults.insert(parallelJobsKey, m_runSettings.parallelJobs());
+        defaults.insert(buildBeforeAnalysisKey, m_runSettings.buildBeforeAnalysis());
+        map = defaults;
+        for (QVariantMap::ConstIterator it = defaults.constBegin(); it != defaults.constEnd(); ++it)
+            map.insert(it.key(), s->value(it.key(), it.value()));
+    }
 
-    m_diagnosticConfigId = Core::Id::fromSetting(settings->value(QString(diagnosticConfigIdKey)));
-    if (!m_diagnosticConfigId.isValid())
-        m_diagnosticConfigId = "Builtin.TidyAndClazy";
+    // Run settings
+    m_runSettings.fromMap(map);
 
-    m_savedDiagnosticConfigId = m_diagnosticConfigId;
+    s->endGroup();
 
-    updateSavedBuildBeforeAnalysiIfRequired();
-
-    settings->endGroup();
+    if (write)
+        writeSettings();
 }
 
 void ClangToolsSettings::writeSettings()
 {
-    QSettings *settings = Core::ICore::settings();
-    settings->beginGroup(QString(Constants::SETTINGS_ID));
-    settings->setValue(QString(simultaneousProcessesKey), m_simultaneousProcesses);
-    settings->setValue(QString(buildBeforeAnalysisKey), m_buildBeforeAnalysis);
-    settings->setValue(QString(diagnosticConfigIdKey), m_diagnosticConfigId.toSetting());
+    QSettings *s = Core::ICore::settings();
+    s->beginGroup(Constants::SETTINGS_ID);
 
-    m_savedSimultaneousProcesses = m_simultaneousProcesses;
-    m_savedDiagnosticConfigId = m_diagnosticConfigId;
-    updateSavedBuildBeforeAnalysiIfRequired();
+    s->setValue(clangTidyExecutableKey, m_clangTidyExecutable);
+    s->setValue(clazyStandaloneExecutableKey, m_clazyStandaloneExecutable);
+    diagnosticConfigsToSettings(s, m_diagnosticConfigs);
 
-    settings->endGroup();
+    QVariantMap map;
+    m_runSettings.toMap(map);
+    for (QVariantMap::ConstIterator it = map.constBegin(); it != map.constEnd(); ++it)
+        s->setValue(it.key(), it.value());
+
+    s->endGroup();
+
+    emit changed();
 }
 
 } // namespace Internal

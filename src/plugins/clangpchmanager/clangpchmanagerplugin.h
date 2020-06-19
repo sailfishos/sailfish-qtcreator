@@ -33,6 +33,7 @@
 
 namespace ClangPchManager {
 
+class ClangIndexingSettingsManager;
 class ClangPchManagerPluginData;
 class PchManagerClient;
 
@@ -46,10 +47,10 @@ public:
     ~ClangPchManagerPlugin();
 
     bool initialize(const QStringList &arguments, QString *errorMessage);
-    void extensionsInitialized();
     ShutdownFlag aboutToShutdown();
 
     static PchManagerClient &pchManagerClient();
+    static ClangIndexingSettingsManager &settingsManager();
 
 private:
     void startBackend();

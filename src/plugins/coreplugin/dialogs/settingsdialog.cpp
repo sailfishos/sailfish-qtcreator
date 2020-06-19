@@ -450,7 +450,6 @@ SettingsDialog::SettingsDialog(QWidget *parent) :
     m_filterLineEdit->setFiltering(true);
 
     createGui();
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
     if (Utils::HostOsInfo::isMacHost())
         setWindowTitle(QCoreApplication::translate("Core::Internal::SettingsDialog", "Preferences"));
     else
@@ -550,7 +549,7 @@ void SettingsDialog::createGui()
     headerHLayout->addSpacerItem(new QSpacerItem(leftMargin, 0, QSizePolicy::Fixed, QSizePolicy::Ignored));
     headerHLayout->addWidget(m_headerLabel);
 
-    m_stackedLayout->setMargin(0);
+    m_stackedLayout->setContentsMargins(0, 0, 0, 0);
     QWidget *emptyWidget = new QWidget(this);
     m_stackedLayout->addWidget(emptyWidget); // no category selected, for example when filtering
 
@@ -726,7 +725,7 @@ void SettingsDialog::done(int val)
     QSettings *settings = ICore::settings();
     settings->setValue(QLatin1String(pageKeyC), m_currentPage.toSetting());
 
-    ICore::saveSettings(); // save all settings
+    ICore::saveSettings(ICore::SettingsDialogDone); // save all settings
 
     // exit event loops in reverse order of addition
     for (QEventLoop *eventLoop : m_eventLoops)

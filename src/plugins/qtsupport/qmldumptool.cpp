@@ -58,7 +58,7 @@ static inline QStringList validPrebuiltFilenames(bool debugBuild)
 QString QmlDumpTool::toolForVersion(const BaseQtVersion *version, bool debugDump)
 {
     if (version) {
-        const QString qtInstallBins = version->qmakeProperty("QT_INSTALL_BINS");
+        const QString qtInstallBins = version->binPath().toString();
         return toolForQtPaths(qtInstallBins, debugDump);
     }
 
@@ -85,7 +85,7 @@ void QmlDumpTool::pathAndEnvironment(const ProjectExplorer::Kit *k, bool preferD
     if (!k)
         return;
 
-    const BaseQtVersion *version = QtSupport::QtKitInformation::qtVersion(k);
+    const BaseQtVersion *version = QtSupport::QtKitAspect::qtVersion(k);
     if (version && !version->hasQmlDump())
         return;
 

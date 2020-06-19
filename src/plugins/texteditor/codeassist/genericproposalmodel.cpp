@@ -116,12 +116,11 @@ struct ContentLessThan
     {
         bool operator()(const QChar &a, const QChar &b)
         {
-            if (a == QLatin1Char('_'))
+            if (a == '_')
                 return false;
-            else if (b == QLatin1Char('_'))
+            if (b == '_')
                 return true;
-            else
-                return a < b;
+            return a < b;
         }
     };
 
@@ -158,7 +157,7 @@ static QString cleanText(const QString &original)
     int ignore = 0;
     for (int i = clean.length() - 1; i >= 0; --i, ++ignore) {
         const QChar &c = clean.at(i);
-        if (c.isLetterOrNumber() || c == QLatin1Char('_')
+        if (c.isLetterOrNumber() || c == '_'
                 || c.isHighSurrogate() || c.isLowSurrogate()) {
             break;
         }
@@ -214,8 +213,12 @@ bool GenericProposalModel::isPerfectMatch(const QString &prefix) const
         if (match == PerfectMatchType::StartsWith)
             return false;
 
-        if (!hasFullMatch && match == PerfectMatchType::Full)
+        if (match == PerfectMatchType::Full) {
+            if (proposalItem(i)->isKeyword())
+                return true;
+
             hasFullMatch = true;
+        }
     }
 
     return hasFullMatch;
@@ -257,6 +260,11 @@ QString GenericProposalModel::detail(int index) const
     return m_currentItems.at(index)->detail();
 }
 
+Qt::TextFormat GenericProposalModel::detailFormat(int index) const
+{
+    return m_currentItems.at(index)->detailFormat();
+}
+
 void GenericProposalModel::removeDuplicates()
 {
     if (m_duplicatesRemoved)
@@ -290,20 +298,25 @@ void GenericProposalModel::filter(const QString &prefix)
 
     m_currentItems.clear();
     const QString lowerPrefix = prefix.toLower();
-    foreach (const auto &item, m_originalItems) {
+    for (const auto &item : qAsConst(m_originalItems)) {
         const QString &text = item->text();
-        if (regExp.match(text).capturedStart() == 0) {
+        const QRegularExpressionMatch match = regExp.match(text);
+        const bool hasPrefixMatch = match.capturedStart() == 0;
+        const bool hasInfixMatch = prefix.size() >= 3 && match.hasMatch();
+        if (hasPrefixMatch || hasInfixMatch) {
             m_currentItems.append(item);
             if (text.startsWith(prefix)) {
                 // Direct match
-                item->setPrefixMatch(text.length() == prefix.length()
-                                     ? AssistProposalItemInterface::PrefixMatch::Full
-                                     : AssistProposalItemInterface::PrefixMatch::Exact);
+                item->setProposalMatch(text.length() == prefix.length()
+                                       ? AssistProposalItemInterface::ProposalMatch::Full
+                                       : AssistProposalItemInterface::ProposalMatch::Exact);
                 continue;
             }
 
             if (text.startsWith(lowerPrefix, Qt::CaseInsensitive))
-                item->setPrefixMatch(AssistProposalItemInterface::PrefixMatch::Lower);
+                item->setProposalMatch(AssistProposalItemInterface::ProposalMatch::Prefix);
+            else if (text.contains(lowerPrefix, Qt::CaseInsensitive))
+                item->setProposalMatch(AssistProposalItemInterface::ProposalMatch::Infix);
         }
     }
 }
@@ -323,7 +336,7 @@ FuzzyMatcher::CaseSensitivity
 
 bool GenericProposalModel::isSortable(const QString &prefix) const
 {
-    Q_UNUSED(prefix);
+    Q_UNUSED(prefix)
 
     if (m_currentItems.size() < kMaxSort)
         return true;

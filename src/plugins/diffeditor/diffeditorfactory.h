@@ -25,22 +25,23 @@
 
 #pragma once
 
-#include "diffeditor_global.h"
-
 #include <coreplugin/editormanager/ieditorfactory.h>
 
-namespace DiffEditor {
+#include <texteditor/texteditoractionhandler.h>
 
+namespace DiffEditor {
 namespace Internal {
 
 class DiffEditorFactory : public Core::IEditorFactory
 {
-    Q_OBJECT
-
 public:
-    explicit DiffEditorFactory(QObject *parent);
+    DiffEditorFactory();
 
-    Core::IEditor *createEditor() override;
+private:
+    TextEditor::TextEditorActionHandler descriptionHandler;
+    TextEditor::TextEditorActionHandler unifiedHandler;
+    TextEditor::TextEditorActionHandler leftHandler;
+    TextEditor::TextEditorActionHandler rightHandler;
 };
 
 } // namespace Internal

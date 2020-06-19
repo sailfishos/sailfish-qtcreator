@@ -41,7 +41,7 @@ FocusScope {
     property int delegateWidth: stateImageSize + 44
     property int padding: 2
     property int delegateHeight: root.height - padding * 2 + 1
-    property int innerSpacing: -1
+    property int innerSpacing: 0
     property int currentStateInternalId : 0
 
     property bool expanded: true
@@ -88,7 +88,7 @@ FocusScope {
     Item {
         id: addStateItem
 
-        property int buttonLeftSpacing: 0
+        property int buttonLeftSpacing: 8 * (expanded ?  1 : 2)
 
         anchors.right: parent.right
         width: delegateHeight / 2 + buttonLeftSpacing

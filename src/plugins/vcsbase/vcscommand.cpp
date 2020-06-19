@@ -43,6 +43,7 @@ VcsCommand::VcsCommand(const QString &workingDirectory,
     Core::ShellCommand(workingDirectory, environment),
     m_preventRepositoryChanged(false)
 {
+    VcsOutputWindow::setRepository(workingDirectory);
     setOutputProxyFactory([this] {
         auto proxy = new OutputProxy;
         VcsOutputWindow *outputWindow = VcsOutputWindow::instance();
@@ -73,18 +74,16 @@ VcsCommand::VcsCommand(const QString &workingDirectory,
 const QProcessEnvironment VcsCommand::processEnvironment() const
 {
     QProcessEnvironment env = Core::ShellCommand::processEnvironment();
-    VcsBasePlugin::setProcessEnvironment(&env, flags() & ForceCLocale, VcsBasePlugin::sshPrompt());
+    VcsBase::setProcessEnvironment(&env, flags() & ForceCLocale, VcsBase::sshPrompt());
     return env;
 }
 
-SynchronousProcessResponse VcsCommand::runCommand(const FileName &binary,
-                                                         const QStringList &arguments, int timeoutS,
-                                                         const QString &workingDirectory,
-                                                         const ExitCodeInterpreter &interpreter)
+SynchronousProcessResponse VcsCommand::runCommand(const CommandLine &command, int timeoutS,
+                                                  const QString &workingDirectory,
+                                                  const ExitCodeInterpreter &interpreter)
 {
     SynchronousProcessResponse response
-            = Core::ShellCommand::runCommand(binary, arguments, timeoutS, workingDirectory,
-                                             interpreter);
+            = Core::ShellCommand::runCommand(command, timeoutS, workingDirectory, interpreter);
     emitRepositoryChanged(workingDirectory);
     return response;
 }
@@ -101,7 +100,7 @@ void VcsCommand::emitRepositoryChanged(const QString &workingDirectory)
 unsigned VcsCommand::processFlags() const
 {
     unsigned processFlags = 0;
-    if (!VcsBasePlugin::sshPrompt().isEmpty() && (flags() & SshPasswordPrompt))
+    if (!VcsBase::sshPrompt().isEmpty() && (flags() & SshPasswordPrompt))
         processFlags |= SynchronousProcess::UnixTerminalDisabled;
     return processFlags;
 }

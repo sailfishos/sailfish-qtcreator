@@ -36,6 +36,7 @@
 #include "locatorsettingspage.h"
 #include "locatorwidget.h"
 #include "opendocumentsfilter.h"
+#include "urllocatorfilter.h"
 
 #include <coreplugin/coreplugin.h>
 #include <coreplugin/coreconstants.h>
@@ -56,9 +57,7 @@
 #include <utils/utilsicons.h>
 
 #include <QAction>
-#include <QFuture>
 #include <QSettings>
-#include <QtPlugin>
 
 #ifdef Q_OS_MACOS
 #include "spotlightlocatorfilter.h"
@@ -69,10 +68,16 @@ namespace Internal {
 
 static Locator *m_instance = nullptr;
 
+const char kDirectoryFilterPrefix[] = "directory";
+const char kUrlFilterPrefix[] = "url";
+
 class LocatorData
 {
 public:
+    LocatorData();
+
     LocatorManager m_locatorManager;
+    LocatorSettingsPage m_locatorSettingsPage;
 
 #ifdef WITH_JAVASCRIPTFILTER
     JavaScriptFilter m_javaScriptFilter;
@@ -83,21 +88,37 @@ public:
     ExternalToolsFilter m_externalToolsFilter;
     LocatorFiltersFilter m_locatorsFiltersFilter;
     MenuBarFilter m_menubarFilter;
+    UrlLocatorFilter m_urlFilter{UrlLocatorFilter::tr("Web Search"), "RemoteHelpFilter"};
+    UrlLocatorFilter m_bugFilter{UrlLocatorFilter::tr("Qt Project Bugs"), "QtProjectBugs"};
 #ifdef Q_OS_MACOS
     SpotlightLocatorFilter m_spotlightLocatorFilter;
 #endif
 };
 
+LocatorData::LocatorData()
+{
+    m_urlFilter.setShortcutString("r");
+    m_urlFilter.addDefaultUrl("https://www.bing.com/search?q=%1");
+    m_urlFilter.addDefaultUrl("https://www.google.com/search?q=%1");
+    m_urlFilter.addDefaultUrl("https://search.yahoo.com/search?p=%1");
+    m_urlFilter.addDefaultUrl("https://stackoverflow.com/search?q=%1");
+    m_urlFilter.addDefaultUrl(
+        "http://en.cppreference.com/mwiki/index.php?title=Special%3ASearch&search=%1");
+    m_urlFilter.addDefaultUrl("https://en.wikipedia.org/w/index.php?search=%1");
+
+    m_bugFilter.setShortcutString("bug");
+    m_bugFilter.addDefaultUrl("https://bugreports.qt.io/secure/QuickSearch.jspa?searchString=%1");
+}
+
 Locator::Locator()
 {
     m_instance = this;
     m_refreshTimer.setSingleShot(false);
-    connect(&m_refreshTimer, &QTimer::timeout, this, [this]() { refresh(); });
+    connect(&m_refreshTimer, &QTimer::timeout, this, [this]() { refresh(filters()); });
 }
 
 Locator::~Locator()
 {
-    delete m_settingsPage;
     delete m_locatorData;
     qDeleteAll(m_customFilters);
 }
@@ -110,7 +131,6 @@ Locator *Locator::instance()
 void Locator::initialize()
 {
     m_locatorData = new LocatorData;
-    m_settingsPage = new LocatorSettingsPage(this);
 
     QAction *action = new QAction(Utils::Icons::ZOOM.icon(), tr("Locate..."), this);
     Command *cmd = ActionManager::registerAction(action, Constants::LOCATE);
@@ -171,9 +191,18 @@ void Locator::loadSettings()
     QList<ILocatorFilter *> customFilters;
     const QStringList keys = settings->childKeys();
     int count = 0;
-    Id baseId(Constants::CUSTOM_FILTER_BASEID);
+    const Id directoryBaseId(Constants::CUSTOM_DIRECTORY_FILTER_BASEID);
+    const Id urlBaseId(Constants::CUSTOM_URL_FILTER_BASEID);
     for (const QString &key : keys) {
-        ILocatorFilter *filter = new DirectoryFilter(baseId.withSuffix(++count));
+        ++count;
+        ILocatorFilter *filter;
+        if (key.startsWith(kDirectoryFilterPrefix)) {
+            filter = new DirectoryFilter(directoryBaseId.withSuffix(count));
+        } else {
+            auto urlFilter = new UrlLocatorFilter(urlBaseId.withSuffix(count));
+            urlFilter->setIsCustomFilter(true);
+            filter = urlFilter;
+        }
         filter->restoreState(settings->value(key).toByteArray());
         customFilters.append(filter);
     }
@@ -283,7 +312,11 @@ void Locator::saveSettings() const
     s->beginGroup("CustomFilters");
     int i = 0;
     for (ILocatorFilter *filter : m_customFilters) {
-        s->setValue("directory" + QString::number(i), filter->saveState());
+        const char *prefix = filter->id().name().startsWith(
+                                 Constants::CUSTOM_DIRECTORY_FILTER_BASEID)
+                                 ? kDirectoryFilterPrefix
+                                 : kUrlFilterPrefix;
+        s->setValue(prefix + QString::number(i), filter->saveState());
         ++i;
     }
     s->endGroup();
@@ -339,12 +372,22 @@ void Locator::setRefreshInterval(int interval)
 
 void Locator::refresh(QList<ILocatorFilter *> filters)
 {
-    if (filters.isEmpty())
-        filters = m_filters;
-    QFuture<void> task = Utils::map(filters, &ILocatorFilter::refresh, Utils::MapReduceOption::Unordered);
-    FutureProgress *progress =
-        ProgressManager::addTask(task, tr("Updating Locator Caches"), Constants::TASK_INDEX);
-    connect(progress, &FutureProgress::finished, this, &Locator::saveSettings);
+    if (m_refreshTask.isRunning()) {
+        m_refreshTask.cancel();
+        // this is not ideal because some of the previous filters might have finished, but we
+        // currently cannot find out which part of a map-reduce has finished
+        filters = Utils::filteredUnique(m_refreshingFilters + filters);
+    }
+    m_refreshingFilters = filters;
+    m_refreshTask = Utils::map(filters, &ILocatorFilter::refresh, Utils::MapReduceOption::Unordered);
+    ProgressManager::addTask(m_refreshTask, tr("Updating Locator Caches"), Constants::TASK_INDEX);
+    Utils::onFinished(m_refreshTask, this, [this](const QFuture<void> &future) {
+        if (!future.isCanceled()) {
+            saveSettings();
+            m_refreshingFilters.clear();
+            m_refreshTask = QFuture<void>();
+        }
+    });
 }
 
 } // namespace Internal

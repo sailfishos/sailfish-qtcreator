@@ -38,7 +38,7 @@ namespace ProjectExplorer { class ProjectNode; }
 namespace CMakeProjectManager {
 namespace Internal {
 
-class ServerModeReader : public BuildDirReader
+class ServerModeReader final : public BuildDirReader
 {
     Q_OBJECT
 
@@ -50,23 +50,27 @@ public:
 
     bool isCompatible(const BuildDirParameters &p) final;
     void resetData() final;
-    void parse(bool forceConfiguration) final;
+    void parse(bool forceCMakeRun, bool forceConfiguration) final;
     void stop() final;
 
-    bool isReady() const final;
     bool isParsing() const final;
 
-    QList<CMakeBuildTarget> takeBuildTargets() final;
-    CMakeConfig takeParsedConfiguration() final;
-    void generateProjectTree(CMakeProjectNode *root,
-                             const QList<const ProjectExplorer::FileNode *> &allFiles) final;
-    CppTools::RawProjectParts createRawProjectParts() const final;
+    QSet<Utils::FilePath> projectFilesToWatch() const final { return {}; };
+    QList<CMakeBuildTarget> takeBuildTargets(QString &errorMessage) final;
+    CMakeConfig takeParsedConfiguration(QString &errorMessage) final;
+    std::unique_ptr<CMakeProjectNode> generateProjectTree(
+        const QList<const ProjectExplorer::FileNode *> &allFiles, QString &errorMessage) final;
+    ProjectExplorer::RawProjectParts createRawProjectParts(QString &errorMessage) final;
 
 private:
+    void createNewServer();
     void handleReply(const QVariantMap &data, const QString &inReplyTo);
     void handleError(const QString &message);
     void handleProgress(int min, int cur, int max, const QString &inReplyTo);
     void handleSignal(const QString &signal, const QVariantMap &data);
+    void handleServerConnected();
+
+    void sendConfigureRequest(const QVariantMap &extra);
 
     void reportError();
 
@@ -78,7 +82,7 @@ private:
     struct Project;
 
     struct IncludePath {
-        Utils::FileName path;
+        Utils::FilePath path;
         bool isSystem;
     };
 
@@ -90,7 +94,7 @@ private:
         ProjectExplorer::Macros macros;
         QList<IncludePath *> includePaths;
         QString language;
-        QList<Utils::FileName> sources;
+        QList<Utils::FilePath> sources;
         bool isGenerated;
     };
 
@@ -118,9 +122,9 @@ private:
         Project *project = nullptr;
         QString name;
         QString type;
-        QList<Utils::FileName> artifacts;
-        Utils::FileName sourceDirectory;
-        Utils::FileName buildDirectory;
+        QList<Utils::FilePath> artifacts;
+        Utils::FilePath sourceDirectory;
+        Utils::FilePath buildDirectory;
         QList<FileGroup *> fileGroups;
         QList<CrossReference *> crossReferences;
     };
@@ -128,7 +132,7 @@ private:
     struct Project {
         ~Project() { qDeleteAll(targets); targets.clear(); }
         QString name;
-        Utils::FileName sourceDirectory;
+        Utils::FilePath sourceDirectory;
         QList<Target *> targets;
     };
 
@@ -145,22 +149,17 @@ private:
 
     void fixTarget(Target *target) const;
 
-    QHash<Utils::FileName, ProjectExplorer::ProjectNode *>
-    addCMakeLists(CMakeProjectNode *root, std::vector<std::unique_ptr<ProjectExplorer::FileNode> > &&cmakeLists);
-    void addProjects(const QHash<Utils::FileName, ProjectExplorer::ProjectNode *> &cmakeListsNodes,
+    void addProjects(const QHash<Utils::FilePath, ProjectExplorer::ProjectNode *> &cmakeListsNodes,
                      const QList<Project *> &projects,
-                     QList<ProjectExplorer::FileNode *> &knownHeaderNodes);
-    void addTargets(const QHash<Utils::FileName, ProjectExplorer::ProjectNode *> &cmakeListsNodes,
+                     QSet<Utils::FilePath> &knownHeaders);
+    void addTargets(const QHash<Utils::FilePath, ProjectExplorer::ProjectNode *> &cmakeListsNodes,
                     const QList<Target *> &targets,
-                    QList<ProjectExplorer::FileNode *> &knownHeaderNodes);
+                    QSet<Utils::FilePath> &knownHeaders);
     void addFileGroups(ProjectExplorer::ProjectNode *targetRoot,
-                       const Utils::FileName &sourceDirectory,
-                       const Utils::FileName &buildDirectory, const QList<FileGroup *> &fileGroups,
-                       QList<ProjectExplorer::FileNode *> &knowHeaderNodes);
-
-    void addHeaderNodes(ProjectExplorer::ProjectNode *root,
-                        const QList<ProjectExplorer::FileNode *> knownHeaders,
-                        const QList<const ProjectExplorer::FileNode *> &allFiles);
+                       const Utils::FilePath &sourceDirectory,
+                       const Utils::FilePath &buildDirectory,
+                       const QList<FileGroup *> &fileGroups,
+                       QSet<Utils::FilePath> &knownHeaders);
 
     std::unique_ptr<ServerMode> m_cmakeServer;
     std::unique_ptr<QFutureInterface<void>> m_future;
@@ -168,11 +167,13 @@ private:
     int m_progressStepMinimum = 0;
     int m_progressStepMaximum = 1000;
 
+    Utils::optional<QVariantMap> m_delayedConfigurationData;
+
     QString m_delayedErrorMessage;
 
     CMakeConfig m_cmakeConfiguration;
 
-    QSet<Utils::FileName> m_cmakeFiles;
+    QSet<Utils::FilePath> m_cmakeFiles;
     std::vector<std::unique_ptr<ProjectExplorer::FileNode>> m_cmakeInputsFileNodes;
 
     QList<Project *> m_projects;

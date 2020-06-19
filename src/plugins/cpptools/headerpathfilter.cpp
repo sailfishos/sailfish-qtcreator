@@ -29,7 +29,12 @@
 #include <coreplugin/icore.h>
 #endif
 
+#include <projectexplorer/project.h>
+#include <projectexplorer/projectexplorerconstants.h>
+
 #include <QRegularExpression>
+
+#include <utils/algorithm.h>
 
 namespace CppTools {
 
@@ -41,6 +46,8 @@ void HeaderPathFilter::process()
 {
     const HeaderPaths &headerPaths = projectPart.headerPaths;
 
+    addPreIncludesPath();
+
     for (const HeaderPath &headerPath : headerPaths)
         filterHeaderPath(headerPath);
 
@@ -51,6 +58,26 @@ void HeaderPathFilter::process()
 bool HeaderPathFilter::isProjectHeaderPath(const QString &path) const
 {
     return path.startsWith(projectDirectory) || path.startsWith(buildDirectory);
+}
+
+void HeaderPathFilter::removeGccInternalIncludePaths()
+{
+    if (projectPart.toolchainType != ProjectExplorer::Constants::GCC_TOOLCHAIN_TYPEID
+        && projectPart.toolchainType != ProjectExplorer::Constants::MINGW_TOOLCHAIN_TYPEID) {
+        return;
+    }
+
+    if (projectPart.toolChainInstallDir.isEmpty())
+        return;
+
+    const Utils::FilePath gccInstallDir = projectPart.toolChainInstallDir;
+    auto isGccInternalInclude = [gccInstallDir](const HeaderPath &headerPath) {
+        const auto filePath = Utils::FilePath::fromString(headerPath.path);
+        return filePath == gccInstallDir.pathAppended("include")
+               || filePath == gccInstallDir.pathAppended("include-fixed");
+    };
+
+    Utils::erase(builtInHeaderPaths, isGccInternalInclude);
 }
 
 void HeaderPathFilter::filterHeaderPath(const ProjectExplorer::HeaderPath &headerPath)
@@ -82,30 +109,25 @@ QString clangIncludeDirectory(const QString &clangVersion, const QString &clangR
 #ifndef UNIT_TESTS
     return Core::ICore::clangIncludeDirectory(clangVersion, clangResourceDirectory);
 #else
-    Q_UNUSED(clangVersion);
-    Q_UNUSED(clangResourceDirectory);
-    return CLANG_RESOURCE_DIR;
+    Q_UNUSED(clangVersion)
+    Q_UNUSED(clangResourceDirectory)
+    return {CLANG_RESOURCE_DIR};
 #endif
 }
 
-HeaderPaths::iterator resourceIterator(HeaderPaths &headerPaths, bool isMacOs)
+HeaderPaths::iterator resourceIterator(HeaderPaths &headerPaths)
 {
     // include/c++, include/g++, libc++\include and libc++abi\include
-    static const QString cppIncludes = R"((.*\/include\/.*(g\+\+|c\+\+).*))"
-                                       R"(|(.*libc\+\+\/include))"
-                                       R"(|(.*libc\+\+abi\/include))";
+    static const QString cppIncludes = R"((.*/include/.*(g\+\+|c\+\+).*))"
+                                       R"(|(.*libc\+\+/include))"
+                                       R"(|(.*libc\+\+abi/include))"
+                                       R"(|(/usr/local/include))";
     static const QRegularExpression includeRegExp("\\A(" + cppIncludes + ")\\z");
-
-    // The same as includeRegExp but also matches /usr/local/include
-    static const QRegularExpression includeRegExpMac("\\A(" + cppIncludes
-                                                     + R"(|(\/usr\/local\/include))" + ")\\z");
-
-    const QRegularExpression &includePathRegEx = isMacOs ? includeRegExpMac : includeRegExp;
 
     return std::stable_partition(headerPaths.begin(),
                                  headerPaths.end(),
                                  [&](const HeaderPath &headerPath) {
-                                     return includePathRegEx.match(headerPath.path).hasMatch();
+                                     return includeRegExp.match(headerPath.path).hasMatch();
                                  });
 }
 
@@ -116,7 +138,7 @@ bool isClangSystemHeaderPath(const HeaderPath &headerPath)
     // For example GCC on macOS uses system clang include path which makes clang code model
     // include incorrect system headers.
     static const QRegularExpression clangIncludeDir(
-        R"(\A.*\/lib\d*\/clang\/\d+\.\d+(\.\d+)?\/include\z)");
+        R"(\A.*/lib\d*/clang/\d+\.\d+(\.\d+)?/include\z)");
     return clangIncludeDir.match(headerPath.path).hasMatch();
 }
 
@@ -131,13 +153,24 @@ void removeClangSystemHeaderPaths(HeaderPaths &headerPaths)
 void HeaderPathFilter::tweakHeaderPaths()
 {
     removeClangSystemHeaderPaths(builtInHeaderPaths);
+    removeGccInternalIncludePaths();
 
-    auto split = resourceIterator(builtInHeaderPaths,
-                                  projectPart.toolChainTargetTriple.contains("darwin"));
+    auto split = resourceIterator(builtInHeaderPaths);
 
     if (!clangVersion.isEmpty()) {
         const QString clangIncludePath = clangIncludeDirectory(clangVersion, clangResourceDirectory);
         builtInHeaderPaths.insert(split, HeaderPath{clangIncludePath, HeaderPathType::BuiltIn});
+    }
+}
+
+void HeaderPathFilter::addPreIncludesPath()
+{
+    if (!projectDirectory.isEmpty()) {
+        const Utils::FilePath rootProjectDirectory = Utils::FilePath::fromString(projectDirectory)
+                .pathAppended(".pre_includes");
+
+        systemHeaderPaths.push_back(
+            {rootProjectDirectory.toString(), ProjectExplorer::HeaderPathType::System});
     }
 }
 

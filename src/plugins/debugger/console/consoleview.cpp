@@ -208,7 +208,7 @@ void ConsoleView::contextMenuEvent(QContextMenuEvent *event)
 
 void ConsoleView::focusInEvent(QFocusEvent *event)
 {
-    Q_UNUSED(event);
+    Q_UNUSED(event)
     selectionModel()->setCurrentIndex(model()->index(model()->rowCount() - 1, 0),
                                       QItemSelectionModel::ClearAndSelect);
 }
@@ -218,7 +218,8 @@ void ConsoleView::onRowActivated(const QModelIndex &index)
     if (!index.isValid())
         return;
 
-    const QFileInfo fi(m_finder.findFile(model()->data(index, ConsoleItem::FileRole).toString()));
+    const QFileInfo fi = m_finder.findFile(model()->data(index, ConsoleItem::FileRole).toString())
+            .first().toFileInfo();
     if (fi.exists() && fi.isFile() && fi.isReadable()) {
         Core::EditorManager::openEditorAt(fi.canonicalFilePath(),
                                           model()->data(index, ConsoleItem::LineRole).toInt());

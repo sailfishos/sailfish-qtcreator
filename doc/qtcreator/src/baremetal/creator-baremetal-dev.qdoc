@@ -1,0 +1,269 @@
+/****************************************************************************
+**
+** Copyright (C) 2020 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+    /*!
+    \previouspage creator-developing-android.html
+    \page creator-developing-baremetal.html
+    \nextpage creator-developing-generic-linux.html
+
+    \title Connecting Bare Metal Devices
+
+    You can connect bare metal devices to a development host to run and debug
+    applications on them from \QC using GDB or a hardware debugger. This enables
+    you to debug on small devices that are not supported by the generic remote
+    Linux device plugin. However, if the device does not have Qt libraries, you
+    need a fake Qt installation.
+
+    The bare metal device type accepts custom GDB commands that you specify in
+    the device options. You can specify the commands to execute when connecting
+    using a particular debug server provider.
+
+    The following debug server providers are supported:
+
+    \list
+        \li \l EBlink
+        \li \l J-Link
+        \li \l OpenOCD
+        \li \l ST-LINK
+        \li \l {uVision IDE}
+    \endlist
+
+    \section1 Enabling the Bare Metal Device Plugin
+
+    To enable the Bare Metal Device plugin:
+
+    \list 1
+
+        \li Select \uicontrol Help > \uicontrol {About Plugins} >
+            \uicontrol {Device Support} > \uicontrol {Bare Metal}.
+
+        \li Select \uicontrol {Restart Now} to restart \QC and load the plugin.
+
+    \endlist
+
+    \section1 Specifying Settings for Debug Server Providers
+
+    To create connections to bare metal devices using a debug server provider,
+    select \uicontrol Tools > \uicontrol Options > \uicontrol Devices
+    > \uicontrol {Bare Metal} > \uicontrol Add > \uicontrol Default.
+    The available settings depend on the debug server provider.
+
+    \section2 EBlink
+
+    \l{https://github.com/EmBitz/EBlink}{EBlink} is an ARM Cortex-M debug tool
+    that supports squirrel scripting, live variables, and hot-plugging.
+
+    \image qtcreator-baremetal-eblink.png "Bare metal device options for EBlink"
+
+    To specify settings for \EBlink:
+
+    \list 1
+
+        \include creator-baremetal-settings.qdocinc baremetal-common
+
+        \li In the \uicontrol {Script file} field, enter the path
+            to a device script file.
+
+        \li In the \uicontrol {Verbosity level} field, enter the level of
+            verbose logging.
+
+        \li Select the \uicontrol {Connect under reset} check box to use
+            the ST-Link interface. Deselect the check box for hot-plugging.
+
+        \li In the \uicontrol Type field, select the interface type.
+
+        \li In the \uicontrol Speed field, enter the interface speed between
+            120 and 8000 kiloherz (kHz).
+
+        \li Select the \uicontrol {Disable cache} check box to disable the
+            \EBlink flash cache.
+
+        \li Select the \uicontrol {Auto shutdown} check box to automatically
+            shut down the \EBlink server after disconnecting.
+
+        \include creator-baremetal-settings.qdocinc baremetal-init-reset
+
+    \endlist
+
+    \section2 J-Link
+
+    \l{https://www.segger.com/products/debug-probes/j-link/}{J-Link} is a line
+    of debug probes by Segger.
+
+    \image qtcreator-baremetal-jlink.png "Bare metal device options for J-Link"
+
+    To specify settings for J-Link debug probes:
+
+    \list 1
+
+        \include creator-baremetal-settings.qdocinc baremetal-common
+
+        \li In the \uicontrol {Host interface} field, select the connection
+            type, IP or USB, or use the default connection.
+
+        \li In the \uicontrol {Target interface} field, select the target
+            interface type.
+
+        \li In the \uicontrol Speed field, enter the interface speed in kHz.
+
+        \li In the \uicontrol Device field, select the device to connect to.
+
+        \li In the \uicontrol {Additional arguments} field, enter
+            arguments for the commands.
+
+        \include creator-baremetal-settings.qdocinc baremetal-init-reset
+
+    \endlist
+
+    \section2 OpenOCD
+
+    \l{http://openocd.org}{OpenOCD} (Open On-Chip Debugger) is an on-chip debug
+    solution for targets based on the ARM7 and ARM9 family with Embedded-ICE
+    (JTAG) facility. It enables source level debugging with the GDB compiled
+    for the ARM architecture.
+
+    \image qtcreator-baremetal-openocd.png "Bare metal device options for OpenOCD"
+
+    To specify settings for \OpenOCD:
+
+    \list 1
+
+        \include creator-baremetal-settings.qdocinc baremetal-common
+
+        \li In the \uicontrol {Root scripts directory} field, enter the
+            path to the directory that contains configuration scripts.
+
+        \li In the \uicontrol {Configuration file} field, enter the path
+            to the device configuration file.
+
+        \li In the \uicontrol {Additional arguments} field, enter
+            arguments for the commands.
+
+        \include creator-baremetal-settings.qdocinc baremetal-init-reset
+
+    \endlist
+
+    \section2 St-Link
+
+    \l{https://www.st.com/en/development-tools/stm32-programmers.html#products}
+    {ST-LINK Utility} is used for programming STM32 microcontrollers.
+
+    \image qtcreator-baremetal-stlink.png "Bare metal device options for St-Link"
+
+    To specify settings for St-Link:
+
+    \list 1
+
+        \include creator-baremetal-settings.qdocinc baremetal-common
+
+        \li In the \uicontrol {Verbosity level} field, enter the level of
+            verbose logging.
+
+        \li Select the \uicontrol {Extended mode} check box to continue
+            listening for connection requests after after the connection
+            is closed.
+
+        \li Select the \uicontrol {Reset on connection} check box to
+            reset the board when the connection is created.
+
+        \li In the \uicontrol Version field, select the transport
+            layer type supported by the device.
+
+        \include creator-baremetal-settings.qdocinc baremetal-init-reset
+
+    \endlist
+
+    \section2 uVision IDE
+
+    \l{http://www.keil.com/support/man/docs/uv4/uv4_overview.htm}{uVision} is
+    an IDE for developing applications for embedded devices. Applications can
+    be debugged by using uVision Simulator or directly on hardware by using
+    St-Link.
+
+    \section3 uVision Simulator
+
+    \image qtcreator-baremetal-uvision-simulator.png "Bare metal device options for uVision Simulator"
+
+    To specify settings for uVision Simulator or uVision St-Link Debugger:
+
+    \list 1
+
+        \include creator-baremetal-settings.qdocinc uvision-common
+
+        \li Select the \uicontrol {Limit speed to real-time} check box to limit
+            the connection speed.
+
+        \li Select \uicontrol Apply to add the debug server provider.
+
+       \endlist
+
+    \section3 uVision St-Link Debugger
+
+    \image qtcreator-baremetal-uvision-st-link.png "Bare metal device options for uVision St-Link"
+
+    To specify settings for uVision St-Link Debugger:
+
+    \list 1
+
+        \include creator-baremetal-settings.qdocinc uvision-common
+
+        \li In the \uicontrol {Adapter options} field specify the adapter
+            interface type and speed in MHz.
+
+        \li Select \uicontrol Apply to add the debug server provider.
+
+    \endlist
+
+    \section1 Adding Bare Metal Devices
+
+    \image qtcreator-baremetal-devices.png "Bare Metal device options"
+
+    To add a bare metal device:
+
+        \list 1
+
+           \li Select \uicontrol Tools > \uicontrol Options > \uicontrol Devices
+                > \uicontrol Add > \uicontrol {Bare Metal Device} >
+                \uicontrol {Start Wizard}.
+
+           \li In the \uicontrol {Debug server provider} field, select a debug
+               server provider.
+
+            \li Select \uicontrol Apply to add the device.
+
+        \endlist
+
+    \section1 Building for and Running on Bare Metal Devices
+
+    To add a kit for building applications and running them on bare metal
+    devices, select \uicontrol Tools > \uicontrol Options > \uicontrol Kits
+    > \uicontrol Add. For more information, see \l{Adding Kits}.
+
+    \image qtcreator-baremetal-kit.png "Kit options for Bare Metal"
+
+    You can build applications for and run them on bare metal devices
+    in the same way as for and on the desktop. For more information, see
+    \l{Building for Multiple Platforms} and \l{Running on Multiple Platforms}.
+*/

@@ -26,6 +26,7 @@
 #pragma once
 
 #include "clangrefactoringbackend_global.h"
+#include "filestatus.h"
 #include "sourcelocationentry.h"
 #include "symbolentry.h"
 #include "symbolsvisitorbase.h"
@@ -43,27 +44,52 @@ public:
     IndexDataConsumer(SymbolEntries &symbolEntries,
                       SourceLocationEntries &sourceLocationEntries,
                       FilePathCachingInterface &filePathCache,
-                      SourcesManager &sourcesManager)
-        : SymbolsVisitorBase(filePathCache, nullptr, sourcesManager),
-          m_symbolEntries(symbolEntries),
-          m_sourceLocationEntries(sourceLocationEntries)
+                      SourcesManager &symbolSourcesManager,
+                      SourcesManager &macroSourcesManager)
+        : SymbolsVisitorBase(filePathCache, nullptr, m_filePathIndices)
+        , m_symbolEntries(symbolEntries)
+        , m_sourceLocationEntries(sourceLocationEntries)
+        , m_symbolSourcesManager(symbolSourcesManager)
+        , m_macroSourcesManager(macroSourcesManager)
+
     {}
 
     IndexDataConsumer(const IndexDataConsumer &) = delete;
     IndexDataConsumer &operator=(const IndexDataConsumer &) = delete;
 
-    bool handleDeclOccurence(const clang::Decl *declaration,
-                             clang::index::SymbolRoleSet symbolRoles,
-                             llvm::ArrayRef<clang::index::SymbolRelation> symbolRelations,
-                             clang::SourceLocation sourceLocation,
-                             ASTNodeInfo astNodeInfo) override;
+#if LLVM_VERSION_MAJOR >= 10
+    bool handleDeclOccurrence(
+#else
+    bool handleDeclOccurence(
+#endif
+            const clang::Decl *declaration,
+            clang::index::SymbolRoleSet symbolRoles,
+            llvm::ArrayRef<clang::index::SymbolRelation> symbolRelations,
+            clang::SourceLocation sourceLocation,
+            ASTNodeInfo astNodeInfo) override;
+
+#if LLVM_VERSION_MAJOR >= 10
+    bool handleMacroOccurrence(
+#else
+    bool handleMacroOccurence(
+#endif
+                const clang::IdentifierInfo *identifierInfo,
+                const clang::MacroInfo *macroInfo,
+                clang::index::SymbolRoleSet roles,
+                clang::SourceLocation sourceLocation) override;
+
+    void finish() override;
 
 private:
-    bool skipSymbol(clang::FileID fileId, clang::index::SymbolRoleSet symbolRoles);
+    bool skipSymbol(clang::FileID fileId);
+    bool isAlreadyParsed(clang::FileID fileId, SourcesManager &sourcesManager);
 
 private:
+    FilePathIds m_filePathIndices;
     SymbolEntries &m_symbolEntries;
     SourceLocationEntries &m_sourceLocationEntries;
+    SourcesManager &m_symbolSourcesManager;
+    SourcesManager &m_macroSourcesManager;
 };
 
 } // namespace ClangBackEnd

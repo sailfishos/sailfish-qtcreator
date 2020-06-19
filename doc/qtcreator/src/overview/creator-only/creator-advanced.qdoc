@@ -1,0 +1,107 @@
+/****************************************************************************
+**
+** Copyright (C) 2020 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \previouspage creator-autotest.html
+    \page creator-advanced.html
+    \nextpage creator-os-supported-platforms.html
+
+    \title Advanced Use
+
+    \image front-advanced.png
+
+    \QC attempts to meet your development needs, whether you are an
+    experienced Qt developer or a newcomer to Qt. When you install \QC
+    as a part of \QSDK, the default configuration allows you to start coding,
+    building, running and debugging applications with very little effort.
+
+    However, you can easily change or extend the default configuration, by
+    choosing a different build system or integrating external tools.
+
+    You can also use special options to start \QC from the command line and use
+    it mainly from the keyboard.
+
+    \list
+
+        \li \l{Supported Platforms}
+
+            You can install and run \QC on several operating systems to create
+            applications for multiple desktop and \l{glossary-device}{device}
+            platforms.
+
+        \li \l{Using Other Build Systems}
+
+            \QC is integrated with cross-platform systems for build automation:
+            qmake, Qbs, CMake, and Autotools. In addition, you can import
+            generic projects that do not use those systems, and specify that \QC
+            ignores your build system.
+
+        \li \l{Using Command Line Options}
+
+            You can start \QC and specify some options for running it from the
+            command line.
+
+        \li \l{Keyboard Shortcuts}
+
+            \QC provides various keyboard shortcuts to speed up your development
+            process. You can change the keyboard shortcuts, as well as import
+            and export keyboard shortcut mapping schemes.
+
+        \li \l{Using External Tools}
+
+            You can use external tools directly from \QC. Qt Linguist,
+            QML preview tools (QML Viewer and QML Scene), the default text
+            editor for your system, and the \c sort tool are preconfigured for
+            use. You can change their default configurations and configure new
+            tools.
+
+    \endlist
+
+    \section1 Related Topics
+
+    \list
+
+        \li \l{Showing Task List Files in Issues Pane}
+
+            You can load report files created by code scanning and analysis
+            tools to the \uicontrol Issues output pane. You can navigate to the
+            corresponding source code by clicking the error message or by using
+            keyboard shortcuts.
+
+        \li \l{Managing Data Collection Settings}
+
+            If you agreed to pseudonymous data collection during \QC
+            installation, you can turn it on and determine what type
+            of data is collected and transmitted to the backend storage.
+
+    \endlist
+
+*/

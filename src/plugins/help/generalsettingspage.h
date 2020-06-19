@@ -33,7 +33,6 @@
 namespace Help {
 namespace Internal {
 
-
 class GeneralSettingsPage : public Core::IOptionsPage
 {
     Q_OBJECT
@@ -69,6 +68,7 @@ private:
 
     int m_startOption;
     bool m_returnOnClose;
+    bool m_scrollWheelZoomingEnabled;
 
     QPointer<QWidget> m_widget;
     Ui::GeneralSettingsPage *m_ui = nullptr;

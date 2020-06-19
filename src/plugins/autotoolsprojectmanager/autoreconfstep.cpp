@@ -26,37 +26,49 @@
 ****************************************************************************/
 
 #include "autoreconfstep.h"
+
 #include "autotoolsprojectconstants.h"
 
+#include <projectexplorer/abstractprocessstep.h>
 #include <projectexplorer/buildconfiguration.h>
-#include <projectexplorer/buildsteplist.h>
-#include <projectexplorer/project.h>
 #include <projectexplorer/processparameters.h>
-#include <projectexplorer/projectexplorer.h>
-#include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/projectconfigurationaspects.h>
 #include <projectexplorer/target.h>
 
-using namespace AutotoolsProjectManager;
-using namespace AutotoolsProjectManager::Internal;
 using namespace ProjectExplorer;
 
-const char AUTORECONF_STEP_ID[] = "AutotoolsProjectManager.AutoreconfStep";
-
-
-// AutoreconfStepFactory class
-
-AutoreconfStepFactory::AutoreconfStepFactory()
-{
-    registerStep<AutoreconfStep>(AUTORECONF_STEP_ID);
-    setDisplayName(AutoreconfStep::tr("Autoreconf", "Display name for AutotoolsProjectManager::AutoreconfStep id."));
-    setSupportedProjectType(Constants::AUTOTOOLS_PROJECT_ID);
-    setSupportedStepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD);
-}
-
+namespace AutotoolsProjectManager {
+namespace Internal {
 
 // AutoreconfStep class
 
-AutoreconfStep::AutoreconfStep(BuildStepList *bsl) : AbstractProcessStep(bsl, AUTORECONF_STEP_ID)
+/**
+ * @brief Implementation of the ProjectExplorer::AbstractProcessStep interface.
+ *
+ * A autoreconf step can be configured by selecting the "Projects" button
+ * of Qt Creator (in the left hand side menu) and under "Build Settings".
+ *
+ * It is possible for the user to specify custom arguments.
+ */
+
+class AutoreconfStep : public AbstractProcessStep
+{
+    Q_DECLARE_TR_FUNCTIONS(AutotoolsProjectManager::Internal::AutoreconfStep)
+
+public:
+    AutoreconfStep(BuildStepList *bsl, Core::Id id);
+
+    bool init() override;
+    void doRun() override;
+
+private:
+    BaseStringAspect *m_additionalArgumentsAspect = nullptr;
+    bool m_runAutoreconf = false;
+};
+
+AutoreconfStep::AutoreconfStep(BuildStepList *bsl, Core::Id id)
+    : AbstractProcessStep(bsl, id)
 {
     setDefaultDisplayName(tr("Autoreconf"));
 
@@ -66,6 +78,24 @@ AutoreconfStep::AutoreconfStep(BuildStepList *bsl) : AbstractProcessStep(bsl, AU
     m_additionalArgumentsAspect->setValue("--force --install");
     m_additionalArgumentsAspect->setDisplayStyle(BaseStringAspect::LineEditDisplay);
     m_additionalArgumentsAspect->setHistoryCompleter("AutotoolsPM.History.AutoreconfStepArgs");
+
+    connect(m_additionalArgumentsAspect, &ProjectConfigurationAspect::changed, this, [this] {
+        m_runAutoreconf = true;
+    });
+
+    setSummaryUpdater([this] {
+        BuildConfiguration *bc = buildConfiguration();
+
+        ProcessParameters param;
+        param.setMacroExpander(bc->macroExpander());
+        param.setEnvironment(bc->environment());
+        param.setWorkingDirectory(bc->target()->project()->projectDirectory());
+        param.setCommandLine({Utils::FilePath::fromString("autoreconf"),
+                              m_additionalArgumentsAspect->value(),
+                              Utils::CommandLine::Raw});
+
+        return param.summary(displayName());
+    });
 }
 
 bool AutoreconfStep::init()
@@ -75,11 +105,9 @@ bool AutoreconfStep::init()
     ProcessParameters *pp = processParameters();
     pp->setMacroExpander(bc->macroExpander());
     pp->setEnvironment(bc->environment());
-    const QString projectDir(bc->target()->project()->projectDirectory().toString());
-    pp->setWorkingDirectory(projectDir);
-    pp->setCommand("autoreconf");
-    pp->setArguments(m_additionalArgumentsAspect->value());
-    pp->resolveAll();
+    pp->setWorkingDirectory(bc->target()->project()->projectDirectory());
+    pp->setCommandLine({Utils::FilePath::fromString("autoreconf"),
+                        m_additionalArgumentsAspect->value(), Utils::CommandLine::Raw});
 
     return AbstractProcessStep::init();
 }
@@ -104,30 +132,21 @@ void AutoreconfStep::doRun()
     AbstractProcessStep::doRun();
 }
 
-BuildStepConfigWidget *AutoreconfStep::createConfigWidget()
+// AutoreconfStepFactory class
+
+/**
+ * @brief Implementation of the ProjectExplorer::IBuildStepFactory interface.
+ *
+ * The factory is used to create instances of AutoreconfStep.
+ */
+
+AutoreconfStepFactory::AutoreconfStepFactory()
 {
-    auto widget = AbstractProcessStep::createConfigWidget();
-
-    auto updateDetails = [this, widget] {
-        BuildConfiguration *bc = buildConfiguration();
-
-        ProcessParameters param;
-        param.setMacroExpander(bc->macroExpander());
-        param.setEnvironment(bc->environment());
-        const QString projectDir(bc->target()->project()->projectDirectory().toString());
-        param.setWorkingDirectory(projectDir);
-        param.setCommand("autoreconf");
-        param.setArguments(m_additionalArgumentsAspect->value());
-
-        widget->setSummaryText(param.summary(displayName()));
-    };
-
-    updateDetails();
-
-    connect(m_additionalArgumentsAspect, &ProjectConfigurationAspect::changed, this, [=] {
-        updateDetails();
-        m_runAutoreconf = true;
-    });
-
-    return widget;
+    registerStep<AutoreconfStep>(Constants::AUTORECONF_STEP_ID);
+    setDisplayName(AutoreconfStep::tr("Autoreconf", "Display name for AutotoolsProjectManager::AutoreconfStep id."));
+    setSupportedProjectType(Constants::AUTOTOOLS_PROJECT_ID);
+    setSupportedStepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD);
 }
+
+} // Internal
+} // AutotoolsProjectManager

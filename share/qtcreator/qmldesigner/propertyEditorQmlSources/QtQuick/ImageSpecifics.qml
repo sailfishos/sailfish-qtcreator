@@ -43,12 +43,11 @@ Column {
 
             SecondColumnLayout {
                 UrlChooser {
-                     Layout.fillWidth: true
-                     backendValue: backendValues.source
+                    Layout.fillWidth: true
+                    backendValue: backendValues.source
                 }
 
                 ExpandingSpacer {
-
                 }
             }
 
@@ -58,15 +57,14 @@ Column {
 
             SecondColumnLayout {
                 ComboBox {
+                    scope: "Image"
                     model: ["Stretch", "PreserveAspectFit", "PreserveAspectCrop", "Tile", "TileVertically", "TileHorizontally"]
                     backendValue: backendValues.fillMode
                     implicitWidth: 180
                     Layout.fillWidth: true
-                    scope: "Image"
                 }
 
                 ExpandingSpacer {
-
                 }
             }
 
@@ -82,9 +80,14 @@ Column {
 
                 SpinBox {
                     backendValue: backendValues.sourceSize_width
-                    minimumValue: -2000
-                    maximumValue: 2000
+                    minimumValue: 0
+                    maximumValue: 8192
                     decimals: 0
+                }
+
+                Item {
+                    width: 4
+                    height: 4
                 }
 
                 Label {
@@ -94,13 +97,12 @@ Column {
 
                 SpinBox {
                     backendValue: backendValues.sourceSize_height
-                    minimumValue: -2000
-                    maximumValue: 2000
+                    minimumValue: 0
+                    maximumValue: 8192
                     decimals: 0
                 }
 
                 ExpandingSpacer {
-
                 }
             }
         }

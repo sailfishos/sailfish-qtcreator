@@ -26,6 +26,7 @@
 #include "projectwindow.h"
 
 #include "buildinfo.h"
+#include "projectexplorerconstants.h"
 #include "kit.h"
 #include "kitmanager.h"
 #include "kitoptionspage.h"
@@ -38,6 +39,9 @@
 #include "target.h"
 #include "targetsettingspanel.h"
 
+#include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/icontext.h>
+#include <coreplugin/coreconstants.h>
 #include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/idocument.h>
@@ -83,6 +87,8 @@ public:
     QVariant data(int column, int role) const override;
     Qt::ItemFlags flags(int column) const override;
     bool setData(int column, const QVariant &, int role) override;
+
+    ProjectPanelFactory *factory() const { return m_factory; }
 
 protected:
     ProjectPanelFactory *m_factory = nullptr;
@@ -213,8 +219,6 @@ public:
     {
         switch (role) {
         case Qt::DisplayRole:
-            return m_project->displayName();
-
         case ProjectDisplayNameRole:
             return m_project->displayName();
 
@@ -281,6 +285,13 @@ public:
     {
         auto *activeItem = data(0, ActiveItemRole).value<TreeItem *>();
         return activeItem ? activeItem->index() : QModelIndex();
+    }
+
+    TreeItem *itemForProjectPanel(Core::Id panelId)
+    {
+        return m_miscItem->findChildAtLevel(1, [panelId](const TreeItem *item){
+            return static_cast<const MiscSettingsPanelItem *>(item)->factory()->id() == panelId;
+        });
     }
 
 private:
@@ -376,8 +387,16 @@ public:
 
         m_projectSelection = new QComboBox;
         m_projectSelection->setModel(&m_comboBoxModel);
-        connect(m_projectSelection, static_cast<void(QComboBox::*)(int)>(&QComboBox::activated),
+        connect(m_projectSelection, QOverload<int>::of(&QComboBox::activated),
                 this, &ProjectWindowPrivate::projectSelected, Qt::QueuedConnection);
+
+        const auto switchProjectAction = new QAction(this);
+        ActionManager::registerAction(switchProjectAction, Core::Constants::GOTOPREVINHISTORY,
+                                      Context(Constants::C_PROJECTEXPLORER));
+        connect(switchProjectAction, &QAction::triggered, this, [this] {
+            if (m_projectSelection->count() > 1)
+                m_projectSelection->showPopup();
+        });
 
         SessionManager *sessionManager = SessionManager::instance();
         connect(sessionManager, &SessionManager::projectAdded,
@@ -499,6 +518,14 @@ public:
             item->setData(0, QVariant(), ItemActivatedDirectlyRole);
     }
 
+    void activateProjectPanel(Core::Id panelId)
+    {
+        if (ProjectItem *projectItem = m_projectsModel.rootItem()->childAt(0)) {
+            if (TreeItem *item = projectItem->itemForProjectPanel(panelId))
+                itemActivated(item->index());
+        }
+    }
+
     void openContextMenu(const QPoint &pos)
     {
         QMenu menu;
@@ -546,21 +573,17 @@ public:
         QString importDir = QFileDialog::getExistingDirectory(ICore::mainWindow(),
                                                               ProjectWindow::tr("Import Directory"),
                                                               dir);
-        FileName path = FileName::fromString(importDir);
+        FilePath path = FilePath::fromString(importDir);
 
         Target *lastTarget = nullptr;
         BuildConfiguration *lastBc = nullptr;
         for (const BuildInfo &info : projectImporter->import(path, false)) {
             Target *target = project->target(info.kitId);
-            if (!target) {
-                std::unique_ptr<Target> newTarget = project->createTarget(KitManager::kit(info.kitId));
-                target = newTarget.get();
-                if (newTarget)
-                    project->addTarget(std::move(newTarget));
-            }
+            if (!target)
+                target = project->addTargetForKit(KitManager::kit(info.kitId));
             if (target) {
                 projectImporter->makePersistent(target->kit());
-                BuildConfiguration *bc = info.factory()->create(target, info);
+                BuildConfiguration *bc = info.factory->create(target, info);
                 QTC_ASSERT(bc, continue);
                 target->addBuildConfiguration(bc);
 
@@ -610,6 +633,11 @@ ProjectWindow::ProjectWindow()
     // Request custom context menu but do not provide any to avoid
     // the creation of the dock window selection menu.
     setContextMenuPolicy(Qt::CustomContextMenu);
+}
+
+void ProjectWindow::activateProjectPanel(Core::Id panelId)
+{
+    d->activateProjectPanel(panelId);
 }
 
 ProjectWindow::~ProjectWindow() = default;

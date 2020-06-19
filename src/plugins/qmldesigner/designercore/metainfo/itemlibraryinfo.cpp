@@ -28,17 +28,16 @@
 
 #include <QSharedData>
 
+#include <utils/algorithm.h>
 #include <utils/fileutils.h>
 
 namespace QmlDesigner {
 
 namespace Internal {
 
-class ItemLibraryEntryData : public QSharedData
+class ItemLibraryEntryData
 {
 public:
-    ItemLibraryEntryData()
-    {}
     QString name;
     TypeName typeName;
     QString category;
@@ -54,20 +53,6 @@ public:
 };
 
 } // namespace Internal
-
-//
-// ItemLibraryEntry
-//
-
-ItemLibraryEntry::ItemLibraryEntry(const ItemLibraryEntry &other) = default;
-
-ItemLibraryEntry& ItemLibraryEntry::operator=(const ItemLibraryEntry &other)
-{
-    if (this !=&other)
-        m_data = other.m_data;
-
-    return *this;
-}
 
 void ItemLibraryEntry::setTypeIcon(const QIcon &icon)
 {
@@ -93,8 +78,6 @@ ItemLibraryEntry::ItemLibraryEntry() : m_data(new Internal::ItemLibraryEntryData
 {
     m_data->name.clear();
 }
-
-ItemLibraryEntry::~ItemLibraryEntry() = default;
 
 QString ItemLibraryEntry::name() const
 {
@@ -192,7 +175,7 @@ void ItemLibraryEntry::setRequiredImport(const QString &requiredImport)
 
 void ItemLibraryEntry::addHints(const QHash<QString, QString> &hints)
 {
-    m_data->hints.unite(hints);
+    Utils::addToHash(&m_data->hints, hints);
 }
 
 void ItemLibraryEntry::addProperty(PropertyName &name, QString &type, QVariant &value)
@@ -223,6 +206,10 @@ QDataStream& operator<<(QDataStream& stream, const ItemLibraryEntry &itemLibrary
 
 QDataStream& operator>>(QDataStream& stream, ItemLibraryEntry &itemLibraryEntry)
 {
+    // Clear containers so that we don't simply append to them in case the object is reused
+    itemLibraryEntry.m_data->hints.clear();
+    itemLibraryEntry.m_data->properties.clear();
+
     stream >> itemLibraryEntry.m_data->name;
     stream >> itemLibraryEntry.m_data->typeName;
     stream >> itemLibraryEntry.m_data->majorVersion;
@@ -356,7 +343,10 @@ void ItemLibraryInfo::addBlacklistImports(const QStringList &list)
 
 void ItemLibraryInfo::addShowTagsForImports(const QStringList &list)
 {
-    m_showTagsForImports.append(list);
+    if (!list.isEmpty()) {
+        m_showTagsForImports.append(list);
+        emit importTagsChanged();
+    }
 }
 
 void ItemLibraryInfo::setBaseInfo(ItemLibraryInfo *baseInfo)

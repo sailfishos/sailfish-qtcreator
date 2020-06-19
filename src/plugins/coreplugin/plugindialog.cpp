@@ -25,6 +25,10 @@
 
 #include "plugindialog.h"
 
+#include "icore.h"
+
+#include "dialogs/restartdialog.h"
+
 #include <extensionsystem/pluginmanager.h>
 #include <extensionsystem/pluginview.h>
 #include <extensionsystem/plugindetailsview.h>
@@ -51,8 +55,6 @@ PluginDialog::PluginDialog(QWidget *parent)
     : QDialog(parent),
       m_view(new ExtensionSystem::PluginView(this))
 {
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
-
     auto vl = new QVBoxLayout(this);
 
     auto filterLayout = new QHBoxLayout;
@@ -116,6 +118,11 @@ PluginDialog::PluginDialog(QWidget *parent)
 void PluginDialog::closeDialog()
 {
     ExtensionSystem::PluginManager::writeSettings();
+    if (s_isRestartRequired) {
+        RestartDialog restartDialog(ICore::dialogParent(),
+                                    tr("Plugin changes will take effect after restart."));
+        restartDialog.exec();
+    }
     accept();
 }
 

@@ -25,19 +25,15 @@
 
 #pragma once
 
-#include <QListWidget>
 #include <QDateTime>
+#include <QWidget>
 
 QT_BEGIN_NAMESPACE
-class QComboBox;
-class QGridLayout;
 class QLabel;
-class QStackedWidget;
 QT_END_NAMESPACE
 
 namespace ProjectExplorer {
 class Kit;
-class KitConfigWidget;
 class Project;
 class Target;
 class BuildConfiguration;
@@ -46,90 +42,10 @@ class ProjectConfiguration;
 class RunConfiguration;
 
 namespace Internal {
+class GenericListWidget;
+class ProjectListView;
+class KitAreaWidget;
 
-// helper classes
-class ListWidget : public QListWidget
-{
-    Q_OBJECT
-
-public:
-    ListWidget(QWidget *parent);
-    void keyPressEvent(QKeyEvent *event) override;
-    void keyReleaseEvent(QKeyEvent *event) override;
-    void setMaxCount(int maxCount);
-    int maxCount();
-
-    int optimalWidth() const;
-    void setOptimalWidth(int width);
-
-    int padding();
-
-private:
-    int m_maxCount = 0;
-    int m_optimalWidth = 0;
-};
-
-class ProjectListWidget : public ListWidget
-{
-    Q_OBJECT
-
-public:
-    explicit ProjectListWidget(QWidget *parent = nullptr);
-
-private:
-    void addProject(ProjectExplorer::Project *project);
-    void removeProject(ProjectExplorer::Project *project);
-    void projectDisplayNameChanged(ProjectExplorer::Project *project);
-    void changeStartupProject(ProjectExplorer::Project *project);
-    void setProject(int index);
-    QListWidgetItem *itemForProject(Project *project);
-    QString fullName(Project *project);
-    bool m_ignoreIndexChange;
-};
-
-class KitAreaWidget : public QWidget
-{
-    Q_OBJECT
-public:
-    explicit KitAreaWidget(QWidget *parent = nullptr);
-    ~KitAreaWidget() override;
-
-    void setKit(ProjectExplorer::Kit *k);
-
-private:
-    void updateKit(ProjectExplorer::Kit *k);
-
-    QGridLayout *m_layout;
-    Kit *m_kit = nullptr;
-    QList<KitConfigWidget *> m_widgets;
-    QList<QLabel *> m_labels;
-};
-
-class GenericListWidget : public ListWidget
-{
-    Q_OBJECT
-
-public:
-    explicit GenericListWidget(QWidget *parent = nullptr);
-
-signals:
-    void changeActiveProjectConfiguration(ProjectExplorer::ProjectConfiguration *dc);
-
-public:
-    void setProjectConfigurations(const QList<ProjectConfiguration *> &list, ProjectConfiguration *active);
-    void setActiveProjectConfiguration(ProjectConfiguration *active);
-    void addProjectConfiguration(ProjectConfiguration *pc);
-    void removeProjectConfiguration(ProjectConfiguration *pc);
-
-private:
-    void rowChanged(int index);
-    void displayNameChanged();
-    void toolTipChanged();
-    QListWidgetItem *itemForProjectConfiguration(ProjectConfiguration *pc);
-    bool m_ignoreIndexChange;
-};
-
-// main class
 class MiniProjectTargetSelector : public QWidget
 {
     Q_OBJECT
@@ -148,8 +64,10 @@ public:
 private:
     void projectAdded(ProjectExplorer::Project *project);
     void projectRemoved(ProjectExplorer::Project *project);
-    void handleNewProjectConfiguration(ProjectConfiguration *pc);
-    void handleRemovalOfProjectConfiguration(ProjectConfiguration *pc);
+    void handleNewProjectConfiguration(ProjectExplorer::ProjectConfiguration *pc);
+    void handleNewTarget(Target *target);
+    void handleRemovalOfProjectConfiguration(ProjectExplorer::ProjectConfiguration *pc);
+    void handleRemovalOfTarget(Target *pc);
 
     void changeStartupProject(ProjectExplorer::Project *project);
     void activeTargetChanged(ProjectExplorer::Target *target);
@@ -186,7 +104,7 @@ private:
     QAction *m_projectAction;
 
     enum TYPES { PROJECT = 0, TARGET = 1, BUILD = 2, DEPLOY = 3, RUN = 4, LAST = 5 };
-    ProjectListWidget *m_projectListWidget;
+    ProjectListView *m_projectListWidget;
     KitAreaWidget *m_kitAreaWidget;
     QVector<GenericListWidget *> m_listWidgets;
     QVector<QWidget *> m_titleWidgets;

@@ -423,13 +423,13 @@ LogWindow::LogWindow(DebuggerEngine *engine)
     commandBox->addWidget(repeatButton);
     commandBox->addWidget(new QLabel(tr("Command:"), this));
     commandBox->addWidget(m_commandEdit);
-    commandBox->setMargin(2);
+    commandBox->setContentsMargins(2, 2, 2, 2);
     commandBox->setSpacing(6);
 
     auto leftBox = new QVBoxLayout;
     leftBox->addWidget(m_inputText);
     leftBox->addItem(commandBox);
-    leftBox->setMargin(0);
+    leftBox->setContentsMargins(0, 0, 0, 0);
     leftBox->setSpacing(0);
 
     auto leftDummy = new QWidget;
@@ -441,7 +441,7 @@ LogWindow::LogWindow(DebuggerEngine *engine)
     m_splitter->setStretchFactor(1, 3);
 
     auto layout = new QVBoxLayout(this);
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     layout->addWidget(m_splitter);
     layout->addWidget(new Core::FindToolBarPlaceHolder(this));
@@ -552,8 +552,14 @@ void LogWindow::showOutput(int channel, const QString &output)
         out.append(nchar);
 
     m_queuedOutput.append(out);
-    m_outputTimer.setSingleShot(true);
-    m_outputTimer.start(80);
+    // flush the output if it exceeds 16k to prevent out of memory exceptions on regular output
+    if (m_queuedOutput.size() > 16 * 1024) {
+        m_outputTimer.stop();
+        doOutput();
+    } else {
+        m_outputTimer.setSingleShot(true);
+        m_outputTimer.start(80);
+    }
 }
 
 void LogWindow::doOutput()
@@ -561,7 +567,8 @@ void LogWindow::doOutput()
     if (m_queuedOutput.isEmpty())
         return;
 
-    theGlobalLog->doOutput(m_queuedOutput);
+    if (theGlobalLog)
+        theGlobalLog->doOutput(m_queuedOutput);
 
     QTextCursor cursor = m_combinedText->textCursor();
     const bool atEnd = cursor.atEnd();
@@ -678,7 +685,7 @@ GlobalLogWindow::GlobalLogWindow()
     m_splitter->setStretchFactor(1, 3);
 
     auto layout = new QVBoxLayout(this);
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     layout->addWidget(m_splitter);
     layout->addWidget(new Core::FindToolBarPlaceHolder(this));
@@ -700,6 +707,7 @@ GlobalLogWindow::GlobalLogWindow()
 
 GlobalLogWindow::~GlobalLogWindow()
 {
+    theGlobalLog = nullptr;
 }
 
 void GlobalLogWindow::doOutput(const QString &output)

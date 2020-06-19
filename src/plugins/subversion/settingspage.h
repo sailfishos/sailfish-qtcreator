@@ -25,38 +25,17 @@
 
 #pragma once
 
-#include "ui_settingspage.h"
-
-#include <vcsbase/vcsbaseoptionspage.h>
-
-#include <QWidget>
-#include <QPointer>
-#include <QString>
+#include <coreplugin/dialogs/ioptionspage.h>
 
 namespace Subversion {
 namespace Internal {
 
-class SettingsPageWidget : public VcsBase::VcsClientOptionsPageWidget
+class SubversionSettings;
+
+class SubversionSettingsPage final : public Core::IOptionsPage
 {
-    Q_OBJECT
-
 public:
-    explicit SettingsPageWidget(QWidget *parent = nullptr);
-
-    VcsBase::VcsBaseClientSettings settings() const override;
-    void setSettings(const VcsBase::VcsBaseClientSettings &s) override;
-
-private:
-    Ui::SettingsPage m_ui;
-};
-
-
-class SettingsPage : public VcsBase::VcsClientOptionsPage
-{
-    Q_OBJECT
-
-public:
-    SettingsPage(Core::IVersionControl *control, QObject *parent);
+    SubversionSettingsPage(const std::function<void()> &onApply, SubversionSettings *settings);
 };
 
 } // namespace Subversion

@@ -26,6 +26,7 @@
 #pragma once
 
 #include <qtsupport/baseqtversion.h>
+#include <qtsupport/qtversionfactory.h>
 
 #include <QCoreApplication>
 
@@ -38,14 +39,11 @@ class AndroidQtVersion : public QtSupport::BaseQtVersion
 
 public:
     AndroidQtVersion();
-    AndroidQtVersion(const Utils::FileName &path, bool isAutodetected = false, const QString &autodetectionSource = QString());
 
-    AndroidQtVersion *clone() const override;
-    QString type() const override;
     bool isValid() const override;
     QString invalidReason() const override;
 
-    QList<ProjectExplorer::Abi> detectQtAbis() const override;
+    ProjectExplorer::Abis detectQtAbis() const override;
 
     void addToEnvironment(const ProjectExplorer::Kit *k, Utils::Environment &env) const override;
     Utils::Environment qmakeRunEnvironment() const override;
@@ -54,13 +52,21 @@ public:
     QSet<Core::Id> targetDeviceTypes() const override;
 
     QString description() const override;
-    QString targetArch() const;
-    int mininmumNDK() const;
+    const QStringList &androidAbis() const;
+    int minimumNDK() const;
+
 protected:
     void parseMkSpec(ProFileEvaluator *) const override;
 private:
-    mutable QString m_targetArch;
+    std::unique_ptr<QObject> m_guard;
+    mutable QStringList m_androidAbis;
     mutable int m_minNdk = -1;
+};
+
+class AndroidQtVersionFactory : public QtSupport::QtVersionFactory
+{
+public:
+    AndroidQtVersionFactory();
 };
 
 } // namespace Internal

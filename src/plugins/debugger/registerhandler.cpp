@@ -119,7 +119,7 @@ public:
                 painter->setPen(lightColor);
             // FIXME: performance? this changes only on real font changes.
             QFontMetrics fm(option.font);
-            int charWidth = qMax(fm.width('x'), fm.width('0'));
+            int charWidth = qMax(fm.horizontalAdvance('x'), fm.horizontalAdvance('0'));
             QString str = index.data(Qt::DisplayRole).toString();
             int x = option.rect.x();
             bool light = !paintRed;
@@ -434,7 +434,7 @@ public:
     {
         //return column == 1 ? Qt::ItemIsSelectable|Qt::ItemIsEnabled|Qt::ItemIsEditable
         //                   : Qt::ItemIsSelectable|Qt::ItemIsEnabled;
-        Q_UNUSED(column);
+        Q_UNUSED(column)
         return Qt::ItemIsSelectable|Qt::ItemIsEnabled;
     }
 
@@ -756,7 +756,7 @@ bool RegisterHandler::contextMenuEvent(const ItemViewEvent &ev)
     addFormatAction(tr("Octal"), OctalFormat);
     addFormatAction(tr("Binary"), BinaryFormat);
 
-    menu->addSeparator();
+    Internal::addHideColumnActions(menu, ev.view());
     menu->addAction(action(SettingsDialog));
     menu->popup(ev.globalPos());
     return true;

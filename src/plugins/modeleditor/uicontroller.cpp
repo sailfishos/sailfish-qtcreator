@@ -39,9 +39,8 @@ public:
     QByteArray rightHorizSplitterState;
 };
 
-UiController::UiController(QObject *parent)
-    : QObject(parent),
-      d(new UiControllerPrivate)
+UiController::UiController()
+    : d(new UiControllerPrivate)
 {
 }
 
@@ -52,7 +51,7 @@ UiController::~UiController()
 
 bool UiController::hasRightSplitterState() const
 {
-    return d->rightSplitterState.size() > 0;
+    return !d->rightSplitterState.isEmpty();
 }
 
 QByteArray UiController::rightSplitterState() const
@@ -62,7 +61,7 @@ QByteArray UiController::rightSplitterState() const
 
 bool UiController::hasRightHorizSplitterState() const
 {
-    return  d->rightHorizSplitterState.size() > 0;
+    return  !d->rightHorizSplitterState.isEmpty();
 }
 
 QByteArray UiController::rightHorizSplitterState() const

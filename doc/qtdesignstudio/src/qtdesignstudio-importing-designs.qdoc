@@ -1,0 +1,50 @@
+/****************************************************************************
+**
+** Copyright (C) 2020 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Bridge documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+/*!
+    \previouspage creator-vcs-git.html
+    \page studio-importing-designs.html
+    \nextpage studio-importing-2d.html
+
+    \title Importing Designs
+
+    You can import 2D and 3D assets to \QDS projects. You need to use \QB for
+    exporting the 2D assets from design tools, whereas you can directly import
+    3D assets saved in widely-used 3D graphics formats.
+
+    You can download \QB from the \l{https://marketplace.qt.io/}{Qt Marketplace}.
+
+    \list
+        \li \l{Importing 2D Assets}
+
+            You can import 2D assets that you exported with \QB to a \QDS
+            project as image and QML files and edit them in the Design mode.
+        \li \l{Importing 3D Assets}
+
+            You can import 3D assets that you created using 3D graphics
+            applications and stored in one of the supported file formats.
+            You can then edit them in the Design mode.
+    \endlist
+*/

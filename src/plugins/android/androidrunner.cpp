@@ -45,7 +45,7 @@
 #include <QLoggingCategory>
 
 namespace {
-Q_LOGGING_CATEGORY(androidRunnerLog, "qtc.android.run.androidrunner", QtWarningMsg)
+static Q_LOGGING_CATEGORY(androidRunnerLog, "qtc.android.run.androidrunner", QtWarningMsg)
 }
 
 using namespace ProjectExplorer;
@@ -119,7 +119,7 @@ namespace Android {
 namespace Internal {
 
 AndroidRunner::AndroidRunner(RunControl *runControl, const QString &intentName)
-    : RunWorker(runControl), m_target(runControl->runConfiguration()->target())
+    : RunWorker(runControl), m_target(runControl->target())
 {
     setId("AndroidRunner");
     static const int metaTypes[] = {
@@ -127,7 +127,7 @@ AndroidRunner::AndroidRunner(RunControl *runControl, const QString &intentName)
         qRegisterMetaType<Utils::Port>("Utils::Port"),
         qRegisterMetaType<AndroidDeviceInfo>("Android::AndroidDeviceInfo")
     };
-    Q_UNUSED(metaTypes);
+    Q_UNUSED(metaTypes)
 
     m_checkAVDTimer.setInterval(2000);
     connect(&m_checkAVDTimer, &QTimer::timeout, this, &AndroidRunner::checkAVD);
@@ -224,7 +224,7 @@ void AndroidRunner::remoteErrorOutput(const QString &output)
 }
 
 void AndroidRunner::handleRemoteProcessStarted(Utils::Port gdbServerPort,
-                                               const QUrl &qmlServer, int pid)
+                                               const QUrl &qmlServer, qint64 pid)
 {
     m_pid = ProcessHandle(pid);
     m_gdbServerPort = gdbServerPort;
@@ -246,11 +246,11 @@ void AndroidRunner::launchAVD()
         return;
 
     int deviceAPILevel = AndroidManager::minimumSDK(m_target);
-    QString targetArch = AndroidManager::targetArch(m_target);
+    QStringList androidAbis = AndroidManager::applicationAbis(m_target);
 
     // Get AVD info.
     AndroidDeviceInfo info = AndroidConfigurations::showDeviceDialog(
-                m_target->project(), deviceAPILevel, targetArch);
+                m_target->project(), deviceAPILevel, androidAbis);
     AndroidManager::setDeviceSerialNumber(m_target, info.serialNumber);
     emit androidDeviceInfoChanged(info);
     if (info.isValid()) {

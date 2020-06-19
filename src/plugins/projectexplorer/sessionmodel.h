@@ -53,7 +53,7 @@ public:
     explicit SessionModel(QObject *parent = nullptr);
 
     int indexOfSession(const QString &session);
-    QString sessionAt(int row);
+    QString sessionAt(int row) const;
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     int columnCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -61,6 +61,7 @@ public:
     QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
     QVariant data(const QModelIndex &index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
+    void sort(int column, Qt::SortOrder order = Qt::AscendingOrder) override;
 
     Q_SCRIPTABLE bool isDefaultVirgin() const;
 
@@ -72,12 +73,16 @@ public slots:
     void resetSessions();
     void newSession(QWidget *parent);
     void cloneSession(QWidget *parent, const QString &session);
-    void deleteSession(const QString &session);
+    void deleteSessions(const QStringList &sessions);
     void renameSession(QWidget *parent, const QString &session);
     void switchToSession(const QString &session);
 
 private:
     void runSessionNameInputDialog(ProjectExplorer::Internal::SessionNameInputDialog *sessionInputDialog, std::function<void(const QString &)> createSession);
+
+    QStringList m_sortedSessions;
+    int m_currentSortColumn = 0;
+    Qt::SortOrder m_currentSortOrder = Qt::AscendingOrder;
 };
 
 } // namespace Internal

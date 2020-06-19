@@ -32,41 +32,60 @@
 #include <QStringList>
 #include <QVector>
 
+QT_BEGIN_NAMESPACE
+class QSettings;
+QT_END_NAMESPACE
+
 namespace CppTools {
 
+// TODO: Split this class as needed for ClangCodeModel and ClangTools
 class CPPTOOLS_EXPORT ClangDiagnosticConfig
 {
 public:
-    enum class TidyMode
-    {
-        Disabled = 0,
-        ChecksPrefixList,
-        File
-    };
-
     Core::Id id() const;
     void setId(const Core::Id &id);
 
     QString displayName() const;
     void setDisplayName(const QString &displayName);
 
+    bool isReadOnly() const;
+    void setIsReadOnly(bool isReadOnly);
+
     QStringList clangOptions() const;
     void setClangOptions(const QStringList &options);
+
+    bool useBuildSystemWarnings() const;
+    void setUseBuildSystemWarnings(bool useBuildSystemWarnings);
+
+    // Clang-Tidy
+    enum class TidyMode
+    {
+        // Disabled, // Used by Qt Creator 4.10 and below.
+        UseCustomChecks = 1,
+        UseConfigFile,
+        UseDefaultChecks,
+    };
+    TidyMode clangTidyMode() const;
+    void setClangTidyMode(TidyMode mode);
 
     QString clangTidyChecks() const;
     void setClangTidyChecks(const QString &checks);
 
-    TidyMode clangTidyMode() const;
-    void setClangTidyMode(TidyMode mode);
+    bool isClangTidyEnabled() const;
+
+    // Clazy
+    enum class ClazyMode
+    {
+        UseDefaultChecks,
+        UseCustomChecks,
+    };
+    ClazyMode clazyMode() const;
+    void setClazyMode(const ClazyMode &clazyMode);
 
     QString clazyChecks() const;
     void setClazyChecks(const QString &checks);
 
-    bool isReadOnly() const;
-    void setIsReadOnly(bool isReadOnly);
-
-    bool useBuildSystemWarnings() const;
-    void setUseBuildSystemWarnings(bool useBuildSystemWarnings);
+    bool isClazyEnabled() const;
 
     bool operator==(const ClangDiagnosticConfig &other) const;
     bool operator!=(const ClangDiagnosticConfig &other) const;
@@ -75,13 +94,18 @@ private:
     Core::Id m_id;
     QString m_displayName;
     QStringList m_clangOptions;
-    TidyMode m_clangTidyMode = TidyMode::Disabled;
+    TidyMode m_clangTidyMode = TidyMode::UseDefaultChecks;
     QString m_clangTidyChecks;
     QString m_clazyChecks;
+    ClazyMode m_clazyMode = ClazyMode::UseDefaultChecks;
     bool m_isReadOnly = false;
     bool m_useBuildSystemWarnings = false;
 };
 
 using ClangDiagnosticConfigs = QVector<ClangDiagnosticConfig>;
+
+ClangDiagnosticConfigs CPPTOOLS_EXPORT diagnosticConfigsFromSettings(QSettings *s);
+void CPPTOOLS_EXPORT diagnosticConfigsToSettings(QSettings *s,
+                                                 const ClangDiagnosticConfigs &configs);
 
 } // namespace CppTools

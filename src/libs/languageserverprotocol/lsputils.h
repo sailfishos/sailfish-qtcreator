@@ -71,6 +71,8 @@ public:
     using Utils::variant<QList<T>, std::nullptr_t>::variant;
     using Utils::variant<QList<T>, std::nullptr_t>::operator=;
 
+    LanguageClientArray() {}
+
     LanguageClientArray(const QList<T> &list)
     { *this = list; }
 
@@ -116,7 +118,7 @@ public:
     LanguageClientValue(const T &value) : Utils::variant<T, std::nullptr_t>(value) { }
     LanguageClientValue(const QJsonValue &value)
     {
-        if (QTC_GUARD(value.isUndefined()) || value.isNull())
+        if (!QTC_GUARD(!value.isUndefined()) || value.isNull())
             *this = nullptr;
         else
             *this = fromJsonValue<T>(value);
@@ -162,5 +164,25 @@ QList<T> jsonArrayToList(const QJsonArray &array)
         list << fromJsonValue<T>(val);
     return list;
 }
+
+class LANGUAGESERVERPROTOCOL_EXPORT ErrorHierarchy
+{
+public:
+    ErrorHierarchy() = default;
+
+    void setError(const QString &error) { m_error = error; }
+    void prependMember(const QString &member) { m_hierarchy.prepend(member); }
+    void addVariantHierachy(const ErrorHierarchy &subError) { m_children.append(subError); }
+    void clear();
+
+    bool isEmpty() const;
+    QString toString() const;
+
+    bool operator==(const ErrorHierarchy &other) const;
+private:
+    QStringList m_hierarchy;
+    QList<ErrorHierarchy> m_children;
+    QString m_error;
+};
 
 } // namespace LanguageClient

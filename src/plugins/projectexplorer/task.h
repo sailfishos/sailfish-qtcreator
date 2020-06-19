@@ -45,6 +45,8 @@ class TaskHub;
 // Documentation inside.
 class PROJECTEXPLORER_EXPORT Task
 {
+    Q_DECLARE_TR_FUNCTIONS(ProjectExplorer::Task)
+
 public:
     enum TaskType : char {
         Unknown,
@@ -61,7 +63,7 @@ public:
 
     Task() = default;
     Task(TaskType type, const QString &description,
-         const Utils::FileName &file, int line, Core::Id category,
+         const Utils::FilePath &file, int line, Core::Id category,
          const QIcon &icon = QIcon(),
          Options options = AddTextMark | FlashWorthy);
 
@@ -70,12 +72,14 @@ public:
 
     bool isNull() const;
     void clear();
+    void setFile(const Utils::FilePath &file);
 
     unsigned int taskId = 0;
     TaskType type = Unknown;
     Options options = AddTextMark | FlashWorthy;
     QString description;
-    Utils::FileName file;
+    Utils::FilePath file;
+    Utils::FilePaths fileCandidates;
     int line = -1;
     int movedLine = -1; // contains a line number if the line was moved in the editor
     Core::Id category;
@@ -100,13 +104,39 @@ private:
     friend class TaskHub;
 };
 
+class PROJECTEXPLORER_EXPORT CompileTask : public Task
+{
+public:
+    CompileTask(TaskType type,
+                 const QString &description,
+                 const Utils::FilePath &file = {},
+                 int line = -1);
+};
+
+class PROJECTEXPLORER_EXPORT BuildSystemTask : public Task
+{
+public:
+    BuildSystemTask(TaskType type,
+                    const QString &description,
+                    const Utils::FilePath &file = {},
+                    int line = -1);
+};
+
+class PROJECTEXPLORER_EXPORT DeploymentTask : public Task
+{
+public:
+    DeploymentTask(TaskType type, const QString &description);
+};
+
+using Tasks = QVector<Task>;
+
 bool PROJECTEXPLORER_EXPORT operator==(const Task &t1, const Task &t2);
 uint PROJECTEXPLORER_EXPORT qHash(const Task &task);
 
 bool PROJECTEXPLORER_EXPORT operator<(const Task &a, const Task &b);
 
-QString PROJECTEXPLORER_EXPORT toHtml(const QList<Task> &issues);
-bool PROJECTEXPLORER_EXPORT containsType(const QList<Task> &issues, Task::TaskType);
+QString PROJECTEXPLORER_EXPORT toHtml(const Tasks &issues);
+bool PROJECTEXPLORER_EXPORT containsType(const Tasks &issues, Task::TaskType);
 
 } //namespace ProjectExplorer
 

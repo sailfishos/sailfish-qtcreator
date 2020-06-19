@@ -25,11 +25,7 @@
 
 #pragma once
 
-#include "compilationdatabaseproject.h"
-
-#include <coreplugin/id.h>
 #include <extensionsystem/iplugin.h>
-#include <utils/parameteraction.h>
 
 namespace CompilationDatabaseProjectManager {
 namespace Internal {
@@ -39,13 +35,12 @@ class CompilationDatabaseProjectManagerPlugin final : public ExtensionSystem::IP
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "CompilationDatabaseProjectManager.json")
 
-public:
-    bool initialize(const QStringList &arguments, QString *errorMessage) final;
-    void extensionsInitialized() final;
-private:
-    QList<QObject *> createTestObjects() const final;
+    ~CompilationDatabaseProjectManagerPlugin();
 
-    CompilationDatabaseEditorFactory factory;
+    bool initialize(const QStringList &arguments, QString *errorMessage) final;
+    QVector<QObject *> createTestObjects() const final;
+
+    class CompilationDatabaseProjectManagerPluginPrivate *d = nullptr;
 };
 
 } // namespace Internal

@@ -47,14 +47,10 @@ bool Line::fromString(Line::SymbolKind &type, const std::string &str)
     return result;
 }
 
-BaseNimSuggestClientRequest::BaseNimSuggestClientRequest(quint64 id)
+NimSuggestClientRequest::NimSuggestClientRequest(quint64 id)
     : m_id(id)
 {}
 
-quint64 BaseNimSuggestClientRequest::id() const
-{
-    return m_id;
-}
 
 } // namespace Suggest
 } // namespace Nim

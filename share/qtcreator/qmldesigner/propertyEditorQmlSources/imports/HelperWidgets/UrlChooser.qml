@@ -25,23 +25,21 @@
 
 import QtQuick 2.1
 import HelperWidgets 2.0
-import QtQuick.Controls 1.1 as Controls
+import StudioControls 1.0 as StudioControls
+import StudioTheme 1.0 as StudioTheme
 import QtQuick.Layouts 1.0
-import QtQuick.Controls.Styles 1.1
 
 RowLayout {
     id: urlChooser
+
     property variant backendValue
-
     property color textColor: colorLogic.highlight ? colorLogic.textColor : "white"
-
-    property string filter: "*.png *.gif *.jpg *.bmp *.jpeg *.svg"
-
+    property string filter: "*.png *.gif *.jpg *.bmp *.jpeg *.svg *.pbm *.pgm *.ppm *.xbm *.xpm"
 
     FileResourcesModel {
+        id: fileModel
         modelNodeBackendProperty: modelNodeBackend
         filter: urlChooser.filter
-        id: fileModel
     }
 
     ColorLogic {
@@ -49,78 +47,93 @@ RowLayout {
         backendValue: urlChooser.backendValue
     }
 
-    Controls.ComboBox {
+    StudioControls.ComboBox {
         id: comboBox
 
-        ExtendedFunctionButton {
-            x: 2
-            anchors.verticalCenter: parent.verticalCenter
+        actionIndicator.icon.color: extFuncLogic.color
+        actionIndicator.icon.text: extFuncLogic.glyph
+        actionIndicator.onClicked: extFuncLogic.show()
+        actionIndicator.forceVisible: extFuncLogic.menuVisible
+
+        ExtendedFunctionLogic {
+            id: extFuncLogic
             backendValue: urlChooser.backendValue
-            visible: urlChooser.enabled
         }
 
         property bool isComplete: false
+        property bool dirty: false
+
+        onEditTextChanged: comboBox.dirty = true
 
         function setCurrentText(text) {
-            if (text === "")
-                return
-
-
-            var index = comboBox.find(textValue)
+            var index = comboBox.find(text)
             if (index === -1)
                 currentIndex = -1
-            editText = textValue
+
+            comboBox.editText = text
+            comboBox.dirty = false
         }
 
         property string textValue: {
-            if (backendValue.isBound)
-                return backendValue.expression
+            if (urlChooser.backendValue.isBound)
+                return urlChooser.backendValue.expression
 
-            return backendValue.valueToString
+            return urlChooser.backendValue.valueToString
         }
 
-        onTextValueChanged: {
-            setCurrentText(textValue)
-        }
+        onTextValueChanged: comboBox.setCurrentText(comboBox.textValue)
 
         Layout.fillWidth: true
 
         editable: true
-        style: CustomComboBoxStyle {
-            textColor: urlChooser.textColor
-        }
 
         model: fileModel.fileModel
 
         onModelChanged: {
             if (!comboBox.isComplete)
-                return;
+                return
 
-            setCurrentText(textValue)
+            comboBox.setCurrentText(comboBox.textValue)
         }
+
         onAccepted: {
             if (!comboBox.isComplete)
-                return;
+                return
 
-            if (backendValue.value !== currentText)
-                backendValue.value = currentText;
+            if (comboBox.backendValue.value !== comboBox.editText)
+                comboBox.backendValue.value = comboBox.editText
+
+            comboBox.dirty = false
         }
 
-        onActivated: {
-            var cText = textAt(index)
-            print(cText)
-            if (backendValue === undefined)
-                return;
+        onFocusChanged: {
+            if (comboBox.dirty)
+               comboBox.handleActivate(comboBox.currentIndex)
+        }
+
+        onCompressedActivated: comboBox.handleActivate(index)
+
+        function handleActivate(index)
+        {
+            var cText = comboBox.textAt(index)
+
+            if (index === -1)
+                cText = comboBox.editText
+
+            if (urlChooser.backendValue === undefined)
+                return
 
             if (!comboBox.isComplete)
-                return;
+                return
 
-            if (backendValue.value !== cText)
-                backendValue.value = cText;
+            if (urlChooser.backendValue.value !== cText)
+                urlChooser.backendValue.value = cText
+
+            comboBox.dirty = false
         }
 
         Component.onCompleted: {
-            //Hack to style the text input
+            // Hack to style the text input
             for (var i = 0; i < comboBox.children.length; i++) {
                 if (comboBox.children[i].text !== undefined) {
                     comboBox.children[i].color = urlChooser.textColor
@@ -128,55 +141,17 @@ RowLayout {
                 }
             }
             comboBox.isComplete = true
-            setCurrentText(textValue)
+            comboBox.setCurrentText(comboBox.textValue)
         }
-
     }
 
-    RoundedPanel {
-        roundLeft: true
-        roundRight: true
-        width: 24
-        height: 18
-
-        RoundedPanel {
-            id: darkPanel
-            roundLeft: true
-            roundRight: true
-
-            anchors.fill: parent
-
-            opacity: 0
-
-            Behavior on opacity {
-                PropertyAnimation {
-                    duration: 100
-                }
-            }
-
-
-            gradient: Gradient {
-                GradientStop {color: '#444' ; position: 0}
-                GradientStop {color: '#333' ; position: 1}
-            }
-        }
-
-        Text {
-            renderType: Text.NativeRendering
-            text: "..."
-            color: urlChooser.textColor
-            anchors.centerIn: parent
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            onClicked: {
-                darkPanel.opacity = 1
-                fileModel.openFileDialog()
-                if (fileModel.fileName != "")
-                    backendValue.value = fileModel.fileName
-                darkPanel.opacity = 0
-            }
+    StudioControls.AbstractButton {
+        buttonIcon: StudioTheme.Constants.addFile
+        iconColor: urlChooser.textColor
+        onClicked: {
+            fileModel.openFileDialog()
+            if (fileModel.fileName !== "")
+                urlChooser.backendValue.value = fileModel.fileName
         }
     }
 }

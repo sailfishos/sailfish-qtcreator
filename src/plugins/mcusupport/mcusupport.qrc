@@ -1,0 +1,16 @@
+<RCC>
+    <qresource prefix="/mcusupport">
+        <file>images/mcusupportdevice.png</file>
+        <file>images/mcusupportdevice@2x.png</file>
+        <file>images/mcusupportdevicesmall.png</file>
+        <file>images/mcusupportdevicesmall@2x.png</file>
+        <file>wizards/icon.png</file>
+        <file>wizards/icon@2x.png</file>
+        <file>wizards/application/CMakeLists.txt</file>
+        <file>wizards/application/project.qmlproject.tpl</file>
+        <file>wizards/application/BareMetal/main.cpp.tpl</file>
+        <file>wizards/application/FreeRTOS/main.cpp.tpl</file>
+        <file>wizards/application/main.qml.tpl</file>
+        <file>wizards/application/wizard.json</file>
+    </qresource>
+</RCC>

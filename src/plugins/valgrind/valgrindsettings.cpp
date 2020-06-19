@@ -82,9 +82,7 @@ template <typename T> void setIfPresent(const QVariantMap &map, const QString &k
         *val = map.value(key).template value<T>();
 }
 
-ValgrindBaseSettings::ValgrindBaseSettings(const ConfigWidgetCreator &creator)
-    : ISettingsAspect(creator)
-{}
+ValgrindBaseSettings::ValgrindBaseSettings() = default;
 
 void ValgrindBaseSettings::fromMap(const QVariantMap &map)
 {
@@ -301,10 +299,19 @@ void ValgrindBaseSettings::setVisualisationMinimumInclusiveCostRatio(
 //
 //////////////////////////////////////////////////////////////////
 
+static ValgrindGlobalSettings *theGlobalSettings = nullptr;
+
 ValgrindGlobalSettings::ValgrindGlobalSettings()
-    : ValgrindBaseSettings([this] { return new ValgrindConfigWidget(this, true); })
 {
+    theGlobalSettings = this;
+
+    setConfigWidgetCreator([this] { return ValgrindOptionsPage::createSettingsWidget(this); });
     readSettings();
+}
+
+ValgrindGlobalSettings *ValgrindGlobalSettings::instance()
+{
+    return theGlobalSettings;
 }
 
 void ValgrindGlobalSettings::fromMap(const QVariantMap &map)
@@ -486,8 +493,9 @@ void ValgrindGlobalSettings::setShortenTemplates(bool on)
 //////////////////////////////////////////////////////////////////
 
 ValgrindProjectSettings::ValgrindProjectSettings()
-    : ValgrindBaseSettings([this] { return new ValgrindConfigWidget(this, false); })
-{}
+{
+    setConfigWidgetCreator([this] { return ValgrindOptionsPage::createSettingsWidget(this); });
+}
 
 void ValgrindProjectSettings::fromMap(const QVariantMap &map)
 {
@@ -513,8 +521,8 @@ void ValgrindProjectSettings::toMap(QVariantMap &map) const
 
 void ValgrindProjectSettings::addSuppressionFiles(const QStringList &suppressions)
 {
-    QStringList globalSuppressions = ValgrindPlugin::globalSettings()->suppressionFiles();
-    foreach (const QString &s, suppressions) {
+    const QStringList globalSuppressions = ValgrindGlobalSettings::instance()->suppressionFiles();
+    for (const QString &s : suppressions) {
         if (m_addedSuppressionFiles.contains(s))
             continue;
         m_disabledGlobalSuppressionFiles.removeAll(s);
@@ -525,8 +533,8 @@ void ValgrindProjectSettings::addSuppressionFiles(const QStringList &suppression
 
 void ValgrindProjectSettings::removeSuppressionFiles(const QStringList &suppressions)
 {
-    QStringList globalSuppressions = ValgrindPlugin::globalSettings()->suppressionFiles();
-    foreach (const QString &s, suppressions) {
+    const QStringList globalSuppressions = ValgrindGlobalSettings::instance()->suppressionFiles();
+    for (const QString &s : suppressions) {
         m_addedSuppressionFiles.removeAll(s);
         if (globalSuppressions.contains(s))
             m_disabledGlobalSuppressionFiles.append(s);
@@ -535,8 +543,8 @@ void ValgrindProjectSettings::removeSuppressionFiles(const QStringList &suppress
 
 QStringList ValgrindProjectSettings::suppressionFiles() const
 {
-    QStringList ret = ValgrindPlugin::globalSettings()->suppressionFiles();
-    foreach (const QString &s, m_disabledGlobalSuppressionFiles)
+    QStringList ret = ValgrindGlobalSettings::instance()->suppressionFiles();
+    for (const QString &s : m_disabledGlobalSuppressionFiles)
         ret.removeAll(s);
     ret.append(m_addedSuppressionFiles);
     return ret;

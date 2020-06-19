@@ -127,7 +127,7 @@ void runSilverSeacher(FutureInterfaceType &fi, FileFindParameters parameters)
     if (!params.searchOptions.isEmpty())
         arguments << params.searchOptions.split(' ');
 
-    const FileName path = FileName::fromUserInput(FileUtils::normalizePathName(directory));
+    const FilePath path = FilePath::fromUserInput(FileUtils::normalizePathName(directory));
     arguments << "--" << parameters.text << path.toString();
 
     QProcess process;
@@ -165,7 +165,7 @@ FindInFilesSilverSearcher::FindInFilesSilverSearcher(QObject *parent)
 {
     m_widget = new QWidget;
     auto layout = new QHBoxLayout(m_widget);
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     m_searchOptionsLineEdit = new QLineEdit;
     m_searchOptionsLineEdit->setPlaceholderText(tr("Search Options (optional)"));
     layout->addWidget(m_searchOptionsLineEdit);
@@ -190,7 +190,7 @@ QVariant FindInFilesSilverSearcher::parameters() const
 {
     SilverSearcherSearchOptions silverSearcherSearchOptions;
     silverSearcherSearchOptions.searchOptions = m_searchOptionsLineEdit->text();
-    return qVariantFromValue(silverSearcherSearchOptions);
+    return QVariant::fromValue(silverSearcherSearchOptions);
 }
 
 QString FindInFilesSilverSearcher::title() const

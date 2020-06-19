@@ -28,10 +28,10 @@
 
 #include "../nimconstants.h"
 
+#include <projectexplorer/buildsystem.h>
 #include <projectexplorer/localenvironmentaspect.h>
 #include <projectexplorer/runconfigurationaspects.h>
-
-#include <utils/environment.h>
+#include <projectexplorer/runcontrol.h>
 
 #include <QDir>
 #include <QFileInfo>
@@ -41,58 +41,37 @@ using namespace Utils;
 
 namespace Nim {
 
-NimRunConfiguration::NimRunConfiguration(Target *target, Core::Id id)
-    : RunConfiguration(target, id)
+class NimRunConfiguration final : public RunConfiguration
 {
-    auto envAspect = addAspect<LocalEnvironmentAspect>
-            (target, LocalEnvironmentAspect::BaseEnvironmentModifier());
+    Q_DECLARE_TR_FUNCTIONS(Nim::NimRunConfiguration)
 
-    addAspect<ExecutableAspect>();
-    addAspect<ArgumentsAspect>();
-    addAspect<WorkingDirectoryAspect>(envAspect);
-    addAspect<TerminalAspect>();
+public:
+    NimRunConfiguration(Target *target, Core::Id id)
+        : RunConfiguration(target, id)
+    {
+        addAspect<LocalEnvironmentAspect>(target);
+        addAspect<ExecutableAspect>();
+        addAspect<ArgumentsAspect>();
+        addAspect<WorkingDirectoryAspect>();
+        addAspect<TerminalAspect>();
 
-    setDisplayName(tr("Current Build Target"));
-    setDefaultDisplayName(tr("Current Build Target"));
+        setDisplayName(tr("Current Build Target"));
+        setDefaultDisplayName(tr("Current Build Target"));
 
-    // Connect target signals
-    connect(target, &Target::activeBuildConfigurationChanged,
-            this, &NimRunConfiguration::updateConfiguration);
-    updateConfiguration();
-}
+        setUpdater([this, target] {
+            auto buildConfiguration = qobject_cast<NimBuildConfiguration *>(target->activeBuildConfiguration());
+            QTC_ASSERT(buildConfiguration, return);
+            const QFileInfo outFileInfo = buildConfiguration->outFilePath().toFileInfo();
+            aspect<ExecutableAspect>()->setExecutable(FilePath::fromString(outFileInfo.absoluteFilePath()));
+            const QString workingDirectory = outFileInfo.absoluteDir().absolutePath();
+            aspect<WorkingDirectoryAspect>()->setDefaultWorkingDirectory(FilePath::fromString(workingDirectory));
+        });
 
-void NimRunConfiguration::updateConfiguration()
-{
-    auto buildConfiguration = qobject_cast<NimBuildConfiguration *>(activeBuildConfiguration());
-    QTC_ASSERT(buildConfiguration, return);
-    setActiveBuildConfiguration(buildConfiguration);
-    const QFileInfo outFileInfo = buildConfiguration->outFilePath().toFileInfo();
-    aspect<ExecutableAspect>()->setExecutable(FileName::fromString(outFileInfo.absoluteFilePath()));
-    const QString workingDirectory = outFileInfo.absoluteDir().absolutePath();
-    aspect<WorkingDirectoryAspect>()->setDefaultWorkingDirectory(FileName::fromString(workingDirectory));
-}
-
-void NimRunConfiguration::setActiveBuildConfiguration(NimBuildConfiguration *activeBuildConfiguration)
-{
-    if (m_buildConfiguration == activeBuildConfiguration)
-        return;
-
-    if (m_buildConfiguration) {
-        disconnect(m_buildConfiguration, &NimBuildConfiguration::buildDirectoryChanged,
-                   this, &NimRunConfiguration::updateConfiguration);
-        disconnect(m_buildConfiguration, &NimBuildConfiguration::outFilePathChanged,
-                   this, &NimRunConfiguration::updateConfiguration);
+        // Connect target signals
+        connect(target, &Target::buildSystemUpdated, this, &RunConfiguration::update);
+        update();
     }
-
-    m_buildConfiguration = activeBuildConfiguration;
-
-    if (m_buildConfiguration) {
-        connect(m_buildConfiguration, &NimBuildConfiguration::buildDirectoryChanged,
-                this, &NimRunConfiguration::updateConfiguration);
-        connect(m_buildConfiguration, &NimBuildConfiguration::outFilePathChanged,
-                this, &NimRunConfiguration::updateConfiguration);
-    }
-}
+};
 
 // NimRunConfigurationFactory
 
@@ -100,7 +79,6 @@ NimRunConfigurationFactory::NimRunConfigurationFactory() : FixedRunConfiguration
 {
     registerRunConfiguration<NimRunConfiguration>("Nim.NimRunConfiguration");
     addSupportedProjectType(Constants::C_NIMPROJECT_ID);
-    addRunWorkerFactory<SimpleTargetRunner>(ProjectExplorer::Constants::NORMAL_RUN_MODE);
 }
 
 } // Nim

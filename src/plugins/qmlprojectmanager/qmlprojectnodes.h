@@ -28,24 +28,12 @@
 #include <projectexplorer/projectnodes.h>
 
 namespace QmlProjectManager {
-
-class QmlProject;
-
 namespace Internal {
 
 class QmlProjectNode : public ProjectExplorer::ProjectNode
 {
 public:
-    QmlProjectNode(QmlProject *project);
-
-    bool showInSimpleTree() const override;
-    bool supportsAction(ProjectExplorer::ProjectAction action, const Node *node) const override;
-    bool addFiles(const QStringList &filePaths, QStringList *notAdded = nullptr) override;
-    bool deleteFiles(const QStringList &filePaths) override;
-    bool renameFile(const QString &filePath, const QString &newFilePath) override;
-
-private:
-    QmlProject *m_project;
+    explicit QmlProjectNode(ProjectExplorer::Project *project);
 };
 
 } // namespace Internal

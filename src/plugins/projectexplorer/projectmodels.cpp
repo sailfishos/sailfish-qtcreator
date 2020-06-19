@@ -25,6 +25,7 @@
 
 #include "projectmodels.h"
 
+#include "buildsystem.h"
 #include "project.h"
 #include "projectnodes.h"
 #include "projectexplorer.h"
@@ -59,14 +60,15 @@
 #include <QVBoxLayout>
 
 #include <functional>
+#include <tuple>
+#include <vector>
 
 using namespace Utils;
 
 namespace ProjectExplorer {
+namespace Internal {
 
-using namespace Internal;
-
-static bool sortNodes(const Node *n1, const Node *n2)
+bool compareNodes(const Node *n1, const Node *n2)
 {
     if (n1->priority() > n2->priority())
         return true;
@@ -86,7 +88,7 @@ static bool sortNodes(const Node *n1, const Node *n2)
 
 static bool sortWrapperNodes(const WrapperNode *w1, const WrapperNode *w2)
 {
-    return sortNodes(w1->m_node, w2->m_node);
+    return compareNodes(w1->m_node, w2->m_node);
 }
 
 FlatModel::FlatModel(QObject *parent)
@@ -111,88 +113,72 @@ FlatModel::FlatModel(QObject *parent)
 
 QVariant FlatModel::data(const QModelIndex &index, int role) const
 {
-    QVariant result;
+    const Node * const node = nodeForIndex(index);
+    if (!node)
+        return QVariant();
 
-    if (const Node *node = nodeForIndex(index)) {
-        const FolderNode *folderNode = node->asFolderNode();
-        const ContainerNode *containerNode = node->asContainerNode();
-        const Project *project = containerNode ? containerNode->project() : nullptr;
+    const FolderNode * const folderNode = node->asFolderNode();
+    const ContainerNode * const containerNode = node->asContainerNode();
+    const Project * const project = containerNode ? containerNode->project() : nullptr;
+    const Target * const target = project ? project->activeTarget() : nullptr;
+    const BuildSystem * const bs = target ? target->buildSystem() : nullptr;
 
-        switch (role) {
-        case Qt::DisplayRole: {
-            result = node->displayName();
-            break;
-        }
-        case Qt::EditRole: {
-            result = node->filePath().fileName();
-            break;
-        }
-        case Qt::ToolTipRole: {
-            QString tooltip = node->tooltip();
-
-            if (project) {
-                if (project->activeTarget()) {
-                    QString projectIssues = toHtml(project->projectIssues(project->activeTarget()->kit()));
-                    if (!projectIssues.isEmpty())
-                        tooltip += "<p>" + projectIssues;
-                } else {
-                    tooltip += "<p>" + tr("No kits are enabled for this project. "
-                                          "Enable kits in the \"Projects\" mode.");
-                }
-            }
-            result = tooltip;
-            break;
-        }
-        case Qt::DecorationRole: {
-            if (folderNode) {
-                static QIcon warnIcon = Utils::Icons::WARNING.icon();
-                static QIcon emptyIcon = Utils::Icons::EMPTY16.icon();
-                if (project) {
-                    if (project->isParsing())
-                        result = emptyIcon;
-                    else if (!project->activeTarget()
-                             || !project->projectIssues(project->activeTarget()->kit()).isEmpty())
-                        result = warnIcon;
-                    else
-                        result = containerNode->rootProjectNode() ? containerNode->rootProjectNode()->icon() :
-                                                                    folderNode->icon();
-                } else {
-                    result = folderNode->icon();
-                }
+    switch (role) {
+    case Qt::DisplayRole:
+        return node->displayName();
+    case Qt::EditRole:
+        return node->filePath().fileName();
+    case Qt::ToolTipRole: {
+        QString tooltip = node->tooltip();
+        if (project) {
+            if (target) {
+                QString projectIssues = toHtml(project->projectIssues(project->activeTarget()->kit()));
+                if (!projectIssues.isEmpty())
+                    tooltip += "<p>" + projectIssues;
             } else {
-                result = Core::FileIconProvider::icon(node->filePath().toString());
+                tooltip += "<p>" + tr("No kits are enabled for this project. "
+                                      "Enable kits in the \"Projects\" mode.");
             }
-            break;
         }
-        case Qt::FontRole: {
-            QFont font;
-            if (project == SessionManager::startupProject())
-                font.setBold(true);
-            result = font;
-            break;
-        }
-        case Qt::TextColorRole: {
-            result = node->isEnabled() ? m_enabledTextColor : m_disabledTextColor;
-            break;
-        }
-        case Project::FilePathRole: {
-            result = node->filePath().toString();
-            break;
-        }
-        case Project::isParsingRole: {
-            result = project ? project->isParsing() : false;
-            break;
-        }
-        }
+        return tooltip;
+    }
+    case Qt::DecorationRole: {
+        if (!folderNode)
+            return Core::FileIconProvider::icon(node->filePath().toString());
+        if (!project)
+            return folderNode->icon();
+        static QIcon warnIcon = Utils::Icons::WARNING.icon();
+        static QIcon emptyIcon = Utils::Icons::EMPTY16.icon();
+        if (project->needsConfiguration())
+            return warnIcon;
+        if (bs && bs->isParsing())
+            return emptyIcon;
+        if (!target || !project->projectIssues(target->kit()).isEmpty())
+            return warnIcon;
+        return containerNode->rootProjectNode() ? containerNode->rootProjectNode()->icon()
+                                                : folderNode->icon();
+    }
+    case Qt::FontRole: {
+        QFont font;
+        if (project == SessionManager::startupProject())
+            font.setBold(true);
+        return font;
+    }
+    case Qt::ForegroundRole:
+        return node->isEnabled() ? m_enabledTextColor : m_disabledTextColor;
+    case Project::FilePathRole:
+        return node->filePath().toString();
+    case Project::isParsingRole:
+        return project && bs ? bs->isParsing() && !project->needsConfiguration() : false;
     }
 
-    return result;
+    return QVariant();
 }
 
 Qt::ItemFlags FlatModel::flags(const QModelIndex &index) const
 {
     if (!index.isValid())
-        return nullptr;
+        return {};
     // We claim that everything is editable
     // That's slightly wrong
     // We control the only view, and that one does the checks
@@ -219,11 +205,53 @@ bool FlatModel::setData(const QModelIndex &index, const QVariant &value, int rol
     Node *node = nodeForIndex(index);
     QTC_ASSERT(node, return false);
 
-    Utils::FileName orgFilePath = node->filePath();
-    Utils::FileName newFilePath = orgFilePath.parentDir().appendPath(value.toString());
+    std::vector<std::tuple<Node *, FilePath, FilePath>> toRename;
+    const Utils::FilePath orgFilePath = node->filePath();
+    const Utils::FilePath newFilePath = orgFilePath.parentDir().pathAppended(value.toString());
+    const QFileInfo orgFileInfo = orgFilePath.toFileInfo();
+    toRename.emplace_back(std::make_tuple(node, orgFilePath, newFilePath));
 
-    ProjectExplorerPlugin::renameFile(node, newFilePath.toString());
-    emit renamed(orgFilePath, newFilePath);
+    // The base name of the file was changed. Go look for other files with the same base name
+    // and offer to rename them as well.
+    if (orgFilePath != newFilePath && orgFileInfo.suffix() == newFilePath.toFileInfo().suffix()) {
+        ProjectNode *productNode = node->parentProjectNode();
+        while (productNode && !productNode->isProduct())
+            productNode = productNode->parentProjectNode();
+        if (productNode) {
+            const auto filter = [&orgFilePath, &orgFileInfo](const Node *n) {
+                return n->asFileNode()
+                        && n->filePath().toFileInfo().dir() == orgFileInfo.dir()
+                        && n->filePath().toFileInfo().completeBaseName()
+                                == orgFileInfo.completeBaseName()
+                        && n->filePath() != orgFilePath;
+            };
+            const QList<Node *> candidateNodes = productNode->findNodes(filter);
+            if (!candidateNodes.isEmpty()) {
+                const QMessageBox::StandardButton reply = QMessageBox::question(
+                            Core::ICore::mainWindow(), tr("Rename More Files?"),
+                            tr("Would you like to rename these files as well?\n    %1")
+                            .arg(transform<QStringList>(candidateNodes, [](const Node *n) {
+                    return n->filePath().toFileInfo().fileName();
+                }).join("\n    ")));
+                if (reply == QMessageBox::Yes) {
+                    for (Node * const n : candidateNodes) {
+                        QString targetFilePath = orgFileInfo.absolutePath() + '/'
+                                + newFilePath.toFileInfo().completeBaseName();
+                        const QString suffix = n->filePath().toFileInfo().suffix();
+                        if (!suffix.isEmpty())
+                            targetFilePath.append('.').append(suffix);
+                        toRename.emplace_back(std::make_tuple(n, n->filePath(),
+                                FilePath::fromString(targetFilePath)));
+                    }
+                }
+            }
+        }
+    }
+
+    for (const auto &f : toRename) {
+        ProjectExplorerPlugin::renameFile(std::get<0>(f), std::get<2>(f).toString());
+        emit renamed(std::get<1>(f), std::get<2>(f));
+    }
     return true;
 }
 
@@ -261,7 +289,7 @@ void FlatModel::addOrRebuildProjectModel(Project *project)
 
     if (container->childCount() == 0) {
         auto projectFileNode = std::make_unique<FileNode>(project->projectFilePath(),
-                                                          FileType::Project, false);
+                                                          FileType::Project);
         seen.insert(projectFileNode.get());
         container->appendChild(new WrapperNode(projectFileNode.get()));
         project->containerNode()->addNestedNode(std::move(projectFileNode));
@@ -333,12 +361,12 @@ void FlatModel::handleProjectAdded(Project *project)
 {
     QTC_ASSERT(project, return);
 
-    connect(project, &Project::parsingStarted,
+    connect(project, &Project::anyParsingStarted,
             this, [this, project]() {
         if (nodeForProject(project))
             parsingStateChanged(project);
     });
-    connect(project, &Project::parsingFinished,
+    connect(project, &Project::anyParsingFinished,
             this, [this, project]() {
         if (nodeForProject(project))
             parsingStateChanged(project);
@@ -379,6 +407,8 @@ void FlatModel::addFolderNode(WrapperNode *parent, FolderNode *folderNode, QSet<
 {
     for (Node *node : folderNode->nodes()) {
         if (m_filterGeneratedFiles && node->isGenerated())
+            continue;
+        if (m_filterDisabledFiles && !node->isEnabled())
             continue;
         if (FolderNode *subFolderNode = node->asFolderNode()) {
             const bool isHidden = m_filterProjects && !subFolderNode->showInSimpleTree();
@@ -453,11 +483,11 @@ class DropFileDialog : public QDialog
 {
     Q_DECLARE_TR_FUNCTIONS(ProjectExplorer::Internal::FlatModel)
 public:
-    DropFileDialog(const FileName &defaultTargetDir)
+    DropFileDialog(const FilePath &defaultTargetDir)
         : m_buttonBox(new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel)),
           m_buttonGroup(new QButtonGroup(this))
     {
-        setWindowTitle(tr("Please choose a drop action"));
+        setWindowTitle(tr("Choose Drop Action"));
         const bool offerFileIo = !defaultTargetDir.isEmpty();
         auto * const layout = new QVBoxLayout(this);
         layout->addWidget(new QLabel(tr("You just dragged some files from one project node to "
@@ -469,8 +499,8 @@ public:
         m_buttonGroup->addButton(moveButton, int(DropAction::Move));
         layout->addWidget(moveButton);
         if (offerFileIo) {
-            copyButton->setText(tr("Copy only the file references"));
-            moveButton->setText(tr("Move only the file references"));
+            copyButton->setText(tr("Copy Only File References"));
+            moveButton->setText(tr("Move Only File References"));
             auto * const copyWithFilesButton
                     = new QRadioButton(tr("Copy file references and files"), this);
             m_buttonGroup->addButton(copyWithFilesButton, int(DropAction::CopyWithFiles));
@@ -490,9 +520,7 @@ public:
                 m_buttonBox->button(QDialogButtonBox::Ok)->setEnabled(valid);
             });
             targetDirLayout->addWidget(m_targetDirChooser);
-            connect(m_buttonGroup,
-                    static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked),
-                    this, [this] {
+            connect(m_buttonGroup, QOverload<int>::of(&QButtonGroup::buttonClicked), this, [this] {
                 switch (dropAction()) {
                 case DropAction::CopyWithFiles:
                 case DropAction::MoveWithFiles:
@@ -508,8 +536,8 @@ public:
                 }
             });
         } else {
-            copyButton->setText(tr("Copy the file references"));
-            moveButton->setText(tr("Move the file references"));
+            copyButton->setText(tr("Copy File References"));
+            moveButton->setText(tr("Move File References"));
             moveButton->setChecked(true);
         }
         connect(m_buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
@@ -518,9 +546,9 @@ public:
     }
 
     DropAction dropAction() const { return static_cast<DropAction>(m_buttonGroup->checkedId()); }
-    FileName targetDir() const
+    FilePath targetDir() const
     {
-        return m_targetDirChooser ? m_targetDirChooser->fileName() : FileName();
+        return m_targetDirChooser ? m_targetDirChooser->fileName() : FilePath();
     }
 
 private:
@@ -533,7 +561,7 @@ private:
 bool FlatModel::dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column,
                              const QModelIndex &parent)
 {
-    Q_UNUSED(action);
+    Q_UNUSED(action)
 
     const auto * const dropData = dynamic_cast<const DropMimeData *>(data);
     QTC_ASSERT(dropData, return false);
@@ -578,15 +606,15 @@ bool FlatModel::dropMimeData(const QMimeData *data, Qt::DropAction action, int r
 
     // Node weirdness: Sometimes the "file path" is a directory, sometimes it's a file...
     const auto dirForProjectNode = [](const ProjectNode *pNode) {
-        const FileName dir = pNode->filePath();
-        if (dir.toFileInfo().isDir())
+        const FilePath dir = pNode->filePath();
+        if (dir.isDir())
             return dir;
-        return FileName::fromString(dir.toFileInfo().path());
+        return FilePath::fromString(dir.toFileInfo().path());
     };
-    FileName targetDir = dirForProjectNode(targetProjectNode);
+    FilePath targetDir = dirForProjectNode(targetProjectNode);
 
     // Ask the user what to do now: Copy or add? With or without file transfer?
-    DropFileDialog dlg(targetDir == dirForProjectNode(sourceProjectNode) ? FileName() : targetDir);
+    DropFileDialog dlg(targetDir == dirForProjectNode(sourceProjectNode) ? FilePath() : targetDir);
     if (dlg.exec() != QDialog::Accepted)
         return true;
     if (!dlg.targetDir().isEmpty())
@@ -598,9 +626,7 @@ bool FlatModel::dropMimeData(const QMimeData *data, Qt::DropAction action, int r
 
     // Some helper functions for the file operations.
     const auto targetFilePath = [&targetDir](const QString &sourceFilePath) {
-        FileName targetFile = targetDir;
-        targetFile.appendPath(QFileInfo(sourceFilePath).fileName());
-        return targetFile.toString();
+        return targetDir.pathAppended(QFileInfo(sourceFilePath).fileName()).toString();
     };
 
     struct VcsInfo {
@@ -769,6 +795,14 @@ void FlatModel::setGeneratedFilesFilterEnabled(bool filter)
     rebuildModel();
 }
 
+void FlatModel::setDisabledFilesFilterEnabled(bool filter)
+{
+    if (filter == m_filterDisabledFiles)
+        return;
+    m_filterDisabledFiles = filter;
+    rebuildModel();
+}
+
 void FlatModel::setTrimEmptyDirectories(bool filter)
 {
     if (filter == m_trimEmptyDirectories)
@@ -787,6 +821,11 @@ bool FlatModel::generatedFilesFilterEnabled()
     return m_filterGeneratedFiles;
 }
 
+bool FlatModel::trimEmptyDirectoriesEnabled()
+{
+    return m_trimEmptyDirectories;
+}
+
 Node *FlatModel::nodeForIndex(const QModelIndex &index) const
 {
     WrapperNode *flatNode = itemForIndex(index);
@@ -799,5 +838,6 @@ const QLoggingCategory &FlatModel::logger()
     return logger;
 }
 
+} // namespace Internal
 } // namespace ProjectExplorer
 

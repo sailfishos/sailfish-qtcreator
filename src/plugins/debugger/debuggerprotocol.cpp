@@ -457,7 +457,13 @@ void extractGdbVersion(const QString &msg,
     QString build;
     bool inClean = true;
     bool inParenthesis = false;
-    for (QChar c : msg) {
+
+    int gdbMsgBegin = msg.indexOf("GNU gdb");
+    if (gdbMsgBegin == -1)
+      gdbMsgBegin = 0;
+
+    for (int i = gdbMsgBegin, gdbMsgSize = msg.size(); i < gdbMsgSize; ++i) {
+        QChar c = msg.at(i);
         if (inClean && !cleaned.isEmpty() && c != dot && (c.isPunct() || c.isSpace()))
             inClean = false;
         if (ignoreParenthesisContent) {
@@ -803,6 +809,11 @@ void DebuggerCommand::arg(const char *name, bool value)
 void DebuggerCommand::arg(const char *name, const QJsonValue &value)
 {
     args = addToJsonObject(args, name, value);
+}
+
+void DebuggerCommand::arg(const char *name, const Utils::FilePath &filePath)
+{
+    args = addToJsonObject(args, name, filePath.toString());
 }
 
 static QJsonValue translateJsonToPython(const QJsonValue &value)

@@ -40,7 +40,6 @@ class TextEditorWidget;
 QT_BEGIN_NAMESPACE
 class QMenu;
 class QSplitter;
-class QTextBlock;
 QT_END_NAMESPACE
 
 namespace DiffEditor {
@@ -86,9 +85,9 @@ private:
     void slotRightJumpToOriginalFileRequested(int diffFileIndex,
                                               int lineNumber, int columnNumber);
     void slotLeftContextMenuRequested(QMenu *menu, int fileIndex,
-                                      int chunkIndex);
+                                      int chunkIndex, const ChunkSelection &selection);
     void slotRightContextMenuRequested(QMenu *menu, int fileIndex,
-                                       int chunkIndex);
+                                       int chunkIndex, const ChunkSelection &selection);
     void leftVSliderChanged();
     void rightVSliderChanged();
     void leftHSliderChanged();

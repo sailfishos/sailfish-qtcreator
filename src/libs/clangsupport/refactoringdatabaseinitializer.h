@@ -82,13 +82,15 @@ public:
         Sqlite::Table table;
         table.setUseIfNotExists(true);
         table.setName("locations");
-        table.addColumn("symbolId", Sqlite::ColumnType::Integer);
+        const Sqlite::Column &symbolIdColumn = table.addColumn("symbolId",
+                                                               Sqlite::ColumnType::Integer);
         const Sqlite::Column &lineColumn = table.addColumn("line", Sqlite::ColumnType::Integer);
         const Sqlite::Column &columnColumn = table.addColumn("column", Sqlite::ColumnType::Integer);
         const Sqlite::Column &sourceIdColumn = table.addColumn("sourceId", Sqlite::ColumnType::Integer);
         const Sqlite::Column &locationKindColumn = table.addColumn("locationKind", Sqlite::ColumnType::Integer);
         table.addUniqueIndex({sourceIdColumn, lineColumn, columnColumn});
         table.addIndex({sourceIdColumn, locationKindColumn});
+        table.addIndex({symbolIdColumn});
 
         table.initialize(database);
     }
@@ -144,11 +146,11 @@ public:
         table.setName("projectPartsFiles");
         const Sqlite::Column &projectPartIdColumn = table.addColumn("projectPartId", Sqlite::ColumnType::Integer);
         const Sqlite::Column &sourceIdColumn = table.addColumn("sourceId", Sqlite::ColumnType::Integer);
-        table.addColumn("sourceType", Sqlite::ColumnType::Integer);
+        const Sqlite::Column &sourceType = table.addColumn("sourceType", Sqlite::ColumnType::Integer);
         table.addColumn("pchCreationTimeStamp", Sqlite::ColumnType::Integer);
         table.addColumn("hasMissingIncludes", Sqlite::ColumnType::Integer);
         table.addUniqueIndex({sourceIdColumn, projectPartIdColumn});
-        table.addIndex({projectPartIdColumn});
+        table.addIndex({projectPartIdColumn, sourceType});
 
         table.initialize(database);
     }
@@ -177,6 +179,7 @@ public:
                         Sqlite::Contraint::PrimaryKey);
         table.addColumn("size", Sqlite::ColumnType::Integer);
         table.addColumn("lastModified", Sqlite::ColumnType::Integer);
+        table.addColumn("indexingTimeStamp", Sqlite::ColumnType::Integer);
         table.initialize(database);
     }
 
@@ -188,6 +191,7 @@ public:
         const Sqlite::Column &sourceIdColumn = table.addColumn("sourceId", Sqlite::ColumnType::Integer);
         const Sqlite::Column &dependencySourceIdColumn = table.addColumn("dependencySourceId", Sqlite::ColumnType::Integer);
         table.addIndex({sourceIdColumn, dependencySourceIdColumn});
+        table.addIndex({dependencySourceIdColumn, sourceIdColumn});
 
         table.initialize(database);
     }

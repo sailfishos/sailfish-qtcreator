@@ -55,6 +55,11 @@ QString DiffEditorController::baseDirectory() const
     return m_document->baseDirectory();
 }
 
+void DiffEditorController::setBaseDirectory(const QString &directory)
+{
+    m_document->setBaseDirectory(directory);
+}
+
 int DiffEditorController::contextLineCount() const
 {
     return m_document->contextLineCount();
@@ -66,9 +71,10 @@ bool DiffEditorController::ignoreWhitespace() const
 }
 
 QString DiffEditorController::makePatch(int fileIndex, int chunkIndex,
+                                        const ChunkSelection &selection,
                                         PatchOptions options) const
 {
-    return m_document->makePatch(fileIndex, chunkIndex,
+    return m_document->makePatch(fileIndex, chunkIndex, selection,
                                  options & Revert, options & AddPrefix);
 }
 
@@ -117,6 +123,11 @@ void DiffEditorController::forceContextLineCount(int lines)
     m_document->forceContextLineCount(lines);
 }
 
+void DiffEditorController::setReloader(const std::function<void ()> &reloader)
+{
+    m_reloader = reloader;
+}
+
 Core::IDocument *DiffEditorController::document() const
 {
     return m_document;
@@ -129,7 +140,8 @@ void DiffEditorController::requestReload()
 {
     m_isReloading = true;
     m_document->beginReload();
-    reload();
+    QTC_ASSERT(m_reloader, reloadFinished(false); return);
+    m_reloader();
 }
 
 void DiffEditorController::reloadFinished(bool success)
@@ -138,9 +150,10 @@ void DiffEditorController::reloadFinished(bool success)
     m_isReloading = false;
 }
 
-void DiffEditorController::requestChunkActions(QMenu *menu, int fileIndex, int chunkIndex)
+void DiffEditorController::requestChunkActions(QMenu *menu, int fileIndex, int chunkIndex,
+                                               const ChunkSelection &selection)
 {
-    emit chunkActionsRequested(menu, fileIndex, chunkIndex);
+    emit chunkActionsRequested(menu, fileIndex, chunkIndex, selection);
 }
 
 bool DiffEditorController::chunkExists(int fileIndex, int chunkIndex) const

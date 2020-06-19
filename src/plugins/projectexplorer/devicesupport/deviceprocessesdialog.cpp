@@ -124,7 +124,6 @@ DeviceProcessesDialogPrivate::DeviceProcessesDialogPrivate(KitChooser *chooser, 
     , buttonBox(new QDialogButtonBox(parent))
 {
     q->setWindowTitle(DeviceProcessesDialog::tr("List of Processes"));
-    q->setWindowFlags(q->windowFlags() & ~Qt::WindowContextHelpButtonHint);
     q->setMinimumHeight(500);
 
     processList = nullptr;
@@ -185,14 +184,10 @@ DeviceProcessesDialogPrivate::DeviceProcessesDialogPrivate(KitChooser *chooser, 
 
     proxyModel.setFilterRegExp(processFilterLineEdit->text());
 
-    connect(processFilterLineEdit,
-            static_cast<void (FancyLineEdit::*)(const QString &)>(&FancyLineEdit::textChanged),
-            &proxyModel,
-            static_cast<void (ProcessListFilterModel::*)(const QString &)>(
-                &ProcessListFilterModel::setFilterRegExp));
-    connect(procView->selectionModel(),
-        &QItemSelectionModel::selectionChanged,
-        this, &DeviceProcessesDialogPrivate::updateButtons);
+    connect(processFilterLineEdit, QOverload<const QString &>::of(&FancyLineEdit::textChanged),
+            &proxyModel, QOverload<const QString &>::of(&ProcessListFilterModel::setFilterRegExp));
+    connect(procView->selectionModel(), &QItemSelectionModel::selectionChanged,
+            this, &DeviceProcessesDialogPrivate::updateButtons);
     connect(updateListButton, &QAbstractButton::clicked,
             this, &DeviceProcessesDialogPrivate::updateProcessList);
     connect(kitChooser, &KitChooser::currentIndexChanged,
@@ -219,7 +214,7 @@ void DeviceProcessesDialogPrivate::setDevice(const IDevice::ConstPtr &device)
 
     processList = device->createProcessListModel();
     QTC_ASSERT(processList, return);
-    proxyModel.setSourceModel(processList);
+    proxyModel.setSourceModel(processList->model());
 
     connect(processList, &DeviceProcessList::error,
             this, &DeviceProcessesDialogPrivate::handleRemoteError);
@@ -267,7 +262,7 @@ void DeviceProcessesDialogPrivate::killProcess()
 
 void DeviceProcessesDialogPrivate::updateDevice()
 {
-    setDevice(DeviceKitInformation::device(kitChooser->currentKit()));
+    setDevice(DeviceKitAspect::device(kitChooser->currentKit()));
 }
 
 void DeviceProcessesDialogPrivate::handleProcessKilled()

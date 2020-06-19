@@ -12,6 +12,7 @@ QtcPlugin {
     Depends { name: "app_version_header" }
 
     files: [
+        "winrt.qrc",
         "winrtconstants.h",
         "winrtdebugsupport.cpp",
         "winrtdebugsupport.h",
@@ -19,8 +20,6 @@ QtcPlugin {
         "winrtdeployconfiguration.h",
         "winrtdevice.cpp",
         "winrtdevice.h",
-        "winrtdevicefactory.cpp",
-        "winrtdevicefactory.h",
         "winrtpackagedeploymentstep.cpp",
         "winrtpackagedeploymentstep.h",
         "winrtphoneqtversion.cpp",
@@ -29,8 +28,6 @@ QtcPlugin {
         "winrtplugin.h",
         "winrtqtversion.cpp",
         "winrtqtversion.h",
-        "winrtqtversionfactory.cpp",
-        "winrtqtversionfactory.h",
         "winrtrunconfiguration.cpp",
         "winrtrunconfiguration.h",
         "winrtruncontrol.cpp",

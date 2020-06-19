@@ -247,7 +247,7 @@ QVariant SearchResultTreeModel::data(const SearchResultTreeItem *row, int role) 
         else
             result = QVariant();
         break;
-    case Qt::TextColorRole:
+    case Qt::ForegroundRole:
         result = m_color.textForeground;
         break;
     case Qt::BackgroundRole:
@@ -258,7 +258,7 @@ QVariant SearchResultTreeModel::data(const SearchResultTreeItem *row, int role) 
         result = row->item.text;
         break;
     case ItemDataRoles::ResultItemRole:
-        result = qVariantFromValue(row->item);
+        result = QVariant::fromValue(row->item);
         break;
     case ItemDataRoles::ResultBeginLineNumberRole:
         result = row->item.mainRange.begin.line;

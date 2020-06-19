@@ -27,6 +27,8 @@
 
 #include "pchmanagerclient.h"
 
+#include <clangindexingprojectsettings.h>
+#include <clangindexingsettingsmanager.h>
 #include <filepathid.h>
 #include <pchmanagerserverinterface.h>
 #include <removegeneratedfilesmessage.h>
@@ -42,9 +44,13 @@
 #include <projectexplorer/buildconfiguration.h>
 
 #include <utils/algorithm.h>
+#include <utils/namevalueitem.h>
+
+#include <QDirIterator>
 
 #include <algorithm>
 #include <functional>
+#include <iostream>
 
 namespace ClangPchManager {
 
@@ -64,8 +70,12 @@ public:
 void ProjectUpdater::updateProjectParts(const std::vector<CppTools::ProjectPart *> &projectParts,
                                         Utils::SmallStringVector &&toolChainArguments)
 {
-    m_server.updateProjectParts(ClangBackEnd::UpdateProjectPartsMessage{
-        toProjectPartContainers(projectParts), std::move(toolChainArguments)});
+    addProjectFilesToFilePathCache(projectParts);
+    fetchProjectPartIds(projectParts);
+
+    m_server.updateProjectParts(
+        ClangBackEnd::UpdateProjectPartsMessage{toProjectPartContainers(projectParts),
+                                                std::move(toolChainArguments)});
 }
 
 void ProjectUpdater::removeProjectParts(ClangBackEnd::ProjectPartIds projectPartIds)
@@ -153,10 +163,10 @@ QStringList ProjectUpdater::toolChainArguments(CppTools::ProjectPart *projectPar
     CompilerOptionsBuilder builder(*projectPart, CppTools::UseSystemHeader::Yes);
 
     builder.addWordWidth();
-    builder.addPicIfCompilerFlagsContainsIt();
-    builder.addTargetTriple();
+    // builder.addTargetTriple(); TODO resarch why target triples are different
     builder.addExtraCodeModelFlags();
     builder.undefineClangVersionMacrosForMsvc();
+
     builder.undefineCppLanguageFeatureMacrosForMsvc2015();
     builder.addProjectConfigFileInclude();
     builder.addMsvcCompatibilityVersion();
@@ -164,13 +174,83 @@ QStringList ProjectUpdater::toolChainArguments(CppTools::ProjectPart *projectPar
     return builder.options();
 }
 
-ClangBackEnd::CompilerMacros ProjectUpdater::createCompilerMacros(const ProjectExplorer::Macros &projectMacros)
+namespace {
+void cleanupMacros(ClangBackEnd::CompilerMacros &macros)
+{
+    auto newEnd = std::partition(macros.begin(),
+                                 macros.end(),
+                                 [](const ClangBackEnd::CompilerMacro &macro) {
+                                     return macro.key != "QT_TESTCASE_BUILDDIR";
+                                 });
+
+    macros.erase(newEnd, macros.end());
+}
+
+void updateWithSettings(ClangBackEnd::CompilerMacros &macros,
+                        Utils::NameValueItems &&settingsItems,
+                        int &index)
+{
+    std::sort(settingsItems.begin(), settingsItems.end(), [](const auto &first, const auto &second) {
+        return std::tie(first.operation, first.name, first.value)
+               < std::tie(first.operation, second.name, second.value);
+    });
+
+    auto point = std::partition_point(settingsItems.begin(), settingsItems.end(), [](const auto &entry) {
+        return entry.operation == Utils::NameValueItem::SetEnabled;
+    });
+
+    std::transform(
+        settingsItems.begin(),
+        point,
+        std::back_inserter(macros),
+        [&](const Utils::NameValueItem &settingsMacro) {
+            return ClangBackEnd::CompilerMacro{settingsMacro.name, settingsMacro.value, ++index};
+        });
+
+    std::sort(macros.begin(), macros.end(), [](const auto &first, const auto &second) {
+        return std::tie(first.key, first.value) < std::tie(second.key, second.value);
+    });
+
+    ClangBackEnd::CompilerMacros result;
+    result.reserve(macros.size());
+
+    ClangBackEnd::CompilerMacros convertedSettingsMacros;
+    convertedSettingsMacros.resize(std::distance(point, settingsItems.end()));
+    std::transform(
+        point,
+        settingsItems.end(),
+        std::back_inserter(convertedSettingsMacros),
+        [&](const Utils::NameValueItem &settingsMacro) {
+            return ClangBackEnd::CompilerMacro{settingsMacro.name, settingsMacro.value, ++index};
+        });
+
+    std::set_difference(macros.begin(),
+                        macros.end(),
+                        convertedSettingsMacros.begin(),
+                        convertedSettingsMacros.end(),
+                        std::back_inserter(result),
+                        [](const ClangBackEnd::CompilerMacro &first,
+                           const ClangBackEnd::CompilerMacro &second) {
+                            return std::tie(first.key, first.value)
+                                   < std::tie(second.key, second.value);
+                        });
+
+    macros = std::move(result);
+}
+
+} // namespace
+
+ClangBackEnd::CompilerMacros ProjectUpdater::createCompilerMacros(
+    const ProjectExplorer::Macros &projectMacros, Utils::NameValueItems &&settingsMacros)
 {
     int index = 0;
     auto macros = Utils::transform<ClangBackEnd::CompilerMacros>(
         projectMacros, [&](const ProjectExplorer::Macro &macro) {
             return ClangBackEnd::CompilerMacro{macro.key, macro.value, ++index};
         });
+
+    cleanupMacros(macros);
+    updateWithSettings(macros, std::move(settingsMacros), index);
 
     std::sort(macros.begin(), macros.end());
 
@@ -271,14 +351,17 @@ ClangBackEnd::ProjectPartContainer ProjectUpdater::toProjectPartContainer(
 
     auto includeSearchPaths = createIncludeSearchPaths(*projectPart);
 
-    const QByteArray projectPartName = projectPart->id().toUtf8();
+    ClangBackEnd::ProjectPartId projectPartId = m_projectPartIdCache.stringId(
+        Utils::PathString{projectPart->id()}, [&](Utils::SmallStringView projectPartName) {
+            return m_projectPartsStorage.fetchProjectPartId(projectPartName);
+        });
 
-    ClangBackEnd::ProjectPartId projectPartId = m_projectPartsStorage.fetchProjectPartId(
-        projectPartName);
+    ClangIndexingProjectSettings *settings = m_settingsManager.settings(projectPart->project);
 
     return ClangBackEnd::ProjectPartContainer(projectPartId,
                                               Utils::SmallStringVector(arguments),
-                                              createCompilerMacros(projectPart->projectMacros),
+                                              createCompilerMacros(projectPart->projectMacros,
+                                                                   settings->readMacros()),
                                               std::move(includeSearchPaths.system),
                                               std::move(includeSearchPaths.project),
                                               std::move(headerAndSources.headers),
@@ -336,24 +419,63 @@ ClangBackEnd::FilePaths ProjectUpdater::createExcludedPaths(
 
 QString ProjectUpdater::fetchProjectPartName(ClangBackEnd::ProjectPartId projectPartId) const
 {
-    return m_projectPartsStorage.fetchProjectPartName(projectPartId).toQString();
+    return QString(m_projectPartIdCache.string(projectPartId.projectPathId,
+                                               [&](ClangBackEnd::ProjectPartId projectPartId) {
+                                                   return m_projectPartsStorage.fetchProjectPartName(
+                                                       projectPartId);
+                                               }));
 }
 
 ClangBackEnd::ProjectPartIds ProjectUpdater::toProjectPartIds(
-    const QStringList &projectPartNames) const
+    const QStringList &projectPartNamesAsQString) const
 {
     ClangBackEnd::ProjectPartIds projectPartIds;
     projectPartIds.reserve(projectPartIds.size());
 
-    std::transform(projectPartNames.begin(),
-                   projectPartNames.end(),
-                   std::back_inserter(projectPartIds),
-                   [&](const QString &projectPartName) {
-                       return m_projectPartsStorage.fetchProjectPartId(
-                           Utils::SmallString{projectPartName});
-                   });
+    auto projectPartNames = Utils::transform<std::vector<Utils::PathString>>(
+        projectPartNamesAsQString, [&](const QString &projectPartName) { return projectPartName; });
 
-    return projectPartIds;
+    return m_projectPartIdCache.stringIds(projectPartNames, [&](Utils::SmallStringView projectPartName) {
+        return m_projectPartsStorage.fetchProjectPartId(projectPartName);
+    });
 }
+
+void ProjectUpdater::addProjectFilesToFilePathCache(const std::vector<CppTools::ProjectPart *> &projectParts)
+{
+    ClangBackEnd::FilePaths filePaths;
+    filePaths.reserve(10000);
+
+    for (CppTools::ProjectPart *projectPart : projectParts) {
+        for (const CppTools::ProjectFile &file : projectPart->files)
+            if (file.active)
+                filePaths.emplace_back(file.path);
+    }
+
+    m_filePathCache.addFilePaths(filePaths);
+}
+
+void ProjectUpdater::fetchProjectPartIds(const std::vector<CppTools::ProjectPart *> &projectParts)
+{
+    std::unique_ptr<Sqlite::DeferredTransaction> transaction;
+
+    auto projectPartNames = Utils::transform<std::vector<Utils::PathString>>(
+        projectParts, [](CppTools::ProjectPart *projectPart) { return projectPart->id(); });
+
+    auto projectPartNameViews = Utils::transform<std::vector<Utils::SmallStringView>>(
+        projectPartNames,
+        [](const Utils::PathString &projectPartName) { return projectPartName.toStringView(); });
+
+    m_projectPartIdCache
+        .addStrings(std::move(projectPartNameViews), [&](Utils::SmallStringView projectPartName) {
+            if (!transaction)
+                transaction = std::make_unique<Sqlite::DeferredTransaction>(
+                    m_projectPartsStorage.transactionBackend());
+            return m_projectPartsStorage.fetchProjectPartIdUnguarded(projectPartName);
+        });
+
+    if (transaction)
+        transaction->commit();
+
+} // namespace ClangPchManager
 
 } // namespace ClangPchManager

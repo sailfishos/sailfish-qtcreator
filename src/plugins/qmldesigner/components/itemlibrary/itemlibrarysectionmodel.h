@@ -28,6 +28,7 @@
 #include "itemlibrarymodel.h"
 
 #include <QObject>
+#include <QPointer>
 
 namespace QmlDesigner {
 
@@ -45,11 +46,9 @@ public:
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
 
-    void clearItems();
-
     void addItem(ItemLibraryItem *item);
 
-    const QList<ItemLibraryItem *> &items() const;
+    const QList<QPointer<ItemLibraryItem> > &items() const;
 
     void sortItems();
     void resetModel();
@@ -58,7 +57,7 @@ private: // functions
     void addRoleNames();
 
 private: // variables
-    QList<ItemLibraryItem*> m_itemList;
+    QList<QPointer<ItemLibraryItem>> m_itemList;
     QHash<int, QByteArray> m_roleNames;
 };
 

@@ -99,6 +99,7 @@ public:
         projectIncludes.reserve(sources.size());
         topSystemIncludes.reserve(sources.size() / 10);
         topProjectIncludes.reserve(sources.size() / 10);
+        userIncludes.reserve(sources.size());
         this->sources.reserve(sources.size());
 
         for (SourceEntry source : sources)
@@ -140,11 +141,13 @@ private:
                 projectIncludes.emplace_back(source.sourceId);
                 break;
             case SourceType::UserInclude:
+                userIncludes.emplace_back(source.sourceId);
+                break;
             case SourceType::Source:
+                sources.emplace_back(source.sourceId);
                 break;
         }
 
-        sources.emplace_back(source.sourceId);
     }
 
     static Utils::SmallStringVector filterUsedMarcos(const UsedMacros &usedMacros,
@@ -212,6 +215,7 @@ private:
 
 public:
     FilePathIds sources;
+    FilePathIds userIncludes;
     FilePathIds projectIncludes;
     FilePathIds systemIncludes;
     FilePathIds topProjectIncludes;

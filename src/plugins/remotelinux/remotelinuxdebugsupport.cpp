@@ -34,20 +34,22 @@ namespace RemoteLinux {
 namespace Internal {
 
 LinuxDeviceDebugSupport::LinuxDeviceDebugSupport(RunControl *runControl)
-    : DebuggerRunTool(runControl, nullptr, false)
+    : DebuggerRunTool(runControl, DebuggerRunTool::DoNotAllowTerminal)
 {
     setId("LinuxDeviceDebugSupport");
 
     setUsePortsGatherer(isCppDebugging(), isQmlDebugging());
     addQmlServerInferiorCommandLineArgumentIfNeeded();
 
-    auto gdbServer = new GdbServerRunner(runControl, portsGatherer());
+    auto debugServer = new DebugServerRunner(runControl, portsGatherer());
+    debugServer->setEssential(true);
 
-    addStartDependency(gdbServer);
+    addStartDependency(debugServer);
 
     setStartMode(AttachToRemoteServer);
     setCloseMode(KillAndExitMonitorAtClose);
     setUseExtendedRemote(true);
+    setLldbPlatform("remote-linux");
 }
 
 } // namespace Internal

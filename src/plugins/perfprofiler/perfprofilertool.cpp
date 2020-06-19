@@ -69,8 +69,7 @@ namespace Internal {
 
 static PerfProfilerTool *s_instance;
 
-PerfProfilerTool::PerfProfilerTool(QObject *parent) :
-    QObject(parent)
+PerfProfilerTool::PerfProfilerTool()
 {
     s_instance = this;
     m_traceManager = new PerfProfilerTraceManager(this);
@@ -139,6 +138,7 @@ PerfProfilerTool::PerfProfilerTool(QObject *parent) :
 
     m_tracePointsButton = new QToolButton;
     m_tracePointsButton->setDefaultAction(tracePointsAction);
+    m_objectsToDelete << m_tracePointsButton;
 
     auto action = new QAction(tr("Performance Analyzer"), this);
     action->setToolTip(tr("Finds performance bottlenecks."));
@@ -151,12 +151,16 @@ PerfProfilerTool::PerfProfilerTool(QObject *parent) :
 
     m_startAction = Debugger::createStartAction();
     m_stopAction = Debugger::createStopAction();
+    m_objectsToDelete << m_startAction << m_stopAction;
 
     QObject::connect(m_startAction, &QAction::triggered, action, &QAction::triggered);
     QObject::connect(m_startAction, &QAction::changed, action, [action, tracePointsAction, this] {
         action->setEnabled(m_startAction->isEnabled());
         tracePointsAction->setEnabled(m_startAction->isEnabled());
     });
+
+    connect(ProjectExplorerPlugin::instance(), &ProjectExplorerPlugin::runActionsUpdated,
+            this, &PerfProfilerTool::updateRunActions);
 
     m_recordButton = new QToolButton;
     m_clearButton = new QToolButton;
@@ -167,13 +171,21 @@ PerfProfilerTool::PerfProfilerTool(QObject *parent) :
     m_recordedLabel->setProperty("panelwidget", true);
     m_delayLabel = new QLabel;
     m_delayLabel->setProperty("panelwidget", true);
+    m_objectsToDelete << m_recordButton << m_clearButton << m_filterButton << m_aggregateButton
+                      << m_recordedLabel << m_delayLabel;
 
     m_perspective.setAboutToActivateCallback([this]() { createViews(); });
     updateRunActions();
 }
 
+PerfProfilerTool::~PerfProfilerTool()
+{
+    qDeleteAll(m_objectsToDelete);
+}
+
 void PerfProfilerTool::createViews()
 {
+    m_objectsToDelete.clear();
     m_traceView = new PerfProfilerTraceView(nullptr, this);
     m_traceView->setWindowTitle(tr("Timeline"));
     connect(m_traceView, &PerfProfilerTraceView::gotoSourceLocation,
@@ -229,12 +241,10 @@ void PerfProfilerTool::createViews()
     connect(recordMenu, &QMenu::aboutToShow, recordMenu, [recordMenu] {
         recordMenu->hide();
         PerfSettings *settings = nullptr;
-        Target *target = nullptr;
-        if (auto project = ProjectExplorer::SessionManager::startupProject()) {
-            if ((target = project->activeTarget())) {
-                if (auto runConfig = target->activeRunConfiguration())
-                    settings = runConfig->currentSettings<PerfSettings>(Constants::PerfSettingsId);
-            }
+        Target *target = SessionManager::startupTarget();
+        if (target) {
+            if (auto runConfig = target->activeRunConfiguration())
+                settings = runConfig->currentSettings<PerfSettings>(Constants::PerfSettingsId);
         }
 
         PerfConfigWidget *widget = new PerfConfigWidget(
@@ -342,9 +352,6 @@ void PerfProfilerTool::createViews()
         menu1->exec(m_flameGraphView->mapToGlobal(pos));
     });
 
-    connect(ProjectExplorerPlugin::instance(), &ProjectExplorerPlugin::updateRunActions,
-            this, &PerfProfilerTool::updateRunActions);
-
     m_perspective.addToolBarAction(m_startAction);
     m_perspective.addToolBarAction(m_stopAction);
     m_perspective.addToolBarWidget(m_recordButton);
@@ -356,7 +363,6 @@ void PerfProfilerTool::createViews()
     m_perspective.addToolBarWidget(m_tracePointsButton);
 
     m_perspective.setAboutToActivateCallback(Perspective::Callback());
-    emit viewsCreated();
 }
 
 PerfProfilerTool *PerfProfilerTool::instance()
@@ -441,7 +447,7 @@ void PerfProfilerTool::onReaderStarted()
 
 void PerfProfilerTool::onWorkerCreation(RunControl *runControl)
 {
-    populateFileFinder(runControl->runConfiguration());
+    populateFileFinder(runControl->project(), runControl->kit());
 }
 
 void PerfProfilerTool::updateRunActions()
@@ -541,7 +547,7 @@ void PerfProfilerTool::gotoSourceLocation(QString filePath, int lineNumber, int 
 
     QFileInfo fi(filePath);
     if (!fi.isAbsolute() || !fi.exists() || !fi.isReadable()) {
-        fi.setFile(m_fileFinder.findFile(filePath));
+        fi.setFile(m_fileFinder.findFile(filePath).first().toString());
         if (!fi.exists() || !fi.isReadable())
             return;
     }
@@ -554,29 +560,29 @@ void PerfProfilerTool::gotoSourceLocation(QString filePath, int lineNumber, int 
 
 }
 
-static Utils::FileNameList collectQtIncludePaths(const ProjectExplorer::Kit *kit)
+static Utils::FilePaths collectQtIncludePaths(const ProjectExplorer::Kit *kit)
 {
-    QtSupport::BaseQtVersion *qt = QtSupport::QtKitInformation::qtVersion(kit);
+    QtSupport::BaseQtVersion *qt = QtSupport::QtKitAspect::qtVersion(kit);
     if (qt == nullptr)
-        return Utils::FileNameList();
-    Utils::FileNameList paths{qt->headerPath()};
+        return Utils::FilePaths();
+    Utils::FilePaths paths{qt->headerPath()};
     QDirIterator dit(paths.first().toString(), QStringList(), QDir::Dirs | QDir::NoDotAndDotDot,
                      QDirIterator::Subdirectories);
     while (dit.hasNext()) {
         dit.next();
-        paths << Utils::FileName::fromString(dit.filePath());
+        paths << Utils::FilePath::fromString(dit.filePath());
     }
     return paths;
 }
 
-static Utils::FileName sysroot(const Kit *kit)
+static Utils::FilePath sysroot(const Kit *kit)
 {
-    return SysRootKitInformation::sysRoot(kit);
+    return SysRootKitAspect::sysRoot(kit);
 }
 
-static Utils::FileNameList sourceFiles(const Project *currentProject = nullptr)
+static Utils::FilePaths sourceFiles(const Project *currentProject = nullptr)
 {
-    Utils::FileNameList sourceFiles;
+    Utils::FilePaths sourceFiles;
 
     // Have the current project first.
     if (currentProject)
@@ -614,12 +620,17 @@ void PerfProfilerTool::showLoadTraceDialog()
 
     QString filename = QFileDialog::getOpenFileName(
                 ICore::mainWindow(), tr("Load Trace File"),
-                "", tr("Trace File (*.ptr)"));
+                "", tr("Trace File (*.ptq)"));
     if (filename.isEmpty())
         return;
 
     startLoading();
-    populateFileFinder();
+
+    const Project *currentProject = SessionManager::startupProject();
+    const Target *target = currentProject ?  currentProject->activeTarget() : nullptr;
+    const Kit *kit = target ? target->kit() : nullptr;
+    populateFileFinder(currentProject, kit);
+
     m_traceManager->loadFromTraceFile(filename);
 }
 
@@ -629,11 +640,11 @@ void PerfProfilerTool::showSaveTraceDialog()
 
     QString filename = QFileDialog::getSaveFileName(
                 ICore::mainWindow(), tr("Save Trace File"),
-                "", tr("Trace File (*.ptr)"));
+                "", tr("Trace File (*.ptq)"));
     if (filename.isEmpty())
         return;
-    if (!filename.endsWith(".ptr"))
-        filename += ".ptr";
+    if (!filename.endsWith(".ptq"))
+        filename += ".ptq";
 
     setToolActionsEnabled(false);
     m_traceManager->saveToTraceFile(filename);
@@ -675,24 +686,12 @@ void PerfProfilerTool::updateTime(qint64 duration, qint64 delay)
         m_delayLabel->clear();
 }
 
-void PerfProfilerTool::populateFileFinder(const RunConfiguration *rc)
+void PerfProfilerTool::populateFileFinder(const Project *project, const Kit *kit)
 {
-    const Project *currentProject = nullptr;
-    const Kit *kit = nullptr;
-    if (rc) {
-        if (const Target *target = rc->target()) {
-            kit = target->kit();
-            currentProject = target->project();
-        }
-    } else if ((currentProject = SessionManager::startupProject())) {
-        if (const Target *target = currentProject->activeTarget())
-            kit = target->kit();
-    }
+    m_fileFinder.setProjectFiles(sourceFiles(project));
 
-    m_fileFinder.setProjectFiles(sourceFiles(currentProject));
-
-    if (currentProject)
-        m_fileFinder.setProjectDirectory(currentProject->projectDirectory());
+    if (project)
+        m_fileFinder.setProjectDirectory(project->projectDirectory());
 
     if (kit) {
         m_fileFinder.setAdditionalSearchDirectories(collectQtIncludePaths(kit));

@@ -27,26 +27,13 @@
 
 #include <coreplugin/dialogs/ioptionspage.h>
 
-#include <QPointer>
-
 namespace ProjectExplorer {
 namespace Internal {
 
-class DeviceSettingsWidget;
-
-class DeviceSettingsPage : public Core::IOptionsPage
+class DeviceSettingsPage final : public Core::IOptionsPage
 {
-    Q_OBJECT
-
 public:
-    DeviceSettingsPage(QObject *parent = nullptr);
-
-    QWidget *widget() override;
-    void apply() override;
-    void finish() override;
-
-private:
-    QPointer<DeviceSettingsWidget> m_widget;
+    DeviceSettingsPage();
 };
 
 } // namespace Internal

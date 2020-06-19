@@ -53,7 +53,7 @@ public:
     void checkPriority(TextEditorWidget *widget, int pos, ReportPriority report);
     virtual void abort() {} // Implement for asynchronous priority reporter
 
-    void showToolTip(TextEditorWidget *widget, const QPoint &point, bool decorate = true);
+    void showToolTip(TextEditorWidget *widget, const QPoint &point);
 
 protected:
     enum {
@@ -65,7 +65,7 @@ protected:
     void setPriority(int priority);
     int priority() const;
 
-    void setToolTip(const QString &tooltip);
+    void setToolTip(const QString &tooltip, Qt::TextFormat format = Qt::PlainText);
     const QString &toolTip() const;
 
     void setLastHelpItemIdentified(const Core::HelpItem &help);
@@ -80,13 +80,13 @@ protected:
     //    Utils::ExecuteOnDestruction reportPriority([this, report](){ report(priority()); });
     // at the beginning of an implementation to ensure this in any case.
     virtual void identifyMatch(TextEditorWidget *editorWidget, int pos, ReportPriority report);
-    virtual void decorateToolTip();
     virtual void operateTooltip(TextEditorWidget *editorWidget, const QPoint &point);
 
 private:
     void process(TextEditorWidget *widget, int pos, ReportPriority report);
 
     QString m_toolTip;
+    Qt::TextFormat m_textFormat = Qt::PlainText;
     Core::HelpItem m_lastHelpItemIdentified;
     int m_priority = -1;
     bool m_isContextHelpRequest = false;

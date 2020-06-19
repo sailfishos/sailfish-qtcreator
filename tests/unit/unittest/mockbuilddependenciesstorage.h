@@ -51,5 +51,21 @@ public:
                  ClangBackEnd::ProjectPartId(Utils::SmallStringView projectPartName));
     MOCK_METHOD2(updatePchCreationTimeStamp,
                  void(long long pchCreationTimeStamp, ClangBackEnd::ProjectPartId projectPartId));
+    MOCK_CONST_METHOD1(fetchPchSources,
+                       ClangBackEnd::FilePathIds(ClangBackEnd::ProjectPartId projectPartId));
+    MOCK_CONST_METHOD1(fetchSources,
+                       ClangBackEnd::FilePathIds(ClangBackEnd::ProjectPartId projectPartId));
+    MOCK_METHOD2(insertOrUpdateIndexingTimeStamps,
+                 void(const ClangBackEnd::FilePathIds &filePathIds,
+                      ClangBackEnd::TimeStamp indexingTimeStamp));
+    MOCK_METHOD2(insertOrUpdateIndexingTimeStampsWithoutTransaction,
+                 void(const ClangBackEnd::FilePathIds &filePathIds,
+                      ClangBackEnd::TimeStamp indexingTimeStamp));
+    MOCK_METHOD1(insertOrUpdateIndexingTimeStamps, void(const ClangBackEnd::FileStatuses &));
+    MOCK_CONST_METHOD0(fetchIndexingTimeStamps, ClangBackEnd::SourceTimeStamps());
+    MOCK_CONST_METHOD1(fetchIncludedIndexingTimeStamps,
+                       ClangBackEnd::SourceTimeStamps(ClangBackEnd::FilePathId sourcePathId));
+    MOCK_CONST_METHOD1(fetchDependentSourceIds,
+                       ClangBackEnd::FilePathIds(const ClangBackEnd::FilePathIds &sourcePathIds));
 };
 

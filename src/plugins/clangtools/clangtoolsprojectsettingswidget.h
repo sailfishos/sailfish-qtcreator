@@ -44,13 +44,16 @@ public:
     ~ProjectSettingsWidget() override;
 
 private:
+    void onGlobalCustomChanged();
+    void onGlobalCustomChanged(int index);
+
     void updateButtonStates();
     void updateButtonStateRemoveSelected();
     void updateButtonStateRemoveAll();
     void removeSelected();
 
-    Ui::ProjectSettingsWidget * const m_ui;
-    ClangToolsProjectSettings * const m_projectSettings;
+    Ui::ProjectSettingsWidget *const m_ui;
+    QSharedPointer<ClangToolsProjectSettings> const m_projectSettings;
 };
 
 } // namespace Internal

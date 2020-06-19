@@ -77,7 +77,7 @@ void GlslHighlighter::highlightBlock(const QString &text)
     state = lex.state(); // refresh the state
 
     int foldingIndent = initialBraceDepth;
-    if (TextBlockUserData *userData = TextDocumentLayout::testUserData(currentBlock())) {
+    if (TextBlockUserData *userData = TextDocumentLayout::textUserData(currentBlock())) {
         userData->setFoldingIndent(0);
         userData->setFoldingStartIncluded(false);
         userData->setFoldingEndIncluded(false);
@@ -86,7 +86,7 @@ void GlslHighlighter::highlightBlock(const QString &text)
     if (tokens.isEmpty()) {
         setCurrentBlockState(previousState);
         TextDocumentLayout::clearParentheses(currentBlock());
-        if (text.length()) // the empty line can still contain whitespace
+        if (!text.isEmpty()) // the empty line can still contain whitespace
             setFormat(0, text.length(), formatForCategory(C_VISUAL_WHITESPACE));
         TextDocumentLayout::setFoldingIndent(currentBlock(), foldingIndent);
         return;

@@ -67,7 +67,7 @@ void DesignerSettings::fromSettings(QSettings *settings)
     restoreValue(settings, DesignerSettingsKey::CONTROLS_STYLE);
     restoreValue(settings, DesignerSettingsKey::SHOW_PROPERTYEDITOR_WARNINGS, false);
     restoreValue(settings, DesignerSettingsKey::ENABLE_MODEL_EXCEPTION_OUTPUT, false);
-    restoreValue(settings, DesignerSettingsKey::PUPPET_KILL_TIMEOUT, 3000); // this has no ui at the moment
+    restoreValue(settings, DesignerSettingsKey::PUPPET_KILL_TIMEOUT, 30000); // this has no ui at the moment
     restoreValue(settings, DesignerSettingsKey::DEBUG_PUPPET, QString());
     restoreValue(settings, DesignerSettingsKey::FORWARD_PUPPET_OUTPUT, QString());
     restoreValue(settings, DesignerSettingsKey::REFORMAT_UI_QML_FILES, true);
@@ -75,7 +75,16 @@ void DesignerSettings::fromSettings(QSettings *settings)
     restoreValue(settings, DesignerSettingsKey::STATESEDITOR_EXPANDED, true);
     restoreValue(settings, DesignerSettingsKey::NAVIGATOR_SHOW_ONLY_VISIBLE_ITEMS, true);
     restoreValue(settings, DesignerSettingsKey::STANDALONE_MODE, false);
-    restoreValue(settings, DesignerSettingsKey::ENABLE_TIMELINEVIEW, false);
+    restoreValue(settings, DesignerSettingsKey::ENABLE_TIMELINEVIEW,
+#if (QT_VERSION < QT_VERSION_CHECK(5, 14, 0))
+                 false
+#else
+                 true
+#endif
+                 );
+    restoreValue(settings, DesignerSettingsKey::SIMPLE_COLOR_PALETTE_CONTENT, QStringList());
+    restoreValue(settings, DesignerSettingsKey::ALWAYS_DESIGN_MODE, true);
+    restoreValue(settings, DesignerSettingsKey::DISABLE_ITEM_LIBRARY_UPDATE_TIMER, true);
 
     settings->endGroup();
     settings->endGroup();

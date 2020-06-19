@@ -63,6 +63,8 @@ const char PROFILE_EVALUATE[] = "Qt4ProjectManager.ProFileEvaluate";
 const char QMAKEPROJECT_ID[] = "Qt4ProjectManager.Qt4Project";
 
 const char QMAKE_BC_ID[] = "Qt4ProjectManager.Qt4BuildConfiguration";
+const char MAKESTEP_BS_ID[] = "Qt4ProjectManager.MakeStep";
+const char QMAKE_BS_ID[] = "QtProjectManager.QMakeBuildStep";
 
 // ICONS
 const char ICON_QTQUICK_APP[] = ":/wizards/images/qtquickapp.png";

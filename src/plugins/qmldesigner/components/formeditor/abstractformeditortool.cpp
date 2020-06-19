@@ -149,7 +149,8 @@ bool AbstractFormEditorTool::selectedItemCursorInMovableArea(const QPointF &pos)
     QRectF innerRect = boundingRect;
 
     innerRect.adjust(2, 2, -2, -2);
-    boundingRect.adjust(-2, -20, 2, 2);
+    const int heightOffset = -20 / scene()->formLayerItem()->viewportTransform().m11();
+    boundingRect.adjust(-2, heightOffset, 2, 2);
 
     return !innerRect.contains(pos) && boundingRect.contains(pos);
 }
@@ -190,6 +191,9 @@ FormEditorItem* AbstractFormEditorTool::nearestFormEditorItem(const QPointF &poi
     FormEditorItem* nearestItem = nullptr;
     foreach (QGraphicsItem *item, itemList) {
         FormEditorItem *formEditorItem = FormEditorItem::fromQGraphicsItem(item);
+
+        if (formEditorItem && formEditorItem->flowHitTest(point))
+            return formEditorItem;
 
         if (!formEditorItem || !formEditorItem->qmlItemNode().isValid())
             continue;

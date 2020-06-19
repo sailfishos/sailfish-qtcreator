@@ -39,20 +39,18 @@ public:
     void setDynamicRegistration(bool dynamicRegistration) { insert(dynamicRegistrationKey, dynamicRegistration); }
     void clearDynamicRegistration() { remove(dynamicRegistrationKey); }
 
-    bool isValid(QStringList *error) const override
+    bool isValid(ErrorHierarchy *error) const override
     { return checkOptional<bool>(error, dynamicRegistrationKey); }
 };
 
 class LANGUAGESERVERPROTOCOL_EXPORT SymbolCapabilities : public DynamicRegistrationCapabilities
 {
 public:
-    SymbolCapabilities();
     using DynamicRegistrationCapabilities::DynamicRegistrationCapabilities;
 
-    class SymbolKindCapabilities : public JsonObject
+    class LANGUAGESERVERPROTOCOL_EXPORT SymbolKindCapabilities : public JsonObject
     {
     public:
-        SymbolKindCapabilities();
         using JsonObject::JsonObject;
 
         /*
@@ -69,7 +67,7 @@ public:
         void setValueSet(const QList<SymbolKind> &valueSet);
         void clearValueSet() { remove(valueSetKey); }
 
-        bool isValid(QStringList *error) const override
+        bool isValid(ErrorHierarchy *error) const override
         { return checkOptionalArray<int>(error, valueSetKey); }
     };
 
@@ -79,19 +77,17 @@ public:
     void setSymbolKind(const SymbolKindCapabilities &symbolKind) { insert(symbolKindKey, symbolKind); }
     void clearSymbolKind() { remove(symbolKindKey); }
 
-    bool isValid(QStringList *error) const override;
+    bool isValid(ErrorHierarchy *error) const override;
 };
 
 class LANGUAGESERVERPROTOCOL_EXPORT TextDocumentClientCapabilities : public JsonObject
 {
 public:
-    TextDocumentClientCapabilities();
     using JsonObject::JsonObject;
 
-    class SynchronizationCapabilities : public DynamicRegistrationCapabilities
+    class LANGUAGESERVERPROTOCOL_EXPORT SynchronizationCapabilities : public DynamicRegistrationCapabilities
     {
     public:
-        SynchronizationCapabilities();
         using DynamicRegistrationCapabilities::DynamicRegistrationCapabilities;
 
         // The client supports sending will save notifications.
@@ -115,7 +111,7 @@ public:
         void setDidSave(bool didSave) { insert(didSaveKey, didSave); }
         void clearDidSave() { remove(didSaveKey); }
 
-        bool isValid(QStringList *error) const override;
+        bool isValid(ErrorHierarchy *error) const override;
     };
 
     Utils::optional<SynchronizationCapabilities> synchronization() const
@@ -124,16 +120,34 @@ public:
     { insert(synchronizationKey, synchronization); }
     void clearSynchronization() { remove(synchronizationKey); }
 
-    class CompletionCapabilities : public DynamicRegistrationCapabilities
+    class LANGUAGESERVERPROTOCOL_EXPORT SemanticHighlightingCapabilities : public JsonObject
     {
     public:
-        CompletionCapabilities();
+        using JsonObject::JsonObject;
+
+        bool semanticHighlighting() const { return typedValue<bool>(semanticHighlightingKey); }
+        void setSemanticHighlighting(bool semanticHighlighting)
+        { insert(semanticHighlightingKey, semanticHighlighting); }
+
+        bool isValid(ErrorHierarchy *error) const override
+        { return check<bool>(error, semanticHighlightingKey); }
+    };
+
+    Utils::optional<SemanticHighlightingCapabilities> semanticHighlightingCapabilities() const
+    { return optionalValue<SemanticHighlightingCapabilities>(semanticHighlightingCapabilitiesKey); }
+    void setSemanticHighlightingCapabilities(
+        const SemanticHighlightingCapabilities &semanticHighlightingCapabilities)
+    { insert(semanticHighlightingCapabilitiesKey, semanticHighlightingCapabilities); }
+    void clearSemanticHighlightingCapabilities() { remove(semanticHighlightingCapabilitiesKey); }
+
+    class LANGUAGESERVERPROTOCOL_EXPORT CompletionCapabilities : public DynamicRegistrationCapabilities
+    {
+    public:
         using DynamicRegistrationCapabilities::DynamicRegistrationCapabilities;
 
-        class CompletionItemCapbilities : public JsonObject
+        class LANGUAGESERVERPROTOCOL_EXPORT CompletionItemCapbilities : public JsonObject
         {
         public:
-            CompletionItemCapbilities();
             using JsonObject::JsonObject;
 
             /*
@@ -165,7 +179,7 @@ public:
             void setDocumentationFormat(const QList<MarkupKind> &documentationFormat);
             void clearDocumentationFormat() { remove(documentationFormatKey); }
 
-            bool isValid(QStringList *error) const override
+            bool isValid(ErrorHierarchy *error) const override
             {
                 return checkOptional<bool>(error, snippetSupportKey)
                         && checkOptional<bool>(error, commitCharacterSupportKey)
@@ -180,7 +194,7 @@ public:
         { insert(completionItemKey, completionItem); }
         void clearCompletionItem() { remove(completionItemKey); }
 
-        class CompletionItemKindCapabilities : public JsonObject
+        class LANGUAGESERVERPROTOCOL_EXPORT CompletionItemKindCapabilities : public JsonObject
         {
         public:
             CompletionItemKindCapabilities();
@@ -199,7 +213,7 @@ public:
             void setValueSet(const QList<CompletionItemKind::Kind> &valueSet);
             void clearValueSet() { remove(valueSetKey); }
 
-            bool isValid(QStringList *error) const override
+            bool isValid(ErrorHierarchy *error) const override
             { return checkOptionalArray<int>(error, valueSetKey); }
         };
 
@@ -217,7 +231,7 @@ public:
         void setContextSupport(bool contextSupport) { insert(contextSupportKey, contextSupport); }
         void clearContextSupport() { remove(contextSupportKey); }
 
-        bool isValid(QStringList *error) const override;
+        bool isValid(ErrorHierarchy *error) const override;
     };
 
     // Capabilities specific to the `textDocument/completion`
@@ -227,7 +241,7 @@ public:
     { insert(completionKey, completion); }
     void clearCompletion() { remove(completionKey); }
 
-    class HoverCapabilities : public DynamicRegistrationCapabilities
+    class LANGUAGESERVERPROTOCOL_EXPORT HoverCapabilities : public DynamicRegistrationCapabilities
     {
     public:
         using DynamicRegistrationCapabilities::DynamicRegistrationCapabilities;
@@ -239,19 +253,19 @@ public:
         void setContentFormat(const QList<MarkupKind> &contentFormat);
         void clearContentFormat() { remove(contentFormatKey); }
 
-        bool isValid(QStringList *error) const override;
+        bool isValid(ErrorHierarchy *error) const override;
     };
 
     Utils::optional<HoverCapabilities> hover() const { return optionalValue<HoverCapabilities>(hoverKey); }
     void setHover(const HoverCapabilities &hover) { insert(hoverKey, hover); }
     void clearHover() { remove(hoverKey); }
 
-    class SignatureHelpCapabilities : public DynamicRegistrationCapabilities
+    class LANGUAGESERVERPROTOCOL_EXPORT SignatureHelpCapabilities : public DynamicRegistrationCapabilities
     {
     public:
         using DynamicRegistrationCapabilities::DynamicRegistrationCapabilities;
 
-        class SignatureInformationCapabilities : public JsonObject
+        class LANGUAGESERVERPROTOCOL_EXPORT SignatureInformationCapabilities : public JsonObject
         {
         public:
             using JsonObject::JsonObject;
@@ -263,7 +277,7 @@ public:
             void setDocumentationFormat(const QList<MarkupKind> &documentationFormat);
             void clearDocumentationFormat() { remove(documentationFormatKey); }
 
-            bool isValid(QStringList *error) const override
+            bool isValid(ErrorHierarchy *error) const override
             { return checkOptionalArray<int>(error, documentationFormatKey); }
         };
 
@@ -274,7 +288,7 @@ public:
         { insert(signatureInformationKey, signatureInformation); }
         void clearSignatureInformation() { remove(signatureInformationKey); }
 
-        bool isValid(QStringList *error) const override;
+        bool isValid(ErrorHierarchy *error) const override;
     };
 
     // Capabilities specific to the `textDocument/signatureHelp`
@@ -355,17 +369,17 @@ public:
     { insert(implementationKey, implementation); }
     void clearImplementation() { remove(implementationKey); }
 
-    class CodeActionCapabilities : public DynamicRegistrationCapabilities
+    class LANGUAGESERVERPROTOCOL_EXPORT CodeActionCapabilities : public DynamicRegistrationCapabilities
     {
     public:
         using DynamicRegistrationCapabilities::DynamicRegistrationCapabilities;
 
-        class CodeActionLiteralSupport : public JsonObject
+        class LANGUAGESERVERPROTOCOL_EXPORT CodeActionLiteralSupport : public JsonObject
         {
         public:
             using JsonObject::JsonObject;
 
-            class CodeActionKind : public JsonObject
+            class LANGUAGESERVERPROTOCOL_EXPORT CodeActionKind : public JsonObject
             {
             public:
                 using JsonObject::JsonObject;
@@ -376,7 +390,7 @@ public:
                 void setValueSet(const QList<QString> &valueSet)
                 { insertArray(valueSetKey, valueSet); }
 
-                bool isValid(QStringList *errorHierarchy) const override
+                bool isValid(ErrorHierarchy *errorHierarchy) const override
                 { return checkArray<QString>(errorHierarchy, valueSetKey); }
             };
 
@@ -385,7 +399,7 @@ public:
             void setCodeActionKind(const CodeActionKind &codeActionKind)
             { insert(codeActionKindKey, codeActionKind); }
 
-            bool isValid(QStringList *errorHierarchy) const override
+            bool isValid(ErrorHierarchy *errorHierarchy) const override
             { return check<CodeActionKind>(errorHierarchy, codeActionKindKey); }
         };
 
@@ -395,7 +409,7 @@ public:
         { insert(codeActionLiteralSupportKey, codeActionLiteralSupport); }
         void clearCodeActionLiteralSupport() { remove(codeActionLiteralSupportKey); }
 
-        bool isValid(QStringList *errorHierarchy) const override;
+        bool isValid(ErrorHierarchy *errorHierarchy) const override;
     };
 
     // Whether code action supports dynamic registration.
@@ -437,7 +451,7 @@ public:
     { insert(renameKey, rename); }
     void clearRename() { remove(renameKey); }
 
-    bool isValid(QStringList *error) const override;
+    bool isValid(ErrorHierarchy *error) const override;
 };
 
 class LANGUAGESERVERPROTOCOL_EXPORT WorkspaceClientCapabilities : public JsonObject
@@ -454,7 +468,7 @@ public:
     void setApplyEdit(bool applyEdit) { insert(applyEditKey, applyEdit); }
     void clearApplyEdit() { remove(applyEditKey); }
 
-    class WorkspaceEditCapabilities : public JsonObject
+    class LANGUAGESERVERPROTOCOL_EXPORT WorkspaceEditCapabilities : public JsonObject
     {
     public:
         using JsonObject::JsonObject;
@@ -466,7 +480,7 @@ public:
         { insert(documentChangesKey, documentChanges); }
         void clearDocumentChanges() { remove(documentChangesKey); }
 
-        bool isValid(QStringList *error) const override
+        bool isValid(ErrorHierarchy *error) const override
         { return checkOptional<bool>(error, documentChangesKey); }
     };
 
@@ -516,13 +530,12 @@ public:
     void setConfiguration(bool configuration) { insert(configurationKey, configuration); }
     void clearConfiguration() { remove(configurationKey); }
 
-    bool isValid(QStringList *error) const override;
+    bool isValid(ErrorHierarchy *error) const override;
 };
 
 class LANGUAGESERVERPROTOCOL_EXPORT ClientCapabilities : public JsonObject
 {
 public:
-    ClientCapabilities();
     using JsonObject::JsonObject;
 
     // Workspace specific client capabilities.
@@ -544,7 +557,7 @@ public:
     void setExperimental(const QJsonValue &experimental) { insert(experimentalKey, experimental); }
     void clearExperimental() { remove(experimentalKey); }
 
-    bool isValid(QStringList *error) const override;
+    bool isValid(ErrorHierarchy *error) const override;
 };
 
 }

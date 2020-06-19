@@ -29,18 +29,18 @@
 #include <coreplugin/editormanager/ieditor.h>
 #include <vcsbase/vcsbaseclient.h>
 
-namespace DiffEditor {
-class DiffEditorController;
-}
+namespace VcsBase { class VcsBaseDiffEditorController; }
 
 namespace Mercurial {
 namespace Internal {
+
+class MercurialDiffEditorController;
 
 class MercurialClient : public VcsBase::VcsBaseClient
 {
     Q_OBJECT
 public:
-    MercurialClient();
+    explicit MercurialClient(MercurialSettings *settings);
 
     bool synchronousClone(const QString &workingDir,
                           const QString &srcLocation,
@@ -74,7 +74,7 @@ public:
     void revertAll(const QString &workingDir, const QString &revision = QString(),
                    const QStringList &extraOptions = QStringList()) override;
 
-    bool isVcsDirectory(const Utils::FileName &fileName) const;
+    bool isVcsDirectory(const Utils::FilePath &fileName) const;
     QString findTopLevelForFile(const QFileInfo &file) const override;
 
     void view(const QString &source, const QString &id,
@@ -91,7 +91,8 @@ signals:
 
 private:
     void requestReload(const QString &documentId, const QString &source, const QString &title,
-                       std::function<DiffEditor::DiffEditorController *(Core::IDocument *)> factory) const;
+                       const QString &workingDirectory,
+                       const QStringList &args);
     void parsePullOutput(const QString &output);
 };
 

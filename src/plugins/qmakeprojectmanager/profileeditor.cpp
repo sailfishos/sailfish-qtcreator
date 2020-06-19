@@ -28,6 +28,8 @@
 #include "profilecompletionassist.h"
 #include "profilehighlighter.h"
 #include "profilehoverhandler.h"
+#include "qmakenodes.h"
+#include "qmakeproject.h"
 #include "qmakeprojectmanager.h"
 #include "qmakeprojectmanagerconstants.h"
 #include "qmakeprojectmanagerconstants.h"
@@ -35,7 +37,10 @@
 #include <coreplugin/fileiconprovider.h>
 #include <extensionsystem/pluginmanager.h>
 #include <qtsupport/qtsupportconstants.h>
+#include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/target.h>
+#include <projectexplorer/session.h>
 #include <texteditor/texteditoractionhandler.h>
 #include <texteditor/textdocument.h>
 #include <utils/qtcassert.h>
@@ -48,6 +53,7 @@
 
 #include <algorithm>
 
+using namespace ProjectExplorer;
 using namespace TextEditor;
 using namespace Utils;
 
@@ -56,12 +62,14 @@ namespace Internal {
 
 class ProFileEditorWidget : public TextEditorWidget
 {
-protected:
+private:
     void findLinkAt(const QTextCursor &,
                     Utils::ProcessLinkCallback &&processLinkCallback,
                     bool resolveTarget = true,
                     bool inNextSplit = false) override;
     void contextMenuEvent(QContextMenuEvent *) override;
+
+    QString checkForPrfFile(const QString &baseName) const;
 };
 
 static bool isValidFileNameChar(const QChar &c)
@@ -72,6 +80,50 @@ static bool isValidFileNameChar(const QChar &c)
             || c == QLatin1Char('-')
             || c == QLatin1Char('/')
             || c == QLatin1Char('\\');
+}
+
+QString ProFileEditorWidget::checkForPrfFile(const QString &baseName) const
+{
+    const FilePath projectFile = textDocument()->filePath();
+    const QmakePriFileNode *projectNode = nullptr;
+
+    // FIXME: Remove this check once project nodes are fully "static".
+    for (const Project * const project : SessionManager::projects()) {
+        static const auto isParsing = [](const Project *project) {
+            for (const Target * const t : project->targets()) {
+                for (const BuildConfiguration * const bc : t->buildConfigurations()) {
+                    if (bc->buildSystem()->isParsing())
+                        return true;
+                }
+            }
+            return false;
+        };
+        if (isParsing(project))
+            continue;
+
+        ProjectNode * const rootNode = project->rootProjectNode();
+        QTC_ASSERT(rootNode, continue);
+        projectNode = dynamic_cast<const QmakePriFileNode *>(rootNode
+                ->findProjectNode([&projectFile](const ProjectNode *pn) {
+            return pn->filePath() == projectFile;
+        }));
+        if (projectNode)
+            break;
+    }
+    if (!projectNode)
+        return QString();
+    const QmakeProFileNode * const proFileNode = projectNode->proFileNode();
+    if (!proFileNode)
+        return QString();
+    const QmakeProFile * const proFile = proFileNode->proFile();
+    if (!proFile)
+        return QString();
+    for (const QString &featureRoot : proFile->featureRoots()) {
+        const QFileInfo candidate(featureRoot + '/' + baseName + ".prf");
+        if (candidate.exists())
+            return candidate.filePath();
+    }
+    return QString();
 }
 
 void ProFileEditorWidget::findLinkAt(const QTextCursor &cursor,
@@ -189,6 +241,10 @@ void ProFileEditorWidget::findLinkAt(const QTextCursor &cursor,
                 return processLinkCallback(link);
         }
         link.targetFileName = QDir::cleanPath(fileName);
+    } else {
+        link.targetFileName = checkForPrfFile(buffer);
+    }
+    if (!link.targetFileName.isEmpty()) {
         link.linkTextStart = cursor.position() - positionInBlock + beginPos + 1;
         link.linkTextEnd = cursor.position() - positionInBlock + endPos;
     }
@@ -229,7 +285,9 @@ ProFileEditorFactory::ProFileEditorFactory()
     setDocumentCreator(createProFileDocument);
     setEditorWidgetCreator([]() { return new ProFileEditorWidget; });
 
-    setCompletionAssistProvider(new KeywordsCompletionAssistProvider(qmakeKeywords()));
+    const auto completionAssistProvider = new KeywordsCompletionAssistProvider(qmakeKeywords());
+    completionAssistProvider->setDynamicCompletionFunction(&TextEditor::pathComplete);
+    setCompletionAssistProvider(completionAssistProvider);
 
     setCommentDefinition(Utils::CommentDefinition::HashStyle);
     setEditorActionHandlers(TextEditorActionHandler::UnCommentSelection

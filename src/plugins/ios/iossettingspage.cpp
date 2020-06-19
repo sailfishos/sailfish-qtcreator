@@ -35,30 +35,12 @@
 namespace Ios {
 namespace Internal {
 
-IosSettingsPage::IosSettingsPage(QObject *parent)
-    : Core::IOptionsPage(parent)
+IosSettingsPage::IosSettingsPage()
 {
     setId(Constants::IOS_SETTINGS_ID);
-    setDisplayName(tr("iOS"));
+    setDisplayName(IosSettingsWidget::tr("iOS"));
     setCategory(ProjectExplorer::Constants::DEVICE_SETTINGS_CATEGORY);
-}
-
-QWidget *IosSettingsPage::widget()
-{
-    if (!m_widget)
-        m_widget = new IosSettingsWidget;
-    return m_widget;
-}
-
-void IosSettingsPage::apply()
-{
-    m_widget->saveSettings();
-    IosConfigurations::updateAutomaticKitList();
-}
-
-void IosSettingsPage::finish()
-{
-    delete m_widget;
+    setWidgetCreator([] { return new IosSettingsWidget; });
 }
 
 } // namespace Internal

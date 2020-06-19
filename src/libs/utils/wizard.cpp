@@ -66,7 +66,7 @@ public:
         m_indicatorLabel->setFixedSize(m_indicatorPixmap.size());
         m_titleLabel = new QLabel(title, this);
         auto l = new QHBoxLayout(this);
-        l->setMargin(0);
+        l->setContentsMargins(0, 0, 0, 0);
         l->addWidget(m_indicatorLabel);
         l->addWidget(m_titleLabel);
     }
@@ -320,7 +320,6 @@ Wizard::Wizard(QWidget *parent, Qt::WindowFlags flags) :
     setOption(QWizard::NoBackButtonOnStartPage, true);
     if (!Utils::creatorTheme()->preferredStyles().isEmpty())
         setWizardStyle(QWizard::ModernStyle);
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
     if (HostOsInfo::isMacHost()) {
         setButtonLayout(QList<QWizard::WizardButton>()

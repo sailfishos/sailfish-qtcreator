@@ -59,7 +59,7 @@ static bool isLocal(RunConfiguration *runConfiguration)
 {
     Target *target = runConfiguration ? runConfiguration->target() : nullptr;
     Kit *kit = target ? target->kit() : nullptr;
-    return DeviceTypeKitInformation::deviceTypeId(kit) == ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE;
+    return DeviceTypeKitAspect::deviceTypeId(kit) == ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE;
 }
 
 /*!
@@ -87,9 +87,12 @@ UnstartedAppWatcherDialog::UnstartedAppWatcherDialog(QWidget *parent)
     : QDialog(parent)
 {
     setWindowTitle(tr("Attach to Process Not Yet Started"));
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
-    m_kitChooser = new DebuggerKitChooser(DebuggerKitChooser::LocalDebugging, this);
+    m_kitChooser = new KitChooser(this);
+    m_kitChooser->setKitPredicate([](const Kit *k) {
+        return ToolChainKitAspect::targetAbi(k).os() == Abi::hostAbi().os();
+    });
+    m_kitChooser->setShowIcons(true);
     m_kitChooser->populate();
     m_kitChooser->setVisible(true);
 
@@ -118,7 +121,7 @@ UnstartedAppWatcherDialog::UnstartedAppWatcherDialog(QWidget *parent)
             if (isLocal(runConfig)) {
                 resetExecutable->setEnabled(true);
                 connect(resetExecutable, &QPushButton::clicked, this, [this, runnable] {
-                    m_pathChooser->setPath(runnable.executable);
+                    m_pathChooser->setFileName(runnable.executable);
                 });
             }
         }
@@ -197,7 +200,7 @@ void UnstartedAppWatcherDialog::selectExecutable()
         if (RunConfiguration *runConfig = activeTarget->activeRunConfiguration()) {
             const Runnable runnable = runConfig->runnable();
             if (isLocal(runConfig))
-                path = QFileInfo(runnable.executable).path();
+                path = runnable.executable.toFileInfo().path();
         }
     }
 
@@ -275,7 +278,7 @@ void UnstartedAppWatcherDialog::stopAndCheckExecutable()
 
 void UnstartedAppWatcherDialog::kitChanged()
 {
-    const DebuggerItem *debugger = DebuggerKitInformation::debugger(m_kitChooser->currentKit());
+    const DebuggerItem *debugger = DebuggerKitAspect::debugger(m_kitChooser->currentKit());
     if (!debugger)
         return;
     if (debugger->engineType() == Debugger::CdbEngineType) {

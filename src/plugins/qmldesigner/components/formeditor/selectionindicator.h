@@ -35,6 +35,8 @@
 
 namespace QmlDesigner {
 
+class FormEditorAnnotationIcon;
+
 class SelectionIndicator
 {
 public:
@@ -50,12 +52,16 @@ public:
     void updateItems(const QList<FormEditorItem*> &itemList);
 
     void setCursor(const QCursor &cursor);
+private:
+    void adjustAnnotationPosition(const QRectF &itemRect, const QRectF &labelRect, qreal scaleFactor);
 
 private:
     QHash<FormEditorItem*, QGraphicsPolygonItem *> m_indicatorShapeHash;
+    FormEditorItem *m_selectedItem;
     QPointer<LayerItem> m_layerItem;
     QCursor m_cursor;
     std::unique_ptr<QGraphicsPolygonItem> m_labelItem;
+    FormEditorAnnotationIcon *m_annotationItem; //handled by m_labelItem
 };
 
 } // namespace QmlDesigner

@@ -28,12 +28,17 @@
 #include "nimconstants.h"
 #include "editor/nimeditorfactory.h"
 #include "editor/nimhighlighter.h"
+#include "project/nimblerunconfiguration.h"
+#include "project/nimblebuildconfiguration.h"
 #include "project/nimbuildconfiguration.h"
 #include "project/nimcompilerbuildstep.h"
 #include "project/nimcompilercleanstep.h"
 #include "project/nimproject.h"
+#include "project/nimbleproject.h"
 #include "project/nimrunconfiguration.h"
 #include "project/nimtoolchainfactory.h"
+#include "project/nimblebuildstep.h"
+#include "project/nimbletaskstep.h"
 #include "settings/nimcodestylepreferencesfactory.h"
 #include "settings/nimcodestylesettingspage.h"
 #include "settings/nimtoolssettingspage.h"
@@ -43,6 +48,7 @@
 #include <coreplugin/fileiconprovider.h>
 #include <projectexplorer/projectmanager.h>
 #include <projectexplorer/toolchainmanager.h>
+#include <projectexplorer/runcontrol.h>
 #include <texteditor/snippets/snippetprovider.h>
 
 using namespace Utils;
@@ -65,7 +71,27 @@ public:
     NimSettings settings;
     NimEditorFactory editorFactory;
     NimBuildConfigurationFactory buildConfigFactory;
-    NimRunConfigurationFactory runConfigFactory;
+    NimbleBuildConfigurationFactory nimbleBuildConfigFactory;
+    NimRunConfigurationFactory nimRunConfigFactory;
+    NimbleRunConfigurationFactory nimbleRunConfigFactory;
+    NimbleTestConfigurationFactory nimbleTestConfigFactory;
+    RunWorkerFactory nimRunWorkerFactory {
+        RunWorkerFactory::make<SimpleTargetRunner>(),
+        {ProjectExplorer::Constants::NORMAL_RUN_MODE},
+        {nimRunConfigFactory.id()}
+    };
+    RunWorkerFactory nimbleRunWorkerFactory {
+        RunWorkerFactory::make<SimpleTargetRunner>(),
+        {ProjectExplorer::Constants::NORMAL_RUN_MODE},
+        {nimbleRunConfigFactory.id()}
+    };
+    RunWorkerFactory nimbleTestWorkerFactory {
+        RunWorkerFactory::make<SimpleTargetRunner>(),
+        {ProjectExplorer::Constants::NORMAL_RUN_MODE},
+        {nimbleTestConfigFactory.id()}
+    };
+    NimbleBuildStepFactory nimbleBuildStepFactory;
+    NimbleTaskStepFactory nimbleTaskStepFactory;
     NimCompilerBuildStepFactory buildStepFactory;
     NimCompilerCleanStepFactory cleanStepFactory;
     NimCodeStyleSettingsPage codeStyleSettingsPage;
@@ -93,6 +119,7 @@ bool NimPlugin::initialize(const QStringList &arguments, QString *errorMessage)
                                                &NimEditorFactory::decorateEditor);
 
     ProjectManager::registerProjectType<NimProject>(Constants::C_NIM_PROJECT_MIMETYPE);
+    ProjectManager::registerProjectType<NimbleProject>(Constants::C_NIMBLE_MIMETYPE);
 
     return true;
 }
@@ -106,6 +133,7 @@ void NimPlugin::extensionsInitialized()
     if (!icon.isNull()) {
         Core::FileIconProvider::registerIconOverlayForMimeType(icon, Constants::C_NIM_MIMETYPE);
         Core::FileIconProvider::registerIconOverlayForMimeType(icon, Constants::C_NIM_SCRIPT_MIMETYPE);
+        Core::FileIconProvider::registerIconOverlayForMimeType(icon, Constants::C_NIMBLE_MIMETYPE);
     }
 }
 

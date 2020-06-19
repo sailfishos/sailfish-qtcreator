@@ -31,7 +31,7 @@
 #include "environmentaspect.h"
 #include "localenvironmentaspect.h"
 #include "project.h"
-#include "runconfigurationaspects.h"
+#include "runcontrol.h"
 #include "target.h"
 
 #include <coreplugin/icore.h>
@@ -57,124 +57,6 @@ namespace ProjectExplorer {
 
 const char CUSTOM_EXECUTABLE_ID[] = "ProjectExplorer.CustomExecutableRunConfiguration";
 
-// Dialog prompting the user to complete the configuration.
-
-static void copyAspect(ProjectConfigurationAspect *source, ProjectConfigurationAspect *target)
-{
-    QVariantMap data;
-    source->toMap(data);
-    target->fromMap(data);
-}
-
-class CustomExecutableDialog : public QDialog
-{
-    Q_DECLARE_TR_FUNCTIONS(CustomExecutableDialog)
-public:
-    explicit CustomExecutableDialog(RunConfiguration *rc);
-
-    void accept() override;
-    bool event(QEvent *event) override;
-
-private:
-    void changed() {
-        bool isValid = !m_executableChooser->rawPath().isEmpty();
-        m_dialogButtonBox->button(QDialogButtonBox::Ok)->setEnabled(isValid);
-    }
-
-private:
-    void environmentWasChanged();
-
-    QDialogButtonBox *m_dialogButtonBox = nullptr;
-    RunConfiguration *m_rc = nullptr;
-    ArgumentsAspect m_arguments;
-    WorkingDirectoryAspect m_workingDirectory;
-    TerminalAspect m_terminal;
-    PathChooser *m_executableChooser = nullptr;
-};
-
-CustomExecutableDialog::CustomExecutableDialog(RunConfiguration *rc)
-    : QDialog(Core::ICore::dialogParent()),
-      m_rc(rc),
-      m_workingDirectory(rc->aspect<EnvironmentAspect>())
-{
-    auto vbox = new QVBoxLayout(this);
-    vbox->addWidget(new QLabel(tr("Could not find the executable, please specify one.")));
-
-    auto layout = new QFormLayout;
-    layout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
-    layout->setMargin(0);
-
-    auto detailsContainer = new DetailsWidget(this);
-    detailsContainer->setState(DetailsWidget::NoSummary);
-    vbox->addWidget(detailsContainer);
-
-    m_dialogButtonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
-    m_dialogButtonBox->button(QDialogButtonBox::Ok)->setEnabled(false);
-    connect(m_dialogButtonBox, &QDialogButtonBox::accepted, this, &CustomExecutableDialog::accept);
-    connect(m_dialogButtonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
-    vbox->addWidget(m_dialogButtonBox);
-    vbox->setSizeConstraint(QLayout::SetMinAndMaxSize);
-
-    auto detailsWidget = new QWidget(detailsContainer);
-    detailsContainer->setWidget(detailsWidget);
-    detailsWidget->setLayout(layout);
-
-    m_executableChooser = new PathChooser(this);
-    m_executableChooser->setHistoryCompleter("Qt.CustomExecutable.History");
-    m_executableChooser->setExpectedKind(PathChooser::ExistingCommand);
-    m_executableChooser->setPath(rc->aspect<ExecutableAspect>()->executable().toString());
-    layout->addRow(tr("Executable:"), m_executableChooser);
-    connect(m_executableChooser, &PathChooser::rawPathChanged,
-            this, &CustomExecutableDialog::changed);
-
-    copyAspect(rc->aspect<ArgumentsAspect>(), &m_arguments);
-    m_arguments.addToConfigurationLayout(layout);
-
-    copyAspect(rc->aspect<WorkingDirectoryAspect>(), &m_workingDirectory);
-    m_workingDirectory.addToConfigurationLayout(layout);
-
-    copyAspect(rc->aspect<TerminalAspect>(), &m_terminal);
-    m_terminal.addToConfigurationLayout(layout);
-
-    auto enviromentAspect = rc->aspect<EnvironmentAspect>();
-    connect(enviromentAspect, &EnvironmentAspect::environmentChanged,
-            this, &CustomExecutableDialog::environmentWasChanged);
-    environmentWasChanged();
-
-    Core::VariableChooser::addSupportForChildWidgets(this, m_rc->macroExpander());
-}
-
-void CustomExecutableDialog::accept()
-{
-    auto executable = FileName::fromString(m_executableChooser->path());
-    m_rc->aspect<ExecutableAspect>()->setExecutable(executable);
-    copyAspect(&m_arguments, m_rc->aspect<ArgumentsAspect>());
-    copyAspect(&m_workingDirectory, m_rc->aspect<WorkingDirectoryAspect>());
-    copyAspect(&m_terminal, m_rc->aspect<TerminalAspect>());
-
-    QDialog::accept();
-}
-
-bool CustomExecutableDialog::event(QEvent *event)
-{
-    if (event->type() == QEvent::ShortcutOverride) {
-        auto *ke = static_cast<QKeyEvent *>(event);
-        if (ke->key() == Qt::Key_Escape && !ke->modifiers()) {
-            ke->accept();
-            return true;
-        }
-    }
-    return QDialog::event(event);
-}
-
-void CustomExecutableDialog::environmentWasChanged()
-{
-    auto aspect = m_rc->aspect<EnvironmentAspect>();
-    QTC_ASSERT(aspect, return);
-    m_executableChooser->setEnvironment(aspect->environment());
-}
-
-
 // CustomExecutableRunConfiguration
 
 CustomExecutableRunConfiguration::CustomExecutableRunConfiguration(Target *target)
@@ -184,8 +66,7 @@ CustomExecutableRunConfiguration::CustomExecutableRunConfiguration(Target *targe
 CustomExecutableRunConfiguration::CustomExecutableRunConfiguration(Target *target, Core::Id id)
     : RunConfiguration(target, id)
 {
-    auto envAspect = addAspect<LocalEnvironmentAspect>
-            (target, LocalEnvironmentAspect::BaseEnvironmentModifier());
+    auto envAspect = addAspect<LocalEnvironmentAspect>(target);
 
     auto exeAspect = addAspect<ExecutableAspect>();
     exeAspect->setSettingsKey("ProjectExplorer.CustomExecutableRunConfiguration.Executable");
@@ -195,7 +76,7 @@ CustomExecutableRunConfiguration::CustomExecutableRunConfiguration(Target *targe
     exeAspect->setEnvironment(envAspect->environment());
 
     addAspect<ArgumentsAspect>();
-    addAspect<WorkingDirectoryAspect>(envAspect);
+    addAspect<WorkingDirectoryAspect>();
     addAspect<TerminalAspect>();
 
     connect(envAspect, &EnvironmentAspect::environmentChanged,
@@ -204,68 +85,30 @@ CustomExecutableRunConfiguration::CustomExecutableRunConfiguration(Target *targe
     setDefaultDisplayName(defaultDisplayName());
 }
 
-// Note: Qt4Project deletes all empty customexecrunconfigs for which isConfigured() == false.
-CustomExecutableRunConfiguration::~CustomExecutableRunConfiguration()
-{
-    if (m_dialog) {
-        emit configurationFinished();
-        disconnect(m_dialog, &QDialog::finished,
-                   this, &CustomExecutableRunConfiguration::configurationDialogFinished);
-    }
-    delete m_dialog;
-}
-
-RunConfiguration::ConfigurationState CustomExecutableRunConfiguration::ensureConfigured(QString *errorMessage)
-{
-    if (m_dialog) {// uhm already shown
-        errorMessage->clear(); // no error dialog
-        m_dialog->activateWindow();
-        m_dialog->raise();
-        return UnConfigured;
-    }
-
-    m_dialog = new CustomExecutableDialog(this);
-    connect(m_dialog, &QDialog::finished,
-            this, &CustomExecutableRunConfiguration::configurationDialogFinished);
-    m_dialog->setWindowTitle(displayName()); // pretty pointless
-    m_dialog->show();
-    return Waiting;
-}
-
-void CustomExecutableRunConfiguration::configurationDialogFinished()
-{
-    disconnect(m_dialog, &QDialog::finished,
-               this, &CustomExecutableRunConfiguration::configurationDialogFinished);
-    m_dialog->deleteLater();
-    m_dialog = nullptr;
-    emit configurationFinished();
-}
-
 QString CustomExecutableRunConfiguration::rawExecutable() const
 {
     return aspect<ExecutableAspect>()->executable().toString();
 }
 
-bool CustomExecutableRunConfiguration::isConfigured() const
+bool CustomExecutableRunConfiguration::isEnabled() const
 {
-    return !rawExecutable().isEmpty();
+    return true;
 }
 
 Runnable CustomExecutableRunConfiguration::runnable() const
 {
-    FileName workingDirectory =
+    FilePath workingDirectory =
             aspect<WorkingDirectoryAspect>()->workingDirectory(macroExpander());
 
     Runnable r;
-    r.executable = aspect<ExecutableAspect>()->executable().toString();
-    r.commandLineArguments = aspect<ArgumentsAspect>()->arguments(macroExpander());
+    r.setCommandLine(commandLine());
     r.environment = aspect<EnvironmentAspect>()->environment();
     r.workingDirectory = workingDirectory.toString();
     r.device = DeviceManager::instance()->defaultDevice(Constants::DESKTOP_DEVICE_TYPE);
 
     if (!r.executable.isEmpty()) {
-        QString expanded = macroExpander()->expand(r.executable);
-        r.executable = r.environment.searchInPath(expanded, {workingDirectory}).toString();
+        const QString expanded = macroExpander()->expand(r.executable.toString());
+        r.executable = r.environment.searchInPath(expanded, {workingDirectory});
     }
 
     return r;
@@ -279,14 +122,22 @@ QString CustomExecutableRunConfiguration::defaultDisplayName() const
         return tr("Run %1").arg(QDir::toNativeSeparators(rawExecutable()));
 }
 
+Tasks CustomExecutableRunConfiguration::checkForIssues() const
+{
+    Tasks tasks;
+    if (rawExecutable().isEmpty()) {
+        tasks << createConfigurationIssue(tr("You need to set an executable in the custom run "
+                                             "configuration."));
+    }
+    return tasks;
+}
+
 // Factory
 
 CustomExecutableRunConfigurationFactory::CustomExecutableRunConfigurationFactory() :
     FixedRunConfigurationFactory(CustomExecutableRunConfiguration::tr("Custom Executable"))
 {
     registerRunConfiguration<CustomExecutableRunConfiguration>(CUSTOM_EXECUTABLE_ID);
-
-    addRunWorkerFactory<SimpleTargetRunner>(ProjectExplorer::Constants::NORMAL_RUN_MODE);
 }
 
 } // namespace ProjectExplorer

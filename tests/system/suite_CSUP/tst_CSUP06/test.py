@@ -28,7 +28,9 @@ source("../../shared/qtcreator.py")
 def moveDownToNextNonEmptyLine(editor):
     currentLine = "" # there's no do-while in python - so use empty line which fails
     while not currentLine:
-        type(editor, "<Down>")
+        if waitFor("object.exists(':Utils::FakeToolTip')", 100):
+            type(editor, "<Esc>")   # close possibly shown completion tooltip so pressing
+        type(editor, "<Down>")      # down scrolls the line, not completion alternatives
         currentLine = str(lineUnderCursor(editor)).strip()
     return currentLine
 
@@ -62,22 +64,15 @@ def performAutoCompletionTest(editor, lineToStartRegEx, linePrefix, testFunc, *f
 def checkIncludeCompletion(editor, isClangCodeModel):
     test.log("Check auto-completion of include statements.")
     # define special handlings
-    noProposal = ["vec", "detail/hea", "dum"]
+    noProposal = ["detail/hea"]
     specialHandling = {"ios":"iostream", "cstd":"cstdio"}
-    if platform.system() in ('Microsoft', 'Windows'):
-        missing = ["lin"]
-    elif platform.system() == "Darwin":
-        missing = ["lin", "Win"]
-        noProposal.remove("vec")
-    else:
-        missing = ["Win"]
 
     # define test function to perform the _real_ auto completion test on the current line
     def testIncl(currentLine, *args):
-        missing, noProposal, specialHandling = args
+        noProposal, specialHandling = args
         inclSnippet = currentLine.split("//#include")[-1].strip().strip('<"')
         propShown = waitFor("object.exists(':popupFrame_TextEditor::GenericProposalWidget')", 2500)
-        test.compare(not propShown, inclSnippet in missing or inclSnippet in noProposal,
+        test.compare(not propShown, inclSnippet in noProposal,
                      "Proposal widget is (not) shown as expected (%s)" % inclSnippet)
         if propShown:
             proposalListView = waitForObject(':popupFrame_Proposal_QListView')
@@ -87,14 +82,11 @@ def checkIncludeCompletion(editor, isClangCodeModel):
             else:
                 type(proposalListView, "<Return>")
         changedLine = str(lineUnderCursor(editor)).strip()
-        if inclSnippet in missing:
-            test.compare(changedLine, currentLine.lstrip("/"), "Include has not been modified.")
-        else:
-            test.verify(changedLine[-1] in '>"/',
-                        "'%s' has been completed to '%s'" % (currentLine.lstrip("/"), changedLine))
+        test.verify(changedLine[-1] in '>"/',
+                    "'%s' has been completed to '%s'" % (currentLine.lstrip("/"), changedLine))
 
     performAutoCompletionTest(editor, ".*Complete includes.*", "//#include",
-                              testIncl, missing, noProposal, specialHandling)
+                              testIncl, noProposal, specialHandling)
 
 def checkSymbolCompletion(editor, isClangCodeModel):
     test.log("Check auto-completion of symbols.")
@@ -112,13 +104,16 @@ def checkSymbolCompletion(editor, isClangCodeModel):
                        "internal.o":"internal.one", "freefunc2":"freefunc2(",
                        "using namespace st":"using namespace std", "afun":"afunc()"}
     if isClangCodeModel:
+        missing.remove("Dummy::s")    # QTCREATORBUG-22729
         missing.remove("internal.o")
+        expectedSuggestion["in"] = ["internal", "int"]  #     QTCREATORBUG-22728
         expectedSuggestion["internal.o"] = ["one", "operator="]
         if platform.system() in ('Microsoft', 'Windows'):
             expectedSuggestion["using namespace st"] = ["std", "stdext"]
         else:
             expectedSuggestion["using namespace st"] = ["std", "struct ", "struct template"]
     else:
+        missing.remove("afun")
         expectedSuggestion["using namespace st"] = ["std", "st"]
     # define test function to perform the _real_ auto completion test on the current line
     def testSymb(currentLine, *args):
@@ -166,7 +161,7 @@ def main():
         with TestSection(getCodeModelString(useClang)):
             if not startCreatorVerifyingClang(useClang):
                 continue
-            openQmakeProject(examplePath, [Targets.DESKTOP_5_6_1_DEFAULT])
+            openQmakeProject(examplePath, [Targets.DESKTOP_5_14_1_DEFAULT])
             checkCodeModelSettings(useClang)
             if not openDocument("cplusplus-tools.Sources.main\\.cpp"):
                 earlyExit("Failed to open main.cpp.")
@@ -177,8 +172,5 @@ def main():
                 checkSymbolCompletion(editor, useClang)
                 invokeMenuItem('File', 'Revert "main.cpp" to Saved')
                 clickButton(waitForObject(":Revert to Saved.Proceed_QPushButton"))
-            snooze(1)   # 'Close "main.cpp"' might still be disabled
-            # editor must be closed to get the second code model applied on re-opening the file
-            invokeMenuItem('File', 'Close "main.cpp"')
             invokeMenuItem("File", "Exit")
             waitForCleanShutdown()

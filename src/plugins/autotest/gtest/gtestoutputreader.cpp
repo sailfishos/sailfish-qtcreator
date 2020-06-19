@@ -31,7 +31,7 @@
 
 #include <QDir>
 #include <QFileInfo>
-#include <QRegExp>
+#include <QRegularExpression>
 
 namespace Autotest {
 namespace Internal {
@@ -48,12 +48,11 @@ GTestOutputReader::GTestOutputReader(const QFutureInterface<TestResultPtr> &futu
     , m_projectFile(projectFile)
 {
     if (m_testApplication) {
-        connect(m_testApplication,
-                static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+        connect(m_testApplication, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, [this] (int exitCode, QProcess::ExitStatus /*exitStatus*/) {
             if (exitCode == 1 && !m_description.isEmpty()) {
                 createAndReportResult(tr("Running tests failed.\n %1\nExecutable: %2")
-                        .arg(m_description).arg(id()), Result::MessageFatal);
+                        .arg(m_description).arg(id()), ResultType::MessageFatal);
             }
             // on Windows abort() will result in normal termination, but exit code will be set to 3
             if (Utils::HostOsInfo::isWindowsHost() && exitCode == 3)
@@ -62,127 +61,145 @@ GTestOutputReader::GTestOutputReader(const QFutureInterface<TestResultPtr> &futu
     }
 }
 
-void GTestOutputReader::processOutputLine(const QByteArray &outputLineWithNewLine)
+void GTestOutputReader::processOutputLine(const QByteArray &outputLine)
 {
-    static QRegExp newTestStarts("^\\[-{10}\\] \\d+ tests? from (.*)$");
-    static QRegExp testEnds("^\\[-{10}\\] \\d+ tests? from (.*) \\((.*)\\)$");
-    static QRegExp newTestSetStarts("^\\[ RUN      \\] (.*)$");
-    static QRegExp testSetSuccess("^\\[       OK \\] (.*) \\((.*)\\)$");
-    static QRegExp testSetFail("^\\[  FAILED  \\] (.*) \\((\\d+ ms)\\)$");
-    static QRegExp disabledTests("^  YOU HAVE (\\d+) DISABLED TESTS?$");
-    static QRegExp failureLocation("^(.*):(\\d+): Failure$");
-    static QRegExp errorLocation("^(.*)\\((\\d+)\\): error:.*$");
-    static QRegExp iterations("^Repeating all tests \\(iteration (\\d+)\\) \\. \\. \\.$");
+    static const QRegularExpression newTestStarts("^\\[-{10}\\] \\d+ tests? from (.*)$");
+    static const QRegularExpression testEnds("^\\[-{10}\\] \\d+ tests? from (.*) \\((.*)\\)$");
+    static const QRegularExpression newTestSetStarts("^\\[ RUN      \\] (.*)$");
+    static const QRegularExpression testSetSuccess("^\\[       OK \\] (.*) \\((.*)\\)$");
+    static const QRegularExpression testSetFail("^\\[  FAILED  \\] (.*) \\((\\d+ ms)\\)$");
+    static const QRegularExpression testSetSkipped("^\\[  SKIPPED \\] (.*) \\((\\d+ ms)\\)$");
+    static const QRegularExpression disabledTests("^  YOU HAVE (\\d+) DISABLED TESTS?$");
+    static const QRegularExpression iterations("^Repeating all tests "
+                                               "\\(iteration (\\d+)\\) \\. \\. \\.$");
+    static const QRegularExpression logging("^\\[( FATAL | ERROR |WARNING|  INFO )\\] "
+                                            "(.*):(\\d+):: (.*)$");
 
-    const QString line = QString::fromLatin1(chopLineBreak(outputLineWithNewLine));
+    const QString line = removeCommandlineColors(QString::fromLatin1(outputLine));
     if (line.trimmed().isEmpty())
         return;
 
+    struct ExactMatch : public QRegularExpressionMatch
+    {
+        ExactMatch(const QRegularExpressionMatch &other) : QRegularExpressionMatch(other) {}
+        operator bool() const { return hasMatch(); }
+    };
+
     if (!line.startsWith('[')) {
         m_description.append(line).append('\n');
-        if (iterations.exactMatch(line)) {
-            m_iteration = iterations.cap(1).toInt();
+        if (ExactMatch match = iterations.match(line)) {
+            m_iteration = match.captured(1).toInt();
             m_description.clear();
         } else if (line.startsWith(QStringLiteral("Note:"))) {
             m_description = line;
             if (m_iteration > 1)
                 m_description.append(' ' + tr("(iteration %1)").arg(m_iteration));
             TestResultPtr testResult = TestResultPtr(new GTestResult(id(), m_projectFile, QString()));
-            testResult->setResult(Result::MessageInternal);
+            testResult->setResult(ResultType::MessageInternal);
             testResult->setDescription(m_description);
             reportResult(testResult);
             m_description.clear();
-        } else if (disabledTests.exactMatch(line)) {
-            TestResultPtr testResult = TestResultPtr(new GTestResult(id(), m_projectFile, QString()));
-            testResult->setResult(Result::MessageDisabledTests);
-            int disabled = disabledTests.cap(1).toInt();
-            testResult->setDescription(tr("You have %n disabled test(s).", nullptr, disabled));
-            testResult->setLine(disabled); // misuse line property to hold number of disabled
-            reportResult(testResult);
+        } else if (ExactMatch match = disabledTests.match(line)) {
+            m_disabled = match.captured(1).toInt();
             m_description.clear();
         }
         return;
     }
 
-    if (testEnds.exactMatch(line)) {
+    if (ExactMatch match = testEnds.match(line)) {
         TestResultPtr testResult = createDefaultResult();
-        testResult->setResult(Result::MessageTestCaseEnd);
-        testResult->setDescription(tr("Test execution took %1").arg(testEnds.cap(2)));
+        testResult->setResult(ResultType::TestEnd);
+        testResult->setDescription(tr("Test execution took %1").arg(match.captured(2)));
         reportResult(testResult);
-        m_currentTestName.clear();
-        m_currentTestSet.clear();
-    } else if (newTestStarts.exactMatch(line)) {
-        setCurrentTestName(newTestStarts.cap(1));
+        m_currentTestSuite.clear();
+        m_currentTestCase.clear();
+    } else if (ExactMatch match = newTestStarts.match(line)) {
+        setCurrentTestSuite(match.captured(1));
         TestResultPtr testResult = createDefaultResult();
-        testResult->setResult(Result::MessageTestCaseStart);
+        testResult->setResult(ResultType::TestStart);
         if (m_iteration > 1) {
-            testResult->setDescription(tr("Repeating test case %1 (iteration %2)")
-                                       .arg(m_currentTestName).arg(m_iteration));
+            testResult->setDescription(tr("Repeating test suite %1 (iteration %2)")
+                                       .arg(m_currentTestSuite).arg(m_iteration));
         } else {
-            testResult->setDescription(tr("Executing test case %1").arg(m_currentTestName));
+            testResult->setDescription(tr("Executing test suite %1").arg(m_currentTestSuite));
         }
         reportResult(testResult);
-    } else if (newTestSetStarts.exactMatch(line)) {
-        setCurrentTestSet(newTestSetStarts.cap(1));
-        TestResultPtr testResult = TestResultPtr(new GTestResult(m_projectFile));
-        testResult->setResult(Result::MessageCurrentTest);
-        testResult->setDescription(tr("Entering test set %1").arg(m_currentTestSet));
+    } else if (ExactMatch match = newTestSetStarts.match(line)) {
+        m_testSetStarted = true;
+        setCurrentTestCase(match.captured(1));
+        TestResultPtr testResult = TestResultPtr(new GTestResult(QString(), m_projectFile,
+                                                                 QString()));
+        testResult->setResult(ResultType::MessageCurrentTest);
+        testResult->setDescription(tr("Entering test case %1").arg(m_currentTestCase));
         reportResult(testResult);
         m_description.clear();
-    } else if (testSetSuccess.exactMatch(line)) {
+    } else if (ExactMatch match = testSetSuccess.match(line)) {
+        m_testSetStarted = false;
         TestResultPtr testResult = createDefaultResult();
-        testResult->setResult(Result::Pass);
+        testResult->setResult(ResultType::Pass);
         testResult->setDescription(m_description);
         reportResult(testResult);
         m_description.clear();
         testResult = createDefaultResult();
-        testResult->setResult(Result::MessageInternal);
-        testResult->setDescription(tr("Execution took %1.").arg(testSetSuccess.cap(2)));
+        testResult->setResult(ResultType::MessageInternal);
+        testResult->setDescription(tr("Execution took %1.").arg(match.captured(2)));
         reportResult(testResult);
         m_futureInterface.setProgressValue(m_futureInterface.progressValue() + 1);
-    } else if (testSetFail.exactMatch(line)) {
+    } else if (ExactMatch match = testSetFail.match(line)) {
+        m_testSetStarted = false;
         TestResultPtr testResult = createDefaultResult();
-        testResult->setResult(Result::Fail);
+        testResult->setResult(ResultType::Fail);
         m_description.chop(1);
-        QStringList resultDescription;
-
-        for (const QString &output : m_description.split('\n')) {
-            QRegExp *match = nullptr;
-            if (failureLocation.exactMatch(output))
-                match = &failureLocation;
-            else if (errorLocation.exactMatch(output))
-                match = &errorLocation;
-            if (!match) {
-                resultDescription << output;
-                continue;
-            }
-            testResult->setDescription(resultDescription.join('\n'));
-            reportResult(testResult);
-            resultDescription.clear();
-
-            testResult = createDefaultResult();
-            testResult->setResult(Result::MessageLocation);
-            testResult->setLine(match->cap(2).toInt());
-            QString file = constructSourceFilePath(m_buildDir, match->cap(1));
-            if (!file.isEmpty())
-                testResult->setFileName(file);
-            resultDescription << output;
-        }
-        testResult->setDescription(resultDescription.join('\n'));
-        reportResult(testResult);
-        m_description.clear();
+        handleDescriptionAndReportResult(testResult);
         testResult = createDefaultResult();
-        testResult->setResult(Result::MessageInternal);
-        testResult->setDescription(tr("Execution took %1.").arg(testSetFail.cap(2)));
+        testResult->setResult(ResultType::MessageInternal);
+        testResult->setDescription(tr("Execution took %1.").arg(match.captured(2)));
         reportResult(testResult);
         m_futureInterface.setProgressValue(m_futureInterface.progressValue() + 1);
+    } else if (ExactMatch match = testSetSkipped.match(line)) {
+        if (!m_testSetStarted)  // ignore SKIPPED at summary
+            return;
+        m_testSetStarted = false;
+        TestResultPtr testResult = createDefaultResult();
+        testResult->setResult(ResultType::Skip);
+        m_description.chop(1);
+        m_description.prepend(match.captured(1) + '\n');
+        handleDescriptionAndReportResult(testResult);
+        testResult = createDefaultResult();
+        testResult->setResult(ResultType::MessageInternal);
+        testResult->setDescription(tr("Execution took %1.").arg(match.captured(2)));
+        reportResult(testResult);
+    } else if (ExactMatch match = logging.match(line)) {
+        const QString severity = match.captured(1).trimmed();
+        ResultType type = ResultType::Invalid;
+        switch (severity.at(0).toLatin1()) {
+        case 'I': type = ResultType::MessageInfo; break;    // INFO
+        case 'W': type = ResultType::MessageWarn; break;    // WARNING
+        case 'E': type = ResultType::MessageError; break;   // ERROR
+        case 'F': type = ResultType::MessageFatal; break;   // FATAL
+        }
+        TestResultPtr testResult = createDefaultResult();
+        testResult->setResult(type);
+        testResult->setLine(match.captured(3).toInt());
+        const QString file = constructSourceFilePath(m_buildDir, match.captured(2));
+        if (!file.isEmpty())
+            testResult->setFileName(file);
+        testResult->setDescription(match.captured(4));
+        reportResult(testResult);
     }
+}
+
+void GTestOutputReader::processStdError(const QByteArray &outputLine)
+{
+    // we need to process the output, GTest may uses both out streams
+    processOutputLine(outputLine);
+    emit newOutputLineAvailable(outputLine, OutputChannel::StdErr);
 }
 
 TestResultPtr GTestOutputReader::createDefaultResult() const
 {
-    GTestResult *result = new GTestResult(id(), m_projectFile, m_currentTestName);
-    result->setTestSetName(m_currentTestSet);
+    GTestResult *result = new GTestResult(id(), m_projectFile, m_currentTestSuite);
+    result->setTestCaseName(m_currentTestCase);
     result->setIteration(m_iteration);
 
     const TestTreeItem *testItem = result->findTestTreeItem();
@@ -195,14 +212,47 @@ TestResultPtr GTestOutputReader::createDefaultResult() const
     return TestResultPtr(result);
 }
 
-void GTestOutputReader::setCurrentTestSet(const QString &testSet)
+void GTestOutputReader::setCurrentTestCase(const QString &testCase)
 {
-    m_currentTestSet = testSet;
+    m_currentTestCase = testCase;
 }
 
-void GTestOutputReader::setCurrentTestName(const QString &testName)
+void GTestOutputReader::setCurrentTestSuite(const QString &testSuite)
 {
-    m_currentTestName = testName;
+    m_currentTestSuite = testSuite;
+}
+
+void GTestOutputReader::handleDescriptionAndReportResult(TestResultPtr testResult)
+{
+    static const QRegularExpression failureLocation("^(.*):(\\d+): Failure$");
+    static const QRegularExpression skipOrErrorLocation("^(.*)\\((\\d+)\\): (Skipped|error:.*)$");
+
+    QStringList resultDescription;
+
+    for (const QString &output : m_description.split('\n')) {
+        QRegularExpressionMatch innerMatch = failureLocation.match(output);
+        if (!innerMatch.hasMatch()) {
+             innerMatch = skipOrErrorLocation.match(output);
+             if (!innerMatch.hasMatch()) {
+                resultDescription << output;
+                continue;
+             }
+        }
+        testResult->setDescription(resultDescription.join('\n'));
+        reportResult(testResult);
+        resultDescription.clear();
+
+        testResult = createDefaultResult();
+        testResult->setResult(ResultType::MessageLocation);
+        testResult->setLine(innerMatch.captured(2).toInt());
+        QString file = constructSourceFilePath(m_buildDir, innerMatch.captured(1));
+        if (!file.isEmpty())
+            testResult->setFileName(file);
+        resultDescription << output;
+    }
+    testResult->setDescription(resultDescription.join('\n'));
+    reportResult(testResult);
+    m_description.clear();
 }
 
 } // namespace Internal

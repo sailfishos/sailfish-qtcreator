@@ -24,9 +24,10 @@
 ****************************************************************************/
 
 import QtQuick 2.1
-import QtQuick.Controls 1.1 as Controls
+import QtQuick.Controls 2.12 as Controls
 import QtQuick.Layouts 1.0
 import QtQuickDesignerTheme 1.0
+import StudioTheme 1.0 as StudioTheme
 
 Item {
     id: section
@@ -51,9 +52,10 @@ Item {
         Controls.Label {
             id: label
             anchors.verticalCenter: parent.verticalCenter
-            color: Theme.color(Theme.PanelTextColorLight)
+            color: StudioTheme.Values.themeTextColor
             x: 22
             font.bold: true
+            font.pixelSize: StudioTheme.Values.myFontSize
         }
 
         Image {
@@ -73,7 +75,7 @@ Item {
 
         }
 
-        color: Theme.color(Theme.BackgroundColorDark)
+        color: StudioTheme.Values.themeSectionHeadBackground
 
         Rectangle {
             visible: false

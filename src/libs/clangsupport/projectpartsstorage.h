@@ -74,6 +74,14 @@ public:
             .template values<FilePathId>(1024, projectPartId.projectPathId);
     }
 
+    bool preCompiledHeaderWasGenerated(ProjectPartId projectPartId) const
+    {
+        auto value = fetchProjectPrecompiledHeaderBuildTimeStatement.template value<long long>(
+            projectPartId.projectPathId);
+
+        return value && *value > 0;
+    }
+
     ProjectPartContainers fetchProjectParts(const ProjectPartIds &projectPartIds) const override
     {
         try {
@@ -88,6 +96,7 @@ public:
                 if (value) {
                     value->headerPathIds = fetchHeaders(projectPartId);
                     value->sourcePathIds = fetchSources(projectPartId);
+                    value->preCompiledHeaderWasGenerated = preCompiledHeaderWasGenerated(projectPartId);
                     projectParts.push_back(*std::move(value));
                 }
             }
@@ -100,32 +109,39 @@ public:
         }
     }
 
+    ProjectPartId fetchProjectPartIdUnguarded(Utils::SmallStringView projectPartName) const override
+    {
+        auto optionalProjectPartId = fetchProjectPartIdStatement.template value<ProjectPartId>(
+            projectPartName);
+
+        if (optionalProjectPartId) {
+            return *optionalProjectPartId;
+        } else {
+            insertProjectPartNameStatement.write(projectPartName);
+
+            return static_cast<int>(database.lastInsertedRowId());
+        }
+
+        return {};
+    }
+
     ProjectPartId fetchProjectPartId(Utils::SmallStringView projectPartName) const override
     {
         try {
             Sqlite::DeferredTransaction transaction{database};
 
-            ProjectPartId projectPartId;
-            auto optionalProjectPartId = fetchProjectPartIdStatement.template value<ProjectPartId>(
-                projectPartName);
-
-            if (optionalProjectPartId) {
-                projectPartId = *optionalProjectPartId;
-            } else {
-                insertProjectPartNameStatement.write(projectPartName);
-
-                projectPartId = static_cast<int>(database.lastInsertedRowId());
-            }
+            ProjectPartId projectPartId = fetchProjectPartIdUnguarded(projectPartName);
 
             transaction.commit();
 
             return projectPartId;
+
         } catch (const Sqlite::StatementIsBusy &) {
             return fetchProjectPartId(projectPartName);
         }
     }
 
-    Utils::PathString fetchProjectPartName(ProjectPartId projectPartId) const
+    Utils::PathString fetchProjectPartName(ProjectPartId projectPartId) const override
     {
         try {
             Sqlite::DeferredTransaction transaction{database};
@@ -224,16 +240,52 @@ public:
 
     Utils::optional<ProjectPartArtefact> fetchProjectPartArtefact(FilePathId sourceId) const override
     {
-        ReadStatement &statement = getProjectPartArtefactsBySourceId;
+        try {
+            Sqlite::DeferredTransaction transaction{database};
 
-        return statement.template value<ProjectPartArtefact, 8>(sourceId.filePathId);
+            ReadStatement &statement = getProjectPartArtefactsBySourceId;
+
+            auto value = statement.template value<ProjectPartArtefact, 8>(sourceId.filePathId);
+
+            transaction.commit();
+
+            return value;
+        } catch (const Sqlite::StatementIsBusy &) {
+            return fetchProjectPartArtefact(sourceId);
+        }
     }
 
     Utils::optional<ProjectPartArtefact> fetchProjectPartArtefact(ProjectPartId projectPartId) const override
     {
-        ReadStatement &statement = getProjectPartArtefactsByProjectPartId;
+        try {
+            Sqlite::DeferredTransaction transaction{database};
 
-        return statement.template value<ProjectPartArtefact, 8>(projectPartId.projectPathId);
+            ReadStatement &statement = getProjectPartArtefactsByProjectPartId;
+
+            auto value = statement.template value<ProjectPartArtefact, 8>(projectPartId.projectPathId);
+
+            transaction.commit();
+
+            return value;
+        } catch (const Sqlite::StatementIsBusy &) {
+            return fetchProjectPartArtefact(projectPartId);
+        }
+    }
+
+    void resetIndexingTimeStamps(const ProjectPartContainers &projectsParts) override
+    {
+        try {
+            Sqlite::ImmediateTransaction transaction{database};
+
+            for (const ProjectPartContainer &projectPart : projectsParts) {
+                for (FilePathId sourcePathId : projectPart.sourcePathIds)
+                    resetDependentIndexingTimeStampsStatement.write(sourcePathId.filePathId);
+            }
+
+            transaction.commit();
+        } catch (const Sqlite::StatementIsBusy &) {
+            resetIndexingTimeStamps(projectsParts);
+        }
     }
 
     Sqlite::TransactionInterface &transactionBackend() override { return database; }
@@ -285,6 +337,23 @@ public:
                                        Utils::SmallString::number(projectPartId.projectPathId));
     }
 
+    Internal::ProjectPartNameIds fetchAllProjectPartNamesAndIds() const override
+    {
+        try {
+            Sqlite::DeferredTransaction transaction{database};
+
+            ReadStatement &statement = fetchAllProjectPartNamesAndIdsStatement;
+
+            auto values = statement.template values<Internal::ProjectPartNameId, 2>(256);
+
+            transaction.commit();
+
+            return values;
+        } catch (const Sqlite::StatementIsBusy &) {
+            return fetchAllProjectPartNamesAndIds();
+        }
+    }
+
 public:
     Sqlite::ImmediateNonThrowingDestructorTransaction transaction;
     Database &database;
@@ -329,8 +398,16 @@ public:
     WriteStatement insertProjectPartsSourcesStatement{
         "INSERT INTO projectPartsSources(projectPartId, sourceId) VALUES (?,?)", database};
     mutable ReadStatement fetchProjectPartsHeadersByIdStatement{
-        "SELECT sourceId FROM projectPartsHeaders WHERE projectPartId = ?", database};
+        "SELECT sourceId FROM projectPartsHeaders WHERE projectPartId = ? ORDER BY sourceId",
+        database};
     mutable ReadStatement fetchProjectPartsSourcesByIdStatement{
-        "SELECT sourceId FROM projectPartsSources WHERE projectPartId = ?", database};
+        "SELECT sourceId FROM projectPartsSources WHERE projectPartId = ? ORDER BY sourceId",
+        database};
+    mutable ReadStatement fetchProjectPrecompiledHeaderBuildTimeStatement{
+        "SELECT projectPchBuildTime FROM precompiledHeaders WHERE projectPartId = ?", database};
+    WriteStatement resetDependentIndexingTimeStampsStatement{
+        "UPDATE fileStatuses SET indexingTimeStamp = NULL WHERE sourceId = ?", database};
+    mutable ReadStatement fetchAllProjectPartNamesAndIdsStatement{
+        "SELECT projectPartName, projectPartId FROM projectParts", database};
 };
 } // namespace ClangBackEnd

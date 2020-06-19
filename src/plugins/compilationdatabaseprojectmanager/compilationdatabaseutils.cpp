@@ -28,23 +28,24 @@
 #include <projectexplorer/headerpath.h>
 #include <projectexplorer/projectmacro.h>
 
+#include <utils/algorithm.h>
 #include <utils/hostosinfo.h>
 #include <utils/optional.h>
 
 #include <QDir>
 #include <QRegularExpression>
+#include <QSet>
 
 using namespace ProjectExplorer;
 
 namespace CompilationDatabaseProjectManager {
+namespace Internal {
 
 static QString updatedPathFlag(const QString &pathStr, const QString &workingDir)
 {
     QString result = pathStr;
-    if (!QDir(pathStr).exists()
-            && QDir(workingDir + "/" + pathStr).exists()) {
+    if (QDir(pathStr).isRelative())
         result = workingDir + "/" + pathStr;
-    }
 
     return result;
 }
@@ -99,7 +100,8 @@ void filteredFlags(const QString &fileName,
                    QStringList &flags,
                    HeaderPaths &headerPaths,
                    Macros &macros,
-                   CppTools::ProjectFile::Kind &fileKind)
+                   CppTools::ProjectFile::Kind &fileKind,
+                   QString &sysRoot)
 {
     if (flags.empty())
         return;
@@ -148,18 +150,22 @@ void filteredFlags(const QString &fileName,
         }
 
         if (flag == "-o" || flag == "-MF" || flag == "-c" || flag == "-pedantic"
-                || flag.startsWith("-O") || flag.startsWith("-W") || flag.startsWith("-w")) {
+                || flag.startsWith("-O") || flag.startsWith("-W") || flag.startsWith("-w")
+                || QString::compare(flag, "-fpic", Qt::CaseInsensitive) == 0
+                || QString::compare(flag, "-fpie", Qt::CaseInsensitive) == 0) {
             continue;
         }
 
-        if ((flag.startsWith("-I") || flag.startsWith("-isystem") || flag.startsWith("/I"))
-                   && flag != "-I" && flag != "-isystem" && flag != "/I") {
-            bool userInclude = flag.startsWith("-I");
-            const QString pathStr = updatedPathFlag(flag.mid(userInclude ? 2 : 8),
-                                                    workingDir);
-            headerPaths.append({pathStr, userInclude
-                                             ? HeaderPathType::User
-                                             : HeaderPathType::System});
+        const QStringList userIncludeFlags{"-I", "/I"};
+        const QStringList systemIncludeFlags{"-isystem", "-imsvc", "/imsvc"};
+        const QStringList allIncludeFlags = QStringList(userIncludeFlags) << systemIncludeFlags;
+        const QString includeOpt = Utils::findOrDefault(allIncludeFlags, [flag](const QString &opt) {
+            return flag.startsWith(opt) && flag != opt;
+        });
+        if (!includeOpt.isEmpty()) {
+            const QString pathStr = updatedPathFlag(flag.mid(includeOpt.length()), workingDir);
+            headerPaths.append({pathStr, userIncludeFlags.contains(includeOpt)
+                                ? HeaderPathType::User : HeaderPathType::System});
             continue;
         }
 
@@ -171,13 +177,23 @@ void filteredFlags(const QString &fileName,
             continue;
         }
 
-        if (flag == "-I" || flag == "-isystem" || flag == "/I") {
-            includePathType = (flag != "-isystem") ? HeaderPathType::User : HeaderPathType::System;
+        if (userIncludeFlags.contains(flag)) {
+            includePathType = HeaderPathType::User;
+            continue;
+        }
+        if (systemIncludeFlags.contains(flag)) {
+            includePathType = HeaderPathType::System;
             continue;
         }
 
         if (flag == "-D" || flag == "-U" || flag == "/D" || flag == "/U") {
             macroType = (flag == "-D" || flag == "/D") ? MacroType::Define : MacroType::Undefine;
+            continue;
+        }
+
+        if (flag.startsWith("--sysroot=")) {
+            if (sysRoot.isEmpty())
+                sysRoot = updatedPathFlag(flag.mid(10), workingDir);
             continue;
         }
 
@@ -187,7 +203,7 @@ void filteredFlags(const QString &fileName,
             if (CppTools::ProjectFile::isHeader(CppTools::ProjectFile::classify(fileName)))
                 fileKind = cpp ? CppTools::ProjectFile::CXXHeader : CppTools::ProjectFile::CHeader;
             else
-                fileKind = cpp ? CppTools::ProjectFile::CXXSource : CppTools::ProjectFile::CXXHeader;
+                fileKind = cpp ? CppTools::ProjectFile::CXXSource : CppTools::ProjectFile::CSource;
         }
 
         // Skip all remaining Windows flags except feature flags.
@@ -203,7 +219,7 @@ void filteredFlags(const QString &fileName,
     flags = filtered;
 }
 
-QStringList splitCommandLine(QString commandLine)
+QStringList splitCommandLine(QString commandLine, QSet<QString> &flagsCache)
 {
     QStringList result;
     bool insideQuotes = false;
@@ -213,16 +229,24 @@ QStringList splitCommandLine(QString commandLine)
     for (const QString &part : commandLine.split(QRegularExpression("\""))) {
         if (insideQuotes) {
             const QString quotedPart = "\"" + part + "\"";
-            if (result.last().endsWith("="))
-                result.last().append(quotedPart);
-            else
-                result.append(quotedPart);
+            if (result.last().endsWith("=")) {
+                auto flagIt = flagsCache.insert(result.last() + quotedPart);
+                result.last() = *flagIt;
+            } else {
+                auto flagIt = flagsCache.insert(quotedPart);
+                result.append(*flagIt);
+            }
         } else { // If 's' is outside quotes ...
-            result.append(part.split(QRegularExpression("\\s+"), QString::SkipEmptyParts));
+            for (const QString &flag :
+                 part.split(QRegularExpression("\\s+"), QString::SkipEmptyParts)) {
+                auto flagIt = flagsCache.insert(flag);
+                result.append(*flagIt);
+            }
         }
         insideQuotes = !insideQuotes;
     }
     return result;
 }
 
+} // namespace Internal
 } // namespace CompilationDatabaseProjectManager

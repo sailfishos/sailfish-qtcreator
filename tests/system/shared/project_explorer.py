@@ -30,25 +30,12 @@ def switchViewTo(view):
     waitFor("not QToolTip.isVisible()", 15000)
     if view < ViewConstants.FIRST_AVAILABLE or view > ViewConstants.LAST_AVAILABLE:
         return
-    tabBar = waitForObject("{name='ModeSelector' type='Core::Internal::FancyTabBar' visible='1' "
-                           "window=':Qt Creator_Core::Internal::MainWindow'}")
-    mouseMove(tabBar, 20, 20 + 52 * view)
-    if waitFor("QToolTip.isVisible()", 10000):
-        text = str(QToolTip.text())
-    else:
-        test.warning("Waiting for ToolTip timed out.")
-        text = ""
-    pattern = ViewConstants.getToolTipForViewTab(view)
-    if re.match(pattern, unicode(text), re.UNICODE):
-        test.passes("ToolTip verified")
-    else:
-        test.warning("ToolTip does not match", "Expected pattern: %s\nGot: %s" % (pattern, text))
     mouseClick(waitForObject("{name='ModeSelector' type='Core::Internal::FancyTabBar' visible='1' "
                              "window=':Qt Creator_Core::Internal::MainWindow'}"), 20, 20 + 52 * view, 0, Qt.LeftButton)
 
 def __kitIsActivated__(kit):
-    return not (str(kit.toolTip).startswith("<h3>Click to activate:</h3>")
-                or str(kit.toolTip).startswith("<h3>Kit is unsuited for project</h3>"))
+    return not ("<h3>Click to activate</h3>" in str(kit.toolTip)
+                or "<h3>Kit is unsuited for project</h3>" in str(kit.toolTip))
 
 # returns a list of the IDs (see class Targets) of all kits
 #        which are currently configured for the active project
@@ -143,17 +130,13 @@ def invokeContextMenuOnProject(projectName, menuItem):
             return
     openItemContextMenu(waitForObject(":Qt Creator_Utils::NavigationTreeView"),
                         str(projItem.text).replace("_", "\\_").replace(".", "\\."), 5, 5, 0)
-    # Hack for Squish 5.0.1 handling menus of Qt5.2 on Mac (avoids crash) - remove asap
-    if platform.system() == 'Darwin':
-        waitFor("macHackActivateContextMenuItem(menuItem)", 6000)
-    else:
-        activateItem(waitForObjectItem("{name='Project.Menu.Project' type='QMenu' visible='1'}", menuItem))
+    activateItem(waitForObjectItem("{name='Project.Menu.Project' type='QMenu' visible='1'}", menuItem))
     return projItem
 
 def addAndActivateKit(kit):
-    clickToActivate = "<h3>Click to activate:</h3>"
     bAndRIndex = getQModelIndexStr("text='Build & Run'", ":Projects.ProjectNavigationTreeView")
     kitString = Targets.getStringForTarget(kit)
+    clickToActivate = "<html><body><h3>%s</h3><p><h3>Click to activate</h3>" % kitString
     switchViewTo(ViewConstants.PROJECTS)
     try:
         waitForObject(":Projects.ProjectNavigationTreeView")
@@ -163,13 +146,6 @@ def addAndActivateKit(kit):
             mouseClick(index)
             test.verify(waitFor("not str(index.toolTip).startswith(clickToActivate)", 1500),
                         "Kit added for this project")
-            try:
-                findObject(":Projects.ProjectNavigationTreeView")
-            except:
-                test.warning("Squish issue - QC switches automatically to Edit view after enabling "
-                             "a new kit when running tst_opencreator_qbs - works as expected when "
-                             "running without Squish")
-                switchViewTo(ViewConstants.PROJECTS)
         else:
             test.warning("Kit is already added for this project.")
         mouseClick(index)

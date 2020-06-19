@@ -32,7 +32,6 @@
 #include <utils/fileutils.h>
 
 #include <QList>
-#include <QSet>
 
 namespace ProjectExplorer {
 
@@ -43,9 +42,9 @@ public:
     QString displayName;
     QString displayNameUniquifier;
 
-    Utils::FileName targetFilePath;
-    Utils::FileName projectFilePath;
-    Utils::FileName workingDirectory;
+    Utils::FilePath targetFilePath;
+    Utils::FilePath projectFilePath;
+    Utils::FilePath workingDirectory;
     bool isQtcRunnable = true;
     bool usesTerminal = false;
 
@@ -74,28 +73,6 @@ inline bool operator!=(const BuildTargetInfo &ti1, const BuildTargetInfo &ti2)
 inline uint qHash(const BuildTargetInfo &ti)
 {
     return qHash(ti.displayName) ^ qHash(ti.buildKey);
-}
-
-class PROJECTEXPLORER_EXPORT BuildTargetInfoList
-{
-public:
-    BuildTargetInfo buildTargetInfo(const QString &buildKey) {
-        return Utils::findOrDefault(list, [&buildKey](const BuildTargetInfo &ti) {
-            return ti.buildKey == buildKey;
-        });
-    }
-
-    QList<BuildTargetInfo> list;
-};
-
-inline bool operator==(const BuildTargetInfoList &til1, const BuildTargetInfoList &til2)
-{
-    return til1.list.toSet() == til2.list.toSet();
-}
-
-inline bool operator!=(const BuildTargetInfoList &til1, const BuildTargetInfoList &til2)
-{
-    return !(til1 == til2);
 }
 
 } // namespace ProjectExplorer

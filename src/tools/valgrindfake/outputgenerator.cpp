@@ -45,7 +45,7 @@ void doSleep(int msec) { ::Sleep(msec); }
 void doSleep(int msec)
 {
     struct timespec ts = {msec / 1000, (msec % 1000) * 1000000};
-    ::nanosleep(&ts, NULL);
+    ::nanosleep(&ts, nullptr);
 }
 #endif
 
@@ -107,7 +107,7 @@ void OutputGenerator::produceRuntimeError()
 #ifndef __clang_analyzer__
         int zero = 0; // hide the error at compile-time to avoid a compiler warning
         int i = 1 / zero;
-        Q_UNUSED(i);
+        Q_UNUSED(i)
 #endif
         Q_ASSERT(false);
     } else if (m_garbage) {
@@ -115,7 +115,7 @@ void OutputGenerator::produceRuntimeError()
         blockingWrite(m_output, "<</GARBAGE = '\"''asdfaqre");
         m_output->flush();
     } else if (m_wait) {
-        qDebug() << "waiting in fake valgrind for " << m_wait << " seconds..." << endl;
+        qDebug() << "waiting in fake valgrind for " << m_wait << " seconds..." << '\n';
         doSleep(1000 * m_wait);
     }
 }

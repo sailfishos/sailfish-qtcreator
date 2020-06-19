@@ -24,6 +24,7 @@
 ****************************************************************************/
 
 #include "qmljscompletionassist.h"
+#include "qmljseditor.h"
 #include "qmljseditorconstants.h"
 #include "qmljsreuse.h"
 #include "qmlexpressionundercursor.h"
@@ -465,7 +466,7 @@ QString FunctionHintProposalModel::text(int index) const
         prettyMethod += arg;
     }
     if (m_isVariadic) {
-        if (m_namedArguments.size())
+        if (!m_namedArguments.isEmpty())
             prettyMethod += QLatin1String(", ");
         prettyMethod += QLatin1String("...");
     }

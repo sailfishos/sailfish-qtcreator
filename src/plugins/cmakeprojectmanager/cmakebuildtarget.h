@@ -28,6 +28,7 @@
 #include "cmake_global.h"
 
 #include <projectexplorer/projectmacro.h>
+#include <projectexplorer/projectnodes.h>
 
 #include <utils/fileutils.h>
 
@@ -36,29 +37,41 @@
 namespace CMakeProjectManager {
 
 enum TargetType {
-    ExecutableType = 0,
-    StaticLibraryType = 2,
-    DynamicLibraryType = 3,
-    UtilityType = 64
+    ExecutableType,
+    StaticLibraryType,
+    DynamicLibraryType,
+    ObjectLibraryType,
+    UtilityType
 };
+
+using Backtrace = QVector<ProjectExplorer::FolderNode::LocationInfo>;
+using Backtraces = QVector<Backtrace>;
 
 class CMAKE_EXPORT CMakeBuildTarget
 {
 public:
     QString title;
-    Utils::FileName executable; // TODO: rename to output?
+    Utils::FilePath executable; // TODO: rename to output?
     TargetType targetType = UtilityType;
-    Utils::FileName workingDirectory;
-    Utils::FileName sourceDirectory;
-    Utils::FileName makeCommand;
+    bool linksToQtGui = false;
+    Utils::FilePath workingDirectory;
+    Utils::FilePath sourceDirectory;
+    Utils::FilePath makeCommand;
+    Utils::FilePaths libraryDirectories;
+
+    Backtrace backtrace;
+
+    Backtraces dependencyDefinitions;
+    Backtraces sourceDefinitions;
+    Backtraces defineDefinitions;
+    Backtraces includeDefinitions;
+    Backtraces installDefinitions;
 
     // code model
-    QList<Utils::FileName> includeFiles;
+    QList<Utils::FilePath> includeFiles;
     QStringList compilerOptions;
     ProjectExplorer::Macros macros;
-    QList<Utils::FileName> files;
-
-    void clear();
+    QList<Utils::FilePath> files;
 };
 
 } // namespace CMakeProjectManager

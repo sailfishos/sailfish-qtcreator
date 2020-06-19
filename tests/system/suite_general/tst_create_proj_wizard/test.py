@@ -55,14 +55,14 @@ def main():
         # skip non-configurable
         if "Import" in category:
             continue
-        clickItem(categoriesView, "Projects." + category, 5, 5, 0, Qt.LeftButton)
+        mouseClick(waitForObjectItem(categoriesView, "Projects." + category))
         templatesView = waitForObject("{name='templatesView' type='QListView' visible='1'}")
         # needed because categoriesView and templatesView using same model
         for template in dumpItems(templatesView.model(), templatesView.rootIndex()):
             template = template.replace(".", "\\.")
             # skip non-configurable
-            if not template in ["Qt Quick UI Prototype", "Auto Test Project",  # FIXME
-                                "Qt for Python - Empty", "Qt for Python - Window"]:
+            if (template not in ["Qt Quick UI Prototype", "Auto Test Project", "Qt Creator Plugin"]
+                and "Qt for Python - " not in template): # FIXME
                 availableProjectTypes.append({category:template})
     safeClickButton("Cancel")
     for current in availableProjectTypes:
@@ -71,7 +71,7 @@ def main():
         with TestSection("Testing project template %s -> %s" % (category, template)):
             displayedPlatforms = __createProject__(category, template)
             if template.startswith("Qt Quick Application - "):
-                qtVersionsForQuick = ["5.6", "5.10"] if template == "Qt Quick Application - Empty" else ["5.10"]
+                qtVersionsForQuick = ["5.10", "5.14"]
                 for counter, qtVersion in enumerate(qtVersionsForQuick):
                     def additionalFunc(displayedPlatforms, qtVersion):
                         requiredQtVersion = __createProjectHandleQtQuickSelection__(qtVersion)
@@ -81,14 +81,19 @@ def main():
                     # are there more Quick combinations - then recreate this project
                     if counter < len(qtVersionsForQuick) - 1:
                         displayedPlatforms = __createProject__(category, template)
-                continue
-            handleBuildSystemVerifyKits(category, template, kits, displayedPlatforms)
+            elif template in ("Qt Widgets Application", "Qt Quick 2 Extension Plugin", "C++ Library"):
+                def skipDetails(_):
+                    clickButton(waitForObject(":Next_QPushButton"))
+                handleBuildSystemVerifyKits(category, template, kits,
+                                            displayedPlatforms, skipDetails)
+            else:
+                handleBuildSystemVerifyKits(category, template, kits, displayedPlatforms)
 
     invokeMenuItem("File", "Exit")
 
 def verifyKitCheckboxes(kits, displayedPlatforms):
     waitForObject("{type='QLabel' unnamed='1' visible='1' text='Kit Selection'}")
-    availableCheckboxes = frozenset(filter(visibleCheckBoxExists, kits.keys()))
+    availableCheckboxes = frozenset(filter(enabledCheckBoxExists, kits.keys()))
     # verification whether expected, found and configured match
 
     expectedShownKits = availableCheckboxes.intersection(displayedPlatforms)
@@ -127,6 +132,8 @@ def handleBuildSystemVerifyKits(category, template, kits, displayedPlatforms,
         clickButton(waitForObject(":Next_QPushButton"))
         if specialHandlingFunc:
             specialHandlingFunc(displayedPlatforms, *args)
+        if not ('Plain C' in template):
+            __createProjectHandleTranslationSelection__()
         verifyKitCheckboxes(kits, displayedPlatforms)
         safeClickButton("Cancel")
         if counter < len(availableBuildSystems) - 1:
@@ -142,12 +149,12 @@ def __createProject__(category, template):
     invokeMenuItem("File", "New File or Project...")
     selectFromCombo(waitForObject(":New.comboBox_QComboBox"), "All Templates")
     categoriesView = waitForObject(":New.templateCategoryView_QTreeView")
-    clickItem(categoriesView, "Projects." + category, 5, 5, 0, Qt.LeftButton)
+    mouseClick(waitForObjectItem(categoriesView, "Projects." + category))
     templatesView = waitForObject("{name='templatesView' type='QListView' visible='1'}")
 
     test.log("Verifying '%s' -> '%s'" % (category.replace("\\.", "."), template.replace("\\.", ".")))
     origTxt = safeGetTextBrowserText()
-    clickItem(templatesView, template, 5, 5, 0, Qt.LeftButton)
+    mouseClick(waitForObjectItem(templatesView, template))
     waitFor("origTxt != safeGetTextBrowserText() != ''", 2000)
     displayedPlatforms = __getSupportedPlatforms__(safeGetTextBrowserText(), template, True)[0]
     safeClickButton("Choose...")

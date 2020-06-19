@@ -30,7 +30,7 @@
 namespace Ios {
 namespace Internal {
 
-class IosPlugin : public ExtensionSystem::IPlugin
+class IosPlugin final : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "Ios.json")
@@ -41,7 +41,6 @@ public:
 
 private:
     bool initialize(const QStringList &arguments, QString *errorMessage) final;
-    void extensionsInitialized() final {}
 
     class IosPluginPrivate *d = nullptr;
 };

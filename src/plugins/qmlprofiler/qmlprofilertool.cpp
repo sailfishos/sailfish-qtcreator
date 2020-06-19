@@ -74,6 +74,7 @@
 
 #include <QApplication>
 #include <QDockWidget>
+#include <QElapsedTimer>
 #include <QFileDialog>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -94,6 +95,8 @@ using namespace ProjectExplorer;
 
 namespace QmlProfiler {
 namespace Internal {
+
+static QmlProfilerTool *m_instance = nullptr;
 
 class QmlProfilerTool::QmlProfilerToolPrivate
 {
@@ -120,7 +123,7 @@ public:
     // elapsed time display
     QLabel *m_timeLabel = nullptr;
     QTimer m_recordingTimer;
-    QTime m_recordingElapsedTime;
+    QElapsedTimer m_recordingElapsedTime;
 
     bool m_toolBusy = false;
 };
@@ -128,6 +131,7 @@ public:
 QmlProfilerTool::QmlProfilerTool()
     : d(new QmlProfilerToolPrivate)
 {
+    m_instance = this;
     setObjectName(QLatin1String("QmlProfilerTool"));
 
     d->m_profilerState = new QmlProfilerStateManager(this);
@@ -239,14 +243,14 @@ QmlProfilerTool::QmlProfilerTool()
     perspective->addToolBarWidget(d->m_displayFeaturesButton);
     perspective->addToolBarWidget(d->m_timeLabel);
 
-    connect(ProjectExplorerPlugin::instance(), &ProjectExplorerPlugin::updateRunActions,
+    connect(ProjectExplorerPlugin::instance(), &ProjectExplorerPlugin::runActionsUpdated,
             this, &QmlProfilerTool::updateRunActions);
 
     QmlProfilerTextMarkModel *model = d->m_profilerModelManager->textMarkModel();
     if (EditorManager *editorManager = EditorManager::instance()) {
         connect(editorManager, &EditorManager::editorCreated,
                 model, [this, model](Core::IEditor *editor, const QString &fileName) {
-            Q_UNUSED(editor);
+            Q_UNUSED(editor)
             model->createMarks(d->m_viewContainer, fileName);
         });
     }
@@ -278,6 +282,12 @@ QmlProfilerTool::~QmlProfilerTool()
 {
     d->m_profilerModelManager->clearAll();
     delete d;
+    m_instance = nullptr;
+}
+
+QmlProfilerTool *QmlProfilerTool::instance()
+{
+    return m_instance;
 }
 
 void QmlProfilerTool::updateRunActions()
@@ -300,16 +310,12 @@ void QmlProfilerTool::finalizeRunControl(QmlProfilerRunner *runWorker)
 {
     d->m_toolBusy = true;
     auto runControl = runWorker->runControl();
-    auto runConfiguration = runControl->runConfiguration();
-    if (runConfiguration) {
-        auto aspect = static_cast<QmlProfilerRunConfigurationAspect *>(
-                    runConfiguration->aspect(Constants::SETTINGS));
-        if (aspect) {
-            if (auto settings = static_cast<const QmlProfilerSettings *>(aspect->currentSettings())) {
-                d->m_profilerConnections->setFlushInterval(settings->flushEnabled() ?
-                                                               settings->flushInterval() : 0);
-                d->m_profilerModelManager->setAggregateTraces(settings->aggregateTraces());
-            }
+    if (auto aspect = static_cast<QmlProfilerRunConfigurationAspect *>(
+                runControl->aspect(Constants::SETTINGS))) {
+        if (auto settings = static_cast<const QmlProfilerSettings *>(aspect->currentSettings())) {
+            d->m_profilerConnections->setFlushInterval(settings->flushEnabled() ?
+                                                           settings->flushInterval() : 0);
+            d->m_profilerModelManager->setAggregateTraces(settings->aggregateTraces());
         }
     }
 
@@ -322,8 +328,8 @@ void QmlProfilerTool::finalizeRunControl(QmlProfilerRunner *runWorker)
         if (d->m_profilerConnections->isConnecting()) {
             showNonmodalWarning(tr("The application finished before a connection could be "
                                    "established. No data was loaded."));
-            d->m_profilerConnections->disconnectFromServer();
         }
+        d->m_profilerConnections->disconnectFromServer();
     };
 
     connect(runControl, &RunControl::stopped, this, handleStop);
@@ -341,8 +347,7 @@ void QmlProfilerTool::finalizeRunControl(QmlProfilerRunner *runWorker)
     // Initialize m_projectFinder
     //
 
-    d->m_profilerModelManager->populateFileFinder(runConfiguration ? runConfiguration->target()
-                                                                   : nullptr);
+    d->m_profilerModelManager->populateFileFinder(runControl->target());
 
     connect(d->m_profilerConnections, &QmlProfilerClientManager::connectionFailed,
             runWorker, [this, runWorker]() {
@@ -543,7 +548,7 @@ ProjectExplorer::RunControl *QmlProfilerTool::attachToWaitingApplication()
 
     QUrl serverUrl;
 
-    IDevice::ConstPtr device = DeviceKitInformation::device(kit);
+    IDevice::ConstPtr device = DeviceKitAspect::device(kit);
     QTC_ASSERT(device, return nullptr);
     QUrl toolControl = device->toolControlChannel(IDevice::QmlControlChannel);
     serverUrl.setScheme(Utils::urlTcpScheme());
@@ -552,11 +557,10 @@ ProjectExplorer::RunControl *QmlProfilerTool::attachToWaitingApplication()
 
     d->m_viewContainer->perspective()->select();
 
-    auto runConfig = RunConfiguration::startupRunConfiguration();
-    auto runControl = new RunControl(runConfig, ProjectExplorer::Constants::QML_PROFILER_RUN_MODE);
+    auto runControl = new RunControl(ProjectExplorer::Constants::QML_PROFILER_RUN_MODE);
+    runControl->setRunConfiguration(SessionManager::startupRunConfiguration());
     auto profiler = new QmlProfilerRunner(runControl);
     profiler->setServerUrl(serverUrl);
-    connect(profiler, &QmlProfilerRunner::starting, this, &QmlProfilerTool::finalizeRunControl);
 
     connect(d->m_profilerConnections, &QmlProfilerClientManager::connectionClosed,
             runControl, &RunControl::initiateStop);
@@ -711,25 +715,6 @@ void addFeatureToMenu(QMenu *menu, ProfileFeature feature, quint64 enabledFeatur
     action->setChecked(enabledFeatures & (1ULL << (feature)));
 }
 
-template<ProfileFeature feature>
-void QmlProfilerTool::updateFeatures(quint64 features)
-{
-    if (features & (1ULL << (feature))) {
-        addFeatureToMenu(d->m_recordFeaturesMenu, feature,
-                         d->m_profilerState->requestedFeatures());
-        addFeatureToMenu(d->m_displayFeaturesMenu, feature,
-                         d->m_profilerModelManager->visibleFeatures());
-    }
-    updateFeatures<static_cast<ProfileFeature>(feature + 1)>(features);
-}
-
-template<>
-void QmlProfilerTool::updateFeatures<MaximumProfileFeature>(quint64 features)
-{
-    Q_UNUSED(features);
-    return;
-}
-
 void QmlProfilerTool::setAvailableFeatures(quint64 features)
 {
     if (features != d->m_profilerState->requestedFeatures())
@@ -737,7 +722,14 @@ void QmlProfilerTool::setAvailableFeatures(quint64 features)
     if (d->m_recordFeaturesMenu && d->m_displayFeaturesMenu) {
         d->m_recordFeaturesMenu->clear();
         d->m_displayFeaturesMenu->clear();
-        updateFeatures<static_cast<ProfileFeature>(0)>(features);
+        for (int feature = 0; feature < MaximumProfileFeature; ++feature) {
+            if (features & (1ULL << feature)) {
+                addFeatureToMenu(d->m_recordFeaturesMenu, ProfileFeature(feature),
+                                 d->m_profilerState->requestedFeatures());
+                addFeatureToMenu(d->m_displayFeaturesMenu, ProfileFeature(feature),
+                                 d->m_profilerModelManager->visibleFeatures());
+            }
+        }
     }
 }
 

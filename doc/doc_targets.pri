@@ -30,7 +30,7 @@ QT_TOOL_ENV =
 
 !build_online_docs: qtPrepareTool(QHELPGENERATOR, qhelpgenerator)
 
-DOCS_BASE_OUTDIR = $$OUT_PWD/doc
+DOCS_BASE_OUTDIR = $$OUT_PWD/doc/html
 DOC_INDEXES += -indexdir $$shell_quote($$[QT_INSTALL_DOCS])
 for (index_path, DOC_INDEX_PATHS): \
     DOC_INDEXES += -indexdir $$shell_quote($$index_path)
@@ -41,7 +41,7 @@ for (doc_file, DOC_FILES) {
     DOC_TARGETDIR = $$DOC_TARGET
     DOC_OUTPUTDIR = $${DOCS_BASE_OUTDIR}/$${DOC_TARGETDIR}$${DOC_OUTDIR_POSTFIX}
 
-    html_docs_$${DOC_TARGET}.commands = $$QDOC -outputdir $$shell_quote($$DOC_OUTPUTDIR) $$doc_file $$DOC_INDEXES
+    html_docs_$${DOC_TARGET}.commands = $$QDOC -outputdir $$shell_quote($$DOC_OUTPUTDIR) $$doc_file $$DOC_INDEXES $$DOC_INCLUDES
     QMAKE_EXTRA_TARGETS += html_docs_$${DOC_TARGET}
 
     !isEmpty(html_docs.commands): html_docs.commands += &&

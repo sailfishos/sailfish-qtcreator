@@ -27,16 +27,14 @@
 
 #include "projectexplorer_export.h"
 
+#include <utils/environmentfwd.h>
+
 #include <QWidget>
 
+#include <functional>
 #include <memory>
 
 QT_FORWARD_DECLARE_CLASS(QModelIndex)
-
-namespace Utils {
-class Environment;
-class EnvironmentItem;
-} // namespace Utils
 
 namespace ProjectExplorer {
 
@@ -47,14 +45,21 @@ class PROJECTEXPLORER_EXPORT EnvironmentWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit EnvironmentWidget(QWidget *parent, QWidget *additionalDetailsWidget = nullptr);
+    enum Type { TypeLocal, TypeRemote };
+    explicit EnvironmentWidget(QWidget *parent, Type type,
+                               QWidget *additionalDetailsWidget = nullptr);
     ~EnvironmentWidget() override;
 
     void setBaseEnvironmentText(const QString &text);
     void setBaseEnvironment(const Utils::Environment &env);
 
-    QList<Utils::EnvironmentItem> userChanges() const;
-    void setUserChanges(const QList<Utils::EnvironmentItem> &list);
+    Utils::EnvironmentItems userChanges() const;
+    void setUserChanges(const Utils::EnvironmentItems &list);
+
+    using OpenTerminalFunc = std::function<void(const Utils::Environment &env)>;
+    void setOpenTerminalFunc(const OpenTerminalFunc &func);
+
+    void expand();
 
 signals:
     void userChangesChanged();
@@ -65,14 +70,19 @@ private:
     void addEnvironmentButtonClicked();
     void removeEnvironmentButtonClicked();
     void unsetEnvironmentButtonClicked();
+    void appendPathButtonClicked();
+    void prependPathButtonClicked();
     void batchEditEnvironmentButtonClicked();
-    void openTerminal();
     void environmentCurrentIndexChanged(const QModelIndex &current);
     void invalidateCurrentIndex();
     void updateSummaryText();
     void focusIndex(const QModelIndex &index);
     void updateButtons();
     void linkActivated(const QString &link);
+    bool currentEntryIsPathList(const QModelIndex &current) const;
+
+    using PathListModifier = std::function<QString(const QString &oldList, const QString &newDir)>;
+    void amendPathList(const PathListModifier &modifier);
 
     const std::unique_ptr<EnvironmentWidgetPrivate> d;
 };

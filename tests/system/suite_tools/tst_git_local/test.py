@@ -41,7 +41,7 @@ def commit(commitMessage, expectedLogMessage, uncheckUntracked=False):
         model = treeView.model()
         for indexStr in dumpItems(model):
             if 'untracked' in indexStr:
-                clickItem(treeView, indexStr, 5, 5, 0, Qt.LeftButton)
+                mouseClick(waitForObjectItem(treeView, indexStr))
     checkOrFixCommitterInformation('invalidAuthorLabel', 'authorLineEdit', 'Nobody')
     checkOrFixCommitterInformation('invalidEmailLabel', 'emailLineEdit', 'nobody@nowhere.com')
     clickButton(waitForObject(":splitter.Commit File(s)_VcsBase::QActionPushButton"))
@@ -146,9 +146,9 @@ def verifyClickCommit():
                         "Verifying whether diff editor contains pointless_header.h file.")
             test.verify(pointlessHeader not in diffOriginal,
                         "Verifying whether original does not contain pointless_header.h file.")
-            test.verify("HEADERS += \\\n        mainwindow.h \\\n        pointless_header.h\n" in diffChanged,
+            test.verify("HEADERS += \\\n    mainwindow.h \\\n    pointless_header.h\n" in diffChanged,
                         "Verifying whether diff editor has pointless_header.h listed in pro file.")
-            test.verify("HEADERS += \\\n        mainwindow.h\n\n" in diffOriginal
+            test.verify("HEADERS += \\\n    mainwindow.h\n\n" in diffOriginal
                         and "pointless_header.h" not in diffOriginal,
                         "Verifying whether original has no additional header in pro file.")
         test.verify(original.readOnly and changed.readOnly,
@@ -173,7 +173,7 @@ def main():
                 % os.path.join(srcPath, projectName, ".git").replace("\\", "/") in str(vcsLog),
                 "Has initialization of repo been logged:\n%s " % vcsLog)
     createLocalGitConfig(os.path.join(srcPath, projectName, ".git"))
-    commitMessages = [commit("Initial Commit", "Committed 5 files.")]
+    commitMessages = [commit("Initial Commit", "Committed 6 files.")]
     clickButton(waitForObject(":*Qt Creator.Clear_QToolButton"))
     headerName = "pointless_header.h"
     addCPlusPlusFile(headerName, "C++ Header File", projectName + ".pro",
@@ -226,8 +226,6 @@ def main():
     waitFor('str(changed.plainText) != "Waiting for data..."', 5000)
     test.compare(str(changed.plainText), "Retrieving data failed.",
                  "Showing an invalid commit can't succeed but Creator survived.")
-
-    invokeMenuItem("File", "Close All Projects and Editors")
     invokeMenuItem("File", "Exit")
 
 def deleteProject():

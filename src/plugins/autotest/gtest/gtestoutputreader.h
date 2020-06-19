@@ -33,7 +33,6 @@ namespace Autotest {
 namespace Internal {
 
 class GTestResult;
-class TestTreeItem;
 
 class GTestOutputReader : public TestOutputReader
 {
@@ -44,18 +43,21 @@ public:
                       QProcess *testApplication, const QString &buildDirectory,
                       const QString &projectFile);
 protected:
-    void processOutputLine(const QByteArray &outputLineWithNewLine) override;
+    void processOutputLine(const QByteArray &outputLine) override;
+    void processStdError(const QByteArray &outputLine) override;
     TestResultPtr createDefaultResult() const override;
 
 private:
-    void setCurrentTestSet(const QString &testSet);
-    void setCurrentTestName(const QString &testName);
+    void setCurrentTestCase(const QString &testCase);
+    void setCurrentTestSuite(const QString &testSuite);
+    void handleDescriptionAndReportResult(TestResultPtr testResult);
 
     QString m_projectFile;
-    QString m_currentTestName;
-    QString m_currentTestSet;
+    QString m_currentTestSuite;
+    QString m_currentTestCase;
     QString m_description;
     int m_iteration = 1;
+    bool m_testSetStarted = false;
 };
 
 } // namespace Internal

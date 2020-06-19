@@ -36,7 +36,7 @@ namespace Perforce {
 namespace Internal {
 
 class PerforceSubmitEditorWidget;
-class PerforcePlugin;
+class PerforcePluginPrivate;
 
 /* PerforceSubmitEditor: In p4, the file list is contained in the
  * submit message file (change list). On setting the file contents,
@@ -50,7 +50,7 @@ class PerforceSubmitEditor : public VcsBase::VcsBaseSubmitEditor
     Q_OBJECT
 
 public:
-    explicit PerforceSubmitEditor(const VcsBase::VcsBaseSubmitEditorParameters *parameters);
+    PerforceSubmitEditor();
 
     /* The p4 submit starts with all opened files. Restrict
      * it to the current project files in question. */

@@ -35,6 +35,12 @@
 
 namespace Core {
 
+/*!
+    \class Core::ItemViewFind
+    \inmodule QtCreator
+    \internal
+*/
+
 class ItemModelFindPrivate
 {
 public:
@@ -139,7 +145,7 @@ static QFrame *createHelper(QAbstractItemView *treeView,
     placeHolder->setLightColored(colorOption);
 
     auto vbox = new QVBoxLayout(widget);
-    vbox->setMargin(0);
+    vbox->setContentsMargins(0, 0, 0, 0);
     vbox->setSpacing(0);
     vbox->addWidget(treeView);
     vbox->addWidget(placeHolder);

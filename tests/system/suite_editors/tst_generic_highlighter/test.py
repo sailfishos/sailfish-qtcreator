@@ -45,7 +45,7 @@ def createFile(folder, filename):
     __createProjectHandleLastPage__()
 
 def clickTableGetPatternLineEdit(table, row):
-    clickItem(table, row, 5, 5, 0, Qt.LeftButton)
+    mouseClick(waitForObjectItem(table, row))
     return waitForObject("{name='patternsLineEdit' type='QLineEdit' visible='1'}")
 
 def getOrModifyFilePatternsFor(mimeType, filter='', toBePresent=None):
@@ -54,7 +54,7 @@ def getOrModifyFilePatternsFor(mimeType, filter='', toBePresent=None):
     result = []
     invokeMenuItem("Tools", "Options...")
     waitForObjectItem(":Options_QListView", "Environment")
-    clickItem(":Options_QListView", "Environment", 14, 15, 0, Qt.LeftButton)
+    mouseClick(waitForObjectItem(":Options_QListView", "Environment"))
     waitForObject("{container=':Options.qt_tabwidget_tabbar_QTabBar' type='TabItem' "
                   "text='MIME Types'}")
     clickOnTab(":Options.qt_tabwidget_tabbar_QTabBar", "MIME Types")
@@ -118,15 +118,15 @@ def addHighlighterDefinition(*languages):
     test.log("Updating highlighter definitions...")
     invokeMenuItem("Tools", "Options...")
     waitForObjectItem(":Options_QListView", "Text Editor")
-    clickItem(":Options_QListView", "Text Editor", 14, 15, 0, Qt.LeftButton)
+    mouseClick(waitForObjectItem(":Options_QListView", "Text Editor"))
     waitForObject("{container=':Options.qt_tabwidget_tabbar_QTabBar' type='TabItem' "
                   "text='Generic Highlighter'}")
     clickOnTab(":Options.qt_tabwidget_tabbar_QTabBar", "Generic Highlighter")
 
-    clickButton("{text='Update Definitions' type='QPushButton' name='updateDefinitions' visible='1'}")
+    clickButton("{text='Download Definitions' type='QPushButton' name='downloadDefinitions' visible='1'}")
     updateStatus = "{name='updateStatus' type='QLabel' visible='1'}"
     waitFor("object.exists(updateStatus)", 5000)
-    if waitFor('str(findObject(updateStatus).text) == "Update finished"', 5000):
+    if waitFor('str(findObject(updateStatus).text) == "Download finished"', 5000):
         test.verify(os.path.exists(syntaxDirectory),
                     "Directory for syntax highlighter files exists.")
         xmlFiles = glob.glob(os.path.join(syntaxDirectory, "*.xml"))
@@ -157,8 +157,8 @@ def displayHintForHighlighterDefinition(fileName, patterns, lPatterns, added, ad
     return False
 
 def main():
-    miss = ("A highlight definition was not found for this file. Would you like to update "
-            "highlight definition files?")
+    miss = ("A highlight definition was not found for this file. Would you like to download "
+            "additional highlight definition files?")
     startQC()
     if not startedWithoutPluginError():
         return

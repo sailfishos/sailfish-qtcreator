@@ -28,7 +28,6 @@
 #include "abstractremotelinuxdeploystep.h"
 
 namespace RemoteLinux {
-class RemoteLinuxKillAppService;
 
 class REMOTELINUX_EXPORT RemoteLinuxKillAppStep : public AbstractRemoteLinuxDeployStep
 {
@@ -39,12 +38,6 @@ public:
 
     static Core::Id stepId();
     static QString displayName();
-
-private:
-    bool initInternal(QString *error) override;
-    AbstractRemoteLinuxDeployService *deployService() const override;
-
-    RemoteLinuxKillAppService * const m_service;
 };
 
 } // namespace RemoteLinux

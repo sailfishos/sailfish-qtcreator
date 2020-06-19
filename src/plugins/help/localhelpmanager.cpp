@@ -29,13 +29,29 @@
 #include "helpconstants.h"
 #include "helpmanager.h"
 #include "helpviewer.h"
+#include "textbrowserhelpviewer.h"
+
+#ifdef QTC_WEBENGINE_HELPVIEWER
+#include "webenginehelpviewer.h"
+#if QT_VERSION >= QT_VERSION_CHECK(5, 12, 0)
+#include <QWebEngineUrlScheme>
+#endif
+#endif
+#ifdef QTC_LITEHTML_HELPVIEWER
+#include "litehtmlhelpviewer.h"
+#endif
+#ifdef QTC_MAC_NATIVE_HELPVIEWER
+#include "macwebkithelpviewer.h"
+#endif
 
 #include <app/app_version.h>
 #include <coreplugin/icore.h>
 #include <utils/algorithm.h>
 #include <utils/hostosinfo.h>
+#include <utils/optional.h>
 #include <utils/qtcassert.h>
 
+#include <QDesktopServices>
 #include <QFontDatabase>
 #include <QMutexLocker>
 
@@ -65,9 +81,14 @@ static const char kFontSizeKey[] = "Help/FallbackFontSize";
 static const char kStartOptionKey[] = "Help/StartOption";
 static const char kContextHelpOptionKey[] = "Help/ContextHelpOption";
 static const char kReturnOnCloseKey[] = "Help/ReturnOnClose";
+static const char kUseScrollWheelZooming[] = "Help/UseScrollWheelZooming";
 static const char kLastShownPagesKey[] = "Help/LastShownPages";
 static const char kLastShownPagesZoomKey[] = "Help/LastShownPagesZoom";
 static const char kLastSelectedTabKey[] = "Help/LastSelectedTab";
+static const char kViewerBackend[] = "Help/ViewerBackend";
+
+static const char kQtWebEngineBackend[] = "qtwebengine";
+static const char kTextBrowserBackend[] = "textbrowser";
 
 static const int kDefaultFallbackFontSize = 14;
 
@@ -210,7 +231,10 @@ Core::HelpManager::HelpViewerLocation LocalHelpManager::contextHelpOption()
 
 void LocalHelpManager::setContextHelpOption(Core::HelpManager::HelpViewerLocation location)
 {
+    if (location == contextHelpOption())
+        return;
     Core::ICore::settings()->setValue(kContextHelpOptionKey, location);
+    emit m_instance->contextHelpOptionChanged(location);
 }
 
 bool LocalHelpManager::returnOnClose()
@@ -223,6 +247,17 @@ void LocalHelpManager::setReturnOnClose(bool returnOnClose)
 {
     Core::ICore::settings()->setValue(kReturnOnCloseKey, returnOnClose);
     emit m_instance->returnOnCloseChanged();
+}
+
+bool LocalHelpManager::isScrollWheelZoomingEnabled()
+{
+    return Core::ICore::settings()->value(kUseScrollWheelZooming, true).toBool();
+}
+
+void LocalHelpManager::setScrollWheelZoomingEnabled(bool enabled)
+{
+    Core::ICore::settings()->setValue(kUseScrollWheelZooming, enabled);
+    emit m_instance->scrollWheelZoomingEnabledChanged(enabled);
 }
 
 QStringList LocalHelpManager::lastShownPages()
@@ -261,6 +296,81 @@ int LocalHelpManager::lastSelectedTab()
 void LocalHelpManager::setLastSelectedTab(int index)
 {
     Core::ICore::settings()->setValue(kLastSelectedTabKey, index);
+}
+
+static Utils::optional<HelpViewerFactory> backendForId(const QByteArray &id)
+{
+    const QVector<HelpViewerFactory> factories = LocalHelpManager::viewerBackends();
+    const auto backend = std::find_if(std::begin(factories),
+                                      std::end(factories),
+                                      Utils::equal(&HelpViewerFactory::id, id));
+    if (backend != std::end(factories))
+        return *backend;
+    return {};
+}
+
+HelpViewerFactory LocalHelpManager::defaultViewerBackend()
+{
+    const QByteArray backend = qgetenv("QTC_HELPVIEWER_BACKEND");
+    if (!backend.isEmpty()) {
+        const Utils::optional<HelpViewerFactory> factory = backendForId(backend);
+        if (factory)
+            return *factory;
+    }
+    if (!backend.isEmpty())
+        qWarning("Help viewer backend \"%s\" not found, using default.", backend.constData());
+    const Utils::optional<HelpViewerFactory> factory = backendForId(kQtWebEngineBackend);
+    if (factory)
+        return *factory;
+    return backendForId(kTextBrowserBackend).value_or(HelpViewerFactory());
+}
+
+QVector<HelpViewerFactory> LocalHelpManager::viewerBackends()
+{
+    QVector<HelpViewerFactory> result;
+#ifdef QTC_WEBENGINE_HELPVIEWER
+#if QT_VERSION >= QT_VERSION_CHECK(5, 12, 0)
+    static bool schemeRegistered = false;
+    if (!schemeRegistered) {
+        schemeRegistered = true;
+        QWebEngineUrlScheme scheme("qthelp");
+        scheme.setFlags(QWebEngineUrlScheme::LocalScheme | QWebEngineUrlScheme::LocalAccessAllowed);
+        QWebEngineUrlScheme::registerScheme(scheme);
+    }
+#endif
+    result.append(
+        {kQtWebEngineBackend, tr("QtWebEngine"), []() { return new WebEngineHelpViewer; }});
+#endif
+#ifdef QTC_LITEHTML_HELPVIEWER
+    result.append({"litehtml", tr("litehtml"), []() { return new LiteHtmlHelpViewer; }});
+#endif
+#ifdef QTC_MAC_NATIVE_HELPVIEWER
+    result.append({"native", tr("WebKit"), []() { return new MacWebKitHelpViewer; }});
+#endif
+    result.append(
+        {kTextBrowserBackend, tr("QTextBrowser"), []() { return new TextBrowserHelpViewer; }});
+    return result;
+}
+
+HelpViewerFactory LocalHelpManager::viewerBackend()
+{
+    const QByteArray id = Core::ICore::settings()->value(kViewerBackend).toByteArray();
+    if (!id.isEmpty())
+        return backendForId(id).value_or(defaultViewerBackend());
+    return defaultViewerBackend();
+}
+
+void LocalHelpManager::setViewerBackendId(const QByteArray &id)
+{
+    if (id.isEmpty())
+        Core::ICore::settings()->remove(kViewerBackend);
+    else
+        Core::ICore::settings()->setValue(kViewerBackend, id);
+}
+
+QByteArray LocalHelpManager::viewerBackendId()
+{
+    return Core::ICore::settings()->value(kViewerBackend).toByteArray();
 }
 
 void LocalHelpManager::setupGuiHelpEngine()
@@ -432,4 +542,29 @@ void LocalHelpManager::updateFilterModel()
         m_currentFilter = filters.at(0);
     }
     emit m_instance->filterIndexChanged(m_currentFilterIndex);
+}
+
+bool LocalHelpManager::canOpenOnlineHelp(const QUrl &url)
+{
+    const QString address = url.toString();
+    return address.startsWith("qthelp://org.qt-project.")
+        || address.startsWith("qthelp://com.nokia.")
+        || address.startsWith("qthelp://com.trolltech.");
+}
+
+bool LocalHelpManager::openOnlineHelp(const QUrl &url)
+{
+    static const QString unversionedLocalDomainName = QString("org.qt-project.%1").arg(Core::Constants::IDE_ID);
+
+    if (canOpenOnlineHelp(url)) {
+        QString urlPrefix = "http://doc.qt.io/";
+        if (url.authority().startsWith(unversionedLocalDomainName))
+            urlPrefix.append(Core::Constants::IDE_ID);
+        else
+            urlPrefix.append("qt-5");
+        const QString address = url.toString();
+        QDesktopServices::openUrl(QUrl(urlPrefix + address.mid(address.lastIndexOf(QLatin1Char('/')))));
+        return true;
+    }
+    return false;
 }

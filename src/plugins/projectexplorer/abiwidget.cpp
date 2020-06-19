@@ -78,14 +78,14 @@ AbiWidget::AbiWidget(QWidget *parent) : QWidget(parent),
     d(std::make_unique<Internal::AbiWidgetPrivate>())
 {
     auto *layout = new QHBoxLayout(this);
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(2);
 
     d->m_abi = new QComboBox(this);
     d->m_abi->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     d->m_abi->setMinimumContentsLength(4);
     layout->addWidget(d->m_abi);
-    connect(d->m_abi, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+    connect(d->m_abi, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &AbiWidget::mainComboBoxChanged);
 
     d->m_architectureComboBox = new QComboBox(this);
@@ -93,7 +93,7 @@ AbiWidget::AbiWidget(QWidget *parent) : QWidget(parent),
     for (int i = 0; i <= static_cast<int>(Abi::UnknownArchitecture); ++i)
         d->m_architectureComboBox->addItem(Abi::toString(static_cast<Abi::Architecture>(i)), i);
     d->m_architectureComboBox->setCurrentIndex(static_cast<int>(Abi::UnknownArchitecture));
-    connect(d->m_architectureComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+    connect(d->m_architectureComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &AbiWidget::customComboBoxesChanged);
 
     QLabel *separator1 = new QLabel(this);
@@ -106,7 +106,7 @@ AbiWidget::AbiWidget(QWidget *parent) : QWidget(parent),
     for (int i = 0; i <= static_cast<int>(Abi::UnknownOS); ++i)
         d->m_osComboBox->addItem(Abi::toString(static_cast<Abi::OS>(i)), i);
     d->m_osComboBox->setCurrentIndex(static_cast<int>(Abi::UnknownOS));
-    connect(d->m_osComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+    connect(d->m_osComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &AbiWidget::customOsComboBoxChanged);
 
     QLabel *separator2 = new QLabel(this);
@@ -116,7 +116,7 @@ AbiWidget::AbiWidget(QWidget *parent) : QWidget(parent),
 
     d->m_osFlavorComboBox = new QComboBox(this);
     layout->addWidget(d->m_osFlavorComboBox);
-    connect(d->m_osFlavorComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+    connect(d->m_osFlavorComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &AbiWidget::customComboBoxesChanged);
 
     QLabel *separator3 = new QLabel(this);
@@ -129,7 +129,7 @@ AbiWidget::AbiWidget(QWidget *parent) : QWidget(parent),
     for (int i = 0; i <= static_cast<int>(Abi::UnknownFormat); ++i)
         d->m_binaryFormatComboBox->addItem(Abi::toString(static_cast<Abi::BinaryFormat>(i)), i);
     d->m_binaryFormatComboBox->setCurrentIndex(static_cast<int>(Abi::UnknownFormat));
-    connect(d->m_binaryFormatComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+    connect(d->m_binaryFormatComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &AbiWidget::customComboBoxesChanged);
 
     QLabel *separator4 = new QLabel(this);
@@ -146,17 +146,17 @@ AbiWidget::AbiWidget(QWidget *parent) : QWidget(parent),
     d->m_wordWidthComboBox->addItem(Abi::toString(0), 0);
     // Setup current word width of 0 by default.
     d->m_wordWidthComboBox->setCurrentIndex(d->m_wordWidthComboBox->count() - 1);
-    connect(d->m_wordWidthComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+    connect(d->m_wordWidthComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &AbiWidget::customComboBoxesChanged);
 
     layout->setStretchFactor(d->m_abi, 1);
 
-    setAbis(QList<Abi>(), Abi::hostAbi());
+    setAbis(Abis(), Abi::hostAbi());
 }
 
 AbiWidget::~AbiWidget() = default;
 
-static Abi selectAbi(const Abi &current, const QList<Abi> &abiList)
+static Abi selectAbi(const Abi &current, const Abis &abiList)
 {
     if (!current.isNull())
         return current;
@@ -165,7 +165,7 @@ static Abi selectAbi(const Abi &current, const QList<Abi> &abiList)
     return Abi::hostAbi();
 }
 
-void AbiWidget::setAbis(const QList<Abi> &abiList, const Abi &currentAbi)
+void AbiWidget::setAbis(const Abis &abiList, const Abi &currentAbi)
 {
     const Abi defaultAbi = selectAbi(currentAbi, abiList);
     {
@@ -188,12 +188,15 @@ void AbiWidget::setAbis(const QList<Abi> &abiList, const Abi &currentAbi)
 
         setCustomAbiComboBoxes(defaultAbi);
     }
-    emitAbiChanged(defaultAbi);
+
+    // Update disabled state according to new automatically selected item in main ABI combobox.
+    // This will call emitAbiChanged with the actual selected ABI.
+    mainComboBoxChanged();
 }
 
-QList<Abi> AbiWidget::supportedAbis() const
+Abis AbiWidget::supportedAbis() const
 {
-    QList<Abi> result;
+    Abis result;
     result.reserve(d->m_abi->count());
     for (int i = 1; i < d->m_abi->count(); ++i)
         result << Abi::fromString(d->m_abi->itemData(i).toString());

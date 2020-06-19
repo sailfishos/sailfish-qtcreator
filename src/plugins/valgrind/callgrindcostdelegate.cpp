@@ -138,7 +138,7 @@ void CostDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
 
     // Draw text.
     QLocale loc = opt.locale;
-    loc.setNumberOptions(nullptr);
+    loc.setNumberOptions({});
     const QString text = d->displayText(index, loc);
     const QBrush &textBrush = (option.state & QStyle::State_Selected ? opt.palette.highlightedText() : opt.palette.text());
     painter->setBrush(Qt::NoBrush);
@@ -154,7 +154,7 @@ QSize CostDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelInd
     initStyleOption(&opt, index);
 
     const QString text = d->displayText(index, opt.locale);
-    const QSize size = QSize(option.fontMetrics.width(text),
+    const QSize size = QSize(option.fontMetrics.horizontalAdvance(text),
                              option.fontMetrics.height());
     return size;
 }

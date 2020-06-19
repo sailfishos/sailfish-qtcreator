@@ -39,29 +39,17 @@ using namespace Utils;
 
 namespace Nim {
 
-NimToolChain::NimToolChain(ToolChain::Detection d)
-    : NimToolChain(Constants::C_NIMTOOLCHAIN_TYPEID, d)
+NimToolChain::NimToolChain()
+    : NimToolChain(Constants::C_NIMTOOLCHAIN_TYPEID)
 {}
 
-NimToolChain::NimToolChain(Core::Id typeId, ToolChain::Detection d)
-    : ToolChain(typeId, d)
-    , m_compilerCommand(FileName())
+NimToolChain::NimToolChain(Core::Id typeId)
+    : ToolChain(typeId)
+    , m_compilerCommand(FilePath())
     , m_version(std::make_tuple(-1,-1,-1))
 {
     setLanguage(Constants::C_NIMLANGUAGE_ID);
-}
-
-NimToolChain::NimToolChain(const NimToolChain &other)
-    : ToolChain(other.typeId(), other.detection())
-    , m_compilerCommand(other.m_compilerCommand)
-    , m_version(other.m_version)
-{
-    setLanguage(Constants::C_NIMLANGUAGE_ID);
-}
-
-QString NimToolChain::typeDisplayName() const
-{
-    return NimToolChainFactory::tr("Nim");
+    setTypeDisplayName(NimToolChainFactory::tr("Nim"));
 }
 
 Abi NimToolChain::targetAbi() const
@@ -71,7 +59,7 @@ Abi NimToolChain::targetAbi() const
 
 bool NimToolChain::isValid() const
 {
-    if (m_compilerCommand.isNull())
+    if (m_compilerCommand.isEmpty())
         return false;
     QFileInfo fi = compilerCommand().toFileInfo();
     return fi.isExecutable();
@@ -97,12 +85,14 @@ WarningFlags NimToolChain::warningFlags(const QStringList &) const
     return WarningFlags::NoWarnings;
 }
 
-ToolChain::BuiltInHeaderPathsRunner NimToolChain::createBuiltInHeaderPathsRunner() const
+ToolChain::BuiltInHeaderPathsRunner NimToolChain::createBuiltInHeaderPathsRunner(
+        const Environment &) const
 {
     return ToolChain::BuiltInHeaderPathsRunner();
 }
 
-HeaderPaths NimToolChain::builtInHeaderPaths(const QStringList &, const FileName &) const
+HeaderPaths NimToolChain::builtInHeaderPaths(const QStringList &, const FilePath &,
+                                             const Environment &) const
 {
     return {};
 }
@@ -113,19 +103,18 @@ void NimToolChain::addToEnvironment(Environment &env) const
         env.prependOrSetPath(compilerCommand().parentDir().toString());
 }
 
-QString NimToolChain::makeCommand(const Environment &env) const
+FilePath NimToolChain::makeCommand(const Environment &env) const
 {
-    QString make = "make";
-    FileName tmp = env.searchInPath(make);
-    return tmp.isEmpty() ? make : tmp.toString();
+    const FilePath tmp = env.searchInPath("make");
+    return tmp.isEmpty() ? FilePath::fromString("make") : tmp;
 }
 
-FileName NimToolChain::compilerCommand() const
+FilePath NimToolChain::compilerCommand() const
 {
     return m_compilerCommand;
 }
 
-void NimToolChain::setCompilerCommand(const FileName &compilerCommand)
+void NimToolChain::setCompilerCommand(const FilePath &compilerCommand)
 {
     m_compilerCommand = compilerCommand;
     parseVersion(compilerCommand, m_version);
@@ -139,11 +128,6 @@ IOutputParser *NimToolChain::outputParser() const
 std::unique_ptr<ProjectExplorer::ToolChainConfigWidget> NimToolChain::createConfigurationWidget()
 {
     return std::make_unique<NimToolChainConfigWidget>(this);
-}
-
-ToolChain *NimToolChain::clone() const
-{
-    return new NimToolChain(*this);
 }
 
 QVariantMap NimToolChain::toMap() const
@@ -167,11 +151,11 @@ bool NimToolChain::fromMap(const QVariantMap &data)
 {
     if (!ToolChain::fromMap(data))
         return false;
-    setCompilerCommand(FileName::fromString(data.value(Constants::C_NIMTOOLCHAIN_COMPILER_COMMAND_KEY).toString()));
+    setCompilerCommand(FilePath::fromString(data.value(Constants::C_NIMTOOLCHAIN_COMPILER_COMMAND_KEY).toString()));
     return true;
 }
 
-bool NimToolChain::parseVersion(const FileName &path, std::tuple<int, int, int> &result)
+bool NimToolChain::parseVersion(const FilePath &path, std::tuple<int, int, int> &result)
 {
     QProcess process;
     process.start(path.toString(), {"--version"});

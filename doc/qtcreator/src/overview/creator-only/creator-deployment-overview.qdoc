@@ -1,0 +1,67 @@
+/****************************************************************************
+**
+** Copyright (C) 2020 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \previouspage creator-running-targets.html
+    \page creator-deployment.html
+    \nextpage creator-deploying-android.html
+
+    \title Deploying to Devices
+
+    Deploy configurations in the \uicontrol Projects mode
+    \uicontrol {Run Settings} handle the packaging of the application as an
+    executable and copying it to a location you want to run the executable at.
+    The files can be copied to a location in the file system of the development
+    PC or a \l{glossary-device}{device}.
+
+    \list
+
+        \li \l{Deploying Applications to Android Devices}
+
+            When you deploy the application to an Android device, \QC copies
+            the application files to the device. In addition, you can determine
+            the Qt libraries to use.
+        \li \l{Deploying Applications to Generic Remote Linux Devices}
+
+            When you deploy the application to a generic Linux-based device, \QC
+            copies the application files to the connected device. You can test
+            and debug the application on the device.
+
+        \if defined(qtcreator)
+        \li  \l{Deploying Applications to QNX Neutrino Devices}
+
+            When you deploy the application to a QNX Neutrino device, \QC copies
+            the application files to the connected device. You can test and
+            debug the application on the device.
+        \endif
+
+    \endlist
+*/

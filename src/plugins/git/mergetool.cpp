@@ -26,7 +26,6 @@
 #include "mergetool.h"
 #include "gitclient.h"
 #include "gitplugin.h"
-#include "gitversioncontrol.h"
 
 #include <coreplugin/documentmanager.h>
 #include <coreplugin/icore.h>
@@ -61,8 +60,8 @@ bool MergeTool::start(const QString &workingDirectory, const QStringList &files)
     m_process->setWorkingDirectory(workingDirectory);
     m_process->setProcessEnvironment(env);
     m_process->setProcessChannelMode(QProcess::MergedChannels);
-    const Utils::FileName binary = GitPlugin::client()->vcsBinary();
-    VcsOutputWindow::appendCommand(workingDirectory, binary, arguments);
+    const Utils::FilePath binary = GitClient::instance()->vcsBinary();
+    VcsOutputWindow::appendCommand(workingDirectory, {binary, arguments});
     m_process->start(binary.toString(), arguments);
     if (m_process->waitForStarted()) {
         connect(m_process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
@@ -264,8 +263,8 @@ void MergeTool::done()
         VcsOutputWindow::appendError(tr("Merge tool process terminated with exit code %1")
                                   .arg(exitCode));
     }
-    GitPlugin::client()->continueCommandIfNeeded(workingDirectory, exitCode == 0);
-    GitPlugin::instance()->gitVersionControl()->emitRepositoryChanged(workingDirectory);
+    GitClient::instance()->continueCommandIfNeeded(workingDirectory, exitCode == 0);
+    GitPlugin::emitRepositoryChanged(workingDirectory);
     deleteLater();
 }
 

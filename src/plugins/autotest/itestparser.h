@@ -34,7 +34,6 @@
 #include <qmljs/qmljsdocument.h>
 
 namespace Autotest {
-namespace Internal {
 
 class TestParseResult
 {
@@ -51,8 +50,8 @@ public:
     QString fileName;
     QString proFile;
     QString name;
-    unsigned line = 0;
-    unsigned column = 0;
+    int line = 0;
+    int column = 0;
 };
 
 using TestParseResultPtr = QSharedPointer<TestParseResult>;
@@ -81,12 +80,13 @@ public:
     static QByteArray getFileContent(const QString &filePath);
     void release() override;
 
+    CPlusPlus::Document::Ptr document(const QString &fileName);
+
 protected:
     CPlusPlus::Snapshot m_cppSnapshot;
     CppTools::WorkingCopy m_workingCopy;
 };
 
-} // namespace Internal
 } // namespace Autotest
 
-Q_DECLARE_METATYPE(Autotest::Internal::TestParseResultPtr)
+Q_DECLARE_METATYPE(Autotest::TestParseResultPtr)

@@ -28,6 +28,7 @@
 #include "projectexplorer_export.h"
 
 #include "buildsteplist.h"
+#include "deploymentdata.h"
 #include "projectconfiguration.h"
 
 namespace ProjectExplorer {
@@ -35,7 +36,6 @@ namespace ProjectExplorer {
 class BuildStepList;
 class Target;
 class DeployConfigurationFactory;
-class NamedWidget;
 
 class PROJECTEXPLORER_EXPORT DeployConfiguration final : public ProjectConfiguration
 {
@@ -51,19 +51,25 @@ public:
     BuildStepList *stepList();
     const BuildStepList *stepList() const;
 
-    NamedWidget *createConfigWidget() const;
+    QWidget *createConfigWidget();
 
     bool fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
 
-    Target *target() const;
-    Project *project() const override;
+    bool isActive() const;
 
-    bool isActive() const override;
+    bool usesCustomDeploymentData() const { return m_usesCustomDeploymentData; }
+    void setUseCustomDeploymentData(bool enabled) { m_usesCustomDeploymentData = enabled; }
+
+    DeploymentData customDeploymentData() const { return m_customDeploymentData; }
+    void setCustomDeploymentData(const DeploymentData &data) { m_customDeploymentData = data; }
 
 private:
     BuildStepList m_stepList;
-    std::function<NamedWidget *(Target *)> m_configWidgetCreator;
+    using WidgetCreator = std::function<QWidget *(DeployConfiguration *)>;
+    WidgetCreator m_configWidgetCreator;
+    DeploymentData m_customDeploymentData;
+    bool m_usesCustomDeploymentData = false;
 };
 
 class PROJECTEXPLORER_EXPORT DeployConfigurationFactory
@@ -94,8 +100,12 @@ public:
 
     bool canHandle(ProjectExplorer::Target *target) const;
 
-    void setConfigWidgetCreator(const std::function<NamedWidget *(Target *)> &configWidgetCreator);
+    void setConfigWidgetCreator(const DeployConfiguration::WidgetCreator &configWidgetCreator);
     void setUseDeploymentDataView();
+
+    using PostRestore = std::function<void(DeployConfiguration *dc, const QVariantMap &)>;
+    void setPostRestore(const PostRestore &postRestore) {  m_postRestore = postRestore; }
+    PostRestore postRestore() const { return m_postRestore; }
 
 protected:
     using DeployConfigurationCreator = std::function<DeployConfiguration *(Target *)>;
@@ -108,7 +118,8 @@ private:
     QList<Core::Id> m_supportedTargetDeviceTypes;
     QList<BuildStepList::StepCreationInfo> m_initialSteps;
     QString m_defaultDisplayName;
-    std::function<NamedWidget *(Target *)> m_configWidgetCreator;
+    DeployConfiguration::WidgetCreator m_configWidgetCreator;
+    PostRestore m_postRestore;
 };
 
 class DefaultDeployConfigurationFactory : public DeployConfigurationFactory

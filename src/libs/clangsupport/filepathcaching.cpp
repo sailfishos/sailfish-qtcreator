@@ -37,4 +37,64 @@ FilePath FilePathCaching::filePath(FilePathId filePathId) const
     return m_cache.filePath(filePathId);
 }
 
+DirectoryPathId FilePathCaching::directoryPathId(Utils::SmallStringView directoryPath) const
+{
+    return m_cache.directoryPathId(directoryPath);
+}
+
+Utils::PathString FilePathCaching::directoryPath(DirectoryPathId directoryPathId) const
+{
+    return m_cache.directoryPath(directoryPathId);
+}
+
+DirectoryPathId FilePathCaching::directoryPathId(FilePathId filePathId) const
+{
+    return m_cache.directoryPathId(filePathId);
+}
+
+void FilePathCaching::addFilePaths(const FilePaths &filePaths)
+{
+    m_cache.addFilePaths(filePaths);
+}
+
+void FilePathCaching::populateIfEmpty()
+{
+    m_cache.populateIfEmpty();
+}
+
+FilePathId CopyableFilePathCaching::filePathId(FilePathView filePath) const
+{
+    return m_cache.filePathId(filePath);
+}
+
+FilePath CopyableFilePathCaching::filePath(FilePathId filePathId) const
+{
+    return m_cache.filePath(filePathId);
+}
+
+DirectoryPathId CopyableFilePathCaching::directoryPathId(Utils::SmallStringView directoryPath) const
+{
+    return m_cache.directoryPathId(directoryPath);
+}
+
+Utils::PathString CopyableFilePathCaching::directoryPath(DirectoryPathId directoryPathId) const
+{
+    return m_cache.directoryPath(directoryPathId);
+}
+
+DirectoryPathId CopyableFilePathCaching::directoryPathId(FilePathId filePathId) const
+{
+    return m_cache.directoryPathId(filePathId);
+}
+
+void CopyableFilePathCaching::addFilePaths(const FilePaths &filePaths)
+{
+    m_cache.addFilePaths(filePaths);
+}
+
+void CopyableFilePathCaching::populateIfEmpty()
+{
+    m_cache.populateIfEmpty();
+}
+
 } // namespace ClangBackEnd

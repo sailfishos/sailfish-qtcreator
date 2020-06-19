@@ -39,6 +39,8 @@
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
+using namespace QmlJS;
+
 namespace Autotest {
 namespace Internal {
 
@@ -137,18 +139,18 @@ static QString quickTestName(const CPlusPlus::Document::Ptr &doc,
     return astVisitor.testBaseName();
 }
 
-QList<QmlJS::Document::Ptr> QuickTestParser::scanDirectoryForQuickTestQmlFiles(const QString &srcDir) const
+QList<Document::Ptr> QuickTestParser::scanDirectoryForQuickTestQmlFiles(const QString &srcDir) const
 {
     QStringList dirs(srcDir);
-    QmlJS::ModelManagerInterface *qmlJsMM = QmlJSTools::Internal::ModelManager::instance();
+    ModelManagerInterface *qmlJsMM = QmlJSTools::Internal::ModelManager::instance();
     // make sure even files not listed in pro file are available inside the snapshot
     QFutureInterface<void> future;
-    QmlJS::PathsAndLanguages paths;
-    paths.maybeInsert(Utils::FileName::fromString(srcDir), QmlJS::Dialect::Qml);
-    QmlJS::ModelManagerInterface::importScan(future, qmlJsMM->workingCopy(), paths, qmlJsMM,
+    PathsAndLanguages paths;
+    paths.maybeInsert(Utils::FilePath::fromString(srcDir), Dialect::Qml);
+    ModelManagerInterface::importScan(future, qmlJsMM->workingCopy(), paths, qmlJsMM,
         false /*emitDocumentChanges*/, false /*onlyTheLib*/, true /*forceRescan*/ );
 
-    const QmlJS::Snapshot snapshot = QmlJSTools::Internal::ModelManager::instance()->snapshot();
+    const Snapshot snapshot = QmlJSTools::Internal::ModelManager::instance()->snapshot();
     QDirIterator it(srcDir, QDir::Dirs | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
     while (it.hasNext()) {
         it.next();
@@ -157,11 +159,11 @@ QList<QmlJS::Document::Ptr> QuickTestParser::scanDirectoryForQuickTestQmlFiles(c
     }
     emit updateWatchPaths(dirs);
 
-    QList<QmlJS::Document::Ptr> foundDocs;
+    QList<Document::Ptr> foundDocs;
 
     for (const QString &path : dirs) {
-        const QList<QmlJS::Document::Ptr> docs = snapshot.documentsInDirectory(path);
-        for (const QmlJS::Document::Ptr &doc : docs) {
+        const QList<Document::Ptr> docs = snapshot.documentsInDirectory(path);
+        for (const Document::Ptr &doc : docs) {
             const QFileInfo fi(doc->fileName());
             // using working copy above might provide no more existing files
             if (!fi.exists())
@@ -176,49 +178,50 @@ QList<QmlJS::Document::Ptr> QuickTestParser::scanDirectoryForQuickTestQmlFiles(c
 }
 
 static bool checkQmlDocumentForQuickTestCode(QFutureInterface<TestParseResultPtr> futureInterface,
-                                             const QmlJS::Document::Ptr &qmlJSDoc,
+                                             const Document::Ptr &qmlJSDoc,
                                              const Core::Id &id,
                                              const QString &proFile = QString())
 {
     if (qmlJSDoc.isNull())
         return false;
-    QmlJS::AST::Node *ast = qmlJSDoc->ast();
+    AST::Node *ast = qmlJSDoc->ast();
     QTC_ASSERT(ast, return false);
-    QmlJS::Snapshot snapshot = QmlJS::ModelManagerInterface::instance()->snapshot();
+    Snapshot snapshot = ModelManagerInterface::instance()->snapshot();
     TestQmlVisitor qmlVisitor(qmlJSDoc, snapshot);
-    QmlJS::AST::Node::accept(ast, &qmlVisitor);
+    AST::Node::accept(ast, &qmlVisitor);
     if (!qmlVisitor.isValid())
         return false;
 
-    const QString testCaseName = qmlVisitor.testCaseName();
-    const TestCodeLocationAndType tcLocationAndType = qmlVisitor.testCaseLocation();
-    const QMap<QString, TestCodeLocationAndType> &testFunctions = qmlVisitor.testFunctions();
+    const QVector<QuickTestCaseSpec> &testCases = qmlVisitor.testCases();
 
-    QuickTestParseResult *parseResult = new QuickTestParseResult(id);
-    parseResult->proFile = proFile;
-    parseResult->itemType = TestTreeItem::TestCase;
-    QMap<QString, TestCodeLocationAndType>::ConstIterator it = testFunctions.begin();
-    const QMap<QString, TestCodeLocationAndType>::ConstIterator end = testFunctions.end();
-    for ( ; it != end; ++it) {
-        const TestCodeLocationAndType &loc = it.value();
-        QuickTestParseResult *funcResult = new QuickTestParseResult(id);
-        funcResult->name = it.key();
-        funcResult->displayName = it.key();
-        funcResult->itemType = loc.m_type;
-        funcResult->fileName = loc.m_name;
-        funcResult->line = loc.m_line;
-        funcResult->column = loc.m_column;
-        funcResult->proFile = proFile;
+    for (const QuickTestCaseSpec &testCase : testCases) {
+        const QString testCaseName = testCase.m_caseName;
 
-        parseResult->children.append(funcResult);
+        QuickTestParseResult *parseResult = new QuickTestParseResult(id);
+        parseResult->proFile = proFile;
+        parseResult->itemType = TestTreeItem::TestCase;
+        if (!testCaseName.isEmpty()) {
+            parseResult->fileName = testCase.m_locationAndType.m_name;
+            parseResult->name = testCaseName;
+            parseResult->line = testCase.m_locationAndType.m_line;
+            parseResult->column = testCase.m_locationAndType.m_column;
+        }
+
+        for (auto function : testCase.m_functions) {
+            QuickTestParseResult *funcResult = new QuickTestParseResult(id);
+            funcResult->name = function.m_functionName;
+            funcResult->displayName = function.m_functionName;
+            funcResult->itemType = function.m_locationAndType.m_type;
+            funcResult->fileName = function.m_locationAndType.m_name;
+            funcResult->line = function.m_locationAndType.m_line;
+            funcResult->column = function.m_locationAndType.m_column;
+            funcResult->proFile = proFile;
+
+            parseResult->children.append(funcResult);
+        }
+
+        futureInterface.reportResult(TestParseResultPtr(parseResult));
     }
-    if (!testCaseName.isEmpty()) {
-        parseResult->fileName = tcLocationAndType.m_name;
-        parseResult->name = testCaseName;
-        parseResult->line = tcLocationAndType.m_line;
-        parseResult->column = tcLocationAndType.m_column;
-    }
-    futureInterface.reportResult(TestParseResultPtr(parseResult));
     return true;
 }
 
@@ -242,9 +245,9 @@ bool QuickTestParser::handleQtQuickTest(QFutureInterface<TestParseResultPtr> fut
 
     if (futureInterface.isCanceled())
         return false;
-    const QList<QmlJS::Document::Ptr> qmlDocs = scanDirectoryForQuickTestQmlFiles(srcDir);
+    const QList<Document::Ptr> qmlDocs = scanDirectoryForQuickTestQmlFiles(srcDir);
     bool result = false;
-    for (const QmlJS::Document::Ptr &qmlJSDoc : qmlDocs) {
+    for (const Document::Ptr &qmlJSDoc : qmlDocs) {
         if (futureInterface.isCanceled())
             break;
         result |= checkQmlDocumentForQuickTestCode(futureInterface, qmlJSDoc, id, proFile);
@@ -275,14 +278,14 @@ void QuickTestParser::handleDirectoryChanged(const QString &directory)
             return filesAndDates.value(file) != watched.value(file);
         });
         if (timestampChanged) {
-            QmlJS::PathsAndLanguages paths;
-            paths.maybeInsert(Utils::FileName::fromString(directory), QmlJS::Dialect::Qml);
+            PathsAndLanguages paths;
+            paths.maybeInsert(Utils::FilePath::fromString(directory), Dialect::Qml);
             QFutureInterface<void> future;
-            QmlJS::ModelManagerInterface *qmlJsMM = QmlJS::ModelManagerInterface::instance();
-            QmlJS::ModelManagerInterface::importScan(future, qmlJsMM->workingCopy(), paths, qmlJsMM,
-                                                     true /*emitDocumentChanges*/,
-                                                     false /*onlyTheLib*/,
-                                                     true /*forceRescan*/ );
+            ModelManagerInterface *qmlJsMM = ModelManagerInterface::instance();
+            ModelManagerInterface::importScan(future, qmlJsMM->workingCopy(), paths, qmlJsMM,
+                                              true /*emitDocumentChanges*/,
+                                              false /*onlyTheLib*/,
+                                              true /*forceRescan*/ );
         }
     }
 }
@@ -334,7 +337,7 @@ void QuickTestParser::init(const QStringList &filesToParse, bool fullParse)
 
 void QuickTestParser::release()
 {
-    m_qmlSnapshot = QmlJS::Snapshot();
+    m_qmlSnapshot = Snapshot();
     m_proFilesForQmlFiles.clear();
     CppParser::release();
 }
@@ -346,7 +349,7 @@ bool QuickTestParser::processDocument(QFutureInterface<TestParseResultPtr> futur
         const QString &proFile = m_proFilesForQmlFiles.value(fileName);
         if (proFile.isEmpty())
             return false;
-        QmlJS::Document::Ptr qmlJSDoc = m_qmlSnapshot.document(fileName);
+        Document::Ptr qmlJSDoc = m_qmlSnapshot.document(fileName);
         return checkQmlDocumentForQuickTestCode(futureInterface, qmlJSDoc, id(), proFile);
     }
     if (!m_cppSnapshot.contains(fileName) || !selectedForBuilding(fileName))

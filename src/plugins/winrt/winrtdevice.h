@@ -26,11 +26,14 @@
 #pragma once
 
 #include <projectexplorer/devicesupport/idevice.h>
+#include <projectexplorer/devicesupport/idevicefactory.h>
+
+#include <utils/qtcprocess.h>
 
 namespace WinRt {
 namespace Internal {
 
-class WinRtDevice : public ProjectExplorer::IDevice
+class WinRtDevice final : public ProjectExplorer::IDevice
 {
 public:
     typedef QSharedPointer<WinRtDevice> Ptr;
@@ -38,13 +41,10 @@ public:
 
     static Ptr create() { return Ptr(new WinRtDevice); }
 
-    QString displayType() const override;
     ProjectExplorer::IDeviceWidget *createWidget() override;
     ProjectExplorer::DeviceProcessSignalOperation::Ptr signalOperation() const override;
     void fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
-    Utils::OsType osType() const override;
-    ProjectExplorer::IDevice::Ptr clone() const override;
 
     static QString displayNameForType(Core::Id type);
     int deviceId() const { return m_deviceId; }
@@ -54,6 +54,27 @@ private:
     WinRtDevice();
 
     int m_deviceId = -1;
+};
+
+class WinRtDeviceFactory final : public QObject, public ProjectExplorer::IDeviceFactory
+{
+    Q_OBJECT
+public:
+    explicit WinRtDeviceFactory(Core::Id deviceType);
+
+    void autoDetect();
+    void onPrerequisitesLoaded();
+
+private:
+    void onProcessError();
+    void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
+
+    static bool allPrerequisitesLoaded();
+    QString findRunnerFilePath() const;
+    void parseRunnerOutput(const QByteArray &output) const;
+
+    Utils::QtcProcess *m_process = nullptr;
+    bool m_initialized = false;
 };
 
 } // Internal

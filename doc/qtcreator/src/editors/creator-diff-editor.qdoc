@@ -1,0 +1,146 @@
+/****************************************************************************
+**
+** Copyright (C) 2020 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \page creator-diff-editor.html
+    \if defined(qtdesignstudio)
+    \previouspage qt-quick-toolbars.html
+    \nextpage creator-finding-overview.html
+    \else
+    \previouspage creator-macros.html
+    \nextpage creator-clang-codemodel.html
+    \endif
+
+    \title Comparing Files
+
+    You can use a diff editor to display unsaved changes in the current file or
+    all open files or to compare any two text files that can be either versions
+    of the same file or arbitrary files.
+
+    To view unsaved changes in the current file, select \uicontrol Tools >
+    \uicontrol Diff > \uicontrol {Diff Current File}.
+
+    To view unsaved changes in all open files, select \uicontrol Tools >
+    \uicontrol Diff > \uicontrol {Diff Open Files}.
+
+    To compare two files:
+
+    \list 1
+
+        \li Select \uicontrol Tools > \uicontrol Diff >
+            \uicontrol {Diff External Files}.
+
+        \li Select two files to compare.
+
+    \endlist
+
+    To compare the currently opened file against another file in a project
+    or the filesystem:
+
+    \list 1
+
+        \li Open the first file in an editor.
+
+        \li Right click on the second file in the \uicontrol Projects
+            or \uicontrol {File System} view and select
+            \uicontrol {Diff Against Current File}.
+
+    \endlist
+
+    \section1 Viewing the Changes
+
+    \image creator-diff-editor.png "Diff editor output in the Edit mode"
+
+    The changes are displayed in the \uicontrol Edit mode. Color coding is
+    used to mark changed lines. By default, red indicates lines that contain
+    removed text (painted another shade of red) in the left pane and green
+    indicates lines that contain added text (painted another shade of green)
+    in the right pane.
+
+    To revert the changes, right-click added text and then select
+    \uicontrol {Revert Chunk} in the context menu. To apply the changes, select
+    removed text and then select \uicontrol {Apply Chunk}.
+
+    To view the differences in a unified view where changed rows are placed
+    below each other, select \inlineimage unifieddiff.png
+    (\uicontrol {Switch to Unified Diff Editor}).
+
+    To switch back to the side-by-side view, select
+    \inlineimage sidebysidediff.png
+    (\uicontrol {Switch to Side by Side Diff Editor}).
+
+    To only show text changes, select \uicontrol {Ignore Whitespace}.
+
+    To expand the context for the changes, set the number of unchanged lines to
+    show in \uicontrol {Context lines}.
+
+    By default, the horizontal scroll bars in the left and right pane are
+    synchronized. To use them independently of each other, select the
+    \inlineimage linkicon.png
+    (\uicontrol {Synchronize Horizontal Scroll Bars}) button.
+
+    If the files change outside \QC, select \inlineimage reload_gray.png
+    (\uicontrol {Reload Editor}) to compare them again and to show the results.
+
+    \if defined(qtcreator)
+    To send a chunk of changes to a \l{Pasting and Fetching Code Snippets}
+    {code pasting service}, select \uicontrol {Send Chunk to CodePaster} in the
+    context menu.
+    \endif
+
+    \section1 Changing the Colors
+
+    To change the default colors, select \uicontrol Tools > \uicontrol Options >
+    \uicontrol {Text Editor} > \uicontrol {Font & Colors}. Create your own color
+    scheme and select new colors for the following options:
+
+    \list
+
+        \li \uicontrol {Diff File Line} sets the color of the line that shows
+            the path and filename of the changed file.
+
+        \li \uicontrol {Diff Context Line} sets the color of the line that
+            shows the number of hidden lines between changed lines.
+
+        \li \uicontrol {Diff Source Line} sets the color of lines that contain
+            removed text.
+
+        \li \uicontrol {Diff Source Character} sets the color that indicates
+            removed characters.
+
+        \li \uicontrol {Diff Destination Line} sets the color of lines that
+            contain added text.
+
+        \li \uicontrol {Diff Destination Character} sets the color that
+            indicates added characters.
+
+    \endlist
+*/

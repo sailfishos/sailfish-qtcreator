@@ -27,9 +27,10 @@
 
 #include <projectexplorer/devicesupport/deviceprocess.h>
 #include <projectexplorer/devicesupport/idevice.h>
-#include <projectexplorer/runconfiguration.h>
+#include <projectexplorer/runcontrol.h>
 
 using namespace ProjectExplorer;
+using namespace Utils;
 
 namespace RemoteLinux {
 namespace Internal {
@@ -56,7 +57,7 @@ void RemoteLinuxEnvironmentReader::start()
     connect(m_deviceProcess, &DeviceProcess::finished,
             this, &RemoteLinuxEnvironmentReader::remoteProcessFinished);
     Runnable runnable;
-    runnable.executable = QLatin1String("env");
+    runnable.executable = FilePath::fromString("env");
     m_deviceProcess->start(runnable);
 }
 

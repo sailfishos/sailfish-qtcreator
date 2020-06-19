@@ -22,7 +22,9 @@ DATA_DIRS = \
     qml-type-descriptions \
     modeleditor \
     glsl \
-    cplusplus
+    cplusplus \
+    indexer_preincludes \
+    android
 macx: DATA_DIRS += scripts
 
 for(data_dir, DATA_DIRS) {

@@ -1,0 +1,104 @@
+/****************************************************************************
+**
+** Copyright (C) 2020 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \previouspage creator-editor-external.html
+    \page creator-task-lists.html
+    \nextpage creator-telemetry.html
+
+    \title Showing Task List Files in Issues Pane
+
+    You can use code scanning and analysis tools to examine source code. These
+    tools report issues for you to fix. \QC enables you to load lists of
+    issues into the \uicontrol Issues pane for easier navigation.
+
+    \QC expects tasks to be defined in a simple line-based file format that is
+    easy to generate using scripts. The scripts can either convert reports from
+    other tools or create lists of issues in the \l{Task List File Format}
+    {task list format} from code. For an example of a script that checks new
+    lines of code and matches them against regular expressions to generate a
+    task list, see \c{scripts\mytasks.pl} in the \QC repository.
+
+    \section1 Managing Task List Entries
+
+    To open task list files in the \uicontrol Issues pane, choose \uicontrol File  >
+    \uicontrol Open. Right-click a task list entry to open a context menu that
+    contains commands for managing the entry. You can copy or remove task list
+    entries or navigate to the corresponding source code.
+
+    \QC monitors the loaded files and displays the changes in the \uicontrol Issues
+    pane. To keep the current entries in a task list, but stop checking for
+    changes, select \uicontrol {Stop Monitoring}.
+
+    \section1 Task List File Format
+
+    The filename extension must be .tasks for \QC to recognize a file as a
+    task list file.
+
+    Each line in a task list file is treated as a tab-separated list of strings
+    with \c{\t}, \c{\n}, and \c{\\} used as escape characters. The strings are
+    used to create one task per line. The lines can have one of the following
+    formats:
+
+    \list
+
+        \li \c description
+
+        \li \c{type\tdescription}
+
+        \li \c{file\ttype\tdescription}
+
+        \li \c{file\tline\ttype\tdescription}
+
+    \endlist
+
+    The task type can have one of the following values:
+
+    \list
+
+        \li A string starting with \c err, which displays the error icon in the
+            beginning of the line
+
+        \li A string starting with \c warn, which displays the warning icon
+
+        \li Any other value, which sets the task type to Unknown and does not
+            display an icon
+
+    \endlist
+
+    The values are not case sensitive.
+
+    Lines starting with the hash mark character (#) in the first column are
+    ignored.
+
+    If the file path is given as a relative path, it is based on the parent
+    directory of the task list file.
+*/

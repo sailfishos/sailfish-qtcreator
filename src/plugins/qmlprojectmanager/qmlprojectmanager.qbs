@@ -15,10 +15,10 @@ QtcPlugin {
     Group {
         name: "General"
         files: [
+            "qmlmainfileaspect.cpp", "qmlmainfileaspect.h",
             "qmlproject.cpp", "qmlproject.h",
             "qmlproject.qrc",
             "qmlprojectconstants.h",
-            "qmlprojectenvironmentaspect.cpp", "qmlprojectenvironmentaspect.h",
             "qmlprojectmanager_global.h",
             "qmlprojectmanagerconstants.h",
             "qmlprojectnodes.cpp", "qmlprojectnodes.h",

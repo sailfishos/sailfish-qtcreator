@@ -87,8 +87,7 @@ public:
     }
 };
 
-ScxmlEditorData::ScxmlEditorData(QObject *parent)
-    : QObject(parent)
+ScxmlEditorData::ScxmlEditorData()
 {
     m_contexts.add(ScxmlEditor::Constants::C_SCXMLEDITOR);
 
@@ -222,7 +221,7 @@ QWidget *ScxmlEditorData::createModeWidget()
 
     widget->setObjectName("ScxmlEditorDesignModeWidget");
     auto layout = new QVBoxLayout;
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     layout->addWidget(m_mainToolBar);
     // Avoid mode switch to 'Edit' mode when the application started by

@@ -217,6 +217,10 @@ void PerfProfilerTraceManager::resetAttributes()
                                                            tr("Thread ended")));
     setEventType(PerfEvent::LostTypeId, PerfEventType(PerfEventType::LostDefinition,
                                                       tr("Samples lost")));
+    setEventType(PerfEvent::ContextSwitchTypeId,
+                 PerfEventType(PerfEventType::ContextSwitchDefinition, tr("Context switch")));
+    setEventType(PerfEvent::LastSpecialTypeId,
+                 PerfEventType(PerfEventType::InvalidFeature, tr("Invalid")));
 }
 
 void PerfProfilerTraceManager::finalize()
@@ -279,7 +283,7 @@ void PerfProfilerTraceManager::replayPerfEvents(PerfEventLoader loader, Initiali
         QTC_ASSERT(traceEvent.is<PerfEvent>(), return false);
         PerfEvent &&event = traceEvent.asRvalueRef<PerfEvent>();
         processSample(event);
-        loader(event, eventType(event.typeIndex()));
+        loader(event, eventType(event.attributeId(0)));
         return true;
     });
 
@@ -397,13 +401,13 @@ int PerfProfilerEventTypeStorage::append(Timeline::TraceEventType &&type)
     if (perfType.isLocation()) {
         const size_t index = m_locations.size();
         m_locations.push_back(perfType);
-        QTC_ASSERT(index <= std::numeric_limits<int>::max(),
+        QTC_ASSERT(index <= size_t(std::numeric_limits<int>::max()),
                    return std::numeric_limits<int>::max());
         return static_cast<int>(index);
     } else if (perfType.isAttribute()) {
         const size_t index = m_attributes.size();
         m_attributes.push_back(perfType);
-        QTC_ASSERT(index <= std::numeric_limits<int>::max(),
+        QTC_ASSERT(index <= size_t(std::numeric_limits<int>::max()),
                    return -std::numeric_limits<int>::max());
         return -static_cast<int>(index);
     }
@@ -414,7 +418,8 @@ int PerfProfilerEventTypeStorage::append(Timeline::TraceEventType &&type)
 int PerfProfilerEventTypeStorage::size() const
 {
     const size_t result = m_attributes.size() + m_locations.size();
-    QTC_ASSERT(result <= std::numeric_limits<int>::max(), return std::numeric_limits<int>::max());
+    QTC_ASSERT(result <= size_t(std::numeric_limits<int>::max()),
+               return std::numeric_limits<int>::max());
     return static_cast<int>(result);
 }
 

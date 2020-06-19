@@ -46,7 +46,6 @@ class FormEditorGraphicsView;
 class ToolBox;
 class QmlItemNode;
 
-
 class FormEditorWidget : public QWidget
 {
     Q_OBJECT
@@ -57,6 +56,7 @@ public:
     QAction *showBoundingRectAction() const;
     QAction *snappingAction() const;
     QAction *snappingAndAnchoringAction() const;
+    QAction *resetAction() const;
 
     void setScene(FormEditorScene *scene);
     ToolBox *toolBox() const;
@@ -96,9 +96,8 @@ private:
     void changeRootItemWidth(const QString &widthText);
     void changeRootItemHeight(const QString &heightText);
     void changeBackgound(const QColor &color);
-    void resetNodeInstanceView();
+    void registerActionAsCommand(QAction *action, Core::Id id, const QKeySequence &keysequence);
 
-private:
     QPointer<FormEditorView> m_formEditorView;
     QPointer<FormEditorGraphicsView> m_graphicsView;
     QPointer<ZoomAction> m_zoomAction;
@@ -114,6 +113,7 @@ private:
     QPointer<BackgroundAction> m_backgroundAction;
     QPointer<QAction> m_resetAction;
     QPointer<DocumentWarningWidget> m_documentErrorWidget;
+    Core::IContext *m_context = nullptr;
 };
 
 } // namespace QmlDesigner

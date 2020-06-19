@@ -29,13 +29,14 @@
 
 #include <qmljs/qmljsinterpreter.h>
 #include <qmljs/qmljsviewercontext.h>
-//#include <projectexplorer/session.h>
-//#include <coreplugin/messagemanager.h>
+
+#include <utils/algorithm.h>
 #include <utils/filesystemwatcher.h>
 #include <utils/fileutils.h>
 #include <utils/hostosinfo.h>
 
 #include <QDir>
+#include <QDirIterator>
 #include <QRegularExpression>
 
 using namespace LanguageUtils;
@@ -44,7 +45,7 @@ using namespace QmlJS;
 PluginDumper::PluginDumper(ModelManagerInterface *modelManager)
     : QObject(modelManager)
     , m_modelManager(modelManager)
-    , m_pluginWatcher(0)
+    , m_pluginWatcher(nullptr)
 {
     qRegisterMetaType<QmlJS::ModelManagerInterface::ProjectInfo>("QmlJS::ModelManagerInterface::ProjectInfo");
 }
@@ -146,10 +147,14 @@ void PluginDumper::onLoadPluginTypes(const QString &libraryPath, const QString &
     plugin.importVersion = importVersion;
 
     // add default qmltypes file if it exists
-    const QLatin1String defaultQmltypesFileName("plugins.qmltypes");
-    const QString defaultQmltypesPath = makeAbsolute(defaultQmltypesFileName, canonicalLibraryPath);
-    if (!plugin.typeInfoPaths.contains(defaultQmltypesPath) && QFile::exists(defaultQmltypesPath))
-        plugin.typeInfoPaths += defaultQmltypesPath;
+    QDirIterator it(canonicalLibraryPath, QStringList { "*.qmltypes" }, QDir::Files);
+
+    while (it.hasNext()) {
+        const QString defaultQmltypesPath = makeAbsolute(it.next(), canonicalLibraryPath);
+
+        if (!plugin.typeInfoPaths.contains(defaultQmltypesPath))
+            plugin.typeInfoPaths += defaultQmltypesPath;
+    }
 
     // add typeinfo files listed in qmldir
     foreach (const QmlDirParser::TypeInfo &typeInfo, libraryInfo.typeInfos()) {
@@ -398,10 +403,10 @@ QString PluginDumper::buildQmltypesPath(const QString &name) const
     if (path.isEmpty())
         return QString();
 
-    const QString filename = path + QLatin1String("/plugins.qmltypes");
+    QDirIterator it(path, QStringList { "*.qmltypes" }, QDir::Files);
 
-    if (QFile::exists(filename))
-        return filename;
+    if (it.hasNext())
+        return it.next();
 
     return QString();
 }
@@ -436,8 +441,8 @@ void PluginDumper::loadDependencies(const QStringList &dependencies,
         visitedPtr->insert(name);
     }
     QStringList newDependencies;
-    loadQmlTypeDescription(dependenciesPaths, errors, warnings, objects, 0, &newDependencies);
-    newDependencies = (newDependencies.toSet() - *visitedPtr).toList();
+    loadQmlTypeDescription(dependenciesPaths, errors, warnings, objects, nullptr, &newDependencies);
+    newDependencies = Utils::toList(Utils::toSet(newDependencies) - *visitedPtr);
     if (!newDependencies.isEmpty())
         loadDependencies(newDependencies, errors, warnings, objects, visitedPtr.take());
 }

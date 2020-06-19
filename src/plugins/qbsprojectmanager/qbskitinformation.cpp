@@ -26,14 +26,12 @@
 #include "qbskitinformation.h"
 
 #include "customqbspropertiesdialog.h"
+#include "qbsprofilemanager.h"
 
-#include <projectexplorer/kitconfigwidget.h>
 #include <projectexplorer/kitmanager.h>
 
 #include <utils/elidinglabel.h>
 #include <utils/qtcassert.h>
-
-#include <qbs.h>
 
 #include <QPushButton>
 
@@ -42,91 +40,83 @@ using namespace ProjectExplorer;
 namespace QbsProjectManager {
 namespace Internal {
 
-class ConfigWidget final : public KitConfigWidget
+class AspectWidget final : public KitAspectWidget
 {
-    Q_OBJECT
+    Q_DECLARE_TR_FUNCTIONS(QbsProjectManager::Internal::AspectWidget)
 public:
-    ConfigWidget(Kit *kit, const KitInformation *kitInfo)
-        : KitConfigWidget(kit, kitInfo),
+    AspectWidget(Kit *kit, const KitAspect *kitInfo)
+        : KitAspectWidget(kit, kitInfo),
           m_contentLabel(new Utils::ElidingLabel),
           m_changeButton(new QPushButton(tr("Change...")))
     {
-        connect(m_changeButton, &QPushButton::clicked, this, &ConfigWidget::changeProperties);
+        connect(m_changeButton, &QPushButton::clicked, this, &AspectWidget::changeProperties);
     }
 
 private:
-    QString displayName() const override { return QbsKitInformation::displayName(); }
     void makeReadOnly() override { m_changeButton->setEnabled(false); }
-    void refresh() override { m_contentLabel->setText(QbsKitInformation::representation(kit())); }
+    void refresh() override { m_contentLabel->setText(QbsKitAspect::representation(kit())); }
     QWidget *mainWidget() const override { return m_contentLabel; }
     QWidget *buttonWidget() const override { return m_changeButton; }
 
     void changeProperties()
     {
-        CustomQbsPropertiesDialog dlg(QbsKitInformation::properties(kit()));
+        CustomQbsPropertiesDialog dlg(QbsKitAspect::properties(kit()));
         if (dlg.exec() == QDialog::Accepted)
-            QbsKitInformation::setProperties(kit(), dlg.properties());
+            QbsKitAspect::setProperties(kit(), dlg.properties());
     }
 
     QLabel * const m_contentLabel;
     QPushButton * const m_changeButton;
 };
 
-QbsKitInformation::QbsKitInformation()
+QbsKitAspect::QbsKitAspect()
 {
-    setObjectName(QLatin1String("QbsKitInformation"));
-    setId(QbsKitInformation::id());
+    setObjectName(QLatin1String("QbsKitAspect"));
+    setId(QbsKitAspect::id());
+    setDisplayName(tr("Additional Qbs Profile Settings"));
     setPriority(22000);
 }
 
-QString QbsKitInformation::displayName()
-{
-    return tr("Additional Qbs Profile Settings");
-}
-
-QString QbsKitInformation::representation(const Kit *kit)
+QString QbsKitAspect::representation(const Kit *kit)
 {
     const QVariantMap props = properties(kit);
     QString repr;
     for (auto it = props.begin(); it != props.end(); ++it) {
         if (!repr.isEmpty())
             repr += ' ';
-        repr += it.key() + ':' + qbs::settingsValueToRepresentation(it.value());
+        repr += it.key() + ':' + toJSLiteral(it.value());
     }
     return repr;
 }
 
-QVariantMap QbsKitInformation::properties(const Kit *kit)
+QVariantMap QbsKitAspect::properties(const Kit *kit)
 {
     QTC_ASSERT(kit, return QVariantMap());
     return kit->value(id()).toMap();
 }
 
-void QbsKitInformation::setProperties(Kit *kit, const QVariantMap &properties)
+void QbsKitAspect::setProperties(Kit *kit, const QVariantMap &properties)
 {
     QTC_ASSERT(kit, return);
     kit->setValue(id(), properties);
 }
 
-Core::Id QbsKitInformation::id()
+Core::Id QbsKitAspect::id()
 {
     return "Qbs.KitInformation";
 }
 
-QVariant QbsKitInformation::defaultValue(const Kit *) const { return QString(); }
-QList<Task> QbsKitInformation::validate(const Kit *) const { return QList<Task>(); }
+Tasks QbsKitAspect::validate(const Kit *) const { return {}; }
 
-KitInformation::ItemList QbsKitInformation::toUserOutput(const Kit *k) const
+KitAspect::ItemList QbsKitAspect::toUserOutput(const Kit *k) const
 {
     return ItemList({qMakePair(displayName(), representation(k))});
 }
 
-KitConfigWidget *QbsKitInformation::createConfigWidget(Kit *k) const
+KitAspectWidget *QbsKitAspect::createConfigWidget(Kit *k) const
 {
-    return new ConfigWidget(k, this);
+    return new AspectWidget(k, this);
 }
 
 } // namespace Internal
 } // namespace QbsProjectManager
-
-#include <qbskitinformation.moc>

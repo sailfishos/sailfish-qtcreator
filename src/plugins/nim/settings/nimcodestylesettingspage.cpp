@@ -29,68 +29,54 @@
 
 #include "../nimconstants.h"
 
-#include <extensionsystem/pluginmanager.h>
 #include <texteditor/simplecodestylepreferences.h>
 #include <texteditor/codestyleeditor.h>
 #include <texteditor/texteditorsettings.h>
 #include <texteditor/tabsettings.h>
-#include <utils/qtcassert.h>
 
-#include <QWidget>
+#include <QVBoxLayout>
 
 using namespace TextEditor;
 
 namespace Nim {
 
-NimCodeStyleSettingsPage::NimCodeStyleSettingsPage(QWidget *parent)
-    : Core::IOptionsPage(parent)
-    , m_nimCodeStylePreferences(nullptr)
-    , m_widget(nullptr)
+class NimCodeStyleSettingsWidget : public Core::IOptionsPageWidget
 {
-    setId(Nim::Constants::C_NIMCODESTYLESETTINGSPAGE_ID);
-    setDisplayName(tr(Nim::Constants::C_NIMCODESTYLESETTINGSPAGE_DISPLAY));
-    setCategory(Nim::Constants::C_NIMCODESTYLESETTINGSPAGE_CATEGORY);
-    setDisplayCategory(tr("Nim"));
-    setCategoryIcon(Utils::Icon({{":/nim/images/settingscategory_nim.png",
-                    Utils::Theme::PanelTextColorDark}}, Utils::Icon::Tint));
-}
+    Q_DECLARE_TR_FUNCTIONS(Nim::CodeStyleSettings)
 
-NimCodeStyleSettingsPage::~NimCodeStyleSettingsPage()
-{
-    deleteWidget();
-}
-
-QWidget *NimCodeStyleSettingsPage::widget()
-{
-    if (!m_widget) {
-        auto originalTabPreferences = qobject_cast<SimpleCodeStylePreferences *>(NimSettings::globalCodeStyle());
-        m_nimCodeStylePreferences = new SimpleCodeStylePreferences(m_widget);
+public:
+    NimCodeStyleSettingsWidget()
+    {
+        auto originalTabPreferences = NimSettings::globalCodeStyle();
+        m_nimCodeStylePreferences = new SimpleCodeStylePreferences(this);
         m_nimCodeStylePreferences->setDelegatingPool(originalTabPreferences->delegatingPool());
         m_nimCodeStylePreferences->setTabSettings(originalTabPreferences->tabSettings());
         m_nimCodeStylePreferences->setCurrentDelegate(originalTabPreferences->currentDelegate());
         m_nimCodeStylePreferences->setId(originalTabPreferences->id());
+
         auto factory = TextEditorSettings::codeStyleFactory(Nim::Constants::C_NIMLANGUAGE_ID);
-        m_widget = new CodeStyleEditor(factory, m_nimCodeStylePreferences);
+
+        auto editor = new CodeStyleEditor(factory, m_nimCodeStylePreferences);
+
+        auto layout = new QVBoxLayout(this);
+        layout->addWidget(editor);
     }
-    return m_widget;
-}
 
-void NimCodeStyleSettingsPage::apply()
+private:
+    void apply() final {}
+    void finish() final {}
+
+    TextEditor::SimpleCodeStylePreferences *m_nimCodeStylePreferences;
+};
+
+NimCodeStyleSettingsPage::NimCodeStyleSettingsPage()
 {
-
+    setId(Nim::Constants::C_NIMCODESTYLESETTINGSPAGE_ID);
+    setDisplayName(tr(Nim::Constants::C_NIMCODESTYLESETTINGSPAGE_DISPLAY));
+    setCategory(Nim::Constants::C_NIMCODESTYLESETTINGSPAGE_CATEGORY);
+    setDisplayCategory(NimCodeStyleSettingsWidget::tr("Nim"));
+    setCategoryIconPath(":/nim/images/settingscategory_nim.png");
+    setWidgetCreator([] { return new NimCodeStyleSettingsWidget; });
 }
 
-void NimCodeStyleSettingsPage::finish()
-{
-    deleteWidget();
-}
-
-void NimCodeStyleSettingsPage::deleteWidget()
-{
-    if (m_widget) {
-        delete m_widget;
-        m_widget = nullptr;
-    }
-}
-
-}
+} // Nim

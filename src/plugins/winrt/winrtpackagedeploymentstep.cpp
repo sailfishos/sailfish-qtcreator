@@ -41,27 +41,105 @@
 
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
+#include <utils/fancylineedit.h>
 
+#include <QLabel>
 #include <QLayout>
 #include <QRegularExpression>
 #include <QToolButton>
 
 using namespace ProjectExplorer;
-using Utils::QtcProcess;
+using namespace Utils;
 
 namespace WinRt {
 namespace Internal {
 
-WinRtPackageDeploymentStep::WinRtPackageDeploymentStep(BuildStepList *bsl)
-    : AbstractProcessStep(bsl, Constants::WINRT_BUILD_STEP_DEPLOY)
+const char ARGUMENTS_KEY[] = "WinRt.BuildStep.Deploy.Arguments";
+const char DEFAULTARGUMENTS_KEY[] = "WinRt.BuildStep.Deploy.DefaultArguments";
+
+WinRtArgumentsAspect::WinRtArgumentsAspect() = default;
+
+WinRtArgumentsAspect::~WinRtArgumentsAspect() = default;
+
+void WinRtArgumentsAspect::addToLayout(ProjectExplorer::LayoutBuilder &builder)
+{
+    QTC_CHECK(!m_lineEdit);
+    auto label = new QLabel(tr("Arguments:"));
+    label->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    builder.addItem(label);
+
+    auto *layout = new QHBoxLayout();
+    m_lineEdit = new Utils::FancyLineEdit();
+    if (!m_value.isEmpty())
+        m_lineEdit->setText(m_value);
+    else if (!m_defaultValue.isEmpty())
+        m_lineEdit->setText(m_defaultValue);
+    connect(m_lineEdit, &Utils::FancyLineEdit::textEdited,
+            this, &WinRtArgumentsAspect::setValue);
+    layout->addWidget(m_lineEdit);
+
+    auto restoreDefaultButton = new QToolButton();
+    restoreDefaultButton->setText(tr("Restore Default Arguments"));
+    connect(restoreDefaultButton, &QToolButton::clicked,
+            this, &WinRtArgumentsAspect::restoreDefaultValue);
+    layout->addWidget(restoreDefaultButton);
+    builder.addItem(layout);
+}
+
+void WinRtArgumentsAspect::fromMap(const QVariantMap &map)
+{
+    m_defaultValue = map.value(DEFAULTARGUMENTS_KEY).toString();
+    m_value = map.value(ARGUMENTS_KEY).toString();
+}
+
+void WinRtArgumentsAspect::toMap(QVariantMap &map) const
+{
+    map.insert(DEFAULTARGUMENTS_KEY, m_defaultValue);
+    map.insert(ARGUMENTS_KEY, m_value);
+}
+
+void WinRtArgumentsAspect::setValue(const QString &value)
+{
+    if (value == m_value)
+        return;
+
+    m_value = value;
+    if (m_lineEdit)
+        m_lineEdit->setText(value);
+    emit changed();
+}
+
+QString WinRtArgumentsAspect::value() const
+{
+    return m_value;
+}
+
+void WinRtArgumentsAspect::setDefaultValue(const QString &value)
+{
+    m_defaultValue = value;
+}
+
+QString WinRtArgumentsAspect::defaultValue() const
+{
+    return m_defaultValue;
+}
+
+void WinRtArgumentsAspect::restoreDefaultValue()
+{
+    if (m_defaultValue == m_value)
+        return;
+
+    setValue(m_defaultValue);
+}
+
+WinRtPackageDeploymentStep::WinRtPackageDeploymentStep(BuildStepList *bsl, Core::Id id)
+    : AbstractProcessStep(bsl, id)
 {
     setDisplayName(tr("Run windeployqt"));
 
-    m_argsAspect = addAspect<BaseStringAspect>();
-    m_argsAspect->setDisplayStyle(BaseStringAspect::LineEditDisplay);
-    m_argsAspect->setSettingsKey("WinRt.BuildStep.Deploy.Arguments");
+    m_argsAspect = addAspect<WinRtArgumentsAspect>();
+    m_argsAspect->setDefaultValue(defaultWinDeployQtArguments());
     m_argsAspect->setValue(defaultWinDeployQtArguments());
-    m_argsAspect->setLabelText(tr("Arguments:"));
 }
 
 bool WinRtPackageDeploymentStep::init()
@@ -70,7 +148,7 @@ bool WinRtPackageDeploymentStep::init()
     QTC_ASSERT(rc, return false);
 
     const BuildTargetInfo bti = rc->buildTargetInfo();
-    Utils::FileName appTargetFilePath = bti.targetFilePath;
+    Utils::FilePath appTargetFilePath = bti.targetFilePath;
 
     m_targetFilePath = appTargetFilePath.toString();
     if (m_targetFilePath.isEmpty()) {
@@ -87,28 +165,28 @@ bool WinRtPackageDeploymentStep::init()
     if (!m_targetDirPath.endsWith(QLatin1Char('/')))
         m_targetDirPath += QLatin1Char('/');
 
-    const QtSupport::BaseQtVersion *qt = QtSupport::QtKitInformation::qtVersion(target()->kit());
+    const QtSupport::BaseQtVersion *qt = QtSupport::QtKitAspect::qtVersion(target()->kit());
     if (!qt)
         return false;
 
-    QString args = QtcProcess::quoteArg(QDir::toNativeSeparators(m_targetFilePath));
-    args += ' ' + m_argsAspect->value();
+    const FilePath windeployqtPath = qt->hostBinPath().resolvePath("windeployqt.exe");
 
-    if (qt->type() == QLatin1String(Constants::WINRT_WINPHONEQT)) {
+    CommandLine windeployqt{windeployqtPath};
+    windeployqt.addArg(QDir::toNativeSeparators(m_targetFilePath));
+    windeployqt.addArgs(m_argsAspect->value(), CommandLine::Raw);
+
+    if (qt->type() == Constants::WINRT_WINPHONEQT) {
         m_createMappingFile = true;
-        args += QLatin1String(" -list mapping");
+        windeployqt.addArgs({"-list", "mapping"});
     }
 
     ProcessParameters *params = processParameters();
-    const QString windeployqtPath
-            = Utils::FileUtils::resolvePath(qt->binPath().toString(), "windeployqt.exe");
-    if (!QFile::exists(windeployqtPath)) {
-        raiseError(tr("Cannot find windeployqt.exe in \"%1\".").arg(
-                    QDir::toNativeSeparators(qt->binPath().toString())));
+    if (!windeployqtPath.exists()) {
+        raiseError(tr("Cannot find windeployqt.exe in \"%1\".")
+                       .arg(QDir::toNativeSeparators(qt->hostBinPath().toString())));
         return false;
     }
-    params->setCommand(windeployqtPath);
-    params->setArguments(args);
+    params->setCommandLine(windeployqt);
     params->setEnvironment(buildConfiguration()->environment());
 
     return AbstractProcessStep::init();
@@ -116,7 +194,7 @@ bool WinRtPackageDeploymentStep::init()
 
 void WinRtPackageDeploymentStep::doRun()
 {
-    const QtSupport::BaseQtVersion *qt = QtSupport::QtKitInformation::qtVersion(target()->kit());
+    const QtSupport::BaseQtVersion *qt = QtSupport::QtKitAspect::qtVersion(target()->kit());
     if (!qt)
         return;
 
@@ -221,23 +299,6 @@ void WinRtPackageDeploymentStep::stdOutput(const QString &line)
     AbstractProcessStep::stdOutput(line);
 }
 
-BuildStepConfigWidget *WinRtPackageDeploymentStep::createConfigWidget()
-{
-    auto widget = AbstractProcessStep::createConfigWidget();
-
-    auto restoreDefaultButton = new QToolButton(widget);
-    restoreDefaultButton->setText(tr("Restore Default Arguments"));
-    connect(restoreDefaultButton, &QToolButton::clicked, this, [this] {
-        m_argsAspect->setValue(defaultWinDeployQtArguments());
-    });
-
-    // Smuggle in the extra button. We know that there's exactly one aspect.
-    QTC_ASSERT(widget->layout()->count() == 2, return widget);
-    widget->layout()->itemAt(1)->layout()->addWidget(restoreDefaultButton);
-
-    return widget;
-}
-
 QString WinRtPackageDeploymentStep::defaultWinDeployQtArguments() const
 {
     QString args;
@@ -248,17 +309,13 @@ QString WinRtPackageDeploymentStep::defaultWinDeployQtArguments() const
 
 void WinRtPackageDeploymentStep::raiseError(const QString &errorMessage)
 {
-    ProjectExplorer::Task task = Task(Task::Error, errorMessage, Utils::FileName(), -1,
-                                      ProjectExplorer::Constants::TASK_CATEGORY_DEPLOYMENT);
-    emit addTask(task, 1);
+    emit addTask(DeploymentTask(Task::Error, errorMessage), 1);
     emit addOutput(errorMessage, BuildStep::OutputFormat::ErrorMessage);
 }
 
 void WinRtPackageDeploymentStep::raiseWarning(const QString &warningMessage)
 {
-    ProjectExplorer::Task task = Task(Task::Warning, warningMessage, Utils::FileName(), -1,
-                                      ProjectExplorer::Constants::TASK_CATEGORY_DEPLOYMENT);
-    emit addTask(task, 1);
+    emit addTask(DeploymentTask(Task::Warning, warningMessage), 1);
     emit addOutput(warningMessage, BuildStep::OutputFormat::NormalMessage);
 }
 

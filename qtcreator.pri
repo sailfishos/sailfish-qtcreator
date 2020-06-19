@@ -1,18 +1,11 @@
 !isEmpty(QTCREATOR_PRI_INCLUDED):error("qtcreator.pri already included")
 QTCREATOR_PRI_INCLUDED = 1
 
-QTCREATOR_VERSION = 4.9.1
-QTCREATOR_COMPAT_VERSION = 4.9.0
+include($$PWD/qtcreator_ide_branding.pri)
+!isEmpty(IDE_BRANDING_PRI): include($$IDE_BRANDING_PRI)
+
+PRODUCT_BUNDLE_IDENTIFIER=$${PRODUCT_BUNDLE_ORGANIZATION}.$${IDE_ID}
 VERSION = $$QTCREATOR_VERSION
-QTCREATOR_DISPLAY_VERSION = 4.9.1
-QTCREATOR_COPYRIGHT_YEAR = 2019
-BINARY_ARTIFACTS_BRANCH = master
-
-isEmpty(IDE_DISPLAY_NAME):           IDE_DISPLAY_NAME = Qt Creator
-isEmpty(IDE_ID):                     IDE_ID = qtcreator
-isEmpty(IDE_CASED_ID):               IDE_CASED_ID = QtCreator
-
-isEmpty(PRODUCT_BUNDLE_IDENTIFIER): PRODUCT_BUNDLE_IDENTIFIER = org.qt-project.$$IDE_ID
 
 CONFIG += c++14
 
@@ -114,7 +107,7 @@ osx {
 
     IDE_LIBRARY_PATH = $$IDE_OUTPUT_PATH/Frameworks
     IDE_PLUGIN_PATH  = $$IDE_OUTPUT_PATH/PlugIns
-    IDE_LIBEXEC_PATH = $$IDE_OUTPUT_PATH/Resources
+    IDE_LIBEXEC_PATH = $$IDE_OUTPUT_PATH/Resources/libexec
     IDE_DATA_PATH    = $$IDE_OUTPUT_PATH/Resources
     IDE_DOC_PATH     = $$IDE_DATA_PATH/doc
     IDE_BIN_PATH     = $$IDE_OUTPUT_PATH/MacOS
@@ -125,12 +118,11 @@ osx {
 
     INSTALL_LIBRARY_PATH = $$QTC_PREFIX/$${IDE_APP_TARGET}.app/Contents/Frameworks
     INSTALL_PLUGIN_PATH  = $$QTC_PREFIX/$${IDE_APP_TARGET}.app/Contents/PlugIns
-    INSTALL_LIBEXEC_PATH = $$QTC_PREFIX/$${IDE_APP_TARGET}.app/Contents/Resources
+    INSTALL_LIBEXEC_PATH = $$QTC_PREFIX/$${IDE_APP_TARGET}.app/Contents/Resources/libexec
     INSTALL_DATA_PATH    = $$QTC_PREFIX/$${IDE_APP_TARGET}.app/Contents/Resources
     INSTALL_DOC_PATH     = $$INSTALL_DATA_PATH/doc
     INSTALL_BIN_PATH     = $$QTC_PREFIX/$${IDE_APP_TARGET}.app/Contents/MacOS
     INSTALL_APP_PATH     = $$QTC_PREFIX/
-    RELATIVE_PREFIX_PATH = ../../../..
 } else {
     contains(TEMPLATE, vc.*):vcproj = 1
     IDE_APP_TARGET   = $$IDE_ID
@@ -162,7 +154,6 @@ osx {
     INSTALL_DOC_PATH     = $$QTC_PREFIX/share/doc/qtcreator
     INSTALL_BIN_PATH     = $$QTC_PREFIX/bin
     INSTALL_APP_PATH     = $$QTC_PREFIX/bin
-    RELATIVE_PREFIX_PATH = ..
 }
 
 gcc:!clang: QMAKE_CXXFLAGS += -Wno-noexcept-type
@@ -175,7 +166,6 @@ DEFINES += $$shell_quote(RELATIVE_PLUGIN_PATH=\"$$RELATIVE_PLUGIN_PATH\")
 DEFINES += $$shell_quote(RELATIVE_LIBEXEC_PATH=\"$$RELATIVE_LIBEXEC_PATH\")
 DEFINES += $$shell_quote(RELATIVE_DATA_PATH=\"$$RELATIVE_DATA_PATH\")
 DEFINES += $$shell_quote(RELATIVE_DOC_PATH=\"$$RELATIVE_DOC_PATH\")
-DEFINES += $$shell_quote(RELATIVE_PREFIX_PATH=\"$$RELATIVE_PREFIX_PATH\")
 
 INCLUDEPATH += \
     $$IDE_BUILD_TREE/src \ # for <app/app_version.h> in case of actual build directory
@@ -219,6 +209,7 @@ exists($$IDE_LIBRARY_PATH): LIBS *= -L$$IDE_LIBRARY_PATH  # library path from ou
 
 DEFINES += \
     QT_CREATOR \
+    QT_NO_JAVA_STYLE_ITERATORS \
     QT_NO_CAST_TO_ASCII \
     QT_RESTRICTED_CAST_FROM_ASCII \
     QT_DISABLE_DEPRECATED_BEFORE=0x050900 \

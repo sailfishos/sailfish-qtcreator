@@ -180,7 +180,7 @@ private:
 
 QVariant CppIncludeHierarchyItem::data(int column, int role) const
 {
-    Q_UNUSED(column);
+    Q_UNUSED(column)
     if (role == Qt::DisplayRole) {
         if (isPhony() && childCount() == 0)
             return QString(m_fileName + ' ' + CppIncludeHierarchyModel::tr("(none)"));
@@ -381,7 +381,7 @@ CppIncludeHierarchyWidget::CppIncludeHierarchyWidget()
     m_delegate.setAnnotationRole(AnnotationRole);
 
     m_inspectedFile = new TextEditorLinkLabel(this);
-    m_inspectedFile->setMargin(5);
+    m_inspectedFile->setContentsMargins(5, 5, 5, 5);
 
     m_treeView = new CppIncludeHierarchyTreeView;
     m_treeView->setModel(&m_model);
@@ -409,7 +409,7 @@ CppIncludeHierarchyWidget::CppIncludeHierarchyWidget()
             this, &CppIncludeHierarchyWidget::syncFromEditorManager);
 
     auto layout = new QVBoxLayout(this);
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     layout->addWidget(m_inspectedFile);
     layout->addWidget(ItemViewFind::createSearchableWrapper(new IncludeFinder(m_treeView, &m_model)));

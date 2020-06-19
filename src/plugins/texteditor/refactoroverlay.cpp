@@ -67,6 +67,9 @@ RefactorMarker RefactorOverlay::markerAt(const QPoint &pos) const
 
 void RefactorOverlay::paintMarker(const RefactorMarker& marker, QPainter *painter, const QRect &clip)
 {
+    if (!marker.cursor.block().isVisible())
+        return; // block containing marker not visible
+
     const QPointF offset = m_editor->contentOffset();
     const QRectF geometry = m_editor->blockBoundingGeometry(marker.cursor.block()).translated(offset);
 
@@ -81,8 +84,9 @@ void RefactorOverlay::paintMarker(const RefactorMarker& marker, QPainter *painte
         icon = m_icon;
 
     const qreal devicePixelRatio = painter->device()->devicePixelRatio();
-    const QSize proposedIconSize = QSize(m_editor->fontMetrics().width(QLatin1Char(' ')) + 3,
-                                         cursorRect.height()) * devicePixelRatio;
+    const QSize proposedIconSize =
+        QSize(m_editor->fontMetrics().horizontalAdvance(QLatin1Char(' ')) + 3,
+              cursorRect.height()) * devicePixelRatio;
     const QSize actualIconSize = icon.actualSize(proposedIconSize) / devicePixelRatio;
 
     const int y = cursorRect.top() + ((cursorRect.height() - actualIconSize.height()) / 2);

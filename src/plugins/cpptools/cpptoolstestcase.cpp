@@ -33,6 +33,7 @@
 #include "projectinfo.h"
 
 #include <coreplugin/editormanager/editormanager.h>
+#include <projectexplorer/buildsystem.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
@@ -146,7 +147,7 @@ static bool waitForProcessedEditorDocument_internal(CppEditorDocumentHandle *edi
 {
     QTC_ASSERT(editorDocument, return false);
 
-    QTime timer;
+    QElapsedTimer timer;
     timer.start();
 
     forever {
@@ -208,7 +209,7 @@ CPlusPlus::Document::Ptr TestCase::waitForFileInGlobalSnapshot(const QString &fi
 QList<CPlusPlus::Document::Ptr> TestCase::waitForFilesInGlobalSnapshot(const QStringList &filePaths,
                                                                        int timeOutInMs)
 {
-    QTime t;
+    QElapsedTimer t;
     t.start();
 
     QList<CPlusPlus::Document::Ptr> result;
@@ -226,22 +227,17 @@ QList<CPlusPlus::Document::Ptr> TestCase::waitForFilesInGlobalSnapshot(const QSt
     return result;
 }
 
-bool TestCase::waitUntilCppModelManagerIsAwareOf(Project *project, int timeOutInMs)
+bool TestCase::waitUntilProjectIsFullyOpened(Project *project, int timeOutInMs)
 {
     if (!project)
         return false;
 
-    QTime t;
-    t.start();
-
-    CppModelManager *modelManager = CppModelManager::instance();
-    forever {
-        if (modelManager->projectInfo(project).isValid())
-            return true;
-        if (t.elapsed() > timeOutInMs)
-            return false;
-        QCoreApplication::processEvents();
-    }
+    return QTest::qWaitFor(
+        [project]() {
+            return !SessionManager::startupBuildSystem()->isParsing()
+                   && CppModelManager::instance()->projectInfo(project).isValid();
+        },
+        timeOutInMs);
 }
 
 bool TestCase::writeFile(const QString &filePath, const QByteArray &contents)
@@ -275,7 +271,7 @@ ProjectOpenerAndCloser::~ProjectOpenerAndCloser()
     foreach (Project *project, m_openProjects)
         ProjectExplorerPlugin::unloadProject(project);
 
-    QTime t;
+    QElapsedTimer t;
     t.start();
     while (!hasGcFinished && t.elapsed() <= 30000)
         QCoreApplication::processEvents();
@@ -291,9 +287,9 @@ ProjectInfo ProjectOpenerAndCloser::open(const QString &projectFile, bool config
 
     Project *project = result.project();
     if (configureAsExampleProject)
-        project->configureAsExampleProject({ });
+        project->configureAsExampleProject();
 
-    if (TestCase::waitUntilCppModelManagerIsAwareOf(project)) {
+    if (TestCase::waitUntilProjectIsFullyOpened(project)) {
         m_openProjects.append(project);
         return CppModelManager::instance()->projectInfo(project);
     }
@@ -340,8 +336,8 @@ static bool copyRecursively(const QString &sourceDirPath,
         return file.setPermissions(file.permissions() | QFile::WriteUser);
     };
 
-    return Utils::FileUtils::copyRecursively(Utils::FileName::fromString(sourceDirPath),
-                                             Utils::FileName::fromString(targetDirPath),
+    return Utils::FileUtils::copyRecursively(Utils::FilePath::fromString(sourceDirPath),
+                                             Utils::FilePath::fromString(targetDirPath),
                                              error,
                                              copyHelper);
 }

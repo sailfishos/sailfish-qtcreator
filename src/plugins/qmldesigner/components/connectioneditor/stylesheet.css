@@ -1,0 +1,123 @@
+QFrame
+{
+    background-color: creatorTheme.QmlDesigner_BackgroundColorDarkAlternate;
+    color: creatorTheme.PanelTextColorLight;
+    font-size: creatorTheme.captionFontPixelSize;
+    border-radius: 0px;
+}
+
+QTableView {
+    color: creatorTheme.PanelTextColorLight;
+    selection-color: creatorTheme.PanelTextColorLight;
+    selection-background-color: creatorTheme.QmlDesigner_HighlightColor;
+
+}
+
+QTabBar QToolButton {
+    background-color: creatorTheme.QmlDesigner_BackgroundColorDarkAlternate;
+    border: 1px solid creatorTheme.QmlDesigner_BackgroundColorDarker;
+    border-radius: 0px;
+}
+
+QTableView::item
+{
+    border: 0px;
+    padding-left: 4px;
+}
+
+QTableView::item:focus
+{
+    border: none;
+    background-color: transparent;
+}
+
+QTableView::item:selected
+{
+    border: none
+}
+
+QHeaderView::section {
+    background-color: #494949;
+    padding: 4px;
+    border: 1px solid black;
+    color: creatorTheme.DStextColor;
+    margin: 2px
+}
+
+QTableView {
+    alternate-background-color: #414141;
+}
+
+QWidget#widgetSpacer {
+    background-color: creatorTheme.QmlDesigner_TabLight;
+}
+
+QStackedWidget {
+    border: 0px;
+    background-color: creatorTheme.QmlDesigner_TabLight;
+}
+
+QTabBar::tab:selected {
+    border: none;
+    border-image: none;
+    image: none;
+
+    background-color: creatorTheme.QmlDesigner_TabLight;
+    color: creatorTheme.QmlDesigner_TabDark;
+}
+
+
+QTabBar::tab {
+    width: 92px;
+    height: 22px;
+    margin-top: 0x;
+    margin-bottom: 0px;
+    margin-left: 0px;
+    margin-right: 0px;
+    font: bold;
+    font-size: creatorTheme.captionFontPixelSize;
+    background-color: creatorTheme.QmlDesigner_TabDark;
+    color: creatorTheme.QmlDesigner_TabLight;
+}
+
+QSpinBox
+{
+    font-size: creatorTheme.captionFontPixelSize;
+    color: white;
+    padding-right: 2px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    padding-left: 12px;
+    border: 2px solid #0F0F0F;
+    border-width: 1;
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+    stop: 0 #2c2c2c, stop: 1 #333333);
+
+     min-height: 22px;
+}
+
+ QDoubleSpinBox
+ {
+    font-size: creatorTheme.captionFontPixelSize;
+    color: white;
+    padding-right: 2px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    padding-left: 12px;
+    border: 2px solid #0F0F0F;
+    border-width: 1;
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+    stop: 0 #2c2c2c, stop: 1 #333333);
+    min-height: 22px;
+ }
+
+QLineEdit
+{
+    color: white;
+    font-size: creatorTheme.captionFontPixelSize;
+    border: 2px solid #0F0F0F;
+    border-width: 1;
+    min-height: 26px;
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+    stop: 0 #2c2c2c, stop: 1 #333333);
+}

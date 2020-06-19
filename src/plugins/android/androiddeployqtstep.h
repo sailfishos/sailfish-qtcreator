@@ -33,8 +33,7 @@
 #include <qtsupport/baseqtversion.h>
 
 #include <utils/environment.h>
-
-namespace Utils { class QtcProcess; }
+#include <utils/qtcprocess.h>
 
 namespace Android {
 namespace Internal {
@@ -65,8 +64,8 @@ public:
         Uninstall,
         ForceUnintall
     };
-public:
-    explicit AndroidDeployQtStep(ProjectExplorer::BuildStepList *bc);
+
+    AndroidDeployQtStep(ProjectExplorer::BuildStepList *bc, Core::Id id);
 
     static Core::Id stepId();
 
@@ -81,7 +80,7 @@ signals:
     void setSerialNumber(const QString &serialNumber);
 
 private:
-    void runCommand(const QString &program, const QStringList &arguments);
+    void runCommand(const Utils::CommandLine &command);
 
     bool init() override;
     void doRun() override;
@@ -106,22 +105,22 @@ private:
     friend void operator|=(DeployErrorCode &e1, const DeployErrorCode &e2) { e1 = static_cast<AndroidDeployQtStep::DeployErrorCode>((int)e1 | (int)e2); }
     friend DeployErrorCode operator|(const DeployErrorCode &e1, const DeployErrorCode &e2) { return static_cast<AndroidDeployQtStep::DeployErrorCode>((int)e1 | (int)e2); }
 
-    Utils::FileName m_manifestName;
+    Utils::FilePath m_manifestName;
     QString m_serialNumber;
     QString m_avdName;
-    Utils::FileName m_apkPath;
+    Utils::FilePath m_apkPath;
     QMap<QString, QString> m_filesToPull;
 
-    QString m_targetArch;
+    QStringList m_androidABIs;
     bool m_uninstallPreviousPackage = false;
     bool m_uninstallPreviousPackageRun = false;
     bool m_useAndroiddeployqt = false;
     bool m_askForUninstall = false;
     static const Core::Id Id;
-    QString m_androiddeployqtArgs;
-    QString m_adbPath;
-    QString m_command;
-    QString m_workingDirectory;
+    Utils::CommandLine m_androiddeployqtArgs;
+    Utils::FilePath m_adbPath;
+    Utils::FilePath m_command;
+    Utils::FilePath m_workingDirectory;
     Utils::Environment m_environment;
     Utils::QtcProcess *m_process = nullptr;
     AndroidDeviceInfo m_deviceInfo;

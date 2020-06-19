@@ -36,5 +36,12 @@ public:
                        ClangBackEnd::FilePathId (ClangBackEnd::FilePathView filePath));
     MOCK_CONST_METHOD1(filePath,
                        ClangBackEnd::FilePath (ClangBackEnd::FilePathId filePathId));
+    MOCK_CONST_METHOD1(directoryPathId,
+                       ClangBackEnd::DirectoryPathId(Utils::SmallStringView directoryPath));
+    MOCK_CONST_METHOD1(directoryPath,
+                       Utils::PathString(ClangBackEnd::DirectoryPathId directoryPathId));
+    MOCK_CONST_METHOD1(directoryPathId,
+                       ClangBackEnd::DirectoryPathId(ClangBackEnd::FilePathId filePathId));
+    MOCK_METHOD1(addFilePaths, void(const ClangBackEnd::FilePaths &filePaths));
+    MOCK_METHOD0(populateIfEmpty, void());
 };
-

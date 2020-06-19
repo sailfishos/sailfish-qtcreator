@@ -97,8 +97,7 @@ public:
     void setReadOnly(bool);
     bool isReadOnly() const;
 
-    int find(const QByteArray &pattern, qint64 from = 0,
-             QTextDocument::FindFlags findFlags = nullptr);
+    int find(const QByteArray &pattern, qint64 from = 0, QTextDocument::FindFlags findFlags = {});
 
     void selectAll();
     void clear();
@@ -114,8 +113,8 @@ public:
 
     bool event(QEvent*) override;
 
-    bool isUndoAvailable() const { return m_undoStack.size(); }
-    bool isRedoAvailable() const { return m_redoStack.size(); }
+    bool isUndoAvailable() const { return !m_undoStack.isEmpty(); }
+    bool isRedoAvailable() const { return !m_redoStack.isEmpty(); }
 
     QString addressString(quint64 address);
 
@@ -124,8 +123,7 @@ public:
     QList<Markup> markup() const { return m_markup; }
 
     void setFontSettings(const TextEditor::FontSettings &fs);
-    void highlightSearchResults(const QByteArray &pattern,
-        QTextDocument::FindFlags findFlags = nullptr);
+    void highlightSearchResults(const QByteArray &pattern, QTextDocument::FindFlags findFlags = {});
     void copy(bool raw = false);
     void setMarkup(const QList<Markup> &markup);
     void setNewWindowRequestAllowed(bool c);

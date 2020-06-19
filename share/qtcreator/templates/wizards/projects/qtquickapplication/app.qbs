@@ -1,12 +1,16 @@
 import qbs
 
 CppApplication {
+@if "%{UseVirtualKeyboard}" == "true"
+    Depends { name: "Qt"; submodules: ["quick", "virtualkeyboard"] }
+@else
     Depends { name: "Qt.quick" }
+@endif
 
     // Additional import path used to resolve QML modules in Qt Creator's code model
     property pathList qmlImportPaths: []
 
-    cpp.cxxLanguageVersion: "c++11"
+    cpp.cxxLanguageVersion: "c++14"
 
     cpp.defines: [
         // The following define makes your compiler emit warnings if you use
@@ -25,6 +29,9 @@ CppApplication {
         "%{MainCppFileName}",
         "main.qml",
         "qml.qrc",
+@if %{HasTranslation}
+        "%{TsFileName}",
+@endif
     ]
 
     Group {     // Properties for the produced executable

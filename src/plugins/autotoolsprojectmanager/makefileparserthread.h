@@ -29,6 +29,7 @@
 
 #include "makefileparser.h"
 
+#include <projectexplorer/buildsystem.h>
 #include <projectexplorer/projectmacro.h>
 
 #include <QMutex>
@@ -53,7 +54,7 @@ class MakefileParserThread : public QThread
     using Macros = ProjectExplorer::Macros;
 
 public:
-    MakefileParserThread(const QString &makefile);
+    explicit MakefileParserThread(ProjectExplorer::BuildSystem *bs);
 
     /** @see QThread::run() */
     void run() override;
@@ -134,7 +135,6 @@ private:
     MakefileParser m_parser;    ///< Is not accessible outside the thread
 
     mutable QMutex m_mutex;
-    bool m_hasError = false;    ///< Return value for MakefileParserThread::hasError()
     QString m_executable;       ///< Return value for MakefileParserThread::executable()
     QStringList m_sources;      ///< Return value for MakefileParserThread::sources()
     QStringList m_makefiles;    ///< Return value for MakefileParserThread::makefiles()
@@ -142,6 +142,8 @@ private:
     Macros m_macros;            ///< Return value for MakefileParserThread::macros()
     QStringList m_cflags;       ///< Return value for MakefileParserThread::cflags()
     QStringList m_cxxflags;     ///< Return value for MakefileParserThread::cxxflags()
+
+    ProjectExplorer::BuildSystem::ParseGuard m_guard;
 };
 
 } // namespace Internal

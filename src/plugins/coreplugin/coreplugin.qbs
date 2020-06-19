@@ -178,14 +178,14 @@ Project {
                 "textdocument.h",
                 "themechooser.cpp",
                 "themechooser.h",
-                "toolsettings.cpp",
-                "toolsettings.h",
                 "variablechooser.cpp",
                 "variablechooser.h",
                 "vcsmanager.cpp",
                 "vcsmanager.h",
                 "versiondialog.cpp",
                 "versiondialog.h",
+                "welcomepagehelper.cpp",
+                "welcomepagehelper.h",
                 "windowsupport.cpp",
                 "windowsupport.h",
             ]
@@ -216,6 +216,7 @@ Project {
                 "openwithdialog.cpp", "openwithdialog.h", "openwithdialog.ui",
                 "promptoverwritedialog.cpp", "promptoverwritedialog.h",
                 "readonlyfilesdialog.cpp", "readonlyfilesdialog.h", "readonlyfilesdialog.ui",
+                "restartdialog.cpp", "restartdialog.h",
                 "saveitemsdialog.cpp", "saveitemsdialog.h", "saveitemsdialog.ui",
                 "settingsdialog.cpp", "settingsdialog.h",
                 "shortcutsettings.cpp", "shortcutsettings.h",
@@ -286,7 +287,7 @@ Project {
                 "locator/locator_test.cpp"
             ]
 
-            cpp.defines: outer.concat(['SRCDIR="' + FileInfo.path(filePath) + '"'])
+            cpp.defines: outer.concat(['SRCDIR="' + path + "/locator" + '"'])
         }
 
         Group {
@@ -314,6 +315,8 @@ Project {
                 "ifindsupport.h",
                 "itemviewfind.cpp",
                 "itemviewfind.h",
+                "optionspopup.cpp",
+                "optionspopup.h",
                 "searchresultcolor.h",
                 "searchresulttreeitemdelegate.cpp",
                 "searchresulttreeitemdelegate.h",
@@ -361,13 +364,16 @@ Project {
                 "locator.h",
                 "locatorsearchutils.cpp",
                 "locatorsearchutils.h",
+                "locatorsettingspage.cpp",
+                "locatorsettingspage.h",
+                "locatorsettingspage.ui",
                 "locatorwidget.cpp",
                 "locatorwidget.h",
                 "opendocumentsfilter.cpp",
                 "opendocumentsfilter.h",
-                "locatorsettingspage.cpp",
-                "locatorsettingspage.h",
-                "locatorsettingspage.ui",
+                "urllocatorfilter.cpp",
+                "urllocatorfilter.h",
+                "urllocatorfilter.ui"
             ]
         }
 

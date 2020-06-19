@@ -136,7 +136,7 @@ private:
 
             fun->setReturnType(q->apply(funTy->returnType()));
 
-            for (unsigned i = 0, argc = funTy->argumentCount(); i < argc; ++i) {
+            for (int i = 0, argc = funTy->argumentCount(); i < argc; ++i) {
                 Argument *originalArgument = funTy->argumentAt(i)->asArgument();
                 Argument *arg = control()->newArgument(/*sourceLocation*/ 0,
                                                        originalArgument->name());
@@ -243,7 +243,7 @@ private:
         void visit(const TemplateNameId *name) override
         {
             QVarLengthArray<FullySpecifiedType, 8> arguments(name->templateArgumentCount());
-            for (unsigned i = 0; i < name->templateArgumentCount(); ++i) {
+            for (int i = 0; i < name->templateArgumentCount(); ++i) {
                 FullySpecifiedType argTy = name->templateArgumentAt(i);
                 arguments[i] = q->apply(argTy);
             }
@@ -266,7 +266,7 @@ private:
 
             } else if (const TemplateNameId *templId = name->asTemplateNameId()) {
                 QVarLengthArray<FullySpecifiedType, 8> arguments(templId->templateArgumentCount());
-                for (unsigned templateArgIndex = 0; templateArgIndex < templId->templateArgumentCount();
+                for (int templateArgIndex = 0; templateArgIndex < templId->templateArgumentCount();
                      ++templateArgIndex) {
                     FullySpecifiedType argTy = templId->templateArgumentAt(templateArgIndex);
                     arguments[templateArgIndex] = q->apply(argTy);
@@ -291,7 +291,7 @@ private:
 
             }
 
-            return 0;
+            return nullptr;
         }
 
         void visit(const QualifiedNameId *name) override
@@ -362,7 +362,7 @@ FullySpecifiedType ApplySubstitution::apply(const FullySpecifiedType &type)
 
 int ApplySubstitution::findSubstitution(const Identifier *id) const
 {
-    Q_ASSERT(id != 0);
+    Q_ASSERT(id != nullptr);
 
     for (int index = 0; index < substitution.size(); ++index) {
         QPair<const Identifier *, FullySpecifiedType> s = substitution.at(index);
@@ -403,7 +403,7 @@ FullySpecifiedType DeprecatedGenTemplateInstance::instantiate(const Name *classN
             if (Template *templ = candidate->enclosingTemplate()) {
                 DeprecatedGenTemplateInstance::Substitution subst;
 
-                for (unsigned i = 0; i < templId->templateArgumentCount(); ++i) {
+                for (int i = 0; i < templId->templateArgumentCount(); ++i) {
                     FullySpecifiedType templArgTy = templId->templateArgumentAt(i);
 
                     if (i < templ->templateParameterCount()) {

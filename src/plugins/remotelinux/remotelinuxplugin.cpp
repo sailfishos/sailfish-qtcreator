@@ -25,8 +25,7 @@
 
 #include "remotelinuxplugin.h"
 
-#include "embeddedlinuxqtversionfactory.h"
-#include "genericlinuxdeviceconfigurationfactory.h"
+#include "linuxdevice.h"
 #include "remotelinux_constants.h"
 #include "remotelinuxqmltoolingsupport.h"
 #include "remotelinuxcustomrunconfiguration.h"
@@ -35,6 +34,7 @@
 #include "remotelinuxrunconfiguration.h"
 
 #include "genericdirectuploadstep.h"
+#include "makeinstallstep.h"
 #include "remotelinuxcheckforfreediskspacestep.h"
 #include "remotelinuxdeployconfiguration.h"
 #include "remotelinuxcustomcommanddeploymentstep.h"
@@ -67,7 +67,7 @@ public:
 class RemoteLinuxPluginPrivate
 {
 public:
-    GenericLinuxDeviceConfigurationFactory deviceConfigurationFactory;
+    LinuxDeviceFactory linuxDeviceFactory;
     RemoteLinuxRunConfigurationFactory runConfigurationFactory;
     RemoteLinuxCustomRunConfigurationFactory customRunConfigurationFactory;
     RemoteLinuxDeployConfigurationFactory deployConfigurationFactory;
@@ -80,7 +80,33 @@ public:
     GenericDeployStepFactory<RemoteLinuxCheckForFreeDiskSpaceStep>
         checkForFreeDiskSpaceStepFactory;
     GenericDeployStepFactory<RemoteLinuxKillAppStep> remoteLinuxKillAppStepFactory;
-    EmbeddedLinuxQtVersionFactory embeddedLinuxQtVersionFactory;
+    GenericDeployStepFactory<MakeInstallStep> makeInstallStepFactory;
+
+    const QList<Core::Id> supportedRunConfigs {
+        runConfigurationFactory.id(),
+        customRunConfigurationFactory.id(),
+        "QmlProjectManager.QmlRunConfiguration"
+    };
+
+    RunWorkerFactory runnerFactory{
+        RunWorkerFactory::make<SimpleTargetRunner>(),
+        {ProjectExplorer::Constants::NORMAL_RUN_MODE},
+        supportedRunConfigs,
+        {Constants::GenericLinuxOsType}
+    };
+    RunWorkerFactory debuggerFactory{
+        RunWorkerFactory::make<LinuxDeviceDebugSupport>(),
+        {ProjectExplorer::Constants::DEBUG_RUN_MODE},
+        supportedRunConfigs,
+        {Constants::GenericLinuxOsType}
+    };
+    RunWorkerFactory qmlToolingFactory{
+        RunWorkerFactory::make<RemoteLinuxQmlToolingSupport>(),
+        {ProjectExplorer::Constants::QML_PROFILER_RUN_MODE,
+         ProjectExplorer::Constants::QML_PREVIEW_RUN_MODE},
+        supportedRunConfigs,
+        {Constants::GenericLinuxOsType}
+    };
 };
 
 static RemoteLinuxPluginPrivate *dd = nullptr;
@@ -101,25 +127,6 @@ bool RemoteLinuxPlugin::initialize(const QStringList &arguments, QString *errorM
     Q_UNUSED(errorMessage)
 
     dd = new RemoteLinuxPluginPrivate;
-
-    auto constraint = [](RunConfiguration *runConfig) {
-        const Core::Id devType = ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(
-                    runConfig->target()->kit());
-
-        if (devType != Constants::GenericLinuxOsType)
-            return false;
-
-        const Core::Id id = runConfig->id();
-        return id == RemoteLinuxCustomRunConfiguration::runConfigId()
-            || id.name().startsWith(RemoteLinuxRunConfiguration::IdPrefix)
-            || id.name().startsWith("QmlProjectManager.QmlRunConfiguration");
-    };
-
-    using namespace ProjectExplorer::Constants;
-    RunControl::registerWorker<SimpleTargetRunner>(NORMAL_RUN_MODE, constraint);
-    RunControl::registerWorker<LinuxDeviceDebugSupport>(DEBUG_RUN_MODE, constraint);
-    RunControl::registerWorker<RemoteLinuxQmlProfilerSupport>(QML_PROFILER_RUN_MODE, constraint);
-    RunControl::registerWorker<RemoteLinuxQmlPreviewSupport>(QML_PREVIEW_RUN_MODE, constraint);
 
     return true;
 }

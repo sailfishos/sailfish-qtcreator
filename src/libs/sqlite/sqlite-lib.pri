@@ -19,16 +19,14 @@ SOURCES += \
     $$PWD/sqlitereadwritestatement.cpp \
     $$PWD/sqlitewritestatement.cpp \
     $$PWD/sqlstatementbuilder.cpp \
-    $$PWD/sqlstatementbuilderexception.cpp \
     $$PWD/utf8string.cpp \
     $$PWD/utf8stringvector.cpp \
     $$PWD/sqlitedatabase.cpp \
-    $$PWD/sqlitetable.cpp \
-    $$PWD/sqlitecolumn.cpp \
     $$PWD/sqlitebasestatement.cpp
 HEADERS += \
     $$PWD/createtablesqlstatementbuilder.h \
     $$PWD/sqlitedatabasebackend.h \
+    $$PWD/sqlitedatabaseinterface.h \
     $$PWD/sqliteexception.h \
     $$PWD/sqliteglobal.h \
     $$PWD/sqlitereadstatement.h \
@@ -47,5 +45,7 @@ HEADERS += \
 
 DEFINES += SQLITE_THREADSAFE=2 SQLITE_ENABLE_FTS4 SQLITE_ENABLE_FTS3_PARENTHESIS \
     SQLITE_ENABLE_UNLOCK_NOTIFY SQLITE_ENABLE_COLUMN_METADATA SQLITE_ENABLE_JSON1
+
+OTHER_FILES += README.md
 
 contains(QT_CONFIG, reduce_exports):CONFIG += hide_symbols

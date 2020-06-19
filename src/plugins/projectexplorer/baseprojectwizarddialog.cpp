@@ -51,7 +51,6 @@ struct BaseProjectWizardDialogPrivate {
     int introPageId;
     Core::Id selectedPlatform;
     QSet<Core::Id> requiredFeatureSet;
-    QSet<Core::Id> preferredFeatureSet;
 };
 
 BaseProjectWizardDialogPrivate::BaseProjectWizardDialogPrivate(Utils::ProjectIntroPage *page, int id) :
@@ -69,7 +68,6 @@ BaseProjectWizardDialog::BaseProjectWizardDialog(const Core::BaseFileWizardFacto
 {
     setPath(parameters.defaultPath());
     setSelectedPlatform(parameters.selectedPlatform());
-    setPreferredFeatures(parameters.preferredFeatures());
     setRequiredFeatures(parameters.requiredFeatures());
     init();
 }
@@ -83,7 +81,6 @@ BaseProjectWizardDialog::BaseProjectWizardDialog(const Core::BaseFileWizardFacto
 {
     setPath(parameters.defaultPath());
     setSelectedPlatform(parameters.selectedPlatform());
-    setPreferredFeatures(parameters.preferredFeatures());
     setRequiredFeatures(parameters.requiredFeatures());
     init();
 }
@@ -145,7 +142,7 @@ void BaseProjectWizardDialog::slotAccepted()
 {
     if (d->introPage->useAsDefaultPath()) {
         // Store the path as default path for new projects if desired.
-        Core::DocumentManager::setProjectsDirectory(Utils::FileName::fromString(path()));
+        Core::DocumentManager::setProjectsDirectory(Utils::FilePath::fromString(path()));
         Core::DocumentManager::setUseProjectsDirectory(true);
     }
 }
@@ -203,16 +200,6 @@ QSet<Core::Id> BaseProjectWizardDialog::requiredFeatures() const
 void BaseProjectWizardDialog::setRequiredFeatures(const QSet<Core::Id> &featureSet)
 {
     d->requiredFeatureSet = featureSet;
-}
-
-QSet<Core::Id> BaseProjectWizardDialog::preferredFeatures() const
-{
-    return d->preferredFeatureSet;
-}
-
-void BaseProjectWizardDialog::setPreferredFeatures(const QSet<Core::Id> &featureSet)
-{
-    d->preferredFeatureSet = featureSet;
 }
 
 } // namespace ProjectExplorer

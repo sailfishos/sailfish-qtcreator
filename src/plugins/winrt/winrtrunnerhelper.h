@@ -71,13 +71,12 @@ private:
 
     ProjectExplorer::RunWorker *m_worker = nullptr;
     WinRtDevice::ConstPtr m_device;
-    Utils::Environment m_environment;
     QString m_runnerFilePath;
     QString m_executableFilePath;
     QString m_debuggerExecutable;
     QString m_debuggerArguments;
     QString m_arguments;
-    QString m_loopbackArguments;
+    QStringList m_loopbackArguments;
     bool m_uninstallAfterStop = false;
     Utils::QtcProcess *m_process = nullptr;
 };

@@ -27,32 +27,12 @@
 
 #include <coreplugin/dialogs/ioptionspage.h>
 
-namespace TextEditor {
-class CodeStyleEditor;
-class SimpleCodeStylePreferences;
-}
-
 namespace Nim {
 
-class NimCodeStylePreferences;
-
-class NimCodeStyleSettingsPage : public Core::IOptionsPage
+class NimCodeStyleSettingsPage final : public Core::IOptionsPage
 {
-    Q_OBJECT
-
 public:
-    explicit NimCodeStyleSettingsPage(QWidget *parent = nullptr);
-    ~NimCodeStyleSettingsPage() override;
-
-    QWidget *widget() override;
-    void apply() override;
-    void finish() override;
-
-private:
-    void deleteWidget();
-
-    TextEditor::SimpleCodeStylePreferences *m_nimCodeStylePreferences;
-    TextEditor::CodeStyleEditor *m_widget;
+    NimCodeStyleSettingsPage();
 };
 
-}
+} // Nim

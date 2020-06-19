@@ -27,6 +27,7 @@
 
 #include "qbsbuildconfiguration.h"
 #include "qbspmlogging.h"
+#include "qbssession.h"
 
 #include <coreplugin/documentmanager.h>
 #include <projectexplorer/buildconfiguration.h>
@@ -42,8 +43,6 @@
 #include <utils/fileutils.h>
 #include <utils/hostosinfo.h>
 
-#include <qbs.h>
-
 #include <QFileInfo>
 
 using namespace ProjectExplorer;
@@ -54,18 +53,18 @@ namespace Internal {
 
 struct BuildGraphData
 {
-    FileName bgFilePath;
+    FilePath bgFilePath;
     QVariantMap overriddenProperties;
-    FileName cCompilerPath;
-    FileName cxxCompilerPath;
-    FileName qtBinPath;
-    FileName sysroot;
+    FilePath cCompilerPath;
+    FilePath cxxCompilerPath;
+    FilePath qtBinPath;
+    FilePath sysroot;
     QString buildVariant;
 };
-static BuildGraphData extractBgData(const qbs::Project::BuildGraphInfo &bgInfo)
+static BuildGraphData extractBgData(const QbsSession::BuildGraphInfo &bgInfo)
 {
     BuildGraphData bgData;
-    bgData.bgFilePath = FileName::fromString(bgInfo.bgFilePath);
+    bgData.bgFilePath = bgInfo.bgFilePath;
     bgData.overriddenProperties = bgInfo.overriddenProperties;
     const QVariantMap &moduleProps = bgInfo.requestedProperties;
     const QVariantMap prjCompilerPathByLanguage
@@ -73,29 +72,28 @@ static BuildGraphData extractBgData(const qbs::Project::BuildGraphInfo &bgInfo)
     const QString prjCompilerPath = moduleProps.value("cpp.compilerPath").toString();
     const QStringList prjToolchain = moduleProps.value("qbs.toolchain").toStringList();
     const bool prjIsMsvc = prjToolchain.contains("msvc");
-    bgData.cCompilerPath = FileName::fromString(
+    bgData.cCompilerPath = FilePath::fromString(
                 prjIsMsvc ? prjCompilerPath : prjCompilerPathByLanguage.value("c").toString());
-    bgData.cxxCompilerPath = FileName::fromString(
+    bgData.cxxCompilerPath = FilePath::fromString(
                 prjIsMsvc ? prjCompilerPath : prjCompilerPathByLanguage.value("cpp").toString());
-    bgData.qtBinPath = FileName::fromString(moduleProps.value("Qt.core.binPath").toString());
-    bgData.sysroot = FileName::fromString(moduleProps.value("qbs.sysroot").toString());
+    bgData.qtBinPath = FilePath::fromString(moduleProps.value("Qt.core.binPath").toString());
+    bgData.sysroot = FilePath::fromString(moduleProps.value("qbs.sysroot").toString());
     bgData.buildVariant = moduleProps.value("qbs.buildVariant").toString();
     return bgData;
 }
 
-QbsProjectImporter::QbsProjectImporter(const FileName &path) : QtProjectImporter(path)
+QbsProjectImporter::QbsProjectImporter(const FilePath &path) : QtProjectImporter(path)
 {
 }
 
-static QString buildDir(const QString &projectFilePath, const Kit *k)
+static FilePath buildDir(const FilePath &projectFilePath, const Kit *k)
 {
-    const QString projectName = QFileInfo(projectFilePath).completeBaseName();
+    const QString projectName = projectFilePath.toFileInfo().completeBaseName();
     ProjectMacroExpander expander(projectFilePath, projectName, k, QString(),
                                   BuildConfiguration::Unknown);
-    const QString projectDir
-            = Project::projectDirectory(FileName::fromString(projectFilePath)).toString();
+    const FilePath projectDir = Project::projectDirectory(projectFilePath);
     const QString buildPath = expander.expand(ProjectExplorerPlugin::buildDirectoryTemplate());
-    return FileUtils::resolvePath(projectDir, buildPath);
+    return projectDir.resolvePath(buildPath);
 }
 
 static bool hasBuildGraph(const QString &dir)
@@ -125,7 +123,7 @@ QStringList QbsProjectImporter::importCandidates()
     seenCandidates.insert(projectDir);
     const auto &kits = KitManager::kits();
     for (Kit * const k : kits) {
-        QFileInfo fi(buildDir(projectFilePath().toString(), k));
+        QFileInfo fi = buildDir(projectFilePath(), k).toFileInfo();
         const QString candidate = fi.absolutePath();
         if (!seenCandidates.contains(candidate)) {
             seenCandidates.insert(candidate);
@@ -136,19 +134,19 @@ QStringList QbsProjectImporter::importCandidates()
     return candidates;
 }
 
-QList<void *> QbsProjectImporter::examineDirectory(const FileName &importPath) const
+QList<void *> QbsProjectImporter::examineDirectory(const FilePath &importPath) const
 {
     qCDebug(qbsPmLog) << "examining build directory" << importPath.toUserOutput();
     QList<void *> data;
-    const QString bgFilePath = importPath.toString() + QLatin1Char('/') + importPath.fileName()
-            + QLatin1String(".bg");
+    const FilePath bgFilePath = importPath.pathAppended(importPath.fileName() + ".bg");
     const QStringList relevantProperties({
             "qbs.buildVariant", "qbs.sysroot", "qbs.toolchain",
             "cpp.compilerPath", "cpp.compilerPathByLanguage",
             "Qt.core.binPath"
     });
-    const qbs::Project::BuildGraphInfo bgInfo
-            = qbs::Project::getBuildGraphInfo(bgFilePath, relevantProperties);
+
+    const QbsSession::BuildGraphInfo bgInfo = QbsSession::getBuildGraphInfo(
+                bgFilePath, relevantProperties);
     if (bgInfo.error.hasError()) {
         qCDebug(qbsPmLog) << "error getting build graph info:" << bgInfo.error.toString();
         return data;
@@ -163,14 +161,14 @@ bool QbsProjectImporter::matchKit(void *directoryData, const Kit *k) const
     const auto * const bgData = static_cast<BuildGraphData *>(directoryData);
     qCDebug(qbsPmLog) << "matching kit" << k->displayName() << "against imported build"
                       << bgData->bgFilePath.toUserOutput();
-    if (ToolChainKitInformation::toolChains(k).isEmpty() && bgData->cCompilerPath.isEmpty()
+    if (ToolChainKitAspect::toolChains(k).isEmpty() && bgData->cCompilerPath.isEmpty()
             && bgData->cxxCompilerPath.isEmpty()) {
         return true;
     }
     const ToolChain * const cToolchain
-            = ToolChainKitInformation::toolChain(k, Constants::C_LANGUAGE_ID);
+            = ToolChainKitAspect::toolChain(k, Constants::C_LANGUAGE_ID);
     const ToolChain * const cxxToolchain
-            = ToolChainKitInformation::toolChain(k, Constants::CXX_LANGUAGE_ID);
+            = ToolChainKitAspect::toolChain(k, Constants::CXX_LANGUAGE_ID);
     if (!bgData->cCompilerPath.isEmpty()) {
         if (!cToolchain)
             return false;
@@ -183,14 +181,14 @@ bool QbsProjectImporter::matchKit(void *directoryData, const Kit *k) const
         if (bgData->cxxCompilerPath != cxxToolchain->compilerCommand())
             return false;
     }
-    const QtSupport::BaseQtVersion * const qtVersion = QtSupport::QtKitInformation::qtVersion(k);
+    const QtSupport::BaseQtVersion * const qtVersion = QtSupport::QtKitAspect::qtVersion(k);
     if (!bgData->qtBinPath.isEmpty()) {
         if (!qtVersion)
             return false;
-        if (bgData->qtBinPath != qtVersion->binPath())
+        if (bgData->qtBinPath != qtVersion->hostBinPath())
             return false;
     }
-    if (bgData->sysroot != SysRootKitInformation::sysRoot(k))
+    if (bgData->sysroot != SysRootKitAspect::sysRoot(k))
         return false;
 
     qCDebug(qbsPmLog) << "Kit matches";
@@ -203,43 +201,35 @@ Kit *QbsProjectImporter::createKit(void *directoryData) const
     qCDebug(qbsPmLog) << "creating kit for imported build" << bgData->bgFilePath.toUserOutput();
     QtVersionData qtVersionData;
     if (!bgData->qtBinPath.isEmpty()) {
-        FileName qmakeFilePath = bgData->qtBinPath;
-        qmakeFilePath.appendPath(HostOsInfo::withExecutableSuffix("qmake"));
+        const FilePath qmakeFilePath = bgData->qtBinPath.pathAppended(HostOsInfo::withExecutableSuffix("qmake"));
         qtVersionData = findOrCreateQtVersion(qmakeFilePath);
     }
     return createTemporaryKit(qtVersionData,[this, bgData](Kit *k) -> void {
         QList<ToolChainData> tcData;
         if (!bgData->cxxCompilerPath.isEmpty())
-            tcData << findOrCreateToolChains(bgData->cxxCompilerPath, Constants::CXX_LANGUAGE_ID);
+            tcData << findOrCreateToolChains({bgData->cxxCompilerPath, Constants::CXX_LANGUAGE_ID});
         if (!bgData->cCompilerPath.isEmpty())
-            tcData << findOrCreateToolChains(bgData->cCompilerPath, Constants::C_LANGUAGE_ID);
+            tcData << findOrCreateToolChains({bgData->cCompilerPath, Constants::C_LANGUAGE_ID});
         foreach (const ToolChainData &tc, tcData) {
             if (!tc.tcs.isEmpty())
-                ToolChainKitInformation::setToolChain(k, tc.tcs.first());
+                ToolChainKitAspect::setToolChain(k, tc.tcs.first());
         }
-        SysRootKitInformation::setSysRoot(k, bgData->sysroot);
+        SysRootKitAspect::setSysRoot(k, bgData->sysroot);
     });
 }
 
-const QList<BuildInfo> QbsProjectImporter::buildInfoListForKit(const Kit *k, void *directoryData) const
+const QList<BuildInfo> QbsProjectImporter::buildInfoList(void *directoryData) const
 {
-    qCDebug(qbsPmLog) << "creating build info for kit" << k->displayName();
-    const auto factory = qobject_cast<QbsBuildConfigurationFactory *>(
-                BuildConfigurationFactory::find(k, projectFilePath().toString()));
-    if (!factory) {
-        qCDebug(qbsPmLog) << "no build config factory found";
-        return {};
-    }
     const auto * const bgData = static_cast<BuildGraphData *>(directoryData);
-    BuildInfo info(factory);
+    BuildInfo info;
     info.displayName = bgData->bgFilePath.toFileInfo().completeBaseName();
     info.buildType = bgData->buildVariant == "debug"
             ? BuildConfiguration::Debug : BuildConfiguration::Release;
-    info.kitId = k->id();
     info.buildDirectory = bgData->bgFilePath.parentDir().parentDir();
     QVariantMap config = bgData->overriddenProperties;
     config.insert("configName", info.displayName);
     info.extraInfo = config;
+    qCDebug(qbsPmLog) << "creating build info for " << info.displayName << ' ' << bgData->buildVariant;
     return {info};
 }
 

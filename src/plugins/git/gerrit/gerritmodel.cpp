@@ -24,7 +24,6 @@
 ****************************************************************************/
 
 #include "gerritmodel.h"
-#include "../gitplugin.h"
 #include "../gitclient.h"
 
 #include <coreplugin/progressmanager/progressmanager.h>
@@ -122,7 +121,10 @@ QString GerritPatchSet::approvalsToHtml() const
         str << a.reviewer.fullName;
         if (!a.reviewer.email.isEmpty())
             str << " <a href=\"mailto:" << a.reviewer.email << "\">" << a.reviewer.email << "</a>";
-        str << ": " << forcesign << a.approval << noforcesign;
+        str << ": ";
+        if (a.approval >= 0)
+            str << '+';
+        str << a.approval;
     }
     str << "</tr>\n";
     return result;
@@ -164,7 +166,10 @@ QString GerritPatchSet::approvalsColumn() const
     for (TypeReviewMapConstIterator it = reviews.constBegin(); it != cend; ++it) {
         if (!result.isEmpty())
             str << ' ';
-        str << it.key() << ": " << forcesign << it.value() << noforcesign;
+        str << it.key() << ": ";
+        if (it.value() >= 0)
+            str << '+';
+        str << it.value();
     }
     return result;
 }
@@ -284,12 +289,12 @@ QueryContext::QueryContext(const QString &query,
     connect(&m_process, &QProcess::readyReadStandardOutput, this, [this] {
         m_output.append(m_process.readAllStandardOutput());
     });
-    connect(&m_process, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+    connect(&m_process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &QueryContext::processFinished);
     connect(&m_process, &QProcess::errorOccurred, this, &QueryContext::processError);
     connect(&m_watcher, &QFutureWatcherBase::canceled, this, &QueryContext::terminate);
     m_watcher.setFuture(m_progress.future());
-    m_process.setProcessEnvironment(Git::Internal::GitPlugin::client()->processEnvironment());
+    m_process.setProcessEnvironment(Git::Internal::GitClient::instance()->processEnvironment());
     m_progress.setProgressRange(0, 1);
 
     m_timer.setInterval(timeOutMS);
@@ -314,8 +319,7 @@ void QueryContext::start()
     fp->setKeepOnFinish(Core::FutureProgress::HideOnFinish);
     m_progress.reportStarted();
     // Order: synchronous call to error handling if something goes wrong.
-    VcsOutputWindow::appendCommand(
-                m_process.workingDirectory(), Utils::FileName::fromString(m_binary), m_arguments);
+    VcsOutputWindow::appendCommand(m_process.workingDirectory(), {m_binary, m_arguments});
     m_timer.start();
     m_process.start(m_binary, m_arguments);
     m_process.closeWriteChannel();
@@ -376,7 +380,7 @@ void QueryContext::timeout()
                     arg(timeOutMS / 1000), QMessageBox::NoButton, parent);
     QPushButton *terminateButton = box.addButton(tr("Terminate"), QMessageBox::YesRole);
     box.addButton(tr("Keep Running"), QMessageBox::NoRole);
-    connect(&m_process, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+    connect(&m_process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             &box, &QDialog::reject);
     box.exec();
     if (m_process.state() != QProcess::Running)
@@ -842,7 +846,7 @@ QList<QStandardItem *> GerritModel::changeToRow(const GerritChangePtr &c) const
 {
     QList<QStandardItem *> row;
     const QVariant filterV = QVariant(c->filterString());
-    const QVariant changeV = qVariantFromValue(c);
+    const QVariant changeV = QVariant::fromValue(c);
     for (int i = 0; i < GerritModel::ColumnCount; ++i) {
         auto item = new QStandardItem;
         item->setData(changeV, GerritModel::GerritChangeRole);

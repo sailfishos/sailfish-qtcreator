@@ -40,6 +40,7 @@
 
 #include <coreplugin/icore.h>
 #include <qmljs/qmljssimplereader.h>
+#include <utils/qtcassert.h>
 #include <utils/algorithm.h>
 #include <utils/fileutils.h>
 
@@ -130,9 +131,57 @@ void PropertyEditorQmlBackend::setupPropertyEditorValue(const PropertyName &name
 
 }
 
-QVariant properDefaultLayoutAttachedProperties(const QmlObjectNode &qmlObjectNode, const PropertyName &propertyName)
+PropertyName auxNamePostFix(const PropertyName &propertyName)
 {
-    QVariant value = qmlObjectNode.modelValue(propertyName);
+    return propertyName + "__AUX";
+}
+
+QVariant properDefaultAuxiliaryProperties(const QmlObjectNode &qmlObjectNode,
+                                          const PropertyName &propertyName)
+{
+    const ModelNode node = qmlObjectNode.modelNode();
+    const PropertyName auxName = propertyName;
+
+    if (node.hasAuxiliaryData(auxName))
+        return node.auxiliaryData(auxName);
+    if (propertyName == "transitionColor")
+        return QColor(Qt::red);
+    if (propertyName == "areaColor")
+        return QColor(Qt::red);
+    if (propertyName == "blockColor")
+        return QColor(Qt::red);
+    if (propertyName == "areaFillColor")
+        return QColor(Qt::transparent);
+    else if (propertyName == "color")
+        return QColor(Qt::red);
+    else if (propertyName == "fillColor")
+        return QColor(Qt::transparent);
+    else if (propertyName == "width")
+        return 4;
+    else if (propertyName == "dash")
+        return false;
+    else if (propertyName == "inOffset")
+        return 0;
+    else if (propertyName == "outOffset")
+        return 0;
+    else if (propertyName == "breakPoint")
+        return 50;
+    else if (propertyName == "customId")
+        return QString();
+    else if (propertyName == "joinConnection")
+        return false;
+
+    return {};
+}
+
+QVariant properDefaultLayoutAttachedProperties(const QmlObjectNode &qmlObjectNode,
+                                               const PropertyName &propertyName)
+{
+    const QVariant value = qmlObjectNode.modelValue("Layout." + propertyName);
+    QVariant marginsValue = qmlObjectNode.modelValue("Layout.margins");
+
+    if (!marginsValue.isValid())
+        marginsValue.setValue(0.0);
 
     if (value.isValid())
         return value;
@@ -152,11 +201,10 @@ QVariant properDefaultLayoutAttachedProperties(const QmlObjectNode &qmlObjectNod
      if ("columnSpan" == propertyName || "rowSpan" == propertyName)
          return 1;
 
-     if ("topMargin" == propertyName || "bottomMargin" == propertyName)
-         return 0;
-
-     if ("leftMargin" == propertyName || "rightMargin" == propertyName)
-         return 0;
+     if ("topMargin" == propertyName || "bottomMargin" == propertyName ||
+         "leftMargin" == propertyName || "rightMargin" == propertyName ||
+         "margins" == propertyName)
+         return marginsValue;
 
     return QVariant();
 }
@@ -168,12 +216,43 @@ void PropertyEditorQmlBackend::setupLayoutAttachedProperties(const QmlObjectNode
         static const PropertyNameList propertyNames =
             {"alignment", "column", "columnSpan", "fillHeight", "fillWidth", "maximumHeight", "maximumWidth",
                 "minimumHeight", "minimumWidth", "preferredHeight", "preferredWidth", "row", "rowSpan",
-                "topMargin", "bottomMargin", "leftMargin", "rightMargin"};
+                "topMargin", "bottomMargin", "leftMargin", "rightMargin", "margins"};
 
-        foreach (const PropertyName &propertyName, propertyNames) {
+        for (const PropertyName &propertyName : propertyNames) {
             createPropertyEditorValue(qmlObjectNode, "Layout." + propertyName, properDefaultLayoutAttachedProperties(qmlObjectNode, propertyName), propertyEditor);
         }
     }
+}
+
+void PropertyEditorQmlBackend::setupAuxiliaryProperties(const QmlObjectNode &qmlObjectNode,
+                                                        PropertyEditorView *propertyEditor)
+{
+
+    const QmlItemNode itemNode(qmlObjectNode);
+
+    PropertyNameList propertyNames;
+
+    propertyNames.append("customId");
+
+    if (itemNode.isFlowTransition()) {
+        propertyNames.append({"color", "width", "inOffset", "outOffset", "dash", "breakPoint"});
+    } else if (itemNode.isFlowItem()) {
+        propertyNames.append({"color", "width", "inOffset", "outOffset", "joinConnection"});
+    } else if (itemNode.isFlowActionArea()) {
+        propertyNames.append({"color", "width", "fillColor", "outOffset", "dash"});
+    } else if (itemNode.isFlowDecision()) {
+        propertyNames.append({"color", "width", "fillColor", "dash"});
+    } else if (itemNode.isFlowWildcard()) {
+        propertyNames.append({"color", "width", "fillColor", "dash"});
+    } else if (itemNode.isFlowView()) {
+        propertyNames.append({"transitionColor", "areaColor", "areaFillColor", "blockColor" });
+    }
+
+    for (const PropertyName &propertyName : propertyNames) {
+        createPropertyEditorValue(qmlObjectNode, auxNamePostFix(propertyName),
+                                  properDefaultAuxiliaryProperties(qmlObjectNode, propertyName), propertyEditor);
+    }
+
 }
 
 void PropertyEditorQmlBackend::createPropertyEditorValue(const QmlObjectNode &qmlObjectNode,
@@ -213,19 +292,13 @@ void PropertyEditorQmlBackend::createPropertyEditorValue(const QmlObjectNode &qm
     }
 }
 
-void PropertyEditorQmlBackend::setValue(const QmlObjectNode & qmlObjectNode, const PropertyName &name, const QVariant &value)
+void PropertyEditorQmlBackend::setValue(const QmlObjectNode & , const PropertyName &name, const QVariant &value)
 {
     PropertyName propertyName = name;
     propertyName.replace('.', '_');
     auto propertyValue = qobject_cast<PropertyEditorValue*>(variantToQObject(m_backendValuesPropertyMap.value(QString::fromUtf8(propertyName))));
-    if (propertyValue) {
+    if (propertyValue)
         propertyValue->setValue(value);
-
-        if (!qmlObjectNode.hasBindingProperty(name))
-            propertyValue->setExpression(value.toString());
-        else
-            propertyValue->setExpression(qmlObjectNode.expression(name));
-    }
 }
 
 QQmlContext *PropertyEditorQmlBackend::context() {
@@ -263,16 +336,13 @@ PropertyEditorValue *PropertyEditorQmlBackend::propertyValueForName(const QStrin
 
 void PropertyEditorQmlBackend::setup(const QmlObjectNode &qmlObjectNode, const QString &stateName, const QUrl &qmlSpecificsFile, PropertyEditorView *propertyEditor)
 {
-    if (!qmlObjectNode.isValid())
-        return;
-
     if (qmlObjectNode.isValid()) {
 
         m_contextObject->setModel(propertyEditor->model());
 
         qCInfo(propertyEditorBenchmark) << Q_FUNC_INFO;
 
-        QTime time;
+        QElapsedTimer time;
         if (propertyEditorBenchmark().isInfoEnabled())
             time.start();
 
@@ -280,6 +350,11 @@ void PropertyEditorQmlBackend::setup(const QmlObjectNode &qmlObjectNode, const Q
             createPropertyEditorValue(qmlObjectNode, propertyName, qmlObjectNode.instanceValue(propertyName), propertyEditor);
 
         setupLayoutAttachedProperties(qmlObjectNode, propertyEditor);
+        setupAuxiliaryProperties(qmlObjectNode, propertyEditor);
+
+        // model node
+        m_backendModelNode.setup(qmlObjectNode.modelNode());
+        context()->setContextProperty(QLatin1String("modelNodeBackend"), &m_backendModelNode);
 
         // className
         auto valueObject = qobject_cast<PropertyEditorValue*>(variantToQObject(m_backendValuesPropertyMap.value(QLatin1String("className"))));
@@ -287,7 +362,7 @@ void PropertyEditorQmlBackend::setup(const QmlObjectNode &qmlObjectNode, const Q
             valueObject = new PropertyEditorValue(&m_backendValuesPropertyMap);
         valueObject->setName("className");
         valueObject->setModelNode(qmlObjectNode.modelNode());
-        valueObject->setValue(qmlObjectNode.modelNode().simplifiedTypeName());
+        valueObject->setValue(m_backendModelNode.simplifiedTypeName());
         QObject::connect(valueObject, &PropertyEditorValue::valueChanged, &backendValuesPropertyMap(), &DesignerPropertyMap::valueChanged);
         m_backendValuesPropertyMap.insert(QLatin1String("className"), QVariant::fromValue(valueObject));
 
@@ -296,7 +371,7 @@ void PropertyEditorQmlBackend::setup(const QmlObjectNode &qmlObjectNode, const Q
         if (!valueObject)
             valueObject = new PropertyEditorValue(&m_backendValuesPropertyMap);
         valueObject->setName("id");
-        valueObject->setValue(qmlObjectNode.id());
+        valueObject->setValue(m_backendModelNode.nodeId());
         QObject::connect(valueObject, &PropertyEditorValue::valueChanged, &backendValuesPropertyMap(), &DesignerPropertyMap::valueChanged);
         m_backendValuesPropertyMap.insert(QLatin1String("id"), QVariant::fromValue(valueObject));
 
@@ -304,15 +379,14 @@ void PropertyEditorQmlBackend::setup(const QmlObjectNode &qmlObjectNode, const Q
 
         // anchors
         m_backendAnchorBinding.setup(qmlObjectNode.modelNode());
-        context()->setContextProperty(QLatin1String("anchorBackend"), &m_backendAnchorBinding);
-
-        context()->setContextProperty(QLatin1String("transaction"), m_propertyEditorTransaction.data());
+        context()->setContextProperties(
+            QVector<QQmlContext::PropertyPair>{
+                {{"anchorBackend"}, QVariant::fromValue(&m_backendAnchorBinding)},
+                {{"transaction"}, QVariant::fromValue(m_propertyEditorTransaction.data())}
+            }
+        );
 
         qCInfo(propertyEditorBenchmark) << "anchors:" << time.elapsed();
-
-        // model node
-        m_backendModelNode.setup(qmlObjectNode.modelNode());
-        context()->setContextProperty(QLatin1String("modelNodeBackend"), &m_backendModelNode);
 
         qCInfo(propertyEditorBenchmark) << "context:" << time.elapsed();
 
@@ -323,7 +397,12 @@ void PropertyEditorQmlBackend::setup(const QmlObjectNode &qmlObjectNode, const Q
         contextObject()->setStateName(stateName);
         if (!qmlObjectNode.isValid())
             return;
+
         context()->setContextProperty(QLatin1String("propertyCount"), QVariant(qmlObjectNode.modelNode().properties().count()));
+
+        QStringList stateNames = qmlObjectNode.allStateNames();
+        stateNames.prepend("base state");
+        contextObject()->setAllStateNames(stateNames);
 
         contextObject()->setIsBaseState(qmlObjectNode.isInBaseState());
 
@@ -381,9 +460,13 @@ void PropertyEditorQmlBackend::initialSetup(const TypeName &typeName, const QUrl
     QObject::connect(valueObject, &PropertyEditorValue::valueChanged, &backendValuesPropertyMap(), &DesignerPropertyMap::valueChanged);
     m_backendValuesPropertyMap.insert(QLatin1String("id"), QVariant::fromValue(valueObject));
 
-    context()->setContextProperty(QLatin1String("anchorBackend"), &m_backendAnchorBinding);
-    context()->setContextProperty(QLatin1String("modelNodeBackend"), &m_backendModelNode);
-    context()->setContextProperty(QLatin1String("transaction"), m_propertyEditorTransaction.data());
+    context()->setContextProperties(
+        QVector<QQmlContext::PropertyPair>{
+            {{"anchorBackend"}, QVariant::fromValue(&m_backendAnchorBinding)},
+            {{"modelNodeBackend"}, QVariant::fromValue(&m_backendModelNode)},
+            {{"transaction"}, QVariant::fromValue(m_propertyEditorTransaction.data())}
+        }
+    );
 
     contextObject()->setSpecificsUrl(qmlSpecificsFile);
 
@@ -400,24 +483,83 @@ QString PropertyEditorQmlBackend::propertyEditorResourcesPath() {
     return Core::ICore::resourcePath() + QStringLiteral("/qmldesigner/propertyEditorQmlSources");
 }
 
+inline bool dotPropertyHeuristic(const QmlObjectNode &node, const NodeMetaInfo &type, const PropertyName &name)
+{
+    if (!name.contains("."))
+        return true;
+
+    if (name.count('.') > 1)
+        return false;
+
+    QList<QByteArray> list =name.split('.');
+    const PropertyName parentProperty = list.first();
+    const PropertyName itemProperty = list.last();
+
+    TypeName typeName = type.propertyTypeName(parentProperty);
+
+    NodeMetaInfo itemInfo = node.view()->model()->metaInfo("QtQuick.Item");
+    NodeMetaInfo textInfo = node.view()->model()->metaInfo("QtQuick.Text");
+    NodeMetaInfo rectangleInfo = node.view()->model()->metaInfo("QtQuick.Rectangle");
+
+    if (itemInfo.hasProperty(itemProperty))
+        return false;
+
+    if (typeName == "font")
+        return false;
+
+    if (textInfo.isSubclassOf(typeName))
+            return false;
+
+    if (rectangleInfo.isSubclassOf(typeName))
+            return false;
+
+    return true;
+}
+
 QString PropertyEditorQmlBackend::templateGeneration(const NodeMetaInfo &type,
                                                      const NodeMetaInfo &superType,
-                                                     const QmlObjectNode &objectNode)
+                                                     const QmlObjectNode &node)
 {
     if (!templateConfiguration() || !templateConfiguration()->isValid())
         return QString();
 
+    const auto nodes = templateConfiguration()->children();
+
+    QStringList sectorTypes;
+
+    for (const QmlJS::SimpleReaderNode::Ptr &node : nodes) {
+        if (node->propertyNames().contains("separateSection"))
+            sectorTypes.append(variantToStringList(node->property("typeNames")));
+    }
+
     QStringList imports = variantToStringList(templateConfiguration()->property(QStringLiteral("imports")));
 
     QString qmlTemplate = imports.join(QLatin1Char('\n')) + QLatin1Char('\n');
-    qmlTemplate += QStringLiteral("Section {\n");
-    qmlTemplate += QStringLiteral("caption: \"%1\"\n").arg(objectNode.modelNode().simplifiedTypeName());
-    qmlTemplate += QStringLiteral("SectionLayout {\n");
+
+    qmlTemplate += "Column {\n";
+    qmlTemplate += "anchors.left: parent.left\n";
+    qmlTemplate += "anchors.right: parent.right\n";
 
     QList<PropertyName> orderedList = type.propertyNames();
-    Utils::sort(orderedList);
+    Utils::sort(orderedList, [type, &sectorTypes](const PropertyName &left, const PropertyName &right){
+        const QString typeNameLeft = QString::fromLatin1(type.propertyTypeName(left));
+        const QString typeNameRight = QString::fromLatin1(type.propertyTypeName(right));
+        if (typeNameLeft == typeNameRight)
+            return left > right;
+
+        if (sectorTypes.contains(typeNameLeft)) {
+            if (sectorTypes.contains(typeNameRight))
+                return left > right;
+            return true;
+        } else if (sectorTypes.contains(typeNameRight)) {
+            return false;
+        }
+        return left > right;
+    });
 
     bool emptyTemplate = true;
+
+    bool sectionStarted = false;
 
     foreach (const PropertyName &name, orderedList) {
 
@@ -429,27 +571,46 @@ QString PropertyEditorQmlBackend::templateGeneration(const NodeMetaInfo &type,
 
         TypeName typeName = type.propertyTypeName(name);
         //alias resolution only possible with instance
-        if (typeName == "alias" && objectNode.isValid())
-            typeName = objectNode.instanceType(name);
+        if (typeName == "alias" && node.isValid())
+            typeName = node.instanceType(name);
 
-        if (!superType.hasProperty(name) && type.propertyIsWritable(name) && !name.contains(".")) {
-            foreach (const QmlJS::SimpleReaderNode::Ptr &node, templateConfiguration()->children())
+        auto nodes = templateConfiguration()->children();
+
+        if (!superType.hasProperty(name) && type.propertyIsWritable(name) && dotPropertyHeuristic(node, type, name)) {
+
+            for (const QmlJS::SimpleReaderNode::Ptr &node : nodes) {
                 if (variantToStringList(node->property(QStringLiteral("typeNames"))).contains(QString::fromLatin1(typeName))) {
                     const QString fileName = propertyTemplatesPath() + node->property(QStringLiteral("sourceFile")).toString();
                     QFile file(fileName);
                     if (file.open(QIODevice::ReadOnly)) {
                         QString source = QString::fromUtf8(file.readAll());
                         file.close();
+                        const bool section = node->propertyNames().contains("separateSection");
+                        if (section) {
+                        } else if (!sectionStarted) {
+                            qmlTemplate += QStringLiteral("Section {\n");
+                            qmlTemplate += QStringLiteral("caption: \"%1\"\n").arg(QString::fromUtf8(type.simplifiedTypeName()));
+                            qmlTemplate += "anchors.left: parent.left\n";
+                            qmlTemplate += "anchors.right: parent.right\n";
+                            qmlTemplate += QStringLiteral("SectionLayout {\n");
+                            sectionStarted = true;
+                        }
+
                         qmlTemplate += source.arg(QString::fromUtf8(name)).arg(QString::fromUtf8(properName));
                         emptyTemplate = false;
                     } else {
                         qWarning().nospace() << "template definition source file not found:" << fileName;
                     }
                 }
+            }
         }
     }
-    qmlTemplate += QStringLiteral("}\n"); //Section
-    qmlTemplate += QStringLiteral("}\n"); //SectionLayout
+    if (sectionStarted) {
+        qmlTemplate += QStringLiteral("}\n"); //Section
+        qmlTemplate += QStringLiteral("}\n"); //SectionLayout
+    }
+
+    qmlTemplate += "}\n";
 
     if (emptyTemplate)
         return QString();
@@ -467,6 +628,36 @@ TypeName PropertyEditorQmlBackend::fixTypeNameForPanes(const TypeName &typeName)
     TypeName fixedTypeName = typeName;
     fixedTypeName.replace('.', '/');
     return fixedTypeName;
+}
+
+static NodeMetaInfo findCommonSuperClass(const NodeMetaInfo &first, const NodeMetaInfo &second)
+{
+    for (const NodeMetaInfo &info : first.superClasses()) {
+        if (second.isSubclassOf(info.typeName()))
+            return info;
+    }
+    return first;
+}
+
+NodeMetaInfo PropertyEditorQmlBackend::findCommonAncestor(const ModelNode &node)
+{
+    if (!node.isValid())
+        return {};
+
+    QTC_ASSERT(node.metaInfo().isValid(), return {});
+
+    AbstractView *view = node.view();
+
+    if (view->selectedModelNodes().count() > 1) {
+        NodeMetaInfo commonClass = node.metaInfo();
+        for (const ModelNode &currentNode :  view->selectedModelNodes()) {
+            if (currentNode.metaInfo().isValid() && !currentNode.isSubclassOf(commonClass.typeName(), -1, -1))
+              commonClass = findCommonSuperClass(currentNode.metaInfo(), commonClass);
+        }
+        return commonClass;
+    }
+
+    return node.metaInfo();
 }
 
 TypeName PropertyEditorQmlBackend::qmlFileName(const NodeMetaInfo &nodeInfo)
@@ -523,13 +714,27 @@ void PropertyEditorQmlBackend::setValueforLayoutAttachedProperties(const QmlObje
 {
     PropertyName propertyName = name;
     propertyName.replace("Layout.", "");
-    setValue(qmlObjectNode,  name, properDefaultLayoutAttachedProperties(qmlObjectNode, propertyName));
+    setValue(qmlObjectNode, name, properDefaultLayoutAttachedProperties(qmlObjectNode, propertyName));
+
+    if (propertyName == "margins") {
+        const QVariant marginsValue = properDefaultLayoutAttachedProperties(qmlObjectNode, "margins");
+        setValue(qmlObjectNode, "Layout.topMargin", marginsValue);
+        setValue(qmlObjectNode, "Layout.bottomMargin", marginsValue);
+        setValue(qmlObjectNode, "Layout.leftMargin", marginsValue);
+        setValue(qmlObjectNode, "Layout.rightMargin", marginsValue);
+    }
 }
 
-QUrl PropertyEditorQmlBackend::getQmlUrlForModelNode(const ModelNode &modelNode, TypeName &className)
+void PropertyEditorQmlBackend::setValueforAuxiliaryProperties(const QmlObjectNode &qmlObjectNode, const PropertyName &name)
 {
-    if (modelNode.isValid()) {
-        foreach (const NodeMetaInfo &info, modelNode.metaInfo().classHierarchy()) {
+    const PropertyName propertyName = auxNamePostFix(name);
+     setValue(qmlObjectNode, propertyName, qmlObjectNode.modelNode().auxiliaryData(name));
+}
+
+QUrl PropertyEditorQmlBackend::getQmlUrlForMetaInfo(const NodeMetaInfo &metaInfo, TypeName &className)
+{
+    if (metaInfo.isValid()) {
+        foreach (const NodeMetaInfo &info, metaInfo.classHierarchy()) {
             QUrl fileUrl = fileToUrl(locateQmlFile(info, QString::fromUtf8(qmlFileName(info))));
             if (fileUrl.isValid()) {
                 className = info.typeName();
@@ -585,3 +790,4 @@ QString PropertyEditorQmlBackend::locateQmlFile(const NodeMetaInfo &info, const 
 
 
 } //QmlDesigner
+

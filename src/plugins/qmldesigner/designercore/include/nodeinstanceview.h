@@ -33,27 +33,21 @@
 #include <nodeinstanceclientinterface.h>
 #include <nodeinstanceserverinterface.h>
 
+#include <QElapsedTimer>
 #include <QHash>
 #include <QImage>
 #include <QPointer>
 #include <QRectF>
 #include <QTime>
-
-QT_BEGIN_NAMESPACE
-class QDeclarativeEngine;
-class QGraphicsView;
-class QFileSystemWatcher;
-class QPainter;
-QT_END_NAMESPACE
+#include <QtGui/qevent.h>
 
 namespace ProjectExplorer {
-class Kit;
-class Project;
+class Target;
 }
 
 namespace QmlDesigner {
 
-class NodeInstanceServerInterface;
+class NodeInstanceServerProxy;
 class CreateSceneCommand;
 class CreateInstancesCommand;
 class ClearSceneCommand;
@@ -63,6 +57,7 @@ class ChangeValuesCommand;
 class ChangeBindingsCommand;
 class ChangeIdsCommand;
 class RemoveInstancesCommand;
+class ChangeSelectionCommand;
 class RemovePropertiesCommand;
 class CompleteComponentCommand;
 class InformationContainer;
@@ -100,7 +95,6 @@ public:
     void customNotification(const AbstractView *view, const QString &identifier, const QList<ModelNode> &nodeList, const QList<QVariant> &data) override;
     void nodeSourceChanged(const ModelNode &modelNode, const QString &newNodeSource) override;
 
-
     void currentStateChanged(const ModelNode &node) override;
 
     QList<NodeInstance> instances() const;
@@ -118,6 +112,7 @@ public:
     void updatePosition(const QList<VariantProperty>& propertyList);
 
     void valuesChanged(const ValuesChangedCommand &command) override;
+    void valuesModified(const ValuesModifiedCommand &command) override;
     void pixmapChanged(const PixmapChangedCommand &command) override;
     void informationChanged(const InformationChangedCommand &command) override;
     void childrenChanged(const ChildrenChangedCommand &command) override;
@@ -128,10 +123,20 @@ public:
 
     QImage statePreviewImage(const ModelNode &stateNode) const;
 
-    void setKit(ProjectExplorer::Kit *kit);
-    void setProject(ProjectExplorer::Project *project);
+    void setTarget(ProjectExplorer::Target *newTarget);
 
     void sendToken(const QString &token, int number, const QVector<ModelNode> &nodeVector);
+
+    void selectionChanged(const ChangeSelectionCommand &command) override;
+
+    void selectedNodesChanged(const QList<ModelNode> &selectedNodeList,
+                              const QList<ModelNode> &lastSelectedNodeList) override;
+
+    void sendInputEvent(QInputEvent *e) const;
+    void view3DAction(const View3DActionCommand &command);
+    void edit3DViewResized(const QSize &size) const;
+
+    void handlePuppetToCreatorCommand(const PuppetToCreatorCommand &command) override;
 
 protected:
     void timerEvent(QTimerEvent *event) override;
@@ -172,6 +177,7 @@ private: // functions
     ChangeBindingsCommand createChangeBindingCommand(const QList<BindingProperty> &propertyList) const;
     ChangeIdsCommand createChangeIdsCommand(const QList<NodeInstance> &instanceList) const;
     RemoveInstancesCommand createRemoveInstancesCommand(const QList<ModelNode> &nodeList) const;
+    ChangeSelectionCommand createChangeSelectionCommand(const QList<ModelNode> &nodeList) const;
     RemoveInstancesCommand createRemoveInstancesCommand(const ModelNode &node) const;
     RemovePropertiesCommand createRemovePropertiesCommand(const QList<AbstractProperty> &propertyList) const;
     RemoveSharedMemoryCommand createRemoveSharedMemoryCommand(const QString &sharedMemoryTypeName, quint32 keyNumber);
@@ -183,23 +189,29 @@ private: // functions
     void restartProcess();
     void delayedRestartProcess();
 
-private:
     void handleCrash();
+    void startPuppetTransaction();
+    void endPuppetTransaction();
 
-private: //variables
+    // puppet to creator command handlers
+    void handlePuppetKeyPress(int key, Qt::KeyboardModifiers modifiers);
+
     NodeInstance m_rootNodeInstance;
     NodeInstance m_activeStateInstance;
 
     QHash<ModelNode, NodeInstance> m_nodeInstanceHash;
     QHash<ModelNode, QImage> m_statePreviewImage;
 
-    QPointer<NodeInstanceServerInterface> m_nodeInstanceServer;
+    QPointer<NodeInstanceServerProxy> m_nodeInstanceServer;
     QImage m_baseStatePreviewImage;
-    QTime m_lastCrashTime;
+    QElapsedTimer m_lastCrashTime;
     NodeInstanceServerInterface::RunModus m_runModus;
-    ProjectExplorer::Kit *m_currentKit = nullptr;
-    ProjectExplorer::Project *m_currentProject = nullptr;
+    ProjectExplorer::Target *m_currentTarget = nullptr;
     int m_restartProcessTimerId;
+    RewriterTransaction m_puppetTransaction;
+
+    // key: fileUrl value: (key: instance qml id, value: related tool states)
+    QHash<QUrl, QHash<QString, QVariantMap>> m_edit3DToolStates;
 };
 
 } // namespace ProxyNodeInstanceView

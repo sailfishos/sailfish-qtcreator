@@ -30,27 +30,27 @@
 #include "ioutputparser.h"
 #include "processparameters.h"
 #include "project.h"
+#include "projectexplorer.h"
+#include "projectexplorersettings.h"
 #include "target.h"
 #include "task.h"
 
 #include <coreplugin/reaper.h>
 
+#include <utils/fileinprojectfinder.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
 #include <QDir>
-#include <QTimer>
 #include <QHash>
 #include <QPair>
+#include <QUrl>
 
 #include <algorithm>
 #include <memory>
 
-namespace {
-const int CACHE_SOFT_LIMIT = 500;
-const int CACHE_HARD_LIMIT = 1000;
-} // namespace
+using namespace Utils;
 
 namespace ProjectExplorer {
 
@@ -107,12 +107,11 @@ public:
     std::unique_ptr<Utils::QtcProcess> m_process;
     std::unique_ptr<IOutputParser> m_outputParserChain;
     ProcessParameters m_param;
-    QHash<QString, QPair<Utils::FileName, quint64>> m_filesCache;
-    QHash<QString, Utils::FileNameList> m_candidates;
+    Utils::FileInProjectFinder m_fileFinder;
     QByteArray deferredText;
-    quint64 m_cacheCounter = 0;
     bool m_ignoreReturnValue = false;
     bool m_skipFlush = false;
+    bool m_lowPriority = false;
 
     void readData(void (AbstractProcessStep::*func)(const QString &), bool isUtf8 = false);
     void processLine(const QByteArray &data,
@@ -194,11 +193,8 @@ void AbstractProcessStep::setIgnoreReturnValue(bool b)
 
 bool AbstractProcessStep::init()
 {
-    d->m_candidates.clear();
-    const Utils::FileNameList fl = project()->files(Project::AllFiles);
-    for (const Utils::FileName &file : fl)
-        d->m_candidates[file.fileName()].push_back(file);
-
+    d->m_fileFinder.setProjectDirectory(project()->projectDirectory());
+    d->m_fileFinder.setProjectFiles(project()->files(Project::AllFiles));
     return !d->m_process;
 }
 
@@ -209,7 +205,7 @@ bool AbstractProcessStep::init()
 
 void AbstractProcessStep::doRun()
 {
-    QDir wd(d->m_param.effectiveWorkingDirectory());
+    QDir wd(d->m_param.effectiveWorkingDirectory().toString());
     if (!wd.exists()) {
         if (!wd.mkpath(wd.absolutePath())) {
             emit addOutput(tr("Could not create directory \"%1\"")
@@ -220,8 +216,10 @@ void AbstractProcessStep::doRun()
         }
     }
 
-    QString effectiveCommand = d->m_param.effectiveCommand();
-    if (!QFileInfo::exists(effectiveCommand)) {
+    const CommandLine effectiveCommand(d->m_param.effectiveCommand(),
+                                       d->m_param.effectiveArguments(),
+                                       CommandLine::Raw);
+    if (!effectiveCommand.executable().exists()) {
         processStartupFailed();
         finish(false);
         return;
@@ -230,14 +228,16 @@ void AbstractProcessStep::doRun()
     d->m_process.reset(new Utils::QtcProcess());
     d->m_process->setUseCtrlCStub(Utils::HostOsInfo::isWindowsHost());
     d->m_process->setWorkingDirectory(wd.absolutePath());
-    d->m_process->setEnvironment(d->m_param.effectiveEnvironment());
-    d->m_process->setCommand(effectiveCommand, d->m_param.effectiveArguments());
+    d->m_process->setEnvironment(d->m_param.environment());
+    d->m_process->setCommand(effectiveCommand);
+    if (d->m_lowPriority && ProjectExplorerPlugin::projectExplorerSettings().lowBuildPriority)
+        d->m_process->setLowPriority();
 
     connect(d->m_process.get(), &QProcess::readyReadStandardOutput,
             this, &AbstractProcessStep::processReadyReadStdOutput);
     connect(d->m_process.get(), &QProcess::readyReadStandardError,
             this, &AbstractProcessStep::processReadyReadStdError);
-    connect(d->m_process.get(), static_cast<void (QProcess::*)(int,QProcess::ExitStatus)>(&QProcess::finished),
+    connect(d->m_process.get(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &AbstractProcessStep::slotProcessFinished);
 
     d->m_process->start();
@@ -249,6 +249,11 @@ void AbstractProcessStep::doRun()
         return;
     }
     processStarted();
+}
+
+void AbstractProcessStep::setLowPriority()
+{
+    d->m_lowPriority = true;
 }
 
 void AbstractProcessStep::doCancel()
@@ -284,7 +289,7 @@ void AbstractProcessStep::cleanUp(QProcess *process)
 void AbstractProcessStep::processStarted()
 {
     emit addOutput(tr("Starting: \"%1\" %2")
-                   .arg(QDir::toNativeSeparators(d->m_param.effectiveCommand()),
+                   .arg(QDir::toNativeSeparators(d->m_param.effectiveCommand().toString()),
                         d->m_param.prettyArguments()),
                    BuildStep::OutputFormat::NormalMessage);
 }
@@ -300,7 +305,7 @@ void AbstractProcessStep::processFinished(int exitCode, QProcess::ExitStatus sta
     if (d->m_outputParserChain)
         d->m_outputParserChain->flush();
 
-    QString command = QDir::toNativeSeparators(d->m_param.effectiveCommand());
+    QString command = QDir::toNativeSeparators(d->m_param.effectiveCommand().toString());
     if (status == QProcess::NormalExit && exitCode == 0) {
         emit addOutput(tr("The process \"%1\" exited normally.").arg(command),
                        BuildStep::OutputFormat::NormalMessage);
@@ -322,7 +327,7 @@ void AbstractProcessStep::processFinished(int exitCode, QProcess::ExitStatus sta
 void AbstractProcessStep::processStartupFailed()
 {
     emit addOutput(tr("Could not start process \"%1\" %2")
-                   .arg(QDir::toNativeSeparators(d->m_param.effectiveCommand()),
+                   .arg(QDir::toNativeSeparators(d->m_param.effectiveCommand().toString()),
                         d->m_param.prettyArguments()),
                    BuildStep::OutputFormat::ErrorMessage);
 }
@@ -437,44 +442,16 @@ void AbstractProcessStep::taskAdded(const Task &task, int linkedOutputLines, int
 
     Task editable(task);
     QString filePath = task.file.toString();
-
-    auto it = d->m_filesCache.find(filePath);
-    if (it != d->m_filesCache.end()) {
-        editable.file = it.value().first;
-        it.value().second = ++d->m_cacheCounter;
-    } else if (!filePath.isEmpty() && !filePath.startsWith('<') && !QDir::isAbsolutePath(filePath)) {
-        // We have no save way to decide which file in which subfolder
-        // is meant. Therefore we apply following heuristics:
-        // 1. Check if file is unique in whole project
-        // 2. Otherwise try again without any ../
-        // 3. give up.
-
-        QString sourceFilePath = filePath;
-        Utils::FileNameList possibleFiles = d->m_candidates.value(Utils::FileName::fromString(filePath).fileName());
-
-        if (possibleFiles.count() == 1) {
-            editable.file = possibleFiles.first();
-        } else {
-            // More then one filename, so do a better compare
-            // Chop of any "../"
-            while (filePath.startsWith("../"))
-                filePath.remove(0, 3);
-
-            int count = 0;
-            Utils::FileName possibleFilePath;
-            foreach (const Utils::FileName &fn, possibleFiles) {
-                if (fn.endsWith(filePath)) {
-                    possibleFilePath = fn;
-                    ++count;
-                }
-            }
-            if (count == 1)
-                editable.file = possibleFilePath;
-            else
-                qWarning() << "Could not find absolute location of file " << filePath;
-        }
-
-        insertInCache(sourceFilePath, editable.file);
+    if (!filePath.isEmpty() && !filePath.startsWith('<') && !QDir::isAbsolutePath(filePath)) {
+        while (filePath.startsWith("../"))
+            filePath.remove(0, 3);
+        bool found = false;
+        const Utils::FilePaths candidates
+                = d->m_fileFinder.findFile(QUrl::fromLocalFile(filePath), &found);
+        if (found && candidates.size() == 1)
+            editable.file = candidates.first();
+        else
+            qWarning() << "Could not find absolute location of file " << filePath;
     }
 
     emit addTask(editable, linkedOutputLines, skipLines);
@@ -497,29 +474,9 @@ void AbstractProcessStep::slotProcessFinished(int, QProcess::ExitStatus)
 
     const QString stdOutLine = process ? QString::fromLocal8Bit(process->readAllStandardOutput()) : QString();
     for (const QString &l : stdOutLine.split('\n'))
-        stdError(l);
+        stdOutput(l);
 
-    purgeCache(true);
     cleanUp(process);
-}
-
-void AbstractProcessStep::purgeCache(bool useSoftLimit)
-{
-    const int limit = useSoftLimit ? CACHE_SOFT_LIMIT : CACHE_HARD_LIMIT;
-    if (d->m_filesCache.size() <= limit)
-        return;
-
-    const quint64 minCounter = d->m_cacheCounter - static_cast<quint64>(limit);
-    std::remove_if(d->m_filesCache.begin(), d->m_filesCache.end(),
-                   [minCounter](const QPair<Utils::FileName, quint64> &entry) {
-        return entry.second <= minCounter;
-    });
-}
-
-void AbstractProcessStep::insertInCache(const QString &relativePath, const Utils::FileName &absPath)
-{
-    purgeCache(false);
-    d->m_filesCache.insert(relativePath, qMakePair(absPath, ++d->m_cacheCounter));
 }
 
 } // namespace ProjectExplorer

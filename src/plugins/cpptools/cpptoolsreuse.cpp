@@ -26,8 +26,8 @@
 #include "cpptoolsreuse.h"
 
 #include "cppcodemodelsettings.h"
+#include "cpptoolsconstants.h"
 #include "cpptoolsplugin.h"
-#include "cpptools_clazychecks.h"
 
 #include <coreplugin/documentmanager.h>
 #include <coreplugin/editormanager/editormanager.h>
@@ -294,14 +294,14 @@ const Macro *findCanonicalMacro(const QTextCursor &cursor, Document::Ptr documen
     return nullptr;
 }
 
-QSharedPointer<CppCodeModelSettings> codeModelSettings()
+CppCodeModelSettings *codeModelSettings()
 {
     return CppTools::Internal::CppToolsPlugin::instance()->codeModelSettings();
 }
 
 int indexerFileSizeLimitInMb()
 {
-    const QSharedPointer<CppCodeModelSettings> settings = codeModelSettings();
+    const CppCodeModelSettings *settings = codeModelSettings();
     QTC_ASSERT(settings, return -1);
 
     if (settings->skipIndexingBigFiles())
@@ -323,20 +323,10 @@ bool fileSizeExceedsLimit(const QFileInfo &fileInfo, int sizeLimitInMb)
                     "C++ Indexer: Skipping file \"%1\" because it is too big.")
                         .arg(absoluteFilePath);
 
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 10, 0))
         QMetaObject::invokeMethod(Core::MessageManager::instance(), [msg]() {
             Core::MessageManager::write(msg, Core::MessageManager::Silent);
         });
-#else
-        QMetaObject::invokeMethod(Core::MessageManager::instance(),
-                                  "write",
-                                  Qt::QueuedConnection,
-                                  Q_ARG(QString, msg),
-                                  Q_ARG(Core::MessageManager::PrintToOutputPaneFlags,
-                                        Core::MessageManager::Silent));
-#endif
 
-        qWarning().noquote() << msg;
         return true;
     }
 
@@ -345,20 +335,55 @@ bool fileSizeExceedsLimit(const QFileInfo &fileInfo, int sizeLimitInMb)
 
 UsePrecompiledHeaders getPchUsage()
 {
-    const QSharedPointer<CppCodeModelSettings> cms = codeModelSettings();
+    const CppCodeModelSettings *cms = codeModelSettings();
     if (cms->pchUsage() == CppCodeModelSettings::PchUse_None)
         return UsePrecompiledHeaders::No;
     return UsePrecompiledHeaders::Yes;
 }
 
-QString clazyChecksForLevel(int level)
+static void addBuiltinConfigs(ClangDiagnosticConfigsModel &model)
 {
-    QStringList checks;
-    for (const Constants::ClazyCheckInfo &check : Constants::CLAZY_CHECKS) {
-        if (check.level == level)
-            checks << check.name;
-    }
-    return checks.join(',');
+    ClangDiagnosticConfig config;
+
+    // Questionable constructs
+    config = ClangDiagnosticConfig();
+    config.setId(Constants::CPP_CLANG_DIAG_CONFIG_QUESTIONABLE);
+    config.setDisplayName(QCoreApplication::translate(
+                              "ClangDiagnosticConfigsModel",
+                              "Checks for questionable constructs"));
+    config.setIsReadOnly(true);
+    config.setClangOptions({
+        "-Wall",
+        "-Wextra",
+    });
+    config.setClazyMode(ClangDiagnosticConfig::ClazyMode::UseCustomChecks);
+    config.setClangTidyMode(ClangDiagnosticConfig::TidyMode::UseCustomChecks);
+    model.appendOrUpdate(config);
+
+    // Warning flags from build system
+    config = ClangDiagnosticConfig();
+    config.setId("Builtin.BuildSystem");
+    config.setDisplayName(QCoreApplication::translate("ClangDiagnosticConfigsModel",
+                                                      "Build-system warnings"));
+    config.setIsReadOnly(true);
+    config.setClazyMode(ClangDiagnosticConfig::ClazyMode::UseCustomChecks);
+    config.setClangTidyMode(ClangDiagnosticConfig::TidyMode::UseCustomChecks);
+    config.setUseBuildSystemWarnings(true);
+    model.appendOrUpdate(config);
+}
+
+ClangDiagnosticConfigsModel diagnosticConfigsModel(const ClangDiagnosticConfigs &customConfigs)
+{
+    ClangDiagnosticConfigsModel model;
+    addBuiltinConfigs(model);
+    for (const ClangDiagnosticConfig &config : customConfigs)
+        model.appendOrUpdate(config);
+    return model;
+}
+
+ClangDiagnosticConfigsModel diagnosticConfigsModel()
+{
+    return diagnosticConfigsModel(CppTools::codeModelSettings()->clangCustomDiagnosticConfigs());
 }
 
 } // CppTools

@@ -71,9 +71,9 @@ public:
 
     struct Thread {
         Thread(qint64 start = -1, qint64 firstEvent = -1, qint64 lastEvent = -1, quint32 pid = 0,
-               quint32 tid = 0, qint32 name = -1, bool enabled = false) :
+               quint32 tid = 0, quint32 cpu = 0, qint32 name = -1, bool enabled = false) :
             start(start), firstEvent(firstEvent), lastEvent(lastEvent), pid(pid), tid(tid),
-            name(name), enabled(enabled)
+            cpu(cpu), name(name), enabled(enabled)
         {}
 
         qint64 start;
@@ -81,15 +81,17 @@ public:
         qint64 lastEvent;
         quint32 pid;
         quint32 tid;
+        quint32 cpu;
         qint32 name;
         bool enabled;
     };
 
     struct Symbol {
-        Symbol() : name(-1), binary(-1), isKernel(false) {}
+        Symbol() : name(-1), binary(-1), path(-1), isKernel(false) {}
 
         qint32 name;
         qint32 binary;
+        qint32 path;
         bool isKernel;
     };
 
@@ -217,12 +219,12 @@ private:
 
 inline QDataStream &operator>>(QDataStream &stream, PerfProfilerTraceManager::Symbol &symbol)
 {
-    return stream >> symbol.name >> symbol.binary >> symbol.isKernel;
+    return stream >> symbol.name >> symbol.binary >> symbol.path >> symbol.isKernel;
 }
 
 inline QDataStream &operator<<(QDataStream &stream, const PerfProfilerTraceManager::Symbol &symbol)
 {
-    return stream << symbol.name << symbol.binary << symbol.isKernel;
+    return stream << symbol.name << symbol.binary << symbol.path << symbol.isKernel;
 }
 
 inline QDataStream &operator>>(QDataStream &stream,
@@ -239,14 +241,14 @@ inline QDataStream &operator<<(QDataStream &stream,
 
 inline QDataStream &operator>>(QDataStream &stream, PerfProfilerTraceManager::Thread &thread)
 {
-    stream >> thread.pid >> thread.tid >> thread.start >> thread.name;
+    stream >> thread.pid >> thread.tid >> thread.start >> thread.cpu >> thread.name;
     thread.enabled = (thread.pid != 0);
     return stream;
 }
 
 inline QDataStream &operator<<(QDataStream &stream, const PerfProfilerTraceManager::Thread &thread)
 {
-    return stream << thread.pid << thread.tid << thread.start << thread.name;
+    return stream << thread.pid << thread.tid << thread.start << thread.cpu << thread.name;
 }
 
 

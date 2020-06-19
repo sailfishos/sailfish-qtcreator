@@ -131,7 +131,7 @@ InsertionLocation insertLocationForMethodDefinition(Symbol *symbol, const bool u
     // ...failed,
     // if class member try to get position right after class
     CppRefactoringFilePtr file = refactoring.file(fileName);
-    unsigned line = 0, column = 0;
+    int line = 0, column = 0;
     if (Class *clazz = symbol->enclosingClass()) {
         if (symbol->fileName() == fileName.toUtf8()) {
             file->cppDocument()->translationUnit()->getPosition(clazz->endOffset(), &line, &column);
@@ -581,21 +581,11 @@ static bool checkDeclarationForSplit(SimpleDeclarationAST *declaration)
 
     for (SpecifierListAST *it = declaration->decl_specifier_list; it; it = it->next) {
         SpecifierAST *specifier = it->value;
-
-        if (specifier->asEnumSpecifier() != nullptr)
-            return false;
-
-        else if (specifier->asClassSpecifier() != nullptr)
+        if (specifier->asEnumSpecifier() || specifier->asClassSpecifier())
             return false;
     }
 
-    if (!declaration->declarator_list)
-        return false;
-
-    else if (!declaration->declarator_list->next)
-        return false;
-
-    return true;
+    return declaration->declarator_list && declaration->declarator_list->next;
 }
 
 namespace {
@@ -1510,8 +1500,7 @@ void ConvertNumericLiteral::match(const CppQuickFixInterface &interface, QuickFi
             0x20
 
         */
-        QString replacement;
-        replacement.sprintf("0x%lX", value);
+        const QString replacement = QString::asprintf("0x%lX", value);
         auto op = new ConvertNumericLiteralOp(interface, start, start + numberLength, replacement);
         op->setDescription(QApplication::translate("CppTools::QuickFix", "Convert to Hexadecimal"));
         op->setPriority(priority);
@@ -1528,8 +1517,7 @@ void ConvertNumericLiteral::match(const CppQuickFixInterface &interface, QuickFi
           With
             040
         */
-        QString replacement;
-        replacement.sprintf("0%lo", value);
+        const QString replacement = QString::asprintf("0%lo", value);
         auto op = new ConvertNumericLiteralOp(interface, start, start + numberLength, replacement);
         op->setDescription(QApplication::translate("CppTools::QuickFix", "Convert to Octal"));
         op->setPriority(priority);
@@ -1546,8 +1534,7 @@ void ConvertNumericLiteral::match(const CppQuickFixInterface &interface, QuickFi
            With
             32
         */
-        QString replacement;
-        replacement.sprintf("%lu", value);
+        const QString replacement = QString::asprintf("%lu", value);
         auto op = new ConvertNumericLiteralOp(interface, start, start + numberLength, replacement);
         op->setDescription(QApplication::translate("CppTools::QuickFix", "Convert to Decimal"));
         op->setPriority(priority);
@@ -1857,7 +1844,7 @@ bool canLookupDefinition(const CppQuickFixInterface &interface, const NameAST *n
     QTC_ASSERT(nameAst && nameAst->name, return false);
 
     // Find the enclosing scope
-    unsigned line, column;
+    int line, column;
     const Document::Ptr &doc = interface.semanticInfo().doc;
     doc->translationUnit()->getTokenStartPosition(nameAst->firstToken(), &line, &column);
     Scope *scope = doc->scopeAt(line, column);
@@ -1973,16 +1960,16 @@ void AddIncludeForUndefinedIdentifier::match(const CppQuickFixInterface &interfa
 
             Snapshot localForwardHeaders = forwardHeaders;
             localForwardHeaders.insert(interface.snapshot().document(info->fileName()));
-            Utils::FileNameList headerAndItsForwardingHeaders;
-            headerAndItsForwardingHeaders << Utils::FileName::fromString(info->fileName());
+            Utils::FilePaths headerAndItsForwardingHeaders;
+            headerAndItsForwardingHeaders << Utils::FilePath::fromString(info->fileName());
             headerAndItsForwardingHeaders += localForwardHeaders.filesDependingOn(info->fileName());
 
-            foreach (const Utils::FileName &header, headerAndItsForwardingHeaders) {
+            foreach (const Utils::FilePath &header, headerAndItsForwardingHeaders) {
                 const QString include = findShortestInclude(currentDocumentFilePath,
                                                             header.toString(),
                                                             headerPaths);
                 if (include.size() > 2) {
-                    const QString headerFileName = Utils::FileName::fromString(info->fileName()).fileName();
+                    const QString headerFileName = Utils::FilePath::fromString(info->fileName()).fileName();
                     QTC_ASSERT(!headerFileName.isEmpty(), break);
 
                     int priority = 0;
@@ -2367,7 +2354,7 @@ void CompleteSwitchCaseStatement::match(const CppQuickFixInterface &interface,
                 // check the possible enum values
                 QStringList values;
                 Overview prettyPrint;
-                for (unsigned i = 0; i < e->memberCount(); ++i) {
+                for (int i = 0; i < e->memberCount(); ++i) {
                     if (Declaration *decl = e->memberAt(i)->asDeclaration())
                         values << prettyPrint.prettyName(LookupContext::fullyQualifiedName(decl));
                 }
@@ -2693,7 +2680,7 @@ void InsertDefFromDecl::match(const CppQuickFixInterface &interface, QuickFixOpe
                 if (Symbol *symbol = simpleDecl->symbols->value) {
                     if (Declaration *decl = symbol->asDeclaration()) {
                         if (Function *func = decl->type()->asFunctionType()) {
-                            if (func->isSignal())
+                            if (func->isSignal() || func->isPureVirtual())
                                 return;
 
                             // Check if there is already a definition
@@ -2755,7 +2742,7 @@ void InsertDefFromDecl::match(const CppQuickFixInterface &interface, QuickFixOpe
 
                             // Insert Position: Inside Class
                             // Determine insert location direct after the declaration.
-                            unsigned line, column;
+                            int line, column;
                             const CppRefactoringFilePtr file = interface.currentFile();
                             file->lineAndColumn(file->endOf(simpleDecl), &line, &column);
                             const InsertionLocation loc
@@ -2782,7 +2769,7 @@ bool hasClassMemberWithGetPrefix(const Class *klass)
     if (!klass)
         return false;
 
-    for (unsigned i = 0; i < klass->memberCount(); ++i) {
+    for (int i = 0; i < klass->memberCount(); ++i) {
         const Symbol *symbol = klass->memberAt(i);
         if (symbol->isFunction() || symbol->isDeclaration()) {
             if (const Name *symbolName = symbol->name()) {
@@ -2875,7 +2862,7 @@ public:
         bool hasGetter = false;
         bool hasSetter = false;
         if (Class *klass = m_classSpecifier->symbol) {
-            for (unsigned i = 0; i < klass->memberCount(); ++i) {
+            for (int i = 0; i < klass->memberCount(); ++i) {
                 Symbol *symbol = klass->memberAt(i);
                 if (symbol->isQtPropertyDeclaration())
                     continue;
@@ -3128,7 +3115,7 @@ public:
 
         // Create and apply changes
         ChangeSet currChanges;
-        int declInsertPos = currentFile->position(qMax(1u, declLocation.line()),
+        int declInsertPos = currentFile->position(qMax(1, declLocation.line()),
                                                   declLocation.column());
         currChanges.insert(declInsertPos, declaration);
 
@@ -3505,9 +3492,7 @@ public:
 
     bool preVisit(AST *) override
     {
-        if (m_done)
-            return false;
-        return true;
+        return !m_done;
     }
 
     void statement(StatementAST *stmt)
@@ -3732,10 +3717,8 @@ void ExtractFunction::match(const CppQuickFixInterface &interface, QuickFixOpera
     // Identify what would be parameters for the new function and its return value, if any.
     Symbol *funcReturn = nullptr;
     QList<QPair<QString, QString> > relevantDecls;
-    SemanticInfo::LocalUseIterator it(interface.semanticInfo().localUses);
-    while (it.hasNext()) {
-        it.next();
-
+    const SemanticInfo::LocalUseMap localUses = interface.semanticInfo().localUses;
+    for (auto it = localUses.cbegin(), end = localUses.cend(); it != end; ++it) {
         bool usedBeforeExtraction = false;
         bool usedAfterExtraction = false;
         bool usedInsideExtraction = false;
@@ -4170,20 +4153,21 @@ private:
 
     void removeNewExpression(ChangeSet &changes, NewExpressionAST *newExprAST) const
     {
-        ExpressionListParenAST *exprlist = newExprAST->new_initializer
-                ? newExprAST->new_initializer->asExpressionListParen()
-                : nullptr;
+        ExpressionListAST *exprlist = nullptr;
+        if (newExprAST->new_initializer) {
+            if (ExpressionListParenAST *ast = newExprAST->new_initializer->asExpressionListParen())
+                exprlist = ast->expression_list;
+            else if (BracedInitializerAST *ast = newExprAST->new_initializer->asBracedInitializer())
+                exprlist = ast->expression_list;
+        }
 
-        if (exprlist && exprlist->expression_list) {
+        if (exprlist) {
             // remove 'new' keyword and type before initializer
             changes.remove(m_file->startOf(newExprAST->new_token),
                            m_file->startOf(newExprAST->new_initializer));
 
-            // remove parenthesis around initializer
-            int pos = m_file->startOf(exprlist->lparen_token);
-            changes.remove(pos, pos + 1);
-            pos = m_file->startOf(exprlist->rparen_token);
-            changes.remove(pos, pos + 1);
+            changes.remove(m_file->endOf(m_declaratorAST->equal_token - 1),
+                           m_file->startOf(m_declaratorAST->equal_token + 1));
         } else {
             // remove the whole new expression
             changes.remove(m_file->endOf(m_identifierAST->firstToken()),
@@ -4289,24 +4273,30 @@ private:
         return overview.prettyName(namedType->name->name);
     }
 
-    void insertNewExpression(ChangeSet &changes, CallAST *callAST) const
+    void insertNewExpression(ChangeSet &changes, ExpressionAST *ast) const
     {
         const QString typeName = typeNameOfDeclaration();
-        if (typeName.isEmpty()) {
-            changes.insert(m_file->startOf(callAST), QLatin1String("new "));
+        if (CallAST *callAST = ast->asCall()) {
+            if (typeName.isEmpty()) {
+                changes.insert(m_file->startOf(callAST), QLatin1String("new "));
+            } else {
+                changes.insert(m_file->startOf(callAST),
+                               QLatin1String("new ") + typeName + QLatin1Char('('));
+                changes.insert(m_file->startOf(callAST->lastToken()), QLatin1String(")"));
+            }
         } else {
-            changes.insert(m_file->startOf(callAST),
-                           QLatin1String("new ") + typeName + QLatin1Char('('));
-            changes.insert(m_file->startOf(callAST->lastToken()), QLatin1String(")"));
+            if (typeName.isEmpty())
+                return;
+            changes.insert(m_file->startOf(ast), QLatin1String(" = new ") + typeName);
         }
     }
 
-    void insertNewExpression(ChangeSet &changes, ExpressionListParenAST *exprListAST) const
+    void insertNewExpression(ChangeSet &changes) const
     {
         const QString typeName = typeNameOfDeclaration();
         if (typeName.isEmpty())
             return;
-        changes.insert(m_file->startOf(exprListAST),
+        changes.insert(m_file->endOf(m_identifierAST->firstToken()),
                        QLatin1String(" = new ") + typeName);
     }
 
@@ -4318,10 +4308,15 @@ private:
                 changes.insert(m_file->startOf(idExprAST), QLatin1String("&"));
             } else if (CallAST *callAST = m_declaratorAST->initializer->asCall()) {
                 insertNewExpression(changes, callAST);
-            } else if (ExpressionListParenAST *exprListAST
-                     = m_declaratorAST->initializer->asExpressionListParen()) {
+            } else if (ExpressionListParenAST *exprListAST = m_declaratorAST->initializer
+                                                                 ->asExpressionListParen()) {
                 insertNewExpression(changes, exprListAST);
+            } else if (BracedInitializerAST *bracedInitializerAST = m_declaratorAST->initializer
+                                                                        ->asBracedInitializer()) {
+                insertNewExpression(changes, bracedInitializerAST);
             }
+        } else {
+            insertNewExpression(changes);
         }
 
         // Fix all occurrences of the identifier in this function.
@@ -4611,7 +4606,7 @@ void InsertQtPropertyMembers::match(const CppQuickFixInterface &interface,
     Class *c = klass->symbol;
 
     Overview overview;
-    for (unsigned i = 0; i < c->memberCount(); ++i) {
+    for (int i = 0; i < c->memberCount(); ++i) {
         Symbol *member = c->memberAt(i);
         FullySpecifiedType type = member->type();
         if (member->asFunction() || (type.isValid() && type->asFunctionType())) {

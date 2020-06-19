@@ -38,12 +38,18 @@
 
 #include <functional>
 
-namespace Utils { class FileName; }
+namespace Utils { class FilePath; }
 
 namespace ProjectExplorer {
 
 class ProjectExplorerPlugin;
 class Abi;
+
+class ToolchainDetectionSettings
+{
+public:
+    bool detectX64AsX32 = false;
+};
 
 // --------------------------------------------------------------------------
 // ToolChainManager
@@ -62,8 +68,6 @@ public:
     static QList<ToolChain *> findToolChains(const Abi &abi);
     static ToolChain *findToolChain(const QByteArray &id);
 
-    static Utils::FileName defaultDebugger(const Abi &abi);
-
     static bool isLoaded();
 
     static bool registerToolChain(ToolChain *tc);
@@ -75,6 +79,9 @@ public:
     static bool isLanguageSupported(const Core::Id &id);
 
     static void aboutToShutdown();
+
+    static ToolchainDetectionSettings detectionSettings();
+    static void setDetectionSettings(const ToolchainDetectionSettings &settings);
 
     void saveToolChains();
 

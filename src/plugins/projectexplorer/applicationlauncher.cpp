@@ -39,6 +39,7 @@
 #include "devicesupport/deviceprocess.h"
 #include "projectexplorer.h"
 #include "projectexplorersettings.h"
+#include "runcontrol.h"
 
 #include <QTextCodec>
 #include <QTimer>
@@ -62,7 +63,6 @@ namespace ProjectExplorer {
 using namespace Internal;
 
 namespace Internal {
-
 
 class ApplicationLauncherPrivate : public QObject
 {
@@ -126,7 +126,7 @@ public:
 ApplicationLauncherPrivate::ApplicationLauncherPrivate(ApplicationLauncher *parent)
     : q(parent), m_outputCodec(QTextCodec::codecForLocale())
 {
-    if (ProjectExplorerPlugin::projectExplorerSettings().mergeStdErrAndStdOut){
+    if (ProjectExplorerPlugin::appOutputSettings().mergeChannels) {
         m_guiProcess.setProcessChannelMode(QProcess::MergedChannels);
     } else {
         m_guiProcess.setProcessChannelMode(QProcess::SeparateChannels);
@@ -137,7 +137,7 @@ ApplicationLauncherPrivate::ApplicationLauncherPrivate(ApplicationLauncher *pare
             this, &ApplicationLauncherPrivate::readLocalStandardOutput);
     connect(&m_guiProcess, &QProcess::errorOccurred,
             this, &ApplicationLauncherPrivate::localGuiProcessError);
-    connect(&m_guiProcess, static_cast<void (QProcess::*)(int,QProcess::ExitStatus)>(&QProcess::finished),
+    connect(&m_guiProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &ApplicationLauncherPrivate::localProcessDone);
     connect(&m_guiProcess, &QProcess::started,
             this, &ApplicationLauncherPrivate::handleProcessStarted);
@@ -152,8 +152,7 @@ ApplicationLauncherPrivate::ApplicationLauncherPrivate(ApplicationLauncher *pare
             this, &ApplicationLauncherPrivate::localConsoleProcessError);
     connect(&m_consoleProcess, &ConsoleProcess::processStopped,
             this, &ApplicationLauncherPrivate::localProcessDone);
-    connect(&m_consoleProcess,
-            static_cast<void (ConsoleProcess::*)(QProcess::ProcessError)>(&ConsoleProcess::error),
+    connect(&m_consoleProcess, QOverload<QProcess::ProcessError>::of(&ConsoleProcess::error),
             q, &ApplicationLauncher::error);
 
 #ifdef Q_OS_WIN
@@ -379,11 +378,12 @@ void ApplicationLauncherPrivate::start(const Runnable &runnable, const IDevice::
     #endif
 
         if (!m_useTerminal) {
-            m_guiProcess.setCommand(runnable.executable, runnable.commandLineArguments);
+            m_guiProcess.setCommand(runnable.commandLine());
             m_guiProcess.closeWriteChannel();
             m_guiProcess.start();
         } else {
-            m_consoleProcess.start(runnable.executable, runnable.commandLineArguments);
+            m_consoleProcess.setCommand(runnable.commandLine());
+            m_consoleProcess.start();
         }
     } else {
         QTC_ASSERT(m_state == Inactive, return);

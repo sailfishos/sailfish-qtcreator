@@ -46,7 +46,14 @@
 static QString rectangleToString(const QRect &r)
 {
     QString result;
-    QTextStream(&result) << r.width() << 'x' << r.height() << forcesign << r.x() << r.y();
+    QTextStream str(&result);
+    str << r.width() << 'x' << r.height() << r.x() << r.y();
+    if (r.x() >= 0)
+        str << '+';
+    str << r.x();
+    if (r.y() >= 0)
+        str << '+';
+    str << r.y();
     return result;
 }
 
@@ -341,7 +348,7 @@ QVariantMap PersistentSettingsReader::restoreValues() const
     return m_valueMap;
 }
 
-bool PersistentSettingsReader::load(const FileName &fileName)
+bool PersistentSettingsReader::load(const FilePath &fileName)
 {
     m_valueMap.clear();
 
@@ -409,7 +416,7 @@ static void writeVariantValue(QXmlStreamWriter &w, const Context &ctx,
     }
 }
 
-PersistentSettingsWriter::PersistentSettingsWriter(const FileName &fileName, const QString &docType) :
+PersistentSettingsWriter::PersistentSettingsWriter(const FilePath &fileName, const QString &docType) :
     m_fileName(fileName), m_docType(docType)
 { }
 
@@ -438,7 +445,7 @@ bool PersistentSettingsWriter::save(const QVariantMap &data, QWidget *parent) co
 }
 #endif // QT_GUI_LIB
 
-FileName PersistentSettingsWriter::fileName() const
+FilePath PersistentSettingsWriter::fileName() const
 { return m_fileName; }
 
 //** * @brief Set contents of file (e.g. from data read from it). */

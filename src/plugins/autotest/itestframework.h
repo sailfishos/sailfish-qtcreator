@@ -28,11 +28,11 @@
 #include "testtreeitem.h"
 #include "itestparser.h"
 
+namespace Core { class IOptionsPage; }
+
 namespace Autotest {
-namespace Internal {
 
 class IFrameworkSettings;
-class ITestSettingsPage;
 
 class ITestFramework
 {
@@ -48,9 +48,9 @@ public:
     virtual unsigned priority() const = 0;          // should this be modifyable?
     virtual bool hasFrameworkSettings() const { return false; }
     virtual IFrameworkSettings *createFrameworkSettings() const { return nullptr; }
-    virtual ITestSettingsPage *createSettingsPage(QSharedPointer<IFrameworkSettings> settings) const
+    virtual Core::IOptionsPage *createSettingsPage(QSharedPointer<IFrameworkSettings> settings) const
     {
-        Q_UNUSED(settings);
+        Q_UNUSED(settings)
         return nullptr;
     }
 
@@ -66,6 +66,8 @@ public:
             m_testParser = createTestParser();
         return m_testParser;
     }
+
+    Core::Id settingsId() const;
 
     bool active() const { return m_active; }
     void setActive(bool active) { m_active = active; }
@@ -84,5 +86,4 @@ private:
     bool m_grouping = false;
 };
 
-} // namespace Internal
 } // namespace Autotest

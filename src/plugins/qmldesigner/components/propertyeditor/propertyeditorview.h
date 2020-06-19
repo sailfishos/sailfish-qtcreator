@@ -69,6 +69,7 @@ public:
 
     void variantPropertiesChanged(const QList<VariantProperty>& propertyList, PropertyChangeFlags propertyChange) override;
     void bindingPropertiesChanged(const QList<BindingProperty>& propertyList, PropertyChangeFlags propertyChange) override;
+    void auxiliaryDataChanged(const ModelNode &node, const PropertyName &name, const QVariant &data) override;
 
     void instanceInformationsChanged(const QMultiHash<ModelNode, InformationName> &informationChangedHash) override;
 
@@ -105,10 +106,17 @@ private: //functions
     void updateSize();
     void setupPanes();
 
-    void select(const ModelNode& node);
+    void select();
+    void setSelelectedModelNode();
 
     void delayedResetView();
     void setupQmlBackend();
+
+    void commitVariantValueToModel(const PropertyName &propertyName, const QVariant &value);
+    void commitAuxValueToModel(const PropertyName &propertyName, const QVariant &value);
+    void removePropertyFromModel(const PropertyName &propertyName);
+
+    bool noValidSelection() const;
 
 private: //variables
     ModelNode m_selectedNode;

@@ -272,7 +272,7 @@ void BaseFileFind::runNewSearch(const QString &txt, FindFlags findFlags,
     parameters.additionalParameters = additionalParameters();
     parameters.searchEngineParameters = currentSearchEngine()->parameters();
     parameters.searchEngineIndex = d->m_currentSearchEngineIndex;
-    search->setUserData(qVariantFromValue(parameters));
+    search->setUserData(QVariant::fromValue(parameters));
     connect(search, &SearchResult::activated, this, [this, search](const SearchResultItem &item) {
         openEditor(search, item);
     });
@@ -293,10 +293,6 @@ void BaseFileFind::runNewSearch(const QString &txt, FindFlags findFlags,
 void BaseFileFind::runSearch(SearchResult *search)
 {
     const FileFindParameters parameters = search->userData().value<FileFindParameters>();
-    auto label = new CountingLabel;
-    connect(search, &SearchResult::countChanged, label, &CountingLabel::updateCount);
-    auto statusLabel = new CountingLabel;
-    connect(search, &SearchResult::countChanged, statusLabel, &CountingLabel::updateCount);
     SearchResultWindow::instance()->popup(IOutputPane::Flags(IOutputPane::ModeSwitch|IOutputPane::WithFocus));
     auto watcher = new QFutureWatcher<FileSearchResultList>();
     watcher->setPendingResultsLimit(1);
@@ -316,10 +312,13 @@ void BaseFileFind::runSearch(SearchResult *search)
         search->finishSearch(watcher->isCanceled());
     });
     watcher->setFuture(executeSearch(parameters));
-    FutureProgress *progress =
-        ProgressManager::addTask(watcher->future(), tr("Searching"), Constants::TASK_SEARCH);
-    progress->setWidget(label);
-    progress->setStatusBarWidget(statusLabel);
+    FutureProgress *progress = ProgressManager::addTask(watcher->future(),
+                                                        tr("Searching"),
+                                                        Constants::TASK_SEARCH);
+    connect(search, &SearchResult::countChanged, progress, [progress](int c) {
+        progress->setSubtitle(BaseFileFind::tr("%n found.", nullptr, c));
+    });
+    progress->setSubtitleVisibleInStatusBar(true);
     connect(progress, &FutureProgress::clicked, search, &SearchResult::popup);
 }
 
@@ -497,26 +496,22 @@ QStringList BaseFileFind::replaceAll(const QString &text,
         changes[QDir::fromNativeSeparators(item.path.first())].append(item);
 
     // Checking for files without write permissions
-    QHashIterator<QString, QList<SearchResultItem> > it(changes);
-    QSet<QString> roFiles;
-    while (it.hasNext()) {
-        it.next();
+    QSet<FilePath> roFiles;
+    for (auto it = changes.cbegin(), end = changes.cend(); it != end; ++it) {
         const QFileInfo fileInfo(it.key());
         if (!fileInfo.isWritable())
-            roFiles.insert(it.key());
+            roFiles.insert(FilePath::fromString(it.key()));
     }
 
     // Query the user for permissions
     if (!roFiles.isEmpty()) {
-        ReadOnlyFilesDialog roDialog(roFiles.toList(), ICore::mainWindow());
+        ReadOnlyFilesDialog roDialog(Utils::toList(roFiles), ICore::mainWindow());
         roDialog.setShowFailWarning(true, tr("Aborting replace."));
         if (roDialog.exec() == ReadOnlyFilesDialog::RO_Cancel)
             return QStringList();
     }
 
-    it.toFront();
-    while (it.hasNext()) {
-        it.next();
+    for (auto it = changes.cbegin(), end = changes.cend(); it != end; ++it) {
         const QString fileName = it.key();
         const QList<SearchResultItem> changeItems = it.value();
 
@@ -534,8 +529,9 @@ QStringList BaseFileFind::replaceAll(const QString &text,
             if (item.userData.canConvert<QStringList>() && !item.userData.toStringList().isEmpty()) {
                 replacement = Utils::expandRegExpReplacement(text, item.userData.toStringList());
             } else if (preserveCase) {
-                const QString originalText = (item.mainRange.length() == 0) ? item.text
-                                                                            : item.mainRange.mid(text);
+                const QString originalText = (item.mainRange.length() == 0)
+                                                 ? item.text
+                                                 : item.mainRange.mid(item.text);
                 replacement = Utils::matchCaseReplacement(originalText, text);
             } else {
                 replacement = text;
@@ -565,24 +561,6 @@ QFuture<FileSearchResultList> BaseFileFind::executeSearch(const FileFindParamete
 }
 
 namespace Internal {
-
-CountingLabel::CountingLabel()
-{
-    setAlignment(Qt::AlignCenter);
-    // ### TODO this setup should be done by style
-    QFont f = font();
-    f.setBold(true);
-    f.setPointSizeF(StyleHelper::sidebarFontSize());
-    setFont(f);
-    setPalette(StyleHelper::sidebarFontPalette(palette()));
-    setProperty("_q_custom_style_disabled", QVariant(true));
-    updateCount(0);
-}
-
-void CountingLabel::updateCount(int count)
-{
-    setText(BaseFileFind::tr("%n found.", nullptr, count));
-}
 
 } // namespace Internal
 } // namespace TextEditor

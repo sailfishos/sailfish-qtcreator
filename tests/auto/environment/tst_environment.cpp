@@ -57,6 +57,9 @@ private slots:
     void environmentUnsetUnknownWindows();
     void environmentUnsetUnknownUnix();
 
+    void expansion_data();
+    void expansion();
+
     void find_data();
     void find();
 
@@ -195,7 +198,7 @@ void tst_Environment::environmentSetNewWindows()
 
     env.set("bar", "baz");
 
-    QCOMPARE(env.toStringList(), QStringList({"Foo=bar", "Hi=HO", "bar=baz"}));
+    QCOMPARE(env.toStringList(), QStringList({"bar=baz", "Foo=bar", "Hi=HO"}));
 }
 
 void tst_Environment::environmentSetNewUnix()
@@ -252,6 +255,27 @@ void tst_Environment::environmentUnsetUnknownUnix()
     QCOMPARE(env.toStringList(), QStringList({"Foo=bar", "Hi=HO"}));
 }
 
+void tst_Environment::expansion_data()
+{
+    QTest::addColumn<Utils::OsType>("osType");
+    QTest::addColumn<QString>("eu");
+    QTest::addColumn<QString>("ew");
+
+    QTest::newRow("win") << Utils::OsTypeWindows << "${v}" << "blubb";
+    QTest::newRow("lin") << Utils::OsTypeLinux << "blubb" << "%v%";
+}
+
+void tst_Environment::expansion()
+{
+    QFETCH(Utils::OsType, osType);
+    QFETCH(QString, eu);
+    QFETCH(QString, ew);
+
+    const Environment env(QStringList{"eu=${v}", "ew=%v%", "v=blubb"}, osType);
+    QCOMPARE(env.expandedValueForKey("eu"), eu);
+    QCOMPARE(env.expandedValueForKey("ew"), ew);
+}
+
 void tst_Environment::find_data()
 {
     QTest::addColumn<Utils::OsType>("osType");
@@ -280,7 +304,7 @@ void tst_Environment::find()
     QCOMPARE((end != it), contains);
 
     if (contains)
-        QCOMPARE(it.value(), QString("bar"));
+        QCOMPARE(env.value(it), QString("bar"));
 
 }
 

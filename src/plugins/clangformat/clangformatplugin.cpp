@@ -66,14 +66,9 @@
 #include <QMessageBox>
 #include <QMenu>
 
-#include <QtPlugin>
-
 using namespace ProjectExplorer;
 
 namespace ClangFormat {
-
-ClangFormatPlugin::ClangFormatPlugin() = default;
-ClangFormatPlugin::~ClangFormatPlugin() = default;
 
 #ifdef KEEP_LINE_BREAKS_FOR_NON_EMPTY_LINES_BACKPORTED
 class ClangFormatStyleFactory : public CppTools::CppCodeStylePreferencesFactory
@@ -82,6 +77,7 @@ public:
     TextEditor::CodeStyleEditorWidget *createCodeStyleEditor(
         TextEditor::ICodeStylePreferences *preferences, QWidget *parent = nullptr) override
     {
+        Q_UNUSED(preferences);
         if (!parent)
             return new ClangFormatConfigWidget;
         return new ClangFormatConfigWidget(SessionManager::startupProject());
@@ -109,8 +105,8 @@ static void replaceCppCodeStyle()
 
 bool ClangFormatPlugin::initialize(const QStringList &arguments, QString *errorString)
 {
-    Q_UNUSED(arguments);
-    Q_UNUSED(errorString);
+    Q_UNUSED(arguments)
+    Q_UNUSED(errorString)
 #ifdef KEEP_LINE_BREAKS_FOR_NON_EMPTY_LINES_BACKPORTED
     replaceCppCodeStyle();
 
@@ -138,7 +134,7 @@ bool ClangFormatPlugin::initialize(const QStringList &arguments, QString *errorS
                     const QString fileName = openClangFormatConfigAction->data().toString();
                     if (!fileName.isEmpty()) {
                         const QString clangFormatConfigPath = configForFile(
-                            Utils::FileName::fromString(fileName));
+                            Utils::FilePath::fromString(fileName));
                         Core::EditorManager::openEditor(clangFormatConfigPath);
                     }
                 });
@@ -155,8 +151,14 @@ bool ClangFormatPlugin::initialize(const QStringList &arguments, QString *errorS
                         openClangFormatConfigAction->setData(doc->filePath().toString());
                 });
     }
-#endif
     return true;
+#else
+#warning ClangFormat: building dummy plugin due to unmodified Clang, see README.md for more info
+    *errorString = "Disabling ClangFormat plugin as it has not been built against a modified Clang's libFormat."
+                   "For more information see the Qt Creator README at "
+                   "https://code.qt.io/cgit/qt-creator/qt-creator.git/tree/README.md";
+    return false;
+#endif
 }
 
 } // namespace ClangFormat

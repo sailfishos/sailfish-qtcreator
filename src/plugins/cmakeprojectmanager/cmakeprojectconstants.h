@@ -33,15 +33,15 @@ namespace Constants {
 const char CMAKEMIMETYPE[]  = "text/x-cmake";
 const char CMAKEPROJECTMIMETYPE[]  = "text/x-cmake-project";
 const char CMAKE_EDITOR_ID[] = "CMakeProject.CMakeEditor";
-const char CMAKE_EDITOR_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("CMakeProjectManager::Internal::CMakeEditorFactory", "CMake Editor");
 const char RUNCMAKE[] = "CMakeProject.RunCMake";
 const char CLEARCMAKECACHE[] = "CMakeProject.ClearCache";
 const char RESCANPROJECT[] = "CMakeProject.RescanProject";
 const char RUNCMAKECONTEXTMENU[] = "CMakeProject.RunCMakeContextMenu";
+const char BUILDFILECONTEXTMENU[] = "CMakeProject.BuildFileContextMenu";
+const char BUILDFILE[] = "CMakeProject.BuildFile";
 
 // Project
 const char CMAKEPROJECT_ID[] = "CMakeProjectManager.CMakeProject";
-const char CMAKEPROJECT_BC_ID[] = "CMakeProjectManager.CMakeBuildConfiguration";
 
 // Menu
 const char M_CONTEXT[] = "CMakeEditor.ContextMenu";

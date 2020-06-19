@@ -361,8 +361,8 @@ SourceRangeContainer toRangeContainer(const UnsavedFile &file, CXSourceRange cxS
     QTC_ASSERT(startLine == endLine, return SourceRangeContainer(););
 
     const Utf8String lineText = file.lineRange(startLine, endLine);
-    startColumn = QString(lineText.mid(0, startColumn - 1)).size() + 1;
-    endColumn = QString(lineText.mid(0, endColumn - 1)).size() + 1;
+    startColumn = lineText.mid(0, startColumn - 1).toString().size() + 1;
+    endColumn = lineText.mid(0, endColumn - 1).toString().size() + 1;
 
     return SourceRangeContainer(SourceLocationContainer(file.filePath(), startLine, startColumn),
                                 SourceLocationContainer(file.filePath(), endLine, endColumn));
@@ -370,7 +370,6 @@ SourceRangeContainer toRangeContainer(const UnsavedFile &file, CXSourceRange cxS
 
 void CodeCompletionsExtractor::extractRequiredFixIts()
 {
-#ifdef IS_COMPLETION_FIXITS_BACKPORTED
     unsigned fixItsNumber = clang_getCompletionNumFixIts(cxCodeCompleteResults,
                                                          cxCodeCompleteResultIndex);
 
@@ -386,7 +385,6 @@ void CodeCompletionsExtractor::extractRequiredFixIts()
         currentCodeCompletion_.requiredFixIts.push_back(
                     FixItContainer(Utf8String(fixIt), toRangeContainer(unsavedFile, range)));
     }
-#endif
 }
 
 void CodeCompletionsExtractor::adaptPriority()

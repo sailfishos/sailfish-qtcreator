@@ -179,23 +179,24 @@ void LayoutInGridLayout::doIt()
     initializeCells();
     markUsedCells();
 
+    QTC_ASSERT(m_parentNode.isValid(), return);
+
     if (QmlItemNode::isValidQmlItemNode(m_selectionContext.firstSelectedModelNode())) {
         const QmlItemNode qmlItemNode = QmlItemNode(m_selectionContext.firstSelectedModelNode());
 
         if (qmlItemNode.hasInstanceParentItem()) {
 
             ModelNode layoutNode;
-            {
-                RewriterTransaction transaction(m_selectionContext.view(), QByteArrayLiteral("LayoutInGridLayout1"));
+
+            m_selectionContext.view()->executeInTransaction("LayoutInGridLayout1",[this, &layoutNode, layoutType](){
                 QTC_ASSERT(m_selectionContext.view()->model()->hasNodeMetaInfo(layoutType), return);
 
                 NodeMetaInfo metaInfo = m_selectionContext.view()->model()->metaInfo(layoutType);
                 layoutNode = m_selectionContext.view()->createModelNode(layoutType, metaInfo.majorVersion(), metaInfo.minorVersion());
                 reparentTo(layoutNode, m_parentNode);
-            }
+            });
 
-            {
-                RewriterTransaction transaction(m_selectionContext.view(), QByteArrayLiteral("LayoutInGridLayout2"));
+            m_selectionContext.view()->executeInTransaction("LayoutInGridLayout2", [this, layoutNode](){
 
                 fillEmptyCells();
 
@@ -208,7 +209,7 @@ void LayoutInGridLayout::doIt()
                 reparentToNodeAndRemovePositionForModelNodes(layoutNode, sortedSelectedNodes);
                 setSizeAsPreferredSize(sortedSelectedNodes);
                 setSpanning(layoutNode);
-            }
+            });
         }
     }
 }
@@ -257,6 +258,10 @@ void LayoutInGridLayout::collectItemNodes()
                 m_qmlItemNodes.append(itemNode);
         }
     }
+
+    if (m_qmlItemNodes.isEmpty())
+        return;
+
     m_parentNode = m_qmlItemNodes.constFirst().instanceParentItem();
 }
 

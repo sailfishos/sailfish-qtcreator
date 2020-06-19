@@ -24,7 +24,6 @@
 #include <QCoreApplication>
 #include <QFile>
 #include <QFileInfo>
-#include <QTextStream>
 #include <QVariant>
 #include <QXmlStreamReader>
 #include <QJsonDocument>
@@ -59,6 +58,7 @@ QStringList readListing(const QString &fileName)
     if (xml.hasError()) {
         qWarning() << "XML error while reading" << fileName << " - "
             << qPrintable(xml.errorString()) << "@ offset" << xml.characterOffset();
+        listing.clear();
     }
 
     return listing;
@@ -69,7 +69,7 @@ QStringList readListing(const QString &fileName)
  * @param extensions extensions string to check
  * @return valid?
  */
-bool checkExtensions(QString extensions)
+bool checkExtensions(const QString &extensions)
 {
     // get list of extensions
     const QStringList extensionParts = extensions.split(QLatin1Char(';'), QString::SkipEmptyParts);
@@ -163,6 +163,7 @@ bool checkSingleChars(const QString &hlFilename, QXmlStreamReader &xml)
         const QString c = xml.attributes().value(QLatin1String("char")).toString();
         if (c.size() != 1) {
             qWarning() << hlFilename << "line" << xml.lineNumber() << "'char' must contain exactly one char:" << c;
+            return false;
         }
     }
 
@@ -170,6 +171,7 @@ bool checkSingleChars(const QString &hlFilename, QXmlStreamReader &xml)
         const QString c = xml.attributes().value(QLatin1String("char1")).toString();
         if (c.size() != 1) {
             qWarning() << hlFilename << "line" << xml.lineNumber() << "'char1' must contain exactly one char:" << c;
+            return false;
         }
     }
 
@@ -194,6 +196,82 @@ bool checkLookAhead(const QString &hlFilename, QXmlStreamReader &xml)
 }
 
 /**
+ * Helper class to search for non-existing keyword include.
+ */
+class KeywordIncludeChecker
+{
+public:
+    void processElement(const QString &hlFilename, const QString &hlName, QXmlStreamReader &xml)
+    {
+         if (xml.name() == QLatin1String("list")) {
+             auto &keywords = m_keywordMap[hlName];
+             keywords.filename = hlFilename;
+             auto name = xml.attributes().value(QLatin1String("name")).toString();
+             m_currentIncludes = &keywords.includes[name];
+         }
+         else if (xml.name() == QLatin1String("include")) {
+             if (!m_currentIncludes) {
+                 qWarning() << hlFilename << "line" << xml.lineNumber() << "<include> tag ouside <list>";
+                 m_success = false;
+             } else {
+                 m_currentIncludes->push_back({xml.lineNumber(), xml.readElementText()});
+             }
+         }
+    }
+
+    bool check() const
+    {
+        bool success = m_success;
+        for (auto &keywords : m_keywordMap) {
+            QMapIterator<QString, QVector<Keywords::Include>> includes(keywords.includes);
+            while (includes.hasNext()) {
+                includes.next();
+                for (auto &include : includes.value()) {
+                    bool containsKeywordName = true;
+                    int const idx = include.name.indexOf(QStringLiteral("##"));
+                    if (idx == -1) {
+                        auto &keywordName = includes.key();
+                        containsKeywordName = keywords.includes.contains(keywordName);
+                    }
+                    else {
+                        auto defName = include.name.mid(idx + 2);
+                        auto listName = include.name.left(idx);
+                        auto it = m_keywordMap.find(defName);
+                        if (it == m_keywordMap.end()) {
+                            qWarning() << keywords.filename << "line" << include.line << "unknown definition in" << include.name;
+                            success = false;
+                        } else {
+                            containsKeywordName = it->includes.contains(listName);
+                        }
+                    }
+
+                    if (!containsKeywordName) {
+                        qWarning() << keywords.filename << "line" << include.line << "unknown keyword name in" << include.name;
+                        success = false;
+                    }
+                }
+            }
+        }
+        return success;
+    }
+
+private:
+    struct Keywords
+    {
+        QString filename;
+        struct Include
+        {
+            qint64 line;
+            QString name;
+        };
+        QMap<QString, QVector<Include>> includes;
+    };
+    QHash<QString, Keywords> m_keywordMap;
+    QVector<Keywords::Include> *m_currentIncludes = nullptr;
+    bool m_success = true;
+};
+
+/**
  * Helper class to search for non-existing or unreferenced keyword lists.
  */
 class KeywordChecker
@@ -209,6 +287,7 @@ public:
             const QString name = xml.attributes().value(QLatin1String("name")).toString();
             if (m_existingNames.contains(name)) {
                 qWarning() << m_filename << "list duplicate:" << name;
+                m_success = false;
             }
             m_existingNames.insert(name);
         } else if (xml.name() == QLatin1String("keyword")) {
@@ -220,7 +299,7 @@ public:
 
     bool check() const
     {
-        bool success = true;
+        bool success = m_success;
         const auto invalidNames = m_usedNames - m_existingNames;
         if (!invalidNames.isEmpty()) {
             qWarning() << m_filename << "Reference of non-existing keyword list:" << invalidNames;
@@ -230,6 +309,7 @@ public:
         const auto unusedNames = m_existingNames - m_usedNames;
         if (!unusedNames.isEmpty()) {
             qWarning() << m_filename << "Unused keyword lists:" << unusedNames;
+            success = false;
         }
 
         return success;
@@ -239,14 +319,27 @@ private:
     QString m_filename;
     QSet<QString> m_usedNames;
     QSet<QString> m_existingNames;
+    bool m_success = true;
 };
 
 /**
- * Helper class to search for non-existing contexts
+ * Helper class to search for non-existing contexts and invalid version
  */
 class ContextChecker
 {
 public:
+    void setKateVersion(const QStringRef &verStr, const QString &hlFilename, const QString &hlName)
+    {
+        const auto idx = verStr.indexOf(QLatin1Char('.'));
+        if (idx <= 0) {
+            qWarning() << hlFilename << "invalid kateversion" << verStr;
+            m_success = false;
+        } else {
+            auto &language = m_contextMap[hlName];
+            language.version = {verStr.left(idx).toInt(), verStr.mid(idx + 1).toInt()};
+        }
+    }
+
     void processElement(const QString &hlFilename, const QString &hlName, QXmlStreamReader &xml)
     {
         if (xml.name() == QLatin1String("context")) {
@@ -260,22 +353,28 @@ public:
 
             if (language.existingContextNames.contains(name)) {
                 qWarning() << hlFilename << "Duplicate context:" << name;
+                m_success = false;
             } else {
                 language.existingContextNames.insert(name);
             }
 
             if (xml.attributes().value(QLatin1String("fallthroughContext")).toString() == QLatin1String("#stay")) {
                 qWarning() << hlFilename << "possible infinite loop due to fallthroughContext=\"#stay\" in context " << name;
+                m_success = false;
             }
 
             processContext(hlName, xml.attributes().value(QLatin1String("lineEndContext")).toString());
             processContext(hlName, xml.attributes().value(QLatin1String("lineEmptyContext")).toString());
             processContext(hlName, xml.attributes().value(QLatin1String("fallthroughContext")).toString());
+        } else if (xml.name() == QLatin1String("include")) {
+            // <include> tag inside <list>
+            processVersion(hlFilename, hlName, xml, {5, 53}, QLatin1String("<include>"));
         } else {
             if (xml.attributes().hasAttribute(QLatin1String("context"))) {
                 const QString context = xml.attributes().value(QLatin1String("context")).toString();
                 if (context.isEmpty()) {
                     qWarning() << hlFilename << "Missing context name in line" << xml.lineNumber();
+                    m_success = false;
                 } else {
                     processContext(hlName, context);
                 }
@@ -285,7 +384,30 @@ public:
 
     bool check() const
     {
-        bool success = true;
+        bool success = m_success;
+
+        // recursive search for the required miximal version
+        struct GetRequiredVersion
+        {
+            QHash<const Language*, Version> versionMap;
+
+            Version operator()(const QHash<QString, Language> &contextMap, const Language &language)
+            {
+                auto& version = versionMap[&language];
+                if (version < language.version) {
+                    version = language.version;
+                    for (auto &languageName : language.usedLanguageName) {
+                        auto it = contextMap.find(languageName);
+                        if (it != contextMap.end()) {
+                            version = std::max(operator()(contextMap, *it), version);
+                        }
+                    }
+                }
+                return version;
+            };
+        };
+        GetRequiredVersion getRequiredVersion;
+
         for (auto &language : m_contextMap) {
             const auto invalidContextNames = language.usedContextNames - language.existingContextNames;
             if (!invalidContextNames.isEmpty()) {
@@ -296,6 +418,13 @@ public:
             const auto unusedNames = language.existingContextNames - language.usedContextNames;
             if (!unusedNames.isEmpty()) {
                 qWarning() << language.hlFilename << "Unused contexts:" << unusedNames;
+                success = false;
+            }
+
+            auto requiredVersion = getRequiredVersion(m_contextMap, language);
+            if (language.version < requiredVersion) {
+                qWarning().nospace() << language.hlFilename << " depends on a language in version " << requiredVersion.majorRevision << "." << requiredVersion.minorRevision << ". Please, increase kateversion.";
+                success = false;
             }
         }
 
@@ -328,6 +457,7 @@ private:
             } else if (list.size() == 2) {
                 // specific context of other language, e.g. Comment##ISO C++
                 m_contextMap[list[1]].usedContextNames.insert(list[0]);
+                m_contextMap[language].usedLanguageName.insert(list[1]);
             }
             return;
         }
@@ -341,6 +471,34 @@ private:
     }
 
 private:
+    struct Version
+    {
+        int majorRevision;
+        int minorRevision;
+
+        Version(int majorRevision = 0, int minorRevision = 0)
+            : majorRevision(majorRevision)
+            , minorRevision(minorRevision)
+        {}
+
+        bool operator<(const Version &version) const
+        {
+            return majorRevision < version.majorRevision || (majorRevision == version.majorRevision && minorRevision < version.minorRevision);
+        }
+    };
+
+    void processVersion(const QString &hlFilename, const QString &hlName, QXmlStreamReader &xml, Version const& requiredVersion, QLatin1String item)
+    {
+        auto &language = m_contextMap[hlName];
+
+        if (language.version < requiredVersion) {
+            qWarning().nospace() << hlFilename << " " << item << " in line " << xml.lineNumber() << " is only available since version " << requiredVersion.majorRevision << "." << requiredVersion.minorRevision << ". Please, increase kateversion.";
+            // update the version to cancel future warnings
+            language.version = requiredVersion;
+            m_success = false;
+        }
+    }
+
     class Language
     {
     public:
@@ -358,6 +516,12 @@ private:
 
         // holds all existing context names
         QSet<QString> existingContextNames;
+
+        // holds all existing language names
+        QSet<QString> usedLanguageName;
+
+        // kateversion language attribute
+        Version version;
     };
 
     /**
@@ -365,6 +529,7 @@ private:
      * Example key: "Doxygen"
      */
     QHash<QString, Language> m_contextMap;
+    bool m_success = true;
 };
 
 /**
@@ -384,6 +549,7 @@ public:
             if (!name.isEmpty()) {
                 if (m_existingAttributeNames.contains(name)) {
                     qWarning() << m_filename << "itemData duplicate:" << name;
+                    m_success = false;
                 } else {
                     m_existingAttributeNames.insert(name);
                 }
@@ -392,6 +558,7 @@ public:
             const QString name = xml.attributes().value(QLatin1String("attribute")).toString();
             if (name.isEmpty()) {
                 qWarning() << m_filename << "specified attribute is empty:" << xml.name();
+                m_success = false;
             } else {
                 m_usedAttributeNames.insert(name);
             }
@@ -400,7 +567,7 @@ public:
 
     bool check() const
     {
-        bool success = true;
+        bool success = m_success;
         const auto invalidNames = m_usedAttributeNames - m_existingAttributeNames;
         if (!invalidNames.isEmpty()) {
             qWarning() << m_filename << "Reference of non-existing itemData attributes:" << invalidNames;
@@ -410,6 +577,7 @@ public:
         auto unusedNames = m_existingAttributeNames - m_usedAttributeNames;
         if (!unusedNames.isEmpty()) {
             qWarning() << m_filename << "Unused itemData:" << unusedNames;
+            success = false;
         }
 
         return success;
@@ -419,6 +587,7 @@ private:
     QString m_filename;
     QSet<QString> m_usedAttributeNames;
     QSet<QString> m_existingAttributeNames;
+    bool m_success = true;
 };
 
 }
@@ -457,9 +626,10 @@ int main(int argc, char *argv[])
 
     // index all given highlightings
     ContextChecker contextChecker;
+    KeywordIncludeChecker keywordIncludeChecker;
     QVariantMap hls;
     int anyError = 0;
-    foreach (const QString &hlFilename, hlFilenames) {
+    for (const QString &hlFilename : qAsConst(hlFilenames)) {
         QFile hlFile(hlFilename);
         if (!hlFile.open(QIODevice::ReadOnly)) {
             qWarning ("Failed to open %s", qPrintable(hlFilename));
@@ -493,7 +663,7 @@ int main(int argc, char *argv[])
         QVariantMap hl;
 
         // transfer text attributes
-        Q_FOREACH (const QString &attribute, textAttributes) {
+        for (const QString &attribute : qAsConst(textAttributes)) {
             hl[attribute] = xml.attributes().value(attribute).toString();
         }
 
@@ -516,7 +686,10 @@ int main(int argc, char *argv[])
 
         AttributeChecker attributeChecker(hlFilename);
         KeywordChecker keywordChecker(hlFilename);
+
         const QString hlName = hl[QStringLiteral("name")].toString();
+
+        contextChecker.setKateVersion(xml.attributes().value(QStringLiteral("kateversion")), hlFilename, hlName);
 
         // scan for broken regex or keywords with spaces
         while (!xml.atEnd()) {
@@ -527,6 +700,9 @@ int main(int argc, char *argv[])
 
             // search for used/existing contexts if applicable
             contextChecker.processElement(hlFilename, hlName, xml);
+
+            // search for existing keyword includes
+            keywordIncludeChecker.processElement(hlFilename, hlName, xml);
 
             // search for used/existing attributes if applicable
             attributeChecker.processElement(xml);
@@ -569,6 +745,9 @@ int main(int argc, char *argv[])
     }
 
     if (!contextChecker.check())
+        anyError = 7;
+
+    if (!keywordIncludeChecker.check())
         anyError = 7;
 
 

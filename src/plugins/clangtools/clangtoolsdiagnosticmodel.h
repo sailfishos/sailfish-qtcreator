@@ -31,6 +31,7 @@
 
 #include <debugger/analyzer/detailederrorview.h>
 #include <utils/fileutils.h>
+#include <utils/optional.h>
 #include <utils/treemodel.h>
 
 #include <QFileSystemWatcher>
@@ -71,8 +72,10 @@ private:
 class DiagnosticItem : public Utils::TreeItem
 {
 public:
-    using OnFixitStatusChanged = std::function<void(FixitStatus newStatus)>;
-    DiagnosticItem(const Diagnostic &diag, const OnFixitStatusChanged &onFixitStatusChanged,
+    using OnFixitStatusChanged
+        = std::function<void(const QModelIndex &index, FixitStatus oldStatus, FixitStatus newStatus)>;
+    DiagnosticItem(const Diagnostic &diag,
+                   const OnFixitStatusChanged &onFixitStatusChanged,
                    ClangToolsDiagnosticModel *parent);
     ~DiagnosticItem() override;
 
@@ -113,21 +116,24 @@ class ClangToolsDiagnosticModel : public ClangToolsDiagnosticModelBase
 public:
     ClangToolsDiagnosticModel(QObject *parent = nullptr);
 
-    void addDiagnostics(const QList<Diagnostic> &diagnostics);
+    void addDiagnostics(const Diagnostics &diagnostics);
     QSet<Diagnostic> diagnostics() const;
 
     enum ItemRole {
         DiagnosticRole = Debugger::DetailedErrorView::FullTextRole + 1,
         TextRole,
-        CheckBoxEnabledRole
+        CheckBoxEnabledRole,
+        DocumentationUrlRole,
     };
+
+    QSet<QString> allChecks() const;
 
     void clear();
     void removeWatchedPath(const QString &path);
     void addWatchedPath(const QString &path);
 
 signals:
-    void fixItsToApplyCountChanged(int count);
+    void fixitStatusChanged(const QModelIndex &index, FixitStatus oldStatus, FixitStatus newStatus);
 
 private:
     void connectFileWatcher();
@@ -140,8 +146,13 @@ private:
     QSet<Diagnostic> m_diagnostics;
     std::map<QVector<ExplainingStep>, QVector<DiagnosticItem *>> stepsToItemsCache;
     std::unique_ptr<QFileSystemWatcher> m_filesWatcher;
-    int m_fixItsToApplyCount = 0;
 };
+
+class FilterOptions {
+public:
+    QSet<QString> checks;
+};
+using OptionalFilterOptions = Utils::optional<FilterOptions>;
 
 class DiagnosticFilterModel : public QSortFilterProxyModel
 {
@@ -154,16 +165,40 @@ public:
     void addSuppressedDiagnostic(const SuppressedDiagnostic &diag);
     ProjectExplorer::Project *project() const { return m_project; }
 
-    void invalidateFilter();
+    OptionalFilterOptions filterOptions() const;
+    void setFilterOptions(const OptionalFilterOptions &filterOptions);
+
+    void onFixitStatusChanged(const QModelIndex &sourceIndex,
+                              FixitStatus oldStatus,
+                              FixitStatus newStatus);
+
+    void reset();
+    int diagnostics() const { return m_diagnostics; }
+    int fixitsScheduable() const { return m_fixitsScheduable; }
+    int fixitsScheduled() const { return m_fixitsScheduled; }
+
+signals:
+    void fixitCountersChanged(int scheduled, int scheduableTotal);
 
 private:
     bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override;
     bool lessThan(const QModelIndex &l, const QModelIndex &r) const override;
+    struct Counters {
+        int diagnostics = 0;
+        int fixits = 0;
+    };
+    Counters countDiagnostics(const QModelIndex &parent, int first, int last) const;
     void handleSuppressedDiagnosticsChanged();
 
     QPointer<ProjectExplorer::Project> m_project;
-    Utils::FileName m_lastProjectDirectory;
+    Utils::FilePath m_lastProjectDirectory;
     SuppressedDiagnosticsList m_suppressedDiagnostics;
+
+    OptionalFilterOptions m_filterOptions;
+
+    int m_diagnostics = 0;
+    int m_fixitsScheduable = 0;
+    int m_fixitsScheduled = 0;
 };
 
 } // namespace Internal

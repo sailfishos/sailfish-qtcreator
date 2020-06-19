@@ -54,22 +54,21 @@ QStringList filterInterfering(const QStringList &provided, QStringList *omitted)
                                                          "--gtest_stream_result_to=",
                                                          "--gtest_break_on_failure",
                                                          "--gtest_throw_on_failure",
-                                                         "--gtest_color=",
                                                          "--gtest_print_time="
                                                          };
 
-    QSet<QString> allowed = Utils::filtered(provided.toSet(), [] (const QString &arg) {
+    QSet<QString> allowed = Utils::filtered(Utils::toSet(provided), [] (const QString &arg) {
         return Utils::allOf(knownInterferingOptions, [&arg] (const QString &interfering) {
             return !arg.startsWith(interfering);
         });
     });
 
     if (omitted) {
-        QSet<QString> providedSet = provided.toSet();
+        QSet<QString> providedSet = Utils::toSet(provided);
         providedSet.subtract(allowed);
-        omitted->append(providedSet.toList());
+        omitted->append(Utils::toList(providedSet));
     }
-    return allowed.toList();
+    return Utils::toList(allowed);
 }
 
 QStringList GTestConfiguration::argumentsForTestRunner(QStringList *omitted) const
@@ -84,7 +83,7 @@ QStringList GTestConfiguration::argumentsForTestRunner(QStringList *omitted) con
     }
 
     const QStringList &testSets = testCases();
-    if (testSets.size())
+    if (!testSets.isEmpty())
         arguments << "--gtest_filter=" + testSets.join(':');
 
     TestFrameworkManager *manager = TestFrameworkManager::instance();
@@ -110,11 +109,13 @@ QStringList GTestConfiguration::argumentsForTestRunner(QStringList *omitted) con
 
 Utils::Environment GTestConfiguration::filteredEnvironment(const Utils::Environment &original) const
 {
-    const QStringList interfering{"GTEST_FILTER", "GTEST_COLOR", "GTEST_ALSO_RUN_DISABLED_TESTS",
+    const QStringList interfering{"GTEST_FILTER", "GTEST_ALSO_RUN_DISABLED_TESTS",
                                   "GTEST_REPEAT", "GTEST_SHUFFLE", "GTEST_RANDOM_SEED",
                                   "GTEST_OUTPUT", "GTEST_BREAK_ON_FAILURE", "GTEST_PRINT_TIME",
                                   "GTEST_CATCH_EXCEPTIONS"};
     Utils::Environment result = original;
+    if (!result.hasKey("GTEST_COLOR"))
+        result.set("GTEST_COLOR", "1");  // use colored output by default
     for (const QString &key : interfering)
         result.unset(key);
     return result;

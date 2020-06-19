@@ -25,11 +25,11 @@
 
 #pragma once
 
-#include "ui_processstep.h"
 #include "abstractprocessstep.h"
+#include "projectconfigurationaspects.h"
+#include "projectexplorer_export.h"
 
 namespace ProjectExplorer {
-namespace Internal {
 
 class ProcessStepFactory : public BuildStepFactory
 {
@@ -37,51 +37,21 @@ public:
     ProcessStepFactory();
 };
 
-class ProcessStep : public AbstractProcessStep
+class PROJECTEXPLORER_EXPORT ProcessStep : public AbstractProcessStep
 {
     Q_OBJECT
     friend class ProcessStepFactory;
 
 public:
-    explicit ProcessStep(BuildStepList *bsl);
-
-    BuildStepConfigWidget *createConfigWidget() override;
-
-    QString command() const;
-    QString arguments() const;
-    QString workingDirectory() const;
-
-    void setCommand(const QString &command);
-    void setArguments(const QString &arguments);
-    void setWorkingDirectory(const QString &workingDirectory);
+    ProcessStep(BuildStepList *bsl, Core::Id id);
 
 private:
     bool init() override;
-    void doRun() override;
-    QVariantMap toMap() const override;
-    bool fromMap(const QVariantMap &map) override;
+    void setupProcessParameters(ProcessParameters *pp);
 
-    QString m_command;
-    QString m_arguments;
-    QString m_workingDirectory;
+    ProjectExplorer::BaseStringAspect *m_command;
+    ProjectExplorer::BaseStringAspect *m_arguments;
+    ProjectExplorer::BaseStringAspect *m_workingDirectory;
 };
 
-class ProcessStepConfigWidget : public BuildStepConfigWidget
-{
-    Q_OBJECT
-public:
-    ProcessStepConfigWidget(ProcessStep *step);
-    virtual QString displayName() const;
-    virtual QString summaryText() const;
-private:
-    void commandLineEditTextEdited();
-    void workingDirectoryLineEditTextEdited();
-    void commandArgumentsLineEditTextEdited();
-    void updateDetails();
-    ProcessStep *m_step;
-    Ui::ProcessStepWidget m_ui;
-    QString m_summaryText;
-};
-
-} // namespace Internal
 } // namespace ProjectExplorer

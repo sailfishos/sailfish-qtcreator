@@ -41,7 +41,7 @@
 
 namespace ClangBackEnd {
 
-template <typename DatabaseType>
+template<typename DatabaseType = Sqlite::Database>
 class SymbolStorage final : public SymbolStorageInterface
 {
     using Database = DatabaseType;
@@ -54,6 +54,7 @@ public:
         , database(database)
     {
         transaction.commit();
+        database.walCheckpointFull();
     }
 
     void addSymbolsAndSourceLocations(const SymbolEntries &symbolEntries,

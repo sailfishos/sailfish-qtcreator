@@ -140,7 +140,7 @@ SourceLocation QmlJS::fullLocationForQualifiedId(AST::UiQualifiedId *qualifiedId
 QString QmlJS::idOfObject(Node *object, UiScriptBinding **idBinding)
 {
     if (idBinding)
-        *idBinding = 0;
+        *idBinding = nullptr;
 
     UiObjectInitializer *initializer = initializerOfObject(object);
     if (!initializer) {
@@ -179,7 +179,7 @@ UiObjectInitializer *QmlJS::initializerOfObject(Node *object)
         return definition->initializer;
     if (UiObjectBinding *binding = cast<UiObjectBinding *>(object))
         return binding->initializer;
-    return 0;
+    return nullptr;
 }
 
 UiQualifiedId *QmlJS::qualifiedTypeNameId(Node *node)
@@ -188,10 +188,10 @@ UiQualifiedId *QmlJS::qualifiedTypeNameId(Node *node)
         return binding->qualifiedTypeNameId;
     else if (UiObjectDefinition *binding = AST::cast<UiObjectDefinition *>(node))
         return binding->qualifiedTypeNameId;
-    return 0;
+    return nullptr;
 }
 
-DiagnosticMessage QmlJS::errorMessage(const AST::SourceLocation &loc, const QString &message)
+DiagnosticMessage QmlJS::errorMessage(const SourceLocation &loc, const QString &message)
 {
     return DiagnosticMessage(Severity::Error, loc, message);
 }

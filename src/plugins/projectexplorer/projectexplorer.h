@@ -45,10 +45,11 @@ class Id;
 
 namespace Utils {
 class ProcessHandle;
-class FileName;
+class FilePath;
 }
 
 namespace ProjectExplorer {
+class BuildPropertiesSettings;
 class RunControl;
 class RunConfiguration;
 class Project;
@@ -56,7 +57,10 @@ class Node;
 class FolderNode;
 class FileNode;
 
-namespace Internal { class ProjectExplorerSettings; }
+namespace Internal {
+class AppOutputSettings;
+class ProjectExplorerSettings;
+}
 
 class PROJECTEXPLORER_EXPORT ProjectExplorerPlugin : public ExtensionSystem::IPlugin
 {
@@ -129,13 +133,20 @@ public:
     static void setProjectExplorerSettings(const Internal::ProjectExplorerSettings &pes);
     static const Internal::ProjectExplorerSettings &projectExplorerSettings();
 
+    static void setAppOutputSettings(const Internal::AppOutputSettings &settings);
+    static const Internal::AppOutputSettings &appOutputSettings();
+
+    static void setBuildPropertiesSettings(const BuildPropertiesSettings &settings);
+    static const BuildPropertiesSettings &buildPropertiesSettings();
+    static void showQtSettings();
+
     static void startRunControl(RunControl *runControl);
-    static void showRunErrorMessage(const QString &errorMessage);
+    static void showOutputPaneForRunControl(RunControl *runControl);
 
     // internal public for FlatModel
     static void renameFile(Node *node, const QString &newFilePath);
     static QStringList projectFilePatterns();
-    static bool isProjectFile(const Utils::FileName &filePath);
+    static bool isProjectFile(const Utils::FilePath &filePath);
     static QList<QPair<QString, QString> > recentProjects();
 
     static bool canRunStartupProject(Core::Id runMode, QString *whyNot = nullptr);
@@ -144,28 +155,32 @@ public:
     static void runRunConfiguration(RunConfiguration *rc, Core::Id runMode,
                              const bool forceSkipDeploy = false);
     static QList<QPair<Runnable, Utils::ProcessHandle>> runningRunControlProcesses();
+    static QList<RunControl *> allRunControls();
 
     static void addExistingFiles(FolderNode *folderNode, const QStringList &filePaths);
-
-    static void buildProject(Project *p);
 
     static void initiateInlineRenaming();
 
     static QString displayNameForStepId(Core::Id stepId);
 
-    static QString directoryFor(Node *node);
     static QStringList projectFileGlobs();
-
-    static void updateContextMenuActions();
 
     static QThreadPool *sharedThreadPool();
 
+    static void showSessionManager();
     static void openNewProjectDialog();
     static void openOpenProjectDialog();
 
     static QString buildDirectoryTemplate();
-    static void setBuildDirectoryTemplate(const QString &dir);
     static QString defaultBuildDirectoryTemplate();
+
+    static void updateActions();
+
+    static void activateProjectPanel(Core::Id panelId);
+    static void clearRecentProjects();
+    static void removeFromRecentProjects(const QString &fileName, const QString &displayName);
+
+    static void updateRunActions();
 
 signals:
     void finishedInitialization();
@@ -174,16 +189,15 @@ signals:
     // or the file list of a specific project has changed.
     void fileListChanged();
 
-    void aboutToExecuteProject(ProjectExplorer::RunControl *runControl);
     void recentProjectsChanged();
 
     void settingsChanged();
 
-    void updateRunActions();
-    void updateDeployRunActions();
+    void runActionsUpdated();
 
 private:
     static bool coreAboutToClose();
+    void handleCommandLineArguments(const QStringList &arguments);
 
 #ifdef WITH_TESTS
 private slots:
@@ -240,6 +254,7 @@ private slots:
 
     void testToolChainMerging_data();
     void testToolChainMerging();
+    void deleteTestToolchains();
 
     void testUserFileAccessor_prepareToReadSettings();
     void testUserFileAccessor_prepareToReadSettingsObsoleteVersion();
@@ -254,6 +269,8 @@ private slots:
     void testProject_parsingSuccess();
     void testProject_parsingFail();
     void testProject_projectTree();
+
+    void testSessionSwitch();
 #endif // WITH_TESTS
 };
 

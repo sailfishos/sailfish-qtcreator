@@ -29,14 +29,17 @@
 #include "androidconstants.h"
 #include "androidmanager.h"
 #include "androidrunconfiguration.h"
-#include "androidgdbserverkitinformation.h"
 
 #include <debugger/debuggerrunconfigurationaspect.h>
+
 #include <projectexplorer/environmentaspect.h>
 #include <projectexplorer/runconfigurationaspects.h>
+#include <projectexplorer/runcontrol.h>
 #include <projectexplorer/target.h>
+
 #include <qtsupport/baseqtversion.h>
 #include <qtsupport/qtkitinformation.h>
+
 #include <utils/hostosinfo.h>
 #include <utils/runextensions.h>
 #include <utils/synchronousprocess.h>
@@ -52,19 +55,19 @@
 #include <chrono>
 
 namespace {
-Q_LOGGING_CATEGORY(androidRunWorkerLog, "qtc.android.run.androidrunnerworker", QtWarningMsg)
+static Q_LOGGING_CATEGORY(androidRunWorkerLog, "qtc.android.run.androidrunnerworker", QtWarningMsg)
 static const int GdbTempFileMaxCounter = 20;
 }
 
 using namespace std;
 using namespace std::placeholders;
 using namespace ProjectExplorer;
+using namespace Utils;
 
 namespace Android {
 namespace Internal {
 
-
-static const QString pidScript = "pidof -s \"%1\"";
+static const QString pidScript = "pidof -s '%1'";
 static const QString pidScriptPreNougat = QStringLiteral("for p in /proc/[0-9]*; "
                                                 "do cat <$p/cmdline && echo :${p##*/}; done");
 static const QString pidPollingScript = QStringLiteral("while [ -d /proc/%1 ]; do sleep 1; done");
@@ -123,10 +126,10 @@ static void findProcessPID(QFutureInterface<qint64> &fi, QStringList selector,
     chrono::high_resolution_clock::time_point start = chrono::high_resolution_clock::now();
     do {
         QThread::msleep(200);
-        QString adbPath = AndroidConfigurations::currentConfig().adbToolPath().toString();
+        FilePath adbPath = AndroidConfigurations::currentConfig().adbToolPath();
         selector.append("shell");
         selector.append(preNougat ? pidScriptPreNougat : pidScript.arg(packageName));
-        const auto out = Utils::SynchronousProcess().runBlocking(adbPath, selector).allRawOutput();
+        const auto out = SynchronousProcess().runBlocking({adbPath, selector}).allRawOutput();
         if (preNougat) {
             processPID = extractPID(out, packageName);
         } else {
@@ -162,9 +165,9 @@ AndroidRunnerWorker::AndroidRunnerWorker(RunWorker *runner, const QString &packa
     , m_jdbProcess(nullptr, deleter)
 
 {
-    auto runConfig = runner->runControl()->runConfiguration();
-    auto aspect = runConfig->aspect<Debugger::DebuggerRunConfigurationAspect>();
-    Core::Id runMode = runner->runMode();
+    auto runControl = runner->runControl();
+    auto aspect = runControl->aspect<Debugger::DebuggerRunConfigurationAspect>();
+    Core::Id runMode = runControl->runMode();
     const bool debuggingMode = runMode == ProjectExplorer::Constants::DEBUG_RUN_MODE;
     m_useCppDebugger = debuggingMode && aspect->useCppDebugger();
     if (debuggingMode && aspect->useQmlDebugger())
@@ -190,27 +193,27 @@ AndroidRunnerWorker::AndroidRunnerWorker(RunWorker *runner, const QString &packa
     m_localJdbServerPort = Utils::Port(5038);
     QTC_CHECK(m_localJdbServerPort.isValid());
 
-    auto target = runConfig->target();
+    auto target = runControl->target();
     m_deviceSerialNumber = AndroidManager::deviceSerialNumber(target);
     m_apiLevel = AndroidManager::deviceApiLevel(target);
 
-    m_extraEnvVars = runConfig->aspect<EnvironmentAspect>()->environment();
+    m_extraEnvVars = runControl->aspect<EnvironmentAspect>()->environment();
     qCDebug(androidRunWorkerLog) << "Environment variables for the app"
                                  << m_extraEnvVars.toStringList();
 
-    m_extraAppParams = runConfig->runnable().commandLineArguments;
+    m_extraAppParams = runControl->runnable().commandLineArguments;
 
-    if (auto aspect = runConfig->aspect(Constants::ANDROID_AMSTARTARGS))
+    if (auto aspect = runControl->aspect(Constants::ANDROID_AMSTARTARGS))
         m_amStartExtraArgs = static_cast<BaseStringAspect *>(aspect)->value().split(' ');
 
-    if (auto aspect = runConfig->aspect(Constants::ANDROID_PRESTARTSHELLCMDLIST)) {
+    if (auto aspect = runControl->aspect(Constants::ANDROID_PRESTARTSHELLCMDLIST)) {
         for (const QString &shellCmd : static_cast<BaseStringListAspect *>(aspect)->value())
             m_beforeStartAdbCommands.append(QString("shell %1").arg(shellCmd));
     }
     for (const QString &shellCmd : runner->recordedData(Constants::ANDROID_PRESTARTSHELLCMDLIST).toStringList())
         m_beforeStartAdbCommands.append(QString("shell %1").arg(shellCmd));
 
-    if (auto aspect = runConfig->aspect(Constants::ANDROID_POSTFINISHSHELLCMDLIST)) {
+    if (auto aspect = runControl->aspect(Constants::ANDROID_POSTFINISHSHELLCMDLIST)) {
         for (const QString &shellCmd : static_cast<BaseStringListAspect *>(aspect)->value())
             m_afterFinishAdbCommands.append(QString("shell %1").arg(shellCmd));
     }
@@ -222,8 +225,11 @@ AndroidRunnerWorker::AndroidRunnerWorker(RunWorker *runner, const QString &packa
                                  << "Extra Start Args:" << m_amStartExtraArgs
                                  << "Before Start ADB cmds:" << m_beforeStartAdbCommands
                                  << "After finish ADB cmds:" << m_afterFinishAdbCommands;
-    m_gdbserverPath = AndroidGdbServerKitInformation::gdbServer(target->kit()).toString();
-    QtSupport::BaseQtVersion *version = QtSupport::QtKitInformation::qtVersion(target->kit());
+    QtSupport::BaseQtVersion *version = QtSupport::QtKitAspect::qtVersion(target->kit());
+    QString preferredAbi = AndroidManager::apkDevicePreferredAbi(target);
+    if (!preferredAbi.isEmpty())
+        m_gdbserverPath = AndroidConfigurations::instance()
+                              ->currentConfig().gdbServer(preferredAbi, version).toString();
     m_useAppParamsForQmlDebugger = version->qtVersion() >= QtSupport::QtVersionNumber(5, 12);
 }
 
@@ -285,8 +291,8 @@ bool AndroidRunnerWorker::uploadGdbServer()
         qCDebug(androidRunWorkerLog) << "Gdbserver copy from temp directory failed";
         return false;
     }
-    QTC_ASSERT(runAdb({"shell", "run-as", m_packageName, "chmod", "+x", "./gdbserver"}),
-                   qCDebug(androidRunWorkerLog) << "Gdbserver chmod +x failed.");
+    QTC_ASSERT(runAdb({"shell", "run-as", m_packageName, "chmod", "777", "./gdbserver"}),
+                   qCDebug(androidRunWorkerLog) << "Gdbserver chmod 777 failed.");
     return true;
 }
 
@@ -585,16 +591,13 @@ void AndroidRunnerWorker::handleJdbWaiting()
     }
     m_afterFinishAdbCommands.push_back(removeForward.join(' '));
 
-    auto jdbPath = AndroidConfigurations::currentConfig().openJDKLocation().appendPath("bin");
-    if (Utils::HostOsInfo::isWindowsHost())
-        jdbPath.appendPath("jdb.exe");
-    else
-        jdbPath.appendPath("jdb");
+    auto jdbPath = AndroidConfigurations::currentConfig().openJDKLocation().pathAppended("bin");
+    jdbPath = jdbPath.pathAppended(Utils::HostOsInfo::withExecutableSuffix("jdb"));
 
     QStringList jdbArgs("-connect");
     jdbArgs << QString("com.sun.jdi.SocketAttach:hostname=localhost,port=%1")
                .arg(m_localJdbServerPort.toString());
-    qCDebug(androidRunWorkerLog) << "Starting JDB:" << jdbPath << jdbArgs.join(' ');
+    qCDebug(androidRunWorkerLog) << "Starting JDB:" << CommandLine(jdbPath, jdbArgs).toUserOutput();
     std::unique_ptr<QProcess, Deleter> jdbProcess(new QProcess, &deleter);
     jdbProcess->setProcessChannelMode(QProcess::MergedChannels);
     jdbProcess->start(jdbPath.toString(), jdbArgs);
@@ -672,7 +675,7 @@ void AndroidRunnerWorker::onProcessIdChanged(qint64 pid)
         QTC_ASSERT(m_psIsAlive, return);
         m_psIsAlive->setObjectName("IsAliveProcess");
         m_psIsAlive->setProcessChannelMode(QProcess::MergedChannels);
-        connect(m_psIsAlive.get(), static_cast<void(QProcess::*)(int)>(&QProcess::finished),
+        connect(m_psIsAlive.get(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, bind(&AndroidRunnerWorker::onProcessIdChanged, this, -1));
     }
 }

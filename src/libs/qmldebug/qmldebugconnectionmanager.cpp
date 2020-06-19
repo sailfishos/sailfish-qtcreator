@@ -130,6 +130,7 @@ void QmlDebugConnectionManager::startLocalServer()
 
         if (!m_connection || ++(m_numRetries) >= m_maximumRetries) {
             stopConnectionTimer();
+            destroyConnection();
             emit connectionFailed();
         }
     });
@@ -145,10 +146,10 @@ void QmlDebugConnectionManager::startLocalServer()
 
 void QmlDebugConnectionManager::retryConnect()
 {
+    destroyConnection();
     if (m_server.scheme() == Utils::urlSocketScheme()) {
         startLocalServer();
     } else if (m_server.scheme() == Utils::urlTcpScheme()) {
-        destroyConnection();
         connectToTcpServer();
     } else {
         emit connectionFailed();
@@ -157,7 +158,7 @@ void QmlDebugConnectionManager::retryConnect()
 
 void QmlDebugConnectionManager::logState(const QString &message)
 {
-    Q_UNUSED(message);
+    Q_UNUSED(message)
 }
 
 QmlDebugConnection *QmlDebugConnectionManager::connection() const

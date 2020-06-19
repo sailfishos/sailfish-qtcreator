@@ -29,6 +29,7 @@
 
 #include <coreplugin/ioutputpane.h>
 
+#include <utils/ansiescapecodehandler.h>
 #include <utils/itemviews.h>
 
 QT_BEGIN_NAMESPACE
@@ -48,11 +49,14 @@ class IContext;
 }
 
 namespace Autotest {
+
+enum class OutputChannel;
+class TestResult;
+
 namespace Internal {
 
 class TestResultModel;
 class TestResultFilterModel;
-class TestResult;
 class TestEditorMark;
 
 class ResultsTreeView : public Utils::TreeView
@@ -92,7 +96,7 @@ public:
     void goToPrev() override;
 
     void addTestResult(const TestResultPtr &result);
-    void addOutput(const QByteArray &outputWithNewLine);
+    void addOutputLine(const QByteArray &outputLine, OutputChannel channel);
     void showTestResult(const QModelIndex &index);
 
 private:
@@ -142,6 +146,9 @@ private:
     bool m_atEnd = false;
     bool m_testRunning = false;
     QVector<TestEditorMark *> m_marks;
+    QTextCharFormat m_defaultFormat;
+    Utils::AnsiEscapeCodeHandler m_stdErrHandler;
+    Utils::AnsiEscapeCodeHandler m_stdOutHandler;
 };
 
 } // namespace Internal

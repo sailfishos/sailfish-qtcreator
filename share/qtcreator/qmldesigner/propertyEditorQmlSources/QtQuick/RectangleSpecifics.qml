@@ -40,7 +40,7 @@ Column {
         ColorEditor {
             caption: qsTr("Color")
             backendValue: backendValues.color
-            supportGradient: true
+            supportGradient: backendValues.gradient.isAvailable
         }
 
 
@@ -50,6 +50,7 @@ Column {
         anchors.left: parent.left
         anchors.right: parent.right
         caption: qsTr("Border Color")
+        visible: backendValues.border_color.isAvailable
 
         ColorEditor {
             caption: qsTr("Border Color")
@@ -63,6 +64,7 @@ Column {
         anchors.left: parent.left
         anchors.right: parent.right
         caption: "Rectangle"
+        visible: backendValues.border_color.isAvailable
 
         SectionLayout {
             rows: 2
@@ -73,7 +75,7 @@ Column {
                 SpinBox {
                     backendValue: backendValues.border_width
                     hasSlider: true
-                    Layout.preferredWidth: 80
+                    Layout.preferredWidth: 120
                 }
                 ExpandingSpacer {
 
@@ -86,7 +88,7 @@ Column {
                 SpinBox {
                     backendValue: backendValues.radius
                     hasSlider: true
-                    Layout.preferredWidth: 80
+                    Layout.preferredWidth: 120
                     minimumValue: 0
                     maximumValue: Math.min(backendValues.height.value, backendValues.width.value) / 2
                 }

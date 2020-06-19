@@ -25,21 +25,29 @@
 
 #pragma once
 
-#include "qbsnodes.h"
+#include <QtGlobal>
 
-#include <qbs.h>
+#include <memory>
+
+QT_BEGIN_NAMESPACE
+class QJsonObject;
+class QString;
+QT_END_NAMESPACE
+
+namespace Utils { class FilePath; }
 
 namespace QbsProjectManager {
 namespace Internal {
 
-// ----------------------------------------------------------------------
-// QbsNodeTreeBuilder:
-// ----------------------------------------------------------------------
+class QbsProjectNode;
 
 class QbsNodeTreeBuilder
 {
 public:
-    static std::unique_ptr<QbsRootProjectNode> buildTree(QbsProject *project);
+    static QbsProjectNode *buildTree(const QString &projectName,
+                                     const Utils::FilePath &projectFile,
+                                     const Utils::FilePath &projectDir,
+                                     const QJsonObject &projectData);
 };
 
 } // namespace Internal

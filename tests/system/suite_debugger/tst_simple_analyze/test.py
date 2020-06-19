@@ -62,14 +62,13 @@ def performTest(workingDir, projectName, availableConfigs):
         return float(re.search("Elapsed:\s+(-?\d+\.\d+) s", elapsedTimeLabelText).group(1))
 
     for kit, config in availableConfigs:
-        # switching from MSVC to MinGW build will fail on the clean step of 'Rebuild All' because
-        # of differences between MSVC's and MinGW's Makefile (so clean before switching kits)
+        # switching from MSVC to MinGW build will fail on the clean step of 'Rebuild All Projects'
+        # because of differences between MSVC's and MinGW's Makefile (so clean before changing kit)
         invokeMenuItem('Build', 'Clean Project "%s"' % projectName)
         verifyBuildConfig(kit, config, True, True, True)
-        qtVersion = "5.6.1" if kit == Targets.DESKTOP_5_6_1_DEFAULT else "5.10.1"
-        test.log("Selected kit using Qt %s" % qtVersion)
+        test.log("Selected kit '%s'" % Targets.getStringForTarget(kit))
         # explicitly build before start debugging for adding the executable as allowed program to WinFW
-        invokeMenuItem("Build", "Rebuild All")
+        invokeMenuItem("Build", "Rebuild All Projects")
         waitForCompile()
         if not checkCompile():
             test.fatal("Compile had errors... Skipping current build config")
@@ -100,7 +99,7 @@ def performTest(workingDir, projectName, availableConfigs):
              colMean, colMedian, colLongest, colShortest) = range(2, 11)
             model = waitForObject(":Events.QmlProfilerEventsTable_QmlProfiler::"
                                   "Internal::QmlProfilerStatisticsMainView").model()
-            compareEventsTab(model, "events_qt%s.tsv" % qtVersion)
+            compareEventsTab(model, "events_qt5.10.1.tsv")
             test.compare(dumpItems(model, column=colPercent)[0], '100 %')
             # cannot run following test on colShortest (unstable)
             for i in [colMean, colMedian, colLongest]:

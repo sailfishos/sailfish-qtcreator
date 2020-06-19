@@ -34,16 +34,14 @@
 namespace ClangTools {
 namespace Internal {
 
+static const char SETTINGS_KEY_MAIN[] = "ClangTools";
+static const char SETTINGS_PREFIX[] = "ClangTools.";
 static const char SETTINGS_KEY_USE_GLOBAL_SETTINGS[] = "ClangTools.UseGlobalSettings";
-static const char SETTINGS_KEY_DIAGNOSTIC_CONFIG[] = "ClangTools.DiagnosticConfig";
-static const char SETTINGS_KEY_BUILD_BEFORE_ANALYSIS[] = "ClangTools.BuildBeforeAnalysis";
 static const char SETTINGS_KEY_SELECTED_DIRS[] = "ClangTools.SelectedDirs";
 static const char SETTINGS_KEY_SELECTED_FILES[] = "ClangTools.SelectedFiles";
 static const char SETTINGS_KEY_SUPPRESSED_DIAGS[] = "ClangTools.SuppressedDiagnostics";
 static const char SETTINGS_KEY_SUPPRESSED_DIAGS_FILEPATH[] = "ClangTools.SuppressedDiagnosticFilePath";
 static const char SETTINGS_KEY_SUPPRESSED_DIAGS_MESSAGE[] = "ClangTools.SuppressedDiagnosticMessage";
-static const char SETTINGS_KEY_SUPPRESSED_DIAGS_CONTEXTKIND[] = "ClangTools.SuppressedDiagnosticContextKind";
-static const char SETTINGS_KEY_SUPPRESSED_DIAGS_CONTEXT[] = "ClangTools.SuppressedDiagnosticContext";
 static const char SETTINGS_KEY_SUPPRESSED_DIAGS_UNIQIFIER[] = "ClangTools.SuppressedDiagnosticUniquifier";
 
 ClangToolsProjectSettings::ClangToolsProjectSettings(ProjectExplorer::Project *project)
@@ -81,23 +79,53 @@ void ClangToolsProjectSettings::removeAllSuppressedDiagnostics()
     emit suppressedDiagnosticsChanged();
 }
 
+static QVariantMap convertToMapFromVersionBefore410(ProjectExplorer::Project *p)
+{
+    // These keys haven't changed.
+    const QStringList keys = {
+        SETTINGS_KEY_SELECTED_DIRS,
+        SETTINGS_KEY_SELECTED_FILES,
+        SETTINGS_KEY_SUPPRESSED_DIAGS,
+        SETTINGS_KEY_USE_GLOBAL_SETTINGS,
+        "ClangTools.BuildBeforeAnalysis",
+    };
+
+    QVariantMap map;
+    for (const QString &key : keys)
+        map.insert(key, p->namedSettings(key));
+
+    map.insert(SETTINGS_PREFIX + QString(diagnosticConfigIdKey),
+               p->namedSettings("ClangTools.DiagnosticConfig"));
+
+    return map;
+}
+
 void ClangToolsProjectSettings::load()
 {
-    const QVariant useGlobalVariant =  m_project->namedSettings(SETTINGS_KEY_USE_GLOBAL_SETTINGS);
-    m_useGlobalSettings = useGlobalVariant.isValid() ? useGlobalVariant.toBool() : true;
-    m_diagnosticConfig = Core::Id::fromSetting(
-        m_project->namedSettings(SETTINGS_KEY_DIAGNOSTIC_CONFIG));
-    m_buildBeforeAnalysis = m_project->namedSettings(SETTINGS_KEY_BUILD_BEFORE_ANALYSIS).toBool();
+    // Load map
+    QVariantMap map = m_project->namedSettings(SETTINGS_KEY_MAIN).toMap();
 
-    auto toFileName = [](const QString &s) { return Utils::FileName::fromString(s); };
+    bool write = false;
+    if (map.isEmpty()) {
+        if (!m_project->namedSettings(SETTINGS_KEY_SELECTED_DIRS).isNull()) {
+            map = convertToMapFromVersionBefore410(m_project);
+            write = true;
+        } else {
+            return; // Use defaults
+        }
+    }
 
-    const QStringList dirs = m_project->namedSettings(SETTINGS_KEY_SELECTED_DIRS).toStringList();
+    // Read map
+    m_useGlobalSettings = map.value(SETTINGS_KEY_USE_GLOBAL_SETTINGS).toBool();
+
+    auto toFileName = [](const QString &s) { return Utils::FilePath::fromString(s); };
+    const QStringList dirs = map.value(SETTINGS_KEY_SELECTED_DIRS).toStringList();
     m_selectedDirs = Utils::transform<QSet>(dirs, toFileName);
 
-    const QStringList files = m_project->namedSettings(SETTINGS_KEY_SELECTED_FILES).toStringList();
+    const QStringList files = map.value(SETTINGS_KEY_SELECTED_FILES).toStringList();
     m_selectedFiles = Utils::transform<QSet>(files, toFileName);
 
-    const QVariantList list = m_project->namedSettings(SETTINGS_KEY_SUPPRESSED_DIAGS).toList();
+    const QVariantList list = map.value(SETTINGS_KEY_SUPPRESSED_DIAGS).toList();
     foreach (const QVariant &v, list) {
         const QVariantMap diag = v.toMap();
         const QString fp = diag.value(SETTINGS_KEY_SUPPRESSED_DIAGS_FILEPATH).toString();
@@ -106,105 +134,66 @@ void ClangToolsProjectSettings::load()
         const QString message = diag.value(SETTINGS_KEY_SUPPRESSED_DIAGS_MESSAGE).toString();
         if (message.isEmpty())
             continue;
-        Utils::FileName fullPath = Utils::FileName::fromString(fp);
-        if (fullPath.toFileInfo().isRelative()) {
-            fullPath = m_project->projectDirectory();
-            fullPath.appendPath(fp);
-        }
+        Utils::FilePath fullPath = Utils::FilePath::fromString(fp);
+        if (fullPath.toFileInfo().isRelative())
+            fullPath = m_project->projectDirectory().pathAppended(fp);
         if (!fullPath.exists())
             continue;
-        const QString contextKind = diag.value(SETTINGS_KEY_SUPPRESSED_DIAGS_CONTEXTKIND).toString();
-        const QString context = diag.value(SETTINGS_KEY_SUPPRESSED_DIAGS_CONTEXT).toString();
         const int uniquifier = diag.value(SETTINGS_KEY_SUPPRESSED_DIAGS_UNIQIFIER).toInt();
-        m_suppressedDiagnostics << SuppressedDiagnostic(Utils::FileName::fromString(fp), message,
-                                                        contextKind, context, uniquifier);
+        m_suppressedDiagnostics << SuppressedDiagnostic(Utils::FilePath::fromString(fp),
+                                                        message,
+                                                        uniquifier);
     }
     emit suppressedDiagnosticsChanged();
+
+    m_runSettings.fromMap(map, SETTINGS_PREFIX);
+
+    if (write)
+        store(); // Store new settings format
 }
 
 void ClangToolsProjectSettings::store()
 {
-    m_project->setNamedSettings(SETTINGS_KEY_USE_GLOBAL_SETTINGS, m_useGlobalSettings);
-    m_project->setNamedSettings(SETTINGS_KEY_DIAGNOSTIC_CONFIG, m_diagnosticConfig.toSetting());
-    m_project->setNamedSettings(SETTINGS_KEY_BUILD_BEFORE_ANALYSIS, m_buildBeforeAnalysis);
+    QVariantMap map;
+    map.insert(SETTINGS_KEY_USE_GLOBAL_SETTINGS, m_useGlobalSettings);
 
-    const QStringList dirs = Utils::transform(m_selectedDirs.toList(), &Utils::FileName::toString);
-    m_project->setNamedSettings(SETTINGS_KEY_SELECTED_DIRS, dirs);
+    const QStringList dirs = Utils::transform<QList>(m_selectedDirs, &Utils::FilePath::toString);
+    map.insert(SETTINGS_KEY_SELECTED_DIRS, dirs);
 
-    const QStringList files = Utils::transform(m_selectedFiles.toList(), &Utils::FileName::toString);
-    m_project->setNamedSettings(SETTINGS_KEY_SELECTED_FILES, files);
+    const QStringList files = Utils::transform<QList>(m_selectedFiles, &Utils::FilePath::toString);
+    map.insert(SETTINGS_KEY_SELECTED_FILES, files);
 
     QVariantList list;
-    foreach (const SuppressedDiagnostic &diag, m_suppressedDiagnostics) {
+    for (const SuppressedDiagnostic &diag : m_suppressedDiagnostics) {
         QVariantMap diagMap;
         diagMap.insert(SETTINGS_KEY_SUPPRESSED_DIAGS_FILEPATH, diag.filePath.toString());
         diagMap.insert(SETTINGS_KEY_SUPPRESSED_DIAGS_MESSAGE, diag.description);
-        diagMap.insert(SETTINGS_KEY_SUPPRESSED_DIAGS_CONTEXTKIND, diag.contextKind);
-        diagMap.insert(SETTINGS_KEY_SUPPRESSED_DIAGS_CONTEXT, diag.context);
         diagMap.insert(SETTINGS_KEY_SUPPRESSED_DIAGS_UNIQIFIER, diag.uniquifier);
         list << diagMap;
     }
-    m_project->setNamedSettings(SETTINGS_KEY_SUPPRESSED_DIAGS, list);
+    map.insert(SETTINGS_KEY_SUPPRESSED_DIAGS, list);
+
+    m_runSettings.toMap(map, SETTINGS_PREFIX);
+
+    m_project->setNamedSettings(SETTINGS_KEY_MAIN, map);
 }
 
-bool ClangToolsProjectSettings::useGlobalSettings() const
+ClangToolsProjectSettings::ClangToolsProjectSettingsPtr
+    ClangToolsProjectSettings::getSettings(ProjectExplorer::Project *project)
 {
-    return m_useGlobalSettings;
+    const QString key = "ClangToolsProjectSettings";
+    QVariant v = project->extraData(key);
+    if (v.isNull()) {
+        v = QVariant::fromValue(
+                     ClangToolsProjectSettingsPtr{new ClangToolsProjectSettings(project)});
+        project->setExtraData(key, v);
+    }
+    return v.value<QSharedPointer<ClangToolsProjectSettings>>();
 }
-
-void ClangToolsProjectSettings::setUseGlobalSettings(bool useGlobalSettings)
-{
-    m_useGlobalSettings = useGlobalSettings;
-}
-
-Core::Id ClangToolsProjectSettings::diagnosticConfig() const
-{
-    return m_diagnosticConfig;
-}
-
-void ClangToolsProjectSettings::setDiagnosticConfig(const Core::Id &diagnosticConfig)
-{
-    m_diagnosticConfig = diagnosticConfig;
-}
-
-bool ClangToolsProjectSettings::buildBeforeAnalysis() const
-{
-    return m_buildBeforeAnalysis;
-}
-
-void ClangToolsProjectSettings::setBuildBeforeAnalysis(bool build)
-{
-    m_buildBeforeAnalysis = build;
-}
-
-ClangToolsProjectSettingsManager::ClangToolsProjectSettingsManager()
-{
-    QObject::connect(ProjectExplorer::SessionManager::instance(),
-                     &ProjectExplorer::SessionManager::aboutToRemoveProject,
-                     &ClangToolsProjectSettingsManager::handleProjectToBeRemoved);
-}
-
-ClangToolsProjectSettings *ClangToolsProjectSettingsManager::getSettings(
-    ProjectExplorer::Project *project)
-{
-    auto &settings = m_settings[project];
-    if (!settings)
-        settings.reset(new ClangToolsProjectSettings(project));
-    return settings.data();
-}
-
-void ClangToolsProjectSettingsManager::handleProjectToBeRemoved(ProjectExplorer::Project *project)
-{
-    m_settings.remove(project);
-}
-
-ClangToolsProjectSettingsManager::SettingsMap ClangToolsProjectSettingsManager::m_settings;
 
 SuppressedDiagnostic::SuppressedDiagnostic(const Diagnostic &diag)
-    : filePath(Utils::FileName::fromString(diag.location.filePath))
+    : filePath(Utils::FilePath::fromString(diag.location.filePath))
     , description(diag.description)
-    , contextKind(diag.issueContextKind)
-    , context(diag.issueContext)
     , uniquifier(diag.explainingSteps.count())
 {
 }

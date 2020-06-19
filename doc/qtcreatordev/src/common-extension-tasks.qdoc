@@ -1,0 +1,129 @@
+/****************************************************************************
+**
+** Copyright (C) 2020 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+/*!
+    \page common_extension_tasks.html
+    \title Common Extension Tasks
+
+    This section summarizes the API functions that you can use to add UI
+    components to \QC.
+
+    \table
+        \header
+            \li Task
+            \li Details
+            \li API
+
+        \row
+            \li Add a menu or menu item.
+            \li You can extend existing menus or create new ones.
+            \li \l{Core::ActionManager}, \l{Core::Command}
+
+        \row
+            \li Add a configurable keyboard shortcut.
+            \li Registering shortcuts makes it possible for users to configure
+                them in the common shortcut settings dialog.
+            \li \l{Core::ActionManager}, \l{Core::Command}
+
+        \row
+            \li Add a mode.
+            \li Modes correspond to complete screens of controls, specialized
+                for a task.
+            \li \l{Core::IMode}
+
+        \row
+            \li Add a new editor type.
+            \li Such as an editor for XML files.
+            \li \l{Core::IEditorFactory}, \l{Core::IEditor}, \l{Core::IDocument}
+
+        \row
+            \li Add a new wizard.
+            \li You can extend the wizards in \uicontrol File >
+                \uicontrol {New File or Project} with your own file
+                and project templates. We recommend that you create
+                JSON-based wizards instead of implementing new
+                wizards in C++ code.
+            \li \l{https://doc.qt.io/qtcreator/creator-project-wizards.html}
+                {Adding New Custom Wizards}
+
+                \l{Core::IWizardFactory}, \l{Core::BaseFileWizardFactory},
+                \l{Core::BaseFileWizard}, \l{Core::WizardDialogParameters}
+        \row
+            \li Add support for a new version control system.
+            \li Version control systems integrated in \QC are Bazaar, CVS, Git,
+                Mecurial, Perforce, and Subversion.
+            \li \l{Core::IVersionControl}
+
+        \row
+            \li Add a view to the navigation sidebar.
+            \li The one which shows the project tree, filesystem, open documents
+                or bookmarks.
+            \li \l{Core::INavigationWidgetFactory}
+
+        \row
+            \li Add an options page to the \uicontrol Options dialog.
+            \li Add a new page to existing or new category in
+                \uicontrol Tools > \uicontrol Options.
+            \li \l{Core::IOptionsPage}
+
+        \row
+            \li Add a find filter to the \uicontrol Find dialog.
+            \li Implement any kind of search term based search.
+            \li \l{Core::IFindFilter}, \l{Core::SearchResultWindow}
+
+        \row
+            \li Add support for the find tool bar to a widget.
+            \li The widget that has focus is asked whether it supports text
+                search. You can add support for widgets under your control.
+            \li \l{Core::IFindSupport}, \l{Core::BaseTextFind}
+
+        \omit
+        \row
+            \li Add a completely new project type.
+            \li
+            \li
+
+        \row
+            \li Add a new type of build step.
+            \li
+            \li
+        \endomit
+
+        \row
+            \li Add a new filter to the locator.
+            \li For a text typed in by the user you provide a list of things to
+                show in the popup. When the user selects an entry you are
+                requested to do whatever you want.
+            \li \l{Core::ILocatorFilter}, \l{Core::BaseFileFilter}
+
+        \row
+            \li Show a progress indicator for a concurrently running task.
+            \li You can show a progress indicator for your tasks in the left
+                hand tool bar, and also in the application icon (on platforms
+                that support it).
+            \li \l{Core::ProgressManager}, \l{Core::FutureProgress}
+
+    \endtable
+*/

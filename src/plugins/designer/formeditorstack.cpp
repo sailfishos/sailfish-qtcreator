@@ -65,7 +65,7 @@ FormEditorStack::~FormEditorStack()
 
 void FormEditorStack::add(const EditorData &data)
 {
-    if (m_designerCore == 0) { // Initialize first time here
+    if (m_designerCore == nullptr) { // Initialize first time here
         m_designerCore = data.widgetHost->formWindow()->core();
         connect(m_designerCore->formWindowManager(), &QDesignerFormWindowManagerInterface::activeFormWindowChanged,
                 this, &FormEditorStack::updateFormWindowSelectionHandles);
@@ -92,7 +92,7 @@ void FormEditorStack::add(const EditorData &data)
 
     // Since we have 1 pixel splitters we enforce no frame
     // on the content widget
-    if (QFrame *frame = qobject_cast<QFrame*>(data.widgetHost))
+    if (auto frame = qobject_cast<QFrame*>(data.widgetHost))
         frame->setFrameStyle(QFrame::NoFrame);
 }
 
@@ -122,13 +122,13 @@ EditorData FormEditorStack::activeEditor() const
         if (index >= 0)
             return m_formEditors.at(index);
     }
-    return EditorData();
+    return {};
 }
 
 SharedTools::WidgetHost *FormEditorStack::formWindowEditorForFormWindow(const QDesignerFormWindowInterface *fw) const
 {
     const int i = indexOfFormWindow(fw);
-    return i != -1 ? m_formEditors[i].widgetHost : static_cast<SharedTools::WidgetHost *>(0);
+    return i != -1 ? m_formEditors[i].widgetHost : static_cast<SharedTools::WidgetHost *>(nullptr);
 }
 
 void FormEditorStack::removeFormWindowEditor(QObject *xmlEditor)
@@ -173,7 +173,7 @@ void FormEditorStack::formSizeChanged(int w, int h)
     // Handle main container resize.
     if (Designer::Constants::Internal::debug)
         qDebug() << Q_FUNC_INFO << w << h;
-    if (const SharedTools::WidgetHost *wh = qobject_cast<const SharedTools::WidgetHost *>(sender())) {
+    if (auto wh = qobject_cast<const SharedTools::WidgetHost *>(sender())) {
         wh->formWindow()->setDirty(true);
         static const QString geometry = "geometry";
         m_designerCore->propertyEditor()->setPropertyValue(geometry, QRect(0,0,w,h) );
@@ -183,7 +183,7 @@ void FormEditorStack::formSizeChanged(int w, int h)
 SharedTools::WidgetHost *FormEditorStack::formWindowEditorForXmlEditor(const Core::IEditor *xmlEditor) const
 {
     const int i = indexOfFormEditor(xmlEditor);
-    return i != -1 ? m_formEditors.at(i).widgetHost : static_cast<SharedTools::WidgetHost *>(0);
+    return i != -1 ? m_formEditors.at(i).widgetHost : static_cast<SharedTools::WidgetHost *>(nullptr);
 }
 
 void FormEditorStack::modeAboutToChange(Core::Id mode)

@@ -25,8 +25,8 @@
 
 #include "tips.h"
 #include "tooltip.h"
-#include "reuse.h"
 
+#include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 
 #include <QRect>
@@ -42,6 +42,12 @@
 #include <QResizeEvent>
 #include <QPaintEvent>
 #include <QVBoxLayout>
+
+#include <QPoint>
+#include <QRect>
+#include <QWidget>
+#include <QApplication>
+#include <QDesktopWidget>
 
 #include <memory>
 
@@ -153,7 +159,14 @@ static bool likelyContainsLink(const QString &s)
 
 void TextTip::setContent(const QVariant &content)
 {
-    m_text = content.toString();
+    if (content.canConvert<QString>()) {
+        m_text = content.toString();
+    } else if (content.canConvert<TextItem>()) {
+        auto item = content.value<TextItem>();
+        m_text = item.first;
+        m_format = item.second;
+    }
+
     bool containsLink = likelyContainsLink(m_text);
     setOpenExternalLinks(containsLink);
 }
@@ -165,12 +178,8 @@ bool TextTip::isInteractive() const
 
 void TextTip::configure(const QPoint &pos, QWidget *w)
 {
-    if (contextHelp().isNull())
-        setText(m_text);
-    else
-        setText(QString::fromLatin1("<table><tr><td valign=middle>%1</td><td>&nbsp;&nbsp;"
-                                    "<img src=\":/utils/tooltip/images/f1.png\"></td>"
-                                    "</tr></table>").arg(m_text));
+    setTextFormat(m_format);
+    setText(m_text);
 
     // Make it look good with the default ToolTip font on Mac, which has a small descent.
     QFontMetrics fm(font());
@@ -204,7 +213,9 @@ int TextTip::showTime() const
 bool TextTip::equals(int typeId, const QVariant &other, const QVariant &otherContextHelp) const
 {
     return typeId == ToolTip::TextContent && otherContextHelp == contextHelp()
-           && other.toString() == m_text;
+           && ((other.canConvert<QString>() && other.toString() == m_text)
+               || (other.canConvert<TextItem>()
+                   && other.value<TextItem>() == TextItem(m_text, m_format)));
 }
 
 void TextTip::paintEvent(QPaintEvent *event)
@@ -277,7 +288,7 @@ void WidgetTip::pinToolTipWidget(QWidget *parent)
 bool WidgetTip::canHandleContentReplacement(int typeId) const
 {
     // Always create a new widget.
-    Q_UNUSED(typeId);
+    Q_UNUSED(typeId)
     return false;
 }
 
@@ -285,6 +296,22 @@ bool WidgetTip::equals(int typeId, const QVariant &other, const QVariant &otherC
 {
     return typeId == ToolTip::WidgetContent && otherContextHelp == contextHelp()
             && other.value<QWidget *>() == m_widget;
+}
+
+
+int screenNumber(const QPoint &pos, QWidget *w)
+{
+    if (QApplication::desktop()->isVirtualDesktop())
+        return QApplication::desktop()->screenNumber(pos);
+    else
+        return QApplication::desktop()->screenNumber(w);
+}
+
+QRect screenGeometry(const QPoint &pos, QWidget *w)
+{
+    if (HostOsInfo::isMacHost())
+        return QApplication::desktop()->availableGeometry(screenNumber(pos, w));
+    return QApplication::desktop()->screenGeometry(screenNumber(pos, w));
 }
 
 } // namespace Internal

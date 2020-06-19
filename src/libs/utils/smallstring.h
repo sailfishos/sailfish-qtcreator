@@ -181,7 +181,7 @@ public:
     }
 
     BasicSmallString(BasicSmallString &&other) noexcept
-        : m_data(other.m_data)
+        : m_data(std::move(other.m_data))
     {
         other.m_data.reset();
     }
@@ -193,8 +193,8 @@ public:
 
         this->~BasicSmallString();
 
-        m_data = other.m_data;
-        other.m_data = Internal::StringDataLayout<Size>();
+        m_data = std::move(other.m_data);
+        other.m_data.reset();
 
         return *this;
     }
@@ -945,8 +945,8 @@ clone(const std::unordered_map<Key, Value, Hash, KeyEqual, Allocator> &map)
     return clonedMap;
 }
 
-template <typename Type>
-std::vector<Type> clone(const std::vector<Type> &vector)
+template<typename Type>
+Type clone(const Type &vector)
 {
     return vector;
 }

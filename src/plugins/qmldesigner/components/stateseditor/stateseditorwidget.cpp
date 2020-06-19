@@ -102,9 +102,12 @@ StatesEditorWidget::StatesEditorWidget(StatesEditorView *statesEditorView, State
     setResizeMode(QQuickWidget::SizeRootObjectToView);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
-    rootContext()->setContextProperty(QStringLiteral("statesEditorModel"), statesEditorModel);
-
-    rootContext()->setContextProperty(QLatin1String("canAddNewStates"), true);
+    rootContext()->setContextProperties(
+        QVector<QQmlContext::PropertyPair>{
+            {{"statesEditorModel"}, QVariant::fromValue(statesEditorModel)},
+            {{"canAddNewStates"}, true}
+        }
+    );
 
     Theme::setupTheme(engine());
 
@@ -125,6 +128,12 @@ void StatesEditorWidget::toggleStatesViewExpanded()
     QTC_ASSERT(rootObject(), return);
     bool expanded = rootObject()->property("expanded").toBool();
     rootObject()->setProperty("expanded", !expanded);
+}
+
+void StatesEditorWidget::showEvent(QShowEvent *event)
+{
+    Q_UNUSED(event)
+    update();
 }
 
 void StatesEditorWidget::reloadQmlSource()

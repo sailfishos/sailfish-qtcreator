@@ -30,13 +30,12 @@
 #include "iosconfigurations.h"
 #include "iosconstants.h"
 #include "iosdeploystep.h"
-#include "iosdevicefactory.h"
+#include "iosdevice.h"
 #include "iosdsymbuildstep.h"
-#include "iosqtversionfactory.h"
+#include "iosqtversion.h"
 #include "iosrunner.h"
 #include "iossettingspage.h"
 #include "iossimulator.h"
-#include "iossimulatorfactory.h"
 #include "iostoolhandler.h"
 #include "iosrunconfiguration.h"
 
@@ -95,6 +94,22 @@ public:
     IosDeployStepFactory deployStepFactory;
     IosDsymBuildStepFactory dsymBuildStepFactory;
     IosDeployConfigurationFactory deployConfigurationFactory;
+
+    RunWorkerFactory runWorkerFactory{
+        RunWorkerFactory::make<IosRunSupport>(),
+        {ProjectExplorer::Constants::NORMAL_RUN_MODE},
+        {runConfigurationFactory.id()}
+    };
+    RunWorkerFactory debugWorkerFactory{
+        RunWorkerFactory::make<IosDebugSupport>(),
+        {ProjectExplorer::Constants::DEBUG_RUN_MODE},
+        {runConfigurationFactory.id()}
+    };
+    RunWorkerFactory qmlProfilerWorkerFactory{
+        RunWorkerFactory::make<IosQmlProfilerSupport>(),
+        {ProjectExplorer::Constants::QML_PROFILER_RUN_MODE},
+        {runConfigurationFactory.id()}
+    };
 };
 
 IosPlugin::~IosPlugin()
@@ -104,25 +119,14 @@ IosPlugin::~IosPlugin()
 
 bool IosPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
-    Q_UNUSED(arguments);
-    Q_UNUSED(errorMessage);
+    Q_UNUSED(arguments)
+    Q_UNUSED(errorMessage)
 
     qRegisterMetaType<Ios::IosToolHandler::Dict>("Ios::IosToolHandler::Dict");
 
     IosConfigurations::initialize();
 
     d = new IosPluginPrivate;
-
-    auto constraint = [](RunConfiguration *runConfig) {
-        return qobject_cast<IosRunConfiguration *>(runConfig) != nullptr;
-    };
-
-    RunControl::registerWorker<Internal::IosRunSupport>
-            (ProjectExplorer::Constants::NORMAL_RUN_MODE, constraint);
-    RunControl::registerWorker<Internal::IosDebugSupport>
-            (ProjectExplorer::Constants::DEBUG_RUN_MODE, constraint);
-    RunControl::registerWorker<Internal::IosQmlProfilerSupport>
-            (ProjectExplorer::Constants::QML_PROFILER_RUN_MODE, constraint);
 
     return true;
 }

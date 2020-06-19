@@ -33,7 +33,7 @@
 #include <QCoreApplication>
 #include <QDir>
 
-Settings *Settings::m_instance = 0;
+Settings *Settings::m_instance = nullptr;
 
 Settings *Settings::instance()
 {
@@ -41,36 +41,34 @@ Settings *Settings::instance()
 }
 
 Settings::Settings() :
-    operation(0)
+    operation(nullptr)
 {
     Q_ASSERT(!m_instance);
     m_instance = this;
 
     // autodetect sdk dir:
-    sdkPath = Utils::FileName::fromString(QCoreApplication::applicationDirPath());
-    sdkPath.appendPath(QLatin1String(DATA_PATH));
-    sdkPath = Utils::FileName::fromString(QDir::cleanPath(sdkPath.toString()));
-    sdkPath.appendPath(QLatin1String(Core::Constants::IDE_SETTINGSVARIANT_STR)
-                       + '/' + Core::Constants::IDE_ID);
+    sdkPath = Utils::FilePath::fromString(QCoreApplication::applicationDirPath())
+            .pathAppended(DATA_PATH);
+    sdkPath = Utils::FilePath::fromString(QDir::cleanPath(sdkPath.toString()))
+            .pathAppended(QLatin1String(Core::Constants::IDE_SETTINGSVARIANT_STR) + '/' + Core::Constants::IDE_ID);
 }
 
-Utils::FileName Settings::getPath(const QString &file)
+Utils::FilePath Settings::getPath(const QString &file)
 {
-    Utils::FileName result = sdkPath;
+    Utils::FilePath result = sdkPath;
     const QString lowerFile = file.toLower();
     const QStringList identical
             = QStringList({ "android", "cmaketools", "debuggers", "devices",
                             "profiles", "qtversions", "toolchains", "abi" });
     if (lowerFile == "cmake")
-        result.appendPath("cmaketools");
+        result = result.pathAppended("cmaketools");
     else if (lowerFile == "kits")
-        result.appendPath("profiles");
+        result = result.pathAppended("profiles");
     else if (lowerFile == "qtversions")
-        result.appendPath("qtversion");
+        result = result.pathAppended("qtversion");
     else if (identical.contains(lowerFile))
-        result.appendPath(lowerFile);
+        result = result.pathAppended(lowerFile);
     else
-        result.appendPath(file); // handle arbitrary file names not known yet
-    result.appendString(".xml");
-    return result;
+        result = result.pathAppended(file); // handle arbitrary file names not known yet
+    return result.stringAppended(".xml");
 }

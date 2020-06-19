@@ -28,7 +28,7 @@ source("../../shared/qtcreator.py")
 # entry of test
 def main():
     # prepare example project
-    sourceExample = os.path.join(Qt5Path.examplesPath(Targets.DESKTOP_5_6_1_DEFAULT),
+    sourceExample = os.path.join(Qt5Path.examplesPath(Targets.DESKTOP_5_14_1_DEFAULT),
                                  "gui", "openglwindow")
     proFile = "openglwindow.pro"
     if not neededFilePresent(os.path.join(sourceExample, proFile)):
@@ -43,7 +43,7 @@ def main():
             # open example project
             openQmakeProject(examplePath)
             # wait for parsing to complete
-            progressBarWait(30000)
+            waitForProjectParsing()
             checkCodeModelSettings(useClang)
             # open .cpp file in editor
             if not openDocument("openglwindow.Sources.main\\.cpp"):
@@ -69,7 +69,7 @@ def main():
             replaceEditorContent(waitForObject(":Qt Creator.replaceEdit_Utils::FilterLineEdit"), "find")
             oldCodeText = str(editorWidget.plainText)
             clickButton(waitForObject(":Qt Creator.Replace All_QToolButton"))
-            mouseClick(waitForObject(":Qt Creator.replaceEdit_Utils::FilterLineEdit"), 5, 5, 0, Qt.LeftButton)
+            mouseClick(waitForObject(":Qt Creator.replaceEdit_Utils::FilterLineEdit"))
             newCodeText = str(editorWidget.plainText)
             test.compare(newCodeText, oldCodeText.replace("window", "find").replace("Window", "find"),
                          "Verifying if: Found text is replaced with new word properly.")
@@ -91,7 +91,6 @@ def main():
             clickButton(waitForObject(":Qt Creator.CloseFind_QToolButton"))
             test.verify(checkIfObjectExists(":*Qt Creator.Find_Find::Internal::FindToolBar", False),
                         "Verifying if: Find/Replace tab is closed.")
-            invokeMenuItem("File", "Close All")
-            clickButton(waitForObject(":Save Changes.Do not Save_QPushButton"))
             invokeMenuItem("File", "Exit")
+            clickButton(waitForObject(":Save Changes.Do not Save_QPushButton"))
             waitForCleanShutdown()

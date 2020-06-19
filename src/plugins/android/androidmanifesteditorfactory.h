@@ -27,17 +27,18 @@
 
 #include <coreplugin/editormanager/ieditorfactory.h>
 
+#include <texteditor/texteditoractionhandler.h>
+
 namespace Android {
 namespace Internal {
 
-class AndroidManifestEditorFactory : public Core::IEditorFactory
+class AndroidManifestEditorFactory final : public Core::IEditorFactory
 {
-    Q_OBJECT
-
 public:
     AndroidManifestEditorFactory();
 
-    Core::IEditor *createEditor() override;
+private:
+    TextEditor::TextEditorActionHandler m_actionHandler;
 };
 
 } // namespace Internal

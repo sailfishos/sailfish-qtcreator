@@ -51,6 +51,7 @@
 #include <QTimer>
 #include <QtConcurrentRun>
 #include <QtConcurrentMap>
+#include <QDebug>
 #include <QDir>
 #include <QApplication>
 #include <QLabel>
@@ -70,7 +71,7 @@ namespace {
 class FindUsages: protected Visitor
 {
 public:
-    using Result = QList<AST::SourceLocation>;
+    using Result = QList<SourceLocation>;
 
     FindUsages(Document::Ptr doc, const ContextPtr &context)
         : _doc(doc)
@@ -236,6 +237,11 @@ protected:
         return true;
     }
 
+    void throwRecursionDepthError() override
+    {
+        qWarning("Warning: Hit maximum recursion depth while visitin AST in FindUsages");
+    }
+
 private:
     bool contains(const QmlComponentChain *chain)
     {
@@ -294,7 +300,7 @@ private:
 class FindTypeUsages: protected Visitor
 {
 public:
-    using Result = QList<AST::SourceLocation>;
+    using Result = QList<SourceLocation>;
 
     FindTypeUsages(Document::Ptr doc, const ContextPtr &context)
         : _doc(doc)
@@ -427,6 +433,10 @@ protected:
         return false;
     }
 
+    void throwRecursionDepthError() override
+    {
+        qWarning("Warning: Hit maximum recursion depth while visitin AST in FindTypeUsages");
+    }
 
 private:
     bool checkTypeName(UiQualifiedId *id)
@@ -624,6 +634,11 @@ protected:
         return true;
     }
 
+    void throwRecursionDepthError() override
+    {
+        qWarning("Warning: Hit maximum recursion depth visiting AST in FindUsages");
+    }
+
 private:
     bool containsOffset(SourceLocation start, SourceLocation end)
     {
@@ -720,7 +735,7 @@ public:
         // find all idenfifier expressions, try to resolve them and check if the result is in scope
         FindUsages findUsages(doc, context);
         FindUsages::Result results = findUsages(name, scope);
-        foreach (const AST::SourceLocation &loc, results)
+        foreach (const SourceLocation &loc, results)
             usages.append(Usage(fileName, matchingLine(loc.offset, doc->source()), loc.startLine, loc.startColumn - 1, loc.length));
         if (future->isPaused())
             future->waitForResume();
@@ -762,7 +777,7 @@ public:
         // find all idenfifier expressions, try to resolve them and check if the result is in scope
         FindTypeUsages findUsages(doc, context);
         FindTypeUsages::Result results = findUsages(name, scope);
-        foreach (const AST::SourceLocation &loc, results)
+        foreach (const SourceLocation &loc, results)
             usages.append(Usage(fileName, matchingLine(loc.offset, doc->source()), loc.startLine, loc.startColumn - 1, loc.length));
         if (future->isPaused())
             future->waitForResume();
@@ -814,9 +829,8 @@ static void find_helper(QFutureInterface<FindReferences::Usage> &future,
     // update snapshot from workingCopy to make sure it's up to date
     // ### remove?
     // ### this is a great candidate for map-reduce
-    QHashIterator< QString, QPair<QString, int> > it(workingCopy.all());
-    while (it.hasNext()) {
-        it.next();
+    const ModelManagerInterface::WorkingCopy::Table &all = workingCopy.all();
+    for (auto it = all.cbegin(), end = all.cend(); it != end; ++it) {
         const QString fileName = it.key();
         Document::Ptr oldDoc = snapshot.document(fileName);
         if (oldDoc && oldDoc->editorRevision() == it.value().second)
@@ -945,7 +959,7 @@ QList<FindReferences::Usage> FindReferences::findUsageOfType(const QString &file
     foreach (const QmlJS::Document::Ptr &doc, snapshot) {
         FindTypeUsages findUsages(doc, context);
         FindTypeUsages::Result results = findUsages(typeName, targetValue);
-        foreach (const AST::SourceLocation &loc, results) {
+        foreach (const SourceLocation &loc, results) {
             usages.append(Usage(doc->fileName(), matchingLine(loc.offset, doc->source()), loc.startLine, loc.startColumn - 1, loc.length));
         }
     }
@@ -980,9 +994,9 @@ void FindReferences::displayResults(int first, int last)
         connect(m_currentSearch.data(), &SearchResult::paused, this, &FindReferences::setPaused);
         SearchResultWindow::instance()->popup(IOutputPane::Flags(IOutputPane::ModeSwitch | IOutputPane::WithFocus));
 
-        FutureProgress *progress = ProgressManager::addTask(
-                    m_watcher.future(), tr("Searching for Usages"),
-                    QmlJSEditor::Constants::TASK_SEARCH);
+        FutureProgress *progress = ProgressManager::addTask(m_watcher.future(),
+                                                            tr("Searching for Usages"),
+                                                            "QmlJSEditor.TaskSearch");
         connect(progress, &FutureProgress::clicked, m_currentSearch.data(), &SearchResult::popup);
 
         ++first;

@@ -25,6 +25,8 @@
 
 #include "generatedfiles.h"
 
+#include <utils/algorithm.h>
+
 namespace ClangBackEnd {
 
 void GeneratedFiles::update(V2::FileContainers &&fileContainers)
@@ -32,16 +34,16 @@ void GeneratedFiles::update(V2::FileContainers &&fileContainers)
     V2::FileContainers unionFileContainers;
     unionFileContainers.reserve(m_fileContainers.size() + fileContainers.size());
 
-    auto compare = [] (const V2::FileContainer &first, const V2::FileContainer &second) {
+    auto compare = [](const V2::FileContainer &first, const V2::FileContainer &second) {
         return first.filePath < second.filePath;
     };
 
-    std::set_union(std::make_move_iterator(fileContainers.begin()),
-                   std::make_move_iterator(fileContainers.end()),
-                   std::make_move_iterator(m_fileContainers.begin()),
-                   std::make_move_iterator(m_fileContainers.end()),
-                   std::back_inserter(unionFileContainers),
-                   compare);
+    Utils::set_union(std::make_move_iterator(fileContainers.begin()),
+                     std::make_move_iterator(fileContainers.end()),
+                     std::make_move_iterator(m_fileContainers.begin()),
+                     std::make_move_iterator(m_fileContainers.end()),
+                     std::back_inserter(unionFileContainers),
+                     compare);
 
     m_fileContainers = std::move(unionFileContainers);
 }
@@ -51,26 +53,23 @@ void GeneratedFiles::update(const V2::FileContainers &fileContainers)
     V2::FileContainers unionFileContainers;
     unionFileContainers.reserve(m_fileContainers.size() + fileContainers.size());
 
-    auto compare = [] (const V2::FileContainer &first, const V2::FileContainer &second) {
+    auto compare = [](const V2::FileContainer &first, const V2::FileContainer &second) {
         return first.filePath < second.filePath;
     };
 
-    std::set_union(fileContainers.begin(),
-                   fileContainers.end(),
-                   std::make_move_iterator(m_fileContainers.begin()),
-                   std::make_move_iterator(m_fileContainers.end()),
-                   std::back_inserter(unionFileContainers),
-                   compare);
+    Utils::set_union(fileContainers.begin(),
+                     fileContainers.end(),
+                     std::make_move_iterator(m_fileContainers.begin()),
+                     std::make_move_iterator(m_fileContainers.end()),
+                     std::back_inserter(unionFileContainers),
+                     compare);
 
     m_fileContainers = std::move(unionFileContainers);
 }
 
 class Compare {
 public:
-    bool operator()(const FilePath &first, const FilePath &second)
-    {
-        return first < second;
-    }
+    bool operator()(const FilePath &first, const FilePath &second) { return first < second; }
     bool operator()(const V2::FileContainer &first, const V2::FileContainer &second)
     {
         return first.filePath < second.filePath;
@@ -112,6 +111,18 @@ bool GeneratedFiles::isValid() const
 const V2::FileContainers &GeneratedFiles::fileContainers() const
 {
     return m_fileContainers;
+}
+
+FilePathIds GeneratedFiles::filePathIds() const
+{
+    auto ids = Utils::transform<FilePathIds>(m_fileContainers,
+                                             [](const V2::FileContainer &fileContainer) {
+                                                 return fileContainer.filePathId;
+                                             });
+
+    std::sort(ids.begin(), ids.end());
+
+    return ids;
 }
 
 } // namespace ClangBackEnd

@@ -25,48 +25,73 @@
 
 #pragma once
 
+#include "compilationdatabaseutils.h"
+
+#include <projectexplorer/buildconfiguration.h>
+#include <projectexplorer/buildsystem.h>
 #include <projectexplorer/project.h>
+
 #include <texteditor/texteditor.h>
+
 #include <utils/filesystemwatcher.h>
 
 #include <QFutureWatcher>
 
-namespace CppTools {
-class CppProjectUpdater;
-}
+QT_BEGIN_NAMESPACE
+class QTimer;
+QT_END_NAMESPACE
 
+namespace CppTools { class CppProjectUpdater; }
 namespace ProjectExplorer { class Kit; }
+namespace Utils { class FileSystemWatcher; }
 
 namespace CompilationDatabaseProjectManager {
 namespace Internal {
+class CompilationDbParser;
 
 class CompilationDatabaseProject : public ProjectExplorer::Project
 {
     Q_OBJECT
 
 public:
-    explicit CompilationDatabaseProject(const Utils::FileName &filename);
-    ~CompilationDatabaseProject() override;
-    bool needsConfiguration() const override { return false; }
-    bool needsBuildConfigurations() const override { return false; }
+    explicit CompilationDatabaseProject(const Utils::FilePath &filename);
+    Utils::FilePath rootPathFromSettings() const;
 
 private:
-    void reparseProject(const Utils::FileName &projectFile);
-    void buildTreeAndProjectParts(const Utils::FileName &projectFile);
+    void configureAsExampleProject() override;
+};
+
+class CompilationDatabaseBuildSystem : public ProjectExplorer::BuildSystem
+{
+public:
+    explicit CompilationDatabaseBuildSystem(ProjectExplorer::Target *target);
+    ~CompilationDatabaseBuildSystem();
+
+    void triggerParsing() final;
+
+    void reparseProject();
+    void updateDeploymentData();
+    void buildTreeAndProjectParts();
 
     QFutureWatcher<void> m_parserWatcher;
     std::unique_ptr<CppTools::CppProjectUpdater> m_cppCodeModelUpdater;
-    std::unique_ptr<ProjectExplorer::Kit> m_kit;
-    Utils::FileSystemWatcher m_fileSystemWatcher;
-    bool m_hasTarget = false;
+    MimeBinaryCache m_mimeBinaryCache;
+    QByteArray m_projectFileHash;
+    QTimer * const m_parseDelay;
+    CompilationDbParser *m_parser = nullptr;
+    Utils::FileSystemWatcher * const m_deployFileWatcher;
 };
 
 class CompilationDatabaseEditorFactory : public TextEditor::TextEditorFactory
 {
-    Q_OBJECT
-
 public:
     CompilationDatabaseEditorFactory();
+};
+
+class CompilationDatabaseBuildConfigurationFactory : public ProjectExplorer::BuildConfigurationFactory
+{
+public:
+    CompilationDatabaseBuildConfigurationFactory();
 };
 
 } // namespace Internal

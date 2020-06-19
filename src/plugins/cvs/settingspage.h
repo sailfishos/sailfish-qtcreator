@@ -25,36 +25,17 @@
 
 #pragma once
 
-#include "ui_settingspage.h"
-
-#include <vcsbase/vcsbaseoptionspage.h>
-
-namespace VcsBase { class VcsBaseClientSettings; }
+#include <coreplugin/dialogs/ioptionspage.h>
 
 namespace Cvs {
 namespace Internal {
 
-class SettingsPageWidget : public VcsBase::VcsClientOptionsPageWidget
+class CvsSettings;
+
+class CvsSettingsPage final : public Core::IOptionsPage
 {
-    Q_OBJECT
-
 public:
-    explicit SettingsPageWidget(QWidget *parent = nullptr);
-
-    VcsBase::VcsBaseClientSettings settings() const override;
-    void setSettings(const VcsBase::VcsBaseClientSettings &) override;
-
-private:
-    Ui::SettingsPage m_ui;
-};
-
-
-class SettingsPage : public VcsBase::VcsClientOptionsPage
-{
-    Q_OBJECT
-
-public:
-    SettingsPage(Core::IVersionControl *control, QObject *parent);
+    CvsSettingsPage(const std::function<void()> &onApply, CvsSettings *settings);
 };
 
 } // namespace Cvs

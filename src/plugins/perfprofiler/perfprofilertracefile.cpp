@@ -33,12 +33,11 @@
 namespace PerfProfiler {
 namespace Internal {
 
-Q_STATIC_ASSERT(sizeof(Constants::PerfStreamMagic) == sizeof(Constants::PerfQzfileMagic));
 Q_STATIC_ASSERT(sizeof(Constants::PerfStreamMagic) == sizeof(Constants::PerfZqfileMagic));
 
 PerfProfilerTraceFile::PerfProfilerTraceFile(QObject *parent) :
     Timeline::TimelineTraceFile(parent), m_messageSize(0),
-    m_dataStreamVersion(-1), m_compressed(false), m_mangledPackets(false)
+    m_dataStreamVersion(-1), m_compressed(false)
 {
     // This should result in either a direct or a queued connection, depending on where the signal
     // comes from. readMessages() should always run in the GUI thread.
@@ -166,88 +165,91 @@ void PerfProfilerTraceFile::readMessages(const QByteArray &buffer)
 
     QDataStream dataStream(buffer);
     dataStream.setVersion(m_dataStreamVersion);
-    while (!dataStream.atEnd()) {
-        PerfEvent event;
-        dataStream >> event;
+    PerfEvent event;
+    dataStream >> event;
 
-        const qint64 timestamp = event.timestamp();
-        if (timestamp > 0)
-            event.setTimestamp(adjustTimestamp(timestamp));
+    const qint64 timestamp = event.timestamp();
+    if (timestamp > 0)
+        event.setTimestamp(adjustTimestamp(timestamp));
 
-        qint32 id = -1;
-        switch (event.feature()) {
-        case PerfEventType::LocationDefinition: {
-            PerfEventType location(PerfEventType::LocationDefinition);
-            dataStream >> id >> location;
-            traceManager->setEventType(id, std::move(location));
-            break;
+    qint32 id = -1;
+    switch (event.feature()) {
+    case PerfEventType::LocationDefinition: {
+        PerfEventType location(PerfEventType::LocationDefinition);
+        dataStream >> id >> location;
+        for (int parent = location.location().parentLocationId; parent != -1;
+             parent = traceManager->location(parent).parentLocationId) {
+            if (parent == id) {
+                qWarning() << "A location cannot be its own parent location:" << id;
+                location = PerfEventType(PerfEventType::LocationDefinition);
+                break;
+            }
         }
-        case PerfEventType::SymbolDefinition: {
-            PerfProfilerTraceManager::Symbol symbol;
-            dataStream >> id >> symbol;
-            traceManager->setSymbol(id, symbol);
-            break;
-        }
-        case PerfEventType::AttributesDefinition: {
-            PerfEventType attributes(PerfEventType::AttributesDefinition);
-            dataStream >> id >> attributes;
-            traceManager->setEventType(PerfEvent::LastSpecialTypeId - id, std::move(attributes));
-            break;
-        }
-        case PerfEventType::StringDefinition: {
-            QByteArray string;
-            dataStream >> id >> string;
-            traceManager->setString(id, string);
-            break;
-        }
-        case PerfEventType::FeaturesDefinition: {
-            PerfFeatures features;
-            dataStream >> features;
-            break;
-        }
-        case PerfEventType::Error: {
-            qint32 errorCode;
-            QString message;
-            dataStream >> errorCode >> message;
-            break;
-        }
-        case PerfEventType::Progress: {
-            float progress;
-            dataStream >> progress;
-            break;
-        }
-        case PerfEventType::TracePointFormat: {
-            PerfProfilerTraceManager::TracePoint tracePoint;
-            dataStream >> id >> tracePoint;
-            traceManager->setTracePoint(id, tracePoint);
-            break;
-        }
-        case PerfEventType::Command: {
-            PerfProfilerTraceManager::Thread thread;
-            dataStream >> thread;
-            traceManager->setThread(thread.tid, thread);
-            break;
-        }
-        case PerfEventType::ThreadStart:
-        case PerfEventType::ThreadEnd:
-        case PerfEventType::LostDefinition:
-            if (acceptsSamples())
-                traceManager->appendEvent(std::move(event));
-            break;
-        case PerfEventType::Sample43:
-        case PerfEventType::Sample:
-        case PerfEventType::TracePointSample:
-            if (acceptsSamples())
-                traceManager->appendSampleEvent(std::move(event));
-            break;
-        }
-
-        if (!m_mangledPackets) {
-            if (!dataStream.atEnd())
-                qWarning() << "Read only part of message";
-            break;
-        }
+        traceManager->setEventType(id, std::move(location));
+        break;
     }
+    case PerfEventType::SymbolDefinition: {
+        PerfProfilerTraceManager::Symbol symbol;
+        dataStream >> id >> symbol;
+        traceManager->setSymbol(id, symbol);
+        break;
+    }
+    case PerfEventType::AttributesDefinition: {
+        PerfEventType attributes(PerfEventType::AttributesDefinition);
+        dataStream >> id >> attributes;
+        traceManager->setEventType(PerfEvent::LastSpecialTypeId - id, std::move(attributes));
+        break;
+    }
+    case PerfEventType::StringDefinition: {
+        QByteArray string;
+        dataStream >> id >> string;
+        traceManager->setString(id, string);
+        break;
+    }
+    case PerfEventType::FeaturesDefinition: {
+        PerfFeatures features;
+        dataStream >> features;
+        break;
+    }
+    case PerfEventType::Error: {
+        qint32 errorCode;
+        QString message;
+        dataStream >> errorCode >> message;
+        break;
+    }
+    case PerfEventType::Progress: {
+        float progress;
+        dataStream >> progress;
+        break;
+    }
+    case PerfEventType::TracePointFormat: {
+        PerfProfilerTraceManager::TracePoint tracePoint;
+        dataStream >> id >> tracePoint;
+        traceManager->setTracePoint(id, tracePoint);
+        break;
+    }
+    case PerfEventType::Command: {
+        PerfProfilerTraceManager::Thread thread;
+        dataStream >> thread;
+        traceManager->setThread(thread.tid, thread);
+        break;
+    }
+    case PerfEventType::ThreadStart:
+    case PerfEventType::ThreadEnd:
+    case PerfEventType::LostDefinition:
+    case PerfEventType::ContextSwitchDefinition:
+        if (acceptsSamples())
+            traceManager->appendEvent(std::move(event));
+        break;
+    case PerfEventType::Sample:
+    case PerfEventType::TracePointSample:
+        if (acceptsSamples())
+            traceManager->appendSampleEvent(std::move(event));
+        break;
+    }
+
+    if (!dataStream.atEnd())
+        qWarning() << "Read only part of message";
 }
 
 void PerfProfilerTraceFile::readFromDevice()
@@ -257,19 +259,18 @@ void PerfProfilerTraceFile::readFromDevice()
         if (m_device->bytesAvailable() < magicSize + static_cast<int>(sizeof(qint32)))
             return;
 
-        QVarLengthArray<char> magic(magicSize);
+        QByteArray magic(magicSize, 0);
         m_device->read(magic.data(), magicSize);
         if (strncmp(magic.data(), Constants::PerfStreamMagic, magicSize) == 0) {
             m_compressed = false;
-            m_mangledPackets = false;
-        } else if (strncmp(magic.data(), Constants::PerfQzfileMagic, magicSize) == 0) {
-            m_compressed = true;
-            m_mangledPackets = true;
         } else if (strncmp(magic.data(), Constants::PerfZqfileMagic, magicSize) == 0) {
             m_compressed = true;
-            m_mangledPackets = false;
         } else {
-            fail(tr("Invalid data format"));
+            fail(tr("Invalid data format. The trace file's identification string is \"%1\"."
+                    "An acceptable trace file should have \"%2\". You cannot read trace files "
+                    "generated with older versions of Qt Creator.")
+                     .arg(QString::fromLatin1(magic))
+                     .arg(QString::fromLatin1(Constants::PerfZqfileMagic)));
             return;
         }
 
@@ -278,7 +279,10 @@ void PerfProfilerTraceFile::readFromDevice()
 
         if (m_dataStreamVersion < 0
                 || m_dataStreamVersion > QDataStream::Qt_DefaultCompiledVersion) {
-            fail(tr("Invalid data format"));
+            fail(tr("Invalid data format. The trace file was written with data stream version %1. "
+                    "We can read at most version %2. Please use a newer version of Qt.")
+                     .arg(m_dataStreamVersion)
+                     .arg(qint32(QDataStream::Qt_DefaultCompiledVersion)));
             return;
         }
     }
@@ -296,8 +300,6 @@ void PerfProfilerTraceFile::readFromDevice()
         m_messageSize = 0;
         if (!m_compressed)
             emit messagesAvailable(buffer);
-        else if (m_mangledPackets)
-            emit messagesAvailable(qUncompress(buffer));
         else
             emit blockAvailable(qUncompress(buffer));
 
@@ -495,7 +497,7 @@ void PerfProfilerTraceFile::writeToDevice()
         CompressedDataStream bufferStream(m_device.data());
         int i = 0;
         traceManager->replayPerfEvents([&](const PerfEvent &event, const PerfEventType &type) {
-            Q_UNUSED(type);
+            Q_UNUSED(type)
             Packet packet(&bufferStream);
             packet << event;
 

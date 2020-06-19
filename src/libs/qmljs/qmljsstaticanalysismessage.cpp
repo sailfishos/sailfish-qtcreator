@@ -26,6 +26,7 @@
 #include "qmljsstaticanalysismessage.h"
 #include "qmljsconstants.h"
 #include "parser/qmljsengine_p.h"
+#include "parser/qmljsdiagnosticmessage_p.h"
 
 #include <utils/qtcassert.h>
 
@@ -240,6 +241,10 @@ StaticAnalysisMessages::StaticAnalysisMessages()
             tr("Referencing the parent of the root item is not supported in a Qt Quick UI form."));
     newMsg(StateCannotHaveChildItem, Error,
             tr("A State cannot have a child item (%1)."), 1);
+    newMsg(WarnDuplicateImport, Warning,
+           tr("Duplicate import (%1)."), 1);
+    newMsg(ErrHitMaximumRecursion, Error,
+           tr("Hit maximum recursion limit when visiting AST."));
 }
 
 } // anonymous namespace
@@ -256,7 +261,7 @@ Message::Message()
 {}
 
 Message::Message(Type type,
-                 AST::SourceLocation location,
+                 SourceLocation location,
                  const QString &arg1,
                  const QString &arg2,
                  bool appendTypeId)

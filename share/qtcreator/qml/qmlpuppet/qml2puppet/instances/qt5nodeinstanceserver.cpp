@@ -25,6 +25,9 @@
 
 #include "qt5nodeinstanceserver.h"
 
+#include <QSurfaceFormat>
+
+#include <QQmlFileSelector>
 
 #include <QQuickItem>
 #include <QQuickView>
@@ -33,6 +36,9 @@
 #include <addimportcontainer.h>
 #include <createscenecommand.h>
 #include <reparentinstancescommand.h>
+
+#include <QDebug>
+#include <QOpenGLContext>
 
 namespace QmlDesigner {
 
@@ -57,12 +63,26 @@ void Qt5NodeInstanceServer::initializeView()
     Q_ASSERT(!quickView());
 
     m_quickView = new QQuickView;
+
+    QSurfaceFormat surfaceFormat = m_quickView->requestedFormat();
+    surfaceFormat.setVersion(4, 1);
+    surfaceFormat.setProfile(QSurfaceFormat::CoreProfile);
+    QSurfaceFormat::setDefaultFormat(surfaceFormat);
+
+    m_quickView->setFormat(surfaceFormat);
+
     DesignerSupport::createOpenGLContext(m_quickView.data());
+
+    if (qEnvironmentVariableIsSet("QML_FILE_SELECTORS")) {
+        QQmlFileSelector *fileSelector = new QQmlFileSelector(engine(), engine());
+        QStringList customSelectors = QString::fromUtf8(qgetenv("QML_FILE_SELECTORS")).split(',');
+        fileSelector->setExtraSelectors(customSelectors);
+    }
 }
 
 QQmlView *Qt5NodeInstanceServer::declarativeView() const
 {
-    return 0;
+    return nullptr;
 }
 
 QQmlEngine *Qt5NodeInstanceServer::engine() const
@@ -70,7 +90,7 @@ QQmlEngine *Qt5NodeInstanceServer::engine() const
     if (quickView())
         return quickView()->engine();
 
-    return 0;
+    return nullptr;
 }
 
 void Qt5NodeInstanceServer::resizeCanvasSizeToRootItemSize()

@@ -1,0 +1,243 @@
+/****************************************************************************
+**
+** Copyright (C) 2020 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \previouspage creator-cppcheck.html
+    \page creator-ctf-visualizer.html
+    \nextpage creator-autotest.html
+
+    \title Visualizing Chrome Trace Events
+
+    You can use \e {full stack tracing} to trace from the top level QML or
+    JavaScript down to the C++ and all the way to the kernel space. This
+    enables you to measure the performance of an application and to check
+    whether it is CPU or I/O bound or influenced by other applications
+    running on the same system. Tracing provides insight into what a system is
+    doing and why an application is performing in a particular way. It indicates
+    how the hardware is utilized and what the kernel and application are doing.
+
+    Tracing information can also provide you additional insight into the data
+    collected by \l{Profiling QML Applications}{QML Profiler}. For example, you
+    could check why a trivial binding evaluation is taking so long. This might
+    be caused by C++ being executed or the disk I/O being slow.
+
+    Several tracing tools (such as \c {chrome://about}) can generate information
+    about Chrome trace events in Chrome Trace Format (CTF). You can open CTF
+    files in \QC for viewing. This is especially useful when viewing trace files
+    larger than 100 MB, which are difficult to view with the built-in
+    trace-viewer (\c{chrome://tracing}) due to its high memory usage.
+
+    The visualizer supports all event types used in data that the
+    \l {https://lttng.org/}{LTTng} tracing framework generates, converted
+    to CTF. However, some of the more advanced event types used, for example,
+    in Android system traces, are not supported. The visualizer silently
+    ignores unsupported event types.
+
+    The visualizer supports the following event types:
+
+    \list
+        \li Begin, end, duration, and instant events
+        \li Counter events (graphs)
+        \li Metadata events (process and thread name)
+    \endlist
+
+    \section1 Opening JSON Files
+
+    To open JSON files for viewing, select \uicontrol Analyze >
+    \uicontrol {Chrome Trace Format Viewer} > \uicontrol {Load JSON File}.
+
+    \section1 Visualizing Events
+
+    The \uicontrol Timeline view displays a graphical representation of trace
+    events and a condensed view of all recorded events.
+
+    \image qtcreator-ctf-visualizer-timeline.png "Chrome Trace Format Visualizer"
+
+    Each category in the timeline describes a thread in the application. Move
+    the cursor on an event (1) on a row to view its duration and event category.
+    To display the information only when an event is selected, disable the
+    \uicontrol {View Event Information on Mouseover} button (2).
+
+    The outline (3) summarizes the period for which data was collected. Drag
+    the zoom range (4) or click the outline to move on the outline. To move
+    between events, select the \uicontrol {Jump to Previous Event} and
+    \uicontrol {Jump to Next Event} buttons (5).
+
+    Select the \uicontrol {Show Zoom Slider} button (6) to open a slider that
+    you can use to set the zoom level. You can also drag the zoom handles (7).
+    To reset the default zoom level, right-click the timeline to open the
+    context menu, and select \uicontrol {Reset Zoom}.
+
+    Select the \inlineimage filtericon.png
+    (\uicontrol {Restrict to Threads}) button (10) to select the threads to
+    show.
+
+    \section2 Selecting Event Ranges
+
+    You can select an event range (8) to view the time it represents or to zoom
+    into a specific region of the trace. Select the \uicontrol {Select Range}
+    button (9) to activate the selection tool. Then click in the timeline to
+    specify the beginning of the event range. Drag the selection handle to
+    define the end of the range.
+
+    You can use event ranges also to measure delays between two subsequent
+    events. Place a range between the end of the first event and the beginning
+    of the second event. The \uicontrol Duration field displays the delay
+    between the events in milliseconds.
+
+    To zoom into an event range, double-click it.
+
+    To remove an event range, close the \uicontrol Selection dialog.
+
+    \section1 Viewing Statistics
+
+    \image qtcreator-ctf-visualizer-statistics.png
+
+    The \uicontrol Statistics view displays the number of samples each function
+    in the timeline was contained in, in total and when on the top of the
+    stack (called \c self). This allows you to examine which functions you need
+    to optimize. A high number of occurrences might indicate that a function is
+    triggered unnecessarily or takes very long to execute.
+
+    \section1 Collecting LTTng Data
+
+    LTTng is a tracing toolkit for Linux that you can apply on embedded Linux
+    systems to find out how to optimize the startup time of an application.
+
+    Since Qt 5.13, Qt provides a set of kernel trace points and a tracing
+    subsystem for custom user space trace points.
+
+    \section2 Configuring the Kernel
+
+    To use LTTng, you have to set the following configuration options for the
+    kernel before building it:
+
+    \list
+        \li \c CONFIG_HIGH_RES_TIMERS
+        \li \c CONFIG_KALLSYMS
+        \li \c CONFIG_MODULES
+        \li \c CONFIG_TRACEPOINTS
+    \endlist
+
+    We recommend that you set the following additional options:
+
+    \list
+        \li \c CONFIG_EVENT_TRACING
+        \li \c CONFIG_HAVE_SYSCALL_TRACEPOINTS
+        \li \c CONFIG_KALLSYMS_ALL
+    \endlist
+
+    In Yocto, you can activate the above options in \uicontrol Menu >
+    \uicontrol Config > \uicontrol {Kernel Hacking} > \uicontrol Tracers.
+
+    \section2 Installing LTTng
+
+    After you build the kernel and deploy it on your device, you'll need to
+    install the following LTTng packages on your device:
+
+     \list
+        \li \c lttng-tools to control the tracing session
+        \li \c lttng-modules for kernel trace points
+        \li \c lttng-ust for user space trace points
+    \endlist
+
+    In Yocto, you just need to enable
+    \c {EXTRA_IMAGE_FEATURES += "tools profile"}.
+
+    \section2 Building Qt with Tracepoints
+
+    Trace points are continuously being added to Qt versions. To use them, you
+    need to build Qt yourself with the \c {configure -trace lttng} option.
+
+    \section2 Recording Events
+
+    To create a session, you call the \c {lttng create} command. Then you
+    call \c {lttng enable-channel kernel -k} to enable the kernel channel.
+    Within the kernel channel, you specify the appropriate trace points as
+    \c {kernel_events} and call \c {lttng enable-event} to enable them.
+    Finally, you call \c {lttng start} to start tracing.
+
+    You call \c {lttng stop} to stop tracing. You can use \c sleep to set the
+    length of the session. After stopping, you can call \c {lttng destroy} to
+    destroy the session.
+
+    You can write and run scripts that contain the above commands to start and
+    stop full-stack tracing. You can use \c systemd to execute the scripts.
+
+    \section2 Enabling Trace Points
+
+    Data is recorded according to the trace points that you enable in the LTTng
+    session. Usually, it is useful to enable scheduler switch, syscall, and Qt
+    trace points.
+
+    \section3 Scheduler Switch Trace Points
+
+    Scheduler switch trace points are reached when an application is switched
+    out due to predemption, for example, when another process gets the chance
+    to run on the CPU core. Enable scheduler schwitch trace points to record
+    the thread that is currently running and the process it belongs to, as
+    well as the time when the process started and stopped.
+
+    \section3 Syscall Trace Points
+
+    Syscall trace points help you to understand why a scheduler switch happened.
+    The following are examples of syscalls to trace:
+
+    \list
+        \li \c openat and \c close map file descriptors to file names
+        \li \c mmap maps page faults to files
+        \li \c read and \c write are triggered by I/O operations
+        \li \c nanosleep, \c futex, and \c poll explain scheduler switches
+        \li \c ioctl controls the GPU and display
+    \endlist
+
+    \section1 Converting LTTng Data to CTF
+
+    The \l{https://github.com/KDAB/ctf2ctf}{ctf2ctf} tool uses \c babeltrace to
+    parse binary Common Trace Format (CTF) and converts it to Chrome Trace
+    Format (CTF). It performs the following custom tasks to make the recording
+    more human-readable:
+
+    \list
+        \li Map file descriptors to file names
+        \li Map page faults to file names
+        \li Annotate interrupts and block devices with names
+        \li Convert UTF-16 QString data to UTF-8 strings
+        \li Count memory page allocations
+    \endlist
+
+    To generate JSON files that contain the trace data in Chrome Trace Format,
+    enter the following command on the command line:
+
+    \code
+    ctf2ctf -o trace.json path/to/lttng trace/
+    \endcode
+*/

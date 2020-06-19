@@ -56,11 +56,13 @@ public:
     static const QLatin1String repositoryBrowserCmd;
     static const QLatin1String graphLogKey;
     static const QLatin1String firstParentKey;
+    static const QLatin1String followRenamesKey;
     static const QLatin1String lastResetIndexKey;
+    static const QLatin1String refLogShowDateKey;
 
-    Utils::FileName gitExecutable(bool *ok = nullptr, QString *errorMessage = nullptr) const;
+    Utils::FilePath gitExecutable(bool *ok = nullptr, QString *errorMessage = nullptr) const;
 
-    GitSettings &operator = (const GitSettings &s);
+    GitSettings &operator=(const GitSettings &s) = default;
 };
 
 } // namespace Internal

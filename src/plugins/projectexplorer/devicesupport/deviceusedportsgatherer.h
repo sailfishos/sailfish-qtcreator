@@ -27,7 +27,7 @@
 
 #include "idevice.h"
 
-#include <projectexplorer/runconfiguration.h>
+#include <projectexplorer/runcontrol.h>
 
 #include <utils/portlist.h>
 
@@ -74,7 +74,7 @@ public:
     explicit PortsGatherer(RunControl *runControl);
     ~PortsGatherer() override;
 
-    Utils::Port findPort();
+    QUrl findEndPoint();
 
 protected:
     void start() override;

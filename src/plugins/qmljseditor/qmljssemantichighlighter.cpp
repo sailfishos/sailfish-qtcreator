@@ -46,6 +46,7 @@
 #include <utils/qtcassert.h>
 #include <utils/runextensions.h>
 
+#include <QDebug>
 #include <QTextDocument>
 #include <QThreadPool>
 
@@ -53,8 +54,6 @@ using namespace QmlJS;
 using namespace QmlJS::AST;
 
 namespace QmlJSEditor {
-
-using namespace Internal;
 
 namespace {
 
@@ -165,6 +164,11 @@ protected:
 
         return false;
     }
+
+    void throwRecursionDepthError() override
+    {
+        qWarning("Warning: Hit maximum recursion depth while visitin AST in CollectStateNames");
+    }
 };
 
 class CollectionTask : protected Visitor
@@ -265,8 +269,11 @@ protected:
             }
         }
 
-        if (type != SemanticHighlighter::UnknownType)
-            addUse(location, type);
+        if (type != SemanticHighlighter::UnknownType) {
+            // do not add uses of length 0 - this messes up highlighting (e.g. anon functions)
+            if (location.length != 0)
+                addUse(location, type);
+        }
     }
 
     void processTypeId(UiQualifiedId *typeId)
@@ -455,6 +462,11 @@ protected:
         }
     }
 
+    void throwRecursionDepthError() override
+    {
+        qWarning("Warning: Hit Maximum recursion depth when visiting AST in CollectionTask");
+    }
+
 private:
     void addUse(const SourceLocation &location, SemanticHighlighter::UseType type)
     {
@@ -522,7 +534,7 @@ private:
     ScopeBuilder m_scopeBuilder;
     QStringList m_stateNames;
     QVector<SemanticHighlighter::Use> m_uses;
-    unsigned m_lineOfLastUse;
+    int m_lineOfLastUse;
     QVector<SemanticHighlighter::Use> m_delayedUses;
     int m_nextExtraFormat;
     int m_currentDelayedUse;
@@ -612,7 +624,7 @@ void SemanticHighlighter::reportMessagesInfo(const QVector<QTextLayout::FormatRa
     // but will use them only after a signal sent by that same thread, maybe we should transfer
     // them more explicitly
     m_extraFormats = formats;
-    m_extraFormats.unite(m_formats);
+    Utils::addToHash(&m_extraFormats, m_formats);
     m_diagnosticRanges = diagnosticRanges;
 }
 

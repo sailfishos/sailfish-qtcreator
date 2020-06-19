@@ -40,11 +40,11 @@ class CPLUSPLUS_EXPORT Usage
 {
 public:
     Usage() = default;
-    Usage(const Utils::FileName &path, const QString &lineText, int line, int col, int len)
+    Usage(const Utils::FilePath &path, const QString &lineText, int line, int col, int len)
         : path(path), lineText(lineText), line(line), col(col), len(len) {}
 
 public:
-    Utils::FileName path;
+    Utils::FilePath path;
     QString lineText;
     int line = 0;
     int col = 0;
@@ -69,13 +69,13 @@ protected:
 
     QString matchingLine(const Token &tk) const;
 
-    void reportResult(unsigned tokenIndex, const Name *name, Scope *scope = 0);
-    void reportResult(unsigned tokenIndex, const Identifier *id, Scope *scope = 0);
+    void reportResult(unsigned tokenIndex, const Name *name, Scope *scope = nullptr);
+    void reportResult(unsigned tokenIndex, const Identifier *id, Scope *scope = nullptr);
     void reportResult(unsigned tokenIndex, const QList<LookupItem> &candidates);
     void reportResult(unsigned tokenIndex);
 
     bool checkCandidates(const QList<LookupItem> &candidates) const;
-    void checkExpression(unsigned startToken, unsigned endToken, Scope *scope = 0);
+    void checkExpression(unsigned startToken, unsigned endToken, Scope *scope = nullptr);
 
     static bool isLocalScope(Scope *scope);
 
@@ -90,7 +90,7 @@ protected:
 
     void objCSelectorArgument(ObjCSelectorArgumentAST *ast);
     void attribute(GnuAttributeAST *ast);
-    void declarator(DeclaratorAST *ast, Scope *symbol = 0);
+    void declarator(DeclaratorAST *ast, Scope *symbol = nullptr);
     void qtPropertyDeclarationItem(QtPropertyDeclarationItemAST *ast);
     void qtInterfaceName(QtInterfaceNameAST *ast);
     void baseSpecifier(BaseSpecifierAST *ast);

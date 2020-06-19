@@ -32,24 +32,10 @@
 namespace AutotoolsProjectManager {
 namespace Internal {
 
-///////////////////////////
-// MakeStepFactory class
-///////////////////////////
-class MakeStepFactory : public ProjectExplorer::BuildStepFactory
+class MakeStepFactory final : public ProjectExplorer::BuildStepFactory
 {
 public:
     MakeStepFactory();
-};
-
-/////////////////////
-// MakeStep class
-/////////////////////
-class MakeStep : public ProjectExplorer::MakeStep
-{
-    Q_OBJECT
-
-public:
-    explicit MakeStep(ProjectExplorer::BuildStepList *bsl);
 };
 
 } // namespace Internal

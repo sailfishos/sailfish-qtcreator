@@ -33,7 +33,6 @@
 #include <QString>
 
 namespace Autotest {
-namespace Internal {
 
 class TestOutputReader : public QObject
 {
@@ -42,20 +41,23 @@ public:
     TestOutputReader(const QFutureInterface<TestResultPtr> &futureInterface,
                      QProcess *testApplication, const QString &buildDirectory);
 
-    void processOutput(const QByteArray &output);
-    virtual void processStdError(const QByteArray &outputLineWithNewLine);
+    void processStdOutput(const QByteArray &outputLine);
+    virtual void processStdError(const QByteArray &outputLine);
     void reportCrash();
-    void createAndReportResult(const QString &message, Result::Type type);
+    void createAndReportResult(const QString &message, ResultType type);
     bool hadValidOutput() const { return m_hadValidOutput; }
+    int disabledTests() const { return m_disabled; }
+    bool hasSummary() const { return !m_summary.isEmpty(); }
+    QHash<ResultType, int> summary() const { return m_summary; }
     void setId(const QString &id) { m_id = id; }
     QString id() const { return m_id; }
 
-    static QByteArray chopLineBreak(const QByteArray &original);
-
+    void resetCommandlineColor();
 signals:
-    void newOutputAvailable(const QByteArray &outputWithLineBreak);
+    void newOutputLineAvailable(const QByteArray &outputLine, OutputChannel channel);
 protected:
-    virtual void processOutputLine(const QByteArray &outputLineWithNewLine) = 0;
+    QString removeCommandlineColors(const QString &original);
+    virtual void processOutputLine(const QByteArray &outputLine) = 0;
     virtual TestResultPtr createDefaultResult() const = 0;
 
     void reportResult(const TestResultPtr &result);
@@ -63,9 +65,10 @@ protected:
     QProcess *m_testApplication;  // not owned
     QString m_buildDir;
     QString m_id;
+    QHash<ResultType, int> m_summary;
+    int m_disabled = -1;
 private:
     bool m_hadValidOutput = false;
 };
 
-} // namespace Internal
 } // namespace Autotest

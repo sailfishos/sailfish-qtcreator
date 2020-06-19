@@ -56,12 +56,14 @@ public:
     void setAutoSynchronization(bool sync);
     bool projectFilter();
     bool generatedFilesFilter();
+    bool disabledFilesFilter();
+    bool trimEmptyDirectoriesFilter();
     QToolButton *toggleSync();
     Node *currentNode();
     void sync(ProjectExplorer::Node *node);
     void showMessage(ProjectExplorer::Node *node, const QString &message);
 
-    static Node *nodeForFile(const Utils::FileName &fileName);
+    static Node *nodeForFile(const Utils::FilePath &fileName);
 
     void toggleAutoSynchronization();
     void editCurrentItem();
@@ -71,6 +73,7 @@ public:
 private:
     void setProjectFilter(bool filter);
     void setGeneratedFilesFilter(bool filter);
+    void setDisabledFilesFilter(bool filter);
     void setTrimEmptyDirectories(bool filter);
 
     void handleCurrentItemChange(const QModelIndex &current);
@@ -80,7 +83,7 @@ private:
     void setCurrentItem(ProjectExplorer::Node *node);
     static int expandedCount(Node *node);
     void rowsInserted(const QModelIndex &parent, int start, int end);
-    void renamed(const Utils::FileName &oldPath, const Utils::FileName &newPath);
+    void renamed(const Utils::FilePath &oldPath, const Utils::FilePath &newPath);
 
     void syncFromDocumentManager();
 
@@ -88,12 +91,13 @@ private:
     FlatModel *m_model = nullptr;
     QAction *m_filterProjectsAction = nullptr;
     QAction *m_filterGeneratedFilesAction = nullptr;
+    QAction *m_filterDisabledFilesAction = nullptr;
     QAction *m_trimEmptyDirectoriesAction = nullptr;
     QToolButton *m_toggleSync = nullptr;
 
     QString m_modelId;
     bool m_autoSync = true;
-    Utils::FileName m_delayedRename;
+    QList<Utils::FilePath> m_delayedRename;
 
     static QList<ProjectTreeWidget *> m_projectTreeWidgets;
     friend class ProjectTreeWidgetFactory;

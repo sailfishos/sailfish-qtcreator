@@ -31,6 +31,15 @@ namespace ClangBackEnd {
 
 class ProjectPartId
 {
+    template<typename StringType,
+             typename StringViewType,
+             typename IndexType,
+             typename Mutex,
+             typename Compare,
+             Compare compare,
+             typename CacheEntry>
+    friend class StringCache;
+
 public:
     constexpr ProjectPartId() = default;
 
@@ -47,6 +56,11 @@ public:
         return first.isValid() && first.projectPathId == second.projectPathId;
     }
 
+    friend bool operator==(ProjectPartId first, int second)
+    {
+        return first == ProjectPartId{second};
+    }
+
     friend bool operator!=(ProjectPartId first, ProjectPartId second) { return !(first == second); }
 
     friend bool operator<(ProjectPartId first, ProjectPartId second)
@@ -54,7 +68,7 @@ public:
         return first.projectPathId < second.projectPathId;
     }
 
-    friend QDataStream &operator<<(QDataStream &out, const ProjectPartId &projectPathId)
+    friend QDataStream &operator<<(QDataStream &out, ProjectPartId projectPathId)
     {
         out << projectPathId.projectPathId;
 
@@ -67,6 +81,10 @@ public:
 
         return in;
     }
+
+private:
+    operator int() const { return projectPathId; }
+    ProjectPartId operator++() { return ++projectPathId; }
 
 public:
     int projectPathId = -1;

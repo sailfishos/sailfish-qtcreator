@@ -37,11 +37,12 @@ namespace TextEditor {
 
 class SyntaxHighlighter;
 
-class TEXTEDITOR_EXPORT HighlightingResult {
+class TEXTEDITOR_EXPORT HighlightingResult
+{
 public:
-    unsigned line = 0; // 1-based
-    unsigned column = 0; // 1-based
-    unsigned length = 0;
+    int line = 0; // 1-based
+    int column = 0; // 1-based
+    int length = 0;
     TextStyles textStyles;
     int kind = 0; /// The various highlighters can define their own kind of results.
     bool useTextSyles = false;
@@ -54,11 +55,11 @@ public:
 
     HighlightingResult() = default;
 
-    HighlightingResult(unsigned line, unsigned column, unsigned length, int kind)
+    HighlightingResult(int line, int column, int length, int kind)
         : line(line), column(column), length(length), kind(kind), useTextSyles(false)
     {}
 
-    HighlightingResult(unsigned line, unsigned column, unsigned length, TextStyles textStyles)
+    HighlightingResult(int line, int column, int length, TextStyles textStyles)
         : line(line), column(column), length(length), textStyles(textStyles), useTextSyles(true)
     {}
 
@@ -70,6 +71,8 @@ public:
                 && kind == other.kind;
     }
 };
+
+using HighlightingResults = QList<HighlightingResult>;
 
 namespace SemanticHighlighter {
 
@@ -85,6 +88,15 @@ void TEXTEDITOR_EXPORT incrementalApplyExtraAdditionalFormats(
         const QFuture<HighlightingResult> &future,
         int from, int to,
         const QHash<int, QTextCharFormat> &kindToFormat);
+
+// Clears all extra highlights and applies the extra formats
+// indicated by Result::kind and kindToFormat to the correct location using
+// SyntaxHighlighter::setExtraFormats. In contrast to
+// incrementalApplyExtraAdditionalFormats the results do not have to be ordered by line.
+void TEXTEDITOR_EXPORT setExtraAdditionalFormats(
+    SyntaxHighlighter *highlighter,
+    const HighlightingResults &results,
+    const QHash<int, QTextCharFormat> &kindToFormat);
 
 // Cleans the extra additional formats after the last result of the Future
 // until the end of the document.

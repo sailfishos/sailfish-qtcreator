@@ -53,7 +53,11 @@ private:
 
     void tweakHeaderPaths();
 
+    void addPreIncludesPath();
+
     bool isProjectHeaderPath(const QString &path) const;
+
+    void removeGccInternalIncludePaths();
 
     static QString ensurePathWithSlashEnding(const QString &path);
 

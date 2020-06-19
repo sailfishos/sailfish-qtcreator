@@ -1,0 +1,81 @@
+/****************************************************************************
+**
+** Copyright (C) 2018 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \previouspage accelbubble
+    \page creator-project-managing.html
+    \nextpage creator-project-creating.html
+
+    \title Managing Projects
+
+    \image front-projects.png
+
+    One of the major advantages of \QC is that it allows a team of designers and
+    developers to share a project across different development platforms with a
+    common tool for design, development, and debugging.
+
+    \list
+
+        \li \l{Creating Projects}
+
+            To set up a project, you first have to decide what kind of an
+            application you want to develop: do you want a user interface based
+            on Qt Quick or Qt widgets. Second, you have to choose the
+            language to implement the application logic: C++, JavaScript, or
+            Python.
+
+        \li \l{Using Version Control Systems}
+
+            The recommended way to set up a project is to use a version control
+            system. Store and edit only project source files and configuration
+            files. Do not store generated files.
+
+        \li \l{Configuring Projects}
+
+            Installation programs and project wizards create default
+            configurations for \QC and your projects. You can modify
+            the settings in the Projects mode.
+
+        \li \l{Managing Sessions}
+
+            Items such as open files, breakpoints, and evaluated expressions
+            are stored in sessions. They are not considered to be part of
+            the information shared across platforms.
+
+    \endlist
+
+    \section1 Related Topics
+
+    \list
+        \li \l{Using Other Build Systems}
+    \endlist
+
+*/

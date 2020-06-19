@@ -190,7 +190,7 @@ Environment ExternalTool::baseEnvironment() const
     return Environment::systemEnvironment();
 }
 
-QList<EnvironmentItem> ExternalTool::environmentUserChanges() const
+EnvironmentItems ExternalTool::environmentUserChanges() const
 {
     return m_environment;
 }
@@ -297,7 +297,7 @@ void ExternalTool::setBaseEnvironmentProviderId(Id id)
     m_baseEnvironmentProviderId = id;
 }
 
-void ExternalTool::setEnvironmentUserChanges(const QList<EnvironmentItem> &items)
+void ExternalTool::setEnvironmentUserChanges(const EnvironmentItems &items)
 {
     m_environment = items;
 }
@@ -600,10 +600,10 @@ bool ExternalToolRunner::resolve()
     m_resolvedEnvironment = m_tool->baseEnvironment();
 
     MacroExpander *expander = globalMacroExpander();
-    QList<EnvironmentItem> expandedEnvironment
-        = Utils::transform(m_tool->environmentUserChanges(), [expander](const EnvironmentItem &item) {
-              return EnvironmentItem(item.name, expander->expand(item.value), item.operation);
-          });
+    EnvironmentItems expandedEnvironment = Utils::transform(
+        m_tool->environmentUserChanges(), [expander](const EnvironmentItem &item) {
+            return EnvironmentItem(item.name, expander->expand(item.value), item.operation);
+        });
     m_resolvedEnvironment.modify(expandedEnvironment);
 
     {
@@ -654,7 +654,7 @@ void ExternalToolRunner::run()
     }
     m_process = new QtcProcess(this);
     connect(m_process, &QProcess::started, this, &ExternalToolRunner::started);
-    connect(m_process, static_cast<void (QProcess::*)(int,QProcess::ExitStatus)>(&QProcess::finished),
+    connect(m_process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &ExternalToolRunner::finished);
     connect(m_process, &QProcess::errorOccurred, this, &ExternalToolRunner::error);
     connect(m_process, &QProcess::readyReadStandardOutput,
@@ -663,11 +663,11 @@ void ExternalToolRunner::run()
             this, &ExternalToolRunner::readStandardError);
     if (!m_resolvedWorkingDirectory.isEmpty())
         m_process->setWorkingDirectory(m_resolvedWorkingDirectory);
-    m_process->setCommand(m_resolvedExecutable.toString(), m_resolvedArguments);
+    const CommandLine cmd{m_resolvedExecutable, m_resolvedArguments, CommandLine::Raw};
+    m_process->setCommand(cmd);
     m_process->setEnvironment(m_resolvedEnvironment);
-    MessageManager::write(tr("Starting external tool \"%1\" %2")
-                          .arg(m_resolvedExecutable.toUserOutput(), m_resolvedArguments),
-                          MessageManager::Silent);
+    MessageManager::writeWithTime(tr("Starting external tool \"%1\"")
+                                  .arg(cmd.toUserOutput()), MessageManager::Silent);
     m_process->start();
 }
 
@@ -687,8 +687,8 @@ void ExternalToolRunner::finished(int exitCode, QProcess::ExitStatus status)
     }
     if (m_tool->modifiesCurrentDocument())
         DocumentManager::unexpectFileChange(m_expectedFileName);
-    MessageManager::write(tr("\"%1\" finished")
-                          .arg(m_resolvedExecutable.toUserOutput()), MessageManager::Silent);
+    MessageManager::writeWithTime(tr("\"%1\" finished")
+                                  .arg(m_resolvedExecutable.toUserOutput()), MessageManager::Silent);
     deleteLater();
 }
 
@@ -697,7 +697,7 @@ void ExternalToolRunner::error(QProcess::ProcessError error)
     if (m_tool->modifiesCurrentDocument())
         DocumentManager::unexpectFileChange(m_expectedFileName);
     // TODO inform about errors
-    Q_UNUSED(error);
+    Q_UNUSED(error)
     deleteLater();
 }
 

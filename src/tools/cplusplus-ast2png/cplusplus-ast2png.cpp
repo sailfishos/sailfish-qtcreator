@@ -38,6 +38,8 @@
 #include <cplusplus/Symbols.h>
 #include <cplusplus/TranslationUnit.h>
 
+#include <utils/hostosinfo.h>
+
 #include "utils.h"
 
 #include <QDir>
@@ -127,15 +129,15 @@ protected:
         return name;
     }
 
-    QByteArray terminalId(unsigned token)
+    QByteArray terminalId(int token)
     { return 't' + QByteArray::number(token); }
 
-    void terminal(unsigned token, AST *node) {
+    void terminal(int token, AST *node) {
         _connections.append(qMakePair(_id[node], terminalId(token)));
     }
 
     void generateTokens() {
-        for (unsigned token = 1; token < translationUnit()->tokenCount(); ++token) {
+        for (int token = 1; token < translationUnit()->tokenCount(); ++token) {
             if (translationUnit()->tokenKind(token) == T_EOF_SYMBOL)
                 break;
 
@@ -361,7 +363,7 @@ private:
 
 static void createImageFromDot(const QString &inputFile, const QString &outputFile, bool verbose)
 {
-    const QString command = CplusplusToolsUtils::portableExecutableName(QLatin1String("dot"));
+    const QString command = Utils::HostOsInfo::withExecutableSuffix("dot");
     const QStringList arguments = QStringList({"-Tpng", "-o", outputFile, inputFile});
     CplusplusToolsUtils::executeCommand(command, arguments, QString(), verbose);
 }
@@ -413,7 +415,7 @@ public:
 
     void report(int level,
                 const StringLiteral *fileName,
-                unsigned line, unsigned column,
+                int line, int column,
                 const char *format, va_list ap)
     {
         ++m_errorCount;
@@ -423,12 +425,11 @@ public:
 
         static const char *const pretty[] = {"warning", "error", "fatal"};
 
-        QString str;
-        str.sprintf("%s:%d:%d: When parsing as %s: %s: ", fileName->chars(), line, column,
+        QString str = QString::asprintf("%s:%d:%d: When parsing as %s: %s: ", fileName->chars(), line, column,
                     parseModeToString(m_parseMode).toUtf8().constData(), pretty[level]);
         m_errorString->append(str.toUtf8());
 
-        str.vsprintf(format, ap);
+        str += QString::vasprintf(format, ap);
         m_errorString->append(str.toUtf8());
         m_errorString->append('\n');
     }

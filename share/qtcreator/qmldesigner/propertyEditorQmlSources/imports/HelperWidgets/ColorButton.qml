@@ -24,7 +24,6 @@
 ****************************************************************************/
 
 import QtQuick 2.1
-import QtQuick.Controls 1.0 as Controls
 
 Item {
     id: colorButton
@@ -40,18 +39,15 @@ Item {
 
     property int sliderMargins: 6
 
-    onHueChanged: {
-        //hueSlider.value = hue;
-        invalidateColor();
-    }
+    property bool block: false
 
-    signal clicked
+    signal updateColor
+    signal rightMouseButtonClicked
 
     onAlphaChanged: invalidateColor();
-
     onSaturationChanged: invalidateColor();
-
     onLightnessChanged: invalidateColor();
+    onHueChanged: invalidateColor();
 
     onColorChanged: {
         var myAlpha = color.a
@@ -59,8 +55,6 @@ Item {
 
         colorButton.alpha = myAlpha
     }
-
-    property bool block: false
 
     function invalidateColor() {
         if (block)
@@ -82,6 +76,9 @@ Item {
 
         lightnessSlider.value = lightness
         alphaSlider.value = alpha
+        redSlider.value = (color.r * 255)
+        greenSlider.value = (color.g * 255)
+        blueSlider.value = (color.b * 255)
 
         block = false
     }
@@ -142,14 +139,12 @@ Item {
 
             onPaint: {
                 var ctx = hubeBox.getContext('2d')
-
                 ctx.save()
-
                 ctx.clearRect(0, 0, hubeBox.width, hubeBox.height);
 
                 for (var row = 0; row < hubeBox.height; row++){
                     var gradient = ctx.createLinearGradient(0, 0, hubeBox.width,0);
-                    var l = Math.abs(row  - hubeBox.height) / hubeBox.height
+                    var l = Math.abs(row - hubeBox.height) / hubeBox.height
 
                     gradient.addColorStop(0, Qt.hsla(hubeBox.hue, 0, l, 1));
                     gradient.addColorStop(1, Qt.hsla(hubeBox.hue, 1, l, 1));
@@ -157,20 +152,15 @@ Item {
                     ctx.fillStyle = gradient;
                     ctx.fillRect(0, row, hubeBox.width, 1);
                 }
-
                 ctx.restore()
-
             }
-
         }
 
         Canvas {
             id: canvas
 
             opacity: 0.8
-
             anchors.fill: parent
-
             antialiasing: true
 
             property real cavnasSaturation: colorButton.saturation
@@ -194,7 +184,6 @@ Item {
                 ctx.strokeStyle = canvas.strokeStyle
                 ctx.lineWidth = 1
 
-
                 ctx.beginPath()
                 ctx.moveTo(0, yy)
                 ctx.lineTo(canvas.width, yy)
@@ -207,24 +196,35 @@ Item {
 
                 ctx.restore()
             }
-
         }
 
         MouseArea {
             id: mapMouseArea
             anchors.fill: parent
             onPositionChanged: {
-                if (pressed) {
+                if (pressed && mouse.buttons === Qt.LeftButton) {
                     var xx = Math.max(0, Math.min(mouse.x, parent.width))
                     var yy = Math.max(0, Math.min(mouse.y, parent.height))
 
-                    colorButton.lightness =  1.0 - yy / parent.height;
-                    colorButton.saturation =  xx / parent.width;
+                    colorButton.lightness = 1.0 - yy / parent.height;
+                    colorButton.saturation = xx / parent.width;
                 }
             }
-            onPressed: positionChanged(mouse)
+            onPressed: {
+                if (mouse.button === Qt.LeftButton)
+                    positionChanged(mouse)
+            }
+            onReleased: {
+                if (mouse.button === Qt.LeftButton)
+                    colorButton.updateColor()
+            }
 
-            onReleased: colorButton.clicked()
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+
+            onClicked: {
+                if (mouse.button === Qt.RightButton)
+                    colorButton.rightMouseButtonClicked()
+            }
         }
         Rectangle {
             anchors.fill: parent
@@ -235,116 +235,204 @@ Item {
         }
     }
 
-
     HueSlider {
         id: hueSlider
         anchors.left: surround.right
         anchors.margins: 6
         y: 4
         height: parent.height - 8
-        //value: colorButton.hue
         onValueChanged: {
             if (colorButton.hue !== value)
                 colorButton.hue = value
         }
-        onClicked: colorButton.clicked()
-
+        onClicked: colorButton.updateColor()
     }
-    Column {
 
+    Row {
         anchors.left: hueSlider.right
         anchors.margins: colorButton.sliderMargins
         spacing: 10
 
-        Row {
-            z: 3
-            spacing: 4
-            Label {
-                text: "H:"
-                width: 16
-                color: "#eee"
-                elide: Text.ElideRight
-                anchors.verticalCenter: parent.verticalCenter
+        Column {
+            spacing: 10
+            Row {
+                z: 3
+                spacing: 1
+                Label {
+                    text: "R"
+                    width: 16
+                    color: "#eee"
+                    elide: Text.ElideRight
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                DoubleSpinBox {
+                    id: redSlider
+                    width: 68
+
+                    stepSize: 1
+                    minimumValue: 0
+                    maximumValue: 255
+                    decimals: 0
+
+                    onValueModified: {
+                        var tmp = redSlider.value / 255.0
+                        if (colorButton.color.r !== tmp && !colorButton.block) {
+                            colorButton.color.r = tmp
+                            colorButton.updateColor()
+                        }
+                    }
+                }
             }
-            DoubleSpinBox {
-                id: hueSlider2
-                //value: colorButton.hue
-                onValueChanged: {
-                    if (colorButton.hue !== value  && !colorButton.block) {
-                        colorButton.hue = value
-                        colorButton.clicked()
+
+            Row {
+                z: 2
+                spacing: 1
+                Label {
+                    text: "G"
+                    width: 16
+                    color: "#eee"
+                    elide: Text.ElideRight
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                DoubleSpinBox {
+                    id: greenSlider
+                    width: 68
+
+                    stepSize: 1
+                    minimumValue: 0
+                    maximumValue: 255
+                    decimals: 0
+
+                    onValueModified: {
+                        var tmp = greenSlider.value / 255.0
+                        if (colorButton.color.g !== tmp && !colorButton.block) {
+                            colorButton.color.g = tmp
+                            colorButton.updateColor()
+                        }
+                    }
+                }
+            }
+
+            Row {
+                z: 1
+                spacing: 1
+                Label {
+                    text: "B"
+                    width: 16
+                    color: "#eee"
+                    elide: Text.ElideRight
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                DoubleSpinBox {
+                    id: blueSlider
+                    width: 68
+
+                    stepSize: 1
+                    minimumValue: 0
+                    maximumValue: 255
+                    decimals: 0
+
+                    onValueModified: {
+                        var tmp = blueSlider.value / 255.0
+                        if (colorButton.color.b !== tmp && !colorButton.block) {
+                            colorButton.color.b = tmp
+                            colorButton.updateColor()
+                        }
+                    }
+                }
+            }
+
+            Row {
+                z: 0
+                spacing: 1
+                Label {
+                    text: "A"
+                    width: 16
+                    color: "#eee"
+                    elide: Text.ElideRight
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                DoubleSpinBox {
+                    id: alphaSlider
+                    sliderIndicatorVisible: true
+                    width: 68
+                    onValueModified: {
+                        if (colorButton.alpha !== alphaSlider.value && !colorButton.block) {
+                            colorButton.alpha = alphaSlider.value
+                            colorButton.updateColor()
+                        }
                     }
                 }
             }
         }
 
-        Row {
-            z: 2
-            spacing: 4
-            Controls.Label {
-                text: "S:"
-                width: 16
-                color: "#eee"
-                elide: Text.ElideRight
-                anchors.verticalCenter: parent.verticalCenter
+        Column {
+            spacing: 10
+            Row {
+                z: 3
+                spacing: 1
+                Label {
+                    text: "H"
+                    width: 16
+                    color: "#eee"
+                    elide: Text.ElideRight
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                DoubleSpinBox {
+                    id: hueSlider2
+                    width: 64
+                    onValueModified: {
+                        if (colorButton.hue !== hueSlider2.value && !colorButton.block) {
+                            colorButton.hue = hueSlider2.value
+                            colorButton.updateColor()
+                        }
+                    }
+                }
             }
 
-            DoubleSpinBox {
-                id: saturationSlider
-                //value: colorButton.saturation
-                onValueChanged: {
-                    if (colorButton.saturation !== value  && !colorButton.block) {
-                        colorButton.saturation = value
-                        colorButton.clicked()
+            Row {
+                z: 2
+                spacing: 1
+                Label {
+                    text: "S"
+                    width: 16
+                    color: "#eee"
+                    elide: Text.ElideRight
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                DoubleSpinBox {
+                    id: saturationSlider
+                    width: 64
+                    onValueModified: {
+                        if (colorButton.saturation !== saturationSlider.value && !colorButton.block) {
+                            colorButton.saturation = saturationSlider.value
+                            colorButton.updateColor()
+                        }
+                    }
+                }
+            }
+
+            Row {
+                z: 1
+                spacing: 1
+                Label {
+                    text: "L"
+                    width: 16
+                    color: "#eee"
+                    elide: Text.ElideRight
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                DoubleSpinBox {
+                    id: lightnessSlider
+                    width: 64
+                    onValueModified: {
+                        if (colorButton.lightness !== lightnessSlider.value && !colorButton.block) {
+                            colorButton.lightness = lightnessSlider.value
+                            colorButton.updateColor()
+                        }
                     }
                 }
             }
         }
-
-        Row {
-            z: 1
-            spacing: 4
-            Controls.Label {
-                text: "L:"
-                width: 16
-                color: "#eee"
-                elide: Text.ElideRight
-                anchors.verticalCenter: parent.verticalCenter
-            }
-            DoubleSpinBox {
-                id: lightnessSlider
-                //value: colorButton.lightness
-                onValueChanged: {
-                    if (colorButton.lightness !== value && !colorButton.block) {
-                        colorButton.lightness = value
-                        colorButton.clicked()
-                    }
-                }
-            }
-        }
-
-        Row {
-            z: 0
-            spacing: 4
-            Controls.Label {
-                text: "A:"
-                width: 16
-                color: "#eee"
-                elide: Text.ElideRight
-                anchors.verticalCenter: parent.verticalCenter
-            }
-
-            DoubleSpinBox {
-                id: alphaSlider
-                //value: colorButton.alpha
-                onValueChanged: {
-                    if (colorButton.alpha !== value  && !colorButton.block) {
-                        colorButton.alpha = value
-                        colorButton.clicked()
-                    }
-                }
-            }
-        }
-
     }
 }

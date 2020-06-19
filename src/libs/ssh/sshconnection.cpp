@@ -110,15 +110,11 @@ struct SshConnection::SshConnectionPrivate
         return masterSocketDir->path() + "/cs";
     }
 
-    QStringList connectionOptions() const
+    QStringList connectionOptions(const FilePath &binary) const
     {
-        bool avoidUpdatingKnownHosts = false;
         QString hostKeyCheckingString;
         switch (connParams.hostKeyCheckingMode) {
         case SshHostKeyCheckingNone:
-            avoidUpdatingKnownHosts = true;
-            hostKeyCheckingString = "no";
-            break;
         case SshHostKeyCheckingAllowNoMatch:
             // There is "accept-new" as well, but only since 7.6.
             hostKeyCheckingString = "no";
@@ -130,8 +126,6 @@ struct SshConnection::SshConnectionPrivate
         QStringList args{"-o", "StrictHostKeyChecking=" + hostKeyCheckingString,
                     "-o", "User=" + connParams.userName(),
                     "-o", "Port=" + QString::number(connParams.port())};
-        if (avoidUpdatingKnownHosts)
-            args << "-o" << "UserKnownHostsFile=/dev/null";
         const bool keyOnly = connParams.authenticationType ==
                 SshConnectionParameters::AuthenticationTypeSpecificKey;
         if (keyOnly)
@@ -140,14 +134,19 @@ struct SshConnection::SshConnectionPrivate
             args << "-o" << "BatchMode=yes";
         if (sharingEnabled)
             args << "-o" << ("ControlPath=" + socketFilePath());
-        if (connParams.timeout != 0)
+        bool useTimeout = connParams.timeout != 0;
+        if (useTimeout && HostOsInfo::isWindowsHost()
+                && binary.toString().toLower().contains("/system32/")) {
+            useTimeout = false;
+        }
+        if (useTimeout)
             args << "-o" << ("ConnectTimeout=" + QString::number(connParams.timeout));
         return args;
     }
 
-    QStringList connectionArgs() const
+    QStringList connectionArgs(const FilePath &binary) const
     {
-        return connectionOptions() << connParams.host();
+        return connectionOptions(binary) << connParams.host();
     }
 
     SshConnectionParameters connParams;
@@ -155,7 +154,6 @@ struct SshConnection::SshConnectionPrivate
     SshProcess masterProcess;
     QString errorString;
     std::unique_ptr<QTemporaryDir> masterSocketDir;
-    std::unique_ptr<FileSystemWatcher> masterSocketWatcher;
     State state = Unconnected;
     const bool sharingEnabled = SshSettings::connectionSharingEnabled();
 };
@@ -173,21 +171,20 @@ SshConnection::SshConnection(const SshConnectionParameters &serverInfo, QObject 
             emitConnected();
             return;
         }
-        d->masterSocketWatcher.reset(new FileSystemWatcher(this));
-        auto * const socketWatcherTimer = new QTimer(d->masterSocketWatcher.get());
-        const auto socketFileChecker = [this, socketWatcherTimer] {
+        auto * const socketWatcher = new FileSystemWatcher(this);
+        auto * const socketWatcherTimer = new QTimer(this);
+        const auto socketFileChecker = [this, socketWatcher, socketWatcherTimer] {
             if (!QFileInfo::exists(d->socketFilePath()))
                 return;
-            d->masterSocketWatcher->disconnect();
-            d->masterSocketWatcher->deleteLater();
-            (void) d->masterSocketWatcher.release();
+            socketWatcher->disconnect();
+            socketWatcher->deleteLater();
             socketWatcherTimer->disconnect();
             socketWatcherTimer->stop();
+            socketWatcherTimer->deleteLater();
             emitConnected();
         };
-        connect(d->masterSocketWatcher.get(), &FileSystemWatcher::directoryChanged,
-                socketFileChecker);
-        d->masterSocketWatcher->addDirectory(socketInfo.path(), FileSystemWatcher::WatchAllChanges);
+        connect(socketWatcher, &FileSystemWatcher::directoryChanged, socketFileChecker);
+        socketWatcher->addDirectory(socketInfo.path(), FileSystemWatcher::WatchAllChanges);
         if (HostOsInfo::isMacHost()) {
             // QTBUG-72455
             socketWatcherTimer->setInterval(1000);
@@ -239,7 +236,7 @@ void SshConnection::disconnectFromHost()
     case Connecting:
     case Connected:
         if (!d->sharingEnabled) {
-            emitDisconnected();
+            QTimer::singleShot(0, this, &SshConnection::emitDisconnected);
             return;
         }
         d->state = Disconnecting;
@@ -275,8 +272,8 @@ SshConnectionInfo SshConnection::connectionInfo() const
     if (d->connInfo.isValid())
         return d->connInfo;
     QProcess p;
-    p.start(SshSettings::sshFilePath().toString(), d->connectionArgs() << "echo" << "-n"
-            << "$SSH_CLIENT");
+    p.start(SshSettings::sshFilePath().toString(), d->connectionArgs(SshSettings::sshFilePath())
+            << "echo" << "-n" << "$SSH_CLIENT");
     if (!p.waitForStarted() || !p.waitForFinished()) {
         qCWarning(Internal::sshLog) << "failed to retrieve connection info:" << p.errorString();
         return SshConnectionInfo();
@@ -300,9 +297,9 @@ SshConnectionInfo SshConnection::connectionInfo() const
     return d->connInfo;
 }
 
-QStringList SshConnection::connectionOptions() const
+QStringList SshConnection::connectionOptions(const FilePath &binary) const
 {
-    return d->connectionOptions();
+    return d->connectionOptions(binary);
 }
 
 bool SshConnection::sharingEnabled() const
@@ -317,15 +314,16 @@ SshConnection::~SshConnection()
     delete d;
 }
 
-SshRemoteProcessPtr SshConnection::createRemoteProcess(const QByteArray &command)
+SshRemoteProcessPtr SshConnection::createRemoteProcess(const QString &command)
 {
     QTC_ASSERT(state() == Connected, return SshRemoteProcessPtr());
-    return SshRemoteProcessPtr(new SshRemoteProcess(command, d->connectionArgs()));
+    return SshRemoteProcessPtr(new SshRemoteProcess(command,
+                                                    d->connectionArgs(SshSettings::sshFilePath())));
 }
 
 SshRemoteProcessPtr SshConnection::createRemoteShell()
 {
-    return createRemoteProcess(QByteArray());
+    return createRemoteProcess({});
 }
 
 SftpTransferPtr SshConnection::createUpload(const FilesToTransfer &files,
@@ -343,17 +341,21 @@ SftpTransferPtr SshConnection::createDownload(const FilesToTransfer &files,
 SftpSessionPtr SshConnection::createSftpSession()
 {
     QTC_ASSERT(state() == Connected, return SftpSessionPtr());
-    return SftpSessionPtr(new SftpSession(d->connectionArgs()));
+    return SftpSessionPtr(new SftpSession(d->connectionArgs(SshSettings::sftpFilePath())));
 }
 
 void SshConnection::doConnectToHost()
 {
     if (d->state != Connecting)
         return;
-    const FileName sshBinary = SshSettings::sshFilePath();
+    const FilePath sshBinary = SshSettings::sshFilePath();
     if (!sshBinary.exists()) {
         emitError(tr("Cannot establish SSH connection: ssh binary \"%1\" does not exist.")
                   .arg(sshBinary.toUserOutput()));
+        return;
+    }
+    if (!d->sharingEnabled) {
+        emitConnected();
         return;
     }
     d->masterSocketDir.reset(new QTemporaryDir);
@@ -363,14 +365,8 @@ void SshConnection::doConnectToHost()
                   .arg(d->masterSocketDir->errorString()));
         return;
     }
-    QStringList args;
-    if (d->sharingEnabled) {
-        args = QStringList{"-M", "-N", "-o", "ControlPersist=no"} << d->connectionArgs();
-    } else {
-        const QString notify = QString("echo I am not a socket > \"%1\"").arg(d->socketFilePath());
-        args = QStringList{"-N", "-o", "PermitLocalCommand=yes", "-o", "LocalCommand=" + notify}
-            << d->connectionArgs();
-    }
+    QStringList args = QStringList{"-M", "-N", "-o", "ControlPersist=no"}
+            << d->connectionArgs(sshBinary);
     if (!d->connParams.x11DisplayName.isEmpty())
         args.prepend("-X");
     qCDebug(sshLog) << "establishing connection:" << sshBinary.toUserOutput() << args;
@@ -404,7 +400,8 @@ SftpTransferPtr SshConnection::setupTransfer(
         FileTransferErrorHandling errorHandlingMode)
 {
     QTC_ASSERT(state() == Connected, return SftpTransferPtr());
-    return SftpTransferPtr(new SftpTransfer(files, type, errorHandlingMode, d->connectionArgs()));
+    return SftpTransferPtr(new SftpTransfer(files, type, errorHandlingMode,
+                                            d->connectionArgs(SshSettings::sftpFilePath())));
 }
 
 } // namespace QSsh

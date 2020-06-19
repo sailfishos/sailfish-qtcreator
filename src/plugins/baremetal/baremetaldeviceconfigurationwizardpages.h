@@ -35,25 +35,25 @@ QT_END_NAMESPACE
 namespace BareMetal {
 namespace Internal {
 
-class GdbServerProviderChooser;
+class DebugServerProviderChooser;
 
-class BareMetalDeviceConfigurationWizardSetupPage : public QWizardPage
+// BareMetalDeviceConfigurationWizardSetupPage
+
+class BareMetalDeviceConfigurationWizardSetupPage final : public QWizardPage
 {
     Q_OBJECT
 
 public:
     explicit BareMetalDeviceConfigurationWizardSetupPage(QWidget *parent = nullptr);
 
-    void initializePage() override;
-    bool isComplete() const override;
+    void initializePage() final;
+    bool isComplete() const final;
     QString configurationName() const;
-    QString gdbServerProviderId() const;
-
-    virtual QString defaultConfigurationName() const;
+    QString debugServerProviderId() const;
 
 private:
-    QLineEdit *m_nameLineEdit;
-    GdbServerProviderChooser *m_gdbServerProviderChooser;
+    QLineEdit *m_nameLineEdit = nullptr;
+    DebugServerProviderChooser *m_debugServerProviderChooser = nullptr;
 };
 
 } // namespace Internal

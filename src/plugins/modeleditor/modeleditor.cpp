@@ -321,7 +321,7 @@ void ModelEditor::init(QWidget *parent)
     toolbarLayout->addWidget(openParentButton);
 
     d->diagramSelector = new QComboBox(d->toolbar);
-    connect(d->diagramSelector, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
+    connect(d->diagramSelector, QOverload<int>::of(&QComboBox::activated),
             this, &ModelEditor::onDiagramSelectorSelected);
     toolbarLayout->addWidget(d->diagramSelector, 1);
     toolbarLayout->addStretch(1);
@@ -449,7 +449,7 @@ void ModelEditor::initDocument()
 qmt::MDiagram *ModelEditor::currentDiagram() const
 {
     if (!d->diagramView->diagramSceneModel())
-        return 0;
+        return nullptr;
     return d->diagramView->diagramSceneModel()->diagram();
 }
 
@@ -830,7 +830,7 @@ void ModelEditor::clearProperties()
     d->propertiesView->clearSelection();
     if (d->propertiesGroupWidget) {
         QWidget *scrollWidget = d->propertiesScrollArea->takeWidget();
-        Q_UNUSED(scrollWidget); // avoid warning in release mode
+        Q_UNUSED(scrollWidget) // avoid warning in release mode
         QMT_CHECK(scrollWidget == d->propertiesGroupWidget);
         d->propertiesGroupWidget->deleteLater();
         d->propertiesGroupWidget = nullptr;
@@ -952,8 +952,8 @@ void ModelEditor::onTreeModelReset()
 void ModelEditor::onTreeViewSelectionChanged(const QItemSelection &selected,
                                              const QItemSelection &deselected)
 {
-    Q_UNUSED(selected);
-    Q_UNUSED(deselected);
+    Q_UNUSED(selected)
+    Q_UNUSED(deselected)
 
     synchronizeDiagramWithBrowser();
     updateSelectedArea(SelectedArea::TreeView);
@@ -986,14 +986,14 @@ void ModelEditor::onCurrentDiagramChanged(const qmt::MDiagram *diagram)
 
 void ModelEditor::onDiagramActivated(const qmt::MDiagram *diagram)
 {
-    Q_UNUSED(diagram);
+    Q_UNUSED(diagram)
 
     updateSelectedArea(SelectedArea::Diagram);
 }
 
 void ModelEditor::onDiagramClipboardChanged(bool isEmpty)
 {
-    Q_UNUSED(isEmpty);
+    Q_UNUSED(isEmpty)
 
     if (this == Core::EditorManager::currentEditor())
         updateSelectedArea(d->selectedArea);
@@ -1021,15 +1021,15 @@ void ModelEditor::onDiagramSelectionChanged(const qmt::MDiagram *diagram)
 
 void ModelEditor::onDiagramModified(const qmt::MDiagram *diagram)
 {
-    Q_UNUSED(diagram);
+    Q_UNUSED(diagram)
 
     updateSelectedArea(d->selectedArea);
 }
 
 void ModelEditor::onRightSplitterMoved(int pos, int index)
 {
-    Q_UNUSED(pos);
-    Q_UNUSED(index);
+    Q_UNUSED(pos)
+    Q_UNUSED(index)
 
     d->uiController->onRightSplitterChanged(d->rightSplitter->saveState());
 }
@@ -1041,8 +1041,8 @@ void ModelEditor::onRightSplitterChanged(const QByteArray &state)
 
 void ModelEditor::onRightHorizSplitterMoved(int pos, int index)
 {
-    Q_UNUSED(pos);
-    Q_UNUSED(index);
+    Q_UNUSED(pos)
+    Q_UNUSED(index)
 
     d->uiController->onRightHorizSplitterChanged(d->rightHorizSplitter->saveState());
 }
@@ -1241,7 +1241,7 @@ void ModelEditor::closeCurrentDiagram(bool addToHistory)
             if (addToHistory)
                 addToNavigationHistory(diagram);
             d->diagramStack->setCurrentWidget(d->noDiagramLabel);
-            d->diagramView->setDiagramSceneModel(0);
+            d->diagramView->setDiagramSceneModel(nullptr);
             diagramsManager->unbindDiagramSceneModel(diagram);
         }
     }
@@ -1255,7 +1255,7 @@ void ModelEditor::closeDiagram(const qmt::MDiagram *diagram)
     if (sceneModel && diagram == sceneModel->diagram()) {
         addToNavigationHistory(diagram);
         d->diagramStack->setCurrentWidget(d->noDiagramLabel);
-        d->diagramView->setDiagramSceneModel(0);
+        d->diagramView->setDiagramSceneModel(nullptr);
         diagramsManager->unbindDiagramSceneModel(diagram);
     }
 }

@@ -28,55 +28,29 @@
 #include "buildconfiguration.h"
 #include "environmentwidget.h"
 
-#include <coreplugin/icore.h>
-#include <mer/merconstants.h>
 #include <projectexplorer/target.h>
-#include <sfdk/sdk.h>
-#include <utils/utilsicons.h>
 
-#include <QLabel>
 #include <QVBoxLayout>
 #include <QCheckBox>
 
-using namespace ProjectExplorer;
-using namespace Sfdk;
+namespace ProjectExplorer {
 
-BuildEnvironmentWidget::BuildEnvironmentWidget(BuildConfiguration *bc) :
-    m_buildConfiguration(nullptr)
+BuildEnvironmentWidget::BuildEnvironmentWidget(BuildConfiguration *bc)
+    : NamedWidget(tr("Build Environment")), m_buildConfiguration(bc)
 {
     auto vbox = new QVBoxLayout(this);
-    vbox->setMargin(0);
-
-    auto filterInfoHBox = new QHBoxLayout;
-    filterInfoHBox->setSpacing(6);
-
-    QLabel *filterInfoIcon = new QLabel(this);
-    filterInfoIcon->setPixmap(Utils::Icons::INFO.pixmap());
-    filterInfoHBox->addWidget(filterInfoIcon);
-
-    QLabel *filterInfoLabel = new QLabel(this);
-    filterInfoLabel->setWordWrap(true);
-    filterInfoLabel->setText(tr("Not all variables will be forwarded to a %1 build engine. "
-                "<a href='environment-filter'>Configure…</a>").arg(Sdk::osVariant()));
-    filterInfoLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
-    connect(filterInfoLabel, &QLabel::linkActivated, [] {
-        Core::ICore::showOptionsDialog(Mer::Constants::MER_GENERAL_OPTIONS_ID, Core::ICore::dialogParent());
-    });
-    filterInfoHBox->addWidget(filterInfoLabel, 1);
-    vbox->addItem(filterInfoHBox);
-
+    vbox->setContentsMargins(0, 0, 0, 0);
     m_clearSystemEnvironmentCheckBox = new QCheckBox(this);
     m_clearSystemEnvironmentCheckBox->setText(tr("Clear system environment"));
 
-    m_buildEnvironmentWidget = new EnvironmentWidget(this, m_clearSystemEnvironmentCheckBox);
+    m_buildEnvironmentWidget = new EnvironmentWidget(this, EnvironmentWidget::TypeLocal,
+                                                     m_clearSystemEnvironmentCheckBox);
     vbox->addWidget(m_buildEnvironmentWidget);
 
     connect(m_buildEnvironmentWidget, &EnvironmentWidget::userChangesChanged,
             this, &BuildEnvironmentWidget::environmentModelUserChangesChanged);
     connect(m_clearSystemEnvironmentCheckBox, &QAbstractButton::toggled,
             this, &BuildEnvironmentWidget::clearSystemEnvironmentCheckBoxClicked);
-
-    m_buildConfiguration = bc;
 
     connect(m_buildConfiguration, &BuildConfiguration::environmentChanged,
             this, &BuildEnvironmentWidget::environmentChanged);
@@ -85,8 +59,6 @@ BuildEnvironmentWidget::BuildEnvironmentWidget(BuildConfiguration *bc) :
     m_buildEnvironmentWidget->setBaseEnvironment(m_buildConfiguration->baseEnvironment());
     m_buildEnvironmentWidget->setBaseEnvironmentText(m_buildConfiguration->baseEnvironmentText());
     m_buildEnvironmentWidget->setUserChanges(m_buildConfiguration->userEnvironmentChanges());
-
-    setDisplayName(tr("Build Environment"));
 }
 
 void BuildEnvironmentWidget::environmentModelUserChangesChanged()
@@ -106,3 +78,5 @@ void BuildEnvironmentWidget::environmentChanged()
     m_buildEnvironmentWidget->setBaseEnvironment(m_buildConfiguration->baseEnvironment());
     m_buildEnvironmentWidget->setBaseEnvironmentText(m_buildConfiguration->baseEnvironmentText());
 }
+
+} // ProjectExplorer

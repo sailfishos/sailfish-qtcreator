@@ -38,14 +38,42 @@
 namespace CppTools {
 namespace Internal {
 
+static QString fileName(const QString &path, const QString &extension)
+{
+    return Utils::FilePath::fromStringWithExtension(path, extension).toString();
+}
+
 QString CppToolsJsExtension::headerGuard(const QString &in) const
 {
     return Utils::headerGuard(in);
 }
 
-QString CppToolsJsExtension::fileName(const QString &path, const QString &extension) const
+static QStringList parts(const QString &klass)
 {
-    QString raw = Utils::FileName::fromString(path, extension).toString();
+    return klass.split(QStringLiteral("::"));
+}
+
+QStringList CppToolsJsExtension::namespaces(const QString &klass) const
+{
+    QStringList result = parts(klass);
+    result.removeLast();
+    return result;
+}
+
+bool CppToolsJsExtension::hasNamespaces(const QString &klass) const
+{
+    return !namespaces(klass).empty();
+}
+
+QString CppToolsJsExtension::className(const QString &klass) const
+{
+    QStringList result = parts(klass);
+    return result.last();
+}
+
+QString CppToolsJsExtension::classToFileName(const QString &klass, const QString &extension) const
+{
+    const QString raw = fileName(className(klass), extension);
     CppFileSettings settings;
     settings.fromSettings(Core::ICore::settings());
     if (!settings.lowerCaseFiles)
@@ -62,30 +90,6 @@ QString CppToolsJsExtension::fileName(const QString &path, const QString &extens
     if (!ext.isEmpty())
         ext = QString(QLatin1Char('.')) + ext;
     return finalPath + name + ext;
-}
-
-
-static QStringList parts(const QString &klass)
-{
-    return klass.split(QStringLiteral("::"));
-}
-
-QStringList CppToolsJsExtension::namespaces(const QString &klass) const
-{
-    QStringList result = parts(klass);
-    result.removeLast();
-    return result;
-}
-
-QString CppToolsJsExtension::className(const QString &klass) const
-{
-    QStringList result = parts(klass);
-    return result.last();
-}
-
-QString CppToolsJsExtension::classToFileName(const QString &klass, const QString &extension) const
-{
-    return fileName(className(klass), extension);
 }
 
 QString CppToolsJsExtension::classToHeaderGuard(const QString &klass, const QString &extension) const

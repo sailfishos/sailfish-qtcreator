@@ -59,6 +59,7 @@ class PROJECTEXPLORER_EXPORT Kit
 {
 public:
     using Predicate = std::function<bool(const Kit *)>;
+    static Predicate defaultPredicate();
 
     explicit Kit(Core::Id id = Core::Id());
     explicit Kit(const QVariantMap &data);
@@ -71,7 +72,7 @@ public:
 
     bool isValid() const;
     bool hasWarning() const;
-    QList<Task> validate() const;
+    Tasks validate() const;
     void fix(); // Fix the individual kit information: Make sure it contains a valid value.
                 // Fix will not look at other information in the kit!
     void setup(); // Apply advanced magic(TM). Used only once on each kit during initial setup.
@@ -90,9 +91,17 @@ public:
     bool isSdkProvided() const;
     Core::Id id() const;
 
-    QIcon icon() const;
-    Utils::FileName iconPath() const;
-    void setIconPath(const Utils::FileName &path);
+    // The higher the weight, the more aspects have sensible values for this kit.
+    // For instance, a kit where a matching debugger was found for the toolchain will have a
+    // higher weight than one whose toolchain does not match a known debugger, assuming
+    // all other aspects are equal.
+    int weight() const;
+
+    QIcon icon() const; // Raw device icon, independent of warning or error.
+    QIcon displayIcon() const; // Error or warning or device icon.
+    Utils::FilePath iconPath() const;
+    void setIconPath(const Utils::FilePath &path);
+    void setDeviceTypeForIcon(Core::Id deviceType);
 
     QList<Core::Id> allKeys() const;
     QVariant value(Core::Id key, const QVariant &unset = QVariant()) const;
@@ -109,7 +118,7 @@ public:
     void addToEnvironment(Utils::Environment &env) const;
     IOutputParser *createOutputParser() const;
 
-    QString toHtml(const QList<Task> &additional = QList<Task>()) const;
+    QString toHtml(const Tasks &additional = Tasks(), const QString &extraText = QString()) const;
     Kit *clone(bool keepName = false) const;
     void copyFrom(const Kit *k);
 
@@ -123,26 +132,31 @@ public:
     void setMutable(Core::Id id, bool b);
     bool isMutable(Core::Id id) const;
 
+    void setIrrelevantAspects(const QSet<Core::Id> &irrelevant);
+    QSet<Core::Id> irrelevantAspects() const;
+
     QSet<Core::Id> supportedPlatforms() const;
     QSet<Core::Id> availableFeatures() const;
     bool hasFeatures(const QSet<Core::Id> &features) const;
     Utils::MacroExpander *macroExpander() const;
 
+    QString newKitName(const QList<Kit *> &allKits) const;
+    static QString newKitName(const QString &name, const QList<Kit *> &allKits);
+
 private:
+    static void copyKitCommon(Kit *target, const Kit *source);
     void setSdkProvided(bool sdkProvided);
 
-    // Unimplemented.
-    Kit(const Kit &other);
-    void operator=(const Kit &other);
+    Kit(const Kit &other) = delete;
+    void operator=(const Kit &other) = delete;
 
-    void kitDisplayNameChanged();
     void kitUpdated();
 
     QVariantMap toMap() const;
 
     const std::unique_ptr<Internal::KitPrivate> d;
 
-    friend class KitInformation;
+    friend class KitAspect;
     friend class KitManager;
     friend class Internal::KitManagerPrivate;
     friend class Internal::KitModel; // needed for setAutoDetected() when cloning kits
@@ -158,6 +172,8 @@ public:
 private:
     Kit *m_kit;
 };
+
+using TasksGenerator = std::function<Tasks(const Kit *)>;
 
 } // namespace ProjectExplorer
 

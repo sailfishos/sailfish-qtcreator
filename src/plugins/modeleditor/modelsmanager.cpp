@@ -114,7 +114,7 @@ ModelsManager::ModelsManager(QObject *parent)
             this, &ModelsManager::onOpenDefaultModel, Qt::QueuedConnection);
 #endif
 
-    Core::Context projecTreeContext(ProjectExplorer::Constants::C_PROJECT_TREE);
+    Core::Context projectTreeContext(ProjectExplorer::Constants::C_PROJECT_TREE);
     Core::ActionContainer *folderContainer = Core::ActionManager::actionContainer(
                 ProjectExplorer::Constants::M_FOLDERCONTEXT);
     folderContainer->insertGroup(ProjectExplorer::Constants::G_FOLDER_FILES,
@@ -122,7 +122,7 @@ ModelsManager::ModelsManager(QObject *parent)
     d->openDiagramContextMenuItem = new QAction(tr("Open Diagram"), this);
     Core::Command *cmd = Core::ActionManager::registerAction(
                 d->openDiagramContextMenuItem, Constants::ACTION_EXPLORER_OPEN_DIAGRAM,
-                projecTreeContext);
+                projectTreeContext);
     folderContainer->addAction(cmd, Constants::EXPLORER_GROUP_MODELING);
     connect(d->openDiagramContextMenuItem, &QAction::triggered,
             this, &ModelsManager::onOpenDiagramFromProjectExplorer);
@@ -230,7 +230,7 @@ void ModelsManager::setDiagramClipboard(ExtDocumentController *documentControlle
 void ModelsManager::onAboutToShowContextMenu(ProjectExplorer::Project *project,
                                              ProjectExplorer::Node *node)
 {
-    Q_UNUSED(project);
+    Q_UNUSED(project)
 
     bool canOpenDiagram = false;
 
@@ -250,7 +250,7 @@ void ModelsManager::onAboutToShowContextMenu(ProjectExplorer::Project *project,
 
 void ModelsManager::onOpenDiagramFromProjectExplorer()
 {
-    if (ProjectExplorer::ProjectTree::findCurrentNode() == d->contextMenuOwnerNode) {
+    if (ProjectExplorer::ProjectTree::currentNode() == d->contextMenuOwnerNode) {
         qmt::MDiagram *diagram = nullptr;
         foreach (const ManagedModel &managedModel, d->managedModels) {
             if ((diagram = managedModel.m_documentController->pxNodeController()->findDiagramForExplorerNode(d->contextMenuOwnerNode))) {

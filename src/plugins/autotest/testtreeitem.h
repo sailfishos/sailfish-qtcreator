@@ -42,13 +42,12 @@ namespace {
 }
 
 namespace CppTools { class CppModelManager; }
-namespace Utils { class FileName; }
+namespace Utils { class FilePath; }
 
 namespace Autotest {
-namespace Internal {
 
-class TestParseResult;
 class TestConfiguration;
+class TestParseResult;
 enum class TestRunMode;
 
 class TestTreeItem : public Utils::TypedTreeItem<TestTreeItem>
@@ -59,8 +58,9 @@ public:
     {
         Root,
         GroupNode,
+        TestSuite,
         TestCase,
-        TestFunctionOrSet,
+        TestFunction,
         TestDataTag,
         TestDataFunction,
         TestSpecialFunction
@@ -78,7 +78,7 @@ public:
     virtual QVariant data(int column, int role) const override;
     virtual bool setData(int column, const QVariant &data, int role) override;
     virtual Qt::ItemFlags flags(int column) const override;
-    bool modifyTestCaseContent(const TestParseResult *result);
+    bool modifyTestCaseOrSuiteContent(const TestParseResult *result);
     bool modifyTestFunctionContent(const TestParseResult *result);
     bool modifyDataTagContent(const TestParseResult *result);
     bool modifyLineAndColumn(const TestParseResult *result);
@@ -87,10 +87,10 @@ public:
     void setName(const QString &name) { m_name = name; }
     const QString filePath() const { return m_filePath; }
     void setFilePath(const QString &filePath) { m_filePath = filePath; }
-    void setLine(unsigned line) { m_line = line;}
-    unsigned line() const { return m_line; }
-    void setColumn(unsigned column) { m_column = column; }
-    unsigned column() const { return m_column; }
+    void setLine(int line) { m_line = line;}
+    int line() const { return m_line; }
+    void setColumn(int column) { m_column = column; }
+    int column() const { return m_column; }
     QString proFile() const { return m_proFile; }
     void setProFile(const QString &proFile) { m_proFile = proFile; }
     virtual Qt::CheckState checked() const;
@@ -115,7 +115,7 @@ public:
     TestConfiguration *asConfiguration(TestRunMode mode) const;
     virtual QList<TestConfiguration *> getAllTestConfigurations() const;
     virtual QList<TestConfiguration *> getSelectedTestConfigurations() const;
-    virtual QList<TestConfiguration *> getTestConfigurationsForFile(const Utils::FileName &fileName) const;
+    virtual QList<TestConfiguration *> getTestConfigurationsForFile(const Utils::FilePath &fileName) const;
     virtual bool lessThan(const TestTreeItem *other, SortMode mode) const;
     virtual TestTreeItem *find(const TestParseResult *result) = 0;
     virtual TestTreeItem *findChild(const TestTreeItem *other) = 0;
@@ -126,6 +126,8 @@ public:
     // based on (internal) filters this will be used to filter out sub items (and remove them)
     // returns a copy of the item that contains the filtered out children or nullptr
     virtual TestTreeItem *applyFilters() { return nullptr; }
+    // decide whether an item should still be added to the treemodel
+    virtual bool shouldBeAddedAfterFiltering() const { return true; }
     virtual QSet<QString> internalTargets() const;
 protected:
     void copyBasicDataFrom(const TestTreeItem *other);
@@ -148,8 +150,8 @@ private:
     QString m_filePath;
     Qt::CheckState m_checked;
     Type m_type;
-    unsigned m_line = 0;
-    unsigned m_column = 0;
+    int m_line = 0;
+    int m_column = 0;
     QString m_proFile;
     Status m_status = NewlyAdded;
 
@@ -160,15 +162,14 @@ class TestCodeLocationAndType
 {
 public:
     QString m_name;     // tag name for m_type == TestDataTag, file name for other values
-    unsigned m_line = 0;
-    unsigned m_column = 0;
+    int m_line = 0;
+    int m_column = 0;
     TestTreeItem::Type m_type = TestTreeItem::Root;
 };
 
 typedef QVector<TestCodeLocationAndType> TestCodeLocationList;
 
-} // namespace Internal
 } // namespace Autotest
 
-Q_DECLARE_METATYPE(Autotest::Internal::TestTreeItem *)
-Q_DECLARE_METATYPE(Autotest::Internal::TestCodeLocationAndType)
+Q_DECLARE_METATYPE(Autotest::TestTreeItem *)
+Q_DECLARE_METATYPE(Autotest::TestCodeLocationAndType)

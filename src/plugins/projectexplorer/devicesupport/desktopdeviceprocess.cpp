@@ -26,7 +26,7 @@
 #include "desktopdeviceprocess.h"
 
 #include "idevice.h"
-#include "../runconfiguration.h"
+#include "../runcontrol.h"
 
 #include <utils/environment.h>
 #include <utils/qtcassert.h>
@@ -54,7 +54,7 @@ void DesktopDeviceProcess::start(const Runnable &runnable)
     QTC_ASSERT(m_process.state() == QProcess::NotRunning, return);
     m_process.setProcessEnvironment(runnable.environment.toProcessEnvironment());
     m_process.setWorkingDirectory(runnable.workingDirectory);
-    m_process.start(runnable.executable,
+    m_process.start(runnable.executable.toString(),
                     Utils::QtcProcess::splitArgs(runnable.commandLineArguments));
 }
 

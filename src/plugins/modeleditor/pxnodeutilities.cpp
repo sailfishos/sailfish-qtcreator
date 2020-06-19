@@ -30,6 +30,9 @@
 #include "qmt/tasks/diagramscenecontroller.h"
 #include "qmt/model_controller/modelcontroller.h"
 
+#include <cpptools/cppmodelmanager.h>
+#include <cplusplus/CppDocument.h>
+
 #include <projectexplorer/projectnodes.h>
 #include <utils/qtcassert.h>
 
@@ -66,21 +69,9 @@ void PxNodeUtilities::setDiagramSceneController(qmt::DiagramSceneController *dia
 QString PxNodeUtilities::calcRelativePath(const ProjectExplorer::Node *node,
                                           const QString &anchorFolder)
 {
-    QString nodePath;
-
-    switch (node->nodeType()) {
-    case ProjectExplorer::NodeType::File:
-    {
-        QFileInfo fileInfo = node->filePath().toFileInfo();
-        nodePath = fileInfo.path();
-        break;
-    }
-    case ProjectExplorer::NodeType::Folder:
-    case ProjectExplorer::NodeType::VirtualFolder:
-    case ProjectExplorer::NodeType::Project:
-        nodePath = node->filePath().toString();
-        break;
-    }
+    const QString nodePath = node->asFileNode()
+            ? node->filePath().toFileInfo().path()
+            : node->filePath().toString();
 
     return qmt::NameController::calcRelativePath(nodePath, anchorFolder);
 }
@@ -244,6 +235,21 @@ qmt::MObject *PxNodeUtilities::findSameObject(const QStringList &relativeElement
 
     // complete sub-package structure scanned but did not found the desired object
     return nullptr;
+}
+
+bool PxNodeUtilities::isProxyHeader(const QString &file) const
+{
+    CppTools::CppModelManager *cppModelManager = CppTools::CppModelManager::instance();
+    CPlusPlus::Snapshot snapshot = cppModelManager->snapshot();
+
+    CPlusPlus::Document::Ptr document = snapshot.document(file);
+    if (document) {
+        QList<CPlusPlus::Document::Include> includes = document->resolvedIncludes();
+        if (includes.count() != 1)
+            return false;
+        return QFileInfo(includes.at(0).resolvedFileName()).fileName() == QFileInfo(file).fileName();
+    }
+    return false;
 }
 
 } // namespace Internal

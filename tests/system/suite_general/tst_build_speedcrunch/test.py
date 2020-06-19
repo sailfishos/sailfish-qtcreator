@@ -42,7 +42,7 @@ def main():
     if not startedWithoutPluginError():
         return
     openQmakeProject(SpeedCrunchPath, [Targets.DESKTOP_4_8_7_DEFAULT])
-    progressBarWait(30000)
+    waitForProjectParsing()
 
     fancyToolButton = waitForObject(":*Qt Creator_Core::Internal::FancyToolButton")
 
@@ -58,7 +58,7 @@ def main():
         test.log("Testing build configuration: " + config)
         invokeMenuItem("Build", "Run qmake")
         waitForCompile()
-        invokeMenuItem("Build", "Rebuild All")
+        invokeMenuItem("Build", "Rebuild All Projects")
         waitForCompile(300000)
         checkCompile()
         checkLastBuild()

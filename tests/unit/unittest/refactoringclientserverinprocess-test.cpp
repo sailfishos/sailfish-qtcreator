@@ -90,28 +90,6 @@ TEST_F(RefactoringClientServerInProcess, SendAliveMessage)
     scheduleClientMessages();
 }
 
-TEST_F(RefactoringClientServerInProcess, SendSourceLocationsForRenamingMessage)
-{
-    ClangBackEnd::SourceLocationsContainer container;
-    ClangBackEnd::SourceLocationsForRenamingMessage message("symbolName", std::move(container), 1);
-
-    EXPECT_CALL(mockRefactoringClient, sourceLocationsForRenamingMessage(message));
-
-    clientProxy.sourceLocationsForRenamingMessage(message.clone());
-    scheduleClientMessages();
-}
-
-TEST_F(RefactoringClientServerInProcess, SendRequestSourceLocationsForRenamingMessage)
-{
-    RequestSourceLocationsForRenamingMessage message{
-        {TESTDATA_DIR, "renamevariable.cpp"}, 1, 5, "int v;\n\nint x = v + 3;\n", {"cc"}, 1};
-
-    EXPECT_CALL(mockRefactoringServer, requestSourceLocationsForRenamingMessage(message));
-
-    serverProxy.requestSourceLocationsForRenamingMessage(message.clone());
-    scheduleServerMessages();
-}
-
 TEST_F(RefactoringClientServerInProcess, SourceRangesAndDiagnosticsForQueryMessage)
 {
     ClangBackEnd::SourceRangesContainer sourceRangesContainer;
@@ -151,8 +129,8 @@ TEST_F(RefactoringClientServerInProcess, RequestSourceRangesAndDiagnosticsForQue
 {
     RequestSourceRangesForQueryMessage message{
         "functionDecl()",
-        {{{TESTDATA_DIR, "query_simplefunction.cpp"}, "void f();", {"cc"}, 1}},
-        {{{TESTDATA_DIR, "query_simplefunction.h"}, "void f();", {}, 1}}};
+        {{{TESTDATA_DIR, "query_simplefunction.cpp"}, 1, "void f();", {"cc"}, 1}},
+        {{{TESTDATA_DIR, "query_simplefunction.h"}, 2, "void f();", {}, 1}}};
 
     EXPECT_CALL(mockRefactoringServer, requestSourceRangesForQueryMessage(message));
 
@@ -165,12 +143,13 @@ TEST_F(RefactoringClientServerInProcess, RequestSourceRangesForQueryMessage)
     RequestSourceRangesForQueryMessage message{
         "functionDecl()",
         {{{TESTDATA_DIR, "query_simplefunction.cpp"},
+          1,
           "void f();",
           {
               "cc",
           },
           1}},
-        {{{TESTDATA_DIR, "query_simplefunction.h"}, "void f();", {}, 1}}};
+        {{{TESTDATA_DIR, "query_simplefunction.h"}, 2, "void f();", {}, 1}}};
 
     EXPECT_CALL(mockRefactoringServer, requestSourceRangesForQueryMessage(message));
 
@@ -204,7 +183,7 @@ TEST_F(RefactoringClientServerInProcess, SendUpdateProjectPartsMessage)
 
 TEST_F(RefactoringClientServerInProcess, SendUpdateGeneratedFilesMessage)
 {
-    FileContainer fileContainer{{"/path/to/", "file"}, "content", {}};
+    FileContainer fileContainer{{"/path/to/", "file"}, 1, "content", {}};
     UpdateGeneratedFilesMessage message{{fileContainer}};
 
     EXPECT_CALL(mockRefactoringServer, updateGeneratedFiles(message));

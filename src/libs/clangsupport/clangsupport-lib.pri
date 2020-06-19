@@ -18,6 +18,7 @@ SOURCES += \
     $$PWD/clangcodemodelserverproxy.cpp \
     $$PWD/alivemessage.cpp \
     $$PWD/completionsmessage.cpp \
+    $$PWD/filesystem.cpp \
     $$PWD/requestcompletionsmessage.cpp \
     $$PWD/echomessage.cpp \
     $$PWD/endmessage.cpp \
@@ -55,14 +56,12 @@ SOURCES += \
     $$PWD/requestannotationsmessage.cpp \
     $$PWD/requestfollowsymbolmessage.cpp \
     $$PWD/requestreferencesmessage.cpp \
-    $$PWD/requestsourcelocationforrenamingmessage.cpp \
     $$PWD/requestsourcerangesanddiagnosticsforquerymessage.cpp \
     $$PWD/requestsourcerangesforquerymessage.cpp \
     $$PWD/requesttooltipmessage.cpp \
     $$PWD/sourcelocationcontainer.cpp \
     $$PWD/sourcelocationcontainerv2.cpp \
     $$PWD/sourcelocationscontainer.cpp \
-    $$PWD/sourcelocationsforrenamingmessage.cpp \
     $$PWD/sourcerangecontainer.cpp \
     $$PWD/processcreator.cpp \
     $$PWD/processexception.cpp \
@@ -87,7 +86,8 @@ SOURCES += \
     $$PWD/removegeneratedfilesmessage.cpp \
     $$PWD/generatedfiles.cpp \
     $$PWD/projectpartartefact.cpp \
-    $$PWD/projectpartcontainer.cpp
+    $$PWD/projectpartcontainer.cpp \
+    $$PWD/filestatuscache.cpp
 
 HEADERS += \
     $$PWD/cancelmessage.h \
@@ -109,10 +109,16 @@ HEADERS += \
     $$PWD/alivemessage.h \
     $$PWD/clangsupportexceptions.h \
     $$PWD/completionsmessage.h \
+    $$PWD/directoryandfilepathid.h \
+    $$PWD/directorypathid.h \
     $$PWD/executeinloop.h \
+    $$PWD/filesystem.h \
+    $$PWD/filesysteminterface.h \
+    $$PWD/pchpaths.h \
     $$PWD/projectpartid.h \
     $$PWD/projectpartsstorage.h \
     $$PWD/projectpartsstorageinterface.h \
+    $$PWD/projectpartstoragestructs.h \
     $$PWD/requestcompletionsmessage.h \
     $$PWD/echomessage.h \
     $$PWD/endmessage.h \
@@ -150,19 +156,19 @@ HEADERS += \
     $$PWD/refactoringserverinterface.h \
     $$PWD/refactoringserverproxy.h \
     $$PWD/referencesmessage.h \
+    $$PWD/set_algorithm.h \
+    $$PWD/stringcacheentry.h \
     $$PWD/unsavedfilesupdatedmessage.h \
     $$PWD/removeprojectpartsmessage.h \
     $$PWD/requestannotationsmessage.h \
     $$PWD/requestfollowsymbolmessage.h \
     $$PWD/requestreferencesmessage.h \
-    $$PWD/requestsourcelocationforrenamingmessage.h \
     $$PWD/requestsourcerangesanddiagnosticsforquerymessage.h \
     $$PWD/requestsourcerangesforquerymessage.h \
     $$PWD/requesttooltipmessage.h \
     $$PWD/sourcelocationcontainer.h \
     $$PWD/sourcelocationcontainerv2.h \
     $$PWD/sourcelocationscontainer.h \
-    $$PWD/sourcelocationsforrenamingmessage.h \
     $$PWD/sourcerangecontainer.h \
     $$PWD/filepath.h \
     $$PWD/processcreator.h \
@@ -203,7 +209,6 @@ HEADERS += \
     $$PWD/nativefilepath.h \
     $$PWD/filepathview.h \
     $$PWD/compilermacro.h \
-    $$PWD/projectpartpchproviderinterface.h \
     $$PWD/updategeneratedfilesmessage.h \
     $$PWD/removegeneratedfilesmessage.h \
     $$PWD/generatedfiles.h \
@@ -213,6 +218,12 @@ HEADERS += \
     $$PWD/includesearchpath.h \
     $$PWD/commandlinebuilder.h \
     $$PWD/projectpartartefact.h \
-    $$PWD/projectpartcontainer.h
+    $$PWD/projectpartcontainer.h \
+    $$PWD/sourceentry.h \
+    $$PWD/modifiedtimecheckerinterface.h \
+    $$PWD/environment.h \
+    $$PWD/filestatus.h \
+    $$PWD/filestatuscache.h \
+    $$PWD/modifiedtimechecker.h
 
 contains(QT_CONFIG, reduce_exports):CONFIG += hide_symbols

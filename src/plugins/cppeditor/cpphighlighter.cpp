@@ -65,7 +65,7 @@ void CppHighlighter::highlightBlock(const QString &text)
 
     initialLexerState &= ~0x80; // discard newline expected bit
     int foldingIndent = initialBraceDepth;
-    if (TextBlockUserData *userData = TextDocumentLayout::testUserData(currentBlock())) {
+    if (TextBlockUserData *userData = TextDocumentLayout::textUserData(currentBlock())) {
         userData->setFoldingIndent(0);
         userData->setFoldingStartIncluded(false);
         userData->setFoldingEndIncluded(false);
@@ -74,7 +74,7 @@ void CppHighlighter::highlightBlock(const QString &text)
     if (tokens.isEmpty()) {
         setCurrentBlockState((braceDepth << 8) | lexerState);
         TextDocumentLayout::clearParentheses(currentBlock());
-        if (text.length())  {// the empty line can still contain whitespace
+        if (!text.isEmpty())  {// the empty line can still contain whitespace
             if (initialLexerState == T_COMMENT)
                 setFormatWithSpaces(text, 0, text.length(), formatForCategory(C_COMMENT));
             else if (initialLexerState == T_DOXY_COMMENT)
@@ -86,7 +86,7 @@ void CppHighlighter::highlightBlock(const QString &text)
         return;
     }
 
-    const unsigned firstNonSpace = tokens.first().utf16charsBegin();
+    const int firstNonSpace = tokens.first().utf16charsBegin();
 
     Parentheses parentheses;
     parentheses.reserve(5);
@@ -97,7 +97,7 @@ void CppHighlighter::highlightBlock(const QString &text)
     for (int i = 0; i < tokens.size(); ++i) {
         const Token &tk = tokens.at(i);
 
-        unsigned previousTokenEnd = 0;
+        int previousTokenEnd = 0;
         if (i != 0) {
             // mark the whitespaces
             previousTokenEnd = tokens.at(i - 1).utf16charsBegin() +

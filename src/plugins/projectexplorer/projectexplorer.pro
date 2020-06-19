@@ -10,13 +10,22 @@ include(../../shared/clang/clang_defines.pri)
 HEADERS += projectexplorer.h \
     abi.h \
     abiwidget.h \
+    addrunconfigdialog.h \
     ansifilterparser.h \
+    buildaspects.h \
     buildinfo.h \
+    buildpropertiessettings.h \
+    buildpropertiessettingspage.h \
+    buildsystem.h \
+    buildtargettype.h \
     clangparser.h \
     configtaskhandler.h \
+    desktoprunconfiguration.h \
     environmentaspect.h \
     environmentaspectwidget.h \
     extraabi.h \
+    fileinsessionfinder.h \
+    filterkitaspectsdialog.h \
     gcctoolchain.h \
     importwidget.h \
     userfileaccessor.h \
@@ -26,14 +35,11 @@ HEADERS += projectexplorer.h \
     projectimporter.h \
     projectwindow.h \
     removetaskhandler.h \
-    subscription.h \
     targetsetuppage.h \
     targetsetupwidget.h \
     kit.h \
     kitchooser.h \
-    kitconfigwidget.h \
     kitinformation.h \
-    kitinformationconfigwidget.h \
     kitfeatureprovider.h \
     kitmanager.h \
     kitmanagerconfigwidget.h \
@@ -76,6 +82,7 @@ HEADERS += projectexplorer.h \
     editorconfiguration.h \
     editorsettingspropertiespage.h \
     runconfiguration.h \
+    runcontrol.h \
     applicationlauncher.h \
     runsettingspropertiespage.h \
     projecttreewidget.h \
@@ -100,6 +107,7 @@ HEADERS += projectexplorer.h \
     miniprojecttargetselector.h \
     buildenvironmentwidget.h \
     ldparser.h \
+    lldparser.h \
     linuxiccparser.h \
     runconfigurationaspects.h \
     processparameters.h \
@@ -131,10 +139,8 @@ HEADERS += projectexplorer.h \
     devicesupport/sshdeviceprocess.h \
     devicesupport/sshdeviceprocesslist.h \
     devicesupport/sshsettingspage.h \
-    devicesupport/desktopdeviceconfigurationwidget.h \
     devicesupport/desktopprocesssignaloperation.h \
     deploymentdata.h \
-    deploymentdatamodel.h \
     deploymentdataview.h \
     buildtargetinfo.h \
     customtoolchain.h \
@@ -153,23 +159,33 @@ HEADERS += projectexplorer.h \
     expanddata.h \
     waitforstopdialog.h \
     projectexplorericons.h \
-    projectexplorer_global.h \
     extracompiler.h \
     customexecutablerunconfiguration.h \
     projectmacro.h \
     makestep.h \
-    projectconfigurationaspects.h
+    parseissuesdialog.h \
+    projectconfigurationaspects.h \
+    treescanner.h \
+    rawprojectpart.h \
+    simpleprojectwizard.h
 
 SOURCES += projectexplorer.cpp \
     abi.cpp \
     abiwidget.cpp \
+    addrunconfigdialog.cpp \
     ansifilterparser.cpp \
+    buildaspects.cpp \
     buildinfo.cpp \
+    buildpropertiessettingspage.cpp \
+    buildsystem.cpp \
     clangparser.cpp \
     configtaskhandler.cpp \
+    desktoprunconfiguration.cpp \
     environmentaspect.cpp \
     environmentaspectwidget.cpp \
     extraabi.cpp \
+    fileinsessionfinder.cpp \
+    filterkitaspectsdialog.cpp \
     gcctoolchain.cpp \
     importwidget.cpp \
     projectconfigurationmodel.cpp \
@@ -179,14 +195,11 @@ SOURCES += projectexplorer.cpp \
     projectimporter.cpp \
     projectwindow.cpp \
     removetaskhandler.cpp \
-    subscription.cpp \
     targetsetuppage.cpp \
     targetsetupwidget.cpp \
     kit.cpp \
     kitchooser.cpp \
-    kitconfigwidget.cpp \
     kitinformation.cpp \
-    kitinformationconfigwidget.cpp \
     kitmanager.cpp \
     kitmanagerconfigwidget.cpp \
     kitmodel.cpp \
@@ -224,6 +237,7 @@ SOURCES += projectexplorer.cpp \
     editorconfiguration.cpp \
     editorsettingspropertiespage.cpp \
     runconfiguration.cpp \
+    runcontrol.cpp \
     applicationlauncher.cpp \
     runsettingspropertiespage.cpp \
     projecttreewidget.cpp \
@@ -247,6 +261,7 @@ SOURCES += projectexplorer.cpp \
     miniprojecttargetselector.cpp \
     buildenvironmentwidget.cpp \
     ldparser.cpp \
+    lldparser.cpp \
     linuxiccparser.cpp \
     runconfigurationaspects.cpp \
     taskhub.cpp \
@@ -273,11 +288,9 @@ SOURCES += projectexplorer.cpp \
     devicesupport/sshdeviceprocess.cpp \
     devicesupport/sshdeviceprocesslist.cpp \
     devicesupport/sshsettingspage.cpp \
-    devicesupport/desktopdeviceconfigurationwidget.cpp \
     devicesupport/desktopprocesssignaloperation.cpp \
     deployablefile.cpp \
     deploymentdata.cpp \
-    deploymentdatamodel.cpp \
     deploymentdataview.cpp \
     customtoolchain.cpp \
     projectmacroexpander.cpp \
@@ -298,19 +311,21 @@ SOURCES += projectexplorer.cpp \
     customexecutablerunconfiguration.cpp \
     projectmacro.cpp \
     makestep.cpp \
-    projectconfigurationaspects.cpp
+    parseissuesdialog.cpp \
+    projectconfigurationaspects.cpp \
+    treescanner.cpp \
+    rawprojectpart.cpp \
+    simpleprojectwizard.cpp
 
-FORMS += processstep.ui \
+FORMS += \
     editorsettingspropertiespage.ui \
     sessiondialog.ui \
     projectwizardpage.ui \
     projectexplorersettingspage.ui \
-    deploymentdataview.ui \
     codestylesettingspropertiespage.ui \
     devicesupport/devicefactoryselectiondialog.ui \
     devicesupport/devicesettingswidget.ui \
     devicesupport/devicetestdialog.ui \
-    devicesupport/desktopdeviceconfigurationwidget.ui \
     customparserconfigdialog.ui \
     makestep.ui
 
@@ -344,3 +359,7 @@ journald {
 RESOURCES += projectexplorer.qrc
 
 DEFINES += PROJECTEXPLORER_LIBRARY
+
+!isEmpty(PROJECT_USER_FILE_EXTENSION) {
+    DEFINES += PROJECT_USER_FILE_EXTENSION=$${PROJECT_USER_FILE_EXTENSION}
+}

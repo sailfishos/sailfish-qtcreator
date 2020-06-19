@@ -125,7 +125,7 @@ void CallgrindController::run(Option option)
             this, &CallgrindController::controllerProcessClosed);
 
     Runnable controller = m_valgrindRunnable;
-    controller.executable =  CALLGRIND_CONTROL_BINARY;
+    controller.executable =  FilePath::fromString(CALLGRIND_CONTROL_BINARY);
     controller.commandLineArguments = QString("%1 %2").arg(toOptionString(option)).arg(m_pid);
 
     if (!m_valgrindRunnable.device
@@ -187,7 +187,7 @@ void CallgrindController::controllerProcessFinished(int rc, QProcess::ExitStatus
 
 void CallgrindController::controllerProcessClosed(bool success)
 {
-    Q_UNUSED(success);
+    Q_UNUSED(success)
     //    QTC_ASSERT(m_remote.m_process, return);
 
 //    m_remote.m_errorString = m_remote.m_process->errorString();

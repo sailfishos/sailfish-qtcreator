@@ -60,6 +60,7 @@
 #include <app/app_version.h>
 #include <utils/treemodel.h>
 #include <utils/basetreeview.h>
+#include <utils/fileinprojectfinder.h>
 #include <utils/qtcassert.h>
 
 #include <QDebug>
@@ -218,7 +219,6 @@ public:
     QList<QByteArray> sendBuffer;
 
     QHash<QString, QTextDocument*> sourceDocuments;
-    QHash<QString, QWeakPointer<BaseTextEditor> > sourceEditors;
     InteractiveInterpreter interpreter;
     ApplicationLauncher applicationLauncher;
     QmlInspectorAgent inspectorAgent;
@@ -234,7 +234,8 @@ public:
     QmlDebug::QDebugMessageClient *msgClient = nullptr;
 
     QHash<int, QmlCallback> callbackForToken;
-    QMetaObject::Connection startupMessageFilterConnection;
+
+    FileInProjectFinder fileFinder;
 
 private:
     ConsoleItem *constructLogItemTree(const QmlV8ObjectData &objectData, QList<int> &seenHandles);
@@ -311,17 +312,6 @@ QmlEngine::QmlEngine()
 
 QmlEngine::~QmlEngine()
 {
-    QObject::disconnect(d->startupMessageFilterConnection);
-    QSet<IDocument *> documentsToClose;
-
-    QHash<QString, QWeakPointer<BaseTextEditor> >::iterator iter;
-    for (iter = d->sourceEditors.begin(); iter != d->sourceEditors.end(); ++iter) {
-        QWeakPointer<BaseTextEditor> textEditPtr = iter.value();
-        if (textEditPtr)
-            documentsToClose << textEditPtr.data()->document();
-    }
-    EditorManager::closeDocuments(documentsToClose.toList());
-
     delete d;
 }
 
@@ -376,7 +366,6 @@ void QmlEngine::beginConnection()
 
     QTC_ASSERT(state() == EngineRunRequested, return);
 
-    QObject::disconnect(d->startupMessageFilterConnection);
 
     QString host = runParameters().qmlServer.host();
     // Use localhost as default
@@ -476,8 +465,8 @@ void QmlEngine::errorMessageBoxFinished(int result)
 
 void QmlEngine::gotoLocation(const Location &location)
 {
-    const QString fileName = location.fileName();
-    if (QUrl(fileName).isLocalFile()) {
+    if (QUrl(location.fileName().toString()).isLocalFile()) { // create QUrl to ensure validity
+        const QString fileName = location.fileName().toString();
         // internal file from source files -> show generated .js
         QTC_ASSERT(d->sourceDocuments.contains(fileName), return);
 
@@ -539,9 +528,8 @@ void QmlEngine::startApplicationLauncher()
 {
     if (!d->applicationLauncher.isRunning()) {
         const Runnable runnable = runParameters().inferior;
-        showMessage(tr("Starting %1 %2").arg(QDir::toNativeSeparators(runnable.executable),
-                                             runnable.commandLineArguments),
-                    Utils::NormalMessageFormat);
+        showMessage(tr("Starting %1").arg(runnable.commandLine().toUserOutput()),
+                    NormalMessageFormat);
         d->applicationLauncher.start(runnable);
     }
 }
@@ -637,8 +625,11 @@ void QmlEngine::executeStepOver(bool)
 void QmlEngine::executeRunToLine(const ContextData &data)
 {
     QTC_ASSERT(state() == InferiorStopOk, qDebug() << state());
-    showStatusMessage(tr("Run to line %1 (%2) requested...").arg(data.lineNumber).arg(data.fileName), 5000);
-    d->setBreakpoint(SCRIPTREGEXP, data.fileName, true, data.lineNumber);
+    showStatusMessage(tr("Run to line %1 (%2) requested...")
+                          .arg(data.lineNumber)
+                          .arg(data.fileName.toString()),
+                      5000);
+    d->setBreakpoint(SCRIPTREGEXP, data.fileName.toString(), true, data.lineNumber);
     clearExceptionSelection();
     d->continueDebugging(Continue);
 
@@ -664,7 +655,8 @@ void QmlEngine::activateFrame(int index)
         return;
 
     stackHandler()->setCurrentIndex(index);
-    gotoLocation(stackHandler()->frames().value(index));
+    const StackFrame &frame = stackHandler()->frameAt(index);
+    gotoLocation(frame);
 
     d->updateLocals();
 }
@@ -688,7 +680,7 @@ void QmlEngine::insertBreakpoint(const Breakpoint &bp)
         d->setExceptionBreak(AllExceptions, requested.enabled);
 
     } else if (requested.type == BreakpointByFileAndLine) {
-        d->setBreakpoint(SCRIPTREGEXP, requested.fileName,
+        d->setBreakpoint(SCRIPTREGEXP, requested.fileName.toString(),
                          requested.enabled, requested.lineNumber, 0,
                          requested.condition, requested.ignoreCount);
 
@@ -746,7 +738,7 @@ void QmlEngine::updateBreakpoint(const Breakpoint &bp)
         d->changeBreakpoint(bp, requested.enabled);
     } else {
         d->clearBreakpoint(bp);
-        d->setBreakpoint(SCRIPTREGEXP, requested.fileName,
+        d->setBreakpoint(SCRIPTREGEXP, requested.fileName.toString(),
                          requested.enabled, requested.lineNumber, 0,
                          requested.condition, requested.ignoreCount);
         d->breakpointsSync.insert(d->sequence, bp);
@@ -886,12 +878,10 @@ static ConsoleItem *constructLogItemTree(const QVariant &result,
         else
             text = key + " : Object";
 
-        QMap<QString, QVariant> resultMap = result.toMap();
+        const QMap<QString, QVariant> resultMap = result.toMap();
         QVarLengthArray<ConsoleItem *> children(resultMap.size());
-        QMapIterator<QString, QVariant> i(result.toMap());
         auto it = children.begin();
-        while (i.hasNext()) {
-            i.next();
+        for (auto i = resultMap.cbegin(), end = resultMap.cend(); i != end; ++i) {
             *(it++) = constructLogItemTree(i.value(), i.key());
         }
 
@@ -970,7 +960,7 @@ void QmlEngine::quitDebugger()
 
 void QmlEngine::doUpdateLocals(const UpdateParameters &params)
 {
-    Q_UNUSED(params);
+    Q_UNUSED(params)
     d->updateLocals();
 }
 
@@ -1374,7 +1364,7 @@ void QmlEnginePrivate::scripts(int types, const QList<int> ids, bool includeSour
     DebuggerCommand cmd(SCRIPTS);
     cmd.arg(TYPES, types);
 
-    if (ids.count())
+    if (!ids.isEmpty())
         cmd.arg(IDS, ids);
 
     if (includeSource)
@@ -1419,7 +1409,7 @@ void QmlEnginePrivate::setBreakpoint(const QString type, const QString target,
         cmd.arg(ENABLED, enabled);
 
         if (type == SCRIPTREGEXP)
-            cmd.arg(TARGET, Utils::FileName::fromString(target).fileName());
+            cmd.arg(TARGET, Utils::FilePath::fromString(target).fileName());
         else
             cmd.arg(TARGET, target);
 
@@ -1737,7 +1727,7 @@ void QmlEnginePrivate::messageReceived(const QByteArray &data)
                         const QVariantList actualLocations =
                                 breakpointData.value("actual_locations").toList();
                         const int line = breakpointData.value("line").toInt() + 1;
-                        if (actualLocations.count()) {
+                        if (!actualLocations.isEmpty()) {
                             //The breakpoint requested line should be same as
                             //actual line
                             if (bp && bp->state() != BreakpointInserted) {
@@ -1868,7 +1858,7 @@ void QmlEnginePrivate::messageReceived(const QByteArray &data)
 
                             clearBreakpoint(bp);
                             setBreakpoint(SCRIPTREGEXP,
-                                          params.fileName,
+                                          params.fileName.toString(),
                                           params.enabled,
                                           params.lineNumber,
                                           newColumn,
@@ -2448,6 +2438,18 @@ void QmlEnginePrivate::flushSendBuffer()
     foreach (const QByteArray &msg, sendBuffer)
         sendMessage(msg);
     sendBuffer.clear();
+}
+
+QString QmlEngine::toFileInProject(const QUrl &fileUrl)
+{
+    // make sure file finder is properly initialized
+    const DebuggerRunParameters &rp = runParameters();
+    d->fileFinder.setProjectDirectory(rp.projectSourceDirectory);
+    d->fileFinder.setProjectFiles(rp.projectSourceFiles);
+    d->fileFinder.setAdditionalSearchDirectories(rp.additionalSearchDirectories);
+    d->fileFinder.setSysroot(rp.sysRoot);
+
+    return d->fileFinder.findFile(fileUrl).first().toString();
 }
 
 DebuggerEngine *createQmlEngine()

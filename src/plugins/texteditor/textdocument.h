@@ -26,6 +26,7 @@
 #pragma once
 
 #include "texteditor_global.h"
+#include "formatter.h"
 #include "indenter.h"
 
 #include <coreplugin/id.h>
@@ -70,7 +71,7 @@ public:
     static QMap<QString, QString> openedTextDocumentContents();
     static QMap<QString, QTextCodec *> openedTextDocumentEncodings();
     static TextDocument *currentTextDocument();
-    static TextDocument *textDocumentForFileName(const Utils::FileName &fileName);
+    static TextDocument *textDocumentForFilePath(const Utils::FilePath &filePath);
 
     virtual QString plainText() const;
     virtual QString textAt(int pos, int length) const;
@@ -93,10 +94,12 @@ public:
                     int currentCursorPosition = -1);
     void autoReindent(const QTextCursor &cursor, int currentCursorPosition = -1);
     void autoFormatOrIndent(const QTextCursor &cursor);
-    QTextCursor indent(const QTextCursor &cursor, bool blockSelection = false, int column = 0,
-                       int *offset = nullptr);
+    QTextCursor indent(const QTextCursor &cursor, bool blockSelection, int column, int *offset);
     QTextCursor unindent(const QTextCursor &cursor, bool blockSelection = false, int column = 0,
                          int *offset = nullptr);
+
+    void setFormatter(Formatter *indenter); // transfers ownership
+    void autoFormat(const QTextCursor &cursor);
 
     TextMarks marks() const;
     bool addMark(TextMark *mark);
@@ -116,7 +119,7 @@ public:
     bool isSaveAsAllowed() const override;
     void checkPermissions() override;
     bool reload(QString *errorString, ReloadFlag flag, ChangeType type) override;
-    void setFilePath(const Utils::FileName &newName) override;
+    void setFilePath(const Utils::FilePath &newName) override;
 
     QString fallbackSaveAsPath() const override;
     QString fallbackSaveAsFileName() const override;
@@ -141,6 +144,8 @@ public:
 
     void setCompletionAssistProvider(CompletionAssistProvider *provider);
     virtual CompletionAssistProvider *completionAssistProvider() const;
+    void setFunctionHintAssistProvider(CompletionAssistProvider *provider);
+    virtual CompletionAssistProvider *functionHintAssistProvider() const;
     void setQuickFixAssistProvider(IAssistProvider *provider) const;
     virtual IAssistProvider *quickFixAssistProvider() const;
 
@@ -148,7 +153,7 @@ public:
     void setFontSettings(const TextEditor::FontSettings &fontSettings);
 
     static QAction *createDiffAgainstCurrentFileAction(QObject *parent,
-        const std::function<Utils::FileName()> &filePath);
+        const std::function<Utils::FilePath()> &filePath);
 
 signals:
     void aboutToOpen(const QString &fileName, const QString &realFileName);

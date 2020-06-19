@@ -30,9 +30,7 @@
 #include "qnxconstants.h"
 #include "qnxdebugsupport.h"
 #include "qnxdevice.h"
-#include "qnxdevicefactory.h"
 #include "qnxqtversion.h"
-#include "qnxqtversionfactory.h"
 #include "qnxrunconfiguration.h"
 #include "qnxsettingspage.h"
 #include "qnxtoolchain.h"
@@ -57,6 +55,7 @@
 #include <projectexplorer/toolchain.h>
 
 #include <remotelinux/genericdirectuploadstep.h>
+#include <remotelinux/makeinstallstep.h>
 #include <remotelinux/remotelinuxcheckforfreediskspacestep.h>
 
 #include <qtsupport/qtkitinformation.h>
@@ -67,6 +66,13 @@ using namespace ProjectExplorer;
 
 namespace Qnx {
 namespace Internal {
+
+class QnxUploadStep : public RemoteLinux::GenericDirectUploadStep
+{
+public:
+    QnxUploadStep(BuildStepList *bsl, Core::Id id) : GenericDirectUploadStep(bsl, id, false) {}
+    static Core::Id stepId() { return "Qnx.DirectUploadStep"; }
+};
 
 template <class Step>
 class GenericQnxDeployStepFactory : public BuildStepFactory
@@ -89,12 +95,17 @@ public:
         setConfigBaseId(Constants::QNX_QNX_DEPLOYCONFIGURATION_ID);
         setDefaultDisplayName(QCoreApplication::translate("Qnx::Internal::QnxDeployConfiguration",
                                                           "Deploy to QNX Device"));
-        addSupportedTargetDeviceType(QnxDeviceFactory::deviceType());
+        addSupportedTargetDeviceType(Constants::QNX_QNX_OS_TYPE);
         setUseDeploymentDataView();
 
+        addInitialStep(RemoteLinux::MakeInstallStep::stepId(), [](Target *target) {
+            const Project * const prj = target->project();
+            return prj->deploymentKnowledge() == DeploymentKnowledge::Bad
+                    && prj->hasMakeInstallEquivalent();
+        });
         addInitialStep(DeviceCheckBuildStep::stepId());
         addInitialStep(RemoteLinux::RemoteLinuxCheckForFreeDiskSpaceStep::stepId());
-        addInitialStep(RemoteLinux::GenericDirectUploadStep::stepId());
+        addInitialStep(QnxUploadStep::stepId());
     }
 };
 
@@ -110,12 +121,29 @@ public:
     QnxQtVersionFactory qtVersionFactory;
     QnxDeviceFactory deviceFactory;
     QnxDeployConfigurationFactory deployConfigFactory;
-    GenericQnxDeployStepFactory<RemoteLinux::GenericDirectUploadStep> directUploadDeployFactory;
+    GenericQnxDeployStepFactory<QnxUploadStep> directUploadDeployFactory;
     GenericQnxDeployStepFactory<RemoteLinux::RemoteLinuxCheckForFreeDiskSpaceStep> checkForFreeDiskSpaceDeployFactory;
+    GenericQnxDeployStepFactory<RemoteLinux::MakeInstallStep> makeInstallDeployFactory;
     GenericQnxDeployStepFactory<DeviceCheckBuildStep> checkBuildDeployFactory;
     QnxRunConfigurationFactory runConfigFactory;
     QnxSettingsPage settingsPage;
     QnxToolChainFactory toolChainFactory;
+
+    RunWorkerFactory runWorkerFactory{
+        RunWorkerFactory::make<SimpleTargetRunner>(),
+        {ProjectExplorer::Constants::NORMAL_RUN_MODE},
+        {runConfigFactory.id()}
+    };
+    RunWorkerFactory debugWorkerFactory{
+        RunWorkerFactory::make<QnxDebugSupport>(),
+        {ProjectExplorer::Constants::DEBUG_RUN_MODE},
+        {runConfigFactory.id()}
+    };
+    RunWorkerFactory qmlProfilerWorkerFactory{
+        RunWorkerFactory::make<QnxQmlProfilerSupport>(),
+        {}, // FIXME: Shouldn't this use the run mode id somehow?
+        {runConfigFactory.id()}
+    };
 };
 
 static QnxPluginPrivate *dd = nullptr;
@@ -131,24 +159,6 @@ bool QnxPlugin::initialize(const QStringList &arguments, QString *errorString)
     Q_UNUSED(errorString)
 
     dd = new QnxPluginPrivate;
-
-    auto constraint = [](RunConfiguration *runConfig) {
-        if (!runConfig->isEnabled()
-                || !runConfig->id().name().startsWith(Constants::QNX_QNX_RUNCONFIGURATION_PREFIX)) {
-            return false;
-        }
-
-        auto dev = DeviceKitInformation::device(runConfig->target()->kit())
-                .dynamicCast<const QnxDevice>();
-        return !dev.isNull();
-    };
-
-    RunControl::registerWorker<SimpleTargetRunner>
-            (ProjectExplorer::Constants::NORMAL_RUN_MODE, constraint);
-    RunControl::registerWorker<QnxDebugSupport>
-            (ProjectExplorer::Constants::DEBUG_RUN_MODE, constraint);
-    RunControl::registerWorker<QnxQmlProfilerSupport>
-            (ProjectExplorer::Constants::QML_PROFILER_RUN_MODE, constraint);
 
     return true;
 }
@@ -174,15 +184,11 @@ void QnxPlugin::extensionsInitialized()
 
 void QnxPluginPrivate::updateDebuggerActions()
 {
-    bool hasValidQnxKit = false;
-
-    auto matcher = DeviceTypeKitInformation::deviceTypePredicate(Constants::QNX_QNX_OS_TYPE);
-    foreach (Kit *qnxKit, KitManager::kits(matcher)) {
-        if (qnxKit->isValid() && !DeviceKitInformation::device(qnxKit).isNull()) {
-            hasValidQnxKit = true;
-            break;
-        }
-    }
+    const bool hasValidQnxKit = KitManager::kit([](const Kit *kit) {
+        return kit->isValid()
+                && DeviceTypeKitAspect::deviceTypeId(kit) == Constants::QNX_QNX_OS_TYPE
+                && !DeviceKitAspect::device(kit).isNull();
+    }) != nullptr;
 
     m_attachToQnxApplication.setVisible(hasValidQnxKit);
     m_debugSeparator->setVisible(hasValidQnxKit);

@@ -36,6 +36,8 @@
 
 #include <cplusplus/CppRewriter.h>
 #include <cplusplus/Overview.h>
+
+#include <utils/algorithm.h>
 #include <utils/changeset.h>
 #include <utils/qtcassert.h>
 #include <utils/utilsicons.h>
@@ -842,7 +844,7 @@ public:
 
             // make target lookup context
             Document::Ptr implementationDoc = implementationFile->cppDocument();
-            unsigned line, column;
+            int line, column;
             implementationDoc->translationUnit()->getPosition(insertPos, &line, &column);
             Scope *targetScope = implementationDoc->scopeAt(line, column);
             const LookupContext targetContext(implementationDoc, snapshot());
@@ -851,7 +853,7 @@ public:
                 targetCoN = targetContext.globalNamespace();
 
             // Loop through inserted declarations
-            for (unsigned i = targetClass->memberCount(); i < clazz->memberCount(); ++i) {
+            for (int i = targetClass->memberCount(); i < clazz->memberCount(); ++i) {
                 Declaration *decl = clazz->memberAt(i)->asDeclaration();
                 if (!decl)
                     continue;
@@ -1009,7 +1011,7 @@ void InsertVirtualMethodsDialog::initGui()
 
     auto overrideWidgetsLayout = new QHBoxLayout(this);
     overrideWidgetsLayout->setSpacing(0);
-    overrideWidgetsLayout->setMargin(0);
+    overrideWidgetsLayout->setContentsMargins(0, 0, 0, 0);
     overrideWidgetsLayout->addWidget(m_overrideReplacementCheckBox);
     overrideWidgetsLayout->addWidget(m_overrideReplacementComboBox);
     overrideWidgetsLayout->addWidget(m_clearUserAddedReplacementsButton);
@@ -1086,11 +1088,11 @@ void InsertVirtualMethodsDialog::saveSettings()
     m_settings->overrideReplacementIndex = m_overrideReplacementComboBox->currentIndex();
     if (m_overrideReplacementComboBox && m_overrideReplacementComboBox->isEnabled())
         m_settings->overrideReplacement = m_overrideReplacementComboBox->currentText().trimmed();
-    QSet<QString> addedReplacements = m_availableOverrideReplacements.toSet();
+    QSet<QString> addedReplacements = Utils::toSet(m_availableOverrideReplacements);
     addedReplacements.insert(m_settings->overrideReplacement);
-    addedReplacements.subtract(defaultOverrideReplacements().toSet());
+    addedReplacements.subtract(Utils::toSet(defaultOverrideReplacements()));
     m_settings->userAddedOverrideReplacements =
-            sortedAndTrimmedStringListWithoutEmptyElements(addedReplacements.toList());
+            sortedAndTrimmedStringListWithoutEmptyElements(Utils::toList(addedReplacements));
     m_settings->write();
 }
 

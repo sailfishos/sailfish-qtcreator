@@ -32,119 +32,119 @@ using namespace GLSL;
 
 bool UndefinedType::isEqualTo(const Type *other) const
 {
-    if (other && other->asUndefinedType() != 0)
+    if (other && other->asUndefinedType() != nullptr)
         return true;
     return false;
 }
 
 bool UndefinedType::isLessThan(const Type *other) const
 {
-    Q_UNUSED(other);
-    Q_ASSERT(other != 0);
-    Q_ASSERT(other->asUndefinedType() != 0);
+    Q_UNUSED(other)
+    Q_ASSERT(other != nullptr);
+    Q_ASSERT(other->asUndefinedType() != nullptr);
     return false;
 }
 
 bool VoidType::isEqualTo(const Type *other) const
 {
-    if (other && other->asVoidType() != 0)
+    if (other && other->asVoidType() != nullptr)
         return true;
     return false;
 }
 
 bool VoidType::isLessThan(const Type *other) const
 {
-    Q_UNUSED(other);
-    Q_ASSERT(other != 0);
-    Q_ASSERT(other->asVoidType() != 0);
+    Q_UNUSED(other)
+    Q_ASSERT(other != nullptr);
+    Q_ASSERT(other->asVoidType() != nullptr);
     return false;
 }
 
 bool BoolType::isEqualTo(const Type *other) const
 {
-    if (other && other->asBoolType() != 0)
+    if (other && other->asBoolType() != nullptr)
         return true;
     return false;
 }
 
 bool BoolType::isLessThan(const Type *other) const
 {
-    Q_UNUSED(other);
-    Q_ASSERT(other != 0);
-    Q_ASSERT(other->asBoolType() != 0);
+    Q_UNUSED(other)
+    Q_ASSERT(other != nullptr);
+    Q_ASSERT(other->asBoolType() != nullptr);
     return false;
 }
 
 bool IntType::isEqualTo(const Type *other) const
 {
-    if (other && other->asIntType() != 0)
+    if (other && other->asIntType() != nullptr)
         return true;
     return false;
 }
 
 bool IntType::isLessThan(const Type *other) const
 {
-    Q_UNUSED(other);
-    Q_ASSERT(other != 0);
-    Q_ASSERT(other->asIntType() != 0);
+    Q_UNUSED(other)
+    Q_ASSERT(other != nullptr);
+    Q_ASSERT(other->asIntType() != nullptr);
     return false;
 }
 
 bool UIntType::isEqualTo(const Type *other) const
 {
-    if (other && other->asUIntType() != 0)
+    if (other && other->asUIntType() != nullptr)
         return true;
     return false;
 }
 
 bool UIntType::isLessThan(const Type *other) const
 {
-    Q_UNUSED(other);
-    Q_ASSERT(other != 0);
-    Q_ASSERT(other->asUIntType() != 0);
+    Q_UNUSED(other)
+    Q_ASSERT(other != nullptr);
+    Q_ASSERT(other->asUIntType() != nullptr);
     return false;
 }
 
 bool FloatType::isEqualTo(const Type *other) const
 {
-    if (other && other->asFloatType() != 0)
+    if (other && other->asFloatType() != nullptr)
         return true;
     return false;
 }
 
 bool FloatType::isLessThan(const Type *other) const
 {
-    Q_UNUSED(other);
-    Q_ASSERT(other != 0);
-    Q_ASSERT(other->asFloatType() != 0);
+    Q_UNUSED(other)
+    Q_ASSERT(other != nullptr);
+    Q_ASSERT(other->asFloatType() != nullptr);
     return false;
 }
 
 bool DoubleType::isEqualTo(const Type *other) const
 {
-    if (other && other->asDoubleType() != 0)
+    if (other && other->asDoubleType() != nullptr)
         return true;
     return false;
 }
 
 bool DoubleType::isLessThan(const Type *other) const
 {
-    Q_UNUSED(other);
-    Q_ASSERT(other != 0);
-    Q_ASSERT(other->asDoubleType() != 0);
+    Q_UNUSED(other)
+    Q_ASSERT(other != nullptr);
+    Q_ASSERT(other->asDoubleType() != nullptr);
     return false;
 }
 
 QString VectorType::toString() const
 {
     const char *prefix = "";
-    if (elementType()->asBoolType() != 0)
+    if (elementType()->asBoolType() != nullptr)
         prefix = "b";
-    else if (elementType()->asIntType() != 0)
+    else if (elementType()->asIntType() != nullptr)
         prefix = "i'";
-    else if (elementType()->asUIntType() != 0)
+    else if (elementType()->asUIntType() != nullptr)
         prefix = "u";
-    else if (elementType()->asDoubleType() != 0)
+    else if (elementType()->asDoubleType() != nullptr)
         prefix = "d";
     return QString::fromLatin1("%1vec%2").arg(QLatin1String(prefix)).arg(_dimension);
 }
@@ -249,9 +249,9 @@ bool VectorType::isEqualTo(const Type *other) const
 
 bool VectorType::isLessThan(const Type *other) const
 {
-    Q_ASSERT(other != 0);
+    Q_ASSERT(other != nullptr);
     const VectorType *vec = other->asVectorType();
-    Q_ASSERT(vec != 0);
+    Q_ASSERT(vec != nullptr);
     if (_dimension < vec->dimension())
         return true;
     else if (_dimension == vec->dimension() && elementType() < vec->elementType())
@@ -262,13 +262,13 @@ bool VectorType::isLessThan(const Type *other) const
 QString MatrixType::toString() const
 {
     const char *prefix = "";
-    if (elementType()->asBoolType() != 0)
+    if (elementType()->asBoolType() != nullptr)
         prefix = "b";
-    else if (elementType()->asIntType() != 0)
+    else if (elementType()->asIntType() != nullptr)
         prefix = "i";
-    else if (elementType()->asUIntType() != 0)
+    else if (elementType()->asUIntType() != nullptr)
         prefix = "u";
-    else if (elementType()->asDoubleType() != 0)
+    else if (elementType()->asDoubleType() != nullptr)
         prefix = "d";
     return QString::fromLatin1("%1mat%2x%3").arg(QLatin1String(prefix)).arg(_columns).arg(_rows);
 }
@@ -291,9 +291,9 @@ bool MatrixType::isEqualTo(const Type *other) const
 
 bool MatrixType::isLessThan(const Type *other) const
 {
-    Q_ASSERT(other != 0);
+    Q_ASSERT(other != nullptr);
     const MatrixType *mat = other->asMatrixType();
-    Q_ASSERT(mat != 0);
+    Q_ASSERT(mat != nullptr);
     if (_columns < mat->columns()) {
         return true;
     } else if (_columns == mat->columns()) {
@@ -321,9 +321,9 @@ bool ArrayType::isEqualTo(const Type *other) const
 
 bool ArrayType::isLessThan(const Type *other) const
 {
-    Q_ASSERT(other != 0);
+    Q_ASSERT(other != nullptr);
     const ArrayType *array = other->asArrayType();
-    Q_ASSERT(array != 0);
+    Q_ASSERT(array != nullptr);
     return elementType() < array->elementType();
 }
 
@@ -348,18 +348,18 @@ Symbol *Struct::find(const QString &name) const
         if (s->name() == name)
             return s;
     }
-    return 0;
+    return nullptr;
 }
 
 bool Struct::isEqualTo(const Type *other) const
 {
-    Q_UNUSED(other);
+    Q_UNUSED(other)
     return false;
 }
 
 bool Struct::isLessThan(const Type *other) const
 {
-    Q_UNUSED(other);
+    Q_UNUSED(other)
     return false;
 }
 
@@ -420,13 +420,13 @@ Argument *Function::argumentAt(int index) const
 
 bool Function::isEqualTo(const Type *other) const
 {
-    Q_UNUSED(other);
+    Q_UNUSED(other)
     return false;
 }
 
 bool Function::isLessThan(const Type *other) const
 {
-    Q_UNUSED(other);
+    Q_UNUSED(other)
     return false;
 }
 
@@ -446,7 +446,7 @@ Symbol *Function::find(const QString &name) const
         if (arg->name() == name)
             return arg;
     }
-    return 0;
+    return nullptr;
 }
 
 QString SamplerType::toString() const
@@ -465,9 +465,9 @@ bool SamplerType::isEqualTo(const Type *other) const
 
 bool SamplerType::isLessThan(const Type *other) const
 {
-    Q_ASSERT(other != 0);
+    Q_ASSERT(other != nullptr);
     const SamplerType *samp = other->asSamplerType();
-    Q_ASSERT(samp != 0);
+    Q_ASSERT(samp != nullptr);
     return _kind < samp->kind();
 }
 
@@ -493,7 +493,7 @@ const Type *OverloadSet::type() const
 
 Symbol *OverloadSet::find(const QString &) const
 {
-    return 0;
+    return nullptr;
 }
 
 void OverloadSet::add(Symbol *symbol)
@@ -506,12 +506,12 @@ void OverloadSet::add(Symbol *symbol)
 
 bool OverloadSet::isEqualTo(const Type *other) const
 {
-    Q_UNUSED(other);
+    Q_UNUSED(other)
     return false;
 }
 
 bool OverloadSet::isLessThan(const Type *other) const
 {
-    Q_UNUSED(other);
+    Q_UNUSED(other)
     return false;
 }

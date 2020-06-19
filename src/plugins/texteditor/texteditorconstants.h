@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include "texteditor_global.h"
+
 #include <QtGlobal>
 
 namespace TextEditor {
@@ -128,6 +130,7 @@ const char FOLD[]                  = "TextEditor.Fold";
 const char UNFOLD[]                = "TextEditor.Unfold";
 const char UNFOLD_ALL[]            = "TextEditor.UnFoldAll";
 const char AUTO_INDENT_SELECTION[] = "TextEditor.AutoIndentSelection";
+const char AUTO_FORMAT_SELECTION[] = "TextEditor.AutoFormatSelection";
 const char INCREASE_FONT_SIZE[]    = "TextEditor.IncreaseFontSize";
 const char DECREASE_FONT_SIZE[]    = "TextEditor.DecreaseFontSize";
 const char RESET_FONT_SIZE[]       = "TextEditor.ResetFontSize";
@@ -204,9 +207,10 @@ const char JUMP_TO_FILE_UNDER_CURSOR_IN_NEXT_SPLIT[] = "TextEditor.JumpToFileUnd
 const char SCROLL_BAR_SEARCH_RESULT[] = "TextEditor.ScrollBarSearchResult";
 const char SCROLL_BAR_CURRENT_LINE[] = "TextEditor.ScrollBarCurrentLine";
 
-const char *nameForStyle(TextStyle style);
+const TEXTEDITOR_EXPORT char *nameForStyle(TextStyle style);
 TextStyle styleFromName(const char *name);
 
+const char TEXT_EDITOR_SETTINGS_CATEGORY_ICON_PATH[] =  ":/texteditor/images/settingscategory_texteditor.png";
 const char TEXT_EDITOR_SETTINGS_CATEGORY[] = "C.TextEditor";
 const char TEXT_EDITOR_FONT_SETTINGS[] = "A.FontSettings";
 const char TEXT_EDITOR_BEHAVIOR_SETTINGS[] = "B.BehaviourSettings";

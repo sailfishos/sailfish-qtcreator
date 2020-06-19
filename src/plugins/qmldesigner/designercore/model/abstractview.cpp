@@ -39,11 +39,12 @@
 
 #include <coreplugin/helpmanager.h>
 #include <utils/qtcassert.h>
+#include <utils/algorithm.h>
 
 #include <QRegExp>
+#include <QtGui/qimage.h>
 
 namespace QmlDesigner {
-
 
 /*!
 \class QmlDesigner::AbstractView
@@ -344,6 +345,14 @@ void AbstractView::importsChanged(const QList<Import> &/*addedImports*/, const Q
 {
 }
 
+void AbstractView::possibleImportsChanged(const QList<Import> &/*possibleImports*/)
+{
+}
+
+void AbstractView::usedImportsChanged(const QList<Import> &/*usedImports*/)
+{
+}
+
 void AbstractView::auxiliaryDataChanged(const ModelNode &/*node*/, const PropertyName &/*name*/, const QVariant &/*data*/)
 {
 }
@@ -362,7 +371,14 @@ void AbstractView::documentMessagesChanged(const QList<DocumentMessage> &/*error
 
 void AbstractView::currentTimelineChanged(const ModelNode & /*node*/)
 {
+}
 
+void AbstractView::renderImage3DChanged(const QImage & /*image*/)
+{
+}
+
+void AbstractView::updateActiveScene3D(const QVariantMap & /*sceneState*/)
+{
 }
 
 QList<ModelNode> AbstractView::toModelNodeList(const QList<Internal::InternalNode::Pointer> &nodeList) const
@@ -617,9 +633,30 @@ void AbstractView::deactivateTimelineRecording()
         model()->d->notifyCurrentTimelineChanged(ModelNode());
 }
 
+bool AbstractView::executeInTransaction(const QByteArray &identifier, const AbstractView::OperationBlock &lambda)
+{
+    try {
+        RewriterTransaction transaction = beginRewriterTransaction(identifier);
+        lambda();
+        transaction.commit();
+    } catch (const Exception &e) {
+        e.showException();
+        return false;
+    }
+
+    return true;
+}
+
 QList<ModelNode> AbstractView::allModelNodes() const
 {
     return toModelNodeList(model()->d->allNodes());
+}
+
+QList<ModelNode> AbstractView::allModelNodesOfType(const TypeName &typeName) const
+{
+    return Utils::filtered(allModelNodes(), [typeName](const ModelNode &node){
+        return node.metaInfo().isValid() && node.metaInfo().isSubclassOf(typeName);
+    });
 }
 
 void AbstractView::emitDocumentMessage(const QString &error)
@@ -706,6 +743,18 @@ void AbstractView::emitInstanceToken(const QString &token, int number, const QVe
 {
     if (nodeInstanceView())
         model()->d->notifyInstanceToken(token, number, nodeVector);
+}
+
+void AbstractView::emitRenderImage3DChanged(const QImage &image)
+{
+    if (model())
+        model()->d->notifyRenderImage3DChanged(image);
+}
+
+void AbstractView::emitUpdateActiveScene3D(const QVariantMap &sceneState)
+{
+    if (model())
+        model()->d->notifyUpdateActiveScene3D(sceneState);
 }
 
 void AbstractView::emitRewriterEndTransaction()

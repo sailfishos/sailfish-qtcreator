@@ -35,6 +35,13 @@ BackgroundAction::BackgroundAction(QObject *parent) :
 {
 }
 
+void BackgroundAction::setColor(const QColor &color)
+{
+    if (m_comboBox)
+        m_comboBox->setCurrentIndex(colors().indexOf(color));
+
+}
+
 QIcon iconForColor(const QColor &color) {
     const int size = 16;
     QImage image(size, size, QImage::Format_ARGB32);
@@ -64,11 +71,12 @@ QWidget *BackgroundAction::createWidget(QWidget *parent)
     }
 
     comboBox->setCurrentIndex(0);
-    connect(comboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+    connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &BackgroundAction::emitBackgroundChanged);
 
     comboBox->setProperty("hideborder", true);
     comboBox->setToolTip(tr("Set the color of the canvas."));
+    m_comboBox = comboBox;
     return comboBox;
 }
 
@@ -83,6 +91,7 @@ QList<QColor> BackgroundAction::colors()
     static QColor alphaZero(Qt::transparent);
     static QList<QColor> colorList = {alphaZero,
                                       QColor(Qt::black),
+                                      QColor("#4c4e50"),
                                       QColor(Qt::darkGray),
                                       QColor(Qt::lightGray),
                                       QColor(Qt::white)};

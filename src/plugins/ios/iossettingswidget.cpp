@@ -62,9 +62,8 @@ static void onSimOperation(const SimulatorInfo &simInfo, SimulatorOperationDialo
     dlg->addMessage(simInfo, response, contextStr);
 }
 
-IosSettingsWidget::IosSettingsWidget(QWidget *parent)
-    : QWidget(parent),
-      m_ui(new Ui::IosSettingsWidget),
+IosSettingsWidget::IosSettingsWidget()
+    : m_ui(new Ui::IosSettingsWidget),
       m_simControl(new SimulatorControl(this))
 {
     m_ui->setupUi(this);
@@ -93,6 +92,12 @@ IosSettingsWidget::IosSettingsWidget(QWidget *parent)
 IosSettingsWidget::~IosSettingsWidget()
 {
     delete m_ui;
+}
+
+void IosSettingsWidget::apply()
+{
+    saveSettings();
+    IosConfigurations::updateAutomaticKitList();
 }
 
 /*!
@@ -275,7 +280,7 @@ void IosSettingsWidget::onScreenshot()
     const auto generatePath = [this](const SimulatorInfo &info) {
         const QString fileName = QString("%1_%2_%3.png").arg(info.name).arg(info.runtimeName)
                 .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss-z")).replace(' ', '_');
-        return m_ui->pathWidget->fileName().appendPath(fileName).toString();
+        return m_ui->pathWidget->fileName().pathAppended(fileName).toString();
     };
 
     QPointer<SimulatorOperationDialog> statusDialog = new SimulatorOperationDialog(this);

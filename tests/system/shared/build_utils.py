@@ -57,7 +57,7 @@ def checkCompile():
     waitFor("len(str(output.plainText))>0",5000)
     if compileSucceeded(output.plainText):
         if os.getenv("SYSTEST_DEBUG") == "1":
-            test.log("Compile Output:\n%s" % output.plainText)
+            test.log("Compile Output:\n%s" % str(output.plainText))
         test.passes("Compile successful")
         return True
     else:
@@ -155,7 +155,7 @@ def selectBuildConfig(wantedKit, configName, afterSwitchTo=ViewConstants.EDIT):
     switchViewTo(ViewConstants.PROJECTS)
     if any((switchToBuildOrRunSettingsFor(wantedKit, ProjectSettings.BUILD),
             selectFromCombo(":scrollArea.Edit build configuration:_QComboBox", configName))):
-        progressBarWait(30000)
+        waitForProjectParsing(5000, 30000, 0)
     if afterSwitchTo:
         if ViewConstants.FIRST_AVAILABLE <= afterSwitchTo <= ViewConstants.LAST_AVAILABLE:
             switchViewTo(afterSwitchTo)
@@ -166,9 +166,12 @@ def selectBuildConfig(wantedKit, configName, afterSwitchTo=ViewConstants.EDIT):
 def verifyBuildConfig(currentTarget, configName, shouldBeDebug=False, enableShadowBuild=False, enableQmlDebug=False):
     selectBuildConfig(currentTarget, configName, None)
     ensureChecked(waitForObject(":scrollArea.Details_Utils::DetailsButton"))
-    ensureChecked("{name='shadowBuildCheckBox' type='QCheckBox' visible='1'}", enableShadowBuild)
-    buildCfCombo = waitForObject("{type='QComboBox' name='buildConfigurationComboBox' visible='1' "
-                                 "window=':Qt Creator_Core::Internal::MainWindow'}")
+    ensureChecked("{leftWidget={text='Shadow build:' type='QLabel' unnamed='1' visible='1' "
+                               "window=':Qt Creator_Core::Internal::MainWindow'} "
+                  "type='QCheckBox' unnamed='1' visible='1' "
+                  "window=':Qt Creator_Core::Internal::MainWindow'}", enableShadowBuild)
+    buildCfCombo = waitForObject("{leftWidget=':scrollArea.Edit build configuration:_QLabel' "
+                                 "type='QComboBox' unnamed='1' visible='1'}")
     if shouldBeDebug:
         test.compare(buildCfCombo.currentText, 'Debug', "Verifying whether it's a debug build")
     else:
@@ -181,11 +184,11 @@ def verifyBuildConfig(currentTarget, configName, shouldBeDebug=False, enableShad
             pass
         # Since waitForObject waits for the object to be enabled,
         # it will wait here until compilation of the debug libraries has finished.
-        qmlDebugCheckbox = waitForObject(":scrollArea.qmlDebuggingLibraryCheckBox_QCheckBox", 150000)
-        if qmlDebugCheckbox.checked != enableQmlDebug:
-            clickButton(qmlDebugCheckbox)
-            # Don't rebuild now
-            clickButton(waitForObject(":QML Debugging.No_QPushButton", 5000))
+        if currentTarget not in (Targets.DESKTOP_4_8_7_DEFAULT, Targets.EMBEDDED_LINUX):
+            qmlDebuggingCombo = findObject(':Qt Creator.QML debugging and profiling:_QComboBox')
+            if selectFromCombo(qmlDebuggingCombo, 'Enable'):
+                # Don't rebuild now
+                clickButton(waitForObject(":QML Debugging.No_QPushButton", 5000))
         try:
             problemFound = waitForObject("{window=':Qt Creator_Core::Internal::MainWindow' "
                                          "type='QLabel' name='problemLabel' visible='1'}", 1000)
@@ -194,12 +197,12 @@ def verifyBuildConfig(currentTarget, configName, shouldBeDebug=False, enableShad
         except:
             pass
     else:
-        qmlDebugCheckbox = findObject(":scrollArea.qmlDebuggingLibraryCheckBox_QCheckBox")
-        if qmlDebugCheckbox.enabled and qmlDebugCheckbox.checked:
-            test.log("Qml debugging libraries are available - unchecking qml debugging.")
-            clickButton(qmlDebugCheckbox)
-            # Don't rebuild now
-            clickButton(waitForObject(":QML Debugging.No_QPushButton", 5000))
+        if currentTarget not in (Targets.DESKTOP_4_8_7_DEFAULT, Targets.EMBEDDED_LINUX):
+            qmlDebuggingCombo = findObject(':Qt Creator.QML debugging and profiling:_QComboBox')
+            if selectFromCombo(qmlDebuggingCombo, "Disable"):
+                test.log("Qml debugging libraries are available - unchecked qml debugging.")
+                # Don't rebuild now
+                clickButton(waitForObject(":QML Debugging.No_QPushButton", 5000))
     clickButton(waitForObject(":scrollArea.Details_Utils::DetailsButton"))
     switchViewTo(ViewConstants.EDIT)
 
@@ -222,7 +225,6 @@ def runVerify():
         test.fatal("Haven't found build configurations, quitting")
         invokeMenuItem("File", "Save All")
         invokeMenuItem("File", "Exit")
-    # select debug configuration
     for kit, config in availableConfigs:
         selectBuildConfig(kit, config)
         test.log("Using build config '%s'" % config)

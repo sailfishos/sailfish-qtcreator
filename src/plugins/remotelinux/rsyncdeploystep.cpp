@@ -51,6 +51,7 @@ public:
 
     void setDeployableFiles(const QList<DeployableFile> &files) { m_deployableFiles = files; }
     void setIgnoreMissingFiles(bool ignore) { m_ignoreMissingFiles = ignore; }
+    void setFlags(const QString &flags) { m_flags = flags; }
 
 private:
     bool isDeploymentNecessary() const override;
@@ -69,6 +70,7 @@ private:
 
     mutable QList<DeployableFile> m_deployableFiles;
     bool m_ignoreMissingFiles = false;
+    QString m_flags;
     SshProcess m_rsync;
     SshRemoteProcessPtr m_mkdir;
 };
@@ -101,7 +103,7 @@ void RsyncDeployService::createRemoteDirectories()
     remoteDirs.sort();
     remoteDirs.removeDuplicates();
     m_mkdir = connection()->createRemoteProcess("mkdir -p " + QtcProcess::Arguments
-                                                ::createUnixArgs(remoteDirs).toString().toUtf8());
+                                                ::createUnixArgs(remoteDirs).toString());
     connect(m_mkdir.get(), &SshRemoteProcess::done, this, [this](const QString &error) {
         QString userError;
         if (!error.isEmpty())
@@ -132,7 +134,7 @@ void RsyncDeployService::deployFiles()
             setFinished();
         }
     });
-    connect(&m_rsync, static_cast<void (QProcess::*)(int)>(&QProcess::finished), this, [this] {
+    connect(&m_rsync, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this, [this] {
         if (m_rsync.exitStatus() == QProcess::CrashExit) {
             emit errorMessage(tr("rsync crashed."));
             setFinished();
@@ -155,9 +157,9 @@ void RsyncDeployService::deployNextFile()
         return;
     }
     const DeployableFile file = m_deployableFiles.takeFirst();
-    const RsyncCommandLine cmdLine = RsyncDeployStep::rsyncCommand(*connection());
+    const RsyncCommandLine cmdLine = RsyncDeployStep::rsyncCommand(*connection(), m_flags);
     const QStringList args = QStringList(cmdLine.options)
-            << file.localFilePath().toString()
+            << (file.localFilePath().toString() + (file.localFilePath().isDir() ? "/" : QString()))
             << (cmdLine.remoteHostSpec + ':' + file.remoteFilePath());
     m_rsync.start("rsync", args); // TODO: Get rsync location from settings?
 }
@@ -175,41 +177,37 @@ void RsyncDeployService::setFinished()
 
 } // namespace Internal
 
-class RsyncDeployStep::RsyncDeployStepPrivate
+RsyncDeployStep::RsyncDeployStep(BuildStepList *bsl, Core::Id id)
+    : AbstractRemoteLinuxDeployStep(bsl, id)
 {
-public:
-    Internal::RsyncDeployService deployService;
-    BaseBoolAspect *ignoreMissingFilesAspect;
-};
+    auto service = createDeployService<Internal::RsyncDeployService>();
 
-RsyncDeployStep::RsyncDeployStep(BuildStepList *bsl)
-    : AbstractRemoteLinuxDeployStep(bsl, stepId()), d(new RsyncDeployStepPrivate)
-{
-    d->ignoreMissingFilesAspect = addAspect<BaseBoolAspect>();
-    d->ignoreMissingFilesAspect
-            ->setSettingsKey("RemoteLinux.RsyncDeployStep.IgnoreMissingFiles");
-    d->ignoreMissingFilesAspect->setLabel(tr("Ignore missing files"));
-    d->ignoreMissingFilesAspect->setValue(false);
+    auto flags = addAspect<BaseStringAspect>();
+    flags->setDisplayStyle(BaseStringAspect::LineEditDisplay);
+    flags->setSettingsKey("RemoteLinux.RsyncDeployStep.Flags");
+    flags->setLabelText(tr("Flags:"));
+    flags->setValue(defaultFlags());
+
+    auto ignoreMissingFiles = addAspect<BaseBoolAspect>();
+    ignoreMissingFiles->setSettingsKey("RemoteLinux.RsyncDeployStep.IgnoreMissingFiles");
+    ignoreMissingFiles->setLabel(tr("Ignore missing files:"),
+                                 BaseBoolAspect::LabelPlacement::InExtraLabel);
+    ignoreMissingFiles->setValue(false);
 
     setDefaultDisplayName(displayName());
+
+    setInternalInitializer([service, flags, ignoreMissingFiles] {
+        service->setIgnoreMissingFiles(ignoreMissingFiles->value());
+        service->setFlags(flags->value());
+        return service->isDeploymentPossible();
+    });
+
+    setRunPreparer([this, service] {
+        service->setDeployableFiles(target()->deploymentData().allFiles());
+    });
 }
 
-RsyncDeployStep::~RsyncDeployStep()
-{
-    delete d;
-}
-
-bool RsyncDeployStep::initInternal(QString *error)
-{
-    d->deployService.setDeployableFiles(target()->deploymentData().allFiles());
-    d->deployService.setIgnoreMissingFiles(d->ignoreMissingFilesAspect->value());
-    return d->deployService.isDeploymentPossible(error);
-}
-
-AbstractRemoteLinuxDeployService *RsyncDeployStep::deployService() const
-{
-    return &d->deployService;
-}
+RsyncDeployStep::~RsyncDeployStep() = default;
 
 Core::Id RsyncDeployStep::stepId()
 {
@@ -221,13 +219,19 @@ QString RsyncDeployStep::displayName()
     return tr("Deploy files via rsync");
 }
 
-RsyncCommandLine RsyncDeployStep::rsyncCommand(const SshConnection &sshConnection)
+QString RsyncDeployStep::defaultFlags()
+{
+    return QString("-av");
+}
+
+RsyncCommandLine RsyncDeployStep::rsyncCommand(const SshConnection &sshConnection,
+                                               const QString &flags)
 {
     const QString sshCmdLine = QtcProcess::joinArgs(
                 QStringList{SshSettings::sshFilePath().toUserOutput()}
-                << sshConnection.connectionOptions());
+                << sshConnection.connectionOptions(SshSettings::sshFilePath()));
     const SshConnectionParameters sshParams = sshConnection.connectionParameters();
-    return RsyncCommandLine(QStringList{"-e", sshCmdLine, "-av"},
+    return RsyncCommandLine(QStringList{"-e", sshCmdLine, flags},
                             sshParams.userName() + '@' + sshParams.host());
 }
 

@@ -52,19 +52,23 @@ def main():
 # Steps 3&4: Insert text "class" to new line in Editor mode and press Ctrl+Space.
 # Focus "class derived from QObject" in the list and press Tab or Enter to complete the code.
             editorWidget = findObject(":Qt Creator_CppEditor::Internal::CPPEditorWidget")
-            mouseClick(editorWidget, 5, 5, 0, Qt.LeftButton)
+            mouseClick(editorWidget)
             jumpToFirstLine(editorWidget)
             type(editorWidget, "<Return>")
             type(editorWidget, "<Up>")
             delayedType(editorWidget, "class")
+            if useClang:
+                snooze(4)
+            type(editorWidget, "<Ctrl+Space>")
             listView = waitForObject(":popupFrame_Proposal_QListView")
             shownProposals = dumpItems(listView.model())
             usedProposal = "class derived from QObject"
             expectedProposals = ["class", "class ", "class template",
                                  usedProposal, "class derived from QWidget"]
-            test.compare(len(shownProposals), len(expectedProposals), "Number of proposed templates")
-            test.compare(set(shownProposals), set(expectedProposals),
-                         "Expected proposals shown, ignoring order?")
+            test.xcompare(len(shownProposals), len(expectedProposals),  # QTCREATORBUG-23159
+                          "Number of proposed templates")
+            test.verify(set(expectedProposals).issubset(set(shownProposals)),
+                        "Expected proposals shown, ignoring order?")
             doubleClickItem(listView, usedProposal, 5, 5, 0, Qt.LeftButton)
             pattern = ("(?<=class)\s+name\s*:\s*public\s+QObject\s*\{\s*Q_OBJECT\s+"
                        "public:\s+name\(\)\s*\{\}\s+virtual\s+~name\(\)\s*\{\}\s+\};")
@@ -84,9 +88,5 @@ def main():
                           "- Content of editor:\n%s" % editorWidget.plainText)
             invokeMenuItem('File', 'Revert "main.cpp" to Saved')
             clickButton(waitForObject(":Revert to Saved.Proceed_QPushButton"))
-            snooze(1)   # 'Close "main.cpp"' might still be disabled
-            # editor must be closed to get the second code model applied on re-opening the file
-            invokeMenuItem('File', 'Close "main.cpp"')
-            # exit qt creator
             invokeMenuItem("File", "Exit")
             waitForCleanShutdown()

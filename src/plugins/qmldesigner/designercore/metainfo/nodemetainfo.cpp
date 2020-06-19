@@ -336,14 +336,14 @@ private:
 static inline bool isValueType(const TypeName &type)
 {
     static const PropertyTypeList objectValuesList({"QFont", "QPoint", "QPointF",
-        "QSize", "QSizeF", "QVector3D", "QVector2D"});
+        "QSize", "QSizeF", "QVector3D", "QVector2D", "font"});
     return objectValuesList.contains(type);
 }
 
 static inline bool isValueType(const QString &type)
 {
     static const QStringList objectValuesList({"QFont", "QPoint", "QPointF",
-        "QSize", "QSizeF", "QVector3D", "QVector2D"});
+        "QSize", "QSizeF", "QVector3D", "QVector2D", "font"});
     return objectValuesList.contains(type);
 }
 
@@ -650,7 +650,7 @@ PropertyName NodeMetaInfoPrivate::defaultPropertyName() const
 
 static inline TypeName stringIdentifier( const TypeName &type, int maj, int min)
 {
-    return type + QString::number(maj).toLatin1() + '_' + QString::number(min).toLatin1();
+    return type + QByteArray::number(maj) + '_' + QByteArray::number(min);
 }
 
 NodeMetaInfoPrivate::Pointer NodeMetaInfoPrivate::create(Model *model, const TypeName &type, int major, int minor)
@@ -1481,6 +1481,11 @@ bool NodeMetaInfo::defaultPropertyIsComponent() const
 TypeName NodeMetaInfo::typeName() const
 {
     return m_privateData->qualfiedTypeName();
+}
+
+TypeName NodeMetaInfo::simplifiedTypeName() const
+{
+    return typeName().split('.').constLast();
 }
 
 int NodeMetaInfo::majorVersion() const

@@ -30,46 +30,16 @@
 #include <coreplugin/dialogs/ioptionspage.h>
 
 #include <QStringList>
-#include <QSharedPointer>
-#include <QPointer>
 
 namespace CodePaster {
 
 class Settings;
 
-class SettingsWidget : public QWidget
+class SettingsPage final : public Core::IOptionsPage
 {
-    Q_OBJECT
-
+    Q_DECLARE_TR_FUNCTIONS(CodePaster::SettingsPage)
 public:
-    explicit SettingsWidget(const QStringList &protocols, QWidget *parent = nullptr);
-
-    void setSettings(const Settings &);
-    Settings settings();
-
-private:
-    Internal::Ui::SettingsPage m_ui;
-};
-
-class SettingsPage : public Core::IOptionsPage
-{
-    Q_OBJECT
-
-public:
-    explicit SettingsPage(const QSharedPointer<Settings> &settings, QObject *parent);
-    ~SettingsPage() override;
-
-    QWidget *widget() override;
-    void apply() override;
-    void finish() override { }
-
-    void addProtocol(const QString& name);
-
-private:
-    const QSharedPointer<Settings> m_settings;
-
-    QPointer<SettingsWidget> m_widget;
-    QStringList m_protocols;
+    SettingsPage(Settings *settings, const QStringList &protocolNames);
 };
 
 } // namespace CodePaster

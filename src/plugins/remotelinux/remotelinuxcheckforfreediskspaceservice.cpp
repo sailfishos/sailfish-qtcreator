@@ -102,18 +102,15 @@ void RemoteLinuxCheckForFreeDiskSpaceService::handleProcessFinished()
     stopDeployment();
 }
 
-bool RemoteLinuxCheckForFreeDiskSpaceService::isDeploymentPossible(QString *whyNot) const
+CheckResult RemoteLinuxCheckForFreeDiskSpaceService::isDeploymentPossible() const
 {
-    if (!AbstractRemoteLinuxDeployService::isDeploymentPossible(whyNot))
-        return false;
     if (!d->pathToCheck.startsWith(QLatin1Char('/'))) {
-        if (whyNot) {
-            *whyNot = tr("Cannot check for free disk space: \"%1\" is not an absolute path.")
-                    .arg(d->pathToCheck);
-        }
-        return false;
+        return CheckResult::failure(
+           tr("Cannot check for free disk space: \"%1\" is not an absolute path.")
+                    .arg(d->pathToCheck));
     }
-    return true;
+
+    return AbstractRemoteLinuxDeployService::isDeploymentPossible();
 }
 
 void RemoteLinuxCheckForFreeDiskSpaceService::doDeploy()
@@ -125,7 +122,7 @@ void RemoteLinuxCheckForFreeDiskSpaceService::doDeploy()
             this, &RemoteLinuxCheckForFreeDiskSpaceService::handleStdErr);
     const QString command = QString::fromLatin1("df -k %1 |tail -n 1 |sed 's/  */ /g' "
             "|cut -d ' ' -f 4").arg(d->pathToCheck);
-    d->processRunner->run(command.toUtf8(), deviceConfiguration()->sshParameters());
+    d->processRunner->run(command, deviceConfiguration()->sshParameters());
 }
 
 void RemoteLinuxCheckForFreeDiskSpaceService::stopDeployment()

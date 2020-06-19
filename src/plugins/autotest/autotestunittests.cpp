@@ -39,6 +39,7 @@
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/toolchain.h>
 
+#include <QFileInfo>
 #include <QSignalSpy>
 #include <QTest>
 
@@ -53,9 +54,7 @@ namespace Internal {
 
 AutoTestUnitTests::AutoTestUnitTests(TestTreeModel *model, QObject *parent)
     : QObject(parent),
-      m_model(model),
-      m_tmpDir(nullptr),
-      m_isQt4(false)
+      m_model(model)
 {
 }
 
@@ -64,16 +63,27 @@ void AutoTestUnitTests::initTestCase()
     const QList<Kit *> allKits = KitManager::kits();
     if (allKits.count() != 1)
         QSKIP("This test requires exactly one kit to be present");
-    if (auto qtVersion = QtSupport::QtKitInformation::qtVersion(allKits.first()))
+    if (auto qtVersion = QtSupport::QtKitAspect::qtVersion(allKits.first()))
         m_isQt4 = qtVersion->qtVersionString().startsWith('4');
     else
         QSKIP("Could not figure out which Qt version is used for default kit.");
-    const ToolChain * const toolchain = ToolChainKitInformation::toolChain(allKits.first(),
+    const ToolChain * const toolchain = ToolChainKitAspect::toolChain(allKits.first(),
                                                                            ProjectExplorer::Constants::CXX_LANGUAGE_ID);
     if (!toolchain)
         QSKIP("This test requires that there is a kit with a toolchain.");
 
     m_tmpDir = new CppTools::Tests::TemporaryCopiedDir(":/unit_test");
+
+    if (!qgetenv("BOOST_INCLUDE_DIR").isEmpty()) {
+        m_checkBoost = true;
+    } else {
+        if (Utils::HostOsInfo::isLinuxHost()
+                && (QFileInfo::exists("/usr/include/boost/version.hpp")
+                    || QFileInfo::exists("/usr/local/include/boost/version.hpp"))) {
+            qDebug() << "Found boost at system level - will run boost parser test.";
+            m_checkBoost = true;
+        }
+    }
 }
 
 void AutoTestUnitTests::cleanupTestCase()
@@ -121,13 +131,13 @@ void AutoTestUnitTests::testCodeParser_data()
             << 1 << 0 << 0 << 0;
     QTest::newRow("mixedAutoTestAndQuickTests")
             << QString(m_tmpDir->path() + "/mixed_atp/mixed_atp.pro")
-            << 4 << 7 << 3 << 10;
+            << 4 << 10 << 5 << 10;
     QTest::newRow("plainAutoTestQbs")
             << QString(m_tmpDir->path() + "/plain/plain.qbs")
             << 1 << 0 << 0 << 0;
     QTest::newRow("mixedAutoTestAndQuickTestsQbs")
             << QString(m_tmpDir->path() + "/mixed_atp/mixed_atp.qbs")
-            << 4 << 7 << 3 << 10;
+            << 4 << 10 << 5 << 10;
 }
 
 void AutoTestUnitTests::testCodeParserSwitchStartup()
@@ -173,8 +183,8 @@ void AutoTestUnitTests::testCodeParserSwitchStartup_data()
             m_tmpDir->path() + "/mixed_atp/mixed_atp.qbs"});
 
     QList<int> expectedAutoTests = QList<int>()         << 1 << 4 << 1 << 4;
-    QList<int> expectedNamedQuickTests = QList<int>()   << 0 << 7 << 0 << 7;
-    QList<int> expectedUnnamedQuickTests = QList<int>() << 0 << 3 << 0 << 3;
+    QList<int> expectedNamedQuickTests = QList<int>()   << 0 << 10 << 0 << 10;
+    QList<int> expectedUnnamedQuickTests = QList<int>() << 0 << 5 << 0 << 5;
     QList<int> expectedDataTagsCount = QList<int>()     << 0 << 10 << 0 << 10;
 
     QTest::newRow("loadMultipleProjects")
@@ -218,6 +228,7 @@ void AutoTestUnitTests::testCodeParserGTest()
     QCOMPARE(m_model->namedQuickTestsCount(), 0);
     QCOMPARE(m_model->unnamedQuickTestsCount(), 0);
     QCOMPARE(m_model->dataTagsCount(), 0);
+    QCOMPARE(m_model->boostTestNamesCount(), 0);
 }
 
 void AutoTestUnitTests::testCodeParserGTest_data()
@@ -227,6 +238,63 @@ void AutoTestUnitTests::testCodeParserGTest_data()
         << QString(m_tmpDir->path() + "/simple_gt/simple_gt.pro");
     QTest::newRow("simpleGoogletestQbs")
         << QString(m_tmpDir->path() + "/simple_gt/simple_gt.qbs");
+}
+
+void AutoTestUnitTests::testCodeParserBoostTest()
+{
+    if (!m_checkBoost)
+        QSKIP("This test needs boost - set BOOST_INCLUDE_DIR (or have it installed)");
+
+    QFETCH(QString, projectFilePath);
+    QFETCH(QString, extension);
+    CppTools::Tests::ProjectOpenerAndCloser projectManager;
+    CppTools::ProjectInfo projectInfo = projectManager.open(projectFilePath, true);
+    QVERIFY(projectInfo.isValid());
+
+    QSignalSpy parserSpy(m_model->parser(), SIGNAL(parsingFinished()));
+    QSignalSpy modelUpdateSpy(m_model, SIGNAL(sweepingDone()));
+    QVERIFY(parserSpy.wait(20000));
+    QVERIFY(modelUpdateSpy.wait());
+
+    QCOMPARE(m_model->boostTestNamesCount(), 5);
+
+    QString basePath;
+    if (auto project = projectInfo.project())
+        basePath = project->projectFilePath().toFileInfo().absolutePath();
+    QVERIFY(!basePath.isEmpty());
+
+    QMap<QString, int> expectedSuitesAndTests;
+
+    auto pathConstructor = [basePath, extension](const QString &name, const QString &subPath) {
+        return QString(name + '|' + basePath + subPath + extension);
+    };
+    expectedSuitesAndTests.insert(pathConstructor("Master Test Suite", "/tests/deco/deco"), 2); // decorators w/o suite
+    expectedSuitesAndTests.insert(pathConstructor("Master Test Suite", "/tests/fix/fix"), 2); // fixtures
+    expectedSuitesAndTests.insert(pathConstructor("Master Test Suite", "/tests/params/params"), 3); // functions
+    expectedSuitesAndTests.insert(pathConstructor("Suite1", "/tests/deco/deco"), 4);
+    expectedSuitesAndTests.insert(pathConstructor("SuiteOuter", "/tests/deco/deco"), 5); // 2 sub suites + 3 tests
+
+    QMap<QString, int> foundNamesAndSets = m_model->boostTestSuitesAndTests();
+    QCOMPARE(expectedSuitesAndTests.size(), foundNamesAndSets.size());
+    for (const QString &name : expectedSuitesAndTests.keys())
+        QCOMPARE(expectedSuitesAndTests.values(name), foundNamesAndSets.values(name));
+
+    // check also that no Qt related tests have been found
+    QCOMPARE(m_model->autoTestsCount(), 0);
+    QCOMPARE(m_model->namedQuickTestsCount(), 0);
+    QCOMPARE(m_model->unnamedQuickTestsCount(), 0);
+    QCOMPARE(m_model->dataTagsCount(), 0);
+    QCOMPARE(m_model->gtestNamesCount(), 0);
+}
+
+void AutoTestUnitTests::testCodeParserBoostTest_data()
+{
+    QTest::addColumn<QString>("projectFilePath");
+    QTest::addColumn<QString>("extension");
+    QTest::newRow("simpleBoostTest")
+        << QString(m_tmpDir->path() + "/simple_boost/simple_boost.pro") << QString(".pro");
+    QTest::newRow("simpleBoostTestQbs")
+        << QString(m_tmpDir->path() + "/simple_boost/simple_boost.qbs") << QString(".qbs");
 }
 
 } // namespace Internal

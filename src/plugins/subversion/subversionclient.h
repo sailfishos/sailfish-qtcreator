@@ -35,13 +35,14 @@ namespace Subversion {
 namespace Internal {
 
 class SubversionDiffEditorController;
+class SubversionSettings;
 
 class SubversionClient : public VcsBase::VcsBaseClient
 {
     Q_OBJECT
 
 public:
-    SubversionClient();
+    SubversionClient(SubversionSettings *settings);
 
     bool doCommit(const QString &repositoryRoot,
                   const QStringList &files,
@@ -61,14 +62,11 @@ public:
              bool enableAnnotationContextMenu = false) override;
 
     void describe(const QString &workingDirectory, int changeNumber, const QString &title);
-    QString findTopLevelForFile(const QFileInfo &file) const override;
-    QStringList revisionSpec(const QString &revision) const override;
-    StatusItem parseStatusLine(const QString &line) const override;
 
     // Add authorization options to the command line arguments.
     static QStringList addAuthenticationOptions(const VcsBase::VcsBaseClientSettings &settings);
 
-    QString synchronousTopic(const QString &repository);
+    QString synchronousTopic(const QString &repository) const;
 
     static QString escapeFile(const QString &file);
     static QStringList escapeFiles(const QStringList &files);
@@ -78,9 +76,9 @@ protected:
 
 private:
     SubversionDiffEditorController *findOrCreateDiffEditor(const QString &documentId, const QString &source,
-                                           const QString &title, const QString &workingDirectory) const;
+                                           const QString &title, const QString &workingDirectory);
 
-    mutable Utils::FileName m_svnVersionBinary;
+    mutable Utils::FilePath m_svnVersionBinary;
     mutable QString m_svnVersion;
 };
 

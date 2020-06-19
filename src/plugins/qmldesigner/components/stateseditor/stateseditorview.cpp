@@ -138,7 +138,7 @@ void StatesEditorView::createNewState()
 void StatesEditorView::addState()
 {
     // can happen when root node is e.g. a ListModel
-    if (!QmlItemNode::isValidQmlItemNode(rootModelNode()))
+    if (!QmlVisualNode::isValidQmlVisualNode(rootModelNode()))
         return;
 
     QStringList modelStateNames = rootStateGroup().names();
@@ -202,8 +202,10 @@ void StatesEditorView::duplicateCurrentState()
 
 void StatesEditorView::checkForStatesAvailability()
 {
-    if (m_statesEditorWidget)
-        m_statesEditorWidget->showAddNewStatesButton(rootModelNode().metaInfo().isSubclassOf("QtQuick.Item"));
+    if (m_statesEditorWidget) {
+        const bool isVisual = QmlVisualNode::isValidQmlVisualNode(rootModelNode());
+        m_statesEditorWidget->showAddNewStatesButton(isVisual);
+    }
 }
 
 void StatesEditorView::setCurrentState(const QmlModelState &state)
@@ -251,7 +253,13 @@ void StatesEditorView::renameState(int internalNodeId, const QString &newName)
                 // Jump to base state for the change
                 QmlModelState oldState = currentState();
                 setCurrentState(baseState());
+                const bool updateDefault = state.isDefault();
+
                 state.setName(newName);
+
+                if (updateDefault)
+                    state.setAsDefault();
+
                 setCurrentState(oldState);
             }
         }  catch (const RewritingException &e) {
@@ -300,6 +308,50 @@ void StatesEditorView::resetWhenCondition(int internalNodeId)
     }
 
     m_block = false;
+}
+
+void StatesEditorView::setStateAsDefault(int internalNodeId)
+{
+    if (m_block)
+        return;
+
+    m_block = true;
+
+    if (hasModelNodeForInternalId(internalNodeId)) {
+        QmlModelState state(modelNodeForInternalId(internalNodeId));
+        try {
+            if (state.isValid())
+                state.setAsDefault();
+
+        } catch (const RewritingException &e) {
+            e.showException();
+        }
+    }
+
+    m_block = false;
+}
+
+void StatesEditorView::resetDefaultState()
+{
+    if (m_block)
+        return;
+
+    m_block = true;
+
+    try {
+        if (rootModelNode().hasProperty("state"))
+            rootModelNode().removeProperty("state");
+
+    } catch (const RewritingException &e) {
+        e.showException();
+    }
+
+    m_block = false;
+}
+
+bool StatesEditorView::hasDefaultState() const
+{
+    return rootModelNode().hasProperty("state");
 }
 
 void StatesEditorView::modelAttached(Model *model)
@@ -396,6 +448,8 @@ void StatesEditorView::variantPropertiesChanged(const QList<VariantProperty> &pr
 
     for (const VariantProperty &property : propertyList) {
         if (property.name() == "name" && QmlModelState::isValidQmlModelState(property.parentModelNode()))
+            resetModel();
+        else if (property.name() == "state" && property.parentModelNode().isRootNode())
             resetModel();
     }
 

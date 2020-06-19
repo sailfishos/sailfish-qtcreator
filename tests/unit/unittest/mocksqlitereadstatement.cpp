@@ -46,6 +46,16 @@ MockSqliteReadStatement::values<CppTools::Usage, 3>(
     return valuesReturnSourceUsages(reserveSize, sourceId, line, column);
 }
 
+template<>
+CppTools::Usages MockSqliteReadStatement::values<CppTools::Usage, 3>(std::size_t reserveSize,
+                                                                     const int &sourceId,
+                                                                     const int &line,
+                                                                     const int &column,
+                                                                     const int &locationKind)
+{
+    return valuesReturnSourceUsages(reserveSize, sourceId, line, column, locationKind);
+}
+
 template <>
 Symbols
 MockSqliteReadStatement::values<Symbol, 3>(
@@ -103,10 +113,16 @@ std::vector<Sources::Directory> MockSqliteReadStatement::values<Sources::Directo
     return valuesReturnStdVectorDirectory(reserveSize);
 }
 
-template <>
-std::vector<Sources::Source> MockSqliteReadStatement::values<Sources::Source, 2>(std::size_t reserveSize)
+template<>
+std::vector<Sources::Source> MockSqliteReadStatement::values<Sources::Source, 3>(std::size_t reserveSize)
 {
     return valuesReturnStdVectorSource(reserveSize);
+}
+
+template<>
+ProjectPartNameIds MockSqliteReadStatement::values<ProjectPartNameId, 2>(std::size_t reserveSize)
+{
+    return valuesReturnProjectPartNameIds(reserveSize);
 }
 
 template <>
@@ -135,6 +151,12 @@ Utils::optional<int>
 MockSqliteReadStatement::value<int>(const int &directoryId, const Utils::SmallStringView &text)
 {
     return valueReturnInt32(directoryId, text);
+}
+
+template<>
+Utils::optional<int> MockSqliteReadStatement::value<int>(const int &value)
+{
+    return valueReturnInt32(value);
 }
 
 template <>
@@ -200,9 +222,15 @@ MockSqliteReadStatement::value<ClangBackEnd::ProjectPartPch, 3>(const int &proje
     return valueReturnProjectPartPch(projectPartId);
 }
 
-template <>
-Utils::optional<Utils::SmallString>
-MockSqliteReadStatement::value<Utils::SmallString>(const int &sourceId)
+template<>
+Utils::optional<ClangBackEnd::PchPaths> MockSqliteReadStatement::value<ClangBackEnd::PchPaths, 2>(
+    const int &projectPartId)
+{
+    return valueReturnPchPaths(projectPartId);
+}
+
+template<>
+Utils::optional<Utils::SmallString> MockSqliteReadStatement::value<Utils::SmallString>(const int &sourceId)
 {
     return valueReturnSmallString(sourceId);
 }
@@ -222,9 +250,29 @@ SourceEntries MockSqliteReadStatement::values<SourceEntry, 4>(std::size_t reserv
     return valuesReturnSourceEntries(reserveSize, filePathId, projectPartId);
 }
 
+template<>
+SourceTimeStamps MockSqliteReadStatement::values<SourceTimeStamp, 2>(std::size_t reserveSize)
+{
+    return valuesReturnSourceTimeStamps(reserveSize);
+}
+
+template<>
+SourceTimeStamps MockSqliteReadStatement::values<SourceTimeStamp, 2>(std::size_t reserveSize,
+                                                                     const int &sourcePathId)
+{
+    return valuesReturnSourceTimeStamps(reserveSize, sourcePathId);
+}
+
 template <>
 Utils::optional<Sources::SourceNameAndDirectoryId>
 MockSqliteReadStatement::value<Sources::SourceNameAndDirectoryId, 2>(const int &id)
 {
     return valueReturnSourceNameAndDirectoryId(id);
+}
+
+template<>
+Utils::optional<ClangBackEnd::PrecompiledHeaderTimeStamps>
+MockSqliteReadStatement::value<ClangBackEnd::PrecompiledHeaderTimeStamps, 2>(const int &projectPartId)
+{
+    return valuesReturnPrecompiledHeaderTimeStamps(projectPartId);
 }

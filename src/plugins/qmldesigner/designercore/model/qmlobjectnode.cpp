@@ -27,6 +27,7 @@
 #include "qmlitemnode.h"
 #include "qmlstate.h"
 #include "qmltimelinekeyframegroup.h"
+#include "qmlvisualnode.h"
 #include "variantproperty.h"
 #include "nodeproperty.h"
 #include <invalidmodelnodeexception.h>
@@ -263,7 +264,7 @@ QString QmlObjectNode::stripedTranslatableText(const PropertyName &name) const
             return regularExpressionPatter.cap(2);
         return instanceValue(name).toString();
     }
-    return modelNode().variantProperty(name).value().toString();
+    return instanceValue(name).toString();
 }
 
 QString QmlObjectNode::expression(const PropertyName &name) const
@@ -366,15 +367,35 @@ void QmlObjectNode::destroy()
         stateOperation.modelNode().destroy(); //remove of belonging StatesOperations
     }
 
-    for (const ModelNode &timelineNode : view()->allModelNodes()) {
-        if (QmlTimeline::isValidQmlTimeline(timelineNode)) {
-            QmlTimeline timeline(timelineNode);
-            timeline.destroyKeyframesForTarget(modelNode());
-        }
+    QVector<ModelNode> timelineNodes;
+    const auto allNodes = view()->allModelNodes();
+    for (const auto &timelineNode : allNodes) {
+        if (QmlTimeline::isValidQmlTimeline(timelineNode))
+            timelineNodes.append(timelineNode);
+    }
+
+    const auto subNodes = modelNode().allSubModelNodesAndThisNode();
+    for (auto &timelineNode : qAsConst(timelineNodes)) {
+        QmlTimeline timeline(timelineNode);
+        for (const auto &subNode : subNodes)
+            timeline.destroyKeyframesForTarget(subNode);
+    }
+
+    bool wasFlowEditorTarget = false;
+    if (QmlFlowTargetNode::isFlowEditorTarget(modelNode())) {
+        QmlFlowTargetNode(modelNode()).destroyTargets();
+        wasFlowEditorTarget = true;
     }
 
     removeStateOperationsForChildren(modelNode());
+    BindingProperty::deleteAllReferencesTo(modelNode());
+
+    QmlFlowViewNode root(view()->rootModelNode());
+
     modelNode().destroy();
+
+    if (wasFlowEditorTarget && root.isValid())
+        root.removeDanglingTransitions();
 }
 
 void QmlObjectNode::ensureAliasExport()
@@ -442,20 +463,20 @@ QList<QmlModelStateOperation> QmlObjectNode::allAffectingStatesOperations() cons
     return returnList;
 }
 
-static QList<QmlItemNode> allQmlItemsRecursive(const QmlItemNode &qmlItemNode)
+static QList<QmlVisualNode> allQmlVisualNodesRecursive(const QmlItemNode &qmlItemNode)
 {
-    QList<QmlItemNode> qmlItemNodeList;
+    QList<QmlVisualNode> qmlVisualNodeList;
 
     if (qmlItemNode.isValid()) {
-        qmlItemNodeList.append(qmlItemNode);
+        qmlVisualNodeList.append(qmlItemNode);
 
         foreach (const ModelNode &modelNode, qmlItemNode.modelNode().directSubModelNodes()) {
-            if (QmlItemNode::isValidQmlItemNode(modelNode))
-                qmlItemNodeList.append(allQmlItemsRecursive(modelNode));
+            if (QmlVisualNode::isValidQmlVisualNode(modelNode))
+                qmlVisualNodeList.append(allQmlVisualNodesRecursive(modelNode));
         }
     }
 
-    return qmlItemNodeList;
+    return qmlVisualNodeList;
 }
 
 QList<QmlModelState> QmlObjectNode::allDefinedStates() const
@@ -465,14 +486,13 @@ QList<QmlModelState> QmlObjectNode::allDefinedStates() const
 
     QList<QmlModelState> returnList;
 
-    QList<QmlItemNode> allQmlItems;
+    QList<QmlVisualNode> allVisualNodes;
 
-    if (QmlItemNode::isValidQmlItemNode(view()->rootModelNode()))
-        allQmlItems.append(allQmlItemsRecursive(view()->rootModelNode()));
+    if (QmlVisualNode::isValidQmlVisualNode(view()->rootModelNode()))
+        allVisualNodes.append(allQmlVisualNodesRecursive(view()->rootModelNode()));
 
-    foreach (const QmlItemNode &item, allQmlItems) {
-        returnList.append(item.states().allStates());
-    }
+    for (const QmlVisualNode &node : qAsConst(allVisualNodes))
+        returnList.append(node.states().allStates());
 
     return returnList;
 }
@@ -548,7 +568,7 @@ QString QmlObjectNode::generateTranslatableText(const QString &text)
         }
     return QString(QStringLiteral("qsTr(\"%1\")")).arg(text);
 #else
-    Q_UNUSED(text);
+    Q_UNUSED(text)
     return QString();
 #endif
 }
@@ -625,9 +645,10 @@ bool QmlObjectNode::hasInstanceParent() const
 
 bool QmlObjectNode::hasInstanceParentItem() const
 {
-    return nodeInstance().parentId() >= 0
-            && nodeInstanceView()->hasInstanceForId(nodeInstance().parentId())
-            && QmlItemNode::isItemOrWindow(view()->modelNodeForInternalId(nodeInstance().parentId()));
+    return isValid()
+           && nodeInstance().parentId() >= 0
+           && nodeInstanceView()->hasInstanceForId(nodeInstance().parentId())
+           && QmlItemNode::isItemOrWindow(view()->modelNodeForInternalId(nodeInstance().parentId()));
 }
 
 
@@ -650,6 +671,11 @@ QmlItemNode QmlObjectNode::instanceParentItem() const
         return itemForInstance(nodeInstanceView()->instanceForId(nodeInstance().parentId()));
 
     return QmlItemNode();
+}
+
+QmlItemNode QmlObjectNode::modelParentItem() const
+{
+    return modelNode().parentProperty().parentModelNode();
 }
 
 void QmlObjectNode::setId(const QString &id)
@@ -688,8 +714,24 @@ QmlItemNode QmlObjectNode::toQmlItemNode() const
     return QmlItemNode(modelNode());
 }
 
+QmlVisualNode QmlObjectNode::toQmlVisualNode() const
+{
+     return QmlVisualNode(modelNode());
+}
+
 uint qHash(const QmlObjectNode &node)
 {
     return qHash(node.modelNode());
 }
+
+QString QmlObjectNode::simplifiedTypeName() const
+{
+    return modelNode().simplifiedTypeName();
+}
+
+QStringList QmlObjectNode::allStateNames() const
+{
+    return nodeInstance().allStateNames();
+}
+
 } //QmlDesigner

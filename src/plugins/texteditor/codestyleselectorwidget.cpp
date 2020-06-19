@@ -162,7 +162,7 @@ CodeStyleSelectorWidget::CodeStyleSelectorWidget(ICodeStylePreferencesFactory *f
     m_ui->importButton->setEnabled(false);
     m_ui->exportButton->setEnabled(false);
 
-    connect(m_ui->delegateComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
+    connect(m_ui->delegateComboBox, QOverload<int>::of(&QComboBox::activated),
             this, &CodeStyleSelectorWidget::slotComboBoxActivated);
     connect(m_ui->copyButton, &QAbstractButton::clicked,
             this, &CodeStyleSelectorWidget::slotCopyClicked);
@@ -326,8 +326,8 @@ void CodeStyleSelectorWidget::slotRemoveClicked()
 
 void CodeStyleSelectorWidget::slotImportClicked()
 {
-    const Utils::FileName fileName =
-            Utils::FileName::fromString(QFileDialog::getOpenFileName(this, tr("Import Code Style"), QString(),
+    const Utils::FilePath fileName =
+            Utils::FilePath::fromString(QFileDialog::getOpenFileName(this, tr("Import Code Style"), QString(),
                                                                      tr("Code styles (*.xml);;All files (*)")));
     if (!fileName.isEmpty()) {
         CodeStylePool *codeStylePool = m_codeStyle->delegatingPool();
@@ -348,7 +348,7 @@ void CodeStyleSelectorWidget::slotExportClicked()
                              tr("Code styles (*.xml);;All files (*)"));
     if (!fileName.isEmpty()) {
         CodeStylePool *codeStylePool = m_codeStyle->delegatingPool();
-        codeStylePool->exportCodeStyle(Utils::FileName::fromString(fileName), currentPreferences);
+        codeStylePool->exportCodeStyle(Utils::FilePath::fromString(fileName), currentPreferences);
     }
 }
 

@@ -45,7 +45,7 @@ const Identifier *QualifiedNameId::identifier() const
     if (const Name *u = name())
         return u->identifier();
 
-    return 0;
+    return nullptr;
 }
 
 const Name *QualifiedNameId::base() const
@@ -93,18 +93,18 @@ bool TemplateNameId::match0(const Name *otherName, Matcher *matcher) const
 const Identifier *TemplateNameId::identifier() const
 { return _identifier; }
 
-unsigned TemplateNameId::templateArgumentCount() const
-{ return unsigned(_templateArguments.size()); }
+int TemplateNameId::templateArgumentCount() const
+{ return int(_templateArguments.size()); }
 
-const FullySpecifiedType &TemplateNameId::templateArgumentAt(unsigned index) const
+const FullySpecifiedType &TemplateNameId::templateArgumentAt(int index) const
 { return _templateArguments[index]; }
 
 bool TemplateNameId::Compare::operator()(const TemplateNameId *name,
                                          const TemplateNameId *other) const
 {
-    if (name == 0)
-        return other != 0;
-    if (other == 0)
+    if (name == nullptr)
+        return other != nullptr;
+    if (other == nullptr)
         return false;
     if (name == other)
         return false;
@@ -112,9 +112,9 @@ bool TemplateNameId::Compare::operator()(const TemplateNameId *name,
     const Identifier *id = name->identifier();
     const Identifier *otherId = other->identifier();
 
-    if (id == 0)
-        return otherId != 0;
-    if (otherId == 0)
+    if (id == nullptr)
+        return otherId != nullptr;
+    if (otherId == nullptr)
         return false;
 
     const int c = std::strcmp(id->chars(), otherId->chars());
@@ -154,7 +154,7 @@ OperatorNameId::Kind OperatorNameId::kind() const
 { return _kind; }
 
 const Identifier *OperatorNameId::identifier() const
-{ return 0; }
+{ return nullptr; }
 
 ConversionNameId::ConversionNameId(const FullySpecifiedType &type)
     : _type(type)
@@ -177,7 +177,7 @@ FullySpecifiedType ConversionNameId::type() const
 { return _type; }
 
 const Identifier *ConversionNameId::identifier() const
-{ return 0; }
+{ return nullptr; }
 
 SelectorNameId::~SelectorNameId()
 { }
@@ -195,28 +195,28 @@ bool SelectorNameId::match0(const Name *otherName, Matcher *matcher) const
 const Identifier *SelectorNameId::identifier() const
 {
     if (_names.empty())
-        return 0;
+        return nullptr;
 
     return nameAt(0)->identifier();
 }
 
-unsigned SelectorNameId::nameCount() const
-{ return unsigned(_names.size()); }
+int SelectorNameId::nameCount() const
+{ return int(_names.size()); }
 
-const Name *SelectorNameId::nameAt(unsigned index) const
+const Name *SelectorNameId::nameAt(int index) const
 { return _names[index]; }
 
 bool SelectorNameId::hasArguments() const
 { return _hasArguments; }
 
-AnonymousNameId::AnonymousNameId(unsigned classTokenIndex)
+AnonymousNameId::AnonymousNameId(int classTokenIndex)
     : _classTokenIndex(classTokenIndex)
 { }
 
 AnonymousNameId::~AnonymousNameId()
 { }
 
-unsigned AnonymousNameId::classTokenIndex() const
+int AnonymousNameId::classTokenIndex() const
 {
     return _classTokenIndex;
 }
@@ -232,4 +232,4 @@ bool AnonymousNameId::match0(const Name *otherName, Matcher *matcher) const
 }
 
 const Identifier *AnonymousNameId::identifier() const
-{ return 0; }
+{ return nullptr; }

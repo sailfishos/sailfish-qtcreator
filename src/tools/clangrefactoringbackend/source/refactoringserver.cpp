@@ -25,7 +25,6 @@
 
 #include "refactoringserver.h"
 
-#include "symbolfinder.h"
 #include "clangquery.h"
 #include "symbolindexing.h"
 
@@ -58,21 +57,6 @@ void RefactoringServer::end()
     QCoreApplication::exit();
 }
 
-void RefactoringServer::requestSourceLocationsForRenamingMessage(RequestSourceLocationsForRenamingMessage &&message)
-{
-    SymbolFinder symbolFinder(message.line, message.column, m_filePathCache);
-
-    symbolFinder.addFile(std::move(message.filePath),
-                         std::move(message.unsavedContent),
-                         std::move(message.commandLine));
-
-    symbolFinder.findSymbol();
-
-    client()->sourceLocationsForRenamingMessage({symbolFinder.takeSymbolName(),
-                                                 symbolFinder.takeSourceLocations(),
-                                                 message.textDocumentRevision});
-}
-
 void RefactoringServer::requestSourceRangesAndDiagnosticsForQueryMessage(
         RequestSourceRangesAndDiagnosticsForQueryMessage &&message)
 {
@@ -97,6 +81,7 @@ void RefactoringServer::requestSourceRangesForQueryMessage(RequestSourceRangesFo
 
 void RefactoringServer::updateProjectParts(UpdateProjectPartsMessage &&message)
 {
+    m_filePathCache.populateIfEmpty();
     m_symbolIndexing.updateProjectParts(message.takeProjectsParts());
 }
 
@@ -158,7 +143,8 @@ void RefactoringServer::setGathererProcessingSlotCount(uint count)
 
 void RefactoringServer::setProgress(int progress, int total)
 {
-    client()->progress({ProgressType::Indexing, progress, total});
+    if (client())
+        client()->progress({ProgressType::Indexing, progress, total});
 }
 
 void RefactoringServer::gatherSourceRangesForQueryMessages(

@@ -102,13 +102,16 @@ void CommonSettingsWidget::updatePath()
 }
 
 // --------------- VcsBaseSettingsPage
-CommonOptionsPage::CommonOptionsPage(QObject *parent) :
-    VcsBaseOptionsPage(parent)
+CommonOptionsPage::CommonOptionsPage()
 {
     m_settings.fromSettings(Core::ICore::settings());
 
     setId(Constants::VCS_COMMON_SETTINGS_ID);
     setDisplayName(QCoreApplication::translate("VcsBase", Constants::VCS_COMMON_SETTINGS_NAME));
+    setCategory(Constants::VCS_SETTINGS_CATEGORY);
+    // The following act as blueprint for other pages in the same category:
+    setDisplayCategory(QCoreApplication::translate("VcsBase", "Version Control"));
+    setCategoryIconPath(":/vcsbase/images/settingscategory_vcs.png");
 }
 
 QWidget *CommonOptionsPage::widget()

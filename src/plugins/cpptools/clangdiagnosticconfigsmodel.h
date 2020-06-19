@@ -37,7 +37,7 @@ class CPPTOOLS_EXPORT ClangDiagnosticConfigsModel
 {
 public:
     ClangDiagnosticConfigsModel() = default;
-    explicit ClangDiagnosticConfigsModel(const ClangDiagnosticConfigs &customConfigs);
+    explicit ClangDiagnosticConfigsModel(const ClangDiagnosticConfigs &configs);
 
     int size() const;
     const ClangDiagnosticConfig &at(int index) const;
@@ -52,10 +52,9 @@ public:
     const ClangDiagnosticConfig &configWithId(const Core::Id &id) const;
     int indexOfConfig(const Core::Id &id) const;
 
-    static QString displayNameWithBuiltinIndication(const ClangDiagnosticConfig &config);
     static QVector<Core::Id> changedOrRemovedConfigs(const ClangDiagnosticConfigs &oldConfigs,
                                                      const ClangDiagnosticConfigs &newConfigs);
-    static ClangDiagnosticConfig createCustomConfig(const ClangDiagnosticConfig &config,
+    static ClangDiagnosticConfig createCustomConfig(const ClangDiagnosticConfig &baseConfig,
                                                     const QString &displayName);
     static QStringList globalDiagnosticOptions();
 

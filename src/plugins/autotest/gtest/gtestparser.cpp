@@ -36,7 +36,7 @@ namespace Internal {
 
 TestTreeItem *GTestParseResult::createTestTreeItem() const
 {
-    if (itemType != TestTreeItem::TestCase && itemType != TestTreeItem::TestFunctionOrSet)
+    if (itemType != TestTreeItem::TestSuite && itemType != TestTreeItem::TestCase)
         return nullptr;
     GTestTreeItem *item = new GTestTreeItem(name, fileName, itemType);
     item->setProFile(proFile);
@@ -103,14 +103,14 @@ static bool handleGTest(QFutureInterface<TestParseResultPtr> futureInterface,
     QMap<GTestCaseSpec, GTestCodeLocationList> result = visitor.gtestFunctions();
     QString proFile;
     const QList<CppTools::ProjectPart::Ptr> &ppList = modelManager->projectPart(filePath);
-    if (ppList.size())
+    if (!ppList.isEmpty())
         proFile = ppList.first()->projectFile;
     else
         return false; // happens if shutting down while parsing
 
     for (const GTestCaseSpec &testSpec : result.keys()) {
         GTestParseResult *parseResult = new GTestParseResult(id);
-        parseResult->itemType = TestTreeItem::TestCase;
+        parseResult->itemType = TestTreeItem::TestSuite;
         parseResult->fileName = filePath;
         parseResult->name = testSpec.testCaseName;
         parseResult->parameterized = testSpec.parameterized;
@@ -139,12 +139,10 @@ static bool handleGTest(QFutureInterface<TestParseResultPtr> futureInterface,
 bool GTestParser::processDocument(QFutureInterface<TestParseResultPtr> futureInterface,
                                   const QString &fileName)
 {
-    if (!m_cppSnapshot.contains(fileName) || !selectedForBuilding(fileName))
+    CPlusPlus::Document::Ptr doc = document(fileName);
+    if (doc.isNull() || !includesGTest(doc, m_cppSnapshot) || !hasGTestNames(doc))
         return false;
-    CPlusPlus::Document::Ptr document = m_cppSnapshot.find(fileName).value();
-    if (!includesGTest(document, m_cppSnapshot) || !hasGTestNames(document))
-        return false;
-    return handleGTest(futureInterface, document, m_cppSnapshot, id());
+    return handleGTest(futureInterface, doc, m_cppSnapshot, id());
 }
 
 } // namespace Internal

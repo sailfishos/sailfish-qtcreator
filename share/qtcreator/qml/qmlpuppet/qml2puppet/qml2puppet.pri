@@ -5,6 +5,7 @@ CONFIG += c++11
 
 DEFINES -= QT_CREATOR
 
+include (editor3d/editor3d.pri)
 include (../instances/instances.pri)
 include (instances/instances.pri)
 include (../commands/commands.pri)
@@ -12,6 +13,7 @@ include (../container/container.pri)
 include (../interfaces/interfaces.pri)
 include (../types/types.pri)
 include (../qmlprivategate/qmlprivategate.pri)
+include (iconrenderer/iconrenderer.pri)
 
 SOURCES +=  $$PWD/qml2puppetmain.cpp
 RESOURCES +=  $$PWD/../qmlpuppet.qrc

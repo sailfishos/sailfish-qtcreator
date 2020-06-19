@@ -119,7 +119,7 @@ void BookmarkDelegate::paint(QPainter *painter, const QStyleOptionViewItem &opti
     painter->save();
 
     QFontMetrics fm(opt.font);
-    static int lwidth = fm.width(QLatin1String("8888")) + 18;
+    static int lwidth = fm.horizontalAdvance(QLatin1String("8888")) + 18;
 
     QColor backgroundColor;
     QColor textColor;
@@ -155,13 +155,14 @@ void BookmarkDelegate::paint(QPainter *painter, const QStyleOptionViewItem &opti
 
     QString topRight = index.data(BookmarkManager::LineNumber).toString();
     // Check whether we need to be fancy and paint some background
-    int fwidth = fm.width(topLeft);
+    int fwidth = fm.horizontalAdvance(topLeft);
     if (fwidth + lwidth > opt.rect.width()) {
         int left = opt.rect.right() - lwidth;
         painter->drawPixmap(left, opt.rect.top(), selected ? m_selectedPixmap : m_normalPixmap);
     }
     // topRight
-    painter->drawText(opt.rect.right() - fm.width(topRight) - 6 , 2 + opt.rect.top() + fm.ascent(), topRight);
+    painter->drawText(opt.rect.right() - fm.horizontalAdvance(topRight) - 6,
+                      2 + opt.rect.top() + fm.ascent(), topRight);
 
     // Directory
     QColor mix;
@@ -215,15 +216,15 @@ BookmarkView::~BookmarkView()
     ICore::removeContextObject(m_bookmarkContext);
 }
 
-QList<QToolButton *> BookmarkView::createToolBarWidgets() const
+QList<QToolButton *> BookmarkView::createToolBarWidgets()
 {
     Command *prevCmd = ActionManager::command(Constants::BOOKMARKS_PREV_ACTION);
     Command *nextCmd = ActionManager::command(Constants::BOOKMARKS_NEXT_ACTION);
     QTC_ASSERT(prevCmd && nextCmd, return {});
-    auto prevButton = new QToolButton;
+    auto prevButton = new QToolButton(this);
     prevButton->setToolButtonStyle(Qt::ToolButtonIconOnly);
     prevButton->setDefaultAction(prevCmd->action());
-    auto nextButton = new QToolButton;
+    auto nextButton = new QToolButton(this);
     nextButton->setToolButtonStyle(Qt::ToolButtonIconOnly);
     nextButton->setDefaultAction(nextCmd->action());
     return {prevButton, nextButton};
@@ -330,7 +331,7 @@ QItemSelectionModel *BookmarkManager::selectionModel() const
     return m_selectionModel;
 }
 
-bool BookmarkManager::hasBookmarkInPosition(const Utils::FileName &fileName, int lineNumber)
+bool BookmarkManager::hasBookmarkInPosition(const Utils::FilePath &fileName, int lineNumber)
 {
     return findBookmark(fileName, lineNumber);
 }
@@ -413,7 +414,7 @@ QMimeData *BookmarkManager::mimeData(const QModelIndexList &indexes) const
     return data;
 }
 
-void BookmarkManager::toggleBookmark(const FileName &fileName, int lineNumber)
+void BookmarkManager::toggleBookmark(const FilePath &fileName, int lineNumber)
 {
     if (lineNumber <= 0 || fileName.isEmpty())
         return;
@@ -449,7 +450,7 @@ void BookmarkManager::updateBookmarkFileName(Bookmark *bookmark, const QString &
     if (oldFileName == bookmark->fileName().toString())
         return;
 
-    m_bookmarksMap[Utils::FileName::fromString(oldFileName)].removeAll(bookmark);
+    m_bookmarksMap[Utils::FilePath::fromString(oldFileName)].removeAll(bookmark);
     m_bookmarksMap[bookmark->fileName()].append(bookmark);
     updateBookmark(bookmark);
 }
@@ -516,7 +517,7 @@ void BookmarkManager::documentPrevNext(bool next)
     if (editorLine <= 0)
         return;
 
-    const FileName filePath = editor->document()->filePath();
+    const FilePath filePath = editor->document()->filePath();
     if (!m_bookmarksMap.contains(filePath))
         return;
 
@@ -663,7 +664,7 @@ void BookmarkManager::moveDown()
     saveBookmarks();
 }
 
-void BookmarkManager::editByFileAndLine(const FileName &fileName, int lineNumber)
+void BookmarkManager::editByFileAndLine(const FilePath &fileName, int lineNumber)
 {
     Bookmark *b = findBookmark(fileName, lineNumber);
     QModelIndex current = selectionModel()->currentIndex();
@@ -702,7 +703,7 @@ void BookmarkManager::edit()
 }
 
 /* Returns the bookmark at the given file and line number, or 0 if no such bookmark exists. */
-Bookmark *BookmarkManager::findBookmark(const FileName &filePath, int lineNumber)
+Bookmark *BookmarkManager::findBookmark(const FilePath &filePath, int lineNumber)
 {
     return Utils::findOrDefault(m_bookmarksMap.value(filePath),
                                 Utils::equal(&Bookmark::lineNumber, lineNumber));
@@ -748,9 +749,9 @@ void BookmarkManager::addBookmark(const QString &s)
         const QString &filePath = s.mid(index1+1, index2-index1-1);
         const QString &note = s.mid(index3 + 1);
         const int lineNumber = s.midRef(index2 + 1, index3 - index2 - 1).toInt();
-        if (!filePath.isEmpty() && !findBookmark(FileName::fromString(filePath), lineNumber)) {
+        if (!filePath.isEmpty() && !findBookmark(FilePath::fromString(filePath), lineNumber)) {
             auto b = new Bookmark(lineNumber, this);
-            b->updateFileName(FileName::fromString(filePath));
+            b->updateFileName(FilePath::fromString(filePath));
             b->setNote(note);
             addBookmark(b, false);
         }

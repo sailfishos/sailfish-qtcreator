@@ -210,9 +210,11 @@ bool QmlJSHighlighter::maybeQmlKeyword(const QStringRef &text) const
         return true;
     else if (ch == QLatin1Char('a') && text == QLatin1String("alias"))
         return true;
+    else if (ch == QLatin1Char('c') && text == QLatin1String("component"))
+        return true;
     else if (ch == QLatin1Char('s') && text == QLatin1String("signal"))
         return true;
-    else if (ch == QLatin1Char('r') && text == QLatin1String("readonly"))
+    else if (ch == QLatin1Char('r') && (text == QLatin1String("readonly") || text == QLatin1String("required")))
         return true;
     else if (ch == QLatin1Char('i') && text == QLatin1String("import"))
         return true;
@@ -287,7 +289,7 @@ int QmlJSHighlighter::onBlockStart()
     m_braceDepth = 0;
     m_foldingIndent = 0;
     m_inMultilineComment = false;
-    if (TextBlockUserData *userData = TextDocumentLayout::testUserData(currentBlock())) {
+    if (TextBlockUserData *userData = TextDocumentLayout::textUserData(currentBlock())) {
         userData->setFoldingIndent(0);
         userData->setFoldingStartIncluded(false);
         userData->setFoldingEndIncluded(false);

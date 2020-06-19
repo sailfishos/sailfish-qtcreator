@@ -27,26 +27,13 @@
 
 #include <coreplugin/dialogs/ioptionspage.h>
 
-#include <QPointer>
-
 namespace ProjectExplorer {
 namespace Internal {
 
-class SshSettingsWidget;
-
-class SshSettingsPage : public Core::IOptionsPage
+class SshSettingsPage final : public Core::IOptionsPage
 {
-    Q_OBJECT
-
 public:
-    SshSettingsPage(QObject *parent = 0);
-
-private:
-    QWidget *widget() override;
-    void apply() override;
-    void finish() override;
-
-    QPointer<SshSettingsWidget> m_widget;
+    SshSettingsPage();
 };
 
 } // namespace Internal

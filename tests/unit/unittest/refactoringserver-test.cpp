@@ -26,6 +26,7 @@
 #include "googletest.h"
 
 #include "filesystem-utilities.h"
+#include "mockfilepathcaching.h"
 #include "mockrefactoringclient.h"
 #include "mocksymbolindexing.h"
 #include "sourcerangecontainer-matcher.h"
@@ -56,11 +57,9 @@ using testing::_;
 using ClangBackEnd::FilePath;
 using ClangBackEnd::IncludeSearchPaths;
 using ClangBackEnd::IncludeSearchPathType;
-using ClangBackEnd::RequestSourceLocationsForRenamingMessage;
 using ClangBackEnd::RequestSourceRangesAndDiagnosticsForQueryMessage;
 using ClangBackEnd::RequestSourceRangesForQueryMessage;
 using ClangBackEnd::SourceLocationsContainer;
-using ClangBackEnd::SourceLocationsForRenamingMessage;
 using ClangBackEnd::SourceRangesAndDiagnosticsForQueryMessage;
 using ClangBackEnd::SourceRangesContainer;
 using ClangBackEnd::SourceRangesForQueryMessage;
@@ -100,7 +99,11 @@ protected:
     ClangBackEnd::GeneratedFiles generatedFiles;
     ClangBackEnd::RefactoringServer refactoringServer{mockSymbolIndexing, filePathCache, generatedFiles};
     Utils::SmallString sourceContent{"void f()\n {}"};
-    FileContainer source{{TESTDATA_DIR, "query_simplefunction.cpp"}, sourceContent.clone(), {"cc"}};
+    ClangBackEnd::FilePath filePath{TESTDATA_DIR, "query_simplefunction.cpp"};
+    FileContainer source{filePath.clone(),
+                         filePathCache.filePathId(filePath),
+                         sourceContent.clone(),
+                         {"cc"}};
     QTemporaryFile temporaryFile{Utils::TemporaryDirectory::masterDirectoryPath()
                                  + "/clangQuery-XXXXXX.cpp"};
     int processingSlotCount = 2;
@@ -108,23 +111,6 @@ protected:
 
 using RefactoringServerSlowTest = RefactoringServer;
 using RefactoringServerVerySlowTest = RefactoringServer;
-
-TEST_F(RefactoringServerSlowTest, RequestSourceLocationsForRenamingMessage)
-{
-    RequestSourceLocationsForRenamingMessage message{
-        {TESTDATA_DIR, "renamevariable.cpp"}, 1, 5, "int v;\n\nint x = v + 3;\n", {"cc"}, 1};
-
-    EXPECT_CALL(mockRefactoringClient,
-                sourceLocationsForRenamingMessage(
-                    AllOf(Field(&SourceLocationsForRenamingMessage::textDocumentRevision, 1),
-                          Field(&SourceLocationsForRenamingMessage::symbolName, "v"),
-                          Field(&SourceLocationsForRenamingMessage::sourceLocations,
-                                Property(&SourceLocationsContainer::sourceLocationContainers,
-                                         AllOf(Contains(IsSourceLocation(1, 5)),
-                                               Contains(IsSourceLocation(3, 9))))))));
-
-    refactoringServer.requestSourceLocationsForRenamingMessage(std::move(message));
-}
 
 TEST_F(RefactoringServerSlowTest, RequestSingleSourceRangesForQueryMessage)
 {
@@ -145,9 +131,13 @@ TEST_F(RefactoringServerSlowTest, RequestSingleSourceRangesAndDiagnosticsWithUns
 {
     Utils::SmallString unsavedContent{"void f();"};
     FileContainer source{{TESTDATA_DIR, "query_simplefunction.cpp"},
+                         filePathCache.filePathId(FilePath{TESTDATA_DIR, "query_simplefunction.cpp"}),
                          "#include \"query_simplefunction.h\"",
                          {"cc"}};
-    FileContainer unsaved{{TESTDATA_DIR, "query_simplefunction.h"}, unsavedContent.clone(), {}};
+    FileContainer unsaved{{TESTDATA_DIR, "query_simplefunction.h"},
+                          filePathCache.filePathId(FilePath{TESTDATA_DIR, "query_simplefunction.h"}),
+                          unsavedContent.clone(),
+                          {}};
     RequestSourceRangesForQueryMessage message{"functionDecl()", {source.clone()}, {unsaved.clone()}};
 
     EXPECT_CALL(mockRefactoringClient,
@@ -259,6 +249,8 @@ TEST_F(RefactoringServerSlowTest, ForValidRequestSourceRangesAndDiagnosticsGetSo
 {
     RequestSourceRangesAndDiagnosticsForQueryMessage message("functionDecl()",
                                                              {FilePath(temporaryFile.fileName()),
+                                                              filePathCache.filePathId(FilePath(
+                                                                  temporaryFile.fileName())),
                                                               "void f() {}",
                                                               {"cc"}});
 
@@ -278,6 +270,8 @@ TEST_F(RefactoringServerSlowTest, ForInvalidRequestSourceRangesAndDiagnosticsGet
 {
     RequestSourceRangesAndDiagnosticsForQueryMessage message("func()",
                                                              {FilePath(temporaryFile.fileName()),
+                                                              filePathCache.filePathId(FilePath(
+                                                                  temporaryFile.fileName())),
                                                               "void f() {}",
                                                               {"cc"}});
 
@@ -296,6 +290,7 @@ TEST_F(RefactoringServerSlowTest, ForInvalidRequestSourceRangesAndDiagnosticsGet
 TEST_F(RefactoringServer, UpdateGeneratedFilesSetMemberWhichIsUsedForSymbolIndexing)
 {
     FileContainers unsaved{{{TESTDATA_DIR, "query_simplefunction.h"},
+                            filePathCache.filePathId(FilePath{TESTDATA_DIR, "query_simplefunction.h"}),
                             "void f();",
                             {}}};
 
@@ -307,6 +302,7 @@ TEST_F(RefactoringServer, UpdateGeneratedFilesSetMemberWhichIsUsedForSymbolIndex
 TEST_F(RefactoringServer, RemoveGeneratedFilesSetMemberWhichIsUsedForSymbolIndexing)
 {
     FileContainers unsaved{{{TESTDATA_DIR, "query_simplefunction.h"},
+                            filePathCache.filePathId(FilePath{TESTDATA_DIR, "query_simplefunction.h"}),
                             "void f();",
                             {}}};
     refactoringServer.updateGeneratedFiles(Utils::clone(unsaved));
@@ -316,8 +312,12 @@ TEST_F(RefactoringServer, RemoveGeneratedFilesSetMemberWhichIsUsedForSymbolIndex
     ASSERT_THAT(generatedFiles.fileContainers(), IsEmpty());
 }
 
-TEST_F(RefactoringServer, UpdateProjectPartsCallsSymbolIndexingUpdateProjectParts)
+TEST_F(RefactoringServer, UpdateProjectPartsCalls)
 {
+    NiceMock<MockFilePathCaching> mockFilePathCaching;
+    ClangBackEnd::RefactoringServer refactoringServer{mockSymbolIndexing,
+                                                      mockFilePathCaching,
+                                                      generatedFiles};
     ProjectPartContainers projectParts{
         {{1,
           {"-I", TESTDATA_DIR},
@@ -332,8 +332,8 @@ TEST_F(RefactoringServer, UpdateProjectPartsCallsSymbolIndexingUpdateProjectPart
           Utils::LanguageVersion::C11,
           Utils::LanguageExtension::All}}};
 
-    EXPECT_CALL(mockSymbolIndexing,
-                updateProjectParts(projectParts));
+    EXPECT_CALL(mockFilePathCaching, populateIfEmpty());
+    EXPECT_CALL(mockSymbolIndexing, updateProjectParts(projectParts));
 
     refactoringServer.updateProjectParts({Utils::clone(projectParts), {}});
 }

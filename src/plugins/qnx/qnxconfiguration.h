@@ -54,14 +54,14 @@ class QnxConfiguration
 {
 public:
     QnxConfiguration();
-    QnxConfiguration(const Utils::FileName &sdpEnvFile);
+    QnxConfiguration(const Utils::FilePath &sdpEnvFile);
     QnxConfiguration(const QVariantMap &data);
 
-    Utils::FileName envFile() const;
-    Utils::FileName qnxTarget() const;
-    Utils::FileName qnxHost() const;
-    Utils::FileName qccCompilerPath() const;
-    QList<Utils::EnvironmentItem> qnxEnv() const;
+    Utils::FilePath envFile() const;
+    Utils::FilePath qnxTarget() const;
+    Utils::FilePath qnxHost() const;
+    Utils::FilePath qccCompilerPath() const;
+    Utils::EnvironmentItems qnxEnv() const;
     QnxVersionNumber version() const;
     QVariantMap toMap() const;
 
@@ -72,7 +72,7 @@ public:
     void deactivate();
     bool isActive() const;
     bool canCreateKits() const;
-    Utils::FileName sdpPath() const;
+    Utils::FilePath sdpPath() const;
 
     QList<ProjectExplorer::ToolChain *> autoDetect(
             const QList<ProjectExplorer::ToolChain *> &alreadyKnown);
@@ -88,22 +88,22 @@ private:
 
     void readInformation();
 
-    void setDefaultConfiguration(const Utils::FileName &envScript);
+    void setDefaultConfiguration(const Utils::FilePath &envScript);
 
     QString m_configName;
 
-    Utils::FileName m_envFile;
-    Utils::FileName m_qnxConfiguration;
-    Utils::FileName m_qnxTarget;
-    Utils::FileName m_qnxHost;
-    Utils::FileName m_qccCompiler;
-    QList<Utils::EnvironmentItem> m_qnxEnv;
+    Utils::FilePath m_envFile;
+    Utils::FilePath m_qnxConfiguration;
+    Utils::FilePath m_qnxTarget;
+    Utils::FilePath m_qnxHost;
+    Utils::FilePath m_qccCompiler;
+    Utils::EnvironmentItems m_qnxEnv;
     QnxVersionNumber m_version;
 
     class Target
     {
     public:
-        Target(const ProjectExplorer::Abi &abi, const Utils::FileName &path)
+        Target(const ProjectExplorer::Abi &abi, const Utils::FilePath &path)
             : m_abi(abi), m_path(path)
         {
         }
@@ -112,8 +112,8 @@ private:
         QString cpuDir() const;
 
         ProjectExplorer::Abi m_abi;
-        Utils::FileName m_path;
-        Utils::FileName m_debuggerPath;
+        Utils::FilePath m_path;
+        Utils::FilePath m_debuggerPath;
     };
 
     QList<Target> m_targets;
@@ -123,11 +123,9 @@ private:
     void createTools(const Target &target);
     QVariant createDebugger(const Target &target);
     QnxToolChain *createToolChain(const Target &target);
-    ProjectExplorer::Kit *createKit(const Target &target,
-                                    QnxToolChain *toolChain,
-                                    const QVariant &debugger);
+    void createKit(const Target &target, QnxToolChain *toolChain, const QVariant &debugger);
 
-    const Target *findTargetByDebuggerPath(const Utils::FileName &path) const;
+    const Target *findTargetByDebuggerPath(const Utils::FilePath &path) const;
 
     void updateTargets();
     void assignDebuggersToTargets();

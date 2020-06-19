@@ -87,7 +87,7 @@ static BreakpointManager *theBreakpointManager = nullptr;
 class BreakpointMarker : public TextEditor::TextMark
 {
 public:
-    BreakpointMarker(const Breakpoint &bp, const FileName &fileName, int lineNumber)
+    BreakpointMarker(const Breakpoint &bp, const FilePath &fileName, int lineNumber)
         : TextMark(fileName, lineNumber, Constants::TEXT_MARK_CATEGORY_BREAKPOINT), m_bp(bp)
     {
         setColor(Theme::Debugger_Breakpoint_TextMarkColor);
@@ -106,13 +106,13 @@ public:
             gbp->m_params.lineNumber = lineNumber;
     }
 
-    void updateFileName(const FileName &fileName) final
+    void updateFileName(const FilePath &fileName) final
     {
         TextMark::updateFileName(fileName);
         QTC_ASSERT(m_bp, return);
-        m_bp->setFileName(fileName.toString());
+        m_bp->setFileName(fileName);
         if (GlobalBreakpoint gbp = m_bp->globalBreakpoint())
-            gbp->m_params.fileName = fileName.toString();
+            gbp->m_params.fileName = fileName;
     }
 
     bool isDraggable() const final { return true; }
@@ -145,10 +145,9 @@ public:
 class GlobalBreakpointMarker : public TextEditor::TextMark
 {
 public:
-    GlobalBreakpointMarker(GlobalBreakpoint gbp, const FileName &fileName, int lineNumber)
+    GlobalBreakpointMarker(GlobalBreakpoint gbp, const FilePath &fileName, int lineNumber)
         : TextMark(fileName, lineNumber, Constants::TEXT_MARK_CATEGORY_BREAKPOINT), m_gbp(gbp)
     {
-        setColor(Theme::Debugger_Breakpoint_TextMarkColor);
         setDefaultToolTip(QApplication::translate("BreakHandler", "Breakpoint"));
         setPriority(TextEditor::TextMark::NormalPriority);
         setIcon(m_gbp->icon());
@@ -169,31 +168,24 @@ public:
         // running, as this can be triggered by moving the breakpoint to
         // the next line that generated code.
 
-        m_gbp->m_params.lineNumber = lineNumber;
-        m_gbp->updateMarker();
-        m_gbp->update();
+        m_gbp->updateLineNumber(lineNumber);
     }
 
-    void updateFileName(const FileName &fileName) final
+    void updateFileName(const FilePath &fileName) final
     {
         TextMark::updateFileName(fileName);
         QTC_ASSERT(m_gbp, return);
-        m_gbp->m_params.fileName = fileName.toString();
-        m_gbp->update();
+        m_gbp->updateFileName(fileName);
     }
 
     bool isDraggable() const final { return true; }
 
     void dragToLine(int line) final
     {
+        TextMark::move(line);
         QTC_ASSERT(m_gbp, return);
         QTC_ASSERT(BreakpointManager::globalBreakpoints().contains(m_gbp), return);
-        BreakpointParameters params = m_gbp->m_params;
-        params.lineNumber = line;
-        GlobalBreakpoint gbp = m_gbp;
-        m_gbp = GlobalBreakpoint();
-        gbp->deleteBreakpoint();
-        m_gbp = BreakpointManager::createBreakpoint(params);
+        m_gbp->updateLineNumber(line);
     }
 
     bool isClickable() const final { return true; }
@@ -345,6 +337,7 @@ private:
     Utils::PathChooser *m_pathChooserFileName;
     QLabel *m_labelLineNumber;
     QLineEdit *m_lineEditLineNumber;
+    QCheckBox *m_checkBoxPropagate;
     QLabel *m_labelEnabled;
     QCheckBox *m_checkBoxEnabled;
     QLabel *m_labelAddress;
@@ -501,6 +494,11 @@ BreakpointDialog::BreakpointDialog(unsigned int enabledParts, QWidget *parent)
     m_labelThreadSpec = new QLabel(tr("&Thread specification:"), groupBoxAdvanced);
     m_labelThreadSpec->setBuddy(m_lineEditThreadSpec);
 
+    m_checkBoxPropagate = new QCheckBox(tr("Propagate Change to Preset Breakpoint"), this);
+    m_checkBoxPropagate->setCheckable(true);
+    m_checkBoxPropagate->setChecked(true);
+    m_checkBoxPropagate->setVisible(false); // FIXME: Make it work.
+
     m_buttonBox = new QDialogButtonBox(this);
     m_buttonBox->setStandardButtons(QDialogButtonBox::Cancel|QDialogButtonBox::Ok);
 
@@ -538,10 +536,12 @@ BreakpointDialog::BreakpointDialog(unsigned int enabledParts, QWidget *parent)
     verticalLayout->addSpacing(10);
     verticalLayout->addWidget(groupBoxAdvanced);
     verticalLayout->addSpacing(10);
+    verticalLayout->addWidget(m_checkBoxPropagate);
+    verticalLayout->addSpacing(10);
     verticalLayout->addWidget(m_buttonBox);
     verticalLayout->setStretchFactor(groupBoxAdvanced, 10);
 
-    connect(m_comboBoxType, static_cast<void(QComboBox::*)(int)>(&QComboBox::activated),
+    connect(m_comboBoxType, QOverload<int>::of(&QComboBox::activated),
             this, &BreakpointDialog::typeChanged);
     connect(m_buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(m_buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -665,7 +665,7 @@ void BreakpointDialog::getParts(unsigned partsMask, BreakpointParameters *data) 
     if (partsMask & FileAndLinePart) {
         data->lineNumber = m_lineEditLineNumber->text().toInt();
         data->pathUsage = static_cast<BreakpointPathUsage>(m_comboBoxPathUsage->currentIndex());
-        data->fileName = m_pathChooserFileName->path();
+        data->fileName = FilePath::fromUserInput(m_pathChooserFileName->path());
     }
     if (partsMask & FunctionPart)
         data->functionName = m_lineEditFunction->text();
@@ -702,7 +702,7 @@ void BreakpointDialog::setParts(unsigned mask, const BreakpointParameters &data)
     m_lineEditMessage->setText(data.message);
 
     if (mask & FileAndLinePart) {
-        m_pathChooserFileName->setPath(data.fileName);
+        m_pathChooserFileName->setFileName(data.fileName);
         m_lineEditLineNumber->setText(QString::number(data.lineNumber));
     }
 
@@ -874,7 +874,6 @@ private:
 MultiBreakPointsDialog::MultiBreakPointsDialog(unsigned int enabledParts, QWidget *parent) :
     QDialog(parent)
 {
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
     setWindowTitle(tr("Edit Breakpoint Properties"));
 
     m_lineEditCondition = new QLineEdit(this);
@@ -910,17 +909,9 @@ BreakHandler::BreakHandler(DebuggerEngine *engine)
                tr("Condition"), tr("Ignore"), tr("Threads")});
 }
 
-static inline bool fileNameMatch(const QString &f1, const QString &f2)
+bool BreakpointParameters::isLocatedAt(const FilePath &file, int line, const FilePath &markerFile) const
 {
-    if (HostOsInfo::fileNameCaseSensitivity() == Qt::CaseInsensitive)
-        return f1.compare(f2, Qt::CaseInsensitive) == 0;
-    return f1 == f2;
-}
-
-bool BreakpointParameters::isLocatedAt(const QString &file, int line, const QString &markerFile) const
-{
-    return lineNumber == line
-            && (fileNameMatch(fileName, file) || fileNameMatch(fileName, markerFile));
+    return lineNumber == line && (fileName == file || fileName == markerFile);
 }
 
 static bool isSimilarTo(const BreakpointParameters &params, const BreakpointParameters &needle)
@@ -941,7 +932,7 @@ static bool isSimilarTo(const BreakpointParameters &params, const BreakpointPara
     // At least at a position we were looking for.
     // FIXME: breaks multiple breakpoints at the same location
     if (!params.fileName.isEmpty()
-            && fileNameMatch(params.fileName, needle.fileName)
+            && params.fileName == needle.fileName
             && params.lineNumber == needle.lineNumber)
         return true;
 
@@ -1006,7 +997,7 @@ Breakpoints BreakHandler::findBreakpointsByIndex(const QList<QModelIndex> &list)
         if (Breakpoint bp = findBreakpointByIndex(index))
             items.insert(bp);
     }
-    return items.toList();
+    return Utils::toList(items);
 }
 
 SubBreakpoints BreakHandler::findSubBreakpointsByIndex(const QList<QModelIndex> &list) const
@@ -1016,7 +1007,7 @@ SubBreakpoints BreakHandler::findSubBreakpointsByIndex(const QList<QModelIndex> 
         if (SubBreakpoint sbp = findSubBreakpointByIndex(index))
             items.insert(sbp);
     }
-    return items.toList();
+    return Utils::toList(items);
 
 }
 
@@ -1064,6 +1055,7 @@ QVariant BreakpointItem::data(int column, int role) const
             if (role == Qt::DisplayRole) {
                 if (!m_parameters.functionName.isEmpty())
                     return simplifyType(m_parameters.functionName);
+
                 if (m_parameters.type == BreakpointAtMain
                         || m_parameters.type == BreakpointAtThrow
                         || m_parameters.type == BreakpointAtCatch
@@ -1072,25 +1064,19 @@ QVariant BreakpointItem::data(int column, int role) const
                         //|| m_response.type == BreakpointAtVFork
                         || m_parameters.type == BreakpointAtSysCall)
                     return typeToString(m_parameters.type);
-                if (m_parameters.type == WatchpointAtAddress) {
-                    quint64 address = m_parameters.address ? m_parameters.address : m_parameters.address;
-                    return BreakHandler::tr("Data at 0x%1").arg(address, 0, 16);
-                }
-                if (m_parameters.type == WatchpointAtExpression) {
-                    QString expression = !m_parameters.expression.isEmpty()
-                            ? m_parameters.expression : m_parameters.expression;
-                    return BreakHandler::tr("Data at %1").arg(expression);
-                }
+
+                if (m_parameters.type == WatchpointAtAddress)
+                    return BreakHandler::tr("Data at 0x%1").arg(m_parameters.address, 0, 16);
+
+                if (m_parameters.type == WatchpointAtExpression)
+                    return BreakHandler::tr("Data at %1").arg(m_parameters.expression);
+
                 return empty;
             }
             break;
         case BreakpointFileColumn:
-            if (role == Qt::DisplayRole) {
-                const QString str = markerFileName();
-                if (!str.isEmpty())
-                    return QDir::toNativeSeparators(str);
-                return empty;
-            }
+            if (role == Qt::DisplayRole)
+                return markerFileName().toUserOutput();
             break;
         case BreakpointLineColumn:
             if (role == Qt::DisplayRole) {
@@ -1223,7 +1209,7 @@ void BreakHandler::requestSubBreakpointEnabling(const SubBreakpoint &sbp, bool e
     }
 }
 
-void BreakpointItem::setMarkerFileAndLine(const QString &fileName, int lineNumber)
+void BreakpointItem::setMarkerFileAndLine(const FilePath &fileName, int lineNumber)
 {
     if (m_parameters.fileName == fileName && m_parameters.lineNumber == lineNumber)
         return;
@@ -1302,7 +1288,7 @@ void BreakpointItem::setState(BreakpointState state)
     m_state = state;
 
     // FIXME: updateMarker() should recognize the need for icon changes.
-    if (state == BreakpointInserted) {
+    if (state == BreakpointInserted || state == BreakpointInsertionRequested) {
         destroyMarker();
         updateMarker();
     }
@@ -1471,8 +1457,7 @@ void BreakHandler::gotoLocation(const Breakpoint &bp) const
         // Don't use gotoLocation unconditionally as this ends up in
         // disassembly if OperateByInstruction is on. But fallback
         // to disassembly if we can't open the file.
-        const QString file = QDir::cleanPath(bp->markerFileName());
-        if (IEditor *editor = EditorManager::openEditor(file))
+        if (IEditor *editor = EditorManager::openEditor(bp->markerFileName().toString()))
             editor->gotoLine(bp->markerLineNumber(), 0);
         else
             m_engine->openDisassemblerView(Location(bp->m_parameters.address));
@@ -1680,8 +1665,7 @@ bool BreakHandler::contextMenuEvent(const ItemViewEvent &ev)
     menu->addSeparator();
 
     menu->addAction(action(UseToolTipsInBreakpointsView));
-    menu->addAction(action(UseAddressInBreakpointsView));
-    menu->addSeparator();
+    Internal::addHideColumnActions(menu, ev.view());
     menu->addAction(action(SettingsDialog));
 
     menu->popup(ev.globalPos());
@@ -1806,20 +1790,21 @@ void BreakpointItem::destroyMarker()
     }
 }
 
-QString BreakpointItem::markerFileName() const
+FilePath BreakpointItem::markerFileName() const
 {
     // Some heuristics to find a "good" file name.
-    if (!m_parameters.fileName.isEmpty()) {
-        QFileInfo fi(m_parameters.fileName);
-        if (fi.exists())
-            return fi.absoluteFilePath();
-    }
-    const QString origFileName = requestedParameters().fileName;
-    if (m_parameters.fileName.endsWith(origFileName))
+    if (m_parameters.fileName.exists())
+        return FilePath::fromString(m_parameters.fileName.toFileInfo().absoluteFilePath());
+
+    const FilePath origFileName = requestedParameters().fileName;
+    if (m_parameters.fileName.endsWith(origFileName.fileName()))
         return m_parameters.fileName;
-    if (origFileName.endsWith(m_parameters.fileName))
+    if (origFileName.endsWith(m_parameters.fileName.fileName()))
         return origFileName;
-    return m_parameters.fileName.size() > origFileName ? m_parameters.fileName : origFileName;
+
+    return m_parameters.fileName.toString().size() > origFileName.toString().size()
+               ? m_parameters.fileName
+               : origFileName;
 }
 
 int BreakpointItem::markerLineNumber() const
@@ -1877,7 +1862,7 @@ void BreakpointItem::updateMarkerIcon()
 
 void BreakpointItem::updateMarker()
 {
-    FileName file = FileName::fromString(markerFileName());
+    const FilePath &file = markerFileName();
     int line = markerLineNumber();
     if (m_marker && (file != m_marker->fileName() || line != m_marker->lineNumber()))
         destroyMarker();
@@ -1923,7 +1908,7 @@ QString BreakpointItem::toolTip() const
     str << "<tr><td>" << tr("Breakpoint Type:")
         << "</td><td>" << typeToString(requested.type) << "</td></tr>"
         << "<tr><td>" << tr("Marker File:")
-        << "</td><td>" << QDir::toNativeSeparators(markerFileName()) << "</td></tr>"
+        << "</td><td>" << markerFileName().toUserOutput() << "</td></tr>"
         << "<tr><td>" << tr("Marker Line:")
         << "</td><td>" << markerLineNumber() << "</td></tr>"
         << "<tr><td>" << tr("Hit Count:")
@@ -1944,8 +1929,8 @@ QString BreakpointItem::toolTip() const
     }
     if (m_parameters.type == BreakpointByFileAndLine) {
         str << "<tr><td>" << tr("File Name:")
-            << "</td><td>" << QDir::toNativeSeparators(requested.fileName)
-            << "</td><td>" << QDir::toNativeSeparators(m_parameters.fileName)
+            << "</td><td>" << requested.fileName.toUserOutput()
+            << "</td><td>" << m_parameters.fileName.toUserOutput()
             << "</td></tr>"
             << "<tr><td>" << tr("Line Number:")
             << "</td><td>" << requested.lineNumber
@@ -2114,7 +2099,10 @@ GlobalBreakpointItem::GlobalBreakpointItem()
 }
 
 GlobalBreakpointItem::~GlobalBreakpointItem()
-{}
+{
+    delete m_marker;
+    m_marker = nullptr;
+}
 
 QVariant GlobalBreakpointItem::data(int column, int role) const
 {
@@ -2151,12 +2139,8 @@ QVariant GlobalBreakpointItem::data(int column, int role) const
             }
             break;
         case BreakpointFileColumn:
-            if (role == Qt::DisplayRole) {
-                QString str = m_params.fileName;
-                if (!str.isEmpty())
-                    return QDir::toNativeSeparators(str);
-                return empty;
-            }
+            if (role == Qt::DisplayRole)
+                return m_params.fileName.toUserOutput();
             break;
         case BreakpointLineColumn:
             if (role == Qt::DisplayRole) {
@@ -2265,14 +2249,27 @@ void GlobalBreakpointItem::removeBreakpointFromModel()
     theBreakpointManager->destroyItem(this);
 }
 
-QString GlobalBreakpointItem::markerFileName() const
+void GlobalBreakpointItem::updateLineNumber(int lineNumber)
+{
+    if (m_params.lineNumber == lineNumber)
+        return;
+    m_params.lineNumber = lineNumber;
+    update();
+}
+
+void GlobalBreakpointItem::updateFileName(const FilePath &fileName)
+{
+    if (m_params.fileName == fileName)
+        return;
+    m_params.fileName = fileName;
+    update();
+}
+
+FilePath GlobalBreakpointItem::markerFileName() const
 {
     // Some heuristics to find a "good" file name.
-    if (!m_params.fileName.isEmpty()) {
-        QFileInfo fi(m_params.fileName);
-        if (fi.exists())
-            return fi.absoluteFilePath();
-    }
+    if (m_params.fileName.exists())
+        return FilePath::fromString(m_params.fileName.toFileInfo().absoluteFilePath());
     return m_params.fileName;
 }
 
@@ -2298,13 +2295,15 @@ void GlobalBreakpointItem::updateMarker()
         return;
     }
 
-    const FileName file = FileName::fromString(m_params.fileName);
     const int line = m_params.lineNumber;
-    if (m_marker && (file != m_marker->fileName() || line != m_marker->lineNumber()))
-        destroyMarker();
-
-    if (!m_marker && !file.isEmpty() && line > 0)
-        m_marker = new GlobalBreakpointMarker(this, file, line);
+    if (m_marker) {
+        if (m_params.fileName != m_marker->fileName())
+            m_marker->updateFileName(m_params.fileName);
+        if (line != m_marker->lineNumber())
+            m_marker->move(line);
+    } else if (!m_params.fileName.isEmpty() && line > 0) {
+        m_marker = new GlobalBreakpointMarker(this, m_params.fileName, line);
+    }
 
     if (m_marker)
         m_marker->setToolTip(toolTip());
@@ -2353,7 +2352,7 @@ QString GlobalBreakpointItem::toolTip() const
     }
     if (m_params.type == BreakpointByFileAndLine) {
         str << "<tr><td>" << BreakpointItem::tr("File Name:")
-            << "</td><td>" << QDir::toNativeSeparators(m_params.fileName)
+            << "</td><td>" << m_params.fileName.toUserOutput()
             << "</td></tr>"
             << "<tr><td>" << BreakpointItem::tr("Line Number:")
             << "</td><td>" << m_params.lineNumber;
@@ -2394,8 +2393,6 @@ BreakpointManager::BreakpointManager()
             this, &BreakpointManager::loadSessionData);
     connect(SessionManager::instance(), &SessionManager::aboutToSaveSession,
             this, &BreakpointManager::saveSessionData);
-    connect(SessionManager::instance(), &SessionManager::aboutToUnloadSession,
-            this, &BreakpointManager::aboutToUnloadSession);
 }
 
 QAbstractItemModel *BreakpointManager::model()
@@ -2439,7 +2436,7 @@ GlobalBreakpoints BreakpointManager::findBreakpointsByIndex(const QList<QModelIn
         if (GlobalBreakpoint gbp = findBreakpointByIndex(index))
             items.insert(gbp);
     }
-    return items.toList();
+    return Utils::toList(items);
 }
 
 GlobalBreakpoint BreakpointManager::createBreakpoint(const BreakpointParameters &params)
@@ -2489,7 +2486,7 @@ GlobalBreakpoint BreakpointManager::findBreakpointFromContext(const ContextData 
     GlobalBreakpoint bestMatch;
     theBreakpointManager->forItemsAtLevel<1>([&](const GlobalBreakpoint &gbp) {
         if (location.type == LocationByFile) {
-            if (gbp->m_params.isLocatedAt(location.fileName, location.lineNumber, QString())) {
+            if (gbp->m_params.isLocatedAt(location.fileName, location.lineNumber, FilePath())) {
                 matchLevel = 2;
                 bestMatch = gbp;
             } else if (matchLevel < 2) {
@@ -2497,7 +2494,7 @@ GlobalBreakpoint BreakpointManager::findBreakpointFromContext(const ContextData 
                     BreakHandler *handler = engine->breakHandler();
                     for (Breakpoint bp : handler->breakpoints()) {
                         if (bp->globalBreakpoint() == gbp) {
-                            if (fileNameMatch(bp->fileName(), location.fileName)
+                            if (bp->fileName() == location.fileName
                                     && bp->lineNumber() == location.lineNumber) {
                                 matchLevel = 1;
                                 bestMatch = gbp;
@@ -2629,15 +2626,16 @@ bool BreakpointManager::contextMenuEvent(const ItemViewEvent &ev)
 
     // Delete by file: Find indices of breakpoints of the same file.
     GlobalBreakpoints breakpointsInFile;
-    QString file;
+    FilePath file;
     if (GlobalBreakpoint gbp = itemForIndexAtLevel<1>(ev.sourceModelIndex())) {
+        file = gbp->markerFileName();
         if (!file.isEmpty()) {
             for (int i = 0; i != rowCount(); ++i)
                 if (gbp->markerFileName() == file)
                     breakpointsInFile.append(gbp);
         }
     }
-    addAction(menu, tr("Delete Breakpoints of \"%1\"").arg(file),
+    addAction(menu, tr("Delete Breakpoints of \"%1\"").arg(file.toUserOutput()),
               tr("Delete Breakpoints of File"),
               breakpointsInFile.size() > 1,
               [breakpointsInFile] {
@@ -2648,8 +2646,7 @@ bool BreakpointManager::contextMenuEvent(const ItemViewEvent &ev)
     menu->addSeparator();
 
     menu->addAction(action(UseToolTipsInBreakpointsView));
-    menu->addAction(action(UseAddressInBreakpointsView));
-    menu->addSeparator();
+    Internal::addHideColumnActions(menu, ev.view());
     menu->addAction(action(SettingsDialog));
 
     menu->popup(ev.globalPos());
@@ -2660,8 +2657,7 @@ bool BreakpointManager::contextMenuEvent(const ItemViewEvent &ev)
 void BreakpointManager::gotoLocation(const GlobalBreakpoint &gbp) const
 {
     QTC_ASSERT(gbp, return);
-    const QString file = QDir::cleanPath(gbp->markerFileName());
-    if (IEditor *editor = EditorManager::openEditor(file))
+    if (IEditor *editor = EditorManager::openEditor(gbp->markerFileName().toString()))
         editor->gotoLine(gbp->markerLineNumber(), 0);
 }
 
@@ -2743,7 +2739,7 @@ void BreakpointManager::saveSessionData()
         if (params.type != BreakpointByFileAndLine)
             map.insert("type", params.type);
         if (!params.fileName.isEmpty())
-            map.insert("filename", params.fileName);
+            map.insert("filename", params.fileName.toVariant());
         if (params.lineNumber)
             map.insert("linenumber", params.lineNumber);
         if (!params.functionName.isEmpty())
@@ -2777,12 +2773,6 @@ void BreakpointManager::saveSessionData()
     SessionManager::setValue("Breakpoints", list);
 }
 
-void BreakpointManager::aboutToUnloadSession()
-{
-    saveSessionData();
-    clear();
-}
-
 void BreakpointManager::loadSessionData()
 {
     clear();
@@ -2794,7 +2784,7 @@ void BreakpointManager::loadSessionData()
         BreakpointParameters params(BreakpointByFileAndLine);
         QVariant v = map.value("filename");
         if (v.isValid())
-            params.fileName = v.toString();
+            params.fileName = FilePath::fromVariant(v);
         v = map.value("linenumber");
         if (v.isValid())
             params.lineNumber = v.toString().toInt();

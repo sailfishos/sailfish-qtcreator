@@ -169,7 +169,7 @@ void TypePrettyPrinter::visit(Template *type)
         const Overview &oo = *overview();
         if (oo.showTemplateParameters && ! _name.isEmpty()) {
             _name += QLatin1Char('<');
-            for (unsigned index = 0; index < type->templateParameterCount(); ++index) {
+            for (int index = 0; index < type->templateParameterCount(); ++index) {
                 if (index)
                     _name += QLatin1String(", ");
                 QString arg = oo.prettyName(type->templateParameterAt(index)->name());
@@ -335,7 +335,7 @@ void TypePrettyPrinter::prependSpaceAfterIndirection(bool hasName)
     const bool case2 = ! hasCvSpecifier && spaceBeforeNameNeeded;
     // case 3: In "char *argv[]", put a space between '*' and "argv" when requested
     const bool case3 = ! hasCvSpecifier && ! shouldBindToIdentifier
-        && ! _isIndirectionToArrayOrFunction && _text.size() && _text.at(0).isLetter();
+        && ! _isIndirectionToArrayOrFunction && !_text.isEmpty() && _text.at(0).isLetter();
     if (case1 || case2 || case3)
         _text.prepend(QLatin1Char(' '));
 }
@@ -410,7 +410,7 @@ void TypePrettyPrinter::visit(Function *type)
     if (_overview->showEnclosingTemplate) {
         if (Template *templ = type->enclosingTemplate()) {
             QString templateScope = "template<";
-            for (unsigned i = 0, total = templ->templateParameterCount(); i < total; ++i) {
+            for (int i = 0, total = templ->templateParameterCount(); i < total; ++i) {
                 if (Symbol *param = templ->templateParameterAt(i)) {
                     if (i > 0)
                         templateScope.append(", ");
@@ -437,7 +437,7 @@ void TypePrettyPrinter::visit(Function *type)
 
         _text += QLatin1Char('(');
 
-        for (unsigned index = 0, argc = type->argumentCount(); index < argc; ++index) {
+        for (int index = 0, argc = type->argumentCount(); index < argc; ++index) {
             if (index != 0)
                 _text += QLatin1String(", ");
 
@@ -445,7 +445,7 @@ void TypePrettyPrinter::visit(Function *type)
                 if (index + 1 == _overview->markedArgument)
                     const_cast<Overview*>(_overview)->markedArgumentBegin = _text.length();
 
-                const Name *name = 0;
+                const Name *name = nullptr;
 
                 if (_overview->showArgumentNames)
                     name = arg->name();
@@ -486,6 +486,12 @@ void TypePrettyPrinter::visit(Function *type)
             _text += type->refQualifier() == Function::LvalueRefQualifier
                         ? QLatin1String("&")
                         : QLatin1String("&&");
+        }
+
+        // add exception specifier
+        if (const StringLiteral *spec = type->exceptionSpecification()) {
+            appendSpace();
+            _text += QLatin1String(spec->chars());
         }
     }
 }

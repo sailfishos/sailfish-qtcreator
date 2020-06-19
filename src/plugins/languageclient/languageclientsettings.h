@@ -25,56 +25,70 @@
 
 #pragma once
 
+#include "languageclient_global.h"
+
 #include <coreplugin/dialogs/ioptionspage.h>
+
+#include <utils/fileutils.h>
 
 #include <QAbstractItemModel>
 #include <QLabel>
 #include <QPointer>
+#include <QUuid>
 #include <QWidget>
 
 QT_BEGIN_NAMESPACE
-class QCheckBox;
+class QComboBox;
 class QLineEdit;
 QT_END_NAMESPACE
 
-namespace Utils { class PathChooser; }
+namespace Utils {
+class FilePath;
+class PathChooser;
+} // namespace Utils
+
+namespace Core { class IDocument; }
+namespace ProjectExplorer { class Project; }
 
 namespace LanguageClient {
-
-constexpr char noLanguageFilter[] = "No Filter";
 
 class Client;
 class BaseClientInterface;
 
-struct LanguageFilter
+struct LANGUAGECLIENT_EXPORT LanguageFilter
 {
     QStringList mimeTypes;
     QStringList filePattern;
+    bool isSupported(const Utils::FilePath &filePath, const QString &mimeType) const;
+    bool isSupported(const Core::IDocument *document) const;
 };
 
-class BaseSettings
+class LANGUAGECLIENT_EXPORT BaseSettings
 {
 public:
     BaseSettings() = default;
-    BaseSettings(const QString &name, bool enabled, const LanguageFilter &filter)
-        : m_name(name)
-        , m_enabled(enabled)
-        , m_languageFilter(filter)
-    {}
 
     virtual ~BaseSettings() = default;
 
+    enum StartBehavior {
+        AlwaysOn = 0,
+        RequiresFile,
+        RequiresProject,
+        LastSentinel
+    };
+
     QString m_name = QString("New Language Server");
+    QString m_id = QUuid::createUuid().toString();
     bool m_enabled = true;
+    StartBehavior m_startBehavior = RequiresFile;
     LanguageFilter m_languageFilter;
-    QPointer<Client> m_client; // not owned
 
     virtual void applyFromSettingsWidget(QWidget *widget);
     virtual QWidget *createSettingsWidget(QWidget *parent = nullptr) const;
     virtual BaseSettings *copy() const { return new BaseSettings(*this); }
     virtual bool needsRestart() const;
-    virtual bool isValid() const ;
-    Client *createClient() const;
+    virtual bool isValid() const;
+    Client *createClient();
     virtual QVariantMap toMap() const;
     virtual void fromMap(const QVariantMap &map);
 
@@ -85,19 +99,15 @@ protected:
     BaseSettings(BaseSettings &&other) = default;
     BaseSettings &operator=(const BaseSettings &other) = default;
     BaseSettings &operator=(BaseSettings &&other) = default;
+
+private:
+    bool canStart(QList<const Core::IDocument *> documents) const;
 };
 
-class StdIOSettings : public BaseSettings
+class LANGUAGECLIENT_EXPORT StdIOSettings : public BaseSettings
 {
 public:
     StdIOSettings() = default;
-    StdIOSettings(const QString &name, bool enabled, const LanguageFilter &filter,
-                  const QString &executable, const QString &arguments)
-        : BaseSettings(name, enabled, filter)
-        , m_executable(executable)
-        , m_arguments(arguments)
-    {}
-
     ~StdIOSettings() override = default;
 
     QString m_executable;
@@ -110,6 +120,8 @@ public:
     bool isValid() const override;
     QVariantMap toMap() const override;
     void fromMap(const QVariantMap &map) override;
+    QString arguments() const;
+    Utils::CommandLine command() const;
 
 protected:
     BaseClientInterface *createInterface() const override;
@@ -124,8 +136,11 @@ class LanguageClientSettings
 {
 public:
     static void init();
-    static QList<StdIOSettings *> fromSettings(QSettings *settings);
-    static void toSettings(QSettings *settings, const QList<StdIOSettings *> &languageClientSettings);
+    static QList<BaseSettings *> fromSettings(QSettings *settings);
+    static QList<BaseSettings *> currentPageSettings();
+    static void addSettings(BaseSettings *settings);
+    static void enableSettings(const QString &id);
+    static void toSettings(QSettings *settings, const QList<BaseSettings *> &languageClientSettings);
 };
 
 class BaseSettingsWidget : public QWidget
@@ -137,6 +152,9 @@ public:
 
     QString name() const;
     LanguageFilter filter() const;
+    BaseSettings::StartBehavior startupBehavior() const;
+    bool alwaysOn() const;
+    bool requiresProject() const;
 
 private:
     void showAddMimeTypeDialog();
@@ -144,6 +162,7 @@ private:
     QLineEdit *m_name = nullptr;
     QLabel *m_mimeTypes = nullptr;
     QLineEdit *m_filePattern = nullptr;
+    QComboBox *m_startupBehavior = nullptr;
 
     static constexpr char filterSeparator = ';';
 };

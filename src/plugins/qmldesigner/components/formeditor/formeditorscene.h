@@ -50,9 +50,19 @@ class QMLDESIGNERCORE_EXPORT FormEditorScene : public QGraphicsScene
     friend class QmlDesigner::FormEditorView;
 
 public:
+
+    enum ItemType {
+        Default,
+        Flow,
+        FlowAction,
+        FlowTransition,
+        FlowDecision,
+        FlowWildcard
+    };
+
     FormEditorScene(FormEditorWidget *widget, FormEditorView *editorView);
     ~FormEditorScene() override;
-    FormEditorItem *addFormEditorItem(const QmlItemNode &qmlItemNode);
+    FormEditorItem *addFormEditorItem(const QmlItemNode &qmlItemNode, ItemType type = Default);
 
     FormEditorItem* itemForQmlItemNode(const QmlItemNode &qmlItemNode) const;
 
@@ -86,6 +96,9 @@ public:
 
     void setShowBoundingRects(bool show);
     bool showBoundingRects() const;
+
+    bool annotationVisibility() const;
+    void setAnnotationVisibility(bool status);
 
 protected:
     bool event(QEvent *event) override;
@@ -121,6 +134,7 @@ private:
     QPointer<LayerItem> m_manipulatorLayerItem;
     ModelNode m_dragNode;
     bool m_showBoundingRects;
+    bool m_annotationVisibility;
 };
 
 } // namespace QmlDesigner

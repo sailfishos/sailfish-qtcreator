@@ -442,9 +442,7 @@ static bool canReplaceSpecifier(TranslationUnit *translationUnit, SpecifierAST *
             return false;
         }
     }
-    if (specifier->asAttributeSpecifier())
-        return false;
-    return true;
+    return !specifier->asAttributeSpecifier();
 }
 
 static SpecifierAST *findFirstReplaceableSpecifier(TranslationUnit *translationUnit, SpecifierListAST *list)
@@ -878,9 +876,8 @@ ChangeSet FunctionDeclDefLink::changes(const Snapshot &snapshot, int targetOffse
             const LocalSymbols localSymbols(targetFile->cppDocument(), targetDefinition);
             const int endOfArguments = targetFile->endOf(targetFunctionDeclarator->rparen_token);
 
-            QHashIterator<Symbol *, QString> it(renamedTargetParameters);
-            while (it.hasNext()) {
-                it.next();
+            for (auto it = renamedTargetParameters.cbegin(), end = renamedTargetParameters.cend();
+                    it != end; ++it) {
                 const QList<SemanticInfo::Use> &uses = localSymbols.uses.value(it.key());
                 foreach (const SemanticInfo::Use &use, uses) {
                     if (use.isInvalid())

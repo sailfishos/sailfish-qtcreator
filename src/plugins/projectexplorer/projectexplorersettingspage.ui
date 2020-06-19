@@ -6,11 +6,11 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>831</width>
-    <height>520</height>
+    <width>994</width>
+    <height>808</height>
    </rect>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout_2">
+  <layout class="QVBoxLayout" name="verticalLayout_4">
    <item>
     <widget class="QGroupBox" name="directoryGroupBox">
      <property name="title">
@@ -47,249 +47,35 @@
     </widget>
    </item>
    <item>
+    <widget class="QGroupBox" name="closeProjectGroupBox">
+     <property name="title">
+      <string>Closing Projects</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_2">
+      <item>
+       <widget class="QCheckBox" name="closeSourceFilesCheckBox">
+        <property name="text">
+         <string>Close source files along with project</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <widget class="QGroupBox" name="buildAndRunGroupBox">
      <property name="title">
       <string>Build and Run</string>
      </property>
      <layout class="QGridLayout" name="gridLayout">
-      <item row="0" column="0">
-       <widget class="QCheckBox" name="saveAllFilesCheckBox">
-        <property name="text">
-         <string>Save all files before build</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QCheckBox" name="cleanOldAppOutputCheckBox">
-        <property name="text">
-         <string>Clear old application output on a new run</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QCheckBox" name="buildProjectBeforeDeployCheckBox">
-        <property name="text">
-         <string>Always build project before deploying it</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QCheckBox" name="mergeStdErrAndStdOutCheckBox">
-        <property name="toolTip">
-         <string>Enabling this option ensures that the order of interleaved messages from stdout and stderr is preserved, at the cost of disabling highlighting of stderr.</string>
-        </property>
-        <property name="text">
-         <string>Merge stderr and stdout</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QCheckBox" name="deployProjectBeforeRunCheckBox">
-        <property name="text">
-         <string>Always deploy project before running it</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QCheckBox" name="wrapAppOutputCheckBox">
-        <property name="text">
-         <string>Word-wrap application output</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <widget class="QCheckBox" name="addLibraryPathsToRunEnvCheckBox">
-        <property name="text">
-         <string>Add linker library search paths to run environment</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0">
-       <widget class="QCheckBox" name="showCompileOutputCheckBox">
-        <property name="text">
-         <string>Open Compile Output pane when building</string>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="1">
-       <widget class="QWidget" name="widget" native="true">
-        <layout class="QHBoxLayout" name="horizontalLayout">
-         <property name="leftMargin">
-          <number>0</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>0</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
-         <item>
-          <widget class="QLabel" name="limitBuildOutputLabel">
-           <property name="text">
-            <string>Limit build output to</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QSpinBox" name="maxBuildOutputBox">
-           <property name="minimum">
-            <number>5000</number>
-           </property>
-           <property name="maximum">
-            <number>100000000</number>
-           </property>
-           <property name="singleStep">
-            <number>5000</number>
-           </property>
-           <property name="value">
-            <number>10000000</number>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLabel" name="limitBuildOutputLabel_2">
-           <property name="text">
-            <string>characters</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </item>
-      <item row="4" column="0">
-       <widget class="QCheckBox" name="showRunOutputCheckBox">
-        <property name="text">
-         <string>Open Application Output pane on output when running</string>
-        </property>
-       </widget>
-      </item>
-      <item row="5" column="1">
-       <widget class="QWidget" name="widget_1" native="true">
-        <layout class="QHBoxLayout" name="horizontalLayout_5">
-         <property name="leftMargin">
-          <number>0</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>0</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
-         <item>
-          <widget class="QLabel" name="label">
-           <property name="text">
-            <string>Limit application output to</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QSpinBox" name="maxAppOutputBox">
-           <property name="minimum">
-            <number>5000</number>
-           </property>
-           <property name="maximum">
-            <number>100000000</number>
-           </property>
-           <property name="singleStep">
-            <number>5000</number>
-           </property>
-           <property name="value">
-            <number>10000000</number>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLabel" name="label_2">
-           <property name="text">
-            <string>characters</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </item>
-      <item row="5" column="0">
-       <widget class="QCheckBox" name="showDebugOutputCheckBox">
-        <property name="text">
-         <string>Open Application Output pane on output when debugging</string>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="0">
-       <widget class="QCheckBox" name="promptToStopRunControlCheckBox">
-        <property name="toolTip">
-         <string>Asks before terminating the running application in response to clicking the stop button in Application Output.</string>
-        </property>
-        <property name="text">
-         <string>Always ask before stopping applications</string>
-        </property>
-       </widget>
-      </item>
       <item row="7" column="0">
-       <widget class="QCheckBox" name="automaticallyCreateRunConfiguration">
-        <property name="toolTip">
-         <string>Creates suitable run configurations automatically when setting up a new kit.</string>
-        </property>
+       <widget class="QCheckBox" name="abortBuildAllOnErrorCheckBox">
         <property name="text">
-         <string>Create suitable run configurations automatically</string>
+         <string>Abort on error when building all projects</string>
         </property>
        </widget>
       </item>
-      <item row="8" column="0" colspan="2">
-       <layout class="QHBoxLayout" name="horizontalLayout_4">
-        <item>
-         <widget class="QLabel" name="labelStopBeforeBuild">
-          <property name="text">
-           <string>Stop applications before building:</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QComboBox" name="stopBeforeBuildComboBox">
-          <item>
-           <property name="text">
-            <string>None</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Same Project</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>All</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Same Build Directory</string>
-           </property>
-          </item>
-         </widget>
-        </item>
-        <item>
-         <spacer name="horizontalSpacer">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-       </layout>
-      </item>
-      <item row="9" column="0" colspan="2">
+      <item row="10" column="0">
        <layout class="QVBoxLayout" name="verticalLayout">
         <property name="spacing">
          <number>0</number>
@@ -322,42 +108,184 @@
         </item>
        </layout>
       </item>
-      <item row="10" column="0" colspan="2">
-       <layout class="QHBoxLayout" name="horizontalLayout_2">
-        <property name="topMargin">
-         <number>12</number>
+      <item row="3" column="0">
+       <widget class="QWidget" name="widget_1" native="true">
+        <layout class="QHBoxLayout" name="horizontalLayout_5">
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+        </layout>
+       </widget>
+      </item>
+      <item row="8" column="0">
+       <widget class="QCheckBox" name="lowBuildPriorityCheckBox">
+        <property name="toolTip">
+         <string>Enable this if your system becomes unresponsive while building.</string>
         </property>
-        <item>
-         <widget class="QLabel" name="buildDirectoryLabel">
+        <property name="text">
+         <string>Start build processes with low priority</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="deployProjectBeforeRunCheckBox">
+        <property name="text">
+         <string>Always deploy project before running it</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QCheckBox" name="addLibraryPathsToRunEnvCheckBox">
+        <property name="text">
+         <string>Add linker library search paths to run environment</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="saveAllFilesCheckBox">
+        <property name="text">
+         <string>Save all files before build</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0">
+       <widget class="QCheckBox" name="automaticallyCreateRunConfiguration">
+        <property name="toolTip">
+         <string>Creates suitable run configurations automatically when setting up a new kit.</string>
+        </property>
+        <property name="text">
+         <string>Create suitable run configurations automatically</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QCheckBox" name="promptToStopRunControlCheckBox">
+        <property name="toolTip">
+         <string>Asks before terminating the running application in response to clicking the stop button in Application Output.</string>
+        </property>
+        <property name="text">
+         <string>Always ask before stopping applications</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0">
+       <widget class="QCheckBox" name="clearIssuesCheckBox">
+        <property name="text">
+         <string>Clear issues list on new build</string>
+        </property>
+       </widget>
+      </item>
+      <item row="9" column="0">
+       <layout class="QFormLayout" name="formLayout">
+        <item row="0" column="0">
+         <widget class="QLabel" name="buildBeforeDeployLabel">
           <property name="text">
-           <string>Default build directory:</string>
+           <string>Build before deploying:</string>
           </property>
          </widget>
         </item>
-        <item>
-         <widget class="QLineEdit" name="buildDirectoryEdit"/>
+        <item row="0" column="1">
+         <layout class="QHBoxLayout" name="horizontalLayout_4">
+          <item>
+           <widget class="QComboBox" name="buildBeforeDeployComboBox"/>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_3">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
         </item>
-        <item>
-         <widget class="QPushButton" name="buildDirectoryResetButton">
+        <item row="1" column="0">
+         <widget class="QLabel" name="labelStopBeforeBuild">
           <property name="text">
-           <string>Reset</string>
+           <string>Stop applications before building:</string>
           </property>
          </widget>
+        </item>
+        <item row="1" column="1">
+         <layout class="QHBoxLayout" name="horizontalLayout">
+          <item>
+           <widget class="QComboBox" name="stopBeforeBuildComboBox"/>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="terminalModeLabel">
+          <property name="text">
+           <string>Default for &quot;Run in terminal&quot;:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <item>
+           <widget class="QComboBox" name="terminalModeComboBox">
+            <item>
+             <property name="text">
+              <string>Enabled</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Disabled</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Deduced from Project</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_2">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
         </item>
        </layout>
       </item>
      </layout>
-     <zorder>saveAllFilesCheckBox</zorder>
-     <zorder>buildProjectBeforeDeployCheckBox</zorder>
-     <zorder>deployProjectBeforeRunCheckBox</zorder>
-     <zorder>showCompileOutputCheckBox</zorder>
-     <zorder>cleanOldAppOutputCheckBox</zorder>
-     <zorder>mergeStdErrAndStdOutCheckBox</zorder>
-     <zorder>wrapAppOutputCheckBox</zorder>
-     <zorder>widget</zorder>
-     <zorder>promptToStopRunControlCheckBox</zorder>
-     <zorder>showRunOutputCheckBox</zorder>
-     <zorder>showDebugOutputCheckBox</zorder>
     </widget>
    </item>
    <item>

@@ -42,7 +42,6 @@ Project {
                 "qmljsmodelmanagerinterface.cpp", "qmljsmodelmanagerinterface.h",
                 "qmljsplugindumper.cpp", "qmljsplugindumper.h",
                 "qmljspropertyreader.cpp", "qmljspropertyreader.h",
-                "qmljsqrcparser.cpp", "qmljsqrcparser.h",
                 "qmljsreformatter.cpp", "qmljsreformatter.h",
                 "qmljsrewriter.cpp", "qmljsrewriter.h",
                 "qmljsscanner.cpp", "qmljsscanner.h",
@@ -54,7 +53,7 @@ Project {
                 "qmljstypedescriptionreader.cpp", "qmljstypedescriptionreader.h",
                 "qmljsutils.cpp", "qmljsutils.h",
                 "qmljsvalueowner.cpp", "qmljsvalueowner.h",
-                "qmljsviewercontext.cpp", "qmljsviewercontext.h"
+                "qmljsviewercontext.h"
             ]
         }
 
@@ -63,7 +62,6 @@ Project {
             prefix: "parser/"
             files: [
                 "qmldirparser.cpp", "qmldirparser_p.h",
-                "qmlerror.cpp", "qmlerror.h",
                 "qmljsast.cpp", "qmljsast_p.h",
                 "qmljsastfwd_p.h",
                 "qmljsastvisitor.cpp", "qmljsastvisitor_p.h",
@@ -74,6 +72,7 @@ Project {
                 "qmljslexer.cpp", "qmljslexer_p.h",
                 "qmljsmemorypool_p.h",
                 "qmljsparser.cpp", "qmljsparser_p.h",
+                "qmljssourcelocation_p.h",
             ]
         }
 

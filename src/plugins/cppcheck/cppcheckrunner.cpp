@@ -32,6 +32,8 @@
 
 #include <coreplugin/messagemanager.h>
 
+using namespace Utils;
+
 namespace Cppcheck {
 namespace Internal {
 
@@ -41,7 +43,7 @@ CppcheckRunner::CppcheckRunner(CppcheckTool &tool) :
 {
     if (Utils::HostOsInfo::hostOs() == Utils::OsTypeLinux) {
         QProcess getConf;
-        getConf.start("getconf ARG_MAX");
+        getConf.start("getconf", {"ARG_MAX"});
         getConf.waitForFinished(2000);
         const QByteArray argMax = getConf.readAllStandardOutput().replace("\n", "");
         m_maxArgumentsLength = std::max(argMax.toInt(), m_maxArgumentsLength);
@@ -75,15 +77,15 @@ void CppcheckRunner::reconfigure(const QString &binary, const QString &arguments
     m_arguments = arguments;
 }
 
-void CppcheckRunner::addToQueue(const Utils::FileNameList &files,
+void CppcheckRunner::addToQueue(const Utils::FilePaths &files,
                                 const QString &additionalArguments)
 {
-    Utils::FileNameList &existing = m_queue[additionalArguments];
+    Utils::FilePaths &existing = m_queue[additionalArguments];
     if (existing.isEmpty()) {
         existing = files;
     } else {
         std::copy_if(files.cbegin(), files.cend(), std::back_inserter(existing),
-                     [&existing](const Utils::FileName &file) { return !existing.contains(file); });
+                     [&existing](const Utils::FilePath &file) { return !existing.contains(file); });
     }
 
     if (m_isRunning) {
@@ -94,7 +96,7 @@ void CppcheckRunner::addToQueue(const Utils::FileNameList &files,
     m_queueTimer.start();
 }
 
-void CppcheckRunner::stop(const Utils::FileNameList &files)
+void CppcheckRunner::stop(const Utils::FilePaths &files)
 {
     if (!m_isRunning)
         return;
@@ -103,7 +105,7 @@ void CppcheckRunner::stop(const Utils::FileNameList &files)
         m_process->kill();
 }
 
-void CppcheckRunner::removeFromQueue(const Utils::FileNameList &files)
+void CppcheckRunner::removeFromQueue(const Utils::FilePaths &files)
 {
     if (m_queue.isEmpty())
         return;
@@ -112,14 +114,14 @@ void CppcheckRunner::removeFromQueue(const Utils::FileNameList &files)
         m_queue.clear();
     } else {
         for (auto it = m_queue.begin(), end = m_queue.end(); it != end;) {
-            for (const Utils::FileName &file : files)
+            for (const Utils::FilePath &file : files)
                 it.value().removeOne(file);
             it = !it.value().isEmpty() ? ++it : m_queue.erase(it);
         }
     }
 }
 
-const Utils::FileNameList &CppcheckRunner::currentFiles() const
+const Utils::FilePaths &CppcheckRunner::currentFiles() const
 {
     return m_currentFiles;
 }
@@ -135,12 +137,12 @@ void CppcheckRunner::checkQueued()
     if (m_queue.isEmpty() || m_binary.isEmpty())
         return;
 
-    Utils::FileNameList files = m_queue.begin().value();
+    Utils::FilePaths files = m_queue.begin().value();
     QString arguments = m_arguments + ' ' + m_queue.begin().key();
     m_currentFiles.clear();
     int argumentsLength = arguments.length();
     while (!files.isEmpty()) {
-        argumentsLength += files.first().length() + 1; // +1 for separator
+        argumentsLength += files.first().toString().size() + 1; // +1 for separator
         if (argumentsLength >= m_maxArgumentsLength)
             break;
         m_currentFiles.push_back(files.first());
@@ -153,7 +155,7 @@ void CppcheckRunner::checkQueued()
     else
         m_queue.begin().value() = files;
 
-    m_process->setCommand(m_binary, arguments);
+    m_process->setCommand(CommandLine(FilePath::fromString(m_binary), arguments, CommandLine::Raw));
     m_process->start();
 }
 

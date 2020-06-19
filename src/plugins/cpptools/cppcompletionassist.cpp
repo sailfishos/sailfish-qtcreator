@@ -92,7 +92,10 @@ public:
     void keepCompletionOperator(unsigned compOp) { m_completionOperator = compOp; }
     void keepTypeOfExpression(const QSharedPointer<TypeOfExpression> &typeOfExp)
     { m_typeOfExpression = typeOfExp; }
-
+    bool isKeyword() const final
+    { return m_isKeyword; }
+    void setIsKeyword(bool isKeyword)
+    { m_isKeyword = isKeyword; }
 
     quint64 hash() const override;
 
@@ -101,6 +104,7 @@ private:
     unsigned m_completionOperator = T_EOF_SYMBOL;
     mutable QChar m_typedChar;
     bool m_isOverloaded = false;
+    bool m_isKeyword = false;
 };
 
 } // Internal
@@ -1199,7 +1203,7 @@ void InternalCppCompletionAssistProcessor::completeObjCMsgSend(ClassOrNamespace 
     }
 
     foreach (Scope *scope, memberScopes) {
-        for (unsigned i = 0; i < scope->memberCount(); ++i) {
+        for (int i = 0; i < scope->memberCount(); ++i) {
             Symbol *symbol = scope->memberAt(i);
 
             if (ObjCMethod *method = symbol->type()->asObjCMethodType()) {
@@ -1210,7 +1214,7 @@ void InternalCppCompletionAssistProcessor::completeObjCMsgSend(ClassOrNamespace 
                     QString text;
                     QString data;
                     if (selectorName->hasArguments()) {
-                        for (unsigned i = 0; i < selectorName->nameCount(); ++i) {
+                        for (int i = 0; i < selectorName->nameCount(); ++i) {
                             if (i > 0)
                                 text += QLatin1Char(' ');
                             Symbol *arg = method->argumentAt(i);
@@ -1316,8 +1320,8 @@ bool InternalCppCompletionAssistProcessor::objcKeywordsWanted() const
 }
 
 int InternalCppCompletionAssistProcessor::startCompletionInternal(const QString &fileName,
-                                                                  unsigned line,
-                                                                  unsigned positionInBlock,
+                                                                  int line,
+                                                                  int positionInBlock,
                                                                   const QString &expr,
                                                                   int endOfExpression)
 {
@@ -1463,7 +1467,7 @@ bool InternalCppCompletionAssistProcessor::globalCompletion(Scope *currentScope)
     for (Scope *scope = currentScope; scope; scope = scope->enclosingScope()) {
         if (Block *block = scope->asBlock()) {
             if (ClassOrNamespace *binding = context.lookupType(scope)) {
-                for (unsigned i = 0; i < scope->memberCount(); ++i) {
+                for (int i = 0; i < scope->memberCount(); ++i) {
                     Symbol *member = scope->memberAt(i);
                     if (member->isEnum()) {
                         if (ClassOrNamespace *b = binding->findBlock(block))
@@ -1490,13 +1494,13 @@ bool InternalCppCompletionAssistProcessor::globalCompletion(Scope *currentScope)
 
     for (Scope *scope = currentScope; scope; scope = scope->enclosingScope()) {
         if (scope->isBlock()) {
-            for (unsigned i = 0; i < scope->memberCount(); ++i)
+            for (int i = 0; i < scope->memberCount(); ++i)
                 addCompletionItem(scope->memberAt(i), FunctionLocalsOrder);
         } else if (Function *fun = scope->asFunction()) {
-            for (unsigned i = 0, argc = fun->argumentCount(); i < argc; ++i)
+            for (int i = 0, argc = fun->argumentCount(); i < argc; ++i)
                 addCompletionItem(fun->argumentAt(i), FunctionArgumentsOrder);
         } else if (Template *templ = scope->asTemplate()) {
-            for (unsigned i = 0, argc = templ->templateParameterCount(); i < argc; ++i)
+            for (int i = 0, argc = templ->templateParameterCount(); i < argc; ++i)
                 addCompletionItem(templ->templateParameterAt(i), FunctionArgumentsOrder);
             break;
         }
@@ -1529,6 +1533,16 @@ bool InternalCppCompletionAssistProcessor::globalCompletion(Scope *currentScope)
     addMacros(context.thisDocument()->fileName(), context.snapshot());
     addSnippets();
     return !m_completions.isEmpty();
+}
+
+void InternalCppCompletionAssistProcessor::addKeywordCompletionItem(const QString &text)
+{
+    auto item = new CppAssistProposalItem;
+    item->setText(text);
+    item->setIcon(Icons::keywordIcon());
+    item->setOrder(KeywordsOrder);
+    item->setIsKeyword(true);
+    m_completions.append(item);
 }
 
 bool InternalCppCompletionAssistProcessor::completeMember(const QList<LookupItem> &baseResults)
@@ -1785,7 +1799,7 @@ bool InternalCppCompletionAssistProcessor::completeQtMethod(const QList<LookupIt
             if (!klass)
                 continue;
 
-            for (unsigned i = 0; i < scope->memberCount(); ++i) {
+            for (int i = 0; i < scope->memberCount(); ++i) {
                 Symbol *member = scope->memberAt(i);
                 Function *fun = member->type()->asFunctionType();
                 if (!fun || fun->isGenerated())
@@ -1795,7 +1809,7 @@ bool InternalCppCompletionAssistProcessor::completeQtMethod(const QList<LookupIt
                 else if (!wantSignals && type == CompleteQt4Slots && !fun->isSlot())
                     continue;
 
-                unsigned count = fun->argumentCount();
+                int count = fun->argumentCount();
                 while (true) {
                     const QString completionText = wantQt5SignalOrSlot
                             ? createQt5SignalOrSlot(fun, o)
@@ -1859,16 +1873,16 @@ void InternalCppCompletionAssistProcessor::addKeywords()
 
     // keyword completion items.
     for (int i = T_FIRST_KEYWORD; i < keywordLimit; ++i)
-        addCompletionItem(QLatin1String(Token::name(i)), Icons::keywordIcon(), KeywordsOrder);
+        addKeywordCompletionItem(QLatin1String(Token::name(i)));
 
     // primitive type completion items.
     for (int i = T_FIRST_PRIMITIVE; i <= T_LAST_PRIMITIVE; ++i)
-        addCompletionItem(QLatin1String(Token::name(i)), Icons::keywordIcon(), KeywordsOrder);
+        addKeywordCompletionItem(QLatin1String(Token::name(i)));
 
     // "Identifiers with special meaning"
     if (m_interface->languageFeatures().cxx11Enabled) {
-        addCompletionItem(QLatin1String("override"), Icons::keywordIcon(), KeywordsOrder);
-        addCompletionItem(QLatin1String("final"), Icons::keywordIcon(), KeywordsOrder);
+        addKeywordCompletionItem(QLatin1String("override"));
+        addKeywordCompletionItem(QLatin1String("final"));
     }
 }
 
@@ -1923,7 +1937,7 @@ bool InternalCppCompletionAssistProcessor::completeConstructorOrFunction(const Q
             if (!className)
                 continue; // nothing to do for anonymous classes.
 
-            for (unsigned i = 0; i < klass->memberCount(); ++i) {
+            for (int i = 0; i < klass->memberCount(); ++i) {
                 Symbol *member = klass->memberAt(i);
                 const Name *memberName = member->name();
 

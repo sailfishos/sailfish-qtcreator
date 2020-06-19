@@ -99,6 +99,17 @@ public:
     bool contextChunk = false;
 };
 
+class DIFFEDITOR_EXPORT ChunkSelection {
+public:
+    ChunkSelection() {}
+    ChunkSelection(const QList<int> &left, const QList<int> &right)
+        : leftSelection(left), rightSelection(right) {}
+    bool isNull() const { return leftSelection.isEmpty() && rightSelection.isEmpty(); }
+    int selectedRowsCount() const;
+    QList<int> leftSelection;
+    QList<int> rightSelection;
+};
+
 class DIFFEDITOR_EXPORT FileData {
 public:
     enum FileOperation {
