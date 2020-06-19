@@ -545,7 +545,9 @@ QmakeBuildConfiguration::MakefileState QmakeBuildConfiguration::compareToImportF
     // and compare that on its own
     QString workingDirectory = QFileInfo(makefile).absolutePath();
     QStringList actualArgs;
-    QString userArgs = macroExpander()->expandProcessArgs(qs->userArguments());
+    QString extraParserArgs = QtcProcess::joinArgs(qs->extraParserArguments(), Utils::OsTypeLinux);
+    QString userArgs = macroExpander()->expandProcessArgs(
+            QStringList{extraParserArgs, qs->userArguments()}.join(' '));
     // This copies the settings from userArgs to actualArgs (minus some we
     // are not interested in), splitting them up into individual strings:
     extractSpecFromArguments(&userArgs, workingDirectory, version, &actualArgs);
