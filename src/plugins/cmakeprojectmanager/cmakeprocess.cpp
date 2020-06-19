@@ -235,6 +235,7 @@ void CMakeProcess::handleProcessFinished(int code, QProcess::ExitStatus status)
     }
 
     m_future->reportFinished();
+    m_future.reset();
 
     emit finished(code, status);
 
