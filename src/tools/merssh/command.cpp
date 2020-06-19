@@ -380,6 +380,11 @@ void Command::maybeDoCMakePathMapping()
         data.replace(QRegularExpression("((?<!SHARE_INSTALL_PREFIX:PATH=)/usr/share\\b)"),
                 sharedTargetRoot + "\\1");
 
+        // GCC's system include paths are under the tooling. Map them to the
+        // respective directories under the target.
+        data.replace(QRegularExpression("/srv/mer/toolings/[^/]+/opt/cross/"),
+                sharedTargetRoot + "/opt/cross/");
+
         FileSaver saver(path);
         saver.write(data.toUtf8());
         ok = saver.finalize();
