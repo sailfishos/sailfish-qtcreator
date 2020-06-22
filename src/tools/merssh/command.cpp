@@ -377,6 +377,8 @@ void Command::maybeDoCMakePathMapping()
 
         data.replace(QRegularExpression("((?<!INCLUDE_INSTALL_DIR:PATH=)/usr/(local/)?include\\b)"),
                 sharedTargetRoot + "\\1");
+        data.replace(QRegularExpression("((?<!SHARE_INSTALL_PREFIX:PATH=)/usr/share\\b)"),
+                sharedTargetRoot + "\\1");
 
         FileSaver saver(path);
         saver.write(data.toUtf8());
