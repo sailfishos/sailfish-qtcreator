@@ -27,6 +27,7 @@
 #include "merqmakebuildconfiguration.h"
 #include "merbuildengineoptionspage.h"
 #include "merbuildsteps.h"
+#include "mercompilationdatabasebuildconfiguration.h"
 #include "merconnectionmanager.h"
 #include "merconstants.h"
 #include "merdeployconfiguration.h"
@@ -127,6 +128,8 @@ public:
     MerQmlLiveBenchManager qmlLiveBenchManager;
     MerCMakeBuildConfigurationFactory cmakeBuildConfigurationFactory;
     MerQmakeBuildConfigurationFactory qmakeBuildConfigurationFactory;
+    MerCompilationDatabaseMakeStepFactory compilationDbMakeStepFactory;
+    MerCompilationDatabaseBuildConfigurationFactory compilationDbBuildConfigurationFactory;
 
     const QList<Core::Id> supportedRunConfigs{
         Constants::MER_QMLRUNCONFIGURATION,

@@ -2,6 +2,7 @@ QTC_PLUGIN_NAME = SailfishOS
 QTC_PLUGIN_DEPENDS += \
  coreplugin \
  cmakeprojectmanager \
+ compilationdatabaseprojectmanager \
  debugger \
  projectexplorer \
  remotelinux \

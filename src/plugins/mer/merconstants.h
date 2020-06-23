@@ -86,6 +86,8 @@ const char MER_DEVICE_ARCHITECTURE[]= "MER_DEVICE_ARCHITECTURE";
 const char MER_BUILD_CONFIGURATION_ASPECT[] = "Mer.BuildConfigurationAspect";
 const char MER_RUN_CONFIGURATION_ASPECT[] = "Mer.RunConfigurationAspect";
 
+const char MER_COMPILATION_DATABASE_MS_ID[] = "Mer.CompilationDatabaseMakeStep";
+
 const char QML_LIVE_HELP_URL[] = "qthelp://org.qt-project.qtcreator/doc/creator-qtquick-qmllive-sailfish.html";
 
 } // namespace Constants

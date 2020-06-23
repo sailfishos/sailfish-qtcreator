@@ -45,6 +45,7 @@ SOURCES += \
     merbuildengineoptionspage.cpp \
     merbuildengineoptionswidget.cpp \
     merbuildsteps.cpp \
+    mercompilationdatabasebuildconfiguration.cpp \
     merconnectionmanager.cpp \
     merdeployconfiguration.cpp \
     merdeploysteps.cpp \
@@ -100,6 +101,7 @@ HEADERS += \
     merbuildengineoptionspage.h \
     merbuildengineoptionswidget.h \
     merbuildsteps.h \
+    mercompilationdatabasebuildconfiguration.h \
     merconnectionmanager.h \
     merconstants.h \
     merdeployconfiguration.h \
