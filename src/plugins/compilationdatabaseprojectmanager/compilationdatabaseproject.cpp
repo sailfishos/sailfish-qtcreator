@@ -533,7 +533,7 @@ public:
 CompilationDatabaseBuildConfigurationFactory::CompilationDatabaseBuildConfigurationFactory()
 {
     registerBuildConfiguration<CompilationDatabaseBuildConfiguration>(
-        "CompilationDatabase.CompilationDatabaseBuildConfiguration");
+            Constants::COMPILATIONDATABASE_BC_ID);
 
     setSupportedProjectType(Constants::COMPILATIONDATABASEPROJECT_ID);
     setSupportedProjectMimeTypeName(Constants::COMPILATIONDATABASEMIMETYPE);
