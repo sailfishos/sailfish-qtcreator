@@ -40,14 +40,30 @@ export function mapCompilationDatabasePaths() {
     if (!utils.isFile("compile_commands.json"))
         return;
     utils.updateFile("compile_commands.json", function (data) {
+        var target = configuration.optionArgument('target');
+        var sysroot = buildEngine.sharedTargetsPath + '/' + target;
+        var toolsPath = buildEngine.buildTargetToolsPath(target);
+
         var sharedHomeMountPointRx =
             new RegExp(utils.regExpEscape(buildEngine.sharedHomeMountPoint), "g");
         data = data.replace(sharedHomeMountPointRx, buildEngine.sharedHomePath);
         var sharedSrcMountPointRx =
             new RegExp(utils.regExpEscape(buildEngine.sharedSrcMountPoint), "g");
         data = data.replace(sharedSrcMountPointRx, buildEngine.sharedSrcPath);
-        var sysroot = buildEngine.sharedTargetsPath + '/' + configuration.optionArgument('target');
+
         data = data.replace(/("[^/]*)\/(usr|lib|opt)\b/g, "$1" + sysroot + "/$2");
+
+        var objects = JSON.parse(data);
+        objects.forEach(object => {
+            var command = object.arguments[0];
+            command = command.substr(command.lastIndexOf('/') + 1);
+            if (command == "g++")
+                command = "gcc";
+            object.arguments[0] = toolsPath + '/' + command;
+        });
+
+        data = JSON.stringify(objects, null, 1);
+
         return data;
     });
 }
