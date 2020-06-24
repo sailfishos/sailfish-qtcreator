@@ -47,6 +47,7 @@ SOURCES += \
     merbuildsteps.cpp \
     mercompilationdatabasebuildconfiguration.cpp \
     merconnectionmanager.cpp \
+    mercustomrunconfiguration.cpp \
     merdeployconfiguration.cpp \
     merdeploysteps.cpp \
     merdevice.cpp \
@@ -102,6 +103,7 @@ HEADERS += \
     mercompilationdatabasebuildconfiguration.h \
     merconnectionmanager.h \
     merconstants.h \
+    mercustomrunconfiguration.h \
     merdeployconfiguration.h \
     merdeploysteps.h \
     merdevice.h \

@@ -61,6 +61,7 @@ const char BUILD_ENGINE_URI[] = "BuildEngineUri";
 const char BUILD_TARGET_NAME[] = "BuildTargetName";
 
 const char MER_RUNCONFIGURATION_PREFIX[] = "QmakeProjectManager.MerRunConfiguration:";
+const char MER_CUSTOMRUNCONFIGURATION_PREFIX[] = "QmakeProjectManager.MerCustomRunConfiguration:";
 const char MER_QMLRUNCONFIGURATION[] = "QmakeProjectManager.MerQmlRunConfiguration";
 
 const char SAILFISH_QML_LAUNCHER[] = "/usr/bin/sailfish-qml";

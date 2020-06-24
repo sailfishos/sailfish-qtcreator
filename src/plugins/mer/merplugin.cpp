@@ -30,6 +30,7 @@
 #include "mercompilationdatabasebuildconfiguration.h"
 #include "merconnectionmanager.h"
 #include "merconstants.h"
+#include "mercustomrunconfiguration.h"
 #include "merdeployconfiguration.h"
 #include "merdeploysteps.h"
 #include "merdevicedebugsupport.h"
@@ -116,6 +117,7 @@ public:
     MerRsyncDeployConfigurationFactory rsyncDeployConfigurationFactory;
     MerAddRemoveSpecialDeployStepsProjectListener addRemoveSpecialDeployStepsProjectListener;
     MerRunConfigurationFactory runConfigurationFactory;
+    MerCustomRunConfigurationFactory customRunConfigurationFactory;
     MerQmlRunConfigurationFactory qmlRunConfigurationFactory;
     MerBuildStepFactory<MerSdkStartStep> sdkStartStepFactory;
     MerDeployStepFactory<MerPrepareTargetStep> prepareTargetStepFactory;
@@ -132,6 +134,7 @@ public:
     MerCompilationDatabaseBuildConfigurationFactory compilationDbBuildConfigurationFactory;
 
     const QList<Core::Id> supportedRunConfigs{
+        Constants::MER_CUSTOMRUNCONFIGURATION_PREFIX,
         Constants::MER_QMLRUNCONFIGURATION,
         Constants::MER_RUNCONFIGURATION_PREFIX
     };
