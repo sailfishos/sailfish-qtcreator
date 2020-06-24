@@ -135,11 +135,6 @@ Runnable MerRunConfiguration::runnable() const
             .stringAppended(r.executable.toString());
     }
 
-    if (conf->id() == MerRpmDeployConfigurationFactory::configurationId()) {
-        //TODO:
-        //r.executable = ...;
-    }
-
     return r;
 }
 
