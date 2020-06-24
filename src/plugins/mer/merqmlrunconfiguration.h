@@ -43,6 +43,14 @@ private:
     mutable QString m_disabledReason;
 };
 
+class MerQmlRunConfigurationFactory : public ProjectExplorer::FixedRunConfigurationFactory
+{
+public:
+    MerQmlRunConfigurationFactory();
+
+    bool canHandle(ProjectExplorer::Target *parent) const override;
+};
+
 } // namespace Internal
 } // namespace Mer
 

@@ -143,5 +143,17 @@ Runnable MerRunConfiguration::runnable() const
     return r;
 }
 
+/*!
+ * \class MerRunConfigurationFactory
+ * \internal
+ */
+
+MerRunConfigurationFactory::MerRunConfigurationFactory()
+{
+    registerRunConfiguration<MerRunConfiguration>(Constants::MER_RUNCONFIGURATION_PREFIX);
+    addSupportedTargetDeviceType(Constants::MER_DEVICE_TYPE);
+    setDecorateDisplayNames(true);
+}
+
 } // Internal
 } // Mer

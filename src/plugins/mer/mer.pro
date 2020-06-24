@@ -70,14 +70,12 @@ SOURCES += \
     merprojectlistener.cpp \
     merqmllivebenchmanager.cpp \
     merqmlrunconfiguration.cpp \
-    merqmlrunconfigurationfactory.cpp \
     merqmltoolingsupport.cpp \
     merqtversion.cpp \
     merrpminstaller.cpp \
     merrpmvalidationparser.cpp \
     merrunconfiguration.cpp \
     merrunconfigurationaspect.cpp \
-    merrunconfigurationfactory.cpp \
     mersdkkitaspect.cpp \
     mersdkmanager.cpp \
     mersettings.cpp \
@@ -127,14 +125,12 @@ HEADERS += \
     merprojectlistener.h \
     merqmllivebenchmanager.h \
     merqmlrunconfiguration.h \
-    merqmlrunconfigurationfactory.h \
     merqmltoolingsupport.h \
     merqtversion.h \
     merrpminstaller.h \
     merrpmvalidationparser.h \
     merrunconfiguration.h \
     merrunconfigurationaspect.h \
-    merrunconfigurationfactory.h \
     mersdkkitaspect.h \
     mersdkmanager.h \
     mersettings.h \
