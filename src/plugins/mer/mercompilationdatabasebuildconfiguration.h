@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2016-2018 Jolla Ltd.
+** Copyright (C) 2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,38 +20,45 @@
 **
 ****************************************************************************/
 
-#ifndef MERQMLRUNCONFIGURATION_H
-#define MERQMLRUNCONFIGURATION_H
+#pragma once
 
-#include <projectexplorer/runconfiguration.h>
+#include <compilationdatabaseprojectmanager/compilationdatabaseproject.h>
+#include <projectexplorer/makestep.h>
 
 namespace Mer {
 namespace Internal {
 
-class MerQmlRunConfiguration : public ProjectExplorer::RunConfiguration
+class MerCompilationDatabaseBuildConfiguration : public ProjectExplorer::BuildConfiguration
 {
     Q_OBJECT
 
 public:
-    MerQmlRunConfiguration(ProjectExplorer::Target *target, Core::Id id);
+    MerCompilationDatabaseBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
 
-    ProjectExplorer::Runnable runnable() const override;
-    QString disabledReason() const override;
-    bool isEnabled() const override;
-
-private:
-    mutable QString m_disabledReason;
+    QList<ProjectExplorer::NamedWidget *> createSubConfigWidgets() override;
+    void addToEnvironment(Utils::Environment &env) const override;
 };
 
-class MerQmlRunConfigurationFactory : public ProjectExplorer::FixedRunConfigurationFactory
+class MerCompilationDatabaseBuildConfigurationFactory
+    : public ProjectExplorer::BuildConfigurationFactory
 {
 public:
-    MerQmlRunConfigurationFactory();
+    MerCompilationDatabaseBuildConfigurationFactory();
+};
 
-    bool canHandle(ProjectExplorer::Target *parent) const override;
+class MerCompilationDatabaseMakeStep : public ProjectExplorer::MakeStep
+{
+    Q_OBJECT
+
+public:
+    explicit MerCompilationDatabaseMakeStep(ProjectExplorer::BuildStepList *parent, Core::Id id);
+};
+
+class MerCompilationDatabaseMakeStepFactory : public ProjectExplorer::BuildStepFactory
+{
+public:
+    MerCompilationDatabaseMakeStepFactory();
 };
 
 } // namespace Internal
 } // namespace Mer
-
-#endif // MERQMLRUNCONFIGURATION_H

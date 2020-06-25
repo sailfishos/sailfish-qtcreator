@@ -32,6 +32,7 @@
 
 #include "merconstants.h"
 #include "mercmakebuildconfiguration.h"
+#include "mercompilationdatabasebuildconfiguration.h"
 #include "merdeployconfiguration.h"
 #include "meremulatordevice.h"
 #include "merqmakebuildconfiguration.h"
@@ -228,16 +229,11 @@ bool MerProcessStep::init()
 
 bool MerProcessStep::init(InitOptions options)
 {
-    BuildConfiguration *bc = nullptr;
-    if (qobject_cast<MerCMakeBuildConfiguration*>(buildConfiguration())) {
-        bc = qobject_cast<MerCMakeBuildConfiguration*>(buildConfiguration());
-    } else {
-        // Default to MerQmakeBuildConfiguration
-        bc = qobject_cast<MerQmakeBuildConfiguration*>(buildConfiguration());
-    }
-
-    if (!bc) {
-        addOutput(tr("Cannot deploy: No active build configuration."),
+    BuildConfiguration *const bc = buildConfiguration();
+    if (!qobject_cast<MerCMakeBuildConfiguration *>(bc)
+            && !qobject_cast<MerCompilationDatabaseBuildConfiguration *>(bc)
+            && !qobject_cast<MerQmakeBuildConfiguration *>(bc)) {
+        addOutput(tr("Cannot deploy: Unsupported build configuration."),
                 OutputFormat::ErrorMessage);
         return false;
     }
@@ -271,7 +267,8 @@ bool MerProcessStep::init(InitOptions options)
     // BuildDirectoryAspect::allowInSourceBuilds is not set, which is the case of
     // CMakeBuildConfiguration.
     const bool isShadowBuild = bc->buildDirectoryAspect()->isShadowBuild()
-        || qobject_cast<CMakeBuildConfiguration *>(bc) != nullptr;
+        || qobject_cast<CMakeBuildConfiguration *>(bc) != nullptr
+        || qobject_cast<MerCompilationDatabaseBuildConfiguration *>(bc) != nullptr;
 
     const FilePath projectDirectory = isShadowBuild
         ? bc->rawBuildDirectory()
@@ -538,16 +535,11 @@ MerLocalRsyncDeployStep::MerLocalRsyncDeployStep(BuildStepList *bsl, Core::Id id
 
 bool MerLocalRsyncDeployStep::init()
 {
-    BuildConfiguration *bc = nullptr;
-    if (qobject_cast<MerCMakeBuildConfiguration*>(buildConfiguration())) {
-        bc = qobject_cast<MerCMakeBuildConfiguration*>(buildConfiguration());
-    } else {
-        // Default to MerQmakeBuildConfiguration
-        bc = qobject_cast<MerQmakeBuildConfiguration*>(buildConfiguration());
-    }
-
-    if (!bc) {
-        addOutput(tr("Cannot deploy: No active build configuration."),
+    BuildConfiguration *const bc = buildConfiguration();
+    if (!qobject_cast<MerCMakeBuildConfiguration *>(bc)
+            && !qobject_cast<MerCompilationDatabaseBuildConfiguration *>(bc)
+            && !qobject_cast<MerQmakeBuildConfiguration *>(bc)) {
+        addOutput(tr("Cannot deploy: Unsupported build configuration."),
                 OutputFormat::ErrorMessage);
         return false;
     }
@@ -572,7 +564,8 @@ bool MerLocalRsyncDeployStep::init()
     // BuildDirectoryAspect::allowInSourceBuilds is not set, which is the case of
     // CMakeBuildConfiguration.
     const bool isShadowBuild = bc->buildDirectoryAspect()->isShadowBuild()
-        || qobject_cast<CMakeBuildConfiguration *>(bc) != nullptr;
+        || qobject_cast<CMakeBuildConfiguration *>(bc) != nullptr
+        || qobject_cast<MerCompilationDatabaseBuildConfiguration *>(bc) != nullptr;
 
     const FilePath projectDirectory = isShadowBuild
         ? bc->rawBuildDirectory()

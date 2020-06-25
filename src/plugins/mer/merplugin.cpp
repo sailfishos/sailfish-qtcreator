@@ -27,8 +27,10 @@
 #include "merqmakebuildconfiguration.h"
 #include "merbuildengineoptionspage.h"
 #include "merbuildsteps.h"
+#include "mercompilationdatabasebuildconfiguration.h"
 #include "merconnectionmanager.h"
 #include "merconstants.h"
+#include "mercustomrunconfiguration.h"
 #include "merdeployconfiguration.h"
 #include "merdeploysteps.h"
 #include "merdevicedebugsupport.h"
@@ -39,11 +41,11 @@
 #include "mergeneraloptionspage.h"
 #include "merhardwaredevice.h"
 #include "merqmllivebenchmanager.h"
-#include "merqmlrunconfigurationfactory.h"
+#include "merqmlrunconfiguration.h"
 #include "merqmltoolingsupport.h"
 #include "merqtversion.h"
 #include "merrunconfigurationaspect.h"
-#include "merrunconfigurationfactory.h"
+#include "merrunconfiguration.h"
 #include "mersdkkitaspect.h"
 #include "mersdkmanager.h"
 #include "mersettings.h"
@@ -63,6 +65,8 @@
 #include <projectexplorer/buildenvironmentwidget.h>
 #include <projectexplorer/kitmanager.h>
 #include <projectexplorer/runcontrol.h>
+#include <projectexplorer/session.h>
+#include <projectexplorer/target.h>
 #include <remotelinux/remotelinuxcustomrunconfiguration.h>
 #include <remotelinux/remotelinuxqmltoolingsupport.h>
 #include <remotelinux/remotelinuxrunconfiguration.h>
@@ -115,6 +119,7 @@ public:
     MerRsyncDeployConfigurationFactory rsyncDeployConfigurationFactory;
     MerAddRemoveSpecialDeployStepsProjectListener addRemoveSpecialDeployStepsProjectListener;
     MerRunConfigurationFactory runConfigurationFactory;
+    MerCustomRunConfigurationFactory customRunConfigurationFactory;
     MerQmlRunConfigurationFactory qmlRunConfigurationFactory;
     MerBuildStepFactory<MerSdkStartStep> sdkStartStepFactory;
     MerDeployStepFactory<MerPrepareTargetStep> prepareTargetStepFactory;
@@ -127,8 +132,11 @@ public:
     MerQmlLiveBenchManager qmlLiveBenchManager;
     MerCMakeBuildConfigurationFactory cmakeBuildConfigurationFactory;
     MerQmakeBuildConfigurationFactory qmakeBuildConfigurationFactory;
+    MerCompilationDatabaseMakeStepFactory compilationDbMakeStepFactory;
+    MerCompilationDatabaseBuildConfigurationFactory compilationDbBuildConfigurationFactory;
 
     const QList<Core::Id> supportedRunConfigs{
+        Constants::MER_CUSTOMRUNCONFIGURATION_PREFIX,
         Constants::MER_QMLRUNCONFIGURATION,
         Constants::MER_RUNCONFIGURATION_PREFIX
     };
@@ -212,6 +220,8 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     connect(startQmlLiveBenchAction, &QAction::triggered,
             MerQmlLiveBenchManager::startBench);
     menu->addAction(startQmlLiveBenchCommand);
+
+    ensureCustomRunConfigurationIsTheDefaultOnCompilationDatabaseProjects();
 
     return true;
 }
@@ -376,6 +386,27 @@ void MerPlugin::addInfoOnBuildEngineEnvironment(QVBoxLayout *vbox)
     filterInfoHBox->addWidget(filterInfoLabel, 1);
 
     vbox->insertItem(0, filterInfoHBox);
+}
+
+void MerPlugin::ensureCustomRunConfigurationIsTheDefaultOnCompilationDatabaseProjects()
+{
+    // Hack. By default the ProjectExplorer::CustomExecutableRunConfiguration is activated
+    connect(SessionManager::instance(), &SessionManager::projectAdded, [](Project *project) {
+        if (project->id() != CompilationDatabaseProjectManager::Constants::COMPILATIONDATABASEPROJECT_ID)
+            return;
+        connect(project, &Project::addedTarget, [](Target *target) {
+            if (!target->activeRunConfiguration())
+                return;
+            if (qobject_cast<MerCustomRunConfiguration *>(target->activeRunConfiguration()))
+                return;
+            for (RunConfiguration *const rc : target->runConfigurations()) {
+                if (qobject_cast<MerCustomRunConfiguration *>(rc)) {
+                    target->setActiveRunConfiguration(rc);
+                    break;
+                }
+            }
+        });
+    });
 }
 
 } // Internal

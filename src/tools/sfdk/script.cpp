@@ -210,6 +210,13 @@ public:
         });
     }
 
+    Q_INVOKABLE QString buildTargetToolsPath(const QString &buildTargetName) const
+    {
+        return withEngine([=](BuildEngine *engine) {
+            return engine->buildTarget(buildTargetName).toolsPath.toString();
+        });
+    }
+
 private:
     QString enginePath(Utils::FilePath (BuildEngine::*getter)() const) const
     {

@@ -61,6 +61,7 @@ const char BUILD_ENGINE_URI[] = "BuildEngineUri";
 const char BUILD_TARGET_NAME[] = "BuildTargetName";
 
 const char MER_RUNCONFIGURATION_PREFIX[] = "QmakeProjectManager.MerRunConfiguration:";
+const char MER_CUSTOMRUNCONFIGURATION_PREFIX[] = "QmakeProjectManager.MerCustomRunConfiguration:";
 const char MER_QMLRUNCONFIGURATION[] = "QmakeProjectManager.MerQmlRunConfiguration";
 
 const char SAILFISH_QML_LAUNCHER[] = "/usr/bin/sailfish-qml";
@@ -85,6 +86,8 @@ const char MER_DEVICE_ARCHITECTURE[]= "MER_DEVICE_ARCHITECTURE";
 
 const char MER_BUILD_CONFIGURATION_ASPECT[] = "Mer.BuildConfigurationAspect";
 const char MER_RUN_CONFIGURATION_ASPECT[] = "Mer.RunConfigurationAspect";
+
+const char MER_COMPILATION_DATABASE_MS_ID[] = "Mer.CompilationDatabaseMakeStep";
 
 const char QML_LIVE_HELP_URL[] = "qthelp://org.qt-project.qtcreator/doc/creator-qtquick-qmllive-sailfish.html";
 

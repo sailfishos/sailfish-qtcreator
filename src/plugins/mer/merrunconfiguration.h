@@ -42,6 +42,12 @@ private:
     mutable QString m_disabledReason;
 };
 
+class MerRunConfigurationFactory : public ProjectExplorer::RunConfigurationFactory
+{
+public:
+    MerRunConfigurationFactory();
+};
+
 } // namespace Internal
 } // namespace Mer
 

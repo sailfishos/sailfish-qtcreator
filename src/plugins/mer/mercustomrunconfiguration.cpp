@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,7 +21,7 @@
 **
 ****************************************************************************/
 
-#include "merrunconfiguration.h"
+#include "mercustomrunconfiguration.h"
 
 #include "merconstants.h"
 #include "merdeployconfiguration.h"
@@ -45,20 +46,22 @@ using namespace Utils;
 namespace Mer {
 namespace Internal {
 
-MerRunConfiguration::MerRunConfiguration(Target *target, Core::Id id)
+MerCustomRunConfiguration::MerCustomRunConfiguration(Target *target, Core::Id id)
     : RunConfiguration(target, id)
 {
     auto exeAspect = addAspect<ExecutableAspect>();
+    exeAspect->setSettingsKey("Mer.CustomRunConfig.RemoteExecutable");
     exeAspect->setLabelText(tr("Executable on device:"));
     exeAspect->setExecutablePathStyle(OsTypeLinux);
+    exeAspect->setDisplayStyle(BaseStringAspect::LineEditDisplay);
     exeAspect->setPlaceHolderText(tr("Remote path not set"));
-    exeAspect->makeOverridable("Mer.RunConfig.AlternateRemoteExecutable",
-                               "Mer.RunConfig.UseAlternateRemoteExecutable");
-    exeAspect->setHistoryCompleter("Mer.AlternateExecutable.History");
+    exeAspect->setHistoryCompleter("Mer.CustomExecutable.History");
+    exeAspect->setExpectedKind(PathChooser::Any);
 
     auto symbolsAspect = addAspect<SymbolFileAspect>();
+    symbolsAspect->setSettingsKey("Mer.CustomRunConfig.LocalExecutable");
     symbolsAspect->setLabelText(tr("Executable on host:"));
-    symbolsAspect->setDisplayStyle(SymbolFileAspect::LabelDisplay);
+    symbolsAspect->setDisplayStyle(SymbolFileAspect::PathChooserDisplay);
 
     addAspect<ArgumentsAspect>();
     addAspect<WorkingDirectoryAspect>();
@@ -68,21 +71,19 @@ MerRunConfiguration::MerRunConfiguration(Target *target, Core::Id id)
     if (HostOsInfo::isAnyUnixHost())
         addAspect<X11ForwardingAspect>();
 
-    setUpdater([this, target, exeAspect, symbolsAspect] {
-        BuildTargetInfo bti = buildTargetInfo();
-        const FilePath localExecutable = bti.targetFilePath;
-        DeployableFile depFile = target->deploymentData().deployableForLocalFile(localExecutable);
-
-        exeAspect->setExecutable(FilePath::fromString(depFile.remoteFilePath()));
-        symbolsAspect->setFilePath(localExecutable);
-    });
-
-    connect(target, &Target::buildSystemUpdated, this, &RunConfiguration::update);
-    connect(target, &Target::kitChanged, this, &RunConfiguration::update);
-    connect(target, &Target::activeDeployConfigurationChanged, this, &RunConfiguration::update);
+    setDefaultDisplayName(defaultDisplayName());
 }
 
-QString MerRunConfiguration::disabledReason() const
+QString MerCustomRunConfiguration::defaultDisplayName() const
+{
+    const QString remoteExecutable = aspect<ExecutableAspect>()->executable().toString();
+    const QString displayName = remoteExecutable.isEmpty()
+            ? tr("Custom Executable")
+            : tr("Run \"%1\"").arg(remoteExecutable);
+    return RunConfigurationFactory::decoratedTargetName(displayName, target());
+}
+
+QString MerCustomRunConfiguration::disabledReason() const
 {
     if (!RunConfiguration::isEnabled())
         return RunConfiguration::disabledReason();
@@ -96,8 +97,8 @@ QString MerRunConfiguration::disabledReason() const
     return {};
 }
 
-bool MerRunConfiguration::isEnabled() const
-{   
+bool MerCustomRunConfiguration::isEnabled() const
+{
     if (!RunConfiguration::isEnabled())
         return false;
 
@@ -110,7 +111,17 @@ bool MerRunConfiguration::isEnabled() const
     return true;
 }
 
-Runnable MerRunConfiguration::runnable() const
+Tasks MerCustomRunConfiguration::checkForIssues() const
+{
+    Tasks tasks;
+    if (aspect<ExecutableAspect>()->executable().isEmpty()) {
+        tasks << createConfigurationIssue(tr("The remote executable must be set in order to run "
+                                             "a custom remote run configuration."));
+    }
+    return tasks;
+}
+
+Runnable MerCustomRunConfiguration::runnable() const
 {
     Runnable r = RunConfiguration::runnable();
     const auto * const forwardingAspect = aspect<X11ForwardingAspect>();
@@ -139,15 +150,15 @@ Runnable MerRunConfiguration::runnable() const
 }
 
 /*!
- * \class MerRunConfigurationFactory
+ * \class MerCustomRunConfigurationFactory
  * \internal
  */
 
-MerRunConfigurationFactory::MerRunConfigurationFactory()
+MerCustomRunConfigurationFactory::MerCustomRunConfigurationFactory()
+    : FixedRunConfigurationFactory(MerCustomRunConfiguration::tr("Custom Executable"), true)
 {
-    registerRunConfiguration<MerRunConfiguration>(Constants::MER_RUNCONFIGURATION_PREFIX);
+    registerRunConfiguration<MerCustomRunConfiguration>(Constants::MER_CUSTOMRUNCONFIGURATION_PREFIX);
     addSupportedTargetDeviceType(Constants::MER_DEVICE_TYPE);
-    setDecorateDisplayNames(true);
 }
 
 } // Internal

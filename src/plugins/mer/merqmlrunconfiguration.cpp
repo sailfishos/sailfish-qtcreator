@@ -52,6 +52,7 @@ namespace Internal {
 
 namespace {
 const char SAILFISHAPP_ENABLE_QML_DEBUGGING[] = "SAILFISHAPP_ENABLE_QML_DEBUGGING";
+const char SAILFISHAPP_QML_CONFIG[] = "sailfishapp_qml";
 } // anonymous namespace
 
 MerQmlRunConfiguration::MerQmlRunConfiguration(Target *target, Core::Id id)
@@ -121,6 +122,33 @@ Runnable MerQmlRunConfiguration::runnable() const
     merAspect->applyTo(&r);
 
     return r;
+}
+
+/*!
+ * \class MerQmlRunConfigurationFactory
+ * \internal
+ */
+
+MerQmlRunConfigurationFactory::MerQmlRunConfigurationFactory()
+    : FixedRunConfigurationFactory(RunConfiguration::tr("QML Scene"), true)
+{
+    registerRunConfiguration<MerQmlRunConfiguration>(Constants::MER_QMLRUNCONFIGURATION);
+    addSupportedTargetDeviceType(Constants::MER_DEVICE_TYPE);
+}
+
+bool MerQmlRunConfigurationFactory::canHandle(Target *parent) const
+{
+    auto qmakeBuildSystem = qobject_cast<QmakeBuildSystem *>(parent->buildSystem());
+    if (!qmakeBuildSystem)
+        return false;
+
+    QmakeProFile *root = qmakeBuildSystem->rootProFile();
+    if (root->projectType() != ProjectType::AuxTemplate ||
+            ! root->variableValue(Variable::Config).contains(QLatin1String(SAILFISHAPP_QML_CONFIG))) {
+        return false;
+    }
+
+    return true;
 }
 
 } // Internal

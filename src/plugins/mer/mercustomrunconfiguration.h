@@ -1,6 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012-2014,2018 Jolla Ltd.
+** Copyright (C) 2012-2016,2018 Jolla Ltd.
+** Copyright (C) 2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,21 +21,37 @@
 **
 ****************************************************************************/
 
-#ifndef MERRUNCONFIGURATIONFACTORY_H
-#define MERRUNCONFIGURATIONFACTORY_H
+#ifndef MERCUSTOMRUNCONFIGURATION_H
+#define MERCUSTOMRUNCONFIGURATION_H
 
 #include <projectexplorer/runconfiguration.h>
 
 namespace Mer {
 namespace Internal {
 
-class MerRunConfigurationFactory : public ProjectExplorer::RunConfigurationFactory
+class MerCustomRunConfiguration : public ProjectExplorer::RunConfiguration
+{
+    Q_OBJECT
+public:
+    MerCustomRunConfiguration(ProjectExplorer::Target *target, Core::Id id);
+
+    QString defaultDisplayName() const;
+    ProjectExplorer::Runnable runnable() const override;
+    QString disabledReason() const override;
+    bool isEnabled() const override;
+    ProjectExplorer::Tasks checkForIssues() const override;
+
+private:
+    mutable QString m_disabledReason;
+};
+
+class MerCustomRunConfigurationFactory : public ProjectExplorer::FixedRunConfigurationFactory
 {
 public:
-    MerRunConfigurationFactory();
+    MerCustomRunConfigurationFactory();
 };
 
 } // namespace Internal
 } // namespace Mer
 
-#endif // MERRUNCONFIGURATIONFACTORY_H
+#endif // MERCUSTOMRUNCONFIGURATION_H
