@@ -1316,6 +1316,7 @@ bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QStrin
         QProcessEnvironment *environment) const
 {
     QTC_ASSERT(hasEngine(), return false);
+    *program = QDir::fromNativeSeparators(*program);
 
     const QString cleanSharedHome = this->cleanSharedHome();
     const QString cleanSharedSrc = this->cleanSharedSrc();
@@ -1348,15 +1349,37 @@ bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QStrin
         {cleanSharedSrc, Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, caseInsensitiveOnWindows}
 #endif
     };
+
     for (const Mapping &mapping : mappings) {
         qCDebug(sfdk) << "Mapping" << mapping.hostPath << "as" << mapping.enginePath;
+        auto mapGreedy = [=](QString string) {
+            QRegularExpression::PatternOption reCaseSensitivity = mapping.cs == Qt::CaseInsensitive
+                    ? QRegularExpression::CaseInsensitiveOption
+                    : QRegularExpression::NoPatternOption;
+            QRegularExpression re(QString("(?:%1|%2)([^:;,'\"]*)")
+                                  .arg(QRegularExpression::escape(mapping.hostPath))
+                                  .arg(QRegularExpression::escape(QDir::toNativeSeparators(mapping.hostPath))),
+                                  reCaseSensitivity);
+            // Replace longer matches first! Use map for sorting.
+            std::map<QString, QString> replacements;
+            QRegularExpressionMatchIterator reIterator = re.globalMatch(string);
+            while (reIterator.hasNext()) {
+                QRegularExpressionMatch match = reIterator.next();
+                QString fullNativeHostPath = match.captured(0);
+                QString fullEnginePath = QDir::fromNativeSeparators(mapping.enginePath + match.captured(1));
+                replacements.insert(std::pair<QString, QString>(fullNativeHostPath, fullEnginePath));
+            }
+            for (auto i = replacements.crbegin(); i != replacements.crend(); ++i)
+                string.replace(i->first, i->second);
+            return string;
+        };
+
         program->replace(mapping.hostPath, mapping.enginePath, mapping.cs);
-        arguments->replaceInStrings(mapping.hostPath, mapping.enginePath, mapping.cs);
+        *arguments = Utils::transform(*arguments, mapGreedy);
         workingDirectory->replace(mapping.hostPath, mapping.enginePath, mapping.cs);
         for (const QString &key : environment->keys()) {
             QString value = environment->value(key);
-            value.replace(mapping.hostPath, mapping.enginePath, mapping.cs);
-            environment->insert(key, value);
+            environment->insert(key, mapGreedy(value));
         }
     }
 
