@@ -179,6 +179,7 @@ public:
 private:
     QString cleanSharedHome() const;
     QString cleanSharedSrc() const;
+    QString cleanSharedTarget() const;
     bool mapEnginePaths(QString *program, QStringList *arguments, QString *workingDirectory,
             QProcessEnvironment *environment) const;
     QByteArray maybeReverseMapEnginePaths(const QByteArray &commandOutput) const;
