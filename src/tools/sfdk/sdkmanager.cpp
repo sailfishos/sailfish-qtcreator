@@ -1368,6 +1368,8 @@ bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QStrin
     };
 
     for (const Mapping &mapping : mappings) {
+        if (mapping.hostPath.isEmpty())
+            continue;
         qCDebug(sfdk) << "Mapping" << mapping.hostPath << "as" << mapping.enginePath;
         auto mapGreedy = [=](QString string) {
             QRegularExpression::PatternOption reCaseSensitivity = mapping.cs == Qt::CaseInsensitive
