@@ -67,9 +67,26 @@ const char* SIMPLE_WRAPPERS[] = {
  * \class RpmValidationSuiteData
  */
 
+bool RpmValidationSuiteData::operator==(const RpmValidationSuiteData &other) const
+{
+    return id == other.id
+        && name == other.name
+        && website == other.website
+        && essential == other.essential;
+}
+
 /*!
  * \class BuildTargetData
  */
+
+bool BuildTargetData::operator==(const BuildTargetData &other) const
+{
+    return name == other.name
+        && sysRoot == other.sysRoot
+        && toolsPath == other.toolsPath
+        && gdb == other.gdb
+        && rpmValidationSuites == other.rpmValidationSuites;
+}
 
 bool BuildTargetData::isValid() const
 {
