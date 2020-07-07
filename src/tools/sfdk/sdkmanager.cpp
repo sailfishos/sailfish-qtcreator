@@ -1312,15 +1312,14 @@ QString SdkManager::cleanSharedSrc() const
     return QDir(QDir::cleanPath(m_buildEngine->sharedSrcPath().toString())).canonicalPath();
 }
 
-QString SdkManager::cleanSharedTarget() const
+QString SdkManager::cleanSharedTarget(QString *errorMessage) const
 {
+    Q_ASSERT(errorMessage);
     QTC_ASSERT(hasEngine(), return {});
-    QString errorString;
-    const BuildTargetData target = SdkManager::configuredTarget(&errorString);
-    if (!target.isValid()) {
-        qerr() << errorString << endl;
+    const BuildTargetData target = SdkManager::configuredTarget(errorMessage);
+    if (!target.isValid())
         return {};
-    }
+
     return QDir(QDir::cleanPath(target.sysRoot.toString())).canonicalPath();
 }
 
@@ -1330,9 +1329,12 @@ bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QStrin
     QTC_ASSERT(hasEngine(), return false);
     *program = QDir::fromNativeSeparators(*program);
 
+    QString errorString;
     const QString cleanSharedHome = this->cleanSharedHome();
     const QString cleanSharedSrc = this->cleanSharedSrc();
-    const QString cleanSharedTarget = this->cleanSharedTarget();
+    const QString cleanSharedTarget = this->cleanSharedTarget(&errorString);
+    if (cleanSharedTarget.isEmpty())
+        qCDebug(sfdk).noquote() << "Not mapping shared target path:" << errorString;
 
     if (!workingDirectory->startsWith(cleanSharedHome)
             && (cleanSharedSrc.isEmpty() || !workingDirectory->startsWith(cleanSharedSrc))) {
@@ -1353,21 +1355,17 @@ bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QStrin
         QString hostPath;
         QString enginePath;
         Qt::CaseSensitivity cs;
-    } const mappings[] = {
-#if Q_CC_GNU <= 504 // Let's check if it is still needed with GCC > 5.4
-        {cleanSharedTarget + QLatin1String("/"), QLatin1String("/"), Qt::CaseSensitive},
-        {cleanSharedTarget, QLatin1String("/"), Qt::CaseSensitive},
-        {cleanSharedHome, QLatin1String(Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT), Qt::CaseSensitive},
-        {cleanSharedSrc, QLatin1String(Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT), caseInsensitiveOnWindows}
-#else
-        {cleanSharedTarget + "/", "/", Qt::CaseSensitive},
-        {cleanSharedTarget, "/", Qt::CaseSensitive},
-        {cleanSharedHome, Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, Qt::CaseSensitive},
-        {cleanSharedSrc, Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, caseInsensitiveOnWindows}
-#endif
     };
+    std::vector<Mapping> mappings;
+    if (!cleanSharedTarget.isEmpty()) {
+        mappings.push_back({cleanSharedTarget + "/", "/", Qt::CaseSensitive});
+        mappings.push_back({cleanSharedTarget, "/", Qt::CaseSensitive});
+    }
+    mappings.push_back({cleanSharedHome, Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, Qt::CaseSensitive});
+    mappings.push_back({cleanSharedSrc, Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, caseInsensitiveOnWindows});
 
     for (const Mapping &mapping : mappings) {
+        QTC_ASSERT(!mapping.hostPath.isEmpty(), continue);
         qCDebug(sfdk) << "Mapping" << mapping.hostPath << "as" << mapping.enginePath;
         auto mapGreedy = [=](QString string) {
             QRegularExpression::PatternOption reCaseSensitivity = mapping.cs == Qt::CaseInsensitive
