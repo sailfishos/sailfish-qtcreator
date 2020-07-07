@@ -1354,17 +1354,10 @@ bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QStrin
         QString enginePath;
         Qt::CaseSensitivity cs;
     } const mappings[] = {
-#if Q_CC_GNU <= 504 // Let's check if it is still needed with GCC > 5.4
-        {cleanSharedTarget + QLatin1String("/"), QLatin1String("/"), Qt::CaseSensitive},
-        {cleanSharedTarget, QLatin1String("/"), Qt::CaseSensitive},
-        {cleanSharedHome, QLatin1String(Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT), Qt::CaseSensitive},
-        {cleanSharedSrc, QLatin1String(Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT), caseInsensitiveOnWindows}
-#else
         {cleanSharedTarget + "/", "/", Qt::CaseSensitive},
         {cleanSharedTarget, "/", Qt::CaseSensitive},
         {cleanSharedHome, Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, Qt::CaseSensitive},
         {cleanSharedSrc, Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, caseInsensitiveOnWindows}
-#endif
     };
 
     for (const Mapping &mapping : mappings) {
