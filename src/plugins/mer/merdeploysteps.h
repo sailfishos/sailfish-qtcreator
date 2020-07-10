@@ -190,7 +190,7 @@ public:
     static QString displayName();
     void processFinished(int exitCode, QProcess::ExitStatus status) override;
     void stdOutput(const QString &line) override;
-    QStringList packagesFilePath() const;
+    QString mainPackageFileName() const;
 protected:
     void doRun() override;
 private:
