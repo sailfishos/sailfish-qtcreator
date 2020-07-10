@@ -694,9 +694,10 @@ void MerMb2RpmBuildStep::processFinished(int exitCode, QProcess::ExitStatus stat
     }
 }
 
-QStringList MerMb2RpmBuildStep::packagesFilePath() const
+QString MerMb2RpmBuildStep::mainPackageFileName() const
 {
-    return m_packages;
+    QTC_ASSERT(!m_packages.isEmpty(), return {});
+    return m_packages.first();
 }
 
 BuildStepConfigWidget *MerMb2RpmBuildStep::createConfigWidget()
@@ -831,9 +832,9 @@ void MerRpmValidationStep::doRun()
 
     emit addOutput(tr("Validating RPM package..."), OutputFormat::NormalMessage);
 
-    const QString packageFile = m_packagingStep->packagesFilePath().first();
+    const QString packageFile = m_packagingStep->mainPackageFileName();
     if(!packageFile.endsWith(QLatin1String(".rpm"))){
-        const QString message((tr("No package to validate found in %1")).arg(packageFile));
+        const QString message(tr("No package to validate found"));
         emit addTask(Task(Task::Error, message, Utils::FilePath(), -1,
                     ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM),
                 1);
