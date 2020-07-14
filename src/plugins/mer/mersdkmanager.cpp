@@ -599,6 +599,7 @@ void MerSdkManager::ensureCmakeToolIsSet(Kit *k, const BuildEngine *buildEngine,
                                       "CMAKE_PREFIX_PATH:STRING=%{Qt:QT_INSTALL_PREFIX}",
                                       "QT_QMAKE_EXECUTABLE:STRING=%{Qt:qmakeExecutable}" };
             CMakeConfigurationKitInformation::fromStringList(k, cmakeConf);
+            CMakeGeneratorKitInformation().setup(k);
         }
     } else {
         qCWarning(Log::sdks) << "CMake wrapper script" << cmakeWrapper.toString() << "not found";
