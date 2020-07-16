@@ -367,12 +367,24 @@ void Command::maybeDoCMakePathMapping()
             // Map paths and add variables that were filtered out by
             // CMakeCommand::filterQtcSettings(). If not added, QtC would complain
             // about changed configuration.
-            fixVar(&data, "CMAKE_CXX_COMPILER", "FILEPATH", sdkToolsPath() + "/gcc", true);
-            fixVar(&data, "CMAKE_C_COMPILER", "FILEPATH", sdkToolsPath() + "/gcc", true);
-            fixVar(&data, "CMAKE_COMMAND", "INTERNAL", sdkToolsPath() + "/cmake", true);
-            fixVar(&data, "CMAKE_SYSROOT", "PATH", sharedTargetRoot, true);
-            fixVar(&data, "CMAKE_PREFIX_PATH", "PATH", sharedTargetRoot + "/usr", true);
-            fixVar(&data, "QT_QMAKE_EXECUTABLE", "FILEPATH", sdkToolsPath() + "/qmake", usesQt);
+            fixVar(&data, "CMAKE_CXX_COMPILER", "FILEPATH",
+                    sdkToolsPath() + '/' + Sfdk::Constants::WRAPPER_GCC,
+                    true);
+            fixVar(&data, "CMAKE_C_COMPILER", "FILEPATH",
+                    sdkToolsPath() + '/' + Sfdk::Constants::WRAPPER_GCC,
+                    true);
+            fixVar(&data, "CMAKE_COMMAND", "INTERNAL",
+                    sdkToolsPath() + '/' + Sfdk::Constants::WRAPPER_CMAKE,
+                    true);
+            fixVar(&data, "CMAKE_SYSROOT", "PATH",
+                    sharedTargetRoot,
+                    true);
+            fixVar(&data, "CMAKE_PREFIX_PATH", "PATH",
+                    sharedTargetRoot + "/usr",
+                    true);
+            fixVar(&data, "QT_QMAKE_EXECUTABLE", "FILEPATH",
+                    sdkToolsPath() + '/' + Sfdk::Constants::WRAPPER_QMAKE,
+                    usesQt);
         }
 
         data.replace(QRegularExpression("((?<!INCLUDE_INSTALL_DIR:PATH=)/usr/(local/)?include\\b)"),
