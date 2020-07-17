@@ -358,6 +358,9 @@ void Command::maybeDoCMakePathMapping()
             updateOrAddToCMakeCacheIf(&data, "CMAKE_SYSROOT", {"PATH", "STRING"},
                     sharedTargetRoot,
                     false);
+            updateOrAddToCMakeCacheIf(&data, "CMAKE_PREFIX_PATH", {"PATH", "STRING"},
+                    sharedTargetRoot + "/usr",
+                    true);
             // See qmakeFromCMakeCache() in cmakeprojectimporter.cpp
             const QRegularExpression qt5CoreDirRe("Qt5Core_DIR:(PATH|STRING)=.*");
             updateOrAddToCMakeCacheIf(&data, "QT_QMAKE_EXECUTABLE", {"FILEPATH", "STRING"},
