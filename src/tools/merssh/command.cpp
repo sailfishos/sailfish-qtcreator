@@ -347,8 +347,18 @@ void Command::maybeDoCMakePathMapping()
 
         data.replace(QRegularExpression("CMAKE_CXX_COMPILER:(FILEPATH|STRING)=.*"),
                 "CMAKE_CXX_COMPILER:\\1=" + sdkToolsPath() + "/" + Sfdk::Constants::WRAPPER_GCC);
-        data.replace(QRegularExpression("CMAKE_C_COMPILER:(FILEPATH|STRING)=.*"),
-                "CMAKE_C_COMPILER:\\1=" + sdkToolsPath() + "/" + Sfdk::Constants::WRAPPER_GCC);
+
+        const QRegularExpression ccRe("CMAKE_C_COMPILER:(FILEPATH|STRING)=.*");
+        if (data.contains(ccRe)) {
+            data.replace(QRegularExpression("CMAKE_C_COMPILER:(FILEPATH|STRING)=.*"),
+                    "CMAKE_C_COMPILER:\\1=" + sdkToolsPath() + "/" + Sfdk::Constants::WRAPPER_GCC);
+        } else {
+            data.append("CMAKE_C_COMPILER:FILEPATH=" + sdkToolsPath() + "/" + Sfdk::Constants::WRAPPER_GCC + "\n");
+        }
+
+        const QRegularExpression cmakePrefixRe("CMAKE_PREFIX_PATH:(PATH:STRING)=.*");
+        if (!data.contains(cmakePrefixRe))
+            data.append("CMAKE_PREFIX_PATH:STRING=" + sharedTargetRoot + "/usr");
 
         data.replace(QRegularExpression("CMAKE_COMMAND:INTERNAL=.*"),
                 "CMAKE_COMMAND:INTERNAL=" + sdkToolsPath() + "/" + Sfdk::Constants::WRAPPER_CMAKE);
