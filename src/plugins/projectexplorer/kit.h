@@ -128,9 +128,9 @@ public:
     bool hasFeatures(const QSet<Core::Id> &features) const;
     Utils::MacroExpander *macroExpander() const;
 
-private:
     void setSdkProvided(bool sdkProvided);
 
+private:
     // Unimplemented.
     Kit(const Kit &other);
     void operator=(const Kit &other);
