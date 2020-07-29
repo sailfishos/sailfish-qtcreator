@@ -444,7 +444,8 @@ bool MerSdkManager::addKit(const BuildEngine *buildEngine, const QString &buildT
     Kit* kitptr = kit(buildEngine, buildTargetName);
     std::unique_ptr<Kit> kit(nullptr);
     if (!kitptr) {
-        kit = std::make_unique<Kit>();
+        kit = std::make_unique<Kit>(Core::Id::fromSetting(QVariant(buildTargetName)));
+        kit->setSdkProvided(true);
         kitptr = kit.get();
     }
 
