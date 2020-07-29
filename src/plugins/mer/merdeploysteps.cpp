@@ -304,7 +304,7 @@ void MerProcessStep::setArguments(const QString &arguments)
 
 Core::Id MerEmulatorStartStep::stepId()
 {
-    return Core::Id("Mer.MerEmulatorStartStep");
+    return Core::Id("QmakeProjectManager.MerEmulatorStartStep");
 }
 
 QString MerEmulatorStartStep::displayName()
@@ -336,7 +336,7 @@ bool MerEmulatorStartStep::init()
 
 Core::Id MerConnectionTestStep::stepId()
 {
-    return Core::Id("Mer.MerConnectionTestStep");
+    return Core::Id("QmakeProjectManager.MerConnectionTestStep");
 }
 
 QString MerConnectionTestStep::displayName()
@@ -418,7 +418,7 @@ void MerConnectionTestStep::finish(bool result)
 
 Core::Id MerPrepareTargetStep::stepId()
 {
-    return Core::Id("Mer.MerPrepareTargetStep");
+    return Core::Id("QmakeProjectManager.MerPrepareTargetStep");
 }
 
 QString MerPrepareTargetStep::displayName()
@@ -482,7 +482,7 @@ BuildStepConfigWidget *MerPrepareTargetStep::createConfigWidget()
 
 Core::Id MerMb2RsyncDeployStep::stepId()
 {
-    return Core::Id("Mer.MerRsyncDeployStep");
+    return Core::Id("QmakeProjectManager.MerRsyncDeployStep");
 }
 
 QString MerMb2RsyncDeployStep::displayName()
@@ -519,7 +519,7 @@ BuildStepConfigWidget *MerMb2RsyncDeployStep::createConfigWidget()
 
 Core::Id MerLocalRsyncDeployStep::stepId()
 {
-    return Core::Id("Mer.MerLocalRsyncDeployStep");
+    return Core::Id("QmakeProjectManager.MerLocalRsyncDeployStep");
 }
 
 QString MerLocalRsyncDeployStep::displayName()
@@ -604,7 +604,7 @@ BuildStepConfigWidget *MerLocalRsyncDeployStep::createConfigWidget()
 
 Core::Id MerMb2RpmDeployStep::stepId()
 {
-    return Core::Id("Mer.MerRpmDeployStep");
+    return Core::Id("QmakeProjectManager.MerRpmDeployStep");
 }
 
 QString MerMb2RpmDeployStep::displayName()
@@ -644,7 +644,7 @@ BuildStepConfigWidget *MerMb2RpmDeployStep::createConfigWidget()
 
 Core::Id MerMb2RpmBuildStep::stepId()
 {
-    return Core::Id("Mer.MerRpmBuildStep");
+    return Core::Id("QmakeProjectManager.MerRpmBuildStep");
 }
 
 QString MerMb2RpmBuildStep::displayName()
@@ -765,7 +765,7 @@ void RpmInfo::openContainingFolder()
 
 Core::Id MerRpmValidationStep::stepId()
 {
-    return Core::Id("Mer.MerRpmValidationStep");
+    return Core::Id("QmakeProjectManager.MerRpmValidationStep");
 }
 
 QString MerRpmValidationStep::displayName()
