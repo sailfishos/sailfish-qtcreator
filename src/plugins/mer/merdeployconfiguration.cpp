@@ -71,7 +71,7 @@ QString MerRpmDeployConfigurationFactory::displayName()
 
 Core::Id MerRpmDeployConfigurationFactory::configurationId()
 {
-    return Core::Id("Mer.MerRpmDeployConfiguration");
+    return Core::Id("QmakeProjectManager.MerRpmDeployConfiguration");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -89,7 +89,7 @@ QString MerRsyncDeployConfigurationFactory::displayName()
 
 Core::Id MerRsyncDeployConfigurationFactory::configurationId()
 {
-    return Core::Id("Mer.MerRSyncDeployConfiguration");
+    return Core::Id("QmakeProjectManager.MerRSyncDeployConfiguration");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -106,7 +106,7 @@ QString MerMb2RpmBuildConfigurationFactory::displayName()
 
 Core::Id MerMb2RpmBuildConfigurationFactory::configurationId()
 {
-    return Core::Id("Mer.MerMb2RpmBuildConfiguration");
+    return Core::Id("QmakeProjectManager.MerMb2RpmBuildConfiguration");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

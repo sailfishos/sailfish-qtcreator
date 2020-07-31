@@ -305,7 +305,7 @@ void MerProcessStep::setArguments(const QString &arguments)
 
 Core::Id MerEmulatorStartStep::stepId()
 {
-    return Core::Id("Mer.MerEmulatorStartStep");
+    return Core::Id("QmakeProjectManager.MerEmulatorStartStep");
 }
 
 QString MerEmulatorStartStep::displayName()
@@ -337,7 +337,7 @@ bool MerEmulatorStartStep::init()
 
 Core::Id MerConnectionTestStep::stepId()
 {
-    return Core::Id("Mer.MerConnectionTestStep");
+    return Core::Id("QmakeProjectManager.MerConnectionTestStep");
 }
 
 QString MerConnectionTestStep::displayName()
@@ -419,7 +419,7 @@ void MerConnectionTestStep::finish(bool result)
 
 Core::Id MerPrepareTargetStep::stepId()
 {
-    return Core::Id("Mer.MerPrepareTargetStep");
+    return Core::Id("QmakeProjectManager.MerPrepareTargetStep");
 }
 
 QString MerPrepareTargetStep::displayName()
@@ -482,7 +482,7 @@ BuildStepConfigWidget *MerPrepareTargetStep::createConfigWidget()
 
 Core::Id MerMb2RsyncDeployStep::stepId()
 {
-    return Core::Id("Mer.MerRsyncDeployStep");
+    return Core::Id("QmakeProjectManager.MerRsyncDeployStep");
 }
 
 QString MerMb2RsyncDeployStep::displayName()
@@ -519,7 +519,7 @@ BuildStepConfigWidget *MerMb2RsyncDeployStep::createConfigWidget()
 
 Core::Id MerLocalRsyncDeployStep::stepId()
 {
-    return Core::Id("Mer.MerLocalRsyncDeployStep");
+    return Core::Id("QmakeProjectManager.MerLocalRsyncDeployStep");
 }
 
 QString MerLocalRsyncDeployStep::displayName()
@@ -603,7 +603,7 @@ BuildStepConfigWidget *MerLocalRsyncDeployStep::createConfigWidget()
 
 Core::Id MerMb2RpmDeployStep::stepId()
 {
-    return Core::Id("Mer.MerRpmDeployStep");
+    return Core::Id("QmakeProjectManager.MerRpmDeployStep");
 }
 
 QString MerMb2RpmDeployStep::displayName()
@@ -643,7 +643,7 @@ BuildStepConfigWidget *MerMb2RpmDeployStep::createConfigWidget()
 
 Core::Id MerMb2RpmBuildStep::stepId()
 {
-    return Core::Id("Mer.MerRpmBuildStep");
+    return Core::Id("QmakeProjectManager.MerRpmBuildStep");
 }
 
 QString MerMb2RpmBuildStep::displayName()
@@ -694,9 +694,10 @@ void MerMb2RpmBuildStep::processFinished(int exitCode, QProcess::ExitStatus stat
     }
 }
 
-QStringList MerMb2RpmBuildStep::packagesFilePath() const
+QString MerMb2RpmBuildStep::mainPackageFileName() const
 {
-    return m_packages;
+    QTC_ASSERT(!m_packages.isEmpty(), return {});
+    return m_packages.first();
 }
 
 BuildStepConfigWidget *MerMb2RpmBuildStep::createConfigWidget()
@@ -709,12 +710,9 @@ BuildStepConfigWidget *MerMb2RpmBuildStep::createConfigWidget()
 
 void MerMb2RpmBuildStep::stdOutput(const QString &line)
 {
-    QRegExp rexp(QLatin1String("^Wrote: (/.*RPMS.*\\.rpm)"));
+    QRegExp rexp(QLatin1String("^Wrote: (.*RPMS.*\\.rpm)"));
     if (rexp.indexIn(line) != -1) {
         QString file = rexp.cap(1);
-        //TODO First replace shared home and then shared src (error prone!)
-        file.replace(QRegExp(QString("^") + Sfdk::Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT), m_sharedHome);
-        file.replace(QRegExp(QString("^") + Sfdk::Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT), m_sharedSrc);
         m_packages.append(QDir::toNativeSeparators(file));
     }
     MerProcessStep::stdOutput(line);
@@ -769,7 +767,7 @@ void RpmInfo::openContainingFolder()
 
 Core::Id MerRpmValidationStep::stepId()
 {
-    return Core::Id("Mer.MerRpmValidationStep");
+    return Core::Id("QmakeProjectManager.MerRpmValidationStep");
 }
 
 QString MerRpmValidationStep::displayName()
@@ -834,9 +832,9 @@ void MerRpmValidationStep::doRun()
 
     emit addOutput(tr("Validating RPM package..."), OutputFormat::NormalMessage);
 
-    const QString packageFile = m_packagingStep->packagesFilePath().first();
+    const QString packageFile = m_packagingStep->mainPackageFileName();
     if(!packageFile.endsWith(QLatin1String(".rpm"))){
-        const QString message((tr("No package to validate found in %1")).arg(packageFile));
+        const QString message(tr("No package to validate found"));
         emit addTask(Task(Task::Error, message, Utils::FilePath(), -1,
                     ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM),
                 1);

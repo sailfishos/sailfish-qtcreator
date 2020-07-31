@@ -67,9 +67,26 @@ const char* SIMPLE_WRAPPERS[] = {
  * \class RpmValidationSuiteData
  */
 
+bool RpmValidationSuiteData::operator==(const RpmValidationSuiteData &other) const
+{
+    return id == other.id
+        && name == other.name
+        && website == other.website
+        && essential == other.essential;
+}
+
 /*!
  * \class BuildTargetData
  */
+
+bool BuildTargetData::operator==(const BuildTargetData &other) const
+{
+    return name == other.name
+        && sysRoot == other.sysRoot
+        && toolsPath == other.toolsPath
+        && gdb == other.gdb
+        && rpmValidationSuites == other.rpmValidationSuites;
+}
 
 bool BuildTargetData::isValid() const
 {
@@ -602,11 +619,33 @@ void BuildEnginePrivate::updateBuildTargets(QList<BuildTargetDump> newTargets)
 {
     Q_Q(BuildEngine);
 
+    QList<BuildTargetData> newTargetsData = Utils::transform(newTargets,
+            std::bind(&BuildEnginePrivate::createTargetData, this, std::placeholders::_1));
+
     QList<int> toRemove;
 
     for (int i = 0; i < buildTargets.count(); ++i) {
-        if (!newTargets.removeOne(buildTargets.at(i)))
-            toRemove.append(i);
+        const int match = newTargets.indexOf(buildTargets.at(i));
+        if (match != -1) {
+            newTargets.removeAt(match);
+            newTargetsData.removeAt(match);
+            continue;
+        }
+
+        const int dataMatch = newTargetsData.indexOf(buildTargetsData.at(i));
+        if (dataMatch != -1) {
+            qCDebug(engine) << "Updating build target" << buildTargets.at(i).name;
+            buildTargets[i] = newTargets[dataMatch];
+            newTargets.removeAt(dataMatch);
+            newTargetsData.removeAt(dataMatch);
+            if (!SdkPrivate::useSystemSettingsOnly()) {
+                deinitBuildTargetAt(i);
+                initBuildTargetAt(i);
+            }
+            continue;
+        }
+
+        toRemove.append(i);
     }
 
     Utils::reverseForeach(toRemove, [=](int i) {

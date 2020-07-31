@@ -71,6 +71,8 @@ private:
     static QString readRelativeRoot();
     void maybeDoCMakePathMapping();
     void maybeUndoCMakePathMapping();
+    static void updateOrAddToCMakeCacheIf(QString *data, const QString &name,
+            const QStringList &types, const QString &value, bool shouldAdd);
 
 private:
     QStringList m_rawArgs;
