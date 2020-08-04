@@ -37,9 +37,14 @@ export function validateSearchOutputDirOption(value) {
 }
 
 export function mapCompilationDatabasePaths() {
-    if (!utils.isFile("compile_commands.json"))
+    // Projects may use a subdirectory to store sources
+    var maxDepth = 1;
+    // Do a wide search as multiple compile DBs may appear deeper in the tree
+    // depending on the way a particular package is built.
+    var compilationDb = utils.findFile_wide(".", maxDepth, "compile_commands.json");
+    if (!compilationDb)
         return;
-    utils.updateFile("compile_commands.json", function (data) {
+    utils.updateFile(compilationDb, function (data) {
         var target = configuration.optionArgument('target');
         var sysroot = buildEngine.sharedTargetsPath + '/' + target;
         var toolsPath = buildEngine.buildTargetToolsPath(target);

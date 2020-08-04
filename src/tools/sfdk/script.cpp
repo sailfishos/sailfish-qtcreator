@@ -35,6 +35,7 @@
 #include <utils/qtcassert.h>
 
 #include <QDir>
+#include <QDirIterator>
 #include <QFileInfo>
 #include <QRegularExpression>
 
@@ -84,6 +85,26 @@ public:
     Q_INVOKABLE bool isFile(const QString &fileName) const
     {
         return QFileInfo(fileName).isFile();
+    }
+
+    Q_INVOKABLE QString findFile_wide(const QStringList &paths, int maxDepth, const QString &nameFilter) const
+    {
+        QStringList subdirs;
+
+        for (const QString &path : paths) {
+            QDir dir(path);
+            for (const QFileInfo &entryInfo : dir.entryInfoList({nameFilter}, QDir::Files))
+                return entryInfo.filePath();
+            if (maxDepth == 0)
+                continue;
+            for (const QFileInfo &subdirEntryInfo : dir.entryInfoList(QDir::Dirs))
+                subdirs.append(subdirEntryInfo.filePath());
+        }
+
+        if (subdirs.isEmpty())
+            return {};
+
+        return findFile_wide(subdirs, maxDepth - 1, nameFilter);
     }
 
     Q_INVOKABLE void updateFile(const QString &fileName, QJSValue filterCallback) const
