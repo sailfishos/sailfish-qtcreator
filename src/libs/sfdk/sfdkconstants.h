@@ -97,6 +97,7 @@ const char WRAPPER_RPM[] = "rpm" SCRIPT_EXTENSION;
 const char WRAPPER_RPMVALIDATION[] = "rpmvalidation" SCRIPT_EXTENSION;
 const char WRAPPER_LUPDATE[] = "lupdate" SCRIPT_EXTENSION;
 const char WRAPPER_PKG_CONFIG[] = "pkg-config" SCRIPT_EXTENSION;
+const char WRAPPER_MAKE_INSTALL[] = "make-install" SCRIPT_EXTENSION;
 const char QMAKE_QUERY_CACHE[] = "qmake.query";
 const char CMAKE_VERSION_CACHE[] = "cmake.version";
 const char GCC_DUMP_MACHINE_CACHE[] = "gcc.dumpmachine";

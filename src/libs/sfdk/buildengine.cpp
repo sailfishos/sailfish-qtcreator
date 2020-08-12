@@ -57,6 +57,7 @@ const char* SIMPLE_WRAPPERS[] = {
     Constants::WRAPPER_CMAKE,
     Constants::WRAPPER_QMAKE,
     Constants::WRAPPER_MAKE,
+    Constants::WRAPPER_MAKE_INSTALL,
     Constants::WRAPPER_GCC,
     Constants::WRAPPER_DEPLOY,
     Constants::WRAPPER_RPM,

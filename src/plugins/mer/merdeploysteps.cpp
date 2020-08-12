@@ -501,6 +501,65 @@ BuildStepConfigWidget *MerPrepareTargetStep::createConfigWidget()
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
+Core::Id MerMb2MakeInstallStep::stepId()
+{
+    return Core::Id("QmakeProjectManager.MerMakeInstallBuildStep");
+}
+
+QString MerMb2MakeInstallStep::displayName()
+{
+    return QLatin1String("Make install");
+}
+
+MerMb2MakeInstallStep::MerMb2MakeInstallStep(BuildStepList *bsl, Id id)
+    : MerProcessStep(bsl, id)
+{
+    setDefaultDisplayName(displayName());
+}
+
+bool MerMb2MakeInstallStep::init()
+{
+    bool success = MerProcessStep::init(DoNotNeedDevice);
+    //hack
+    ProcessParameters *pp = processParameters();
+    QString make = pp->command().executable().toString();
+    make.replace(
+            QLatin1String(Sfdk::Constants::WRAPPER_DEPLOY),
+            QLatin1String(Sfdk::Constants::WRAPPER_MAKE_INSTALL));
+    CommandLine makeCommand(make);
+    makeCommand.addArgs(pp->command().arguments(), CommandLine::Raw);
+    pp->setCommandLine(makeCommand);
+    return success;
+}
+
+void MerMb2MakeInstallStep::doRun()
+{
+   AbstractProcessStep::doRun();
+}
+
+BuildStepConfigWidget *MerMb2MakeInstallStep::createConfigWidget()
+{
+    auto widget = new MerDeployStepWidget(this);
+    m_widget = widget;
+    BuildConfiguration *const bc = buildConfiguration();
+    connect(bc, &BuildConfiguration::buildDirectoryChanged, this, &MerMb2MakeInstallStep::updateSummaryText);
+
+    updateSummaryText();
+
+    widget->setCommandText("mb2 make-install");
+    return widget;
+}
+
+void MerMb2MakeInstallStep::updateSummaryText()
+{
+    BuildConfiguration *const bc = buildConfiguration();
+    auto widget = qobject_cast<MerDeployStepWidget *>(m_widget);
+    if (widget)
+        widget->formatAndSetSummaryText(tr("make install in %1").arg(bc->buildDirectory().toString()));
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+
 Core::Id MerMb2RsyncDeployStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerRsyncDeployStep");
@@ -508,7 +567,7 @@ Core::Id MerMb2RsyncDeployStep::stepId()
 
 QString MerMb2RsyncDeployStep::displayName()
 {
-    return QLatin1String("Rsync");
+    return QLatin1String("Rsync deploy");
 }
 
 MerMb2RsyncDeployStep::MerMb2RsyncDeployStep(BuildStepList *bsl, Core::Id id)

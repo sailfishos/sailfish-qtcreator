@@ -139,6 +139,22 @@ private:
     QFutureWatcher<bool> m_watcher;
 };
 
+class MerMb2MakeInstallStep : public MerProcessStep
+{
+    Q_OBJECT
+public:
+    explicit MerMb2MakeInstallStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
+    bool init() override;
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
+    static Core::Id stepId();
+    static QString displayName();
+private slots:
+    void updateSummaryText();
+protected:
+    void doRun() override;
+    ProjectExplorer::BuildStepConfigWidget *m_widget = nullptr;
+};
+
 class MerMb2RsyncDeployStep : public MerProcessStep
 {
     Q_OBJECT

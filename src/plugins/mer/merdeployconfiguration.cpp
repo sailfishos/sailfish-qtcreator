@@ -80,6 +80,7 @@ Core::Id MerRpmDeployConfigurationFactory::configurationId()
 MerRsyncDeployConfigurationFactory::MerRsyncDeployConfigurationFactory()
 {
     addInitialStep(MerPrepareTargetStep::stepId());
+    addInitialStep(MerMb2MakeInstallStep::stepId());
     addInitialStep(MerMb2RsyncDeployStep::stepId());
 }
 

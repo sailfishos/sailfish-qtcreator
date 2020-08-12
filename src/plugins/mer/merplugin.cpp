@@ -147,6 +147,7 @@ public:
     MerQmlRunConfigurationFactory qmlRunConfigurationFactory;
     MerBuildStepFactory<MerSdkStartStep> sdkStartStepFactory;
     MerDeployStepFactory<MerPrepareTargetStep> prepareTargetStepFactory;
+    MerDeployStepFactory<MerMb2MakeInstallStep> mb2RsyncBuildStepFactory;
     MerDeployStepFactory<MerMb2RsyncDeployStep> mb2RsyncDeployStepFactory;
     MerDeployStepFactory<MerMb2RpmDeployStep> mb2RpmDeployStepFactory;
     MerDeployStepFactory<MerMb2RpmBuildStep> mb2RpmBuildStepFactory;
