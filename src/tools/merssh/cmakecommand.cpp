@@ -85,7 +85,7 @@ int CMakeCommand::execute()
     QStringList filteredArguments;
     for (const QString &argument : splitArguments) {
         // See CMakeProjectManager::BuildDirManager::writeConfigurationIntoBuildDirectory()
-        if (argument.endsWith(QDir::separator() + QLatin1String("qtcsettings.cmake"))) {
+        if (argument.endsWith('/' + QLatin1String("qtcsettings.cmake"))) {
             const QString filteredPath = filterQtcSettings(argument);
             if (filteredPath.isNull())
                 return 1;
