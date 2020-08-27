@@ -680,6 +680,8 @@ BuildTargetData BuildEnginePrivate::createTargetData(const BuildTargetDump &targ
         data.gdb = FilePath::fromString(Constants::DEFAULT_DEBUGGER_i486_FILENAME);
     else if (targetDump.gccDumpMachine.contains(Constants::ARM_IDENTIFIER))
         data.gdb = FilePath::fromString(Constants::DEFAULT_DEBUGGER_ARM_FILENAME);
+    else if (targetDump.gccDumpMachine.contains(Constants::AARCH64_IDENTIFIER))
+        data.gdb = FilePath::fromString(Constants::DEFAULT_DEBUGGER_AARCH64_FILENAME);
 
     data.rpmValidationSuites = rpmValidationSuitesFromString(targetDump.rpmValidationSuites);
 
