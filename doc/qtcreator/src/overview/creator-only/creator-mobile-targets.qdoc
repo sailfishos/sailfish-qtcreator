@@ -53,9 +53,8 @@
 
         \li \l{Connecting Sailfish OS Devices}
 
-            You can deploy and run applications on the Sailfish OS emulator
-            directly from \QC. You must install the Sailfish SDK to develop
-            for Sailfish OS devices.
+            You can deploy and run applications on Sailfish OS devices
+            directly from \QC.
 
         \li \l{Connecting Android Devices}
 
