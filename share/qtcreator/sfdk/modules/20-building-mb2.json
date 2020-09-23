@@ -150,7 +150,7 @@
         },
         {
             "name": "no-pull-build-requires",
-            "trDescription": "Do not update build-time dependencies"
+            "trDescription": "Do not update build-time dependencies unless required explicitly with 'build-requires pull'."
         }
     ]
 }
