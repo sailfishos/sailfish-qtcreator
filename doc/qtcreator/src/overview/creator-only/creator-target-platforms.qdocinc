@@ -41,8 +41,7 @@
         \li \l{Connecting QNX Devices}{QNX}
         \li \l{Qt for UWP}{Universal Windows Platform (UWP)}
         \li \l{Building Applications for the Web}{WebAssembly}
-        \li \l{FIXME}{Mer}
-        \li \l{FIXME}{Sailfish OS}
+        \li \l{Connecting Sailfish OS Devices}{Sailfish OS}
     \endlist
 
     \section2 Boot2Qt Devices
@@ -108,11 +107,6 @@
             \li \image ok
         \row
             \li WebAssembly
-            \li \image ok
-            \li \image ok
-            \li \image ok
-        \row
-            \li Mer
             \li \image ok
             \li \image ok
             \li \image ok

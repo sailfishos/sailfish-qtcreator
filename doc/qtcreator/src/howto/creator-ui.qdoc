@@ -321,10 +321,6 @@
         \li \uicontrol{\l{Using the Help Mode}{Help}} mode for viewing Qt
             documentation.
 
-        \li \uicontrol{\l{Connecting Sailfish OS Devices}{Sailfish OS}} mode for accessing the
-            build engine's \uicontrol {Control Centre} to install tool chains and targets.
-            This mode is available after you install the Sailfish SDK.
-
     \endlist
 
     Certain actions in \QC trigger a mode change. Clicking on \uicontrol {Debug} >

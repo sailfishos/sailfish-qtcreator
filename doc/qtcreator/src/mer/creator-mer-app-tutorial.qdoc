@@ -40,42 +40,29 @@
         \li Select \gui File > \gui {New File or Project} > \gui {Sailfish OS} >
             \gui {Sailfish OS Qt Quick Application} > \gui Choose.
 
-            \image creator-sailfish-tutorial-1.png "New project wizard"
+            \image creator-sailfish-tutorial-1.png "Project type selection"
 
-            The \gui {Introduction and Project Location} dialog opens.
+        \li The project wizard dialog opens. Fill in application \gui Name and
+            choose the project location in the \gui {Create in} field.
 
-            \image creator-sailfish-tutorial-1a.png "Introduction and Project Location"
+            You can create applications under your user home directory and
+            (optionally) under an additional source directory if you specified
+            that during the installation of the Sailfish SDK. If you select
+            some other directory, a warning is displayed.
 
-        \li In the \gui{Name} field, type \b {HelloWorld}.
+        \li Proceed to the next page to fill in \gui {Application Details}.
 
-        \li In the \gui {Create in} field, enter the path for the project files,
-            and then click \gui{Next} (on
-            Windows and Linux) or \gui Continue (on Mac OS).
+        \li On the \gui {Build System} page choose the build system to use for
+            this project - either qmake or CMake.
 
-        \li Select the Sailfish OS \l{glossary-buildandrun-kit}{kit} for running
-            and building your project, and then click \gui{Next}. You can create
-            applications in the Sailfish SDK installation directory and in an
-            additional source directory that you specify during the installation
-            of the Sailfish SDK. These directories are shared with the
-            Sailfish OS build engine virtual machine. If you select some other
-            directory, a warning is displayed.
+        \li As a last step select the initial set of Sailfish OS
+            \l{glossary-buildandrun-kit}{kits} for building and running your
+            project.
 
-            \image creator-sailfish-tutorial-2.png "Kit Selection dialog"
+            \image creator-sailfish-tutorial-all.png "Sailfish OS Qt Quick Application wizard"
 
-            \note Kits are listed if they have been specified in \gui Tools >
-            \gui Options > \gui {Build & Run} > \gui Kits. If a suitable kit is
-            missing, see \l{Connecting Sailfish OS Devices}.
-
-        \li In the \gui {Application Details} dialog, specify information about the
-            application. The information can be displayed in the app store and
-            on the device.
-
-            \image creator-sailfish-tutorial-3.png "Application Details dialog"
-
-        \li Select \gui Next.
-
-        \li Review the project settings, and click \gui{Finish} (on Windows and
-            Linux) or \gui Done (on Mac OS) to create the project.
+        \li A summary of chosen actions will be shown before the actual
+            project creations starts for your confirmation.
 
     \endlist
 
