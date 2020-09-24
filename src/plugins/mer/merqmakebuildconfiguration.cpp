@@ -273,6 +273,15 @@ void MerQmakeBuildConfiguration::maybeUpdateExtraParserArguments(bool now)
 
 void MerQmakeBuildConfiguration::updateExtraParserArguments()
 {
+    QMakeStep *qs = qmakeStep();
+    QTC_ASSERT(qs, return);
+
+    // If the full build or just the qmake part was started meanwhile
+    if (BuildManager::isBuilding(qs)) {
+        qCDebug(Log::qmakeArgs) << "qmake already running/scheduled - skipping";
+        return;
+    }
+
     const BuildEngine *const buildEngine = MerSdkKitAspect::buildEngine(target()->kit());
     QTC_ASSERT(buildEngine, return);
 
@@ -284,9 +293,6 @@ void MerQmakeBuildConfiguration::updateExtraParserArguments()
 
         BuildManager::appendStep(sdkStartStep, sdkStartStep->displayName());
     }
-
-    QMakeStep *qs = qmakeStep();
-    QTC_ASSERT(qs, return);
 
     qs->setForced(true); // gets cleared automatically
     qs->setRecursive(false);
