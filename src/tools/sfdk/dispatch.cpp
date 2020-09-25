@@ -461,7 +461,8 @@ bool Dispatcher::loadOptions(const Module *module, const QVariantList &list,
         option->argumentDescription = localizedString(argumentDescription.toString());
 
         if (!option->argumentDescription.isNull()) {
-            option->argumentType = option->argumentDescription.startsWith('[')
+            option->argumentType =
+                option->argumentDescription.startsWith('[') && option->argumentDescription.endsWith(']')
                 ? Option::OptionalArgument
                 : Option::MandatoryArgument;
         } else {
