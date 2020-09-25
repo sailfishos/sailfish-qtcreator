@@ -48,6 +48,7 @@
 
 #include <QCommandLineParser>
 #include <QDebug>
+#include <QRegularExpression>
 
 using namespace Sfdk;
 using namespace Utils;
@@ -59,16 +60,16 @@ const char INITIAL_ARGUMENTS_KEY[] = "initialArguments";
 const char OMIT_SUBCOMMAND_KEY[] = "omitSubcommand";
 const char DIRECT_TERMINAL_INPUT_KEY[] = "directTerminalInput";
 
-const char ENGINE_HOST_NAME[] = "hostName";
+const char ENGINE_HOST_NAME[] = "host-name";
 
 const char WWW_PROXY_TYPE[] = "proxy";
 const char WWW_PROXY_SERVERS[] = "proxy.servers";
 const char WWW_PROXY_EXCLUDES[] = "proxy.excludes";
 
-const char VM_MEMORY_SIZE_MB[] = "vm.memorySize";
-const char VM_SWAP_SIZE_MB[] = "vm.swapSize";
-const char VM_CPU_COUNT[] = "vm.cpuCount";
-const char VM_STORAGE_SIZE_MB[] = "vm.storageSize";
+const char VM_MEMORY_SIZE_MB[] = "vm.memory-size";
+const char VM_SWAP_SIZE_MB[] = "vm.swap-size";
+const char VM_CPU_COUNT[] = "vm.cpu-count";
+const char VM_STORAGE_SIZE_MB[] = "vm.storage-size";
 
 } // namespace anonymous
 
@@ -1748,11 +1749,21 @@ Worker::ExitStatus BuiltinWorker::setProperties(SetPropertiesTask *task,
         }
         const QString property = assignment.left(splitAt);
         const QString value = assignment.mid(splitAt + 1);
+
+        // CamelCase to snake_case for backward compatibility
+        const QString normalizedProperty = QString(property)
+            .replace(QRegularExpression("([A-Z])"), "-\\1").toLower();
+
         QString errorString;
-        if (!task->prepareSet(property, value, &errorString)) {
+        if (!task->prepareSet(normalizedProperty, value, &errorString)) {
             *exitCode = EXIT_FAILURE;
             qerr() << property << ": " << errorString << endl;
             return NormalExit;
+        }
+
+        if (normalizedProperty != property) {
+            qCInfo(sfdk).noquote() << tr("The \"%1\" property is deprecated. Use \"%2\" instead.")
+                .arg(property).arg(normalizedProperty);
         }
     }
 
