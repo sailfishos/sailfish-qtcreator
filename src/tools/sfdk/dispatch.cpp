@@ -104,7 +104,10 @@ Option::ConstList Domain::options() const
     QSet<const Option *> options;
     for (const Command *command : commands())
         options += command->configOptions.toSet();
-    return options.toList();
+
+    auto isDomainOption = [=](const Option *option) { return options.contains(option); };
+    return Utils::filtered(Utils::toRawPointer<QList>(Dispatcher::options()),
+            isDomainOption);
 }
 
 /*!
