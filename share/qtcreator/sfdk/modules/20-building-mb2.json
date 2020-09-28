@@ -36,10 +36,10 @@
         },
         {
             "name": "build",
-            "trSynopsis": "[-p|--prepare] [-d|--enable-debug] [-j <n>] [<project-dir-or-file>] [[--] <rpmbuild-extra-arg>...]",
+            "trSynopsis": "[-p|--prepare] [--no-check] [-d|--enable-debug] [-j <n>] [<project-dir-or-file>] [[--] <rpmbuild-extra-arg>...]",
             "trBrief": "Execute all build steps at once",
             "configOptions": ["*", "target!"],
-            "trDescription": "Run rpmbuild. Execute all sections of the .spec file except for %prep unless told otherwise.\n\nIf path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the .spec file.)\n\n-p     run %prep phase as well\n-d     enable debug build\n-j <n> run up to <n> jobs simultaneously"
+            "trDescription": "Run rpmbuild. Execute all sections of the .spec file except for %prep unless told otherwise.\n\nIf path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the .spec file.)\n\n--prepare         Run %prep section as well\n--no-check        Skip the %check section\n--enable-debug    Enable debug build\n-j <n>            Run up to <n> jobs simultaneously"
         },
         {
             "name": "qmake",
@@ -78,9 +78,10 @@
         },
         {
             "name": "package",
+            "trSynopsis": "[--no-check]",
             "trBrief": "Execute package creation build step",
             "configOptions": ["*", "target!"],
-            "trDescription": "Run rpmbuild. Execute just the %install section of the .spec file, then build binary packages."
+            "trDescription": "Run rpmbuild. Execute just the %install section of the .spec file, then build binary packages. Unless '--no-check' is passed, execute also the %check section if present."
         }
     ],
 
