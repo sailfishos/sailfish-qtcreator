@@ -447,11 +447,14 @@ bool MerSdkManager::addKit(const BuildEngine *buildEngine, const QString &buildT
 
     Core::Id id;
 
+    bool sdkProvided = false;
+
     // Incomplete kits are precreated with sdktool to avoid automatic creation
     // of the Desktop kit
     if (Kit* placeholderKit = kit(buildEngine, buildTargetName)) {
         id = placeholderKit->id();
         KitManager::deregisterKit(placeholderKit);
+        sdkProvided = true;
     }
 
     ToolChainManager::registerToolChain(toolchain.get());
@@ -459,7 +462,7 @@ bool MerSdkManager::addKit(const BuildEngine *buildEngine, const QString &buildT
     QtVersionManager::addVersion(version.get());
 
     auto initializeKit = [&](Kit *kit) {
-        finalizeKitCreation(buildEngine, buildTargetName, kit);
+        finalizeKitCreation(kit, buildEngine, buildTargetName, sdkProvided);
 
         QtKitAspect::setQtVersion(kit, version.get());
         ToolChainKitAspect::setToolChain(kit, toolchain.get());
@@ -515,14 +518,15 @@ Kit *MerSdkManager::kit(const BuildEngine *buildEngine, const QString &buildTarg
     return KitManager::kit(Core::Id::fromSetting(QVariant(buildTargetName)));
 }
 
-void MerSdkManager::finalizeKitCreation(const BuildEngine *buildEngine,
-        const QString &buildTargetName, Kit* k)
+void MerSdkManager::finalizeKitCreation(Kit* k, const BuildEngine *buildEngine,
+        const QString &buildTargetName, bool sdkProvided)
 {
     const BuildTargetData buildTarget = buildEngine->buildTarget(buildTargetName);
     QTC_ASSERT(buildTarget.sysRoot.exists(), return);
 
     k->setAutoDetected(true);
-    k->setSdkProvided(true);
+    if (sdkProvided)
+        k->setSdkProvided(true);
     k->setUnexpandedDisplayName(QString::fromLatin1("%1 (in %2)")
             .arg(buildTargetName, buildEngine->name()));
 
@@ -604,7 +608,9 @@ void MerSdkManager::ensureCmakeToolIsSet(Kit *k, const BuildEngine *buildEngine,
                                       "CMAKE_PREFIX_PATH:STRING=%{Qt:QT_INSTALL_PREFIX}",
                                       "QT_QMAKE_EXECUTABLE:STRING=%{Qt:qmakeExecutable}" };
             CMakeConfigurationKitAspect::fromStringList(k, cmakeConf);
-            CMakeGeneratorKitAspect().setup(k);
+            for (KitAspect *kitAspect : ProjectExplorer::KitManager::kitAspects())
+                if (kitAspect->id() == "CMake.GeneratorKitInformation")
+                    kitAspect->setup(k);
         }
     } else {
         qCWarning(Log::sdks) << "CMake wrapper script" << cmakeWrapper.toString() << "not found";
