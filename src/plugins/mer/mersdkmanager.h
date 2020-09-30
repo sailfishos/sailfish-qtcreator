@@ -77,8 +77,8 @@ private:
     static ProjectExplorer::Kit *kit(const Sfdk::BuildEngine *buildEngine,
             const QString &buildTargetName);
     void checkPkgConfigAvailability();
-    static void finalizeKitCreation(const Sfdk::BuildEngine *buildEngine,
-            const QString &buildTargetName, ProjectExplorer::Kit* k);
+    static void finalizeKitCreation(ProjectExplorer::Kit* k, const Sfdk::BuildEngine *buildEngine,
+            const QString &buildTargetName, bool sdkProvided);
     static void ensureDebuggerIsSet(ProjectExplorer::Kit *k, const Sfdk::BuildEngine *buildEngine,
             const QString &buildTargetName);
     static void ensureCmakeToolIsSet(ProjectExplorer::Kit *k, const Sfdk::BuildEngine *buildEngine,
