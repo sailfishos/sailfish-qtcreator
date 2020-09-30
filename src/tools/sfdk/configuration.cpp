@@ -391,12 +391,13 @@ bool Configuration::toArguments(const Option::ConstList &options,
 
     for (const OptionEffectiveOccurence &occurence : effectiveState()) {
         if (!occurence.isMasked() && options.contains(occurence.option())) {
+            const QString normalizedName = QString(occurence.option()->name).replace('.', '-');
             if (occurence.argument().isEmpty()) {
-                *arguments << "--" + occurence.option()->name;
+                *arguments << "--" + normalizedName;
             } else if (occurence.option()->argumentType == Option::MandatoryArgument) {
-                *arguments << "--" + occurence.option()->name << occurence.argument();
+                *arguments << "--" + normalizedName << occurence.argument();
             } else {
-                *arguments << "--" + occurence.option()->name + "=" + occurence.argument();
+                *arguments << "--" + normalizedName + "=" + occurence.argument();
             }
             unsetRequiredOptions.remove(occurence.option());
         }

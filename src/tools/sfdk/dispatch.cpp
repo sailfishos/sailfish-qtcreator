@@ -104,7 +104,10 @@ Option::ConstList Domain::options() const
     QSet<const Option *> options;
     for (const Command *command : commands())
         options += command->configOptions.toSet();
-    return options.toList();
+
+    auto isDomainOption = [=](const Option *option) { return options.contains(option); };
+    return Utils::filtered(Utils::toRawPointer<QList>(Dispatcher::options()),
+            isDomainOption);
 }
 
 /*!
@@ -461,7 +464,8 @@ bool Dispatcher::loadOptions(const Module *module, const QVariantList &list,
         option->argumentDescription = localizedString(argumentDescription.toString());
 
         if (!option->argumentDescription.isNull()) {
-            option->argumentType = option->argumentDescription.startsWith('[')
+            option->argumentType =
+                option->argumentDescription.startsWith('[') && option->argumentDescription.endsWith(']')
                 ? Option::OptionalArgument
                 : Option::MandatoryArgument;
         } else {
