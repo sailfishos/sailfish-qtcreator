@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -442,6 +442,20 @@ void EmulatorPrivate::updateVmProperties(const QObject *context, const Functor<b
     });
 }
 
+bool EmulatorPrivate::isValid() const
+{
+    QTC_ASSERT(!sharedConfigPath.isEmpty(), return false);
+    QTC_ASSERT(!sharedSshPath.isEmpty(), return false);
+    QTC_ASSERT(!virtualMachine->sshParameters().host().isEmpty(), return false);
+    QTC_ASSERT(!virtualMachine->sshParameters().userName().isEmpty(), return false);
+    QTC_ASSERT(virtualMachine->sshParameters().port(), return false);
+    QTC_ASSERT(qmlLivePorts.count() > 0, return false);
+    QTC_ASSERT(freePorts.count() > 0, return false);
+    QTC_ASSERT(!mac_.isEmpty(), return false);
+    QTC_ASSERT(!subnet_.isEmpty(), return false);
+    return true;
+}
+
 void EmulatorPrivate::setSharedConfigPath(const Utils::FilePath &sharedConfigPath)
 {
     if (this->sharedConfigPath == sharedConfigPath)
@@ -617,7 +631,7 @@ void EmulatorManager::createEmulator(const QUrl &virtualMachineUri, const QObjec
     }
     emulator_d->updateVmProperties(context, [=](bool ok) {
         QTC_CHECK(ok);
-        if (!ok) {
+        if (!ok || !emulator_d->isValid()) {
             functor({});
             return;
         }

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -495,6 +495,21 @@ void BuildEnginePrivate::updateVmProperties(const QObject *context, const Functo
         if (context_)
             functor(true);
     });
+}
+
+bool BuildEnginePrivate::isValid() const
+{
+    QTC_ASSERT(!sharedInstallPath.isEmpty(), return false);
+    QTC_ASSERT(!sharedHomePath.isEmpty(), return false);
+    QTC_ASSERT(!sharedTargetsPath.isEmpty(), return false);
+    QTC_ASSERT(!sharedConfigPath.isEmpty(), return false);
+    QTC_ASSERT(!sharedSrcPath.isEmpty(), return false);
+    QTC_ASSERT(!sharedSshPath.isEmpty(), return false);
+    QTC_ASSERT(!virtualMachine->sshParameters().host().isEmpty(), return false);
+    QTC_ASSERT(!virtualMachine->sshParameters().userName().isEmpty(), return false);
+    QTC_ASSERT(virtualMachine->sshParameters().port(), return false);
+    QTC_ASSERT(wwwPort, return false);
+    return true;
 }
 
 void BuildEnginePrivate::setSharedInstallPath(const Utils::FilePath &sharedInstallPath)
@@ -1097,7 +1112,7 @@ void BuildEngineManager::createBuildEngine(const QUrl &virtualMachineUri, const 
     }
     engine_d->updateVmProperties(context, [=](bool ok) {
         QTC_CHECK(ok);
-        if (!ok) {
+        if (!ok || !engine_d->isValid()) {
             functor({});
             return;
         }
