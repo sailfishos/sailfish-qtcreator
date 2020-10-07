@@ -134,8 +134,10 @@ struct SshConnection::SshConnectionPrivate
             args << "-o" << "UserKnownHostsFile=/dev/null";
         const bool keyOnly = connParams.authenticationType ==
                 SshConnectionParameters::AuthenticationTypeSpecificKey;
-        if (keyOnly)
+        if (keyOnly) {
+            args << "-o" << "IdentitiesOnly=yes";
             args << "-i" << connParams.privateKeyFile;
+        }
         if (keyOnly || SshSettings::askpassFilePath().isEmpty())
             args << "-o" << "BatchMode=yes";
         if (sharingEnabled)
