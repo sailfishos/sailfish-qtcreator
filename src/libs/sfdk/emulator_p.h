@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -62,6 +62,8 @@ public:
     void updateVmProperties(const QObject *context, const Functor<bool> &functor);
 
     QDateTime creationTime_() const { return creationTime; }
+
+    bool isValid() const;
 
 private:
     void setSharedConfigPath(const Utils::FilePath &sharedConfigPath);

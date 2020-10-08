@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -376,7 +376,13 @@ void MerEmulatorOptionsWidget::onAddButtonClicked()
     };
     Sdk::createEmulator(dialog.selectedVmUri(), &loop, whenDone);
     loop.exec();
-    QTC_ASSERT(emulator, return);
+    if (!emulator) {
+        QMessageBox::warning(this,
+                tr("Could not add a %1 Emulator").arg(Sdk::osVariant()),
+                tr("The selected virtual machine could not be configured to be used as a %1 Emulator")
+                    .arg(Sdk::osVariant()));
+        return;
+    }
 
     // FIXME do this on Sfdk side
     SshConnectionParameters sshParameters = emulator->virtualMachine()->sshParameters();
