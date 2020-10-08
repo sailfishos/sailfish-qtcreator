@@ -24,7 +24,7 @@
     ],
 
     "externOptions": [
-        "[force-no-]snapshot",
+        "[no-]snapshot",
         "target"
     ],
 
