@@ -89,7 +89,7 @@ export function mapCompilationDatabasePaths() {
             new RegExp(utils.regExpEscape(buildEngine.sharedSrcMountPoint), "g");
         data = data.replace(sharedSrcMountPointRx, buildEngine.sharedSrcPath);
 
-        data = data.replace(/("[^/]*)\/(usr|lib|opt)\b/g, "$1" + sysroot + "/$2");
+        data = data.replace(/("[^/]*)\/+(usr|lib|opt)\b/g, "$1" + sysroot + "/$2");
 
         return data;
     });
