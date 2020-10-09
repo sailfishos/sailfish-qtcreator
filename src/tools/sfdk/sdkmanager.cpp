@@ -486,13 +486,17 @@ public:
     }
 
     bool installCustomTools(const QString &name, const QString &imageFileOrUrl,
-            SdkManager::ToolsTypeHint typeHint)
+            SdkManager::ToolsTypeHint typeHint, const QString &maybeTooling)
     {
         QStringList args;
         args += toArgs(typeHint);
         args += "create";
         args += name;
         args += imageFileOrUrl;
+        if (!maybeTooling.isEmpty()) {
+            args += "--tooling";
+            args += maybeTooling;
+        }
         const int exitCode = SdkManager::runOnEngine("sdk-assistant", args,
                 QProcess::ManagedInputChannel);
         return exitCode == EXIT_SUCCESS;
@@ -1076,10 +1080,10 @@ bool SdkManager::installTools(const QString &name, ToolsTypeHint typeHint)
 }
 
 bool SdkManager::installCustomTools(const QString &name, const QString &imageFileOrUrl,
-        ToolsTypeHint typeHint)
+        ToolsTypeHint typeHint, const QString &maybeTooling)
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    return ToolsPackageManager().installCustomTools(name, imageFileOrUrl, typeHint);
+    return ToolsPackageManager().installCustomTools(name, imageFileOrUrl, typeHint, maybeTooling);
 }
 
 bool SdkManager::removeTools(const QString &name, ToolsTypeHint typeHint)
