@@ -365,7 +365,7 @@ void Command::maybeDoCMakePathMapping()
                     false);
             updateOrAddToCMakeCacheIf(&data, "CMAKE_SYSROOT", {"PATH", "STRING"},
                     sharedTargetRoot,
-                    false);
+                    true);
             updateOrAddToCMakeCacheIf(&data, "CMAKE_PREFIX_PATH", {"PATH", "STRING"},
                     sharedTargetRoot + "/usr",
                     true);
