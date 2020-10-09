@@ -139,7 +139,8 @@ public:
     static bool registerTools(const QString &maybeName, ToolsTypeHint typeHint,
             const QString &maybeUserName, const QString &maybePassword);
     static bool installTools(const QString &name, ToolsTypeHint typeHint);
-    static bool installCustomTools(const QString &name, const QString &imageFileOrUrl, ToolsTypeHint typeHint);
+    static bool installCustomTools(const QString &name, const QString &imageFileOrUrl,
+            ToolsTypeHint typeHint, const QString &maybeTooling);
     static bool removeTools(const QString &name, ToolsTypeHint typeHint);
 
     static BuildTargetData configuredTarget(QString *errorMessage);
