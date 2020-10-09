@@ -51,8 +51,18 @@ export function mapCompilationDatabasePaths() {
 
         var objects = JSON.parse(data);
 
+        var warnedAboutCommandField = false;
         var badCommands = new Set;
         objects = objects.reduce((acc, object) => {
+            if (object.command) {
+                if (!warnedAboutCommandField) {
+                    console.warn(qsTr("%1: The \"command\" field is not supported - unit(s) excluded")
+                            .qsTr(compilationDb));
+                    warnedAboutCommandField = true;
+                }
+                return acc;
+            }
+
             var command = object.arguments[0];
             if (/\/(.*-)?(gcc|g\+\+|c\+\+|cc|c89|c99)$/.test(command)) {
                 command = toolsPath + "/gcc";
