@@ -49,6 +49,39 @@ export function mapCompilationDatabasePaths() {
         var sysroot = buildEngine.sharedTargetsPath + '/' + target;
         var toolsPath = buildEngine.buildTargetToolsPath(target);
 
+        var objects = JSON.parse(data);
+
+        var warnedAboutCommandField = false;
+        var badCommands = new Set;
+        objects = objects.reduce((acc, object) => {
+            if (object.command) {
+                if (!warnedAboutCommandField) {
+                    console.warn(qsTr("%1: The \"command\" field is not supported - unit(s) excluded")
+                            .qsTr(compilationDb));
+                    warnedAboutCommandField = true;
+                }
+                return acc;
+            }
+
+            var command = object.arguments[0];
+            if (/\/(.*-)?(gcc|g\+\+|c\+\+|cc|c89|c99)$/.test(command)) {
+                command = toolsPath + "/gcc";
+            } else {
+                if (!badCommands.has(command)) {
+                    console.warn(qsTr("%1: Unrecognized compiler executable \"%2\" - unit(s) excluded")
+                            .arg(compilationDb).arg(command));
+                    badCommands.add(command);
+                }
+                return acc;
+            }
+            object.arguments[0] = command;
+
+            acc.push(object);
+            return acc;
+        }, []);
+
+        data = JSON.stringify(objects, null, 1);
+
         var sharedHomeMountPointRx =
             new RegExp(utils.regExpEscape(buildEngine.sharedHomeMountPoint), "g");
         data = data.replace(sharedHomeMountPointRx, buildEngine.sharedHomePath);
@@ -56,18 +89,7 @@ export function mapCompilationDatabasePaths() {
             new RegExp(utils.regExpEscape(buildEngine.sharedSrcMountPoint), "g");
         data = data.replace(sharedSrcMountPointRx, buildEngine.sharedSrcPath);
 
-        data = data.replace(/("[^/]*)\/(usr|lib|opt)\b/g, "$1" + sysroot + "/$2");
-
-        var objects = JSON.parse(data);
-        objects.forEach(object => {
-            var command = object.arguments[0];
-            command = command.substr(command.lastIndexOf('/') + 1);
-            if (command == "g++")
-                command = "gcc";
-            object.arguments[0] = toolsPath + '/' + command;
-        });
-
-        data = JSON.stringify(objects, null, 1);
+        data = data.replace(/("[^/]*)\/+(usr|lib|opt)\b/g, "$1" + sysroot + "/$2");
 
         return data;
     });
