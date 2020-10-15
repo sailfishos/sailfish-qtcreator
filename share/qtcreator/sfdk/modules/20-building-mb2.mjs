@@ -64,7 +64,8 @@ export function mapCompilationDatabasePaths() {
             }
 
             var command = object.arguments[0];
-            if (/\/(.*-)?(gcc|g\+\+|c\+\+|cc|c89|c99)$/.test(command)) {
+            var commandBaseName = command.substring(command.lastIndexOf('/') + 1);
+            if (/^(.*-)?(gcc|g\+\+|c\+\+|cc|c89|c99)$/.test(commandBaseName)) {
                 command = toolsPath + "/gcc";
             } else {
                 if (!badCommands.has(command)) {
