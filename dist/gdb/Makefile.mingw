@@ -15,6 +15,7 @@ gdbtargets=$(addprefix ${targetdir}/bin/gdb-, ${targets})
 packageparts=${targetdir}/bin/lib ${targetdir}/bin/lib ${targetdir}/bin/libiconv-2.dll ${targetdir}/bin/python27.dll ${targetdir}/bin/libexpat-1.dll
 arch=`uname -sm | sed 's/ /-/g' | tr A-Z a-z`
 packagename=sailfish-gdb-${version}-windows.7z
+mingwbin=$(shell dirname $(shell which gcc))
 
 ifdef V
 Q=
@@ -140,5 +141,7 @@ package: ${gdbtargets} ${broot}/python/python.exe ${targetdir}/share/gdb
 	cp ${staging}/bin/libexpat* ${targetdir}/bin && \
 	cp ${pydir}/python*.dll ${targetdir}/bin && \
 	cp -r ${pydir}/lib ${targetdir}/bin && \
+	cp ${mingwbin}/libncursesw-6.dll ${targetdir}/bin && \
+	cp ${mingwbin}/libgcc_s_dw2-1.dll ${targetdir}/bin && \
 	echo "Packing..." && \
 	7z a ${packagename} ${targetdir}/*
