@@ -440,6 +440,9 @@ void CMakeCbpParser::parseUnit()
                     if (fileName.endsWith(".qrc")) {
                         m_fileList.emplace_back(
                                     std::make_unique<FileNode>(fileName, FileType::Resource));
+                    } else if (fileName.endsWith(".qml")) {
+                        m_fileList.emplace_back(
+                                    std::make_unique<FileNode>(fileName, FileType::QML));
                     } else {
                         m_fileList.emplace_back(
                                     std::make_unique<FileNode>(fileName, FileType::Source));
