@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -39,12 +39,14 @@
 #include <mer/merconstants.h>
 #include <mer/mersettings.h>
 #include <utils/algorithm.h>
+#include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
 #include <QDir>
 #include <QPointer>
 #include <QRegularExpression>
+#include <QTemporaryDir>
 #include <QTimer>
 
 #include <bitset>
@@ -60,12 +62,21 @@ const char SDK_MAINTENANCE_TOOL[] = "SDKMaintenanceTool" QTC_HOST_EXE_SUFFIX;
 #endif
 
 const char CUSTOM_PACKAGES_PREFIX[] = "x.";
+
+const char MINIMAL_UPDATES_XML[] = R"(
+<Updates>
+ <ApplicationName>{AnyApplication}</ApplicationName>
+ <ApplicationVersion>1.0.0</ApplicationVersion>
+</Updates>
+)";
+
 } // namespace anonymous
 
 using namespace Mer;
 using namespace Mer::Internal;
 using namespace QSsh;
 using namespace Sfdk;
+using namespace Utils;
 
 namespace Sfdk {
 
@@ -223,11 +234,47 @@ public:
 
     bool fetchInfo(QList<PackageInfo> *info, std::function<bool(const QString &)> filter)
     {
+        const bool includeAvailable = true;
+        return fetchInfo(info, includeAvailable, filter);
+    }
+
+    bool fetchInfo(QList<PackageInfo> *info, bool includeAvailable,
+            std::function<bool(const QString &)> filter)
+    {
+        // Avoid unnecessary network access - use an empty temporary repository unless
+        // includeAvailable is set
+        auto maybeTempRepository = [=]() -> std::unique_ptr<QTemporaryDir> {
+            if (includeAvailable)
+                return {};
+
+            if (qEnvironmentVariableIsSet(Constants::NO_TEMP_REPOSITORY_ENV_VAR))
+                return {};
+
+            auto dir = std::make_unique<QTemporaryDir>(QDir::temp().filePath("sfdk-empty-repo"));
+            QTC_ASSERT(dir->isValid(), return {});
+
+            FileSaver updatesXml(dir->filePath("Updates.xml"), QIODevice::WriteOnly);
+            updatesXml.write(MINIMAL_UPDATES_XML);
+            const bool ok = updatesXml.finalize();
+            // If Updates.xml is missing or corrupted, maintenance tool should
+            // complain but still do the expected job, so do not fail here.
+            QTC_ASSERT(ok, qCWarning(sfdk) << updatesXml.errorString());
+
+            return dir;
+        }();
+
         QProcess listPackages;
         listPackages.setProgram(SdkManager::sdkMaintenanceToolPath());
-        listPackages.setArguments({"--verbose", "--manage-packages",
-                "non-interactive=1", "accept-licenses=1", "list-packages=1"});
         listPackages.setProcessEnvironment(addQpaPlatformMinimal());
+
+        QStringList arguments{"--verbose", "--manage-packages", "non-interactive=1",
+            "accept-licenses=1", "list-packages=1"};
+        if (maybeTempRepository) {
+            const QUrl url = QUrl::fromLocalFile(maybeTempRepository->path());
+            arguments += {"--setTempRepository", url.toString()};
+        }
+        listPackages.setArguments(arguments);
+
         listPackages.start();
         if (!listPackages.waitForFinished(-1)) {
             qerr() << tr("Error listing installer-provided packages")
@@ -546,7 +593,8 @@ private:
     bool fetchInstallerProvidedToolsInfo(bool includeAvailable = true)
     {
         QList<PackageManager::PackageInfo> allPackageInfo;
-        const bool ok = PackageManager().fetchInfo(&allPackageInfo, [](const QString &package) {
+        const bool ok = PackageManager().fetchInfo(&allPackageInfo, includeAvailable,
+                [](const QString &package) {
             return package.startsWith("org.merproject.targets.")
                 && package != "org.merproject.targets.toolings"
                 && package != "org.merproject.targets.user"

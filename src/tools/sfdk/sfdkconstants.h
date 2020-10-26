@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019-2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -40,6 +40,7 @@ const char EXIT_ABNORMAL_ENV_VAR[] = "SFDK_EXIT_ABNORMAL";
 const int EXIT_ABNORMAL_DEFAULT_CODE = 120;
 const char NO_QPA_PLATFORM_MINIMAL_ENV_VAR[] = "SFDK_NO_QPA_PLATFORM_MINIMAL";
 const char CONNECTED_TO_TERMINAL_HINT_ENV_VAR[] = "SFDK_CONNECTED_TO_TERMINAL";
+const char NO_TEMP_REPOSITORY_ENV_VAR[] = "SFDK_NO_TEMP_REPOSITORY";
 
 } // namespace Constants
 } // namespace Sfdk
