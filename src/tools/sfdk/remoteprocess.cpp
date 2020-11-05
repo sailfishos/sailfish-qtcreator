@@ -106,6 +106,16 @@ void RemoteProcess::setRunInTerminal(bool runInTerminal)
     m_runInTerminal = runInTerminal;
 }
 
+/*!
+ * Using \c QProcess::ForwardedInputChannel enables more terminal features
+ * like turning off echo when reading passwords.  At the same time passing too
+ * much information about the terminal to the remote application may not be
+ * desired. Consider e.g. an application animating a progress bar up to the
+ * right edge of the terminal. If that progress bar is preceded by file name
+ * and the file name is subject to reverse path mapping, it breaks easily as
+ * the paths on host are usualy longer than the paths under the build engine.
+ * For that reason is the default value \c QProcess::ManagedInputChannel.
+ */
 void RemoteProcess::setInputChannelMode(QProcess::InputChannelMode inputChannelMode)
 {
     m_inputChannelMode = inputChannelMode;
@@ -276,6 +286,8 @@ void RemoteProcess::onProcessStarted()
 {
     m_startedOk = true;
 
+    qDebug() << "XXX m_runInTerminal" << m_runInTerminal <<
+        "m_inputChannelMode" << m_inputChannelMode;
     if (m_runInTerminal && m_inputChannelMode == QProcess::ManagedInputChannel) {
         m_stdin = std::make_unique<QFile>(this);
         if (!m_stdin->open(stdin, QIODevice::ReadOnly | QIODevice::Unbuffered)) {
@@ -335,7 +347,9 @@ void RemoteProcess::onReadyReadStandardError()
 
 void RemoteProcess::handleStdin()
 {
-    m_runner->writeDataToProcess(m_stdin->readLine());
+    const auto line = m_stdin->readLine();
+    qDebug() << "YYY line:" << line;
+    m_runner->writeDataToProcess(line);
 }
 
 /*!
