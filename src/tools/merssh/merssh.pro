@@ -18,7 +18,6 @@ SOURCES = \
     qmakecommand.cpp \
     generatekeyscommand.cpp \
     gcccommand.cpp \
-    merremoteprocess.cpp \
     makecommand.cpp \
     deploycommand.cpp \
     rpmcommand.cpp \
@@ -32,7 +31,6 @@ HEADERS += \
     qmakecommand.h \
     generatekeyscommand.h \
     gcccommand.h \
-    merremoteprocess.h \
     makecommand.h \
     deploycommand.h \
     rpmcommand.h \

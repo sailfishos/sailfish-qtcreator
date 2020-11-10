@@ -35,12 +35,8 @@ QString RpmValidationCommand::name() const
 
 int RpmValidationCommand::execute()
 {
-    QString command = QLatin1String("rpmvalidation") +
-                      QLatin1String(" -t ") +
-                      targetName() +
-                      QLatin1Char(' ') + arguments().mid(1).join(QLatin1Char(' ')) + QLatin1Char(' ');
-
-    return executeRemoteCommand(command);
+    return executeSfdk(QStringList{"engine", "exec", "rpmvalidation", "-t", targetName()}
+            + arguments().mid(1));
 }
 
 bool RpmValidationCommand::isValid() const

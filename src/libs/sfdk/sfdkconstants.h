@@ -107,15 +107,11 @@ const char GCC_DUMP_INSTALL_DIR_CACHE[] = "gcc.dumpinstalldir";
 
 // FIXME
 const char MER_SSH_DEVICE_NAME[] = "MER_SSH_DEVICE_NAME";
-const char MER_SSH_HOST[] = "MER_SSH_HOST";
-const char MER_SSH_PORT[] = "MER_SSH_PORT";
-const char MER_SSH_PRIVATE_KEY[] = "MER_SSH_PRIVATE_KEY";
 const char MER_SSH_SDK_TOOLS[] = "MER_SSH_SDK_TOOLS";
 const char MER_SSH_SHARED_HOME[] = "MER_SSH_SHARED_HOME";
 const char MER_SSH_SHARED_SRC[] = "MER_SSH_SHARED_SRC";
 const char MER_SSH_SHARED_TARGET[] = "MER_SSH_SHARED_TARGET";
 const char MER_SSH_TARGET_NAME[] = "MER_SSH_TARGET_NAME";
-const char MER_SSH_USERNAME[] = "MER_SSH_USERNAME";
 const char MER_SSH_SFDK_OPTIONS[] = "MER_SSH_SFDK_OPTIONS";
 
 const char WWW_PROXY_DISABLED[] = "direct";

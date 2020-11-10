@@ -20,8 +20,6 @@
 
 #include <mer/merconstants.h>
 
-#include <QDir>
-#include <QFile>
 #include <QStringList>
 
 LUpdateCommand::LUpdateCommand()
@@ -36,12 +34,7 @@ QString LUpdateCommand::name() const
 
 int LUpdateCommand::execute()
 {
-    const QString targetParameter = QLatin1String(" -t ") +  targetName();
-    QString command = QLatin1String("sb2 ") +
-        targetParameter +
-        QLatin1Char(' ') + arguments().join(QLatin1Char(' '));
-
-    return executeRemoteCommand(command);
+    return executeSfdk(QStringList{"build-shell"} + arguments());
 }
 
 bool LUpdateCommand::isValid() const

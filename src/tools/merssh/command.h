@@ -37,7 +37,6 @@ class Command : public QObject
 public:
     Command();
     virtual ~Command();
-    int executeRemoteCommand(const QString &command);
     int executeSfdk(const QStringList &arguments);
     QStringList sfdkOptions() const;
     void setSfdkOptions(const QStringList &sfdkOptions);
@@ -52,16 +51,9 @@ public:
     QString sdkToolsPath() const;
     void setSdkToolsPath(const QString& path);
     QStringList arguments() const;
-    QStringList rawArguments() const;
     void setArguments(const QStringList &args);
-    QSsh::SshConnectionParameters sshParameters() const;
-    void setSshParameters(const QSsh::SshConnectionParameters& params);
     QString deviceName() const;
     void setDeviceName(const QString& device);
-
-    //helpers
-    QString shellSafeArgument(const QString &argument) const;
-    QString remotePathMapping(const QString& command) const;
 
     virtual bool isValid() const;
     virtual QString name() const = 0;
@@ -75,7 +67,6 @@ private:
             const QStringList &types, const QString &value, bool shouldAdd);
 
 private:
-    QStringList m_rawArgs;
     QStringList m_args;
     QStringList m_sfdkOptions;
     QString m_sharedHomePath;

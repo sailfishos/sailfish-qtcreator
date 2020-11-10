@@ -62,7 +62,7 @@ int QMakeCommand::execute()
         return 1;
     }
 
-    return executeSfdk(rawArguments());
+    return executeSfdk(arguments());
 
 //TODO: remote command to cache ?
 //    if (ok && !m_currentCacheFile.isEmpty()) {
