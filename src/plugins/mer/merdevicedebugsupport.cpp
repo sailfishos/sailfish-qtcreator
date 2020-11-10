@@ -151,10 +151,6 @@ void MerDeviceDebugSupport::start()
 
     BuildEngine *const engine = MerSdkKitAspect::buildEngine(runConfig->target()->kit());
 
-    if (engine && !engine->sharedHomePath().isEmpty()) {
-        addSourcePathMap(Sfdk::Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT,
-                engine->sharedHomePath().toString());
-    }
     if (engine && !engine->sharedSrcPath().isEmpty()) {
         addSourcePathMap(Sfdk::Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT,
                 engine->sharedSrcPath().toString());

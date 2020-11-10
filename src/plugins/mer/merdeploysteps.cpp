@@ -663,7 +663,6 @@ bool MerMb2RpmBuildStep::init()
     bool success = MerProcessStep::init(DoNotNeedDevice);
     m_packages.clear();
     BuildEngine *const engine = MerSdkKitAspect::buildEngine(target()->kit());
-    m_sharedHome = QDir::cleanPath(engine->sharedHomePath().toString());
     m_sharedSrc = QDir::cleanPath(engine->sharedSrcPath().toString());
 
     //hack

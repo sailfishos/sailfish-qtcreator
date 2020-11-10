@@ -102,16 +102,6 @@ void Command::setSfdkOptions(const QStringList &sfdkOptions)
     m_sfdkOptions = sfdkOptions;
 }
 
-QString Command::sharedHomePath() const
-{
-    return m_sharedHomePath;
-}
-
-void Command::setSharedHomePath(const QString& path)
-{
-    m_sharedHomePath = QDir::fromNativeSeparators(path);
-}
-
 QString Command::targetName() const
 {
     return m_targetName;
@@ -233,7 +223,6 @@ void Command::maybeDoCMakePathMapping()
         if (!relativeRoot.isEmpty())
             data.replace(relativeRoot, sharedTargetRoot + "/");
 
-        data.replace(Sfdk::Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, sharedHomePath());
         data.replace(Sfdk::Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, sharedSourcePath());
 
         if (QFileInfo(path).fileName() == "CMakeCache.txt") {

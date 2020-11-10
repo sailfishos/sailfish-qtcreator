@@ -198,11 +198,9 @@ void MerSdkKitAspect::addToEnvironment(const Kit *kit, Environment &env) const
     const BuildEngine *engine = MerSdkKitAspect::buildEngine(kit);
     const QString targetName = MerSdkKitAspect::buildTargetName(kit);
     if (engine) {
-        const QString sharedHome = QDir::fromNativeSeparators(engine->sharedHomePath().toString());
         const QString sharedTarget = QDir::fromNativeSeparators(engine->sharedTargetsPath().toString());
         const QString sharedSrc = QDir::fromNativeSeparators(engine->sharedSrcPath().toString());
 
-        env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_HOME), sharedHome);
         env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_TARGET), sharedTarget);
         if (!sharedSrc.isEmpty())
             env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC), sharedSrc);

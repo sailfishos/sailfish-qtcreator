@@ -567,7 +567,7 @@ void MerBuildEngineOptionsWidget::onSrcFolderApplyButtonClicked(const QString &n
     if ((newFolder == buildEngine->sharedSrcPath().toString())
         || (newFolder + QLatin1Char('/') == buildEngine->sharedSrcPath().toString())) {
         QMessageBox::information(this, tr("Choose a new folder"),
-                                 tr("The given folder (%1) is the current alternative source folder. "
+                                 tr("The given folder (%1) is the current workspace folder. "
                                     "Please choose another folder if you want to change it.")
                                  .arg(QDir::toNativeSeparators(buildEngine->sharedSrcPath().toString())));
         return;
@@ -591,7 +591,7 @@ void MerBuildEngineOptionsWidget::onSrcFolderApplyButtonClicked(const QString &n
 
     if (!buildEngine->virtualMachine()->lockDown(true)) {
         QMessageBox::warning(this, tr("Failed"),
-                tr("Alternative source folder not changed"));
+                tr("Workspace folder not changed"));
         // reset the path in the chooser
         m_ui->buildEngineDetailsWidget->setSrcFolderChooserPath(
                 buildEngine->sharedSrcPath().toString());
@@ -607,7 +607,7 @@ void MerBuildEngineOptionsWidget::onSrcFolderApplyButtonClicked(const QString &n
     if (ok) {
         const QMessageBox::StandardButton response =
             QMessageBox::question(this, tr("Success!"),
-                                  tr("Alternative source folder for %1 changed to %2.\n\n"
+                                  tr("Workspace folder for %1 changed to %2.\n\n"
                                      "Do you want to start %1 now?")
                                   .arg(buildEngine->name()).arg(QDir::toNativeSeparators(newFolder)),
                                   QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
@@ -615,8 +615,8 @@ void MerBuildEngineOptionsWidget::onSrcFolderApplyButtonClicked(const QString &n
             buildEngine->virtualMachine()->connectTo();
     }
     else {
-        QMessageBox::warning(this, tr("Changing the source folder failed!"),
-                             tr("Unable to change the alternative source folder to %1")
+        QMessageBox::warning(this, tr("Changing the workspace folder failed!"),
+                             tr("Unable to change the workspace folder to %1")
                              .arg(QDir::toNativeSeparators(newFolder)));
         // reset the path in the chooser
         m_ui->buildEngineDetailsWidget->setSrcFolderChooserPath(

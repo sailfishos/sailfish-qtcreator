@@ -178,7 +178,6 @@ public:
     static QString stateEarlyAccessMessage() { return tr("early-access"); }
 
 private:
-    QString cleanSharedHome() const;
     QString cleanSharedSrc() const;
     QString cleanSharedTarget(QString *errorMessage) const;
     bool mapEnginePaths(QString *program, QStringList *arguments, QString *workingDirectory,

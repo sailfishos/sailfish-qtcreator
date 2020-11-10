@@ -106,7 +106,7 @@ MerBuildEngineDetailsWidget::MerBuildEngineDetailsWidget(QWidget *parent)
     m_ui->privateKeyPathChooser->setExpectedKind(PathChooser::File);
     m_ui->privateKeyPathChooser->setPromptDialogTitle(tr("Select SSH Key"));
 
-    m_ui->srcFolderApplyButton->setToolTip(m_ui->srcFolderApplyButton->toolTip().arg(Sdk::osVariant()));
+    m_ui->srcFolderPathChooser->setToolTip(m_ui->srcFolderPathChooser->toolTip().arg(Sdk::sdkVariant()));
 }
 
 MerBuildEngineDetailsWidget::~MerBuildEngineDetailsWidget()
@@ -256,7 +256,7 @@ void MerBuildEngineDetailsWidget::onSrcFolderApplyButtonClicked()
         emit srcFolderApplyButtonClicked(path);
     } else {
         QMessageBox::warning(this, tr("Invalid path"),
-                tr("Not a valid source folder path: %1")
+                tr("Not a valid workspace folder path: %1")
                 .arg(QDir::toNativeSeparators(m_ui->srcFolderPathChooser->path())));
     }
 }

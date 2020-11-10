@@ -62,7 +62,6 @@ void printUsage()
             << CommandFactory::commands().join(' ') << endl
             << "environment variables - project parameters:" << endl
             << Sfdk::Constants::MER_SSH_TARGET_NAME << endl
-            << Sfdk::Constants::MER_SSH_SHARED_HOME << endl
             << Sfdk::Constants::MER_SSH_SHARED_TARGET << endl
             << Sfdk::Constants::MER_SSH_SHARED_SRC << endl
             << Sfdk::Constants::MER_SSH_SDK_TOOLS << endl
@@ -184,7 +183,6 @@ int main(int argc, char *argv[])
     // environment variables cannot be set.
     const QSet<QString> environmentVariables{
         QLatin1String(Sfdk::Constants::MER_SSH_TARGET_NAME),
-        QLatin1String(Sfdk::Constants::MER_SSH_SHARED_HOME),
         QLatin1String(Sfdk::Constants::MER_SSH_SHARED_TARGET),
         QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC),
         QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS),
@@ -230,7 +228,6 @@ int main(int argc, char *argv[])
     command->setSfdkOptions(sfdkOptions);
 
     command->setTargetName(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_TARGET_NAME)));
-    command->setSharedHomePath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_HOME)));
     command->setSharedTargetPath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_TARGET)));
     command->setSharedSourcePath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC)));
     command->setSdkToolsPath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS)));

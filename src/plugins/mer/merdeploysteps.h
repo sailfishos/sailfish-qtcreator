@@ -194,7 +194,6 @@ public:
 protected:
     void doRun() override;
 private:
-    QString m_sharedHome;
     QString m_sharedSrc;
     QStringList m_packages;
 };

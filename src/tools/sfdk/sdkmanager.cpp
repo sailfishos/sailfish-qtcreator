@@ -1352,12 +1352,6 @@ void SdkManager::saveSettings()
         qCWarning(sfdk).noquote() << "Error saving settings:" << errorString;
 }
 
-QString SdkManager::cleanSharedHome() const
-{
-    QTC_ASSERT(hasEngine(), return {});
-    return QDir(QDir::cleanPath(m_buildEngine->sharedHomePath().toString())).canonicalPath();
-}
-
 QString SdkManager::cleanSharedSrc() const
 {
     QTC_ASSERT(hasEngine(), return {});
@@ -1382,19 +1376,16 @@ bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QStrin
     *program = QDir::fromNativeSeparators(*program);
 
     QString errorString;
-    const QString cleanSharedHome = this->cleanSharedHome();
     const QString cleanSharedSrc = this->cleanSharedSrc();
     const QString cleanSharedTarget = this->cleanSharedTarget(&errorString);
     if (cleanSharedTarget.isEmpty())
         qCDebug(sfdk).noquote() << "Not mapping shared target path:" << errorString;
 
-    if (!workingDirectory->startsWith(cleanSharedHome)
-            && (cleanSharedSrc.isEmpty() || !workingDirectory->startsWith(cleanSharedSrc))) {
-        qCDebug(sfdk) << "cleanSharedHome:" << cleanSharedHome;
+    if (!workingDirectory->startsWith(cleanSharedSrc)) {
         qCDebug(sfdk) << "cleanSharedSrc:" << cleanSharedSrc;
-        qerr() << tr("The command needs to be used under build engine's share home or shared "
-                "source directory, which are currently configured as \"%1\" and \"%2\"")
-            .arg(m_buildEngine->sharedHomePath().toString())
+        qerr() << tr("The command needs to be used under %1 workspace, "
+                "which is currently configured as \"%2\"")
+            .arg(Sdk::sdkVariant())
             .arg(m_buildEngine->sharedSrcPath().toString()) << endl;
         return false;
     }
@@ -1413,7 +1404,6 @@ bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QStrin
         mappings.push_back({cleanSharedTarget + "/", "/", Qt::CaseSensitive});
         mappings.push_back({cleanSharedTarget, "/", Qt::CaseSensitive});
     }
-    mappings.push_back({cleanSharedHome, Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, Qt::CaseSensitive});
     mappings.push_back({cleanSharedSrc, Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, caseInsensitiveOnWindows});
 
     for (const Mapping &mapping : mappings) {
@@ -1463,16 +1453,12 @@ QByteArray SdkManager::maybeReverseMapEnginePaths(const QByteArray &commandOutpu
     if (!m_enableReversePathMapping)
         return commandOutput;
 
-    const QString cleanSharedHome = this->cleanSharedHome();
     const QString cleanSharedSrc = this->cleanSharedSrc();
 
     QByteArray retv = commandOutput;
 
     if (!m_buildEngine->sharedSrcPath().isEmpty())
       retv.replace(Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, cleanSharedSrc.toUtf8());
-
-    if (!m_buildEngine->sharedHomePath().isEmpty())
-      retv.replace(Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, cleanSharedHome.toUtf8());
 
     return retv;
 }
