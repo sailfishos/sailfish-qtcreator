@@ -173,6 +173,11 @@ Utils::FilePath BuildEngine::sharedSrcPath() const
     return d_func()->sharedSrcPath;
 }
 
+QString BuildEngine::sharedSrcMountPoint() const
+{
+    return VirtualMachinePrivate::alignedMountPointFor(d_func()->sharedSrcPath.toString());
+}
+
 Utils::FilePath BuildEngine::sharedSshPath() const
 {
     return d_func()->sharedSshPath;
@@ -559,6 +564,7 @@ void BuildEnginePrivate::setSharedSrcPath(const Utils::FilePath &sharedSrcPath)
         return;
     this->sharedSrcPath = sharedSrcPath;
     emit q_func()->sharedSrcPathChanged(sharedSrcPath);
+    emit q_func()->sharedSrcMountPointChanged(q_func()->sharedSrcMountPoint());
 }
 
 void BuildEnginePrivate::setSharedSshPath(const Utils::FilePath &sharedSshPath)

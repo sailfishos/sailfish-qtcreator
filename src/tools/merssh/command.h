@@ -44,6 +44,8 @@ public:
     void setTargetName(const QString& name);
     QString sharedSourcePath() const;
     void setSharedSourcePath(const QString& path);
+    QString sharedSourceMountPoint() const;
+    void setSharedSourceMountPoint(const QString& path);
     QString sharedTargetPath() const;
     void setSharedTargetPath(const QString& path);
     QString sdkToolsPath() const;
@@ -69,6 +71,7 @@ private:
     QStringList m_sfdkOptions;
     QString m_targetName;
     QString m_sharedSourcePath;
+    QString m_sharedSourceMountPoint;
     QString m_sharedTargetPath;
     QString m_toolsPath;
     QString m_deviceName;

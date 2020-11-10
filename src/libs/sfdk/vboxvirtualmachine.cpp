@@ -55,6 +55,7 @@ const char VBOXMANAGE[] = "VBoxManage";
 const char SAILFISH_SDK_SYSTEM_VBOXMANAGE[] = "SAILFISH_SDK_SYSTEM_VBOXMANAGE";
 const char GUEST_PROPERTIES_PATTERN[] = "/SailfishSDK/*";
 const char SWAP_SIZE_MB_GUEST_PROPERTY_NAME[] = "/SailfishSDK/VM/Swap/SizeMb";
+const char ENV_GUEST_PROPERTY_TEMPLATE[] = "/SailfishSDK/ENV/%1";
 const char SAILFISH_SDK_DEVICE_MODEL[] = "SailfishSDK/DeviceModel";
 const char SAILFISH_SDK_ORIENTATION[] = "SailfishSDK/Orientation";
 const char SAILFISH_SDK_SCALE[] = "SailfishSDK/Scale";
@@ -567,6 +568,7 @@ void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FilePath
     qCDebug(vms) << "Setting shared folder" << which << "for" << q->uri().toString() << "to" << path;
 
     QString mountName;
+    QString alignedMountPoint;
     switch (which) {
     case VirtualMachinePrivate::SharedInstall:
         mountName = "install";
@@ -585,6 +587,7 @@ void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FilePath
         break;
     case VirtualMachinePrivate::SharedSrc:
         mountName = "src1";
+        alignedMountPoint = alignedMountPointFor(path.toString());
         break;
     }
 
@@ -627,6 +630,20 @@ void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FilePath
     sargs.append(QString("VBoxInternal2/SharedFoldersEnableSymlinksCreate/%1").arg(mountName));
     sargs.append("1");
     enqueue(sargs, batch);
+
+    if (!alignedMountPoint.isEmpty()) {
+        const QString envName = QString::fromLatin1(Constants::BUILD_ENGINE_ALIGNED_MOUNT_POINT_ENV_TEMPLATE)
+            .arg(mountName.toUpper());
+        const QString envPropertyName = QString::fromLatin1(ENV_GUEST_PROPERTY_TEMPLATE).arg(envName);
+
+        QStringList args;
+        args.append("guestproperty");
+        args.append("set");
+        args.append(q->name());
+        args.append(envPropertyName);
+        args.append(alignedMountPoint);
+        enqueue(args, batch);
+    }
 
     commandQueue()->enqueueCheckPoint(context, std::bind(functor, true));
     commandQueue()->endBatch();

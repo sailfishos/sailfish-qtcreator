@@ -84,6 +84,7 @@ public:
     Utils::FilePath sharedTargetsPath() const;
     Utils::FilePath sharedConfigPath() const;
     Utils::FilePath sharedSrcPath() const;
+    QString sharedSrcMountPoint() const;
     Utils::FilePath sharedSshPath() const;
     void setSharedSrcPath(const Utils::FilePath &sharedSrcPath, const QObject *context,
             const Functor<bool> &functor);
@@ -109,6 +110,7 @@ signals:
     void sharedTargetsPathChanged(const Utils::FilePath &sharedTargetsPath);
     void sharedConfigPathChanged(const Utils::FilePath &sharedConfigPath);
     void sharedSrcPathChanged(const Utils::FilePath &sharedSrcPath);
+    void sharedSrcMountPointChanged(const QString &sharedSrcMountPoint);
     void sharedSshPathChanged(const Utils::FilePath &sharedSshPath);
     void sshPortChanged(quint16 sshPort);
     void wwwPortChanged(quint16 wwwPort);

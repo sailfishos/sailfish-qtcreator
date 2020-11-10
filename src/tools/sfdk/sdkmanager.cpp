@@ -1404,7 +1404,8 @@ bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QStrin
         mappings.push_back({cleanSharedTarget + "/", "/", Qt::CaseSensitive});
         mappings.push_back({cleanSharedTarget, "/", Qt::CaseSensitive});
     }
-    mappings.push_back({cleanSharedSrc, Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, caseInsensitiveOnWindows});
+    mappings.push_back({cleanSharedSrc, m_buildEngine->sharedSrcMountPoint(),
+            caseInsensitiveOnWindows});
 
     for (const Mapping &mapping : mappings) {
         QTC_ASSERT(!mapping.hostPath.isEmpty(), continue);
@@ -1457,8 +1458,10 @@ QByteArray SdkManager::maybeReverseMapEnginePaths(const QByteArray &commandOutpu
 
     QByteArray retv = commandOutput;
 
-    if (!m_buildEngine->sharedSrcPath().isEmpty())
-      retv.replace(Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, cleanSharedSrc.toUtf8());
+    QTC_ASSERT(!cleanSharedSrc.isEmpty(), return retv);
+    QTC_ASSERT(!m_buildEngine->sharedSrcMountPoint().isEmpty(), return retv);
+
+    retv.replace(m_buildEngine->sharedSrcMountPoint().toUtf8(), cleanSharedSrc.toUtf8());
 
     return retv;
 }

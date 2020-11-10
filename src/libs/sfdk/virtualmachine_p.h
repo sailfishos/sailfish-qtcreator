@@ -136,6 +136,7 @@ public:
 
     void setSharedPath(SharedPath which, const Utils::FilePath &path,
             const QObject *context, const Functor<bool> &functor);
+    static QString alignedMountPointFor(const QString &hostPath);
 
     void setReservedPortForwarding(ReservedPort which, quint16 port,
             const QObject *context, const Functor<bool> &functor);

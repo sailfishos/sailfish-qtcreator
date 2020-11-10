@@ -304,7 +304,7 @@ int Debugger::exec(const QString &executable, const QList<QStringList> &gdbLateI
     QList<QStringList> gdbInit;
 
     gdbInit << QStringList{"set", "substitute-path",
-                Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT,
+                SdkManager::engine()->sharedSrcMountPoint(),
                 SdkManager::engine()->sharedSrcPath().toString()};
 
     gdbInit << QStringList{"set", "sysroot", m_target.sysRoot.toString()};

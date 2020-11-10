@@ -202,8 +202,9 @@ void MerSdkKitAspect::addToEnvironment(const Kit *kit, Environment &env) const
         const QString sharedSrc = QDir::fromNativeSeparators(engine->sharedSrcPath().toString());
 
         env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_TARGET), sharedTarget);
-        if (!sharedSrc.isEmpty())
-            env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC), sharedSrc);
+        env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC), sharedSrc);
+        env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC_MOUNT_POINT),
+                engine->sharedSrcMountPoint());
         if (!MerSettings::isEnvironmentFilterFromEnvironment() &&
                 !MerSettings::environmentFilter().isEmpty()) {
             env.appendOrSet(QLatin1String(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER),

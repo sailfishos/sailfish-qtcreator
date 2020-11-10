@@ -122,6 +122,16 @@ void Command::setSharedSourcePath(const QString& path)
     m_sharedSourcePath = QDir::fromNativeSeparators(path);
 }
 
+QString Command::sharedSourceMountPoint() const
+{
+    return m_sharedSourceMountPoint;
+}
+
+void Command::setSharedSourceMountPoint(const QString& path)
+{
+    m_sharedSourceMountPoint = path;
+}
+
 QString Command::sharedTargetPath() const
 {
     return m_sharedTargetPath;
@@ -223,7 +233,7 @@ void Command::maybeDoCMakePathMapping()
         if (!relativeRoot.isEmpty())
             data.replace(relativeRoot, sharedTargetRoot + "/");
 
-        data.replace(Sfdk::Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, sharedSourcePath());
+        data.replace(sharedSourceMountPoint(), sharedSourcePath());
 
         if (QFileInfo(path).fileName() == "CMakeCache.txt") {
             const bool usesQt = data.contains(QRegularExpression("Qt5Core_DIR:(PATH|STRING)=.*"));
