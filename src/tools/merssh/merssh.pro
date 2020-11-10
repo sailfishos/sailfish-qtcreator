@@ -24,7 +24,6 @@ SOURCES = \
     rpmcommand.cpp \
     rpmvalidationcommand.cpp \
     lupdatecommand.cpp \
-    wwwproxycommand.cpp \
 
 HEADERS += \
     command.h \
@@ -39,4 +38,3 @@ HEADERS += \
     rpmcommand.h \
     rpmvalidationcommand.h \
     lupdatecommand.h \
-    wwwproxycommand.h \

@@ -31,7 +31,6 @@
 #include "qmakecommand.h"
 #include "rpmcommand.h"
 #include "rpmvalidationcommand.h"
-#include "wwwproxycommand.h"
 
 #include <app/app_version.h>
 #include <mer/merconstants.h>
@@ -179,7 +178,6 @@ int main(int argc, char *argv[])
     CommandFactory::registerCommand<RpmValidationCommand>(QLatin1String("rpmvalidation"));
     CommandFactory::registerCommand<GenerateKeysCommand>(QLatin1String("generatesshkeys"));
     CommandFactory::registerCommand<LUpdateCommand>(QLatin1String("lupdate"));
-    CommandFactory::registerCommand<WwwProxyCommand>(QLatin1String("wwwproxy"));
 
     QStringList arguments  = QCoreApplication::arguments();
 
@@ -227,8 +225,8 @@ int main(int argc, char *argv[])
          return 1;
     }
 
-    if (!qobject_cast<WwwProxyCommand *>(command.data()))
-        arguments = unquoteArguments(arguments);
+    // TODO possibly to drop the quoting?
+    arguments = unquoteArguments(arguments);
 
     const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
 
@@ -254,7 +252,7 @@ int main(int argc, char *argv[])
     parameters.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypeSpecificKey;
     parameters.timeout = 10;
     command->setSshParameters(parameters);
-    command->setArguments(unquoteArguments(arguments));
+    command->setArguments(arguments);
 
     if (!command->isValid()) {
        qCritical() << "Invalid command arguments" << endl;
