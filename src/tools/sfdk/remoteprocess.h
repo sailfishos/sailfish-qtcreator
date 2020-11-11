@@ -24,6 +24,7 @@
 #pragma once
 
 #include "task.h"
+#include "textutils.h"
 
 #include <ssh/sshconnection.h>
 
@@ -120,7 +121,7 @@ private:
     QString m_workingDirectory;
     QSsh::SshConnectionParameters m_sshConnectionParams;
     QProcessEnvironment m_extraEnvironment;
-    bool m_runInTerminal = false;
+    bool m_runInTerminal = isOutputConnectedToTerminal();
     bool m_standardOutputLineBuffered = false;
     bool m_startedOk = false;
     bool m_finished = false;

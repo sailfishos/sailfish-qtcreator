@@ -25,7 +25,6 @@
 
 #include "sfdkconstants.h"
 #include "sfdkglobal.h"
-#include "textutils.h"
 
 #include <ssh/sshremoteprocessrunner.h>
 #include <utils/qtcassert.h>
@@ -54,7 +53,6 @@ using namespace Sfdk;
 RemoteProcess::RemoteProcess(QObject *parent)
     : Task(parent)
     , m_runner(std::make_unique<SshRemoteProcessRunner>(this))
-    , m_runInTerminal(isOutputConnectedToTerminal())
 {
     connect(m_runner.get(), &SshRemoteProcessRunner::processStarted,
             this, &RemoteProcess::onProcessStarted);
