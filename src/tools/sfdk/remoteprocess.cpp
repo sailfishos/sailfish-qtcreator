@@ -106,11 +106,6 @@ void RemoteProcess::setRunInTerminal(bool runInTerminal)
     m_runInTerminal = runInTerminal;
 }
 
-void RemoteProcess::setInputChannelMode(QProcess::InputChannelMode inputChannelMode)
-{
-    m_inputChannelMode = inputChannelMode;
-}
-
 void RemoteProcess::setStandardOutputLineBuffered(bool lineBuffered)
 {
     m_standardOutputLineBuffered = lineBuffered;
@@ -160,7 +155,7 @@ void RemoteProcess::start()
     fullCommand.append(Utils::QtcProcess::joinArgs(m_arguments, Utils::OsTypeLinux));
 
     if (m_runInTerminal)
-        m_runner->runInTerminal(fullCommand, m_sshConnectionParams, m_inputChannelMode);
+        m_runner->runInTerminal(fullCommand, m_sshConnectionParams, QProcess::ForwardedInputChannel);
     else
         m_runner->run(fullCommand, m_sshConnectionParams);
 
@@ -275,17 +270,6 @@ QString RemoteProcess::environmentString(const QProcessEnvironment &environment)
 void RemoteProcess::onProcessStarted()
 {
     m_startedOk = true;
-
-    if (m_runInTerminal && m_inputChannelMode == QProcess::ManagedInputChannel) {
-        m_stdin = std::make_unique<QFile>(this);
-        if (!m_stdin->open(stdin, QIODevice::ReadOnly | QIODevice::Unbuffered)) {
-            qCWarning(sfdk) << "Unable to read from standard input while interactive mode is requested";
-            return;
-        }
-        QSocketNotifier *const notifier = new QSocketNotifier(0, QSocketNotifier::Read, m_stdin.get());
-        connect(notifier, &QSocketNotifier::activated,
-                this, &RemoteProcess::handleStdin);
-    }
 }
 
 void RemoteProcess::onConnectionError()
@@ -331,11 +315,6 @@ void RemoteProcess::onReadyReadStandardError()
         return;
 
     emit standardError(m_stderrBuffer.flush());
-}
-
-void RemoteProcess::handleStdin()
-{
-    m_runner->writeDataToProcess(m_stdin->readLine());
 }
 
 /*!

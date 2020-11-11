@@ -8,7 +8,7 @@
     "worker":
     {
         "type": "engine-command",
-        "version": 1,
+        "version": 4,
         "program": "mb2"
     },
 
