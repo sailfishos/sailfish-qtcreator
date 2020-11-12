@@ -590,28 +590,6 @@ void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FilePath
 
     const QPointer<const QObject> context_{context};
 
-    QStringList rargs;
-    rargs.append("sharedfolder");
-    rargs.append("remove");
-    rargs.append(q->name());
-    rargs.append("--name");
-    rargs.append(mountName);
-
-    QStringList aargs;
-    aargs.append("sharedfolder");
-    aargs.append("add");
-    aargs.append(q->name());
-    aargs.append("--name");
-    aargs.append(mountName);
-    aargs.append("--hostpath");
-    aargs.append(path.toString());
-
-    QStringList sargs;
-    sargs.append("setextradata");
-    sargs.append(q->name());
-    sargs.append(QString("VBoxInternal2/SharedFoldersEnableSymlinksCreate/%1").arg(mountName));
-    sargs.append("1");
-
     auto enqueue = [=](const QStringList &args, CommandQueue::BatchId batch) {
         auto runner = std::make_unique<VBoxManageRunner>(args);
         QObject::connect(runner.get(), &VBoxManageRunner::failure, Sdk::instance(), [=]() {
@@ -624,9 +602,32 @@ void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FilePath
     };
 
     CommandQueue::BatchId batch = commandQueue()->beginBatch();
+
+    QStringList rargs;
+    rargs.append("sharedfolder");
+    rargs.append("remove");
+    rargs.append(q->name());
+    rargs.append("--name");
+    rargs.append(mountName);
     enqueue(rargs, batch);
+
+    QStringList aargs;
+    aargs.append("sharedfolder");
+    aargs.append("add");
+    aargs.append(q->name());
+    aargs.append("--name");
+    aargs.append(mountName);
+    aargs.append("--hostpath");
+    aargs.append(path.toString());
     enqueue(aargs, batch);
+
+    QStringList sargs;
+    sargs.append("setextradata");
+    sargs.append(q->name());
+    sargs.append(QString("VBoxInternal2/SharedFoldersEnableSymlinksCreate/%1").arg(mountName));
+    sargs.append("1");
     enqueue(sargs, batch);
+
     commandQueue()->enqueueCheckPoint(context, std::bind(functor, true));
     commandQueue()->endBatch();
 }
