@@ -35,7 +35,7 @@ QString MakeCommand::name() const
 
 int MakeCommand::execute()
 {
-    return executeSfdk(rawArguments());
+    return executeSfdk(arguments());
 }
 
 bool MakeCommand::isValid() const

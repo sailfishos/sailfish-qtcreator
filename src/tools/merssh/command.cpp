@@ -22,7 +22,6 @@
 ****************************************************************************/
 
 #include "command.h"
-#include "merremoteprocess.h"
 
 #include <mer/merconstants.h>
 #include <sfdk/sfdkconstants.h>
@@ -49,24 +48,6 @@ Command::Command()
 
 Command::~Command()
 {
-}
-
-int Command::executeRemoteCommand(const QString &command)
-{
-    // Convert to build engine paths
-    QString mappedCommand = remotePathMapping(command);
-
-    maybeUndoCMakePathMapping();
-
-    // Execute in build engine
-    MerRemoteProcess process;
-    process.setSshParameters(sshParameters());
-    process.setCommand(mappedCommand);
-    const int rc = process.executeAndWait();
-
-    maybeDoCMakePathMapping();
-
-    return rc;
 }
 
 int Command::executeSfdk(const QStringList &arguments)
@@ -121,16 +102,6 @@ void Command::setSfdkOptions(const QStringList &sfdkOptions)
     m_sfdkOptions = sfdkOptions;
 }
 
-QString Command::sharedHomePath() const
-{
-    return m_sharedHomePath;
-}
-
-void Command::setSharedHomePath(const QString& path)
-{
-    m_sharedHomePath = QDir::fromNativeSeparators(path);
-}
-
 QString Command::targetName() const
 {
     return m_targetName;
@@ -149,6 +120,16 @@ QString Command::sharedSourcePath() const
 void Command::setSharedSourcePath(const QString& path)
 {
     m_sharedSourcePath = QDir::fromNativeSeparators(path);
+}
+
+QString Command::sharedSourceMountPoint() const
+{
+    return m_sharedSourceMountPoint;
+}
+
+void Command::setSharedSourceMountPoint(const QString& path)
+{
+    m_sharedSourceMountPoint = path;
 }
 
 QString Command::sharedTargetPath() const
@@ -173,30 +154,12 @@ void Command::setSdkToolsPath(const QString& path)
 
 void Command::setArguments(const QStringList &args)
 {
-    m_rawArgs = args;
-    m_args.clear();
-    foreach (const QString& arg,args)
-        m_args.append(shellSafeArgument(arg));
+    m_args = args;
 }
 
 QStringList Command::arguments() const
 {
     return m_args;
-}
-
-QStringList Command::rawArguments() const
-{
-    return m_rawArgs;
-}
-
-void Command::setSshParameters(const QSsh::SshConnectionParameters& params)
-{
-    m_sshConnectionParams = params;
-}
-
-QSsh::SshConnectionParameters Command::sshParameters() const
-{
-    return m_sshConnectionParams;
 }
 
 QString Command::deviceName() const
@@ -209,83 +172,8 @@ void Command::setDeviceName(const QString& device)
     m_deviceName = device;
 }
 
-QString Command::shellSafeArgument(const QString &argument) const
-{
-    //unix style
-    static QRegExp reg1(QLatin1String("^'(.*)'$"));
-    //windows style
-    static QRegExp reg2(QLatin1String("^\"(.*)\"$"));
-
-    QString safeArgument = argument;
-
-    //unquote for file exits
-    if (reg1.indexIn(argument) != -1) {
-        safeArgument = reg1.cap(1);
-    }
-
-    if (reg2.indexIn(argument) != -1) {
-        safeArgument = reg2.cap(1);
-    }
-
-    if (QFile::exists(safeArgument)) {
-        safeArgument = QDir::fromNativeSeparators(safeArgument);
-        if (safeArgument.indexOf(QLatin1Char(' ')) > -1)
-            safeArgument = QLatin1Char('\'') + safeArgument + QLatin1Char('\'');
-        return safeArgument;
-    }
-    return argument;
-}
-
-QString Command::remotePathMapping(const QString& command) const
-{
-    QString result = command;
-
-    result.prepend(QLatin1String("cd '") + QDir::currentPath()
-                   + QLatin1String("' && "));
-
-    if (!sharedTargetPath().isEmpty() && !targetName().isEmpty()) {
-        result.replace(sharedTargetPath() + "/" + targetName() + "/", "/");
-        result.replace(sharedTargetPath() + "/" + targetName(), "/");
-    }
-
-    // First replace shared home and then shared src (error prone!)
-    if (!sharedHomePath().isEmpty()) {
-      QDir homeDir(sharedHomePath());
-      result.replace(homeDir.canonicalPath(), Sfdk::Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT);
-    }
-    if (!sharedSourcePath().isEmpty()) {
-      QDir srcDir(sharedSourcePath());
-      result.replace(srcDir.canonicalPath(), Sfdk::Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT,
-		     (Utils::HostOsInfo::isWindowsHost()?Qt::CaseInsensitive:Qt::CaseSensitive));
-    }
-    result = result.trimmed();
-    return result;
-}
-
 bool Command::isValid() const
 {
-    QDir curDir(QDir::currentPath());
-    QDir homeDir(QDir::fromNativeSeparators(QDir::cleanPath(sharedHomePath())));
-    QDir srcDir(QDir::fromNativeSeparators(QDir::cleanPath(sharedSourcePath())));
-
-    QString currentPath = curDir.canonicalPath();
-    QString cleanSharedHome = homeDir.canonicalPath();
-    QString cleanSharedSrc = srcDir.canonicalPath();
-
-    if (Utils::HostOsInfo::isWindowsHost()) {
-        currentPath = currentPath.toLower();
-        cleanSharedHome = cleanSharedHome.toLower();
-        cleanSharedSrc = cleanSharedSrc.toLower();
-    }
-
-    if (!currentPath.startsWith(cleanSharedHome) && (sharedSourcePath().isEmpty() ||
-                                                     !currentPath.startsWith(cleanSharedSrc))) {
-        QString message = QString::fromLatin1("Project ERROR: Project is outside of shared home \"%1\" and shared src \"%2\".")
-                .arg(QDir::toNativeSeparators(sharedHomePath())).arg(QDir::toNativeSeparators(sharedSourcePath()));
-        fprintf(stderr, "%s", qPrintable(message));
-        fflush(stderr);
-        return false;
-    }
     return true;
 }
 
@@ -345,8 +233,7 @@ void Command::maybeDoCMakePathMapping()
         if (!relativeRoot.isEmpty())
             data.replace(relativeRoot, sharedTargetRoot + "/");
 
-        data.replace(Sfdk::Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, sharedHomePath());
-        data.replace(Sfdk::Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, sharedSourcePath());
+        data.replace(sharedSourceMountPoint(), sharedSourcePath());
 
         if (QFileInfo(path).fileName() == "CMakeCache.txt") {
             const bool usesQt = data.contains(QRegularExpression("Qt5Core_DIR:(PATH|STRING)=.*"));

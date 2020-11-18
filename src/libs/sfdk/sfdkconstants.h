@@ -66,10 +66,10 @@ const char BUILD_ENGINE_HOST_SSH_PATH_POSTFIX[] = "/mersdk/ssh";
 const char BUILD_ENGINE_HOST_CONFIG_PATH_POSTFIX[] = "/vmshare";
 const char BUILD_ENGINE_SHARED_INSTALL_MOUNT_POINT[] = "/host_install";
 const char BUILD_ENGINE_SHARED_CONFIG_MOUNT_POINT[] = "/etc/mersdk/share";
-const char BUILD_ENGINE_SHARED_HOME_MOUNT_POINT[] = "/home/mersdk/share";
-const char BUILD_ENGINE_SHARED_SRC_MOUNT_POINT[] = "/home/src1";
+const char BUILD_ENGINE_SHARED_HOME_MOUNT_POINT[] = "/host_home";
 const char BUILD_ENGINE_SHARED_TARGET_MOUNT_POINT[] = "/host_targets";
 const char BUILD_ENGINE_SHARED_SSH_MOUNT_POINT[] = "/etc/ssh/authorized_keys";
+const char BUILD_ENGINE_ALIGNED_MOUNT_POINT_ENV_TEMPLATE[] = "SAILFISH_SDK_%1_MOUNT_POINT";
 
 const char BUILD_TARGET_NAME[] = "Name";
 const char BUILD_TARGET_GCC_DUMP_MACHINE[] = "GccDumpMachine";
@@ -107,15 +107,12 @@ const char GCC_DUMP_INSTALL_DIR_CACHE[] = "gcc.dumpinstalldir";
 
 // FIXME
 const char MER_SSH_DEVICE_NAME[] = "MER_SSH_DEVICE_NAME";
-const char MER_SSH_HOST[] = "MER_SSH_HOST";
-const char MER_SSH_PORT[] = "MER_SSH_PORT";
-const char MER_SSH_PRIVATE_KEY[] = "MER_SSH_PRIVATE_KEY";
 const char MER_SSH_SDK_TOOLS[] = "MER_SSH_SDK_TOOLS";
 const char MER_SSH_SHARED_HOME[] = "MER_SSH_SHARED_HOME";
 const char MER_SSH_SHARED_SRC[] = "MER_SSH_SHARED_SRC";
+const char MER_SSH_SHARED_SRC_MOUNT_POINT[] = "MER_SSH_SHARED_SRC_MOUNT_POINT";
 const char MER_SSH_SHARED_TARGET[] = "MER_SSH_SHARED_TARGET";
 const char MER_SSH_TARGET_NAME[] = "MER_SSH_TARGET_NAME";
-const char MER_SSH_USERNAME[] = "MER_SSH_USERNAME";
 const char MER_SSH_SFDK_OPTIONS[] = "MER_SSH_SFDK_OPTIONS";
 
 const char WWW_PROXY_DISABLED[] = "direct";

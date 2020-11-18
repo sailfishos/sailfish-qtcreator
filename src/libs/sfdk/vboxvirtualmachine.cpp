@@ -55,6 +55,7 @@ const char VBOXMANAGE[] = "VBoxManage";
 const char SAILFISH_SDK_SYSTEM_VBOXMANAGE[] = "SAILFISH_SDK_SYSTEM_VBOXMANAGE";
 const char GUEST_PROPERTIES_PATTERN[] = "/SailfishSDK/*";
 const char SWAP_SIZE_MB_GUEST_PROPERTY_NAME[] = "/SailfishSDK/VM/Swap/SizeMb";
+const char ENV_GUEST_PROPERTY_TEMPLATE[] = "/SailfishSDK/ENV/%1";
 const char SAILFISH_SDK_DEVICE_MODEL[] = "SailfishSDK/DeviceModel";
 const char SAILFISH_SDK_ORIENTATION[] = "SailfishSDK/Orientation";
 const char SAILFISH_SDK_SCALE[] = "SailfishSDK/Scale";
@@ -567,6 +568,7 @@ void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FilePath
     qCDebug(vms) << "Setting shared folder" << which << "for" << q->uri().toString() << "to" << path;
 
     QString mountName;
+    QString alignedMountPoint;
     switch (which) {
     case VirtualMachinePrivate::SharedInstall:
         mountName = "install";
@@ -585,32 +587,11 @@ void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FilePath
         break;
     case VirtualMachinePrivate::SharedSrc:
         mountName = "src1";
+        alignedMountPoint = alignedMountPointFor(path.toString());
         break;
     }
 
     const QPointer<const QObject> context_{context};
-
-    QStringList rargs;
-    rargs.append("sharedfolder");
-    rargs.append("remove");
-    rargs.append(q->name());
-    rargs.append("--name");
-    rargs.append(mountName);
-
-    QStringList aargs;
-    aargs.append("sharedfolder");
-    aargs.append("add");
-    aargs.append(q->name());
-    aargs.append("--name");
-    aargs.append(mountName);
-    aargs.append("--hostpath");
-    aargs.append(path.toString());
-
-    QStringList sargs;
-    sargs.append("setextradata");
-    sargs.append(q->name());
-    sargs.append(QString("VBoxInternal2/SharedFoldersEnableSymlinksCreate/%1").arg(mountName));
-    sargs.append("1");
 
     auto enqueue = [=](const QStringList &args, CommandQueue::BatchId batch) {
         auto runner = std::make_unique<VBoxManageRunner>(args);
@@ -624,9 +605,46 @@ void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FilePath
     };
 
     CommandQueue::BatchId batch = commandQueue()->beginBatch();
+
+    QStringList rargs;
+    rargs.append("sharedfolder");
+    rargs.append("remove");
+    rargs.append(q->name());
+    rargs.append("--name");
+    rargs.append(mountName);
     enqueue(rargs, batch);
+
+    QStringList aargs;
+    aargs.append("sharedfolder");
+    aargs.append("add");
+    aargs.append(q->name());
+    aargs.append("--name");
+    aargs.append(mountName);
+    aargs.append("--hostpath");
+    aargs.append(path.toString());
     enqueue(aargs, batch);
+
+    QStringList sargs;
+    sargs.append("setextradata");
+    sargs.append(q->name());
+    sargs.append(QString("VBoxInternal2/SharedFoldersEnableSymlinksCreate/%1").arg(mountName));
+    sargs.append("1");
     enqueue(sargs, batch);
+
+    if (!alignedMountPoint.isEmpty()) {
+        const QString envName = QString::fromLatin1(Constants::BUILD_ENGINE_ALIGNED_MOUNT_POINT_ENV_TEMPLATE)
+            .arg(mountName.toUpper());
+        const QString envPropertyName = QString::fromLatin1(ENV_GUEST_PROPERTY_TEMPLATE).arg(envName);
+
+        QStringList args;
+        args.append("guestproperty");
+        args.append("set");
+        args.append(q->name());
+        args.append(envPropertyName);
+        args.append(alignedMountPoint);
+        enqueue(args, batch);
+    }
+
     commandQueue()->enqueueCheckPoint(context, std::bind(functor, true));
     commandQueue()->endBatch();
 }

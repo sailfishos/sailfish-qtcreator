@@ -42,8 +42,8 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>451</width>
-        <height>842</height>
+        <width>450</width>
+        <height>866</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="scrollAreaContentsLayout">
@@ -321,7 +321,7 @@
           <item row="0" column="0">
            <widget class="QLabel" name="srcFolderLabel">
             <property name="text">
-             <string>Alt source folder:</string>
+             <string>Workspace folder:</string>
             </property>
            </widget>
           </item>
@@ -334,7 +334,7 @@
              </sizepolicy>
             </property>
             <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;The alternative source folder path.&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Your projects can be located under your home folder or under this folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;The workspace folder path.&lt;/span&gt;&lt;/p&gt;&lt;p&gt;%1 requires that all your projects are stored under the configured workspace folder. You can choose different location for the workspace folder and then use the &amp;quot;Change&amp;quot; button to apply the change. You will need to stop the build engine before this setting can be changed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
             </property>
            </widget>
           </item>
@@ -355,9 +355,6 @@
             </item>
             <item>
              <widget class="QPushButton" name="srcFolderApplyButton">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Change the alternative source location folder.&lt;/span&gt;&lt;/p&gt;&lt;p&gt;By default %1 build engine can read project sources only from your home directory. You can specify here another location for your projects. You will need to stop the build engine before this setting can be changed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
               <property name="text">
                <string>Change</string>
               </property>

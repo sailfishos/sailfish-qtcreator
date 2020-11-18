@@ -24,8 +24,8 @@
 
 #include <mer/merconstants.h>
 #include <sfdk/sfdkconstants.h>
+#include <utils/fileutils.h>
 #include <utils/qtcassert.h>
-#include <utils/qtcprocess.h>
 
 #include <QDir>
 #include <QRegularExpression>
@@ -72,18 +72,11 @@ int CMakeCommand::execute()
         return 1;
     }
 
-    // FIXME If merssh is passed "'Foo Bar'", Command::arguments() returns ["'Foo", "Bar'"].
-    const bool abortOnMeta = false;
-    QtcProcess::SplitError splitError;
-    const QStringList splitArguments = QtcProcess::splitArgs(arguments().join(QLatin1Char(' ')),
-            OsTypeLinux, abortOnMeta, &splitError);
-    QTC_ASSERT(splitError == QtcProcess::SplitOk, return 1);
-
-    QTC_ASSERT(splitArguments.count() > 1, return 1);
-    QTC_ASSERT(splitArguments.first() == "cmake", return 1);
+    QTC_ASSERT(arguments().count() > 1, return 1);
+    QTC_ASSERT(arguments().first() == "cmake", return 1);
 
     QStringList filteredArguments;
-    for (const QString &argument : splitArguments) {
+    for (const QString &argument : arguments()) {
         // See CMakeProjectManager::BuildDirManager::writeConfigurationIntoBuildDirectory()
         if (argument.endsWith('/' + QLatin1String("qtcsettings.cmake"))) {
             const QString filteredPath = filterQtcSettings(argument);

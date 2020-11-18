@@ -220,7 +220,11 @@ public:
     QString sharedConfigMountPoint() const
     { return Sfdk::Constants::BUILD_ENGINE_SHARED_CONFIG_MOUNT_POINT; }
     QString sharedSrcMountPoint() const
-    { return Sfdk::Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT; }
+    {
+        return withEngine([=](BuildEngine *engine) {
+            return engine->sharedSrcMountPoint();
+        });
+    }
     QString sharedSshMountPoint() const
     { return Sfdk::Constants::BUILD_ENGINE_SHARED_SSH_MOUNT_POINT; }
 

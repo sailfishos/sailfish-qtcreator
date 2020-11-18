@@ -612,13 +612,21 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
     forwardPort(GUESTSSHPORT, cachedInfo().sshPort);
     forwardPort(GUESTWWWPORT, cachedInfo().wwwPort);
 
-    auto sharePath = [&arguments](const QString &guestPath, const QString &hostPath) {
+    auto sharePath = [&arguments](const QString &guestPath, const QString &hostPath,
+            const QString &alignedMountPointName = {}) {
         arguments.append("--volume");
         arguments.append(hostPath + ":" + guestPath);
+
+        if (!alignedMountPointName.isEmpty()) {
+            const QString envName = QString::fromLatin1(Constants::BUILD_ENGINE_ALIGNED_MOUNT_POINT_ENV_TEMPLATE)
+                .arg(alignedMountPointName.toUpper());
+            arguments.append("--env");
+            arguments.append(envName + "=" + guestPath);
+        }
     };
     sharePath(Constants::BUILD_ENGINE_SHARED_INSTALL_MOUNT_POINT, cachedInfo().sharedInstall);
     sharePath(Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, cachedInfo().sharedHome);
-    sharePath(Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, cachedInfo().sharedSrc);
+    sharePath(alignedMountPointFor(cachedInfo().sharedSrc), cachedInfo().sharedSrc, "src1");
     sharePath(Constants::BUILD_ENGINE_SHARED_TARGET_MOUNT_POINT, cachedInfo().sharedTargets);
     sharePath(Constants::BUILD_ENGINE_SHARED_CONFIG_MOUNT_POINT, cachedInfo().sharedConfig);
     sharePath(Constants::BUILD_ENGINE_SHARED_SSH_MOUNT_POINT, cachedInfo().sharedSsh);

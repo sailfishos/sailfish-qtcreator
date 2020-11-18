@@ -6,9 +6,8 @@
     "worker":
     {
         "type": "engine-command",
-        "version": 1,
-        "program": "mb2",
-        "directTerminalInput": true
+        "version": 4,
+        "program": "mb2"
     },
 
     "commands":

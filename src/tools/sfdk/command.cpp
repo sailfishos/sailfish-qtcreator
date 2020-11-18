@@ -58,7 +58,6 @@ namespace {
 const char PROGRAM_KEY[] = "program";
 const char INITIAL_ARGUMENTS_KEY[] = "initialArguments";
 const char OMIT_SUBCOMMAND_KEY[] = "omitSubcommand";
-const char DIRECT_TERMINAL_INPUT_KEY[] = "directTerminalInput";
 
 const char ENGINE_HOST_NAME[] = "host-name";
 
@@ -1058,8 +1057,7 @@ Worker::ExitStatus BuiltinWorker::runDevice(const QStringList &arguments, int *e
             programArguments << "--login";
         }
 
-        *exitCode = SdkManager::runOnDevice(*device, program, programArguments,
-                QProcess::ForwardedInputChannel);
+        *exitCode = SdkManager::runOnDevice(*device, program, programArguments);
         return NormalExit;
     }
 
@@ -1214,8 +1212,7 @@ Worker::ExitStatus BuiltinWorker::runEmulator(const QStringList &arguments, int 
             programArguments << "--login";
         }
 
-        *exitCode = SdkManager::runOnEmulator(*emulator, program, programArguments,
-                QProcess::ForwardedInputChannel);
+        *exitCode = SdkManager::runOnEmulator(*emulator, program, programArguments);
         return NormalExit;
     }
 
@@ -1306,7 +1303,7 @@ Worker::ExitStatus BuiltinWorker::runEngine(const QStringList &arguments, int *e
             program = "/bin/bash";
             programArguments << "--login";
         }
-        *exitCode = SdkManager::runOnEngine(program, programArguments, QProcess::ForwardedInputChannel);
+        *exitCode = SdkManager::runOnEngine(program, programArguments);
         return NormalExit;
     }
 
@@ -1551,8 +1548,7 @@ Worker::ExitStatus BuiltinWorker::runTools(const QStringList &arguments_, int *e
             || arguments.first() == "package-remove") {
         QStringList allArguments = arguments_;
         allArguments.prepend("--non-interactive");
-        *exitCode = SdkManager::runOnEngine("sdk-assistant", allArguments,
-                QProcess::ForwardedInputChannel);
+        *exitCode = SdkManager::runOnEngine("sdk-assistant", allArguments);
         return NormalExit;
     }
 
@@ -1561,8 +1557,7 @@ Worker::ExitStatus BuiltinWorker::runTools(const QStringList &arguments_, int *e
         // sdk-assistant uses different name for this command
         allArguments[typeHint != SdkManager::NoToolsHint ? 1 : 0] = "maintain";
         allArguments.prepend("--non-interactive");
-        *exitCode = SdkManager::runOnEngine("sdk-assistant", allArguments,
-                QProcess::ForwardedInputChannel);
+        *exitCode = SdkManager::runOnEngine("sdk-assistant", allArguments);
         return NormalExit;
     }
 
@@ -1875,22 +1870,18 @@ Worker::ExitStatus EngineWorker::doRun(const Command *command, const QStringList
 
     qCDebug(sfdk) << "About to run on build engine:" << m_program << "arguments:" << allArguments;
 
-    const QProcess::InputChannelMode inputChannelMode = m_directTerminalInput
-        ? QProcess::ForwardedInputChannel
-        : QProcess::ManagedInputChannel;
-
-    *exitCode = SdkManager::runOnEngine(m_program, allArguments, inputChannelMode);
+    *exitCode = SdkManager::runOnEngine(m_program, allArguments);
     return NormalExit;
 }
 
 std::unique_ptr<Worker> EngineWorker::fromMap(const QVariantMap &data, int version,
         QString *errorString)
 {
-    if (!checkVersion(version, 1, 3, errorString))
+    if (!checkVersion(version, 4, 4, errorString))
         return {};
 
-    if (!Dispatcher::checkKeys(data, {PROGRAM_KEY, INITIAL_ARGUMENTS_KEY, OMIT_SUBCOMMAND_KEY,
-                DIRECT_TERMINAL_INPUT_KEY}, errorString)) {
+    if (!Dispatcher::checkKeys(data, {PROGRAM_KEY, INITIAL_ARGUMENTS_KEY, OMIT_SUBCOMMAND_KEY},
+                errorString)) {
         return {};
     }
 
@@ -1912,10 +1903,6 @@ std::unique_ptr<Worker> EngineWorker::fromMap(const QVariantMap &data, int versi
     QVariant omitCommand = Dispatcher::value(data, OMIT_SUBCOMMAND_KEY, QVariant::Bool, false,
             errorString);
     worker->m_omitSubcommand = omitCommand.toBool();
-
-    QVariant directTerminalInput = Dispatcher::value(data, DIRECT_TERMINAL_INPUT_KEY,
-            QVariant::Bool, false, errorString);
-    worker->m_directTerminalInput = directTerminalInput.toBool();
 
 #ifdef Q_OS_MACOS
     return std::move(worker);

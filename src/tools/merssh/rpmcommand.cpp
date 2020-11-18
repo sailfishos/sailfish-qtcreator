@@ -36,7 +36,7 @@ QString RpmCommand::name() const
 int RpmCommand::execute()
 {
     // FIXME Rename me as "package"
-    return executeSfdk(QStringList{"package"} + rawArguments().mid(1));
+    return executeSfdk(QStringList{"package"} + arguments().mid(1));
 }
 
 bool RpmCommand::isValid() const

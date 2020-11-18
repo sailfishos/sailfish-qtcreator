@@ -35,7 +35,7 @@ QString DeployCommand::name() const
 
 int DeployCommand::execute()
 {
-    return executeSfdk(rawArguments());
+    return executeSfdk(arguments());
 }
 
 bool DeployCommand::isValid() const

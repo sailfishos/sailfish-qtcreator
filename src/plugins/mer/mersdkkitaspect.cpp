@@ -198,21 +198,13 @@ void MerSdkKitAspect::addToEnvironment(const Kit *kit, Environment &env) const
     const BuildEngine *engine = MerSdkKitAspect::buildEngine(kit);
     const QString targetName = MerSdkKitAspect::buildTargetName(kit);
     if (engine) {
-        const QString sshPort = QString::number(engine->sshPort());
-        const QString sharedHome = QDir::fromNativeSeparators(engine->sharedHomePath().toString());
         const QString sharedTarget = QDir::fromNativeSeparators(engine->sharedTargetsPath().toString());
         const QString sharedSrc = QDir::fromNativeSeparators(engine->sharedSrcPath().toString());
 
-        env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_USERNAME),
-                        QLatin1String(Sfdk::Constants::BUILD_ENGINE_DEFAULT_USER_NAME));
-        env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_HOST), engine->virtualMachine()->sshParameters().host());
-        env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_PORT), sshPort);
-        env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_PRIVATE_KEY),
-                engine->virtualMachine()->sshParameters().privateKeyFile);
-        env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_HOME), sharedHome);
         env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_TARGET), sharedTarget);
-        if (!sharedSrc.isEmpty())
-            env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC), sharedSrc);
+        env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC), sharedSrc);
+        env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC_MOUNT_POINT),
+                engine->sharedSrcMountPoint());
         if (!MerSettings::isEnvironmentFilterFromEnvironment() &&
                 !MerSettings::environmentFilter().isEmpty()) {
             env.appendOrSet(QLatin1String(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER),

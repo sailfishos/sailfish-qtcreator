@@ -31,7 +31,6 @@
 #include "qmakecommand.h"
 #include "rpmcommand.h"
 #include "rpmvalidationcommand.h"
-#include "wwwproxycommand.h"
 
 #include <app/app_version.h>
 #include <mer/merconstants.h>
@@ -63,16 +62,11 @@ void printUsage()
             << CommandFactory::commands().join(' ') << endl
             << "environment variables - project parameters:" << endl
             << Sfdk::Constants::MER_SSH_TARGET_NAME << endl
-            << Sfdk::Constants::MER_SSH_SHARED_HOME << endl
             << Sfdk::Constants::MER_SSH_SHARED_TARGET << endl
             << Sfdk::Constants::MER_SSH_SHARED_SRC << endl
+            << Sfdk::Constants::MER_SSH_SHARED_SRC_MOUNT_POINT << endl
             << Sfdk::Constants::MER_SSH_SDK_TOOLS << endl
-            << Sfdk::Constants::MER_SSH_DEVICE_NAME << endl
-            << "evironment variables - connection parameters:" << endl
-            << Sfdk::Constants::MER_SSH_USERNAME << endl
-            << Sfdk::Constants::MER_SSH_HOST << endl
-            << Sfdk::Constants::MER_SSH_PORT << endl
-            << Sfdk::Constants::MER_SSH_PRIVATE_KEY << endl;
+            << Sfdk::Constants::MER_SSH_DEVICE_NAME << endl;
 }
 
 QStringList unquoteArguments(QStringList args) {
@@ -168,6 +162,7 @@ int main(int argc, char *argv[])
     }
 #endif
 
+    // Needed by generatesshkeys to locate ssh-keygen
     initQSsh();
 
     CommandFactory::registerCommand<QMakeCommand>(QLatin1String("qmake"));
@@ -179,7 +174,6 @@ int main(int argc, char *argv[])
     CommandFactory::registerCommand<RpmValidationCommand>(QLatin1String("rpmvalidation"));
     CommandFactory::registerCommand<GenerateKeysCommand>(QLatin1String("generatesshkeys"));
     CommandFactory::registerCommand<LUpdateCommand>(QLatin1String("lupdate"));
-    CommandFactory::registerCommand<WwwProxyCommand>(QLatin1String("wwwproxy"));
 
     QStringList arguments  = QCoreApplication::arguments();
 
@@ -190,15 +184,11 @@ int main(int argc, char *argv[])
     // environment variables cannot be set.
     const QSet<QString> environmentVariables{
         QLatin1String(Sfdk::Constants::MER_SSH_TARGET_NAME),
-        QLatin1String(Sfdk::Constants::MER_SSH_SHARED_HOME),
         QLatin1String(Sfdk::Constants::MER_SSH_SHARED_TARGET),
         QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC),
+        QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC_MOUNT_POINT),
         QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS),
         QLatin1String(Sfdk::Constants::MER_SSH_DEVICE_NAME),
-        QLatin1String(Sfdk::Constants::MER_SSH_USERNAME),
-        QLatin1String(Sfdk::Constants::MER_SSH_HOST),
-        QLatin1String(Sfdk::Constants::MER_SSH_PORT),
-        QLatin1String(Sfdk::Constants::MER_SSH_PRIVATE_KEY),
         QLatin1String(Sfdk::Constants::MER_SSH_SFDK_OPTIONS),
     };
     while (!arguments.isEmpty()) {
@@ -227,8 +217,8 @@ int main(int argc, char *argv[])
          return 1;
     }
 
-    if (!qobject_cast<WwwProxyCommand *>(command.data()))
-        arguments = unquoteArguments(arguments);
+    // TODO possibly to drop the quoting?
+    arguments = unquoteArguments(arguments);
 
     const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
 
@@ -240,21 +230,12 @@ int main(int argc, char *argv[])
     command->setSfdkOptions(sfdkOptions);
 
     command->setTargetName(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_TARGET_NAME)));
-    command->setSharedHomePath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_HOME)));
     command->setSharedTargetPath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_TARGET)));
     command->setSharedSourcePath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC)));
+    command->setSharedSourceMountPoint(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC_MOUNT_POINT)));
     command->setSdkToolsPath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS)));
     command->setDeviceName(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_DEVICE_NAME)));
-
-    QSsh::SshConnectionParameters parameters;
-    parameters.setHost(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_HOST)));
-    parameters.setUserName(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_USERNAME)));
-    parameters.setPort(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_PORT)).toInt());
-    parameters.privateKeyFile = environment.value(QLatin1String(Sfdk::Constants::MER_SSH_PRIVATE_KEY));
-    parameters.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypeSpecificKey;
-    parameters.timeout = 10;
-    command->setSshParameters(parameters);
-    command->setArguments(unquoteArguments(arguments));
+    command->setArguments(arguments);
 
     if (!command->isValid()) {
        qCritical() << "Invalid command arguments" << endl;

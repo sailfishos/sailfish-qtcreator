@@ -31,16 +31,19 @@
 #include "virtualmachine_p.h"
 
 #include <ssh/sshconnection.h>
+#include <ssh/sshremoteprocessrunner.h>
 #include <utils/algorithm.h>
 #include <utils/filesystemwatcher.h>
 #include <utils/persistentsettings.h>
 #include <utils/pointeralgorithm.h>
 #include <utils/qtcassert.h>
+#include <utils/qtcprocess.h>
 
 #include <QDir>
 #include <QHostInfo>
 #include <QPointer>
 #include <QProcess>
+#include <QRegularExpression>
 #include <QTimer>
 
 using namespace QSsh;
@@ -168,6 +171,11 @@ Utils::FilePath BuildEngine::sharedConfigPath() const
 Utils::FilePath BuildEngine::sharedSrcPath() const
 {
     return d_func()->sharedSrcPath;
+}
+
+QString BuildEngine::sharedSrcMountPoint() const
+{
+    return VirtualMachinePrivate::alignedMountPointFor(d_func()->sharedSrcPath.toString());
 }
 
 Utils::FilePath BuildEngine::sharedSshPath() const
@@ -556,6 +564,7 @@ void BuildEnginePrivate::setSharedSrcPath(const Utils::FilePath &sharedSrcPath)
         return;
     this->sharedSrcPath = sharedSrcPath;
     emit q_func()->sharedSrcPathChanged(sharedSrcPath);
+    emit q_func()->sharedSrcMountPointChanged(q_func()->sharedSrcMountPoint());
 }
 
 void BuildEnginePrivate::setSharedSshPath(const Utils::FilePath &sharedSshPath)
@@ -589,16 +598,14 @@ void BuildEnginePrivate::setWwwPort(quint16 wwwPort)
 // takes effect, and the result should be checked.
 void BuildEnginePrivate::syncWwwProxy()
 {
+    Q_Q(BuildEngine);
+
     const SshConnectionParameters sshParameters = virtualMachine->sshParameters();
+    const QRegularExpression spaces("[[:space:]]+");
+    const QStringList wwwProxyServers = this->wwwProxyServers.split(spaces, QString::SkipEmptyParts);
+    const QStringList wwwProxyExcludes = this->wwwProxyExcludes.split(spaces, QString::SkipEmptyParts);
 
     QStringList args;
-    const QString eq("=");
-    args.append(Constants::MER_SSH_HOST + eq + sshParameters.host());
-    args.append(Constants::MER_SSH_PORT + eq + QString::number(sshParameters.port()));
-    args.append(Constants::MER_SSH_PRIVATE_KEY + eq + sshParameters.privateKeyFile);
-    args.append(Constants::MER_SSH_SHARED_HOME + eq + sharedHomePath.toString());
-    args.append(Constants::MER_SSH_USERNAME + eq + sshParameters.userName());
-    args.append("wwwproxy");
     args.append(wwwProxyType);
 
     if (!wwwProxyServers.isEmpty()
@@ -609,14 +616,32 @@ void BuildEnginePrivate::syncWwwProxy()
 
     if (!wwwProxyExcludes.isEmpty()
             && wwwProxyType == Constants::WWW_PROXY_MANUAL) {
+        args.append("--excludes");
         args.append(wwwProxyExcludes);
     }
 
-    const QString wrapperBinaryPath = SdkPrivate::libexecPath().pathAppended("merssh")
-        .stringAppended(QTC_HOST_EXE_SUFFIX).toString();
+    const QString connmanctl = QString::fromLatin1(R"(
+        mac=$(</sys/class/net/eth0/address)
+        service=ethernet_${mac//:}_cable
+        sudo connmanctl config "$service" proxy %1
+    )").arg(QtcProcess::joinArgs(args, Utils::OsTypeLinux));
 
-    qCDebug(engine) << "About to sync WWW proxy. merssh arguments:" << args;
-    QProcess::startDetached(wrapperBinaryPath, args);
+    auto runner = new SshRemoteProcessRunner(q);
+    QObject::connect(runner, &SshRemoteProcessRunner::processClosed, [runner]() {
+        if (runner->processExitStatus() != SshRemoteProcess::NormalExit)
+            qCWarning(engine) << "Failed to sync WWW proxy configuration: Process exited abnormally";
+        else if (runner->processExitCode() != EXIT_SUCCESS)
+            qCWarning(engine) << "Failed to sync WWW proxy configuration: Process exited with error";
+        runner->deleteLater();
+    });
+    QObject::connect(runner, &SshRemoteProcessRunner::connectionError, [runner]() {
+        qCWarning(engine) << "Failed to sync WWW proxy configuration: Error connecting to the build engine";
+        runner->deleteLater();
+    });
+
+    qCDebug(engine) << "About to sync WWW proxy. connmanctl arguments:" << args;
+
+    runner->run(connmanctl, sshParameters);
 }
 
 void BuildEnginePrivate::updateBuildTargets()

@@ -24,6 +24,7 @@
 #pragma once
 
 #include "task.h"
+#include "textutils.h"
 
 #include <ssh/sshconnection.h>
 
@@ -80,9 +81,6 @@ public:
     bool isRunInTerminalSet() const { return m_runInTerminal; }
     void setRunInTerminal(bool runInTerminal);
 
-    QProcess::InputChannelMode inputChannelMode() const { return m_inputChannelMode; }
-    void setInputChannelMode(QProcess::InputChannelMode inputChannelMode);
-
     bool isStandardOutputLineBufferedSet() const { return m_standardOutputLineBuffered; }
     void setStandardOutputLineBuffered(bool lineBuffered);
 
@@ -114,7 +112,6 @@ private slots:
     void onProcessClosed();
     void onReadyReadStandardOutput();
     void onReadyReadStandardError();
-    void handleStdin();
 
 private:
     std::unique_ptr<QSsh::SshRemoteProcessRunner> m_runner;
@@ -124,8 +121,7 @@ private:
     QString m_workingDirectory;
     QSsh::SshConnectionParameters m_sshConnectionParams;
     QProcessEnvironment m_extraEnvironment;
-    bool m_runInTerminal = false;
-    QProcess::InputChannelMode m_inputChannelMode = QProcess::ManagedInputChannel;
+    bool m_runInTerminal = isOutputConnectedToTerminal();
     bool m_standardOutputLineBuffered = false;
     bool m_startedOk = false;
     bool m_finished = false;

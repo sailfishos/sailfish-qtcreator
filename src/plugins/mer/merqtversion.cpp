@@ -150,7 +150,6 @@ Tasks MerQtVersion::reportIssuesImpl(const QString &proFile,
     } 
     else {
         QString proFileClean;
-        QString sharedHomeClean;
         QString sharedSrcClean;
     
         QDir proDir(proFile);
@@ -160,34 +159,23 @@ Tasks MerQtVersion::reportIssuesImpl(const QString &proFile,
         // as they are
         if (proDir.canonicalPath().isEmpty()) {
             proFileClean = QDir::cleanPath(proFile);
-            sharedHomeClean = QDir::cleanPath(buildEngine->sharedHomePath().toString());
             sharedSrcClean = QDir::cleanPath(buildEngine->sharedSrcPath().toString());
         }
         else {
             // proDir is not empty, let's remove any symlinks from paths
-            QDir homeDir(buildEngine->sharedHomePath().toString());
             QDir srcDir(buildEngine->sharedSrcPath().toString());
             proFileClean = QDir::cleanPath(proDir.canonicalPath());
-            sharedHomeClean = QDir::cleanPath(homeDir.canonicalPath());
             sharedSrcClean = QDir::cleanPath(srcDir.canonicalPath());
         }
 
         if (HostOsInfo::isWindowsHost()) {
             proFileClean = proFileClean.toLower();
-            sharedHomeClean = sharedHomeClean.toLower();
             sharedSrcClean = sharedSrcClean.toLower();
         }
 
-        if (!proFileClean.startsWith(sharedHomeClean) && !proFileClean.startsWith(sharedSrcClean)) {
-            QString message =  QCoreApplication::translate("QtVersion", "Project is outside of %1 workspace").arg(Sdk::sdkVariant());
-            if(!buildEngine->sharedHomePath().isEmpty() && !buildEngine->sharedSrcPath().isEmpty())
-              message = QCoreApplication::translate("QtVersion", "Project is outside of %1 shared home \"%2\" and shared src \"%3\"")
-                      .arg(Sdk::sdkVariant())
-                      .arg(QDir::toNativeSeparators(buildEngine->sharedHomePath().toString()))
-                      .arg(QDir::toNativeSeparators(buildEngine->sharedSrcPath().toString()));
-            else if(!buildEngine->sharedHomePath().isEmpty())
-              message = QCoreApplication::translate("QtVersion", "Project is outside of shared home \"%1\"")
-                      .arg(QDir::toNativeSeparators(buildEngine->sharedHomePath().toString()));
+        if (!proFileClean.startsWith(sharedSrcClean)) {
+            const QString message = QCoreApplication::translate("QtVersion", "Project is outside of workspace \"%1\"")
+                    .arg(QDir::toNativeSeparators(buildEngine->sharedSrcPath().toString()));
             Task task(Task::Error,message,FilePath(), -1, Core::Id());
             results.append(task);
         }

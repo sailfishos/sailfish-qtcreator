@@ -478,8 +478,7 @@ public:
         args += "update";
         args += name;
 
-        const int exitCode = SdkManager::runOnEngine("sdk-assistant", args,
-                QProcess::ManagedInputChannel);
+        const int exitCode = SdkManager::runOnEngine("sdk-assistant", args);
         return exitCode == EXIT_SUCCESS;
     }
 
@@ -498,8 +497,7 @@ public:
         if (!maybePassword.isEmpty())
             args += {"--password", maybePassword};
 
-        const int exitCode = SdkManager::runOnEngine("sdk-assistant", args,
-                QProcess::ForwardedInputChannel);
+        const int exitCode = SdkManager::runOnEngine("sdk-assistant", args);
         return exitCode == EXIT_SUCCESS;
     }
 
@@ -544,8 +542,7 @@ public:
             args += "--tooling";
             args += maybeTooling;
         }
-        const int exitCode = SdkManager::runOnEngine("sdk-assistant", args,
-                QProcess::ManagedInputChannel);
+        const int exitCode = SdkManager::runOnEngine("sdk-assistant", args);
         return exitCode == EXIT_SUCCESS;
     }
 
@@ -564,8 +561,7 @@ public:
             args += toArgs(typeHint);
             args += "remove";
             args += name;
-            const int exitCode = SdkManager::runOnEngine("sdk-assistant", args,
-                    QProcess::ManagedInputChannel);
+            const int exitCode = SdkManager::runOnEngine("sdk-assistant", args);
             return exitCode == EXIT_SUCCESS;
         }
 
@@ -645,8 +641,7 @@ private:
         QTextStream stream(&data);
 
         QStringList listToolingsArgs = {"tooling", "list", "--long"};
-        const int exitCode = SdkManager::runOnEngine("sdk-manage", listToolingsArgs,
-                QProcess::ManagedInputChannel, stream);
+        const int exitCode = SdkManager::runOnEngine("sdk-manage", listToolingsArgs, stream);
         if (exitCode != EXIT_SUCCESS)
             return false;
 
@@ -680,8 +675,7 @@ private:
         QStringList args = {"target", "list", "--long"};
         if (checkSnapshots)
             args += "--check-snapshots";
-        const int exitCode = SdkManager::runOnEngine("sdk-manage", args,
-                QProcess::ManagedInputChannel, stream);
+        const int exitCode = SdkManager::runOnEngine("sdk-manage", args, stream);
         if (exitCode != EXIT_SUCCESS)
             return false;
 
@@ -1045,7 +1039,7 @@ bool SdkManager::isEngineRunning()
 }
 
 int SdkManager::runOnEngine(const QString &program, const QStringList &arguments,
-        QProcess::InputChannelMode inputChannelMode, QTextStream &out, QTextStream &err)
+        QTextStream &out, QTextStream &err)
 {
     QTC_ASSERT(s_instance->hasEngine(), return SFDK_EXIT_ABNORMAL);
 
@@ -1079,7 +1073,6 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     process.setArguments(arguments_);
     process.setWorkingDirectory(workingDirectory);
     process.setExtraEnvironment(extraEnvironment);
-    process.setInputChannelMode(inputChannelMode);
 
     QObject::connect(&process, &RemoteProcess::standardOutput, [&](const QByteArray &data) {
         out << s_instance->maybeReverseMapEnginePaths(data) << flush;
@@ -1234,12 +1227,11 @@ bool SdkManager::prepareForRunOnDevice(const Device &device, RemoteProcess *proc
 }
 
 int SdkManager::runOnDevice(const Device &device, const QString &program,
-        const QStringList &arguments, QProcess::InputChannelMode inputChannelMode)
+        const QStringList &arguments)
 {
     RemoteProcess process;
     process.setProgram(program);
     process.setArguments(arguments);
-    process.setInputChannelMode(inputChannelMode);
 
     QObject::connect(&process, &RemoteProcess::standardOutput, [&](const QByteArray &data) {
         qout() << data << flush;
@@ -1301,11 +1293,11 @@ bool SdkManager::isEmulatorRunning(const Emulator &emulator)
 }
 
 int SdkManager::runOnEmulator(const Emulator &emulator, const QString &program,
-        const QStringList &arguments, QProcess::InputChannelMode inputChannelMode)
+        const QStringList &arguments)
 {
     Device *const emulatorDevice = Sdk::device(emulator);
     QTC_ASSERT(emulatorDevice, return SFDK_EXIT_ABNORMAL);
-    return runOnDevice(*emulatorDevice, program, arguments, inputChannelMode);
+    return runOnDevice(*emulatorDevice, program, arguments);
 }
 
 bool SdkManager::listAvailableEmulators(QList<AvailableEmulatorInfo> *info)
@@ -1352,12 +1344,6 @@ void SdkManager::saveSettings()
         qCWarning(sfdk).noquote() << "Error saving settings:" << errorString;
 }
 
-QString SdkManager::cleanSharedHome() const
-{
-    QTC_ASSERT(hasEngine(), return {});
-    return QDir(QDir::cleanPath(m_buildEngine->sharedHomePath().toString())).canonicalPath();
-}
-
 QString SdkManager::cleanSharedSrc() const
 {
     QTC_ASSERT(hasEngine(), return {});
@@ -1382,19 +1368,16 @@ bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QStrin
     *program = QDir::fromNativeSeparators(*program);
 
     QString errorString;
-    const QString cleanSharedHome = this->cleanSharedHome();
     const QString cleanSharedSrc = this->cleanSharedSrc();
     const QString cleanSharedTarget = this->cleanSharedTarget(&errorString);
     if (cleanSharedTarget.isEmpty())
         qCDebug(sfdk).noquote() << "Not mapping shared target path:" << errorString;
 
-    if (!workingDirectory->startsWith(cleanSharedHome)
-            && (cleanSharedSrc.isEmpty() || !workingDirectory->startsWith(cleanSharedSrc))) {
-        qCDebug(sfdk) << "cleanSharedHome:" << cleanSharedHome;
+    if (!workingDirectory->startsWith(cleanSharedSrc)) {
         qCDebug(sfdk) << "cleanSharedSrc:" << cleanSharedSrc;
-        qerr() << tr("The command needs to be used under build engine's share home or shared "
-                "source directory, which are currently configured as \"%1\" and \"%2\"")
-            .arg(m_buildEngine->sharedHomePath().toString())
+        qerr() << tr("The command needs to be used under %1 workspace, "
+                "which is currently configured as \"%2\"")
+            .arg(Sdk::sdkVariant())
             .arg(m_buildEngine->sharedSrcPath().toString()) << endl;
         return false;
     }
@@ -1413,8 +1396,8 @@ bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QStrin
         mappings.push_back({cleanSharedTarget + "/", "/", Qt::CaseSensitive});
         mappings.push_back({cleanSharedTarget, "/", Qt::CaseSensitive});
     }
-    mappings.push_back({cleanSharedHome, Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, Qt::CaseSensitive});
-    mappings.push_back({cleanSharedSrc, Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, caseInsensitiveOnWindows});
+    mappings.push_back({cleanSharedSrc, m_buildEngine->sharedSrcMountPoint(),
+            caseInsensitiveOnWindows});
 
     for (const Mapping &mapping : mappings) {
         QTC_ASSERT(!mapping.hostPath.isEmpty(), continue);
@@ -1463,16 +1446,14 @@ QByteArray SdkManager::maybeReverseMapEnginePaths(const QByteArray &commandOutpu
     if (!m_enableReversePathMapping)
         return commandOutput;
 
-    const QString cleanSharedHome = this->cleanSharedHome();
     const QString cleanSharedSrc = this->cleanSharedSrc();
 
     QByteArray retv = commandOutput;
 
-    if (!m_buildEngine->sharedSrcPath().isEmpty())
-      retv.replace(Constants::BUILD_ENGINE_SHARED_SRC_MOUNT_POINT, cleanSharedSrc.toUtf8());
+    QTC_ASSERT(!cleanSharedSrc.isEmpty(), return retv);
+    QTC_ASSERT(!m_buildEngine->sharedSrcMountPoint().isEmpty(), return retv);
 
-    if (!m_buildEngine->sharedHomePath().isEmpty())
-      retv.replace(Constants::BUILD_ENGINE_SHARED_HOME_MOUNT_POINT, cleanSharedHome.toUtf8());
+    retv.replace(m_buildEngine->sharedSrcMountPoint().toUtf8(), cleanSharedSrc.toUtf8());
 
     return retv;
 }

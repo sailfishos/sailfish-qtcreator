@@ -153,7 +153,6 @@ private:
     QString m_program;
     QStringList m_initialArguments;
     bool m_omitSubcommand = false;
-    bool m_directTerminalInput = false;
 };
 
 } // namespace Sfdk

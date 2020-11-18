@@ -18,13 +18,11 @@ SOURCES = \
     qmakecommand.cpp \
     generatekeyscommand.cpp \
     gcccommand.cpp \
-    merremoteprocess.cpp \
     makecommand.cpp \
     deploycommand.cpp \
     rpmcommand.cpp \
     rpmvalidationcommand.cpp \
     lupdatecommand.cpp \
-    wwwproxycommand.cpp \
 
 HEADERS += \
     command.h \
@@ -33,10 +31,8 @@ HEADERS += \
     qmakecommand.h \
     generatekeyscommand.h \
     gcccommand.h \
-    merremoteprocess.h \
     makecommand.h \
     deploycommand.h \
     rpmcommand.h \
     rpmvalidationcommand.h \
     lupdatecommand.h \
-    wwwproxycommand.h \

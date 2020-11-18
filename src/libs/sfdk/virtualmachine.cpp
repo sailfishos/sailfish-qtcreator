@@ -563,6 +563,49 @@ void VirtualMachinePrivate::setSharedPath(SharedPath which, const Utils::FilePat
     });
 }
 
+QString VirtualMachinePrivate::alignedMountPointFor(const QString &hostPath)
+{
+    QString path = QDir::fromNativeSeparators(hostPath);
+
+    QTC_ASSERT(QFileInfo(path).isAbsolute(),
+            path = QFileInfo(path).absoluteFilePath());
+
+    // Here we are mostly concerned about possibly duplicated leading slashes
+    QTC_ASSERT(path == QDir::cleanPath(path),
+            path = QDir::cleanPath(path));
+
+    // We do not expect paths on network shares not mapped to a drive letter
+    QTC_ASSERT(!path.startsWith("//"), path = path.mid(1));
+
+    // We cannot really do more than trying to avoid an immediate crash here
+    QTC_ASSERT(path.length() >= 3, return path);
+
+    if (HostOsInfo::isWindowsHost()) {
+        // C:/Users/user -> /c/Users/user
+        path[1] = path[0].toLower();
+        path[0] = '/';
+    }
+
+    // Avoid name clashes
+    if (path.startsWith("/home/mersdk") || path.startsWith("/home/deploy")) {
+        QTC_CHECK(false);
+        path[6] = path[6].toUpper();
+    } else if (path == "/home") {
+        QTC_CHECK(false);
+        path = "/Home";
+    } else if (path.startsWith("/home")) {
+        ; // no clash
+    } else if (path.startsWith("/users", Qt::CaseInsensitive)) {
+        ; // no clash
+    } else if (path[2] == '/') {
+        ; // path starting with drive letter - no clash
+    } else {
+        path[1] = path[1].toUpper();
+    }
+
+    return path;
+}
+
 void VirtualMachinePrivate::setReservedPortForwarding(ReservedPort which, quint16 port,
         const QObject *context, const Functor<bool> &functor)
 {
