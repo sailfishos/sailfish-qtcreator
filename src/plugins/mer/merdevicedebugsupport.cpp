@@ -113,6 +113,12 @@ MerDeviceDebugSupport::MerDeviceDebugSupport(RunControl *runControl)
 
     setUsePortsGatherer(isCppDebugging(), isQmlDebugging());
 
+    auto aspect = runControl->runConfiguration()->aspect<MerRunConfigurationAspect>();
+    if (aspect->isDebugBypassOpenSslArmCapEnabled()) {
+        Runnable runnable = runControl->runnable();
+        runnable.environment.modify(Utils::EnvironmentItems({{"OPENSSL_armcap", "1"}}));
+        runControl->setRunnable(runnable);
+    }
     auto gdbServer = new DebugServerRunner(runControl, portsGatherer());
 
     addStartDependency(gdbServer);

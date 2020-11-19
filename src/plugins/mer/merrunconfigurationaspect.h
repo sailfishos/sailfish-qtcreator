@@ -60,6 +60,8 @@ public:
 
     QString defaultQmlLiveBenchWorkspace() const;
 
+    bool isDebugBypassOpenSslArmCapEnabled() const { return m_debugBypassOpenSslArmCapEnabled; }
+
     void applyTo(ProjectExplorer::Runnable *r) const;
 
     void fromMap(const QVariantMap &map) override;
@@ -72,6 +74,7 @@ public slots:
     void setQmlLiveBenchWorkspace(const QString &benchWorkspace);
     void setQmlLiveTargetWorkspace(const QString &targetWorkspace);
     void setQmlLiveOptions(QmlLiveOptions options);
+    void setDebugBypassOpenSslArmCapEnabled(bool debugBypassOpenSslArmCapEnabled);
 
 signals:
     void qmlLiveEnabledChanged(bool qmlLiveEnabled);
@@ -79,6 +82,7 @@ signals:
     void qmlLiveBenchWorkspaceChanged(const QString &benchWorkspace);
     void qmlLiveTargetWorkspaceChanged(const QString &targetWorkspace);
     void qmlLiveOptionsChanged();
+    void debugBypassOpenSslArmCapEnabledChanged(bool debugBypassOpenSslArmCapEnabled);
 
 private:
     ProjectExplorer::Target *m_target;
@@ -87,6 +91,7 @@ private:
     QString m_qmlLiveBenchWorkspace;
     QString m_qmlLiveTargetWorkspace;
     QmlLiveOptions m_qmlLiveOptions;
+    bool m_debugBypassOpenSslArmCapEnabled;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(MerRunConfigurationAspect::QmlLiveOptions)
