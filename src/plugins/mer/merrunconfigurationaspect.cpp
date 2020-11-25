@@ -72,6 +72,8 @@ const MerRunConfigurationAspect::QmlLiveOptions DEFAULT_QML_LIVE_OPTIONS =
 const char LIST_SEP[] = ":";
 const char QMLLIVE_SAILFISH_PRELOAD[] = "/usr/lib/qmllive-sailfish/libsailfishapp-preload.so";
 
+const char DEBUG_BYPASS_OPENSSL_ARMCAP_ENABLED[] = "MerRunConfiguration.DebugBypassOpenSslArmCapEnabled";
+
 } // namespace anonymous
 
 class MerRunConfigWidget : public QWidget
@@ -82,7 +84,7 @@ public:
     MerRunConfigWidget(MerRunConfigurationAspect *aspect)
         : m_aspect(aspect)
     {
-        setLayout(new QHBoxLayout);
+        setLayout(new QVBoxLayout);
         layout()->setContentsMargins(0, 0, 0, 0);
 
         auto qmlLiveWidget = new Utils::DetailsWidget;
@@ -130,6 +132,16 @@ public:
         });
 
         layout()->addWidget(qmlLiveWidget);
+
+        QCheckBox* debugBypassOpenSslArmCapCheckbox =
+                new QCheckBox(tr("Bypass OpenSSL ARM capability detection while debugging"));
+        debugBypassOpenSslArmCapCheckbox->setToolTip(tr("When checked, \"OPENSSL_armcap=1\" (ARMV7_NEON) "
+                "will be set in the process environment under debugger. "
+                "The way OpenSSL detects CPU capabilities would lead to receiving SIGILL at startup."));
+        debugBypassOpenSslArmCapCheckbox->setChecked(m_aspect->isDebugBypassOpenSslArmCapEnabled());
+        connect(debugBypassOpenSslArmCapCheckbox, &QCheckBox::stateChanged,
+                m_aspect, &MerRunConfigurationAspect::setDebugBypassOpenSslArmCapEnabled);
+        layout()->addWidget(debugBypassOpenSslArmCapCheckbox);
 
         // TODO add 'what are the prerequisites'
     }
@@ -247,6 +259,7 @@ MerRunConfigurationAspect::MerRunConfigurationAspect(Target *target)
     , m_qmlLiveEnabled(false)
     , m_qmlLiveBenchWorkspace(defaultQmlLiveBenchWorkspace())
     , m_qmlLiveOptions(DEFAULT_QML_LIVE_OPTIONS)
+    , m_debugBypassOpenSslArmCapEnabled(true)
 {
     setId(Constants::MER_RUN_CONFIGURATION_ASPECT);
     setDisplayName(tr("%1 Application Settings").arg(Sdk::osVariant()));
@@ -317,6 +330,7 @@ void MerRunConfigurationAspect::fromMap(const QVariantMap &map)
     m_qmlLiveTargetWorkspace = map.value(QLatin1String(QML_LIVE_TARGET_WORKSPACE_KEY), QString()).toString();
     m_qmlLiveOptions = static_cast<QmlLiveOption>(map.value(QLatin1String(QML_LIVE_OPTIONS_KEY),
                                                             static_cast<int>(DEFAULT_QML_LIVE_OPTIONS)).toInt());
+    m_debugBypassOpenSslArmCapEnabled = map.value(QLatin1String(DEBUG_BYPASS_OPENSSL_ARMCAP_ENABLED), true).toBool();
 }
 
 void MerRunConfigurationAspect::toMap(QVariantMap &map) const
@@ -326,6 +340,7 @@ void MerRunConfigurationAspect::toMap(QVariantMap &map) const
     map.insert(QLatin1String(QML_LIVE_BENCH_WORKSPACE_KEY), m_qmlLiveBenchWorkspace);
     map.insert(QLatin1String(QML_LIVE_TARGET_WORKSPACE_KEY), m_qmlLiveTargetWorkspace);
     map.insert(QLatin1String(QML_LIVE_OPTIONS_KEY), static_cast<int>(m_qmlLiveOptions));
+    map.insert(QLatin1String(DEBUG_BYPASS_OPENSSL_ARMCAP_ENABLED), m_debugBypassOpenSslArmCapEnabled);
 }
 
 void MerRunConfigurationAspect::restoreQmlLiveDefaults()
@@ -384,6 +399,16 @@ void MerRunConfigurationAspect::setQmlLiveOptions(QmlLiveOptions options)
     m_qmlLiveOptions = options;
 
     emit qmlLiveOptionsChanged();
+}
+
+void MerRunConfigurationAspect::setDebugBypassOpenSslArmCapEnabled(bool debugBypassOpenSslArmCapEnabled)
+{
+    if (m_debugBypassOpenSslArmCapEnabled == debugBypassOpenSslArmCapEnabled)
+        return;
+
+    m_debugBypassOpenSslArmCapEnabled = debugBypassOpenSslArmCapEnabled;
+
+    emit debugBypassOpenSslArmCapEnabledChanged(m_debugBypassOpenSslArmCapEnabled);
 }
 
 } // Internal

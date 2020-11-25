@@ -23,6 +23,7 @@
 #include "debugger.h"
 
 #include "remoteprocess.h"
+#include "sfdkconstants.h"
 #include "sdkmanager.h"
 #include "sfdkglobal.h"
 
@@ -134,6 +135,11 @@ public:
             m_remoteProcess.setWorkingDirectory(workingDirectory);
         m_remoteProcess.setRunInTerminal(false);
         m_remoteProcess.setStandardOutputLineBuffered(true);
+        if (!qEnvironmentVariableIsSet(Constants::NO_BYPASS_OPENSSL_ARMCAP_ENV_VAR)) {
+            QProcessEnvironment extraEnvironment;
+            extraEnvironment.insert("OPENSSL_armcap", "1");
+            m_remoteProcess.setExtraEnvironment(extraEnvironment);
+        }
         if (!SdkManager::prepareForRunOnDevice(device, &m_remoteProcess))
             return false;
 
