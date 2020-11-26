@@ -40,6 +40,7 @@
 #include <utils/environment.h>
 #include <utils/fileutils.h>
 #include <utils/hostosinfo.h>
+#include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
 #include <QCoreApplication>
@@ -69,33 +70,14 @@ void printUsage()
             << Sfdk::Constants::MER_SSH_DEVICE_NAME << endl;
 }
 
-QStringList unquoteArguments(QStringList args) {
+QStringList unquoteArguments(const QStringList &arguments)
+{
+    const bool abortOnMeta = false;
+    QtcProcess::SplitError splitError;
+    const QStringList result = QtcProcess::splitArgs(arguments.join(QLatin1Char(' ')),
+            HostOsInfo::hostOs(), abortOnMeta, &splitError);
+    QTC_ASSERT(splitError == QtcProcess::SplitOk, return {});
 
-    QStringList result;
-    //unix style
-    static QRegExp reg1(QLatin1String("^'(.*)'$"));
-    //windows style
-    static QRegExp reg2(QLatin1String("^\"(.*)\"$"));
-
-    foreach (const QString arg,args) {
-        if (reg1.indexIn(arg) != -1){
-            if (arg.indexOf(QLatin1Char(' ')) > -1)
-                result.append(arg);
-            else
-                result.append(reg1.cap(1));
-        } else if (reg2.indexIn(arg) != -1){
-            if (arg.indexOf(QLatin1Char(' ')) > -1)
-                result.append(arg);
-            else
-                result.append(reg2.cap(1));
-        }  else if (arg.indexOf(QLatin1Char(' ')) == -1) {
-            result.append(arg);
-        } else {
-            QString message = QString::fromLatin1("Unquoted argument found  \"%1\", which should be quoted. Skipping...\n").arg(arg);
-            fprintf(stderr, "%s", qPrintable(message));
-            fflush(stderr);
-        }
-    }
     return result;
 }
 
@@ -217,7 +199,6 @@ int main(int argc, char *argv[])
          return 1;
     }
 
-    // TODO possibly to drop the quoting?
     arguments = unquoteArguments(arguments);
 
     const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
