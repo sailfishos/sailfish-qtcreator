@@ -24,6 +24,7 @@
 #include "sdkmanager.h"
 
 #include "configuration.h"
+#include "dbus.h"
 #include "dispatch.h"
 #include "remoteprocess.h"
 #include "sfdkconstants.h"
@@ -1059,6 +1060,9 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
         }
     }
 
+    DBusManager::Ptr dbus = DBusManager::get(s_instance->m_buildEngine->dBusPort(),
+            Constants::BUILD_ENGINE_SYSTEM_BUS_CONNECTION);
+
     const QProcessEnvironment systemEnvironment = QProcessEnvironment::systemEnvironment();
 
     QString program_ = program;
@@ -1069,6 +1073,8 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     extraEnvironment.insert(Mer::Constants::SAILFISH_SDK_FRONTEND,
             systemEnvironment.value(Mer::Constants::SAILFISH_SDK_FRONTEND,
                 Constants::SDK_FRONTEND_ID));
+    if (dbus)
+        extraEnvironment.insert(Constants::SAILFISH_SDK_SFDK_DBUS_SERVICE, dbus->serviceName());
 
     if (!s_instance->mapEnginePaths(&program_, &arguments_, &workingDirectory, &extraEnvironment))
         return SFDK_EXIT_ABNORMAL;

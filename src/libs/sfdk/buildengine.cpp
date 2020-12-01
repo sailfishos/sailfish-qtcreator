@@ -241,6 +241,25 @@ void BuildEngine::setWwwPort(quint16 wwwPort, const QObject *context, const Func
     });
 }
 
+quint16 BuildEngine::dBusPort() const
+{
+    return d_func()->dBusPort;
+}
+
+void BuildEngine::setDBusPort(quint16 dBusPort, const QObject *context, const Functor<bool> &functor)
+{
+    QTC_CHECK(virtualMachine()->isLockedDown());
+
+    const QPointer<const QObject> context_{context};
+    VirtualMachinePrivate::get(virtualMachine())->setReservedPortForwarding(
+            VirtualMachinePrivate::DBusPort, dBusPort, this, [=](bool ok) {
+        if (ok)
+            d_func()->setDBusPort(dBusPort);
+        if (context_)
+            functor(ok);
+    });
+}
+
 QString BuildEngine::wwwProxyType() const
 {
     return d_func()->wwwProxyType;
@@ -334,6 +353,7 @@ QVariantMap BuildEnginePrivate::toMap() const
     data.insert(Constants::BUILD_ENGINE_WWW_PROXY_EXCLUDES, wwwProxyExcludes);
 
     data.insert(Constants::BUILD_ENGINE_WWW_PORT, wwwPort);
+    data.insert(Constants::BUILD_ENGINE_DBUS_PORT, dBusPort);
     data.insert(Constants::BUILD_ENGINE_HEADLESS, virtualMachine->isHeadless());
 
     int count = 0;
@@ -385,6 +405,7 @@ bool BuildEnginePrivate::fromMap(const QVariantMap &data)
     setSshParameters(sshParameters);
 
     setWwwPort(data.value(Constants::BUILD_ENGINE_WWW_PORT).toUInt());
+    setDBusPort(data.value(Constants::BUILD_ENGINE_DBUS_PORT).toUInt());
 
     q->setWwwProxy(data.value(Constants::BUILD_ENGINE_WWW_PROXY_TYPE,
                 Constants::WWW_PROXY_DISABLED).toString(),
@@ -499,6 +520,7 @@ void BuildEnginePrivate::updateVmProperties(const QObject *context, const Functo
         setSshParameters(sshParameters);
 
         setWwwPort(info.wwwPort);
+        setDBusPort(info.dBusPort);
 
         if (context_)
             functor(true);
@@ -517,6 +539,7 @@ bool BuildEnginePrivate::isValid() const
     QTC_ASSERT(!virtualMachine->sshParameters().userName().isEmpty(), return false);
     QTC_ASSERT(virtualMachine->sshParameters().port(), return false);
     QTC_ASSERT(wwwPort, return false);
+    QTC_ASSERT(dBusPort, return false);
     return true;
 }
 
@@ -591,6 +614,14 @@ void BuildEnginePrivate::setWwwPort(quint16 wwwPort)
         return;
     this->wwwPort = wwwPort;
     emit q_func()->wwwPortChanged(wwwPort);
+}
+
+void BuildEnginePrivate::setDBusPort(quint16 dBusPort)
+{
+    if (this->dBusPort == dBusPort)
+        return;
+    this->dBusPort = dBusPort;
+    emit q_func()->dBusPortChanged(dBusPort);
 }
 
 // FIXME This should be only done when the configuration changes, it should be able to block

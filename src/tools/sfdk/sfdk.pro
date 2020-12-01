@@ -7,7 +7,7 @@ CONFIG += qtc_human_user_tool
 
 include(../../qtcreatortool.pri)
 
-QT += network xmlpatterns qml
+QT += dbus network xmlpatterns qml
 QT -= gui
 
 *-g++*:QMAKE_CXXFLAGS += -Wall -Werror
@@ -18,6 +18,7 @@ HEADERS = \
     command.h \
     commandlineparser.h \
     configuration.h \
+    dbus.h \
     debugger.h \
     dispatch.h \
     sdkmanager.h \
@@ -34,6 +35,7 @@ SOURCES = \
     command.cpp \
     commandlineparser.cpp \
     configuration.cpp \
+    dbus.cpp \
     debugger.cpp \
     dispatch.cpp \
     main.cpp \
