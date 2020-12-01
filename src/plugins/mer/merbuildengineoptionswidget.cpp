@@ -101,6 +101,8 @@ MerBuildEngineOptionsWidget::MerBuildEngineOptionsWidget(QWidget *parent)
             this, &MerBuildEngineOptionsWidget::onSrcFolderApplyButtonClicked);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::wwwPortChanged,
             this, &MerBuildEngineOptionsWidget::onWwwPortChanged);
+    connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::dBusPortChanged,
+            this, &MerBuildEngineOptionsWidget::onDBusPortChanged);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::wwwProxyChanged,
             this, &MerBuildEngineOptionsWidget::onWwwProxyChanged);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::memorySizeMbChanged,
@@ -200,6 +202,16 @@ void MerBuildEngineOptionsWidget::store()
                 ok = false;
             }
         }
+        if (m_dBusPort.contains(buildEngine)) {
+            bool stepOk;
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&BuildEngine::setDBusPort), buildEngine,
+                    m_dBusPort[buildEngine]);
+            if (!stepOk) {
+                m_ui->buildEngineDetailsWidget->setDBusPort(buildEngine->dBusPort());
+                m_dBusPort.remove(buildEngine);
+                ok = false;
+            }
+        }
         if (m_wwwProxy.contains(buildEngine)) {
             buildEngine->setWwwProxy(m_wwwProxy[buildEngine], m_wwwProxyServers[buildEngine],
                     m_wwwProxyExcludes[buildEngine]);
@@ -274,6 +286,7 @@ void MerBuildEngineOptionsWidget::store()
     m_sshPort.clear();
     m_headless.clear();
     m_wwwPort.clear();
+    m_dBusPort.clear();
     m_memorySizeMb.clear();
     m_swapSizeMb.clear();
     m_cpuCount.clear();
@@ -295,6 +308,8 @@ bool MerBuildEngineOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(Q
             m_sshPort.remove(buildEngine);
         if (m_wwwPort.value(buildEngine) == buildEngine->wwwPort())
             m_wwwPort.remove(buildEngine);
+        if (m_dBusPort.value(buildEngine) == buildEngine->dBusPort())
+            m_dBusPort.remove(buildEngine);
         if (m_memorySizeMb.value(buildEngine) == buildEngine->virtualMachine()->memorySizeMb())
             m_memorySizeMb.remove(buildEngine);
         if (m_swapSizeMb.value(buildEngine) == buildEngine->virtualMachine()->swapSizeMb())
@@ -306,6 +321,7 @@ bool MerBuildEngineOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(Q
 
         if (!m_sshPort.contains(buildEngine)
                 && !m_wwwPort.contains(buildEngine)
+                && !m_dBusPort.contains(buildEngine)
                 && !m_memorySizeMb.contains(buildEngine)
                 && !m_swapSizeMb.contains(buildEngine)
                 && !m_cpuCount.contains(buildEngine)
@@ -342,6 +358,8 @@ bool MerBuildEngineOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(Q
         m_sshPort.remove(buildEngine);
         m_ui->buildEngineDetailsWidget->setWwwPort(buildEngine->wwwPort());
         m_wwwPort.remove(buildEngine);
+        m_ui->buildEngineDetailsWidget->setDBusPort(buildEngine->dBusPort());
+        m_dBusPort.remove(buildEngine);
         m_ui->buildEngineDetailsWidget->setMemorySizeMb(
                 buildEngine->virtualMachine()->memorySizeMb());
         m_memorySizeMb.remove(buildEngine);
@@ -409,6 +427,7 @@ void MerBuildEngineOptionsWidget::onRemoveButtonClicked()
          m_sshPort.remove(removed);
          m_headless.remove(removed);
          m_wwwPort.remove(removed);
+         m_dBusPort.remove(removed);
          m_wwwProxy.remove(removed);
          m_wwwProxyServers.remove(removed);
          m_wwwProxyExcludes.remove(removed);
@@ -519,6 +538,8 @@ void MerBuildEngineOptionsWidget::onBuildEngineAdded(int index)
             this, cleaner(&m_headless));
     connect(buildEngine, &BuildEngine::wwwPortChanged,
             this, cleaner(&m_wwwPort));
+    connect(buildEngine, &BuildEngine::dBusPortChanged,
+            this, cleaner(&m_dBusPort));
     connect(buildEngine, &BuildEngine::wwwProxyChanged,
             this, cleaner(&m_wwwProxy, &m_wwwProxyServers, &m_wwwProxyExcludes));
     connect(buildEngine->virtualMachine(), &VirtualMachine::storageSizeMbChanged,
@@ -549,6 +570,7 @@ void MerBuildEngineOptionsWidget::onAboutToRemoveBuildEngine(int index)
     m_sshPort.remove(buildEngine);
     m_headless.remove(buildEngine);
     m_wwwPort.remove(buildEngine);
+    m_dBusPort.remove(buildEngine);
     m_wwwProxy.remove(buildEngine);
     m_wwwProxyServers.remove(buildEngine);
     m_wwwProxyExcludes.remove(buildEngine);
@@ -667,6 +689,11 @@ void MerBuildEngineOptionsWidget::update()
         else
             m_ui->buildEngineDetailsWidget->setWwwPort(buildEngine->wwwPort());
 
+        if (m_dBusPort.contains(buildEngine))
+            m_ui->buildEngineDetailsWidget->setDBusPort(m_dBusPort[buildEngine]);
+        else
+            m_ui->buildEngineDetailsWidget->setDBusPort(buildEngine->dBusPort());
+
         if (m_wwwProxy.contains(buildEngine)) {
             m_ui->buildEngineDetailsWidget->setWwwProxy(m_wwwProxy[buildEngine],
                     m_wwwProxyServers[buildEngine], m_wwwProxyExcludes[buildEngine]);
@@ -753,6 +780,12 @@ void MerBuildEngineOptionsWidget::onWwwPortChanged(quint16 port)
     m_wwwPort[m_buildEngines[m_virtualMachine]] = port;
 }
 
+void MerBuildEngineOptionsWidget::onDBusPortChanged(quint16 port)
+{
+    //store keys to be saved on save click
+    m_dBusPort[m_buildEngines[m_virtualMachine]] = port;
+}
+
 void MerBuildEngineOptionsWidget::onWwwProxyChanged(const QString &type, const QString &servers,
         const QString &excludes)
 {
@@ -793,6 +826,8 @@ void MerBuildEngineOptionsWidget::onVmOffChanged(bool vmOff)
         m_sshPort.remove(buildEngine);
         m_ui->buildEngineDetailsWidget->setWwwPort(buildEngine->wwwPort());
         m_wwwPort.remove(buildEngine);
+        m_ui->buildEngineDetailsWidget->setDBusPort(buildEngine->dBusPort());
+        m_dBusPort.remove(buildEngine);
         m_ui->buildEngineDetailsWidget->setMemorySizeMb(
                 buildEngine->virtualMachine()->memorySizeMb());
         m_memorySizeMb.remove(buildEngine);
