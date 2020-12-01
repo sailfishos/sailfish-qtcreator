@@ -70,6 +70,7 @@ public:
            const QString &privateKeyFile,
            quint16 sshPort,
            quint16 wwwPort,
+           quint16 dBusPort,
            bool headless);
     static QVariantMap initializeBuildEngines(int version, const QString &installDir);
 
@@ -88,5 +89,6 @@ private:
     QString m_privateKeyFile;
     quint16 m_sshPort = 0;
     quint16 m_wwwPort = 0;
+    quint16 m_dBusPort = 0;
     bool m_headless = false;
 };
