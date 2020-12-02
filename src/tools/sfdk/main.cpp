@@ -164,8 +164,6 @@ int main(int argc, char **argv)
         return SFDK_EXIT_ABNORMAL;
     }
 
-    Session session;
-
     bool showVersion = false;
 
     CommandLineParser parser(app.arguments());
@@ -182,6 +180,8 @@ int main(int argc, char **argv)
     case CommandLineParser::Version:
         showVersion = true;
     }
+
+    Session session(!parser.noSession());
 
     if (!parser.useSystemSettingsOnly()) {
         if (!configuration.load())

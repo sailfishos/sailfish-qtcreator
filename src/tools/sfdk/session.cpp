@@ -53,10 +53,15 @@ const char SESSION_ID_DELIMITER = '.';
 
 Session *Session::s_instance = nullptr;
 
-Session::Session()
+Session::Session(bool enable)
 {
     Q_ASSERT(!s_instance);
     s_instance = this;
+
+    if (!enable) {
+        qCDebug(sfdk) << "Session management disabled by user";
+        return;
+    }
 
     if (HostOsInfo::hostOs() == OsTypeWindows) {
         if (!qEnvironmentVariableIsSet(Constants::MSYS_DETECTION_ENV_VAR)) {
