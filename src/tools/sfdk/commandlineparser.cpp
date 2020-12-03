@@ -108,8 +108,13 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
     cOption.setDescription(tr("Push the configuration option <name>. Omitting just <value> masks the option (see the 'config' subcommand). Omitting both <value> and '=' sets the option using the default value for its optional argument if any.\n\nSee the 'config' command for more details about configuration."));
     m_otherOptions.append(cOption);
 
+    QCommandLineOption noSessionOption("no-session");
+    noSessionOption.setDescription(tr("Do not try to read or write session-scope configuration. Alternatively, the same effect can be achieved by setting the '%1' environment variable.\n\nSee the 'config' command for more details about configuration.")
+            .arg(QLatin1String(Constants::NO_SESSION_ENV_VAR)));
+    m_otherOptions.append(noSessionOption);
+
     QCommandLineOption systemConfigOnlyOption("system-config-only");
-    systemConfigOnlyOption.setDescription(tr("Enable the special purpose mode in which just the system-scope configuration is read and only read. The '-c' option handling is not affected by this mode. You want to enable this mode when invoking %1 during SDK installation or maintenance.")
+    systemConfigOnlyOption.setDescription(tr("Enable the special purpose mode in which just the system-scope configuration is read and only read. The '-c' option handling is not affected by this mode. Implies '--no-session'. You want to enable this mode when invoking %1 during SDK installation or maintenance.")
             .arg(QLatin1String(EXE_NAME)));
     m_otherOptions.append(systemConfigOnlyOption);
 
@@ -160,9 +165,16 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
         return;
     }
 
+    if (parser.isSet(noSessionOption)
+            || !qEnvironmentVariableIsEmpty(Constants::NO_SESSION_ENV_VAR)) {
+        m_noSession = true;
+    }
+
     // "config" is more in line with the UI, "settings" more with the code...
-    if (parser.isSet(systemConfigOnlyOption))
+    if (parser.isSet(systemConfigOnlyOption)) {
         m_useSystemSettingsOnly = true;
+        m_noSession = true;
+    }
 
     for (const QString &value : parser.values(cOption)) {
         OptionOccurence occurence = OptionOccurence::fromString(value);

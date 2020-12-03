@@ -37,7 +37,7 @@ class Session
     Q_DECLARE_TR_FUNCTIONS(Sfdk::Session)
 
 public:
-    Session();
+    Session(bool enable);
     ~Session();
 
     static bool isValid();

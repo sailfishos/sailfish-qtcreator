@@ -182,6 +182,8 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
 
     using namespace ProjectExplorer::Constants;
 
+    qputenv("SFDK_NO_SESSION", "1");
+
     new MerSettings(this);
 
     RunConfiguration::registerAspect<MerRunConfigurationAspect>();
