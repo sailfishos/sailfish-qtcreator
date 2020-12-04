@@ -71,6 +71,7 @@
 #include <remotelinux/remotelinuxqmltoolingsupport.h>
 #include <remotelinux/remotelinuxrunconfiguration.h>
 #include <utils/checkablemessagebox.h>
+#include <utils/hostosinfo.h>
 #include <utils/utilsicons.h>
 
 #include <QCheckBox>
@@ -85,6 +86,29 @@ using namespace ProjectExplorer;
 using namespace RemoteLinux;
 using namespace Sfdk;
 using Utils::CheckableMessageBox;
+
+namespace QInstaller {
+
+class Repository
+{
+public:
+    explicit Repository();
+
+    static void registerMetaType();
+
+    friend QDataStream &operator>>(QDataStream &istream, Repository &repository);
+    friend QDataStream &operator<<(QDataStream &ostream, const Repository &repository);
+
+    QUrl m_url;
+    bool m_enabled;
+};
+
+QDataStream &operator>>(QDataStream &istream, QInstaller::Repository &repository);
+QDataStream &operator<<(QDataStream &ostream, const QInstaller::Repository &repository);
+
+}
+
+Q_DECLARE_METATYPE(QInstaller::Repository)
 
 namespace Mer {
 namespace Internal {
@@ -224,6 +248,8 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     menu->addAction(startQmlLiveBenchCommand);
 
     ensureCustomRunConfigurationIsTheDefaultOnCompilationDatabaseProjects();
+
+    ensureDailyUpdateCheckForEarlyAccess();
 
     return true;
 }
@@ -411,5 +437,65 @@ void MerPlugin::ensureCustomRunConfigurationIsTheDefaultOnCompilationDatabasePro
     });
 }
 
+void MerPlugin::ensureDailyUpdateCheckForEarlyAccess()
+{
+    QInstaller::Repository::registerMetaType();
+    QDir iniDir = QCoreApplication::applicationDirPath();
+    iniDir.cdUp();
+    if (Utils::HostOsInfo::isMacHost()) {
+        iniDir.cdUp();
+        iniDir.cdUp();
+        iniDir.cdUp();
+    }
+    QSettings settings(iniDir.filePath("SDKMaintenanceTool.ini"), QSettings::IniFormat);
+    const QVariantList variants = settings.value(QLatin1String("DefaultRepositories"))
+        .toList();
+    bool eaRepoFound = false;
+    foreach (const QVariant &variant, variants) {
+        QInstaller::Repository repo = variant.value<QInstaller::Repository>();
+        if (repo.m_url.toString().endsWith("updates-ea")) {
+            eaRepoFound = true;
+            if (repo.m_enabled) {
+                QSettings *settings = ICore::settings();
+                settings->beginGroup(QLatin1String("Updater"));
+                settings->setValue(QLatin1String("CheckUpdateInterval"), QLatin1String("DailyCheck"));
+                settings->endGroup();
+            }
+        }
+    }
+    QTC_CHECK(eaRepoFound);
+}
 } // Internal
 } // Mer
+
+namespace QInstaller {
+
+Repository::Repository()
+    : m_enabled(false)
+{
+    registerMetaType();
+}
+
+void Repository::registerMetaType()
+{
+    qRegisterMetaType<Repository>("Repository");
+    qRegisterMetaTypeStreamOperators<Repository>("Repository");
+}
+
+QDataStream &operator>>(QDataStream &istream, QInstaller::Repository &repository)
+{
+    QByteArray url, username, password, displayname, compressed, categoryname;
+    bool defaultRepository;
+    istream >> url >> defaultRepository >> repository.m_enabled >> username >> password
+            >> displayname >> categoryname;
+    repository.m_url = QUrl::fromEncoded(QByteArray::fromBase64(url));
+    return istream;
+}
+
+QDataStream &operator<<(QDataStream &ostream, const QInstaller::Repository &repository)
+{
+    Q_UNUSED(repository);
+    return ostream;
+}
+
+}

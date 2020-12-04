@@ -70,6 +70,7 @@ private slots:
 private:
     static void addInfoOnBuildEngineEnvironment(QVBoxLayout *vbox);
     static void ensureCustomRunConfigurationIsTheDefaultOnCompilationDatabaseProjects();
+    void ensureDailyUpdateCheckForEarlyAccess();
 
 private:
     QMap<QString, Sfdk::VirtualMachine *> m_stopList;
