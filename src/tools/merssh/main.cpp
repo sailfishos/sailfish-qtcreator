@@ -75,7 +75,7 @@ QStringList unquoteArguments(const QStringList &arguments)
     const bool abortOnMeta = false;
     QtcProcess::SplitError splitError;
     const QStringList result = QtcProcess::splitArgs(arguments.join(QLatin1Char(' ')),
-            HostOsInfo::hostOs(), abortOnMeta, &splitError);
+            OsTypeLinux, abortOnMeta, &splitError);
     QTC_ASSERT(splitError == QtcProcess::SplitOk, return {});
 
     return result;
