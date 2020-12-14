@@ -24,6 +24,7 @@
 #include "mersettings.h"
 
 #include <QFileInfo>
+#include <QJsonDocument>
 #include <QProcessEnvironment>
 
 #include <app/app_version.h>
@@ -54,6 +55,10 @@ const char ASK_BEFORE_STARTING_VM[] = "AskBeforeStartingVm";
 const char ASK_BEFORE_CLOSING_VM[] = "AskBeforeClosingVm";
 const char IMPORT_QMAKE_VARIABLES[] = "ImportQmakeVariables";
 const char ASK_IMPORT_QMAKE_VARIABLES[] = "AskImportQmakeVariables";
+const char SIGN_PACKAGES_BY_DEFAULT[] = "SignPackagesByDefault";
+const char DEFAULT_SIGNING_USER[] = "DefaultSigningUser";
+const char DEFAULT_SIGNING_PASSPHRASE_FILE[] = "DefaultSigningPassphraseFile";
+
 } // namespace anonymous
 
 MerSettings *MerSettings::s_instance = 0;
@@ -250,6 +255,63 @@ void MerSettings::setAskImportQmakeVariablesEnabled(bool enabled)
     emit s_instance->askImportQmakeVariablesEnabledChanged(s_instance->m_askImportQmakeVariablesEnabled);
 }
 
+bool MerSettings::signPackagesByDefault()
+{
+    Q_ASSERT(s_instance);
+
+    return s_instance->m_signPackagesByDefault;
+}
+
+void MerSettings::setSignPackagesByDefault(bool byDefault)
+{
+    Q_ASSERT(s_instance);
+
+    if (s_instance->m_signPackagesByDefault == byDefault)
+        return;
+
+    s_instance->m_signPackagesByDefault = byDefault;
+
+    emit s_instance->signPackagesByDefaultChanged(s_instance->m_signPackagesByDefault);
+}
+
+Sfdk::GpgKeyInfo MerSettings::signingUser()
+{
+    Q_ASSERT(s_instance);
+
+    return s_instance->m_defaultSigningUser;
+}
+
+void MerSettings::setSigningUser(const Sfdk::GpgKeyInfo &signingUser)
+{
+    Q_ASSERT(s_instance);
+
+    if (s_instance->m_defaultSigningUser == signingUser)
+        return;
+
+    s_instance->m_defaultSigningUser = signingUser;
+
+    emit s_instance->defaultSigningUserChanged(s_instance->m_defaultSigningUser);
+}
+
+QString MerSettings::signingPassphraseFile()
+{
+    Q_ASSERT(s_instance);
+
+    return s_instance->m_defaultSigningPassphraseFile;
+}
+
+void MerSettings::setSigningPassphraseFile(const QString &passphraseFile)
+{
+    Q_ASSERT(s_instance);
+
+    if (s_instance->m_defaultSigningPassphraseFile == passphraseFile)
+        return;
+
+    s_instance->m_defaultSigningPassphraseFile = passphraseFile;
+
+    emit s_instance->defaultSigningPassphraseFileChanged(s_instance->m_defaultSigningPassphraseFile);
+}
+
 void MerSettings::read()
 {
 #ifdef MER_LIBRARY
@@ -271,6 +333,11 @@ void MerSettings::read()
     m_askBeforeClosingVmEnabled = settings->value(QLatin1String(ASK_BEFORE_CLOSING_VM), true).toBool();
     m_importQmakeVariablesEnabled = settings->value(QLatin1String(IMPORT_QMAKE_VARIABLES), true).toBool();
     m_askImportQmakeVariablesEnabled = settings->value(QLatin1String(ASK_IMPORT_QMAKE_VARIABLES), true).toBool();
+    m_signPackagesByDefault = settings->value(QLatin1String(SIGN_PACKAGES_BY_DEFAULT), false).toBool();
+    m_defaultSigningUser = Sfdk::GpgKeyInfo::fromString(
+            settings->value(QLatin1String(DEFAULT_SIGNING_USER)).toString());
+    m_defaultSigningPassphraseFile =
+            settings->value(QLatin1String(DEFAULT_SIGNING_PASSPHRASE_FILE)).toString();
 
     settings->endGroup();
 
@@ -307,6 +374,11 @@ void MerSettings::save()
     settings->setValue(QLatin1String(ASK_BEFORE_CLOSING_VM), m_askBeforeClosingVmEnabled);
     settings->setValue(QLatin1String(IMPORT_QMAKE_VARIABLES), m_importQmakeVariablesEnabled);
     settings->setValue(QLatin1String(ASK_IMPORT_QMAKE_VARIABLES), m_askImportQmakeVariablesEnabled);
+    settings->setValue(QLatin1String(SIGN_PACKAGES_BY_DEFAULT), m_signPackagesByDefault);
+    settings->setValue(QLatin1String(DEFAULT_SIGNING_USER),
+                       m_defaultSigningUser.toString());
+    settings->setValue(QLatin1String(DEFAULT_SIGNING_PASSPHRASE_FILE),
+                       m_defaultSigningPassphraseFile);
 
     settings->endGroup();
 }

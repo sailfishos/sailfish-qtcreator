@@ -23,6 +23,7 @@
 #ifndef MERSETTINGS_H
 #define MERSETTINGS_H
 
+#include <sfdk/utils.h>
 #include <QtCore/QObject>
 
 namespace Mer {
@@ -61,6 +62,13 @@ public:
     static bool isAskImportQmakeVariablesEnabled();
     static void setAskImportQmakeVariablesEnabled(bool enabled);
 
+    static bool signPackagesByDefault();
+    static void setSignPackagesByDefault(bool byDefault);
+    static Sfdk::GpgKeyInfo signingUser();
+    static void setSigningUser(const Sfdk::GpgKeyInfo &signingUser);
+    static QString signingPassphraseFile();
+    static void setSigningPassphraseFile(const QString &passphraseFile);
+
 signals:
     void environmentFilterChanged(const QString &filter);
     void rpmValidationByDefaultChanged(bool byDefault);
@@ -70,6 +78,9 @@ signals:
     void askBeforeClosingVmEnabledChanged(bool enabled);
     void importQmakeVariablesEnabledChanged(bool enabled);
     void askImportQmakeVariablesEnabledChanged(bool enabled);
+    void signPackagesByDefaultChanged(bool byDefault);
+    void defaultSigningUserChanged(const Sfdk::GpgKeyInfo &signingUser);
+    void defaultSigningPassphraseFileChanged(const QString &passphraseFile);
 
 private:
     void read();
@@ -88,6 +99,9 @@ private:
     bool m_askBeforeClosingVmEnabled;
     bool m_importQmakeVariablesEnabled;
     bool m_askImportQmakeVariablesEnabled;
+    bool m_signPackagesByDefault;
+    Sfdk::GpgKeyInfo m_defaultSigningUser;
+    QString m_defaultSigningPassphraseFile;
 };
 
 } // Internal

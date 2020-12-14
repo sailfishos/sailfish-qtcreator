@@ -24,6 +24,7 @@
 #define MERBUILDCONFIGURATIONASPECTS_H
 
 #include <projectexplorer/projectconfiguration.h>
+#include <sfdk/utils.h>
 
 #include <QPointer>
 
@@ -47,6 +48,8 @@ public:
 
     ProjectExplorer::BuildConfiguration *buildConfiguration() const;
 
+    static QString displayName();
+
     QString specFilePath() const { return m_specFilePath; }
     void setSpecFilePath(const QString &specFilePath);
 
@@ -54,6 +57,13 @@ public:
     // currently passed directly to mb2
     QString sfdkOptionsString() const { return m_sfdkOptionsString; }
     void setSfdkOptionsString(const QString &sfdkOptionsString);
+
+    bool signPackages() const { return m_signPackages; }
+    Sfdk::GpgKeyInfo signingUser() const { return m_signingUser; }
+    QString signingPassphraseFile() const { return m_signingPassphraseFile; }
+    void setSignPackages(bool enable);
+    void setSigningUser(const Sfdk::GpgKeyInfo &signingUser);
+    void setSigningPassphraseFile(const QString &passphraseFile);
 
     static QStringList allowedSfdkOptions() { return s_allowedSfdkOptions; }
 
@@ -67,6 +77,9 @@ private:
     QPointer<ProjectExplorer::BuildConfiguration> m_buildConfiguration;
     QString m_specFilePath;
     QString m_sfdkOptionsString;
+    bool m_signPackages;
+    Sfdk::GpgKeyInfo m_signingUser;
+    QString m_signingPassphraseFile;
 };
 
 } // Internal

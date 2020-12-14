@@ -30,6 +30,7 @@
 
 #include "merdeploysteps.h"
 
+#include "merbuildconfigurationaspect.h"
 #include "merconstants.h"
 #include "mercmakebuildconfiguration.h"
 #include "mercompilationdatabasebuildconfiguration.h"
@@ -754,6 +755,12 @@ bool MerMb2RpmBuildStep::init()
             QLatin1String(Sfdk::Constants::WRAPPER_RPM));
     CommandLine rpmCommand(rpm);
     rpmCommand.addArgs(pp->command().arguments(), CommandLine::Raw);
+
+    auto aspect = buildConfiguration()->aspect<MerBuildConfigurationAspect>();
+    QTC_ASSERT(aspect, return false);
+    if (aspect->signPackages())
+        rpmCommand.addArgs("--sign", CommandLine::Raw);
+
     pp->setCommandLine(rpmCommand);
     return success;
 }
@@ -764,6 +771,7 @@ void MerMb2RpmBuildStep::doRun()
     emit addOutput(tr("Building RPM package..."), OutputFormat::NormalMessage);
     AbstractProcessStep::doRun();
 }
+
 //TODO: This is hack
 void MerMb2RpmBuildStep::processFinished(int exitCode, QProcess::ExitStatus status)
 {
@@ -1002,7 +1010,6 @@ BuildStepConfigWidget *MerRpmValidationStep::createConfigWidget()
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 
 MerDeployStepWidget::MerDeployStepWidget(MerProcessStep *step)
         : BuildStepConfigWidget(step)
