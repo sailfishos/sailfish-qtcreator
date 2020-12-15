@@ -77,6 +77,7 @@ private slots:
     void onFactoryResetButtonClicked();
     void update();
     void onVmOffChanged(bool vmOff);
+    void onSshPortChanged(quint16 port);
 
 private:
     Ui::MerEmulatorOptionsWidget *m_ui;

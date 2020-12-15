@@ -70,6 +70,7 @@ public:
     void setSwapSizeMb(int sizeMb);
     void setCpuCount(int count);
     void setStorageSizeMb(int capacityMb);
+    void setSshPortOccupied(bool portOccupied);
 
 signals:
     void generateSshKey(const QString &key);

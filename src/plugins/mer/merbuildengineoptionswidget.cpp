@@ -731,8 +731,14 @@ void MerBuildEngineOptionsWidget::onSshTimeoutChanged(int timeout)
 
 void MerBuildEngineOptionsWidget::onSshPortChanged(quint16 port)
 {
+    BuildEngine *const buildEngine = m_buildEngines[m_virtualMachine];
+
     //store keys to be saved on save click
-    m_sshPort[m_buildEngines[m_virtualMachine]] = port;
+    m_sshPort[buildEngine] = port;
+
+    m_ui->buildEngineDetailsWidget->setSshPortOccupied(
+            (buildEngine->virtualMachine()->isOff() || port != buildEngine->sshPort())
+            && Sfdk::isPortOccupied(port));
 }
 
 void MerBuildEngineOptionsWidget::onHeadlessCheckBoxToggled(bool checked)
@@ -801,6 +807,8 @@ void MerBuildEngineOptionsWidget::onVmOffChanged(bool vmOff)
     }
 
     m_ui->buildEngineDetailsWidget->setVmOffStatus(vmOff);
+    m_ui->buildEngineDetailsWidget->setSshPortOccupied(
+            vmOff && Sfdk::isPortOccupied(buildEngine->sshPort()));
 }
 
 } // Internal

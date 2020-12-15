@@ -64,6 +64,14 @@ MerBuildEngineDetailsWidget::MerBuildEngineDetailsWidget(QWidget *parent)
             + tr("Stop the virtual machine to unlock this field for editing.")
             + QLatin1String("</font>"));
 
+    m_ui->sshPortOccupiedLabel->setPixmap(Utils::Icons::WARNING.pixmap());
+    m_ui->sshPortOccupiedLabel->setToolTip(
+            QLatin1String("<font color=\"red\">")
+            + tr("Another application seems to be listening on this port. "
+                 "Choose another port unless you know what you are doing.")
+            + QLatin1String("</font>"));
+    m_ui->sshPortOccupiedLabel->setVisible(false);
+
     connect(m_ui->authorizeSshKeyPushButton, &QPushButton::clicked,
             this, &MerBuildEngineDetailsWidget::onAuthorizeSshKeyButtonClicked);
     connect(m_ui->generateSshKeyPushButton, &QPushButton::clicked,
@@ -179,6 +187,11 @@ void MerBuildEngineDetailsWidget::setPrivateKeyFile(const QString &path)
 void MerBuildEngineDetailsWidget::setStatus(const QString &status)
 {
     m_ui->statusLabelText->setText(status);
+}
+
+void MerBuildEngineDetailsWidget::setSshPortOccupied(bool portOccupied)
+{
+    m_ui->sshPortOccupiedLabel->setVisible(portOccupied);
 }
 
 void MerBuildEngineDetailsWidget::setVmOffStatus(bool vmOff)

@@ -101,9 +101,7 @@ MerEmulatorOptionsWidget::MerEmulatorOptionsWidget(QWidget *parent)
         m_sshTimeout[m_emulators[m_virtualMachine]] = timeout;
     });
     connect(m_ui->emulatorDetailsWidget, &MerEmulatorDetailsWidget::sshPortChanged,
-            this, [=](quint16 port) {
-        m_sshPort[m_emulators[m_virtualMachine]] = port;
-    });
+            this, &MerEmulatorOptionsWidget::onSshPortChanged);
     connect(m_ui->emulatorDetailsWidget, &MerEmulatorDetailsWidget::qmlLivePortsChanged,
             this, [=](const PortList &ports) {
         m_qmlLivePorts[m_emulators[m_virtualMachine]] = ports;
@@ -650,6 +648,19 @@ void MerEmulatorOptionsWidget::onVmOffChanged(bool vmOff)
     }
 
     m_ui->emulatorDetailsWidget->setVmOffStatus(vmOff);
+    m_ui->emulatorDetailsWidget->setSshPortOccupied(
+            vmOff && Sfdk::isPortOccupied(emulator->sshPort()));
+}
+
+void MerEmulatorOptionsWidget::onSshPortChanged(quint16 port)
+{
+    Emulator *const emulator = m_emulators[m_virtualMachine];
+
+    m_sshPort[emulator] = port;
+
+    m_ui->emulatorDetailsWidget->setSshPortOccupied(
+            (emulator->virtualMachine()->isOff() || port != emulator->sshPort())
+            && Sfdk::isPortOccupied(port));
 }
 
 } // Internal

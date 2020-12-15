@@ -63,6 +63,7 @@ public:
     void setMemorySizeMb(int sizeMb);
     void setCpuCount(int count);
     void setStorageSizeMb(int capacityMb);
+    void setSshPortOccupied(bool portOccupied);
 
 signals:
     void factorySnapshotChanged(const QString &snapshotName);
