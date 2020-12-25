@@ -123,6 +123,26 @@ public:
     }
 };
 
+class ElidedWebsiteLabel : public QLabel
+{
+public:
+    explicit ElidedWebsiteLabel(const QString &text, QWidget *parent=nullptr)
+        : QLabel(QString(), parent)
+        , m_text(text)
+    {
+    }
+    void resizeEvent(QResizeEvent *event)
+    {
+        QWidget::resizeEvent(event);
+
+        QFontMetrics metrics(font());
+        QString elidedText = metrics.elidedText(m_text, Qt::ElideRight, width());
+        setText(QString("<a href='%1'>%2</a>").arg(m_text, elidedText));
+    }
+private:
+    const QString m_text;
+};
+
 class MerRpmValidationStepConfigWidget : public ProjectExplorer::BuildStepConfigWidget
 {
     Q_OBJECT
@@ -144,8 +164,9 @@ public:
             hasSelectedSuite |= suite.essential;
             auto *item = new QTreeWidgetItem(m_ui.suitesTreeWidget);
             item->setText(0, suite.name);
-            QLabel *websiteLabel = new QLabel(QString("<a href='%1'>%1</a>").arg(suite.website));
+            auto websiteLabel = new ElidedWebsiteLabel(suite.website);
             websiteLabel->setOpenExternalLinks(true);
+            websiteLabel->setToolTip(suite.website);
             m_ui.suitesTreeWidget->setItemWidget(item, 1, websiteLabel);
             item->setText(2, suite.essential
                     ? tr("Essential", "RPM validation suite")
@@ -153,8 +174,8 @@ public:
             item->setCheckState(0, step->selectedSuites().contains(suite.id) ? Qt::Checked : Qt::Unchecked);
             item->setData(0, Qt::UserRole, suite.id);
         }
-        m_ui.suitesTreeWidget->header()->setSectionResizeMode(0, QHeaderView::Stretch);
-        m_ui.suitesTreeWidget->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+        m_ui.suitesTreeWidget->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+        m_ui.suitesTreeWidget->header()->setSectionResizeMode(1, QHeaderView::Stretch);
         m_ui.suitesTreeWidget->header()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
 
         connect(m_ui.suitesTreeWidget, &QTreeWidget::itemChanged,
