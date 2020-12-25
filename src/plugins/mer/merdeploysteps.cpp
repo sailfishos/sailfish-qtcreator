@@ -153,7 +153,7 @@ public:
             item->setCheckState(0, step->selectedSuites().contains(suite.id) ? Qt::Checked : Qt::Unchecked);
             item->setData(0, Qt::UserRole, suite.id);
         }
-        m_ui.suitesTreeWidget->header()->setSectionResizeMode(0, QHeaderView::Stretch);
+        m_ui.suitesTreeWidget->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
         m_ui.suitesTreeWidget->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
         m_ui.suitesTreeWidget->header()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
 
