@@ -71,6 +71,14 @@ MerEmulatorDetailsWidget::MerEmulatorDetailsWidget(QWidget *parent)
             + tr("Stop the virtual machine to unlock this field for editing.")
             + QLatin1String("</font>"));
 
+    m_ui->sshPortOccupiedLabel->setPixmap(Utils::Icons::WARNING.pixmap());
+    m_ui->sshPortOccupiedLabel->setToolTip(
+            QLatin1String("<font color=\"red\">")
+            + tr("Another application seems to be listening on this port. "
+                 "Choose another port unless you know what you are doing.")
+            + QLatin1String("</font>"));
+    m_ui->sshPortOccupiedLabel->setVisible(false);
+
     connect(m_ui->factorySnapshotToolButton, &QAbstractButton::clicked,
             this, &MerEmulatorDetailsWidget::selectFactorySnapshot);
 
@@ -213,6 +221,11 @@ void MerEmulatorDetailsWidget::selectFactorySnapshot()
 
     m_ui->factorySnapshotLineEdit->setText(selected);
     emit factorySnapshotChanged(selected);
+}
+
+void MerEmulatorDetailsWidget::setSshPortOccupied(bool portOccupied)
+{
+    m_ui->sshPortOccupiedLabel->setVisible(portOccupied);
 }
 
 } // Internal

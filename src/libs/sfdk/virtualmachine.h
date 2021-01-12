@@ -195,6 +195,7 @@ public:
         AlreadyDisconnecting,
         UnableToCloseVm,
         VmNotRegistered,
+        SshPortOccupied,
     };
 
     enum Question {

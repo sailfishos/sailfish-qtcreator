@@ -24,6 +24,7 @@
 #include "vmconnection_p.h"
 
 #include "virtualmachine_p.h"
+#include "utils.h"
 
 #include <ssh/sshremoteprocessrunner.h>
 #include <utils/qtcassert.h>
@@ -58,6 +59,7 @@ const int SSH_TRY_CONNECT_TIMEOUT          = [] {
 }();
 const int SSH_TRY_CONNECT_INTERVAL_NORMAL  = 1000;
 const int SSH_TRY_CONNECT_INTERVAL_SLOW    = 10000;
+const char SFDK_BYPASS_SSH_PORT_OCCUPIED_CHECK[] = "SFDK_BYPASS_SSH_PORT_OCCUPIED_CHECK";
 }
 
 // Intentionally do not report any error state or handle timeouts - this is
@@ -660,7 +662,11 @@ bool VmConnection::vmStmStep()
         } else if (m_lockDownRequested) {
             // noop
         } else if (m_connectRequested) {
-            if (m_connectOptions & VirtualMachine::AskStartVm) {
+            if (shouldCheckSshPortIsOccupied()
+                    && isPortOccupied(m_vm->sshParameters().port())) {
+                ui()->warn(Ui::SshPortOccupied);
+                vmStmTransition(VmStartingError, "SSH port occupied");
+            } else if (m_connectOptions & VirtualMachine::AskStartVm) {
                 vmStmTransition(VmAskBeforeStarting, "connect requested&ask before start VM");
             } else {
                 vmStmTransition(VmStarting, "connect requested");
@@ -1337,6 +1343,13 @@ void VmConnection::ask(Ui::Question which,
         ifNo();
         break;
     }
+}
+
+bool VmConnection::shouldCheckSshPortIsOccupied() const
+{
+    return !m_vmStartedOutside
+           && qEnvironmentVariableIsEmpty(
+                   SFDK_BYPASS_SSH_PORT_OCCUPIED_CHECK);
 }
 
 } // Sfdk

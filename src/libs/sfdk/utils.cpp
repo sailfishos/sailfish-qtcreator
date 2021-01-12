@@ -30,6 +30,7 @@
 #include <utils/portlist.h>
 
 #include <QList>
+#include <QTcpServer>
 
 #include <algorithm>
 
@@ -99,6 +100,11 @@ QString separator(TextStyle textStyle)
         return {'_'};
     }
     return {};
+}
+
+bool isPortOccupied(quint16 port)
+{
+    return !QTcpServer().listen(QHostAddress::LocalHost, port);
 }
 
 } // namespace Sfdk

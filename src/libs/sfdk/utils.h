@@ -22,6 +22,8 @@
 
 #pragma once
 
+#include "sfdkglobal.h"
+
 namespace Sfdk {
 
 enum class TextStyle
@@ -30,5 +32,7 @@ enum class TextStyle
     CamelCase,
     SnakeCase
 };
+
+SFDK_EXPORT bool isPortOccupied(quint16 port);
 
 }

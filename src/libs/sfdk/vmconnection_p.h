@@ -125,6 +125,8 @@ private:
     void ask(Ui::Question which, void (VmConnection::*onStatusChanged)(),
             std::function<void()> ifYes, std::function<void()> ifNo);
 
+    bool shouldCheckSshPortIsOccupied() const;
+
 private slots:
     void vmStmScheduleExec();
     void sshStmScheduleExec();

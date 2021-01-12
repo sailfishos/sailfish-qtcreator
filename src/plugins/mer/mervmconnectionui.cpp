@@ -26,6 +26,7 @@
 #include "mersettings.h"
 
 #include <coreplugin/icore.h>
+#include <ssh/sshconnection.h>
 #include <utils/checkablemessagebox.h>
 #include <utils/qtcassert.h>
 
@@ -67,6 +68,14 @@ void MerVmConnectionUi::warn(Warning which)
     case VmNotRegistered:
         openWarningBox(tr("Virtual Machine Not Found"),
                 tr("No virtual machine with the name \"%1\" found. Check your installation."))
+            ->setAttribute(Qt::WA_DeleteOnClose);
+        break;
+    case SshPortOccupied:
+        openWarningBox(tr("Conflicting SSH Port Configuration"),
+                tr("Another application seems to be listening on the TCP port %1 configured as "
+                   "SSH port for the \"%2\" virtual machine - choose another SSH port in options.")
+                .arg(virtualMachine()->sshParameters().port())
+                .arg(virtualMachine()->name()))
             ->setAttribute(Qt::WA_DeleteOnClose);
         break;
     }
