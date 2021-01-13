@@ -1117,7 +1117,7 @@ Worker::ExitStatus BuiltinWorker::runEmulator(const QStringList &arguments, int 
     QString errorString;
     QString emulatorNameOrIndex;
     Emulator *emulator;
-    if (arguments.count() < 2 || arguments.at(1) == "--") {
+    if (arguments.count() < 2 || arguments.at(1).startsWith("--")) {
         emulator = emulatorForNameOrIndex("0", &errorString);
     } else {
         emulatorNameOrIndex = arguments.at(1);
@@ -1136,10 +1136,19 @@ Worker::ExitStatus BuiltinWorker::runEmulator(const QStringList &arguments, int 
     }
 
     if (arguments.first() == "start") {
-        if (arguments.count() > 2) {
-            qerr() << P::unexpectedArgumentMessage(arguments.at(2)) << endl;
+        QCommandLineParser parser;
+        QCommandLineOption headlessOption("headless");
+        parser.addOptions({headlessOption});
+
+        if (!parser.parse(arguments)) {
+            qerr() << parser.errorText() << endl;
             return BadUsage;
         }
+
+        if (parser.isSet(headlessOption)) {
+            emulator->virtualMachine()->setHeadless(true);
+        }
+
         *exitCode = SdkManager::startEmulator(*emulator) ? EXIT_SUCCESS : EXIT_FAILURE;
         return NormalExit;
     }
@@ -1196,10 +1205,18 @@ Worker::ExitStatus BuiltinWorker::runEmulator(const QStringList &arguments, int 
 
     if (arguments.first() == "exec") {
         QStringList command = arguments.mid(1);
-        if (!command.isEmpty() && command.first() == emulatorNameOrIndex)
-            command.removeFirst();
-        if (!command.isEmpty() && command.first() == "--")
-            command.removeFirst();
+        while (!command.isEmpty()) {
+            if (command.first() == emulatorNameOrIndex)
+                command.removeFirst();
+            else if (command.first() == "--headless") {
+                emulator->virtualMachine()->setHeadless(true);
+                command.removeFirst();
+            } else if (command.first() == "--") {
+                command.removeFirst();
+            } else {
+                break;
+            }
+        }
 
         QString program;
         QStringList programArguments;
