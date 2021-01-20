@@ -268,7 +268,7 @@ void MerSettings::read()
             true).toBool();
     m_qmlLiveBenchLocation = settings->value(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY)).toString();
     m_askBeforeStartingVmEnabled = settings->value(QLatin1String(ASK_BEFORE_STARTING_VM), true).toBool();
-    m_askBeforeClosingVmEnabled = settings->value(QLatin1String(ASK_BEFORE_STARTING_VM), true).toBool();
+    m_askBeforeClosingVmEnabled = settings->value(QLatin1String(ASK_BEFORE_CLOSING_VM), true).toBool();
     m_importQmakeVariablesEnabled = settings->value(QLatin1String(IMPORT_QMAKE_VARIABLES), true).toBool();
     m_askImportQmakeVariablesEnabled = settings->value(QLatin1String(ASK_IMPORT_QMAKE_VARIABLES), true).toBool();
 
@@ -304,7 +304,7 @@ void MerSettings::save()
     else
         settings->setValue(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY), m_qmlLiveBenchLocation);
     settings->setValue(QLatin1String(ASK_BEFORE_STARTING_VM), m_askBeforeStartingVmEnabled);
-    settings->setValue(QLatin1String(ASK_BEFORE_STARTING_VM), m_askBeforeClosingVmEnabled);
+    settings->setValue(QLatin1String(ASK_BEFORE_CLOSING_VM), m_askBeforeClosingVmEnabled);
     settings->setValue(QLatin1String(IMPORT_QMAKE_VARIABLES), m_importQmakeVariablesEnabled);
     settings->setValue(QLatin1String(ASK_IMPORT_QMAKE_VARIABLES), m_askImportQmakeVariablesEnabled);
 
