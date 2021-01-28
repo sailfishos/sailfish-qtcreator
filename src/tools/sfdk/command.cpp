@@ -1300,6 +1300,7 @@ Worker::ExitStatus BuiltinWorker::runEngine(const QStringList &arguments, int *e
             if (command.count() > 1)
                 programArguments = command.mid(1);
         } else {
+            SdkManager::setEnableReversePathMapping(false);
             program = "/bin/bash";
             programArguments << "--login";
         }
@@ -1557,6 +1558,8 @@ Worker::ExitStatus BuiltinWorker::runTools(const QStringList &arguments_, int *e
         // sdk-assistant uses different name for this command
         allArguments[typeHint != SdkManager::NoToolsHint ? 1 : 0] = "maintain";
         allArguments.prepend("--non-interactive");
+        if (arguments.count() <= 2)
+            SdkManager::setEnableReversePathMapping(false);
         *exitCode = SdkManager::runOnEngine("sdk-assistant", allArguments);
         return NormalExit;
     }
