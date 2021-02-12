@@ -139,6 +139,7 @@ private slots:
 private:
     const QPointer<VirtualMachine> m_vm;
     QPointer<QSsh::SshConnection> m_connection;
+    QSsh::SshConnectionParameters m_lastConnectionParameters;
 
     // state
     VirtualMachine::State m_state;

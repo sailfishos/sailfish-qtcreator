@@ -813,11 +813,11 @@ bool VmConnection::vmStmStep()
             vmWantFastPollState(true);
             m_vmSoftClosingTimeoutTimer.start(VM_SOFT_CLOSE_TIMEOUT, this);
 
-            if (m_connection && m_sshState != SshConnectingError) {
+            if (m_sshState == SshDisconnected) {
                 m_remoteShutdownProcess = new VmConnectionRemoteShutdownProcess(this);
                 connect(m_remoteShutdownProcess.data(), &VmConnectionRemoteShutdownProcess::finished,
                         this, &VmConnection::onRemoteShutdownProcessFinished);
-                m_remoteShutdownProcess->run(m_connection->connectionParameters());
+                m_remoteShutdownProcess->run(m_lastConnectionParameters);
             } else {
                 // see transition on !m_remoteShutdownProcess
             }
@@ -1111,6 +1111,7 @@ void VmConnection::createConnection()
 
     SshConnectionParameters params(m_vm->sshParameters());
     params.timeout = SSH_TRY_CONNECT_TIMEOUT / 1000;
+    m_lastConnectionParameters = params;
     m_connection = new SshConnection(params, this);
     connect(m_connection.data(), &SshConnection::connected,
             this, &VmConnection::onSshConnected);
