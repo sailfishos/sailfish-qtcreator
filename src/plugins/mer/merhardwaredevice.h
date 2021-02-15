@@ -51,6 +51,8 @@ public:
 
 protected:
     MerHardwareDevice();
+private:
+    void init();
 };
 
 class MerHardwareDeviceManager : public QObject

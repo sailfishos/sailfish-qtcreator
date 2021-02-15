@@ -24,6 +24,7 @@
 #ifndef MERDEVICE_H
 #define MERDEVICE_H
 
+#include <sfdk/device.h>
 #include <projectexplorer/abi.h>
 #include <remotelinux/linuxdevice.h>
 #include <utils/portlist.h>
@@ -45,6 +46,8 @@ public:
 
     ProjectExplorer::Abi::Architecture architecture() const;
     void setArchitecture(const ProjectExplorer::Abi::Architecture &architecture);
+    template<typename T>
+    static T architecture_cast(int a);
 
     bool isCompatibleWith(const ProjectExplorer::Kit *kit) const override;
 
@@ -62,6 +65,17 @@ private:
     ProjectExplorer::Abi::Architecture m_architecture;
     Utils::PortList m_qmlLivePorts;
 };
+
+template<typename T>
+T MerDevice::architecture_cast(int a)
+{
+    static_assert(ProjectExplorer::Abi::ArmArchitecture == static_cast<int>(Sfdk::Device::ArmArchitecture),
+            "Abi::Architecture / Device::Architecture mismatch");
+    static_assert(ProjectExplorer::Abi::X86Architecture == static_cast<int>(Sfdk::Device::X86Architecture),
+            "Abi::Architecture / Device::Architecture mismatch");
+    QTC_ASSERT(a >= 0 && a <= Sfdk::Device::X86Architecture, return {});
+    return static_cast<T>(a);
+}
 
 }
 

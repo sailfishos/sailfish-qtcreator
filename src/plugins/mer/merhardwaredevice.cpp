@@ -24,6 +24,7 @@
 #include "merhardwaredevice.h"
 
 #include "merconstants.h"
+#include "merdevice.h"
 #include "merdevicefactory.h"
 #include "merhardwaredevicewidget.h"
 #include "merhardwaredevicewizardpages.h"
@@ -60,6 +61,23 @@ MerHardwareDevice::MerHardwareDevice()
     PortList defaultQmlLivePorts;
     defaultQmlLivePorts.addPort(Utils::Port(Sfdk::Constants::DEFAULT_QML_LIVE_PORT));
     setQmlLivePorts(defaultQmlLivePorts);
+    init();
+}
+
+void MerHardwareDevice::init()
+{
+    addDeviceAction({tr("Deploy RPM validation key"), [](const IDevice::Ptr &device, QWidget *parent) {
+        Device *const sdkDevice = Sdk::device(toSdkId(device->id()));
+        QTC_ASSERT(sdkDevice, return);
+
+        auto sdkHwDevice = qobject_cast<Sfdk::HardwareDevice *>(sdkDevice);
+        QTC_ASSERT(sdkHwDevice, return);
+
+        if (auto d = MerDeviceGpgKeyDeploymentDialog::createDialog(sdkHwDevice, parent)) {
+            d->exec();
+            delete d;
+        }
+    }});
 }
 
 IDevice::Ptr MerHardwareDevice::clone() const
@@ -87,17 +105,6 @@ QString MerHardwareDevice::toSdkId(const Core::Id &id)
 /*!
  * \class MerHardwareDeviceManager
  */
-
-template<typename T>
-T architecture_cast(int a)
-{
-    static_assert(Abi::ArmArchitecture == static_cast<int>(Device::ArmArchitecture),
-            "Abi::Architecture / Device::Architecture mismatch");
-    static_assert(Abi::X86Architecture == static_cast<int>(Device::X86Architecture),
-            "Abi::Architecture / Device::Architecture mismatch");
-    QTC_ASSERT(a >= 0 && a <= Device::X86Architecture, return {});
-    return static_cast<T>(a);
-}
 
 MerHardwareDeviceManager *MerHardwareDeviceManager::s_instance = nullptr;
 
@@ -153,7 +160,7 @@ void MerHardwareDeviceManager::onSdkDeviceAdded(int index)
         : IDevice::ManuallyAdded;
     device->setupId(origin, id);
     device->setDisplayName(sdkDevice->name());
-    device->setArchitecture(architecture_cast<Abi::Architecture>(sdkDevice->architecture()));
+    device->setArchitecture(MerDevice::architecture_cast<Abi::Architecture>(sdkDevice->architecture()));
     device->setFreePorts(sdkDevice->freePorts());
     device->setQmlLivePorts(sdkDevice->qmlLivePorts());
     device->setSshParameters(sdkDevice->sshParameters());
@@ -238,7 +245,7 @@ void MerHardwareDeviceManager::onDeviceAddedOrUpdated(Core::Id id)
         return;
 
     const QString sdkId = MerHardwareDevice::toSdkId(id);
-    const auto sdkArch = architecture_cast<Device::Architecture>(hwDevice->architecture());
+    const auto sdkArch = MerDevice::architecture_cast<Device::Architecture>(hwDevice->architecture());
 
     Device *const sdkDevice = Sdk::device(sdkId);
     auto *sdkHwDevice = qobject_cast<HardwareDevice *>(sdkDevice);

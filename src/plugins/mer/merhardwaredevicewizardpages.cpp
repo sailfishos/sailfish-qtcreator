@@ -28,21 +28,33 @@
 
 #include "merconnectionmanager.h"
 #include "merconstants.h"
+#include "merdevice.h"
 #include "merhardwaredevicewizard.h"
 #include "merlogging.h"
+#include "mersigninguserselectiondialog.h"
+#include "mersettings.h"
 
 #include <sfdk/buildengine.h>
+#include <sfdk/device.h>
 #include <sfdk/sdk.h>
+#include <sfdk/utils.h>
 
+#include <coreplugin/messagemanager.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <ssh/sshremoteprocessrunner.h>
+#include <utils/algorithm.h>
+#include <utils/pathchooser.h>
 #include <utils/portlist.h>
+#include <utils/progressindicator.h>
 #include <utils/qtcassert.h>
+#include <utils/utilsicons.h>
 
 #include <QAbstractButton>
+#include <QComboBox>
 #include <QDir>
 #include <QInputDialog>
 #include <QMessageBox>
+#include <QPushButton>
 #include <QTimer>
 #include <QVersionNumber>
 
@@ -522,5 +534,178 @@ bool MerHardwareDeviceWizardSetupPage::validatePage()
     return true;
 }
 
+/*!
+ * \class MerHardwareDeviceWizardPackageKeyDeploymentPage
+ * \internal
+ */
+
+MerHardwareDeviceWizardPackageKeyDeploymentPage::MerHardwareDeviceWizardPackageKeyDeploymentPage(QWidget *parent)
+    : QWizardPage(parent)
+{
+    setTitle(tr("RPM Key Deployment"));
+    setSubTitle(QLatin1String(" "));
+
+    auto infoLabel = new QLabel;
+    infoLabel->setText(tr("Set up your device for package signature verification.\n"
+            "Depending on your device configuration, manual confirmation may be "
+            "skipped for deployment of packages signed with trusted keys."));
+    infoLabel->setWordWrap(true);
+
+    m_keyComboBox = new QComboBox;
+    m_keyComboBox->setToolTip(tr("Select a trusted GnuPG public key"));
+
+    auto deployKeyButton = new QPushButton(tr("Deploy Key"));
+    connect(deployKeyButton, &QPushButton::clicked,
+            this, &MerHardwareDeviceWizardPackageKeyDeploymentPage::deployKey);
+
+    m_deployStateLabel = new QLabel;
+    m_deployStateLabel->hide();
+    m_progressIndicator = new ProgressIndicator(ProgressIndicatorSize::Small);
+    m_progressIndicator->hide();
+
+    auto mainLayout = new QVBoxLayout(this);
+    mainLayout->addWidget(infoLabel);
+    auto errorLayout = new QHBoxLayout(this);
+    mainLayout->addLayout(errorLayout);
+
+    auto keyLayout = new QHBoxLayout(this);
+    keyLayout->addWidget(new QLabel(tr("Public key:")));
+    keyLayout->addWidget(m_keyComboBox);
+    mainLayout->addLayout(keyLayout);
+
+    auto deployLayout = new QHBoxLayout(this);
+    deployLayout->addWidget(deployKeyButton);
+    deployLayout->addWidget(m_deployStateLabel);
+    deployLayout->addWidget(m_progressIndicator);
+    deployLayout->addStretch();
+    mainLayout->addLayout(deployLayout);
+
+    QString gpgErrorString;
+    if (!Sfdk::isGpgAvailable(&gpgErrorString)) {
+        auto errorLabel = new QLabel;
+        auto signErrorIconLabel = new QLabel;
+        errorLayout->addWidget(signErrorIconLabel);
+        errorLayout->addWidget(errorLabel);
+        errorLayout->addSpacerItem(new QSpacerItem(0, 0, QSizePolicy::Expanding));
+        errorLabel->setText(gpgErrorString);
+        signErrorIconLabel->setPixmap(Icons::WARNING.pixmap());
+        signErrorIconLabel->setVisible(true);
+
+        deployKeyButton->setEnabled(false);
+        m_keyComboBox->setEnabled(false);
+        return;
+    }
+    QList<GpgKeyInfo> availableKeys;
+    bool ok;
+    QString error;
+    execAsynchronous(std::tie(ok, availableKeys, error), Sfdk::availableGpgKeys);
+    if (!ok)
+        Core::MessageManager::write(error, Core::MessageManager::Flash);
+
+    const QStringList items = Utils::transform(availableKeys, &GpgKeyInfo::toString);
+    m_keyComboBox->addItems(items);
+    m_keyComboBox->setCurrentText(MerSettings::signingUser().toString());
 }
+
+void MerHardwareDeviceWizardPackageKeyDeploymentPage::setDevice(const MerHardwareDevice::Ptr &device)
+{
+    m_device = device;
 }
+
+void MerHardwareDeviceWizardPackageKeyDeploymentPage::deployKey()
+{
+    QTC_ASSERT(m_device, return);
+
+    m_progressIndicator->show();
+    m_deployStateLabel->hide();
+
+    auto onDeployFinished = [this](bool ok) {
+        m_progressIndicator->hide();
+        m_deployStateLabel->setPixmap(ok ? Icons::OK.pixmap() : Icons::BROKEN.pixmap());
+        m_deployStateLabel->show();
+    };
+
+    const QModelIndex currentModelIndex = m_keyComboBox->model()->index(
+            m_keyComboBox->currentIndex(), 0);
+    if (!currentModelIndex.isValid()) {
+        onDeployFinished(false);
+        return;
+    }
+    const auto signingUser = GpgKeyInfo::fromString(m_keyComboBox->currentText());
+    QTC_CHECK(signingUser.isValid());
+
+    const QString sdkId = MerHardwareDevice::toSdkId(m_device->id());
+    const auto sdkArch = MerDevice::architecture_cast<Device::Architecture>(m_device->architecture());
+
+    std::unique_ptr<HardwareDevice> newSdkDevice;
+    newSdkDevice = std::make_unique<HardwareDevice>(sdkId, sdkArch);
+    newSdkDevice->setName(m_device->displayName());
+    newSdkDevice->setSshParameters(m_device->sshParameters());
+
+    MerDeviceGpgKeyDeploymentDialog dlg(newSdkDevice.get(), signingUser.fingerprint, this);
+    onDeployFinished(dlg.exec() == QDialog::Accepted);
+}
+
+/*!
+ * \class MerDeviceGpgKeyDeploymentDialog
+ * \internal
+ */
+
+MerDeviceGpgKeyDeploymentDialog::MerDeviceGpgKeyDeploymentDialog(
+    Sfdk::Device *device, const QString &id, QWidget *parent)
+    : QProgressDialog(parent)
+{
+    QTC_ASSERT(device, done = false; return );
+
+    setAutoReset(false);
+    setAutoClose(false);
+    setMinimumDuration(0);
+    setMaximum(1);
+
+    setLabelText(tr("Deploying..."));
+    setValue(0);
+
+    connect(this, &MerDeviceGpgKeyDeploymentDialog::canceled,
+            this, &MerDeviceGpgKeyDeploymentDialog::handleCanceled);
+
+    bool ok;
+    QString errorString;
+    execAsynchronous(std::tie(ok, errorString), std::mem_fn(&Device::importPublicGpgKey), device, id);
+    QString buttonText;
+    const char *textColor;
+    if (ok) {
+        buttonText = tr("Deployment finished successfully.");
+        textColor = "blue";
+        setValue(1);
+    } else {
+        buttonText = errorString;
+        textColor = "red";
+    }
+    setLabelText(QString::fromLatin1("<font color=\"%1\">%2</font>")
+            .arg(QLatin1String(textColor), buttonText));
+    setCancelButtonText(tr("Close"));
+    done = ok;
+}
+
+MerDeviceGpgKeyDeploymentDialog *MerDeviceGpgKeyDeploymentDialog::createDialog(
+    Sfdk::Device *device, QWidget *parent)
+{
+    QTC_ASSERT(device, return nullptr);
+
+    const GpgKeyInfo selectedSigningUser = MerSigningUserSelectionDialog::selectSigningUser();
+    if (!selectedSigningUser.isValid())
+        return nullptr;
+
+    return new MerDeviceGpgKeyDeploymentDialog(device, selectedSigningUser.fingerprint, parent);
+}
+
+void MerDeviceGpgKeyDeploymentDialog::handleCanceled()
+{
+    if (done)
+        accept();
+    else
+        reject();
+}
+
+} // Internal
+} // Mer
