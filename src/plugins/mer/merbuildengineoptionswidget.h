@@ -85,6 +85,7 @@ private slots:
     void onHeadlessCheckBoxToggled(bool checked);
     void onSrcFolderApplyButtonClicked(const QString &path);
     void onWwwPortChanged(quint16 port);
+    void onDBusPortChanged(quint16 port);
     void onWwwProxyChanged(const QString &type, const QString &servers, const QString &excludes);
     void onMemorySizeMbChanged(int sizeMb);
     void onSwapSizeMbChanged(int sizeMb);
@@ -106,6 +107,7 @@ private:
     QMap<Sfdk::BuildEngine *, quint16> m_sshPort;
     QMap<Sfdk::BuildEngine *, bool> m_headless;
     QMap<Sfdk::BuildEngine *, quint16> m_wwwPort;
+    QMap<Sfdk::BuildEngine *, quint16> m_dBusPort;
     QMap<Sfdk::BuildEngine *, QString> m_wwwProxy;
     QMap<Sfdk::BuildEngine *, QString> m_wwwProxyServers;
     QMap<Sfdk::BuildEngine *, QString> m_wwwProxyExcludes;

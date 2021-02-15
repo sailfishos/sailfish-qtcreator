@@ -55,6 +55,7 @@ const char BUILD_ENGINE_PRIVATE_KEY_FILE[] = "PrivateKeyFile";
 const char BUILD_ENGINE_SSH_PORT[] = "SshPort";
 const char BUILD_ENGINE_SSH_TIMEOUT[] = "SshTimeout";
 const char BUILD_ENGINE_WWW_PORT[] = "WwwPort";
+const char BUILD_ENGINE_DBUS_PORT[] = "DBusPort";
 const char BUILD_ENGINE_WWW_PROXY_TYPE[] = "WwwProxyType";
 const char BUILD_ENGINE_WWW_PROXY_SERVERS[] = "WwwProxyServers";
 const char BUILD_ENGINE_WWW_PROXY_EXCLUDES[] = "WwwProxyExcludes";

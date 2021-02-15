@@ -32,6 +32,9 @@ const char SDK_FRONTEND_ID[] = "sfdk";
 const char DISPATCH_TR_CONTEXT[] = "Sfdk::Dispatch";
 const char GENERAL_DOMAIN_NAME[] = "general";
 
+const char BUILD_ENGINE_SYSTEM_BUS_CONNECTION[] = "build-engine-system-bus";
+const char SAILFISH_SDK_SFDK_DBUS_SERVICE[] = "SAILFISH_SDK_SFDK_DBUS_SERVICE";
+
 const char DISABLE_REVERSE_PATH_MAPPING_ENV_VAR[] = "SFDK_NO_REVERSE_PATH_MAP";
 const char MSYS_DETECTION_ENV_VAR[] = "MSYSTEM";
 const char NO_WARN_ABOUT_WINPTY_ENV_VAR[] = "SFDK_NO_WINPTY";

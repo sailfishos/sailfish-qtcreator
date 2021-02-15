@@ -62,6 +62,7 @@ public:
     QString sharedSsh;
     quint16 sshPort{0};
     quint16 wwwPort{0};
+    quint16 dBusPort{0};
     QMap<QString, quint16> freePorts;
     QMap<QString, quint16> qmlLivePorts;
     QMap<QString, quint16> otherPorts;
@@ -110,6 +111,7 @@ public:
         SshPort,
         // Valid for build engine kind of VMs only
         WwwPort,
+        DBusPort,
     };
     Q_ENUM(ReservedPort)
 

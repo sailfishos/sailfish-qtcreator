@@ -64,6 +64,12 @@ MerBuildEngineDetailsWidget::MerBuildEngineDetailsWidget(QWidget *parent)
             + tr("Stop the virtual machine to unlock this field for editing.")
             + QLatin1String("</font>"));
 
+    m_ui->dBusPortInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
+    m_ui->dBusPortInfoLabel->setToolTip(
+            QLatin1String("<font color=\"red\">")
+            + tr("Stop the virtual machine to unlock this field for editing.")
+            + QLatin1String("</font>"));
+
     m_ui->sshPortOccupiedLabel->setPixmap(Utils::Icons::WARNING.pixmap());
     m_ui->sshPortOccupiedLabel->setToolTip(
             QLatin1String("<font color=\"red\">")
@@ -92,6 +98,8 @@ MerBuildEngineDetailsWidget::MerBuildEngineDetailsWidget(QWidget *parent)
             this, &MerBuildEngineDetailsWidget::onSrcFolderApplyButtonClicked);
     connect(m_ui->wwwPortSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this, &MerBuildEngineDetailsWidget::wwwPortChanged);
+    connect(m_ui->dBusPortSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this, &MerBuildEngineDetailsWidget::dBusPortChanged);
     connect(m_ui->virtualMachineSettingsWidget, &MerVirtualMachineSettingsWidget::memorySizeMbChanged,
             this, &MerBuildEngineDetailsWidget::memorySizeMbChanged);
     connect(m_ui->virtualMachineSettingsWidget, &MerVirtualMachineSettingsWidget::swapSizeMbChanged,
@@ -200,6 +208,8 @@ void MerBuildEngineDetailsWidget::setVmOffStatus(bool vmOff)
     m_ui->sshPortInfoLabel->setVisible(!vmOff);
     m_ui->wwwPortSpinBox->setEnabled(vmOff);
     m_ui->wwwPortInfoLabel->setVisible(!vmOff);
+    m_ui->dBusPortSpinBox->setEnabled(vmOff);
+    m_ui->dBusPortInfoLabel->setVisible(!vmOff);
     m_ui->virtualMachineSettingsWidget->setVmOff(vmOff);
 }
 
@@ -221,6 +231,11 @@ void MerBuildEngineDetailsWidget::setHeadless(bool enabled)
 void MerBuildEngineDetailsWidget::setWwwPort(quint16 port)
 {
     m_ui->wwwPortSpinBox->setValue(port);
+}
+
+void MerBuildEngineDetailsWidget::setDBusPort(quint16 port)
+{
+    m_ui->dBusPortSpinBox->setValue(port);
 }
 
 void MerBuildEngineDetailsWidget::setMemorySizeMb(int sizeMb)
