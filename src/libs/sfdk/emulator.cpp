@@ -200,27 +200,6 @@ void Emulator::setFactorySnapshot(const QString &snapshotName)
     emit factorySnapshotChanged(d->factorySnapshot);
 }
 
-void Emulator::restoreFactoryState(const QObject *context, const Functor<bool> &functor)
-{
-    QTC_CHECK(virtualMachine()->isLockedDown());
-
-    auto allOk = std::make_shared<bool>(true);
-
-    const QPointer<const QObject> context_{context};
-
-    VirtualMachinePrivate::get(virtualMachine())->restoreSnapshot(factorySnapshot(), this,
-            [=](bool restoredOk) {
-        QTC_CHECK(restoredOk);
-        *allOk &= restoredOk;
-    });
-
-    d_func()->updateVmProperties(this, [=](bool updatedOk) {
-        QTC_CHECK(updatedOk);
-        *allOk &= updatedOk;
-        callIf(context_, functor, *allOk);
-    });
-}
-
 DeviceModelData Emulator::deviceModel() const
 {
     return d_func()->deviceModel;
@@ -366,12 +345,18 @@ bool EmulatorPrivate::fromMap(const QVariantMap &data)
 
 bool EmulatorPrivate::initVirtualMachine(const QUrl &vmUri)
 {
+    Q_Q(Emulator);
     Q_ASSERT(!virtualMachine);
 
     VirtualMachine::Features unsupportedFeatures = VirtualMachine::SwapMemory;
 
     virtualMachine = VirtualMachineFactory::create(vmUri, ~unsupportedFeatures);
     QTC_ASSERT(virtualMachine, return false);
+
+    QObject::connect(VirtualMachinePrivate::get(virtualMachine.get()),
+            &VirtualMachinePrivate::aboutToRestoreSnapshot,
+            q,
+            [this](const std::shared_ptr<bool> &ok) { onAboutToRestoreSnapshot(ok); });
 
     SshConnectionParameters sshParameters;
     sshParameters.setUserName(Constants::EMULATOR_DEFAULT_USER_NAME);
@@ -565,6 +550,14 @@ bool EmulatorPrivate::updateDconfDb(const QString &file, const QString &dconf)
     QTC_ASSERT(ok, qCCritical(Log::emulator) << saver.errorString());
 
     return ok;
+}
+
+void EmulatorPrivate::onAboutToRestoreSnapshot(const std::shared_ptr<bool> &ok)
+{
+    updateVmProperties(virtualMachine.get(), [=](bool updateOk) {
+        QTC_CHECK(updateOk);
+        *ok &= updateOk;
+    });
 }
 
 /*!

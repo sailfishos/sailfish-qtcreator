@@ -123,6 +123,7 @@ VirtualMachine::VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, cons
     , d_ptr(std::move(dd))
 {
     Q_D(VirtualMachine);
+    d->setParent(this);
     d->type = type;
     d->features = features;
     d->name = name;
@@ -439,8 +440,34 @@ void VirtualMachine::removePortForwarding(const QString &ruleName, const QObject
 QStringList VirtualMachine::snapshots() const
 {
     Q_D(const VirtualMachine);
+    QTC_ASSERT(d->features & Snapshots, return {});
     QTC_ASSERT(d->initialized(), return {});
     return d->virtualMachineInfo.snapshots;
+}
+
+void VirtualMachine::restoreSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_D(VirtualMachine);
+    QTC_ASSERT(d->features & Snapshots,
+               QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_CHECK(isLockedDown());
+
+    auto allOk = std::make_shared<bool>(true);
+
+    d->doRestoreSnapshot(snapshotName, this, [=](bool restoreOk) {
+        QTC_CHECK(restoreOk);
+        *allOk &= restoreOk;
+    });
+
+    refreshConfiguration(this, [=](bool refreshOk) {
+        QTC_CHECK(refreshOk);
+        *allOk &= refreshOk;
+    });
+
+    emit d->aboutToRestoreSnapshot(allOk);
+
+    SdkPrivate::commandQueue()->enqueueCheckPoint(context, [=]() { functor(*allOk); });
 }
 
 void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<bool> &functor)
@@ -657,28 +684,6 @@ void VirtualMachinePrivate::setReservedPortListForwarding(ReservedPortList which
             functor(toPorts(savedPorts.values()), true);
     });
 
-}
-
-void VirtualMachinePrivate::restoreSnapshot(const QString &snapshotName, const QObject *context,
-        const Functor<bool> &functor)
-{
-    Q_Q(VirtualMachine);
-    QTC_CHECK(q->isLockedDown());
-
-    auto allOk = std::make_shared<bool>(true);
-
-    const QPointer<const QObject> context_{context};
-
-    doRestoreSnapshot(snapshotName, q, [=](bool restoreOk) {
-        QTC_CHECK(restoreOk);
-        *allOk &= restoreOk;
-    });
-
-    q->refreshConfiguration(q, [=](bool refreshOk) {
-        QTC_CHECK(refreshOk);
-        *allOk &= restoreOk;
-        callIf(context_, functor, *allOk);
-    });
 }
 
 void VirtualMachinePrivate::enableUpdates()

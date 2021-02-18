@@ -78,6 +78,8 @@ private:
             const QSize &displayResolution, bool viewScaled);
     static bool updateDconfDb(const QString &file, const QString &dconf);
 
+    void onAboutToRestoreSnapshot(const std::shared_ptr<bool> &ok);
+
 private:
     Emulator *const q_ptr;
     QDateTime creationTime;

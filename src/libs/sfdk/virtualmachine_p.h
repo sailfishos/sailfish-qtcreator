@@ -79,9 +79,9 @@ public:
     QStringList snapshots;
 };
 
-class VirtualMachinePrivate
+class VirtualMachinePrivate : public QObject
 {
-    Q_GADGET
+    Q_OBJECT
     Q_DECLARE_PUBLIC(VirtualMachine)
 
 public:
@@ -122,7 +122,7 @@ public:
     Q_ENUM(ReservedPortList)
 
     VirtualMachinePrivate(VirtualMachine *q) : q_ptr(q) {}
-    virtual ~VirtualMachinePrivate();
+    ~VirtualMachinePrivate() override;
 
     static VirtualMachinePrivate *get(VirtualMachine *q) { return q->d_func(); }
 
@@ -148,9 +148,6 @@ public:
     virtual void setVideoMode(const QSize &size, int depth, const QString &deviceModelName,
             Qt::Orientation orientation, int scaleDownFactor, const QObject *context,
             const Functor<bool> &functor) = 0;
-
-    void restoreSnapshot(const QString &snapshotName, const QObject *context,
-            const Functor<bool> &functor);
 
     VirtualMachine::ConnectionUi *connectionUi() const { return connectionUi_.get(); }
 
@@ -188,6 +185,9 @@ protected:
 
 private:
     void enableUpdates();
+
+signals:
+    void aboutToRestoreSnapshot(const std::shared_ptr<bool> &ok);
 
 private:
     QString type;

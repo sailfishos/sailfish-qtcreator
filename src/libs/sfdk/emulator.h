@@ -90,7 +90,6 @@ public:
 
     QString factorySnapshot() const;
     void setFactorySnapshot(const QString &snapshotName);
-    void restoreFactoryState(const QObject *context, const Functor<bool> &functor);
 
     DeviceModelData deviceModel() const;
     Qt::Orientation orientation() const;
