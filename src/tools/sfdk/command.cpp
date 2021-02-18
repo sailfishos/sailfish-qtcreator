@@ -1857,8 +1857,7 @@ Worker::ExitStatus EngineWorker::doRun(const Command *command, const QStringList
     QString errorString;
 
     QStringList globalArguments;
-    if (!Configuration::toArguments(command->configOptions, command->mandatoryConfigOptions,
-                &globalArguments, &errorString)) {
+    if (!makeGlobalArguments(command, &globalArguments, &errorString)) {
         qerr() << errorString << endl;
         *exitCode = SFDK_EXIT_ABNORMAL;
         return BadUsage;
@@ -1912,6 +1911,44 @@ std::unique_ptr<Worker> EngineWorker::fromMap(const QVariantMap &data, int versi
 #else
     return worker;
 #endif
+}
+
+bool EngineWorker::makeGlobalArguments(const Command *command, QStringList *arguments,
+        QString *errorString)
+{
+    auto unsetRequiredOptions = command->mandatoryConfigOptions.toSet();
+
+    for (const OptionEffectiveOccurence &occurence : Configuration::effectiveState()) {
+        if (!occurence.isMasked() && command->configOptions.contains(occurence.option())) {
+            *arguments << makeGlobalArguments(occurence);
+            unsetRequiredOptions.remove(occurence.option());
+        }
+    }
+
+    if (!unsetRequiredOptions.isEmpty()) {
+        *errorString = tr("The required configuration option '%1' is not set")
+            .arg((*unsetRequiredOptions.cbegin())->name);
+        return false;
+    }
+
+    return true;
+}
+
+QStringList EngineWorker::makeGlobalArguments(
+        const OptionEffectiveOccurence &optionOccurence)
+{
+    QStringList arguments;
+
+    const QString normalizedName = QString(optionOccurence.option()->name).replace('.', '-');
+    if (optionOccurence.argument().isEmpty()) {
+        arguments << "--" + normalizedName;
+    } else if (optionOccurence.option()->argumentType == Option::MandatoryArgument) {
+        arguments << "--" + normalizedName << optionOccurence.argument();
+    } else {
+        arguments << "--" + normalizedName + "=" + optionOccurence.argument();
+    }
+
+    return arguments;
 }
 
 #include "command.moc"
