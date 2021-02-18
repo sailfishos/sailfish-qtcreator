@@ -475,11 +475,6 @@ void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<
             emit portForwardingChanged();
         }
 
-        // Features are immutable
-        QTC_CHECK(!d->initialized_ || oldInfo.swapSupported == info.swapSupported);
-        if (!d->initialized_ && info.swapSupported)
-            d->features |= SwapMemory;
-
         d->initialized_ = true;
 
         if (context_)
@@ -762,7 +757,8 @@ void VirtualMachineFactory::unusedVirtualMachines(const QObject *context,
     });
 }
 
-std::unique_ptr<VirtualMachine> VirtualMachineFactory::create(const QUrl &uri)
+std::unique_ptr<VirtualMachine> VirtualMachineFactory::create(const QUrl &uri,
+        VirtualMachine::Features featureMask)
 {
     qCDebug(vms) << "Creating VM" << uri.toString();
 
@@ -780,7 +776,7 @@ std::unique_ptr<VirtualMachine> VirtualMachineFactory::create(const QUrl &uri)
             << "already exists";
     }
 
-    std::unique_ptr<VirtualMachine> vm = meta.create(name);
+    std::unique_ptr<VirtualMachine> vm = meta.create(name, featureMask);
 
     connect(vm.get(), &QObject::destroyed, s_instance, [=]() {
         if (--s_instance->m_used[uri] == 0)
@@ -1001,7 +997,6 @@ void VirtualMachineInfo::fromMap(const QVariantMap &data)
     macs = data.value(VM_INFO_MACS).toStringList();
     headless = data.value(VM_INFO_HEADLESS).toBool();
     memorySizeMb = data.value(VM_INFO_MEMORY_SIZE_MB).toInt();
-    swapSupported = data.value(VM_INFO_SWAP_SUPPORTED).toBool();
     swapSizeMb = data.value(VM_INFO_SWAP_SIZE_MB).toInt();
     cpuCount = data.value(VM_INFO_CPU_COUNT).toInt();
     storageSizeMb = data.value(VM_INFO_STORAGE_SIZE_MB).toInt();
@@ -1035,7 +1030,6 @@ QVariantMap VirtualMachineInfo::toMap() const
     data.insert(VM_INFO_MACS, macs);
     data.insert(VM_INFO_HEADLESS, headless);
     data.insert(VM_INFO_MEMORY_SIZE_MB, memorySizeMb);
-    data.insert(VM_INFO_SWAP_SUPPORTED, swapSupported);
     data.insert(VM_INFO_SWAP_SIZE_MB, swapSizeMb);
     data.insert(VM_INFO_CPU_COUNT, cpuCount);
     data.insert(VM_INFO_STORAGE_SIZE_MB, storageSizeMb);

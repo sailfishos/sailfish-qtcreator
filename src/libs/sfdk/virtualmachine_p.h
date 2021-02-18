@@ -69,7 +69,6 @@ public:
     QStringList macs;
     bool headless{false};
     int memorySizeMb{0};
-    bool swapSupported{false};
     int swapSizeMb{0};
     int cpuCount{0};
 
@@ -215,9 +214,10 @@ class VirtualMachineFactory : public QObject
 // Not idea which version fixes it
 #if Q_CC_MSVC && Q_CC_MSVC <= 1900
         template<typename T>
-        static std::unique_ptr<VirtualMachine> creator(const QString &name)
+        static std::unique_ptr<VirtualMachine> creator(const QString &name,
+                VirtualMachine::Features featureMask)
         {
-            return std::make_unique<T>(name);
+            return std::make_unique<T>(name, featureMask);
         }
 #endif
 
@@ -232,7 +232,7 @@ class VirtualMachineFactory : public QObject
 #if Q_CC_MSVC && Q_CC_MSVC <= 1900
             , create(creator<T>)
 #else
-            , create([](const QString &name) { return std::make_unique<T>(name); })
+            , create(std::make_unique<T, const QString &, VirtualMachine::Features>)
 #endif
         {
         }
@@ -243,7 +243,7 @@ class VirtualMachineFactory : public QObject
         QString displayType;
         void (*fetchRegisteredVirtualMachines)(const QObject *,
                 const Functor<const QStringList &, bool> &) = nullptr;
-        std::function<std::unique_ptr<VirtualMachine>(const QString &)> create = {};
+        std::function<std::unique_ptr<VirtualMachine>(const QString &, VirtualMachine::Features)> create = {};
     };
 
 public:
@@ -255,7 +255,8 @@ public:
 
     static void unusedVirtualMachines(const QObject *context,
             const Functor<const QList<VirtualMachineDescriptor> &, bool> &functor);
-    static std::unique_ptr<VirtualMachine> create(const QUrl &uri);
+    static std::unique_ptr<VirtualMachine> create(const QUrl &uri,
+            VirtualMachine::Features featureMask);
 
     // FIXME use UUID instead of name
     static QUrl makeUri(const QString &type, const QString &name);

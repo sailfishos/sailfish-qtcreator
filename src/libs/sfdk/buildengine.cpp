@@ -439,7 +439,9 @@ bool BuildEnginePrivate::initVirtualMachine(const QUrl &vmUri)
     Q_Q(BuildEngine);
     Q_ASSERT(!virtualMachine);
 
-    virtualMachine = VirtualMachineFactory::create(vmUri);
+    VirtualMachine::Features unsupportedFeatures = VirtualMachine::Snapshots;
+
+    virtualMachine = VirtualMachineFactory::create(vmUri, ~unsupportedFeatures);
     QTC_ASSERT(virtualMachine, return false);
 
     SshConnectionParameters sshParameters;

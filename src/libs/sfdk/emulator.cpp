@@ -368,7 +368,9 @@ bool EmulatorPrivate::initVirtualMachine(const QUrl &vmUri)
 {
     Q_ASSERT(!virtualMachine);
 
-    virtualMachine = VirtualMachineFactory::create(vmUri);
+    VirtualMachine::Features unsupportedFeatures = VirtualMachine::SwapMemory;
+
+    virtualMachine = VirtualMachineFactory::create(vmUri, ~unsupportedFeatures);
     QTC_ASSERT(virtualMachine, return false);
 
     SshConnectionParameters sshParameters;

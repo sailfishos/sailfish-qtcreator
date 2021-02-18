@@ -32,7 +32,8 @@ class VBoxVirtualMachine : public VirtualMachine
     Q_OBJECT
 
 public:
-    explicit VBoxVirtualMachine(const QString &name, QObject *parent = nullptr);
+    explicit VBoxVirtualMachine(const QString &name, VirtualMachine::Features featureMask,
+            QObject *parent = nullptr);
     ~VBoxVirtualMachine() override;
 
     static bool isAvailable();

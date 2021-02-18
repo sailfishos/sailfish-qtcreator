@@ -169,9 +169,10 @@ CommandQueue *commandQueue()
  * \class VBoxVirtualMachine
  */
 
-VBoxVirtualMachine::VBoxVirtualMachine(const QString &name, QObject *parent)
+VBoxVirtualMachine::VBoxVirtualMachine(const QString &name, VirtualMachine::Features featureMask,
+        QObject *parent)
     : VirtualMachine(std::make_unique<VBoxVirtualMachinePrivate>(this), staticType(),
-            staticFeatures(), name, parent)
+            staticFeatures() & featureMask, name, parent)
 {
     Q_D(VBoxVirtualMachine);
     d->setDisplayType(staticDisplayType());
@@ -200,7 +201,7 @@ VirtualMachine::Features VBoxVirtualMachine::staticFeatures()
 {
     return VirtualMachine::LimitMemorySize | VirtualMachine::LimitCpuCount
         | VirtualMachine::GrowStorageSize | VirtualMachine::OptionalHeadless
-        | VirtualMachine::Snapshots;
+        | VirtualMachine::Snapshots | VirtualMachine::SwapMemory;
 }
 
 void VBoxVirtualMachine::fetchRegisteredVirtualMachines(const QObject *context,
@@ -905,7 +906,6 @@ QStringList VBoxVirtualMachinePrivate::listedVirtualMachines(const QString &outp
 VBoxVirtualMachineInfo VBoxVirtualMachinePrivate::virtualMachineInfoFromOutput(const QString &output)
 {
     VBoxVirtualMachineInfo info;
-    info.sshPort = 0;
 
     // Get ssh port, shared home and shared targets
     // 1 Name, 2 Protocol, 3 Host IP, 4 Host Port, 5 Guest IP, 6 Guest Port, 7 Shared Folder Name,
@@ -1001,7 +1001,6 @@ void VBoxVirtualMachinePrivate::propertyBasedInfoFromOutput(const QString &outpu
             const QString value = rexp.cap(2);
 
             if (name == QLatin1String(SWAP_SIZE_MB_GUEST_PROPERTY_NAME)) {
-                virtualMachineInfo->swapSupported = true;
                 virtualMachineInfo->swapSizeMb = value.toInt();
             }
         }

@@ -110,9 +110,10 @@ CommandQueue *commandQueue()
  * \class DockerVirtualMachine
  */
 
-DockerVirtualMachine::DockerVirtualMachine(const QString &name, QObject *parent)
+DockerVirtualMachine::DockerVirtualMachine(const QString &name, VirtualMachine::Features featureMask,
+        QObject *parent)
     : VirtualMachine(std::make_unique<DockerVirtualMachinePrivate>(this), staticType(),
-            staticFeatures(), name, parent)
+            staticFeatures() & featureMask, name, parent)
 {
     Q_D(DockerVirtualMachine);
     d->setDisplayType(staticDisplayType());
@@ -534,8 +535,6 @@ VirtualMachineInfo DockerVirtualMachinePrivate::virtualMachineInfoFromOutput(con
     QTC_ASSERT(!document.isNull(), return info);
 
     info.memorySizeMb = VirtualMachine::availableMemorySizeMb();
-    info.swapSupported = false;
-    info.swapSizeMb = 0;
     info.cpuCount = VirtualMachine::availableCpuCount();
 
     QJsonObject labels = document.object();

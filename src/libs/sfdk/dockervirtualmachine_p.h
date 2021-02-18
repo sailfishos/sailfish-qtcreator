@@ -33,7 +33,8 @@ class DockerVirtualMachine : public VirtualMachine
     Q_OBJECT
 
 public:
-    explicit DockerVirtualMachine(const QString &name, QObject *parent = nullptr);
+    explicit DockerVirtualMachine(const QString &name, VirtualMachine::Features featureMask,
+            QObject *parent = nullptr);
     ~DockerVirtualMachine() override;
 
     static bool isAvailable();
