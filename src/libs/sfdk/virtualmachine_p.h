@@ -58,6 +58,7 @@ public:
     QString sharedHome;
     QString sharedTargets;
     QString sharedConfig;
+    QString sharedMedia;
     QString sharedSrc;
     QString sharedSsh;
     quint16 sshPort{0};
@@ -97,6 +98,9 @@ public:
         // Valid for both build engine and emulator kind of VMs
         SharedConfig,
         SharedSsh,
+
+        // Valid for emulator kind of VMs only
+        SharedMedia,
 
         // Valid for build engine kind of VMs only
         SharedInstall,

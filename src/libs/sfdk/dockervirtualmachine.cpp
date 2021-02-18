@@ -707,6 +707,8 @@ QString DockerVirtualMachinePrivate::labelFor(VirtualMachinePrivate::SharedPath 
         return {Constants::BUILD_ENGINE_SHARED_SSH};
     case SharedTargets:
         return {Constants::BUILD_ENGINE_SHARED_TARGET};
+    case SharedMedia:
+        return {Constants::EMULATOR_SHARED_MEDIA};
     }
     Q_ASSERT(false);
     return {};

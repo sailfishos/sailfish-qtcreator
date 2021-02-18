@@ -61,6 +61,7 @@ const char VM_INFO_SHARED_INSTALL[] = "SharedInstall";
 const char VM_INFO_SHARED_HOME[] = "SharedHome";
 const char VM_INFO_SHARED_TARGETS[] = "SharedTargets";
 const char VM_INFO_SHARED_CONFIG[] = "SharedConfig";
+const char VM_INFO_SHARED_MEDIA[] = "SharedMedia";
 const char VM_INFO_SHARED_SRC[] = "SharedSrc";
 const char VM_INFO_SHARED_SSH[] = "SharedSsh";
 const char VM_INFO_SSH_PORT[] = "SshPort";
@@ -619,6 +620,9 @@ void VirtualMachinePrivate::setSharedPath(SharedPath which, const Utils::FilePat
         case SharedSrc:
             virtualMachineInfo.sharedSrc = path.toString();
             break;
+        case SharedMedia:
+            virtualMachineInfo.sharedMedia = path.toString();
+            break;
         }
         VirtualMachineInfoCache::insert(q->uri(), virtualMachineInfo);
         if (context_)
@@ -1024,6 +1028,7 @@ void VirtualMachineInfo::fromMap(const QVariantMap &data)
     sharedHome = data.value(VM_INFO_SHARED_HOME).toString();
     sharedTargets = data.value(VM_INFO_SHARED_TARGETS).toString();
     sharedConfig = data.value(VM_INFO_SHARED_CONFIG).toString();
+    sharedMedia = data.value(VM_INFO_SHARED_MEDIA).toString();
     sharedSrc = data.value(VM_INFO_SHARED_SRC).toString();
     sharedSsh = data.value(VM_INFO_SHARED_SSH).toString();
     sshPort = data.value(VM_INFO_SSH_PORT).toUInt();
@@ -1056,6 +1061,7 @@ QVariantMap VirtualMachineInfo::toMap() const
     data.insert(VM_INFO_SHARED_HOME, sharedHome);
     data.insert(VM_INFO_SHARED_TARGETS, sharedTargets);
     data.insert(VM_INFO_SHARED_CONFIG, sharedConfig);
+    data.insert(VM_INFO_SHARED_MEDIA, sharedMedia);
     data.insert(VM_INFO_SHARED_SRC, sharedSrc);
     data.insert(VM_INFO_SHARED_SSH, sharedSsh);
     data.insert(VM_INFO_SSH_PORT, sshPort);

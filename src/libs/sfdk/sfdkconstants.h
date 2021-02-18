@@ -146,6 +146,7 @@ const char EMULATOR_CREATION_TIME[] = "CreationTime";
 const char EMULATOR_AUTODETECTED[] = "Autodetected";
 const char EMULATOR_SHARED_CONFIG[] = "SharedConfig";
 const char EMULATOR_SHARED_SSH[] = "SharedSsh";
+const char EMULATOR_SHARED_MEDIA[] = "SharedMedia";
 const char EMULATOR_HOST[] = "Host";
 const char EMULATOR_USER_NAME[] = "UserName";
 const char EMULATOR_PRIVATE_KEY_FILE[] = "PrivateKeyFile";

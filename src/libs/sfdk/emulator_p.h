@@ -68,6 +68,7 @@ public:
 private:
     void setSharedConfigPath(const Utils::FilePath &sharedConfigPath);
     void setSharedSshPath(const Utils::FilePath &sharedSshPath);
+    void setSharedMediaPath(const Utils::FilePath &sharedMediaPath);
     void setSshParameters(const QSsh::SshConnectionParameters &sshParameters);
     void setFreePorts(const Utils::PortList &freePorts);
     void setQmlLivePorts(const Utils::PortList &qmlLivePorts);
@@ -86,6 +87,7 @@ private:
     std::unique_ptr<VirtualMachine> virtualMachine;
     bool autodetected = false;
     Utils::FilePath sharedConfigPath;
+    Utils::FilePath sharedMediaPath;
     Utils::FilePath sharedSshPath;
     Utils::PortList freePorts;
     Utils::PortList qmlLivePorts;

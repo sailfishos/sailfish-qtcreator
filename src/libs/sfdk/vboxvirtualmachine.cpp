@@ -603,6 +603,9 @@ void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FilePath
         mountName = "src1";
         alignedMountPoint = alignedMountPointFor(path.toString());
         break;
+    case VirtualMachinePrivate::SharedMedia:
+        mountName = "media";
+        break;
     }
 
     const QPointer<const QObject> context_{context};
@@ -1011,6 +1014,8 @@ VBoxVirtualMachineInfo VBoxVirtualMachinePrivate::virtualMachineInfoFromOutput(c
                 info.sharedConfig = QDir::cleanPath(rexp.cap(8));
             else if (rexp.cap(7).startsWith(QLatin1String("src")))
                 info.sharedSrc = QDir::cleanPath(rexp.cap(8));
+            else if (rexp.cap(7) == QLatin1String("media"))
+                info.sharedMedia = QDir::cleanPath(rexp.cap(8));
         } else if(rexp.cap(0).startsWith(QLatin1String("macaddress"))) {
             QRegExp rx(QLatin1String("(?:([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2}))"));
             QString mac = rexp.cap(9);

@@ -116,9 +116,30 @@ Utils::FilePath Emulator::sharedConfigPath() const
     return d_func()->sharedConfigPath;
 }
 
+Utils::FilePath Emulator::sharedMediaPath() const
+{
+    return d_func()->sharedMediaPath;
+}
+
 Utils::FilePath Emulator::sharedSshPath() const
 {
     return d_func()->sharedSshPath;
+}
+
+void Emulator::setSharedMediaPath(const FilePath &sharedMediaPath, const QObject *context,
+        const Functor<bool> &functor)
+{
+    QTC_CHECK(virtualMachine()->isLockedDown());
+
+    const QPointer<const QObject> context_{context};
+
+    VirtualMachinePrivate::get(virtualMachine())->setSharedPath(VirtualMachinePrivate::SharedMedia,
+            sharedMediaPath, this, [=](bool ok) {
+        if (ok)
+            d_func()->setSharedMediaPath(sharedMediaPath);
+        if (context_)
+            functor(ok);
+    });
 }
 
 quint16 Emulator::sshPort() const
@@ -270,6 +291,7 @@ QVariantMap EmulatorPrivate::toMap() const
     data.insert(Constants::EMULATOR_AUTODETECTED, autodetected);
 
     data.insert(Constants::EMULATOR_SHARED_CONFIG, sharedConfigPath.toString());
+    data.insert(Constants::EMULATOR_SHARED_MEDIA, sharedMediaPath.toString());
     data.insert(Constants::EMULATOR_SHARED_SSH, sharedSshPath.toString());
 
     const SshConnectionParameters sshParameters = virtualMachine->sshParameters();
@@ -313,6 +335,7 @@ bool EmulatorPrivate::fromMap(const QVariantMap &data)
 
     auto toFilePath = [](const QVariant &v) { return FilePath::fromString(v.toString()); };
     setSharedConfigPath(toFilePath(data.value(Constants::EMULATOR_SHARED_CONFIG)));
+    setSharedMediaPath(toFilePath(data.value(Constants::EMULATOR_SHARED_MEDIA)));
     setSharedSshPath(toFilePath(data.value(Constants::EMULATOR_SHARED_SSH)));
 
     SshConnectionParameters sshParameters = virtualMachine->sshParameters();
@@ -415,6 +438,7 @@ void EmulatorPrivate::updateVmProperties(const QObject *context, const Functor<b
         // FIXME if sharedConfig changes for a build engine, at least privateKeyFile path needs to
         // be updated - what should be done for an emulator?
         setSharedConfigPath(FilePath::fromString(info.sharedConfig));
+        setSharedMediaPath(FilePath::fromString(info.sharedMedia));
         setSharedSshPath(FilePath::fromString(info.sharedSsh));
 
         SshConnectionParameters sshParameters = virtualMachine->sshParameters();
@@ -438,6 +462,7 @@ void EmulatorPrivate::updateVmProperties(const QObject *context, const Functor<b
 bool EmulatorPrivate::isValid() const
 {
     QTC_ASSERT(!sharedConfigPath.isEmpty(), return false);
+    // nb: sharedMediaPath is optional
     QTC_ASSERT(!sharedSshPath.isEmpty(), return false);
     QTC_ASSERT(!virtualMachine->sshParameters().host().isEmpty(), return false);
     QTC_ASSERT(!virtualMachine->sshParameters().userName().isEmpty(), return false);
@@ -455,6 +480,14 @@ void EmulatorPrivate::setSharedConfigPath(const Utils::FilePath &sharedConfigPat
         return;
     this->sharedConfigPath = sharedConfigPath;
     emit q_func()->sharedConfigPathChanged(sharedConfigPath);
+}
+
+void EmulatorPrivate::setSharedMediaPath(const Utils::FilePath &sharedMediaPath)
+{
+    if (this->sharedMediaPath == sharedMediaPath)
+        return;
+    this->sharedMediaPath = sharedMediaPath;
+    emit q_func()->sharedMediaPathChanged(sharedMediaPath);
 }
 
 void EmulatorPrivate::setSharedSshPath(const Utils::FilePath &sharedSshPath)
