@@ -445,6 +445,26 @@ QStringList VirtualMachine::snapshots() const
     return d->virtualMachineInfo.snapshots;
 }
 
+void VirtualMachine::takeSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_D(VirtualMachine);
+    QTC_ASSERT(d->features & Snapshots,
+               QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_CHECK(isLockedDown());
+
+    const QPointer<const QObject> context_{context};
+    d->doTakeSnapshot(snapshotName, this, [=](bool ok) {
+        if (ok) {
+            d->virtualMachineInfo.snapshots.append(snapshotName);
+            VirtualMachineInfoCache::insert(uri(), d->virtualMachineInfo);
+            emit snapshotsChanged();
+        }
+        if (context_)
+            functor(ok);
+    });
+}
+
 void VirtualMachine::restoreSnapshot(const QString &snapshotName, const QObject *context,
         const Functor<bool> &functor)
 {
@@ -468,6 +488,26 @@ void VirtualMachine::restoreSnapshot(const QString &snapshotName, const QObject 
     emit d->aboutToRestoreSnapshot(allOk);
 
     SdkPrivate::commandQueue()->enqueueCheckPoint(context, [=]() { functor(*allOk); });
+}
+
+void VirtualMachine::removeSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_D(VirtualMachine);
+    QTC_ASSERT(d->features & Snapshots,
+               QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_CHECK(isLockedDown());
+
+    const QPointer<const QObject> context_{context};
+    d->doRemoveSnapshot(snapshotName, this, [=](bool ok) {
+        if (ok) {
+            d->virtualMachineInfo.snapshots.removeAll(snapshotName);
+            VirtualMachineInfoCache::insert(uri(), d->virtualMachineInfo);
+            emit snapshotsChanged();
+        }
+        if (context_)
+            functor(ok);
+    });
 }
 
 void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<bool> &functor)

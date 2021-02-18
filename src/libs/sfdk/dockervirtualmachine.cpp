@@ -504,7 +504,31 @@ void DockerVirtualMachinePrivate::doSetReservedPortListForwarding(ReservedPortLi
     QTC_CHECK(false);
 }
 
+void DockerVirtualMachinePrivate::doTakeSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
+    Q_UNUSED(snapshotName)
+    Q_UNUSED(context)
+    Q_UNUSED(functor)
+    QTC_CHECK(false);
+}
+
 void DockerVirtualMachinePrivate::doRestoreSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
+    Q_UNUSED(snapshotName)
+    Q_UNUSED(context)
+    Q_UNUSED(functor)
+    QTC_CHECK(false);
+}
+
+void DockerVirtualMachinePrivate::doRemoveSnapshot(const QString &snapshotName, const QObject *context,
         const Functor<bool> &functor)
 {
     Q_ASSERT(context);

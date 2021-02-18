@@ -139,7 +139,11 @@ public:
             const Functor<bool> &functor);
 
     QStringList snapshots() const;
+    void takeSnapshot(const QString &snapshotName, const QObject *context,
+            const Functor<bool> &functor);
     void restoreSnapshot(const QString &snapshotName, const QObject *context,
+            const Functor<bool> &functor);
+    void removeSnapshot(const QString &snapshotName, const QObject *context,
             const Functor<bool> &functor);
 
     void refreshConfiguration(const QObject *context, const Functor<bool> &functor);

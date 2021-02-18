@@ -136,6 +136,18 @@ public:
         process()->setProcessEnvironment(environment());
     }
 
+    // VBoxManage has the bad habit of showing progress on stderr with no way
+    // to disable it.  While it is convenient to have progress reported on
+    // lenghty tasks it also clashes with foreground command output, breaking
+    // line wrapping and alignment in general.
+    void suppressNoisyOutput()
+    {
+        if (Log::vms().isDebugEnabled())
+            return;
+
+        process()->setProcessChannelMode(QProcess::SeparateChannels);
+    }
+
 private:
     static QString path()
     {
@@ -816,6 +828,27 @@ void VBoxVirtualMachinePrivate::doSetReservedPortListForwarding(ReservedPortList
     });
 }
 
+void VBoxVirtualMachinePrivate::doTakeSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_Q(VBoxVirtualMachine);
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
+    qCDebug(vms) << "Taking snapshot" << snapshotName << "of" << q->uri().toString();
+
+    QStringList arguments;
+    arguments.append("snapshot");
+    arguments.append(q->name());
+    arguments.append("take");
+    arguments.append(snapshotName);
+
+    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    runner->suppressNoisyOutput();
+    QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
+    commandQueue()->enqueue(std::move(runner));
+}
+
 void VBoxVirtualMachinePrivate::doRestoreSnapshot(const QString &snapshotName, const QObject *context,
         const Functor<bool> &functor)
 {
@@ -832,6 +865,28 @@ void VBoxVirtualMachinePrivate::doRestoreSnapshot(const QString &snapshotName, c
     arguments.append(snapshotName);
 
     auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    runner->suppressNoisyOutput();
+    QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
+    commandQueue()->enqueue(std::move(runner));
+}
+
+void VBoxVirtualMachinePrivate::doRemoveSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_Q(VBoxVirtualMachine);
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
+    qCDebug(vms) << "Removing snapshot" << snapshotName << "of" << q->uri().toString();
+
+    QStringList arguments;
+    arguments.append("snapshot");
+    arguments.append(q->name());
+    arguments.append("delete");
+    arguments.append(snapshotName);
+
+    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    runner->suppressNoisyOutput();
     QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
     commandQueue()->enqueue(std::move(runner));
 }

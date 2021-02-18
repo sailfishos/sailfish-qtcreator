@@ -175,7 +175,11 @@ protected:
             const QList<Utils::Port> &ports, const QObject *context,
             const Functor<const QMap<QString, quint16> &, bool> &functor) = 0;
 
+    virtual void doTakeSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor) = 0;
     virtual void doRestoreSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor) = 0;
+    virtual void doRemoveSnapshot(const QString &snapshotName, const QObject *context,
         const Functor<bool> &functor) = 0;
 
     bool initialized() const { return initialized_; }
