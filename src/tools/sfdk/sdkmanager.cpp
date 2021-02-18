@@ -1330,6 +1330,8 @@ bool SdkManager::removeEmulator(const QString &name)
 bool SdkManager::startReliably(VirtualMachine *virtualMachine)
 {
     QTC_ASSERT(virtualMachine, return false);
+    if (virtualMachine->isLockedDown())
+        virtualMachine->lockDown(false);
     virtualMachine->refreshState(VirtualMachine::Synchronous);
     return virtualMachine->connectTo(VirtualMachine::Block);
 }
