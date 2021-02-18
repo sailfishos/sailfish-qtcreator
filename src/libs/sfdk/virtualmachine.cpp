@@ -670,13 +670,19 @@ void VirtualMachinePrivate::restoreSnapshot(const QString &snapshotName, const Q
     Q_Q(VirtualMachine);
     QTC_CHECK(q->isLockedDown());
 
+    auto allOk = std::make_shared<bool>(true);
+
     const QPointer<const QObject> context_{context};
+
     doRestoreSnapshot(snapshotName, q, [=](bool restoreOk) {
-        Q_Q(VirtualMachine);
-        q->refreshConfiguration(q, [=](bool refreshOk) {
-            if (context_)
-                functor(restoreOk && refreshOk);
-        });
+        QTC_CHECK(restoreOk);
+        *allOk &= restoreOk;
+    });
+
+    q->refreshConfiguration(q, [=](bool refreshOk) {
+        QTC_CHECK(refreshOk);
+        *allOk &= restoreOk;
+        callIf(context_, functor, *allOk);
     });
 }
 

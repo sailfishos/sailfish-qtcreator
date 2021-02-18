@@ -204,14 +204,20 @@ void Emulator::restoreFactoryState(const QObject *context, const Functor<bool> &
 {
     QTC_CHECK(virtualMachine()->isLockedDown());
 
+    auto allOk = std::make_shared<bool>(true);
+
     const QPointer<const QObject> context_{context};
+
     VirtualMachinePrivate::get(virtualMachine())->restoreSnapshot(factorySnapshot(), this,
             [=](bool restoredOk) {
         QTC_CHECK(restoredOk);
-        d_func()->updateVmProperties(context_.data(), [=](bool updatedOk) {
-            QTC_CHECK(updatedOk);
-            functor(restoredOk && updatedOk);
-        });
+        *allOk &= restoredOk;
+    });
+
+    d_func()->updateVmProperties(this, [=](bool updatedOk) {
+        QTC_CHECK(updatedOk);
+        *allOk &= updatedOk;
+        callIf(context_, functor, *allOk);
     });
 }
 

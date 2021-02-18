@@ -374,7 +374,7 @@ void DockerVirtualMachinePrivate::probe(const QObject *context,
             if (context_)
                 functor(*state, true);
         });
-        commandQueue()->enqueue(std::move(runner));
+        commandQueue()->enqueueImmediate(std::move(runner));
     });
 }
 
