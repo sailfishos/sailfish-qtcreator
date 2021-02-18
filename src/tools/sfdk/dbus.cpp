@@ -42,6 +42,10 @@ const char DBUS_SFDK_ERROR[] = "org.sailfishos.sfdk.Error";
 const char DBUS_CONFIGURED_DEVICE_PATH[] = "/device";
 } // namespace anonymous
 
+// TODO no std way?
+template<typename T> T default_t() { return {}; }
+template<> void default_t<void>() { /* noop */ }
+
 class AbstractAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
@@ -55,6 +59,12 @@ public:
 
 protected:
     QDBusConnection bus() const { return m_bus; }
+
+    void replyError(const QDBusMessage &message, const QString &errorString) const
+    {
+        QDBusMessage error = message.createErrorReply(DBUS_SFDK_ERROR, errorString);
+        bus().send(error);
+    }
 
 private:
     QDBusConnection m_bus;
@@ -72,24 +82,36 @@ public:
     }
 
 public slots:
-    bool prepare(const QDBusMessage &message)
+    void prepare(const QDBusMessage &message)
     {
+        withDevice(message, [=](Device *device) {
+            RemoteProcess test;
+            test.setProgram("/bin/true");
+            test.setRunInTerminal(false);
+            if (!SdkManager::prepareForRunOnDevice(*device, &test)
+                    || test.exec() != EXIT_SUCCESS) {
+                replyError(message, tr("Failed to prepare device"));
+            }
+        });
+    }
+
+private:
+    template<typename Fn>
+    auto withDevice(const QDBusMessage &message, Fn fn) const
+        -> decltype(fn(std::declval<Device *>()))
+    {
+        auto default_t = Sfdk::default_t<decltype(fn(std::declval<Device *>()))>;
+
         QString errorString;
 
         Device *const device = SdkManager::configuredDevice(&errorString);
         if (!device) {
-            QDBusMessage error = message.createErrorReply(DBUS_SFDK_ERROR, errorString);
-            bus().send(error);
-            return false;
+            replyError(message, errorString);
+            return default_t();
         }
 
-        RemoteProcess test;
-        test.setProgram("/bin/true");
-        test.setRunInTerminal(false);
-        if (!SdkManager::prepareForRunOnDevice(*device, &test))
-            return false;
+        return fn(device);
 
-        return test.exec() == EXIT_SUCCESS;
     }
 };
 
