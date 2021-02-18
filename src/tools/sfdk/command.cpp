@@ -58,6 +58,7 @@ namespace {
 const char PROGRAM_KEY[] = "program";
 const char INITIAL_ARGUMENTS_KEY[] = "initialArguments";
 const char OMIT_SUBCOMMAND_KEY[] = "omitSubcommand";
+const char OPTION_FORMATTER_KEY[] = "optionFormatter";
 
 const char ENGINE_HOST_NAME[] = "host-name";
 
@@ -1879,10 +1880,11 @@ Worker::ExitStatus EngineWorker::doRun(const Command *command, const QStringList
 std::unique_ptr<Worker> EngineWorker::fromMap(const QVariantMap &data, int version,
         QString *errorString)
 {
-    if (!checkVersion(version, 4, 4, errorString))
+    if (!checkVersion(version, 4, 5, errorString))
         return {};
 
-    if (!Dispatcher::checkKeys(data, {PROGRAM_KEY, INITIAL_ARGUMENTS_KEY, OMIT_SUBCOMMAND_KEY},
+    if (!Dispatcher::checkKeys(data, {PROGRAM_KEY, INITIAL_ARGUMENTS_KEY, OMIT_SUBCOMMAND_KEY,
+                    OPTION_FORMATTER_KEY},
                 errorString)) {
         return {};
     }
@@ -1906,6 +1908,10 @@ std::unique_ptr<Worker> EngineWorker::fromMap(const QVariantMap &data, int versi
             errorString);
     worker->m_omitSubcommand = omitCommand.toBool();
 
+    QVariant optionFormatter = Dispatcher::value(data, OPTION_FORMATTER_KEY, QVariant::String,
+            QString(), errorString);
+    worker->m_optionFormatterJSFunctionName = optionFormatter.toString();
+
 #ifdef Q_OS_MACOS
     return std::move(worker);
 #else
@@ -1914,13 +1920,13 @@ std::unique_ptr<Worker> EngineWorker::fromMap(const QVariantMap &data, int versi
 }
 
 bool EngineWorker::makeGlobalArguments(const Command *command, QStringList *arguments,
-        QString *errorString)
+        QString *errorString) const
 {
     auto unsetRequiredOptions = command->mandatoryConfigOptions.toSet();
 
     for (const OptionEffectiveOccurence &occurence : Configuration::effectiveState()) {
         if (!occurence.isMasked() && command->configOptions.contains(occurence.option())) {
-            *arguments << makeGlobalArguments(occurence);
+            *arguments << makeGlobalArguments(command, occurence);
             unsetRequiredOptions.remove(occurence.option());
         }
     }
@@ -1934,8 +1940,8 @@ bool EngineWorker::makeGlobalArguments(const Command *command, QStringList *argu
     return true;
 }
 
-QStringList EngineWorker::makeGlobalArguments(
-        const OptionEffectiveOccurence &optionOccurence)
+QStringList EngineWorker::makeGlobalArguments(const Command *command,
+        const OptionEffectiveOccurence &optionOccurence) const
 {
     QStringList arguments;
 
@@ -1948,7 +1954,58 @@ QStringList EngineWorker::makeGlobalArguments(
         arguments << "--" + normalizedName + "=" + optionOccurence.argument();
     }
 
+    maybeMakeCustomGlobalArguments(command, optionOccurence, &arguments);
+
     return arguments;
+}
+
+void EngineWorker::maybeMakeCustomGlobalArguments(const Command *command,
+        const OptionEffectiveOccurence &optionOccurence, QStringList *arguments) const
+{
+    if (m_optionFormatterJSFunctionName.isEmpty())
+        return;
+
+    auto resultTypeValidator = [](const QJSValue &value, QString *errorString) {
+        if (!value.isArray()
+                || value.property("length").toInt() < 2
+                || !value.property(0).isBool()
+                || !value.property(1).isArray()) {
+            *errorString = "Not an array [bool, array]";
+            return false;
+        }
+
+        QJSValue argumentsArray = value.property(1);
+        const int length = argumentsArray.property("length").toInt();
+        for (int i = 0; i < length; ++i) {
+            if (!argumentsArray.property(i).isString()) {
+                *errorString = "The nested array is not an array of strings";
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    QJSValueList formatterArguments{
+        optionOccurence.option()->name,
+        optionOccurence.argument(),
+        optionOccurence.option()->argumentType == Option::MandatoryArgument,
+        Dispatcher::jsEngine()->toScriptValue(*arguments)
+    };
+
+    const QJSValue result = Dispatcher::jsEngine()->call(m_optionFormatterJSFunctionName,
+            formatterArguments, command->module, resultTypeValidator);
+
+    if (result.isError()) {
+        qCCritical(sfdk) << "Error formatting option as argument:" << result.toString();
+        return;
+    }
+
+    const bool formatted = result.property(0).toBool();
+    if (!formatted)
+        return;
+
+    *arguments = Dispatcher::jsEngine()->fromScriptValue<QStringList>(result.property(1));
 }
 
 #include "command.moc"

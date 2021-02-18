@@ -150,9 +150,12 @@ protected:
         override;
 
 private:
-    static bool makeGlobalArguments(const Command *command, QStringList *arguments,
-            QString *errorString);
-    static QStringList makeGlobalArguments(const OptionEffectiveOccurence &optionOccurence);
+    bool makeGlobalArguments(const Command *command, QStringList *arguments, QString *errorString)
+        const;
+    QStringList makeGlobalArguments(const Command *command,
+            const OptionEffectiveOccurence &occurence) const;
+    void maybeMakeCustomGlobalArguments(const Command *command,
+            const OptionEffectiveOccurence &optionOccurence, QStringList *arguments) const;
 
 private:
     QString m_program;
