@@ -548,6 +548,14 @@ bool CommandLineParser::checkPositionalArgumentsCount(const QStringList &argumen
     return true;
 }
 
+int CommandLineParser::optionCount(const QCommandLineParser &parser, const QCommandLineOption &option)
+{
+    int retv = 0;
+    for (const QString &name : option.names())
+        retv += parser.optionNames().count(name);
+    return retv;
+}
+
 bool CommandLineParser::splitArgs(const QString &args, Utils::OsType osType, QStringList *out)
 {
     QtcProcess::SplitError error;

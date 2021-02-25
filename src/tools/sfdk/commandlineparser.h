@@ -84,6 +84,7 @@ public:
             const QList<const QCommandLineOption *> &options,
             const QCommandLineOption **out = nullptr);
     static bool checkPositionalArgumentsCount(const QStringList &arguments, int min, int max);
+    static int optionCount(const QCommandLineParser &parser, const QCommandLineOption &option);
     static bool splitArgs(const QString &cmd, Utils::OsType osType, QStringList *out);
 
     static QString summary();

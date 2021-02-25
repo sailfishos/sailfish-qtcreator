@@ -648,7 +648,9 @@ private:
         QTextStream stream(&data);
 
         QStringList listToolingsArgs = {"tooling", "list", "--long"};
-        const int exitCode = SdkManager::runOnEngine("sdk-manage", listToolingsArgs, stream);
+        const bool runInTerminal = false;
+        const int exitCode = SdkManager::runOnEngine("sdk-manage", listToolingsArgs, runInTerminal,
+                stream);
         if (exitCode != EXIT_SUCCESS)
             return false;
 
@@ -682,7 +684,8 @@ private:
         QStringList args = {"target", "list", "--long"};
         if (checkSnapshots)
             args += "--check-snapshots";
-        const int exitCode = SdkManager::runOnEngine("sdk-manage", args, stream);
+        const bool runInTerminal = false;
+        const int exitCode = SdkManager::runOnEngine("sdk-manage", args, runInTerminal, stream);
         if (exitCode != EXIT_SUCCESS)
             return false;
 
@@ -1046,7 +1049,7 @@ bool SdkManager::isEngineRunning()
 }
 
 int SdkManager::runOnEngine(const QString &program, const QStringList &arguments,
-        QTextStream &out, QTextStream &err)
+        Utils::optional<bool> runInTerminal, QTextStream &out, QTextStream &err)
 {
     QTC_ASSERT(s_instance->hasEngine(), return SFDK_EXIT_ABNORMAL);
 
@@ -1085,6 +1088,8 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     process.setArguments(arguments_);
     process.setWorkingDirectory(workingDirectory);
     process.setExtraEnvironment(extraEnvironment);
+    process.setRunInTerminal(runInTerminal);
+    process.setInputChannelMode(QProcess::ForwardedInputChannel);
 
     QObject::connect(&process, &RemoteProcess::standardOutput, [&](const QByteArray &data) {
         out << s_instance->maybeReverseMapEnginePaths(data) << flush;
@@ -1239,11 +1244,13 @@ bool SdkManager::prepareForRunOnDevice(const Device &device, RemoteProcess *proc
 }
 
 int SdkManager::runOnDevice(const Device &device, const QString &program,
-        const QStringList &arguments)
+        const QStringList &arguments, Utils::optional<bool> runInTerminal)
 {
     RemoteProcess process;
     process.setProgram(program);
     process.setArguments(arguments);
+    process.setRunInTerminal(runInTerminal);
+    process.setInputChannelMode(QProcess::ForwardedInputChannel);
 
     QObject::connect(&process, &RemoteProcess::standardOutput, [&](const QByteArray &data) {
         qout() << data << flush;
@@ -1305,11 +1312,11 @@ bool SdkManager::isEmulatorRunning(const Emulator &emulator)
 }
 
 int SdkManager::runOnEmulator(const Emulator &emulator, const QString &program,
-        const QStringList &arguments)
+        const QStringList &arguments, Utils::optional<bool> runInTerminal)
 {
     Device *const emulatorDevice = Sdk::device(emulator);
     QTC_ASSERT(emulatorDevice, return SFDK_EXIT_ABNORMAL);
-    return runOnDevice(*emulatorDevice, program, arguments);
+    return runOnDevice(*emulatorDevice, program, arguments, runInTerminal);
 }
 
 bool SdkManager::listAvailableEmulators(QList<AvailableEmulatorInfo> *info)

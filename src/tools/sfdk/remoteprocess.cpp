@@ -25,6 +25,7 @@
 
 #include "sfdkconstants.h"
 #include "sfdkglobal.h"
+#include "textutils.h"
 
 #include <ssh/sshremoteprocessrunner.h>
 #include <utils/qtcassert.h>
@@ -99,9 +100,14 @@ void RemoteProcess::setExtraEnvironment(const QProcessEnvironment &extraEnvironm
     m_extraEnvironment = extraEnvironment;
 }
 
-void RemoteProcess::setRunInTerminal(bool runInTerminal)
+void RemoteProcess::setRunInTerminal(Utils::optional<bool> runInTerminal)
 {
     m_runInTerminal = runInTerminal;
+}
+
+void RemoteProcess::setInputChannelMode(Utils::optional<QProcess::InputChannelMode> inputChannelMode)
+{
+    m_inputChannelMode = inputChannelMode;
 }
 
 void RemoteProcess::setStandardOutputLineBuffered(bool lineBuffered)
@@ -152,10 +158,20 @@ void RemoteProcess::start()
         fullCommand.append(' ');
     fullCommand.append(Utils::QtcProcess::joinArgs(m_arguments, Utils::OsTypeLinux));
 
-    if (m_runInTerminal)
-        m_runner->runInTerminal(fullCommand, m_sshConnectionParams, QProcess::ForwardedInputChannel);
+    const bool runInTerminal = m_runInTerminal.has_value()
+        ? *m_runInTerminal
+        : isConnectedToTerminal();
+
+    const QProcess::InputChannelMode inputChannelMode = m_inputChannelMode.has_value()
+        ? *m_inputChannelMode
+        : runInTerminal
+            ? QProcess::ForwardedInputChannel
+            : QProcess::ManagedInputChannel;
+
+    if (runInTerminal)
+        m_runner->runInTerminal(fullCommand, m_sshConnectionParams, inputChannelMode);
     else
-        m_runner->run(fullCommand, m_sshConnectionParams);
+        m_runner->run(fullCommand, m_sshConnectionParams, inputChannelMode);
 
     started();
 }

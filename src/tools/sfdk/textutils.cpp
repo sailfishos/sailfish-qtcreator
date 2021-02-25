@@ -66,20 +66,36 @@ QTextStream &qerr()
     return qerr;
 }
 
-bool isOutputConnectedToTerminal()
+/*
+ * The main use case for checking this is deciding whether a remote command
+ * should be executed in terminal or not, so let's compare this with SSH
+ * behavior.
+ *
+ * SSH client decides based on stdin only. I believe it does not check stdout
+ * simply because it only allocates pseudo-terminal for interactive sessions
+ * by default. Interactive sessions are those that invoke the default shell
+ * (no command specified). It is not likely someone would redirect or pipe
+ * output of an interactive session, so this works well as the default.
+ *
+ * sfdk cannot always do similar distinction between interactive and
+ * non-interactive sessions.  E.g. commands executed by EngineWorker are
+ * considered interactive by default, but their (error) output may be piped or
+ * redirected too. Hence the need to check all stdin, stdout and stderr here.
+ */
+bool isConnectedToTerminal()
 {
-    static const bool isOutputConnectedToTerminal = []() -> bool {
+    static const bool isConnectedToTerminal = []() -> bool {
         if (qEnvironmentVariableIsSet(Constants::CONNECTED_TO_TERMINAL_HINT_ENV_VAR))
             return qEnvironmentVariableIntValue(Constants::CONNECTED_TO_TERMINAL_HINT_ENV_VAR);
 
 #if defined(Q_OS_WIN)
         return GetConsoleWindow();
 #else
-        return isatty(STDOUT_FILENO);
+        return isatty(STDIN_FILENO) && isatty(STDOUT_FILENO) && isatty(STDERR_FILENO);
 #endif
     }();
 
-    return isOutputConnectedToTerminal;
+    return isConnectedToTerminal;
 }
 
 /*!
