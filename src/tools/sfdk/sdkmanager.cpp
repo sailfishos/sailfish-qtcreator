@@ -99,17 +99,17 @@ public:
             break;
         case UnableToCloseVm:
             qerr() << tr("Timeout waiting for the \"%1\" virtual machine to close.")
-                .arg(virtualMachine()->name());
+                .arg(virtualMachine()->name()) << endl;
             break;
         case VmNotRegistered:
             qerr() << tr("No virtual machine with the name \"%1\" found. Check your installation.")
-                .arg(virtualMachine()->name());
+                .arg(virtualMachine()->name()) << endl;
             break;
         case SshPortOccupied:
             qerr() << tr("Another application seems to be listening on the TCP port %1 configured as "
                     "SSH port for the \"%2\" virtual machine - choose another SSH port in options.")
                 .arg(virtualMachine()->sshParameters().port())
-                .arg(virtualMachine()->name());
+                .arg(virtualMachine()->name()) << endl;
             break;
         }
     }
