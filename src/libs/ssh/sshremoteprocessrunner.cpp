@@ -77,11 +77,13 @@ SshRemoteProcessRunner::~SshRemoteProcessRunner()
     delete d;
 }
 
-void SshRemoteProcessRunner::run(const QString &command, const SshConnectionParameters &sshParams)
+void SshRemoteProcessRunner::run(const QString &command, const SshConnectionParameters &sshParams,
+            QProcess::InputChannelMode inputChannelMode)
 {
     QTC_ASSERT(d->m_state == Inactive, return);
 
     d->m_runInTerminal = false;
+    d->m_inputChannelMode = inputChannelMode;
     runInternal(command, sshParams);
 }
 
@@ -131,10 +133,9 @@ void SshRemoteProcessRunner::handleConnected()
             this, &SshRemoteProcessRunner::handleStdout);
     connect(d->m_process.get(), &SshRemoteProcess::readyReadStandardError,
             this, &SshRemoteProcessRunner::handleStderr);
-    if (d->m_runInTerminal) {
+    if (d->m_runInTerminal)
         d->m_process->requestTerminal();
-        d->m_process->setInputChannelMode(d->m_inputChannelMode);
-    }
+    d->m_process->setInputChannelMode(d->m_inputChannelMode);
     d->m_process->start();
 }
 
