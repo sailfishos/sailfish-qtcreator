@@ -75,7 +75,10 @@ public:
     bool isAutodetected() const;
 
     Utils::FilePath sharedConfigPath() const;
+    Utils::FilePath sharedMediaPath() const;
     Utils::FilePath sharedSshPath() const;
+    void setSharedMediaPath(const Utils::FilePath &sharedMediaPath, const QObject *context,
+            const Functor<bool> &functor);
 
     quint16 sshPort() const;
     void setSshPort(quint16 sshPort, const QObject *context, const Functor<bool> &functor);
@@ -90,7 +93,6 @@ public:
 
     QString factorySnapshot() const;
     void setFactorySnapshot(const QString &snapshotName);
-    void restoreFactoryState(const QObject *context, const Functor<bool> &functor);
 
     DeviceModelData deviceModel() const;
     Qt::Orientation orientation() const;
@@ -100,6 +102,7 @@ public:
 
 signals:
     void sharedConfigPathChanged(const Utils::FilePath &sharedConfigPath);
+    void sharedMediaPathChanged(const Utils::FilePath &sharedMediaPath);
     void sharedSshPathChanged(const Utils::FilePath &sharedSshPath);
     void sshPortChanged(quint16 sshPort);
     void freePortsChanged();

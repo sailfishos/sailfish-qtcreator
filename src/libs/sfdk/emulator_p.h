@@ -68,6 +68,7 @@ public:
 private:
     void setSharedConfigPath(const Utils::FilePath &sharedConfigPath);
     void setSharedSshPath(const Utils::FilePath &sharedSshPath);
+    void setSharedMediaPath(const Utils::FilePath &sharedMediaPath);
     void setSshParameters(const QSsh::SshConnectionParameters &sshParameters);
     void setFreePorts(const Utils::PortList &freePorts);
     void setQmlLivePorts(const Utils::PortList &qmlLivePorts);
@@ -78,12 +79,15 @@ private:
             const QSize &displayResolution, bool viewScaled);
     static bool updateDconfDb(const QString &file, const QString &dconf);
 
+    void onAboutToRestoreSnapshot(const std::shared_ptr<bool> &ok);
+
 private:
     Emulator *const q_ptr;
     QDateTime creationTime;
     std::unique_ptr<VirtualMachine> virtualMachine;
     bool autodetected = false;
     Utils::FilePath sharedConfigPath;
+    Utils::FilePath sharedMediaPath;
     Utils::FilePath sharedSshPath;
     Utils::PortList freePorts;
     Utils::PortList qmlLivePorts;

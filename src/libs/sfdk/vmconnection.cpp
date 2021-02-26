@@ -378,6 +378,9 @@ bool VmConnection::connectTo(VirtualMachine::ConnectOptions options)
         if (connectTo(options & ~VirtualMachine::Block))
             return true;
 
+        if (m_lockDownRequested)
+            return false; // warning issued before by the nest call
+
         QEventLoop loop;
         connect(this, &VmConnection::stateChanged, &loop, [this, &loop] {
             switch (m_state) {

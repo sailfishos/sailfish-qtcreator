@@ -33,7 +33,8 @@ class DockerVirtualMachine : public VirtualMachine
     Q_OBJECT
 
 public:
-    explicit DockerVirtualMachine(const QString &name, QObject *parent = nullptr);
+    explicit DockerVirtualMachine(const QString &name, VirtualMachine::Features featureMask,
+            QObject *parent = nullptr);
     ~DockerVirtualMachine() override;
 
     static bool isAvailable();
@@ -91,7 +92,11 @@ protected:
             const QObject *context, const Functor<const QMap<QString, quint16> &, bool> &functor)
         override;
 
+    void doTakeSnapshot(const QString &snapshotName, const QObject *context,
+            const Functor<bool> &functor) override;
     void doRestoreSnapshot(const QString &snapshotName, const QObject *context,
+            const Functor<bool> &functor) override;
+    void doRemoveSnapshot(const QString &snapshotName, const QObject *context,
             const Functor<bool> &functor) override;
 
 private:

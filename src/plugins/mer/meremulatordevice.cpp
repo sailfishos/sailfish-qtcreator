@@ -295,7 +295,8 @@ void MerEmulatorDevice::doFactoryReset(Sfdk::Emulator *emulator, QWidget *parent
     }
 
     bool ok;
-    execAsynchronous(std::tie(ok), std::mem_fn(&Emulator::restoreFactoryState), emulator);
+    execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::restoreSnapshot),
+            emulator->virtualMachine(), emulator->factorySnapshot());
     if (!ok) {
         emulator->virtualMachine()->lockDown(false);
         progress.cancel();

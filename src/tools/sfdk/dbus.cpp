@@ -28,11 +28,16 @@
 
 #include <utils/qtcassert.h>
 
+#include <sfdk/device.h>
+#include <sfdk/emulator.h>
+#include <sfdk/virtualmachine.h>
+
 #include "remoteprocess.h"
 #include "sdkmanager.h"
 #include "sfdkglobal.h"
 
 using namespace Sfdk;
+using namespace Utils;
 
 namespace Sfdk {
 
@@ -41,6 +46,10 @@ const char DBUS_SERVICE_NAME_TEMPLATE[] = "org.sailfishos.sfdk.I%1";
 const char DBUS_SFDK_ERROR[] = "org.sailfishos.sfdk.Error";
 const char DBUS_CONFIGURED_DEVICE_PATH[] = "/device";
 } // namespace anonymous
+
+// TODO no std way?
+template<typename T> T default_t() { return {}; }
+template<> void default_t<void>() { /* noop */ }
 
 class AbstractAdaptor : public QDBusAbstractAdaptor
 {
@@ -55,6 +64,12 @@ public:
 
 protected:
     QDBusConnection bus() const { return m_bus; }
+
+    void replyError(const QDBusMessage &message, const QString &errorString) const
+    {
+        QDBusMessage error = message.createErrorReply(DBUS_SFDK_ERROR, errorString);
+        bus().send(error);
+    }
 
 private:
     QDBusConnection m_bus;
@@ -72,24 +87,170 @@ public:
     }
 
 public slots:
-    bool prepare(const QDBusMessage &message)
+    bool isEmulator(const QDBusMessage &message)
     {
+        return withDevice(message, [=](Device *device) {
+            return device->machineType() == Device::EmulatorMachine;
+        });
+    }
+
+    void prepare(const QDBusMessage &message)
+    {
+        withDevice(message, [=](Device *device) {
+            RemoteProcess test;
+            test.setProgram("/bin/true");
+            test.setRunInTerminal(false);
+            if (!SdkManager::prepareForRunOnDevice(*device, &test)
+                    || test.exec() != EXIT_SUCCESS) {
+                replyError(message, tr("Failed to prepare device"));
+            }
+        });
+    }
+
+private:
+    template<typename Fn>
+    auto withDevice(const QDBusMessage &message, Fn fn) const
+        -> decltype(fn(std::declval<Device *>()))
+    {
+        auto default_t = Sfdk::default_t<decltype(fn(std::declval<Device *>()))>;
+
         QString errorString;
 
         Device *const device = SdkManager::configuredDevice(&errorString);
         if (!device) {
-            QDBusMessage error = message.createErrorReply(DBUS_SFDK_ERROR, errorString);
-            bus().send(error);
-            return false;
+            replyError(message, errorString);
+            return default_t();
         }
 
-        RemoteProcess test;
-        test.setProgram("/bin/true");
-        test.setRunInTerminal(false);
-        if (!SdkManager::prepareForRunOnDevice(*device, &test))
-            return false;
+        return fn(device);
+    }
+};
 
-        return test.exec() == EXIT_SUCCESS;
+class ConfiguredEmulatorDeviceAdaptor : public AbstractAdaptor
+{
+    Q_OBJECT
+    Q_CLASSINFO("D-Bus Interface", "org.sailfishos.sfdk.Emulator")
+
+public:
+    ConfiguredEmulatorDeviceAdaptor(QObject *dummy, const QDBusConnection &bus)
+        : AbstractAdaptor(dummy, bus)
+    {
+    }
+
+public slots:
+    bool hasVmFeature(const QString &feature, const QDBusMessage &message)
+    {
+        QTC_ASSERT(feature == "snapshots", return false); // implementation limit
+
+        return withEmulator(message, [=](Emulator *emulator) {
+            return emulator->virtualMachine()->features() & VirtualMachine::Snapshots;
+        });
+    }
+
+    bool isRunning(const QDBusMessage &message)
+    {
+        return withEmulator(message, [=](Emulator *emulator) {
+            return SdkManager::isEmulatorRunning(*emulator);
+        });
+    }
+
+    void start(const QDBusMessage &message)
+    {
+        withEmulator(message, [=](Emulator *emulator) {
+            if (!SdkManager::startEmulator(*emulator))
+                replyError(message, tr("Failed to start emulator"));
+        });
+    }
+
+    void stop(const QDBusMessage &message)
+    {
+        withEmulator(message, [=](Emulator *emulator) {
+            if (!SdkManager::stopEmulator(*emulator))
+                replyError(message, tr("Failed to stop emulator"));
+        });
+    }
+
+    QStringList snapshots(const QDBusMessage &message)
+    {
+        return withEmulator(message, [=](Emulator *emulator) {
+            return emulator->virtualMachine()->snapshots();
+        });
+    }
+
+    void takeSnapshot(const QString &name, const QDBusMessage &message)
+    {
+        withEmulator(message, [=](Emulator *emulator) {
+            QTC_ASSERT(emulator->virtualMachine()->isLockedDown(), return);
+            bool ok;
+            execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::takeSnapshot),
+                    emulator->virtualMachine(), name);
+            if (!ok)
+                replyError(message, tr("Failed to take snapshot"));
+        });
+    }
+
+    void restoreSnapshot(const QString &name, const QDBusMessage &message)
+    {
+        withEmulator(message, [=](Emulator *emulator) {
+            QTC_ASSERT(emulator->virtualMachine()->isLockedDown(), return);
+            bool ok;
+            execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::restoreSnapshot),
+                    emulator->virtualMachine(), name);
+            if (!ok)
+                replyError(message, tr("Failed to restore snapshot"));
+        });
+    }
+
+    void removeSnapshot(const QString &name, const QDBusMessage &message)
+    {
+        withEmulator(message, [=](Emulator *emulator) {
+            QTC_ASSERT(emulator->virtualMachine()->isLockedDown(), return);
+            bool ok;
+            execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::removeSnapshot),
+                    emulator->virtualMachine(), name);
+            if (!ok)
+                replyError(message, tr("Failed to remove snapshot"));
+        });
+    }
+
+    void setSharedMediaPath(const QString &path, const QDBusMessage &message)
+    {
+        withEmulator(message, [=](Emulator *emulator) {
+            QTC_ASSERT(emulator->virtualMachine()->isLockedDown(), return);
+            bool ok;
+            execAsynchronous(std::tie(ok), std::mem_fn(&Emulator::setSharedMediaPath),
+                    emulator, FilePath::fromString(path));
+            if (!ok)
+                replyError(message, tr("Failed to set shared media path"));
+        });
+    }
+
+private:
+    template<typename Fn>
+    auto withEmulator(const QDBusMessage &message, Fn fn) const
+        -> decltype(fn(std::declval<Emulator *>()))
+    {
+        auto default_t = Sfdk::default_t<decltype(fn(std::declval<Emulator *>()))>;
+
+        QString errorString;
+
+        Device *const device = SdkManager::configuredDevice(&errorString);
+        if (!device) {
+            replyError(message, errorString);
+            return default_t();
+        }
+
+        if (device->machineType() != Device::EmulatorMachine) {
+            errorString = tr("Configured device \"%1\" is not an emulator device")
+                .arg(device->name());
+            replyError(message, errorString);
+            return default_t();
+        }
+
+        Emulator *const emulator = static_cast<EmulatorDevice *>(device)->emulator();
+        QTC_ASSERT(emulator, return default_t());
+
+        return fn(emulator);
     }
 };
 
@@ -126,6 +287,7 @@ DBusManager::DBusManager(quint16 busPort, const QString &connectionName, const P
 
     m_configuredDeviceObject = std::make_unique<QObject>();
     new ConfiguredDeviceAdaptor(m_configuredDeviceObject.get(), bus);
+    new ConfiguredEmulatorDeviceAdaptor(m_configuredDeviceObject.get(), bus);
     if (!bus.registerObject(DBUS_CONFIGURED_DEVICE_PATH, m_configuredDeviceObject.get())) {
         qCCritical(sfdk) << "Failed to register configured device on D-Bus:"
             << bus.lastError().name() << bus.lastError().message();

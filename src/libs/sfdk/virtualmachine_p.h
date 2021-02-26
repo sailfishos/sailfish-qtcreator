@@ -58,6 +58,7 @@ public:
     QString sharedHome;
     QString sharedTargets;
     QString sharedConfig;
+    QString sharedMedia;
     QString sharedSrc;
     QString sharedSsh;
     quint16 sshPort{0};
@@ -69,7 +70,6 @@ public:
     QStringList macs;
     bool headless{false};
     int memorySizeMb{0};
-    bool swapSupported{false};
     int swapSizeMb{0};
     int cpuCount{0};
 
@@ -80,9 +80,9 @@ public:
     QStringList snapshots;
 };
 
-class VirtualMachinePrivate
+class VirtualMachinePrivate : public QObject
 {
-    Q_GADGET
+    Q_OBJECT
     Q_DECLARE_PUBLIC(VirtualMachine)
 
 public:
@@ -98,6 +98,9 @@ public:
         // Valid for both build engine and emulator kind of VMs
         SharedConfig,
         SharedSsh,
+
+        // Valid for emulator kind of VMs only
+        SharedMedia,
 
         // Valid for build engine kind of VMs only
         SharedInstall,
@@ -123,7 +126,7 @@ public:
     Q_ENUM(ReservedPortList)
 
     VirtualMachinePrivate(VirtualMachine *q) : q_ptr(q) {}
-    virtual ~VirtualMachinePrivate();
+    ~VirtualMachinePrivate() override;
 
     static VirtualMachinePrivate *get(VirtualMachine *q) { return q->d_func(); }
 
@@ -149,9 +152,6 @@ public:
     virtual void setVideoMode(const QSize &size, int depth, const QString &deviceModelName,
             Qt::Orientation orientation, int scaleDownFactor, const QObject *context,
             const Functor<bool> &functor) = 0;
-
-    void restoreSnapshot(const QString &snapshotName, const QObject *context,
-            const Functor<bool> &functor);
 
     VirtualMachine::ConnectionUi *connectionUi() const { return connectionUi_.get(); }
 
@@ -179,7 +179,11 @@ protected:
             const QList<Utils::Port> &ports, const QObject *context,
             const Functor<const QMap<QString, quint16> &, bool> &functor) = 0;
 
+    virtual void doTakeSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor) = 0;
     virtual void doRestoreSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor) = 0;
+    virtual void doRemoveSnapshot(const QString &snapshotName, const QObject *context,
         const Functor<bool> &functor) = 0;
 
     bool initialized() const { return initialized_; }
@@ -189,6 +193,9 @@ protected:
 
 private:
     void enableUpdates();
+
+signals:
+    void aboutToRestoreSnapshot(const std::shared_ptr<bool> &ok);
 
 private:
     QString type;
@@ -215,9 +222,10 @@ class VirtualMachineFactory : public QObject
 // Not idea which version fixes it
 #if Q_CC_MSVC && Q_CC_MSVC <= 1900
         template<typename T>
-        static std::unique_ptr<VirtualMachine> creator(const QString &name)
+        static std::unique_ptr<VirtualMachine> creator(const QString &name,
+                VirtualMachine::Features featureMask)
         {
-            return std::make_unique<T>(name);
+            return std::make_unique<T>(name, featureMask);
         }
 #endif
 
@@ -232,7 +240,7 @@ class VirtualMachineFactory : public QObject
 #if Q_CC_MSVC && Q_CC_MSVC <= 1900
             , create(creator<T>)
 #else
-            , create([](const QString &name) { return std::make_unique<T>(name); })
+            , create(std::make_unique<T, const QString &, VirtualMachine::Features>)
 #endif
         {
         }
@@ -243,7 +251,7 @@ class VirtualMachineFactory : public QObject
         QString displayType;
         void (*fetchRegisteredVirtualMachines)(const QObject *,
                 const Functor<const QStringList &, bool> &) = nullptr;
-        std::function<std::unique_ptr<VirtualMachine>(const QString &)> create = {};
+        std::function<std::unique_ptr<VirtualMachine>(const QString &, VirtualMachine::Features)> create = {};
     };
 
 public:
@@ -255,7 +263,8 @@ public:
 
     static void unusedVirtualMachines(const QObject *context,
             const Functor<const QList<VirtualMachineDescriptor> &, bool> &functor);
-    static std::unique_ptr<VirtualMachine> create(const QUrl &uri);
+    static std::unique_ptr<VirtualMachine> create(const QUrl &uri,
+            VirtualMachine::Features featureMask);
 
     // FIXME use UUID instead of name
     static QUrl makeUri(const QString &type, const QString &name);

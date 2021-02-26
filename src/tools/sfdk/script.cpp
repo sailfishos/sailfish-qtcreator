@@ -156,6 +156,18 @@ public:
             return;
         }
     }
+
+    Q_INVOKABLE QStringList expandCompacted(const QString &string) const
+    {
+        QStringList expanded;
+        if (!Sfdk::expandCompacted(string, &expanded)) {
+            qjsEngine(this)->throwError(tr("Invalid compacted option specification: \"%1\"")
+                    .arg(string));
+            return {};
+        }
+
+        return expanded;
+    }
 };
 
 class JSConfigurationExtension : public QObject

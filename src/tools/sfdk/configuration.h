@@ -148,8 +148,6 @@ public:
 
     static QList<OptionEffectiveOccurence> effectiveState();
     static Utils::optional<OptionEffectiveOccurence> effectiveState(const Option *option);
-    static bool toArguments(const Option::ConstList &options, const Option::ConstList &requiredOptions,
-            QStringList *arguments, QString *errorString);
     static QString print();
 
 private:

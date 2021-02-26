@@ -49,8 +49,7 @@ public:
         QTimer::singleShot(0, this, [=]() {
             if (m_context)
                 m_functor();
-            emit success();
-            emit done(true);
+            emitDone(true);
         });
     }
 
@@ -75,6 +74,23 @@ private:
  * \class CommandRunner
  * \internal
  */
+
+bool CommandRunner::s_postprocessing = false;
+
+void CommandRunner::emitDone(bool ok)
+{
+    QTC_CHECK(!s_postprocessing);
+    s_postprocessing = true;
+
+    if (ok)
+        emit success(QPrivateSignal());
+    else
+        emit failure(QPrivateSignal());
+
+    emit done(ok, QPrivateSignal());
+
+    s_postprocessing = false;
+}
 
 /*!
  * \class CommandQueue
@@ -121,6 +137,7 @@ void CommandQueue::cancelBatch(BatchId batchId)
 void CommandQueue::enqueue(std::unique_ptr<CommandRunner> &&runner)
 {
     QTC_ASSERT(runner, return);
+    QTC_CHECK(!CommandRunner::isPostprocessing()); // use enqueueImmediate for postprocessing!
     qCDebug(vmsQueue) << "Enqueued" << runner.get();
     m_queue.emplace_back(m_currentBatchId, std::move(runner));
     scheduleDequeue();
@@ -138,6 +155,7 @@ void CommandQueue::enqueueCheckPoint(const QObject *context, const Functor<> &fu
 {
     QTC_ASSERT(context, return);
     QTC_ASSERT(functor, return);
+    QTC_CHECK(!CommandRunner::isPostprocessing()); // use enqueueImmediateCheckPoint for postprocessing!
     auto runner = std::make_unique<CheckPointRunner>(context, functor, this);
     qCDebug(vmsQueue) << "Enqueued check point" << runner.get();
     m_queue.emplace_back(m_currentBatchId, std::move(runner));
@@ -259,8 +277,7 @@ void ProcessRunner::onErrorOccured(QProcess::ProcessError error)
 {
     if (error == QProcess::FailedToStart) {
         qCWarning(vms) << "Process" << m_process->program() << "failed to start";
-        emit failure();
-        emit done(false);
+        emitDone(false);
     }
 }
 
@@ -272,22 +289,18 @@ void ProcessRunner::onFinished(int exitCode, QProcess::ExitStatus exitStatus)
         if (m_crashExpected) {
             qCDebug(vms) << "Process" << m_process->program() << " crashed as expected. Arguments:"
                 << m_process->arguments();
-            emit success();
-            emit done(true);
+            emitDone(true);
             return;
         }
         qCWarning(vms) << "Process" << m_process->program() << " crashed. Arguments:"
             << m_process->arguments();
-        emit failure();
-        emit done(false);
+        emitDone(false);
     } else if (!m_expectedExitCodes.contains(exitCode)) {
         qCWarning(vms) << "Process" << m_process->program() << " exited with unexpected exit code"
             << exitCode << ". Arguments:" << m_process->arguments();
-        emit failure();
-        emit done(false);
+        emitDone(false);
     } else {
-        emit success();
-        emit done(true);
+        emitDone(true);
     }
 }
 

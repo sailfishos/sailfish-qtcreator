@@ -61,6 +61,7 @@ const char VM_INFO_SHARED_INSTALL[] = "SharedInstall";
 const char VM_INFO_SHARED_HOME[] = "SharedHome";
 const char VM_INFO_SHARED_TARGETS[] = "SharedTargets";
 const char VM_INFO_SHARED_CONFIG[] = "SharedConfig";
+const char VM_INFO_SHARED_MEDIA[] = "SharedMedia";
 const char VM_INFO_SHARED_SRC[] = "SharedSrc";
 const char VM_INFO_SHARED_SSH[] = "SharedSsh";
 const char VM_INFO_SSH_PORT[] = "SshPort";
@@ -123,6 +124,7 @@ VirtualMachine::VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, cons
     , d_ptr(std::move(dd))
 {
     Q_D(VirtualMachine);
+    d->setParent(this);
     d->type = type;
     d->features = features;
     d->name = name;
@@ -439,8 +441,74 @@ void VirtualMachine::removePortForwarding(const QString &ruleName, const QObject
 QStringList VirtualMachine::snapshots() const
 {
     Q_D(const VirtualMachine);
+    QTC_ASSERT(d->features & Snapshots, return {});
     QTC_ASSERT(d->initialized(), return {});
     return d->virtualMachineInfo.snapshots;
+}
+
+void VirtualMachine::takeSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_D(VirtualMachine);
+    QTC_ASSERT(d->features & Snapshots,
+               QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_CHECK(isLockedDown());
+
+    const QPointer<const QObject> context_{context};
+    d->doTakeSnapshot(snapshotName, this, [=](bool ok) {
+        if (ok) {
+            d->virtualMachineInfo.snapshots.append(snapshotName);
+            VirtualMachineInfoCache::insert(uri(), d->virtualMachineInfo);
+            emit snapshotsChanged();
+        }
+        if (context_)
+            functor(ok);
+    });
+}
+
+void VirtualMachine::restoreSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_D(VirtualMachine);
+    QTC_ASSERT(d->features & Snapshots,
+               QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_CHECK(isLockedDown());
+
+    auto allOk = std::make_shared<bool>(true);
+
+    d->doRestoreSnapshot(snapshotName, this, [=](bool restoreOk) {
+        QTC_CHECK(restoreOk);
+        *allOk &= restoreOk;
+    });
+
+    refreshConfiguration(this, [=](bool refreshOk) {
+        QTC_CHECK(refreshOk);
+        *allOk &= refreshOk;
+    });
+
+    emit d->aboutToRestoreSnapshot(allOk);
+
+    SdkPrivate::commandQueue()->enqueueCheckPoint(context, [=]() { functor(*allOk); });
+}
+
+void VirtualMachine::removeSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_D(VirtualMachine);
+    QTC_ASSERT(d->features & Snapshots,
+               QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_CHECK(isLockedDown());
+
+    const QPointer<const QObject> context_{context};
+    d->doRemoveSnapshot(snapshotName, this, [=](bool ok) {
+        if (ok) {
+            d->virtualMachineInfo.snapshots.removeAll(snapshotName);
+            VirtualMachineInfoCache::insert(uri(), d->virtualMachineInfo);
+            emit snapshotsChanged();
+        }
+        if (context_)
+            functor(ok);
+    });
 }
 
 void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<bool> &functor)
@@ -474,11 +542,6 @@ void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<
                 || oldInfo.freePorts != info.freePorts) {
             emit portForwardingChanged();
         }
-
-        // Features are immutable
-        QTC_CHECK(!d->initialized_ || oldInfo.swapSupported == info.swapSupported);
-        if (!d->initialized_ && info.swapSupported)
-            d->features |= SwapMemory;
 
         d->initialized_ = true;
 
@@ -556,6 +619,9 @@ void VirtualMachinePrivate::setSharedPath(SharedPath which, const Utils::FilePat
             break;
         case SharedSrc:
             virtualMachineInfo.sharedSrc = path.toString();
+            break;
+        case SharedMedia:
+            virtualMachineInfo.sharedMedia = path.toString();
             break;
         }
         VirtualMachineInfoCache::insert(q->uri(), virtualMachineInfo);
@@ -664,22 +730,6 @@ void VirtualMachinePrivate::setReservedPortListForwarding(ReservedPortList which
 
 }
 
-void VirtualMachinePrivate::restoreSnapshot(const QString &snapshotName, const QObject *context,
-        const Functor<bool> &functor)
-{
-    Q_Q(VirtualMachine);
-    QTC_CHECK(q->isLockedDown());
-
-    const QPointer<const QObject> context_{context};
-    doRestoreSnapshot(snapshotName, q, [=](bool restoreOk) {
-        Q_Q(VirtualMachine);
-        q->refreshConfiguration(q, [=](bool refreshOk) {
-            if (context_)
-                functor(restoreOk && refreshOk);
-        });
-    });
-}
-
 void VirtualMachinePrivate::enableUpdates()
 {
     Q_Q(VirtualMachine);
@@ -756,7 +806,8 @@ void VirtualMachineFactory::unusedVirtualMachines(const QObject *context,
     });
 }
 
-std::unique_ptr<VirtualMachine> VirtualMachineFactory::create(const QUrl &uri)
+std::unique_ptr<VirtualMachine> VirtualMachineFactory::create(const QUrl &uri,
+        VirtualMachine::Features featureMask)
 {
     qCDebug(vms) << "Creating VM" << uri.toString();
 
@@ -774,7 +825,7 @@ std::unique_ptr<VirtualMachine> VirtualMachineFactory::create(const QUrl &uri)
             << "already exists";
     }
 
-    std::unique_ptr<VirtualMachine> vm = meta.create(name);
+    std::unique_ptr<VirtualMachine> vm = meta.create(name, featureMask);
 
     connect(vm.get(), &QObject::destroyed, s_instance, [=]() {
         if (--s_instance->m_used[uri] == 0)
@@ -977,6 +1028,7 @@ void VirtualMachineInfo::fromMap(const QVariantMap &data)
     sharedHome = data.value(VM_INFO_SHARED_HOME).toString();
     sharedTargets = data.value(VM_INFO_SHARED_TARGETS).toString();
     sharedConfig = data.value(VM_INFO_SHARED_CONFIG).toString();
+    sharedMedia = data.value(VM_INFO_SHARED_MEDIA).toString();
     sharedSrc = data.value(VM_INFO_SHARED_SRC).toString();
     sharedSsh = data.value(VM_INFO_SHARED_SSH).toString();
     sshPort = data.value(VM_INFO_SSH_PORT).toUInt();
@@ -995,7 +1047,6 @@ void VirtualMachineInfo::fromMap(const QVariantMap &data)
     macs = data.value(VM_INFO_MACS).toStringList();
     headless = data.value(VM_INFO_HEADLESS).toBool();
     memorySizeMb = data.value(VM_INFO_MEMORY_SIZE_MB).toInt();
-    swapSupported = data.value(VM_INFO_SWAP_SUPPORTED).toBool();
     swapSizeMb = data.value(VM_INFO_SWAP_SIZE_MB).toInt();
     cpuCount = data.value(VM_INFO_CPU_COUNT).toInt();
     storageSizeMb = data.value(VM_INFO_STORAGE_SIZE_MB).toInt();
@@ -1010,6 +1061,7 @@ QVariantMap VirtualMachineInfo::toMap() const
     data.insert(VM_INFO_SHARED_HOME, sharedHome);
     data.insert(VM_INFO_SHARED_TARGETS, sharedTargets);
     data.insert(VM_INFO_SHARED_CONFIG, sharedConfig);
+    data.insert(VM_INFO_SHARED_MEDIA, sharedMedia);
     data.insert(VM_INFO_SHARED_SRC, sharedSrc);
     data.insert(VM_INFO_SHARED_SSH, sharedSsh);
     data.insert(VM_INFO_SSH_PORT, sshPort);
@@ -1029,7 +1081,6 @@ QVariantMap VirtualMachineInfo::toMap() const
     data.insert(VM_INFO_MACS, macs);
     data.insert(VM_INFO_HEADLESS, headless);
     data.insert(VM_INFO_MEMORY_SIZE_MB, memorySizeMb);
-    data.insert(VM_INFO_SWAP_SUPPORTED, swapSupported);
     data.insert(VM_INFO_SWAP_SIZE_MB, swapSizeMb);
     data.insert(VM_INFO_CPU_COUNT, cpuCount);
     data.insert(VM_INFO_STORAGE_SIZE_MB, storageSizeMb);

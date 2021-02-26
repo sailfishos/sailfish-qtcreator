@@ -110,9 +110,10 @@ CommandQueue *commandQueue()
  * \class DockerVirtualMachine
  */
 
-DockerVirtualMachine::DockerVirtualMachine(const QString &name, QObject *parent)
+DockerVirtualMachine::DockerVirtualMachine(const QString &name, VirtualMachine::Features featureMask,
+        QObject *parent)
     : VirtualMachine(std::make_unique<DockerVirtualMachinePrivate>(this), staticType(),
-            staticFeatures(), name, parent)
+            staticFeatures() & featureMask, name, parent)
 {
     Q_D(DockerVirtualMachine);
     d->setDisplayType(staticDisplayType());
@@ -374,7 +375,7 @@ void DockerVirtualMachinePrivate::probe(const QObject *context,
             if (context_)
                 functor(*state, true);
         });
-        commandQueue()->enqueue(std::move(runner));
+        commandQueue()->enqueueImmediate(std::move(runner));
     });
 }
 
@@ -503,7 +504,31 @@ void DockerVirtualMachinePrivate::doSetReservedPortListForwarding(ReservedPortLi
     QTC_CHECK(false);
 }
 
+void DockerVirtualMachinePrivate::doTakeSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
+    Q_UNUSED(snapshotName)
+    Q_UNUSED(context)
+    Q_UNUSED(functor)
+    QTC_CHECK(false);
+}
+
 void DockerVirtualMachinePrivate::doRestoreSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
+    Q_UNUSED(snapshotName)
+    Q_UNUSED(context)
+    Q_UNUSED(functor)
+    QTC_CHECK(false);
+}
+
+void DockerVirtualMachinePrivate::doRemoveSnapshot(const QString &snapshotName, const QObject *context,
         const Functor<bool> &functor)
 {
     Q_ASSERT(context);
@@ -534,8 +559,6 @@ VirtualMachineInfo DockerVirtualMachinePrivate::virtualMachineInfoFromOutput(con
     QTC_ASSERT(!document.isNull(), return info);
 
     info.memorySizeMb = VirtualMachine::availableMemorySizeMb();
-    info.swapSupported = false;
-    info.swapSizeMb = 0;
     info.cpuCount = VirtualMachine::availableCpuCount();
 
     QJsonObject labels = document.object();
@@ -684,6 +707,8 @@ QString DockerVirtualMachinePrivate::labelFor(VirtualMachinePrivate::SharedPath 
         return {Constants::BUILD_ENGINE_SHARED_SSH};
     case SharedTargets:
         return {Constants::BUILD_ENGINE_SHARED_TARGET};
+    case SharedMedia:
+        return {Constants::EMULATOR_SHARED_MEDIA};
     }
     Q_ASSERT(false);
     return {};

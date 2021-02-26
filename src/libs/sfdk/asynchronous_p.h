@@ -46,13 +46,21 @@ public:
 
     virtual QDebug print(QDebug debug) const = 0;
 
+    static bool isPostprocessing() { return s_postprocessing; }
+
 public slots:
     virtual void terminate() = 0;
 
+protected:
+    void emitDone(bool ok);
+
 signals:
-    void success();
-    void failure();
-    void done(bool ok);
+    void success(QPrivateSignal);
+    void failure(QPrivateSignal);
+    void done(bool ok, QPrivateSignal);
+
+private:
+    static bool s_postprocessing;
 };
 
 inline QDebug operator<<(QDebug debug, const CommandRunner *runner)

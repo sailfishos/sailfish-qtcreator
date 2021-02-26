@@ -376,6 +376,8 @@ void CommandLineParser::commandBriefUsage(QTextStream &out, const Command *comma
 {
     wrapLines(out, 0, {usageMessage()}, {EXE_NAME, command->name}, command->synopsis);
     out << endl;
+    wrapLine(out, 0, command->briefDescription);
+    out << endl;
     if (!command->configOptions.isEmpty()) {
         wrapLine(out, 0, relatedConfigurationOptionsHeading(command)
                 + ' ' + listRelatedConfigurationOptions(command) + '.');

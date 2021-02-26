@@ -150,9 +150,18 @@ protected:
         override;
 
 private:
+    bool makeGlobalArguments(const Command *command, QStringList *arguments, QString *errorString)
+        const;
+    QStringList makeGlobalArguments(const Command *command,
+            const OptionEffectiveOccurence &occurence) const;
+    void maybeMakeCustomGlobalArguments(const Command *command,
+            const OptionEffectiveOccurence &optionOccurence, QStringList *arguments) const;
+
+private:
     QString m_program;
     QStringList m_initialArguments;
     bool m_omitSubcommand = false;
+    QString m_optionFormatterJSFunctionName;
 };
 
 } // namespace Sfdk

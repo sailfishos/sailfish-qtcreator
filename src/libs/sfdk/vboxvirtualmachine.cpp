@@ -136,6 +136,18 @@ public:
         process()->setProcessEnvironment(environment());
     }
 
+    // VBoxManage has the bad habit of showing progress on stderr with no way
+    // to disable it.  While it is convenient to have progress reported on
+    // lenghty tasks it also clashes with foreground command output, breaking
+    // line wrapping and alignment in general.
+    void suppressNoisyOutput()
+    {
+        if (Log::vms().isDebugEnabled())
+            return;
+
+        process()->setProcessChannelMode(QProcess::SeparateChannels);
+    }
+
 private:
     static QString path()
     {
@@ -169,9 +181,10 @@ CommandQueue *commandQueue()
  * \class VBoxVirtualMachine
  */
 
-VBoxVirtualMachine::VBoxVirtualMachine(const QString &name, QObject *parent)
+VBoxVirtualMachine::VBoxVirtualMachine(const QString &name, VirtualMachine::Features featureMask,
+        QObject *parent)
     : VirtualMachine(std::make_unique<VBoxVirtualMachinePrivate>(this), staticType(),
-            staticFeatures(), name, parent)
+            staticFeatures() & featureMask, name, parent)
 {
     Q_D(VBoxVirtualMachine);
     d->setDisplayType(staticDisplayType());
@@ -200,7 +213,7 @@ VirtualMachine::Features VBoxVirtualMachine::staticFeatures()
 {
     return VirtualMachine::LimitMemorySize | VirtualMachine::LimitCpuCount
         | VirtualMachine::GrowStorageSize | VirtualMachine::OptionalHeadless
-        | VirtualMachine::Snapshots;
+        | VirtualMachine::Snapshots | VirtualMachine::SwapMemory;
 }
 
 void VBoxVirtualMachine::fetchRegisteredVirtualMachines(const QObject *context,
@@ -590,6 +603,9 @@ void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FilePath
         mountName = "src1";
         alignedMountPoint = alignedMountPointFor(path.toString());
         break;
+    case VirtualMachinePrivate::SharedMedia:
+        mountName = "media";
+        break;
     }
 
     const QPointer<const QObject> context_{context};
@@ -815,6 +831,27 @@ void VBoxVirtualMachinePrivate::doSetReservedPortListForwarding(ReservedPortList
     });
 }
 
+void VBoxVirtualMachinePrivate::doTakeSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_Q(VBoxVirtualMachine);
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
+    qCDebug(vms) << "Taking snapshot" << snapshotName << "of" << q->uri().toString();
+
+    QStringList arguments;
+    arguments.append("snapshot");
+    arguments.append(q->name());
+    arguments.append("take");
+    arguments.append(snapshotName);
+
+    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    runner->suppressNoisyOutput();
+    QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
+    commandQueue()->enqueue(std::move(runner));
+}
+
 void VBoxVirtualMachinePrivate::doRestoreSnapshot(const QString &snapshotName, const QObject *context,
         const Functor<bool> &functor)
 {
@@ -831,6 +868,28 @@ void VBoxVirtualMachinePrivate::doRestoreSnapshot(const QString &snapshotName, c
     arguments.append(snapshotName);
 
     auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    runner->suppressNoisyOutput();
+    QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
+    commandQueue()->enqueue(std::move(runner));
+}
+
+void VBoxVirtualMachinePrivate::doRemoveSnapshot(const QString &snapshotName, const QObject *context,
+        const Functor<bool> &functor)
+{
+    Q_Q(VBoxVirtualMachine);
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
+    qCDebug(vms) << "Removing snapshot" << snapshotName << "of" << q->uri().toString();
+
+    QStringList arguments;
+    arguments.append("snapshot");
+    arguments.append(q->name());
+    arguments.append("delete");
+    arguments.append(snapshotName);
+
+    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    runner->suppressNoisyOutput();
     QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
     commandQueue()->enqueue(std::move(runner));
 }
@@ -905,7 +964,6 @@ QStringList VBoxVirtualMachinePrivate::listedVirtualMachines(const QString &outp
 VBoxVirtualMachineInfo VBoxVirtualMachinePrivate::virtualMachineInfoFromOutput(const QString &output)
 {
     VBoxVirtualMachineInfo info;
-    info.sshPort = 0;
 
     // Get ssh port, shared home and shared targets
     // 1 Name, 2 Protocol, 3 Host IP, 4 Host Port, 5 Guest IP, 6 Guest Port, 7 Shared Folder Name,
@@ -956,6 +1014,8 @@ VBoxVirtualMachineInfo VBoxVirtualMachinePrivate::virtualMachineInfoFromOutput(c
                 info.sharedConfig = QDir::cleanPath(rexp.cap(8));
             else if (rexp.cap(7).startsWith(QLatin1String("src")))
                 info.sharedSrc = QDir::cleanPath(rexp.cap(8));
+            else if (rexp.cap(7) == QLatin1String("media"))
+                info.sharedMedia = QDir::cleanPath(rexp.cap(8));
         } else if(rexp.cap(0).startsWith(QLatin1String("macaddress"))) {
             QRegExp rx(QLatin1String("(?:([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2}))"));
             QString mac = rexp.cap(9);
@@ -1001,7 +1061,6 @@ void VBoxVirtualMachinePrivate::propertyBasedInfoFromOutput(const QString &outpu
             const QString value = rexp.cap(2);
 
             if (name == QLatin1String(SWAP_SIZE_MB_GUEST_PROPERTY_NAME)) {
-                virtualMachineInfo->swapSupported = true;
                 virtualMachineInfo->swapSizeMb = value.toInt();
             }
         }

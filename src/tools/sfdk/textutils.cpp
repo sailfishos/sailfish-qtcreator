@@ -199,13 +199,20 @@ void wrapLines(QTextStream &out, int indentLevel, const QStringList &prefix1,
         return;
     }
 
+    static const QRegularExpression leadingSpace("^[ \\t]+"); // keep non-breakable space
+    static const QRegularExpression trailingSpace("\\s+$");
+
     for (const QString &line : lines.split('\n')) {
         // Preserve single(!) level indentation. No one would ever need more than...
         const QString lineIndent = indent(line.startsWith(' ') || line.startsWith('\t') ? 1 : 0);
+        // But try to not trim non-breakable space following leading space
+        const QString trimmed = line.leftRef(10).contains(QChar::Nbsp)
+            ? QString(line).remove(leadingSpace).remove(trailingSpace)
+            : line.trimmed();
         wrapLine(out, indentLevel,
                 prefix1_ + prefix2_ + lineIndent,
                 QString(prefix1_.length() + prefix2_.length() + lineIndent.length(), ' '),
-                line.trimmed());
+                trimmed);
         prefix1_ = QString(prefix1_.length(), ' ');
     }
 }

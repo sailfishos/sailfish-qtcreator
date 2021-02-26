@@ -384,34 +384,6 @@ Utils::optional<OptionEffectiveOccurence> Configuration::effectiveState(const Op
     return {};
 }
 
-bool Configuration::toArguments(const Option::ConstList &options,
-        const Option::ConstList &requiredOptions, QStringList *arguments, QString *errorString)
-{
-    auto unsetRequiredOptions = requiredOptions.toSet();
-
-    for (const OptionEffectiveOccurence &occurence : effectiveState()) {
-        if (!occurence.isMasked() && options.contains(occurence.option())) {
-            const QString normalizedName = QString(occurence.option()->name).replace('.', '-');
-            if (occurence.argument().isEmpty()) {
-                *arguments << "--" + normalizedName;
-            } else if (occurence.option()->argumentType == Option::MandatoryArgument) {
-                *arguments << "--" + normalizedName << occurence.argument();
-            } else {
-                *arguments << "--" + normalizedName + "=" + occurence.argument();
-            }
-            unsetRequiredOptions.remove(occurence.option());
-        }
-    }
-
-    if (!unsetRequiredOptions.isEmpty()) {
-        *errorString = tr("The required configuration option '%1' is not set")
-            .arg((*unsetRequiredOptions.cbegin())->name);
-        return false;
-    }
-
-    return true;
-}
-
 QString Configuration::print()
 {
     QString retv;

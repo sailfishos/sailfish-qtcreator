@@ -32,7 +32,8 @@ class VBoxVirtualMachine : public VirtualMachine
     Q_OBJECT
 
 public:
-    explicit VBoxVirtualMachine(const QString &name, QObject *parent = nullptr);
+    explicit VBoxVirtualMachine(const QString &name, VirtualMachine::Features featureMask,
+            QObject *parent = nullptr);
     ~VBoxVirtualMachine() override;
 
     static bool isAvailable();
@@ -91,7 +92,11 @@ protected:
             const QObject *context, const Functor<const QMap<QString, quint16> &, bool> &functor)
         override;
 
+    void doTakeSnapshot(const QString &snapshotName, const QObject *context,
+            const Functor<bool> &functor) override;
     void doRestoreSnapshot(const QString &snapshotName, const QObject *context,
+            const Functor<bool> &functor) override;
+    void doRemoveSnapshot(const QString &snapshotName, const QObject *context,
             const Functor<bool> &functor) override;
 
 private:
