@@ -23,8 +23,6 @@
 
 #pragma once
 
-#include "textutils.h"
-
 #include <utils/optional.h>
 
 #include <QCoreApplication>
@@ -132,7 +130,7 @@ public:
     static bool isEngineRunning();
     static int runOnEngine(const QString &program, const QStringList &arguments,
             Utils::optional<bool> runInTerminal = {},
-            QTextStream &out = qout(), QTextStream &err = qerr());
+            QIODevice *out = nullptr, QIODevice *err = nullptr);
 
     static void setEnableReversePathMapping(bool enable);
 
