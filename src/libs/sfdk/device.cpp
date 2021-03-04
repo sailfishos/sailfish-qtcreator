@@ -23,17 +23,21 @@
 
 #include "device_p.h"
 
+#include "asynchronous_p.h"
 #include "buildengine.h"
 #include "emulator_p.h"
 #include "sdk_p.h"
 #include "sfdkconstants.h"
+#include "signingutils_p.h"
 #include "usersettings_p.h"
 #include "virtualmachine.h"
 
+#include <ssh/sshremoteprocessrunner.h>
 #include <utils/optional.h>
 #include <utils/pointeralgorithm.h>
 
 #include <QDir>
+#include <QTimer>
 
 using namespace QSsh;
 using namespace Utils;
@@ -113,6 +117,40 @@ Device::Architecture Device::architecture() const
 Device::MachineType Device::machineType() const
 {
     return d_func()->machineType;
+}
+
+void Device::importPublicGpgKey(const QString &id,
+        const QObject *context, const Functor<bool, QString> &functor)
+{
+    QString errorString;
+    QTC_ASSERT(isGpgAvailable(&errorString),
+            QTimer::singleShot(0, context, std::bind(functor, false, errorString));
+            return );
+
+    const QPointer<const QObject> context_{context};
+    SigningUtils::exportPublicKey(id, Sdk::instance(),
+            [=](bool ok, const QByteArray &keyData, const QString &exportError) {
+        if (!ok) {
+            callIf(context_, functor, ok, exportError);
+            return;
+        }
+
+        QStringList arguments;
+        arguments.append("-");
+
+        auto runner = std::make_unique<RemoteProcessRunner>(sshParameters(),
+                "sdk-deploy-key",
+                arguments);
+        connect(runner->sshRunner(), &SshRemoteProcessRunner::processStarted,
+                this, [=, sshRunner = runner->sshRunner()]() {
+            sshRunner->writeDataToProcess(keyData);
+        });
+        connect(runner.get(), &RemoteProcessRunner::done, context_,
+                [=, runner = runner.get()](bool ok) {
+            functor(ok, runner->errorString());
+        });
+        Sfdk::SdkPrivate::commandQueue()->enqueueImmediate(std::move(runner));
+    });
 }
 
 /*!

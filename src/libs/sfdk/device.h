@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include "asynchronous.h"
 #include "sfdkglobal.h"
 
 #include <memory>
@@ -64,6 +65,10 @@ public:
     bool isAutodetected() const;
     Architecture architecture() const;
     MachineType machineType() const;
+
+    void importPublicGpgKey(const QString &id,
+            const QObject *context,
+            const Functor<bool, QString> &functor);
 
     virtual QSsh::SshConnectionParameters sshParameters() const = 0;
 

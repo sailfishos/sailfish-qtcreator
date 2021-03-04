@@ -24,8 +24,11 @@
 #include "asynchronous_p.h"
 
 #include <utils/qtcassert.h>
+#include <utils/qtcprocess.h>
 
 #include <QTimer>
+
+using namespace QSsh;
 
 namespace Sfdk {
 
@@ -301,6 +304,69 @@ void ProcessRunner::onFinished(int exitCode, QProcess::ExitStatus exitStatus)
         emitDone(false);
     } else {
         emitDone(true);
+    }
+}
+
+/*!
+ * \class RemoteProcessRunner
+ * \internal
+ */
+
+RemoteProcessRunner::RemoteProcessRunner(const SshConnectionParameters &sshParameters,
+        const QString &program, const QStringList &arguments,
+        QObject *parent)
+    : CommandRunner(parent)
+    , m_sshRunner(std::make_unique<SshRemoteProcessRunner>(this))
+    , m_arguments(arguments)
+    , m_sshParameters(sshParameters)
+    , m_program(program)
+{
+    connect(m_sshRunner.get(), &SshRemoteProcessRunner::connectionError,
+            this, &RemoteProcessRunner::onConnectionError);
+    connect(m_sshRunner.get(), &SshRemoteProcessRunner::processClosed,
+            this, &RemoteProcessRunner::onFinished);
+}
+
+QString RemoteProcessRunner::errorString() const
+{
+    return m_lastErrorString;
+}
+
+void RemoteProcessRunner::run()
+{
+    QStringList arguments;
+    arguments.append(m_program);
+    arguments.append(m_arguments);
+    m_sshRunner->run(Utils::QtcProcess::joinArgs(arguments, Utils::OsTypeLinux), m_sshParameters);
+}
+
+QDebug RemoteProcessRunner::print(QDebug debug) const
+{
+    // Omit the leading "//"
+    const QString where = m_sshParameters.url.toString().remove('/');
+    debug << "RemoteProcess" << where << m_program << m_arguments;
+    return debug.maybeSpace();
+}
+
+void RemoteProcessRunner::terminate()
+{
+    m_sshRunner->cancel();
+    emitDone(false);
+}
+
+void RemoteProcessRunner::onConnectionError()
+{
+    m_lastErrorString = m_sshRunner->lastConnectionErrorString();
+    emitDone(false);
+}
+
+void RemoteProcessRunner::onFinished()
+{
+    if (m_sshRunner->processExitCode() == QProcess::NormalExit) {
+        emitDone(true);
+    } else {
+        m_lastErrorString = QString::fromUtf8(m_sshRunner->readAllStandardError());
+        emitDone(false);
     }
 }
 
