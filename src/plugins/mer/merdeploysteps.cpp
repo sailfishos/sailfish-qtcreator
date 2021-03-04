@@ -30,6 +30,7 @@
 
 #include "merdeploysteps.h"
 
+#include "merbuildconfigurationaspect.h"
 #include "merconstants.h"
 #include "mercmakebuildconfiguration.h"
 #include "mercompilationdatabasebuildconfiguration.h"
@@ -501,6 +502,65 @@ BuildStepConfigWidget *MerPrepareTargetStep::createConfigWidget()
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
+Core::Id MerMb2MakeInstallStep::stepId()
+{
+    return Core::Id("QmakeProjectManager.MerMakeInstallBuildStep");
+}
+
+QString MerMb2MakeInstallStep::displayName()
+{
+    return QLatin1String("Make install");
+}
+
+MerMb2MakeInstallStep::MerMb2MakeInstallStep(BuildStepList *bsl, Id id)
+    : MerProcessStep(bsl, id)
+{
+    setDefaultDisplayName(displayName());
+}
+
+bool MerMb2MakeInstallStep::init()
+{
+    bool success = MerProcessStep::init(DoNotNeedDevice);
+    //hack
+    ProcessParameters *pp = processParameters();
+    QString make = pp->command().executable().toString();
+    make.replace(
+            QLatin1String(Sfdk::Constants::WRAPPER_DEPLOY),
+            QLatin1String(Sfdk::Constants::WRAPPER_MAKE_INSTALL));
+    CommandLine makeCommand(make);
+    makeCommand.addArgs(pp->command().arguments(), CommandLine::Raw);
+    pp->setCommandLine(makeCommand);
+    return success;
+}
+
+void MerMb2MakeInstallStep::doRun()
+{
+   AbstractProcessStep::doRun();
+}
+
+BuildStepConfigWidget *MerMb2MakeInstallStep::createConfigWidget()
+{
+    auto widget = new MerDeployStepWidget(this);
+    m_widget = widget;
+    BuildConfiguration *const bc = buildConfiguration();
+    connect(bc, &BuildConfiguration::buildDirectoryChanged, this, &MerMb2MakeInstallStep::updateSummaryText);
+
+    updateSummaryText();
+
+    widget->setCommandText("mb2 make-install");
+    return widget;
+}
+
+void MerMb2MakeInstallStep::updateSummaryText()
+{
+    BuildConfiguration *const bc = buildConfiguration();
+    auto widget = qobject_cast<MerDeployStepWidget *>(m_widget);
+    if (widget)
+        widget->formatAndSetSummaryText(tr("make install in %1").arg(bc->buildDirectory().toString()));
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+
 Core::Id MerMb2RsyncDeployStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerRsyncDeployStep");
@@ -508,7 +568,7 @@ Core::Id MerMb2RsyncDeployStep::stepId()
 
 QString MerMb2RsyncDeployStep::displayName()
 {
-    return QLatin1String("Rsync");
+    return QLatin1String("Rsync deploy");
 }
 
 MerMb2RsyncDeployStep::MerMb2RsyncDeployStep(BuildStepList *bsl, Core::Id id)
@@ -629,7 +689,7 @@ Core::Id MerMb2RpmDeployStep::stepId()
 
 QString MerMb2RpmDeployStep::displayName()
 {
-    return QLatin1String("RPM");
+    return QLatin1String("RPM Deploy");
 }
 
 MerMb2RpmDeployStep::MerMb2RpmDeployStep(BuildStepList *bsl, Core::Id id)
@@ -669,7 +729,7 @@ Core::Id MerMb2RpmBuildStep::stepId()
 
 QString MerMb2RpmBuildStep::displayName()
 {
-    return QLatin1String("RPM");
+    return QLatin1String("RPM Build");
 }
 
 MerMb2RpmBuildStep::MerMb2RpmBuildStep(BuildStepList *bsl, Core::Id id)
@@ -678,9 +738,10 @@ MerMb2RpmBuildStep::MerMb2RpmBuildStep(BuildStepList *bsl, Core::Id id)
     setDefaultDisplayName(displayName());
 }
 
-
 bool MerMb2RpmBuildStep::init()
 {
+    m_showResultDialog = !deployConfiguration()->stepList()->contains(MerMb2RpmDeployStep::stepId());
+
     bool success = MerProcessStep::init(DoNotNeedDevice);
     m_packages.clear();
     BuildEngine *const engine = MerSdkKitAspect::buildEngine(target()->kit());
@@ -694,6 +755,12 @@ bool MerMb2RpmBuildStep::init()
             QLatin1String(Sfdk::Constants::WRAPPER_RPM));
     CommandLine rpmCommand(rpm);
     rpmCommand.addArgs(pp->command().arguments(), CommandLine::Raw);
+
+    auto aspect = buildConfiguration()->aspect<MerBuildConfigurationAspect>();
+    QTC_ASSERT(aspect, return false);
+    if (aspect->signPackages())
+        rpmCommand.addArgs("--sign", CommandLine::Raw);
+
     pp->setCommandLine(rpmCommand);
     return success;
 }
@@ -704,12 +771,13 @@ void MerMb2RpmBuildStep::doRun()
     emit addOutput(tr("Building RPM package..."), OutputFormat::NormalMessage);
     AbstractProcessStep::doRun();
 }
+
 //TODO: This is hack
 void MerMb2RpmBuildStep::processFinished(int exitCode, QProcess::ExitStatus status)
 {
     //TODO:
     MerProcessStep::processFinished(exitCode, status);
-    if(exitCode == 0 && status == QProcess::NormalExit && !m_packages.isEmpty()){
+    if (m_showResultDialog && exitCode == 0 && status == QProcess::NormalExit && !m_packages.isEmpty()) {
         new RpmInfo(m_packages, ICore::dialogParent());
     }
 }
@@ -942,7 +1010,6 @@ BuildStepConfigWidget *MerRpmValidationStep::createConfigWidget()
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 
 MerDeployStepWidget::MerDeployStepWidget(MerProcessStep *step)
         : BuildStepConfigWidget(step)

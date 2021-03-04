@@ -23,14 +23,20 @@
 #include "mergeneraloptionswidget.h"
 #include "ui_mergeneraloptionswidget.h"
 
+#include "merbuildconfigurationaspect.h"
 #include "merconstants.h"
 #include "merdeployconfiguration.h"
 #include "merdeploysteps.h"
 #include "mersettings.h"
+#include "mersigninguserselectiondialog.h"
 
+#include <sfdk/utils.h>
 #include <sfdk/sdk.h>
+#include <sfdk/sfdkconstants.h>
 
+#include <coreplugin/messagemanager.h>
 #include <utils/utilsicons.h>
+#include <utils/algorithm.h>
 
 using namespace Sfdk;
 using namespace Utils;
@@ -86,6 +92,56 @@ MerGeneralOptionsWidget::MerGeneralOptionsWidget(QWidget *parent)
     m_ui->askBeforeStartingVmCheckBox->setToolTip(m_ui->askBeforeStartingVmCheckBox->toolTip().arg(Sfdk::Sdk::osVariant()));
     m_ui->askBeforeClosingVmCheckBox->setToolTip(m_ui->askBeforeClosingVmCheckBox->toolTip().arg(Sfdk::Sdk::osVariant()));
     m_ui->rpmValidationInfoLabel->setText(m_ui->rpmValidationInfoLabel->text().arg(Sfdk::Sdk::osVariant()));
+
+    auto setSignElementsEnabled = [](Ui::MerGeneralOptionsWidget *ui, bool enabled) {
+        ui->defaultSigningUserComboBox->setEnabled(enabled);
+        ui->defaultSigningPassphraseFile->setEnabled(enabled);
+    };
+
+    connect(m_ui->signPackagesByDefaultCheckBox, &QCheckBox::toggled,
+            this, [this, setSignElementsEnabled](bool checked) {
+        setSignElementsEnabled(m_ui, checked);
+    });
+    m_ui->signPackagesByDefaultCheckBox->setChecked(MerSettings::signPackagesByDefault());
+    m_ui->signPackagesByDefaultCheckBox->setToolTip(m_ui->signPackagesByDefaultCheckBox->toolTip()
+            .arg(tr(Constants::MER_SIGN_PACKAGES_OPTION_NAME))
+            .arg(MerBuildConfigurationAspect::displayName()));
+
+    QString gpgErrorString;
+    const bool isGpgAvailable = Sfdk::isGpgAvailable(&gpgErrorString);
+    if (!isGpgAvailable) {
+        m_ui->signErrorLabel->setText(gpgErrorString);
+        m_ui->signErrorIconLabel->setPixmap(Icons::WARNING.pixmap());
+        m_ui->signErrorIconLabel->setVisible(true);
+        m_ui->signErrorLabel->setVisible(true);
+        m_ui->signErrorLayout->addSpacerItem(new QSpacerItem(0, 0, QSizePolicy::Expanding));
+
+        m_ui->signPackagesByDefaultCheckBox->setChecked(false);
+        m_ui->signPackagesByDefaultCheckBox->setEnabled(false);
+        return;
+    }
+    m_ui->signErrorIconLabel->setVisible(false);
+    m_ui->signErrorLabel->setVisible(false);
+
+    QList<GpgKeyInfo> availableKeys;
+    bool ok;
+    QString error;
+    execAsynchronous(std::tie(ok, availableKeys, error), Sfdk::availableGpgKeys);
+    if (!ok)
+        Core::MessageManager::write(error, Core::MessageManager::Flash);
+
+    const QStringList items = Utils::transform(availableKeys, &GpgKeyInfo::toString);
+    m_ui->defaultSigningUserComboBox->addItems(items);
+    m_ui->defaultSigningUserComboBox->setCurrentText(MerSettings::signingUser().toString());
+
+    m_ui->defaultSigningPassphraseFile->setPath(MerSettings::signingPassphraseFile());
+    m_ui->defaultSigningPassphraseFile->setExpectedKind(PathChooser::Kind::File);
+    m_ui->defaultSigningPassphraseFile->setPromptDialogTitle(
+            tr("Select the default passphrase file for the signing user"));
+    m_ui->defaultSigningPassphraseFile->setToolTip(
+            tr("Passphrase file which will be used by default for the signing user"));
+
+    setSignElementsEnabled(m_ui, m_ui->signPackagesByDefaultCheckBox->isChecked());
 }
 
 MerGeneralOptionsWidget::~MerGeneralOptionsWidget()
@@ -107,6 +163,15 @@ void MerGeneralOptionsWidget::store()
     MerSettings::setSyncQmlLiveWorkspaceEnabled(m_ui->benchSyncWorkspaceCheckBox->isChecked());
     MerSettings::setImportQmakeVariablesEnabled(m_ui->importQmakeVariablesCheckBox->isChecked());
     MerSettings::setAskImportQmakeVariablesEnabled(m_ui->askImportQmakeVariablesCheckBox->isChecked());
+    MerSettings::setSignPackagesByDefault(m_ui->signPackagesByDefaultCheckBox->isChecked());
+    MerSettings::setSigningPassphraseFile(m_ui->defaultSigningPassphraseFile->path());
+
+    if (m_ui->defaultSigningUserComboBox->currentIndex() != -1) {
+        MerSettings::setSigningUser(
+                GpgKeyInfo::fromString(m_ui->defaultSigningUserComboBox->currentText()));
+    } else {
+        MerSettings::setSigningUser(GpgKeyInfo());
+    }
 }
 
 QString MerGeneralOptionsWidget::searchKeywords() const
@@ -121,6 +186,7 @@ QString MerGeneralOptionsWidget::searchKeywords() const
                            << sep << m_ui->benchLocationLabel->text()
                            << sep << m_ui->importQmakeVariablesCheckBox->text()
                            << sep << m_ui->askImportQmakeVariablesCheckBox->text()
+                           << sep << m_ui->signPackagesByDefaultCheckBox
                            ;
     keywords.remove(QLatin1Char('&'));
     return keywords;

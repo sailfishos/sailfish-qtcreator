@@ -139,6 +139,22 @@ private:
     QFutureWatcher<bool> m_watcher;
 };
 
+class MerMb2MakeInstallStep : public MerProcessStep
+{
+    Q_OBJECT
+public:
+    explicit MerMb2MakeInstallStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
+    bool init() override;
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
+    static Core::Id stepId();
+    static QString displayName();
+private slots:
+    void updateSummaryText();
+protected:
+    void doRun() override;
+    ProjectExplorer::BuildStepConfigWidget *m_widget = nullptr;
+};
+
 class MerMb2RsyncDeployStep : public MerProcessStep
 {
     Q_OBJECT
@@ -191,11 +207,13 @@ public:
     void processFinished(int exitCode, QProcess::ExitStatus status) override;
     void stdOutput(const QString &line) override;
     QString mainPackageFileName() const;
+
 protected:
     void doRun() override;
 private:
     QString m_sharedSrc;
     QStringList m_packages;
+    bool m_showResultDialog{true};
 };
 
 class RpmInfo: public QDialog

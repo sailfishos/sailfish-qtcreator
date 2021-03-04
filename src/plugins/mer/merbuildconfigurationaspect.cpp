@@ -24,22 +24,33 @@
 
 #include "ui_merbuildconfigurationwidget.h"
 #include "merconstants.h"
+#include "mersdkkitaspect.h"
+#include "mersettings.h"
+#include "mersigninguserselectiondialog.h"
 
+#include <sfdk/buildengine.h>
 #include <sfdk/sdk.h>
 #include <sfdk/sfdkconstants.h>
+#include <sfdk/utils.h>
 
+#include <coreplugin/messagemanager.h>
 #include <coreplugin/variablechooser.h>
 #include <projectexplorer/buildconfiguration.h>
+#include <projectexplorer/buildsystem.h>
+#include <projectexplorer/kit.h>
 #include <projectexplorer/namedwidget.h>
 #include <projectexplorer/project.h>
 #include <utils/detailswidget.h>
 #include <utils/algorithm.h>
+#include <utils/utilsicons.h>
 #include <utils/pathchooser.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
+#include <QAction>
 #include <QCompleter>
 #include <QFormLayout>
+#include <QInputDialog>
 #include <QVBoxLayout>
 
 using namespace Core;
@@ -53,6 +64,9 @@ namespace Internal {
 namespace {
 const char SPEC_FILE_PATH[] = "MerSpecFileAspect.Path";
 const char SFDK_CONFIGURATION_OPTIONS[] = "MerSfdkConfigurationAspect.Options";
+const char MER_BUILD_CONFIGURATION_SIGN_PACKAGES[] = "MerBuildConfiguration.SignPackages";
+const char MER_BUILD_CONFIGURATION_SIGNING_USER[] = "MerBuildConfiguration.SigningUser";
+const char MER_BUILD_CONFIGURATION_SIGNING_PASSPHRASE_FILE[] = "MerBuildConfiguration.SigningPassphraseFile";
 } // namespace anonymous
 
 /*!
@@ -120,6 +134,85 @@ public:
         vbox->addWidget(m_detailsContainer);
 
         updateSummary();
+
+        auto setSignElementsEnabled = [](Ui::MerBuildConfigurationWidget *ui, bool enabled) {
+            ui->signingUserChangeButton->setEnabled(enabled);
+            ui->signingUserLineEdit->setEnabled(enabled);
+            ui->signingPassphraseFileChooser->setEnabled(enabled);
+            ui->signingUserClearButton->setEnabled(enabled);
+        };
+
+        m_ui->signPackagesCheckBox->setText(tr(Constants::MER_SIGN_PACKAGES_OPTION_NAME));
+        m_ui->signingUserClearButton->setIcon(Utils::Icons::EDIT_CLEAR.icon());
+
+        m_ui->signPackagesCheckBox->setChecked(m_aspect->signPackages());
+        QString gpgErrorString;
+        const bool isGpgAvailable = Sfdk::isGpgAvailable(&gpgErrorString);
+        if (!isGpgAvailable) {
+            m_ui->signErrorLabel->setText(gpgErrorString);
+            m_ui->signErrorIconLabel->setPixmap(Icons::WARNING.pixmap());
+            m_ui->signErrorIconLabel->setVisible(true);
+            m_ui->signErrorLabel->setVisible(true);
+
+            m_ui->signPackagesCheckBox->setEnabled(false);
+            m_ui->signPackagesCheckBox->setChecked(false);
+            setSignElementsEnabled(m_ui, false);
+            return;
+        }
+        m_ui->signErrorIconLabel->setVisible(false);
+        m_ui->signErrorLabel->setVisible(false);
+
+        m_ui->signingUserLineEdit->setPlaceholderText(tr("Select the signing user"));
+        m_ui->signingUserLineEdit->setText(m_aspect->signingUser().toString());
+        connect(m_ui->signingUserClearButton, &QPushButton::clicked, this, [this](){
+            m_ui->signingUserLineEdit->clear();
+            m_aspect->setSigningUser(GpgKeyInfo());
+        });
+
+        m_ui->signingPassphraseFileChooser->setExpectedKind(PathChooser::Kind::File);
+        m_ui->signingPassphraseFileChooser->setPromptDialogTitle(
+            tr("Select the passphrase file for the signing user"));
+        const QString toolTip = tr("Passphrase file for the signing user");
+        m_ui->signingPassphraseFileChooser->lineEdit()->setPlaceholderText(toolTip);
+        m_ui->signingPassphraseFileChooser->setToolTip(toolTip);
+        m_ui->signingPassphraseFileChooser->setPath(m_aspect->signingPassphraseFile());
+
+        m_ui->signingPassphraseFileChooser->setValidationFunction([aspect = m_aspect](
+                Utils::FancyLineEdit *edit, QString *errorMessage) {
+            Kit *kit = aspect->buildConfiguration()->buildSystem()->kit();
+            BuildEngine *engine = MerSdkKitAspect::buildEngine(kit);
+
+            const FilePath passphraseFilePath = FilePath::fromString(edit->text());
+            if (passphraseFilePath.isEmpty())
+                return true;
+            bool isSharedFile = passphraseFilePath.isChildOf(engine->sharedHomePath())
+                    || passphraseFilePath.isChildOf(engine->sharedSrcPath());
+            if (!isSharedFile) {
+                *errorMessage = tr("Passphrase file must be stored under %1 workspace directory")
+                        .arg(Sdk::sdkVariant());
+                return false;
+            }
+            return true;
+        });
+        setSignElementsEnabled(m_ui, m_aspect->signPackages());
+
+        connect(m_ui->signPackagesCheckBox, &QCheckBox::toggled,
+                this, [this, setSignElementsEnabled](bool checked) {
+            m_aspect->setSignPackages(checked);
+            setSignElementsEnabled(m_ui, checked);
+        });
+        connect(m_ui->signingUserChangeButton, &QPushButton::clicked, this, [this]() {
+            GpgKeyInfo selectedSigningUser = MerSigningUserSelectionDialog::selectSigningUser();
+            if (!selectedSigningUser.isValid())
+                return;
+
+            m_aspect->setSigningUser(selectedSigningUser);
+            m_ui->signingUserLineEdit->setText(selectedSigningUser.toString());
+        });
+        connect(m_ui->signingPassphraseFileChooser, &Utils::PathChooser::pathChanged,
+                this, [aspect = m_aspect](const QString &passphraseFilePath) {
+            aspect->setSigningPassphraseFile(passphraseFilePath);
+        });
     }
 
     ~MerBuildConfigurationWidget() override
@@ -202,20 +295,32 @@ const QStringList MerBuildConfigurationAspect::s_allowedSfdkOptions{
     "no-task",
     "fix-version",
     "no-fix-version",
-    "no-pull-build-requires"
+    "no-pull-build-requires",
+    "package.signing-user",
+    "package.signing-passphrase",
+    "package.signing-passphrase-file"
 };
 
 MerBuildConfigurationAspect::MerBuildConfigurationAspect(BuildConfiguration *buildConfiguration)
     : m_buildConfiguration(buildConfiguration)
 {
     setId(Constants::MER_BUILD_CONFIGURATION_ASPECT);
-    setDisplayName(tr("%1 Settings").arg(Sdk::sdkVariant()));
+    setDisplayName(displayName());
     setConfigWidgetCreator([this]() { return new MerBuildConfigurationWidget(this); });
+
+    m_signPackages = MerSettings::signPackagesByDefault();
+    m_signingUser = MerSettings::signingUser();
+    m_signingPassphraseFile = MerSettings::signingPassphraseFile();
 }
 
 BuildConfiguration *MerBuildConfigurationAspect::buildConfiguration() const
 {
     return m_buildConfiguration;
+}
+
+QString MerBuildConfigurationAspect::displayName()
+{
+    return tr("%1 Settings").arg(Sdk::sdkVariant());
 }
 
 void MerBuildConfigurationAspect::setSpecFilePath(const QString &specFilePath)
@@ -234,6 +339,36 @@ void MerBuildConfigurationAspect::setSfdkOptionsString(const QString &sfdkOption
         return;
 
     m_sfdkOptionsString = sfdkOptionsString;
+
+    emit changed();
+}
+
+void MerBuildConfigurationAspect::setSignPackages(bool enable)
+{
+    if (enable == m_signPackages)
+        return;
+
+    m_signPackages = enable;
+
+    emit changed();
+}
+
+void MerBuildConfigurationAspect::setSigningUser(const Sfdk::GpgKeyInfo &signingUser)
+{
+    if (signingUser == m_signingUser)
+        return;
+
+    m_signingUser = signingUser;
+
+    emit changed();
+}
+
+void MerBuildConfigurationAspect::setSigningPassphraseFile(const QString &passphraseFile)
+{
+    if (passphraseFile == m_signingPassphraseFile)
+        return;
+
+    m_signingPassphraseFile = passphraseFile;
 
     emit changed();
 }
@@ -259,6 +394,15 @@ void MerBuildConfigurationAspect::addToEnvironment(Environment &env) const
             parts << "-c" << option;
     }
 
+    if (m_signPackages) {
+        if (m_signingUser.isValid())
+            parts << "-c"
+                  << "package.signing-user=" + QtcProcess::quoteArgUnix(m_signingUser.fingerprint);
+        if (!m_signingPassphraseFile.isEmpty())
+            parts << "-c"
+                  << "package.signing-passphrase-file=" + QtcProcess::quoteArgUnix(m_signingPassphraseFile);
+    }
+
     if (!parts.isEmpty())
         env.appendOrSet(Sfdk::Constants::MER_SSH_SFDK_OPTIONS, parts.join(' '));
 }
@@ -267,12 +411,22 @@ void MerBuildConfigurationAspect::fromMap(const QVariantMap &map)
 {
     m_specFilePath = map.value(SPEC_FILE_PATH).toString();
     m_sfdkOptionsString = map.value(SFDK_CONFIGURATION_OPTIONS).toString();
+
+    m_signPackages = map.value(MER_BUILD_CONFIGURATION_SIGN_PACKAGES, m_signPackages).toBool();
+    m_signingUser = Sfdk::GpgKeyInfo::fromString(
+            map.value(QLatin1String(MER_BUILD_CONFIGURATION_SIGNING_USER)).toString());
+    m_signingPassphraseFile =
+            map.value(MER_BUILD_CONFIGURATION_SIGNING_PASSPHRASE_FILE, m_signingPassphraseFile)
+            .toString();
 }
 
 void MerBuildConfigurationAspect::toMap(QVariantMap &map) const
 {
     map.insert(SPEC_FILE_PATH, m_specFilePath);
     map.insert(SFDK_CONFIGURATION_OPTIONS, m_sfdkOptionsString);
+    map.insert(MER_BUILD_CONFIGURATION_SIGN_PACKAGES, m_signPackages);
+    map.insert(MER_BUILD_CONFIGURATION_SIGNING_USER, m_signingUser.toString());
+    map.insert(MER_BUILD_CONFIGURATION_SIGNING_PASSPHRASE_FILE, m_signingPassphraseFile);
 }
 
 } // Internal

@@ -29,6 +29,7 @@
 #include "targetsxmlreader_p.h"
 #include "usersettings_p.h"
 #include "virtualmachine_p.h"
+#include "signingutils_p.h"
 
 #include <ssh/sshconnection.h>
 #include <ssh/sshremoteprocessrunner.h>
@@ -57,6 +58,7 @@ const char* SIMPLE_WRAPPERS[] = {
     Constants::WRAPPER_CMAKE,
     Constants::WRAPPER_QMAKE,
     Constants::WRAPPER_MAKE,
+    Constants::WRAPPER_MAKE_INSTALL,
     Constants::WRAPPER_GCC,
     Constants::WRAPPER_DEPLOY,
     Constants::WRAPPER_RPM,
@@ -313,6 +315,26 @@ BuildTargetData BuildEngine::buildTarget(const QString &name) const
 {
     return Utils::findOrDefault(d_func()->buildTargetsData,
             Utils::equal(&BuildTargetData::name, name));
+}
+
+void BuildEngine::importPrivateGpgKey(const QString &id,
+        const Utils::FilePath &passphraseFile,
+        const QObject *context,
+        const Functor<bool, QString> &functor)
+{
+    QString errorString;
+    QTC_ASSERT(isGpgAvailable(&errorString),
+            QTimer::singleShot(0, context, std::bind(functor, false, errorString)); return);
+
+    const FilePath sharedGpgDir = sharedConfigPath()
+            .stringAppended(Constants::BUILD_ENGINE_HOST_GNUPG_PATH_POSTFIX);
+
+    const QPointer<const QObject> context_{context};
+    SigningUtils::exportSecretKey(id, passphraseFile, sharedGpgDir, this,
+            [=](bool ok, const QString &errorString) {
+        if (context_)
+            functor(ok, errorString);
+    });
 }
 
 /*!

@@ -28,6 +28,7 @@
 #include "generatekeyscommand.h"
 #include "lupdatecommand.h"
 #include "makecommand.h"
+#include "makeinstallcommand.h"
 #include "qmakecommand.h"
 #include "rpmcommand.h"
 #include "rpmvalidationcommand.h"
@@ -151,6 +152,7 @@ int main(int argc, char *argv[])
     CommandFactory::registerCommand<CMakeCommand>(QLatin1String("cmake"));
     CommandFactory::registerCommand<GccCommand>(QLatin1String("gcc"));
     CommandFactory::registerCommand<MakeCommand>(QLatin1String("make"));
+    CommandFactory::registerCommand<MakeInstallCommand>(QLatin1String("make-install"));
     CommandFactory::registerCommand<DeployCommand>(QLatin1String("deploy"));
     CommandFactory::registerCommand<RpmCommand>(QLatin1String("rpm"));
     CommandFactory::registerCommand<RpmValidationCommand>(QLatin1String("rpmvalidation"));

@@ -254,6 +254,23 @@ public:
         });
     }
 
+    Q_INVOKABLE bool importGpgKey(const QString &signingUser, const QString &signingPassphraseFile)
+    {
+        return withEngine([=](BuildEngine *engine) {
+            QString errorString;
+            bool ok;
+            execAsynchronous(std::tie(ok, errorString),
+                    std::mem_fn(&BuildEngine::importPrivateGpgKey),
+                    engine,
+                    signingUser,
+                    FilePath::fromString(signingPassphraseFile));
+            if (!ok)
+                qjsEngine(this)->throwError(errorString);
+
+            return ok;
+        });
+    }
+
 private:
     QString enginePath(Utils::FilePath (BuildEngine::*getter)() const) const
     {

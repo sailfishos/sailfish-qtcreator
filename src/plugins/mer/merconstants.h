@@ -91,6 +91,8 @@ const char MER_COMPILATION_DATABASE_MS_ID[] = "Mer.CompilationDatabaseMakeStep";
 
 const char QML_LIVE_HELP_URL[] = "qthelp://org.qt-project.qtcreator/doc/creator-qtquick-qmllive-sailfish.html";
 
+const char MER_SIGN_PACKAGES_OPTION_NAME[] = QT_TRANSLATE_NOOP("Mer", "Sign packages");
+
 } // namespace Constants
 } // namespace Mer
 

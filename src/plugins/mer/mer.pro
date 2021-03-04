@@ -80,6 +80,7 @@ SOURCES += \
     mersdkkitaspect.cpp \
     mersdkmanager.cpp \
     mersettings.cpp \
+    mersigninguserselectiondialog.cpp \
     mersshparser.cpp \
     mertargetmanagementdialog.cpp \
     mertoolchain.cpp \
@@ -136,6 +137,7 @@ HEADERS += \
     mersdkkitaspect.h \
     mersdkmanager.h \
     mersettings.h \
+    mersigninguserselectiondialog.h \
     mersshparser.h \
     mertargetmanagementdialog.h \
     mertoolchain.h \

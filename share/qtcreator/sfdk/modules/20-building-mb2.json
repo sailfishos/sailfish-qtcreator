@@ -36,10 +36,11 @@
         },
         {
             "name": "build",
-            "trSynopsis": "[-p|--prepare] [--no-check] [-d|--enable-debug] [-j <n>] [<project-dir-or-file>] [[--] <rpmbuild-extra-arg>...]",
+            "trSynopsis": "[-p|--prepare] [--no-check] [-d|--enable-debug] [-j <n>] [--sign] [<project-dir-or-file>] [[--] <rpmbuild-extra-arg>...]",
             "trBrief": "Execute all build steps at once",
             "configOptions": ["*", "target!"],
-            "trDescription": "Run rpmbuild. Execute all sections of the .spec file except for %prep unless told otherwise.\n\nIf path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the .spec file.)\n\n--prepare         Run %prep section as well\n--no-check        Skip the %check section\n--enable-debug    Enable debug build\n-j <n>            Run up to <n> jobs simultaneously"
+            "trDescription": "Run rpmbuild. Execute all sections of the .spec file except for %prep unless told otherwise.\n\nIf path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the .spec file.)\n\n--prepare         Run %prep section as well\n--no-check        Skip the %check section\n--enable-debug    Enable debug build\n-j <n>            Run up to <n> jobs simultaneously\n--sign            Sign packages",
+            "preRun": "module.maybeImportSigningKey"
         },
         {
             "name": "qmake",
@@ -70,10 +71,11 @@
         },
         {
             "name": "package",
-            "trSynopsis": "[--no-check]",
+            "trSynopsis": "[--no-check] [--sign]",
             "trBrief": "Execute package creation build step",
             "configOptions": ["*", "target!"],
-            "trDescription": "Run rpmbuild. Execute just the %install section of the .spec file, then build binary packages. Unless '--no-check' is passed, execute also the %check section if present."
+            "trDescription": "Run rpmbuild. Execute just the %install section of the .spec file, then build binary packages and optionally sign those. Unless '--no-check' is passed, execute also the %check section if present.",
+            "preRun": "module.maybeImportSigningKey"
         }
     ],
 
@@ -144,6 +146,21 @@
         {
             "name": "no-pull-build-requires",
             "trDescription": "Do not update build-time dependencies unless required explicitly with 'build-requires pull'."
+        },
+        {
+            "name": "package.signing-user",
+            "trArgument": "<name>",
+            "trDescription": "Select the GPG key to sign packages with. Accepts the same values\n as the '--local-user' option of the gpg command does. See GPG\n documentation for more details.\n\nDepending on your SDK variant, different semantics may apply."
+        },
+        {
+            "name": "package.signing-passphrase",
+            "trArgument": "<passphrase>",
+            "trDescription": "In case a passphrase-protected signing key is selected for signing\n packages, use <string> as the passphrase."
+        },
+        {
+            "name": "package.signing-passphrase-file",
+            "trArgument": "<file>",
+            "trDescription": "In case a passphrase-protected signing key is selected for signing\n packages, read the passphrase from the <file>. Only the first line will\n be read."
         }
     ]
 }

@@ -51,6 +51,7 @@ namespace {
 const char SDK_MAINTENANCE_TOOL_DATA_FILE[] = "SDKMaintenanceTool.dat";
 const char VBOXMANAGE_PATH[] = "VBoxManagePath";
 const char DOCKER_PATH[] = "DockerPath";
+const char GPG_PATH[] = "GpgPath";
 }
 
 /*!
@@ -417,6 +418,7 @@ void SdkPrivate::readGeneralSettings()
 
     customVBoxManagePath_ = settings.value(VBOXMANAGE_PATH).toString();
     customDockerPath_ = settings.value(DOCKER_PATH).toString();
+    customGpgPath_ = settings.value(GPG_PATH).toString();
 }
 
 } // namespace Sfdk

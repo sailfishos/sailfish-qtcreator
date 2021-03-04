@@ -61,6 +61,7 @@ const int ADD_REMOVE_SPECIAL_STEPS_DELAY_MS = 1000;
 MerRpmDeployConfigurationFactory::MerRpmDeployConfigurationFactory()
 {
     addInitialStep(MerPrepareTargetStep::stepId());
+    addInitialStep(MerMb2RpmBuildStep::stepId());
     addInitialStep(MerMb2RpmDeployStep::stepId());
 }
 
@@ -79,6 +80,7 @@ Core::Id MerRpmDeployConfigurationFactory::configurationId()
 MerRsyncDeployConfigurationFactory::MerRsyncDeployConfigurationFactory()
 {
     addInitialStep(MerPrepareTargetStep::stepId());
+    addInitialStep(MerMb2MakeInstallStep::stepId());
     addInitialStep(MerMb2RsyncDeployStep::stepId());
 }
 

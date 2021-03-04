@@ -71,6 +71,7 @@ const char BUILD_ENGINE_SHARED_HOME_MOUNT_POINT[] = "/host_home";
 const char BUILD_ENGINE_SHARED_TARGET_MOUNT_POINT[] = "/host_targets";
 const char BUILD_ENGINE_SHARED_SSH_MOUNT_POINT[] = "/etc/ssh/authorized_keys";
 const char BUILD_ENGINE_ALIGNED_MOUNT_POINT_ENV_TEMPLATE[] = "SAILFISH_SDK_%1_MOUNT_POINT";
+const char BUILD_ENGINE_HOST_GNUPG_PATH_POSTFIX[] = "/gnupg";
 
 const char BUILD_TARGET_NAME[] = "Name";
 const char BUILD_TARGET_GCC_DUMP_MACHINE[] = "GccDumpMachine";
@@ -97,6 +98,7 @@ const char WRAPPER_RPM[] = "rpm" SCRIPT_EXTENSION;
 const char WRAPPER_RPMVALIDATION[] = "rpmvalidation" SCRIPT_EXTENSION;
 const char WRAPPER_LUPDATE[] = "lupdate" SCRIPT_EXTENSION;
 const char WRAPPER_PKG_CONFIG[] = "pkg-config" SCRIPT_EXTENSION;
+const char WRAPPER_MAKE_INSTALL[] = "make-install" SCRIPT_EXTENSION;
 const char QMAKE_QUERY_CACHE[] = "qmake.query";
 const char CMAKE_VERSION_CACHE[] = "cmake.version";
 const char GCC_DUMP_MACHINE_CACHE[] = "gcc.dumpmachine";

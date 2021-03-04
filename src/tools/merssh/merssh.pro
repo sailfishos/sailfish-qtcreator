@@ -15,6 +15,7 @@ SOURCES = \
     main.cpp \
     command.cpp \
     cmakecommand.cpp \
+    makeinstallcommand.cpp \
     qmakecommand.cpp \
     generatekeyscommand.cpp \
     gcccommand.cpp \
@@ -28,6 +29,7 @@ HEADERS += \
     command.h \
     commandfactory.h \
     cmakecommand.h \
+    makeinstallcommand.h \
     qmakecommand.h \
     generatekeyscommand.h \
     gcccommand.h \
