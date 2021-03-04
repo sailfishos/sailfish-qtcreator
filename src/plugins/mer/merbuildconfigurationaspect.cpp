@@ -202,7 +202,10 @@ const QStringList MerBuildConfigurationAspect::s_allowedSfdkOptions{
     "no-task",
     "fix-version",
     "no-fix-version",
-    "no-pull-build-requires"
+    "no-pull-build-requires",
+    "package.signing-user",
+    "package.signing-passphrase",
+    "package.signing-passphrase-file"
 };
 
 MerBuildConfigurationAspect::MerBuildConfigurationAspect(BuildConfiguration *buildConfiguration)

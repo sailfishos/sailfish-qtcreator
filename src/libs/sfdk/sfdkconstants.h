@@ -71,6 +71,7 @@ const char BUILD_ENGINE_SHARED_HOME_MOUNT_POINT[] = "/host_home";
 const char BUILD_ENGINE_SHARED_TARGET_MOUNT_POINT[] = "/host_targets";
 const char BUILD_ENGINE_SHARED_SSH_MOUNT_POINT[] = "/etc/ssh/authorized_keys";
 const char BUILD_ENGINE_ALIGNED_MOUNT_POINT_ENV_TEMPLATE[] = "SAILFISH_SDK_%1_MOUNT_POINT";
+const char BUILD_ENGINE_HOST_GNUPG_PATH_POSTFIX[] = "/gnupg";
 
 const char BUILD_TARGET_NAME[] = "Name";
 const char BUILD_TARGET_GCC_DUMP_MACHINE[] = "GccDumpMachine";

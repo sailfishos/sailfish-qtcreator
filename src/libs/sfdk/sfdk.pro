@@ -15,6 +15,7 @@ SOURCES += \
     emulator.cpp \
     sfdkglobal.cpp \
     sdk.cpp \
+    signingutils.cpp \
     targetsxmlreader.cpp \
     utils.cpp \
     usersettings.cpp \
@@ -36,6 +37,7 @@ HEADERS += \
     sfdkglobal.h \
     sdk.h \
     sdk_p.h \
+    signingutils_p.h \
     targetsxmlreader_p.h \
     utils.h \
     utils_p.h \

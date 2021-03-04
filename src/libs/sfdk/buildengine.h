@@ -107,6 +107,9 @@ public:
     QList<BuildTargetData> buildTargets() const;
     BuildTargetData buildTarget(const QString &name) const;
 
+    void importPrivateGpgKey(const QString &id, const Utils::FilePath &passphraseFile,
+            const QObject *context, const Functor<bool, QString> &functor);
+
 signals:
     void sharedInstallPathChanged(const Utils::FilePath &sharedInstallPath);
     void sharedHomePathChanged(const Utils::FilePath &sharedHomePath);

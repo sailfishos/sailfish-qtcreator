@@ -25,12 +25,16 @@
 #include "utils_p.h"
 
 #include "sfdkconstants.h"
+#include "signingutils_p.h"
 
 #include <utils/algorithm.h>
 #include <utils/portlist.h>
 
+#include <QJsonObject>
 #include <QList>
+#include <QRegularExpression>
 #include <QTcpServer>
+#include <QTimer>
 
 #include <algorithm>
 
@@ -105,6 +109,45 @@ QString separator(TextStyle textStyle)
 bool isPortOccupied(quint16 port)
 {
     return !QTcpServer().listen(QHostAddress::LocalHost, port);
+}
+
+QString GpgKeyInfo::toString() const
+{
+    if (isValid())
+        return QString(name + " [" + fingerprint + "]");
+    return {};
+}
+
+GpgKeyInfo GpgKeyInfo::fromString(const QString &string)
+{
+    QRegularExpression re("^(.*) \\[(.*)\\]$");
+    QRegularExpressionMatch match = re.match(string);
+    return {match.captured(1), match.captured(2)};
+}
+
+bool GpgKeyInfo::isValid() const
+{
+    return !name.isEmpty() && !fingerprint.isEmpty();
+}
+
+bool GpgKeyInfo::operator==(const GpgKeyInfo &other) const
+{
+    return name == other.name && fingerprint == other.fingerprint;
+}
+
+bool isGpgAvailable(QString *errorString)
+{
+    return SigningUtils::isGpgAvailable(errorString);
+}
+
+void availableGpgKeys(const QObject *context,
+        const Functor<bool, const QList<GpgKeyInfo> &, QString> &functor)
+{
+    QString errorString;
+    QTC_ASSERT(isGpgAvailable(&errorString),
+            QTimer::singleShot(0, context, std::bind(functor, false, QList<GpgKeyInfo>(), errorString)); return);
+
+    SigningUtils::listSecretKeys(context, functor);
 }
 
 } // namespace Sfdk

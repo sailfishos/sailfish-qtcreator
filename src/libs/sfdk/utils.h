@@ -22,7 +22,11 @@
 
 #pragma once
 
+#include "asynchronous.h"
 #include "sfdkglobal.h"
+
+#include <QJsonDocument>
+#include <QMetaType>
 
 namespace Sfdk {
 
@@ -35,4 +39,23 @@ enum class TextStyle
 
 SFDK_EXPORT bool isPortOccupied(quint16 port);
 
-}
+class SFDK_EXPORT GpgKeyInfo
+{
+public:
+    QString name;
+    QString fingerprint;
+
+    QString toString() const;
+    static GpgKeyInfo fromString(const QString &string);
+
+    bool isValid() const;
+    bool operator==(const GpgKeyInfo &other) const;
+};
+
+SFDK_EXPORT bool isGpgAvailable(QString *errorString);
+SFDK_EXPORT void availableGpgKeys(const QObject *context,
+        const Functor<bool, const QList<GpgKeyInfo> &, QString> &functor);
+
+} // namespace Sfdk
+
+Q_DECLARE_METATYPE(Sfdk::GpgKeyInfo);

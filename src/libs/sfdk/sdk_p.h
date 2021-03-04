@@ -72,6 +72,7 @@ public:
 
     static QString customVBoxManagePath() { return instance()->customVBoxManagePath_; }
     static QString customDockerPath() { return instance()->customDockerPath_; }
+    static QString customGpgPath() { return instance()->customGpgPath_; }
 
 signals:
     void enableUpdatesRequested();
@@ -91,6 +92,7 @@ private:
     std::unique_ptr<DeviceManager> deviceManager;
     QString customVBoxManagePath_;
     QString customDockerPath_;
+    QString customGpgPath_;
 };
 
 } // namespace Sfdk
