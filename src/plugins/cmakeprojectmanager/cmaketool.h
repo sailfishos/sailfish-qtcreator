@@ -27,16 +27,12 @@
 
 #include "cmake_global.h"
 
-#include <coreplugin/id.h>
 #include <texteditor/codeassist/keywordscompletionassist.h>
 
 #include <utils/fileutils.h>
+#include <utils/id.h>
 #include <utils/optional.h>
 #include <utils/synchronousprocess.h>
-
-#include <QObject>
-#include <QMap>
-#include <QStringList>
 
 QT_FORWARD_DECLARE_CLASS(QProcess)
 
@@ -49,13 +45,9 @@ namespace Internal {  class IntrospectionData;  }
 class CMAKE_EXPORT CMakeTool
 {
 public:
-    enum Detection {
-        ManualDetection = 0x0,
-        AutoDetection = 0x1,
-        AutoDetectionByPlugin = 0x3
-    };
+    enum Detection { ManualDetection, AutoDetection };
 
-    enum ReaderType { TeaLeaf, ServerMode, FileApi };
+    enum ReaderType { FileApi };
 
     struct Version
     {
@@ -77,20 +69,20 @@ public:
         bool supportsPlatform = true;
         bool supportsToolset = true;
 
-        bool matches(const QString &n, const QString &ex) const;
+        bool matches(const QString &n, const QString &ex = QString()) const;
     };
 
     using PathMapper = std::function<Utils::FilePath (const Utils::FilePath &)>;
 
-    explicit CMakeTool(Detection d, const Core::Id &id);
+    explicit CMakeTool(Detection d, const Utils::Id &id);
     explicit CMakeTool(const QVariantMap &map, bool fromSdk);
     ~CMakeTool();
 
-    static Core::Id createId();
+    static Utils::Id createId();
 
     bool isValid() const;
 
-    Core::Id id() const { return m_id; }
+    Utils::Id id() const { return m_id; }
     QVariantMap toMap () const;
 
     void setAutorun(bool autoRun);
@@ -106,50 +98,38 @@ public:
     bool autoCreateBuildDirectory() const;
     QList<Generator> supportedGenerators() const;
     TextEditor::Keywords keywords();
-    bool hasServerMode() const;
     bool hasFileApi() const;
     QVector<std::pair<QString, int>> supportedFileApiObjects() const;
     Version version() const;
 
     bool isAutoDetected() const;
-    bool isAutoDetectedByPlugin() const;
     QString displayName() const;
     void setDisplayName(const QString &displayName);
 
     void setPathMapper(const PathMapper &includePathMapper);
     PathMapper pathMapper() const;
 
-    ReaderType readerType() const;
+    Utils::optional<ReaderType> readerType() const;
 
     static Utils::FilePath searchQchFile(const Utils::FilePath &executable);
 
 private:
-    enum class QueryType {
-        GENERATORS,
-        SERVER_MODE,
-        VERSION
-    };
-    void readInformation(QueryType type) const;
+    void readInformation() const;
 
     Utils::SynchronousProcessResponse run(const QStringList &args, int timeoutS = 1) const;
     void parseFunctionDetailsOutput(const QString &output);
     QStringList parseVariableOutput(const QString &output);
 
-    void fetchGeneratorsFromHelp() const;
-    void parseGeneratorsFromHelp(const QStringList &lines) const;
-    void fetchVersionFromVersionOutput() const;
-    void parseVersionFormVersionOutput(const QStringList &lines) const;
     void fetchFromCapabilities() const;
     void parseFromCapabilities(const QString &input) const;
 
-    Core::Id m_id;
+    Utils::Id m_id;
     QString m_displayName;
     Utils::FilePath m_executable;
     Utils::FilePath m_qchFilePath;
 
     bool m_isAutoRun = true;
     bool m_isAutoDetected = false;
-    bool m_isAutoDetectedByPlugin = false;
     bool m_autoCreateBuildDirectory = false;
 
     Utils::optional<ReaderType> m_readerType;

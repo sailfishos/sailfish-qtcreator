@@ -47,7 +47,6 @@ const Icon REBUILD({
         {":/projectexplorer/images/buildhammerhandle.png", Theme::IconsBuildHammerHandleColor},
         {":/projectexplorer/images/rebuildhammerheads.png", Theme::IconsBuildHammerHeadColor},
         {":/projectexplorer/images/buildhammerhead.png", Theme::IconsBuildHammerHeadColor}}, Icon::Tint);
-const Icon DEPLOY(":/projectexplorer/images/deploy.png");
 const Icon RUN(":/projectexplorer/images/run.png");
 const Icon RUN_FLAT({
         {":/projectexplorer/images/run_mask.png", Theme::IconsRunToolBarColor}});
@@ -65,6 +64,8 @@ const Icon DEVICE_DISCONNECTED_INDICATOR({
         {":/utils/images/filledcircle.png", Theme::IconsStopColor}}, Icon::Tint);
 const Icon DEVICE_DISCONNECTED_INDICATOR_OVERLAY({
         {":/projectexplorer/images/devicestatusindicator.png", Theme::IconsStopToolBarColor}});
+const Icon WIZARD_IMPORT_AS_PROJECT(
+        ":/projectexplorer/images/importasproject.png");
 
 const Icon DEBUG_START_FLAT({
         {":/projectexplorer/images/run_mask.png", Theme::IconsRunToolBarColor},

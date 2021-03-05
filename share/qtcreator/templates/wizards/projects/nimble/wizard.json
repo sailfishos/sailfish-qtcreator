@@ -9,8 +9,8 @@
     "featuresRequired":[
         "ToolChain.Nim.NimToolChain"
     ],
-    "icon":"icon.png",
-    "enabled":"%{JS: false // value('Plugins').indexOf('Nim') >= 0 }",
+    "icon":"../nim/icon.png",
+    "enabled":"%{JS: value('Plugins').indexOf('Nim') >= 0 }",
     "options":[
         {
             "key":"ProjectFile",

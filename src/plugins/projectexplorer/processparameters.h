@@ -60,8 +60,6 @@ public:
     Utils::FilePath effectiveCommand() const;
     /// Get the fully expanded arguments to use:
     QString effectiveArguments() const;
-    /// Get the fully expanded environment to use:
-    Utils::Environment effectiveEnvironment() const;
 
     /// True if effectiveCommand() would return only a fallback
     bool commandMissing() const;
@@ -71,18 +69,16 @@ public:
     QString summary(const QString &displayName) const;
     QString summaryInWorkdir(const QString &displayName) const;
 
-    void resolveAll();
 private:
     Utils::FilePath m_workingDirectory;
     Utils::CommandLine m_command;
     Utils::Environment m_environment;
-    Utils::MacroExpander *m_macroExpander;
+    Utils::MacroExpander *m_macroExpander = nullptr;
 
     mutable Utils::FilePath m_effectiveWorkingDirectory;
     mutable Utils::FilePath m_effectiveCommand;
     mutable QString m_effectiveArguments;
-    mutable Utils::Environment m_effectiveEnvironment;
-    mutable bool m_commandMissing;
+    mutable bool m_commandMissing = false;
 };
 
 } // namespace ProjectExplorer

@@ -57,6 +57,9 @@ DScontrolBackgroundInteraction=ff777777
 DStranslationIndicatorBorder=ffebebeb
 DSsectionHeadBackground=ffebebeb
 DSchangedStateText=ff99ccff
+DS3DAxisXColor=ffff0000
+DS3DAxisYColor=ff00A000
+DS3DAxisZColor=ff0000ff
 ;DS controls theme END
 
 BackgroundColorAlternate=alternateBackground
@@ -120,7 +123,6 @@ IconsModeDebugActiveColor=ff6a6add
 IconsModeProjectActiveColor=ff5caa15
 IconsModeAnalyzeActiveColor=ff43adee
 IconsModeHelpActiveColor=fffaa838
-IconsModeMerActiveColor=ff97f0ff
 IconsCodeModelKeywordColor=ff777777
 IconsCodeModelClassColor=ffc0b550
 IconsCodeModelStructColor=ff53b053

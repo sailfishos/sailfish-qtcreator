@@ -73,6 +73,7 @@ HEADERS += \
     $$UTILS/qtcassert.h \
     $$UTILS/qtcprocess.h \
     $$UTILS/savefile.h \
+    $$UTILS/porting.h
 
 macos {
     OBJECTIVE_SOURCES += \
@@ -92,7 +93,7 @@ QMAKE_SUBSTITUTES += appversion
 INCLUDEPATH += $$OUT_PWD
 
 isEmpty(SDKTOOL_DATA_PATH) {
-    macos:DEFINES += $$shell_quote(DATA_PATH=\"..\")
+    macos:DEFINES += $$shell_quote(DATA_PATH=\".\")
     else:win32:DEFINES += $$shell_quote(DATA_PATH=\"../share/qtcreator\")
     else:DEFINES += $$shell_quote(DATA_PATH=\"../../share/qtcreator\")
 } else {

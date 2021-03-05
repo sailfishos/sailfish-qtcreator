@@ -197,7 +197,6 @@ public:
         IconsModeProjectActiveColor,
         IconsModeAnalyzeActiveColor,
         IconsModeHelpActiveColor,
-        IconsModeMerActiveColor,
 
         /* Code model Icons */
 
@@ -343,7 +342,10 @@ public:
         DScontrolBackgroundInteraction,
         DStranslationIndicatorBorder,
         DSsectionHeadBackground,
-        DSchangedStateText
+        DSchangedStateText,
+        DS3DAxisXColor,
+        DS3DAxisYColor,
+        DS3DAxisZColor
     };
 
     enum Gradient {

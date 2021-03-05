@@ -61,6 +61,9 @@ DScontrolBackgroundInteraction=ff4d4d4d
 DStranslationIndicatorBorder=ff7f7f7f
 DSsectionHeadBackground=ff424242
 DSchangedStateText=ff99ccff
+DS3DAxisXColor=ffe00000
+DS3DAxisYColor=ff009900
+DS3DAxisZColor=ff6060ff
 ;DS controls theme END
 
 BackgroundColorAlternate=alternateBackground
@@ -124,7 +127,6 @@ IconsModeDebugActiveColor=ff99aaef
 IconsModeProjectActiveColor=ff80c342
 IconsModeAnalyzeActiveColor=ff43adee
 IconsModeHelpActiveColor=fff4be04
-IconsModeMerActiveColor=ff97f0ff
 IconsCodeModelKeywordColor=ff777777
 IconsCodeModelClassColor=ffc0b550
 IconsCodeModelStructColor=ff53b053
@@ -273,6 +275,7 @@ PaletteWindowDisabled=backgroundColorDisabled
 PaletteWindowTextDisabled=textDisabled
 PaletteBaseDisabled=backgroundColorDisabled
 PaletteTextDisabled=textDisabled
+PaletteMid=ffa0a0a0
 
 [Flags]
 ComboBoxDrawTextShadow=false

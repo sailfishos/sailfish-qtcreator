@@ -25,44 +25,34 @@
 
 #pragma once
 
-#include "cmakebuildstep.h"
 #include "cmakeconfigitem.h"
-#include "cmakeproject.h"
 #include "configmodel.h"
 
+#include <projectexplorer/buildaspects.h>
 #include <projectexplorer/buildconfiguration.h>
-#include <projectexplorer/buildtargetinfo.h>
-#include <projectexplorer/deploymentdata.h>
 
 namespace CMakeProjectManager {
 class CMakeProject;
 
 namespace Internal {
 
-class BuildDirManager;
 class CMakeBuildSystem;
 class CMakeBuildSettingsWidget;
 
-class CMAKE_EXPORT CMakeBuildConfiguration : public ProjectExplorer::BuildConfiguration
+class CMakeBuildConfiguration final : public ProjectExplorer::BuildConfiguration
 {
     Q_OBJECT
 
-    // used in DebuggerRunConfigurationAspect
-    Q_PROPERTY(bool linkQmlDebuggingLibrary
-               READ isQmlDebuggingEnabled
-               NOTIFY configurationForCMakeChanged)
-
     friend class ProjectExplorer::BuildConfigurationFactory;
+    CMakeBuildConfiguration(ProjectExplorer::Target *target, Utils::Id id);
+    ~CMakeBuildConfiguration() final;
 
 public:
-    CMakeBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
-    ~CMakeBuildConfiguration() override;
-
-public:
-    CMakeConfig configurationForCMake() const;
     CMakeConfig configurationFromCMake() const;
 
-    CMakeBuildStep *cmakeBuildStep() const;
+    QStringList extraCMakeArguments() const;
+
+    QStringList initialCMakeArguments() const;
 
     QString error() const;
     QString warning() const;
@@ -75,11 +65,11 @@ public:
     void buildTarget(const QString &buildTarget);
     ProjectExplorer::BuildSystem *buildSystem() const final;
 
-signals:
-    void errorOccured(const QString &message);
-    void warningOccured(const QString &message);
+    void runCMakeWithExtraArguments();
 
-    void configurationForCMakeChanged();
+signals:
+    void errorOccurred(const QString &message);
+    void warningOccurred(const QString &message);
 
 private:
     QVariantMap toMap() const override;
@@ -93,15 +83,13 @@ private:
     void clearError(ForceEnabledChanged fec = ForceEnabledChanged::False);
 
     void setConfigurationFromCMake(const CMakeConfig &config);
-    void setConfigurationForCMake(const QList<ConfigModel::DataItem> &items);
-    void setConfigurationForCMake(const CMakeConfig &config);
+
+    void setExtraCMakeArguments(const QStringList &args);
+    void setInitialCMakeArguments(const QStringList &args);
 
     void setError(const QString &message);
     void setWarning(const QString &message);
 
-    bool isQmlDebuggingEnabled() const;
-
-    CMakeConfig m_configurationForCMake;
     CMakeConfig m_initialConfiguration;
     QString m_error;
     QString m_warning;
@@ -109,15 +97,16 @@ private:
     CMakeConfig m_configurationFromCMake;
     CMakeBuildSystem *m_buildSystem = nullptr;
 
+    QStringList m_extraCMakeArguments;
+
     friend class CMakeBuildSettingsWidget;
     friend class CMakeBuildSystem;
     friend class CMakeProject;
-    friend class BuildDirManager;
 };
 
 class CMakeProjectImporter;
 
-class CMAKE_EXPORT CMakeBuildConfigurationFactory : public ProjectExplorer::BuildConfigurationFactory
+class CMakeBuildConfigurationFactory final : public ProjectExplorer::BuildConfigurationFactory
 {
 public:
     CMakeBuildConfigurationFactory();
@@ -135,6 +124,14 @@ private:
     static ProjectExplorer::BuildInfo createBuildInfo(BuildType buildType);
 
     friend class CMakeProjectImporter;
+};
+
+class InitialCMakeArgumentsAspect final : public Utils::StringAspect
+{
+    Q_OBJECT
+
+public:
+    InitialCMakeArgumentsAspect();
 };
 
 } // namespace Internal

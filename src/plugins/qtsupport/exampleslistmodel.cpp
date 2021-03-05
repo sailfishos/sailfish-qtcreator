@@ -44,6 +44,7 @@
 #include <utils/algorithm.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
+#include <utils/stringutils.h>
 #include <utils/stylehelper.h>
 
 #include <algorithm>
@@ -218,7 +219,7 @@ int ExampleSetModel::getQtId(int i) const
     return variant.toInt();
 }
 
-bool ExampleSetModel::selectedQtSupports(const Core::Id &target) const
+bool ExampleSetModel::selectedQtSupports(const Utils::Id &target) const
 {
     return m_selectedQtTypes.contains(target);
 }
@@ -336,11 +337,9 @@ void ExamplesListModel::parseExamples(QXmlStreamReader *reader,
             } else if (reader->name() == QLatin1String("dependency")) {
                 item->dependencies.append(projectsOffset + slash + reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement));
             } else if (reader->name() == QLatin1String("tags")) {
-                item->tags = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
+                item->tags = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), Qt::SkipEmptyParts));
             } else if (reader->name() == QLatin1String("platforms")) {
-                item->platforms = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
-            } else if (reader->name() == QLatin1String("preferredFeatures")) {
-                item->preferredFeatures = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
+                item->platforms = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), Qt::SkipEmptyParts));
         }
             break;
         case QXmlStreamReader::EndElement:
@@ -433,10 +432,6 @@ void ExamplesListModel::parseTutorials(QXmlStreamReader *reader, const QString &
                 item->dependencies.append(projectsOffset + slash + reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement));
             } else if (reader->name() == QLatin1String("tags")) {
                 item->tags = reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','));
-            }  else if (reader->name() == QLatin1String("platforms")) {
-                item->platforms = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
-            } else if (reader->name() == QLatin1String("preferredFeatures")) {
-                item->preferredFeatures = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
             }
             break;
         case QXmlStreamReader::EndElement:
@@ -518,7 +513,7 @@ QPixmap ExamplesListModel::fetchPixmapAndUpdatePixmapCache(const QString &url) c
         if (!fetchedData.isEmpty()) {
             QBuffer imgBuffer(&fetchedData);
             imgBuffer.open(QIODevice::ReadOnly);
-            QImageReader reader(&imgBuffer);
+            QImageReader reader(&imgBuffer, QFileInfo(url).suffix().toLatin1());
             QImage img = reader.read();
             img = ScreenshotCropper::croppedImage(img, url, ListModel::defaultImageSize);
             pixmap = QPixmap::fromImage(img);
@@ -589,27 +584,9 @@ BaseQtVersion *ExampleSetModel::findHighestQtVersion(const QList<BaseQtVersion *
 QStringList ExampleSetModel::exampleSources(QString *examplesInstallPath, QString *demosInstallPath)
 {
     QStringList sources;
-    QSettings *settings = Core::ICore::settings();
 
-    // read extra tutorials settings
-    QString installedTutorials = settings->value(QLatin1String("Help/InstalledTutorials"),
-                                                 QString()).toString();
-    if (installedTutorials.isEmpty()) {
-        // Qt Creator shipped tutorials
-        sources << ":/qtsupport/qtcreator_tutorials.xml";
-    } else {
-        if (debugExamples())
-            qWarning() << "Reading Help/InstalledTutorials from settings:" << installedTutorials;
-        QFileInfo fi(installedTutorials);
-        if (fi.isFile() && fi.isReadable()) {
-            sources.append(installedTutorials);
-            if (debugExamples())
-                qWarning() << "Adding tutorials set " << installedTutorials;
-        } else {
-            if (debugExamples())
-                qWarning() << "Manifest path " << installedTutorials << "is not a readable regular file, ignoring";
-        }
-    }
+    // Qt Creator shipped tutorials
+    sources << ":/qtsupport/qtcreator_tutorials.xml";
 
     QString examplesPath;
     QString demosPath;

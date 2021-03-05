@@ -26,6 +26,7 @@ SUBDIRS   = \
     debugger \
     cpaster \
     cmakeprojectmanager \
+    mesonprojectmanager \
     autotoolsprojectmanager \
     fakevim \
     emacskeys \
@@ -64,7 +65,9 @@ SUBDIRS   = \
     studiowelcome \
     webassembly \
     mcusupport \
-    marketplace
+    marketplace \
+    incredibuild \
+    conan
 
 qtHaveModule(serialport) {
     SUBDIRS += serialterminal
@@ -114,8 +117,8 @@ exists(../shared/qbs/qbs.pro)|!isEmpty(QBS_INSTALL_DIR): \
 SUBDIRS += \
     clangcodemodel
 
-QTC_DISABLE_CLANG_REFACTORING=$$(QTC_DISABLE_CLANG_REFACTORING)
-isEmpty(QTC_DISABLE_CLANG_REFACTORING) {
+QTC_ENABLE_CLANG_REFACTORING=$$(QTC_ENABLE_CLANG_REFACTORING)
+!isEmpty(QTC_ENABLE_CLANG_REFACTORING) {
     SUBDIRS += clangrefactoring
     SUBDIRS += clangpchmanager
 }
