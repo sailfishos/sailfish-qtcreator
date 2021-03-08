@@ -24,9 +24,9 @@
 #pragma once
 
 #include "task.h"
-#include "textutils.h"
 
 #include <ssh/sshconnection.h>
+#include <utils/optional.h>
 
 #include <QByteArray>
 #include <QObject>
@@ -78,8 +78,11 @@ public:
     QProcessEnvironment extraEnvironment() const { return m_extraEnvironment; }
     void setExtraEnvironment(const QProcessEnvironment &extraEnvironment);
 
-    bool isRunInTerminalSet() const { return m_runInTerminal; }
-    void setRunInTerminal(bool runInTerminal);
+    Utils::optional<bool> isRunInTerminalSet() const { return m_runInTerminal; }
+    void setRunInTerminal(Utils::optional<bool> runInTerminal);
+
+    Utils::optional<QProcess::InputChannelMode> inputChannelMode() const { return m_inputChannelMode; }
+    void setInputChannelMode(Utils::optional<QProcess::InputChannelMode> inputChannelMode);
 
     bool isStandardOutputLineBufferedSet() const { return m_standardOutputLineBuffered; }
     void setStandardOutputLineBuffered(bool lineBuffered);
@@ -121,7 +124,8 @@ private:
     QString m_workingDirectory;
     QSsh::SshConnectionParameters m_sshConnectionParams;
     QProcessEnvironment m_extraEnvironment;
-    bool m_runInTerminal = isOutputConnectedToTerminal();
+    Utils::optional<bool> m_runInTerminal;
+    Utils::optional<QProcess::InputChannelMode> m_inputChannelMode;
     bool m_standardOutputLineBuffered = false;
     bool m_startedOk = false;
     bool m_finished = false;

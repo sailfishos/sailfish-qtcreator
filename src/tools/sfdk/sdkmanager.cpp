@@ -29,6 +29,7 @@
 #include "remoteprocess.h"
 #include "sfdkconstants.h"
 #include "sfdkglobal.h"
+#include "textutils.h"
 
 #include <sfdk/buildengine.h>
 #include <sfdk/device.h>
@@ -44,6 +45,7 @@
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
+#include <QBuffer>
 #include <QDir>
 #include <QPointer>
 #include <QRegularExpression>
@@ -99,17 +101,17 @@ public:
             break;
         case UnableToCloseVm:
             qerr() << tr("Timeout waiting for the \"%1\" virtual machine to close.")
-                .arg(virtualMachine()->name());
+                .arg(virtualMachine()->name()) << endl;
             break;
         case VmNotRegistered:
             qerr() << tr("No virtual machine with the name \"%1\" found. Check your installation.")
-                .arg(virtualMachine()->name());
+                .arg(virtualMachine()->name()) << endl;
             break;
         case SshPortOccupied:
             qerr() << tr("Another application seems to be listening on the TCP port %1 configured as "
                     "SSH port for the \"%2\" virtual machine - choose another SSH port in options.")
                 .arg(virtualMachine()->sshParameters().port())
-                .arg(virtualMachine()->name());
+                .arg(virtualMachine()->name()) << endl;
             break;
         }
     }
@@ -644,16 +646,19 @@ private:
 
     bool fetchCustomToolingsInfo()
     {
-        QByteArray data;
-        QTextStream stream(&data);
+        QBuffer out;
+        out.open(QIODevice::ReadWrite);
 
         QStringList listToolingsArgs = {"tooling", "list", "--long"};
-        const int exitCode = SdkManager::runOnEngine("sdk-manage", listToolingsArgs, stream);
+        const bool runInTerminal = false;
+        const int exitCode = SdkManager::runOnEngine("sdk-manage", listToolingsArgs, runInTerminal,
+                &out);
         if (exitCode != EXIT_SUCCESS)
             return false;
 
-        stream.seek(0);
+        out.seek(0);
 
+        QTextStream stream(&out);
         QString line;
         while (stream.readLineInto(&line)) {
             const QStringList splitted = line.split(' ', QString::SkipEmptyParts);
@@ -676,18 +681,20 @@ private:
 
     bool fetchCustomTargetsInfo(bool checkSnapshots)
     {
-        QByteArray data;
-        QTextStream stream(&data);
+        QBuffer out;
+        out.open(QIODevice::ReadWrite);
 
         QStringList args = {"target", "list", "--long"};
         if (checkSnapshots)
             args += "--check-snapshots";
-        const int exitCode = SdkManager::runOnEngine("sdk-manage", args, stream);
+        const bool runInTerminal = false;
+        const int exitCode = SdkManager::runOnEngine("sdk-manage", args, runInTerminal, &out);
         if (exitCode != EXIT_SUCCESS)
             return false;
 
-        stream.seek(0);
+        out.seek(0);
 
+        QTextStream stream(&out);
         QString line;
         while (stream.readLineInto(&line)) {
             const QStringList splitted = line.split(' ', QString::SkipEmptyParts);
@@ -1046,7 +1053,7 @@ bool SdkManager::isEngineRunning()
 }
 
 int SdkManager::runOnEngine(const QString &program, const QStringList &arguments,
-        QTextStream &out, QTextStream &err)
+        Utils::optional<bool> runInTerminal, QIODevice *out, QIODevice *err)
 {
     QTC_ASSERT(s_instance->hasEngine(), return SFDK_EXIT_ABNORMAL);
 
@@ -1079,18 +1086,40 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     if (!s_instance->mapEnginePaths(&program_, &arguments_, &workingDirectory, &extraEnvironment))
         return SFDK_EXIT_ABNORMAL;
 
+    std::unique_ptr<QFile> stdOut;
+    if (!out) {
+        stdOut = std::make_unique<QFile>();
+        stdOut->open(stdout, QIODevice::WriteOnly);
+        QTC_CHECK(stdOut->isOpen());
+        out = stdOut.get();
+    }
+
+    std::unique_ptr<QFile> stdErr;
+    if (!err) {
+        stdErr = std::make_unique<QFile>();
+        stdErr->open(stderr, QIODevice::WriteOnly);
+        QTC_CHECK(stdErr->isOpen());
+        err = stdErr.get();
+    }
+
     RemoteProcess process;
     process.setSshParameters(s_instance->m_buildEngine->virtualMachine()->sshParameters());
     process.setProgram(program_);
     process.setArguments(arguments_);
     process.setWorkingDirectory(workingDirectory);
     process.setExtraEnvironment(extraEnvironment);
+    process.setRunInTerminal(runInTerminal);
+    process.setInputChannelMode(QProcess::ForwardedInputChannel);
 
     QObject::connect(&process, &RemoteProcess::standardOutput, [&](const QByteArray &data) {
-        out << s_instance->maybeReverseMapEnginePaths(data) << flush;
+        out->write(s_instance->maybeReverseMapEnginePaths(data));
+        if (stdOut)
+            stdOut->flush();
     });
     QObject::connect(&process, &RemoteProcess::standardError, [&](const QByteArray &data) {
-        err << s_instance->maybeReverseMapEnginePaths(data) << flush;
+        err->write(s_instance->maybeReverseMapEnginePaths(data));
+        if (stdErr)
+            stdErr->flush();
     });
     QObject::connect(&process, &RemoteProcess::connectionError, [&](const QString &errorString) {
         qerr() << tr("Error connecting to the build engine: ") << errorString << endl;
@@ -1239,17 +1268,29 @@ bool SdkManager::prepareForRunOnDevice(const Device &device, RemoteProcess *proc
 }
 
 int SdkManager::runOnDevice(const Device &device, const QString &program,
-        const QStringList &arguments)
+        const QStringList &arguments, Utils::optional<bool> runInTerminal)
 {
+    QFile stdOut;
+    stdOut.open(stdout, QIODevice::WriteOnly);
+    QTC_CHECK(stdOut.isOpen());
+
+    QFile stdErr;
+    stdErr.open(stderr, QIODevice::WriteOnly);
+    QTC_CHECK(stdErr.isOpen());
+
     RemoteProcess process;
     process.setProgram(program);
     process.setArguments(arguments);
+    process.setRunInTerminal(runInTerminal);
+    process.setInputChannelMode(QProcess::ForwardedInputChannel);
 
     QObject::connect(&process, &RemoteProcess::standardOutput, [&](const QByteArray &data) {
-        qout() << data << flush;
+        stdOut.write(data);
+        stdOut.flush();
     });
     QObject::connect(&process, &RemoteProcess::standardError, [&](const QByteArray &data) {
-        qerr() << data << flush;
+        stdErr.write(data);
+        stdErr.flush();
     });
 
     if (!prepareForRunOnDevice(device, &process))
@@ -1305,11 +1346,11 @@ bool SdkManager::isEmulatorRunning(const Emulator &emulator)
 }
 
 int SdkManager::runOnEmulator(const Emulator &emulator, const QString &program,
-        const QStringList &arguments)
+        const QStringList &arguments, Utils::optional<bool> runInTerminal)
 {
     Device *const emulatorDevice = Sdk::device(emulator);
     QTC_ASSERT(emulatorDevice, return SFDK_EXIT_ABNORMAL);
-    return runOnDevice(*emulatorDevice, program, arguments);
+    return runOnDevice(*emulatorDevice, program, arguments, runInTerminal);
 }
 
 bool SdkManager::listAvailableEmulators(QList<AvailableEmulatorInfo> *info)

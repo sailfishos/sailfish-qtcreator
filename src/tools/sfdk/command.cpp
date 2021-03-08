@@ -1001,9 +1001,11 @@ Worker::ExitStatus BuiltinWorker::runDebug(const QStringList &arguments0, int *e
     return NormalExit;
 }
 
-Worker::ExitStatus BuiltinWorker::runDevice(const QStringList &arguments, int *exitCode) const
+Worker::ExitStatus BuiltinWorker::runDevice(const QStringList &arguments_, int *exitCode) const
 {
     using P = CommandLineParser;
+
+    QStringList arguments = arguments_;
 
     if (arguments.count() < 1) {
         qerr() << P::missingArgumentMessage() << endl;
@@ -1021,17 +1023,20 @@ Worker::ExitStatus BuiltinWorker::runDevice(const QStringList &arguments, int *e
     }
 
     QString errorString;
-    QString deviceNameOrIndex;
     Device *device;
-    if (arguments.count() < 2 || arguments.at(1) == "--") {
+    // Device name may not start with '-'
+    if (arguments.count() < 2 || arguments.at(1).startsWith('-')) {
         device = SdkManager::configuredDevice(&errorString);
     } else {
-        deviceNameOrIndex = arguments.at(1);
-        device = deviceForNameOrIndex(deviceNameOrIndex, &errorString);
-        // It was not the device name/idx but a command name
-        if (!device && (arguments.count() < 3 || arguments.at(2) != "--")) {
-            deviceNameOrIndex.clear();
-            device = SdkManager::configuredDevice(&errorString);
+        device = deviceForNameOrIndex(arguments.at(1), &errorString);
+        if (device) {
+            arguments.removeAt(1);
+        } else if (arguments.first() == "exec") {
+            // When "--" is used, then the very first argument must be either
+            // an option (which would be caught by the top-level if/else) or
+            // it must be a device name.
+            if (!arguments.contains("--"))
+                device = SdkManager::configuredDevice(&errorString);
         }
     }
     if (!device) {
@@ -1041,24 +1046,40 @@ Worker::ExitStatus BuiltinWorker::runDevice(const QStringList &arguments, int *e
     }
 
     if (arguments.first() == "exec") {
-        QStringList command = arguments.mid(1);
-        if (!command.isEmpty() && command.first() == deviceNameOrIndex)
-            command.removeFirst();
-        if (!command.isEmpty() && command.first() == "--")
-            command.removeFirst();
+        QCommandLineParser parser;
+        QCommandLineOption tOption("t");
+
+        parser.addOptions({tOption});
+        parser.addPositionalArgument("command", QString(), "[command]");
+        parser.addPositionalArgument("args", QString(), "[args...]");
+        parser.setOptionsAfterPositionalArgumentsMode(QCommandLineParser::ParseAsPositionalArguments);
+
+        if (!parser.parse(arguments)) {
+            qerr() << parser.errorText() << endl;
+            return BadUsage;
+        }
+
+        const QStringList command = parser.positionalArguments();
 
         QString program;
         QStringList programArguments;
+        Utils::optional<bool> runInTerminal;
         if (!command.isEmpty()) {
             program = command.first();
             if (command.count() > 1)
                 programArguments = command.mid(1);
+            if (!parser.isSet(tOption))
+                runInTerminal = false;
+            else if (CommandLineParser::optionCount(parser, tOption) > 1)
+                runInTerminal = true;
         } else {
             program = "/bin/bash";
             programArguments << "--login";
+            if (CommandLineParser::optionCount(parser, tOption) > 1)
+                runInTerminal = true;
         }
 
-        *exitCode = SdkManager::runOnDevice(*device, program, programArguments);
+        *exitCode = SdkManager::runOnDevice(*device, program, programArguments, runInTerminal);
         return NormalExit;
     }
 
@@ -1066,9 +1087,11 @@ Worker::ExitStatus BuiltinWorker::runDevice(const QStringList &arguments, int *e
     return BadUsage;
 }
 
-Worker::ExitStatus BuiltinWorker::runEmulator(const QStringList &arguments, int *exitCode) const
+Worker::ExitStatus BuiltinWorker::runEmulator(const QStringList &arguments_, int *exitCode) const
 {
     using P = CommandLineParser;
+
+    QStringList arguments = arguments_;
 
     if (arguments.count() < 1) {
         qerr() << P::missingArgumentMessage() << endl;
@@ -1116,18 +1139,20 @@ Worker::ExitStatus BuiltinWorker::runEmulator(const QStringList &arguments, int 
     }
 
     QString errorString;
-    QString emulatorNameOrIndex;
     Emulator *emulator;
-    if (arguments.count() < 2 || arguments.at(1) == "--") {
+    // Emulator name may not start with '-'
+    if (arguments.count() < 2 || arguments.at(1).startsWith('-')) {
         emulator = emulatorForNameOrIndex("0", &errorString);
     } else {
-        emulatorNameOrIndex = arguments.at(1);
-        emulator = emulatorForNameOrIndex(emulatorNameOrIndex, &errorString);
-        // It was not the emulator name/idx but a command name
-        if (!emulator && (arguments.first() == "exec" || arguments.first() == "set")
-                && (arguments.count() < 3 || arguments.at(2) != "--")) {
-            emulatorNameOrIndex.clear();
-            emulator = emulatorForNameOrIndex("0", &errorString);
+        emulator = emulatorForNameOrIndex(arguments.at(1), &errorString);
+        if (emulator) {
+            arguments.removeAt(1);
+        } else if (arguments.first() == "exec" || arguments.first() == "set") {
+            // When "--" is used, then the very first argument must be either
+            // an option (which would be caught by the top-level if/else) or
+            // it must be an emulator name.
+            if (!arguments.contains("--"))
+                emulator = emulatorForNameOrIndex("0", &errorString);
         }
     }
     if (!emulator) {
@@ -1177,8 +1202,6 @@ Worker::ExitStatus BuiltinWorker::runEmulator(const QStringList &arguments, int 
 
     if (arguments.first() == "set") {
         QStringList assignments = arguments.mid(1);
-        if (!assignments.isEmpty() && assignments.first() == emulatorNameOrIndex)
-            assignments.removeFirst();
         if (!assignments.isEmpty() && assignments.first() == "--")
             assignments.removeFirst();
 
@@ -1196,24 +1219,40 @@ Worker::ExitStatus BuiltinWorker::runEmulator(const QStringList &arguments, int 
     }
 
     if (arguments.first() == "exec") {
-        QStringList command = arguments.mid(1);
-        if (!command.isEmpty() && command.first() == emulatorNameOrIndex)
-            command.removeFirst();
-        if (!command.isEmpty() && command.first() == "--")
-            command.removeFirst();
+        QCommandLineParser parser;
+        QCommandLineOption tOption("t");
+
+        parser.addOptions({tOption});
+        parser.addPositionalArgument("command", QString(), "[command]");
+        parser.addPositionalArgument("args", QString(), "[args...]");
+        parser.setOptionsAfterPositionalArgumentsMode(QCommandLineParser::ParseAsPositionalArguments);
+
+        if (!parser.parse(arguments)) {
+            qerr() << parser.errorText() << endl;
+            return BadUsage;
+        }
+
+        const QStringList command = parser.positionalArguments();
 
         QString program;
         QStringList programArguments;
+        Utils::optional<bool> runInTerminal;
         if (!command.isEmpty()) {
             program = command.first();
             if (command.count() > 1)
                 programArguments = command.mid(1);
+            if (!parser.isSet(tOption))
+                runInTerminal = false;
+            else if (CommandLineParser::optionCount(parser, tOption) > 1)
+                runInTerminal = true;
         } else {
             program = "/bin/bash";
             programArguments << "--login";
+            if (CommandLineParser::optionCount(parser, tOption) > 1)
+                runInTerminal = true;
         }
 
-        *exitCode = SdkManager::runOnEmulator(*emulator, program, programArguments);
+        *exitCode = SdkManager::runOnEmulator(*emulator, program, programArguments, runInTerminal);
         return NormalExit;
     }
 
@@ -1292,20 +1331,41 @@ Worker::ExitStatus BuiltinWorker::runEngine(const QStringList &arguments, int *e
     }
 
     if (arguments.first() == "exec") {
-        const QStringList command = arguments.mid(1);
+        QCommandLineParser parser;
+        QCommandLineOption tOption("t");
+
+        parser.addOptions({tOption});
+        parser.addPositionalArgument("command", QString(), "[command]");
+        parser.addPositionalArgument("args", QString(), "[args...]");
+        parser.setOptionsAfterPositionalArgumentsMode(QCommandLineParser::ParseAsPositionalArguments);
+
+        if (!parser.parse(arguments)) {
+            qerr() << parser.errorText() << endl;
+            return BadUsage;
+        }
+
+        const QStringList command = parser.positionalArguments();
 
         QString program;
         QStringList programArguments;
+        Utils::optional<bool> runInTerminal;
         if (!command.isEmpty()) {
             program = command.at(0);
             if (command.count() > 1)
                 programArguments = command.mid(1);
+            if (!parser.isSet(tOption))
+                runInTerminal = false;
+            else if (CommandLineParser::optionCount(parser, tOption) > 1)
+                runInTerminal = true;
         } else {
             SdkManager::setEnableReversePathMapping(false);
             program = "/bin/bash";
             programArguments << "--login";
+            if (CommandLineParser::optionCount(parser, tOption) > 1)
+                runInTerminal = true;
         }
-        *exitCode = SdkManager::runOnEngine(program, programArguments);
+
+        *exitCode = SdkManager::runOnEngine(program, programArguments, runInTerminal);
         return NormalExit;
     }
 

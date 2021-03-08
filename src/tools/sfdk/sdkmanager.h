@@ -23,7 +23,7 @@
 
 #pragma once
 
-#include "textutils.h"
+#include <utils/optional.h>
 
 #include <QCoreApplication>
 #include <QProcessEnvironment>
@@ -129,7 +129,8 @@ public:
     static bool stopEngine();
     static bool isEngineRunning();
     static int runOnEngine(const QString &program, const QStringList &arguments,
-            QTextStream &out = qout(), QTextStream &err = qerr());
+            Utils::optional<bool> runInTerminal = {},
+            QIODevice *out = nullptr, QIODevice *err = nullptr);
 
     static void setEnableReversePathMapping(bool enable);
 
@@ -148,7 +149,7 @@ public:
     static Device *deviceByName(const QString &deviceName, QString *errorMessage);
     static bool prepareForRunOnDevice(const Device &device, RemoteProcess *process);
     static int runOnDevice(const Device &device, const QString &program,
-        const QStringList &arguments);
+            const QStringList &arguments, Utils::optional<bool> runInTerminal = {});
 
     static QList<Emulator *> sortedEmulators();
     static Emulator *emulatorByName(const QString &emulatorName, QString *errorMessage);
@@ -156,7 +157,7 @@ public:
     static bool stopEmulator(const Emulator &emulator);
     static bool isEmulatorRunning(const Emulator &emulator);
     static int runOnEmulator(const Emulator &emulator, const QString &program,
-            const QStringList &arguments);
+            const QStringList &arguments, Utils::optional<bool> runInTerminal = {});
     static bool listAvailableEmulators(QList<AvailableEmulatorInfo> *info);
     static bool installEmulator(const QString &name);
     static bool removeEmulator(const QString &name);

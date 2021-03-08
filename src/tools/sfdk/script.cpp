@@ -24,6 +24,7 @@
 
 #include "dispatch.h"
 #include "sfdkglobal.h"
+#include "textutils.h"
 
 #include <sfdk/buildengine.h>
 #include <sfdk/device.h>
