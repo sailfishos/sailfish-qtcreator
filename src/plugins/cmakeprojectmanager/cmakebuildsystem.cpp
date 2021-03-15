@@ -785,7 +785,7 @@ void CMakeBuildSystem::wireUpConnections()
         if (cmakeBuildConfiguration()->isActive() && !isParsing()) {
             const auto cmake = CMakeKitAspect::cmakeTool(cmakeBuildConfiguration()->kit());
             if (cmake && cmake->isAutoRun()) {
-                if (BuildManager::isBuilding(m_buildConfiguration->target())) {
+                if (BuildManager::isBuilding(cmakeBuildConfiguration()->target())) {
                     qCDebug(cmakeBuildSystemLog) << "Ignoring project file change while building - not requesting parse now";
                     return;
                 }
