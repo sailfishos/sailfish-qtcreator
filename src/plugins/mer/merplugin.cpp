@@ -160,7 +160,7 @@ public:
     MerCompilationDatabaseMakeStepFactory compilationDbMakeStepFactory;
     MerCompilationDatabaseBuildConfigurationFactory compilationDbBuildConfigurationFactory;
 
-    const QList<Core::Id> supportedRunConfigs{
+    const QList<Utils::Id> supportedRunConfigs{
         Constants::MER_CUSTOMRUNCONFIGURATION_PREFIX,
         Constants::MER_QMLRUNCONFIGURATION,
         Constants::MER_RUNCONFIGURATION_PREFIX

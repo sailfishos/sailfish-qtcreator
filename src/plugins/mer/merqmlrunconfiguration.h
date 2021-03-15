@@ -33,7 +33,7 @@ class MerQmlRunConfiguration : public ProjectExplorer::RunConfiguration
     Q_OBJECT
 
 public:
-    MerQmlRunConfiguration(ProjectExplorer::Target *target, Core::Id id);
+    MerQmlRunConfiguration(ProjectExplorer::Target *target, Utils::Id id);
 
     ProjectExplorer::Runnable runnable() const override;
     QString disabledReason() const override;

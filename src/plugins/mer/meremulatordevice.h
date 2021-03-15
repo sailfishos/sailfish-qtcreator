@@ -59,10 +59,10 @@ public:
 
     static void generateSshKey(Sfdk::Emulator *emulator, const QString& user);
 
-    static Core::Id idFor(const Sfdk::EmulatorDevice &sdkDevice);
-    static Core::Id idFor(const Sfdk::Emulator &emulator);
-    static QString toSdkId(const Core::Id &id);
-    static QString privateKeyFile(Core::Id emulatorId, const QString &user);
+    static Utils::Id idFor(const Sfdk::EmulatorDevice &sdkDevice);
+    static Utils::Id idFor(const Sfdk::Emulator &emulator);
+    static QString toSdkId(const Utils::Id &id);
+    static QString privateKeyFile(Utils::Id emulatorId, const QString &user);
     static void doFactoryReset(Sfdk::Emulator *emulator, QWidget *parent);
 
 private:

@@ -51,7 +51,7 @@ using namespace CMakeProjectManager::Internal;
 namespace Mer {
 namespace Internal {
 
-MerCMakeBuildConfiguration::MerCMakeBuildConfiguration(Target *target, Core::Id id)
+MerCMakeBuildConfiguration::MerCMakeBuildConfiguration(Target *target, Utils::Id id)
     : CMakeBuildConfiguration(target, id)
 {
     auto aspect = addAspect<MerBuildConfigurationAspect>(this);

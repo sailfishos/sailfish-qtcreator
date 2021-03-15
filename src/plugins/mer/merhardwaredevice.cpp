@@ -74,12 +74,12 @@ IDeviceWidget *MerHardwareDevice::createWidget()
     return new MerHardwareDeviceWidget(sharedFromThis());
 }
 
-Core::Id MerHardwareDevice::idFor(const Sfdk::HardwareDevice &sdkDevice)
+Utils::Id MerHardwareDevice::idFor(const Sfdk::HardwareDevice &sdkDevice)
 {
-    return Core::Id::fromString(sdkDevice.id());
+    return Utils::Id::fromString(sdkDevice.id());
 }
 
-QString MerHardwareDevice::toSdkId(const Core::Id &id)
+QString MerHardwareDevice::toSdkId(const Utils::Id &id)
 {
     return id.toString();
 }
@@ -143,7 +143,7 @@ void MerHardwareDeviceManager::onSdkDeviceAdded(int index)
     if (!sdkDevice)
         return;
 
-    const Core::Id id = MerHardwareDevice::idFor(*sdkDevice);
+    const Utils::Id id = MerHardwareDevice::idFor(*sdkDevice);
     if (DeviceManager::instance()->find(id))
         return; // device addition initiated from onDeviceAddedOrUpdated
 
@@ -170,13 +170,13 @@ void MerHardwareDeviceManager::onSdkAboutToRemoveDevice(int index)
 
     stopWatching(sdkDevice);
 
-    const Core::Id id = MerHardwareDevice::idFor(*sdkDevice);
+    const Utils::Id id = MerHardwareDevice::idFor(*sdkDevice);
     if (!DeviceManager::instance()->find(id))
         return; // device removal initiated from onDeviceRemoved
 
     m_removingDeviceId = id;
     DeviceManager::instance()->removeDevice(id);
-    m_removingDeviceId = Core::Id();
+    m_removingDeviceId = Utils::Id();
 }
 
 void MerHardwareDeviceManager::startWatching(Sfdk::HardwareDevice *sdkDevice)
@@ -229,7 +229,7 @@ void MerHardwareDeviceManager::stopWatching(Sfdk::HardwareDevice *sdkDevice)
     sdkDevice->disconnect(this);
 }
 
-void MerHardwareDeviceManager::onDeviceAddedOrUpdated(Core::Id id)
+void MerHardwareDeviceManager::onDeviceAddedOrUpdated(Utils::Id id)
 {
     const IDevice::ConstPtr device = DeviceManager::instance()->find(id);
     QTC_ASSERT(device, return);
@@ -260,7 +260,7 @@ void MerHardwareDeviceManager::onDeviceAddedOrUpdated(Core::Id id)
         Sdk::addDevice(std::move(newSdkDevice));
 }
 
-void MerHardwareDeviceManager::onDeviceRemoved(Core::Id id)
+void MerHardwareDeviceManager::onDeviceRemoved(Utils::Id id)
 {
     if (id == m_removingDeviceId)
         return;
@@ -281,7 +281,7 @@ void MerHardwareDeviceManager::onDeviceListReplaced()
         auto *const sdkHwDevice = qobject_cast<HardwareDevice *>(sdkDevice);
         if (!sdkHwDevice)
             continue;
-        const Core::Id id = MerHardwareDevice::idFor(*sdkHwDevice);
+        const Utils::Id id = MerHardwareDevice::idFor(*sdkHwDevice);
         if (!DeviceManager::instance()->find(id))
             onDeviceRemoved(id);
     }

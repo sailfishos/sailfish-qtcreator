@@ -32,7 +32,7 @@ class MerRunConfiguration : public ProjectExplorer::RunConfiguration
 {
     Q_OBJECT
 public:
-    MerRunConfiguration(ProjectExplorer::Target *target, Core::Id id);
+    MerRunConfiguration(ProjectExplorer::Target *target, Utils::Id id);
 
     ProjectExplorer::Runnable runnable() const override;
     QString disabledReason() const override;

@@ -66,7 +66,7 @@ void MerRpmValidationParser::stdOutput(const QString &line)
                 .arg(m_section)
                 .arg(trimmed));
         newTask(Task(Task::Error, message, FilePath(), -1,
-                     Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM)));
+                     Utils::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM)));
         return;
     } else if (m_warningRexp.indexIn(trimmed) != -1) {
         trimmed.remove(m_warningRexp);
@@ -74,7 +74,7 @@ void MerRpmValidationParser::stdOutput(const QString &line)
                 .arg(m_section)
                 .arg(trimmed));
         newTask(Task(Task::Warning, message, FilePath(), -1,
-                     Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM)));
+                     Utils::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM)));
         return;
     } else if (m_infoRexp.indexIn(trimmed) != -1) {
         trimmed.remove(m_infoRexp);

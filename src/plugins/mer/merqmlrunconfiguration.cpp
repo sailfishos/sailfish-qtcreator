@@ -55,7 +55,7 @@ const char SAILFISHAPP_ENABLE_QML_DEBUGGING[] = "SAILFISHAPP_ENABLE_QML_DEBUGGIN
 const char SAILFISHAPP_QML_CONFIG[] = "sailfishapp_qml";
 } // anonymous namespace
 
-MerQmlRunConfiguration::MerQmlRunConfiguration(Target *target, Core::Id id)
+MerQmlRunConfiguration::MerQmlRunConfiguration(Target *target, Utils::Id id)
     : RunConfiguration(target, id)
 {
     addAspect<RemoteLinuxEnvironmentAspect>(target);

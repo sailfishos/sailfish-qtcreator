@@ -312,21 +312,21 @@ void MerEmulatorDevice::doFactoryReset(Sfdk::Emulator *emulator, QWidget *parent
             tr("Successfully restored '%1' to the factory state").arg(emulator->name()));
 }
 
-Core::Id MerEmulatorDevice::idFor(const Sfdk::EmulatorDevice &sdkDevice)
+Utils::Id MerEmulatorDevice::idFor(const Sfdk::EmulatorDevice &sdkDevice)
 {
     QTC_CHECK(sdkDevice.id() == sdkDevice.emulator()->uri().toString());
     return idFor(*sdkDevice.emulator());
 }
 
-Core::Id MerEmulatorDevice::idFor(const Sfdk::Emulator &emulator)
+Utils::Id MerEmulatorDevice::idFor(const Sfdk::Emulator &emulator)
 {
     // HACK: We know we do not have other than VirtualBox based emulators
     QTC_CHECK(emulator.uri().path() == "VirtualBox");
     QTC_CHECK(emulator.uri().fragment() == emulator.name());
-    return Core::Id::fromString(emulator.name());
+    return Utils::Id::fromString(emulator.name());
 }
 
-QString MerEmulatorDevice::toSdkId(const Core::Id &id)
+QString MerEmulatorDevice::toSdkId(const Utils::Id &id)
 {
     // HACK
     const QString emulatorName = id.toString();
@@ -337,7 +337,7 @@ QString MerEmulatorDevice::toSdkId(const Core::Id &id)
     return emulatorUri.toString();
 }
 
-QString MerEmulatorDevice::privateKeyFile(Core::Id emulatorId, const QString &user)
+QString MerEmulatorDevice::privateKeyFile(Utils::Id emulatorId, const QString &user)
 {
     // FIXME multiple engines
     QTC_ASSERT(Sdk::buildEngines().count() == 1, return {});
@@ -387,7 +387,7 @@ void MerEmulatorDeviceManager::onSdkDeviceAdded(int index)
     if (!sdkDevice)
         return;
 
-    const Core::Id id = MerEmulatorDevice::idFor(*sdkDevice);
+    const Utils::Id id = MerEmulatorDevice::idFor(*sdkDevice);
     QTC_ASSERT(!DeviceManager::instance()->find(id), return);
 
     const MerEmulatorDevice::Ptr device = MerEmulatorDevice::create();
@@ -410,7 +410,7 @@ void MerEmulatorDeviceManager::onSdkAboutToRemoveDevice(int index)
 
     stopWatching(sdkDevice);
 
-    const Core::Id id = MerEmulatorDevice::idFor(*sdkDevice);
+    const Utils::Id id = MerEmulatorDevice::idFor(*sdkDevice);
     QTC_ASSERT(DeviceManager::instance()->find(id), return);
 
     DeviceManager::instance()->removeDevice(id);

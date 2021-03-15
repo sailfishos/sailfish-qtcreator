@@ -33,7 +33,7 @@ class MerCustomRunConfiguration : public ProjectExplorer::RunConfiguration
 {
     Q_OBJECT
 public:
-    MerCustomRunConfiguration(ProjectExplorer::Target *target, Core::Id id);
+    MerCustomRunConfiguration(ProjectExplorer::Target *target, Utils::Id id);
 
     QString defaultDisplayName() const;
     ProjectExplorer::Runnable runnable() const override;

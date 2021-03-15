@@ -42,7 +42,7 @@ void MerSshParser::stdError(const QString &line)
                           description,
                           FilePath(),
                           -1 /* linenumber */,
-                          Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM)));
+                          Utils::Id(Constants::TASK_CATEGORY_BUILDSYSTEM)));
         return;
     }
     IOutputParser::stdError(line);
@@ -66,7 +66,7 @@ using namespace Sfdk;
 
 void MerPlugin::testMerSshOutputParsers_data()
 {
-    const Core::Id categoryBuildSystem = Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM);
+    const Utils::Id categoryBuildSystem = Utils::Id(Constants::TASK_CATEGORY_BUILDSYSTEM);
     QTest::addColumn<QString>("input");
     QTest::addColumn<OutputParserTester::Channel>("inputChannel");
     QTest::addColumn<QString>("childStdOutLines");

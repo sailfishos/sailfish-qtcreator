@@ -88,7 +88,7 @@ bool MerDeviceFactory::canRestore(const QVariantMap &map) const
     // necessary with HW devices - for those the synchronization between QtC and Sfdk happens
     // bidirectionally.
     if (MerDevice::workaround_machineTypeFromMap(map) == IDevice::Emulator) {
-        const Core::Id id = IDevice::idFromMap(map);
+        const Utils::Id id = IDevice::idFromMap(map);
         const QString sdkId = MerEmulatorDevice::toSdkId(id);
         if (!Sdk::device(sdkId))
             return false;

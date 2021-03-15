@@ -33,7 +33,7 @@ class MerCompilationDatabaseBuildConfiguration : public ProjectExplorer::BuildCo
     Q_OBJECT
 
 public:
-    MerCompilationDatabaseBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
+    MerCompilationDatabaseBuildConfiguration(ProjectExplorer::Target *target, Utils::Id id);
 
     QList<ProjectExplorer::NamedWidget *> createSubConfigWidgets() override;
     void addToEnvironment(Utils::Environment &env) const override;
@@ -51,7 +51,7 @@ class MerCompilationDatabaseMakeStep : public ProjectExplorer::MakeStep
     Q_OBJECT
 
 public:
-    explicit MerCompilationDatabaseMakeStep(ProjectExplorer::BuildStepList *parent, Core::Id id);
+    explicit MerCompilationDatabaseMakeStep(ProjectExplorer::BuildStepList *parent, Utils::Id id);
 };
 
 class MerCompilationDatabaseMakeStepFactory : public ProjectExplorer::BuildStepFactory

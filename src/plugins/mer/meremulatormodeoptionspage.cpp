@@ -41,10 +41,10 @@ namespace Internal {
 MerEmulatorModeOptionsPage::MerEmulatorModeOptionsPage(QObject *parent)
     : IOptionsPage(parent)
 {
-    setCategory(Core::Id(Constants::MER_OPTIONS_CATEGORY));
+    setCategory(Utils::Id(Constants::MER_OPTIONS_CATEGORY));
     setDisplayCategory(Sdk::osVariant());
     setCategoryIcon(Icons::MER_OPTIONS_CATEGORY);
-    setId(Core::Id(Constants::MER_EMULATOR_MODE_OPTIONS_ID));
+    setId(Utils::Id(Constants::MER_EMULATOR_MODE_OPTIONS_ID));
     setDisplayName(QCoreApplication::translate("Mer", Constants::MER_EMULATOR_MODE_OPTIONS_NAME));
 }
 

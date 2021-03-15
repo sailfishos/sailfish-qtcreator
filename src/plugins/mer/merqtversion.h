@@ -45,7 +45,7 @@ public:
 
     QString description() const override;
 
-    QSet<Core::Id> targetDeviceTypes() const;
+    QSet<Utils::Id> targetDeviceTypes() const;
 
     ProjectExplorer::Tasks validateKit(const ProjectExplorer::Kit *k) override;
     QVariantMap toMap() const override;
@@ -60,7 +60,7 @@ protected:
     ProjectExplorer::Tasks reportIssuesImpl(const QString &proFile,
                                                   const QString &buildDir) const override;
 
-    QSet<Core::Id> availableFeatures() const override;
+    QSet<Utils::Id> availableFeatures() const override;
 
 private:
     QUrl m_buildEngineUri;

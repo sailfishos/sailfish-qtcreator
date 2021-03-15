@@ -110,7 +110,7 @@ void MerDevice::setQmlLivePorts(const Utils::PortList &qmlLivePorts)
 MerDevice::MerDevice()
     : m_architecture(ProjectExplorer::Abi::UnknownArchitecture)
 {
-    setType(Core::Id(Constants::MER_DEVICE_TYPE));
+    setType(Utils::Id(Constants::MER_DEVICE_TYPE));
     setDisplayType(tr("%1 Device").arg(Sdk::osVariant()));
     setDeviceState(IDevice::DeviceStateUnknown);
 }

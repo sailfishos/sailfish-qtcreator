@@ -70,9 +70,9 @@ QString MerRpmDeployConfigurationFactory::displayName()
     return tr("Deploy As RPM Package");
 }
 
-Core::Id MerRpmDeployConfigurationFactory::configurationId()
+Utils::Id MerRpmDeployConfigurationFactory::configurationId()
 {
-    return Core::Id("QmakeProjectManager.MerRpmDeployConfiguration");
+    return Utils::Id("QmakeProjectManager.MerRpmDeployConfiguration");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -89,9 +89,9 @@ QString MerRsyncDeployConfigurationFactory::displayName()
     return tr("Deploy By Copying Binaries");
 }
 
-Core::Id MerRsyncDeployConfigurationFactory::configurationId()
+Utils::Id MerRsyncDeployConfigurationFactory::configurationId()
 {
-    return Core::Id("QmakeProjectManager.MerRSyncDeployConfiguration");
+    return Utils::Id("QmakeProjectManager.MerRSyncDeployConfiguration");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -106,9 +106,9 @@ QString MerMb2RpmBuildConfigurationFactory::displayName()
     return tr("Build RPM Package For Manual Deployment");
 }
 
-Core::Id MerMb2RpmBuildConfigurationFactory::configurationId()
+Utils::Id MerMb2RpmBuildConfigurationFactory::configurationId()
 {
-    return Core::Id("QmakeProjectManager.MerMb2RpmBuildConfiguration");
+    return Utils::Id("QmakeProjectManager.MerMb2RpmBuildConfiguration");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -199,8 +199,8 @@ bool MerAddRemoveSpecialDeployStepsProjectListener::isAmbienceProject(Target *ta
     return false;
 }
 
-// TODO add BuildStepList::removeStep(Core::Id)
-void MerAddRemoveSpecialDeployStepsProjectListener::removeStep(BuildStepList *stepList, Core::Id stepId)
+// TODO add BuildStepList::removeStep(Utils::Id)
+void MerAddRemoveSpecialDeployStepsProjectListener::removeStep(BuildStepList *stepList, Utils::Id stepId)
 {
     for (int i = 0; i < stepList->count(); ++i) {
         if (stepList->at(i)->id() == stepId) {
