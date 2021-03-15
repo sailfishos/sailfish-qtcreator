@@ -34,6 +34,7 @@
 
 #include <utils/environmentfwd.h>
 #include <utils/fileutils.h>
+#include <utils/id.h>
 
 #include <QObject>
 #include <QFileSystemModel>
@@ -142,7 +143,7 @@ public:
     virtual bool needsConfiguration() const;
     bool needsBuildConfigurations() const;
     virtual void configureAsExampleProject(ProjectExplorer::Kit *kit,
-            const QSet<Core::Id> &preferredFeauters = QSet<Core::Id>());
+            const QSet<Utils::Id> &preferredFeauters = QSet<Utils::Id>());
 
     virtual ProjectImporter *projectImporter() const;
 

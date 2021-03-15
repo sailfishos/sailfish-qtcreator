@@ -1065,7 +1065,7 @@ void CentralizedFolderWatcher::delayedFolderChanged(const QString &folder)
         m_buildSystem->updateCodeModels();
 }
 
-void QmakeProject::configureAsExampleProject(Kit *kit, const QSet<Core::Id> &preferredFeatures)
+void QmakeProject::configureAsExampleProject(Kit *kit, const QSet<Utils::Id> &preferredFeatures)
 {
     QList<Kit *> preferredKits;
 
