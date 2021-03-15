@@ -53,7 +53,7 @@ QString CopyToLocationDialog::sourcePath() const
 
 void CopyToLocationDialog::setDestinationPath(const Utils::FilePath& path)
 {
-    m_ui->pathChooser->setPath(path);
+    m_ui->pathChooser->setFilePath(path);
 }
 
 Utils::FilePath CopyToLocationDialog::destinationPath() const
