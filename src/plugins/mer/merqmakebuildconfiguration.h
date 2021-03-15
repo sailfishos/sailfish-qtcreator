@@ -37,7 +37,7 @@ class MerQmakeBuildConfiguration : public QmakeProjectManager::QmakeBuildConfigu
     Q_OBJECT
 
 public:
-    MerQmakeBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
+    MerQmakeBuildConfiguration(ProjectExplorer::Target *target, Utils::Id id);
     bool fromMap(const QVariantMap &map) override;
 
     QList<ProjectExplorer::NamedWidget *> createSubConfigWidgets() override;

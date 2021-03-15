@@ -40,7 +40,7 @@ class MerAbstractVmStartStep : public ProjectExplorer::BuildStep
     Q_OBJECT
 
 public:
-    explicit MerAbstractVmStartStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
+    explicit MerAbstractVmStartStep(ProjectExplorer::BuildStepList *bsl, Utils::Id id);
 
     bool init() override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;

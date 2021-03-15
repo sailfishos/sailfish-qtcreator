@@ -87,7 +87,7 @@ Tasks MerSdkKitAspect::validate(const Kit *kit) const
     if (DeviceTypeKitAspect::deviceTypeId(kit) == Constants::MER_DEVICE_TYPE) {
         auto error = [](const QString &message) {
             return Task(Task::Error, message, FilePath(), -1,
-                    Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
+                    Utils::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
         };
 
         QVariantMap data = kit->value(MerSdkKitAspect::id()).toMap();
@@ -177,7 +177,7 @@ KitAspectWidget *MerSdkKitAspect::createConfigWidget(Kit *kit) const
     return new MerSdkKitAspectWidget(kit, this);
 }
 
-Core::Id MerSdkKitAspect::id()
+Utils::Id MerSdkKitAspect::id()
 {
     return "Mer.Sdk.Kit.Information";
 }

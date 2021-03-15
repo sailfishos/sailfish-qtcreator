@@ -31,7 +31,7 @@
 #include <QQueue>
 #include <QSet>
 
-#include <coreplugin/id.h>
+#include <utils/id.h>
 
 QT_FORWARD_DECLARE_CLASS(QProcess)
 QT_FORWARD_DECLARE_CLASS(QTimer)
@@ -95,8 +95,8 @@ private:
 
 private slots:
     void onBenchLocationChanged();
-    void onDeviceAdded(Core::Id id);
-    void onDeviceRemoved(Core::Id id);
+    void onDeviceAdded(Utils::Id id);
+    void onDeviceRemoved(Utils::Id id);
     void onDeviceListReplaced();
     void onStartupProjectChanged(ProjectExplorer::Project *project);
     void onActiveTargetChanged(ProjectExplorer::Target *target);
@@ -108,7 +108,7 @@ private slots:
 private:
     static MerQmlLiveBenchManager *m_instance;
     bool m_enabled;
-    QHash<Core::Id, DeviceInfo *> m_deviceInfoCache;
+    QHash<Utils::Id, DeviceInfo *> m_deviceInfoCache;
     QQueue<Command *> m_commands;
     Command *m_currentCommand{};
     QMap<ProjectExplorer::RunControl *, QTimer *> m_probeTimeouts;

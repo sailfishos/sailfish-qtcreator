@@ -23,7 +23,7 @@
 #ifndef MERCONNECTIONMANAGER_H
 #define MERCONNECTIONMANAGER_H
 
-#include <coreplugin/id.h>
+#include <utils/id.h>
 
 #include <QObject>
 

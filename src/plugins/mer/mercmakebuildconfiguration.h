@@ -35,7 +35,7 @@ class MerCMakeBuildConfiguration : public CMakeProjectManager::Internal::CMakeBu
     Q_OBJECT
 
 public:
-    MerCMakeBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
+    MerCMakeBuildConfiguration(ProjectExplorer::Target *target, Utils::Id id);
     QList<ProjectExplorer::NamedWidget *> createSubConfigWidgets() override;
     void addToEnvironment(Utils::Environment &env) const override;
 

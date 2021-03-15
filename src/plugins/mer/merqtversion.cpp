@@ -86,7 +86,7 @@ QString MerQtVersion::description() const
     return Sdk::osVariant();
 }
 
-QSet<Core::Id> MerQtVersion::targetDeviceTypes() const
+QSet<Utils::Id> MerQtVersion::targetDeviceTypes() const
 {
     return { Constants::MER_DEVICE_TYPE };
 }
@@ -122,14 +122,14 @@ Tasks MerQtVersion::validateKit(const Kit *kit)
                 QCoreApplication::translate("QtVersion", "No available toolchains found to build "
                                             "for Qt version \"%1\".").arg(version->displayName());
         result << Task(Task::Error, message, FilePath(), -1,
-                       Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
+                       Utils::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
 
     } else if (!MerSdkManager::validateKit(kit)) {
         const QString message =
                 QCoreApplication::translate("QtVersion", "This Qt version \"%1\" does not match %2 or toolchain.").
                 arg(version->displayName()).arg(Sdk::sdkVariant());
         result << Task(Task::Error, message, FilePath(), -1,
-                       Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
+                       Utils::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     }
     return result;
 }
@@ -145,7 +145,7 @@ Tasks MerQtVersion::reportIssuesImpl(const QString &proFile,
         Task task(Task::Error,
                   QCoreApplication::translate("QtVersion",
                                               "Qt version \"%1\" is missing build engine").arg(displayName()),
-                  FilePath(), -1, Core::Id());
+                  FilePath(), -1, Utils::Id());
         results.append(task);
     } 
     else {
@@ -176,7 +176,7 @@ Tasks MerQtVersion::reportIssuesImpl(const QString &proFile,
         if (!proFileClean.startsWith(sharedSrcClean)) {
             const QString message = QCoreApplication::translate("QtVersion", "Project is outside of workspace \"%1\"")
                     .arg(QDir::toNativeSeparators(buildEngine->sharedSrcPath().toString()));
-            Task task(Task::Error,message,FilePath(), -1, Core::Id());
+            Task task(Task::Error,message,FilePath(), -1, Utils::Id());
             results.append(task);
         }
 
@@ -193,9 +193,9 @@ void MerQtVersion::addToEnvironment(const Kit *k, Environment &env) const
 }
 
 
-QSet<Core::Id> MerQtVersion::availableFeatures() const
+QSet<Utils::Id> MerQtVersion::availableFeatures() const
 {
-    QSet<Core::Id> features = BaseQtVersion::availableFeatures();
+    QSet<Utils::Id> features = BaseQtVersion::availableFeatures();
     features |= Constants::MER_WIZARD_FEATURE_SAILFISHOS;
     if(!qtAbis().contains(Abi::fromString(QLatin1String("arm-linux-generic-elf-32bit"))))
         features |= Constants::MER_WIZARD_FEATURE_EMULATOR;

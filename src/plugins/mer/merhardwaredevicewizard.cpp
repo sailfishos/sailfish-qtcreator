@@ -54,7 +54,7 @@ MerHardwareDeviceWizard::MerHardwareDeviceWizard(QWidget *parent)
     m_selectionPage.setMinimumSize(m_keyDeploymentPage.sizeHint());
 
     m_device = MerHardwareDevice::create();
-    m_device->setupId(IDevice::ManuallyAdded, Core::Id());
+    m_device->setupId(IDevice::ManuallyAdded, Utils::Id());
 
     m_selectionPage.setDevice(m_device);
     m_keyDeploymentPage.setDevice(m_device);

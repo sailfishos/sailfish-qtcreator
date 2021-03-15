@@ -70,7 +70,7 @@ const int UPDATE_EXTRA_PARSER_ARGUMENTS_DELAY_MS = 3000;
 namespace Mer {
 namespace Internal {
 
-MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target, Core::Id id)
+MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target, Utils::Id id)
     : QmakeBuildConfiguration(target, id)
 {
     auto aspect = addAspect<MerBuildConfigurationAspect>(this);

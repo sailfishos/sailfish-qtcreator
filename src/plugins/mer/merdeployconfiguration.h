@@ -89,7 +89,7 @@ public:
     MerRpmDeployConfigurationFactory();
 
     static QString displayName();
-    static Core::Id configurationId();
+    static Utils::Id configurationId();
 };
 
 class MerRsyncDeployConfigurationFactory
@@ -101,7 +101,7 @@ public:
     MerRsyncDeployConfigurationFactory();
 
     static QString displayName();
-    static Core::Id configurationId();
+    static Utils::Id configurationId();
 };
 
 //TODO: Hack
@@ -114,7 +114,7 @@ public:
     MerMb2RpmBuildConfigurationFactory();
 
     static QString displayName();
-    static Core::Id configurationId();
+    static Utils::Id configurationId();
 };
 
 class MerAddRemoveSpecialDeployStepsProjectListener : public MerProjectListener
@@ -137,7 +137,7 @@ private slots:
 private:
     void updateTarget(ProjectExplorer::Target *target);
     static bool isAmbienceProject(ProjectExplorer::Target *target);
-    static void removeStep(ProjectExplorer::BuildStepList *stepList, Core::Id stepId);
+    static void removeStep(ProjectExplorer::BuildStepList *stepList, Utils::Id stepId);
 
 private:
     QQueue<ProjectExplorer::Target *> m_updateTargetsQueue;

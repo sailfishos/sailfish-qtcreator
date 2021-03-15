@@ -325,9 +325,9 @@ void MerProcessStep::setArguments(const QString &arguments)
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-Core::Id MerEmulatorStartStep::stepId()
+Utils::Id MerEmulatorStartStep::stepId()
 {
-    return Core::Id("QmakeProjectManager.MerEmulatorStartStep");
+    return Utils::Id("QmakeProjectManager.MerEmulatorStartStep");
 }
 
 QString MerEmulatorStartStep::displayName()
@@ -335,7 +335,7 @@ QString MerEmulatorStartStep::displayName()
     return tr("Start Emulator");
 }
 
-MerEmulatorStartStep::MerEmulatorStartStep(BuildStepList *bsl, Core::Id id)
+MerEmulatorStartStep::MerEmulatorStartStep(BuildStepList *bsl, Utils::Id id)
     : MerAbstractVmStartStep(bsl, id)
 {
     setDefaultDisplayName(displayName());
@@ -357,9 +357,9 @@ bool MerEmulatorStartStep::init()
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-Core::Id MerConnectionTestStep::stepId()
+Utils::Id MerConnectionTestStep::stepId()
 {
-    return Core::Id("QmakeProjectManager.MerConnectionTestStep");
+    return Utils::Id("QmakeProjectManager.MerConnectionTestStep");
 }
 
 QString MerConnectionTestStep::displayName()
@@ -367,7 +367,7 @@ QString MerConnectionTestStep::displayName()
     return tr("Test Device Connection");
 }
 
-MerConnectionTestStep::MerConnectionTestStep(BuildStepList *bsl, Core::Id id)
+MerConnectionTestStep::MerConnectionTestStep(BuildStepList *bsl, Utils::Id id)
     : BuildStep(bsl, id)
 {
     setDefaultDisplayName(displayName());
@@ -439,9 +439,9 @@ void MerConnectionTestStep::finish(bool result)
  * Wraps either MerEmulatorStartStep or MerConnectionTestStep based on IDevice::machineType
  */
 
-Core::Id MerPrepareTargetStep::stepId()
+Utils::Id MerPrepareTargetStep::stepId()
 {
-    return Core::Id("QmakeProjectManager.MerPrepareTargetStep");
+    return Utils::Id("QmakeProjectManager.MerPrepareTargetStep");
 }
 
 QString MerPrepareTargetStep::displayName()
@@ -449,7 +449,7 @@ QString MerPrepareTargetStep::displayName()
     return tr("Prepare Target");
 }
 
-MerPrepareTargetStep::MerPrepareTargetStep(BuildStepList *bsl, Core::Id id)
+MerPrepareTargetStep::MerPrepareTargetStep(BuildStepList *bsl, Utils::Id id)
     : BuildStep(bsl, id)
 {
     setDefaultDisplayName(displayName());
@@ -502,9 +502,9 @@ BuildStepConfigWidget *MerPrepareTargetStep::createConfigWidget()
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-Core::Id MerMb2MakeInstallStep::stepId()
+Utils::Id MerMb2MakeInstallStep::stepId()
 {
-    return Core::Id("QmakeProjectManager.MerMakeInstallBuildStep");
+    return Utils::Id("QmakeProjectManager.MerMakeInstallBuildStep");
 }
 
 QString MerMb2MakeInstallStep::displayName()
@@ -561,9 +561,9 @@ void MerMb2MakeInstallStep::updateSummaryText()
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-Core::Id MerMb2RsyncDeployStep::stepId()
+Utils::Id MerMb2RsyncDeployStep::stepId()
 {
-    return Core::Id("QmakeProjectManager.MerRsyncDeployStep");
+    return Utils::Id("QmakeProjectManager.MerRsyncDeployStep");
 }
 
 QString MerMb2RsyncDeployStep::displayName()
@@ -571,7 +571,7 @@ QString MerMb2RsyncDeployStep::displayName()
     return QLatin1String("Rsync deploy");
 }
 
-MerMb2RsyncDeployStep::MerMb2RsyncDeployStep(BuildStepList *bsl, Core::Id id)
+MerMb2RsyncDeployStep::MerMb2RsyncDeployStep(BuildStepList *bsl, Utils::Id id)
     : MerProcessStep(bsl, id)
 {
     setDefaultDisplayName(displayName());
@@ -598,9 +598,9 @@ BuildStepConfigWidget *MerMb2RsyncDeployStep::createConfigWidget()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Core::Id MerLocalRsyncDeployStep::stepId()
+Utils::Id MerLocalRsyncDeployStep::stepId()
 {
-    return Core::Id("QmakeProjectManager.MerLocalRsyncDeployStep");
+    return Utils::Id("QmakeProjectManager.MerLocalRsyncDeployStep");
 }
 
 QString MerLocalRsyncDeployStep::displayName()
@@ -608,7 +608,7 @@ QString MerLocalRsyncDeployStep::displayName()
     return QLatin1String("Local Rsync");
 }
 
-MerLocalRsyncDeployStep::MerLocalRsyncDeployStep(BuildStepList *bsl, Core::Id id)
+MerLocalRsyncDeployStep::MerLocalRsyncDeployStep(BuildStepList *bsl, Utils::Id id)
     : MerProcessStep(bsl, id)
 {
     setDefaultDisplayName(displayName());
@@ -682,9 +682,9 @@ BuildStepConfigWidget *MerLocalRsyncDeployStep::createConfigWidget()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-Core::Id MerMb2RpmDeployStep::stepId()
+Utils::Id MerMb2RpmDeployStep::stepId()
 {
-    return Core::Id("QmakeProjectManager.MerRpmDeployStep");
+    return Utils::Id("QmakeProjectManager.MerRpmDeployStep");
 }
 
 QString MerMb2RpmDeployStep::displayName()
@@ -692,7 +692,7 @@ QString MerMb2RpmDeployStep::displayName()
     return QLatin1String("RPM Deploy");
 }
 
-MerMb2RpmDeployStep::MerMb2RpmDeployStep(BuildStepList *bsl, Core::Id id)
+MerMb2RpmDeployStep::MerMb2RpmDeployStep(BuildStepList *bsl, Utils::Id id)
     : MerProcessStep(bsl, id)
 {
     setDefaultDisplayName(displayName());
@@ -722,9 +722,9 @@ BuildStepConfigWidget *MerMb2RpmDeployStep::createConfigWidget()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-Core::Id MerMb2RpmBuildStep::stepId()
+Utils::Id MerMb2RpmBuildStep::stepId()
 {
-    return Core::Id("QmakeProjectManager.MerRpmBuildStep");
+    return Utils::Id("QmakeProjectManager.MerRpmBuildStep");
 }
 
 QString MerMb2RpmBuildStep::displayName()
@@ -732,7 +732,7 @@ QString MerMb2RpmBuildStep::displayName()
     return QLatin1String("RPM Build");
 }
 
-MerMb2RpmBuildStep::MerMb2RpmBuildStep(BuildStepList *bsl, Core::Id id)
+MerMb2RpmBuildStep::MerMb2RpmBuildStep(BuildStepList *bsl, Utils::Id id)
     : MerProcessStep(bsl, id)
 {
     setDefaultDisplayName(displayName());
@@ -853,9 +853,9 @@ void RpmInfo::openContainingFolder()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Core::Id MerRpmValidationStep::stepId()
+Utils::Id MerRpmValidationStep::stepId()
 {
-    return Core::Id("QmakeProjectManager.MerRpmValidationStep");
+    return Utils::Id("QmakeProjectManager.MerRpmValidationStep");
 }
 
 QString MerRpmValidationStep::displayName()
@@ -863,7 +863,7 @@ QString MerRpmValidationStep::displayName()
     return QLatin1String("RPM Validation");
 }
 
-MerRpmValidationStep::MerRpmValidationStep(BuildStepList *bsl, Core::Id id)
+MerRpmValidationStep::MerRpmValidationStep(BuildStepList *bsl, Utils::Id id)
     : MerProcessStep(bsl, id)
 {
     setEnabled(MerSettings::rpmValidationByDefault());
@@ -1137,7 +1137,7 @@ void MerNamedCommandDeployService::handleProcessClosed(const QString &error)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-MerResetAmbienceDeployStep::MerResetAmbienceDeployStep(ProjectExplorer::BuildStepList *bsl, Core::Id id)
+MerResetAmbienceDeployStep::MerResetAmbienceDeployStep(ProjectExplorer::BuildStepList *bsl, Utils::Id id)
     : AbstractRemoteLinuxDeployStep(bsl, id)
 {
     setDefaultDisplayName(displayName());
@@ -1158,9 +1158,9 @@ MerResetAmbienceDeployStep::MerResetAmbienceDeployStep(ProjectExplorer::BuildSte
     });
 }
 
-Core::Id MerResetAmbienceDeployStep::stepId()
+Utils::Id MerResetAmbienceDeployStep::stepId()
 {
-    return Core::Id("Mer.MerResetAmbienceDeployStep");
+    return Utils::Id("Mer.MerResetAmbienceDeployStep");
 }
 
 QString MerResetAmbienceDeployStep::displayName()

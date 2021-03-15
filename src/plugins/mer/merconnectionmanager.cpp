@@ -67,7 +67,7 @@ public:
     explicit MerConnectionAction(QObject *parent = 0);
     ~MerConnectionAction() override;
 
-    void setId(Core::Id id) { m_id = id; }
+    void setId(Utils::Id id) { m_id = id; }
     void setName(const QString &name) { m_name = name; }
     void setIconOff(const QIcon &icon) { m_iconOff = icon; }
     void setIconOn(const QIcon &icon) { m_iconOn = icon; }
@@ -95,7 +95,7 @@ private slots:
 
 private:
     QPointer<VirtualMachine> m_virtualMachine;
-    Core::Id m_id;
+    Utils::Id m_id;
     QAction *m_action;
     QIcon m_iconOff;
     QIcon m_iconOn;

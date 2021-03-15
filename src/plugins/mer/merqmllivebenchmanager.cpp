@@ -346,7 +346,7 @@ void MerQmlLiveBenchManager::onBenchLocationChanged()
     }
 }
 
-void MerQmlLiveBenchManager::onDeviceAdded(Core::Id id)
+void MerQmlLiveBenchManager::onDeviceAdded(Utils::Id id)
 {
     if (!m_enabled)
         return;
@@ -371,7 +371,7 @@ void MerQmlLiveBenchManager::onDeviceAdded(Core::Id id)
     addHostsToBench(info->name, address, info->ports);
 }
 
-void MerQmlLiveBenchManager::onDeviceRemoved(Core::Id id)
+void MerQmlLiveBenchManager::onDeviceRemoved(Utils::Id id)
 {
     if (!m_enabled)
         return;
@@ -402,7 +402,7 @@ void MerQmlLiveBenchManager::onDeviceListReplaced()
         return retv;
     };
 
-    QSet<Core::Id> currentDevices;
+    QSet<Utils::Id> currentDevices;
 
     const int deviceCount = DeviceManager::instance()->deviceCount();
     for (int i = 0; i < deviceCount; ++i) {
@@ -410,7 +410,7 @@ void MerQmlLiveBenchManager::onDeviceListReplaced()
         if (!merDevice)
             continue;
 
-        const Core::Id id = merDevice->id();
+        const Utils::Id id = merDevice->id();
         currentDevices.insert(id);
 
         if (!m_deviceInfoCache.contains(id)) {
@@ -446,7 +446,7 @@ void MerQmlLiveBenchManager::onDeviceListReplaced()
             addHostsToBench(info->name, address, addedPorts);
     }
 
-    foreach (const Core::Id &id, m_deviceInfoCache.keys()) {
+    foreach (const Utils::Id &id, m_deviceInfoCache.keys()) {
         if (!currentDevices.contains(id))
             onDeviceRemoved(id);
     }

@@ -44,7 +44,7 @@ namespace Internal {
  */
 
 MerCompilationDatabaseBuildConfiguration::MerCompilationDatabaseBuildConfiguration(Target *target,
-        Core::Id id)
+        Utils::Id id)
     : BuildConfiguration(target, id)
 {
     auto aspect = addAspect<MerBuildConfigurationAspect>(this);
@@ -115,7 +115,7 @@ MerCompilationDatabaseBuildConfigurationFactory::MerCompilationDatabaseBuildConf
  * \internal
  */
 
-MerCompilationDatabaseMakeStep::MerCompilationDatabaseMakeStep(BuildStepList *parent, Core::Id id)
+MerCompilationDatabaseMakeStep::MerCompilationDatabaseMakeStep(BuildStepList *parent, Utils::Id id)
     : MakeStep(parent, id)
 {
     if (parent->id() == ProjectExplorer::Constants::BUILDSTEPS_CLEAN) {

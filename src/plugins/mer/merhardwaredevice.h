@@ -46,8 +46,8 @@ public:
 
     ProjectExplorer::IDeviceWidget* createWidget() override;
 
-    static Core::Id idFor(const Sfdk::HardwareDevice &sdkDevice);
-    static QString toSdkId(const Core::Id &id);
+    static Utils::Id idFor(const Sfdk::HardwareDevice &sdkDevice);
+    static QString toSdkId(const Utils::Id &id);
 
 protected:
     MerHardwareDevice();
@@ -67,13 +67,13 @@ private:
     void onSdkAboutToRemoveDevice(int index);
     void startWatching(Sfdk::HardwareDevice *sdkDevice);
     void stopWatching(Sfdk::HardwareDevice *sdkDevice);
-    void onDeviceAddedOrUpdated(Core::Id id);
-    void onDeviceRemoved(Core::Id id);
+    void onDeviceAddedOrUpdated(Utils::Id id);
+    void onDeviceRemoved(Utils::Id id);
     void onDeviceListReplaced();
 
 private:
     static MerHardwareDeviceManager *s_instance;
-    Core::Id m_removingDeviceId;
+    Utils::Id m_removingDeviceId;
 };
 
 }

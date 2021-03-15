@@ -24,7 +24,7 @@
 #ifndef MERSDKMANAGER_H
 #define MERSDKMANAGER_H
 
-#include <coreplugin/id.h>
+#include <utils/id.h>
 
 #include <QObject>
 
@@ -86,7 +86,7 @@ private:
     static std::unique_ptr<MerQtVersion> createQtVersion(const Sfdk::BuildEngine *buildEngine,
             const QString &buildTargetName);
     static std::unique_ptr<MerToolChain> createToolChain(const Sfdk::BuildEngine *buildEngine,
-            const QString &buildTargetName, Core::Id language);
+            const QString &buildTargetName, Utils::Id language);
 
 private:
     static MerSdkManager *m_instance;

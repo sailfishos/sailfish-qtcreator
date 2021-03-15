@@ -46,7 +46,7 @@ using namespace Utils;
 namespace Mer {
 namespace Internal {
 
-MerCustomRunConfiguration::MerCustomRunConfiguration(Target *target, Core::Id id)
+MerCustomRunConfiguration::MerCustomRunConfiguration(Target *target, Utils::Id id)
     : RunConfiguration(target, id)
 {
     auto exeAspect = addAspect<ExecutableAspect>();

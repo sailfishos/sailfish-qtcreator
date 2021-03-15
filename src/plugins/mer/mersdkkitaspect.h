@@ -78,7 +78,7 @@ public:
     ProjectExplorer::KitAspectWidget *createConfigWidget(ProjectExplorer::Kit *kit) const override;
     void addToEnvironment(const ProjectExplorer::Kit *kit, Utils::Environment &env) const override;
 
-    static Core::Id id();
+    static Utils::Id id();
 
     static void setBuildTarget(ProjectExplorer::Kit *kit, const Sfdk::BuildEngine* buildEngine,
             const QString &buildTargetName);

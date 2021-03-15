@@ -49,7 +49,7 @@ namespace Internal {
 
 using namespace ProjectExplorer;
 
-MerToolChain::MerToolChain(Core::Id typeId)
+MerToolChain::MerToolChain(Utils::Id typeId)
     : GccToolChain(typeId)
 {
 
@@ -132,7 +132,7 @@ Tasks MerToolChain::validateKit(const Kit *kit) const
                                             "Toolchain \"%1\" can not be used for device with %2 architecture")
                 .arg(displayName()).arg(Abi::toString(device->architecture()));
         result << Task(Task::Error, message, FilePath(), -1,
-                       Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
+                       Utils::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     }
 
     BaseQtVersion *version = QtKitAspect::qtVersion(kit);
@@ -143,7 +143,7 @@ Tasks MerToolChain::validateKit(const Kit *kit) const
                                             "No available Qt version found which can be used with "
                                             "toolchain \"%1\".").arg(displayName());
         result << Task(Task::Error, message, FilePath(), -1,
-                       Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
+                       Utils::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
 
     } else if (!Internal::MerSdkManager::validateKit(kit)) {
         const QString message =
@@ -151,7 +151,7 @@ Tasks MerToolChain::validateKit(const Kit *kit) const
                                             "The toolchain \"%1\" does not match %2 build engine or Qt version").
                                                                 arg(displayName()).arg(Sdk::osVariant());
         result << Task(Task::Error, message, FilePath(), -1,
-                       Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
+                       Utils::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     }
     return result;
 }
