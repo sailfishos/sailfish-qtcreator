@@ -197,7 +197,7 @@ struct Session::WindowsPidToCygwinPid
         QTextStream in(&ps);
 
         const QStringList header = in.readLine().split(QRegularExpression("\\s+"),
-                QString::SkipEmptyParts);
+                Qt::SkipEmptyParts);
         if (header.isEmpty()) {
             qCWarning(sfdk) << "No header in cygwin process list";
             return;

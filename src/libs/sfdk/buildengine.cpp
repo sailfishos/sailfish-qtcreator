@@ -41,6 +41,7 @@
 #include <utils/qtcprocess.h>
 
 #include <QDir>
+#include <QElapsedTimer>
 #include <QHostInfo>
 #include <QPointer>
 #include <QProcess>
@@ -657,8 +658,8 @@ void BuildEnginePrivate::syncWwwProxy()
 
     const SshConnectionParameters sshParameters = virtualMachine->sshParameters();
     const QRegularExpression spaces("[[:space:]]+");
-    const QStringList wwwProxyServers = this->wwwProxyServers.split(spaces, QString::SkipEmptyParts);
-    const QStringList wwwProxyExcludes = this->wwwProxyExcludes.split(spaces, QString::SkipEmptyParts);
+    const QStringList wwwProxyServers = this->wwwProxyServers.split(spaces, Qt::SkipEmptyParts);
+    const QStringList wwwProxyExcludes = this->wwwProxyExcludes.split(spaces, Qt::SkipEmptyParts);
 
     QStringList args;
     args.append(wwwProxyType);
@@ -793,7 +794,7 @@ QList<RpmValidationSuiteData> BuildEnginePrivate::rpmValidationSuitesFromString(
     while (in.readLineInto(&line)) {
         RpmValidationSuiteData data;
 
-        QStringList split = line.split(' ', QString::SkipEmptyParts);
+        QStringList split = line.split(' ', Qt::SkipEmptyParts);
         if (split.count() < 3) {
             qCWarning(engine) << "Error parsing listing of RPM validation suites: The corrupted line is:" << line;
             break;
@@ -1131,13 +1132,13 @@ QString BuildEngineManager::defaultBuildHostName()
     // A non-blocking lookup was initiated during initialization, but it takes
     // longer than anticipated - let's be patient.
 
-    QTime time;
-    time.start();
+    QElapsedTimer timer;
+    timer.start();
 
     // TODO singletons vs. const correctness
     s_instance->completeHostNameLookup(QHostInfo::fromName(QHostInfo::localHostName()));
 
-    qCDebug(lib) << "Local host info lookup blocked for" << time.elapsed() << "ms";
+    qCDebug(lib) << "Local host info lookup blocked for" << timer.elapsed() << "ms";
 
     return s_instance->m_defaultBuildHostName;
 }

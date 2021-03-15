@@ -30,9 +30,9 @@
 #include <ssh/sshconnection.h>
 
 #include <QBasicTimer>
+#include <QElapsedTimer>
 #include <QObject>
 #include <QPointer>
-#include <QTime>
 #include <QtGlobal>
 
 #include <functional>
@@ -145,7 +145,7 @@ private:
     VirtualMachine::State m_state;
     QString m_errorString;
     VmState m_vmState;
-    QTime m_vmStateEntryTime;
+    QElapsedTimer m_vmStateEntryTimer;
     bool m_vmStartedOutside;
     SshState m_sshState;
 

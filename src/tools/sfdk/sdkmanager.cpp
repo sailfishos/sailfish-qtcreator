@@ -661,7 +661,7 @@ private:
         QTextStream stream(&out);
         QString line;
         while (stream.readLineInto(&line)) {
-            const QStringList splitted = line.split(' ', QString::SkipEmptyParts);
+            const QStringList splitted = line.split(' ', Qt::SkipEmptyParts);
             QTC_ASSERT(splitted.count() == 2, continue);
             const QString name = splitted.at(0);
             const QString mode = splitted.at(1);
@@ -697,7 +697,7 @@ private:
         QTextStream stream(&out);
         QString line;
         while (stream.readLineInto(&line)) {
-            const QStringList splitted = line.split(' ', QString::SkipEmptyParts);
+            const QStringList splitted = line.split(' ', Qt::SkipEmptyParts);
             QTC_ASSERT(splitted.count() == 4, continue);
             const QString name = splitted.at(0);
             const QString tooling = splitted.at(1);
@@ -1516,7 +1516,7 @@ QByteArray SdkManager::maybeReverseMapEnginePaths(const QByteArray &commandOutpu
 QProcessEnvironment SdkManager::environmentToForwardToEngine() const
 {
     const QStringList patterns = MerSettings::environmentFilter()
-        .split(QRegularExpression("[[:space:]]+"), QString::SkipEmptyParts);
+        .split(QRegularExpression("[[:space:]]+"), Qt::SkipEmptyParts);
     if (patterns.isEmpty())
         return {};
 

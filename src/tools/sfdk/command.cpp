@@ -399,7 +399,7 @@ public:
         *needsVmOff = false;
 
         auto validateUrls = [](const QString &urls, QString *errorString) {
-            for (const QString &url : urls.split(' ', QString::SkipEmptyParts)) {
+            for (const QString &url : urls.split(' ', Qt::SkipEmptyParts)) {
                 if (!QUrl::fromUserInput(url).isValid()) {
                     *errorString = tr("Not a valid URL: \"%1\"").arg(url);
                     return false;

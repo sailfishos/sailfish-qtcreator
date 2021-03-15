@@ -26,6 +26,8 @@
 #include "command.h"
 #include "configuration.h"
 
+#include <QVariant>
+
 namespace Sfdk {
 
 class Domain;

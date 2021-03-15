@@ -65,7 +65,7 @@ void initQSsh()
     const QString gitBinary = qtcSettings.value("Git/BinaryPath", "git")
         .toString();
     const QStringList rawGitSearchPaths = qtcSettings.value("Git/Path")
-        .toString().split(':', QString::SkipEmptyParts);
+        .toString().split(':', Qt::SkipEmptyParts);
     const auto searchPathRetriever = [=] {
         Utils::FilePaths searchPaths;
         const QString libexecPath = QDir::cleanPath(QCoreApplication::applicationDirPath() + '/'
