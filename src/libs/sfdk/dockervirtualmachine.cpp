@@ -543,7 +543,7 @@ void DockerVirtualMachinePrivate::doRemoveSnapshot(const QString &snapshotName, 
 QStringList DockerVirtualMachinePrivate::listedImages(const QString &output)
 {
     QStringList images;
-    const QStringList lines = output.split(QRegularExpression("[\r\n]"), QString::SkipEmptyParts);
+    const QStringList lines = output.split(QRegularExpression("[\r\n]"), Qt::SkipEmptyParts);
     for (const QString &line : lines) {
         if (line != "<none>")
             images.append(line);
@@ -619,7 +619,7 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
     if (qEnvironmentVariableIsSet(SAILFISH_SDK_DOCKER_RUN_PRIVILEGED))
         arguments.append("--privileged");
     for (const QString &capability : qEnvironmentVariable(SAILFISH_SDK_DOCKER_CAP_ADD)
-            .split(',', QString::SkipEmptyParts)) {
+            .split(',', Qt::SkipEmptyParts)) {
         arguments.append("--cap-add=" + capability);
     }
 

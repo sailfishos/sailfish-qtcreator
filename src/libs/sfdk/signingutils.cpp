@@ -57,7 +57,7 @@ QString gpgPath()
                           QLatin1String(Core::Constants::IDE_CASED_ID)};
     const QString gitBinary = qtcSettings.value("Git/BinaryPath", "git").toString();
     const QStringList rawGitSearchPaths
-        = qtcSettings.value("Git/Path").toString().split(':', QString::SkipEmptyParts);
+        = qtcSettings.value("Git/Path").toString().split(':', Qt::SkipEmptyParts);
 
     const auto searchPathRetriever = [=] {
         Utils::FilePaths searchPaths;
@@ -265,8 +265,7 @@ QList<GpgKeyInfo> SigningUtils::gpgKeyInfoListFromOutput(const QString &output)
             if (captured.startsWith("fpr", Qt::CaseInsensitive))
                 gpgKeyInfo.fingerprint = m.captured(i + 1);
             if (captured.startsWith("uid", Qt::CaseInsensitive)) {
-                QStringList keyInfo = m.captured(i + 1)
-                                          .split("::", QString::SplitBehavior::SkipEmptyParts);
+                QStringList keyInfo = m.captured(i + 1).split("::", Qt::SkipEmptyParts);
                 gpgKeyInfo.name = keyInfo.at(2);
             }
         }

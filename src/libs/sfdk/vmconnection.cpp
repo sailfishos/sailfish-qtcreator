@@ -256,7 +256,7 @@ VmConnection::VmConnection(VirtualMachine *parent)
     , m_vmWantFastPollState(0)
     , m_pollingVmState(false)
 {
-    m_vmStateEntryTime.start();
+    m_vmStateEntryTimer.start();
 
     // Notice how SshConnectionParameters::timeout is treated!
     connect(m_vm, &VirtualMachine::sshParametersChanged, this, [this]() {
@@ -548,7 +548,7 @@ void VmConnection::updateState()
                             "\"%1\": %2")
                         .arg(m_vm->name())
                         .arg(m_cachedSshErrorString);
-                    if (m_vmStateEntryTime.elapsed() > (m_vm->sshParameters().timeout * 1000)) {
+                    if (m_vmStateEntryTimer.elapsed() > (m_vm->sshParameters().timeout * 1000)) {
                         m_errorString += QString::fromLatin1(" (%1)")
                             .arg(tr("Consider increasing SSH connection timeout in options."));
                     }
@@ -619,7 +619,7 @@ void VmConnection::vmStmTransition(VmState toState, const char *event)
             .arg(QLatin1String(str(toState))));
 
     m_vmState = toState;
-    m_vmStateEntryTime.restart();
+    m_vmStateEntryTimer.restart();
     m_vmStmTransition = true;
 }
 
@@ -983,7 +983,7 @@ bool VmConnection::sshStmStep()
         } else if (m_cachedSshErrorOccured) {
             if (m_vmStartedOutside && !m_connectRequested) {
                 sshStmTransition(SshConnectingError, "connecting error+connect not requested");
-            } else if (m_vmStateEntryTime.elapsed() < (m_vm->sshParameters().timeout * 1000)) {
+            } else if (m_vmStateEntryTimer.elapsed() < (m_vm->sshParameters().timeout * 1000)) {
                 ; // Do not report possibly recoverable boot-time failure
             } else {
                 ask(Ui::CancelConnecting, &VmConnection::sshStmScheduleExec,

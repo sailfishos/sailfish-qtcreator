@@ -1134,7 +1134,7 @@ void VBoxVirtualMachinePrivate::storageInfoFromOutput(const QString &output,
         }
     }
 
-    virtualMachineInfo->allRelatedStorageUuids = relatedUuids.toList();
+    virtualMachineInfo->allRelatedStorageUuids = relatedUuids.values();
 }
 
 int VBoxVirtualMachinePrivate::ramSizeFromOutput(const QString &output, bool *matched)
