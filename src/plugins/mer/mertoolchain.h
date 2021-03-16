@@ -47,7 +47,7 @@ public:
 
     Utils::FilePath makeCommand(const Utils::Environment &environment) const override;
 
-    ProjectExplorer::IOutputParser *outputParser() const override;
+    QList<ProjectExplorer::IOutputParser *> outputParsers() const override;
     QStringList suggestedMkspecList() const override;
     ProjectExplorer::Tasks validateKit(const ProjectExplorer::Kit *kit) const override;
 

@@ -46,7 +46,7 @@ public:
     explicit MerRpmValidationParser();
 
 protected:
-    void handleLine(const QString &line, OutputFormat type) override;
+    Status doHandleLine(const QString &line, OutputFormat type) override;
 
     void newTask(const ProjectExplorer::Task &task);
     void doFlush() override;

@@ -52,12 +52,10 @@ MerRpmValidationParser::MerRpmValidationParser()
     setObjectName(QLatin1String("RpmValidationParser"));
 }
 
-void MerRpmValidationParser::handleLine(const QString &line, OutputFormat type)
+IOutputParser::Status MerRpmValidationParser::doHandleLine(const QString &line, OutputFormat type)
 {
-    if (type == StdErrFormat) {
-        IOutputParser::handleLine(line, type);
-        return;
-    }
+    if (type == StdErrFormat)
+        return Status::NotHandled;
 
     QString trimmed = line.trimmed();
 
@@ -72,7 +70,7 @@ void MerRpmValidationParser::handleLine(const QString &line, OutputFormat type)
                 .arg(trimmed));
         newTask(Task(Task::Error, message, FilePath(), -1,
                      Utils::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM)));
-        return;
+        return Status::Done;
     } else if (m_warningRexp.indexIn(trimmed) != -1) {
         trimmed.remove(m_warningRexp);
         const QString message(tr("RPM Validation: %1: %2")
@@ -80,17 +78,17 @@ void MerRpmValidationParser::handleLine(const QString &line, OutputFormat type)
                 .arg(trimmed));
         newTask(Task(Task::Warning, message, FilePath(), -1,
                      Utils::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM)));
-        return;
+        return Status::Done;
     } else if (m_infoRexp.indexIn(trimmed) != -1) {
         trimmed.remove(m_infoRexp);
         amendDescription(trimmed);
-        return;
+        return Status::Done;
     }
 
     m_lastStdOutputLine = trimmed;
 
     doFlush();
-    IOutputParser::handleLine(line, type);
+    return Status::NotHandled;
 }
 
 void MerRpmValidationParser::newTask(const Task &task)

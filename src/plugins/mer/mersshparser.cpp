@@ -33,12 +33,10 @@ using namespace Utils;
 namespace Mer {
 namespace Internal {
 
-void MerSshParser::handleLine(const QString &line, OutputFormat type)
+IOutputParser::Status MerSshParser::doHandleLine(const QString &line, OutputFormat type)
 {
-    if (type == StdOutFormat) {
-        IOutputParser::handleLine(line, type);
-        return;
-    }
+    if (type == StdOutFormat)
+        return Status::NotHandled;
 
     QString lne(line.trimmed());
     if (lne.startsWith(QLatin1String("Project ERROR:"))) {
@@ -48,10 +46,10 @@ void MerSshParser::handleLine(const QString &line, OutputFormat type)
                           FilePath(),
                           -1 /* linenumber */,
                           Utils::Id(Constants::TASK_CATEGORY_BUILDSYSTEM)));
-        return;
+        return Status::Done;
     }
 
-    IOutputParser::handleLine(line, type);
+    return Status::NotHandled;
 }
 
 } // Internal
