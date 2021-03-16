@@ -152,7 +152,6 @@ private slots:
     void updateSummaryText();
 protected:
     void doRun() override;
-    ProjectExplorer::BuildStepConfigWidget *m_widget = nullptr;
 };
 
 class MerMb2RsyncDeployStep : public MerProcessStep
@@ -262,7 +261,6 @@ public:
     MerDeployStepWidget(MerProcessStep *step);
     QString commnadText() const;
     void setCommandText(const QString& commandText);
-    void formatAndSetSummaryText(const QString &summaryText);
 private slots:
     void commandArgumentsLineEditTextEdited();
 private:
