@@ -62,7 +62,7 @@
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/modemanager.h>
-#include <projectexplorer/buildenvironmentwidget.h>
+#include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/kitmanager.h>
 #include <projectexplorer/runcontrol.h>
 #include <projectexplorer/session.h>
@@ -192,7 +192,7 @@ static MerPluginPrivate *dd = nullptr;
 
 MerPlugin::MerPlugin()
 {
-    BuildEnvironmentWidget::setExtender(addInfoOnBuildEngineEnvironment);
+    BuildConfiguration::setEnvironmentWidgetExtender(addInfoOnBuildEngineEnvironment);
 }
 
 MerPlugin::~MerPlugin()
