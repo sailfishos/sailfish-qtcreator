@@ -40,7 +40,6 @@ namespace Internal {
 MerSdkStartStep::MerSdkStartStep(BuildStepList *bsl, Utils::Id id)
     : MerAbstractVmStartStep(bsl, id)
 {
-    setDefaultDisplayName(displayName());
 }
 
 bool MerSdkStartStep::init()
