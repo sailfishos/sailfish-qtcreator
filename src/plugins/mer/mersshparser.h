@@ -31,7 +31,7 @@ namespace Internal {
 class MerSshParser : public ProjectExplorer::IOutputParser
 {
 protected:
-    void stdError(const QString &line) override;
+    void handleLine(const QString &line, OutputFormat type) override;
 };
 
 } // Internal

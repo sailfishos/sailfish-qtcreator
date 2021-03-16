@@ -52,8 +52,13 @@ MerRpmValidationParser::MerRpmValidationParser()
     setObjectName(QLatin1String("RpmValidationParser"));
 }
 
-void MerRpmValidationParser::stdOutput(const QString &line)
+void MerRpmValidationParser::handleLine(const QString &line, OutputFormat type)
 {
+    if (type == StdErrFormat) {
+        IOutputParser::handleLine(line, type);
+        return;
+    }
+
     QString trimmed = line.trimmed();
 
     if (m_headingRexp.indexIn(trimmed) != -1) {
@@ -85,12 +90,7 @@ void MerRpmValidationParser::stdOutput(const QString &line)
     m_lastStdOutputLine = trimmed;
 
     doFlush();
-    IOutputParser::stdOutput(line);
-}
-
-void MerRpmValidationParser::stdError(const QString &line)
-{
-    IOutputParser::stdError(line);
+    IOutputParser::handleLine(line, type);
 }
 
 void MerRpmValidationParser::newTask(const Task &task)
