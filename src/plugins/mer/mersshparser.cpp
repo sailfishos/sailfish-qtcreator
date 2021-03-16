@@ -33,7 +33,7 @@ using namespace Utils;
 namespace Mer {
 namespace Internal {
 
-IOutputParser::Status MerSshParser::doHandleLine(const QString &line, OutputFormat type)
+OutputLineParser::Result MerSshParser::handleLine(const QString &line, OutputFormat type)
 {
     if (type == StdOutFormat)
         return Status::NotHandled;

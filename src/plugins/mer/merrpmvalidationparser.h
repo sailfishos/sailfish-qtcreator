@@ -38,7 +38,7 @@
 namespace Mer {
 namespace Internal {
 
-class MerRpmValidationParser : public ProjectExplorer::IOutputParser
+class MerRpmValidationParser : public ProjectExplorer::OutputTaskParser
 {
     Q_OBJECT
 
@@ -46,10 +46,10 @@ public:
     explicit MerRpmValidationParser();
 
 protected:
-    Status doHandleLine(const QString &line, OutputFormat type) override;
+    Status handleLine(const QString &line, OutputFormat type) override;
 
     void newTask(const ProjectExplorer::Task &task);
-    void doFlush() override;
+    void flush() override;
 
     void amendDescription(const QString &desc);
 
