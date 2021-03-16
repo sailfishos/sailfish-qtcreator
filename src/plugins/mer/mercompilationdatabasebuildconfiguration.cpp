@@ -119,7 +119,7 @@ MerCompilationDatabaseMakeStep::MerCompilationDatabaseMakeStep(BuildStepList *pa
     : MakeStep(parent, id)
 {
     if (parent->id() == ProjectExplorer::Constants::BUILDSTEPS_CLEAN) {
-        setClean(true);
+        setIgnoreReturnValue(true);
         setUserArguments("clean");
     }
 }
