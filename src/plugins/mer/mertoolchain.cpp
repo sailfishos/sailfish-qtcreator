@@ -93,9 +93,9 @@ QStringList MerToolChain::suggestedMkspecList() const
     return mkSpecList;
 }
 
-QList<IOutputParser *> MerToolChain::outputParsers() const
+QList<OutputTaskParser *> MerToolChain::createOutputParsers() const
 {
-    auto parsers = GccToolChain::outputParsers();
+    auto parsers = GccToolChain::createOutputParsers();
     parsers.prepend(new Internal::MerSshParser);
     return parsers;
 }

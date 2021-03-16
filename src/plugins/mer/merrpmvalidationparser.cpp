@@ -43,8 +43,7 @@ namespace Mer {
 namespace Internal {
 
 MerRpmValidationParser::MerRpmValidationParser()
-    : IOutputParser()
-    , m_headingRexp(QLatin1String("^===+$"))
+    : m_headingRexp(QLatin1String("^===+$"))
     , m_errorRexp(QLatin1String("^ERROR\\s+"))
     , m_warningRexp(QLatin1String("^WARNING\\s+"))
     , m_infoRexp(QLatin1String("^INFO\\s+"))
@@ -52,7 +51,7 @@ MerRpmValidationParser::MerRpmValidationParser()
     setObjectName(QLatin1String("RpmValidationParser"));
 }
 
-IOutputParser::Status MerRpmValidationParser::doHandleLine(const QString &line, OutputFormat type)
+OutputTaskParser::Status MerRpmValidationParser::handleLine(const QString &line, OutputFormat type)
 {
     if (type == StdErrFormat)
         return Status::NotHandled;
@@ -87,17 +86,17 @@ IOutputParser::Status MerRpmValidationParser::doHandleLine(const QString &line, 
 
     m_lastStdOutputLine = trimmed;
 
-    doFlush();
+    flush();
     return Status::NotHandled;
 }
 
 void MerRpmValidationParser::newTask(const Task &task)
 {
-    doFlush();
+    flush();
     m_currentTask = task;
 }
 
-void MerRpmValidationParser::doFlush()
+void MerRpmValidationParser::flush()
 {
     if (m_currentTask.isNull())
         return;

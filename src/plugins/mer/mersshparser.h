@@ -28,10 +28,10 @@
 namespace Mer {
 namespace Internal {
 
-class MerSshParser : public ProjectExplorer::IOutputParser
+class MerSshParser : public ProjectExplorer::OutputTaskParser
 {
 protected:
-    Status doHandleLine(const QString &line, OutputFormat type) override;
+    Result handleLine(const QString &line, Utils::OutputFormat type) override;
 };
 
 } // Internal
