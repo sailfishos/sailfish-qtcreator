@@ -152,8 +152,12 @@ void MerDeviceDebugSupport::start()
                 return;
             if (qmakeNode->projectType() != ProjectType::SharedLibraryTemplate)
                 return;
-            const QDir outPwd = QDir(qmakeNode->buildDir(nullptr).toString());
-            addSolibSearchDir(outPwd.absoluteFilePath(qmakeNode->targetInformation().destDir.toString()));
+            auto qmakeBuildSystem = qobject_cast<QmakeBuildSystem *>(
+                    runControl()->runConfiguration()->target()->buildSystem());
+            QTC_ASSERT(qmakeBuildSystem, return);
+            const FilePath outPwd = qmakeBuildSystem->buildDir(qmakeNode->filePath());
+            const FilePath destDir = outPwd.resolvePath(qmakeNode->targetInformation().destDir.toString());
+            addSolibSearchDir(destDir.toString());
         });
     }
 
