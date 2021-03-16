@@ -45,10 +45,10 @@ class MerRpmValidationParser : public ProjectExplorer::IOutputParser
 public:
     explicit MerRpmValidationParser();
 
+protected:
     void stdOutput(const QString &line) override;
     void stdError(const QString &line) override;
 
-protected:
     void newTask(const ProjectExplorer::Task &task);
     void doFlush() override;
 

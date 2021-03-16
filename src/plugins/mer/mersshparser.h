@@ -30,7 +30,7 @@ namespace Internal {
 
 class MerSshParser : public ProjectExplorer::IOutputParser
 {
-public:
+protected:
     void stdError(const QString &line) override;
 };
 
