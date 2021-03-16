@@ -96,28 +96,6 @@ const int CONNECTION_TEST_CHECK_FOR_CANCEL_INTERVAL = 2000;
 const char MER_RPM_VALIDATION_STEP_SELECTED_SUITES[] = "MerRpmValidationStep.SelectedSuites";
 }
 
-class MerConnectionTestStepConfigWidget : public BuildStepConfigWidget
-{
-    Q_OBJECT
-
-public:
-    MerConnectionTestStepConfigWidget(MerConnectionTestStep *step)
-        : BuildStepConfigWidget(step)
-    {
-    }
-};
-
-class MerPrepareTargetStepConfigWidget : public BuildStepConfigWidget
-{
-    Q_OBJECT
-
-public:
-    MerPrepareTargetStepConfigWidget(MerPrepareTargetStep *step)
-        : BuildStepConfigWidget(step)
-    {
-    }
-};
-
 class ElidedWebsiteLabel : public QLabel
 {
 public:
@@ -138,13 +116,13 @@ private:
     const QString m_text;
 };
 
-class MerRpmValidationStepConfigWidget : public ProjectExplorer::BuildStepConfigWidget
+class MerRpmValidationStepConfigWidget : public QWidget
 {
     Q_OBJECT
 
 public:
     MerRpmValidationStepConfigWidget(MerRpmValidationStep *step)
-        : BuildStepConfigWidget(step)
+        : m_step(step)
     {
         m_ui.setupUi(this);
 
@@ -183,11 +161,6 @@ public:
     }
 
 private:
-    MerRpmValidationStep *step()
-    {
-        return static_cast<MerRpmValidationStep *>(BuildStepConfigWidget::step());
-    }
-
     void onItemChanged()
     {
         QStringList checked;
@@ -197,14 +170,14 @@ private:
             if (item->checkState(0) == Qt::Checked)
                 checked.append(item->data(0, Qt::UserRole).toString());
         }
-        step()->setSelectedSuites(checked);
+        m_step->setSelectedSuites(checked);
         updateWarningLabel(suitesCount > 0, checked.count() > 0);
         updateCommandText();
     }
 
     void updateCommandText()
     {
-        m_ui.commandLabelEdit->setText(QLatin1String("rpmvalidation ") + step()->fixedArguments());
+        m_ui.commandLabelEdit->setText(QLatin1String("rpmvalidation ") + m_step->fixedArguments());
     }
 
     void updateWarningLabel(bool hasSuite, bool hasSelectedSuite)
@@ -226,6 +199,7 @@ private:
 
 private:
     Ui::MerRpmValidationStepConfigWidget m_ui;
+    MerRpmValidationStep *m_step = nullptr;
 };
 
 MerProcessStep::MerProcessStep(BuildStepList *bsl, Id id)
@@ -403,11 +377,6 @@ void MerConnectionTestStep::doCancel()
     finish(false);
 }
 
-BuildStepConfigWidget *MerConnectionTestStep::createConfigWidget()
-{
-    return new MerConnectionTestStepConfigWidget(this);
-}
-
 void MerConnectionTestStep::onConnected()
 {
     finish(true);
@@ -491,11 +460,6 @@ void MerPrepareTargetStep::doCancel()
     m_impl->cancel();
 }
 
-BuildStepConfigWidget *MerPrepareTargetStep::createConfigWidget()
-{
-    return new MerPrepareTargetStepConfigWidget(this);
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 Utils::Id MerMb2MakeInstallStep::stepId()
@@ -534,7 +498,7 @@ void MerMb2MakeInstallStep::doRun()
    AbstractProcessStep::doRun();
 }
 
-BuildStepConfigWidget *MerMb2MakeInstallStep::createConfigWidget()
+QWidget *MerMb2MakeInstallStep::createConfigWidget()
 {
     auto widget = new MerDeployStepWidget(this);
     BuildConfiguration *const bc = buildConfiguration();
@@ -588,7 +552,7 @@ void MerMb2RsyncDeployStep::doRun()
    AbstractProcessStep::doRun();
 }
 
-BuildStepConfigWidget *MerMb2RsyncDeployStep::createConfigWidget()
+QWidget *MerMb2RsyncDeployStep::createConfigWidget()
 {
     return new MerDeployStepWidget(this);
 }
@@ -671,7 +635,7 @@ void MerLocalRsyncDeployStep::doRun()
    AbstractProcessStep::doRun();
 }
 
-BuildStepConfigWidget *MerLocalRsyncDeployStep::createConfigWidget()
+QWidget *MerLocalRsyncDeployStep::createConfigWidget()
 {
     auto widget = new MerDeployStepWidget(this);
     widget->setCommandText(tr("Deploy using local installed Rsync"));
@@ -713,7 +677,7 @@ void MerMb2RpmDeployStep::doRun()
     AbstractProcessStep::doRun();
 }
 
-BuildStepConfigWidget *MerMb2RpmDeployStep::createConfigWidget()
+QWidget *MerMb2RpmDeployStep::createConfigWidget()
 {
     return new MerDeployStepWidget(this);
 }
@@ -791,7 +755,7 @@ QString MerMb2RpmBuildStep::mainPackageFileName() const
     return m_packages.first();
 }
 
-BuildStepConfigWidget *MerMb2RpmBuildStep::createConfigWidget()
+QWidget *MerMb2RpmBuildStep::createConfigWidget()
 {
     auto *widget = new MerDeployStepWidget(this);
     widget->setCommandText(QLatin1String("mb2 rpm"));
@@ -1008,16 +972,15 @@ QString MerRpmValidationStep::fixedArguments() const
     return m_fixedArguments;
 }
 
-BuildStepConfigWidget *MerRpmValidationStep::createConfigWidget()
+QWidget *MerRpmValidationStep::createConfigWidget()
 {
-    auto *widget = new MerRpmValidationStepConfigWidget(this);
-    return widget;
+    return new MerRpmValidationStepConfigWidget(this);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 MerDeployStepWidget::MerDeployStepWidget(MerProcessStep *step)
-        : BuildStepConfigWidget(step)
+    : m_step(step)
 {
     m_ui.setupUi(this);
     m_ui.commandArgumentsLineEdit->setText(step->arguments());
@@ -1027,7 +990,7 @@ MerDeployStepWidget::MerDeployStepWidget(MerProcessStep *step)
 
 void MerDeployStepWidget::commandArgumentsLineEditTextEdited()
 {
-    static_cast<MerProcessStep *>(step())->setArguments(m_ui.commandArgumentsLineEdit->text());
+    m_step->setArguments(m_ui.commandArgumentsLineEdit->text());
 }
 
 void MerDeployStepWidget::setCommandText(const QString& commandText)

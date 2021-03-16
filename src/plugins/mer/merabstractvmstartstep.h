@@ -43,7 +43,6 @@ public:
     explicit MerAbstractVmStartStep(ProjectExplorer::BuildStepList *bsl, Utils::Id id);
 
     bool init() override;
-    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
 
     Sfdk::VirtualMachine *virtualMachine() const;
 
