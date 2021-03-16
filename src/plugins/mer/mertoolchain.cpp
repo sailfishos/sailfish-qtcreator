@@ -93,11 +93,11 @@ QStringList MerToolChain::suggestedMkspecList() const
     return mkSpecList;
 }
 
-IOutputParser *MerToolChain::outputParser() const
+QList<IOutputParser *> MerToolChain::outputParsers() const
 {
-    IOutputParser *parser = new Internal::MerSshParser;
-    parser->appendOutputParser(GccToolChain::outputParser());
-    return parser;
+    auto parsers = GccToolChain::outputParsers();
+    parsers.prepend(new Internal::MerSshParser);
+    return parsers;
 }
 
 QVariantMap MerToolChain::toMap() const
