@@ -48,7 +48,7 @@ MerCompilationDatabaseBuildConfiguration::MerCompilationDatabaseBuildConfigurati
     : BuildConfiguration(target, id)
 {
     auto aspect = addAspect<MerBuildConfigurationAspect>(this);
-    connect(aspect, &ProjectConfigurationAspect::changed,
+    connect(aspect, &BaseAspect::changed,
             this, &BuildConfiguration::updateCacheAndEmitEnvironmentChanged);
     updateCacheAndEmitEnvironmentChanged();
 

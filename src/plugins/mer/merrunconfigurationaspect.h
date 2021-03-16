@@ -23,7 +23,7 @@
 #ifndef MERRUNCONFIGURATIONASPECT_H
 #define MERRUNCONFIGURATIONASPECT_H
 
-#include <projectexplorer/projectconfiguration.h>
+#include <utils/aspects.h>
 #include <utils/port.h>
 
 namespace ProjectExplorer {
@@ -34,7 +34,7 @@ namespace ProjectExplorer {
 namespace Mer {
 namespace Internal {
 
-class MerRunConfigurationAspect : public ProjectExplorer::ProjectConfigurationAspect
+class MerRunConfigurationAspect : public Utils::BaseAspect
 {
     Q_OBJECT
 
