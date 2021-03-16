@@ -53,9 +53,6 @@ public:
     MerAbstractVmStartStepConfigWidget(MerAbstractVmStartStep *step)
         : BuildStepConfigWidget(step)
     {
-        setSummaryText(QString::fromLatin1("<b>%1:</b> %2")
-                .arg(displayName())
-                .arg(tr("Starts the virtual machine, if necessary.")));
     }
 };
 
@@ -63,6 +60,11 @@ MerAbstractVmStartStep::MerAbstractVmStartStep(BuildStepList *bsl, Utils::Id id)
     : BuildStep(bsl, id)
     , m_virtualMachine(0)
 {
+    setSummaryUpdater([this]() {
+        return QString::fromLatin1("<b>%1:</b> %2")
+            .arg(displayName())
+            .arg(tr("Starts the virtual machine, if necessary."));
+    });
     setWidgetExpandedByDefault(false);
 }
 
