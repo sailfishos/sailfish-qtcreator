@@ -414,7 +414,6 @@ QString MerPrepareTargetStep::displayName()
 MerPrepareTargetStep::MerPrepareTargetStep(BuildStepList *bsl, Utils::Id id)
     : BuildStep(bsl, id)
 {
-    setDefaultDisplayName(displayName());
     setSummaryText(QString("<b>%1:</b> %2")
             .arg(displayName())
             .arg(tr("Prepares target device for deployment")));
@@ -475,7 +474,6 @@ QString MerMb2MakeInstallStep::displayName()
 MerMb2MakeInstallStep::MerMb2MakeInstallStep(BuildStepList *bsl, Id id)
     : MerProcessStep(bsl, id)
 {
-    setDefaultDisplayName(displayName());
 }
 
 bool MerMb2MakeInstallStep::init()
@@ -534,7 +532,6 @@ QString MerMb2RsyncDeployStep::displayName()
 MerMb2RsyncDeployStep::MerMb2RsyncDeployStep(BuildStepList *bsl, Utils::Id id)
     : MerProcessStep(bsl, id)
 {
-    setDefaultDisplayName(displayName());
     setSummaryText(QString("<b>%1:</b> %2")
             .arg(displayName())
             .arg(tr("Deploys with rsync.")));
@@ -572,7 +569,6 @@ QString MerLocalRsyncDeployStep::displayName()
 MerLocalRsyncDeployStep::MerLocalRsyncDeployStep(BuildStepList *bsl, Utils::Id id)
     : MerProcessStep(bsl, id)
 {
-    setDefaultDisplayName(displayName());
     setSummaryText(QString("<b>%1:</b> %2")
             .arg(displayName())
             .arg(tr("Deploys with local installed rsync.")));
@@ -658,7 +654,6 @@ QString MerMb2RpmDeployStep::displayName()
 MerMb2RpmDeployStep::MerMb2RpmDeployStep(BuildStepList *bsl, Utils::Id id)
     : MerProcessStep(bsl, id)
 {
-    setDefaultDisplayName(displayName());
     setSummaryText(QString("<b>%1:</b> %2")
             .arg(displayName())
             .arg(tr("Deploys RPM package.")));
@@ -699,7 +694,6 @@ QString MerMb2RpmBuildStep::displayName()
 MerMb2RpmBuildStep::MerMb2RpmBuildStep(BuildStepList *bsl, Utils::Id id)
     : MerProcessStep(bsl, id)
 {
-    setDefaultDisplayName(displayName());
     setSummaryText(QString("<b>%1:</b> %2")
             .arg(displayName())
             .arg(tr("Builds RPM package.")));
@@ -833,7 +827,6 @@ MerRpmValidationStep::MerRpmValidationStep(BuildStepList *bsl, Utils::Id id)
     : MerProcessStep(bsl, id)
 {
     setEnabled(MerSettings::rpmValidationByDefault());
-    setDefaultDisplayName(displayName());
     setSummaryText(QString("<b>%1:</b> %2")
             .arg(displayName())
             .arg(tr("Validates RPM package.")));
@@ -1103,7 +1096,6 @@ void MerNamedCommandDeployService::handleProcessClosed(const QString &error)
 MerResetAmbienceDeployStep::MerResetAmbienceDeployStep(ProjectExplorer::BuildStepList *bsl, Utils::Id id)
     : AbstractRemoteLinuxDeployStep(bsl, id)
 {
-    setDefaultDisplayName(displayName());
     QString ambienceName = target()->project()->displayName();
 
     QFile scriptFile(QStringLiteral(":/mer/reset-ambience.sh"));

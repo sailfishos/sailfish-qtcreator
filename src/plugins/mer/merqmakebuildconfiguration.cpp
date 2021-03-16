@@ -117,11 +117,11 @@ void MerQmakeBuildConfiguration::doInitialize(const ProjectExplorer::BuildInfo &
 
     BuildStepList *buildSteps = this->buildSteps();
     QTC_ASSERT(buildSteps, return);
-    buildSteps->insertStep(0, new MerSdkStartStep(buildSteps, MerSdkStartStep::stepId()));
+    buildSteps->insertStep(0, MerSdkStartStep::stepId());
 
     BuildStepList *cleanSteps = this->cleanSteps();
     QTC_ASSERT(cleanSteps, return);
-    cleanSteps->insertStep(0, new MerSdkStartStep(cleanSteps, MerSdkStartStep::stepId()));
+    cleanSteps->insertStep(0, MerSdkStartStep::stepId());
 }
 
 void MerQmakeBuildConfiguration::timerEvent(QTimerEvent *event)
