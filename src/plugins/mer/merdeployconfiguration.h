@@ -65,23 +65,7 @@ T *earlierBuildStep(ProjectExplorer::DeployConfiguration *deployConfiguration,
     return nullptr;
 }
 
-template<class Configuration>
-class MerDeployConfigurationFactory : public ProjectExplorer::DeployConfigurationFactory
-{
-    Q_DECLARE_TR_FUNCTIONS(Mer::Internal::MerDeployConfigurationFactory)
-
-public:
-    MerDeployConfigurationFactory()
-    {
-        setConfigBaseId(Configuration::configurationId());
-        addSupportedTargetDeviceType(Constants::MER_DEVICE_TYPE);
-        setDefaultDisplayName(Configuration::displayName());
-        setUseDeploymentDataView();
-    }
-};
-
-class MerRpmDeployConfigurationFactory
-    : public MerDeployConfigurationFactory<MerRpmDeployConfigurationFactory>
+class MerRpmDeployConfigurationFactory : public ProjectExplorer::DeployConfigurationFactory
 {
     Q_DECLARE_TR_FUNCTIONS(Mer::Internal::MerRpmDeployConfigurationFactory)
 
@@ -92,8 +76,7 @@ public:
     static Utils::Id configurationId();
 };
 
-class MerRsyncDeployConfigurationFactory
-    : public MerDeployConfigurationFactory<MerRsyncDeployConfigurationFactory>
+class MerRsyncDeployConfigurationFactory : public ProjectExplorer::DeployConfigurationFactory
 {
     Q_DECLARE_TR_FUNCTIONS(Mer::Internal::MerRsyncDeployConfigurationFactory)
 
@@ -105,8 +88,7 @@ public:
 };
 
 //TODO: Hack
-class MerMb2RpmBuildConfigurationFactory
-    : public MerDeployConfigurationFactory<MerMb2RpmBuildConfigurationFactory>
+class MerMb2RpmBuildConfigurationFactory : public ProjectExplorer::DeployConfigurationFactory
 {
     Q_DECLARE_TR_FUNCTIONS(Mer::Internal::MerMb2DeployConfigurationFactory)
 
