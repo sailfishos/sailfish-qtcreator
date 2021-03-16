@@ -60,6 +60,11 @@ const int ADD_REMOVE_SPECIAL_STEPS_DELAY_MS = 1000;
 
 MerRpmDeployConfigurationFactory::MerRpmDeployConfigurationFactory()
 {
+    setConfigBaseId(configurationId());
+    addSupportedTargetDeviceType(Constants::MER_DEVICE_TYPE);
+    setDefaultDisplayName(displayName());
+    setUseDeploymentDataView();
+
     addInitialStep(MerPrepareTargetStep::stepId());
     addInitialStep(MerMb2RpmBuildStep::stepId());
     addInitialStep(MerMb2RpmDeployStep::stepId());
@@ -79,6 +84,11 @@ Utils::Id MerRpmDeployConfigurationFactory::configurationId()
 
 MerRsyncDeployConfigurationFactory::MerRsyncDeployConfigurationFactory()
 {
+    setConfigBaseId(configurationId());
+    addSupportedTargetDeviceType(Constants::MER_DEVICE_TYPE);
+    setDefaultDisplayName(displayName());
+    setUseDeploymentDataView();
+
     addInitialStep(MerPrepareTargetStep::stepId());
     addInitialStep(MerMb2MakeInstallStep::stepId());
     addInitialStep(MerMb2RsyncDeployStep::stepId());
@@ -98,6 +108,11 @@ Utils::Id MerRsyncDeployConfigurationFactory::configurationId()
 //TODO:HACK
 MerMb2RpmBuildConfigurationFactory::MerMb2RpmBuildConfigurationFactory()
 {
+    setConfigBaseId(configurationId());
+    addSupportedTargetDeviceType(Constants::MER_DEVICE_TYPE);
+    setDefaultDisplayName(displayName());
+    setUseDeploymentDataView();
+
     addInitialStep(MerMb2RpmBuildStep::stepId());
 }
 
