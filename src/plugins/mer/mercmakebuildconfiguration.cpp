@@ -101,7 +101,7 @@ void MerCMakeBuildConfiguration::addToEnvironment(Utils::Environment &env) const
 
 MerCMakeBuildConfigurationFactory::MerCMakeBuildConfigurationFactory()
 {
-    registerBuildConfiguration<MerCMakeBuildConfiguration>(CMakeProjectManager::Constants::CMAKEPROJECT_BC_ID);
+    registerBuildConfiguration<MerCMakeBuildConfiguration>(CMakeProjectManager::Constants::CMAKE_PROJECT_BC_ID);
     addSupportedTargetDeviceType(Constants::MER_DEVICE_TYPE);
 }
 
