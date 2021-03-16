@@ -499,22 +499,17 @@ void MerMb2MakeInstallStep::doRun()
 QWidget *MerMb2MakeInstallStep::createConfigWidget()
 {
     auto widget = new MerDeployStepWidget(this);
-    BuildConfiguration *const bc = buildConfiguration();
-    connect(bc, &BuildConfiguration::buildDirectoryChanged, this, &MerMb2MakeInstallStep::updateSummaryText);
 
-    updateSummaryText();
+    setSummaryUpdater([this]() {
+        BuildConfiguration *const bc = buildConfiguration();
+        const QString summary = tr("make install in %1").arg(bc->buildDirectory().toString());
+        return QString("<b>%1:</b> %2")
+                .arg(displayName())
+                .arg(summary);
+    });
 
     widget->setCommandText("mb2 make-install");
     return widget;
-}
-
-void MerMb2MakeInstallStep::updateSummaryText()
-{
-    BuildConfiguration *const bc = buildConfiguration();
-    const QString summary = tr("make install in %1").arg(bc->buildDirectory().toString());
-    setSummaryText(QString("<b>%1:</b> %2")
-            .arg(displayName())
-            .arg(summary));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////

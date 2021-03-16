@@ -146,8 +146,6 @@ public:
     QWidget *createConfigWidget() override;
     static Utils::Id stepId();
     static QString displayName();
-private slots:
-    void updateSummaryText();
 protected:
     void doRun() override;
 };
