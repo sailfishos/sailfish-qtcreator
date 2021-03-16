@@ -79,9 +79,9 @@ void MerBuildEngineOptionsPage::finish()
     delete m_widget;
 }
 
-bool MerBuildEngineOptionsPage::matches(const QString &key) const
+bool MerBuildEngineOptionsPage::matches(const QRegularExpression &regexp) const
 {
-    return m_searchKeyWords.contains(key, Qt::CaseInsensitive);
+    return m_searchKeyWords.contains(regexp);
 }
 
 void MerBuildEngineOptionsPage::onUpdateSearchKeys()

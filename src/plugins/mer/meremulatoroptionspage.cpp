@@ -78,9 +78,9 @@ void MerEmulatorOptionsPage::finish()
     delete m_widget;
 }
 
-bool MerEmulatorOptionsPage::matches(const QString &key) const
+bool MerEmulatorOptionsPage::matches(const QRegularExpression &regexp) const
 {
-    return m_searchKeyWords.contains(key, Qt::CaseInsensitive);
+    return m_searchKeyWords.contains(regexp);
 }
 
 void MerEmulatorOptionsPage::onUpdateSearchKeys()

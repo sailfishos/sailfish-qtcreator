@@ -71,9 +71,9 @@ void MerGeneralOptionsPage::finish()
     delete m_widget;
 }
 
-bool MerGeneralOptionsPage::matches(const QString &key) const
+bool MerGeneralOptionsPage::matches(const QRegularExpression &regexp) const
 {
-    return m_searchKeywords.contains(key, Qt::CaseInsensitive);;
+    return m_searchKeywords.contains(regexp);
 }
 
 } // Internal
