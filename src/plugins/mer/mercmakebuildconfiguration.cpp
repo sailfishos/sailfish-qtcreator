@@ -47,6 +47,7 @@
 using namespace Core;
 using namespace ProjectExplorer;
 using namespace CMakeProjectManager::Internal;
+using namespace Utils;
 
 namespace Mer {
 namespace Internal {
@@ -55,7 +56,7 @@ MerCMakeBuildConfiguration::MerCMakeBuildConfiguration(Target *target, Utils::Id
     : CMakeBuildConfiguration(target, id)
 {
     auto aspect = addAspect<MerBuildConfigurationAspect>(this);
-    connect(aspect, &ProjectConfigurationAspect::changed,
+    connect(aspect, &BaseAspect::changed,
             this, &BuildConfiguration::updateCacheAndEmitEnvironmentChanged);
 
     connect(target, &Target::parsingStarted,

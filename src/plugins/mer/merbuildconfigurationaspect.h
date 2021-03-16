@@ -23,8 +23,8 @@
 #ifndef MERBUILDCONFIGURATIONASPECTS_H
 #define MERBUILDCONFIGURATIONASPECTS_H
 
-#include <projectexplorer/projectconfiguration.h>
 #include <sfdk/utils.h>
+#include <utils/aspects.h>
 
 #include <QPointer>
 
@@ -39,7 +39,7 @@ namespace Utils {
 namespace Mer {
 namespace Internal {
 
-class MerBuildConfigurationAspect : public ProjectExplorer::ProjectConfigurationAspect
+class MerBuildConfigurationAspect : public Utils::BaseAspect
 {
     Q_OBJECT
 

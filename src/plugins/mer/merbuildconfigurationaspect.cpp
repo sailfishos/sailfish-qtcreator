@@ -34,7 +34,6 @@
 #include <sfdk/utils.h>
 
 #include <coreplugin/messagemanager.h>
-#include <coreplugin/variablechooser.h>
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/buildsystem.h>
 #include <projectexplorer/kit.h>
@@ -46,6 +45,7 @@
 #include <utils/pathchooser.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
+#include <utils/variablechooser.h>
 
 #include <QAction>
 #include <QCompleter>

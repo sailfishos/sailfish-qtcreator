@@ -53,7 +53,7 @@ MerCustomRunConfiguration::MerCustomRunConfiguration(Target *target, Utils::Id i
     exeAspect->setSettingsKey("Mer.CustomRunConfig.RemoteExecutable");
     exeAspect->setLabelText(tr("Executable on device:"));
     exeAspect->setExecutablePathStyle(OsTypeLinux);
-    exeAspect->setDisplayStyle(BaseStringAspect::LineEditDisplay);
+    exeAspect->setDisplayStyle(StringAspect::LineEditDisplay);
     exeAspect->setPlaceHolderText(tr("Remote path not set"));
     exeAspect->setHistoryCompleter("Mer.CustomExecutable.History");
     exeAspect->setExpectedKind(PathChooser::Any);

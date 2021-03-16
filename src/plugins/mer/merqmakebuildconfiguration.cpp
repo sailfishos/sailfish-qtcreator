@@ -58,7 +58,7 @@ using namespace Core;
 using namespace ProjectExplorer;
 using namespace QmakeProjectManager;
 using namespace Sfdk;
-using Utils::CheckableMessageBox;
+using namespace Utils;
 
 namespace {
 
@@ -74,7 +74,7 @@ MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target, Utils::Id
     : QmakeBuildConfiguration(target, id)
 {
     auto aspect = addAspect<MerBuildConfigurationAspect>(this);
-    connect(aspect, &ProjectConfigurationAspect::changed,
+    connect(aspect, &BaseAspect::changed,
             this, &BuildConfiguration::updateCacheAndEmitEnvironmentChanged);
 
     connect(MerSettings::instance(), &MerSettings::importQmakeVariablesEnabledChanged,
