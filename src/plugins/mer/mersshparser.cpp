@@ -33,8 +33,13 @@ using namespace Utils;
 namespace Mer {
 namespace Internal {
 
-void MerSshParser::stdError(const QString &line)
+void MerSshParser::handleLine(const QString &line, OutputFormat type)
 {
+    if (type == StdOutFormat) {
+        IOutputParser::handleLine(line, type);
+        return;
+    }
+
     QString lne(line.trimmed());
     if (lne.startsWith(QLatin1String("Project ERROR:"))) {
         const QString description = lne.mid(15);
@@ -45,7 +50,8 @@ void MerSshParser::stdError(const QString &line)
                           Utils::Id(Constants::TASK_CATEGORY_BUILDSYSTEM)));
         return;
     }
-    IOutputParser::stdError(line);
+
+    IOutputParser::handleLine(line, type);
 }
 
 } // Internal
