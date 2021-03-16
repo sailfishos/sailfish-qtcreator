@@ -41,7 +41,7 @@ public:
     QWidget *widget() override;
     void apply() override;
     void finish() override;
-    bool matches(const QString &key) const override;
+    bool matches(const QRegularExpression &regexp) const override;
 
     void setBuildEngine(const QUrl &vmUri);
 
