@@ -62,8 +62,6 @@ private:
 
 class MerToolChainFactory : public ProjectExplorer::ToolChainFactory
 {
-    Q_OBJECT
-
 public:
     MerToolChainFactory();
 
