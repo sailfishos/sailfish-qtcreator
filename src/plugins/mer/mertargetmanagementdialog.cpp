@@ -72,7 +72,7 @@ public:
             const QString line = stream.readLine();
             if (line.isEmpty())
                 continue;
-            const QStringList columns = line.split(' ', QString::SkipEmptyParts);
+            const QStringList columns = line.split(' ', Qt::SkipEmptyParts);
             QTC_ASSERT(columns.count() >= 2, return false);
             const QString name = columns.at(0);
             const bool installed = columns.at(1) == "installed";
@@ -332,7 +332,7 @@ private:
 
     void onSearchStringChanged(const QString &searchString)
     {
-        const QStringList split = searchString.split(' ', QString::SkipEmptyParts);
+        const QStringList split = searchString.split(' ', Qt::SkipEmptyParts);
         const QList<int> lengths = Utils::transform(split, &QString::length);
         const int minLength = *std::min_element(lengths.begin(), lengths.end());
 

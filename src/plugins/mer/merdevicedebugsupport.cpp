@@ -46,6 +46,8 @@
 #include <utils/portlist.h>
 #include <utils/qtcassert.h>
 
+#include <QElapsedTimer>
+
 using namespace Debugger;
 using namespace ProjectExplorer;
 using namespace QmakeProjectManager;
@@ -85,14 +87,14 @@ private:
     {
         appendMessage(tr("Waiting for gdbserver..."), Utils::NormalMessageFormat);
         m_usedPortsGatherer.start(device());
-        m_startTime.restart();
+        m_startTimer.restart();
     }
 
     void handlePortListReady()
     {
         const Port gdbServerPort(m_debugServerPortsGatherer->gdbServer().port());
         if (!m_usedPortsGatherer.usedPorts().contains(gdbServerPort)) {
-            if (m_startTime.elapsed() > GDB_SERVER_READY_TIMEOUT_MS) {
+            if (m_startTimer.elapsed() > GDB_SERVER_READY_TIMEOUT_MS) {
                 reportFailure(tr("Timeout waiting for gdbserver to become ready."));
                 return;
             }
@@ -103,7 +105,7 @@ private:
 
     DebugServerPortsGatherer *m_debugServerPortsGatherer;
     DeviceUsedPortsGatherer m_usedPortsGatherer;
-    QTime m_startTime;
+    QElapsedTimer m_startTimer;
 };
 
 MerDeviceDebugSupport::MerDeviceDebugSupport(RunControl *runControl)
