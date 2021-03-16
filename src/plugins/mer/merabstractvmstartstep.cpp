@@ -45,17 +45,6 @@ const int CHECK_FOR_CANCEL_INTERVAL = 2000;
 const int DISMISS_MESSAGE_BOX_DELAY = 2000;
 }
 
-class MerAbstractVmStartStepConfigWidget : public BuildStepConfigWidget
-{
-    Q_OBJECT
-
-public:
-    MerAbstractVmStartStepConfigWidget(MerAbstractVmStartStep *step)
-        : BuildStepConfigWidget(step)
-    {
-    }
-};
-
 MerAbstractVmStartStep::MerAbstractVmStartStep(BuildStepList *bsl, Utils::Id id)
     : BuildStep(bsl, id)
     , m_virtualMachine(0)
@@ -100,11 +89,6 @@ void MerAbstractVmStartStep::doCancel()
     QTC_ASSERT(m_virtualMachine, return);
     m_virtualMachine->disconnect(this);
     m_virtualMachine = 0;
-}
-
-BuildStepConfigWidget *MerAbstractVmStartStep::createConfigWidget()
-{
-    return new MerAbstractVmStartStepConfigWidget(this);
 }
 
 VirtualMachine *MerAbstractVmStartStep::virtualMachine() const
