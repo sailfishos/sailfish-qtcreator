@@ -51,7 +51,7 @@ MerRpmValidationParser::MerRpmValidationParser()
     setObjectName(QLatin1String("RpmValidationParser"));
 }
 
-OutputTaskParser::Status MerRpmValidationParser::handleLine(const QString &line, OutputFormat type)
+OutputLineParser::Result MerRpmValidationParser::handleLine(const QString &line, OutputFormat type)
 {
     if (type == StdErrFormat)
         return Status::NotHandled;
@@ -102,7 +102,7 @@ void MerRpmValidationParser::flush()
         return;
     Task t = m_currentTask;
     m_currentTask.clear();
-    emit addTask(t);
+    scheduleTask(t, 1);
 }
 
 void MerRpmValidationParser::amendDescription(const QString &desc)
