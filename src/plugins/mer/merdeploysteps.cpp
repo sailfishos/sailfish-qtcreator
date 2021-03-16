@@ -844,9 +844,12 @@ bool MerRpmValidationStep::init()
         return false;
     }
 
-    setOutputParser(new MerRpmValidationParser);
-
     return true;
+}
+
+void MerRpmValidationStep::setupOutputFormatter(OutputFormatter *formatter)
+{
+    formatter->addLineParser(new MerRpmValidationParser);
 }
 
 void MerRpmValidationStep::doRun()

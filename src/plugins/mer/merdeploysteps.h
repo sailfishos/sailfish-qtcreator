@@ -242,6 +242,7 @@ public:
     static Utils::Id stepId();
     static QString displayName();
 protected:
+    void setupOutputFormatter(Utils::OutputFormatter *formatter) override;
     void doRun() override;
 private:
     MerMb2RpmBuildStep *m_packagingStep;

@@ -41,11 +41,12 @@ OutputLineParser::Result MerSshParser::handleLine(const QString &line, OutputFor
     QString lne(line.trimmed());
     if (lne.startsWith(QLatin1String("Project ERROR:"))) {
         const QString description = lne.mid(15);
-        emit addTask(Task(Task::Error,
+        scheduleTask(Task(Task::Error,
                           description,
                           FilePath(),
                           -1 /* linenumber */,
-                          Utils::Id(Constants::TASK_CATEGORY_BUILDSYSTEM)));
+                          Utils::Id(Constants::TASK_CATEGORY_BUILDSYSTEM)),
+                1);
         return Status::Done;
     }
 

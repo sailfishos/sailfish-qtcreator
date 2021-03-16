@@ -93,7 +93,7 @@ QStringList MerToolChain::suggestedMkspecList() const
     return mkSpecList;
 }
 
-QList<OutputTaskParser *> MerToolChain::createOutputParsers() const
+QList<OutputLineParser *> MerToolChain::createOutputParsers() const
 {
     auto parsers = GccToolChain::createOutputParsers();
     parsers.prepend(new Internal::MerSshParser);
