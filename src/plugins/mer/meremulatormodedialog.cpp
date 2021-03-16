@@ -48,8 +48,8 @@
 #include <utils/qtcassert.h>
 
 #include <QAction>
-#include <QDesktopWidget>
 #include <QPushButton>
+#include <QScreen>
 
 using namespace Core;
 using namespace ProjectExplorer;
@@ -260,8 +260,7 @@ void MerEmulatorModeDialog::guessOptimalViewMode()
 {
     Q_ASSERT(m_emulator != 0);
 
-    // TODO use the word resolution instead of size
-    const QSize desktopSize = qApp->desktop()->availableGeometry().size();
+    const QSize availableSize = qApp->primaryScreen()->availableSize();
 
     const DeviceModelData selectedModel =
         Sdk::deviceModel(m_ui->deviceModelComboBox->currentDeviceModel());
@@ -272,7 +271,7 @@ void MerEmulatorModeDialog::guessOptimalViewMode()
         selectedSize.transpose();
     }
 
-    const bool tooBig = selectedSize.boundedTo(desktopSize) != selectedSize;
+    const bool tooBig = selectedSize.boundedTo(availableSize) != selectedSize;
 
     QRadioButton *viewModeRadioButton = tooBig
         ? m_ui->scaledViewModeRadioButton

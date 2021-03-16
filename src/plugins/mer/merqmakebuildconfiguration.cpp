@@ -52,6 +52,7 @@
 
 #include <QApplication>
 #include <QCheckBox>
+#include <QTimer>
 #include <QVBoxLayout>
 
 using namespace Core;
