@@ -110,8 +110,7 @@ void MerRpmValidationParser::amendDescription(const QString &desc)
     if (m_currentTask.isNull())
         return;
 
-    m_currentTask.description.append(QLatin1Char('\n'));
-    m_currentTask.description.append(desc);
+    m_currentTask.details.append(desc);
 }
 
 } // Internal
