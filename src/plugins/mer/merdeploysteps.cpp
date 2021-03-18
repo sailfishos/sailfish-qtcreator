@@ -249,19 +249,6 @@ bool MerProcessStep::init(InitOptions options)
         return false;
     }
 
-    // BuildDirectoryAspect::isShadowBuild reports false when
-    // BuildDirectoryAspect::allowInSourceBuilds is not set, which is the case of
-    // CMakeBuildConfiguration.
-    const bool isShadowBuild = bc->buildDirectoryAspect()->isShadowBuild()
-        || qobject_cast<CMakeBuildConfiguration *>(bc) != nullptr
-        || qobject_cast<MerCompilationDatabaseBuildConfiguration *>(bc) != nullptr;
-
-    const FilePath projectDirectory = isShadowBuild
-        ? bc->rawBuildDirectory()
-        : project()->projectDirectory();
-    // FIXME needed?
-    setWorkingDirectoryProvider([=]() { return projectDirectory; });
-
     setCommandLineProvider([=]() {
         const FilePath toolsPath = engine->buildTarget(target).toolsPath;
         CommandLine deployCommand(toolsPath.pathAppended(Sfdk::Constants::WRAPPER_DEPLOY));
@@ -600,19 +587,6 @@ bool MerLocalRsyncDeployStep::init()
                 OutputFormat::ErrorMessage);
         return false;
     }
-
-    // BuildDirectoryAspect::isShadowBuild reports false when
-    // BuildDirectoryAspect::allowInSourceBuilds is not set, which is the case of
-    // CMakeBuildConfiguration.
-    const bool isShadowBuild = bc->buildDirectoryAspect()->isShadowBuild()
-        || qobject_cast<CMakeBuildConfiguration *>(bc) != nullptr
-        || qobject_cast<MerCompilationDatabaseBuildConfiguration *>(bc) != nullptr;
-
-    const FilePath projectDirectory = isShadowBuild
-        ? bc->rawBuildDirectory()
-        : project()->projectDirectory();
-    // FIXME needed?
-    setWorkingDirectoryProvider([=]() { return projectDirectory; });
 
     setCommandLineProvider([this]() {
         CommandLine deployCommand("rsync");
