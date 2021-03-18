@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>593</width>
-    <height>146</height>
+    <height>160</height>
    </rect>
   </property>
   <layout class="QFormLayout" name="formLayout">
@@ -75,6 +75,9 @@
     <layout class="QHBoxLayout" name="signingUserLayout">
      <item>
       <widget class="QLineEdit" name="signingUserLineEdit">
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
        <property name="readOnly">
         <bool>true</bool>
        </property>

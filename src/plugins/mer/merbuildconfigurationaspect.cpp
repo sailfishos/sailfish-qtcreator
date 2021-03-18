@@ -164,8 +164,16 @@ public:
 
         m_ui->signingUserLineEdit->setPlaceholderText(tr("Select the signing user"));
         m_ui->signingUserLineEdit->setText(m_aspect->signingUser().toString());
+        m_ui->signingUserLineEdit->setToolTip(m_aspect->signingUser().toString());
+        m_ui->signingUserLineEdit->setCursorPosition(0);
+        connect(m_ui->signingUserLineEdit, &QLineEdit::selectionChanged,
+                m_ui->signingUserLineEdit, [this]() {
+            if (m_ui->signingUserLineEdit->selectedText().isEmpty())
+                m_ui->signingUserLineEdit->setCursorPosition(0);
+        });
         connect(m_ui->signingUserClearButton, &QPushButton::clicked, this, [this](){
             m_ui->signingUserLineEdit->clear();
+            m_ui->signingUserLineEdit->setToolTip({});
             m_aspect->setSigningUser(GpgKeyInfo());
         });
 
@@ -208,6 +216,8 @@ public:
 
             m_aspect->setSigningUser(selectedSigningUser);
             m_ui->signingUserLineEdit->setText(selectedSigningUser.toString());
+            m_ui->signingUserLineEdit->setToolTip(selectedSigningUser.toString());
+            m_ui->signingUserLineEdit->setCursorPosition(0);
         });
         connect(m_ui->signingPassphraseFileChooser, &Utils::PathChooser::pathChanged,
                 this, [aspect = m_aspect](const QString &passphraseFilePath) {
