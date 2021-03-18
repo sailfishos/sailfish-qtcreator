@@ -45,8 +45,12 @@ export function maybeImportSigningKey() {
     var signingPassphraseFile = configuration.isOptionSet("package.signing-passphrase-file")
         ? configuration.optionArgument("package.signing-passphrase-file")
         : "";
-    if (!buildEngine.importGpgKey(signingUser, signingPassphraseFile))
-        return [false, qsTr("Failed to share GnuPG key with the build engine")];
+
+    try {
+        buildEngine.importGpgKey(signingUser, signingPassphraseFile)
+    } catch (e) {
+        return [false, qsTr("Failed to share GnuPG key with the build engine: %1").arg(e.message)];
+    }
 
     return [true, ""];
 }

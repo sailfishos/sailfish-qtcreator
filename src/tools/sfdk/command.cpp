@@ -603,12 +603,26 @@ Worker::ExitStatus Worker::run(const Command *command, const QStringList &argume
 {
     auto doRunPrePost = [](const Command *command, const QString &jsFunctionName,
             QString *errorString) {
-        const QJSValue result = Dispatcher::jsEngine()->call(jsFunctionName, {}, command->module);
+        auto resultTypeValidator = [](const QJSValue &value, QString *errorString) {
+            if (!value.isArray()
+                    || value.property("length").toInt() < 2
+                    || !value.property(0).isBool()
+                    || !value.property(1).isString()) {
+                *errorString = "Not an array [bool, string]";
+                return false;
+            }
+            return true;
+        };
+
+        const QJSValue result = Dispatcher::jsEngine()->call(jsFunctionName, {}, command->module,
+                resultTypeValidator);
         if (result.isError()) {
             *errorString = result.toString();
             return false;
         }
-        return true;
+
+        *errorString = result.property(1).toString();
+        return result.property(0).toBool();
     };
 
     QString errorString;

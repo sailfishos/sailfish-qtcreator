@@ -5,7 +5,8 @@ export function mapCompilationDatabasePaths() {
     // depending on the way a particular package is built.
     var compilationDb = utils.findFile_wide(".", maxDepth, "compile_commands.json");
     if (!compilationDb)
-        return;
+        return [true, ""];
+
     utils.updateFile(compilationDb, function (data) {
         var target = configuration.optionArgument('target');
         var sysroot = buildEngine.sharedTargetsPath + '/' + target;
@@ -56,4 +57,6 @@ export function mapCompilationDatabasePaths() {
 
         return data;
     });
+
+    return [true, ""];
 }

@@ -255,9 +255,9 @@ public:
         });
     }
 
-    Q_INVOKABLE bool importGpgKey(const QString &signingUser, const QString &signingPassphraseFile)
+    Q_INVOKABLE void importGpgKey(const QString &signingUser, const QString &signingPassphraseFile)
     {
-        return withEngine([=](BuildEngine *engine) {
+        withEngine([=](BuildEngine *engine) {
             QString errorString;
             bool ok;
             execAsynchronous(std::tie(ok, errorString),
@@ -267,8 +267,6 @@ public:
                     FilePath::fromString(signingPassphraseFile));
             if (!ok)
                 qjsEngine(this)->throwError(errorString);
-
-            return ok;
         });
     }
 
@@ -281,10 +279,13 @@ private:
     }
 
     template<typename Fn>
-    auto withEngine(Fn fn) const -> decltype(fn(SdkManager::engine())) {
+    auto withEngine(Fn fn) const -> decltype(fn(SdkManager::engine()))
+    {
+        auto default_t = Sfdk::default_t<decltype(fn(SdkManager::engine()))>;
+
         if (!SdkManager::hasEngine()) {
             qCWarning(sfdk).noquote() << SdkManager::noEngineFoundMessage();
-            return {};
+            return default_t();
         }
         return fn(SdkManager::engine());
     }

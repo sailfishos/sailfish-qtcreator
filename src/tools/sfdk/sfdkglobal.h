@@ -33,6 +33,10 @@ extern int SFDK_EXIT_ABNORMAL;
 QProcessEnvironment addQpaPlatformMinimal(const QProcessEnvironment &environment
         = QProcessEnvironment::systemEnvironment());
 
+// TODO no std way?
+template<typename T> constexpr T default_t() { return {}; }
+template<> constexpr void default_t<void>() { /* noop */ }
+
 inline namespace Log {
 
 Q_DECLARE_LOGGING_CATEGORY(sfdk)

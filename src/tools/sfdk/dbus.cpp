@@ -47,10 +47,6 @@ const char DBUS_SFDK_ERROR[] = "org.sailfishos.sfdk.Error";
 const char DBUS_CONFIGURED_DEVICE_PATH[] = "/device";
 } // namespace anonymous
 
-// TODO no std way?
-template<typename T> T default_t() { return {}; }
-template<> void default_t<void>() { /* noop */ }
-
 class AbstractAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
