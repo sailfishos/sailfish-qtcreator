@@ -500,7 +500,7 @@ QWidget *MerMb2MakeInstallStep::createConfigWidget()
                 .arg(summary);
     });
 
-    widget->setCommandText("mb2 make-install");
+    widget->setCommandText("sfdk make-install");
     return widget;
 }
 
@@ -724,7 +724,7 @@ QString MerMb2RpmBuildStep::mainPackageFileName() const
 QWidget *MerMb2RpmBuildStep::createConfigWidget()
 {
     auto *widget = new MerDeployStepWidget(this);
-    widget->setCommandText(QLatin1String("mb2 rpm"));
+    widget->setCommandText(QLatin1String("sfdk package"));
     return widget;
 }
 

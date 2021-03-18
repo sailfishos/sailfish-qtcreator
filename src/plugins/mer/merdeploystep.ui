@@ -37,7 +37,7 @@
    <item row="0" column="1">
     <widget class="QLabel" name="commandLabelEdit">
      <property name="text">
-      <string>mb2 deploy</string>
+      <string>sfdk deploy</string>
      </property>
     </widget>
    </item>
