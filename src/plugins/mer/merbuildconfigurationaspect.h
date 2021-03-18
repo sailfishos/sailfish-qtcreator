@@ -53,8 +53,6 @@ public:
     QString specFilePath() const { return m_specFilePath; }
     void setSpecFilePath(const QString &specFilePath);
 
-    // While we pretend here and in the UI that these are sfdk options, they are
-    // currently passed directly to mb2
     QString sfdkOptionsString() const { return m_sfdkOptionsString; }
     void setSfdkOptionsString(const QString &sfdkOptionsString);
 
