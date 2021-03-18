@@ -338,7 +338,7 @@ std::unique_ptr<Module> Dispatcher::loadModule(const QVariantMap &data, QString 
     if (!checkKeys(data, validKeys, errorString))
         return {};
 
-    QVariant version = value(data, VERSION_KEY, QVariant::Double, {}, errorString);
+    QVariant version = value(data, VERSION_KEY, QVariant::LongLong, {}, errorString);
     if (!version.isValid())
         return {};
     if (version.toInt() < 3 || version.toInt() > 3) {
@@ -654,7 +654,7 @@ const Worker *Dispatcher::loadWorker(const QVariantMap &data, QString *errorStri
         return nullptr;
     }
 
-    QVariant version = value(data, VERSION_KEY, QVariant::Double, {}, errorString);
+    QVariant version = value(data, VERSION_KEY, QVariant::LongLong, {}, errorString);
     if (!version.isValid())
         return nullptr;
 
