@@ -259,22 +259,27 @@ bool MerProcessStep::init(InitOptions options)
     const FilePath projectDirectory = isShadowBuild
         ? bc->rawBuildDirectory()
         : project()->projectDirectory();
-    const FilePath toolsPath = engine->buildTarget(target).toolsPath;
-    CommandLine deployCommand(toolsPath.pathAppended(Sfdk::Constants::WRAPPER_DEPLOY));
-    deployCommand.addArgs(arguments(), CommandLine::Raw);
+    // FIXME needed?
+    setWorkingDirectoryProvider([=]() { return projectDirectory; });
 
-    ProcessParameters *pp = processParameters();
+    setCommandLineProvider([=]() {
+        const FilePath toolsPath = engine->buildTarget(target).toolsPath;
+        CommandLine deployCommand(toolsPath.pathAppended(Sfdk::Constants::WRAPPER_DEPLOY));
+        deployCommand.addArgs(arguments(), CommandLine::Raw);
+        return deployCommand;
+    });
 
-    Environment env = bc ? bc->environment() : Environment::systemEnvironment();
+    bool retv = AbstractProcessStep::init();
 
     //TODO HACK
-    if(!device.isNull())
+    if (!device.isNull()) {
+        ProcessParameters *pp = processParameters();
+        Environment env = pp->environment();
         env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_DEVICE_NAME), device->displayName());
-    pp->setMacroExpander(bc ? bc->macroExpander() : Utils::globalMacroExpander());
-    pp->setEnvironment(env);
-    pp->setWorkingDirectory(projectDirectory);
-    pp->setCommandLine(deployCommand);
-    return AbstractProcessStep::init();
+        pp->setEnvironment(env);
+    }
+
+    return retv;
 }
 
 QString MerProcessStep::arguments() const
@@ -606,16 +611,14 @@ bool MerLocalRsyncDeployStep::init()
     const FilePath projectDirectory = isShadowBuild
         ? bc->rawBuildDirectory()
         : project()->projectDirectory();
-    CommandLine deployCommand("rsync");
-    deployCommand.addArgs(arguments(), CommandLine::Raw);
+    // FIXME needed?
+    setWorkingDirectoryProvider([=]() { return projectDirectory; });
 
-    ProcessParameters *pp = processParameters();
-
-    Environment env = bc ? bc->environment() : Environment::systemEnvironment();
-    pp->setMacroExpander(bc ? bc->macroExpander() : Utils::globalMacroExpander());
-    pp->setEnvironment(env);
-    pp->setWorkingDirectory(projectDirectory);
-    pp->setCommandLine(deployCommand);
+    setCommandLineProvider([this]() {
+        CommandLine deployCommand("rsync");
+        deployCommand.addArgs(arguments(), CommandLine::Raw);
+        return deployCommand;
+    });
 
     return AbstractProcessStep::init();
 }
