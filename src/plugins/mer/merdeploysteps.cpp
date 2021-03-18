@@ -521,7 +521,7 @@ MerMb2RsyncDeployStep::MerMb2RsyncDeployStep(BuildStepList *bsl, Utils::Id id)
 {
     setSummaryText(QString("<b>%1:</b> %2")
             .arg(displayName())
-            .arg(tr("Deploys with rsync.")));
+            .arg(tr("Deploys with rsync")));
     setArguments(QLatin1String("--rsync"));
 }
 
@@ -558,7 +558,7 @@ MerLocalRsyncDeployStep::MerLocalRsyncDeployStep(BuildStepList *bsl, Utils::Id i
 {
     setSummaryText(QString("<b>%1:</b> %2")
             .arg(displayName())
-            .arg(tr("Deploys with local installed rsync.")));
+            .arg(tr("Deploys with local installed rsync")));
 }
 
 bool MerLocalRsyncDeployStep::init()
@@ -628,7 +628,7 @@ MerMb2RpmDeployStep::MerMb2RpmDeployStep(BuildStepList *bsl, Utils::Id id)
 {
     setSummaryText(QString("<b>%1:</b> %2")
             .arg(displayName())
-            .arg(tr("Deploys RPM package.")));
+            .arg(tr("Deploys RPM package")));
     setArguments(QLatin1String("--sdk"));
 }
 
@@ -668,7 +668,7 @@ MerMb2RpmBuildStep::MerMb2RpmBuildStep(BuildStepList *bsl, Utils::Id id)
 {
     setSummaryText(QString("<b>%1:</b> %2")
             .arg(displayName())
-            .arg(tr("Builds RPM package.")));
+            .arg(tr("Builds RPM package")));
 }
 
 bool MerMb2RpmBuildStep::init()
@@ -801,7 +801,7 @@ MerRpmValidationStep::MerRpmValidationStep(BuildStepList *bsl, Utils::Id id)
     setEnabled(MerSettings::rpmValidationByDefault());
     setSummaryText(QString("<b>%1:</b> %2")
             .arg(displayName())
-            .arg(tr("Validates RPM package.")));
+            .arg(tr("Validates RPM package")));
 
     m_target = MerSdkKitAspect::buildTarget(target()->kit());
     m_selectedSuites = defaultSuites();
