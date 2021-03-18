@@ -296,7 +296,7 @@ void ProcessRunner::onFinished(int exitCode, QProcess::ExitStatus exitStatus)
         qCWarning(vms) << "Process" << m_process->program() << " crashed. Arguments:"
             << m_process->arguments();
         emitDone(false);
-    } else if (!m_expectedExitCodes.contains(exitCode)) {
+    } else if (!m_expectedExitCodes.isEmpty() && !m_expectedExitCodes.contains(exitCode)) {
         qCWarning(vms) << "Process" << m_process->program() << " exited with unexpected exit code"
             << exitCode << ". Arguments:" << m_process->arguments();
         emitDone(false);

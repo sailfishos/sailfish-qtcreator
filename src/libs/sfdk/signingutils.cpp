@@ -296,19 +296,27 @@ void SigningUtils::verifyPassphrase(const QString &id, const QString &passphrase
     arguments.append("/dev/null");
 
     auto runner = std::make_unique<GpgRunner>(arguments);
+    runner->setExpectedExitCodes({});
+    runner->process()->setProcessChannelMode(QProcess::SeparateChannels); // be quiet
 
     QObject::connect(runner.get(), &GpgRunner::done, context,
             [passphraseFile, functor, process = runner->process()](bool ok) {
-        QString errorString;
         if (!ok) {
+            functor(false, tr("Internal error")); // crashed
+            return;
+        }
+        if (process->exitCode() != 0) {
+            QString errorString;
             if (passphraseFile.isEmpty())
                 errorString = tr("The selected GPG key is passphrase protected "
                               "and no passphrase was specified.");
             else
                 errorString = tr("The given passphrase is not a correct passphrase "
                               "for the selected key.");
+            functor(false, errorString);
+            return;
         }
-        functor(ok, errorString);
+        functor(true, {});
     });
     commandQueue()->enqueue(std::move(runner));
 }
