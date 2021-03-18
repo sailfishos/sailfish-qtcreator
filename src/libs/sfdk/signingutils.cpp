@@ -302,10 +302,10 @@ void SigningUtils::verifyPassphrase(const QString &id, const QString &passphrase
         QString errorString;
         if (!ok) {
             if (passphraseFile.isEmpty())
-                errorString = tr("The selected GPG key is passphrase protected"
+                errorString = tr("The selected GPG key is passphrase protected "
                               "and no passphrase was specified.");
             else
-                errorString = tr("The given passphrase is not a correct passphrase"
+                errorString = tr("The given passphrase is not a correct passphrase "
                               "for the selected key.");
         }
         functor(ok, errorString);
