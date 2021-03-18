@@ -139,11 +139,9 @@ public:
             ui->signingUserChangeButton->setEnabled(enabled);
             ui->signingUserLineEdit->setEnabled(enabled);
             ui->signingPassphraseFileChooser->setEnabled(enabled);
-            ui->signingUserClearButton->setEnabled(enabled);
         };
 
         m_ui->signPackagesCheckBox->setText(tr(Constants::MER_SIGN_PACKAGES_OPTION_NAME));
-        m_ui->signingUserClearButton->setIcon(Utils::Icons::EDIT_CLEAR.icon());
 
         m_ui->signPackagesCheckBox->setChecked(m_aspect->signPackages());
         QString gpgErrorString;
@@ -170,11 +168,6 @@ public:
                 m_ui->signingUserLineEdit, [this]() {
             if (m_ui->signingUserLineEdit->selectedText().isEmpty())
                 m_ui->signingUserLineEdit->setCursorPosition(0);
-        });
-        connect(m_ui->signingUserClearButton, &QPushButton::clicked, this, [this](){
-            m_ui->signingUserLineEdit->clear();
-            m_ui->signingUserLineEdit->setToolTip({});
-            m_aspect->setSigningUser(GpgKeyInfo());
         });
 
         m_ui->signingPassphraseFileChooser->setExpectedKind(PathChooser::Kind::File);
