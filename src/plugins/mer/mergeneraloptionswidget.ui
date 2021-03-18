@@ -18,6 +18,12 @@
     <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,1">
      <item>
       <widget class="QGroupBox" name="buildEnvironmentGroupBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Ignored" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="title">
         <string>Build Environment</string>
        </property>
@@ -95,6 +101,12 @@
      </item>
      <item>
       <widget class="QGroupBox" name="groupBox_2">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Ignored" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="title">
         <string>Code model</string>
        </property>
@@ -148,6 +160,12 @@
     <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="1,1">
      <item>
       <widget class="QGroupBox" name="rpmValidationGroupBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Ignored" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="title">
         <string>RPM Validation</string>
        </property>
@@ -199,6 +217,12 @@
      </item>
      <item>
       <widget class="QGroupBox" name="groupBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Ignored" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="title">
         <string>Virtual Machines</string>
        </property>
@@ -245,6 +269,12 @@
     <layout class="QHBoxLayout" name="horizontalLayout_7" stretch="1,1">
      <item>
       <widget class="QGroupBox" name="packageSignGroupBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Ignored" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="title">
         <string>RPM Signing with GnuPG</string>
        </property>
@@ -312,6 +342,12 @@
      </item>
      <item>
       <widget class="QGroupBox" name="qmlLiveGroupBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Ignored" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="title">
         <string>QmlLive</string>
        </property>
