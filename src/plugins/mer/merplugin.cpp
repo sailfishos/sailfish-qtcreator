@@ -79,6 +79,7 @@
 #include <QMessageBox>
 #include <QTimer>
 #include <QtPlugin>
+#include <QVBoxLayout>
 
 using namespace Core;
 using namespace ExtensionSystem;

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2012-2019,2021 Jolla Ltd.
 ** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
@@ -205,7 +205,17 @@ private:
 MerProcessStep::MerProcessStep(BuildStepList *bsl, Id id)
     :AbstractProcessStep(bsl,id)
 {
+    m_command = addAspect<StringAspect>();
+    m_command->setSettingsKey("MerProcessStep.Command");
+    m_command->setLabelText(tr("Command:"));
+    m_command->setDisplayStyle(StringAspect::LabelDisplay);
+    m_command->setReadOnly(true);
+    m_command->setValue("sfdk deploy");
 
+    m_arguments = addAspect<StringAspect>();
+    m_arguments->setSettingsKey("MerProcessStep.Arguments");
+    m_arguments->setLabelText(tr("Arguments:"));
+    m_arguments->setDisplayStyle(StringAspect::LineEditDisplay);
 }
 
 bool MerProcessStep::init()
@@ -269,14 +279,24 @@ bool MerProcessStep::init(InitOptions options)
     return retv;
 }
 
+QString MerProcessStep::command() const
+{
+    return m_command->value();
+}
+
+void MerProcessStep::setCommand(const QString &command)
+{
+    m_command->setValue(command);
+}
+
 QString MerProcessStep::arguments() const
 {
-    return m_arguments;
+    return m_arguments->value();
 }
 
 void MerProcessStep::setArguments(const QString &arguments)
 {
-    m_arguments = arguments;
+    m_arguments->setValue(arguments);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -466,6 +486,15 @@ QString MerMb2MakeInstallStep::displayName()
 MerMb2MakeInstallStep::MerMb2MakeInstallStep(BuildStepList *bsl, Id id)
     : MerProcessStep(bsl, id)
 {
+    setCommand("sfdk make-install");
+    setSummaryUpdater([this]() {
+        BuildConfiguration *const bc = buildConfiguration();
+        const QString summary = tr("make install in %1").arg(bc->buildDirectory().toString());
+        return QString("<b>%1:</b> %2")
+                .arg(displayName())
+                .arg(summary);
+    });
+
 }
 
 bool MerMb2MakeInstallStep::init()
@@ -486,22 +515,6 @@ bool MerMb2MakeInstallStep::init()
 void MerMb2MakeInstallStep::doRun()
 {
    AbstractProcessStep::doRun();
-}
-
-QWidget *MerMb2MakeInstallStep::createConfigWidget()
-{
-    auto widget = new MerDeployStepWidget(this);
-
-    setSummaryUpdater([this]() {
-        BuildConfiguration *const bc = buildConfiguration();
-        const QString summary = tr("make install in %1").arg(bc->buildDirectory().toString());
-        return QString("<b>%1:</b> %2")
-                .arg(displayName())
-                .arg(summary);
-    });
-
-    widget->setCommandText("sfdk make-install");
-    return widget;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -536,11 +549,6 @@ void MerMb2RsyncDeployStep::doRun()
    AbstractProcessStep::doRun();
 }
 
-QWidget *MerMb2RsyncDeployStep::createConfigWidget()
-{
-    return new MerDeployStepWidget(this);
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Utils::Id MerLocalRsyncDeployStep::stepId()
@@ -556,6 +564,7 @@ QString MerLocalRsyncDeployStep::displayName()
 MerLocalRsyncDeployStep::MerLocalRsyncDeployStep(BuildStepList *bsl, Utils::Id id)
     : MerProcessStep(bsl, id)
 {
+    setCommand(tr("Deploy using local installed Rsync"));
     setSummaryText(QString("<b>%1:</b> %2")
             .arg(displayName())
             .arg(tr("Deploys with local installed rsync")));
@@ -603,13 +612,6 @@ void MerLocalRsyncDeployStep::doRun()
    AbstractProcessStep::doRun();
 }
 
-QWidget *MerLocalRsyncDeployStep::createConfigWidget()
-{
-    auto widget = new MerDeployStepWidget(this);
-    widget->setCommandText(tr("Deploy using local installed Rsync"));
-    return widget;
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -644,11 +646,6 @@ void MerMb2RpmDeployStep::doRun()
     AbstractProcessStep::doRun();
 }
 
-QWidget *MerMb2RpmDeployStep::createConfigWidget()
-{
-    return new MerDeployStepWidget(this);
-}
-
 //TODO: HACK
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -666,6 +663,7 @@ QString MerMb2RpmBuildStep::displayName()
 MerMb2RpmBuildStep::MerMb2RpmBuildStep(BuildStepList *bsl, Utils::Id id)
     : MerProcessStep(bsl, id)
 {
+    setCommand(QLatin1String("sfdk package"));
     setSummaryText(QString("<b>%1:</b> %2")
             .arg(displayName())
             .arg(tr("Builds RPM package")));
@@ -719,13 +717,6 @@ QString MerMb2RpmBuildStep::mainPackageFileName() const
 {
     QTC_ASSERT(!m_packages.isEmpty(), return {});
     return m_packages.first();
-}
-
-QWidget *MerMb2RpmBuildStep::createConfigWidget()
-{
-    auto *widget = new MerDeployStepWidget(this);
-    widget->setCommandText(QLatin1String("sfdk package"));
-    return widget;
 }
 
 void MerMb2RpmBuildStep::stdOutput(const QString &line)
@@ -944,32 +935,6 @@ QString MerRpmValidationStep::fixedArguments() const
 QWidget *MerRpmValidationStep::createConfigWidget()
 {
     return new MerRpmValidationStepConfigWidget(this);
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-MerDeployStepWidget::MerDeployStepWidget(MerProcessStep *step)
-    : m_step(step)
-{
-    m_ui.setupUi(this);
-    m_ui.commandArgumentsLineEdit->setText(step->arguments());
-    connect(m_ui.commandArgumentsLineEdit, &QLineEdit::textEdited,
-            this, &MerDeployStepWidget::commandArgumentsLineEditTextEdited);
-}
-
-void MerDeployStepWidget::commandArgumentsLineEditTextEdited()
-{
-    m_step->setArguments(m_ui.commandArgumentsLineEdit->text());
-}
-
-void MerDeployStepWidget::setCommandText(const QString& commandText)
-{
-     m_ui.commandLabelEdit->setText(commandText);
-}
-
-QString MerDeployStepWidget::commnadText() const
-{
-   return  m_ui.commandLabelEdit->text();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////

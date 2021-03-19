@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2012-2019,2021 Jolla Ltd.
 ** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
@@ -31,7 +31,6 @@
 #ifndef MERDEPLOYSTEPS_H
 #define MERDEPLOYSTEPS_H
 
-#include "ui_merdeploystep.h"
 #include "merabstractvmstartstep.h"
 #include "merconstants.h"
 
@@ -70,11 +69,14 @@ public:
     explicit MerProcessStep(ProjectExplorer::BuildStepList *bsl, Utils::Id id);
     bool init() override;
     bool init(InitOptions options);
+    QString command() const;
+    void setCommand(const QString &command);
     QString arguments() const;
     void setArguments(const QString &arguments);
 
 private:
-    QString m_arguments;
+    Utils::StringAspect *m_command = nullptr;
+    Utils::StringAspect *m_arguments = nullptr;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(MerProcessStep::InitOptions)
@@ -143,7 +145,6 @@ class MerMb2MakeInstallStep : public MerProcessStep
 public:
     explicit MerMb2MakeInstallStep(ProjectExplorer::BuildStepList *bsl, Utils::Id id);
     bool init() override;
-    QWidget *createConfigWidget() override;
     static Utils::Id stepId();
     static QString displayName();
 protected:
@@ -156,7 +157,6 @@ class MerMb2RsyncDeployStep : public MerProcessStep
 public:
     explicit MerMb2RsyncDeployStep(ProjectExplorer::BuildStepList *bsl, Utils::Id id);
     bool init() override;
-    QWidget *createConfigWidget() override;
     static Utils::Id stepId();
     static QString displayName();
 protected:
@@ -169,7 +169,6 @@ class MerLocalRsyncDeployStep : public MerProcessStep
 public:
     explicit MerLocalRsyncDeployStep(ProjectExplorer::BuildStepList *bsl, Utils::Id id);
     bool init() override;
-    QWidget *createConfigWidget() override;
     static Utils::Id stepId();
     static QString displayName();
 protected:
@@ -182,7 +181,6 @@ class MerMb2RpmDeployStep : public MerProcessStep
 public:
     explicit MerMb2RpmDeployStep(ProjectExplorer::BuildStepList *bsl, Utils::Id id);
     bool init() override;
-    QWidget *createConfigWidget() override;
     static Utils::Id stepId();
     static QString displayName();
 protected:
@@ -196,7 +194,6 @@ class MerMb2RpmBuildStep : public MerProcessStep
 public:
     explicit MerMb2RpmBuildStep(ProjectExplorer::BuildStepList *bsl, Utils::Id id);
     bool init() override;
-    QWidget *createConfigWidget() override;
     static Utils::Id stepId();
     static QString displayName();
     void processFinished(int exitCode, QProcess::ExitStatus status) override;
@@ -249,20 +246,6 @@ private:
     Sfdk::BuildTargetData m_target;
     QStringList m_selectedSuites;
     QString m_fixedArguments;
-};
-
-class MerDeployStepWidget : public QWidget
-{
-    Q_OBJECT
-public:
-    MerDeployStepWidget(MerProcessStep *step);
-    QString commnadText() const;
-    void setCommandText(const QString& commandText);
-private slots:
-    void commandArgumentsLineEditTextEdited();
-private:
-    Ui::MerDeployStepWidget m_ui;
-    MerProcessStep *m_step = nullptr;
 };
 
 class MerResetAmbienceDeployStep : public RemoteLinux::AbstractRemoteLinuxDeployStep

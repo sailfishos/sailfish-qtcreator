@@ -18,7 +18,6 @@ FORMS += \
     merbuildconfigurationwidget.ui \
     merbuildenginedetailswidget.ui \
     merbuildengineoptionswidget.ui \
-    merdeploystep.ui \
     meremulatordetailswidget.ui \
     meremulatormodedialog.ui \
     meremulatoroptionswidget.ui \
