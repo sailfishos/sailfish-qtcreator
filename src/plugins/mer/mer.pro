@@ -71,7 +71,6 @@ SOURCES += \
     merqmlrunconfiguration.cpp \
     merqmltoolingsupport.cpp \
     merqtversion.cpp \
-    merrpminstaller.cpp \
     merrpmvalidationparser.cpp \
     merrunconfiguration.cpp \
     merrunconfigurationaspect.cpp \
@@ -128,7 +127,6 @@ HEADERS += \
     merqmlrunconfiguration.h \
     merqmltoolingsupport.h \
     merqtversion.h \
-    merrpminstaller.h \
     merrpmvalidationparser.h \
     merrunconfiguration.h \
     merrunconfigurationaspect.h \
