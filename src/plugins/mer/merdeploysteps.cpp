@@ -42,7 +42,6 @@
 #include "mersdkmanager.h"
 #include "mersettings.h"
 #include "ui_merrpminfo.h"
-#include "ui_merrpmvalidationstepconfigwidget.h"
 
 #include <sfdk/emulator.h>
 #include <sfdk/sdk.h>
@@ -68,15 +67,18 @@
 #include <qtsupport/qtkitinformation.h>
 #include <remotelinux/abstractremotelinuxdeployservice.h>
 #include <ssh/sshremoteprocessrunner.h>
+#include <utils/layoutbuilder.h>
 #include <utils/utilsicons.h>
 #include <utils/macroexpander.h>
 #include <utils/qtcassert.h>
 
 #include <QApplication>
 #include <QClipboard>
+#include <QHeaderView>
 #include <QMimeData>
 #include <QScrollBar>
 #include <QTimer>
+#include <QTreeWidget>
 
 using namespace Core;
 using namespace ProjectExplorer;
@@ -116,90 +118,140 @@ private:
     const QString m_text;
 };
 
-class MerRpmValidationStepConfigWidget : public QWidget
+class MerRpmValidationSuitesAspect : public BaseAspect
 {
     Q_OBJECT
 
 public:
-    MerRpmValidationStepConfigWidget(MerRpmValidationStep *step)
-        : m_step(step)
+    MerRpmValidationSuitesAspect()
     {
-        m_ui.setupUi(this);
+        setSettingsKey("MerRpmValidationSuites");
+    }
+
+    void setTarget(const BuildTargetData &target)
+    {
+        m_target = target;
+        m_selectedSuites = defaultSuites();
+    }
+
+    void fromMap(const QVariantMap &map) override
+    {
+        QTC_ASSERT(!settingsKey().isEmpty(), return);
+
+        m_selectedSuites = map.value(settingsKey(), defaultSuites()).toStringList();
+    }
+
+    void toMap(QVariantMap &map) const override
+    {
+        saveToMap(map, m_selectedSuites, defaultSuites());
+    }
+
+    void addToLayout(LayoutBuilder &builder) override
+    {
+        QTC_CHECK(!m_suitesTreeWidget);
+
+        builder.addItem(new QLabel(tr("Suites:")));
+
+        auto vbox = new QVBoxLayout;
+        vbox->setContentsMargins(0, 0, 0, 0);
+
+        m_suitesTreeWidget = new QTreeWidget;
+        m_suitesTreeWidget->setColumnCount(3);
+        m_suitesTreeWidget->setRootIsDecorated(false);
+        m_suitesTreeWidget->setHeaderHidden(true);
+        m_suitesTreeWidget->header()->setStretchLastSection(false);
+        vbox->addWidget(m_suitesTreeWidget);
+
+        auto warningHBox = new QHBoxLayout;
+        warningHBox->setContentsMargins(0, 0, 0, 0);
+
+        m_warningLabelIcon = new QLabel;
+        warningHBox->addWidget(m_warningLabelIcon);
+        m_warningLabel = new QLabel;
+        warningHBox->addWidget(m_warningLabel, 1);
+
+        vbox->addItem(warningHBox);
 
         bool hasSuite = false;
         bool hasSelectedSuite = false;
-        for (const RpmValidationSuiteData &suite : step->suites()) {
+        for (const RpmValidationSuiteData &suite : m_target.rpmValidationSuites) {
             hasSuite = true;
-            hasSelectedSuite |= suite.essential;
-            auto *item = new QTreeWidgetItem(m_ui.suitesTreeWidget);
+            const bool selected = m_selectedSuites.contains(suite.id);
+            hasSelectedSuite |= selected;
+            auto *item = new QTreeWidgetItem(m_suitesTreeWidget);
             item->setText(0, suite.name);
             auto websiteLabel = new ElidedWebsiteLabel(suite.website);
             websiteLabel->setOpenExternalLinks(true);
             websiteLabel->setToolTip(suite.website);
-            m_ui.suitesTreeWidget->setItemWidget(item, 1, websiteLabel);
+            m_suitesTreeWidget->setItemWidget(item, 1, websiteLabel);
             item->setText(2, suite.essential
                     ? tr("Essential", "RPM validation suite")
                     : tr("Optional", "RPM validation suite"));
-            item->setCheckState(0, step->selectedSuites().contains(suite.id) ? Qt::Checked : Qt::Unchecked);
+            item->setCheckState(0, selected ? Qt::Checked : Qt::Unchecked);
             item->setData(0, Qt::UserRole, suite.id);
         }
-        m_ui.suitesTreeWidget->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-        m_ui.suitesTreeWidget->header()->setSectionResizeMode(1, QHeaderView::Stretch);
-        m_ui.suitesTreeWidget->header()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+        m_suitesTreeWidget->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+        m_suitesTreeWidget->header()->setSectionResizeMode(1, QHeaderView::Stretch);
+        m_suitesTreeWidget->header()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
 
-        connect(m_ui.suitesTreeWidget, &QTreeWidget::itemChanged,
-                this, &MerRpmValidationStepConfigWidget::onItemChanged);
+        connect(m_suitesTreeWidget, &QTreeWidget::itemChanged,
+                this, &MerRpmValidationSuitesAspect::onItemChanged);
 
-        m_ui.warningLabelIcon->setPixmap(Utils::Icons::CRITICAL.pixmap());
+        m_warningLabelIcon->setPixmap(Utils::Icons::CRITICAL.pixmap());
         updateWarningLabel(hasSuite, hasSelectedSuite);
 
-        updateCommandText();
-
-        m_ui.commandArgumentsLineEdit->setText(step->arguments());
-        connect(m_ui.commandArgumentsLineEdit, &QLineEdit::textEdited,
-                step, &MerRpmValidationStep::setArguments);
+        builder.addItem(vbox);
     }
+
+    QStringList defaultSuites() const
+    {
+        QStringList defaultSuites;
+        for (const RpmValidationSuiteData &suite : m_target.rpmValidationSuites) {
+            if (suite.essential)
+                defaultSuites.append(suite.id);
+        }
+        return defaultSuites;
+    }
+
+    QStringList selectedSuites() const { return m_selectedSuites; }
 
 private:
     void onItemChanged()
     {
         QStringList checked;
-        const int suitesCount = m_ui.suitesTreeWidget->topLevelItemCount();
+        const int suitesCount = m_suitesTreeWidget->topLevelItemCount();
         for (int i = 0; i < suitesCount; ++i) {
-            QTreeWidgetItem *item = m_ui.suitesTreeWidget->topLevelItem(i);
+            QTreeWidgetItem *item = m_suitesTreeWidget->topLevelItem(i);
             if (item->checkState(0) == Qt::Checked)
                 checked.append(item->data(0, Qt::UserRole).toString());
         }
-        m_step->setSelectedSuites(checked);
+        m_selectedSuites = checked;
         updateWarningLabel(suitesCount > 0, checked.count() > 0);
-        updateCommandText();
-    }
-
-    void updateCommandText()
-    {
-        m_ui.commandLabelEdit->setText(QLatin1String("rpmvalidation ") + m_step->fixedArguments());
     }
 
     void updateWarningLabel(bool hasSuite, bool hasSelectedSuite)
     {
         if (!hasSuite) {
-            m_ui.warningLabel->setText(tr("No RPM validation suite is available for the current "
+            m_warningLabel->setText(tr("No RPM validation suite is available for the current "
                         "%1 build target").arg(Sdk::osVariant()));
-            m_ui.warningLabelIcon->setVisible(true);
-            m_ui.warningLabel->setVisible(true);
+            m_warningLabelIcon->setVisible(true);
+            m_warningLabel->setVisible(true);
         } else if (!hasSelectedSuite) {
-            m_ui.warningLabel->setText(tr("At least one RPM validation suite must be selected"));
-            m_ui.warningLabelIcon->setVisible(true);
-            m_ui.warningLabel->setVisible(true);
+            m_warningLabel->setText(tr("At least one RPM validation suite must be selected"));
+            m_warningLabelIcon->setVisible(true);
+            m_warningLabel->setVisible(true);
         } else {
-            m_ui.warningLabelIcon->setVisible(false);
-            m_ui.warningLabel->setVisible(false);
+            m_warningLabelIcon->setVisible(false);
+            m_warningLabel->setVisible(false);
         }
     }
 
 private:
-    Ui::MerRpmValidationStepConfigWidget m_ui;
-    MerRpmValidationStep *m_step = nullptr;
+    Sfdk::BuildTargetData m_target;
+    QStringList m_selectedSuites;
+    QTreeWidget *m_suitesTreeWidget = nullptr;
+    QLabel *m_warningLabel = nullptr;
+    QLabel *m_warningLabelIcon = nullptr;
 };
 
 MerProcessStep::MerProcessStep(BuildStepList *bsl, Id id)
@@ -794,8 +846,12 @@ MerRpmValidationStep::MerRpmValidationStep(BuildStepList *bsl, Utils::Id id)
             .arg(displayName())
             .arg(tr("Validates RPM package")));
 
-    m_target = MerSdkKitAspect::buildTarget(target()->kit());
-    m_selectedSuites = defaultSuites();
+    m_suites = addAspect<MerRpmValidationSuitesAspect>();
+    m_suites->setTarget(MerSdkKitAspect::buildTarget(target()->kit()));
+    connect(m_suites, &BaseAspect::changed, this, [this]() {
+        updateFixedArguments(m_suites->selectedSuites());
+    });
+    updateFixedArguments(m_suites->selectedSuites());
 }
 
 bool MerRpmValidationStep::init()
@@ -823,7 +879,9 @@ void MerRpmValidationStep::setupOutputFormatter(OutputFormatter *formatter)
 
 void MerRpmValidationStep::doRun()
 {
-    if (m_target.rpmValidationSuites.isEmpty()) {
+    const BuildTargetData target = MerSdkKitAspect::buildTarget(this->target()->kit());
+
+    if (target.rpmValidationSuites.isEmpty()) {
         const QString message(tr("No RPM validation suite is available for the current "
                     "%1 build target, the package will not be validated").arg(Sdk::osVariant()));
         emit addOutput(message, OutputFormat::ErrorMessage);
@@ -834,7 +892,7 @@ void MerRpmValidationStep::doRun()
                 OutputFormat::ErrorMessage);
         emit finished(false);
         return;
-    } else if (m_selectedSuites.isEmpty()) {
+    } else if (m_suites->selectedSuites().isEmpty()) {
         const QString message(tr("No RPM validation suite is selected in deployment settings,"
                     " the package will not be validated"));
         emit addOutput(message, OutputFormat::ErrorMessage);
@@ -874,67 +932,23 @@ void MerRpmValidationStep::doRun()
     AbstractProcessStep::doRun();
 }
 
-bool MerRpmValidationStep::fromMap(const QVariantMap &map)
+void MerRpmValidationStep::updateFixedArguments(const QStringList &selectedSuites)
 {
-    if (!MerProcessStep::fromMap(map))
-        return false;
-
-    QStringList selectedSuites = map.value(MER_RPM_VALIDATION_STEP_SELECTED_SUITES).toStringList();
-    if (!selectedSuites.isEmpty())
-        setSelectedSuites(selectedSuites);
-
-    return true;
-}
-
-QVariantMap MerRpmValidationStep::toMap() const
-{
-    QVariantMap map = MerProcessStep::toMap();
-    if (m_selectedSuites != defaultSuites())
-        map.insert(MER_RPM_VALIDATION_STEP_SELECTED_SUITES, m_selectedSuites);
-    return map;
-}
-
-QList<Sfdk::RpmValidationSuiteData> MerRpmValidationStep::suites() const
-{
-    return m_target.rpmValidationSuites;
-}
-
-QStringList MerRpmValidationStep::defaultSuites() const
-{
-    QStringList defaultSuites;
-    for (const RpmValidationSuiteData &suite : m_target.rpmValidationSuites) {
-        if (suite.essential)
-            defaultSuites.append(suite.id);
-    }
-    return defaultSuites;
-}
-
-QStringList MerRpmValidationStep::selectedSuites() const
-{
-    return m_selectedSuites;
-}
-
-void MerRpmValidationStep::setSelectedSuites(const QStringList &selectedSuites)
-{
-    m_selectedSuites = selectedSuites;
-    if (!m_selectedSuites.isEmpty()) {
-        if (m_selectedSuites != defaultSuites())
-            m_fixedArguments = "--suites " + m_selectedSuites.join(',');
+    if (!selectedSuites.isEmpty()) {
+        if (selectedSuites != m_suites->defaultSuites())
+            m_fixedArguments = "--suites " + selectedSuites.join(',');
         else
             m_fixedArguments.clear();
     } else {
         m_fixedArguments.clear();
     }
-}
 
-QString MerRpmValidationStep::fixedArguments() const
-{
-    return m_fixedArguments;
-}
-
-QWidget *MerRpmValidationStep::createConfigWidget()
-{
-    return new MerRpmValidationStepConfigWidget(this);
+    QString command = "rpmvalidation";
+    if (!m_fixedArguments.isEmpty()) {
+        command += ' ';
+        command += m_fixedArguments;
+    }
+    setCommand(command);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////

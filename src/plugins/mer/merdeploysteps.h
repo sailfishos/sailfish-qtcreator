@@ -222,20 +222,14 @@ private:
     QStringList m_list;
 };
 
+class MerRpmValidationSuitesAspect;
 class MerRpmValidationStep : public MerProcessStep
 {
     Q_OBJECT
 public:
     explicit MerRpmValidationStep(ProjectExplorer::BuildStepList *bsl, Utils::Id id);
     bool init() override;
-    bool fromMap(const QVariantMap &map) override;
-    QVariantMap toMap() const override;
-    QList<Sfdk::RpmValidationSuiteData> suites() const;
-    QStringList defaultSuites() const;
-    QStringList selectedSuites() const;
-    void setSelectedSuites(const QStringList &selectedSuites);
-    QString fixedArguments() const;
-    QWidget *createConfigWidget() override;
+    void updateFixedArguments(const QStringList &selectedSuites);
     static Utils::Id stepId();
     static QString displayName();
 protected:
@@ -243,8 +237,7 @@ protected:
     void doRun() override;
 private:
     MerMb2RpmBuildStep *m_packagingStep;
-    Sfdk::BuildTargetData m_target;
-    QStringList m_selectedSuites;
+    MerRpmValidationSuitesAspect *m_suites = nullptr;
     QString m_fixedArguments;
 };
 

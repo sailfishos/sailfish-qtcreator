@@ -27,7 +27,6 @@ FORMS += \
     merhardwaredevicewizardconnectiontestpage.ui \
     merhardwaredevicewizardsetuppage.ui \
     merrpminfo.ui \
-    merrpmvalidationstepconfigwidget.ui \
     merrunconfigurationaspectqmllivedetailswidget.ui \
     meremulatormodeoptionswidget.ui \
     meremulatormodedetailswidget.ui \
