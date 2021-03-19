@@ -332,6 +332,7 @@ void MerSdkKitAspectWidget::handleSdksUpdated()
         for (BuildEngine *const engine : engines)
             m_buildEngineComboBox->addItem(engine->name(), engine->uri());
     }
+    m_buildEngineComboBox->setCurrentIndex(-1);
     m_buildEngineComboBox->blockSignals(false);
     refresh();
 }
@@ -355,6 +356,7 @@ void MerSdkKitAspectWidget::handleCurrentEngineIndexChanged()
         for (const QString &targetName : engine->buildTargetNames())
             m_buildTargetComboBox->addItem(targetName);
     }
+    m_buildTargetComboBox->setCurrentIndex(-1);
     m_buildTargetComboBox->blockSignals(false);
 
     const QString targetName = MerSdkKitAspect::buildTargetName(m_kit);
