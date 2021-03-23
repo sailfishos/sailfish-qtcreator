@@ -46,8 +46,7 @@ int CMakeCommand::execute()
 {
     if (arguments().contains(QLatin1String("-E"))
             && arguments().contains(QLatin1String("capabilities"))) {
-        fprintf(stdout, "%s", capabilities().data());
-        return 0;
+        m_cacheFile = QLatin1String(Sfdk::Constants::CMAKE_CAPABILITIES_CACHE);
     } else if (arguments().contains(QLatin1String("--version"))) {
         m_cacheFile = QLatin1String(Sfdk::Constants::CMAKE_VERSION_CACHE);
     } else if (arguments().contains(QLatin1String("--help"))) {
@@ -104,23 +103,6 @@ int CMakeCommand::execute()
 bool CMakeCommand::isValid() const
 {
     return Command::isValid() && !targetName().isEmpty() && !sdkToolsPath().isEmpty();
-}
-
-QByteArray CMakeCommand::capabilities()
-{
-    return R"({
-        "generators": [
-            {
-                "extraGenerators": [
-                    "CodeBlocks"
-                ],
-                "name": "Unix Makefiles",
-                "platformSupport": false,
-                "toolsetSupport": false
-            }
-        ],
-        "serverMode": false
-    })";
 }
 
 QString CMakeCommand::filterQtcSettings(const QString &path)

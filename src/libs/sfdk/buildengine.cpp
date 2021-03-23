@@ -860,6 +860,7 @@ void BuildEnginePrivate::initBuildTargetAt(int index) const
     bool ok = true;
 
     ok &= createCacheFile(cacheFile(Constants::QMAKE_QUERY_CACHE), patchedQmakeQuery);
+    ok &= createCacheFile(cacheFile(Constants::CMAKE_CAPABILITIES_CACHE), dump->cmakeCapabilities);
     ok &= createCacheFile(cacheFile(Constants::CMAKE_VERSION_CACHE), dump->cmakeVersion);
     ok &= createCacheFile(cacheFile(Constants::GCC_DUMP_MACHINE_CACHE), dump->gccDumpMachine);
     ok &= createCacheFile(cacheFile(Constants::GCC_DUMP_MACROS_CACHE), dump->gccDumpMacros);
@@ -1040,6 +1041,7 @@ bool BuildTargetDump::operator==(const BuildTargetDump &other) const
         && gccDumpIncludes == other.gccDumpIncludes
         && gccDumpInstallDir == other.gccDumpInstallDir
         && qmakeQuery == other.qmakeQuery
+        && cmakeCapabilities == other.cmakeCapabilities
         && cmakeVersion == other.cmakeVersion
         && rpmValidationSuites == other.rpmValidationSuites;
 }
@@ -1053,6 +1055,7 @@ QVariantMap BuildTargetDump::toMap() const
     data.insert(Constants::BUILD_TARGET_GCC_DUMP_INCLUDES, gccDumpIncludes);
     data.insert(Constants::BUILD_TARGET_GCC_DUMP_INSTALL_DIR, gccDumpInstallDir);
     data.insert(Constants::BUILD_TARGET_QMAKE_QUERY, qmakeQuery);
+    data.insert(Constants::BUILD_TARGET_CMAKE_CAPABILITIES, cmakeCapabilities);
     data.insert(Constants::BUILD_TARGET_CMAKE_VERSION, cmakeVersion);
     data.insert(Constants::BUILD_TARGET_RPM_VALIDATION_SUITES, rpmValidationSuites);
     return data;
@@ -1066,6 +1069,7 @@ void BuildTargetDump::fromMap(const QVariantMap &data)
     gccDumpIncludes = data.value(Constants::BUILD_TARGET_GCC_DUMP_INCLUDES).toString();
     gccDumpInstallDir = data.value(Constants::BUILD_TARGET_GCC_DUMP_INSTALL_DIR).toString();
     qmakeQuery = data.value(Constants::BUILD_TARGET_QMAKE_QUERY).toString();
+    cmakeCapabilities = data.value(Constants::BUILD_TARGET_CMAKE_CAPABILITIES).toString();
     cmakeVersion = data.value(Constants::BUILD_TARGET_CMAKE_VERSION).toString();
     rpmValidationSuites = data.value(Constants::BUILD_TARGET_RPM_VALIDATION_SUITES).toString();
 }

@@ -36,7 +36,6 @@ public:
     bool isValid() const override;
 
 private:
-    QByteArray capabilities();
     static QString filterQtcSettings(const QString &path);
 
 private:

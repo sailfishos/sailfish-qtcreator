@@ -79,6 +79,7 @@ const char BUILD_TARGET_GCC_DUMP_MACROS[] = "GccDumpMacros";
 const char BUILD_TARGET_GCC_DUMP_INCLUDES[] = "GccDumpIncludes";
 const char BUILD_TARGET_GCC_DUMP_INSTALL_DIR[] = "GccDumpInstallDir";
 const char BUILD_TARGET_QMAKE_QUERY[] = "QmakeQuery";
+const char BUILD_TARGET_CMAKE_CAPABILITIES[] = "CMakeCapabilities";
 const char BUILD_TARGET_CMAKE_VERSION[] = "CMakeVersion";
 const char BUILD_TARGET_RPM_VALIDATION_SUITES[] = "RpmValidationSuites";
 
@@ -100,6 +101,7 @@ const char WRAPPER_LUPDATE[] = "lupdate" SCRIPT_EXTENSION;
 const char WRAPPER_PKG_CONFIG[] = "pkg-config" SCRIPT_EXTENSION;
 const char WRAPPER_MAKE_INSTALL[] = "make-install" SCRIPT_EXTENSION;
 const char QMAKE_QUERY_CACHE[] = "qmake.query";
+const char CMAKE_CAPABILITIES_CACHE[] = "cmake.capabilities";
 const char CMAKE_VERSION_CACHE[] = "cmake.version";
 const char GCC_DUMP_MACHINE_CACHE[] = "gcc.dumpmachine";
 const char GCC_DUMP_MACROS_CACHE[] = "gcc.dumpmacros";
