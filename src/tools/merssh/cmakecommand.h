@@ -36,9 +36,6 @@ public:
     bool isValid() const override;
 
 private:
-    static QString filterQtcSettings(const QString &path);
-
-private:
     QString m_cacheFile;
 };
 

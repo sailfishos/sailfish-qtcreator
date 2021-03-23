@@ -24,6 +24,7 @@
 
 #include <mer/merconstants.h>
 #include <sfdk/sfdkconstants.h>
+#include <utils/algorithm.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 
@@ -74,27 +75,28 @@ int CMakeCommand::execute()
     QTC_ASSERT(arguments().count() > 1, return 1);
     QTC_ASSERT(arguments().first() == "cmake", return 1);
 
-    QStringList filteredArguments;
-    for (const QString &argument : arguments()) {
-        // See CMakeProjectManager::BuildDirManager::writeConfigurationIntoBuildDirectory()
-        if (argument.endsWith('/' + QLatin1String("qtcsettings.cmake"))) {
-            const QString filteredPath = filterQtcSettings(argument);
-            if (filteredPath.isNull())
-                return 1;
-            filteredArguments.append(filteredPath);
-            continue;
-        }
-
-        filteredArguments.append(argument);
-    }
-
+    QStringList filteredArguments = arguments();
     if (filteredArguments.at(1) != "--build") {
         // sfdk-cmake requires path to source directory to appear as the very first argument
-        bool lastArgLooksLikePathToSource = QFile::exists(filteredArguments.last() + "/CMakeLists.txt")
-            || QDir(filteredArguments.last() + "/rpm").exists();
-        QTC_ASSERT(lastArgLooksLikePathToSource, return 1);
-        filteredArguments.insert(1, "--");
-        filteredArguments.insert(1, filteredArguments.takeLast());
+        // and that the current working dirrectory is the build directory (so -B is redundant,
+        // and so better dropped for greater clarity)
+        QTC_ASSERT(filteredArguments.count() >= 5, return 1);
+        QTC_ASSERT(filteredArguments.at(1) == "-S", return 1);
+        QTC_ASSERT(filteredArguments.at(3) == "-B", return 1);
+        QTC_ASSERT(filteredArguments.at(4) == QDir::currentPath(), return 1);
+        filteredArguments.removeAt(4);
+        filteredArguments.removeAt(3);
+        filteredArguments.removeAt(1);
+        filteredArguments.insert(2, "--"); // no doubts
+
+        // See MerSdkManager::ensureCmakeToolIsSet() and Command::maybeDoCMakePathMapping()
+        filteredArguments = Utils::filtered(filteredArguments, [](const QString &argument) {
+            return !argument.startsWith("-DCMAKE_CXX_COMPILER:")
+                && !argument.startsWith("-DCMAKE_C_COMPILER:")
+                && !argument.startsWith("-DCMAKE_PREFIX_PATH:")
+                && !argument.startsWith("-DCMAKE_SYSROOT:")
+                && !argument.startsWith("-DQT_QMAKE_EXECUTABLE:");
+        });
     }
 
     return executeSfdk(filteredArguments);
@@ -103,53 +105,4 @@ int CMakeCommand::execute()
 bool CMakeCommand::isValid() const
 {
     return Command::isValid() && !targetName().isEmpty() && !sdkToolsPath().isEmpty();
-}
-
-QString CMakeCommand::filterQtcSettings(const QString &path)
-{
-    const QFileInfo info(path);
-    const QString filteredPath = info.path() + QDir::separator() + info.baseName() + "-filtered."
-        + info.completeSuffix();
-
-    if (!QFile::exists(path)) {
-        fprintf(stderr, "%s", qPrintable(QString::fromLatin1("File does not exist \"%1\"").arg(path)));
-        fflush(stderr);
-        return {};
-    }
-
-    bool ok;
-
-    FileReader reader;
-    ok = reader.fetch(path);
-    if (!ok) {
-        fprintf(stderr, "%s", qPrintable(reader.errorString()));
-        fflush(stderr);
-        return {};
-    }
-
-    QString data = QString::fromUtf8(reader.data());
-
-    auto removeVariable = [](QString *data, const QString &name) {
-        const QString re = QString(R"(^set\("%1".*\n?)")
-            .arg(QRegularExpression::escape(name));
-        data->remove(QRegularExpression(re, QRegularExpression::MultilineOption));
-    };
-
-    // See MerSdkManager::ensureCmakeToolIsSet() and Command::maybeDoCMakePathMapping()
-    removeVariable(&data, "CMAKE_CXX_COMPILER");
-    removeVariable(&data, "CMAKE_C_COMPILER");
-    removeVariable(&data, "CMAKE_PREFIX_PATH");
-    removeVariable(&data, "CMAKE_SYSROOT");
-    removeVariable(&data, "QT_QMAKE_EXECUTABLE");
-
-    FileSaver saver(filteredPath);
-    saver.write(data.toUtf8());
-    ok = saver.finalize();
-    if (!ok) {
-        fprintf(stderr, "%s", qPrintable(saver.errorString()));
-        fflush(stderr);
-        return {};
-    }
-
-    return filteredPath;
 }
