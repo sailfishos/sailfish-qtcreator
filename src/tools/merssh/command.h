@@ -52,8 +52,6 @@ public:
     void setSdkToolsPath(const QString& path);
     QStringList arguments() const;
     void setArguments(const QStringList &args);
-    QString deviceName() const;
-    void setDeviceName(const QString& device);
 
     virtual bool isValid() const;
     virtual QString name() const = 0;
@@ -74,7 +72,6 @@ private:
     QString m_sharedSourceMountPoint;
     QString m_sharedTargetPath;
     QString m_toolsPath;
-    QString m_deviceName;
     QSsh::SshConnectionParameters m_sshConnectionParams;
 };
 

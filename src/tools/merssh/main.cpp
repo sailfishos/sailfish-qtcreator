@@ -23,15 +23,11 @@
 
 #include "commandfactory.h"
 #include "cmakecommand.h"
-#include "deploycommand.h"
 #include "gcccommand.h"
 #include "generatekeyscommand.h"
 #include "lupdatecommand.h"
 #include "makecommand.h"
-#include "makeinstallcommand.h"
 #include "qmakecommand.h"
-#include "rpmcommand.h"
-#include "rpmvalidationcommand.h"
 
 #include <app/app_version.h>
 #include <mer/merconstants.h>
@@ -67,8 +63,7 @@ void printUsage()
             << Sfdk::Constants::MER_SSH_SHARED_TARGET << endl
             << Sfdk::Constants::MER_SSH_SHARED_SRC << endl
             << Sfdk::Constants::MER_SSH_SHARED_SRC_MOUNT_POINT << endl
-            << Sfdk::Constants::MER_SSH_SDK_TOOLS << endl
-            << Sfdk::Constants::MER_SSH_DEVICE_NAME << endl;
+            << Sfdk::Constants::MER_SSH_SDK_TOOLS << endl;
 }
 
 QStringList unquoteArguments(const QStringList &arguments)
@@ -152,10 +147,6 @@ int main(int argc, char *argv[])
     CommandFactory::registerCommand<CMakeCommand>(QLatin1String("cmake"));
     CommandFactory::registerCommand<GccCommand>(QLatin1String("gcc"));
     CommandFactory::registerCommand<MakeCommand>(QLatin1String("make"));
-    CommandFactory::registerCommand<MakeInstallCommand>(QLatin1String("make-install"));
-    CommandFactory::registerCommand<DeployCommand>(QLatin1String("deploy"));
-    CommandFactory::registerCommand<RpmCommand>(QLatin1String("rpm"));
-    CommandFactory::registerCommand<RpmValidationCommand>(QLatin1String("rpmvalidation"));
     CommandFactory::registerCommand<GenerateKeysCommand>(QLatin1String("generatesshkeys"));
     CommandFactory::registerCommand<LUpdateCommand>(QLatin1String("lupdate"));
 
@@ -172,7 +163,6 @@ int main(int argc, char *argv[])
         QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC),
         QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC_MOUNT_POINT),
         QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS),
-        QLatin1String(Sfdk::Constants::MER_SSH_DEVICE_NAME),
         QLatin1String(Sfdk::Constants::MER_SSH_SFDK_OPTIONS),
     };
     while (!arguments.isEmpty()) {
@@ -217,7 +207,6 @@ int main(int argc, char *argv[])
     command->setSharedSourcePath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC)));
     command->setSharedSourceMountPoint(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SHARED_SRC_MOUNT_POINT)));
     command->setSdkToolsPath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS)));
-    command->setDeviceName(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_DEVICE_NAME)));
     command->setArguments(arguments);
 
     if (!command->isValid()) {

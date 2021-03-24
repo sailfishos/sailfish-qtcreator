@@ -60,8 +60,6 @@ int Command::executeSfdk(const QStringList &arguments)
     QStringList allArguments;
     if (!targetName().isEmpty())
         allArguments << "-c" << "target=" + targetName();
-    if (!deviceName().isEmpty())
-        allArguments << "-c" << "device=" + deviceName();
     allArguments << sfdkOptions();
     allArguments << arguments;
 
@@ -155,16 +153,6 @@ void Command::setArguments(const QStringList &args)
 QStringList Command::arguments() const
 {
     return m_args;
-}
-
-QString Command::deviceName() const
-{
-    return m_deviceName;
-}
-
-void Command::setDeviceName(const QString& device)
-{
-    m_deviceName = device;
 }
 
 bool Command::isValid() const

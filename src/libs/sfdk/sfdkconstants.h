@@ -94,12 +94,8 @@ const char WRAPPER_CMAKE[] = "cmake" SCRIPT_EXTENSION;
 const char WRAPPER_QMAKE[] = "qmake" SCRIPT_EXTENSION;
 const char WRAPPER_MAKE[] = "make" SCRIPT_EXTENSION;
 const char WRAPPER_GCC[] = "gcc" SCRIPT_EXTENSION;
-const char WRAPPER_DEPLOY[] = "deploy" SCRIPT_EXTENSION;
-const char WRAPPER_RPM[] = "rpm" SCRIPT_EXTENSION;
-const char WRAPPER_RPMVALIDATION[] = "rpmvalidation" SCRIPT_EXTENSION;
 const char WRAPPER_LUPDATE[] = "lupdate" SCRIPT_EXTENSION;
 const char WRAPPER_PKG_CONFIG[] = "pkg-config" SCRIPT_EXTENSION;
-const char WRAPPER_MAKE_INSTALL[] = "make-install" SCRIPT_EXTENSION;
 const char QMAKE_QUERY_CACHE[] = "qmake.query";
 const char CMAKE_CAPABILITIES_CACHE[] = "cmake.capabilities";
 const char CMAKE_VERSION_CACHE[] = "cmake.version";
@@ -111,7 +107,6 @@ const char GCC_DUMP_INSTALL_DIR_CACHE[] = "gcc.dumpinstalldir";
 #undef SCRIPT_EXTENSION
 
 // FIXME
-const char MER_SSH_DEVICE_NAME[] = "MER_SSH_DEVICE_NAME";
 const char MER_SSH_SDK_TOOLS[] = "MER_SSH_SDK_TOOLS";
 const char MER_SSH_SHARED_HOME[] = "MER_SSH_SHARED_HOME";
 const char MER_SSH_SHARED_SRC[] = "MER_SSH_SHARED_SRC";
