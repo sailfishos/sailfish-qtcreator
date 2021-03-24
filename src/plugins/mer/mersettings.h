@@ -38,6 +38,8 @@ public:
 
     static MerSettings *instance();
 
+    static QString sfdkPath();
+
     static QString environmentFilter();
     static void setEnvironmentFilter(const QString &filter);
     static bool isEnvironmentFilterFromEnvironment();

@@ -65,10 +65,6 @@ int Command::executeSfdk(const QStringList &arguments)
     allArguments << sfdkOptions();
     allArguments << arguments;
 
-    auto environment = QProcessEnvironment::systemEnvironment();
-    environment.insert(Mer::Constants::SAILFISH_SDK_FRONTEND,
-            Mer::Constants::SAILFISH_SDK_FRONTEND_ID);
-
     qerr << "+ " << program << ' ' << QtcProcess::joinArgs(allArguments, Utils::OsTypeLinux)
         << endl;
 
@@ -76,7 +72,6 @@ int Command::executeSfdk(const QStringList &arguments)
     process.setProcessChannelMode(QProcess::ForwardedChannels);
     process.setProgram(program);
     process.setArguments(allArguments);
-    process.setProcessEnvironment(environment);
 
     maybeUndoCMakePathMapping();
 

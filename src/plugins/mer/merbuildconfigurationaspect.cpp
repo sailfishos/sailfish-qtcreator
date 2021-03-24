@@ -376,12 +376,12 @@ void MerBuildConfigurationAspect::setSigningPassphraseFile(const QString &passph
     emit changed();
 }
 
-void MerBuildConfigurationAspect::addToEnvironment(Environment &env) const
+QStringList MerBuildConfigurationAspect::effectiveSfdkOptions() const
 {
-    QStringList parts;
+    QStringList retv;
 
     if (!m_specFilePath.isEmpty())
-        parts << "-c" << QtcProcess::quoteArgUnix("specfile=" + m_specFilePath);
+        retv << "-c" << "specfile=" + m_specFilePath;
 
     if (!m_sfdkOptionsString.isEmpty()) {
         const bool abortOnMeta = true;
@@ -392,22 +392,32 @@ void MerBuildConfigurationAspect::addToEnvironment(Environment &env) const
         // (According to docs QLineEdit::finished is only emitted when
         // validation passes. The reality seems to be less ideal.)
         if (error != QtcProcess::SplitOk)
-            return;
+            return {};
         for (const QString &option : options)
-            parts << "-c" << option;
+            retv << "-c" << option;
     }
 
     if (m_signPackages) {
         if (m_signingUser.isValid())
-            parts << "-c"
-                  << "package.signing-user=" + QtcProcess::quoteArgUnix(m_signingUser.fingerprint);
+            retv << "-c" << "package.signing-user=" + m_signingUser.fingerprint;
         if (!m_signingPassphraseFile.isEmpty())
-            parts << "-c"
-                  << "package.signing-passphrase-file=" + QtcProcess::quoteArgUnix(m_signingPassphraseFile);
+            retv << "-c" << "package.signing-passphrase-file=" + m_signingPassphraseFile;
     }
 
-    if (!parts.isEmpty())
-        env.appendOrSet(Sfdk::Constants::MER_SSH_SFDK_OPTIONS, parts.join(' '));
+    return retv;
+}
+
+void MerBuildConfigurationAspect::addToEnvironment(Environment &env) const
+{
+    env.set("SFDK_NO_SESSION", "1");
+    env.set(Constants::SAILFISH_SDK_FRONTEND, Constants::SAILFISH_SDK_FRONTEND_ID);
+
+    const QStringList options = effectiveSfdkOptions();
+    if (!options.isEmpty()) {
+        // merssh splits them with OsTypeLinux
+        const QString joined = QtcProcess::joinArgs(options, Utils::OsTypeLinux);
+        env.set(Sfdk::Constants::MER_SSH_SFDK_OPTIONS, joined);
+    }
 }
 
 void MerBuildConfigurationAspect::fromMap(const QVariantMap &map)

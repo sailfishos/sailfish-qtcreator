@@ -69,13 +69,13 @@ public:
     explicit MerProcessStep(ProjectExplorer::BuildStepList *bsl, Utils::Id id);
     bool init() override;
     bool init(InitOptions options);
-    QString command() const;
-    void setCommand(const QString &command);
+    QStringList fixedArguments() const;
+    void setFixedArguments(const QStringList &fixedArguments);
     QString arguments() const;
     void setArguments(const QString &arguments);
 
 private:
-    Utils::StringAspect *m_command = nullptr;
+    QStringList m_fixedArguments;
     Utils::StringAspect *m_arguments = nullptr;
 };
 
@@ -144,11 +144,8 @@ class MerMb2MakeInstallStep : public MerProcessStep
     Q_OBJECT
 public:
     explicit MerMb2MakeInstallStep(ProjectExplorer::BuildStepList *bsl, Utils::Id id);
-    bool init() override;
     static Utils::Id stepId();
     static QString displayName();
-protected:
-    void doRun() override;
 };
 
 class MerMb2RsyncDeployStep : public MerProcessStep
@@ -156,7 +153,6 @@ class MerMb2RsyncDeployStep : public MerProcessStep
     Q_OBJECT
 public:
     explicit MerMb2RsyncDeployStep(ProjectExplorer::BuildStepList *bsl, Utils::Id id);
-    bool init() override;
     static Utils::Id stepId();
     static QString displayName();
 protected:
@@ -183,7 +179,6 @@ class MerMb2RpmDeployStep : public MerProcessStep
     Q_OBJECT
 public:
     explicit MerMb2RpmDeployStep(ProjectExplorer::BuildStepList *bsl, Utils::Id id);
-    bool init() override;
     static Utils::Id stepId();
     static QString displayName();
 protected:
@@ -206,7 +201,6 @@ public:
 protected:
     void doRun() override;
 private:
-    QString m_sharedSrc;
     QStringList m_packages;
     bool m_showResultDialog{true};
 };
@@ -232,7 +226,6 @@ class MerRpmValidationStep : public MerProcessStep
 public:
     explicit MerRpmValidationStep(ProjectExplorer::BuildStepList *bsl, Utils::Id id);
     bool init() override;
-    void updateFixedArguments(const QStringList &selectedSuites);
     static Utils::Id stepId();
     static QString displayName();
 protected:
@@ -241,7 +234,6 @@ protected:
 private:
     MerMb2RpmBuildStep *m_packagingStep;
     MerRpmValidationSuitesAspect *m_suites = nullptr;
-    QString m_fixedArguments;
 };
 
 class MerResetAmbienceDeployStep : public RemoteLinux::AbstractRemoteLinuxDeployStep

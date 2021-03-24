@@ -257,17 +257,39 @@ private:
 MerProcessStep::MerProcessStep(BuildStepList *bsl, Id id)
     :AbstractProcessStep(bsl,id)
 {
-    m_command = addAspect<StringAspect>();
-    m_command->setSettingsKey("MerProcessStep.Command");
-    m_command->setLabelText(tr("Command:"));
-    m_command->setDisplayStyle(StringAspect::LabelDisplay);
-    m_command->setReadOnly(true);
-    m_command->setValue("sfdk deploy");
-
     m_arguments = addAspect<StringAspect>();
     m_arguments->setSettingsKey("MerProcessStep.Arguments");
     m_arguments->setLabelText(tr("Arguments:"));
     m_arguments->setDisplayStyle(StringAspect::LineEditDisplay);
+
+    setSummaryUpdater([this]() {
+        CommandLine command("sfdk");
+        command.addArgs(fixedArguments());
+        command.addArgs(arguments(), CommandLine::Raw);
+        return QString("<b>%1:</b> %2")
+                .arg(displayName())
+                .arg(command.toUserOutput());
+    });
+
+    setCommandLineProvider([=]() -> CommandLine {
+        CommandLine deployCommand(MerSettings::sfdkPath());
+
+        const QString targetName = MerSdkKitAspect::buildTargetName(target()->kit());
+        deployCommand.addArgs({"-c", "target=" + targetName});
+
+        IDevice::ConstPtr device = DeviceKitAspect::device(target()->kit());
+        if (!device.isNull())
+            deployCommand.addArgs({"-c", "device=" + device->displayName()});
+
+        auto aspect = buildConfiguration()->aspect<MerBuildConfigurationAspect>();
+        QTC_ASSERT(aspect, return {});
+        deployCommand.addArgs(aspect->effectiveSfdkOptions());
+
+        deployCommand.addArgs(fixedArguments());
+        deployCommand.addArgs(arguments(), CommandLine::Raw);
+
+        return deployCommand;
+    });
 }
 
 bool MerProcessStep::init()
@@ -304,41 +326,23 @@ bool MerProcessStep::init(InitOptions options)
 
     IDevice::ConstPtr device = DeviceKitAspect::device(this->target()->kit());
 
-    //TODO: HACK
     if (device.isNull() && !(options & DoNotNeedDevice)) {
         addOutput(tr("Cannot deploy: Missing %1 device information in the kit").arg(Sdk::osVariant()),
                 OutputFormat::ErrorMessage);
         return false;
     }
 
-    setCommandLineProvider([=]() {
-        const FilePath toolsPath = engine->buildTarget(target).toolsPath;
-        CommandLine deployCommand(toolsPath.pathAppended(Sfdk::Constants::WRAPPER_DEPLOY));
-        deployCommand.addArgs(arguments(), CommandLine::Raw);
-        return deployCommand;
-    });
-
-    bool retv = AbstractProcessStep::init();
-
-    //TODO HACK
-    if (!device.isNull()) {
-        ProcessParameters *pp = processParameters();
-        Environment env = pp->environment();
-        env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_DEVICE_NAME), device->displayName());
-        pp->setEnvironment(env);
-    }
-
-    return retv;
+    return AbstractProcessStep::init();
 }
 
-QString MerProcessStep::command() const
+QStringList MerProcessStep::fixedArguments() const
 {
-    return m_command->value();
+    return m_fixedArguments;
 }
 
-void MerProcessStep::setCommand(const QString &command)
+void MerProcessStep::setFixedArguments(const QStringList &fixedArguments)
 {
-    m_command->setValue(command);
+    m_fixedArguments = fixedArguments;
 }
 
 QString MerProcessStep::arguments() const
@@ -538,35 +542,7 @@ QString MerMb2MakeInstallStep::displayName()
 MerMb2MakeInstallStep::MerMb2MakeInstallStep(BuildStepList *bsl, Id id)
     : MerProcessStep(bsl, id)
 {
-    setCommand("sfdk make-install");
-    setSummaryUpdater([this]() {
-        BuildConfiguration *const bc = buildConfiguration();
-        const QString summary = tr("make install in %1").arg(bc->buildDirectory().toString());
-        return QString("<b>%1:</b> %2")
-                .arg(displayName())
-                .arg(summary);
-    });
-
-}
-
-bool MerMb2MakeInstallStep::init()
-{
-    bool success = MerProcessStep::init(DoNotNeedDevice);
-    //hack
-    ProcessParameters *pp = processParameters();
-    QString make = pp->command().executable().toString();
-    make.replace(
-            QLatin1String(Sfdk::Constants::WRAPPER_DEPLOY),
-            QLatin1String(Sfdk::Constants::WRAPPER_MAKE_INSTALL));
-    CommandLine makeCommand(make);
-    makeCommand.addArgs(pp->command().arguments(), CommandLine::Raw);
-    pp->setCommandLine(makeCommand);
-    return success;
-}
-
-void MerMb2MakeInstallStep::doRun()
-{
-   AbstractProcessStep::doRun();
+    setFixedArguments({"make-install"});
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -584,21 +560,14 @@ QString MerMb2RsyncDeployStep::displayName()
 MerMb2RsyncDeployStep::MerMb2RsyncDeployStep(BuildStepList *bsl, Utils::Id id)
     : MerProcessStep(bsl, id)
 {
-    setSummaryText(QString("<b>%1:</b> %2")
-            .arg(displayName())
-            .arg(tr("Deploys with rsync")));
-    setArguments(QLatin1String("--rsync"));
-}
-
-bool MerMb2RsyncDeployStep::init()
-{
-    return MerProcessStep::init();
+    setFixedArguments({"deploy"});
+    setArguments("--rsync");
 }
 
 void MerMb2RsyncDeployStep::doRun()
 {
    emit addOutput(tr("Deploying binaries..."), OutputFormat::NormalMessage);
-   AbstractProcessStep::doRun();
+   MerProcessStep::doRun();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -661,22 +630,15 @@ QString MerMb2RpmDeployStep::displayName()
 MerMb2RpmDeployStep::MerMb2RpmDeployStep(BuildStepList *bsl, Utils::Id id)
     : MerProcessStep(bsl, id)
 {
-    setSummaryText(QString("<b>%1:</b> %2")
-            .arg(displayName())
-            .arg(tr("Deploys RPM package")));
+    setFixedArguments({"deploy"});
     setArguments(QLatin1String("--sdk"));
 }
 
 
-bool MerMb2RpmDeployStep::init()
-{
-    return MerProcessStep::init();
-}
-
 void MerMb2RpmDeployStep::doRun()
 {
     emit addOutput(tr("Deploying RPM package..."), OutputFormat::NormalMessage);
-    AbstractProcessStep::doRun();
+    MerProcessStep::doRun();
 }
 
 //TODO: HACK
@@ -696,10 +658,7 @@ QString MerMb2RpmBuildStep::displayName()
 MerMb2RpmBuildStep::MerMb2RpmBuildStep(BuildStepList *bsl, Utils::Id id)
     : MerProcessStep(bsl, id)
 {
-    setCommand(QLatin1String("sfdk package"));
-    setSummaryText(QString("<b>%1:</b> %2")
-            .arg(displayName())
-            .arg(tr("Builds RPM package")));
+    setFixedArguments({"package"});
 }
 
 bool MerMb2RpmBuildStep::init()
@@ -707,39 +666,29 @@ bool MerMb2RpmBuildStep::init()
     m_showResultDialog = !deployConfiguration()->stepList()->contains(MerMb2RpmDeployStep::stepId());
 
     bool success = MerProcessStep::init(DoNotNeedDevice);
-    m_packages.clear();
-    BuildEngine *const engine = MerSdkKitAspect::buildEngine(target()->kit());
-    m_sharedSrc = QDir::cleanPath(engine->sharedSrcPath().toString());
 
-    //hack
-    ProcessParameters *pp = processParameters();
-    QString rpm = pp->command().executable().toString();
-    rpm.replace(
-            QLatin1String(Sfdk::Constants::WRAPPER_DEPLOY),
-            QLatin1String(Sfdk::Constants::WRAPPER_RPM));
-    CommandLine rpmCommand(rpm);
-    rpmCommand.addArgs(pp->command().arguments(), CommandLine::Raw);
+    m_packages.clear();
+
+    CommandLine command = processParameters()->command();
 
     auto aspect = buildConfiguration()->aspect<MerBuildConfigurationAspect>();
     QTC_ASSERT(aspect, return false);
     if (aspect->signPackages())
-        rpmCommand.addArgs("--sign", CommandLine::Raw);
+        command.addArgs("--sign", CommandLine::Raw);
 
-    pp->setCommandLine(rpmCommand);
+    processParameters()->setCommandLine(command);
+
     return success;
 }
 
-//TODO: This is hack
 void MerMb2RpmBuildStep::doRun()
 {
     emit addOutput(tr("Building RPM package..."), OutputFormat::NormalMessage);
-    AbstractProcessStep::doRun();
+    MerProcessStep::doRun();
 }
 
-//TODO: This is hack
 void MerMb2RpmBuildStep::processFinished(int exitCode, QProcess::ExitStatus status)
 {
-    //TODO:
     MerProcessStep::processFinished(exitCode, status);
     if (m_showResultDialog && exitCode == 0 && status == QProcess::NormalExit && !m_packages.isEmpty()) {
         new RpmInfo(m_packages, ICore::dialogParent());
@@ -823,16 +772,20 @@ MerRpmValidationStep::MerRpmValidationStep(BuildStepList *bsl, Utils::Id id)
     : MerProcessStep(bsl, id)
 {
     setEnabled(MerSettings::rpmValidationByDefault());
+
+    // Override to hide the actual sfdk command line as it invokes the build
+    // engine command directly now
+    setSummaryUpdater({});
     setSummaryText(QString("<b>%1:</b> %2")
             .arg(displayName())
             .arg(tr("Validates RPM package")));
 
+    const BuildTargetData target = MerSdkKitAspect::buildTarget(this->target()->kit());
+
+    setFixedArguments({"engine", "exec", "rpmvalidation", "-t", target.name});
+
     m_suites = addAspect<MerRpmValidationSuitesAspect>();
-    m_suites->setTarget(MerSdkKitAspect::buildTarget(target()->kit()));
-    connect(m_suites, &BaseAspect::changed, this, [this]() {
-        updateFixedArguments(m_suites->selectedSuites());
-    });
-    updateFixedArguments(m_suites->selectedSuites());
+    m_suites->setTarget(target);
 }
 
 bool MerRpmValidationStep::init()
@@ -899,37 +852,13 @@ void MerRpmValidationStep::doRun()
         return;
     }
 
-    // hack
-    ProcessParameters *pp = processParameters();
-    QString rpmValidation = pp->command().executable().toString();
-    rpmValidation.replace(
-            QLatin1String(Sfdk::Constants::WRAPPER_DEPLOY),
-            QLatin1String(Sfdk::Constants::WRAPPER_RPMVALIDATION));
-    CommandLine rpmValidationCommand(rpmValidation);
-    QStringList arguments{ m_fixedArguments, this->arguments(), packageFile };
-    rpmValidationCommand.addArgs(arguments.join(' '), CommandLine::Raw);
-    pp->setCommandLine(rpmValidationCommand);
+    CommandLine command = processParameters()->command();
+    if (m_suites->selectedSuites() != m_suites->defaultSuites())
+        command.addArgs({"--suites", m_suites->selectedSuites().join(',')});
+    command.addArg(packageFile);
+    processParameters()->setCommandLine(command);
 
-    AbstractProcessStep::doRun();
-}
-
-void MerRpmValidationStep::updateFixedArguments(const QStringList &selectedSuites)
-{
-    if (!selectedSuites.isEmpty()) {
-        if (selectedSuites != m_suites->defaultSuites())
-            m_fixedArguments = "--suites " + selectedSuites.join(',');
-        else
-            m_fixedArguments.clear();
-    } else {
-        m_fixedArguments.clear();
-    }
-
-    QString command = "rpmvalidation";
-    if (!m_fixedArguments.isEmpty()) {
-        command += ' ';
-        command += m_fixedArguments;
-    }
-    setCommand(command);
+    MerProcessStep::doRun();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////

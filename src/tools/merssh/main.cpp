@@ -187,8 +187,6 @@ int main(int argc, char *argv[])
         arguments.takeFirst();
     }
 
-    qputenv("SFDK_NO_SESSION", "1");
-
     if(arguments.isEmpty()) {
         qCritical() << "No arguments" << endl;
         printUsage();

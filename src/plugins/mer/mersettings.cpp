@@ -34,12 +34,15 @@
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
+#include <sfdk/sdk.h>
+
 #include "merconstants.h"
 #include "merlogging.h"
 
 using Core::ICore;
 using namespace Utils;
 using namespace ExtensionSystem;
+using namespace Sfdk;
 
 namespace Mer {
 namespace Internal {
@@ -88,6 +91,11 @@ MerSettings *MerSettings::instance()
     Q_ASSERT(s_instance != 0);
 
     return s_instance;
+}
+
+QString MerSettings::sfdkPath()
+{
+    return Sdk::installationPath() + "/bin/sfdk" QTC_HOST_EXE_SUFFIX;
 }
 
 QString MerSettings::environmentFilter()

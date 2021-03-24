@@ -23,6 +23,7 @@
 #include "mertargetmanagementdialog.h"
 
 #include "merlogging.h"
+#include "mersettings.h"
 #include "ui_mertargetmanagementpage.h"
 #include "ui_mertargetmanagementpackagespage.h"
 #include "ui_mertargetmanagementprogresspage.h"
@@ -111,7 +112,7 @@ public:
 private:
     bool execSfdk(const QStringList &arguments)
     {
-        setProgram(Sdk::installationPath() + "/bin/sfdk" QTC_HOST_EXE_SUFFIX);
+        setProgram(MerSettings::sfdkPath());
         setWorkingDirectory(QDir::homePath());
         setArguments(arguments);
 

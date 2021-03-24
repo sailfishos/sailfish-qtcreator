@@ -65,6 +65,7 @@ public:
 
     static QStringList allowedSfdkOptions() { return s_allowedSfdkOptions; }
 
+    QStringList effectiveSfdkOptions() const;
     void addToEnvironment(Utils::Environment &env) const;
 
     void fromMap(const QVariantMap &map) override;
