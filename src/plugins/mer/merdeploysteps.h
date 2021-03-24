@@ -163,16 +163,19 @@ protected:
     void doRun() override;
 };
 
-class MerLocalRsyncDeployStep : public MerProcessStep
+class MerLocalRsyncDeployStep : public ProjectExplorer::AbstractProcessStep
 {
     Q_OBJECT
 public:
     explicit MerLocalRsyncDeployStep(ProjectExplorer::BuildStepList *bsl, Utils::Id id);
-    bool init() override;
     static Utils::Id stepId();
     static QString displayName();
 protected:
     void doRun() override;
+
+private:
+    Utils::StringAspect *m_command = nullptr;
+    Utils::StringAspect *m_arguments = nullptr;
 };
 
 class MerMb2RpmDeployStep : public MerProcessStep

@@ -614,48 +614,29 @@ QString MerLocalRsyncDeployStep::displayName()
 }
 
 MerLocalRsyncDeployStep::MerLocalRsyncDeployStep(BuildStepList *bsl, Utils::Id id)
-    : MerProcessStep(bsl, id)
+    : AbstractProcessStep(bsl, id)
 {
-    setCommand(tr("Deploy using local installed Rsync"));
+    m_command = addAspect<StringAspect>();
+    m_command->setSettingsKey("MerLocalRsyncDeployStep.Command");
+    m_command->setLabelText(tr("Command:"));
+    m_command->setDisplayStyle(StringAspect::LabelDisplay);
+    m_command->setReadOnly(true);
+    m_command->setValue("rsync");
+
+    m_arguments = addAspect<StringAspect>();
+    m_arguments->setSettingsKey("MerLocalRsyncDeployStep.Arguments");
+    m_arguments->setLabelText(tr("Arguments:"));
+    m_arguments->setDisplayStyle(StringAspect::LineEditDisplay);
+
     setSummaryText(QString("<b>%1:</b> %2")
             .arg(displayName())
             .arg(tr("Deploys with local installed rsync")));
-}
-
-bool MerLocalRsyncDeployStep::init()
-{
-    BuildConfiguration *const bc = buildConfiguration();
-    if (!qobject_cast<MerCMakeBuildConfiguration *>(bc)
-            && !qobject_cast<MerCompilationDatabaseBuildConfiguration *>(bc)
-            && !qobject_cast<MerQmakeBuildConfiguration *>(bc)) {
-        addOutput(tr("Cannot deploy: Unsupported build configuration."),
-                OutputFormat::ErrorMessage);
-        return false;
-    }
-
-    BuildEngine *const engine = MerSdkKitAspect::buildEngine(target()->kit());
-
-    if (!engine) {
-        addOutput(tr("Cannot deploy: Missing %1 build-engine information in the kit").arg(Sdk::osVariant()),
-                OutputFormat::ErrorMessage);
-        return false;
-    }
-
-    const QString target = MerSdkKitAspect::buildTargetName(this->target()->kit());
-
-    if (target.isEmpty()) {
-        addOutput(tr("Cannot deploy: Missing %1 build-target information in the kit").arg(Sdk::osVariant()),
-                OutputFormat::ErrorMessage);
-        return false;
-    }
 
     setCommandLineProvider([this]() {
-        CommandLine deployCommand("rsync");
-        deployCommand.addArgs(arguments(), CommandLine::Raw);
+        CommandLine deployCommand(m_command->value());
+        deployCommand.addArgs(m_arguments->value(), CommandLine::Raw);
         return deployCommand;
     });
-
-    return AbstractProcessStep::init();
 }
 
 void MerLocalRsyncDeployStep::doRun()
