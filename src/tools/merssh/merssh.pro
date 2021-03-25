@@ -19,7 +19,6 @@ SOURCES = \
     generatekeyscommand.cpp \
     gcccommand.cpp \
     makecommand.cpp \
-    lupdatecommand.cpp \
 
 HEADERS += \
     command.h \
@@ -29,4 +28,3 @@ HEADERS += \
     generatekeyscommand.h \
     gcccommand.h \
     makecommand.h \
-    lupdatecommand.h \

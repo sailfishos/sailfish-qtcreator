@@ -60,7 +60,6 @@ const char* SIMPLE_WRAPPERS[] = {
     Constants::WRAPPER_QMAKE,
     Constants::WRAPPER_MAKE,
     Constants::WRAPPER_GCC,
-    Constants::WRAPPER_LUPDATE,
 };
 
 } // namespace anonymous

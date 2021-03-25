@@ -94,7 +94,6 @@ const char WRAPPER_CMAKE[] = "cmake" SCRIPT_EXTENSION;
 const char WRAPPER_QMAKE[] = "qmake" SCRIPT_EXTENSION;
 const char WRAPPER_MAKE[] = "make" SCRIPT_EXTENSION;
 const char WRAPPER_GCC[] = "gcc" SCRIPT_EXTENSION;
-const char WRAPPER_LUPDATE[] = "lupdate" SCRIPT_EXTENSION;
 const char WRAPPER_PKG_CONFIG[] = "pkg-config" SCRIPT_EXTENSION;
 const char QMAKE_QUERY_CACHE[] = "qmake.query";
 const char CMAKE_CAPABILITIES_CACHE[] = "cmake.capabilities";

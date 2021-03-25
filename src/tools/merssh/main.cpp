@@ -25,7 +25,6 @@
 #include "cmakecommand.h"
 #include "gcccommand.h"
 #include "generatekeyscommand.h"
-#include "lupdatecommand.h"
 #include "makecommand.h"
 #include "qmakecommand.h"
 
@@ -126,7 +125,6 @@ int main(int argc, char *argv[])
     CommandFactory::registerCommand<GccCommand>(QLatin1String("gcc"));
     CommandFactory::registerCommand<MakeCommand>(QLatin1String("make"));
     CommandFactory::registerCommand<GenerateKeysCommand>(QLatin1String("generatesshkeys"));
-    CommandFactory::registerCommand<LUpdateCommand>(QLatin1String("lupdate"));
 
     QStringList arguments  = QCoreApplication::arguments();
 
