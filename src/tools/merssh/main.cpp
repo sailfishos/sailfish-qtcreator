@@ -54,10 +54,10 @@ void printUsage()
 {
     qCritical()
             << "merssh usage:" << endl
-            << "merssh [name=value]... <command> [args]..." << endl
+            << "merssh <command> [args]..." << endl
             << "commands:" << endl
             << CommandFactory::commands().join(' ') << endl
-            << "environment variables - project parameters:" << endl
+            << "environment variables (required):" << endl
             << Sfdk::Constants::MER_SSH_SDK_TOOLS << endl;
 }
 
@@ -130,23 +130,6 @@ int main(int argc, char *argv[])
 
     //remove merssh
     arguments.takeFirst();
-
-    // Allow to pass variable on command line instead of in environment. Used by installer where
-    // environment variables cannot be set.
-    const QSet<QString> environmentVariables{
-        QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS),
-    };
-    while (!arguments.isEmpty()) {
-        const int equalPosition = arguments.first().indexOf('=');
-        if (equalPosition == -1)
-            break;
-        const QString name = arguments.first().left(equalPosition);
-        if (!environmentVariables.contains(name))
-            break;
-        const QString value = arguments.first().mid(equalPosition + 1);
-        qputenv(name.toLocal8Bit(), value.toLocal8Bit());
-        arguments.takeFirst();
-    }
 
     if(arguments.isEmpty()) {
         qCritical() << "No arguments" << endl;
