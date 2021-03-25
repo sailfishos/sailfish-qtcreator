@@ -36,7 +36,6 @@ export function validateSearchOutputDirOption(value) {
     return [false, qsTr("Invalid keyword used")];
 }
 
-
 export function maybeImportSigningKey() {
     if (!configuration.isOptionSet("package.signing-user"))
         return [true, ""];
@@ -53,4 +52,18 @@ export function maybeImportSigningKey() {
     }
 
     return [true, ""];
+}
+
+export function filterCMakeCommandLine(args) {
+    if (args.lenth === 0 || args[0] === "--build")
+        return args;
+
+    // See MerSdkManager::ensureCmakeToolIsSet() and Sfdk::EngineWorker::maybeDoCMakePathMapping()
+    return args.filter(arg =>
+        !arg.startsWith("-DCMAKE_CXX_COMPILER:")
+        && !arg.startsWith("-DCMAKE_C_COMPILER:")
+        && !arg.startsWith("-DCMAKE_PREFIX_PATH:")
+        && !arg.startsWith("-DCMAKE_SYSROOT:")
+        && !arg.startsWith("-DQT_QMAKE_EXECUTABLE:")
+    );
 }

@@ -24,7 +24,6 @@
 
 #include <mer/merconstants.h>
 #include <sfdk/sfdkconstants.h>
-#include <utils/algorithm.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 
@@ -88,15 +87,6 @@ int CMakeCommand::execute()
         filteredArguments.removeAt(3);
         filteredArguments.removeAt(1);
         filteredArguments.insert(2, "--"); // no doubts
-
-        // See MerSdkManager::ensureCmakeToolIsSet() and Command::maybeDoCMakePathMapping()
-        filteredArguments = Utils::filtered(filteredArguments, [](const QString &argument) {
-            return !argument.startsWith("-DCMAKE_CXX_COMPILER:")
-                && !argument.startsWith("-DCMAKE_C_COMPILER:")
-                && !argument.startsWith("-DCMAKE_PREFIX_PATH:")
-                && !argument.startsWith("-DCMAKE_SYSROOT:")
-                && !argument.startsWith("-DQT_QMAKE_EXECUTABLE:");
-        });
     }
 
     return executeSfdk(filteredArguments);

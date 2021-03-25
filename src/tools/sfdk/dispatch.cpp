@@ -49,6 +49,7 @@ namespace {
 
 const char ALIAS_KEY[] = "alias";
 const char COMMANDS_KEY[] = "commands";
+const char COMMAND_LINE_FILTER[] = "commandLineFilter";
 const char CONFIG_OPTIONS_KEY[] = "configOptions";
 const char DOMAIN_KEY[] = "domain";
 const char DYNAMIC_KEY[] = "dynamic";
@@ -550,6 +551,12 @@ bool Dispatcher::loadCommands(const Module *module, const QVariantList &list,
 
         if (!loadDynamicSubcommands(command.get(), dynamicSubcommandsData.toList(), errorString))
             return false;
+
+        QVariant commandLineFilter = value(data, COMMAND_LINE_FILTER, QVariant::String, QString(),
+                errorString);
+        if (!commandLineFilter.isValid())
+            return false;
+        command->commandLineFilterJSFunctionName = commandLineFilter.toString();
 
         QVariant preRun = value(data, PRE_RUN_KEY, QVariant::String, QString(), errorString);
         if (!preRun.isValid())

@@ -54,7 +54,8 @@
             "trSynopsis": "[<project-dir>] [[--] <cmake-extra-arg>...]\n--build . [<cmake-extra-arg>...] [-- <build-tool-extra-arg>...]",
             "trBrief": "Execute cmake build step",
             "configOptions": ["*", "target!"],
-            "trDescription": "Run rpmbuild. Execute just the %build section of the .spec file, suppressing any 'cmake' invocation figuring in that section, that does not match the execution form used here, i.e., does not trigger the desired action, namely 1) generate a project buildsystem or 2) build the project.\n\nAdditionally, any plain 'make' invocation will be recognized as implementing the \"build the project\" action and will be treated accordingly. Any possible <cmake-extra-arg> will be silently ignored and any possible <build-tools-extra-arg> will be used equally for each 'make' invocation in that case.\n\nIf path to a <project-dir> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory."
+            "trDescription": "Run rpmbuild. Execute just the %build section of the .spec file, suppressing any 'cmake' invocation figuring in that section, that does not match the execution form used here, i.e., does not trigger the desired action, namely 1) generate a project buildsystem or 2) build the project.\n\nAdditionally, any plain 'make' invocation will be recognized as implementing the \"build the project\" action and will be treated accordingly. Any possible <cmake-extra-arg> will be silently ignored and any possible <build-tools-extra-arg> will be used equally for each 'make' invocation in that case.\n\nIf path to a <project-dir> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory.",
+            "commandLineFilter": "module.filterCMakeCommandLine"
         },
         {
             "name": "make",

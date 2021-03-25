@@ -42,12 +42,6 @@ public:
     void setSfdkOptions(const QStringList &sfdkOptions);
     QString targetName() const;
     void setTargetName(const QString& name);
-    QString sharedSourcePath() const;
-    void setSharedSourcePath(const QString& path);
-    QString sharedSourceMountPoint() const;
-    void setSharedSourceMountPoint(const QString& path);
-    QString sharedTargetPath() const;
-    void setSharedTargetPath(const QString& path);
     QString sdkToolsPath() const;
     void setSdkToolsPath(const QString& path);
     QStringList arguments() const;
@@ -58,19 +52,9 @@ public:
     virtual int execute() = 0;
 
 private:
-    static QString readRelativeRoot();
-    void maybeDoCMakePathMapping();
-    void maybeUndoCMakePathMapping();
-    static void updateOrAddToCMakeCacheIf(QString *data, const QString &name,
-            const QStringList &types, const QString &value, bool shouldAdd);
-
-private:
     QStringList m_args;
     QStringList m_sfdkOptions;
     QString m_targetName;
-    QString m_sharedSourcePath;
-    QString m_sharedSourceMountPoint;
-    QString m_sharedTargetPath;
     QString m_toolsPath;
     QSsh::SshConnectionParameters m_sshConnectionParams;
 };
