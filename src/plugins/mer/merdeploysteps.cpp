@@ -278,10 +278,6 @@ MerProcessStep::MerProcessStep(BuildStepList *bsl, Id id)
         if (!device.isNull())
             deployCommand.addArgs({"-c", "device=" + device->displayName()});
 
-        auto aspect = buildConfiguration()->aspect<MerBuildConfigurationAspect>();
-        QTC_ASSERT(aspect, return {});
-        deployCommand.addArgs(aspect->effectiveSfdkOptions());
-
         deployCommand.addArgs(fixedArguments());
         deployCommand.addArgs(arguments(), CommandLine::Raw);
 

@@ -38,8 +38,6 @@ public:
     Command();
     virtual ~Command();
     int executeSfdk(const QStringList &arguments);
-    QStringList sfdkOptions() const;
-    void setSfdkOptions(const QStringList &sfdkOptions);
     QString sdkToolsPath() const;
     void setSdkToolsPath(const QString& path);
     QStringList arguments() const;
@@ -51,7 +49,6 @@ public:
 
 private:
     QStringList m_args;
-    QStringList m_sfdkOptions;
     QString m_toolsPath;
     QSsh::SshConnectionParameters m_sshConnectionParams;
 };

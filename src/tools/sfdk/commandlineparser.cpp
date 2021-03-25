@@ -27,6 +27,7 @@
 #include "configuration.h"
 #include "dispatch.h"
 #include "sfdkconstants.h"
+#include "sfdkglobal.h"
 #include "textutils.h"
 
 #include <sfdk/sdk.h>
@@ -52,6 +53,8 @@ using Constants::EXE_NAME;
 
 CommandLineParser::CommandLineParser(const QStringList &arguments)
 {
+    bool ok;
+
     QCommandLineParser parser;
     parser.setOptionsAfterPositionalArgumentsMode(QCommandLineParser::ParseAsPositionalArguments);
 
@@ -120,7 +123,46 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
 
     parser.addOptions(m_otherOptions);
 
-    if (!parser.parse(arguments)) {
+    QStringList allArguments = arguments;
+
+    const QStringList argumentsFromEnvironment =
+        environmentVariableAsArguments(Constants::OPTIONS_ENV_VAR, &ok);
+    if (!ok) {
+        qerr() << tr("Malformed content of the \"%1\" environment variable")
+            .arg(Constants::OPTIONS_ENV_VAR) << endl;
+        m_result = BadUsage;
+        return;
+    }
+
+    if (!argumentsFromEnvironment.isEmpty()) {
+        if (!parser.parse(QStringList(arguments.first()) + argumentsFromEnvironment)) {
+            qerr() << tr("%1 (Arguments received via the \"%2\" environment variable)")
+                .arg(parser.errorText())
+                .arg(Constants::OPTIONS_ENV_VAR)
+                << endl;
+            m_result = BadUsage;
+            return;
+        }
+
+        if (!parser.positionalArguments().isEmpty()) {
+            qerr() << tr("Unexpected positional argument received via the \"%1\" environment variable: \"%2\"")
+                .arg(Constants::OPTIONS_ENV_VAR)
+                .arg(parser.positionalArguments().first())
+                << endl;
+            m_result = BadUsage;
+            return;
+        }
+
+        qCInfo(sfdk).noquote() << tr("Options from environment: %1")
+            .arg(qEnvironmentVariable(Constants::OPTIONS_ENV_VAR));
+
+        QStringList combined = argumentsFromEnvironment;
+        combined.prepend(allArguments.first());
+        combined.append(allArguments.mid(1));
+        allArguments = combined;
+    }
+
+    if (!parser.parse(allArguments)) {
         badUsage(parser.errorText());
         m_result = BadUsage;
         return;
@@ -369,7 +411,7 @@ void CommandLineParser::usage(QTextStream &out) const
     }
     out << endl;
 
-    exitStatusSection(out);
+    bottomSections(out);
 }
 
 void CommandLineParser::commandBriefUsage(QTextStream &out, const Command *command) const
@@ -456,7 +498,7 @@ void CommandLineParser::domainUsage(QTextStream &out, const Domain *domain) cons
     }
     out << endl;
 
-    exitStatusSection(out);
+    bottomSections(out);
 }
 
 void CommandLineParser::allDomainsUsage(QTextStream &out) const
@@ -507,7 +549,7 @@ void CommandLineParser::allDomainsUsage(QTextStream &out) const
     describe(out, 1, Utils::toRawPointer<QList>(Dispatcher::options()));
     out << endl;
 
-    exitStatusSection(out);
+    bottomSections(out);
 }
 
 bool CommandLineParser::checkExclusiveOption(const QCommandLineParser &parser,
@@ -700,6 +742,16 @@ QString CommandLineParser::listRelatedConfigurationOptions(const Command *comman
     return quoted.join(", ");
 }
 
+QString CommandLineParser::environmentVariablesHeading()
+{
+    return tr("Environment Variables").toUpper();
+}
+
+QString CommandLineParser::exitStatusHeading()
+{
+    return tr("Exit Status").toUpper();
+}
+
 /*
  * Replace pairs of opposite options with compact notation "[no-]foo".
  */
@@ -742,6 +794,26 @@ QString CommandLineParser::dashOption(const QString &option)
         return '-' + option;
     else
         return "--" + option;
+}
+
+QStringList CommandLineParser::environmentVariableAsArguments(const char *name, bool *ok)
+{
+    *ok = true;
+
+    if (qEnvironmentVariableIsEmpty(name))
+        return {};
+
+    const QString value = qEnvironmentVariable(name);
+    const bool abortOnMeta = true;
+    QtcProcess::SplitError error;
+    const QStringList arguments = QtcProcess::splitArgs(value, Utils::OsTypeLinux,
+            abortOnMeta, &error);
+    if (error != QtcProcess::SplitOk) {
+        *ok = false;
+        return {};
+    }
+
+    return arguments;
 }
 
 void CommandLineParser::synopsis(QTextStream &out) const
@@ -844,11 +916,33 @@ void CommandLineParser::describeGlobalOptions(QTextStream &out, int indentLevel,
     describe(out, indentLevel, globalOptions);
 }
 
-void CommandLineParser::exitStatusSection(QTextStream &out)
+void CommandLineParser::bottomSections(QTextStream &out)
 {
-    out << tr("Exit Status").toUpper() << endl;
+    QString body;
+
+    out << environmentVariablesHeading() << endl;
     out << endl;
-    QString body = tr("sfdk exits with zero exit code on success, command-specific nonzero exit code on command failure, or the reserved exit code of %1 to indicate bad usage, internal error, (remote) command dispatching error and suchlike conditions, that either prevented command starting or resulted in premature or otherwise abnormal command termination (different exit code may be designated for this purpose through the '%2' environment variable).")
+
+    out << indent(1) << Constants::EXIT_ABNORMAL_ENV_VAR << endl;
+    body = tr("See the %1 section.").arg(exitStatusHeading());
+    wrapLines(out, 2, {}, {}, body);
+    out << endl;
+
+    out << indent(1) << Constants::NO_SESSION_ENV_VAR << endl;
+    body = tr("See the '--no-session' option.");
+    wrapLines(out, 2, {}, {}, body);
+    out << endl;
+
+    out << indent(1) << Constants::OPTIONS_ENV_VAR << endl;
+    body = tr("Setting this variable has the same effect as passing the value on the command line before any other options.");
+    wrapLines(out, 2, {}, {}, body);
+    out << endl;
+
+    out << endl;
+
+    out << exitStatusHeading() << endl;
+    out << endl;
+    body = tr("sfdk exits with zero exit code on success, command-specific nonzero exit code on command failure, or the reserved exit code of %1 to indicate bad usage, internal error, (remote) command dispatching error and suchlike conditions, that either prevented command starting or resulted in premature or otherwise abnormal command termination (different exit code may be designated for this purpose through the '%2' environment variable).")
         .arg(Constants::EXIT_ABNORMAL_DEFAULT_CODE)
         .arg(Constants::EXIT_ABNORMAL_ENV_VAR);
     wrapLines(out, 1, {}, {}, body);

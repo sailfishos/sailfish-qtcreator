@@ -59,8 +59,7 @@ void printUsage()
             << "commands:" << endl
             << CommandFactory::commands().join(' ') << endl
             << "environment variables - project parameters:" << endl
-            << Sfdk::Constants::MER_SSH_SDK_TOOLS << endl
-            << Sfdk::Constants::MER_SSH_SFDK_OPTIONS << endl;
+            << Sfdk::Constants::MER_SSH_SDK_TOOLS << endl;
 }
 
 QStringList unquoteArguments(const QStringList &arguments)
@@ -72,24 +71,6 @@ QStringList unquoteArguments(const QStringList &arguments)
     QTC_ASSERT(splitError == QtcProcess::SplitOk, return {});
 
     return result;
-}
-
-QStringList argumentsFromEnvironment(const QProcessEnvironment &environment, const QString &name, bool *ok)
-{
-    *ok = false;
-
-    const QString value = environment.value(name);
-    const bool abortOnMeta = true;
-    QtcProcess::SplitError error;
-    const QStringList arguments = QtcProcess::splitArgs(value, Utils::OsTypeLinux,
-            abortOnMeta, &error);
-    if (error != QtcProcess::SplitOk) {
-        qCritical() << "Failed to parse content of" << name << "environment variable" << endl;
-        return {};
-    }
-
-    *ok = true;
-    return arguments;
 }
 
 void initQSsh()
@@ -156,7 +137,6 @@ int main(int argc, char *argv[])
     // environment variables cannot be set.
     const QSet<QString> environmentVariables{
         QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS),
-        QLatin1String(Sfdk::Constants::MER_SSH_SFDK_OPTIONS),
     };
     while (!arguments.isEmpty()) {
         const int equalPosition = arguments.first().indexOf('=');
@@ -187,13 +167,6 @@ int main(int argc, char *argv[])
     arguments = unquoteArguments(arguments);
 
     const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
-
-    bool ok;
-    const QStringList sfdkOptions = argumentsFromEnvironment(environment,
-            Sfdk::Constants::MER_SSH_SFDK_OPTIONS, &ok);
-    if (!ok)
-        return 1;
-    command->setSfdkOptions(sfdkOptions);
 
     command->setSdkToolsPath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS)));
     command->setArguments(arguments);

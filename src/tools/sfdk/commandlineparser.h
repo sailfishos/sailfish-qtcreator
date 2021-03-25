@@ -110,9 +110,13 @@ private:
     static QString configurationOptionsHeading();
     static QString relatedConfigurationOptionsHeading(const Command *command);
     static QString listRelatedConfigurationOptions(const Command *command);
+    static QString environmentVariablesHeading();
+    static QString exitStatusHeading();
 
     static QStringList compactOptions(const QStringList &names);
     static QString dashOption(const QString &option);
+
+    static QStringList environmentVariableAsArguments(const char *name, bool *ok);
 
     void synopsis(QTextStream &out) const;
     void describe(QTextStream &out, int indentLevel, const QList<QCommandLineOption> &options) const;
@@ -121,7 +125,7 @@ private:
     void describe(QTextStream &out, int indentLevel, const Command::ConstList &commands) const;
     void describe(QTextStream &out, int indentLevel, const Option::ConstList &options) const;
     void describeGlobalOptions(QTextStream &out, int indentLevel, const Domain *domain) const;
-    static void exitStatusSection(QTextStream &out);
+    static void bottomSections(QTextStream &out);
 
 private:
     Result m_result;

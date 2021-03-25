@@ -53,17 +53,12 @@ int Command::executeSfdk(const QStringList &arguments)
     static const QString program = QCoreApplication::applicationDirPath()
         + '/' + RELATIVE_REVERSE_LIBEXEC_PATH + "/sfdk" QTC_HOST_EXE_SUFFIX;
 
-    QStringList allArguments;
-    allArguments << sfdkOptions();
-    allArguments << arguments;
-
-    qerr << "+ " << program << ' ' << QtcProcess::joinArgs(allArguments, Utils::OsTypeLinux)
-        << endl;
+    qerr << "+ " << program << ' ' << QtcProcess::joinArgs(arguments, Utils::OsTypeLinux) << endl;
 
     QProcess process;
     process.setProcessChannelMode(QProcess::ForwardedChannels);
     process.setProgram(program);
-    process.setArguments(allArguments);
+    process.setArguments(arguments);
 
     int rc{};
     process.start();
@@ -73,16 +68,6 @@ int Command::executeSfdk(const QStringList &arguments)
         rc = process.exitStatus() == QProcess::NormalExit ? process.exitCode() : -1;
 
     return rc;
-}
-
-QStringList Command::sfdkOptions() const
-{
-    return m_sfdkOptions;
-}
-
-void Command::setSfdkOptions(const QStringList &sfdkOptions)
-{
-    m_sfdkOptions = sfdkOptions;
 }
 
 QString Command::sdkToolsPath() const

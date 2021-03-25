@@ -414,14 +414,9 @@ QStringList MerBuildConfigurationAspect::effectiveSfdkOptions() const
 void MerBuildConfigurationAspect::addToEnvironment(Environment &env) const
 {
     env.set("SFDK_NO_SESSION", "1");
+    // sfdk splits them with OsTypeLinux
+    env.set("SFDK_OPTIONS", QtcProcess::joinArgs(effectiveSfdkOptions(), Utils::OsTypeLinux));
     env.set(Constants::SAILFISH_SDK_FRONTEND, Constants::SAILFISH_SDK_FRONTEND_ID);
-
-    const QStringList options = effectiveSfdkOptions();
-    if (!options.isEmpty()) {
-        // merssh splits them with OsTypeLinux
-        const QString joined = QtcProcess::joinArgs(options, Utils::OsTypeLinux);
-        env.set(Sfdk::Constants::MER_SSH_SFDK_OPTIONS, joined);
-    }
 }
 
 void MerBuildConfigurationAspect::fromMap(const QVariantMap &map)
