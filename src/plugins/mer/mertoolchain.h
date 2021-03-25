@@ -53,7 +53,6 @@ public:
 
     bool isJobCountSupported() const override { return false; }
 
-    void addToEnvironment(Utils::Environment &env) const override;
 private:
     QUrl m_buildEngineUri;
     QString m_buildTargetName;

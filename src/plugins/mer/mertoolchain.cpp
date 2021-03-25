@@ -156,13 +156,6 @@ Tasks MerToolChain::validateKit(const Kit *kit) const
     return result;
 }
 
-void MerToolChain::addToEnvironment(Environment &env) const
-{
-    GccToolChain::addToEnvironment(env);
-    env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS),
-            compilerCommand().parentDir().toString());
-}
-
 MerToolChainFactory::MerToolChainFactory()
 {
     setDisplayName(Sdk::osVariant());

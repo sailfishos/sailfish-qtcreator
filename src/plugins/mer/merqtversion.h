@@ -50,8 +50,6 @@ public:
     ProjectExplorer::Tasks validateKit(const ProjectExplorer::Kit *k) override;
     QVariantMap toMap() const override;
     void fromMap(const QVariantMap &data) override;
-    void addToEnvironment(const ProjectExplorer::Kit *k, Utils::Environment &env) const override;
-    Utils::Environment qmakeRunEnvironment() const override;
 
     bool isValid() const override;
     QString invalidReason() const override;

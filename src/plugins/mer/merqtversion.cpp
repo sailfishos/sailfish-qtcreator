@@ -185,14 +185,6 @@ Tasks MerQtVersion::reportIssuesImpl(const QString &proFile,
     return results;
 }
 
-void MerQtVersion::addToEnvironment(const Kit *k, Environment &env) const
-{
-    Q_UNUSED(k);
-    env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS),
-            qmakeCommand().parentDir().toString());
-}
-
-
 QSet<Utils::Id> MerQtVersion::availableFeatures() const
 {
     QSet<Utils::Id> features = BaseQtVersion::availableFeatures();
@@ -200,14 +192,6 @@ QSet<Utils::Id> MerQtVersion::availableFeatures() const
     if(!qtAbis().contains(Abi::fromString(QLatin1String("arm-linux-generic-elf-32bit"))))
         features |= Constants::MER_WIZARD_FEATURE_EMULATOR;
     return features;
-}
-
-Environment MerQtVersion::qmakeRunEnvironment() const
-{
-    Environment env = BaseQtVersion::qmakeRunEnvironment();
-    env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS),
-            qmakeCommand().parentDir().toString());
-    return env;
 }
 
 bool MerQtVersion::isValid() const
