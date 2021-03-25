@@ -413,6 +413,10 @@ QStringList MerBuildConfigurationAspect::effectiveSfdkOptions() const
 
 void MerBuildConfigurationAspect::addToEnvironment(Environment &env) const
 {
+    // TODO Only used by lupdate external tool. Elsewhere we use full
+    // path as determined by MerSettings::sfdkPath() - unify?
+    env.prependOrSetPath(Sdk::installationPath() + "/bin");
+
     env.set("SFDK_NO_SESSION", "1");
     // sfdk splits them with OsTypeLinux
     env.set("SFDK_OPTIONS", QtcProcess::joinArgs(effectiveSfdkOptions(), Utils::OsTypeLinux));
