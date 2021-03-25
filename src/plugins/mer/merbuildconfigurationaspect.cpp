@@ -380,6 +380,10 @@ QStringList MerBuildConfigurationAspect::effectiveSfdkOptions() const
 {
     QStringList retv;
 
+    Kit *const kit = buildConfiguration()->buildSystem()->kit();
+
+    retv << "-c" << "target=" + MerSdkKitAspect::buildTargetName(kit);
+
     if (!m_specFilePath.isEmpty())
         retv << "-c" << "specfile=" + m_specFilePath;
 

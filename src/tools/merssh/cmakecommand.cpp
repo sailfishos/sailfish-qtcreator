@@ -94,5 +94,5 @@ int CMakeCommand::execute()
 
 bool CMakeCommand::isValid() const
 {
-    return Command::isValid() && !targetName().isEmpty() && !sdkToolsPath().isEmpty();
+    return Command::isValid() && !sdkToolsPath().isEmpty();
 }

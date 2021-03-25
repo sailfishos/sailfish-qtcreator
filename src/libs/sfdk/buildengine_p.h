@@ -105,8 +105,7 @@ private:
     void initBuildTargetAt(int index) const;
     void deinitBuildTargetAt(int index) const;
     bool createCacheFile(const Utils::FilePath &filePath, const QString &data) const;
-    bool createSimpleWrapper(const QString &targetName, const Utils::FilePath &toolsPath,
-        const QString &wrapperName) const;
+    bool createSimpleWrapper(const Utils::FilePath &toolsPath, const QString &wrapperName) const;
     bool createPkgConfigWrapper(const Utils::FilePath &toolsPath,
             const Utils::FilePath &sysRoot) const;
     Utils::FilePath targetsXmlFile() const;

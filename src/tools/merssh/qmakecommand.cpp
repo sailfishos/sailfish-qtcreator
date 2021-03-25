@@ -82,5 +82,5 @@ int QMakeCommand::execute()
 
 bool QMakeCommand::isValid() const
 {
-    return Command::isValid() && !targetName().isEmpty() && !sdkToolsPath().isEmpty();
+    return Command::isValid() && !sdkToolsPath().isEmpty();
 }

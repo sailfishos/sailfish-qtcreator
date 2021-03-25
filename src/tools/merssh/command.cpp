@@ -54,8 +54,6 @@ int Command::executeSfdk(const QStringList &arguments)
         + '/' + RELATIVE_REVERSE_LIBEXEC_PATH + "/sfdk" QTC_HOST_EXE_SUFFIX;
 
     QStringList allArguments;
-    if (!targetName().isEmpty())
-        allArguments << "-c" << "target=" + targetName();
     allArguments << sfdkOptions();
     allArguments << arguments;
 
@@ -85,16 +83,6 @@ QStringList Command::sfdkOptions() const
 void Command::setSfdkOptions(const QStringList &sfdkOptions)
 {
     m_sfdkOptions = sfdkOptions;
-}
-
-QString Command::targetName() const
-{
-    return m_targetName;
-}
-
-void Command::setTargetName(const QString& name)
-{
-    m_targetName = name;
 }
 
 QString Command::sdkToolsPath() const

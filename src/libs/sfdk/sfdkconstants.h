@@ -108,7 +108,6 @@ const char GCC_DUMP_INSTALL_DIR_CACHE[] = "gcc.dumpinstalldir";
 
 // FIXME
 const char MER_SSH_SDK_TOOLS[] = "MER_SSH_SDK_TOOLS";
-const char MER_SSH_TARGET_NAME[] = "MER_SSH_TARGET_NAME";
 const char MER_SSH_SFDK_OPTIONS[] = "MER_SSH_SFDK_OPTIONS";
 
 const char WWW_PROXY_DISABLED[] = "direct";

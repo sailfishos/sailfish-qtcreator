@@ -274,9 +274,6 @@ MerProcessStep::MerProcessStep(BuildStepList *bsl, Id id)
     setCommandLineProvider([=]() -> CommandLine {
         CommandLine deployCommand(MerSettings::sfdkPath());
 
-        const QString targetName = MerSdkKitAspect::buildTargetName(target()->kit());
-        deployCommand.addArgs({"-c", "target=" + targetName});
-
         IDevice::ConstPtr device = DeviceKitAspect::device(target()->kit());
         if (!device.isNull())
             deployCommand.addArgs({"-c", "device=" + device->displayName()});

@@ -195,14 +195,13 @@ void MerSdkKitAspect::setBuildTarget(Kit *kit, const BuildEngine *buildEngine,
 
 void MerSdkKitAspect::addToEnvironment(const Kit *kit, Environment &env) const
 {
+    Q_UNUSED(kit);
+
     if (!MerSettings::isEnvironmentFilterFromEnvironment() &&
             !MerSettings::environmentFilter().isEmpty()) {
         env.appendOrSet(QLatin1String(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER),
                 MerSettings::environmentFilter());
     }
-
-    env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_TARGET_NAME),
-            MerSdkKitAspect::buildTargetName(kit));
 }
 
 void MerSdkKitAspect::notifyAboutUpdate(const Sfdk::BuildEngine *buildEngine)

@@ -40,5 +40,5 @@ int MakeCommand::execute()
 
 bool MakeCommand::isValid() const
 {
-    return Command::isValid() && !targetName().isEmpty() ;
+    return Command::isValid() && !sdkToolsPath().isEmpty() ;
 }

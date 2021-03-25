@@ -205,7 +205,6 @@ QSet<Utils::Id> MerQtVersion::availableFeatures() const
 Environment MerQtVersion::qmakeRunEnvironment() const
 {
     Environment env = BaseQtVersion::qmakeRunEnvironment();
-    env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_TARGET_NAME), m_buildTargetName);
     env.appendOrSet(QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS),
             qmakeCommand().parentDir().toString());
     return env;

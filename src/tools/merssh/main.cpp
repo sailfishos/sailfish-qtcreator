@@ -59,7 +59,6 @@ void printUsage()
             << "commands:" << endl
             << CommandFactory::commands().join(' ') << endl
             << "environment variables - project parameters:" << endl
-            << Sfdk::Constants::MER_SSH_TARGET_NAME << endl
             << Sfdk::Constants::MER_SSH_SDK_TOOLS << endl
             << Sfdk::Constants::MER_SSH_SFDK_OPTIONS << endl;
 }
@@ -156,7 +155,6 @@ int main(int argc, char *argv[])
     // Allow to pass variable on command line instead of in environment. Used by installer where
     // environment variables cannot be set.
     const QSet<QString> environmentVariables{
-        QLatin1String(Sfdk::Constants::MER_SSH_TARGET_NAME),
         QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS),
         QLatin1String(Sfdk::Constants::MER_SSH_SFDK_OPTIONS),
     };
@@ -197,7 +195,6 @@ int main(int argc, char *argv[])
         return 1;
     command->setSfdkOptions(sfdkOptions);
 
-    command->setTargetName(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_TARGET_NAME)));
     command->setSdkToolsPath(environment.value(QLatin1String(Sfdk::Constants::MER_SSH_SDK_TOOLS)));
     command->setArguments(arguments);
 

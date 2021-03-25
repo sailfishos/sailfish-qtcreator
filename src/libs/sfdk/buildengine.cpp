@@ -866,7 +866,7 @@ void BuildEnginePrivate::initBuildTargetAt(int index) const
     QTC_ASSERT(ok, return);
 
     for (const char *const wrapperName : SIMPLE_WRAPPERS)
-        ok &= createSimpleWrapper(dump->name, toolsPath, QString::fromLatin1(wrapperName));
+        ok &= createSimpleWrapper(toolsPath, QString::fromLatin1(wrapperName));
 
     ok &= createPkgConfigWrapper(toolsPath, sysRootForTarget(dump->name));
 
@@ -891,7 +891,7 @@ bool BuildEnginePrivate::createCacheFile(const FilePath &filePath, const QString
     return true;
 }
 
-bool BuildEnginePrivate::createSimpleWrapper(const QString &targetName, const FilePath &toolsPath,
+bool BuildEnginePrivate::createSimpleWrapper(const FilePath &toolsPath,
         const QString &wrapperName) const
 {
     const QString commandName = HostOsInfo::isWindowsHost()
@@ -913,7 +913,6 @@ bool BuildEnginePrivate::createSimpleWrapper(const QString &targetName, const Fi
 SetLocal EnableDelayedExpansion
 set ARGUMENTS=
 FOR %%a IN (%*) DO set ARGUMENTS=!ARGUMENTS! ^ '%%a'
-set {MER_SSH_TARGET_NAME}={targetName}
 set {MER_SSH_SDK_TOOLS}={toolsPath}
 SetLocal DisableDelayedExpansion
 "{wrapperBinaryPath}" {commandName} %ARGUMENTS%
@@ -924,16 +923,13 @@ ARGUMENTS=""
 for ARGUMENT in "$@"; do
     ARGUMENTS="${ARGUMENTS} '${ARGUMENT}'"
 done
-export {MER_SSH_TARGET_NAME}="{targetName}"
 export {MER_SSH_SDK_TOOLS}="{toolsPath}"
 exec "{wrapperBinaryPath}" {commandName} ${ARGUMENTS}
 )");
     }
 
     scriptContent
-        .replace("{MER_SSH_TARGET_NAME}", Constants::MER_SSH_TARGET_NAME)
         .replace("{MER_SSH_SDK_TOOLS}", Constants::MER_SSH_SDK_TOOLS)
-        .replace("{targetName}", targetName)
         .replace("{toolsPath}", QDir::toNativeSeparators(toolsPath.toString()))
         .replace("{wrapperBinaryPath}", QDir::toNativeSeparators(wrapperBinaryPath))
         .replace("{commandName}", commandName);
