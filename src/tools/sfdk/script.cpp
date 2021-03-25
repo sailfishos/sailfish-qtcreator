@@ -284,7 +284,7 @@ private:
         auto default_t = Sfdk::default_t<decltype(fn(SdkManager::engine()))>;
 
         if (!SdkManager::hasEngine()) {
-            qCWarning(sfdk).noquote() << SdkManager::noEngineFoundMessage();
+            qjsEngine(this)->throwError(SdkManager::noEngineFoundMessage());
             return default_t();
         }
         return fn(SdkManager::engine());
