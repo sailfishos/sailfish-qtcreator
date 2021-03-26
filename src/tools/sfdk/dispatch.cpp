@@ -443,6 +443,11 @@ bool Dispatcher::loadOptions(const Module *module, const QVariantList &list,
         auto option = std::make_unique<Option>();
         option->module = module;
 
+        QSet<QString> validKeys{NAME_KEY, ALIAS_KEY, TR_DESCRIPTION_KEY, TR_ARGUMENT_KEY,
+            VALIDATOR_KEY};
+        if (!checkKeys(data, validKeys, errorString))
+            return false;
+
         QVariant name = value(data, NAME_KEY, QVariant::String, {}, errorString);
         if (!name.isValid())
             return false;
@@ -507,6 +512,12 @@ bool Dispatcher::loadCommands(const Module *module, const QVariantList &list,
 
         auto command = std::make_unique<Command>();
         command->module = module;
+
+        QSet<QString> validKeys{NAME_KEY, TR_SYNOPSIS_KEY, TR_BRIEF_KEY, TR_DESCRIPTION_KEY,
+            CONFIG_OPTIONS_KEY, DYNAMIC_KEY, DYNAMIC_SUBCOMMANDS_KEY, COMMAND_LINE_FILTER,
+            PRE_RUN_KEY, POST_RUN_KEY};
+        if (!checkKeys(data, validKeys, errorString))
+            return false;
 
         QVariant name = value(data, NAME_KEY, QVariant::String, {}, errorString);
         if (!name.isValid())
