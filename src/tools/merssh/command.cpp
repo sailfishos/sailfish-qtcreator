@@ -185,7 +185,7 @@ void Command::maybeDoCMakePathMapping()
     QString relativeRoot = readRelativeRoot();
     QTC_CHECK(!relativeRoot.isEmpty());
 
-    QDirIterator it(".", {"CMakeCache.txt", "*.cbp", "QtCreatorDeployment.txt"}, QDir::Files,
+    QDirIterator it(".", {"CMakeCache.txt", "QtCreatorDeployment.txt"}, QDir::Files,
             QDirIterator::Subdirectories);
     while (it.hasNext()) {
         const QString path = it.next();
