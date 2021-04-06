@@ -157,11 +157,7 @@ private:
             const OptionEffectiveOccurence &occurence) const;
     void maybeMakeCustomGlobalArguments(const Command *command,
             const OptionEffectiveOccurence &optionOccurence, QStringList *arguments) const;
-    void maybeDoCMakePathMapping() const;
-    void maybeUndoCMakePathMapping() const;
-    static QString readCMakeRelativeRoot();
-    static void updateOrAddToCMakeCacheIf(QString *data, const QString &name,
-            const QStringList &types, const QString &value, bool shouldAdd);
+    void maybeDoQtCreatorDeploymentTxtMapping() const;
 
 private:
     QString m_program;

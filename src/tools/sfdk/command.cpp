@@ -23,6 +23,7 @@
 
 #include "command.h"
 
+#include "cmake.h"
 #include "commandlineparser.h"
 #include "configuration.h"
 #include "debugger.h"
@@ -72,8 +73,7 @@ const char VM_SWAP_SIZE_MB[] = "vm.swap-size";
 const char VM_CPU_COUNT[] = "vm.cpu-count";
 const char VM_STORAGE_SIZE_MB[] = "vm.storage-size";
 
-const QStringList CMAKE_FILES = {"CMakeCache.txt", "QtCreatorDeployment.txt"};
-const char CMAKE_BACKUP_SUFFIX[] = ".sfdkcache";
+const char QT_CREATOR_DEPLOYMENT_TXT[] = "QtCreatorDeployment.txt";
 
 } // namespace anonymous
 
@@ -1428,7 +1428,7 @@ Worker::ExitStatus BuiltinWorker::runEngine(const QStringList &arguments, int *e
                 runInTerminal = true;
         }
 
-        *exitCode = SdkManager::runOnEngine(program, programArguments, runInTerminal);
+        *exitCode = SdkManager::runOnEngine(program, programArguments, {}, runInTerminal);
         return NormalExit;
     }
 
@@ -1994,13 +1994,15 @@ Worker::ExitStatus EngineWorker::doRun(const Command *command, const QStringList
         allArguments += command->name;
     allArguments += arguments;
 
+    QProcessEnvironment extraEnvironment;
+
+    CMakeHelper::maybePrepareCMakeApiPathMapping(&extraEnvironment);
+
     qCDebug(sfdk) << "About to run on build engine:" << m_program << "arguments:" << allArguments;
+    *exitCode = SdkManager::runOnEngine(m_program, allArguments, extraEnvironment);
 
-    maybeUndoCMakePathMapping();
-
-    *exitCode = SdkManager::runOnEngine(m_program, allArguments);
-
-    maybeDoCMakePathMapping();
+    maybeDoQtCreatorDeploymentTxtMapping();
+    CMakeHelper::maybeDoCMakeApiPathMapping();
 
     return NormalExit;
 }
@@ -2136,9 +2138,9 @@ void EngineWorker::maybeMakeCustomGlobalArguments(const Command *command,
     *arguments = Dispatcher::jsEngine()->fromScriptValue<QStringList>(result.property(1));
 }
 
-void EngineWorker::maybeDoCMakePathMapping() const
+void EngineWorker::maybeDoQtCreatorDeploymentTxtMapping() const
 {
-    if (!QFile::exists("CMakeCache.txt"))
+    if (!QFile::exists(QT_CREATOR_DEPLOYMENT_TXT))
         return;
 
     QString errorMessage;
@@ -2148,158 +2150,25 @@ void EngineWorker::maybeDoCMakePathMapping() const
 
     QTC_CHECK(!engine->sharedSrcPath().toString().contains('\\'));
 
-    const BuildTargetData target = SdkManager::configuredTarget(&errorMessage);
-    if (!target.isValid()) {
-        qCDebug(sfdk) << "No build target configured - skipping CMake path mapping";
-        return;
-    }
+    bool ok;
 
-    QTC_CHECK(!target.sysRoot.toString().contains('\\'));
-    QTC_CHECK(!target.sysRoot.toString().endsWith('/'));
-    QTC_CHECK(!target.toolsPath.toString().contains('\\'));
-    QTC_CHECK(!target.toolsPath.toString().endsWith('/'));
-
-    const QString relativeRoot = readCMakeRelativeRoot();
-    QTC_CHECK(!relativeRoot.isEmpty());
-
-    QDirIterator it(".", CMAKE_FILES, QDir::Files, QDirIterator::Subdirectories);
-    while (it.hasNext()) {
-        const QString path = it.next();
-        const QString backupPath = path + CMAKE_BACKUP_SUFFIX;
-
-        bool ok;
-
-        if (QFile::exists(backupPath))
-            QFile::remove(backupPath);
-
-        ok = QFile::rename(path, backupPath);
-        if (!ok) {
-            qCCritical(sfdk).noquote() << tr("Could not back up file \"%1\"").arg(path);
-            continue;
-        }
-
-        FileReader reader;
-        ok = reader.fetch(backupPath);
-        if (!ok) {
-            qCCritical(sfdk).noquote() << reader.errorString();
-            continue;
-        }
-
-        QString data = QString::fromUtf8(reader.data());
-
-        if (!relativeRoot.isEmpty())
-            data.replace(relativeRoot, target.sysRoot.toString() + "/");
-
-        data.replace(engine->sharedSrcMountPoint(), engine->sharedSrcPath().toString());
-
-        if (QFileInfo(path).fileName() == "CMakeCache.txt") {
-            const bool usesQt = data.contains(QRegularExpression("Qt5Core_DIR:(PATH|STRING)=.*"));
-
-            // Map paths and add variables that were filtered out from CMake command line.
-            // If not added, QtC would complain about changed configuration.
-            updateOrAddToCMakeCacheIf(&data, "CMAKE_CXX_COMPILER", {"FILEPATH", "STRING"},
-                    target.toolsPath.toString() + '/' + Constants::WRAPPER_GCC,
-                    true);
-            updateOrAddToCMakeCacheIf(&data, "CMAKE_C_COMPILER", {"FILEPATH", "STRING"},
-                    target.toolsPath.toString() + '/' + Constants::WRAPPER_GCC,
-                    true);
-            updateOrAddToCMakeCacheIf(&data, "CMAKE_COMMAND", {"INTERNAL"},
-                    target.toolsPath.toString() + '/' + Constants::WRAPPER_CMAKE,
-                    false);
-            updateOrAddToCMakeCacheIf(&data, "CMAKE_SYSROOT", {"PATH", "STRING"},
-                    target.sysRoot.toString(),
-                    true);
-            updateOrAddToCMakeCacheIf(&data, "CMAKE_PREFIX_PATH", {"PATH", "STRING"},
-                    target.sysRoot.toString() + "/usr",
-                    true);
-            // See qmakeFromCMakeCache() in cmakeprojectimporter.cpp
-            updateOrAddToCMakeCacheIf(&data, "QT_QMAKE_EXECUTABLE", {"FILEPATH", "STRING"},
-                    target.toolsPath.toString() + '/' + Constants::WRAPPER_QMAKE,
-                    usesQt);
-        }
-
-        data.replace(QRegularExpression("((?<!INCLUDE_INSTALL_DIR:PATH=)/usr/(local/)?include\\b)"),
-                target.sysRoot.toString() + "\\1");
-        data.replace(QRegularExpression("((?<!SHARE_INSTALL_PREFIX:PATH=)/usr/share\\b)"),
-                target.sysRoot.toString() + "\\1");
-
-        // GCC's system include paths are under the tooling. Map them to the
-        // respective directories under the target.
-        data.replace(QRegularExpression("/srv/mer/toolings/[^/]+/opt/cross/"),
-                target.sysRoot.toString() + "/opt/cross/");
-
-        FileSaver saver(path);
-        saver.write(data.toUtf8());
-        ok = saver.finalize();
-        if (!ok) {
-            qCCritical(sfdk).noquote() << saver.errorString();
-            continue;
-        }
-    }
-}
-
-void EngineWorker::maybeUndoCMakePathMapping() const
-{
-    if (!QFile::exists(QString("CMakeCache.txt") + CMAKE_BACKUP_SUFFIX))
-        return;
-
-    const int suffixLength = QLatin1String(CMAKE_BACKUP_SUFFIX).size();
-
-    const QStringList cmakeBackupFiles = Utils::transform(CMAKE_FILES,
-            [](const QString &str) -> QString { return str + CMAKE_BACKUP_SUFFIX; });
-
-    QDirIterator it(".", cmakeBackupFiles, QDir::Files, QDirIterator::Subdirectories);
-    while (it.hasNext()) {
-        const QString backupPath = it.next();
-        const QString path = backupPath.chopped(suffixLength);
-
-        bool ok;
-
-        if (QFile::exists(path))
-            QFile::remove(path);
-
-        // Use copy instead of rename to get timestamps updated. Without that
-        // QtC could continue using old data
-        ok = QFile::copy(backupPath, path);
-        if (!ok) {
-            qCCritical(sfdk).noquote() << tr("Could not restore file \"%1\"").arg(path);
-            continue;
-        }
-
-        QFile::remove(backupPath);
-    }
-}
-
-QString EngineWorker::readCMakeRelativeRoot()
-{
     FileReader reader;
-    if (!reader.fetch("CMakeCache.txt"))
-        return {};
+    ok = reader.fetch(QT_CREATOR_DEPLOYMENT_TXT);
+    if (!ok) {
+        qCCritical(sfdk).noquote() << reader.errorString();
+        return;
+    }
 
     QString data = QString::fromUtf8(reader.data());
-    QRegularExpression cmakeHomeRegexp("CMAKE_HOME_DIRECTORY:INTERNAL=(.*)");
-    QRegularExpressionMatch cmakeHomeMatch = cmakeHomeRegexp.match(data);
-    if (!cmakeHomeMatch.hasMatch())
-        return {};
 
-    QString cmakeHome = cmakeHomeMatch.captured(1);
-    return cmakeHome + '/' + QDir(cmakeHome).relativeFilePath("/");
-}
+    data.replace(engine->sharedSrcMountPoint(), engine->sharedSrcPath().toString());
 
-void EngineWorker::updateOrAddToCMakeCacheIf(QString *data, const QString &name,
-        const QStringList &types, const QString &value, bool shouldAdd)
-{
-    QTC_ASSERT(!types.isEmpty(), return);
-    const QRegularExpression re(QString("%1:(%2)=.*")
-            .arg(name) // no need to escape, we know what we pass here
-            .arg(types.join('|')));
-    if (data->contains(re)) {
-        data->replace(re, name + ":\\1=" + value);
-    } else if (shouldAdd) {
-        data->append("\n");
-        data->append("//No help, variable specified on the command line.\n");
-        data->append(name + ":" + types.first() + "=" + value);
-        data->append("\n");
+    FileSaver saver(QT_CREATOR_DEPLOYMENT_TXT);
+    saver.write(data.toUtf8());
+    ok = saver.finalize();
+    if (!ok) {
+        qCCritical(sfdk).noquote() << saver.errorString();
+        return;
     }
 }
 

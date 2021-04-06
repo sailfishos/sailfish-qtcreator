@@ -58,7 +58,7 @@ export function filterCMakeCommandLine(args) {
     if (args.lenth === 0 || args[0] === "--build")
         return args;
 
-    // See MerSdkManager::ensureCmakeToolIsSet() and Sfdk::EngineWorker::maybeDoCMakePathMapping()
+    // See MerSdkManager::ensureCmakeToolIsSet() and Sfdk::CMakeHelper::doCMakeApiCacheReplyPathMapping()
     return args.filter(arg =>
         !arg.startsWith("-DCMAKE_CXX_COMPILER:")
         && !arg.startsWith("-DCMAKE_C_COMPILER:")

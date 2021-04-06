@@ -129,6 +129,7 @@ public:
     static bool stopEngine();
     static bool isEngineRunning();
     static int runOnEngine(const QString &program, const QStringList &arguments,
+            const QProcessEnvironment &extraEnvironment = {},
             Utils::optional<bool> runInTerminal = {},
             QIODevice *out = nullptr, QIODevice *err = nullptr);
 

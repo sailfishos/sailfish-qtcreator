@@ -15,6 +15,7 @@ QT -= gui
 DEFINES += QT_NO_URL_CAST_FROM_STRING
 
 HEADERS = \
+    cmake.h \
     command.h \
     commandlineparser.h \
     configuration.h \
@@ -32,6 +33,7 @@ HEADERS = \
     ../../plugins/mer/mersettings.h \
 
 SOURCES = \
+    cmake.cpp \
     command.cpp \
     commandlineparser.cpp \
     configuration.cpp \

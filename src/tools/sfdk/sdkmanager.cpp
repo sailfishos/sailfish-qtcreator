@@ -651,7 +651,7 @@ private:
 
         QStringList listToolingsArgs = {"tooling", "list", "--long"};
         const bool runInTerminal = false;
-        const int exitCode = SdkManager::runOnEngine("sdk-manage", listToolingsArgs, runInTerminal,
+        const int exitCode = SdkManager::runOnEngine("sdk-manage", listToolingsArgs, {}, runInTerminal,
                 &out);
         if (exitCode != EXIT_SUCCESS)
             return false;
@@ -688,7 +688,7 @@ private:
         if (checkSnapshots)
             args += "--check-snapshots";
         const bool runInTerminal = false;
-        const int exitCode = SdkManager::runOnEngine("sdk-manage", args, runInTerminal, &out);
+        const int exitCode = SdkManager::runOnEngine("sdk-manage", args, {}, runInTerminal, &out);
         if (exitCode != EXIT_SUCCESS)
             return false;
 
@@ -1053,6 +1053,7 @@ bool SdkManager::isEngineRunning()
 }
 
 int SdkManager::runOnEngine(const QString &program, const QStringList &arguments,
+        const QProcessEnvironment &extraEnvironment_,
         Utils::optional<bool> runInTerminal, QIODevice *out, QIODevice *err)
 {
     QTC_ASSERT(s_instance->hasEngine(), return SFDK_EXIT_ABNORMAL);
@@ -1077,6 +1078,7 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     QString workingDirectory = QDir::current().canonicalPath();
 
     QProcessEnvironment extraEnvironment = s_instance->environmentToForwardToEngine();
+    extraEnvironment.insert(extraEnvironment_);
     extraEnvironment.insert(Mer::Constants::SAILFISH_SDK_FRONTEND,
             systemEnvironment.value(Mer::Constants::SAILFISH_SDK_FRONTEND,
                 Constants::SDK_FRONTEND_ID));
