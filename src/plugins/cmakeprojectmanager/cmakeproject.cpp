@@ -85,6 +85,9 @@ Tasks CMakeProject::projectIssues(const Kit *k) const
 
 ProjectImporter *CMakeProject::projectImporter() const
 {
+    // disabled
+    return nullptr;
+
     if (!m_projectImporter)
         m_projectImporter = new CMakeProjectImporter(projectFilePath());
     return m_projectImporter;
