@@ -530,6 +530,9 @@ void DeviceManager::enableUpdates()
     connect(m_userSettings.get(), &UserSettings::updated,
             this, [=](const QVariantMap &data) { fromMap(data); });
     m_userSettings->enableUpdates();
+
+    QTC_CHECK(!Sdk::isApplyingUpdates());
+    m_updateDevicesXmlTimer.start(0, this);
 }
 
 void DeviceManager::updateOnce()
