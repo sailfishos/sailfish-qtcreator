@@ -832,10 +832,13 @@ void BuildEnginePrivate::initBuildTargetAt(int index) const
     const FilePath toolsPath = toolsPathForTarget(data->name);
 
     QDir toolsDir(toolsPath.toString());
-    if (!toolsDir.exists()) {
-        const bool mkpathOk = toolsDir.mkpath(".");
-        QTC_ASSERT(mkpathOk, return);
+    if (toolsDir.exists()) {
+        qCDebug(engine) << "Not overwritting existing tools under" << toolsPath;
+        return;
     }
+
+    const bool mkpathOk = toolsDir.mkpath(".");
+    QTC_ASSERT(mkpathOk, return);
 
     QString patchedQmakeQuery = dump->qmakeQuery;
     patchedQmakeQuery.replace(":/",
