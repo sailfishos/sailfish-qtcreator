@@ -50,14 +50,15 @@ int Command::executeSfdk(const QStringList &arguments)
 {
     QTextStream qerr(stderr);
 
-    static const QString program = QCoreApplication::applicationDirPath()
-        + '/' + RELATIVE_REVERSE_LIBEXEC_PATH + "/sfdk" QTC_HOST_EXE_SUFFIX;
+    static const FilePath program = FilePath::fromString(QCoreApplication::applicationDirPath())
+        .resolvePath(RELATIVE_REVERSE_LIBEXEC_PATH)
+        .pathAppended("sfdk" QTC_HOST_EXE_SUFFIX);
 
-    qerr << "+ " << program << ' ' << QtcProcess::joinArgs(arguments, Utils::OsTypeLinux) << endl;
+    qerr << "+ " << program.toUserOutput() << ' ' << QtcProcess::joinArgs(arguments, Utils::OsTypeLinux) << endl;
 
     QProcess process;
     process.setProcessChannelMode(QProcess::ForwardedChannels);
-    process.setProgram(program);
+    process.setProgram(program.toString());
     process.setArguments(arguments);
 
     int rc{};
