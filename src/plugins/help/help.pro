@@ -4,9 +4,10 @@ INCLUDEPATH += $$PWD
 
 include(../../qtcreatorplugin.pri)
 
-minQtVersion(5, 15, 0) {
-DEFINES += HELP_NEW_FILTER_ENGINE
-}
+# Temporarily disabled for lack of support for custom filters
+#minQtVersion(5, 15, 0) {
+#DEFINES += HELP_NEW_FILTER_ENGINE
+#}
 
 DEFINES += \
     QT_CLUCENE_SUPPORT \
