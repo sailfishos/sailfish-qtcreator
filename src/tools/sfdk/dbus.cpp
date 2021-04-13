@@ -45,6 +45,36 @@ namespace {
 const char DBUS_SERVICE_NAME_TEMPLATE[] = "org.sailfishos.sfdk.I%1";
 const char DBUS_SFDK_ERROR[] = "org.sailfishos.sfdk.Error";
 const char DBUS_CONFIGURED_DEVICE_PATH[] = "/device";
+
+// QTBUG-84498
+class Hack_SuppressEventDispatcherError
+{
+public:
+    Hack_SuppressEventDispatcherError()
+    {
+        QTC_ASSERT(HostOsInfo::isWindowsHost(), return);
+
+        // once
+        if (defaultHandler)
+            return;
+
+        defaultHandler = qInstallMessageHandler(handler);
+    }
+
+private:
+    static void handler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+    {
+        if (msg.startsWith("QEventDispatcherWin32::wakeUp: Failed to post a message"))
+            type = QtDebugMsg;
+
+        defaultHandler(type, context, msg);
+    }
+
+    static QtMessageHandler defaultHandler;
+};
+
+QtMessageHandler Hack_SuppressEventDispatcherError::defaultHandler;
+
 } // namespace anonymous
 
 class AbstractAdaptor : public QDBusAbstractAdaptor
@@ -293,6 +323,9 @@ DBusManager::DBusManager(quint16 busPort, const QString &connectionName, const P
 DBusManager::~DBusManager()
 {
     QDBusConnection::disconnectFromBus(m_connectionName);
+
+    if (HostOsInfo::isWindowsHost())
+        Hack_SuppressEventDispatcherError();
 }
 
 DBusManager::Ptr DBusManager::get(quint16 busPort, const QString &connectionName)
