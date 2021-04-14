@@ -64,8 +64,12 @@ public:
 private:
     static void handler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
     {
-        if (msg.startsWith("QEventDispatcherWin32::wakeUp: Failed to post a message"))
-            type = QtDebugMsg;
+        if (msg.startsWith("QEventDispatcherWin32::wakeUp: Failed to post a message")) {
+            if (Log::sfdk().isDebugEnabled())
+                type = QtDebugMsg;
+            else
+                return; // uncategorized debug message would not be suppressed by default
+        }
 
         defaultHandler(type, context, msg);
     }
