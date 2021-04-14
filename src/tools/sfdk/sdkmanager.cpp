@@ -1090,17 +1090,13 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
 
     std::unique_ptr<QFile> stdOut;
     if (!out) {
-        stdOut = std::make_unique<QFile>();
-        stdOut->open(stdout, QIODevice::WriteOnly);
-        QTC_CHECK(stdOut->isOpen());
+        stdOut = binaryOut(stdout);
         out = stdOut.get();
     }
 
     std::unique_ptr<QFile> stdErr;
     if (!err) {
-        stdErr = std::make_unique<QFile>();
-        stdErr->open(stderr, QIODevice::WriteOnly);
-        QTC_CHECK(stdErr->isOpen());
+        stdErr = binaryOut(stderr);
         err = stdErr.get();
     }
 
@@ -1278,13 +1274,8 @@ bool SdkManager::prepareForRunOnDevice(const Device &device, RemoteProcess *proc
 int SdkManager::runOnDevice(const Device &device, const QString &program,
         const QStringList &arguments, Utils::optional<bool> runInTerminal)
 {
-    QFile stdOut;
-    stdOut.open(stdout, QIODevice::WriteOnly);
-    QTC_CHECK(stdOut.isOpen());
-
-    QFile stdErr;
-    stdErr.open(stderr, QIODevice::WriteOnly);
-    QTC_CHECK(stdErr.isOpen());
+    std::unique_ptr<QFile> stdOut = binaryOut(stdout);
+    std::unique_ptr<QFile> stdErr = binaryOut(stderr);
 
     RemoteProcess process;
     process.setProgram(program);
@@ -1293,12 +1284,12 @@ int SdkManager::runOnDevice(const Device &device, const QString &program,
     process.setInputChannelMode(QProcess::ForwardedInputChannel);
 
     QObject::connect(&process, &RemoteProcess::standardOutput, [&](const QByteArray &data) {
-        stdOut.write(data);
-        stdOut.flush();
+        stdOut->write(data);
+        stdOut->flush();
     });
     QObject::connect(&process, &RemoteProcess::standardError, [&](const QByteArray &data) {
-        stdErr.write(data);
-        stdErr.flush();
+        stdErr->write(data);
+        stdErr->flush();
     });
 
     if (!prepareForRunOnDevice(device, &process))

@@ -30,6 +30,7 @@
 #include <utils/qtcassert.h>
 
 #include <QCoreApplication>
+#include <QFile>
 #include <QRegularExpression>
 
 #if defined(Q_OS_WIN)
@@ -37,8 +38,11 @@ extern "C" {
 # include "3rdparty/iscygpty.h"
 }
 
-# include <stdio.h>
 # include <windows.h>
+# include <fcntl.h>
+# include <handleapi.h>
+# include <io.h>
+# include <stdio.h>
 #endif
 
 #if defined(Q_OS_UNIX)
@@ -70,6 +74,25 @@ QTextStream &qerr()
 {
     static QTextStream qerr(stderr);
     return qerr;
+}
+
+std::unique_ptr<QFile> binaryOut(FILE *out)
+{
+    auto binaryFile = std::make_unique<QFile>();
+
+#if defined(Q_OS_WIN)
+    intptr_t osfhandle = _get_osfhandle(_fileno(out));
+    QTC_CHECK(osfhandle >= 0);
+    int binaryFd = _open_osfhandle(osfhandle, _O_WRONLY);
+    QTC_CHECK(binaryFd >= 0);
+    binaryFile->open(binaryFd, QIODevice::WriteOnly);
+#else
+    binaryFile->open(out, QIODevice::WriteOnly);
+#endif
+
+    QTC_CHECK(binaryFile->isOpen());
+
+    return binaryFile;
 }
 
 /*
