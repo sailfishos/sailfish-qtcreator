@@ -33,8 +33,14 @@
 #include <QRegularExpression>
 
 #if defined(Q_OS_WIN)
+extern "C" {
+# include "3rdparty/iscygpty.h"
+}
+
+# include <stdio.h>
 # include <windows.h>
 #endif
+
 #if defined(Q_OS_UNIX)
 # include <unistd.h>
 #endif
@@ -89,11 +95,14 @@ bool isConnectedToTerminal()
             return qEnvironmentVariableIntValue(Constants::CONNECTED_TO_TERMINAL_HINT_ENV_VAR);
 
 #if defined(Q_OS_WIN)
-        return GetConsoleWindow();
+        return GetConsoleWindow()
+            && is_cygpty(_fileno(stdin)) && is_cygpty(_fileno(stdout)) && is_cygpty(_fileno(stderr));
 #else
         return isatty(STDIN_FILENO) && isatty(STDOUT_FILENO) && isatty(STDERR_FILENO);
 #endif
     }();
+
+    qCDebug(sfdk) << "Connected to terminal:" << isConnectedToTerminal;
 
     return isConnectedToTerminal;
 }
