@@ -977,8 +977,8 @@ SdkManager::SdkManager(bool useSystemSettingsOnly)
     Q_ASSERT(!s_instance);
     s_instance = this;
 
-    m_enableReversePathMapping =
-        qEnvironmentVariableIsEmpty(Constants::DISABLE_REVERSE_PATH_MAPPING_ENV_VAR);
+    if (!qEnvironmentVariableIsEmpty(Constants::DISABLE_REVERSE_PATH_MAPPING_ENV_VAR))
+        setEnableReversePathMapping(false);
 
     m_merSettings = std::make_unique<MerSettings>();
 
@@ -1135,6 +1135,12 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
 
 void SdkManager::setEnableReversePathMapping(bool enable)
 {
+    // Enabled by default, not meant to be flipped temporarily!
+    QTC_ASSERT(!enable, return);
+
+    if (s_instance->m_enableReversePathMapping)
+        qCDebug(sfdk) << "Disabling reverse path mapping";
+
     s_instance->m_enableReversePathMapping = enable;
 }
 
@@ -1499,6 +1505,10 @@ bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QStrin
 QByteArray SdkManager::maybeReverseMapEnginePaths(const QByteArray &commandOutput) const
 {
     QTC_ASSERT(hasEngine(), return {});
+
+    // Ensure output consistency
+    static bool reversePathMappingEnabledBefore = m_enableReversePathMapping;
+    QTC_CHECK(reversePathMappingEnabledBefore == m_enableReversePathMapping);
 
     if (!m_enableReversePathMapping)
         return commandOutput;
