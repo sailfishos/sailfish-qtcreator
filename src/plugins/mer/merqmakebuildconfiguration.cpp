@@ -110,6 +110,8 @@ MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target, Utils::Id
 
         maybeUpdateExtraParserArguments();
     });
+
+    disableQmakeSystem();
 }
 
 void MerQmakeBuildConfiguration::doInitialize(const ProjectExplorer::BuildInfo &info)
@@ -301,10 +303,20 @@ void MerQmakeBuildConfiguration::updateExtraParserArguments()
     qs->setRecursive(true);
 }
 
+void MerQmakeBuildConfiguration::disableQmakeSystem()
+{
+    TriStateAspect *runSystemAspect = qobject_cast<TriStateAspect *>(Utils::findOrDefault(aspects(),
+                    Utils::equal(&BaseAspect::settingsKey, QString("RunSystemFunction"))));
+    QTC_ASSERT(runSystemAspect, return);
+    runSystemAspect->setSetting(TriState::Disabled);
+    runSystemAspect->setVisible(false);
+}
+
 bool MerQmakeBuildConfiguration::fromMap(const QVariantMap &map)
 {
     if (!QmakeBuildConfiguration::fromMap(map))
         return false;
+    disableQmakeSystem();
     return true;
 }
 

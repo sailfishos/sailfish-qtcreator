@@ -55,6 +55,7 @@ private:
     void setupExtraParserArguments();
     void maybeUpdateExtraParserArguments(bool now = false);
     void updateExtraParserArguments();
+    void disableQmakeSystem();
 
 private:
     QBasicTimer m_maybeUpdateExtraParserArgumentsTimer;
