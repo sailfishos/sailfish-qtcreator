@@ -49,3 +49,8 @@ SOURCES = \
     task.cpp \
     textutils.cpp \
     ../../plugins/mer/mersettings.cpp \
+
+win32 {
+    HEADERS += 3rdparty/iscygpty.h
+    SOURCES += 3rdparty/iscygpty.c
+}

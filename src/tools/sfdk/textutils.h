@@ -27,10 +27,18 @@
 #include <QProcess>
 #include <QTextStream>
 
+#include <memory>
+
+QT_BEGIN_NAMESPACE
+class QFile;
+QT_END_NAMESPACE
+
 namespace Sfdk {
 
 QTextStream &qout();
 QTextStream &qerr();
+
+std::unique_ptr<QFile> binaryOut(FILE *out);
 
 bool isConnectedToTerminal();
 

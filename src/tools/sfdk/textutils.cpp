@@ -30,11 +30,21 @@
 #include <utils/qtcassert.h>
 
 #include <QCoreApplication>
+#include <QFile>
 #include <QRegularExpression>
 
 #if defined(Q_OS_WIN)
+extern "C" {
+# include "3rdparty/iscygpty.h"
+}
+
 # include <windows.h>
+# include <fcntl.h>
+# include <handleapi.h>
+# include <io.h>
+# include <stdio.h>
 #endif
+
 #if defined(Q_OS_UNIX)
 # include <unistd.h>
 #endif
@@ -66,6 +76,25 @@ QTextStream &qerr()
     return qerr;
 }
 
+std::unique_ptr<QFile> binaryOut(FILE *out)
+{
+    auto binaryFile = std::make_unique<QFile>();
+
+#if defined(Q_OS_WIN)
+    intptr_t osfhandle = _get_osfhandle(_fileno(out));
+    QTC_CHECK(osfhandle >= 0);
+    int binaryFd = _open_osfhandle(osfhandle, _O_WRONLY);
+    QTC_CHECK(binaryFd >= 0);
+    binaryFile->open(binaryFd, QIODevice::WriteOnly);
+#else
+    binaryFile->open(out, QIODevice::WriteOnly);
+#endif
+
+    QTC_CHECK(binaryFile->isOpen());
+
+    return binaryFile;
+}
+
 /*
  * The main use case for checking this is deciding whether a remote command
  * should be executed in terminal or not, so let's compare this with SSH
@@ -89,11 +118,14 @@ bool isConnectedToTerminal()
             return qEnvironmentVariableIntValue(Constants::CONNECTED_TO_TERMINAL_HINT_ENV_VAR);
 
 #if defined(Q_OS_WIN)
-        return GetConsoleWindow();
+        return GetConsoleWindow()
+            && is_cygpty(_fileno(stdin)) && is_cygpty(_fileno(stdout)) && is_cygpty(_fileno(stderr));
 #else
         return isatty(STDIN_FILENO) && isatty(STDOUT_FILENO) && isatty(STDERR_FILENO);
 #endif
     }();
+
+    qCDebug(sfdk) << "Connected to terminal:" << isConnectedToTerminal;
 
     return isConnectedToTerminal;
 }
