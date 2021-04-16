@@ -51,7 +51,7 @@ void execAsynchronous(std::tuple<OutArgs&...> outArgs, const Fn &fn, InArgs&&...
 		outArgs = std::tie(as...);
 	};
 	fn(std::forward<InArgs>(inArgs)..., &loop, whenDone);
-	loop.exec();
+	loop.exec(QEventLoop::ExcludeUserInputEvents);
 }
 
 } // namespace Sfdk
