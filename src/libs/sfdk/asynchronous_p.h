@@ -48,9 +48,6 @@ public:
 
     static bool isPostprocessing() { return s_postprocessing; }
 
-public slots:
-    virtual void terminate() = 0;
-
 protected:
     void emitDone(bool ok);
 
@@ -130,12 +127,6 @@ public:
 
     QDebug print(QDebug debug) const override;
 
-public slots:
-    void terminate() override;
-
-protected:
-    void timerEvent(QTimerEvent *event) override;
-
 private slots:
     void onErrorOccured(QProcess::ProcessError error);
     void onFinished(int exitCode, QProcess::ExitStatus exitStatus);
@@ -144,7 +135,6 @@ private:
     const std::unique_ptr<QProcess> m_process;
     QList<int> m_expectedExitCodes = {0};
     bool m_crashExpected = false;
-    QBasicTimer m_terminateTimeoutTimer;
 };
 
 } // namespace Sfdk

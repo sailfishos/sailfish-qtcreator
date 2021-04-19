@@ -31,7 +31,6 @@
 namespace Sfdk {
 
 namespace {
-const int TERMINATE_TIMEOUT_MS = 3000;
 
 class CheckPointRunner : public CommandRunner
 {
@@ -57,11 +56,6 @@ public:
     QDebug print(QDebug debug) const override
     {
         return debug;
-    }
-
-public slots:
-    void terminate() override
-    {
     }
 
 private:
@@ -249,31 +243,6 @@ QDebug ProcessRunner::print(QDebug debug) const
     return debug.maybeSpace();
 }
 
-void ProcessRunner::terminate()
-{
-    QTC_CHECK(m_process->state() != QProcess::Starting);
-    if (m_process->state() == QProcess::NotRunning)
-        return;
-
-    m_crashExpected = true;
-
-    m_process->terminate();
-    if (!m_terminateTimeoutTimer.isActive())
-        m_terminateTimeoutTimer.start(TERMINATE_TIMEOUT_MS, this);
-}
-
-void ProcessRunner::timerEvent(QTimerEvent *event)
-{
-    if (event->timerId() == m_terminateTimeoutTimer.timerId()) {
-        m_terminateTimeoutTimer.stop();
-        // Note that with VBoxManage on Windows it always ends here as
-        // terminate() has no effect on VBoxManage there.
-        m_process->kill();
-    } else {
-        QObject::timerEvent(event);
-    }
-}
-
 void ProcessRunner::onErrorOccured(QProcess::ProcessError error)
 {
     if (error == QProcess::FailedToStart) {
@@ -284,15 +253,7 @@ void ProcessRunner::onErrorOccured(QProcess::ProcessError error)
 
 void ProcessRunner::onFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
-    m_terminateTimeoutTimer.stop();
-
     if (exitStatus != QProcess::NormalExit) {
-        if (m_crashExpected) {
-            qCDebug(vms) << "Process" << m_process->program() << " crashed as expected. Arguments:"
-                << m_process->arguments();
-            emitDone(true);
-            return;
-        }
         qCWarning(vms) << "Process" << m_process->program() << " crashed. Arguments:"
             << m_process->arguments();
         emitDone(false);
