@@ -965,6 +965,8 @@ void EmulatorManager::saveSettings(QStringList *errorStrings) const
 
 void EmulatorManager::fixDeviceModelsInUse(const QObject *context, const Functor<bool> &functor)
 {
+    BatchComposer composer = BatchComposer::createBatch("EmulatorManager::fixDeviceModelsInUse");
+
     auto allOk = std::make_shared<bool>(true);
 
     for (const std::unique_ptr<Emulator> &emulator : qAsConst(m_emulators)) {
@@ -982,7 +984,7 @@ void EmulatorManager::fixDeviceModelsInUse(const QObject *context, const Functor
             *allOk &= ok;
         });
     }
-    SdkPrivate::commandQueue()->enqueueCheckPoint(context, [=]() { functor(*allOk); });
+    BatchComposer::enqueueCheckPoint(context, [=]() { functor(*allOk); });
 }
 
 FilePath EmulatorManager::systemSettingsFile()

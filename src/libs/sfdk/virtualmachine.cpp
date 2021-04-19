@@ -474,6 +474,8 @@ void VirtualMachine::restoreSnapshot(const QString &snapshotName, const QObject 
                QTimer::singleShot(0, context, std::bind(functor, false)); return);
     QTC_CHECK(isLockedDown());
 
+    BatchComposer composer = BatchComposer::createBatch("VirtualMachine::restoreSnapshot");
+
     auto allOk = std::make_shared<bool>(true);
 
     d->doRestoreSnapshot(snapshotName, this, [=](bool restoreOk) {
@@ -488,7 +490,7 @@ void VirtualMachine::restoreSnapshot(const QString &snapshotName, const QObject 
 
     emit d->aboutToRestoreSnapshot(allOk);
 
-    SdkPrivate::commandQueue()->enqueueCheckPoint(context, [=]() { functor(*allOk); });
+    BatchComposer::enqueueCheckPoint(context, [=]() { functor(*allOk); });
 }
 
 void VirtualMachine::removeSnapshot(const QString &snapshotName, const QObject *context,
@@ -514,6 +516,8 @@ void VirtualMachine::removeSnapshot(const QString &snapshotName, const QObject *
 void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
+
+    BatchComposer composer = BatchComposer::createBatch("VirtualMachine::refreshConfiguration");
 
     const QPointer<const QObject> context_{context};
 
@@ -552,7 +556,7 @@ void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<
     if (SdkPrivate::useCachedVmInfo()) {
         Utils::optional<VirtualMachineInfo> info = VirtualMachineInfoCache::info(uri());
         if (info) {
-            SdkPrivate::commandQueue()->enqueueCheckPoint(this, [=]() {
+            BatchComposer::enqueueCheckPoint(this, [=]() {
                 refresh(*info, true);
             });
             return;
@@ -772,6 +776,8 @@ VirtualMachineFactory::~VirtualMachineFactory()
 void VirtualMachineFactory::unusedVirtualMachines(const QObject *context,
         const Functor<const QList<VirtualMachineDescriptor> &, bool> &functor)
 {
+    BatchComposer composer = BatchComposer::createBatch("VirtualMachineFactory::unusedVirtualMachines");
+
     const QPointer<const QObject> context_{context};
     auto descriptors = std::make_shared<QList<VirtualMachineDescriptor>>();
     auto allOk = std::make_shared<bool>(true);
@@ -796,7 +802,7 @@ void VirtualMachineFactory::unusedVirtualMachines(const QObject *context,
         });
     }
 
-    SdkPrivate::commandQueue()->enqueueCheckPoint(s_instance, [=]() {
+    BatchComposer::enqueueCheckPoint(s_instance, [=]() {
         if (!context_)
             return;
         if (allOk)

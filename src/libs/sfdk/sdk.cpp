@@ -77,7 +77,8 @@ Sdk::Sdk(Options options)
 
     d->readGeneralSettings();
 
-    d->commandQueue_ = std::make_unique<CommandQueue>(this);
+    d->commandQueue_ = std::make_unique<CommandQueue>("main", 0, this);
+    d->commandQueue_->run();
 
     d->virtualMachineFactory = std::make_unique<VirtualMachineFactory>(this);
     if (VBoxVirtualMachine::isAvailable())
