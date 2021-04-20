@@ -67,14 +67,8 @@ public:
     enum ConnectOption {
         NoConnectOption = 0x00,
         AskStartVm = 0x01,
-        Block = 0x02,
     };
     Q_DECLARE_FLAGS(ConnectOptions, ConnectOption)
-
-    enum Synchronization {
-        Asynchronous,
-        Synchronous
-    };
 
     enum Feature {
         NoFeatures = 0x00,
@@ -110,7 +104,7 @@ public:
     bool setAutoConnectEnabled(bool autoConnectEnabled);
 
     bool isOff(bool *runningHeadless = 0, bool *startedOutside = 0) const;
-    bool lockDown(bool lockDown);
+    void lockDown(bool lockDown, const QObject *context, const Functor<bool> &functor);
     bool isLockedDown() const;
 
     int memorySizeMb() const;
@@ -147,8 +141,7 @@ public:
             const Functor<bool> &functor);
 
     void refreshConfiguration(const QObject *context, const Functor<bool> &functor);
-    // FIXME API style?
-    void refreshState(Sfdk::VirtualMachine::Synchronization synchronization = Asynchronous);
+    void refreshState(const QObject *context, const Functor<bool> &functor);
 
     template<typename ConcreteUi>
     static void registerConnectionUi()
@@ -157,9 +150,8 @@ public:
         s_connectionUiCreator = [](VirtualMachine *parent) { return std::make_unique<ConcreteUi>(parent); };
     }
 
-public slots:
-    bool connectTo(Sfdk::VirtualMachine::ConnectOptions options = NoConnectOption);
-    void disconnectFrom();
+    void connectTo(ConnectOptions options, const QObject *context, const Functor<bool> &functor);
+    void disconnectFrom(const QObject *context, const Functor<bool> &functor);
 
 signals:
     void stateChanged();
@@ -197,8 +189,6 @@ class SFDK_EXPORT VirtualMachine::ConnectionUi : public QObject
 
 public:
     enum Warning {
-        AlreadyConnecting,
-        AlreadyDisconnecting,
         UnableToCloseVm,
         VmNotRegistered,
         SshPortOccupied,

@@ -233,7 +233,9 @@ bool MerEmulatorModeDialog::execDialog()
 
     if (!m_emulator->virtualMachine()->isOff()
             && m_ui->restartEmulatorCheckBox->isChecked()) {
-        m_emulator->virtualMachine()->lockDown(true);
+        bool ok;
+        execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::lockDown),
+                m_emulator->virtualMachine(), true);
     }
 
     execAsynchronous(std::tie(result), std::mem_fn(&Emulator::setDisplayProperties),
@@ -245,8 +247,9 @@ bool MerEmulatorModeDialog::execDialog()
 
     if (m_emulator->virtualMachine()->isOff()
             && m_ui->restartEmulatorCheckBox->isChecked()) {
-        m_emulator->virtualMachine()->lockDown(false);
-        m_emulator->virtualMachine()->connectTo();
+        m_emulator->virtualMachine()->lockDown(false, this, IgnoreAsynchronousReturn<bool>);
+        m_emulator->virtualMachine()->connectTo(VirtualMachine::NoConnectOption, this,
+                IgnoreAsynchronousReturn<bool>);
     }
 
 end:

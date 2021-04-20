@@ -30,8 +30,8 @@
 #include <utils/qtcassert.h>
 
 #include <QCoreApplication>
-#include <QEventLoop>
 #include <QTime>
+#include <QTimer>
 #include <QTimerEvent>
 
 #define DBG qCDebug(vms) << m_vm->uri().toString() << QTime::currentTime()
@@ -243,7 +243,6 @@ VmConnection::VmConnection(VirtualMachine *parent)
     , m_vmStmTransition(false) // intentionally do not execute ON_ENTRY during initialization
     , m_sshStmTransition(false) // intentionally do not execute ON_ENTRY during initialization
     , m_lockDownRequested(false)
-    , m_lockDownFailed(false)
     , m_connectRequested(false)
     , m_disconnectRequested(false)
     , m_connectLaterRequested(false)
@@ -257,6 +256,9 @@ VmConnection::VmConnection(VirtualMachine *parent)
     , m_pollingVmState(false)
 {
     m_vmStateEntryTimer.start();
+
+    connect(Sdk::instance(), &Sdk::aboutToShutDown,
+            this, &VmConnection::onAboutToShutDown);
 
     // Notice how SshConnectionParameters::timeout is treated!
     connect(m_vm, &VirtualMachine::sshParametersChanged, this, [this]() {
@@ -281,7 +283,6 @@ VmConnection::VmConnection(VirtualMachine *parent)
 
 VmConnection::~VmConnection()
 {
-    waitForVmPollStateFinish();
 }
 
 VirtualMachine *VmConnection::virtualMachine() const
@@ -316,150 +317,228 @@ bool VmConnection::isVirtualMachineOff(bool *runningHeadless, bool *startedOutsi
     return !m_cachedVmRunning && m_vmState != VmStarting;
 }
 
-bool VmConnection::lockDown(bool lockDown)
+void VmConnection::lockDown(const QObject *context, const Functor<bool> &functor)
 {
-    QTC_ASSERT(m_lockDownRequested != lockDown, return false);
+    DBG << "Lockdown requested";
 
-    m_lockDownRequested = lockDown;
+    BatchComposer composer = BatchComposer::createBatch("VmConnection::lockDown");
 
-    if (m_lockDownRequested) {
-        DBG << "Lockdown begin";
-        m_connectLaterRequested = false;
-        vmPollState(VirtualMachine::Synchronous);
+    connect(composer.batch(), &CommandRunner::done, context, functor);
+
+    connect(composer.batch(), &CommandRunner::started, this, [=, batch = composer.batch()]() {
+        DBG << "Lockdown started";
+
+        batch->setAutoFinish(false);
+
+        // Strict alternation required
+        QTC_ASSERT(!m_lockDownRequested, batch->finish(false); return);
+
+        // No interleaving possible with strict serialization
+        QTC_CHECK(!m_batch);
+        QTC_ASSERT(!m_connectRequested, batch->finish(false); return);
+        QTC_ASSERT(!m_disconnectRequested, batch->finish(false); return);
+        QTC_ASSERT(!m_connectLaterRequested, batch->finish(false); return);
+        m_batch = batch;
+
+        connect(this, &VmConnection::virtualMachineOffChanged, batch, [=](bool vmOff) {
+            if (vmOff) // Initial vmPollState may find the opposite
+                batch->finish(true);
+        });
+        connect(this, &VmConnection::lockDownFailed, batch, [=]() {
+            batch->finish(false);
+        });
+
+        m_lockDownRequested = true;
+
+        vmPollState(batch, [=](bool ok) {
+            if (!ok)
+                batch->finish(false);
+            if (isVirtualMachineOff())
+                batch->finish(true);
+        });
+
         vmStmScheduleExec();
         sshStmScheduleExec();
+    });
+}
 
-        if (isVirtualMachineOff()) {
-            return true;
-        }
+void VmConnection::release(const QObject *context, const Functor<bool> &functor)
+{
+    DBG << "Release requested";
 
-        QEventLoop loop;
-        connect(this, &VmConnection::virtualMachineOffChanged,
-                &loop, &QEventLoop::quit);
-        connect(this, &VmConnection::lockDownFailed,
-                &loop, &QEventLoop::quit);
-        loop.exec();
+    BatchComposer composer = BatchComposer::createBatch("VmConnection::release");
 
-        if (m_lockDownFailed) {
-            DBG << "Lockdown failed";
-            m_lockDownRequested = false;
-            m_lockDownFailed = false;
-            return false;
-        } else {
-            return true;
-        }
-    } else {
-        DBG << "Lockdown end";
-        vmPollState(VirtualMachine::Asynchronous);
+    connect(composer.batch(), &CommandRunner::done, context, functor);
+
+    connect(composer.batch(), &CommandRunner::started, this, [=, batch = composer.batch()]() {
+        DBG << "Release started";
+
+        batch->setAutoFinish(false);
+
+        // Strict alternation required
+        QTC_ASSERT(m_lockDownRequested, batch->finish(false); return);
+
+        // No interleaving possible with strict serialization
+        QTC_CHECK(!m_batch);
+        QTC_ASSERT(!m_connectRequested, batch->finish(false); return);
+        QTC_ASSERT(!m_disconnectRequested, batch->finish(false); return);
+        QTC_ASSERT(!m_connectLaterRequested, batch->finish(false); return);
+        m_batch = batch;
+
+        batch->setAutoFinish(true);
+
+        m_lockDownRequested = false;
+
+        vmPollState();
         vmStmScheduleExec();
         sshStmScheduleExec();
-        return true;
-    }
+    });
 }
 
 bool VmConnection::isLockedDown() const
 {
-    // Not accurate during lockDown() call, but that should not be an issue
+    // Not accurate during lockDown() processing, but that should not be an issue
     return m_lockDownRequested;
 }
 
-void VmConnection::refresh(VirtualMachine::Synchronization synchronization)
+void VmConnection::refresh(const QObject *context, const Functor<bool> &functor)
 {
-    DBG << "Refresh requested; synchronization:" << synchronization;
+    DBG << "Refresh requested";
 
-    vmPollState(synchronization);
+    BatchComposer composer = BatchComposer::createBatch("VmConnection::refresh");
+
+    connect(composer.batch(), &CommandRunner::done, context, functor);
+
+    connect(composer.batch(), &CommandRunner::started, this, [=, batch = composer.batch()]() {
+        DBG << "Refresh started";
+
+        batch->setAutoFinish(false);
+
+        QTC_CHECK(!m_batch);
+        m_batch = batch;
+
+        vmPollState(batch, [=](bool ok) { batch->finish(ok); });
+    });
 }
 
-// Returns false when blocking connection request failed or when did not connect
-// immediatelly with non-blocking connection request.
-bool VmConnection::connectTo(VirtualMachine::ConnectOptions options)
+void VmConnection::connectTo(VirtualMachine::ConnectOptions options, const QObject *context,
+        const Functor<bool> &functor)
 {
-    if (options & VirtualMachine::Block) {
-        if (connectTo(options & ~VirtualMachine::Block))
-            return true;
+    DBG << "Connect requested";
 
-        if (m_lockDownRequested)
-            return false; // warning issued before by the nest call
+    BatchComposer composer = BatchComposer::createBatch("VmConnection::connectTo");
 
-        QEventLoop loop;
-        connect(this, &VmConnection::stateChanged, &loop, [this, &loop] {
-            switch (m_state) {
+    connect(composer.batch(), &CommandRunner::done, context, functor);
+
+    connect(composer.batch(), &CommandRunner::started, this, [=, batch = composer.batch()]() mutable {
+        DBG << "Connect started";
+
+        batch->setAutoFinish(false);
+
+        // No interleaving possible with strict serialization
+        QTC_CHECK(!m_batch);
+        QTC_ASSERT(!m_connectRequested, batch->finish(false); return);
+        QTC_ASSERT(!m_disconnectRequested, batch->finish(false); return);
+        QTC_ASSERT(!m_connectLaterRequested, batch->finish(false); return);
+        m_batch = batch;
+
+        if (m_lockDownRequested) {
+            qCWarning(lib) << "VmConnection: connect request for" << m_vm->uri().toString()
+                << "ignored: lockdown active";
+            batch->finish(false);
+            return;
+        }
+
+        if (!ui()->shouldAsk(Ui::StartVm))
+            options &= ~VirtualMachine::AskStartVm;
+
+        // Turning AskStartVm off always overrides
+        if ((m_connectOptions & VirtualMachine::AskStartVm) && !(options & VirtualMachine::AskStartVm))
+            m_connectOptions &= ~VirtualMachine::AskStartVm;
+
+        auto checkState = [=]() {
+            if (!batch->queue()->isEmpty()) // Initial vmPollState in progress
+                return;
+
+            switch (state()) {
             case VirtualMachine::Disconnected:
             case VirtualMachine::Error:
-                loop.exit(EXIT_FAILURE);
+                batch->finish(false);
                 break;
 
             case VirtualMachine::Connected:
-                loop.exit(EXIT_SUCCESS);
+                batch->finish(true);
                 break;
 
             default:
                 ;
             }
-        });
+        };
+        connect(this, &VmConnection::stateChanged, batch, checkState);
+        connect(batch->queue(), &CommandQueue::empty, batch, checkState);
 
-        return loop.exec() == EXIT_SUCCESS;
-    }
+        vmPollState();
+        vmStmScheduleExec();
+        sshStmScheduleExec();
 
-    DBG << "Connect requested";
-
-    if (!ui()->shouldAsk(Ui::StartVm))
-        options &= ~VirtualMachine::AskStartVm;
-
-    // Turning AskStartVm off always overrides
-    if ((m_connectOptions & VirtualMachine::AskStartVm) && !(options & VirtualMachine::AskStartVm))
-        m_connectOptions &= ~VirtualMachine::AskStartVm;
-
-    vmPollState(VirtualMachine::Asynchronous);
-    vmStmScheduleExec();
-    sshStmScheduleExec();
-
-    if (m_lockDownRequested) {
-        qCWarning(lib) << "VmConnection: connect request for" << m_vm->uri().toString()
-            << "ignored: lockdown active";
-        return false;
-    } else if (m_state == VirtualMachine::Connected) {
-        return true;
-    } else if (m_connectRequested || m_connectLaterRequested) {
-        return false;
-    } else if (m_disconnectRequested) {
-        ui()->warn(Ui::AlreadyDisconnecting);
-        return false;
-    }
-
-    if (m_state == VirtualMachine::Error) {
-        m_disconnectRequested = true;
-        m_connectLaterRequested = true;
-        const VirtualMachine::ConnectOptions reconnectOptionsMask =
-            VirtualMachine::AskStartVm;
-        m_connectOptions = options & ~reconnectOptionsMask;
-    } else {
-        m_connectRequested = true;
-        m_connectOptions = options;
-    }
-
-    return false;
+        if (m_state == VirtualMachine::Error) {
+            m_disconnectRequested = true;
+            m_connectLaterRequested = true;
+            const VirtualMachine::ConnectOptions reconnectOptionsMask =
+                VirtualMachine::AskStartVm;
+            m_connectOptions = options & ~reconnectOptionsMask;
+        } else if (m_state != VirtualMachine::Connected) {
+            m_connectRequested = true;
+            m_connectOptions = options;
+        }
+    });
 }
 
-void VmConnection::disconnectFrom()
+void VmConnection::disconnectFrom(const QObject *context, const Functor<bool> &functor)
 {
     DBG << "Disconnect requested";
 
-    if (m_lockDownRequested) {
-        return;
-    } else if (m_state == VirtualMachine::Disconnected) {
-        return;
-    } else if (m_disconnectRequested && !m_connectLaterRequested) {
-        return;
-    } else if (m_connectRequested || m_connectLaterRequested) {
-        ui()->warn(Ui::AlreadyConnecting);
-        return;
-    }
+    BatchComposer composer = BatchComposer::createBatch("VmConnection::disconnectFrom");
 
-    m_disconnectRequested = true;
+    connect(composer.batch(), &CommandRunner::done, context, functor);
 
-    sshStmScheduleExec();
-    vmStmScheduleExec();
+    connect(composer.batch(), &CommandRunner::started, this, [=, batch = composer.batch()]() {
+        DBG << "Disconnect started";
+
+        batch->setAutoFinish(false);
+
+        // No interleaving possible with strict serialization
+        QTC_CHECK(!m_batch);
+        QTC_ASSERT(!m_connectRequested, batch->finish(false); return);
+        QTC_ASSERT(!m_disconnectRequested, batch->finish(false); return);
+        QTC_ASSERT(!m_connectLaterRequested, batch->finish(false); return);
+        m_batch = batch;
+
+        if (m_lockDownRequested) {
+            batch->finish(true);
+            return;
+        } else if (m_state == VirtualMachine::Disconnected) {
+            batch->finish(true);
+            return;
+        }
+
+        auto checkState = [=]() {
+            switch (state()) {
+            case VirtualMachine::Disconnected:
+                batch->finish(true);
+                break;
+
+            default:
+                ;
+            }
+        };
+        connect(this, &VmConnection::stateChanged, batch, checkState);
+
+        m_disconnectRequested = true;
+
+        sshStmScheduleExec();
+        vmStmScheduleExec();
+    });
 }
 
 void VmConnection::timerEvent(QTimerEvent *event)
@@ -477,7 +556,7 @@ void VmConnection::timerEvent(QTimerEvent *event)
         m_vmHardClosingTimeoutTimer.stop();
         vmStmScheduleExec();
     } else if (event->timerId() == m_vmStatePollTimer.timerId()) {
-        vmPollState(VirtualMachine::Asynchronous);
+        vmPollState();
     } else if (event->timerId() == m_sshTryConnectTimer.timerId()) {
         sshTryConnect();
     } else if (event->timerId() == m_vmStmExecTimer.timerId()) {
@@ -509,7 +588,7 @@ void VmConnection::reset()
 
     if (m_vm && !m_vmStatePollTimer.isActive()) {
         m_vmStatePollTimer.start(VM_STATE_POLLING_INTERVAL_NORMAL, this);
-        vmPollState(VirtualMachine::Asynchronous);
+        vmPollState();
     }
 
     vmStmScheduleExec();
@@ -599,7 +678,7 @@ void VmConnection::updateState()
         m_connectRequested = true;
         QTC_CHECK(m_disconnectRequested == false);
 
-        vmPollState(VirtualMachine::Asynchronous);
+        vmPollState();
         vmStmScheduleExec();
         sshStmScheduleExec();
     }
@@ -713,7 +792,8 @@ bool VmConnection::vmStmStep()
             vmWantFastPollState(true);
             m_vmStartingTimeoutTimer.start(VM_START_TIMEOUT, this);
 
-            VirtualMachinePrivate::get(m_vm)->start(this, [](bool) { /* ignore */ });
+            BatchComposer composer = batchComposer();
+            VirtualMachinePrivate::get(m_vm)->start(this, IgnoreAsynchronousReturn<bool>);
         }
 
         if (m_cachedVmRunning) {
@@ -793,15 +873,13 @@ bool VmConnection::vmStmStep()
     case VmZombie:
         ON_ENTRY {
             m_disconnectRequested = false;
-            QTC_CHECK(!m_lockDownRequested || m_lockDownFailed);
+            QTC_CHECK(!m_lockDownRequested);
         }
 
         if (!m_cachedVmRunning) {
             vmStmTransition(VmOff, "closed outside");
         } else if (m_lockDownRequested) {
-            if (!m_lockDownFailed) { // prevent endless loop
-                vmStmTransition(VmSoftClosing, "lock down requested");
-            }
+            vmStmTransition(VmSoftClosing, "lock down requested");
         } else if (m_connectRequested) {
             vmStmTransition(VmRunning, "connect requested");
         }
@@ -862,7 +940,8 @@ bool VmConnection::vmStmStep()
             vmWantFastPollState(true);
             m_vmHardClosingTimeoutTimer.start(VM_HARD_CLOSE_TIMEOUT, this);
 
-            VirtualMachinePrivate::get(m_vm)->stop(this, [](bool) { /* ignore */ });
+            BatchComposer composer = batchComposer();
+            VirtualMachinePrivate::get(m_vm)->stop(this, IgnoreAsynchronousReturn<bool>);
         }
 
         if (!m_cachedVmRunning) {
@@ -873,7 +952,7 @@ bool VmConnection::vmStmStep()
             if (m_lockDownRequested) {
                 ask(Ui::CancelLockingDown, &VmConnection::vmStmScheduleExec,
                         [=] {
-                            m_lockDownFailed = true;
+                            m_lockDownRequested = false;
                             emit lockDownFailed();
                             vmStmTransition(VmZombie, "lock down error+retry denied");
                         },
@@ -1145,29 +1224,24 @@ void VmConnection::vmWantFastPollState(bool want)
     }
 }
 
-void VmConnection::vmPollState(VirtualMachine::Synchronization synchronization)
+void VmConnection::vmPollState(const QObject *context, const Functor<bool> &functor)
 {
+    QTC_ASSERT(!m_pollingVmState || !context,
+            QTimer::singleShot(0, context, std::bind(functor, false));
+            return);
+
     if (m_pollingVmState) {
-        if (synchronization == VirtualMachine::Synchronous) {
-            DBG << "Already polling - waiting";
-            waitForVmPollStateFinish();
-        } else {
-            DBG << "Already polling";
-        }
+        DBG << "Already polling";
         return;
     }
 
     m_pollingVmState = true;
 
-    QEventLoop *loop = 0;
-    if (synchronization == VirtualMachine::Synchronous)
-        loop = new QEventLoop(this);
-
-    auto handler = [this, loop](VirtualMachinePrivate::BasicState state, bool success) {
+    const QPointer<const QObject> context_{context};
+    auto handler = [=](VirtualMachinePrivate::BasicState state, bool success) {
         if (!success) {
             m_pollingVmState = false;
-            if (loop)
-                loop->quit();
+            callIf(context_, functor, false);
             return;
         }
 
@@ -1196,22 +1270,11 @@ void VmConnection::vmPollState(VirtualMachine::Synchronization synchronization)
 
         m_pollingVmState = false;
 
-        if (loop)
-            loop->quit();
+        callIf(context_, functor, true);
     };
 
+    BatchComposer composer = batchComposer();
     VirtualMachinePrivate::get(m_vm)->probe(this, handler);
-
-    if (synchronization == VirtualMachine::Synchronous) {
-        loop->exec();
-        delete loop, loop = 0;
-    }
-}
-
-void VmConnection::waitForVmPollStateFinish()
-{
-    while (m_pollingVmState)
-        QCoreApplication::processEvents();
 }
 
 void VmConnection::sshTryConnect()
@@ -1228,6 +1291,13 @@ void VmConnection::sshTryConnect()
         createConnection();
         m_connection->connectToHost();
     }
+}
+
+BatchComposer VmConnection::batchComposer() const
+{
+    return m_batch
+        ? BatchComposer::extendBatch(m_batch)
+        : BatchComposer::createBatch("VmConnection::BACKGROUND_POLL");
 }
 
 const char *VmConnection::str(VirtualMachine::State state)
@@ -1299,7 +1369,7 @@ void VmConnection::onSshDisconnected()
 {
     DBG << "SSH disconnected";
     m_cachedSshConnected = false;
-    vmPollState(VirtualMachine::Asynchronous);
+    vmPollState();
     sshStmScheduleExec();
 }
 
@@ -1309,7 +1379,7 @@ void VmConnection::onSshErrorOccured()
     m_cachedSshErrorOccured = true;
     m_cachedSshErrorString = m_connection->errorString();
     m_cachedSshErrorOrigin = m_connection;
-    vmPollState(VirtualMachine::Asynchronous);
+    vmPollState();
     sshStmScheduleExec();
 }
 
@@ -1323,6 +1393,12 @@ void VmConnection::onRemoteShutdownProcessFinished()
 {
     DBG << "Remote shutdown process finished. Succeeded:" << !m_remoteShutdownProcess->isError();
     vmStmScheduleExec();
+}
+
+void VmConnection::onAboutToShutDown()
+{
+    DBG << "Prepating for shut down";
+    m_vmStatePollTimer.stop();
 }
 
 VirtualMachine::ConnectionUi *VmConnection::ui() const

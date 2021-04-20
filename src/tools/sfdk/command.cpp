@@ -201,7 +201,8 @@ public:
             if (SdkManager::isRunningReliably(m_virtualMachine)) {
                 *errorString = m_stopVmMessage;
             } else {
-                lockDownOk = m_virtualMachine->lockDown(true);
+                execAsynchronous(std::tie(lockDownOk), std::mem_fn(&VirtualMachine::lockDown),
+                        m_virtualMachine, true);
                 QTC_CHECK(lockDownOk);
             }
         }
@@ -213,7 +214,7 @@ public:
         }
 
         if (lockDownOk)
-            m_virtualMachine->lockDown(false);
+            m_virtualMachine->lockDown(false, this, IgnoreAsynchronousReturn<bool>);
 
         exited();
 

@@ -491,6 +491,8 @@ void BuildEnginePrivate::enableUpdates()
 
     targetsXmlWatcher = std::make_unique<FileSystemWatcher>(q);
     targetsXmlWatcher->addFile(targetsXmlFile().toString(), FileSystemWatcher::WatchModifiedDate);
+    QObject::connect(Sdk::instance(), &Sdk::aboutToShutDown, q,
+            [this]() { targetsXmlWatcher.reset(); });
     QObject::connect(targetsXmlWatcher.get(), &FileSystemWatcher::fileChanged,
             [this]() { updateBuildTargets(); });
     updateBuildTargets();

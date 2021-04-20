@@ -79,7 +79,6 @@ public:
 
     void run();
     bool isEmpty() const;
-    void wait();
     void cancel();
 
     void enqueue(std::unique_ptr<CommandRunner> &&runner);

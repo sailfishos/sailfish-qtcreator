@@ -240,9 +240,12 @@ bool VirtualMachine::isOff(bool *runningHeadless, bool *startedOutside) const
     return d_func()->connection->isVirtualMachineOff(runningHeadless, startedOutside);
 }
 
-bool VirtualMachine::lockDown(bool lockDown)
+void VirtualMachine::lockDown(bool lockDown, const QObject *context, const Functor<bool> &functor)
 {
-    return d_func()->connection->lockDown(lockDown);
+    if (lockDown)
+        d_func()->connection->lockDown(context, functor);
+    else
+        d_func()->connection->release(context, functor);
 }
 
 bool VirtualMachine::isLockedDown() const
@@ -571,19 +574,20 @@ void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<
     });
 }
 
-void VirtualMachine::refreshState(Sfdk::VirtualMachine::Synchronization synchronization)
+void VirtualMachine::refreshState(const QObject *context, const Functor<bool> &functor)
 {
-    d_func()->connection->refresh(synchronization);
+    d_func()->connection->refresh(context, functor);
 }
 
-bool VirtualMachine::connectTo(Sfdk::VirtualMachine::ConnectOptions options)
+void VirtualMachine::connectTo(ConnectOptions options, const QObject *context,
+        const Functor<bool> &functor)
 {
-    return d_func()->connection->connectTo(options);
+    d_func()->connection->connectTo(options, context, functor);
 }
 
-void VirtualMachine::disconnectFrom()
+void VirtualMachine::disconnectFrom(const QObject *context, const Functor<bool> &functor)
 {
-    d_func()->connection->disconnectFrom();
+    d_func()->connection->disconnectFrom(context, functor);
 }
 
 /*!
@@ -746,10 +750,8 @@ void VirtualMachinePrivate::enableUpdates()
         // BuildEngine or Emulator classes.
         qCDebug(vms) << "VM info cache updated. Refreshing configuration of" << q->uri().toString();
 
-        // FIXME Not ideal
-        bool ok;
-        execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::refreshConfiguration), q);
-        QTC_CHECK(ok);
+        // TODO Is that ideal?
+        q->refreshConfiguration(q, [](bool ok) { QTC_CHECK(ok); });
     });
 }
 
@@ -999,6 +1001,9 @@ void VirtualMachineInfoCache::enableUpdates()
 
     m_watcher = std::make_unique<FileSystemWatcher>(this);
     m_watcher->addFile(cacheFilePath.toString(), FileSystemWatcher::WatchModifiedDate);
+    connect(Sdk::instance(), &Sdk::aboutToShutDown, this, [=]() {
+        m_watcher.reset();
+    });
     connect(m_watcher.get(), &FileSystemWatcher::fileChanged, this, [this]() {
         m_updateTimer.start(VM_INFO_CACHE_UPDATE_DELAY_MS, this);
     });

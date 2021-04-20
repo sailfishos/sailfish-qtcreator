@@ -55,7 +55,8 @@ void MerEmulatorDeviceTester::testDevice(const IDevice::Ptr &deviceConfiguration
     } else {
         connect(m_device->emulator()->virtualMachine(), &VirtualMachine::stateChanged,
                 this, &MerEmulatorDeviceTester::onConnectionStateChanged);
-        m_device->emulator()->virtualMachine()->connectTo(VirtualMachine::AskStartVm);
+        m_device->emulator()->virtualMachine()->connectTo(VirtualMachine::AskStartVm,
+                this, IgnoreAsynchronousReturn<bool>);
     }
 }
 

@@ -47,6 +47,7 @@
 using namespace Core;
 using namespace ProjectExplorer;
 using namespace CMakeProjectManager::Internal;
+using namespace Sfdk;
 using namespace Utils;
 
 namespace Mer {
@@ -60,7 +61,7 @@ MerCMakeBuildConfiguration::MerCMakeBuildConfiguration(Target *target, Utils::Id
             this, &BuildConfiguration::updateCacheAndEmitEnvironmentChanged);
 
     connect(target, &Target::parsingStarted,
-            this, &MerCMakeBuildConfiguration::startBuildEngine);
+            this, &MerCMakeBuildConfiguration::ensureBuildEngineRuns);
 }
 
 void MerCMakeBuildConfiguration::doInitialize(const ProjectExplorer::BuildInfo &info)
@@ -105,10 +106,16 @@ MerCMakeBuildConfigurationFactory::MerCMakeBuildConfigurationFactory()
     addSupportedTargetDeviceType(Constants::MER_DEVICE_TYPE);
 }
 
-void MerCMakeBuildConfiguration::startBuildEngine()
+void MerCMakeBuildConfiguration::ensureBuildEngineRuns()
 {
-    MerSdkKitAspect::buildEngine(target()->kit())->virtualMachine()->connectTo(
-        Sfdk::VirtualMachine::AskStartVm|Sfdk::VirtualMachine::Block);
+    BuildEngine *const engine = MerSdkKitAspect::buildEngine(target()->kit());
+    if (engine->virtualMachine()->state() == VirtualMachine::Connected)
+        return;
+
+    bool ok;
+    execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::connectTo),
+            engine->virtualMachine(), VirtualMachine::AskStartVm);
+    // FIXME handle failure?
 }
 
 } // Internal

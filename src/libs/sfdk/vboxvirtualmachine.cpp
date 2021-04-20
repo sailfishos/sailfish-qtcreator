@@ -35,7 +35,6 @@
 
 #include <QDebug>
 #include <QDir>
-#include <QEventLoop>
 #include <QQueue>
 #include <QRegularExpression>
 #include <QSettings>

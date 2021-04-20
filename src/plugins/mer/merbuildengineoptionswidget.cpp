@@ -265,7 +265,7 @@ void MerBuildEngineOptionsWidget::store()
     }
 
     for (BuildEngine *const buildEngine : lockedDownBuildEngines)
-        buildEngine->virtualMachine()->lockDown(false);
+        buildEngine->virtualMachine()->lockDown(false, this, IgnoreAsynchronousReturn<bool>);
 
     if (!ok) {
         progress.cancel();
@@ -345,7 +345,10 @@ bool MerBuildEngineOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(Q
             }
         }
 
-        if (!buildEngine->virtualMachine()->lockDown(true)) {
+        bool ok;
+        execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::lockDown),
+                buildEngine->virtualMachine(), true);
+        if (!ok) {
             failed.append(buildEngine);
             continue;
         }
@@ -484,13 +487,15 @@ void MerBuildEngineOptionsWidget::onAuthorizeSshKey(const QString &file)
 void MerBuildEngineOptionsWidget::onStartVirtualMachineButtonClicked()
 {
     BuildEngine *const buildEngine = m_buildEngines[m_virtualMachine];
-    buildEngine->virtualMachine()->connectTo();
+    buildEngine->virtualMachine()->connectTo(VirtualMachine::NoConnectOption, this,
+            IgnoreAsynchronousReturn<bool>);
 }
 
 void MerBuildEngineOptionsWidget::onStopVirtualMachineButtonClicked()
 {
     BuildEngine *const buildEngine = m_buildEngines[m_virtualMachine];
-    buildEngine->virtualMachine()->disconnectFrom();
+    buildEngine->virtualMachine()->disconnectFrom(this,
+            IgnoreAsynchronousReturn<bool>);
 }
 
 void MerBuildEngineOptionsWidget::onManageTargetsButtonClicked()
@@ -611,7 +616,10 @@ void MerBuildEngineOptionsWidget::onSrcFolderApplyButtonClicked(const QString &n
         }
     }
 
-    if (!buildEngine->virtualMachine()->lockDown(true)) {
+    bool ok;
+    execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::lockDown),
+            buildEngine->virtualMachine(), true);
+    if (!ok) {
         QMessageBox::warning(this, tr("Failed"),
                 tr("Workspace folder not changed"));
         // reset the path in the chooser
@@ -620,11 +628,10 @@ void MerBuildEngineOptionsWidget::onSrcFolderApplyButtonClicked(const QString &n
         return;
     }
 
-    bool ok;
     execAsynchronous(std::tie(ok), std::mem_fn(&BuildEngine::setSharedSrcPath), buildEngine,
             FilePath::fromUserInput(newFolder));
 
-    buildEngine->virtualMachine()->lockDown(false);
+    buildEngine->virtualMachine()->lockDown(false, this, IgnoreAsynchronousReturn<bool>);
 
     if (ok) {
         const QMessageBox::StandardButton response =
@@ -633,8 +640,10 @@ void MerBuildEngineOptionsWidget::onSrcFolderApplyButtonClicked(const QString &n
                                      "Do you want to start %1 now?")
                                   .arg(buildEngine->name()).arg(QDir::toNativeSeparators(newFolder)),
                                   QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
-        if (response == QMessageBox::Yes)
-            buildEngine->virtualMachine()->connectTo();
+        if (response == QMessageBox::Yes) {
+            buildEngine->virtualMachine()->connectTo(VirtualMachine::NoConnectOption, this,
+                    IgnoreAsynchronousReturn<bool>);
+        }
     }
     else {
         QMessageBox::warning(this, tr("Changing the workspace folder failed!"),

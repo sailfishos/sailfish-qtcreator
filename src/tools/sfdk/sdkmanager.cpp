@@ -93,12 +93,6 @@ public:
     void warn(Warning which) override
     {
         switch (which) {
-        case AlreadyConnecting:
-            QTC_CHECK(false);
-            break;
-        case AlreadyDisconnecting:
-            QTC_CHECK(false);
-            break;
         case UnableToCloseVm:
             qerr() << tr("Timeout waiting for the \"%1\" virtual machine to close.")
                 .arg(virtualMachine()->name()) << endl;
@@ -1005,6 +999,7 @@ SdkManager::SdkManager(bool useSystemSettingsOnly)
 
 SdkManager::~SdkManager()
 {
+    execAsynchronous(std::tie(), Sdk::shutDown);
     s_instance = nullptr;
 }
 
@@ -1062,7 +1057,10 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     // before for the engine to fully start, so no need to wait for connectTo again
     if (!isEngineRunning()) {
         qCInfo(sfdk).noquote() << tr("Starting the build engine…");
-        if (!s_instance->m_buildEngine->virtualMachine()->connectTo(VirtualMachine::Block)) {
+        bool ok;
+        execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::connectTo),
+                s_instance->m_buildEngine->virtualMachine(), VirtualMachine::NoConnectOption);
+        if (!ok) {
             qerr() << tr("Failed to start the build engine") << endl;
             return SFDK_EXIT_ABNORMAL;
         }
@@ -1246,7 +1244,10 @@ bool SdkManager::prepareForRunOnDevice(const Device &device, RemoteProcess *proc
         // before for the emulator to fully start, so no need to wait for connectTo again
         if (!isEmulatorRunning(*emulator)) {
             qCInfo(sfdk).noquote() << tr("Starting the emulator…");
-            if (!emulator->virtualMachine()->connectTo(VirtualMachine::Block)) {
+            bool ok;
+            execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::connectTo),
+                    emulator->virtualMachine(), VirtualMachine::NoConnectOption);
+            if (!ok) {
                 qerr() << tr("Failed to start the emulator") << endl;
                 return false;
             }
@@ -1370,24 +1371,34 @@ bool SdkManager::removeEmulator(const QString &name)
 bool SdkManager::startReliably(VirtualMachine *virtualMachine)
 {
     QTC_ASSERT(virtualMachine, return false);
-    if (virtualMachine->isLockedDown())
-        virtualMachine->lockDown(false);
-    virtualMachine->refreshState(VirtualMachine::Synchronous);
-    return virtualMachine->connectTo(VirtualMachine::Block);
+    bool ok;
+    if (virtualMachine->isLockedDown()) {
+        execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::lockDown),
+                virtualMachine, false);
+    }
+    execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::refreshState),
+            virtualMachine);
+    execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::connectTo),
+            virtualMachine, VirtualMachine::NoConnectOption);
+    return ok; // NB, just the last call matters
 }
 
 bool SdkManager::stopReliably(VirtualMachine *virtualMachine)
 {
     QTC_ASSERT(virtualMachine, return false);
-    virtualMachine->refreshState(VirtualMachine::Synchronous);
-    return virtualMachine->lockDown(true);
+    bool ok;
+    execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::lockDown),
+            virtualMachine, true);
+    return ok;
 }
 
 bool SdkManager::isRunningReliably(VirtualMachine *virtualMachine)
 {
     QTC_ASSERT(virtualMachine, return false);
-    virtualMachine->refreshState(VirtualMachine::Synchronous);
-    return !virtualMachine->isOff();
+    bool ok;
+    execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::refreshState),
+            virtualMachine);
+    return ok && !virtualMachine->isOff();
 }
 
 void SdkManager::saveSettings()

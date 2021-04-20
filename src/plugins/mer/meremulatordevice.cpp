@@ -219,12 +219,14 @@ void MerEmulatorDevice::init()
 
     addAction(tr("Start Emulator"), [](const MerEmulatorDevice::Ptr &device, QWidget *parent) {
         Q_UNUSED(parent);
-        device->emulator()->virtualMachine()->connectTo();
+        device->emulator()->virtualMachine()->connectTo(VirtualMachine::NoConnectOption,
+                Sdk::instance(), IgnoreAsynchronousReturn<bool>);
     });
 
     addAction(tr("Stop Emulator"), [](const MerEmulatorDevice::Ptr &device, QWidget *parent) {
         Q_UNUSED(parent);
-        device->emulator()->virtualMachine()->disconnectFrom();
+        device->emulator()->virtualMachine()->disconnectFrom(
+                Sdk::instance(), IgnoreAsynchronousReturn<bool>);
     });
 
     addAction(tr("Configure Emulator..."), [](const MerEmulatorDevice::Ptr &device, QWidget *parent) {
@@ -287,24 +289,26 @@ void MerEmulatorDevice::doFactoryReset(Sfdk::Emulator *emulator, QWidget *parent
     progress.setMinimumDuration(2000);
     progress.setWindowModality(Qt::WindowModal);
 
-    if (!emulator->virtualMachine()->lockDown(true)) {
+    bool ok;
+    execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::lockDown),
+            emulator->virtualMachine(), true);
+    if (!ok) {
         progress.cancel();
         QMessageBox::warning(parent, tr("Failed"),
                 tr("Failed to close the virtual machine. Factory state cannot be restored."));
         return;
     }
 
-    bool ok;
     execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::restoreSnapshot),
             emulator->virtualMachine(), emulator->factorySnapshot());
     if (!ok) {
-        emulator->virtualMachine()->lockDown(false);
+        emulator->virtualMachine()->lockDown(false, emulator, IgnoreAsynchronousReturn<bool>);
         progress.cancel();
         QMessageBox::warning(parent, tr("Failed"), tr("Failed to restore factory state."));
         return;
     }
 
-    emulator->virtualMachine()->lockDown(false);
+    emulator->virtualMachine()->lockDown(false, emulator, IgnoreAsynchronousReturn<bool>);
 
     progress.cancel();
 

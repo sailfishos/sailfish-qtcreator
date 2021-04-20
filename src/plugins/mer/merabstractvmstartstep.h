@@ -51,9 +51,6 @@ protected:
     void doCancel() override;
     void setVirtualMachine(Sfdk::VirtualMachine *virtualMachine);
 
-private slots:
-    void onStateChanged();
-
 private:
     QPointer<Sfdk::VirtualMachine> m_virtualMachine;
 };

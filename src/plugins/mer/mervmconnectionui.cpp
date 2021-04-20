@@ -49,16 +49,6 @@ const int DISMISS_MESSAGE_BOX_DELAY = 2000;
 void MerVmConnectionUi::warn(Warning which)
 {
     switch (which) {
-    case AlreadyConnecting:
-        openWarningBox(tr("Already Connecting to Virtual Machine"),
-                tr("Already connecting to the \"%1\" virtual machine - please repeat later."))
-            ->setAttribute(Qt::WA_DeleteOnClose);
-        break;
-    case AlreadyDisconnecting:
-        openWarningBox(tr("Already Disconnecting from Virtual Machine"),
-                tr("Already disconnecting from the \"%1\" virtual machine - please repeat later."))
-            ->setAttribute(Qt::WA_DeleteOnClose);
-        break;
     case UnableToCloseVm:
         QTC_CHECK(!m_unableToCloseVmWarningBox);
         m_unableToCloseVmWarningBox = openWarningBox(

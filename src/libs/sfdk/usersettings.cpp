@@ -125,6 +125,9 @@ void UserSettings::enableUpdates()
 
     m_watcher = std::make_unique<FileSystemWatcher>(this);
     m_watcher->addFile(userScopeFile.toString(), FileSystemWatcher::WatchModifiedDate);
+    connect(Sdk::instance(), &Sdk::aboutToShutDown, this, [=]() {
+        m_watcher.reset();
+    });
     connect(m_watcher.get(), &FileSystemWatcher::fileChanged,
             this, &UserSettings::checkUpdates);
     if (existedBefore)

@@ -235,11 +235,14 @@ void MerConnectionAction::handleTriggered()
     QTC_ASSERT(m_virtualMachine, return);
 
     if (m_virtualMachine->state() == VirtualMachine::Disconnected) {
-        m_virtualMachine->connectTo();
+        m_virtualMachine->connectTo(VirtualMachine::NoConnectOption, this,
+                IgnoreAsynchronousReturn<bool>);
     } else if (m_virtualMachine->state() == VirtualMachine::Connected) {
-        m_virtualMachine->disconnectFrom();
+        m_virtualMachine->disconnectFrom(this,
+                IgnoreAsynchronousReturn<bool>);
     } else if (m_virtualMachine->state() == VirtualMachine::Error) {
-        m_virtualMachine->connectTo();
+        m_virtualMachine->connectTo(VirtualMachine::NoConnectOption, this,
+                IgnoreAsynchronousReturn<bool>);
     }
 }
 

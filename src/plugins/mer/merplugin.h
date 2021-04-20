@@ -64,10 +64,9 @@ public:
 
 private slots:
     void handlePromptClosed(int result);
-    void handleConnectionStateChanged();
-    void handleLockDownFailed();
 
 private:
+    void onStopListEmpty();
     static void addInfoOnBuildEngineEnvironment(QVBoxLayout *vbox);
     static void ensureCustomRunConfigurationIsTheDefaultOnCompilationDatabaseProjects();
     void ensureDailyUpdateCheckForEarlyAccess();

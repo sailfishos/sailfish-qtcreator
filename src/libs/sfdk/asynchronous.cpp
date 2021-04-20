@@ -131,15 +131,6 @@ void CommandQueue::cancel()
         emit empty();
 }
 
-void CommandQueue::wait()
-{
-    if (!m_queue.empty()) {
-        QEventLoop loop;
-        connect(this, &CommandQueue::empty, &loop, &QEventLoop::quit);
-        loop.exec();
-    }
-}
-
 void CommandQueue::enqueue(std::unique_ptr<CommandRunner> &&runner)
 {
     QTC_ASSERT(runner, return);
