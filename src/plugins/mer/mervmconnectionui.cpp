@@ -73,9 +73,8 @@ void MerVmConnectionUi::warn(Warning which)
     case SshPortOccupied:
         openWarningBox(tr("Conflicting SSH Port Configuration"),
                 tr("Another application seems to be listening on the TCP port %1 configured as "
-                   "SSH port for the \"%2\" virtual machine - choose another SSH port in options.")
-                .arg(virtualMachine()->sshParameters().port())
-                .arg(virtualMachine()->name()))
+                   "SSH port for the \"%%1\" virtual machine - choose another SSH port in options.")
+                .arg(virtualMachine()->sshParameters().port()))
             ->setAttribute(Qt::WA_DeleteOnClose);
         break;
     }
