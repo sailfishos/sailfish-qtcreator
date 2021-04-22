@@ -144,20 +144,21 @@ void SigningUtils::listSecretKeys(const QObject *context,
 void SigningUtils::exportSecretKey(const QString &id, const Utils::FilePath &passphraseFile,
         const Utils::FilePath &outputDir, const QObject *context, const Functor<bool, QString> &functor)
 {
-    const QPointer<const QObject> context_{context};
+    QTC_ASSERT(!id.isEmpty(), {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false, QString()));
+        return;
+    });
 
-    QTC_ASSERT(!id.isEmpty(),
-            QTimer::singleShot(0, context, std::bind(functor, false, QString()));
-            return);
+    BatchComposer composer = BatchComposer::createBatch("SigningUtils::exportSecretKey");
+
     if (!passphraseFile.isEmpty() && !passphraseFile.exists()) {
-        QTimer::singleShot(0, context, std::bind(
+        BatchComposer::enqueueCheckPoint(context, std::bind(
                 functor, false,
                 tr("Passphrase file set but doesn't exit")));
         return;
     }
 
-    BatchComposer composer = BatchComposer::createBatch("SigningUtils::exportSecretKey");
-
+    const QPointer<const QObject> context_{context};
     verifyPassphrase(id, passphraseFile.toString(), Sdk::instance(),
             [=, batch = composer.batch()](bool passphraseValid, const QString &errorString) {
         if (!passphraseValid) {
@@ -209,9 +210,11 @@ void SigningUtils::exportSecretKey(const QString &id, const Utils::FilePath &pas
 void SigningUtils::exportPublicKey(const QString &id, const QObject *context,
         const Functor<bool, const QByteArray &, QString> &functor)
 {
-    QTC_ASSERT(!id.isEmpty(),
-            QTimer::singleShot(0, context, std::bind(functor, false, QByteArray(), QString()));
-            return);
+    QTC_ASSERT(!id.isEmpty(), {
+        BatchComposer::enqueueCheckPoint(context,
+                std::bind(functor, false, QByteArray(), QString()));
+        return;
+    });
 
     QStringList arguments;
     arguments.append("--batch");

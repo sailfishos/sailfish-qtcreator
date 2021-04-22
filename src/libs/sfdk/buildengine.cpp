@@ -319,8 +319,10 @@ void BuildEngine::importPrivateGpgKey(const QString &id,
         const Functor<bool, QString> &functor)
 {
     QString errorString;
-    QTC_ASSERT(isGpgAvailable(&errorString),
-            QTimer::singleShot(0, context, std::bind(functor, false, errorString)); return);
+    QTC_ASSERT(isGpgAvailable(&errorString), {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false, errorString));
+        return;
+    });
 
     const FilePath sharedGpgDir = sharedConfigPath()
             .stringAppended(Constants::BUILD_ENGINE_HOST_GNUPG_PATH_POSTFIX);
@@ -1184,11 +1186,7 @@ void BuildEngineManager::createBuildEngine(const QUrl &virtualMachineUri, const 
 
     auto engine_d = BuildEnginePrivate::get(engine->get());
     if (!engine_d->initVirtualMachine(virtualMachineUri)) {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 12, 0) // just guessing, not sure when it was fixed
-        QTimer::singleShot(0, context, std::bind(functor, nullptr));
-#else
-        QTimer::singleShot(0, const_cast<QObject *>(context), std::bind(functor, nullptr));
-#endif
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, nullptr));
         return;
     }
     engine_d->updateVmProperties(context, [=](bool ok) {

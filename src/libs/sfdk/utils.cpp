@@ -24,6 +24,7 @@
 
 #include "utils_p.h"
 
+#include "asynchronous_p.h"
 #include "sfdkconstants.h"
 #include "signingutils_p.h"
 
@@ -144,8 +145,11 @@ void availableGpgKeys(const QObject *context,
         const Functor<bool, const QList<GpgKeyInfo> &, QString> &functor)
 {
     QString errorString;
-    QTC_ASSERT(isGpgAvailable(&errorString),
-            QTimer::singleShot(0, context, std::bind(functor, false, QList<GpgKeyInfo>(), errorString)); return);
+    QTC_ASSERT(isGpgAvailable(&errorString), {
+        BatchComposer::enqueueCheckPoint(context,
+                std::bind(functor, false, QList<GpgKeyInfo>{}, errorString));
+        return;
+    });
 
     SigningUtils::listSecretKeys(context, functor);
 }

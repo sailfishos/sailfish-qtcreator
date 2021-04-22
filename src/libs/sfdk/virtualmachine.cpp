@@ -271,8 +271,10 @@ void VirtualMachine::setMemorySizeMb(int memorySizeMb, const QObject *context,
         const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
-    QTC_ASSERT(d->features & LimitMemorySize,
-               QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_ASSERT(d->features & LimitMemorySize, {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
     QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
@@ -312,8 +314,10 @@ void VirtualMachine::setSwapSizeMb(int swapSizeMb, const QObject *context,
         const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
-    QTC_ASSERT(d->features & SwapMemory,
-               QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_ASSERT(d->features & SwapMemory, {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
     QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
@@ -338,8 +342,10 @@ int VirtualMachine::cpuCount() const
 void VirtualMachine::setCpuCount(int cpuCount, const QObject *context, const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
-    QTC_ASSERT(d->features & LimitCpuCount,
-               QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_ASSERT(d->features & LimitCpuCount, {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
     QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
@@ -370,12 +376,18 @@ void VirtualMachine::setStorageSizeMb(int storageSizeMb, const QObject *context,
         const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
-    QTC_ASSERT(d->features & (GrowStorageSize | ShrinkStorageSize),
-            QTimer::singleShot(0, context, std::bind(functor, false)); return);
-    QTC_ASSERT(!(storageSizeMb > d->virtualMachineInfo.storageSizeMb) || d->features & GrowStorageSize,
-            QTimer::singleShot(0, context, std::bind(functor, false)); return);
-    QTC_ASSERT(!(storageSizeMb < d->virtualMachineInfo.storageSizeMb) || d->features & ShrinkStorageSize,
-            QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_ASSERT(d->features & (GrowStorageSize | ShrinkStorageSize), {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
+    QTC_ASSERT(!(storageSizeMb > d->virtualMachineInfo.storageSizeMb) || d->features & GrowStorageSize, {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
+    QTC_ASSERT(!(storageSizeMb < d->virtualMachineInfo.storageSizeMb) || d->features & ShrinkStorageSize, {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
     QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
@@ -460,8 +472,10 @@ void VirtualMachine::takeSnapshot(const QString &snapshotName, const QObject *co
         const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
-    QTC_ASSERT(d->features & Snapshots,
-               QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_ASSERT(d->features & Snapshots, {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
     QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
@@ -480,8 +494,10 @@ void VirtualMachine::restoreSnapshot(const QString &snapshotName, const QObject 
         const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
-    QTC_ASSERT(d->features & Snapshots,
-               QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_ASSERT(d->features & Snapshots, {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
     QTC_CHECK(isLockedDown());
 
     BatchComposer composer = BatchComposer::createBatch("VirtualMachine::restoreSnapshot");
@@ -507,8 +523,10 @@ void VirtualMachine::removeSnapshot(const QString &snapshotName, const QObject *
         const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
-    QTC_ASSERT(d->features & Snapshots,
-               QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_ASSERT(d->features & Snapshots, {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
     QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};

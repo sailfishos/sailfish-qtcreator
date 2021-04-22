@@ -1236,9 +1236,11 @@ void VmConnection::vmWantFastPollState(bool want)
 
 void VmConnection::vmPollState(const QObject *context, const Functor<bool> &functor)
 {
-    QTC_ASSERT(!m_pollingVmState || !context,
-            QTimer::singleShot(0, context, std::bind(functor, false));
-            return);
+    QTC_ASSERT(!m_pollingVmState || !context, {
+        BatchComposer composer = batchComposer();
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
 
     if (m_pollingVmState) {
         DBG << "Already polling";
