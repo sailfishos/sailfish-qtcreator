@@ -75,6 +75,7 @@ public:
     VirtualMachine *virtualMachine() const;
 
     VirtualMachine::State state() const;
+    bool isStateChangePending() const;
     QString errorString() const;
 
     bool isVirtualMachineOff(bool *runningHeadless = 0, bool *startedOutside = 0) const;
@@ -90,6 +91,7 @@ public:
 
 signals:
     void stateChanged();
+    void stateChangePendingChanged(bool pending);
     void virtualMachineChanged();
     void virtualMachineOffChanged(bool vmOff);
     void lockDownFailed();
@@ -120,6 +122,7 @@ private:
     void sshTryConnect();
 
     BatchComposer batchComposer() const;
+    void addPendingStateChange(BatchRunner *batch);
 
     static const char *str(VirtualMachine::State state);
     static const char *str(VmState vmState);
@@ -150,6 +153,7 @@ private:
 
     // state
     VirtualMachine::State m_state;
+    int m_pendingStateChangesCount;
     QString m_errorString;
     VmState m_vmState;
     QElapsedTimer m_vmStateEntryTimer;

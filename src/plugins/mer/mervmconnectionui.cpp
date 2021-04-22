@@ -191,6 +191,12 @@ VirtualMachine::ConnectionUi::QuestionStatus MerVmConnectionUi::status(Question 
     return NotAsked;
 }
 
+void MerVmConnectionUi::informStateChangePending()
+{
+    QMessageBox::information(ICore::dialogParent(), tr("Request Pending"),
+            tr("Another request pending. Try later."));
+}
+
 QMessageBox *MerVmConnectionUi::openWarningBox(const QString &title, const QString &text)
 {
     QMessageBox *box = new QMessageBox(

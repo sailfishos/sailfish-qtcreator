@@ -28,6 +28,7 @@
 #include "merconstants.h"
 #include "mersdkmanager.h"
 #include "mertargetmanagementdialog.h"
+#include "mervmconnectionui.h"
 #include "mervmselectiondialog.h"
 #include "ui_merbuildengineoptionswidget.h"
 
@@ -487,6 +488,10 @@ void MerBuildEngineOptionsWidget::onAuthorizeSshKey(const QString &file)
 void MerBuildEngineOptionsWidget::onStartVirtualMachineButtonClicked()
 {
     BuildEngine *const buildEngine = m_buildEngines[m_virtualMachine];
+    if (buildEngine->virtualMachine()->isStateChangePending()) {
+        MerVmConnectionUi::informStateChangePending();
+        return;
+    }
     buildEngine->virtualMachine()->connectTo(VirtualMachine::NoConnectOption, this,
             IgnoreAsynchronousReturn<bool>);
 }
@@ -494,6 +499,10 @@ void MerBuildEngineOptionsWidget::onStartVirtualMachineButtonClicked()
 void MerBuildEngineOptionsWidget::onStopVirtualMachineButtonClicked()
 {
     BuildEngine *const buildEngine = m_buildEngines[m_virtualMachine];
+    if (buildEngine->virtualMachine()->isStateChangePending()) {
+        MerVmConnectionUi::informStateChangePending();
+        return;
+    }
     buildEngine->virtualMachine()->disconnectFrom(this,
             IgnoreAsynchronousReturn<bool>);
 }

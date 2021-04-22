@@ -92,6 +92,7 @@ public:
     QString name() const;
 
     State state() const;
+    bool isStateChangePending() const;
     QString errorString() const;
 
     QSsh::SshConnectionParameters sshParameters() const; // FIXME internal
@@ -155,6 +156,7 @@ public:
 
 signals:
     void stateChanged();
+    void stateChangePendingChanged(bool pending);
     void sshParametersChanged();
     void headlessChanged(bool headless);
     void autoConnectEnabledChanged(bool autoConnectEnabled);

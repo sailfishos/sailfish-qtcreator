@@ -161,6 +161,8 @@ void MerConnectionAction::setVirtualMachine(VirtualMachine *virtualMachine)
     if (m_virtualMachine) {
         connect(m_virtualMachine.data(), &VirtualMachine::stateChanged,
                 this, &MerConnectionAction::update);
+        connect(m_virtualMachine.data(), &VirtualMachine::stateChangePendingChanged,
+                this, &MerConnectionAction::update);
     }
 
     update();
@@ -211,6 +213,9 @@ void MerConnectionAction::update()
         toolTip = m_startTip;
         break;
     }
+
+    if (m_virtualMachine->isStateChangePending())
+        enabled = false;
 
     if (toolTip.contains(QLatin1String("%1")))
         toolTip = toolTip.arg(vmName());

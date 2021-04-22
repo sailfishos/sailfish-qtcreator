@@ -30,6 +30,7 @@
 #include "merplugin.h"
 #include "mersdkmanager.h"
 #include "mersettings.h"
+#include "mervmconnectionui.h"
 #include "meremulatormodedialog.h"
 
 #include <sfdk/buildengine.h>
@@ -219,12 +220,20 @@ void MerEmulatorDevice::init()
 
     addAction(tr("Start Emulator"), [](const MerEmulatorDevice::Ptr &device, QWidget *parent) {
         Q_UNUSED(parent);
+        if (device->emulator()->virtualMachine()->isStateChangePending()) {
+            MerVmConnectionUi::informStateChangePending();
+            return;
+        }
         device->emulator()->virtualMachine()->connectTo(VirtualMachine::NoConnectOption,
                 Sdk::instance(), IgnoreAsynchronousReturn<bool>);
     });
 
     addAction(tr("Stop Emulator"), [](const MerEmulatorDevice::Ptr &device, QWidget *parent) {
         Q_UNUSED(parent);
+        if (device->emulator()->virtualMachine()->isStateChangePending()) {
+            MerVmConnectionUi::informStateChangePending();
+            return;
+        }
         device->emulator()->virtualMachine()->disconnectFrom(
                 Sdk::instance(), IgnoreAsynchronousReturn<bool>);
     });

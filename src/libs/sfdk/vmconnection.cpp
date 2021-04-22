@@ -237,6 +237,7 @@ VmConnection::VmConnection(VirtualMachine *parent)
     : QObject(parent)
     , m_vm(parent)
     , m_state(VirtualMachine::Disconnected)
+    , m_pendingStateChangesCount(0)
     , m_vmState(VmOff)
     , m_vmStartedOutside(false)
     , m_sshState(SshNotConnected)
@@ -295,6 +296,11 @@ VirtualMachine::State VmConnection::state() const
     return m_state;
 }
 
+bool VmConnection::isStateChangePending() const
+{
+    return m_pendingStateChangesCount > 0;
+}
+
 QString VmConnection::errorString() const
 {
     return m_errorString;
@@ -322,6 +328,7 @@ void VmConnection::lockDown(const QObject *context, const Functor<bool> &functor
     DBG << "Lockdown requested";
 
     BatchComposer composer = BatchComposer::createBatch("VmConnection::lockDown");
+    addPendingStateChange(composer.batch());
 
     connect(composer.batch(), &CommandRunner::done, context, functor);
 
@@ -367,6 +374,7 @@ void VmConnection::release(const QObject *context, const Functor<bool> &functor)
     DBG << "Release requested";
 
     BatchComposer composer = BatchComposer::createBatch("VmConnection::release");
+    addPendingStateChange(composer.batch());
 
     connect(composer.batch(), &CommandRunner::done, context, functor);
 
@@ -427,6 +435,7 @@ void VmConnection::connectTo(VirtualMachine::ConnectOptions options, const QObje
     DBG << "Connect requested";
 
     BatchComposer composer = BatchComposer::createBatch("VmConnection::connectTo");
+    addPendingStateChange(composer.batch());
 
     connect(composer.batch(), &CommandRunner::done, context, functor);
 
@@ -499,6 +508,7 @@ void VmConnection::disconnectFrom(const QObject *context, const Functor<bool> &f
     DBG << "Disconnect requested";
 
     BatchComposer composer = BatchComposer::createBatch("VmConnection::disconnectFrom");
+    addPendingStateChange(composer.batch());
 
     connect(composer.batch(), &CommandRunner::done, context, functor);
 
@@ -1298,6 +1308,21 @@ BatchComposer VmConnection::batchComposer() const
     return m_batch
         ? BatchComposer::extendBatch(m_batch)
         : BatchComposer::createBatch("VmConnection::BACKGROUND_POLL");
+}
+
+void VmConnection::addPendingStateChange(BatchRunner *batch)
+{
+    if (++m_pendingStateChangesCount == 1) {
+        DBG << "Pending state change: true";
+        emit stateChangePendingChanged(true);
+    }
+
+    connect(batch, &BatchRunner::done, this, [=]() {
+        if (--m_pendingStateChangesCount == 0) {
+            DBG << "Pending state change: false";
+            emit stateChangePendingChanged(false);
+        }
+    });
 }
 
 const char *VmConnection::str(VirtualMachine::State state)

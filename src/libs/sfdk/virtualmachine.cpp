@@ -132,6 +132,8 @@ VirtualMachine::VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, cons
     d->connectionUi_ = s_connectionUiCreator(this);
     d->connection = std::make_unique<VmConnection>(this);
     connect(d->connection.get(), &VmConnection::stateChanged, this, &VirtualMachine::stateChanged);
+    connect(d->connection.get(), &VmConnection::stateChangePendingChanged,
+            this, &VirtualMachine::stateChangePendingChanged);
     connect(d->connection.get(), &VmConnection::virtualMachineOffChanged,
             this, &VirtualMachine::virtualMachineOffChanged);
     connect(d->connection.get(), &VmConnection::lockDownFailed, this, &VirtualMachine::lockDownFailed);
@@ -178,6 +180,11 @@ QString VirtualMachine::name() const
 VirtualMachine::State VirtualMachine::state() const
 {
     return d_func()->connection->state();
+}
+
+bool VirtualMachine::isStateChangePending() const
+{
+    return d_func()->connection->isStateChangePending();
 }
 
 QString VirtualMachine::errorString() const

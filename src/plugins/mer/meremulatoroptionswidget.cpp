@@ -28,6 +28,7 @@
 #include "meremulatordetailswidget.h"
 #include "meremulatordevice.h"
 #include "meremulatormodedialog.h"
+#include "mervmconnectionui.h"
 #include "mervmselectiondialog.h"
 #include "ui_meremulatoroptionswidget.h"
 
@@ -453,6 +454,10 @@ void MerEmulatorOptionsWidget::onTestConnectionButtonClicked()
 void MerEmulatorOptionsWidget::onStartVirtualMachineButtonClicked()
 {
     Emulator *const emulator = m_emulators[m_virtualMachine];
+    if (emulator->virtualMachine()->isStateChangePending()) {
+        MerVmConnectionUi::informStateChangePending();
+        return;
+    }
     emulator->virtualMachine()->connectTo(VirtualMachine::NoConnectOption, this,
             IgnoreAsynchronousReturn<bool>);
 }
@@ -460,6 +465,10 @@ void MerEmulatorOptionsWidget::onStartVirtualMachineButtonClicked()
 void MerEmulatorOptionsWidget::onStopVirtualMachineButtonClicked()
 {
     Emulator *const emulator = m_emulators[m_virtualMachine];
+    if (emulator->virtualMachine()->isStateChangePending()) {
+        MerVmConnectionUi::informStateChangePending();
+        return;
+    }
     emulator->virtualMachine()->disconnectFrom(this,
             IgnoreAsynchronousReturn<bool>);
 }
