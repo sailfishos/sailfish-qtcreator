@@ -124,7 +124,7 @@ void CommandQueue::cancel()
         return;
     while (!m_queue.empty()) {
         CommandRunner *runner = m_queue.front().get();
-        qCDebug(vmsQueue) << "Canceled" << qPrintable(printIndent()) << runner;
+        qCDebug(queue) << "Canceled" << qPrintable(printIndent()) << runner;
         m_queue.pop_front();
     }
     if (!m_current)
@@ -134,7 +134,7 @@ void CommandQueue::cancel()
 void CommandQueue::enqueue(std::unique_ptr<CommandRunner> &&runner)
 {
     QTC_ASSERT(runner, return);
-    qCDebug(vmsQueue) << "Enqueued" << qPrintable(printIndent()) << runner.get();
+    qCDebug(queue) << "Enqueued" << qPrintable(printIndent()) << runner.get();
     m_queue.emplace_back(std::move(runner));
     scheduleDequeue();
 }
@@ -178,7 +178,7 @@ void CommandQueue::dequeue()
     m_current = std::move(m_queue.front());
     m_queue.pop_front();
 
-    qCDebug(vmsQueue) << "Dequeued" << qPrintable(printIndent()) << m_current.get();
+    qCDebug(queue) << "Dequeued" << qPrintable(printIndent()) << m_current.get();
 
     connect(m_current.get(), &CommandRunner::done,
             this, &CommandQueue::finalize);
@@ -189,7 +189,7 @@ void CommandQueue::dequeue()
 void CommandQueue::finalize(bool ok)
 {
     QTC_ASSERT(sender() == m_current.get(), return);
-    qCDebug(vmsQueue) << "Finished" << qPrintable(printIndent()) << m_current.get();
+    qCDebug(queue) << "Finished" << qPrintable(printIndent()) << m_current.get();
 
     m_current->disconnect(this);
     m_current->deleteLater();
@@ -278,7 +278,7 @@ BatchComposer BatchComposer::createBatch(const QString &batchName)
 BatchComposer BatchComposer::extendBatch(BatchRunner *batch)
 {
     const QString indent((batch->queue()->depth() - 1) * INDENT_WIDTH, ' ');
-    qCDebug(vmsQueue) << "Reopened" << qPrintable(indent) << batch;
+    qCDebug(queue) << "Reopened" << qPrintable(indent) << batch;
 
     return BatchComposer(batch);
 }
