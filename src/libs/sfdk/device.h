@@ -63,6 +63,7 @@ public:
 
     bool isAutodetected() const;
     Architecture architecture() const;
+    unsigned char wordWidth() const;
     MachineType machineType() const;
 
     virtual QSsh::SshConnectionParameters sshParameters() const = 0;
@@ -78,7 +79,8 @@ signals:
 
 protected:
     Device(std::unique_ptr<DevicePrivate> &&dd, const QString &id, bool autodetected,
-            Architecture architecture, MachineType machineType, QObject *parent);
+            Architecture architecture, unsigned char wordWidth, MachineType machineType,
+            QObject *parent);
     std::unique_ptr<DevicePrivate> d_ptr;
 
 private:
@@ -92,7 +94,8 @@ class SFDK_EXPORT HardwareDevice final : public Device
     Q_OBJECT
 
 public:
-    HardwareDevice(const QString &id, Architecture architecture, QObject *parent = nullptr);
+    HardwareDevice(const QString &id, Architecture architecture, unsigned char wordWidth,
+            QObject *parent = nullptr);
     ~HardwareDevice() override;
 
     QSsh::SshConnectionParameters sshParameters() const final;

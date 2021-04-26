@@ -83,6 +83,7 @@ const char SAILFISH_SDK_FRONTEND_ID[] = "qtcreator";
 const char MER_DEVICE_SHARED_SSH[] = "MER_DEVICE_SHARED_SSH";
 const char MER_DEVICE_QML_LIVE_PORTS[] = "MER_DEVICE_QML_LIVE_PORTS";
 const char MER_DEVICE_ARCHITECTURE[]= "MER_DEVICE_ARCHITECTURE";
+const char MER_DEVICE_WORD_WIDTH[]= "MER_DEVICE_WORD_WIDTH";
 
 const char MER_BUILD_CONFIGURATION_ASPECT[] = "Mer.BuildConfigurationAspect";
 const char MER_RUN_CONFIGURATION_ASPECT[] = "Mer.RunConfigurationAspect";

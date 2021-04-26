@@ -85,7 +85,7 @@ private slots:
     void testConnection();
 
 private:
-    static ProjectExplorer::Abi::Architecture detectArchitecture(
+    static ProjectExplorer::Abi detectAbi(
             const QSsh::SshConnectionParameters &sshParams, bool *ok, QString *errorMessage);
     static QString detectDeviceName(const QSsh::SshConnectionParameters &sshParams, bool *ok, QString *errorMessage);
     static bool detectSdkClientTools(const QSsh::SshConnectionParameters &sshParams, bool *ok, QString *errorMessage);
@@ -96,7 +96,7 @@ private:
 private:
     Ui::MerHardwareDeviceWizardConnectionTestPage *m_ui;
     MerHardwareDevice::Ptr m_device;
-    ProjectExplorer::Abi::Architecture m_architecture;
+    ProjectExplorer::Abi m_abi;
     QString m_deviceName;
     bool m_sdkClientToolsInstalled;
     bool m_isIdle;
