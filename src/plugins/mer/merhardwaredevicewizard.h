@@ -49,6 +49,7 @@ public:
 private:
     MerHardwareDeviceWizardSelectionPage m_selectionPage;
     RemoteLinux::GenericLinuxDeviceConfigurationWizardKeyDeploymentPage m_keyDeploymentPage;
+    MerHardwareDeviceWizardPackageKeyDeploymentPage m_packageSingKeyDeploymentPage;
     MerHardwareDeviceWizardConnectionTestPage m_connectionTestPage;
     MerHardwareDeviceWizardSetupPage m_setupPage;
     RemoteLinux::GenericLinuxDeviceConfigurationWizardFinalPage m_finalPage;

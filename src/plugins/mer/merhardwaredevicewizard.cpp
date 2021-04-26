@@ -38,6 +38,7 @@ MerHardwareDeviceWizard::MerHardwareDeviceWizard(QWidget *parent)
     : Utils::Wizard(parent),
       m_selectionPage(this),
       m_keyDeploymentPage(this),
+      m_packageSingKeyDeploymentPage(this),
       m_connectionTestPage(this),
       m_setupPage(this),
       m_finalPage(this)
@@ -45,6 +46,7 @@ MerHardwareDeviceWizard::MerHardwareDeviceWizard(QWidget *parent)
     setWindowTitle(tr("New %1 Hardware Device Setup").arg(Sdk::osVariant()));
     addPage(&m_selectionPage);
     addPage(&m_keyDeploymentPage);
+    addPage(&m_packageSingKeyDeploymentPage);
     addPage(&m_connectionTestPage);
     addPage(&m_setupPage);
     addPage(&m_finalPage);
@@ -58,6 +60,7 @@ MerHardwareDeviceWizard::MerHardwareDeviceWizard(QWidget *parent)
 
     m_selectionPage.setDevice(m_device);
     m_keyDeploymentPage.setDevice(m_device);
+    m_packageSingKeyDeploymentPage.setDevice(m_device);
     m_connectionTestPage.setDevice(m_device);
     m_setupPage.setDevice(m_device);
 }

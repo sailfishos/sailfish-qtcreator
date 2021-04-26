@@ -28,7 +28,11 @@
 
 #include <projectexplorer/abi.h>
 
+#include <QProgressDialog>
 #include <QWizardPage>
+
+class QLabel;
+class QComboBox;
 
 namespace QSsh {
     class SshConnectionParameters;
@@ -36,6 +40,12 @@ namespace QSsh {
 
 namespace Sfdk {
     class BuildEngine;
+    class Device;
+}
+
+namespace Utils {
+    class PathChooser;
+    class ProgressIndicator;
 }
 
 namespace Mer {
@@ -123,6 +133,39 @@ public:
 private:
     Ui::MerHardwareDeviceWizardSetupPage *m_ui;
     MerHardwareDevice::Ptr m_device;
+};
+
+class MerHardwareDeviceWizardPackageKeyDeploymentPage : public QWizardPage
+{
+    Q_OBJECT
+
+public:
+    MerHardwareDeviceWizardPackageKeyDeploymentPage(QWidget *parent = 0);
+    void setDevice(const MerHardwareDevice::Ptr &device);
+
+private:
+    MerHardwareDevice::Ptr m_device;
+    QComboBox *m_keyComboBox;
+    Utils::ProgressIndicator *m_progressIndicator;
+    QLabel *m_deployStateLabel;
+
+    void deployKey();
+};
+
+class MerDeviceGpgKeyDeploymentDialog : public QProgressDialog
+{
+    Q_OBJECT
+public:
+    MerDeviceGpgKeyDeploymentDialog(Sfdk::Device *device,
+            const QString &keyId,
+            QWidget *parent = nullptr);
+    // Asks for GPG public key and returns null if the file dialog is canceled.
+    static MerDeviceGpgKeyDeploymentDialog *createDialog(
+            Sfdk::Device *device, QWidget *parent = nullptr);
+    void handleCanceled();
+
+private:
+    bool done{false};
 };
 
 }

@@ -29,6 +29,7 @@
 #include <QList>
 #include <QObject>
 #include <QProcess>
+#include "ssh/sshremoteprocessrunner.h"
 
 #include <deque>
 #include <memory>
@@ -145,6 +146,37 @@ private:
     QList<int> m_expectedExitCodes = {0};
     bool m_crashExpected = false;
     QBasicTimer m_terminateTimeoutTimer;
+};
+
+class RemoteProcessRunner : public CommandRunner
+{
+    Q_OBJECT
+
+public:
+    explicit RemoteProcessRunner(const QSsh::SshConnectionParameters &sshParameters,
+            const QString &program, const QStringList &arguments,
+            QObject *parent = 0);
+
+    QSsh::SshRemoteProcessRunner *sshRunner() const { return m_sshRunner.get(); }
+
+    QString errorString() const;
+    void run() override;
+
+    QDebug print(QDebug debug) const override;
+
+public slots:
+    void terminate() override;
+
+private slots:
+    void onConnectionError();
+    void onFinished();
+
+private:
+    const std::unique_ptr<QSsh::SshRemoteProcessRunner> m_sshRunner;
+    const QStringList m_arguments;
+    const QSsh::SshConnectionParameters m_sshParameters;
+    QString m_lastErrorString;
+    QString m_program;
 };
 
 } // namespace Sfdk
