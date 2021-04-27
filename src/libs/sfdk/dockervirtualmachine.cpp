@@ -491,7 +491,9 @@ QStringList DockerVirtualMachinePrivate::listedImages(const QString &output)
 {
     QStringList images;
     const QStringList lines = output.split(QRegularExpression("[\r\n]"), Qt::SkipEmptyParts);
-    for (const QString &line : lines) {
+    for (QString line : lines) {
+        if (line.startsWith("localhost/"))
+            line = line.right(line.size() - 10);
         if (line != "<none>")
             images.append(line);
     }
