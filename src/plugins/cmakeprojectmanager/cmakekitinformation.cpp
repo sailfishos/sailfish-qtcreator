@@ -669,7 +669,8 @@ QVariant CMakeGeneratorKitAspect::defaultValue(const Kit *k) const
                 it = std::find_if(known.constBegin(),
                                   known.constEnd(),
                                   [](const CMakeTool::Generator &g) {
-                                      return g.matches("NMake Makefiles JOM");
+                                      return g.matches("NMake Makefiles JOM")
+                                         || g.matches("Unix Makefiles");
                                   });
             }
 
