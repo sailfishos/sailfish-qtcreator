@@ -603,9 +603,15 @@ void DeviceManager::updateDevicesXml() const
         } else {
             EmulatorDevice *const emulatorDevice = static_cast<EmulatorDevice *>(device.get());
             QString mac = EmulatorPrivate::get(emulatorDevice->emulator())->mac();
-            QTC_CHECK(!mac.isEmpty());
-            if (!mac.isEmpty())
-                xmlData.m_index = mac.at(mac.count() - 1);
+            if (QTC_GUARD(mac.length() >= 2)) {
+                auto hex2dec = [](const QString &hex) {
+                    bool ok;
+                    const QString dec = QString::number(hex.toInt(&ok, 16));
+                    QTC_CHECK(ok);
+                    return dec;
+                };
+                xmlData.m_index = hex2dec(mac.right(2));
+            }
             xmlData.m_subNet = EmulatorPrivate::get(emulatorDevice->emulator())->subnet();
             xmlData.m_name = device->name();
             xmlData.m_mac = mac;
