@@ -126,11 +126,13 @@ Tasks MerToolChain::validateKit(const Kit *kit) const
 
     IDevice::ConstPtr d = DeviceKitAspect::device(kit);
     const MerDevice* device = dynamic_cast<const MerDevice*>(d.data());
-    if (device && device->architecture() != targetAbi().architecture()) {
+    if (device && !device->isCompatibleWith(kit)) {
         const QString message =
                 QCoreApplication::translate("ProjectExplorer::MerToolChain",
-                                            "Toolchain \"%1\" can not be used for device with %2 architecture")
-                .arg(displayName()).arg(Abi::toString(device->architecture()));
+                        "Toolchain \"%1\" can not be used for device with (%2-bit) %3 architecture")
+                .arg(displayName())
+                .arg(device->wordWidth())
+                .arg(Abi::toString(device->architecture()));
         result << Task(Task::Error, message, FilePath(), -1,
                        Utils::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     }

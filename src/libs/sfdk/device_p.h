@@ -55,6 +55,7 @@ private:
     QString name;
     bool autodetected = false;
     Device::Architecture architecture = Device::ArmArchitecture;
+    unsigned char wordWidth = 0;
     Device::MachineType machineType = Device::HardwareMachine;
     QSsh::SshConnectionParameters sshParameters;
 };

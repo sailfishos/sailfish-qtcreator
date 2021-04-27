@@ -67,7 +67,7 @@ const char MAGIC_HOME_PREFIX[] = "$HOME/";
  */
 
 Device::Device(std::unique_ptr<DevicePrivate> &&dd, const QString &id, bool autodetected,
-        Architecture architecture, MachineType machineType, QObject *parent)
+        Architecture architecture, unsigned char wordWidth, MachineType machineType, QObject *parent)
     : QObject(parent)
     , d_ptr(std::move(dd))
 {
@@ -75,6 +75,7 @@ Device::Device(std::unique_ptr<DevicePrivate> &&dd, const QString &id, bool auto
     d->id = id;
     d->autodetected = autodetected;
     d->architecture = architecture;
+    d->wordWidth = wordWidth;
     d->machineType = machineType;
 }
 
@@ -110,6 +111,11 @@ Device::Architecture Device::architecture() const
     return d_func()->architecture;
 }
 
+unsigned char Device::wordWidth() const
+{
+    return d_func()->wordWidth;
+}
+
 Device::MachineType Device::machineType() const
 {
     return d_func()->machineType;
@@ -134,6 +140,7 @@ QVariantMap DevicePrivate::toMap() const
     data.insert(Constants::DEVICE_NAME, name);
     data.insert(Constants::DEVICE_AUTODETECTED, autodetected);
     data.insert(Constants::DEVICE_ARCHITECTURE, architecture);
+    data.insert(Constants::DEVICE_WORD_WIDTH, wordWidth);
     data.insert(Constants::DEVICE_MACHINE_TYPE, machineType);
 
     return data;
@@ -148,6 +155,8 @@ bool DevicePrivate::fromMap(const QVariantMap &data)
     QTC_ASSERT(autodetected == data.value(Constants::DEVICE_AUTODETECTED).toBool(), return false);
     QTC_ASSERT(architecture == static_cast<Device::Architecture>(
             data.value(Constants::DEVICE_ARCHITECTURE).toInt()), return false);
+    QTC_ASSERT(wordWidth == data.value(Constants::DEVICE_WORD_WIDTH, Constants::DEVICE_FALLBACK_WORD_WIDTH)
+            .value<unsigned char>(), return false);
     QTC_ASSERT(machineType == static_cast<Device::MachineType>(
             data.value(Constants::DEVICE_MACHINE_TYPE).toInt()), return false);
 
@@ -160,9 +169,10 @@ bool DevicePrivate::fromMap(const QVariantMap &data)
  * \class HardwareDevice
  */
 
-HardwareDevice::HardwareDevice(const QString &id, Architecture architecture, QObject *parent)
+HardwareDevice::HardwareDevice(const QString &id, Architecture architecture,
+        unsigned char wordWidth, QObject *parent)
     : Device(std::make_unique<HardwareDevicePrivate>(this), id, false, architecture,
-            HardwareMachine, parent)
+            wordWidth, HardwareMachine, parent)
 {
 }
 
@@ -270,7 +280,7 @@ struct EmulatorDevice::PrivateConstructorTag {};
 
 EmulatorDevice::EmulatorDevice(Emulator *emulator, QObject *parent, const PrivateConstructorTag &)
     : Device(std::make_unique<EmulatorDevicePrivate>(this), emulator->uri().toString(), true,
-        X86Architecture, EmulatorMachine, parent)
+        X86Architecture, 32, EmulatorMachine, parent)
 {
     Q_D(EmulatorDevice);
     d->emulator = emulator;
@@ -492,7 +502,9 @@ void DeviceManager::fromMap(const QVariantMap &data)
                     const QString id = deviceData.value(Constants::DEVICE_ID).toString();
                     const auto architecture = static_cast<Device::Architecture>(
                             deviceData.value(Constants::DEVICE_ARCHITECTURE).toInt());
-                    newDevice = std::make_unique<HardwareDevice>(id, architecture, this);
+                    const auto wordWidth = deviceData.value(Constants::DEVICE_WORD_WIDTH,
+                            Constants::DEVICE_FALLBACK_WORD_WIDTH).value<unsigned char>();
+                    newDevice = std::make_unique<HardwareDevice>(id, architecture, wordWidth, this);
                     break;
                 }
             case Device::EmulatorMachine:

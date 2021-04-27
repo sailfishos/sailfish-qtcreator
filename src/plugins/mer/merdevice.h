@@ -46,6 +46,9 @@ public:
     ProjectExplorer::Abi::Architecture architecture() const;
     void setArchitecture(const ProjectExplorer::Abi::Architecture &architecture);
 
+    unsigned char wordWidth() const;
+    void setWordWidth(unsigned char wordWidth);
+
     bool isCompatibleWith(const ProjectExplorer::Kit *kit) const override;
 
     static MachineType workaround_machineTypeFromMap(const QVariantMap &map);
@@ -60,6 +63,7 @@ protected:
 
 private:
     ProjectExplorer::Abi::Architecture m_architecture;
+    unsigned char m_wordWidth = 0;
     Utils::PortList m_qmlLivePorts;
 };
 

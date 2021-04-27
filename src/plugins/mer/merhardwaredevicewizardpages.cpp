@@ -134,7 +134,6 @@ int MerHardwareDeviceWizardSelectionPage::timeout() const
 MerHardwareDeviceWizardConnectionTestPage::MerHardwareDeviceWizardConnectionTestPage(QWidget *parent)
     : QWizardPage(parent)
     , m_ui(new Ui::MerHardwareDeviceWizardConnectionTestPage)
-    , m_architecture(Abi::UnknownArchitecture)
     , m_isIdle(true)
     , m_connectionTestOk(false)
 {
@@ -164,9 +163,16 @@ bool MerHardwareDeviceWizardConnectionTestPage::isComplete() const
 
 bool MerHardwareDeviceWizardConnectionTestPage::validatePage()
 {
-    m_device->setArchitecture(m_architecture);
+    m_device->setArchitecture(m_abi.architecture());
+    m_device->setWordWidth(m_abi.wordWidth());
 
-    const QString arch = Abi::toString(m_architecture).toUpper();
+    QString arch = Abi::toString(m_abi.architecture()).toUpper();
+    if (m_abi.wordWidth() != 32) {
+        arch = tr("%1 %2bit")
+            .arg(arch)
+            .arg(m_abi.wordWidth());
+    }
+
     QString preferredName = QStringLiteral("%1 (%2)").arg(m_deviceName).arg(arch);
     int i = 1;
     QString tryName = preferredName;
@@ -199,7 +205,7 @@ void MerHardwareDeviceWizardConnectionTestPage::testConnection()
         goto end;
 
     m_ui->connectionTestLabel->setText(tr("Detecting device properties..."));
-    m_architecture = detectArchitecture(sshParams, &m_connectionTestOk, &errorMessage);
+    m_abi = detectAbi(sshParams, &m_connectionTestOk, &errorMessage);
     m_deviceName = detectDeviceName(sshParams, &m_connectionTestOk, &errorMessage);
     if (!m_connectionTestOk) {
         m_ui->connectionTestLabel->setText(tr("Could not autodetect device properties"));
@@ -241,11 +247,11 @@ end:
     completeChanged();
 }
 
-Abi::Architecture MerHardwareDeviceWizardConnectionTestPage::detectArchitecture(
+Abi MerHardwareDeviceWizardConnectionTestPage::detectAbi(
         const SshConnectionParameters &sshParams, bool *ok, QString *errorMessage)
 {
     if (!*ok) {
-        return Abi::UnknownArchitecture;
+        return {};
     }
 
     SshRemoteProcessRunner runner;
@@ -254,32 +260,32 @@ Abi::Architecture MerHardwareDeviceWizardConnectionTestPage::detectArchitecture(
             &loop, &QEventLoop::quit);
     connect(&runner, &SshRemoteProcessRunner::processClosed,
             &loop, &QEventLoop::quit);
-    runner.run("uname --machine", sshParams);
+    runner.run("rpm --query --queryformat '%{ARCH}' rpm", sshParams);
     loop.exec();
 
     if (!runner.lastConnectionErrorString().isEmpty()
             || runner.processExitStatus() != SshRemoteProcess::NormalExit
             || runner.processExitCode() != 0) {
         *ok = false;
-        *errorMessage = tr("Failed to detect architecture: Command 'uname' could not be executed.");
-        return Abi::UnknownArchitecture;
+        *errorMessage = tr("Failed to detect architecture: Command could not be executed.");
+        return {};
     }
 
     const QString output = QString::fromLatin1(runner.readAllStandardOutput()).trimmed();
     if (output.isEmpty()) {
         *ok = false;
-        *errorMessage = tr("Failed to detect architecture: Empty output from 'uname' command.");
-        return Abi::UnknownArchitecture;
+        *errorMessage = tr("Failed to detect architecture: Got empty output.");
+        return {};
     }
 
     // Does not seem ideal, but works well
-    Abi::Architecture architecture =
-        Abi::abiFromTargetTriplet(output).architecture();
-    if (architecture == Abi::UnknownArchitecture) {
+    const auto architecture = Abi::abiFromTargetTriplet(output);
+    if (architecture.architecture() == Abi::UnknownArchitecture
+            || architecture.wordWidth() == 0) {
         *ok = false;
-        *errorMessage = tr("Failed to detect architecture: "
-            "Could not parse architecture from 'uname' command, result: %1").arg(output);
-        return Abi::UnknownArchitecture;
+        *errorMessage = tr("Failed to detect architecture: Unrecognized architecture: \"%1\"")
+            .arg(output);
+        return {};
     }
 
     *ok = true;

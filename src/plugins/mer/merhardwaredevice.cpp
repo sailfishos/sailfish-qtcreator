@@ -154,6 +154,7 @@ void MerHardwareDeviceManager::onSdkDeviceAdded(int index)
     device->setupId(origin, id);
     device->setDisplayName(sdkDevice->name());
     device->setArchitecture(architecture_cast<Abi::Architecture>(sdkDevice->architecture()));
+    device->setWordWidth(sdkDevice->wordWidth());
     device->setFreePorts(sdkDevice->freePorts());
     device->setQmlLivePorts(sdkDevice->qmlLivePorts());
     device->setSshParameters(sdkDevice->sshParameters());
@@ -246,11 +247,12 @@ void MerHardwareDeviceManager::onDeviceAddedOrUpdated(Utils::Id id)
 
     std::unique_ptr<HardwareDevice> newSdkDevice;
     if (!sdkHwDevice) {
-        newSdkDevice = std::make_unique<HardwareDevice>(sdkId, sdkArch);
+        newSdkDevice = std::make_unique<HardwareDevice>(sdkId, sdkArch, hwDevice->wordWidth());
         sdkHwDevice = newSdkDevice.get();
     }
 
     QTC_CHECK(sdkHwDevice->architecture() == sdkArch);
+    QTC_CHECK(sdkHwDevice->wordWidth() == hwDevice->wordWidth());
     sdkHwDevice->setName(hwDevice->displayName());
     sdkHwDevice->setSshParameters(hwDevice->sshParameters());
     sdkHwDevice->setFreePorts(hwDevice->freePorts());

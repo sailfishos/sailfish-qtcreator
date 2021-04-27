@@ -181,7 +181,11 @@ const char DEVICE_ID[] = "Id";
 const char DEVICE_NAME[] = "Name";
 const char DEVICE_AUTODETECTED[] = "Autodetected";
 const char DEVICE_ARCHITECTURE[] = "Architecture";
+const char DEVICE_WORD_WIDTH[] = "WordWidth";
 const char DEVICE_MACHINE_TYPE[] = "MachineType";
+
+// Just for loading old configs
+const unsigned char DEVICE_FALLBACK_WORD_WIDTH = 32;
 
 const char HARDWARE_DEVICE_HOST[] = "Host";
 const char HARDWARE_DEVICE_PORT[] = "Port";

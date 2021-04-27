@@ -49,6 +49,9 @@ void MerDevice::fromMap(const QVariantMap &map)
     m_architecture = static_cast<Abi::Architecture>(
             map.value(QLatin1String(Constants::MER_DEVICE_ARCHITECTURE),
                 Abi::UnknownArchitecture).toInt());
+    m_wordWidth = map.value(QLatin1String(Constants::MER_DEVICE_WORD_WIDTH),
+            Sfdk::Constants::DEVICE_FALLBACK_WORD_WIDTH)
+        .value<unsigned char>();
     m_qmlLivePorts = Utils::PortList::fromString(map.value(QLatin1String(Constants::MER_DEVICE_QML_LIVE_PORTS),
                                                            QString::number(Sfdk::Constants::DEFAULT_QML_LIVE_PORT))
                                                  .toString());
@@ -58,6 +61,7 @@ QVariantMap MerDevice::toMap() const
 {
     QVariantMap map = LinuxDevice::toMap();
     map.insert(QLatin1String(Constants::MER_DEVICE_ARCHITECTURE), m_architecture);
+    map.insert(QLatin1String(Constants::MER_DEVICE_WORD_WIDTH), m_wordWidth);
     map.insert(QLatin1String(Constants::MER_DEVICE_QML_LIVE_PORTS), m_qmlLivePorts.toString());
     return map;
 }
@@ -72,12 +76,24 @@ void MerDevice::setArchitecture(const Abi::Architecture &architecture)
     m_architecture = architecture;
 }
 
+unsigned char MerDevice::wordWidth() const
+{
+    return m_wordWidth;
+}
+
+void MerDevice::setWordWidth(unsigned char wordWidth)
+{
+    m_wordWidth = wordWidth;
+}
+
 bool MerDevice::isCompatibleWith(const Kit *kit) const
 {
     if (!IDevice::isCompatibleWith(kit))
         return false;
 
-    return architecture() == ToolChainKitAspect::targetAbi(kit).architecture();
+    const Abi targetAbi = ToolChainKitAspect::targetAbi(kit);
+    return architecture() == targetAbi.architecture()
+        && wordWidth() == targetAbi.wordWidth();
 }
 
 IDevice::MachineType
