@@ -77,7 +77,8 @@ Sdk::Sdk(Options options)
 
     d->readGeneralSettings();
 
-    d->commandQueue_ = std::make_unique<CommandQueue>(this);
+    d->commandQueue_ = std::make_unique<CommandQueue>("main", 0, this);
+    d->commandQueue_->run();
 
     d->virtualMachineFactory = std::make_unique<VirtualMachineFactory>(this);
     if (VBoxVirtualMachine::isAvailable())
@@ -117,7 +118,7 @@ Sdk::Sdk(Options options)
 Sdk::~Sdk()
 {
     Q_D(Sdk);
-    d->commandQueue_->wait();
+    QTC_ASSERT(d->commandQueue_->isEmpty(), execAsynchronous(std::tie(), Sdk::shutDown));
     s_instance = nullptr;
 }
 
@@ -164,6 +165,12 @@ bool Sdk::saveSettings(QStringList *errorStrings)
     emit s_instance->d_func()->saveSettingsRequested(errorStrings);
     qCDebug(lib) << "End save settings. Success:" << errorStrings->isEmpty();
     return errorStrings->isEmpty();
+}
+
+void Sdk::shutDown(const QObject *context, const Functor<> &functor)
+{
+    emit s_instance->aboutToShutDown();
+    s_instance->d_func()->commandQueue_->enqueueCheckPoint(context, functor);
 }
 
 // FIXME Describe when this becomes initialized

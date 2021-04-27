@@ -50,6 +50,8 @@ public:
     void dismissQuestion(Question which) override;
     QuestionStatus status(Question which) const override;
 
+    static void informStateChangePending();
+
 private:
     QMessageBox *openWarningBox(const QString &title, const QString &text);
     QMessageBox *openQuestionBox(std::function<void()> onStatusChanged,

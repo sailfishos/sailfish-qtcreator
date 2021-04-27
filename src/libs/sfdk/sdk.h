@@ -64,6 +64,7 @@ public:
     static void enableUpdates();
     static bool isApplyingUpdates();
     static bool saveSettings(QStringList *errorStrings);
+    static void shutDown(const QObject *context, const Functor<> &functor);
 
     static QString installationPath();
 
@@ -109,6 +110,7 @@ signals:
     void deviceAdded(int index);
     void aboutToRemoveDevice(int index);
     void customBuildHostNameChanged(const QString &hostName);
+    void aboutToShutDown();
 
 private:
     static Sdk *s_instance;

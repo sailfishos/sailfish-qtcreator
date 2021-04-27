@@ -54,4 +54,10 @@ void execAsynchronous(std::tuple<OutArgs&...> outArgs, const Fn &fn, InArgs&&...
 	loop.exec();
 }
 
+template<typename... Args>
+void IgnoreAsynchronousReturn(Args &&...)
+{
+    // noop
+}
+
 } // namespace Sfdk

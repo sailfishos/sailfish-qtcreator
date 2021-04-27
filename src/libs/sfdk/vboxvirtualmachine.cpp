@@ -35,7 +35,6 @@
 
 #include <QDebug>
 #include <QDir>
-#include <QEventLoop>
 #include <QQueue>
 #include <QRegularExpression>
 #include <QSettings>
@@ -170,11 +169,6 @@ private:
     }
 };
 
-CommandQueue *commandQueue()
-{
-    return SdkPrivate::commandQueue();
-}
-
 } // namespace anonymous
 
 /*!
@@ -227,9 +221,8 @@ void VBoxVirtualMachine::fetchRegisteredVirtualMachines(const QObject *context,
     arguments.append("list");
     arguments.append("vms");
 
-    auto runner = std::make_unique<VBoxManageRunner>(arguments);
-    QObject::connect(runner.get(), &VBoxManageRunner::done,
-            context, [=, runner = runner.get()](bool ok) {
+    auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
+    connect(runner, &VBoxManageRunner::done, context, [=](bool ok) {
         if (!ok) {
             functor({}, false);
             return;
@@ -238,7 +231,6 @@ void VBoxVirtualMachine::fetchRegisteredVirtualMachines(const QObject *context,
                 runner->process()->readAllStandardOutput()));
         functor(vms, true);
     });
-    commandQueue()->enqueue(std::move(runner));
 }
 
 /*!
@@ -253,22 +245,10 @@ void VBoxVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extraIn
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    const QPointer<const QObject> context_{context};
-
-    auto enqueue = [=](const QStringList &arguments, CommandQueue::BatchId batch, auto onSuccess) {
-        auto runner = std::make_unique<VBoxManageRunner>(arguments);
-        QObject::connect(runner.get(), &VBoxManageRunner::failure, Sdk::instance(), [=]() {
-            commandQueue()->cancelBatch(batch);
-            callIf(context_, functor, VirtualMachineInfo{}, false);
-        });
-        QObject::connect(runner.get(), &VBoxManageRunner::success,
-                context, std::bind(onSuccess, runner.get()));
-        VBoxManageRunner *runner_ = runner.get();
-        commandQueue()->enqueue(std::move(runner));
-        return runner_;
-    };
-
-    CommandQueue::BatchId batch = commandQueue()->beginBatch();
+    BatchComposer composer = BatchComposer::createBatch("VBoxVirtualMachinePrivate::fetchInfo");
+    composer.batch()->setPropagateFailure(true);
+    QObject::connect(composer.batch(), &CommandRunner::failure,
+            context, std::bind(functor, VirtualMachineInfo{}, false));
 
     auto info = std::make_shared<VBoxVirtualMachineInfo>();
 
@@ -277,7 +257,8 @@ void VBoxVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extraIn
     arguments.append(q->name());
     arguments.append("--machinereadable");
 
-    enqueue(arguments, batch, [=](VBoxManageRunner *runner) {
+    auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
+    connect(runner, &VBoxManageRunner::success, context, [=]() {
         // FIXME return by argument
         *info = virtualMachineInfoFromOutput(
                 QString::fromLocal8Bit(runner->process()->readAllStandardOutput()));
@@ -290,8 +271,9 @@ void VBoxVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extraIn
     pArguments.append("--patterns");
     pArguments.append(QLatin1String(GUEST_PROPERTIES_PATTERN));
 
-    enqueue(pArguments, batch, [=](VBoxManageRunner *runner) {
-        propertyBasedInfoFromOutput(QString::fromLocal8Bit(runner->process()->readAllStandardOutput()),
+    auto *pRunner = BatchComposer::enqueue<VBoxManageRunner>(pArguments);
+    connect(pRunner, &VBoxManageRunner::success, context, [=]() {
+        propertyBasedInfoFromOutput(QString::fromLocal8Bit(pRunner->process()->readAllStandardOutput()),
                 info.get());
     });
 
@@ -300,7 +282,8 @@ void VBoxVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extraIn
         arguments.append("list");
         arguments.append("hdds");
 
-        enqueue(arguments, batch, [=](VBoxManageRunner *runner) {
+        auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
+        connect(runner, &VBoxManageRunner::success, context, [=]() {
             storageInfoFromOutput(QString::fromLocal8Bit(runner->process()->readAllStandardOutput()),
                     info.get());
         });
@@ -313,18 +296,18 @@ void VBoxVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extraIn
         arguments.append("list");
         arguments.append("--machinereadable");
 
-        auto *runner = enqueue(arguments, batch, [=](VBoxManageRunner *runner) {
+        auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
+        runner->setExpectedExitCodes({0, 1});
+        connect(runner, &VBoxManageRunner::success, context, [=]() {
             // Command exits with 1 when no snapshot exists
             if (runner->process()->exitCode() == 1)
                 return;
             snapshotInfoFromOutput(QString::fromLocal8Bit(runner->process()->readAllStandardOutput()),
                     info.get());
         });
-        runner->setExpectedExitCodes({0, 1});
     }
 
-    commandQueue()->enqueueCheckPoint(context, [=]() { functor(*info, true); });
-    commandQueue()->endBatch();
+    BatchComposer::enqueueCheckPoint(context, [=]() { functor(*info, true); });
 }
 
 void VBoxVirtualMachinePrivate::start(const QObject *context, const Functor<bool> &functor)
@@ -343,9 +326,8 @@ void VBoxVirtualMachinePrivate::start(const QObject *context, const Functor<bool
         arguments.append("headless");
     }
 
-    auto runner = std::make_unique<VBoxManageRunner>(arguments);
-    QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
-    commandQueue()->enqueue(std::move(runner));
+    auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
+    connect(runner, &CommandRunner::done, context, functor);
 }
 
 void VBoxVirtualMachinePrivate::stop(const QObject *context, const Functor<bool> &functor)
@@ -361,9 +343,8 @@ void VBoxVirtualMachinePrivate::stop(const QObject *context, const Functor<bool>
     arguments.append(q->name());
     arguments.append("acpipowerbutton");
 
-    auto runner = std::make_unique<VBoxManageRunner>(arguments);
-    QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
-    commandQueue()->enqueue(std::move(runner));
+    auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
+    connect(runner, &CommandRunner::done, context, functor);
 }
 
 void VBoxVirtualMachinePrivate::probe(const QObject *context,
@@ -377,9 +358,9 @@ void VBoxVirtualMachinePrivate::probe(const QObject *context,
     arguments.append("showvminfo");
     arguments.append(q->name());
 
-    auto runner = std::make_unique<VBoxManageRunner>(arguments);
-    QObject::connect(runner->process(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), context,
-            [=, runner = runner.get()](int exitCode, QProcess::ExitStatus exitStatus) {
+    auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
+    connect(runner->process(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), context,
+            [=](int exitCode, QProcess::ExitStatus exitStatus) {
                 VirtualMachinePrivate::BasicState state;
                 if (exitStatus != QProcess::NormalExit) {
                     functor(state, false);
@@ -401,8 +382,6 @@ void VBoxVirtualMachinePrivate::probe(const QObject *context,
                     state |= VirtualMachinePrivate::Headless;
                 functor(state, true);
             });
-
-    commandQueue()->enqueue(std::move(runner));
 }
 
 void VBoxVirtualMachinePrivate::setVideoMode(const QSize &size, int depth,
@@ -416,7 +395,8 @@ void VBoxVirtualMachinePrivate::setVideoMode(const QSize &size, int depth,
     qCDebug(vms) << "Setting video mode for" << q->uri().toString() << "to size" << size
         << "depth" << depth;
 
-    const QPointer<const QObject> context_{context};
+    BatchComposer composer = BatchComposer::createBatch("VBoxVirtualMachinePrivate::setVideoMode");
+    composer.batch()->setPropagateFailure(true);
 
     QString videoMode = QStringLiteral("%1x%2x%3")
         .arg(size.width())
@@ -442,7 +422,7 @@ void VBoxVirtualMachinePrivate::setVideoMode(const QSize &size, int depth,
             : QLatin1String(PORTRAIT));
     enqueue(QLatin1String(SAILFISH_SDK_SCALE), QString::number(scaleDownFactor));
 
-    commandQueue()->enqueueCheckPoint(context, [=]() { functor(*allOk); });
+    BatchComposer::enqueueCheckPoint(context, [=]() { functor(*allOk); });
 }
 
 void VBoxVirtualMachinePrivate::doSetMemorySizeMb(int memorySizeMb, const QObject *context,
@@ -460,9 +440,8 @@ void VBoxVirtualMachinePrivate::doSetMemorySizeMb(int memorySizeMb, const QObjec
     arguments.append("--memory");
     arguments.append(QString::number(memorySizeMb));
 
-    auto runner = std::make_unique<VBoxManageRunner>(arguments);
-    QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
-    commandQueue()->enqueue(std::move(runner));
+    auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
+    connect(runner, &CommandRunner::done, context, functor);
 }
 
 void VBoxVirtualMachinePrivate::doSetSwapSizeMb(int swapSizeMb, const QObject *context,
@@ -481,9 +460,8 @@ void VBoxVirtualMachinePrivate::doSetSwapSizeMb(int swapSizeMb, const QObject *c
     arguments.append(QLatin1String(SWAP_SIZE_MB_GUEST_PROPERTY_NAME));
     arguments.append(QString::number(swapSizeMb));
 
-    auto runner = std::make_unique<VBoxManageRunner>(arguments);
-    QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
-    commandQueue()->enqueue(std::move(runner));
+    auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
+    connect(runner, &CommandRunner::done, context, functor);
 }
 
 void VBoxVirtualMachinePrivate::doSetCpuCount(int cpuCount, const QObject *context,
@@ -501,9 +479,8 @@ void VBoxVirtualMachinePrivate::doSetCpuCount(int cpuCount, const QObject *conte
     arguments.append("--cpus");
     arguments.append(QString::number(cpuCount));
 
-    auto runner = std::make_unique<VBoxManageRunner>(arguments);
-    QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
-    commandQueue()->enqueue(std::move(runner));
+    auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
+    connect(runner, &CommandRunner::done, context, functor);
 }
 
 void VBoxVirtualMachinePrivate::doSetStorageSizeMb(int storageSizeMb, const QObject *context,
@@ -515,13 +492,17 @@ void VBoxVirtualMachinePrivate::doSetStorageSizeMb(int storageSizeMb, const QObj
 
     qCDebug(vms) << "Changing storage size of" << q->uri().toString() << "to" << storageSizeMb << "MB";
 
+    BatchComposer composer = BatchComposer::createBatch("VBoxVirtualMachinePrivate::doSetStorageSizeMb");
+    composer.batch()->setPropagateFailure(true);
+
     const QPointer<const QObject> context_{context};
     fetchInfo(VirtualMachineInfo::StorageInfo, Sdk::instance(),
-            [=, name = q->name()](const VirtualMachineInfo &virtualMachineInfo_, bool ok) {
+            [=, name = q->name(), batch = composer.batch()](const VirtualMachineInfo &virtualMachineInfo_, bool ok) {
         if (!ok) {
             callIf(context_, functor, false);
             return;
         }
+
         auto virtualMachineInfo = static_cast<const VBoxVirtualMachineInfo &>(virtualMachineInfo_);
 
         if (storageSizeMb < virtualMachineInfo.storageSizeMb) {
@@ -542,33 +523,31 @@ void VBoxVirtualMachinePrivate::doSetStorageSizeMb(int storageSizeMb, const QObj
             return;
         }
 
+        // Order matters!
         QStringList toResize = virtualMachineInfo.allRelatedStorageUuids;
         qCDebug(vms) << "About to resize these storage images (in order):" << toResize;
 
+        BatchComposer composer = BatchComposer::extendBatch(batch);
+
         auto allOk = std::make_shared<bool>(true);
 
-        if (context_)
-            commandQueue()->enqueueImmediateCheckPoint(context_.data(), [=]() { functor(*allOk); });
-
-        while (!toResize.isEmpty()) {
-            // take last - enqueueImmediate reverses the actual order of execution
-            const QString storageUuid = toResize.takeLast();
-
+        for (const QString storageUuid : qAsConst(toResize)) {
             QStringList arguments;
             arguments.append("modifymedium");
             arguments.append(storageUuid);
             arguments.append("--resize");
             arguments.append(QString::number(storageSizeMb));
 
-            auto runner = std::make_unique<VBoxManageRunner>(arguments);
-            QObject::connect(runner.get(), &VBoxManageRunner::done, Sdk::instance(), [=](bool ok) {
+            auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
+            QObject::connect(runner, &VBoxManageRunner::done, Sdk::instance(), [=](bool ok) {
                 if (!ok) {
                     qWarning() << "VBoxManage failed to resize medium" << storageUuid;
                     *allOk = false;
                 }
             });
-            commandQueue()->enqueueImmediate(std::move(runner));
         }
+
+        BatchComposer::enqueueCheckPoint(context_.data(), [=]() { functor(*allOk); });
     });
 }
 
@@ -608,20 +587,9 @@ void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FilePath
         break;
     }
 
-    const QPointer<const QObject> context_{context};
-
-    auto enqueue = [=](const QStringList &args, CommandQueue::BatchId batch) {
-        auto runner = std::make_unique<VBoxManageRunner>(args);
-        QObject::connect(runner.get(), &VBoxManageRunner::failure, Sdk::instance(), [=]() {
-            commandQueue()->cancelBatch(batch);
-            callIf(context_, functor, false);
-        });
-        VBoxManageRunner *runner_ = runner.get();
-        commandQueue()->enqueue(std::move(runner));
-        return runner_;
-    };
-
-    CommandQueue::BatchId batch = commandQueue()->beginBatch();
+    BatchComposer composer = BatchComposer::createBatch("VBoxVirtualMachinePrivate::doSetSharedPath");
+    composer.batch()->setPropagateFailure(true);
+    connect(composer.batch(), &CommandRunner::done, context, functor);
 
     QStringList rargs;
     rargs.append("sharedfolder");
@@ -629,7 +597,7 @@ void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FilePath
     rargs.append(q->name());
     rargs.append("--name");
     rargs.append(mountName);
-    enqueue(rargs, batch);
+    BatchComposer::enqueue<VBoxManageRunner>(rargs);
 
     QStringList aargs;
     aargs.append("sharedfolder");
@@ -639,14 +607,14 @@ void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FilePath
     aargs.append(mountName);
     aargs.append("--hostpath");
     aargs.append(path.toString());
-    enqueue(aargs, batch);
+    BatchComposer::enqueue<VBoxManageRunner>(aargs);
 
     QStringList sargs;
     sargs.append("setextradata");
     sargs.append(q->name());
     sargs.append(QString("VBoxInternal2/SharedFoldersEnableSymlinksCreate/%1").arg(mountName));
     sargs.append("1");
-    enqueue(sargs, batch);
+    BatchComposer::enqueue<VBoxManageRunner>(sargs);
 
     if (!alignedMountPoint.isEmpty()) {
         const QString envName = QString::fromLatin1(Constants::BUILD_ENGINE_ALIGNED_MOUNT_POINT_ENV_TEMPLATE)
@@ -659,11 +627,8 @@ void VBoxVirtualMachinePrivate::doSetSharedPath(SharedPath which, const FilePath
         args.append(q->name());
         args.append(envPropertyName);
         args.append(alignedMountPoint);
-        enqueue(args, batch);
+        BatchComposer::enqueue<VBoxManageRunner>(args);
     }
-
-    commandQueue()->enqueueCheckPoint(context, std::bind(functor, true));
-    commandQueue()->endBatch();
 }
 
 void VBoxVirtualMachinePrivate::doAddPortForwarding(const QString &ruleName,
@@ -674,10 +639,19 @@ void VBoxVirtualMachinePrivate::doAddPortForwarding(const QString &ruleName,
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    doRemovePortForwarding(ruleName, Sdk::instance(), [](bool) {/* noop */});
-
     qCDebug(vms) << "Setting port forwarding for" << q->uri().toString() << "from"
         << hostPort << "to" << emulatorVmPort;
+
+    BatchComposer composer = BatchComposer::createBatch("VBoxVirtualMachinePrivate::doAddPortForwarding");
+
+    QStringList dArguments;
+    dArguments.append("modifyvm");
+    dArguments.append(q->name());
+    dArguments.append("--natpf1");
+    dArguments.append("delete");
+    dArguments.append(ruleName);
+
+    BatchComposer::enqueue<VBoxManageRunner>(dArguments); // ignore failure
 
     QStringList arguments;
     arguments.append("modifyvm");
@@ -686,9 +660,8 @@ void VBoxVirtualMachinePrivate::doAddPortForwarding(const QString &ruleName,
     arguments.append(QString::fromLatin1("%1,%2,,%3,,%4")
                      .arg(ruleName).arg(protocol).arg(hostPort).arg(emulatorVmPort));
 
-    auto runner = std::make_unique<VBoxManageRunner>(arguments);
-    QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
-    commandQueue()->enqueue(std::move(runner));
+    auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
+    connect(runner, &VBoxManageRunner::done, context, functor);
 }
 
 void VBoxVirtualMachinePrivate::doRemovePortForwarding(const QString &ruleName,
@@ -707,9 +680,8 @@ void VBoxVirtualMachinePrivate::doRemovePortForwarding(const QString &ruleName,
     arguments.append("delete");
     arguments.append(ruleName);
 
-    auto runner = std::make_unique<VBoxManageRunner>(arguments);
-    QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
-    commandQueue()->enqueue(std::move(runner));
+    auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
+    connect(runner, &CommandRunner::done, context, functor);
 }
 
 void VBoxVirtualMachinePrivate::doSetReservedPortForwarding(ReservedPort which, quint16 port,
@@ -750,9 +722,8 @@ void VBoxVirtualMachinePrivate::doSetReservedPortForwarding(ReservedPort which, 
     arguments.append("--natpf1");
     arguments.append(rule);
 
-    auto runner = std::make_unique<VBoxManageRunner>(arguments);
-    QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
-    commandQueue()->enqueue(std::move(runner));
+    auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
+    connect(runner, &CommandRunner::done, context, functor);
 }
 
 void VBoxVirtualMachinePrivate::doSetReservedPortListForwarding(ReservedPortList which,
@@ -766,6 +737,8 @@ void VBoxVirtualMachinePrivate::doSetReservedPortListForwarding(ReservedPortList
 
     qCDebug(vms) << "Setting reserved port forwarding" << which << "for" << q->uri().toString()
         << "to" << ports;
+
+    BatchComposer composer = BatchComposer::createBatch("VBoxVirtualMachinePrivate::doSetReservedPortListForwarding");
 
     QString ruleNameTemplate;
     QMap<QString, quint16> VirtualMachineInfo::*ruleMap = nullptr;
@@ -781,26 +754,31 @@ void VBoxVirtualMachinePrivate::doSetReservedPortListForwarding(ReservedPortList
     }
     const QString ruleTemplate = QString::fromLatin1(NATPF_RULE_TEMPLATE).arg(ruleNameTemplate);
 
-    fetchInfo(VirtualMachineInfo::NoExtraInfo, Sdk::instance(),
-            [=](const VirtualMachineInfo &info, bool ok) {
-        QTC_ASSERT(ok, return);
+    {
+        BatchComposer composer = BatchComposer::createBatch("removeExisting");
 
-        const QStringList rulesToDelete = (info.*ruleMap).keys();
-        for (const QString &ruleToDelete : rulesToDelete) {
-            QStringList arguments;
-            arguments.append("modifyvm");
-            arguments.append(q->name());
-            arguments.append("--natpf1");
-            arguments.append("delete");
-            arguments.append(ruleToDelete);
+        fetchInfo(VirtualMachineInfo::NoExtraInfo, Sdk::instance(),
+                [=, batch = composer.batch()](const VirtualMachineInfo &info, bool ok) {
+            QTC_ASSERT(ok, return);
 
-            auto runner = std::make_unique<VBoxManageRunner>(arguments);
-            QObject::connect(runner.get(), &VBoxManageRunner::failure, [=]() {
-                qWarning() << "VBoxManage failed to delete port forwarding rule" << ruleToDelete;
-            });
-            commandQueue()->enqueueImmediate(std::move(runner));
-        }
-    });
+            BatchComposer composer = BatchComposer::extendBatch(batch);
+
+            const QStringList rulesToDelete = (info.*ruleMap).keys();
+            for (const QString &ruleToDelete : rulesToDelete) {
+                QStringList arguments;
+                arguments.append("modifyvm");
+                arguments.append(q->name());
+                arguments.append("--natpf1");
+                arguments.append("delete");
+                arguments.append(ruleToDelete);
+
+                auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
+                QObject::connect(runner, &VBoxManageRunner::failure, [=]() {
+                    qWarning() << "VBoxManage failed to delete port forwarding rule" << ruleToDelete;
+                });
+            }
+        });
+    }
 
     auto savedPorts = std::make_shared<QMap<QString, quint16>>();
 
@@ -815,18 +793,17 @@ void VBoxVirtualMachinePrivate::doSetReservedPortListForwarding(ReservedPortList
         arguments.append("--natpf1");
         arguments.append(ruleTemplate.arg(i).arg(port).arg(port));
 
-        auto runner = std::make_unique<VBoxManageRunner>(arguments);
-        QObject::connect(runner.get(), &VBoxManageRunner::done, Sdk::instance(), [=](bool ok) {
+        auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
+        QObject::connect(runner, &VBoxManageRunner::done, Sdk::instance(), [=](bool ok) {
             if (ok)
                 savedPorts->insert(ruleNameTemplate.arg(i), port);
             else
                 qWarning() << "VBoxManage failed to set" << which << "port" << port;
         });
-        commandQueue()->enqueue(std::move(runner));
         ++i;
     }
 
-    commandQueue()->enqueueCheckPoint(context, [=]() {
+    BatchComposer::enqueueCheckPoint(context, [=]() {
         functor(*savedPorts, savedPorts->values() == ports_);
     });
 }
@@ -846,10 +823,9 @@ void VBoxVirtualMachinePrivate::doTakeSnapshot(const QString &snapshotName, cons
     arguments.append("take");
     arguments.append(snapshotName);
 
-    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
     runner->suppressNoisyOutput();
-    QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
-    commandQueue()->enqueue(std::move(runner));
+    connect(runner, &CommandRunner::done, context, functor);
 }
 
 void VBoxVirtualMachinePrivate::doRestoreSnapshot(const QString &snapshotName, const QObject *context,
@@ -867,10 +843,9 @@ void VBoxVirtualMachinePrivate::doRestoreSnapshot(const QString &snapshotName, c
     arguments.append("restore");
     arguments.append(snapshotName);
 
-    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
     runner->suppressNoisyOutput();
-    QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
-    commandQueue()->enqueue(std::move(runner));
+    connect(runner, &CommandRunner::done, context, functor);
 }
 
 void VBoxVirtualMachinePrivate::doRemoveSnapshot(const QString &snapshotName, const QObject *context,
@@ -888,10 +863,9 @@ void VBoxVirtualMachinePrivate::doRemoveSnapshot(const QString &snapshotName, co
     arguments.append("delete");
     arguments.append(snapshotName);
 
-    auto runner = std::make_unique<VBoxManageRunner>(arguments);
+    auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
     runner->suppressNoisyOutput();
-    QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
-    commandQueue()->enqueue(std::move(runner));
+    connect(runner, &CommandRunner::done, context, functor);
 }
 
 void VBoxVirtualMachinePrivate::fetchExtraData(const QString &key,
@@ -906,9 +880,8 @@ void VBoxVirtualMachinePrivate::fetchExtraData(const QString &key,
     arguments.append(q->name());
     arguments.append(key);
 
-    auto runner = std::make_unique<VBoxManageRunner>(arguments);
-    QObject::connect(runner.get(), &VBoxManageRunner::done,
-            context, [=, runner = runner.get()](bool ok) {
+    auto *runner = BatchComposer::enqueue<VBoxManageRunner>(arguments);
+    connect(runner, &VBoxManageRunner::done, context, [=](bool ok) {
         if (!ok) {
             functor({}, false);
             return;
@@ -916,7 +889,6 @@ void VBoxVirtualMachinePrivate::fetchExtraData(const QString &key,
         auto data = QString::fromLocal8Bit(runner->process()->readAllStandardOutput());
         functor(data, true);
     });
-    commandQueue()->enqueue(std::move(runner));
 }
 
 void VBoxVirtualMachinePrivate::setExtraData(const QString &keyword, const QString &data,
@@ -932,9 +904,8 @@ void VBoxVirtualMachinePrivate::setExtraData(const QString &keyword, const QStri
     args.append(keyword);
     args.append(data);
 
-    auto runner = std::make_unique<VBoxManageRunner>(args);
-    QObject::connect(runner.get(), &VBoxManageRunner::done, context, functor);
-    commandQueue()->enqueue(std::move(runner));
+    auto *runner = BatchComposer::enqueue<VBoxManageRunner>(args);
+    connect(runner, &CommandRunner::done, context, functor);
 }
 
 bool VBoxVirtualMachinePrivate::isVirtualMachineRunningFromInfo(const QString &vmInfo, bool *headless)

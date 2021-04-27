@@ -79,10 +79,9 @@ void MerAbstractVmStartStep::doRun()
     } else {
         emit addOutput(tr("%1: Starting \"%2\" virtual machine...")
                 .arg(displayName()).arg(m_virtualMachine->name()), OutputFormat::NormalMessage);
-
-        connect(m_virtualMachine.data(), &VirtualMachine::stateChanged,
-                this, &MerAbstractVmStartStep::onStateChanged);
-        m_virtualMachine->connectTo(VirtualMachine::AskStartVm);
+        m_virtualMachine->connectTo(VirtualMachine::AskStartVm, this, [=](bool ok) {
+            emit finished(ok);
+        });
     }
 }
 
@@ -101,27 +100,6 @@ VirtualMachine *MerAbstractVmStartStep::virtualMachine() const
 void MerAbstractVmStartStep::setVirtualMachine(VirtualMachine *virtualMachine)
 {
     m_virtualMachine = virtualMachine;
-}
-
-void MerAbstractVmStartStep::onStateChanged()
-{
-    bool result = false;
-    switch (m_virtualMachine->state()) {
-    case VirtualMachine::Disconnected:
-    case VirtualMachine::Error:
-        break;
-
-    case VirtualMachine::Connected:
-        result = true;
-        break;
-
-    default:
-        return;
-    }
-
-    m_virtualMachine->disconnect(this);
-    m_virtualMachine = 0;
-    emit finished(result);
 }
 
 } // namespace Internal

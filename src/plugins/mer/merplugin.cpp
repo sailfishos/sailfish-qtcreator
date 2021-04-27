@@ -292,10 +292,11 @@ IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
             }
         }
     }
-    if(m_stopList.isEmpty())
-        return SynchronousShutdown;
-    else
-        return AsynchronousShutdown;
+
+    if (m_stopList.isEmpty())
+        onStopListEmpty();
+
+    return AsynchronousShutdown;
 }
 
 void MerPlugin::saveSettings()
@@ -356,42 +357,23 @@ void MerPlugin::handlePromptClosed(int result)
 
     if (result == QMessageBox::Yes) {
         VirtualMachine *virtualMachine = m_stopList.value(vm);
-        connect(virtualMachine, &VirtualMachine::stateChanged,
-                this, &MerPlugin::handleConnectionStateChanged);
-        connect(virtualMachine, &VirtualMachine::lockDownFailed,
-                this, &MerPlugin::handleLockDownFailed);
-        virtualMachine->lockDown(true);
+        virtualMachine->lockDown(true, this, [=](bool ok) {
+            Q_UNUSED(ok);
+            m_stopList.remove(virtualMachine->name());
+            if (m_stopList.isEmpty())
+                onStopListEmpty();
+        });
     } else {
         m_stopList.remove(vm);
     }
 
-    if(m_stopList.isEmpty()) {
-        emit asynchronousShutdownFinished();
-    }
+    if (m_stopList.isEmpty())
+        onStopListEmpty();
 }
 
-void MerPlugin::handleConnectionStateChanged()
+void MerPlugin::onStopListEmpty()
 {
-    VirtualMachine *virtualMachine = qobject_cast<VirtualMachine *>(sender());
-
-    if (virtualMachine->state() == VirtualMachine::Disconnected) {
-        m_stopList.remove(virtualMachine->name());
-
-        if (m_stopList.isEmpty()) {
-            emit asynchronousShutdownFinished();
-        }
-    }
-}
-
-void MerPlugin::handleLockDownFailed()
-{
-    VirtualMachine *virtualMachine = qobject_cast<VirtualMachine *>(sender());
-
-    m_stopList.remove(virtualMachine->name());
-
-    if (m_stopList.isEmpty()) {
-        emit asynchronousShutdownFinished();
-    }
+    dd->sdk.shutDown(this, [=]() { emit asynchronousShutdownFinished(); });
 }
 
 void MerPlugin::addInfoOnBuildEngineEnvironment(QVBoxLayout *vbox)

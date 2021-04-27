@@ -132,6 +132,8 @@ VirtualMachine::VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, cons
     d->connectionUi_ = s_connectionUiCreator(this);
     d->connection = std::make_unique<VmConnection>(this);
     connect(d->connection.get(), &VmConnection::stateChanged, this, &VirtualMachine::stateChanged);
+    connect(d->connection.get(), &VmConnection::stateChangePendingChanged,
+            this, &VirtualMachine::stateChangePendingChanged);
     connect(d->connection.get(), &VmConnection::virtualMachineOffChanged,
             this, &VirtualMachine::virtualMachineOffChanged);
     connect(d->connection.get(), &VmConnection::lockDownFailed, this, &VirtualMachine::lockDownFailed);
@@ -178,6 +180,11 @@ QString VirtualMachine::name() const
 VirtualMachine::State VirtualMachine::state() const
 {
     return d_func()->connection->state();
+}
+
+bool VirtualMachine::isStateChangePending() const
+{
+    return d_func()->connection->isStateChangePending();
 }
 
 QString VirtualMachine::errorString() const
@@ -240,9 +247,12 @@ bool VirtualMachine::isOff(bool *runningHeadless, bool *startedOutside) const
     return d_func()->connection->isVirtualMachineOff(runningHeadless, startedOutside);
 }
 
-bool VirtualMachine::lockDown(bool lockDown)
+void VirtualMachine::lockDown(bool lockDown, const QObject *context, const Functor<bool> &functor)
 {
-    return d_func()->connection->lockDown(lockDown);
+    if (lockDown)
+        d_func()->connection->lockDown(context, functor);
+    else
+        d_func()->connection->release(context, functor);
 }
 
 bool VirtualMachine::isLockedDown() const
@@ -261,8 +271,10 @@ void VirtualMachine::setMemorySizeMb(int memorySizeMb, const QObject *context,
         const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
-    QTC_ASSERT(d->features & LimitMemorySize,
-               QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_ASSERT(d->features & LimitMemorySize, {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
     QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
@@ -302,8 +314,10 @@ void VirtualMachine::setSwapSizeMb(int swapSizeMb, const QObject *context,
         const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
-    QTC_ASSERT(d->features & SwapMemory,
-               QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_ASSERT(d->features & SwapMemory, {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
     QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
@@ -328,8 +342,10 @@ int VirtualMachine::cpuCount() const
 void VirtualMachine::setCpuCount(int cpuCount, const QObject *context, const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
-    QTC_ASSERT(d->features & LimitCpuCount,
-               QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_ASSERT(d->features & LimitCpuCount, {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
     QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
@@ -360,12 +376,18 @@ void VirtualMachine::setStorageSizeMb(int storageSizeMb, const QObject *context,
         const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
-    QTC_ASSERT(d->features & (GrowStorageSize | ShrinkStorageSize),
-            QTimer::singleShot(0, context, std::bind(functor, false)); return);
-    QTC_ASSERT(!(storageSizeMb > d->virtualMachineInfo.storageSizeMb) || d->features & GrowStorageSize,
-            QTimer::singleShot(0, context, std::bind(functor, false)); return);
-    QTC_ASSERT(!(storageSizeMb < d->virtualMachineInfo.storageSizeMb) || d->features & ShrinkStorageSize,
-            QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_ASSERT(d->features & (GrowStorageSize | ShrinkStorageSize), {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
+    QTC_ASSERT(!(storageSizeMb > d->virtualMachineInfo.storageSizeMb) || d->features & GrowStorageSize, {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
+    QTC_ASSERT(!(storageSizeMb < d->virtualMachineInfo.storageSizeMb) || d->features & ShrinkStorageSize, {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
     QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
@@ -450,8 +472,10 @@ void VirtualMachine::takeSnapshot(const QString &snapshotName, const QObject *co
         const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
-    QTC_ASSERT(d->features & Snapshots,
-               QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_ASSERT(d->features & Snapshots, {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
     QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
@@ -470,9 +494,13 @@ void VirtualMachine::restoreSnapshot(const QString &snapshotName, const QObject 
         const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
-    QTC_ASSERT(d->features & Snapshots,
-               QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_ASSERT(d->features & Snapshots, {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
     QTC_CHECK(isLockedDown());
+
+    BatchComposer composer = BatchComposer::createBatch("VirtualMachine::restoreSnapshot");
 
     auto allOk = std::make_shared<bool>(true);
 
@@ -488,15 +516,17 @@ void VirtualMachine::restoreSnapshot(const QString &snapshotName, const QObject 
 
     emit d->aboutToRestoreSnapshot(allOk);
 
-    SdkPrivate::commandQueue()->enqueueCheckPoint(context, [=]() { functor(*allOk); });
+    BatchComposer::enqueueCheckPoint(context, [=]() { functor(*allOk); });
 }
 
 void VirtualMachine::removeSnapshot(const QString &snapshotName, const QObject *context,
         const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
-    QTC_ASSERT(d->features & Snapshots,
-               QTimer::singleShot(0, context, std::bind(functor, false)); return);
+    QTC_ASSERT(d->features & Snapshots, {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
     QTC_CHECK(isLockedDown());
 
     const QPointer<const QObject> context_{context};
@@ -514,6 +544,8 @@ void VirtualMachine::removeSnapshot(const QString &snapshotName, const QObject *
 void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<bool> &functor)
 {
     Q_D(VirtualMachine);
+
+    BatchComposer composer = BatchComposer::createBatch("VirtualMachine::refreshConfiguration");
 
     const QPointer<const QObject> context_{context};
 
@@ -552,7 +584,7 @@ void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<
     if (SdkPrivate::useCachedVmInfo()) {
         Utils::optional<VirtualMachineInfo> info = VirtualMachineInfoCache::info(uri());
         if (info) {
-            SdkPrivate::commandQueue()->enqueueCheckPoint(this, [=]() {
+            BatchComposer::enqueueCheckPoint(this, [=]() {
                 refresh(*info, true);
             });
             return;
@@ -567,19 +599,20 @@ void VirtualMachine::refreshConfiguration(const QObject *context, const Functor<
     });
 }
 
-void VirtualMachine::refreshState(Sfdk::VirtualMachine::Synchronization synchronization)
+void VirtualMachine::refreshState(const QObject *context, const Functor<bool> &functor)
 {
-    d_func()->connection->refresh(synchronization);
+    d_func()->connection->refresh(context, functor);
 }
 
-bool VirtualMachine::connectTo(Sfdk::VirtualMachine::ConnectOptions options)
+void VirtualMachine::connectTo(ConnectOptions options, const QObject *context,
+        const Functor<bool> &functor)
 {
-    return d_func()->connection->connectTo(options);
+    d_func()->connection->connectTo(options, context, functor);
 }
 
-void VirtualMachine::disconnectFrom()
+void VirtualMachine::disconnectFrom(const QObject *context, const Functor<bool> &functor)
 {
-    d_func()->connection->disconnectFrom();
+    d_func()->connection->disconnectFrom(context, functor);
 }
 
 /*!
@@ -742,10 +775,8 @@ void VirtualMachinePrivate::enableUpdates()
         // BuildEngine or Emulator classes.
         qCDebug(vms) << "VM info cache updated. Refreshing configuration of" << q->uri().toString();
 
-        // FIXME Not ideal
-        bool ok;
-        execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::refreshConfiguration), q);
-        QTC_CHECK(ok);
+        // TODO Is that ideal?
+        q->refreshConfiguration(q, [](bool ok) { QTC_CHECK(ok); });
     });
 }
 
@@ -772,6 +803,8 @@ VirtualMachineFactory::~VirtualMachineFactory()
 void VirtualMachineFactory::unusedVirtualMachines(const QObject *context,
         const Functor<const QList<VirtualMachineDescriptor> &, bool> &functor)
 {
+    BatchComposer composer = BatchComposer::createBatch("VirtualMachineFactory::unusedVirtualMachines");
+
     const QPointer<const QObject> context_{context};
     auto descriptors = std::make_shared<QList<VirtualMachineDescriptor>>();
     auto allOk = std::make_shared<bool>(true);
@@ -796,7 +829,7 @@ void VirtualMachineFactory::unusedVirtualMachines(const QObject *context,
         });
     }
 
-    SdkPrivate::commandQueue()->enqueueCheckPoint(s_instance, [=]() {
+    BatchComposer::enqueueCheckPoint(s_instance, [=]() {
         if (!context_)
             return;
         if (allOk)
@@ -993,6 +1026,9 @@ void VirtualMachineInfoCache::enableUpdates()
 
     m_watcher = std::make_unique<FileSystemWatcher>(this);
     m_watcher->addFile(cacheFilePath.toString(), FileSystemWatcher::WatchModifiedDate);
+    connect(Sdk::instance(), &Sdk::aboutToShutDown, this, [=]() {
+        m_watcher.reset();
+    });
     connect(m_watcher.get(), &FileSystemWatcher::fileChanged, this, [this]() {
         m_updateTimer.start(VM_INFO_CACHE_UPDATE_DELAY_MS, this);
     });

@@ -25,6 +25,8 @@
 
 #include "asynchronous.h"
 
+#include "sdk_p.h"
+
 #include <QBasicTimer>
 #include <QList>
 #include <QObject>
@@ -32,6 +34,7 @@
 
 #include <deque>
 #include <memory>
+#include <stack>
 
 namespace Sfdk {
 
@@ -42,25 +45,19 @@ class CommandRunner : public QObject
 public:
     using QObject::QObject;
 
-    virtual void run() = 0;
+    void run();
 
     virtual QDebug print(QDebug debug) const = 0;
 
-    static bool isPostprocessing() { return s_postprocessing; }
-
-public slots:
-    virtual void terminate() = 0;
-
 protected:
+    virtual void doRun() = 0;
     void emitDone(bool ok);
 
 signals:
+    void started(QPrivateSignal);
     void success(QPrivateSignal);
     void failure(QPrivateSignal);
     void done(bool ok, QPrivateSignal);
-
-private:
-    static bool s_postprocessing;
 };
 
 inline QDebug operator<<(QDebug debug, const CommandRunner *runner)
@@ -74,40 +71,99 @@ class CommandQueue : public QObject
     Q_OBJECT
 
 public:
-    using BatchId = int;
-
-    using QObject::QObject;
+    CommandQueue(const QString &name, int depth, QObject *parent = nullptr);
     ~CommandQueue() override;
 
-    void wait();
+    QString name() const { return m_name; }
+    int depth() const { return m_depth; }
 
-    BatchId beginBatch();
-    void endBatch();
-    void cancelBatch(BatchId batchId);
+    void run();
+    bool isEmpty() const;
+    void cancel();
+
     void enqueue(std::unique_ptr<CommandRunner> &&runner);
-    void enqueueImmediate(std::unique_ptr<CommandRunner> &&runner);
     void enqueueCheckPoint(const QObject *context, const Functor<> &functor);
-    void enqueueImmediateCheckPoint(const QObject *context, const Functor<> &functor);
 
 signals:
     void empty();
+    void failure();
 
 protected:
     void timerEvent(QTimerEvent *event) override;
 
 private:
+    QString printIndent() const;
     void scheduleDequeue();
     void dequeue();
 
 private slots:
-    void finalize();
+    void finalize(bool ok);
 
 private:
-    std::deque<std::pair<BatchId, std::unique_ptr<CommandRunner>>> m_queue;
-    BatchId m_lastBatchId = 0;
-    BatchId m_currentBatchId = -1;
+    const QString m_name;
+    const int m_depth = 0;
+    std::deque<std::unique_ptr<CommandRunner>> m_queue;
+    bool m_running = false;
     std::unique_ptr<CommandRunner> m_current;
     QBasicTimer m_dequeueTimer;
+};
+
+class BatchRunner : public CommandRunner
+{
+    Q_OBJECT
+
+public:
+    BatchRunner(const QString &name, int depth, QObject *parent = nullptr);
+    ~BatchRunner() override;
+
+    CommandQueue *queue() const { return m_queue.get(); }
+
+    void setAutoFinish(bool autoFinish) { m_autoFinish = autoFinish; }
+    void setPropagateFailure(bool propagateFailure) { m_propagateFailure = propagateFailure; }
+
+    void finish(bool ok);
+
+    QDebug print(QDebug debug) const override;
+
+protected:
+    void doRun() override;
+
+private slots:
+    void onEmpty();
+    void onFailure();
+
+private:
+    const std::unique_ptr<CommandQueue> m_queue;
+    bool m_autoFinish = true;
+    bool m_propagateFailure = false;
+};
+
+class BatchComposer
+{
+public:
+    BatchComposer(BatchComposer &&other) = default;
+    ~BatchComposer();
+
+    Q_REQUIRED_RESULT static BatchComposer createBatch(const QString &batchName);
+    Q_REQUIRED_RESULT static BatchComposer extendBatch(BatchRunner *batch);
+
+    BatchRunner *batch() const { return m_batch; }
+
+    static void enqueue(std::unique_ptr<CommandRunner> &&runner);
+    static void enqueueCheckPoint(const QObject *context, const Functor<> &functor);
+
+    template<typename Runner, typename... Args>
+    static Runner *enqueue(Args &&...args);
+
+private:
+    explicit BatchComposer(BatchRunner *batch);
+    Q_DISABLE_COPY(BatchComposer)
+
+    static CommandQueue *top();
+
+private:
+    static std::stack<BatchRunner *> s_stack;
+    const QPointer<BatchRunner> m_batch;
 };
 
 class ProcessRunner : public CommandRunner
@@ -126,15 +182,10 @@ public:
         m_expectedExitCodes = expectedExitCodes;
     }
 
-    void run() override;
-
     QDebug print(QDebug debug) const override;
 
-public slots:
-    void terminate() override;
-
 protected:
-    void timerEvent(QTimerEvent *event) override;
+    void doRun() override;
 
 private slots:
     void onErrorOccured(QProcess::ProcessError error);
@@ -144,7 +195,15 @@ private:
     const std::unique_ptr<QProcess> m_process;
     QList<int> m_expectedExitCodes = {0};
     bool m_crashExpected = false;
-    QBasicTimer m_terminateTimeoutTimer;
 };
+
+template<typename Runner, typename... Args>
+Runner *BatchComposer::enqueue(Args &&...args)
+{
+    auto runner = std::make_unique<Runner>(std::forward<Args>(args)...);
+    Runner *const runner_ = runner.get();
+    enqueue(std::move(runner));
+    return runner_;
+}
 
 } // namespace Sfdk

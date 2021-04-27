@@ -656,11 +656,7 @@ void EmulatorManager::createEmulator(const QUrl &virtualMachineUri, const QObjec
 
     auto emulator_d = EmulatorPrivate::get(emulator->get());
     if (!emulator_d->initVirtualMachine(virtualMachineUri)) {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 12, 0) // just guessing, not sure when it was fixed
-        QTimer::singleShot(0, context, std::bind(functor, nullptr));
-#else
-        QTimer::singleShot(0, const_cast<QObject *>(context), std::bind(functor, nullptr));
-#endif
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, nullptr));
         return;
     }
     emulator_d->updateVmProperties(context, [=](bool ok) {
@@ -965,6 +961,8 @@ void EmulatorManager::saveSettings(QStringList *errorStrings) const
 
 void EmulatorManager::fixDeviceModelsInUse(const QObject *context, const Functor<bool> &functor)
 {
+    BatchComposer composer = BatchComposer::createBatch("EmulatorManager::fixDeviceModelsInUse");
+
     auto allOk = std::make_shared<bool>(true);
 
     for (const std::unique_ptr<Emulator> &emulator : qAsConst(m_emulators)) {
@@ -982,7 +980,7 @@ void EmulatorManager::fixDeviceModelsInUse(const QObject *context, const Functor
             *allOk &= ok;
         });
     }
-    SdkPrivate::commandQueue()->enqueueCheckPoint(context, [=]() { functor(*allOk); });
+    BatchComposer::enqueueCheckPoint(context, [=]() { functor(*allOk); });
 }
 
 FilePath EmulatorManager::systemSettingsFile()

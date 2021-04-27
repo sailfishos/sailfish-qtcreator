@@ -109,11 +109,6 @@ private:
     }
 };
 
-CommandQueue *commandQueue()
-{
-    return Sfdk::SdkPrivate::commandQueue();
-}
-
 } // namespace anonymous
 
 /*!
@@ -134,9 +129,8 @@ void SigningUtils::listSecretKeys(const QObject *context,
     arguments.append("--with-colons");
     arguments.append("--list-secret-keys");
 
-    auto runner = std::make_unique<GpgRunner>(arguments);
-
-    QObject::connect(runner.get(), &GpgRunner::done, context, [=, process = runner->process()](bool ok) {
+    auto *runner = BatchComposer::enqueue<GpgRunner>(arguments);
+    QObject::connect(runner, &GpgRunner::done, context, [=, process = runner->process()](bool ok) {
         if (!ok) {
             functor(false, {}, QString::fromUtf8(process->readAllStandardError()));
             return;
@@ -145,26 +139,28 @@ void SigningUtils::listSecretKeys(const QObject *context,
             QString::fromUtf8(process->readAllStandardOutput().trimmed()));
         functor(true, keysInfo, {});
      });
-    commandQueue()->enqueue(std::move(runner));
 }
 
 void SigningUtils::exportSecretKey(const QString &id, const Utils::FilePath &passphraseFile,
         const Utils::FilePath &outputDir, const QObject *context, const Functor<bool, QString> &functor)
 {
-    const QPointer<const QObject> context_{context};
+    QTC_ASSERT(!id.isEmpty(), {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false, QString()));
+        return;
+    });
 
-    QTC_ASSERT(!id.isEmpty(),
-            QTimer::singleShot(0, context, std::bind(functor, false, QString()));
-            return);
+    BatchComposer composer = BatchComposer::createBatch("SigningUtils::exportSecretKey");
+
     if (!passphraseFile.isEmpty() && !passphraseFile.exists()) {
-        QTimer::singleShot(0, context, std::bind(
+        BatchComposer::enqueueCheckPoint(context, std::bind(
                 functor, false,
                 tr("Passphrase file set but doesn't exit")));
         return;
     }
 
-    verifyPassphrase(id, passphraseFile.toString(), Sdk::instance(), [=](bool passphraseValid,
-            const QString &errorString) {
+    const QPointer<const QObject> context_{context};
+    verifyPassphrase(id, passphraseFile.toString(), Sdk::instance(),
+            [=, batch = composer.batch()](bool passphraseValid, const QString &errorString) {
         if (!passphraseValid) {
             callIf(context_, functor, false, errorString);
             return;
@@ -177,6 +173,8 @@ void SigningUtils::exportSecretKey(const QString &id, const Utils::FilePath &pas
                 return;
             }
         }
+
+        BatchComposer composer = BatchComposer::extendBatch(batch);
 
         const QString keyFilePath = outputDir.pathAppended(id + SIGNING_KEY_EXTENSION).toString();
 
@@ -195,8 +193,8 @@ void SigningUtils::exportSecretKey(const QString &id, const Utils::FilePath &pas
         arguments.append("--export-secret-keys");
         arguments.append(id);
 
-        auto runner = std::make_unique<GpgRunner>(arguments);
-        QObject::connect(runner.get(), &GpgRunner::done, context, [=, process = runner->process()](bool ok) {
+        auto *runner = BatchComposer::enqueue<GpgRunner>(arguments);
+        QObject::connect(runner, &GpgRunner::done, context, [=, process = runner->process()](bool ok) {
              if (!ok) {
                  callIf(context_, functor, false, tr("Failed to export secret \"%1\" key: %2")
                          .arg(id)
@@ -206,16 +204,17 @@ void SigningUtils::exportSecretKey(const QString &id, const Utils::FilePath &pas
 
              callIf(context_, functor, true, QString());
         });
-        commandQueue()->enqueueImmediate(std::move(runner));
     });
 }
 
 void SigningUtils::exportPublicKey(const QString &id, const QObject *context,
         const Functor<bool, const QByteArray &, QString> &functor)
 {
-    QTC_ASSERT(!id.isEmpty(),
-            QTimer::singleShot(0, context, std::bind(functor, false, QByteArray(), QString()));
-            return);
+    QTC_ASSERT(!id.isEmpty(), {
+        BatchComposer::enqueueCheckPoint(context,
+                std::bind(functor, false, QByteArray(), QString()));
+        return;
+    });
 
     QStringList arguments;
     arguments.append("--batch");
@@ -223,9 +222,8 @@ void SigningUtils::exportPublicKey(const QString &id, const QObject *context,
     arguments.append("--export");
     arguments.append(id);
 
-    auto runner = std::make_unique<GpgRunner>(arguments);
-
-    QObject::connect(runner.get(), &GpgRunner::done, context,
+    auto *runner = BatchComposer::enqueue<GpgRunner>(arguments);
+    QObject::connect(runner, &GpgRunner::done, context,
             [id, functor, process = runner->process()](bool ok) {
         if (!ok) {
             functor(false, {}, tr("Failed to export public key for \"%1\": %2")
@@ -234,7 +232,6 @@ void SigningUtils::exportPublicKey(const QString &id, const QObject *context,
         }
         functor(true, process->readAllStandardOutput(), {});
     });
-    commandQueue()->enqueue(std::move(runner));
 }
 
 bool SigningUtils::isGpgAvailable(QString *errorString)
@@ -295,11 +292,11 @@ void SigningUtils::verifyPassphrase(const QString &id, const QString &passphrase
 
     arguments.append("/dev/null");
 
-    auto runner = std::make_unique<GpgRunner>(arguments);
+    auto *runner = BatchComposer::enqueue<GpgRunner>(arguments);
     runner->setExpectedExitCodes({});
     runner->process()->setProcessChannelMode(QProcess::SeparateChannels); // be quiet
 
-    QObject::connect(runner.get(), &GpgRunner::done, context,
+    QObject::connect(runner, &GpgRunner::done, context,
             [passphraseFile, functor, process = runner->process()](bool ok) {
         if (!ok) {
             functor(false, tr("Internal error")); // crashed
@@ -318,7 +315,6 @@ void SigningUtils::verifyPassphrase(const QString &id, const QString &passphrase
         }
         functor(true, {});
     });
-    commandQueue()->enqueue(std::move(runner));
 }
 
 } // namespace Sfdk

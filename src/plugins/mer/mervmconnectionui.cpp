@@ -49,16 +49,6 @@ const int DISMISS_MESSAGE_BOX_DELAY = 2000;
 void MerVmConnectionUi::warn(Warning which)
 {
     switch (which) {
-    case AlreadyConnecting:
-        openWarningBox(tr("Already Connecting to Virtual Machine"),
-                tr("Already connecting to the \"%1\" virtual machine - please repeat later."))
-            ->setAttribute(Qt::WA_DeleteOnClose);
-        break;
-    case AlreadyDisconnecting:
-        openWarningBox(tr("Already Disconnecting from Virtual Machine"),
-                tr("Already disconnecting from the \"%1\" virtual machine - please repeat later."))
-            ->setAttribute(Qt::WA_DeleteOnClose);
-        break;
     case UnableToCloseVm:
         QTC_CHECK(!m_unableToCloseVmWarningBox);
         m_unableToCloseVmWarningBox = openWarningBox(
@@ -73,9 +63,8 @@ void MerVmConnectionUi::warn(Warning which)
     case SshPortOccupied:
         openWarningBox(tr("Conflicting SSH Port Configuration"),
                 tr("Another application seems to be listening on the TCP port %1 configured as "
-                   "SSH port for the \"%2\" virtual machine - choose another SSH port in options.")
-                .arg(virtualMachine()->sshParameters().port())
-                .arg(virtualMachine()->name()))
+                   "SSH port for the \"%%1\" virtual machine - choose another SSH port in options.")
+                .arg(virtualMachine()->sshParameters().port()))
             ->setAttribute(Qt::WA_DeleteOnClose);
         break;
     }
@@ -200,6 +189,12 @@ VirtualMachine::ConnectionUi::QuestionStatus MerVmConnectionUi::status(Question 
 
     QTC_CHECK(false);
     return NotAsked;
+}
+
+void MerVmConnectionUi::informStateChangePending()
+{
+    QMessageBox::information(ICore::dialogParent(), tr("Request Pending"),
+            tr("Another request pending. Try later."));
 }
 
 QMessageBox *MerVmConnectionUi::openWarningBox(const QString &title, const QString &text)

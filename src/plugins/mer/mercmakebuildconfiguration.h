@@ -42,7 +42,7 @@ public:
     void doInitialize(const ProjectExplorer::BuildInfo &info) override;
 
 private:
-    void startBuildEngine();
+    void ensureBuildEngineRuns();
 };
 
 class MerCMakeBuildConfigurationFactory : public CMakeProjectManager::Internal::CMakeBuildConfigurationFactory

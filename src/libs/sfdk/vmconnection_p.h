@@ -25,6 +25,8 @@
 
 #include "sfdkglobal.h"
 
+#include "asynchronous_p.h"
+
 #include "virtualmachine.h"
 
 #include <ssh/sshconnection.h>
@@ -73,19 +75,23 @@ public:
     VirtualMachine *virtualMachine() const;
 
     VirtualMachine::State state() const;
+    bool isStateChangePending() const;
     QString errorString() const;
 
     bool isVirtualMachineOff(bool *runningHeadless = 0, bool *startedOutside = 0) const;
-    bool lockDown(bool lockDown);
+    void lockDown(const QObject *context, const Functor<bool> &functor);
+    void release(const QObject *context, const Functor<bool> &functor);
+    // FIXME unsafe. Maybe add a version of lockDown(false) that does not fail when unlocked
     bool isLockedDown() const;
 
-public slots:
-    void refresh(Sfdk::VirtualMachine::Synchronization synchronization = VirtualMachine::Asynchronous);
-    bool connectTo(Sfdk::VirtualMachine::ConnectOptions options = VirtualMachine::NoConnectOption);
-    void disconnectFrom();
+    void refresh(const QObject *context, const Functor<bool> &functor);
+    void connectTo(VirtualMachine::ConnectOptions options, const QObject *context,
+        const Functor<bool> &functor);
+    void disconnectFrom(const QObject *context, const Functor<bool> &functor);
 
 signals:
     void stateChanged();
+    void stateChangePendingChanged(bool pending);
     void virtualMachineChanged();
     void virtualMachineOffChanged(bool vmOff);
     void lockDownFailed();
@@ -112,9 +118,11 @@ private:
 
     void createConnection();
     void vmWantFastPollState(bool want);
-    void vmPollState(VirtualMachine::Synchronization synchronization);
-    void waitForVmPollStateFinish();
+    void vmPollState(const QObject *context = nullptr, const Functor<bool> &functor = {});
     void sshTryConnect();
+
+    BatchComposer batchComposer() const;
+    void addPendingStateChange(BatchRunner *batch);
 
     static const char *str(VirtualMachine::State state);
     static const char *str(VmState vmState);
@@ -135,14 +143,17 @@ private slots:
     void onSshErrorOccured();
     void onWaitForSystemRunningProcessFinished();
     void onRemoteShutdownProcessFinished();
+    void onAboutToShutDown();
 
 private:
     const QPointer<VirtualMachine> m_vm;
     QPointer<QSsh::SshConnection> m_connection;
     QSsh::SshConnectionParameters m_lastConnectionParameters;
+    QPointer<BatchRunner> m_batch;
 
     // state
     VirtualMachine::State m_state;
+    int m_pendingStateChangesCount;
     QString m_errorString;
     VmState m_vmState;
     QElapsedTimer m_vmStateEntryTimer;
@@ -156,7 +167,6 @@ private:
     // state machine inputs (notice the difference in handling
     // m_lockDownRequested compared to m_{dis,}connectRequested!)
     bool m_lockDownRequested;
-    bool m_lockDownFailed;
     bool m_connectRequested;
     bool m_disconnectRequested;
     bool m_connectLaterRequested;

@@ -31,7 +31,8 @@
 namespace Sfdk {
 
 namespace {
-const int TERMINATE_TIMEOUT_MS = 3000;
+
+const int INDENT_WIDTH = 4;
 
 class CheckPointRunner : public CommandRunner
 {
@@ -45,7 +46,7 @@ public:
     {
     }
 
-    void run() override
+    void doRun() override
     {
         QTimer::singleShot(0, this, [=]() {
             if (m_context)
@@ -56,12 +57,8 @@ public:
 
     QDebug print(QDebug debug) const override
     {
+        debug << "CHECK POINT";
         return debug;
-    }
-
-public slots:
-    void terminate() override
-    {
     }
 
 private:
@@ -76,21 +73,20 @@ private:
  * \internal
  */
 
-bool CommandRunner::s_postprocessing = false;
+void CommandRunner::run()
+{
+    doRun();
+    emit started(QPrivateSignal());
+}
 
 void CommandRunner::emitDone(bool ok)
 {
-    QTC_CHECK(!s_postprocessing);
-    s_postprocessing = true;
-
     if (ok)
         emit success(QPrivateSignal());
     else
         emit failure(QPrivateSignal());
 
     emit done(ok, QPrivateSignal());
-
-    s_postprocessing = false;
 }
 
 /*!
@@ -98,57 +94,48 @@ void CommandRunner::emitDone(bool ok)
  * \internal
  */
 
+CommandQueue::CommandQueue(const QString &name, int depth, QObject *parent)
+    : QObject(parent)
+    , m_name(name)
+    , m_depth(depth)
+{
+}
+
 CommandQueue::~CommandQueue()
 {
     QTC_CHECK(m_queue.empty());
+    QTC_CHECK(!m_current);
 }
 
-void CommandQueue::wait()
+void CommandQueue::run()
 {
-    if (!m_queue.empty()) {
-        QEventLoop loop;
-        connect(this, &CommandQueue::empty, &loop, &QEventLoop::quit);
-        loop.exec();
-    }
+    m_running = true;
+    scheduleDequeue();
 }
 
-CommandQueue::BatchId CommandQueue::beginBatch()
+bool CommandQueue::isEmpty() const
 {
-    m_lastBatchId++;
-    if (m_lastBatchId < 0)
-        m_lastBatchId = 1;
-    m_currentBatchId = m_lastBatchId;
-    return m_currentBatchId;
+    return m_queue.empty() && !m_current;
 }
 
-void CommandQueue::endBatch()
+void CommandQueue::cancel()
 {
-    m_currentBatchId = -1;
-}
-
-void CommandQueue::cancelBatch(BatchId batchId)
-{
-    while (!m_queue.empty() && m_queue.front().first == batchId) {
-        CommandRunner *runner = m_queue.front().second.get();
-        qCDebug(vmsQueue) << "Canceled" << runner;
+    if (m_queue.empty())
+        return;
+    while (!m_queue.empty()) {
+        CommandRunner *runner = m_queue.front().get();
+        qCDebug(queue) << "Canceled" << qPrintable(printIndent()) << runner;
         m_queue.pop_front();
     }
+    if (!m_current)
+        emit empty();
 }
 
 void CommandQueue::enqueue(std::unique_ptr<CommandRunner> &&runner)
 {
     QTC_ASSERT(runner, return);
-    QTC_CHECK(!CommandRunner::isPostprocessing()); // use enqueueImmediate for postprocessing!
-    qCDebug(vmsQueue) << "Enqueued" << runner.get();
-    m_queue.emplace_back(m_currentBatchId, std::move(runner));
-    scheduleDequeue();
-}
-
-void CommandQueue::enqueueImmediate(std::unique_ptr<CommandRunner> &&runner)
-{
-    QTC_ASSERT(runner, return);
-    qCDebug(vmsQueue) << "Enqueued (immediate)" << runner.get();
-    m_queue.emplace_front(m_currentBatchId, std::move(runner));
+    qCDebug(queue) << "Enqueued" << qPrintable(printIndent()) << runner.get();
+    m_queue.emplace_back(std::move(runner));
     scheduleDequeue();
 }
 
@@ -156,21 +143,7 @@ void CommandQueue::enqueueCheckPoint(const QObject *context, const Functor<> &fu
 {
     QTC_ASSERT(context, return);
     QTC_ASSERT(functor, return);
-    QTC_CHECK(!CommandRunner::isPostprocessing()); // use enqueueImmediateCheckPoint for postprocessing!
-    auto runner = std::make_unique<CheckPointRunner>(context, functor, this);
-    qCDebug(vmsQueue) << "Enqueued check point" << runner.get();
-    m_queue.emplace_back(m_currentBatchId, std::move(runner));
-    scheduleDequeue();
-}
-
-void CommandQueue::enqueueImmediateCheckPoint(const QObject *context, const Functor<> &functor)
-{
-    QTC_ASSERT(context, return);
-    QTC_ASSERT(functor, return);
-    auto runner = std::make_unique<CheckPointRunner>(context, functor, this);
-    qCDebug(vmsQueue) << "Enqueued check point (immediate)" << runner.get();
-    m_queue.emplace_front(m_currentBatchId, std::move(runner));
-    scheduleDequeue();
+    enqueue(std::make_unique<CheckPointRunner>(context, functor));
 }
 
 void CommandQueue::timerEvent(QTimerEvent *event)
@@ -183,8 +156,15 @@ void CommandQueue::timerEvent(QTimerEvent *event)
     }
 }
 
+QString CommandQueue::printIndent() const
+{
+    return QString(m_depth * INDENT_WIDTH, ' ');
+}
+
 void CommandQueue::scheduleDequeue()
 {
+    if (!m_running)
+        return;
     m_dequeueTimer.start(0, this);
 }
 
@@ -192,15 +172,13 @@ void CommandQueue::dequeue()
 {
     if (m_current)
         return;
-    if (m_queue.empty()) {
-        emit empty();
+    if (m_queue.empty())
         return;
-    }
 
-    m_current = std::move(m_queue.front().second);
+    m_current = std::move(m_queue.front());
     m_queue.pop_front();
 
-    qCDebug(vmsQueue) << "Dequeued" << m_current.get();
+    qCDebug(queue) << "Dequeued" << qPrintable(printIndent()) << m_current.get();
 
     connect(m_current.get(), &CommandRunner::done,
             this, &CommandQueue::finalize);
@@ -208,16 +186,125 @@ void CommandQueue::dequeue()
     m_current->run();
 }
 
-void CommandQueue::finalize()
+void CommandQueue::finalize(bool ok)
 {
     QTC_ASSERT(sender() == m_current.get(), return);
-    qCDebug(vmsQueue) << "Finished" << m_current.get();
+    qCDebug(queue) << "Finished" << qPrintable(printIndent()) << m_current.get();
 
     m_current->disconnect(this);
     m_current->deleteLater();
     m_current.release();
 
+    if (!ok)
+        failure();
+
+    if (m_queue.empty())
+        emit empty();
+
     scheduleDequeue();
+}
+
+/*!
+ * \class BatchRunner
+ * \internal
+ */
+
+BatchRunner::BatchRunner(const QString &name, int depth, QObject *parent)
+    : CommandRunner(parent)
+    , m_queue(std::make_unique<CommandQueue>(name, depth, this))
+{
+    connect(m_queue.get(), &CommandQueue::empty, this, &BatchRunner::onEmpty);
+    connect(m_queue.get(), &CommandQueue::failure, this, &BatchRunner::onFailure);
+}
+
+BatchRunner::~BatchRunner()
+{
+    QTC_CHECK(m_queue->isEmpty());
+}
+
+void BatchRunner::doRun()
+{
+    m_queue->run();
+}
+
+void BatchRunner::finish(bool ok)
+{
+    QTC_ASSERT(m_queue->isEmpty(), m_queue->cancel());
+    emitDone(ok);
+}
+
+QDebug BatchRunner::print(QDebug debug) const
+{
+    QDebugStateSaver saver(debug);
+    debug.nospace().noquote() << '[' << m_queue->name() << ']';
+    return debug;
+}
+
+void BatchRunner::onEmpty()
+{
+    if (m_autoFinish)
+        finish(true);
+}
+
+void BatchRunner::onFailure()
+{
+    if (m_propagateFailure) {
+        m_queue->cancel();
+        finish(false);
+    }
+}
+
+/*!
+ * \class BatchComposer
+ * \internal
+ */
+
+std::stack<BatchRunner *> BatchComposer::s_stack;
+
+BatchComposer::BatchComposer(BatchRunner *batch)
+    : m_batch(batch)
+{
+    s_stack.push(m_batch);
+}
+
+BatchComposer BatchComposer::createBatch(const QString &batchName)
+{
+    auto batch = std::make_unique<BatchRunner>(batchName, top()->depth() + 1);
+    BatchRunner *const batch_ = batch.get();
+    top()->enqueue(std::move(batch));
+    return BatchComposer(batch_);
+}
+
+BatchComposer BatchComposer::extendBatch(BatchRunner *batch)
+{
+    const QString indent((batch->queue()->depth() - 1) * INDENT_WIDTH, ' ');
+    qCDebug(queue) << "Reopened" << qPrintable(indent) << batch;
+
+    return BatchComposer(batch);
+}
+
+BatchComposer::~BatchComposer()
+{
+    QTC_ASSERT(!s_stack.empty(), return);
+    QTC_ASSERT(s_stack.top() == m_batch, return);
+    s_stack.pop();
+}
+
+void BatchComposer::enqueue(std::unique_ptr<CommandRunner> &&runner)
+{
+    top()->enqueue(std::move(runner));
+}
+
+void BatchComposer::enqueueCheckPoint(const QObject *context, const Functor<> &functor)
+{
+    top()->enqueueCheckPoint(context, functor);
+}
+
+CommandQueue *BatchComposer::top()
+{
+    return s_stack.empty()
+        ? SdkPrivate::commandQueue()
+        : s_stack.top()->queue();
 }
 
 /*!
@@ -238,7 +325,7 @@ ProcessRunner::ProcessRunner(const QString &program, const QStringList &argument
             this, &ProcessRunner::onFinished);
 }
 
-void ProcessRunner::run()
+void ProcessRunner::doRun()
 {
     m_process->start(QIODevice::ReadWrite | QIODevice::Text);
 }
@@ -246,32 +333,7 @@ void ProcessRunner::run()
 QDebug ProcessRunner::print(QDebug debug) const
 {
     debug << m_process->program() << m_process->arguments();
-    return debug.maybeSpace();
-}
-
-void ProcessRunner::terminate()
-{
-    QTC_CHECK(m_process->state() != QProcess::Starting);
-    if (m_process->state() == QProcess::NotRunning)
-        return;
-
-    m_crashExpected = true;
-
-    m_process->terminate();
-    if (!m_terminateTimeoutTimer.isActive())
-        m_terminateTimeoutTimer.start(TERMINATE_TIMEOUT_MS, this);
-}
-
-void ProcessRunner::timerEvent(QTimerEvent *event)
-{
-    if (event->timerId() == m_terminateTimeoutTimer.timerId()) {
-        m_terminateTimeoutTimer.stop();
-        // Note that with VBoxManage on Windows it always ends here as
-        // terminate() has no effect on VBoxManage there.
-        m_process->kill();
-    } else {
-        QObject::timerEvent(event);
-    }
+    return debug;
 }
 
 void ProcessRunner::onErrorOccured(QProcess::ProcessError error)
@@ -284,15 +346,7 @@ void ProcessRunner::onErrorOccured(QProcess::ProcessError error)
 
 void ProcessRunner::onFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
-    m_terminateTimeoutTimer.stop();
-
     if (exitStatus != QProcess::NormalExit) {
-        if (m_crashExpected) {
-            qCDebug(vms) << "Process" << m_process->program() << " crashed as expected. Arguments:"
-                << m_process->arguments();
-            emitDone(true);
-            return;
-        }
         qCWarning(vms) << "Process" << m_process->program() << " crashed. Arguments:"
             << m_process->arguments();
         emitDone(false);

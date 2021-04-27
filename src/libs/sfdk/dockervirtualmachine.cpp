@@ -99,11 +99,6 @@ private:
     }
 };
 
-CommandQueue *commandQueue()
-{
-    return SdkPrivate::commandQueue();
-}
-
 } // namespace anonymous
 
 /*!
@@ -154,9 +149,8 @@ void DockerVirtualMachine::fetchRegisteredVirtualMachines(const QObject *context
     arguments.append("ls");
     arguments.append("--format={{.Repository}}");
 
-    auto runner = std::make_unique<DockerRunner>(arguments);
-    QObject::connect(runner.get(), &DockerRunner::done,
-            context, [=, runner = runner.get()](bool ok) {
+    auto *runner = BatchComposer::enqueue<DockerRunner>(arguments);
+    connect(runner, &DockerRunner::done, context, [=](bool ok) {
         if (!ok) {
             functor({}, false);
             return;
@@ -165,7 +159,6 @@ void DockerVirtualMachine::fetchRegisteredVirtualMachines(const QObject *context
                 runner->process()->readAllStandardOutput()));
         functor(vms, true);
     });
-    commandQueue()->enqueue(std::move(runner));
 }
 
 /*!
@@ -188,16 +181,16 @@ void DockerVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extra
     arguments.append(q->name());
     arguments.append("--format={{json .Config.Labels}}");
 
-    auto runner = std::make_unique<DockerRunner>(arguments);
-    QObject::connect(runner.get(), &DockerRunner::done, context,
-            [this, functor, process = runner->process()](bool ok) {
-        VirtualMachineInfo info;
-        if (ok)
-            info = virtualMachineInfoFromOutput(process->readAllStandardOutput().trimmed());
-
-        functor(info, ok);
+    auto *runner = BatchComposer::enqueue<DockerRunner>(arguments);
+    connect(runner, &DockerRunner::done, context, [=](bool ok) {
+        if (!ok) {
+            functor({}, false);
+            return;
+        }
+        const VirtualMachineInfo info = virtualMachineInfoFromOutput(
+                runner->process()->readAllStandardOutput().trimmed());
+        functor(info, true);
     });
-    commandQueue()->enqueue(std::move(runner));
 }
 
 void DockerVirtualMachinePrivate::start(const QObject *context, const Functor<bool> &functor)
@@ -206,77 +199,52 @@ void DockerVirtualMachinePrivate::start(const QObject *context, const Functor<bo
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    const QPointer<const QObject> context_{context};
+    BatchComposer composer = BatchComposer::createBatch("DockerVirtualMachinePrivate::start");
+    composer.batch()->setPropagateFailure(true);
+    connect(composer.batch(), &CommandRunner::done, context, functor);
 
-    auto prepare = [=](const QStringList &arguments, CommandQueue::BatchId batch) {
-        auto runner = std::make_unique<DockerRunner>(arguments);
-        QObject::connect(runner.get(), &DockerRunner::failure, Sdk::instance(), [=]() {
-            commandQueue()->cancelBatch(batch);
-            callIf(context_, functor, false);
+    {
+        BatchComposer composer = BatchComposer::createBatch("ensureContainerExists");
+        composer.batch()->setPropagateFailure(true);
+
+        QStringList lsArguments;
+        lsArguments.append("container");
+        lsArguments.append("ls");
+        lsArguments.append("--all");
+        lsArguments.append("--filter=name=" + q->name());
+        lsArguments.append("--format={{.Image}}");
+
+        auto *lsRunner = BatchComposer::enqueue<DockerRunner>(lsArguments);
+        connect(lsRunner, &DockerRunner::success, context, [=, batch = composer.batch()]() {
+            const QString out = QString::fromLocal8Bit(lsRunner->process()->readAllStandardOutput())
+                .trimmed();
+            bool containerExists = !out.isEmpty();
+            const QString imageName = out;
+
+            if (!containerExists) {
+                BatchComposer composer = BatchComposer::extendBatch(batch);
+                BatchComposer::enqueue<DockerRunner>(makeCreateArguments());
+            } else if (imageName != q->name()) {
+                BatchComposer composer = BatchComposer::extendBatch(batch);
+                // Recreate the container if it does not use the desired (latest) image.
+                // This may happen e.g. when stop() fails to 'create' after 'commit'.
+                QStringList rmArguments;
+                rmArguments.append("container");
+                rmArguments.append("rm");
+                rmArguments.append(q->name());
+
+                BatchComposer::enqueue<DockerRunner>(rmArguments);
+                BatchComposer::enqueue<DockerRunner>(makeCreateArguments());
+            }
         });
-#ifdef Q_OS_MACOS
-        return std::move(runner);
-#else
-        return runner;
-#endif
-    };
-
-    auto enqueue = [=](const QStringList &arguments, CommandQueue::BatchId batch) {
-        auto runner = prepare(arguments, batch);
-        DockerRunner *runner_ = runner.get();
-        commandQueue()->enqueue(std::move(runner));
-        return runner_;
-    };
-
-    auto enqueueImmediate = [=](const QStringList &arguments, CommandQueue::BatchId batch) {
-        auto runner = prepare(arguments, batch);
-        DockerRunner *runner_ = runner.get();
-        commandQueue()->enqueueImmediate(std::move(runner));
-        return runner_;
-    };
-
-    CommandQueue::BatchId batch = commandQueue()->beginBatch();
-
-    QStringList lsArguments;
-    lsArguments.append("container");
-    lsArguments.append("ls");
-    lsArguments.append("--all");
-    lsArguments.append("--filter=name=" + q->name());
-    lsArguments.append("--format={{.Image}}");
-
-    DockerRunner *const lsRunner = enqueue(lsArguments, batch);
-    QObject::connect(lsRunner, &DockerRunner::success, context, [=]() {
-        const QString out = QString::fromLocal8Bit(lsRunner->process()->readAllStandardOutput())
-            .trimmed();
-        bool containerExists = !out.isEmpty();
-        const QString imageName = out;
-
-        if (!containerExists) {
-            enqueueImmediate(makeCreateArguments(), batch);
-        } else if (imageName != q->name()) {
-            // Recreate the container if it does not use the desired (latest) image.
-            // This may happen e.g. when stop() fails to 'create' after 'commit'.
-            QStringList rmArguments;
-            rmArguments.append("container");
-            rmArguments.append("rm");
-            rmArguments.append(q->name());
-
-            // enqueueImmediate reverses the actual order of execution
-            enqueueImmediate(makeCreateArguments(), batch);
-            enqueueImmediate(rmArguments, batch);
-        }
-
-    });
+    }
 
     QStringList startArguments;
     startArguments.append("container");
     startArguments.append("start");
     startArguments.append(q->name());
 
-    enqueue(startArguments, batch);
-
-    commandQueue()->enqueueCheckPoint(context, [=]() { functor(true); });
-    commandQueue()->endBatch();
+    BatchComposer::enqueue<DockerRunner>(startArguments);
 }
 
 void DockerVirtualMachinePrivate::stop(const QObject *context, const Functor<bool> &functor)
@@ -285,45 +253,31 @@ void DockerVirtualMachinePrivate::stop(const QObject *context, const Functor<boo
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    const QPointer<const QObject> context_{context};
-
-    auto enqueue = [=](const QStringList &arguments, CommandQueue::BatchId batch) {
-        auto runner = std::make_unique<DockerRunner>(arguments);
-        QObject::connect(runner.get(), &DockerRunner::failure, Sdk::instance(), [=]() {
-            commandQueue()->cancelBatch(batch);
-            callIf(context_, functor, false);
-        });
-        DockerRunner *runner_ = runner.get();
-        commandQueue()->enqueue(std::move(runner));
-        return runner_;
-    };
-
-    const CommandQueue::BatchId batch = commandQueue()->beginBatch();
+    BatchComposer composer = BatchComposer::createBatch("DockerVirtualMachinePrivate::stop");
+    composer.batch()->setPropagateFailure(true);
+    connect(composer.batch(), &CommandRunner::done, context, functor);
 
     QStringList stopArguments;
     stopArguments.append("stop");
     stopArguments.append(q->name());
 
-    enqueue(stopArguments, batch);
+    BatchComposer::enqueue<DockerRunner>(stopArguments);
 
     QStringList commitArguments;
     commitArguments.append("commit");
     commitArguments.append(q->name());
     commitArguments.append(q->name());
 
-    enqueue(commitArguments, batch);
+    BatchComposer::enqueue<DockerRunner>(commitArguments);
 
     QStringList rmArguments;
     rmArguments.append("container");
     rmArguments.append("rm");
     rmArguments.append(q->name());
 
-    enqueue(rmArguments, batch);
+    BatchComposer::enqueue<DockerRunner>(rmArguments);
 
-    enqueue(makeCreateArguments(), batch);
-
-    commandQueue()->enqueueCheckPoint(context, [=]() { functor(true); });
-    commandQueue()->endBatch();
+    BatchComposer::enqueue<DockerRunner>(makeCreateArguments());
 }
 
 void DockerVirtualMachinePrivate::probe(const QObject *context,
@@ -335,22 +289,26 @@ void DockerVirtualMachinePrivate::probe(const QObject *context,
 
     const QPointer<const QObject> context_{context};
 
-    q->fetchRegisteredVirtualMachines(q, [=](const QStringList &registeredVms, bool ok) {
+    BatchComposer composer = BatchComposer::createBatch("DockerVirtualMachinePrivate::probe");
+    composer.batch()->setPropagateFailure(true);
+    connect(composer.batch(), &CommandRunner::failure,
+            context, std::bind(functor, BasicState{}, false));
+
+    q->fetchRegisteredVirtualMachines(context,
+            [=, batch = composer.batch()](const QStringList &registeredVms, bool ok) {
         auto state = std::make_shared<VirtualMachinePrivate::BasicState>();
 
-        if (!ok) {
-            if (context_)
-                functor(*state, false);
+        if (!ok)
             return;
-        }
 
         if (!registeredVms.contains(q->name())) {
-            if (context_)
-                functor(*state, true);
+            functor(*state, true);
             return;
         }
 
         *state |= VirtualMachinePrivate::Existing;
+
+        BatchComposer composer = BatchComposer::extendBatch(batch);
 
         QStringList arguments;
         arguments.append("container");
@@ -358,24 +316,13 @@ void DockerVirtualMachinePrivate::probe(const QObject *context,
         arguments.append("--filter=name=" + q->name());
         arguments.append("--quiet");
 
-        auto runner = std::make_unique<DockerRunner>(arguments);
-        QObject::connect(runner->process(),
-                QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-                q,
-                [=, runner = runner.get()](int exitCode, QProcess::ExitStatus exitStatus) {
-            if (exitStatus != QProcess::NormalExit || exitCode != 0) {
-                if (context_)
-                    functor(*state, false);
-                return;
-            }
-
+        auto *runner = BatchComposer::enqueue<DockerRunner>(arguments);
+        connect(runner, &DockerRunner::success, context, [=]() {
             if (!runner->process()->readAllStandardOutput().isEmpty())
                 *state |= VirtualMachinePrivate::Running | VirtualMachinePrivate::Headless;
 
-            if (context_)
-                functor(*state, true);
+            functor(*state, true);
         });
-        commandQueue()->enqueueImmediate(std::move(runner));
     });
 }
 
@@ -680,16 +627,14 @@ void DockerVirtualMachinePrivate::rebuildWithLabel(const QString& key, const QSt
     arguments.append(q->name());
     arguments.append("-");
 
-    auto runner = std::make_unique<DockerRunner>(arguments);
+    auto *runner = BatchComposer::enqueue<DockerRunner>(arguments);
+    connect(runner, &CommandRunner::done, context, functor);
 
-    QObject::connect(runner->process(), &QProcess::started, q, [q, process = runner->process()]() {
+    connect(runner->process(), &QProcess::started, q, [q, process = runner->process()]() {
         const QString dockerFile("FROM " + q->name());
         process->write(dockerFile.toUtf8());
         process->closeWriteChannel();
     });
-
-    QObject::connect(runner.get(), &DockerRunner::done, context, functor);
-    commandQueue()->enqueue(std::move(runner));
 }
 
 QString DockerVirtualMachinePrivate::labelFor(VirtualMachinePrivate::SharedPath which)

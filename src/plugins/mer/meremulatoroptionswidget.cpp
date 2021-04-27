@@ -28,6 +28,7 @@
 #include "meremulatordetailswidget.h"
 #include "meremulatordevice.h"
 #include "meremulatormodedialog.h"
+#include "mervmconnectionui.h"
 #include "mervmselectiondialog.h"
 #include "ui_meremulatoroptionswidget.h"
 
@@ -251,7 +252,7 @@ void MerEmulatorOptionsWidget::store()
     }
 
     for (Emulator *const emulator : lockedDownEmulators)
-        emulator->virtualMachine()->lockDown(false);
+        emulator->virtualMachine()->lockDown(false, this, IgnoreAsynchronousReturn<bool>);
 
     if (!ok) {
         progress.cancel();
@@ -324,7 +325,10 @@ bool MerEmulatorOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QLis
             }
         }
 
-        if (!emulator->virtualMachine()->lockDown(true)) {
+        bool ok;
+        execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::lockDown),
+                emulator->virtualMachine(), true);
+        if (!ok) {
             failed.append(emulator);
             continue;
         }
@@ -450,13 +454,23 @@ void MerEmulatorOptionsWidget::onTestConnectionButtonClicked()
 void MerEmulatorOptionsWidget::onStartVirtualMachineButtonClicked()
 {
     Emulator *const emulator = m_emulators[m_virtualMachine];
-    emulator->virtualMachine()->connectTo();
+    if (emulator->virtualMachine()->isStateChangePending()) {
+        MerVmConnectionUi::informStateChangePending();
+        return;
+    }
+    emulator->virtualMachine()->connectTo(VirtualMachine::NoConnectOption, this,
+            IgnoreAsynchronousReturn<bool>);
 }
 
 void MerEmulatorOptionsWidget::onStopVirtualMachineButtonClicked()
 {
     Emulator *const emulator = m_emulators[m_virtualMachine];
-    emulator->virtualMachine()->disconnectFrom();
+    if (emulator->virtualMachine()->isStateChangePending()) {
+        MerVmConnectionUi::informStateChangePending();
+        return;
+    }
+    emulator->virtualMachine()->disconnectFrom(this,
+            IgnoreAsynchronousReturn<bool>);
 }
 
 void MerEmulatorOptionsWidget::onRegenerateSshKeysButtonClicked()
