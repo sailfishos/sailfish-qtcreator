@@ -70,7 +70,7 @@ const MerRunConfigurationAspect::QmlLiveOptions DEFAULT_QML_LIVE_OPTIONS =
     MerRunConfigurationAspect::UpdateOnConnect | MerRunConfigurationAspect::UpdatesAsOverlay;
 
 const char LIST_SEP[] = ":";
-const char QMLLIVE_SAILFISH_PRELOAD[] = "/usr/lib/qmllive-sailfish/libsailfishapp-preload.so";
+const char QMLLIVE_SAILFISH_PRELOAD[] = "qmllive-sailfish/libsailfishapp-preload.so";
 
 const char DEBUG_BYPASS_OPENSSL_ARMCAP_ENABLED[] = "MerRunConfiguration.DebugBypassOpenSslArmCapEnabled";
 
@@ -274,8 +274,12 @@ QString MerRunConfigurationAspect::defaultQmlLiveBenchWorkspace() const
 void MerRunConfigurationAspect::applyTo(ProjectExplorer::Runnable *r) const
 {
     if (isQmlLiveEnabled()) {
+        const QString libDir =
+            ToolChainKitAspect::targetAbi(m_target->kit()).wordWidth() == 32
+            ? QLatin1String("/usr/lib/")
+            : QLatin1String("/usr/lib64/");
         r->environment.appendOrSet(QLatin1String("LD_PRELOAD"),
-                                   QLatin1String(QMLLIVE_SAILFISH_PRELOAD),
+                                   libDir + QLatin1String(QMLLIVE_SAILFISH_PRELOAD),
                                    QLatin1String(LIST_SEP));
 
         Port qmlLiveIpcPort = this->qmlLiveIpcPort();
