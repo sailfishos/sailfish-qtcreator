@@ -128,6 +128,9 @@ public:
 protected:
     void doRun() override;
 
+private:
+    void doFinish(bool ok);
+
 private slots:
     void onEmpty();
     void onFailure();
@@ -136,6 +139,7 @@ private:
     const std::unique_ptr<CommandQueue> m_queue;
     bool m_autoFinish = true;
     bool m_propagateFailure = false;
+    std::optional<bool> m_explicitResult;
 };
 
 class BatchComposer
