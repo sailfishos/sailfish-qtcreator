@@ -141,7 +141,7 @@ private:
 class BatchComposer
 {
 public:
-    BatchComposer(BatchComposer &&other) = default;
+    BatchComposer(BatchComposer &&other);
     ~BatchComposer();
 
     Q_REQUIRED_RESULT static BatchComposer createBatch(const QString &batchName);
@@ -163,7 +163,7 @@ private:
 
 private:
     static std::stack<BatchRunner *> s_stack;
-    const QPointer<BatchRunner> m_batch;
+    BatchRunner *m_batch;
 };
 
 class ProcessRunner : public CommandRunner
