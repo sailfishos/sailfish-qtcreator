@@ -229,8 +229,13 @@ void BatchRunner::doRun()
 
 void BatchRunner::finish(bool ok)
 {
-    QTC_ASSERT(m_queue->isEmpty(), m_queue->cancel());
-    emitDone(ok);
+    QTC_CHECK(!m_autoFinish);
+    QTC_ASSERT(!m_explicitResult.has_value(), return);
+
+    m_explicitResult = ok;
+
+    if (m_queue->isEmpty())
+        doFinish(ok);
 }
 
 QDebug BatchRunner::print(QDebug debug) const
@@ -240,17 +245,23 @@ QDebug BatchRunner::print(QDebug debug) const
     return debug;
 }
 
+void BatchRunner::doFinish(bool ok)
+{
+    QTC_ASSERT(m_queue->isEmpty(), m_queue->cancel());
+    emitDone(m_explicitResult.value_or(ok));
+}
+
 void BatchRunner::onEmpty()
 {
-    if (m_autoFinish)
-        finish(true);
+    if (m_autoFinish || m_explicitResult.has_value())
+        doFinish(true);
 }
 
 void BatchRunner::onFailure()
 {
     if (m_propagateFailure) {
         m_queue->cancel();
-        finish(false);
+        doFinish(false);
     }
 }
 

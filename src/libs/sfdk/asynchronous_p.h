@@ -27,6 +27,8 @@
 
 #include "sdk_p.h"
 
+#include <utils/optional.h>
+
 #include <QBasicTimer>
 #include <QList>
 #include <QObject>
@@ -128,6 +130,9 @@ public:
 protected:
     void doRun() override;
 
+private:
+    void doFinish(bool ok);
+
 private slots:
     void onEmpty();
     void onFailure();
@@ -136,6 +141,7 @@ private:
     const std::unique_ptr<CommandQueue> m_queue;
     bool m_autoFinish = true;
     bool m_propagateFailure = false;
+    Utils::optional<bool> m_explicitResult;
 };
 
 class BatchComposer
