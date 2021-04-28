@@ -267,6 +267,11 @@ BatchComposer::BatchComposer(BatchRunner *batch)
     s_stack.push(m_batch);
 }
 
+BatchComposer::BatchComposer(BatchComposer &&other)
+    : m_batch(std::exchange(other.m_batch, nullptr))
+{
+}
+
 BatchComposer BatchComposer::createBatch(const QString &batchName)
 {
     auto batch = std::make_unique<BatchRunner>(batchName, top()->depth() + 1);
@@ -285,6 +290,9 @@ BatchComposer BatchComposer::extendBatch(BatchRunner *batch)
 
 BatchComposer::~BatchComposer()
 {
+    if (!m_batch) // moved
+        return;
+
     QTC_ASSERT(!s_stack.empty(), return);
     QTC_ASSERT(s_stack.top() == m_batch, return);
     s_stack.pop();
