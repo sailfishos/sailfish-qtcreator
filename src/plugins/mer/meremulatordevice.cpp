@@ -196,6 +196,7 @@ MerEmulatorDevice::MerEmulatorDevice()
 {
     setMachineType(IDevice::Emulator);
     setArchitecture(Abi::X86Architecture);
+    setWordWidth(32);
     init();
 }
 
