@@ -54,8 +54,10 @@ class MerTargetManagementProcess : public QProcess
     Q_OBJECT
 
 public:
-    MerTargetManagementProcess(const QString &targetName, QObject *parent = nullptr)
+    MerTargetManagementProcess(BuildEngine *engine, const QString &targetName,
+            QObject *parent = nullptr)
         : QProcess(parent)
+        , m_engine(engine)
         , m_targetName(targetName)
     {
     }
@@ -113,7 +115,7 @@ private:
     bool execSfdk(const QStringList &arguments)
     {
         setProgram(MerSettings::sfdkPath());
-        setWorkingDirectory(QDir::homePath());
+        setWorkingDirectory(m_engine->sharedSrcPath().toString());
         setArguments(arguments);
 
         start();
@@ -130,6 +132,7 @@ private:
     }
 
 private:
+    BuildEngine *m_engine = nullptr;
     QString m_targetName;
 };
 
@@ -364,7 +367,7 @@ private:
         progress.setMinimum(0);
         progress.setMaximum(0);
 
-        MerTargetManagementProcess process(wizard()->targetName());
+        MerTargetManagementProcess process(wizard()->engine(), wizard()->targetName());
         QList<QPair<QString, bool>> packages;
 
         m_ui->searchTreeWidget->clear();
@@ -530,6 +533,11 @@ MerTargetManagementDialog::~MerTargetManagementDialog()
 {
 }
 
+Sfdk::BuildEngine *MerTargetManagementDialog::engine() const
+{
+    return m_engine;
+}
+
 QString MerTargetManagementDialog::targetName() const
 {
     return m_initialPage->targetName();
@@ -605,7 +613,7 @@ void MerTargetManagementDialog::onCurrentIdChanged(int id)
 
 void MerTargetManagementDialog::managePackages()
 {
-    MerTargetManagementProcess process(targetName());
+    MerTargetManagementProcess process(engine(), targetName());
 
     connect(&process, &QProcess::readyReadStandardOutput, [&]() {
         m_progressPage->appendDetails(QString::fromLocal8Bit(process.readAllStandardOutput()));
@@ -637,7 +645,7 @@ void MerTargetManagementDialog::managePackages()
 
 void MerTargetManagementDialog::refresh()
 {
-    MerTargetManagementProcess process(targetName());
+    MerTargetManagementProcess process(engine(), targetName());
 
     connect(&process, &QProcess::readyReadStandardOutput, [&]() {
         m_progressPage->appendDetails(QString::fromLocal8Bit(process.readAllStandardOutput()));
@@ -658,7 +666,7 @@ void MerTargetManagementDialog::refresh()
 
 void MerTargetManagementDialog::synchronize()
 {
-    MerTargetManagementProcess process(targetName());
+    MerTargetManagementProcess process(engine(), targetName());
 
     connect(&process, &QProcess::readyReadStandardOutput, [&]() {
         m_progressPage->appendDetails(QString::fromLocal8Bit(process.readAllStandardOutput()));
