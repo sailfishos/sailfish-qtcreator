@@ -51,6 +51,8 @@ public:
     explicit MerTargetManagementDialog(Sfdk::BuildEngine *engine, QWidget *parent = nullptr);
     ~MerTargetManagementDialog() override;
 
+    Sfdk::BuildEngine *engine() const;
+
     QString targetName() const;
     void setTargetName(const QString &targetName);
 
