@@ -110,12 +110,16 @@
         {
             "name": "search-output-dir",
             "trArgument": "[verbose|quiet]",
-            "trDescription": "Consider the RPM packages found in the output directory when installing build time dependencies. The optional value controls zypper verbosity.  The default is 'verbose'.",
+            "trDescription": "Consider the RPM packages found in the output directory when installing build time dependencies. The optional value controls zypper verbosity.  The default is 'verbose'.\n\nBy default the already installed packages from output directory are upgraded using 'zypper dup' before installing build time dependencies. This can be disabled with 'no-zypper-dup'",
             "validator": "module.validateSearchOutputDirOption"
         },
         {
             "name": "no-search-output-dir",
             "trDescription": "Override 'search-output-dir' option"
+        },
+        {
+            "name": "no-zypper-dup",
+            "trDescription": "Disable upgrading installed packages before installing build time dependencies. Only effective with 'search-output-dir'"
         },
         {
             "name": "snapshot",

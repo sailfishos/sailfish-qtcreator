@@ -292,6 +292,7 @@ const QStringList MerBuildConfigurationAspect::s_allowedSfdkOptions{
     "output-prefix",
     "search-output-dir",
     "no-search-output-dir",
+    "no-zypper-dup",
     "snapshot",
     "force-no-snapshot",
     "task",
