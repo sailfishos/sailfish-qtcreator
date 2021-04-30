@@ -190,6 +190,9 @@ int main(int argc, char **argv)
 
     SdkManager sdkManager(parser.useSystemSettingsOnly());
 
+    if (!parser.setCurrentWorkingDirectory())
+        return SFDK_EXIT_ABNORMAL; // bad usage
+
     if (!parser.validateCommandScopeConfiguration())
         return SFDK_EXIT_ABNORMAL; // bad usage
 

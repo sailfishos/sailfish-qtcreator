@@ -68,6 +68,7 @@ public:
     Verbosity verbosity() const { return m_verbosity; }
     bool noSession() const { return m_noSession; }
     bool useSystemSettingsOnly() const { return m_useSystemSettingsOnly; }
+    bool setCurrentWorkingDirectory() const;
     bool validateCommandScopeConfiguration() const;
     const Command *command() const { return m_command; }
     QStringList commandArguments() const { return m_commandArguments; }
@@ -113,6 +114,8 @@ private:
     static QString environmentVariablesHeading();
     static QString exitStatusHeading();
 
+    static bool setCurrentWorkingDirectory(const QString &path, QString *errorString);
+
     static QStringList compactOptions(const QStringList &names);
     static QString dashOption(const QString &option);
 
@@ -133,6 +136,7 @@ private:
     QList<QPair<QCommandLineOption, const Domain *>> m_domainHelpOptions;
     QList<QPair<QCommandLineOption, const Option *>> m_aliasOptions;
     QList<QCommandLineOption> m_otherOptions;
+    QList<std::function<bool()>> m_cwdChanges;
     QList<std::function<bool()>> m_configOptionsValidators;
     Verbosity m_verbosity = Normal;
     bool m_noSession = false;

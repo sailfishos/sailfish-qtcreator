@@ -30,6 +30,7 @@
 #include "sfdkglobal.h"
 #include "textutils.h"
 
+#include <sfdk/buildengine.h>
 #include <sfdk/sdk.h>
 
 #include <utils/algorithm.h>
@@ -111,6 +112,13 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
     cOption.setDescription(tr("Push the configuration option <name>. Omitting just <value> masks the option (see the 'config' subcommand). Omitting both <value> and '=' sets the option using the default value for its optional argument if any.\n\nSee the 'config' command for more details about configuration."));
     m_otherOptions.append(cOption);
 
+    QCommandLineOption COption("C");
+    COption.setValueName(tr("<path>"));
+    COption.setDescription(tr("Run as if the current working directory was changed to <path> first. Each subsequent occurrence with a relative <path> is applied relatively to the preceding path. When <path> is empty, the current working directory is left unchanged.\n\nWhen \"%1\" is passed (literally), the current working directory will be changed to the %2 workspace directory.")
+            .arg(QLatin1String(Constants::WORKSPACE_PSEUDO_VARIABLE))
+            .arg(Sdk::sdkVariant()));
+    m_otherOptions.append(COption);
+
     QCommandLineOption noSessionOption("no-session");
     noSessionOption.setDescription(tr("Do not try to read or write session-scope configuration. Alternatively, the same effect can be achieved by setting the '%1' environment variable.\n\nSee the 'config' command for more details about configuration.")
             .arg(QLatin1String(Constants::NO_SESSION_ENV_VAR)));
@@ -166,6 +174,18 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
         badUsage(parser.errorText());
         m_result = BadUsage;
         return;
+    }
+
+    for (const QString &value : parser.values(COption)) {
+        // setCurrentWorkingDirectory() cannot be used before SdkManager is instantiated
+        m_cwdChanges += [=]() -> bool {
+            QString errorString;
+            if (!setCurrentWorkingDirectory(value, &errorString)) {
+                badUsage(invalidArgumentToOptionMessage(errorString, COption.names().first(), value));
+                return false;
+            }
+            return true;
+        };
     }
 
     if (parser.isSet(noPagerOption))
@@ -335,6 +355,15 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
     }
 
     m_result = Dispatch;
+}
+
+bool CommandLineParser::setCurrentWorkingDirectory() const
+{
+    for (const std::function<bool()> &cd : m_cwdChanges) {
+        if (!cd())
+            return false;
+    }
+    return true;
 }
 
 bool CommandLineParser::validateCommandScopeConfiguration() const
@@ -750,6 +779,30 @@ QString CommandLineParser::environmentVariablesHeading()
 QString CommandLineParser::exitStatusHeading()
 {
     return tr("Exit Status").toUpper();
+}
+
+bool CommandLineParser::setCurrentWorkingDirectory(const QString &path, QString *errorString)
+{
+    if (path.isEmpty())
+        return true;
+
+    if (path == Constants::WORKSPACE_PSEUDO_VARIABLE) {
+        QTC_ASSERT(SdkManager::hasEngine(), return false);
+        const QString workspacePath = SdkManager::engine()->sharedSrcPath().toString();
+        if (!QDir::setCurrent(workspacePath)) {
+            *errorString = tr("Could not change working directory (path after expansion: \"%1\")")
+                .arg(workspacePath);
+            return false;
+        }
+        return true;
+    }
+
+    if (!QDir::setCurrent(path)) {
+        *errorString = tr("Could not change working directory");
+        return false;
+    }
+
+    return true;
 }
 
 /*
