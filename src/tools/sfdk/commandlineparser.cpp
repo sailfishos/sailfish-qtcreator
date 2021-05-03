@@ -995,7 +995,8 @@ void CommandLineParser::bottomSections(QTextStream &out)
 
     out << exitStatusHeading() << endl;
     out << endl;
-    body = tr("sfdk exits with zero exit code on success, command-specific nonzero exit code on command failure, or the reserved exit code of %1 to indicate bad usage, internal error, (remote) command dispatching error and suchlike conditions, that either prevented command starting or resulted in premature or otherwise abnormal command termination (different exit code may be designated for this purpose through the '%2' environment variable).")
+    body = tr("%1 exits with zero exit code on success, command-specific nonzero exit code on command failure, or the reserved exit code of %2 to indicate bad usage, internal error, (remote) command dispatching error and suchlike conditions, that either prevented command starting or resulted in premature or otherwise abnormal command termination (different exit code may be designated for this purpose through the '%3' environment variable).")
+        .arg(Constants::EXE_NAME)
         .arg(Constants::EXIT_ABNORMAL_DEFAULT_CODE)
         .arg(Constants::EXIT_ABNORMAL_ENV_VAR);
     wrapLines(out, 1, {}, {}, body);
