@@ -36,6 +36,7 @@
 #include <sfdk/sdk.h>
 #include <sfdk/virtualmachine.h>
 
+#include <coreplugin/documentmanager.h>
 #include <coreplugin/icore.h>
 #include <ssh/sshconnection.h>
 #include <utils/fileutils.h>
@@ -643,6 +644,8 @@ void MerBuildEngineOptionsWidget::onSrcFolderApplyButtonClicked(const QString &n
     buildEngine->virtualMachine()->lockDown(false, this, IgnoreAsynchronousReturn<bool>);
 
     if (ok) {
+        if (!Core::DocumentManager::projectsDirectory().isChildOf(buildEngine->sharedSrcPath()))
+            Core::DocumentManager::setProjectsDirectory(buildEngine->sharedSrcPath());
         const QMessageBox::StandardButton response =
             QMessageBox::question(this, tr("Success!"),
                                   tr("Workspace folder for %1 changed to %2.\n\n"
