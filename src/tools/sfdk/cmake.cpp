@@ -46,9 +46,9 @@ namespace Sfdk {
 
 namespace {
 
-const char CMAKE_FILE_API_RAW_PREFIX[] = ".mb2/cmake";
-const char CMAKE_FILE_API_RAW_QUERY[] = ".mb2/cmake/api/v1/query";
-const char CMAKE_FILE_API_RAW_REPLY[] = ".mb2/cmake/api/v1/reply";
+const char CMAKE_FILE_API_RAW_PREFIX[] = ".sfdk/cmake";
+const char CMAKE_FILE_API_RAW_QUERY[] = ".sfdk/cmake/api/v1/query";
+const char CMAKE_FILE_API_RAW_REPLY[] = ".sfdk/cmake/api/v1/reply";
 const char CMAKE_FILE_API_QUERY[] = ".cmake/api/v1/query";
 const char CMAKE_FILE_API_REPLY[] = ".cmake/api/v1/reply";
 
