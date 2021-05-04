@@ -189,7 +189,7 @@ void MerQmakeBuildConfiguration::setupExtraParserArguments()
 
     QStringList args;
     if (MerSettings::isImportQmakeVariablesEnabled()) {
-        QFile file(buildDirectory().toString() + "/.mb2/qmake_variables."
+        QFile file(buildDirectory().toString() + "/.sfdk/qmake_variables."
                    + MerSdkKitAspect::buildTargetName(target()->kit()) + ".cache");
         if (!file.exists()) {
             // Do not ask again
