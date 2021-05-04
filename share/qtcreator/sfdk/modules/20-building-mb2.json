@@ -151,17 +151,17 @@
         {
             "name": "package.signing-user",
             "trArgument": "<name>",
-            "trDescription": "Select the GPG key to sign packages with. Accepts the same values\n as the '--local-user' option of the gpg command does. See GPG\n documentation for more details.\n\nDepending on your SDK variant, different semantics may apply."
+            "trDescription": "Select the GnuPG key to sign packages with. Accepts the same values as the '--local-user' option of the 'gpg' command does. See GnuPG documentation for more details.\n\nDepending on your SDK variant, different semantics may apply."
         },
         {
             "name": "package.signing-passphrase",
             "trArgument": "<passphrase>",
-            "trDescription": "In case a passphrase-protected signing key is selected for signing\n packages, use <string> as the passphrase."
+            "trDescription": "In case a passphrase-protected signing key is selected for signing packages, use <string> as the passphrase."
         },
         {
             "name": "package.signing-passphrase-file",
             "trArgument": "<file>",
-            "trDescription": "In case a passphrase-protected signing key is selected for signing\n packages, read the passphrase from the <file>. Only the first line will\n be read."
+            "trDescription": "In case a passphrase-protected signing key is selected for signing packages, read the passphrase from the <file>. Only the first line will be read."
         }
     ]
 }

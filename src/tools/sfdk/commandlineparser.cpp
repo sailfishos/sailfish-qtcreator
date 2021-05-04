@@ -421,7 +421,7 @@ void CommandLineParser::usage(QTextStream &out) const
 
     out << commandsHeading() << endl;
     out << endl;
-    wrapLine(out, 1, tr("This is the description of the general-usage commands. Use the '--help-<domain>' options to display description of commands specific to particular <domain>."));
+    wrapLine(out, 1, tr("This is the description of the general-usage commands. Use the '--help-<domain>' options to display description of commands specific to the particular <domain>."));
     out << endl;
 
     describe(out, 1, generalDomain->commands());
