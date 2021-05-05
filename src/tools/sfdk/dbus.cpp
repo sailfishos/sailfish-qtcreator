@@ -25,6 +25,7 @@
 #include <QDBusAbstractAdaptor>
 #include <QDBusConnection>
 #include <QDBusMessage>
+#include <QDBusMetaType>
 
 #include <utils/qtcassert.h>
 
@@ -284,6 +285,33 @@ private:
     }
 };
 
+class SdkAdaptor : public AbstractAdaptor
+{
+    Q_OBJECT
+    Q_CLASSINFO("D-Bus Interface", "org.sailfishos.sfdk.Sdk")
+
+public:
+    SdkAdaptor(QObject *dummy, const QDBusConnection &bus)
+        : AbstractAdaptor(dummy, bus)
+    {
+        qDBusRegisterMetaType<QHash<QString, QString>>();
+    }
+
+public slots:
+    int runHook(const QString &program, const QStringList &arguments,
+            const QString &workingDirectory, const QHash<QString, QString> &environment,
+            const QDBusMessage &message)
+    {
+        Q_UNUSED(message);
+
+        QProcessEnvironment environment_;
+        for (const QString &name : environment.keys())
+            environment_.insert(name, environment.value(name));
+
+        return SdkManager::runHook(program, arguments, workingDirectory, environment_);
+    }
+};
+
 } // namespace Sfdk
 
 /*!
@@ -313,6 +341,13 @@ DBusManager::DBusManager(quint16 busPort, const QString &connectionName, const P
     if (!bus.registerService(m_serviceName)) {
         qCCritical(sfdk) << "Failed to register D-Bus service using the name" << m_serviceName
             << ":" << bus.lastError().name() << bus.lastError().message();
+    }
+
+    m_rootObject = std::make_unique<QObject>();
+    new SdkAdaptor(m_rootObject.get(), bus);
+    if (!bus.registerObject("/", m_rootObject.get())) {
+        qCCritical(sfdk) << "Failed to register root object on D-Bus:"
+            << bus.lastError().name() << bus.lastError().message();
     }
 
     m_configuredDeviceObject = std::make_unique<QObject>();

@@ -1128,6 +1128,69 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     return process.exec();
 }
 
+int SdkManager::runHook(const QString &program, const QStringList &arguments,
+        const QString &workingDirectory, const QProcessEnvironment &extraEnvironment)
+{
+    QString program_ = program;
+    QStringList arguments_ = arguments;
+    QString workingDirectory_ = workingDirectory;
+    QProcessEnvironment extraEnvironment_ = extraEnvironment;
+
+    if (!s_instance->reverseMapEnginePaths(&program_, &arguments_, &workingDirectory_, &extraEnvironment_))
+        return EXIT_FAILURE;
+
+    return runHookNative(program_, arguments_, workingDirectory_, extraEnvironment_);
+}
+
+int SdkManager::runHookNative(const QString &program, const QStringList &arguments,
+        const QString &workingDirectory, const QProcessEnvironment &extraEnvironment)
+{
+    qCDebug(sfdk) << "About to run hook" << program;
+
+    QProcess hook;
+    hook.setProgram(program);
+    hook.setArguments(arguments);
+    hook.setWorkingDirectory(workingDirectory);
+    hook.setProcessChannelMode(QProcess::ForwardedChannels);
+
+    QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+    environment.insert(extraEnvironment);
+    hook.setProcessEnvironment(environment);
+
+    hook.start();
+    if (!hook.waitForFinished()) {
+        qerr() << tr("Error running hook \"%1\"").arg(program) << endl;
+        return EXIT_FAILURE;
+    }
+
+    qCDebug(sfdk) << "Hook exited with code" << hook.exitCode();
+
+    return hook.exitCode();
+}
+
+int SdkManager::runHookNativeByName(const QString &hook, const QStringList &arguments,
+        const QString &workingDirectory, const QProcessEnvironment &extraEnvironment)
+{
+    const Option *const hooksDirOption_ = Dispatcher::option(Constants::HOOKS_DIR_OPTION_NAME);
+    QTC_ASSERT(hooksDirOption_, return EXIT_SUCCESS);
+
+    const Utils::optional<OptionEffectiveOccurence> hooksDirOption =
+        Configuration::effectiveState(hooksDirOption_);
+    if (!hooksDirOption)
+        return EXIT_SUCCESS;
+    QTC_ASSERT(!hooksDirOption->isMasked(), return EXIT_SUCCESS);
+
+    const FilePath hooksDir = FilePath::fromString(hooksDirOption->argument());
+    if (!hooksDir.exists())
+        return EXIT_SUCCESS;
+
+    const FilePath program = hooksDir.pathAppended(hook);
+    if (!program.exists())
+        return EXIT_SUCCESS;
+
+    return runHookNative(program.toString(), arguments, workingDirectory, extraEnvironment);
+}
+
 void SdkManager::setEnableReversePathMapping(bool enable)
 {
     // Enabled by default, not meant to be flipped temporarily!
@@ -1236,6 +1299,13 @@ Device *SdkManager::deviceByName(const QString &deviceName, QString *errorMessag
 
 bool SdkManager::prepareForRunOnDevice(const Device &device, RemoteProcess *process)
 {
+    // Keep in sync with mb2
+    if (runHookNativeByName("prepare-device", {device.name()}, QDir::currentPath(),
+                QProcessEnvironment()) != EXIT_SUCCESS) {
+        qerr() << tr("The \"prepare-device\" hook failed") << endl;
+        return false;
+    }
+
     if (device.machineType() == Device::EmulatorMachine) {
         Emulator *const emulator = static_cast<const EmulatorDevice &>(device).emulator();
 
@@ -1501,6 +1571,28 @@ bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QStrin
 
     qCDebug(sfdk) << "Command after mapping engine paths:" << *program << "arguments:" << *arguments
         << "CWD:" << *workingDirectory;
+
+    return true;
+}
+
+bool SdkManager::reverseMapEnginePaths(QString *program, QStringList *arguments,
+        QString *workingDirectory, QProcessEnvironment *environment) const
+{
+    QTC_ASSERT(hasEngine(), return false);
+
+    const QString cleanSharedSrc = this->cleanSharedSrc();
+    QTC_ASSERT(!cleanSharedSrc.isEmpty(), return false);
+    QTC_ASSERT(!m_buildEngine->sharedSrcMountPoint().isEmpty(), return false);
+
+    auto map = [=](const QString &s) {
+        return QString(s).replace(m_buildEngine->sharedSrcMountPoint(), cleanSharedSrc);
+    };
+
+    *program = map(*program);
+    *arguments = Utils::transform(*arguments, map);
+    *workingDirectory = map(*workingDirectory);
+    for (const QString &key : environment->keys())
+        environment->insert(key, map(environment->value(key)));
 
     return true;
 }

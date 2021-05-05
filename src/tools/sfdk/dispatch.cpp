@@ -54,7 +54,9 @@ const char CONFIG_OPTIONS_KEY[] = "configOptions";
 const char DOMAIN_KEY[] = "domain";
 const char DYNAMIC_KEY[] = "dynamic";
 const char DYNAMIC_SUBCOMMANDS_KEY[] = "dynamicSubcommands";
+const char EXTERN_HOOKS_KEY[] = "externHooks";
 const char EXTERN_OPTIONS_KEY[] = "externOptions";
+const char HOOKS_KEY[] = "hooks";
 const char NAME_KEY[] = "name";
 const char OPTIONS_KEY[] = "options";
 const char POST_RUN_KEY[] = "postRun";
@@ -106,9 +108,25 @@ Option::ConstList Domain::options() const
     for (const Command *command : commands())
         options += command->configOptions.toSet();
 
-    auto isDomainOption = [=](const Option *option) { return options.contains(option); };
+    auto isDomainOption = [=](const Option *option) {
+        return option->module->domain->name == Constants::GENERAL_DOMAIN_NAME
+            || options.contains(option);
+    };
     return Utils::filtered(Utils::toRawPointer<QList>(Dispatcher::options()),
             isDomainOption);
+}
+
+Hook::ConstList Domain::hooks() const
+{
+    QSet<const Hook *> hooks;
+    for (const Command *command : commands())
+        hooks += command->hooks.toSet();
+
+    auto isDomainHook = [=](const Hook *hook) {
+        return hooks.contains(hook);
+    };
+    return Utils::filtered(Utils::toRawPointer<QList>(Dispatcher::hooks()),
+            isDomainHook);
 }
 
 /*!
@@ -209,6 +227,16 @@ const Command::ConstUniqueList &Dispatcher::commands()
 const Command *Dispatcher::command(const QString &name)
 {
     return s_instance->m_commandByName.value(name);
+}
+
+const Hook::ConstUniqueList &Dispatcher::hooks()
+{
+    return s_instance->m_hooks;
+}
+
+const Hook *Dispatcher::hook(const QString &name)
+{
+    return s_instance->m_hookByName.value(name);
 }
 
 const Option::ConstUniqueList &Dispatcher::options()
@@ -335,14 +363,14 @@ std::unique_ptr<Module> Dispatcher::loadModule(const QVariantMap &data, QString 
     auto module = std::make_unique<Module>();
 
     QSet<QString> validKeys{VERSION_KEY, DOMAIN_KEY, TR_BRIEF_KEY, TR_DESCRIPTION_KEY, WORKER_KEY,
-        COMMANDS_KEY, EXTERN_OPTIONS_KEY, OPTIONS_KEY};
+        COMMANDS_KEY, EXTERN_HOOKS_KEY, EXTERN_OPTIONS_KEY, OPTIONS_KEY, HOOKS_KEY};
     if (!checkKeys(data, validKeys, errorString))
         return {};
 
     QVariant version = value(data, VERSION_KEY, QVariant::LongLong, {}, errorString);
     if (!version.isValid())
         return {};
-    if (version.toInt() < 3 || version.toInt() > 3) {
+    if (version.toInt() < 3 || version.toInt() > 4) {
         *errorString = tr("Version unsupported: %1").arg(version.toInt());
         return {};
     }
@@ -393,11 +421,33 @@ std::unique_ptr<Module> Dispatcher::loadModule(const QVariantMap &data, QString 
         return {};
     }
 
+    Hook::ConstList allModuleHooks;
+
+    QVariant externHooksData = value(data, EXTERN_HOOKS_KEY, QVariant::List, QVariantList(),
+            errorString);
+    if (!externHooksData.isValid())
+        return {};
+
+    if (!loadExternHooks(externHooksData.toList(), &allModuleHooks, errorString)) {
+        *errorString = addContext(*errorString, EXTERN_HOOKS_KEY);
+        return {};
+    }
+
+    QVariant hooksData = value(data, HOOKS_KEY, QVariant::List, QVariantList(), errorString);
+    if (!hooksData.isValid())
+        return {};
+
+    if (!loadHooks(module.get(), hooksData.toList(), &allModuleHooks, errorString)) {
+        *errorString = addContext(*errorString, HOOKS_KEY);
+        return {};
+    }
+
     QVariant commandsData = value(data, COMMANDS_KEY, QVariant::List, {}, errorString);
     if (!commandsData.isValid())
         return {};
 
-    if (!loadCommands(module.get(), commandsData.toList(), allModuleOptions, errorString)) {
+    if (!loadCommands(module.get(), commandsData.toList(), allModuleOptions, allModuleHooks,
+                errorString)) {
         *errorString = addContext(*errorString, COMMANDS_KEY);
         return {};
     }
@@ -501,8 +551,75 @@ bool Dispatcher::loadOptions(const Module *module, const QVariantList &list,
     return true;
 }
 
+bool Dispatcher::loadExternHooks(const QVariantList &list, Hook::ConstList *allModuleHooks,
+        QString *errorString)
+{
+    if (!checkItems(list, QVariant::String, errorString))
+        return false;
+
+    for (const QString &spec : QVariant(list).toStringList()) {
+        QStringList names;
+        if (!expandCompacted(spec, &names)) {
+            *errorString = tr("Invalid compacted hook specification: '%1'").arg(spec);
+            return false;
+        }
+        for (const QString &name : names) {
+            const Hook *const hook = m_hookByName.value(name);
+            if (!hook) {
+                *errorString = tr("Unrecognized external hook: '%1'").arg(name);
+                return false;
+            }
+
+            allModuleHooks->append(hook);
+        }
+    }
+
+    return true;
+}
+
+bool Dispatcher::loadHooks(const Module *module, const QVariantList &list,
+        Hook::ConstList *allModuleHooks, QString *errorString)
+{
+    if (!checkItems(list, QVariant::Map, errorString))
+        return false;
+
+    for (const QVariant &item : list) {
+        QVariantMap data = item.toMap();
+
+        auto hook = std::make_unique<Hook>();
+        hook->module = module;
+
+        QSet<QString> validKeys{NAME_KEY, TR_SYNOPSIS_KEY, TR_DESCRIPTION_KEY};
+        if (!checkKeys(data, validKeys, errorString))
+            return false;
+
+        QVariant name = value(data, NAME_KEY, QVariant::String, {}, errorString);
+        if (!name.isValid())
+            return false;
+        hook->name = name.toString();
+
+        QVariant synopsis = value(data, TR_SYNOPSIS_KEY, QVariant::String, QString(), errorString);
+        if (!synopsis.isValid())
+            return false;
+        hook->synopsis = synopsis.toString();
+
+        QVariant description = value(data, TR_DESCRIPTION_KEY, QVariant::String, {}, errorString);
+        if (!description.isValid())
+            return false;
+        hook->description = localizedString(description.toString());
+
+        allModuleHooks->append(hook.get());
+
+        m_hookByName.insert(hook->name, hook.get());
+        m_hooks.emplace_back(std::move(hook));
+    }
+
+    return true;
+}
+
 bool Dispatcher::loadCommands(const Module *module, const QVariantList &list,
-        const Option::ConstList &allModuleOptions, QString *errorString)
+        const Option::ConstList &allModuleOptions, const Hook::ConstList &allModuleHooks,
+        QString *errorString)
 {
     if (!checkItems(list, QVariant::Map, errorString))
         return false;
@@ -514,8 +631,8 @@ bool Dispatcher::loadCommands(const Module *module, const QVariantList &list,
         command->module = module;
 
         QSet<QString> validKeys{NAME_KEY, TR_SYNOPSIS_KEY, TR_BRIEF_KEY, TR_DESCRIPTION_KEY,
-            CONFIG_OPTIONS_KEY, DYNAMIC_KEY, DYNAMIC_SUBCOMMANDS_KEY, COMMAND_LINE_FILTER,
-            PRE_RUN_KEY, POST_RUN_KEY};
+            CONFIG_OPTIONS_KEY, HOOKS_KEY, DYNAMIC_KEY, DYNAMIC_SUBCOMMANDS_KEY,
+            COMMAND_LINE_FILTER, PRE_RUN_KEY, POST_RUN_KEY};
         if (!checkKeys(data, validKeys, errorString))
             return false;
 
@@ -547,6 +664,14 @@ bool Dispatcher::loadCommands(const Module *module, const QVariantList &list,
 
         if (!loadCommandConfigOptions(command.get(), configOptionsData.toList(), allModuleOptions,
                     errorString)) {
+            return false;
+        }
+
+        QVariant hooksData = value(data, HOOKS_KEY, QVariant::List, QVariantList(), errorString);
+        if (!hooksData.isValid())
+            return false;
+
+        if (!loadCommandHooks(command.get(), hooksData.toList(), allModuleHooks, errorString)) {
             return false;
         }
 
@@ -636,6 +761,49 @@ bool Dispatcher::loadCommandConfigOptions(Command *command, const QVariantList &
     // Help keeping the module definition clean
     QTC_CHECK(command->configOptions.toSet().count() == command->configOptions.count());
     QTC_CHECK(command->mandatoryConfigOptions.toSet().count() == command->mandatoryConfigOptions.count());
+
+    return true;
+}
+
+bool Dispatcher::loadCommandHooks(Command *command, const QVariantList &list,
+        const Hook::ConstList &allModuleHooks, QString *errorString)
+{
+    if (!checkItems(list, QVariant::String, errorString))
+        return false;
+
+    for (QString hookSpec : QVariant(list).toStringList()) {
+        if (hookSpec == "*") {
+            command->hooks.append(allModuleHooks);
+            continue;
+        }
+
+        bool exclude = false;
+        if (hookSpec.startsWith("-")) {
+            exclude = true;
+            hookSpec.remove(0, 1);
+        }
+
+        QStringList names;
+        if (!expandCompacted(hookSpec, &names)) {
+            *errorString = tr("Invalid compacted hook specification: '%1'").arg(hookSpec);
+            return false;
+        }
+        for (const QString &name : names) {
+            const Hook *const hook = m_hookByName.value(name);
+            if (!hook) {
+                *errorString = tr("Unrecognized hook: '%1'").arg(name);
+                return false;
+            }
+
+            if (exclude)
+                command->hooks.removeOne(hook);
+            else if (!command->hooks.contains(hook))
+                command->hooks.append(hook);
+        }
+    }
+
+    // Help keeping the module definition clean
+    QTC_CHECK(command->hooks.toSet().count() == command->hooks.count());
 
     return true;
 }

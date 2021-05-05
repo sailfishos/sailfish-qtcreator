@@ -433,13 +433,28 @@ void CommandLineParser::usage(QTextStream &out) const
     describeGlobalOptions(out, 1, nullptr);
 
     const Option::ConstList generalDomainOptions = generalDomain->options();
-    if (!generalDomainOptions.isEmpty()) {
-        out << configurationOptionsHeading() << endl;
+    out << endl;
+    out << configurationOptionsHeading() << endl;
+    out << endl;
+    if (generalDomainOptions.isEmpty()) {
+        wrapLine(out, 1, tr("None of the general-usage commands supports any configuration options. Use the '--help-<domain>' options to learn about configuration options supported by commands specific to the particular <domain>."));
         out << endl;
+    } else {
         describe(out, 1, generalDomainOptions);
     }
-    out << endl;
 
+    const Hook::ConstList generalDomainHooks = generalDomain->hooks();
+    out << endl;
+    out << hooksHeading() << endl;
+    out << endl;
+    if (generalDomainHooks.isEmpty()) {
+        wrapLine(out, 1, tr("None of the general-usage commands supports any hooks. Use the '--help-<domain>' options to learn about hooks supported by commands specific to the particular <domain>."));
+        out << endl;
+    } else {
+        describe(out, 1, generalDomainHooks);
+    }
+
+    out << endl;
     bottomSections(out);
 }
 
@@ -452,6 +467,11 @@ void CommandLineParser::commandBriefUsage(QTextStream &out, const Command *comma
     if (!command->configOptions.isEmpty()) {
         wrapLine(out, 0, relatedConfigurationOptionsHeading(command)
                 + ' ' + listRelatedConfigurationOptions(command) + '.');
+        out << endl;
+    }
+    if (!command->hooks.isEmpty()) {
+        wrapLine(out, 0, relatedHooksHeading(command)
+                + ' ' + listRelatedHooks(command) + '.');
         out << endl;
     }
     wrapLine(out, 0, tryLongHelpMessage(command->name + " --help"));
@@ -468,6 +488,11 @@ void CommandLineParser::commandUsage(QTextStream &out, const Command *command) c
                 + ' ' + listRelatedConfigurationOptions(command) + '.');
         out << endl;
     }
+    if (!command->hooks.isEmpty()) {
+        wrapLine(out, 0, relatedHooksHeading(command)
+                + ' ' + listRelatedHooks(command) + '.');
+        out << endl;
+    }
     if (command->module->domain->name == Constants::GENERAL_DOMAIN_NAME)
         wrapLine(out, 0, tryLongHelpMessage("--help"));
     else
@@ -480,6 +505,7 @@ void CommandLineParser::domainUsage(QTextStream &out, const Domain *domain) cons
 
     const Command::ConstList domainCommands = domain->commands();
     const Option::ConstList domainOptions = domain->options();
+    const Hook::ConstList domainHooks = domain->hooks();
 
     synopsis(out);
     out << endl;
@@ -518,15 +544,25 @@ void CommandLineParser::domainUsage(QTextStream &out, const Domain *domain) cons
     out << endl;
 
     describeGlobalOptions(out, 1, domain);
-    out << endl;
 
     if (!domainOptions.isEmpty()) {
+        out << endl;
         out << configurationOptionsHeading() << endl;
         out << endl;
         describe(out, 1, domainOptions);
     }
-    out << endl;
 
+    out << endl;
+    out << hooksHeading() << endl;
+    out << endl;
+    if (domainHooks.isEmpty()) {
+        wrapLine(out, 1, tr("None of the commands under this domain supports any hooks."));
+        out << endl;
+    } else {
+        describe(out, 1, domainHooks);
+    }
+
+    out << endl;
     bottomSections(out);
 }
 
@@ -576,6 +612,12 @@ void CommandLineParser::allDomainsUsage(QTextStream &out) const
     out << endl;
 
     describe(out, 1, Utils::toRawPointer<QList>(Dispatcher::options()));
+    out << endl;
+
+    out << hooksHeading() << endl;
+    out << endl;
+
+    describe(out, 1, Utils::toRawPointer<QList>(Dispatcher::hooks()));
     out << endl;
 
     bottomSections(out);
@@ -742,9 +784,20 @@ QString CommandLineParser::configurationOptionsHeading()
     return tr("Configuration Options").toUpper();
 }
 
+QString CommandLineParser::hooksHeading()
+{
+    return tr("Hooks").toUpper();
+}
+
 QString CommandLineParser::relatedConfigurationOptionsHeading(const Command *command)
 {
     return tr("The '%1' command obeys the following configuration options:")
+        .arg(command->name);
+}
+
+QString CommandLineParser::relatedHooksHeading(const Command *command)
+{
+    return tr("The '%1' command supports the following hooks:")
         .arg(command->name);
 }
 
@@ -756,6 +809,29 @@ QString CommandLineParser::listRelatedConfigurationOptions(const Command *comman
     const QStringList names = Utils::transform(command->configOptions, &Option::name);
 
     QStringList compacted = compactOptions(names);
+
+    // Ignore '[.*]' prefixes
+    Utils::sort(compacted, [](const QString &s1, const QString &s2) {
+        const QString s1Base = s1.mid(s1.indexOf(']') + 1);
+        const QString s2Base = s2.mid(s2.indexOf(']') + 1);
+        return s1Base < s2Base;
+    });
+
+    const QStringList quoted = Utils::transform(compacted, [](const QString &s) -> QString {
+        return '\'' + s + '\'';
+    });
+
+    return quoted.join(", ");
+}
+
+/*
+ * List hooks, using '[pre-|post-]command' syntax where these variants exists
+ */
+QString CommandLineParser::listRelatedHooks(const Command *command)
+{
+    const QStringList names = Utils::transform(command->hooks, &Hook::name);
+
+    QStringList compacted = compactHooks(names);
 
     // Ignore '[.*]' prefixes
     Utils::sort(compacted, [](const QString &s1, const QString &s2) {
@@ -839,6 +915,43 @@ QStringList CommandLineParser::compactOptions(const QStringList &names)
     return compacted;
 }
 
+/*
+ * Replace related hooks with compact notation "[pre-|post-]foo".
+ */
+QStringList CommandLineParser::compactHooks(const QStringList &names)
+{
+    const QRegularExpression prePostCandidateRe("^(pre|post)-");
+    QStringList prePostCandidates = names.filter(prePostCandidateRe);
+    QSet<QString> compactedPrePosts;
+
+    QStringList compacted;
+
+    for (const QString &name : names) {
+        if (prePostCandidates.contains(name))
+            continue;
+        if (compactedPrePosts.contains(name))
+            continue;
+
+        const QRegularExpression prePostNameRe("^(pre|post)-" + QRegularExpression::escape(name) + "$");
+        const QStringList prePosts = prePostCandidates.filter(prePostNameRe);
+        if (prePosts.isEmpty()) {
+            compacted << name;
+        } else {
+            QStringList prePostPrefixes;
+            for (const QString &prePost : prePosts) {
+                prePostCandidates.removeAll(prePost);
+                prePostPrefixes << prePost.chopped(name.length());
+            }
+            compacted << "[" + prePostPrefixes.join('|') + "]" + name;
+            compactedPrePosts |= prePosts.toSet();
+        }
+    }
+
+    compacted += prePostCandidates;
+
+    return compacted;
+}
+
 QString CommandLineParser::dashOption(const QString &option)
 {
     if (option.startsWith('-'))
@@ -914,6 +1027,15 @@ void CommandLineParser::describe(QTextStream &out, int indentLevel, const Option
     for (const Option *option : options) {
         wrapLines(out, indentLevel + 0, {}, {option->name}, option->argumentDescription);
         wrapLines(out, indentLevel + 1, {}, {}, option->description);
+        out << endl;
+    }
+}
+
+void CommandLineParser::describe(QTextStream &out, int indentLevel, const Hook::ConstList &hooks) const
+{
+    for (const Hook *hook : hooks) {
+        wrapLines(out, indentLevel + 0, {}, {hook->name}, hook->synopsis);
+        wrapLines(out, indentLevel + 1, {}, {}, hook->description);
         out << endl;
     }
 }

@@ -33,6 +33,7 @@ const char DISPATCH_TR_CONTEXT[] = "Sfdk::Dispatch";
 
 const char GENERAL_DOMAIN_NAME[] = "general";
 const char DEVICE_OPTION_NAME[] = "device";
+const char HOOKS_DIR_OPTION_NAME[] = "hooks-dir";
 const char TARGET_OPTION_NAME[] = "target";
 
 const char BUILD_ENGINE_SYSTEM_BUS_CONNECTION[] = "build-engine-system-bus";

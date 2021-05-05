@@ -48,6 +48,7 @@ private:
     quint16 m_busPort;
     QString m_connectionName;
     QString m_serviceName;
+    std::unique_ptr<QObject> m_rootObject;
     std::unique_ptr<QObject> m_configuredDeviceObject;
 };
 
