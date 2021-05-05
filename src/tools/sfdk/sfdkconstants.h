@@ -30,7 +30,10 @@ const char EXE_NAME[] = "sfdk";
 const char APP_ID[] = "sfdk";
 const char SDK_FRONTEND_ID[] = "sfdk";
 const char DISPATCH_TR_CONTEXT[] = "Sfdk::Dispatch";
+
 const char GENERAL_DOMAIN_NAME[] = "general";
+const char DEVICE_OPTION_NAME[] = "device";
+const char TARGET_OPTION_NAME[] = "target";
 
 const char BUILD_ENGINE_SYSTEM_BUS_CONNECTION[] = "build-engine-system-bus";
 const char SAILFISH_SDK_SFDK_DBUS_SERVICE[] = "SAILFISH_SDK_SFDK_DBUS_SERVICE";

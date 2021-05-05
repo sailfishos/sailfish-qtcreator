@@ -1182,36 +1182,34 @@ BuildTargetData SdkManager::configuredTarget(QString *errorMessage)
     Q_ASSERT(errorMessage);
     QTC_ASSERT(s_instance->hasEngine(), return {});
 
-    const Option *const targetOption = Dispatcher::option("target");
-    QTC_ASSERT(targetOption, return {});
-
-    const Utils::optional<OptionEffectiveOccurence> effectiveTargetOption =
-        Configuration::effectiveState(targetOption);
-    if (!effectiveTargetOption) {
+    const Option *const targetOption_ = Dispatcher::option(Constants::TARGET_OPTION_NAME);
+    QTC_ASSERT(targetOption_, return {});
+    const Utils::optional<OptionEffectiveOccurence> targetOption =
+        Configuration::effectiveState(targetOption_);
+    if (!targetOption) {
         *errorMessage = tr("No target selected");
         return {};
     }
-    QTC_ASSERT(!effectiveTargetOption->isMasked(), return {});
 
-    return engine()->buildTarget(effectiveTargetOption->argument());
+    return engine()->buildTarget(targetOption->argument());
 }
 
 Device *SdkManager::configuredDevice(QString *errorMessage)
 {
     Q_ASSERT(errorMessage);
 
-    const Option *const deviceOption = Dispatcher::option("device");
-    QTC_ASSERT(deviceOption, return nullptr);
+    const Option *const deviceOption_ = Dispatcher::option(Constants::DEVICE_OPTION_NAME);
+    QTC_ASSERT(deviceOption_, return nullptr);
 
-    const Utils::optional<OptionEffectiveOccurence> effectiveDeviceOption =
-        Configuration::effectiveState(deviceOption);
-    if (!effectiveDeviceOption) {
+    const Utils::optional<OptionEffectiveOccurence> deviceOption =
+        Configuration::effectiveState(deviceOption_);
+    if (!deviceOption) {
         *errorMessage = tr("No device selected");
         return nullptr;
     }
-    QTC_ASSERT(!effectiveDeviceOption->isMasked(), return nullptr);
+    QTC_ASSERT(!deviceOption->isMasked(), return nullptr);
 
-    return deviceByName(effectiveDeviceOption->argument(), errorMessage);
+    return deviceByName(deviceOption->argument(), errorMessage);
 }
 
 Device *SdkManager::deviceByName(const QString &deviceName, QString *errorMessage)
