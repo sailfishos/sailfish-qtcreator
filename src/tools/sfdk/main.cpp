@@ -88,6 +88,11 @@ void initQSsh()
 
 int main(int argc, char **argv)
 {
+    // Avoid redirecting output to system logs, which happens (not only) when
+    // sfdk is invoked by GUI applications on Windows.
+    if (!qEnvironmentVariableIsSet("QT_FORCE_STDERR_LOGGING"))
+        qputenv("QT_FORCE_STDERR_LOGGING", "1");
+
     QCoreApplication app(argc, argv);
     app.setOrganizationName(QLatin1String(Core::Constants::IDE_SETTINGSVARIANT_STR));
     app.setApplicationName(Constants::APP_ID);
