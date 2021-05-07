@@ -374,7 +374,7 @@ int Debugger::exec(const QString &executable, const QList<QStringList> &gdbLateI
         return SFDK_EXIT_ABNORMAL;
     }
 
-    TaskManager::setCtrlCFilter(TaskManager::IgnoreAllCtrlCEvents);
+    TaskManager::setCtrlCIgnored(true);
 
     while (gdb.state() != QProcess::NotRunning)
         QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);

@@ -300,18 +300,18 @@ TaskManager::~TaskManager()
     s_instance = nullptr;
 }
 
-void TaskManager::setCtrlCFilter(CtrlCFilter filter)
+void TaskManager::setCtrlCIgnored(bool ignored)
 {
-    if (filter)
-        qCDebug(sfdk) << "TaskManager: Ctrl-C filter set";
+    if (ignored)
+        qCDebug(sfdk) << "TaskManager: About to start ignoring Ctrl-C";
     else
-        qCDebug(sfdk) << "TaskManager: Ctrl-C filter unset";
-    s_instance->m_ctrlCFilter = filter;
+        qCDebug(sfdk) << "TaskManager: About to stop ignoring Ctrl-C";
+    s_instance->ctrlCIgnored = ignored;
 }
 
-TaskManager::CtrlCFilter TaskManager::ctrlCFilter()
+bool TaskManager::isCtrlCIgnored()
 {
-    return s_instance->m_ctrlCFilter;
+    return s_instance->ctrlCIgnored;
 }
 
 void TaskManager::process(Request request)
@@ -420,8 +420,8 @@ BOOL WINAPI SignalHandler::ctrlHandler(DWORD fdwCtrlType)
     switch (fdwCtrlType)
     {
     case CTRL_C_EVENT:
-        if (TaskManager::ctrlCFilter() && !TaskManager::ctrlCFilter()()) {
-            qCDebug(sfdk) << "Ctrl-C event filtered out";
+        if (TaskManager::isCtrlCIgnored()) {
+            qCDebug(sfdk) << "Ctrl-C event ignored";
             return TRUE;
         }
         Q_FALLTHROUGH();
@@ -461,8 +461,8 @@ void SignalHandler::setUp()
 
         switch (signum) {
         case SIGINT:
-            if (TaskManager::ctrlCFilter() && !TaskManager::ctrlCFilter()()) {
-                qCDebug(sfdk) << "Ctrl-C event filtered out";
+            if (TaskManager::isCtrlCIgnored()) {
+                qCDebug(sfdk) << "Ctrl-C event ignored";
                 break;
             }
             Q_FALLTHROUGH();
