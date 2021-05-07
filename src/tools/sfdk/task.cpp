@@ -424,12 +424,24 @@ BOOL WINAPI SignalHandler::ctrlHandler(DWORD fdwCtrlType)
             qCDebug(sfdk) << "Ctrl-C event ignored";
             return TRUE;
         }
-        Q_FALLTHROUGH();
-    case CTRL_CLOSE_EVENT:
+        TaskManager::process(TaskManager::Terminate);
+        return TRUE;
+
     case CTRL_BREAK_EVENT:
+        TaskManager::process(TaskManager::Terminate);
+        return TRUE;
+
+    // The CTRL_LOGOFF_EVENT and CTRL_SHUTDOWN_EVENT even handling is likely a
+    // dead code. With Windows 7 and later, if a console application loads the
+    // gdi32.dll or user32.dll library, the HandlerRoutine function does not get
+    // called for these events.
+    case CTRL_CLOSE_EVENT:
     case CTRL_LOGOFF_EVENT:
     case CTRL_SHUTDOWN_EVENT:
         TaskManager::process(TaskManager::Terminate);
+        // The handler is run in a new thread. The process would be terminated
+        // immediately after returning.
+        Sleep(INFINITE);
         return TRUE;
 
     default:
