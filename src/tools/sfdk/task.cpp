@@ -119,7 +119,7 @@ void Task::post(Event event)
 void Task::process(Event event)
 {
     QTC_ASSERT(!processing, return);
-    QScopedValueRollback<bool>(processing, true);
+    QScopedValueRollback<bool> guard(processing, true);
 
     bool changed = false;
 
