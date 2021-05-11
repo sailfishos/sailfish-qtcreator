@@ -5,6 +5,10 @@ add_subdirectory(qtlockedfile)
 add_subdirectory(help)
 add_subdirectory(registryaccess)
 
+# PCHs used by qmake based plugin builds
+qtc_add_public_header(qtcreator_pch.h)
+qtc_add_public_header(qtcreator_gui_pch.h)
+
 if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/qbs/CMakeLists.txt)
   set(BUILD_QBS_DEFAULT YES)
 else()
@@ -37,7 +41,7 @@ if (ENABLE_BUILD_QBS)
 
   set(INSTALL_PUBLIC_HEADERS OFF CACHE BOOL "")
   set(WITH_TESTS OFF)
-  set(WITH_PROJECT_FILE_UPDATES ON)
+  set(WITH_PROJECT_FILE_UPDATES ON CACHE BOOL "")
   set(QBS_INSTALL_QCH_DOCS ${WITH_DOCS} CACHE BOOL "")
   add_subdirectory(qbs)
 endif()
