@@ -25,6 +25,7 @@
 #include <QObject>
 #include <QSet>
 
+#include <atomic>
 #include <functional>
 #include <memory>
 
@@ -113,15 +114,12 @@ public:
     };
     Q_ENUM(Request)
 
-    using CtrlCFilter = std::function<bool()>;
-    static bool IgnoreAllCtrlCEvents() { return false; }
-
 public:
     TaskManager();
     ~TaskManager();
 
-    static void setCtrlCFilter(CtrlCFilter filter);
-    static CtrlCFilter ctrlCFilter();
+    static void setCtrlCIgnored(bool ignored);
+    static bool isCtrlCIgnored();
 
 private:
     friend class Task;
@@ -138,7 +136,7 @@ private:
     static TaskManager *s_instance;
     std::unique_ptr<SignalHandler> signalHandler;
     QSet<Task *> tasks;
-    CtrlCFilter m_ctrlCFilter;
+    std::atomic_bool ctrlCIgnored = false;
 };
 
 } // namespace Sfdk
