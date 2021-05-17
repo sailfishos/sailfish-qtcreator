@@ -549,7 +549,7 @@ public:
         return exitCode == EXIT_SUCCESS;
     }
 
-    bool removeTools(const QString &name, SdkManager::ToolsTypeHint typeHint)
+    bool removeTools(const QString &name, SdkManager::ToolsTypeHint typeHint, bool snapshotsOf)
     {
         if (!fetchInfo())
             return false;
@@ -559,10 +559,12 @@ public:
         if (!packageForName(name, typeHint, &package, &flags))
             return false;
 
-        if (flags & ToolsInfo::UserDefined || flags & ToolsInfo::Snapshot) {
+        if (flags & ToolsInfo::UserDefined || flags & ToolsInfo::Snapshot || snapshotsOf) {
             QStringList args;
             args += toArgs(typeHint);
             args += "remove";
+            if (snapshotsOf)
+                args += "--snapshots-of";
             args += name;
             const int exitCode = SdkManager::runOnEngine("sdk-assistant", args);
             return exitCode == EXIT_SUCCESS;
@@ -1170,10 +1172,10 @@ bool SdkManager::installCustomTools(const QString &name, const QString &imageFil
     return ToolsPackageManager().installCustomTools(name, imageFileOrUrl, typeHint, maybeTooling);
 }
 
-bool SdkManager::removeTools(const QString &name, ToolsTypeHint typeHint)
+bool SdkManager::removeTools(const QString &name, ToolsTypeHint typeHint, bool snapshotsOf)
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    return ToolsPackageManager().removeTools(name, typeHint);
+    return ToolsPackageManager().removeTools(name, typeHint, snapshotsOf);
 }
 
 BuildTargetData SdkManager::configuredTarget(QString *errorMessage)

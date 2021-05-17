@@ -1660,12 +1660,24 @@ Worker::ExitStatus BuiltinWorker::runTools(const QStringList &arguments_, int *e
     }
 
     if (arguments.first() == "remove") {
-        if (!P::checkPositionalArgumentsCount(arguments, 2, 2))
+        QCommandLineParser parser;
+        QCommandLineOption snapshotsOfOption("snapshots-of");
+
+        parser.addOptions({snapshotsOfOption});
+        parser.addPositionalArgument("name", QString(), "[name]");
+
+        if (!parser.parse(arguments)) {
+             qerr() << parser.errorText() << endl;
+             return BadUsage;
+        }
+
+        if (!P::checkPositionalArgumentsCount(parser.positionalArguments(), 1, 1))
             return BadUsage;
 
-        const QString name = arguments.at(1);
+        const QString name = positionalArguments.first();
 
-        *exitCode = SdkManager::removeTools(name, typeHint) ? EXIT_SUCCESS : EXIT_FAILURE;
+        *exitCode = SdkManager::removeTools(name, typeHint, parser.isSet(snapshotsOfOption))
+            ? EXIT_SUCCESS : EXIT_FAILURE;
         return NormalExit;
     }
 
