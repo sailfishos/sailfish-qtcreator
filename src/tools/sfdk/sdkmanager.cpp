@@ -1389,9 +1389,13 @@ bool SdkManager::stopReliably(VirtualMachine *virtualMachine)
 {
     QTC_ASSERT(virtualMachine, return false);
     bool ok;
+    if (isRunningReliably(virtualMachine)) {
+        execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::connectTo),
+                virtualMachine, VirtualMachine::NoConnectOption);
+    }
     execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::lockDown),
             virtualMachine, true);
-    return ok;
+    return ok; // NB, just the last call matters
 }
 
 bool SdkManager::isRunningReliably(VirtualMachine *virtualMachine)
