@@ -77,17 +77,26 @@ public:
         process()->setProcessEnvironment(environment());
     }
 
-private:
     static QString path()
     {
-        QString path = dockerPath();
+        static QString path;
+        if (!path.isNull())
+            return path;
+
+        path = dockerPath();
 
         if (!SdkPrivate::customDockerPath().isEmpty())
             path = SdkPrivate::customDockerPath();
 
+        if (!path.isEmpty())
+            qCDebug(vms) << "Using docker tool at" << path;
+        else
+            qCDebug(vms) << "docker tool not found";
+
         return path;
     }
 
+private:
     static QProcessEnvironment environment()
     {
         QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
