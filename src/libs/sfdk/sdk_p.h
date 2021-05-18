@@ -90,6 +90,7 @@ private:
     std::unique_ptr<BuildEngineManager> buildEngineManager;
     std::unique_ptr<EmulatorManager> emulatorManager;
     std::unique_ptr<DeviceManager> deviceManager;
+    QStringList maskedVmTypes;
     QString customVBoxManagePath_;
     QString customDockerPath_;
     QString customGpgPath_;
