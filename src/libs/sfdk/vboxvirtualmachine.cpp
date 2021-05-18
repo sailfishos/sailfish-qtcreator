@@ -190,7 +190,7 @@ VBoxVirtualMachine::~VBoxVirtualMachine()
 
 bool VBoxVirtualMachine::isAvailable()
 {
-    return !vBoxManagePath().isEmpty();
+    return !VBoxManageRunner::path().isEmpty();
 }
 
 QString VBoxVirtualMachine::staticType()

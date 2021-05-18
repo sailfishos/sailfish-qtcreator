@@ -120,7 +120,7 @@ DockerVirtualMachine::~DockerVirtualMachine()
 
 bool DockerVirtualMachine::isAvailable()
 {
-    return !dockerPath().isEmpty();
+    return !DockerRunner::path().isEmpty();
 }
 
 QString DockerVirtualMachine::staticType()
