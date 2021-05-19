@@ -90,6 +90,8 @@ private:
             const QString &linePrefix, const QList<int> &columns, const QList<int> &widths);
     static TreePrinter::Item *findItem(Tree &tree, const QString &id,
             int idColumn);
+    static QList<QStringList> topoSort(const QList<QStringList> &table, int idColumn,
+            int parentIdColumn);
 
     template<typename T>
     static T walk(const Tree &tree, T init, std::function<T(T, int, const Item &)> op)

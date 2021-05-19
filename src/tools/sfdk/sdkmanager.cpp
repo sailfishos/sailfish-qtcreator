@@ -469,7 +469,6 @@ public:
             }
         }
 
-        // Partially order by parent-child relations to allow building tree with single pass
         *info = toolingInfo + targetInfo + snapshotInfo;
         return true;
     }
