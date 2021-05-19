@@ -339,6 +339,16 @@ void TreePrinter::sort(Tree *tree, int level, int column, bool ascending)
     }
 }
 
+void TreePrinter::sort(Tree *tree, int column, bool ascending)
+{
+    QTC_ASSERT(tree, return);
+    QTC_ASSERT(column >= 0, return);
+
+    sort(tree, 0, column, ascending);
+    for (auto it = tree->begin(); it != tree->end(); ++it)
+        sort(&it->children, column, ascending);
+}
+
 void TreePrinter::print(QTextStream &out, const Tree &tree, const QList<int> &columns)
 {
     QList<int> widths;

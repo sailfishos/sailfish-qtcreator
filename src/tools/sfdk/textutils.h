@@ -83,6 +83,7 @@ public:
     static Tree build(const QList<QStringList> &table, int idColumn,
             int parentIdColumn);
     static void sort(Tree *tree, int level, int column, bool ascending);
+    static void sort(Tree *tree, int column, bool ascending);
     static void print(QTextStream &out, const Tree &tree, const QList<int> &columns);
 
 private:

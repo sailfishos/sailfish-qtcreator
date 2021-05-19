@@ -1852,9 +1852,7 @@ bool BuiltinWorker::listTools(SdkManager::ListToolsOptions options, bool listToo
     }
 
     TreePrinter::Tree tree = TreePrinter::build(table, 0, 1);
-    TreePrinter::sort(&tree, 0, 0, true);
-    TreePrinter::sort(&tree, 1, 0, true);
-    TreePrinter::sort(&tree, 2, 0, true);
+    TreePrinter::sort(&tree, 0, true);
     TreePrinter::print(qout(), tree, {0, 2});
 
     return true;
