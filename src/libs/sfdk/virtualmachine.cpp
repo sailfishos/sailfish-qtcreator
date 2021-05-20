@@ -138,6 +138,7 @@ VirtualMachine::VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, cons
             this, &VirtualMachine::virtualMachineOffChanged);
     connect(d->connection.get(), &VmConnection::lockDownFailed, this, &VirtualMachine::lockDownFailed);
     connect(d->connection.get(), &VmConnection::initGuest, d, &VirtualMachinePrivate::doInitGuest);
+    connect(d->connection.get(), &VmConnection::initGuest, d, &VirtualMachinePrivate::initGuest);
 
     if (SdkPrivate::isVersionedSettingsEnabled()) {
         if (SdkPrivate::isUpdatesEnabled()) {

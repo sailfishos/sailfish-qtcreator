@@ -95,6 +95,7 @@ private:
     void setWwwPort(quint16 wwwPort);
     void setDBusPort(quint16 dBusPort);
 
+    void initGuest();
     void syncWwwProxy();
     void updateBuildTargets();
     void updateBuildTargets(QList<BuildTargetDump> newTargets);
