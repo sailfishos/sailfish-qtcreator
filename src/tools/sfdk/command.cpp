@@ -1674,7 +1674,7 @@ Worker::ExitStatus BuiltinWorker::runTools(const QStringList &arguments_, int *e
         if (!P::checkPositionalArgumentsCount(parser.positionalArguments(), 1, 1))
             return BadUsage;
 
-        const QString name = positionalArguments.first();
+        const QString name = parser.positionalArguments().first();
 
         *exitCode = SdkManager::removeTools(name, typeHint, parser.isSet(snapshotsOfOption))
             ? EXIT_SUCCESS : EXIT_FAILURE;
