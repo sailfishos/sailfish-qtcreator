@@ -27,6 +27,7 @@
 
 #include "sdk_p.h"
 
+#include <ssh/sshremoteprocessrunner.h>
 #include <utils/optional.h>
 
 #include <QBasicTimer>
@@ -201,6 +202,39 @@ private:
     const std::unique_ptr<QProcess> m_process;
     QList<int> m_expectedExitCodes = {0};
     bool m_crashExpected = false;
+};
+
+class RemoteProcessRunner : public CommandRunner
+{
+    Q_OBJECT
+
+public:
+    RemoteProcessRunner(const QString &displayName, const QString &command,
+            const QSsh::SshConnectionParameters &sshParameters, QObject *parent = nullptr);
+
+    QSsh::SshRemoteProcessRunner *sshRunner() const { return m_sshRunner.get(); }
+
+    QList<int> expectedExitCodes() const { return m_expectedExitCodes; }
+    void setExpectedExitCodes(const QList<int> &expectedExitCodes)
+    {
+        m_expectedExitCodes = expectedExitCodes;
+    }
+
+    QDebug print(QDebug debug) const override;
+
+protected:
+    void doRun() override;
+
+private slots:
+    void onProcessClosed();
+    void onConnectionError();
+
+private:
+    const std::unique_ptr<QSsh::SshRemoteProcessRunner> m_sshRunner;
+    const QString m_displayName;
+    const QString m_command;
+    const QSsh::SshConnectionParameters m_sshParamaters;
+    QList<int> m_expectedExitCodes = {0};
 };
 
 template<typename Runner, typename... Args>

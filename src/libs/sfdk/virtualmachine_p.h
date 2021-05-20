@@ -193,6 +193,7 @@ protected:
 
 private:
     void enableUpdates();
+    void doInitGuest();
 
 signals:
     void aboutToRestoreSnapshot(const std::shared_ptr<bool> &ok);

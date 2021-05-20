@@ -137,6 +137,7 @@ VirtualMachine::VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, cons
     connect(d->connection.get(), &VmConnection::virtualMachineOffChanged,
             this, &VirtualMachine::virtualMachineOffChanged);
     connect(d->connection.get(), &VmConnection::lockDownFailed, this, &VirtualMachine::lockDownFailed);
+    connect(d->connection.get(), &VmConnection::initGuest, d, &VirtualMachinePrivate::doInitGuest);
 
     if (SdkPrivate::isVersionedSettingsEnabled()) {
         if (SdkPrivate::isUpdatesEnabled()) {
@@ -778,6 +779,19 @@ void VirtualMachinePrivate::enableUpdates()
         // TODO Is that ideal?
         q->refreshConfiguration(q, [](bool ok) { QTC_CHECK(ok); });
     });
+}
+
+void VirtualMachinePrivate::doInitGuest()
+{
+    // Do not check for "running", it's likely it will end in "degraded" state
+    const QString watcher(R"(
+        while [[ $(systemctl is-system-running) == starting ]]; do
+            sleep 1
+        done
+    )");
+
+    BatchComposer::enqueue<RemoteProcessRunner>("wait-for-startup-completion",
+            watcher, sshParameters);
 }
 
 /*!
