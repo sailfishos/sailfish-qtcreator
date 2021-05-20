@@ -83,6 +83,7 @@ public:
     static Tree build(const QList<QStringList> &table, int idColumn,
             int parentIdColumn);
     static void sort(Tree *tree, int level, int column, bool ascending);
+    static void sort(Tree *tree, int column, bool ascending);
     static void print(QTextStream &out, const Tree &tree, const QList<int> &columns);
 
 private:
@@ -90,6 +91,8 @@ private:
             const QString &linePrefix, const QList<int> &columns, const QList<int> &widths);
     static TreePrinter::Item *findItem(Tree &tree, const QString &id,
             int idColumn);
+    static QList<QStringList> topoSort(const QList<QStringList> &table, int idColumn,
+            int parentIdColumn);
 
     template<typename T>
     static T walk(const Tree &tree, T init, std::function<T(T, int, const Item &)> op)

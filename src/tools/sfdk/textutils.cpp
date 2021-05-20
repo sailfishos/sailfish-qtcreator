@@ -297,7 +297,7 @@ TreePrinter::Tree TreePrinter::build(const QList<QStringList> &table, int idColu
 {
     Tree tree;
 
-    for (const QStringList &row : table) {
+    for (const QStringList &row : topoSort(table, idColumn, parentIdColumn)) {
         QTC_ASSERT(row.count() > idColumn, return {});
         QTC_ASSERT(row.count() > parentIdColumn, return {});
         const QString id = row.at(idColumn);
@@ -337,6 +337,16 @@ void TreePrinter::sort(Tree *tree, int level, int column, bool ascending)
         for (auto it = tree->begin(); it != tree->end(); ++it)
             sort(&it->children, level - 1, column, ascending);
     }
+}
+
+void TreePrinter::sort(Tree *tree, int column, bool ascending)
+{
+    QTC_ASSERT(tree, return);
+    QTC_ASSERT(column >= 0, return);
+
+    sort(tree, 0, column, ascending);
+    for (auto it = tree->begin(); it != tree->end(); ++it)
+        sort(&it->children, column, ascending);
 }
 
 void TreePrinter::print(QTextStream &out, const Tree &tree, const QList<int> &columns)
@@ -394,6 +404,29 @@ TreePrinter::Item *TreePrinter::findItem(Tree &tree, const QString &id,
             return descendant;
     }
     return nullptr;
+}
+
+QList<QStringList> TreePrinter::topoSort(const QList<QStringList> &table, int idColumn, int parentIdColumn)
+{
+    QSet<QString> seen;
+    QList<QStringList> in = table;
+    QList<QStringList> out;
+
+    while (!in.isEmpty()) {
+        QList<QStringList> now;
+        QList<QStringList> later;
+        std::tie(now, later) = Utils::partition(in, [&](const QStringList &row) {
+            const QString parentId = row.at(parentIdColumn);
+            return parentId.isEmpty() || seen.contains(parentId);
+        });
+        const QStringList nowIds = Utils::transform(now,
+                [=](const QStringList &row) { return row.at(idColumn); });
+        seen += nowIds.toSet();
+        out += now;
+        in = later;
+    }
+
+    return out;
 }
 
 } // namespace Sfdk
