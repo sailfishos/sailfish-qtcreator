@@ -466,8 +466,11 @@ void VmConnection::connectTo(VirtualMachine::ConnectOptions options, const QObje
             m_connectOptions &= ~VirtualMachine::AskStartVm;
 
         auto checkState = [=]() {
-            if (!batch->queue()->isEmpty()) // Initial vmPollState in progress
+            if (!batch->queue()->isEmpty() // Initial vmPollState in progress
+                    || m_connectLaterRequested
+                    || m_connectRequested) {
                 return;
+            }
 
             switch (state()) {
             case VirtualMachine::Disconnected:
@@ -751,6 +754,8 @@ bool VmConnection::vmStmStep()
         if (m_cachedVmRunning) {
             m_vmStartedOutside = true;
             vmStmTransition(VmRunning, "started outside");
+        } else if (m_pollingVmState) {
+            // wait
         } else if (m_lockDownRequested) {
             // noop
         } else if (m_connectRequested) {
@@ -1261,24 +1266,19 @@ void VmConnection::vmPollState(const QObject *context, const Functor<bool> &func
         const bool vmRunning = state & VirtualMachinePrivate::Running;
         const bool vmHeadless = state & VirtualMachinePrivate::Headless;
 
-        bool changed = false;
-
         if (vmRunning != m_cachedVmRunning) {
             DBG << "VM running:" << m_cachedVmRunning << "-->" << vmRunning;
             m_cachedVmRunning = vmRunning;
             m_cachedVmRunningHeadless = vmHeadless;
             emit virtualMachineOffChanged(!m_cachedVmRunning);
-            changed = true;
         }
 
         if (vmExists != m_cachedVmExists) {
             DBG << "VM exists:" << m_cachedVmExists << "-->" << vmExists;
             m_cachedVmExists = vmExists;
-            changed = true;
         }
 
-        if (changed)
-            vmStmScheduleExec();
+        vmStmScheduleExec();
 
         m_pollingVmState = false;
 

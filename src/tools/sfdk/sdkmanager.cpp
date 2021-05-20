@@ -1377,8 +1377,6 @@ bool SdkManager::startReliably(VirtualMachine *virtualMachine)
         execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::lockDown),
                 virtualMachine, false);
     }
-    execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::refreshState),
-            virtualMachine);
     execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::connectTo),
             virtualMachine, VirtualMachine::NoConnectOption);
     return ok; // NB, just the last call matters
