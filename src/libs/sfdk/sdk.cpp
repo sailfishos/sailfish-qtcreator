@@ -49,6 +49,7 @@ namespace Sfdk {
 
 namespace {
 const char SDK_MAINTENANCE_TOOL_DATA_FILE[] = "SDKMaintenanceTool.dat";
+const char MASKED_VM_TYPES[] = "MaskedVmTypes";
 const char VBOXMANAGE_PATH[] = "VBoxManagePath";
 const char DOCKER_PATH[] = "DockerPath";
 const char GPG_PATH[] = "GpgPath";
@@ -81,9 +82,9 @@ Sdk::Sdk(Options options)
     d->commandQueue_->run();
 
     d->virtualMachineFactory = std::make_unique<VirtualMachineFactory>(this);
-    if (VBoxVirtualMachine::isAvailable())
+    if (!d->maskedVmTypes.contains(VBoxVirtualMachine::staticType()) && VBoxVirtualMachine::isAvailable())
         d->virtualMachineFactory->registerType<VBoxVirtualMachine>();
-    if (DockerVirtualMachine::isAvailable())
+    if (!d->maskedVmTypes.contains(DockerVirtualMachine::staticType()) && DockerVirtualMachine::isAvailable())
         d->virtualMachineFactory->registerType<DockerVirtualMachine>();
 
     d->buildEngineManager = std::make_unique<BuildEngineManager>(this);
@@ -422,6 +423,10 @@ void SdkPrivate::readGeneralSettings()
             QCoreApplication::organizationName(), QString::fromLatin1(Constants::LIB_ID));
 
     qCDebug(lib) << "General settings location" << settings.fileName();
+
+    maskedVmTypes = settings.value(MASKED_VM_TYPES).toStringList();
+    if (!maskedVmTypes.isEmpty())
+        qCDebug(vms) << "Masked VM types:" << maskedVmTypes;
 
     customVBoxManagePath_ = settings.value(VBOXMANAGE_PATH).toString();
     customDockerPath_ = settings.value(DOCKER_PATH).toString();

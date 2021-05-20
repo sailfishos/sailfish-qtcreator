@@ -120,7 +120,6 @@ QString vBoxManagePath()
         }
     }
 
-    QTC_ASSERT(!path.isEmpty(), return path);
     return path;
 }
 
@@ -147,17 +146,26 @@ public:
         process()->setProcessChannelMode(QProcess::SeparateChannels);
     }
 
-private:
     static QString path()
     {
-        QString path = vBoxManagePath();
+        static QString path;
+        if (!path.isNull())
+            return path;
+
+        path = vBoxManagePath();
 
         if (!SdkPrivate::customVBoxManagePath().isEmpty())
             path = SdkPrivate::customVBoxManagePath();
 
+        if (!path.isEmpty())
+            qCDebug(vms) << "Using vboxmanage tool at" << path;
+        else
+            qCDebug(vms) << "vboxmanage tool not found";
+
         return path;
     }
 
+private:
     static QProcessEnvironment environment()
     {
         QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
@@ -190,7 +198,7 @@ VBoxVirtualMachine::~VBoxVirtualMachine()
 
 bool VBoxVirtualMachine::isAvailable()
 {
-    return !vBoxManagePath().isEmpty();
+    return !VBoxManageRunner::path().isEmpty();
 }
 
 QString VBoxVirtualMachine::staticType()
