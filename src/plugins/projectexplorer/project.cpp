@@ -792,6 +792,9 @@ void Project::createTargetFromMap(const QVariantMap &map, int index)
 
     Kit *k = KitManager::kit(id);
     if (!k) {
+        qWarning("Warning: No kit '%s' found. Continuing.", qPrintable(id.toString()));
+        return;
+
         Utils::Id deviceTypeId = Utils::Id::fromSetting(targetMap.value(Target::deviceTypeKey()));
         if (!deviceTypeId.isValid())
             deviceTypeId = Constants::DESKTOP_DEVICE_TYPE;
