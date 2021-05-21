@@ -90,7 +90,7 @@ void SshRemoteProcess::doStart()
     }
 
     const QString program = SshSettings::sshFilePath().toString();
-    const QStringList arguments = fullLocalCommandLine();
+    const QStringList arguments = allLocalArguments();
 
     qCDebug(sshLog) << "starting remote process:" << program << "arguments:" << arguments;
     QProcess::start(program, arguments);
@@ -121,7 +121,7 @@ bool SshRemoteProcess::isRunning() const
     return state() == QProcess::Running;
 }
 
-QStringList SshRemoteProcess::fullLocalCommandLine() const
+QStringList SshRemoteProcess::allLocalArguments() const
 {
     QStringList args;
 
@@ -137,6 +137,11 @@ QStringList SshRemoteProcess::fullLocalCommandLine() const
         args.append(d->remoteCommand);
 
     return args;
+}
+
+Utils::CommandLine SshRemoteProcess::fullLocalCommandLine() const
+{
+    return {SshSettings::sshFilePath(), allLocalArguments()};
 }
 
 } // namespace QSsh
