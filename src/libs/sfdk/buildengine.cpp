@@ -472,10 +472,10 @@ bool BuildEnginePrivate::initVirtualMachine(const QUrl &vmUri)
     sshParameters.authenticationType = SshConnectionParameters::AuthenticationTypeSpecificKey;
     virtualMachine->setSshParameters(sshParameters);
 
-    QObject::connect(virtualMachine.get(), &VirtualMachine::stateChanged, q, [=]() {
-        if (virtualMachine->state() == VirtualMachine::Connected)
-            syncWwwProxy();
-    });
+    QObject::connect(VirtualMachinePrivate::get(virtualMachine.get()),
+            &VirtualMachinePrivate::initGuest,
+            q,
+            [=]() { initGuest(); });
 
     return true;
 }
@@ -648,13 +648,14 @@ void BuildEnginePrivate::setDBusPort(quint16 dBusPort)
     emit q_func()->dBusPortChanged(dBusPort);
 }
 
-// FIXME This should be only done when the configuration changes, it should be able to block
-// certain operations to ensure the build engine is not utilized before the new configuration
-// takes effect, and the result should be checked.
+void BuildEnginePrivate::initGuest()
+{
+    syncWwwProxy();
+}
+
+// FIXME This should be only done when the configuration changes
 void BuildEnginePrivate::syncWwwProxy()
 {
-    Q_Q(BuildEngine);
-
     const SshConnectionParameters sshParameters = virtualMachine->sshParameters();
     const QRegularExpression spaces("[[:space:]]+");
     const QStringList wwwProxyServers = this->wwwProxyServers.split(spaces, Qt::SkipEmptyParts);
@@ -681,22 +682,10 @@ void BuildEnginePrivate::syncWwwProxy()
         sudo connmanctl config "$service" proxy %1
     )").arg(QtcProcess::joinArgs(args, Utils::OsTypeLinux));
 
-    auto runner = new SshRemoteProcessRunner(q);
-    QObject::connect(runner, &SshRemoteProcessRunner::processClosed, [runner]() {
-        if (runner->processExitStatus() != SshRemoteProcess::NormalExit)
-            qCWarning(engine) << "Failed to sync WWW proxy configuration: Process exited abnormally";
-        else if (runner->processExitCode() != EXIT_SUCCESS)
-            qCWarning(engine) << "Failed to sync WWW proxy configuration: Process exited with error";
-        runner->deleteLater();
-    });
-    QObject::connect(runner, &SshRemoteProcessRunner::connectionError, [runner]() {
-        qCWarning(engine) << "Failed to sync WWW proxy configuration: Error connecting to the build engine";
-        runner->deleteLater();
-    });
-
     qCDebug(engine) << "About to sync WWW proxy. connmanctl arguments:" << args;
 
-    runner->run(connmanctl, sshParameters);
+    BatchComposer::enqueue<RemoteProcessRunner>("sync-www-proxy-configuration",
+            connmanctl, sshParameters);
 }
 
 void BuildEnginePrivate::updateBuildTargets()

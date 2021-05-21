@@ -95,6 +95,7 @@ signals:
     void virtualMachineChanged();
     void virtualMachineOffChanged(bool vmOff);
     void lockDownFailed();
+    void initGuest();
 
 protected:
     void timerEvent(QTimerEvent *event) override;
@@ -141,7 +142,7 @@ private slots:
     void onSshConnected();
     void onSshDisconnected();
     void onSshErrorOccured();
-    void onWaitForSystemRunningProcessFinished();
+    void onGuestInitFinished();
     void onRemoteShutdownProcessFinished();
     void onAboutToShutDown();
 
@@ -197,7 +198,7 @@ private:
     // auto invoke reset after properties are changed
     QBasicTimer m_resetTimer;
 
-    QPointer<VmConnectionWaitForSystemRunningProcess> m_waitForSystemRunningProcess;
+    QPointer<BatchRunner> m_guestInitBatch;
     QPointer<VmConnectionRemoteShutdownProcess> m_remoteShutdownProcess;
 };
 

@@ -28,6 +28,8 @@
 #include <QTimer>
 #include <QTimerEvent>
 
+using namespace QSsh;
+
 namespace Sfdk {
 
 namespace {
@@ -376,6 +378,60 @@ void ProcessRunner::onFinished(int exitCode, QProcess::ExitStatus exitStatus)
     } else {
         emitDone(true);
     }
+}
+
+/*!
+ * \class RemoteProcessRunner
+ * \internal
+ */
+
+RemoteProcessRunner::RemoteProcessRunner(const QString &displayName, const QString &command,
+        const SshConnectionParameters &sshParameters,
+        QObject *parent)
+    : CommandRunner(parent)
+    , m_sshRunner(std::make_unique<SshRemoteProcessRunner>(this))
+    , m_displayName(displayName)
+    , m_command(command)
+    , m_sshParamaters(sshParameters)
+{
+    connect(m_sshRunner.get(), &SshRemoteProcessRunner::processClosed,
+            this, &RemoteProcessRunner::onProcessClosed);
+    connect(m_sshRunner.get(), &SshRemoteProcessRunner::connectionError,
+            this, &RemoteProcessRunner::onConnectionError);
+}
+
+QDebug RemoteProcessRunner::print(QDebug debug) const
+{
+    debug << "Remote process" << m_displayName << "on" << m_sshParamaters.url.authority();
+    return debug;
+}
+
+void RemoteProcessRunner::doRun()
+{
+    m_sshRunner->run(m_command, m_sshParamaters);
+}
+
+void RemoteProcessRunner::onProcessClosed()
+{
+    if (m_sshRunner->processExitStatus() != SshRemoteProcess::NormalExit) {
+        qCWarning(vms) << "Remote process" << m_displayName << "on" << m_sshParamaters.url.authority()
+            << "crashed.";
+        emitDone(false);
+    } else if (!m_expectedExitCodes.isEmpty()
+            && !m_expectedExitCodes.contains(m_sshRunner->processExitCode())) {
+        qCWarning(vms) << "Remote process" << m_displayName << "on" << m_sshParamaters.url.authority()
+            << "exited with unexpected exit code." << m_sshRunner->processExitCode();
+        emitDone(false);
+    } else {
+        emitDone(true);
+    }
+}
+
+void RemoteProcessRunner::onConnectionError()
+{
+    qCWarning(vms) << "Remote process" << m_displayName << "on" << m_sshParamaters.url.authority()
+        << "could not be run:" << m_sshRunner->lastConnectionErrorString();
+    emitDone(false);
 }
 
 } // namespace Sfdk
