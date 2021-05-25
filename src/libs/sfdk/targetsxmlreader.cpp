@@ -45,6 +45,7 @@ const char TARGET[] = "target";
 const char TARGETS[] = "targets";
 const char OUTPUT[] = "output";
 const char NAME[] = "name";
+const char ORIGIN[] = "origin";
 const char VERSION[] = "version";
 const char GCCDUMPMACHINE[] = "GccDumpMachine";
 const char GCCDUMPMACROS[] = "GccDumpMacros";
@@ -121,6 +122,8 @@ protected:
             m_version = attributeValue.toInt();
         else if (element == QLatin1String(TARGET) && attributeName == QLatin1String(NAME))
             m_currentTarget.name = attributeValue;
+        else if (element == QLatin1String(TARGET) && attributeName == QLatin1String(ORIGIN))
+            m_currentTarget.origin = attributeValue;
         else if (element == QLatin1String(OUTPUT) && attributeName == QLatin1String(NAME))
             m_attributeValue = attributeValue;
         else

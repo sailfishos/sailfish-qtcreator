@@ -382,7 +382,16 @@ QStringList MerBuildConfigurationAspect::effectiveSfdkOptions() const
 
     Kit *const kit = buildConfiguration()->buildSystem()->kit();
 
-    retv << "-c" << "target=" + MerSdkKitAspect::buildTargetName(kit);
+    const BuildTargetData buildTarget = MerSdkKitAspect::buildTarget(kit);
+
+    if (buildTarget.flags & BuildTargetData::Snapshot) {
+        retv << "-c" << "target=" + buildTarget.origin;
+        if (!(buildTarget.flags & BuildTargetData::DefaultSnapshot))
+            retv << "-c" << "snapshot=" + buildTarget.snapshotSuffix();
+    } else {
+        retv << "-c" << "target=" + buildTarget.name;
+        retv << "-c" << "no-snapshot";
+    }
 
     if (!m_specFilePath.isEmpty())
         retv << "-c" << "specfile=" + m_specFilePath;

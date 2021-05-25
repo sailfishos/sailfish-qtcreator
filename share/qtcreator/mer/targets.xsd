@@ -16,6 +16,7 @@
             <xsd:element name="output" type="outputType" maxOccurs="unbounded"/>
         </xsd:sequence>
         <xsd:attribute name="name" type="xsd:string"/>
+        <xsd:attribute name="origin" type="xsd:string"/>
     </xsd:complexType>
 
     <xsd:simpleType name="outputTypeBase">

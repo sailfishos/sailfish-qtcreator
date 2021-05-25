@@ -52,6 +52,8 @@ public:
     void fromMap(const QVariantMap &data);
 
     QString name;
+    QString origin;
+
     QString gccDumpMachine;
     QString gccDumpMacros;
     QString gccDumpIncludes;

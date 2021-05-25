@@ -55,6 +55,9 @@ namespace Sfdk {
 
 namespace {
 
+const char DEFAULT_SNAPSHOT_SUFFIX[] = "default";
+const char POOLED_SNAPSHOT_INFIX[] = ".pool.";
+
 const char* SIMPLE_WRAPPERS[] = {
     Constants::WRAPPER_CMAKE,
     Constants::WRAPPER_QMAKE,
@@ -83,6 +86,7 @@ bool RpmValidationSuiteData::operator==(const RpmValidationSuiteData &other) con
 bool BuildTargetData::operator==(const BuildTargetData &other) const
 {
     return name == other.name
+        && origin == other.origin
         && sysRoot == other.sysRoot
         && toolsPath == other.toolsPath
         && gdb == other.gdb
@@ -95,6 +99,12 @@ bool BuildTargetData::isValid() const
         && !sysRoot.isEmpty()
         && !toolsPath.isEmpty()
         && !gdb.isEmpty();
+}
+
+QString BuildTargetData::snapshotSuffix() const
+{
+    QTC_ASSERT(flags & Snapshot, return {});
+    return name.mid(origin.length() + 1);
 }
 
 Utils::FilePath BuildTargetData::toolsPathCommonPrefix()
@@ -278,9 +288,16 @@ void BuildEngine::setWwwProxy(const QString &type, const QString &servers, const
 
 QStringList BuildEngine::buildTargetNames() const
 {
-    return Utils::transform(d_func()->buildTargetsData, [](const BuildTargetData &data) {
-        return data.name;
-    });
+    return Utils::transform(d_func()->buildTargetsData, &BuildTargetData::name);
+}
+
+QStringList BuildEngine::buildTargetOrigins() const
+{
+    QStringList origins = Utils::transform(d_func()->buildTargetsData, &BuildTargetData::origin);
+    Utils::sort(origins);
+    origins.erase(std::unique(origins.begin(), origins.end()), origins.end());
+    origins.removeAll(QString());
+    return origins;
 }
 
 QList<BuildTargetData> BuildEngine::buildTargets() const
@@ -292,6 +309,18 @@ BuildTargetData BuildEngine::buildTarget(const QString &name) const
 {
     return Utils::findOrDefault(d_func()->buildTargetsData,
             Utils::equal(&BuildTargetData::name, name));
+}
+
+BuildTargetData BuildEngine::buildTargetByOrigin(const QString &origin, const QString &snapshotSuffix) const
+{
+    QTC_ASSERT(!snapshotSuffix.isEmpty() || snapshotSuffix.isNull(), return {});
+
+    return Utils::findOrDefault(d_func()->buildTargetsData, [&](const BuildTargetData &target) {
+        return target.flags & BuildTargetData::Snapshot
+            && target.origin == origin
+            && (!snapshotSuffix.isNull() || target.flags & BuildTargetData::DefaultSnapshot)
+            && (snapshotSuffix.isNull() || target.snapshotSuffix() == snapshotSuffix);
+    });
 }
 
 void BuildEngine::importPrivateGpgKey(const QString &id,
@@ -663,14 +692,38 @@ void BuildEnginePrivate::updateBuildTargets()
     const QString targetsXml = targetsXmlFile().toString();
     qCDebug(engine) << "Updating build targets for" << q->uri().toString() << "from" << targetsXml;
     TargetsXmlReader reader(targetsXml);
-    QTC_ASSERT(!reader.hasError(), return);
-    QTC_ASSERT(reader.version() > 0, return);
+    QTC_ASSERT(!reader.hasError(), {
+        qCDebug(engine).noquote() << "Error reading targets.xml:" << reader.errorString();
+        return;
+    });
+    QTC_ASSERT(reader.version() == 4, return);
     updateBuildTargets(reader.targets());
 }
 
 void BuildEnginePrivate::updateBuildTargets(QList<BuildTargetDump> newTargets)
 {
     Q_Q(BuildEngine);
+
+    // Sanity check
+    const QStringList origins = Utils::transform(newTargets, &BuildTargetDump::origin);
+    newTargets = Utils::filtered(newTargets, [=](const BuildTargetDump &target) {
+        const bool targetHasSnapshots = origins.contains(target.name);
+        QTC_ASSERT(!targetHasSnapshots, {
+            qCDebug(engine) << "Ignoring build target with snapshots:" << target.name;
+            return false;
+        });
+
+        if (!target.origin.isEmpty()) {
+            const bool snapshotNameStartsWithOriginName = target.name.startsWith(target.origin + '.')
+                && target.name.length() > target.origin.length() + 1;
+            QTC_ASSERT(snapshotNameStartsWithOriginName, {
+                qCDebug(engine) << "Ignoring badly named build target snapshot:" << target.name;
+                return false;
+            });
+        }
+
+        return true;
+    });
 
     QList<BuildTargetData> newTargetsData = Utils::transform(newTargets,
             std::bind(&BuildEnginePrivate::createTargetData, this, std::placeholders::_1));
@@ -725,6 +778,15 @@ BuildTargetData BuildEnginePrivate::createTargetData(const BuildTargetDump &targ
     BuildTargetData data;
 
     data.name = targetDump.name;
+    data.origin = targetDump.origin;
+
+    if (!data.origin.isEmpty()) {
+        data.flags |= BuildTargetData::Snapshot;
+        if (data.snapshotSuffix() == DEFAULT_SNAPSHOT_SUFFIX)
+            data.flags |= BuildTargetData::DefaultSnapshot;
+        if (data.snapshotSuffix().contains(POOLED_SNAPSHOT_INFIX))
+            data.flags |= BuildTargetData::PooledSnapshot;
+    }
 
     data.sysRoot = sysRootForTarget(data.name);
     data.toolsPath = toolsPathForTarget(data.name);
@@ -992,6 +1054,7 @@ Utils::FilePath BuildEnginePrivate::toolsPathForTarget(const QString &targetName
 bool BuildTargetDump::operator==(const BuildTargetDump &other) const
 {
     return name == other.name
+        && origin == other.origin
         && gccDumpMachine == other.gccDumpMachine
         && gccDumpMacros == other.gccDumpMacros
         && gccDumpIncludes == other.gccDumpIncludes
@@ -1006,6 +1069,7 @@ QVariantMap BuildTargetDump::toMap() const
 {
     QVariantMap data;
     data.insert(Constants::BUILD_TARGET_NAME, name);
+    data.insert(Constants::BUILD_TARGET_ORIGIN, origin);
     data.insert(Constants::BUILD_TARGET_GCC_DUMP_MACHINE, gccDumpMachine);
     data.insert(Constants::BUILD_TARGET_GCC_DUMP_MACROS, gccDumpMacros);
     data.insert(Constants::BUILD_TARGET_GCC_DUMP_INCLUDES, gccDumpIncludes);
@@ -1020,6 +1084,7 @@ QVariantMap BuildTargetDump::toMap() const
 void BuildTargetDump::fromMap(const QVariantMap &data)
 {
     name = data.value(Constants::BUILD_TARGET_NAME).toString();
+    origin = data.value(Constants::BUILD_TARGET_ORIGIN).toString();
     gccDumpMachine = data.value(Constants::BUILD_TARGET_GCC_DUMP_MACHINE).toString();
     gccDumpMacros = data.value(Constants::BUILD_TARGET_GCC_DUMP_MACROS).toString();
     gccDumpIncludes = data.value(Constants::BUILD_TARGET_GCC_DUMP_INCLUDES).toString();

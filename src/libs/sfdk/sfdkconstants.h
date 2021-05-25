@@ -73,6 +73,7 @@ const char BUILD_ENGINE_ALIGNED_MOUNT_POINT_ENV_TEMPLATE[] = "SAILFISH_SDK_%1_MO
 const char BUILD_ENGINE_HOST_GNUPG_PATH_POSTFIX[] = "/gnupg";
 
 const char BUILD_TARGET_NAME[] = "Name";
+const char BUILD_TARGET_ORIGIN[] = "Origin";
 const char BUILD_TARGET_GCC_DUMP_MACHINE[] = "GccDumpMachine";
 const char BUILD_TARGET_GCC_DUMP_MACROS[] = "GccDumpMacros";
 const char BUILD_TARGET_GCC_DUMP_INCLUDES[] = "GccDumpIncludes";

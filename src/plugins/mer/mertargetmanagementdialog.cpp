@@ -177,7 +177,7 @@ public:
     {
         m_ui->setupUi(this);
 
-        for (const QString &targetName : engine->buildTargetNames())
+        for (const QString &targetName : relevantBuildTargets())
             new QTreeWidgetItem(m_ui->targetsTreeWidget, {targetName});
 
         if (m_ui->targetsTreeWidget->topLevelItemCount() > 0) {
@@ -244,6 +244,21 @@ public:
         return m_ui->manageRadioButton->isChecked()
             ? MerTargetManagementBaseWizardPage::PackagesPage
             : MerTargetManagementBaseWizardPage::ProgressPage;
+    }
+
+private:
+    QStringList relevantBuildTargets() const
+    {
+        QSet<QString> retv;
+
+        for (const BuildTargetData &target : m_engine->buildTargets()) {
+            if (target.flags & BuildTargetData::Snapshot)
+                retv.insert(target.origin);
+            else
+                retv.insert(target.name);
+        }
+
+        return retv.values();
     }
 
 private:

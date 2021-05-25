@@ -73,6 +73,8 @@ const char MINIMAL_UPDATES_XML[] = R"(
 </Updates>
 )";
 
+const char TARGET_NAME_FILE[] = ".sfdk/target";
+
 } // namespace anonymous
 
 using namespace Mer;
@@ -1249,12 +1251,49 @@ BuildTargetData SdkManager::configuredTarget(QString *errorMessage)
     QTC_ASSERT(targetOption_, return {});
     const Utils::optional<OptionEffectiveOccurence> targetOption =
         Configuration::effectiveState(targetOption_);
+
+    const Option *const snapshotOption_ = Dispatcher::option(Constants::SNAPSHOT_OPTION_NAME);
+    QTC_ASSERT(snapshotOption_, return {});
+    const Utils::optional<OptionEffectiveOccurence> snapshotOption =
+        Configuration::effectiveState(snapshotOption_);
+
+    const Option *const noSnapshotOption_ = Dispatcher::option(Constants::NO_SNAPSHOT_OPTION_NAME);
+    QTC_ASSERT(noSnapshotOption_, return {});
+    const Utils::optional<OptionEffectiveOccurence> noSnapshotOption =
+        Configuration::effectiveState(noSnapshotOption_);
+
     if (!targetOption) {
         *errorMessage = tr("No target selected");
         return {};
     }
 
-    return engine()->buildTarget(targetOption->argument());
+    BuildTargetData retv;
+
+    if (noSnapshotOption) {
+        retv = engine()->buildTarget(targetOption->argument());
+    } else if (!snapshotOption) {
+        retv = engine()->buildTargetByOrigin(targetOption->argument());
+    } else if (!snapshotOption->argument().startsWith("%pool")) {
+        retv = engine()->buildTargetByOrigin(targetOption->argument(),
+                snapshotOption->argument());
+    } else {
+        FileReader reader;
+        if (!reader.fetch(TARGET_NAME_FILE)) {
+            if (QFileInfo::exists(TARGET_NAME_FILE))
+                qCWarning(sfdk).noquote() << reader.errorString();
+            *errorMessage = tr("Feature not available with temporary snapshots before first build step is executed");
+            return {};
+        }
+        const QString targetName = QString::fromUtf8(reader.data());
+        QTC_CHECK(!targetName.isEmpty());
+        retv = engine()->buildTarget(targetName);
+    }
+
+    // Target not synchronized to host
+    if (!retv.isValid())
+        *errorMessage = tr("Feature not available with the selected target");
+
+    return retv;
 }
 
 Device *SdkManager::configuredDevice(QString *errorMessage)

@@ -47,11 +47,25 @@ public:
 
 class SFDK_EXPORT BuildTargetData
 {
+    Q_GADGET
 public:
+    enum Flag {
+        NoFlag = 0x0,
+        Snapshot = 0x1,
+        DefaultSnapshot = 0x2,
+        PooledSnapshot = 0x4,
+    };
+    Q_DECLARE_FLAGS(Flags, Flag)
+
     bool operator==(const BuildTargetData &other) const;
     bool isValid() const;
 
     QString name;
+    QString origin;
+    Flags flags;
+
+    QString snapshotSuffix() const;
+
     Utils::FilePath sysRoot;
     Utils::FilePath toolsPath;
     Utils::FilePath gdb;
@@ -101,8 +115,11 @@ public:
     void setWwwProxy(const QString &type, const QString &servers, const QString &excludes);
 
     QStringList buildTargetNames() const;
+    QStringList buildTargetOrigins() const;
     QList<BuildTargetData> buildTargets() const;
     BuildTargetData buildTarget(const QString &name) const;
+    BuildTargetData buildTargetByOrigin(const QString &origin,
+            const QString &snapshotSuffix = QString()) const;
 
     void importPrivateGpgKey(const QString &id, const Utils::FilePath &passphraseFile,
             const QObject *context, const Functor<bool, QString> &functor);

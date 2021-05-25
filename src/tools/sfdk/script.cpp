@@ -31,6 +31,7 @@
 #include <sfdk/sdk.h>
 #include <sfdk/sfdkconstants.h>
 
+#include <utils/algorithm.h>
 #include <utils/fileutils.h>
 #include <utils/optional.h>
 #include <utils/qtcassert.h>
@@ -244,7 +245,25 @@ public:
     Q_INVOKABLE bool hasBuildTarget(const QString &buildTargetName) const
     {
         return withEngine([=](BuildEngine *engine) {
-            return engine->buildTargetNames().contains(buildTargetName);
+            // For the case that no-snapshot option is NOT used
+            if (engine->buildTargetOrigins().contains(buildTargetName))
+                return true;
+            // For the case that no-snapshot option is used
+            if (engine->buildTargetNames().contains(buildTargetName))
+                return true;
+
+            // Try harder (and slower), considering also targets which are
+            // not synchronized to host.
+            QList<ToolsInfo> infos;
+            const SdkManager::ListToolsOptions options{SdkManager::InstalledTools,
+                SdkManager::UserDefinedTools, SdkManager::SnapshotTools};
+            if (!SdkManager::listTools(options, &infos))
+                return false;
+
+            return Utils::anyOf(infos, [=](const ToolsInfo &info) {
+                return info.flags & ToolsInfo::Target
+                    && info.name == buildTargetName;
+            });
         });
     }
 

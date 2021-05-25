@@ -73,6 +73,7 @@ private:
     void onBuildEngineAdded(int index);
     void startWatching(Sfdk::BuildEngine *buildEngine);
     void onAboutToRemoveBuildEngine(int index);
+    static bool isRelevant(const Sfdk::BuildTargetData &buildTarget);
     static bool addKit(const Sfdk::BuildEngine *buildEngine, const Sfdk::BuildTargetData &buildTarget);
     static bool removeKit(const Sfdk::BuildEngine *buildEngine, const Sfdk::BuildTargetData &buildTarget);
     static ProjectExplorer::Kit *kit(const Sfdk::BuildEngine *buildEngine,

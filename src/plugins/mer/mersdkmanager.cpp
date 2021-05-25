@@ -389,18 +389,24 @@ bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)
 void MerSdkManager::onBuildEngineAdded(int index)
 {
     BuildEngine *const buildEngine = Sdk::buildEngines().at(index);
-    for (const BuildTargetData &buildTarget : buildEngine->buildTargets())
-        addKit(buildEngine, buildTarget);
+    for (const BuildTargetData &buildTarget : buildEngine->buildTargets()) {
+        if (isRelevant(buildTarget))
+            addKit(buildEngine, buildTarget);
+    }
     startWatching(buildEngine);
 }
 
 void MerSdkManager::startWatching(BuildEngine *buildEngine)
 {
     connect(buildEngine, &BuildEngine::buildTargetAdded, this, [=](int index) {
-        addKit(buildEngine, buildEngine->buildTargets().at(index));
+        const BuildTargetData buildTarget = buildEngine->buildTargets().at(index);
+        if (isRelevant(buildTarget))
+            addKit(buildEngine, buildTarget);
     });
     connect(buildEngine, &BuildEngine::aboutToRemoveBuildTarget, this, [=](int index) {
-        removeKit(buildEngine, buildEngine->buildTargets().at(index));
+        const BuildTargetData buildTarget = buildEngine->buildTargets().at(index);
+        if (isRelevant(buildTarget))
+            removeKit(buildEngine, buildTarget);
     });
 
     // FIXME Let MerSdkKitAspect take care of these?
@@ -420,6 +426,11 @@ void MerSdkManager::onAboutToRemoveBuildEngine(int index)
     buildEngine->disconnect(this);
     for (const BuildTargetData &buildTarget : buildEngine->buildTargets())
         removeKit(buildEngine, buildTarget);
+}
+
+bool MerSdkManager::isRelevant(const Sfdk::BuildTargetData &buildTarget)
+{
+    return !(buildTarget.flags & BuildTargetData::PooledSnapshot);
 }
 
 bool MerSdkManager::addKit(const BuildEngine *buildEngine, const BuildTargetData &buildTarget)
@@ -525,8 +536,18 @@ void MerSdkManager::finalizeKitCreation(Kit* k, const BuildEngine *buildEngine,
     k->setAutoDetected(true);
     if (sdkProvided)
         k->setSdkProvided(true);
-    k->setUnexpandedDisplayName(QString::fromLatin1("%1 (in %2)")
-            .arg(buildTarget.name, buildEngine->name()));
+
+    if (!(buildTarget.flags & BuildTargetData::Snapshot)
+            || buildTarget.flags & BuildTargetData::DefaultSnapshot) {
+        k->setUnexpandedDisplayName(QString::fromLatin1("%1 (in %2)")
+                .arg(buildTarget.origin)
+                .arg(buildEngine->name()));
+    } else {
+        k->setUnexpandedDisplayName(QString::fromLatin1("%1:%2 (in %3)")
+                .arg(buildTarget.origin)
+                .arg(buildTarget.snapshotSuffix())
+                .arg(buildEngine->name()));
+    }
 
     SysRootKitAspect::setSysRoot(k, buildTarget.sysRoot);
 

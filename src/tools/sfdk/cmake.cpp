@@ -100,7 +100,7 @@ void CMakeHelper::maybeDoCMakeApiPathMapping()
 
     const BuildTargetData target = SdkManager::configuredTarget(&errorMessage);
     if (!target.isValid()) {
-        qCDebug(sfdk) << "No build target configured - skipping CMake path mapping";
+        qCDebug(sfdk).noquote() << "Skipping CMake path mapping:" << errorMessage;
         return;
     }
 
