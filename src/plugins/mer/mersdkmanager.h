@@ -37,6 +37,7 @@ class Project;
 
 namespace Sfdk {
     class BuildEngine;
+    class BuildTargetData;
 }
 
 namespace Mer {
@@ -72,21 +73,20 @@ private:
     void onBuildEngineAdded(int index);
     void startWatching(Sfdk::BuildEngine *buildEngine);
     void onAboutToRemoveBuildEngine(int index);
-    static bool addKit(const Sfdk::BuildEngine *buildEngine, const QString &buildTargetName);
-    static bool removeKit(const Sfdk::BuildEngine *buildEngine, const QString &buildTargetName);
+    static bool addKit(const Sfdk::BuildEngine *buildEngine, const Sfdk::BuildTargetData &buildTarget);
+    static bool removeKit(const Sfdk::BuildEngine *buildEngine, const Sfdk::BuildTargetData &buildTarget);
     static ProjectExplorer::Kit *kit(const Sfdk::BuildEngine *buildEngine,
             const QString &buildTargetName);
     void checkPkgConfigAvailability();
     static void finalizeKitCreation(ProjectExplorer::Kit* k, const Sfdk::BuildEngine *buildEngine,
-            const QString &buildTargetName, bool sdkProvided);
-    static void ensureDebuggerIsSet(ProjectExplorer::Kit *k, const Sfdk::BuildEngine *buildEngine,
-            const QString &buildTargetName);
+            const Sfdk::BuildTargetData &buildTarget, bool sdkProvided);
+    static void ensureDebuggerIsSet(ProjectExplorer::Kit *k, const Sfdk::BuildTargetData &buildTarget);
     static void ensureCmakeToolIsSet(ProjectExplorer::Kit *k, const Sfdk::BuildEngine *buildEngine,
-            const QString &buildTargetName);
+            const Sfdk::BuildTargetData &buildTarget);
     static std::unique_ptr<MerQtVersion> createQtVersion(const Sfdk::BuildEngine *buildEngine,
-            const QString &buildTargetName);
+            const Sfdk::BuildTargetData &buildTarget);
     static std::unique_ptr<MerToolChain> createToolChain(const Sfdk::BuildEngine *buildEngine,
-            const QString &buildTargetName, Utils::Id language);
+            const Sfdk::BuildTargetData &buildTarget, Utils::Id language);
 
 private:
     static MerSdkManager *m_instance;
