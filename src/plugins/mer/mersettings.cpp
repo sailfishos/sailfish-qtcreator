@@ -52,6 +52,7 @@ using namespace Constants;
 namespace {
 const char SETTINGS_CATEGORY[] = "Mer";
 const char ENVIRONMENT_FILTER_KEY[] = "EnvironmentFilter";
+const char CLEAR_BUILD_ENVIRONMENT_BY_DEFAULT_KEY[] = "ClearBuildEnvironmentByDefault";
 const char RPM_VALIDATION_BY_DEFAULT_KEY[] = "RpmValidationByDefault";
 const char QML_LIVE_BENCH_LOCATION_KEY[] = "QmlLiveBenchLocation";
 const char ASK_BEFORE_STARTING_VM[] = "AskBeforeStartingVm";
@@ -68,6 +69,7 @@ MerSettings *MerSettings::s_instance = 0;
 
 MerSettings::MerSettings(QObject *parent)
     : QObject(parent)
+    , m_clearBuildEnvironmentByDefault(true)
     , m_rpmValidationByDefault(true)
     , m_syncQmlLiveWorkspaceEnabled(true)
 {
@@ -121,6 +123,25 @@ void MerSettings::setEnvironmentFilter(const QString &filter)
 bool MerSettings::isEnvironmentFilterFromEnvironment()
 {
     return !s_instance->m_environmentFilterFromEnvironment.isNull();
+}
+
+bool MerSettings::clearBuildEnvironmentByDefault()
+{
+    Q_ASSERT(s_instance);
+
+    return s_instance->m_clearBuildEnvironmentByDefault;
+}
+
+void MerSettings::setClearBuildEnvironmentByDefault(bool byDefault)
+{
+    Q_ASSERT(s_instance);
+
+    if (s_instance->m_clearBuildEnvironmentByDefault == byDefault)
+        return;
+
+    s_instance->m_clearBuildEnvironmentByDefault = byDefault;
+
+    emit s_instance->clearBuildEnvironmentByDefaultChanged(s_instance->m_clearBuildEnvironmentByDefault);
 }
 
 bool MerSettings::rpmValidationByDefault()
@@ -334,6 +355,8 @@ void MerSettings::read()
 
     m_environmentFilter = settings->value(QLatin1String(ENVIRONMENT_FILTER_KEY))
         .toString();
+    m_clearBuildEnvironmentByDefault = settings->value(QLatin1String(CLEAR_BUILD_ENVIRONMENT_BY_DEFAULT_KEY),
+            true).toBool();
     m_rpmValidationByDefault = settings->value(QLatin1String(RPM_VALIDATION_BY_DEFAULT_KEY),
             true).toBool();
     m_qmlLiveBenchLocation = settings->value(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY)).toString();
@@ -373,6 +396,7 @@ void MerSettings::save()
     settings->beginGroup(QLatin1String(SETTINGS_CATEGORY));
 
     settings->setValue(QLatin1String(ENVIRONMENT_FILTER_KEY), m_environmentFilter);
+    settings->setValue(QLatin1String(CLEAR_BUILD_ENVIRONMENT_BY_DEFAULT_KEY), m_clearBuildEnvironmentByDefault);
     settings->setValue(QLatin1String(RPM_VALIDATION_BY_DEFAULT_KEY), m_rpmValidationByDefault);
     if (m_qmlLiveBenchLocation.isEmpty())
         settings->remove(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY));

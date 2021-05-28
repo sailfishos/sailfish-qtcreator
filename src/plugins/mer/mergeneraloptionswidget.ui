@@ -96,6 +96,16 @@
           </item>
          </layout>
         </item>
+        <item>
+         <widget class="QCheckBox" name="clearBuildEnvironmentByDefaultCheckBox">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This option influences the initial enabled state of this build step for new project configurations. It does not affect existing project configurations.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>Enable the %1 step initially</string>
+          </property>
+         </widget>
+        </item>
        </layout>
       </widget>
      </item>
@@ -195,7 +205,7 @@
            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The &amp;quot;%1&amp;quot; deploy step is implicit to the &amp;quot;%2&amp;quot; method.&lt;/p&gt;&lt;p&gt;This option influences the initial enabled state of this step for new project configurations. It does not affect existing project configurations.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
           <property name="text">
-           <string>Enable RPM validation step initially</string>
+           <string>Enable the RPM validation step initially</string>
           </property>
          </widget>
         </item>

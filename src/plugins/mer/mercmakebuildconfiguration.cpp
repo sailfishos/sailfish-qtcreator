@@ -75,6 +75,7 @@ void MerCMakeBuildConfiguration::doInitialize(const ProjectExplorer::BuildInfo &
     BuildStepList *cleanSteps = this->cleanSteps();
     QTC_ASSERT(cleanSteps, return);
     cleanSteps->insertStep(0, MerSdkStartStep::stepId());
+    cleanSteps->insertStep(1, MerClearBuildEnvironmentStep::stepId());
 }
 
 QList<NamedWidget *> MerCMakeBuildConfiguration::createSubConfigWidgets()
