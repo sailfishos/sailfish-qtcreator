@@ -57,6 +57,7 @@ public:
     Module::ConstList modules() const;
     Command::ConstList commands() const;
     Option::ConstList options() const;
+    Hook::ConstList hooks() const;
 
     QString name;
 };
@@ -80,6 +81,9 @@ public:
 
     static const Command::ConstUniqueList &commands();
     static const Command *command(const QString &name);
+
+    static const Hook::ConstUniqueList &hooks();
+    static const Hook *hook(const QString &name);
 
     static const Option::ConstUniqueList &options();
     static const Option *option(const QString &name);
@@ -112,10 +116,17 @@ private:
             QString *errorString);
     bool loadOptions(const Module *module, const QVariantList &list,
             Option::ConstList *allModuleOptions, QString *errorString);
+    bool loadExternHooks(const QVariantList &list, Hook::ConstList *allModuleHooks,
+            QString *errorString);
+    bool loadHooks(const Module *module, const QVariantList &list,
+            Hook::ConstList *allModuleHooks, QString *errorString);
     bool loadCommands(const Module *module, const QVariantList &list,
-            const Option::ConstList &allModuleOptions, QString *errorString);
+            const Option::ConstList &allModuleOptions,
+            const Hook::ConstList &allModuleHooks, QString *errorString);
     bool loadCommandConfigOptions(Command *command, const QVariantList &list,
             const Option::ConstList &allModuleOptions, QString *errorString);
+    bool loadCommandHooks(Command *command, const QVariantList &list,
+            const Hook::ConstList &allModuleHooks, QString *errorString);
     bool loadDynamicSubcommands(Command *command, const QVariantList &list, QString *errorString);
     const Worker *loadWorker(const QVariantMap &data, QString *errorString);
 
@@ -125,6 +136,8 @@ private:
     Module::ConstUniqueList m_modules;
     Command::ConstUniqueList m_commands;
     QHash<QString, Command *> m_commandByName;
+    Hook::ConstUniqueList m_hooks;
+    QHash<QString, Hook *> m_hookByName;
     Option::ConstUniqueList m_options;
     QHash<QString, Option *> m_optionByName;
     QHash<QString, WorkerCreator> m_workerCreators;

@@ -266,7 +266,7 @@ void wrapLines(QTextStream &out, int indentLevel, const QStringList &prefix1,
 }
 
 /*
- * Simple expansion "[no-]foo" -> {"foo", "no-foo"}. Supports up to one [] pair
+ * Simple expansion "[foo-|bar-]baz" -> {"baz", "foo-baz", "bar-baz"}. Supports up to one [] pair
  * at the very start of a string.
  */
 bool expandCompacted(const QString &string, QStringList *expanded)
@@ -283,11 +283,12 @@ bool expandCompacted(const QString &string, QStringList *expanded)
         return true;
     }
 
-    QString name1 = string;
-    name1.remove(left, right - left + 1);
-    QString name2 = string;
-    name2.remove(right, 1).remove(left, 1);
-    *expanded << name1 << name2;
+    const QString root = string.mid(right + 1);
+    const QString prefixes = string.mid(1, right - 1);
+
+    *expanded << root;
+    for (const QString &prefix : prefixes.split('|'))
+        *expanded << prefix + root;
 
     return true;
 }

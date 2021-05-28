@@ -51,6 +51,18 @@ class Domain;
 class Emulator;
 class Module;
 
+class Hook
+{
+public:
+    using ConstList = QList<const Hook *>;
+    using ConstUniqueList = std::vector<std::unique_ptr<const Hook>>;
+
+    const Module *module = nullptr;
+    QString name;
+    QString synopsis;
+    QString description;
+};
+
 class Command
 {
 public:
@@ -66,6 +78,7 @@ public:
     QString description;
     Option::ConstList configOptions;
     Option::ConstList mandatoryConfigOptions;
+    Hook::ConstList hooks;
     bool dynamic = false;
     QStringList dynamicSubcommands;
     QString commandLineFilterJSFunctionName;

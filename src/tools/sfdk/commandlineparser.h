@@ -109,14 +109,18 @@ private:
     static QString commandsHeading();
     static QString globalOptionsHeading();
     static QString configurationOptionsHeading();
+    static QString hooksHeading();
     static QString relatedConfigurationOptionsHeading(const Command *command);
+    static QString relatedHooksHeading(const Command *command);
     static QString listRelatedConfigurationOptions(const Command *command);
+    static QString listRelatedHooks(const Command *command);
     static QString environmentVariablesHeading();
     static QString exitStatusHeading();
 
     static bool setCurrentWorkingDirectory(const QString &path, QString *errorString);
 
     static QStringList compactOptions(const QStringList &names);
+    static QStringList compactHooks(const QStringList &names);
     static QString dashOption(const QString &option);
 
     static QStringList environmentVariableAsArguments(const char *name, bool *ok);
@@ -127,6 +131,7 @@ private:
         const;
     void describe(QTextStream &out, int indentLevel, const Command::ConstList &commands) const;
     void describe(QTextStream &out, int indentLevel, const Option::ConstList &options) const;
+    void describe(QTextStream &out, int indentLevel, const Hook::ConstList &hooks) const;
     void describeGlobalOptions(QTextStream &out, int indentLevel, const Domain *domain) const;
     static void bottomSections(QTextStream &out);
 

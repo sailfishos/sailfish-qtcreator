@@ -1,3 +1,5 @@
+export * from '10-general.mjs'
+
 export function validateSpecFilePath(filePath) {
     if (utils.isFile(filePath))
         return [true, ""];
@@ -17,16 +19,6 @@ export function validateBuildTargetName(name) {
         return [true, ""];
 
     return [false, qsTr("No such build target")];
-}
-
-export function validateExistingDirectory(path) {
-    if (utils.isDirectory(path))
-        return [true, ""];
-
-    if (utils.exists(path))
-        return [false, qsTr("Not a directory")];
-
-    return [false, qsTr("Directory does not exist")];
 }
 
 export function validateSearchOutputDirOption(value) {

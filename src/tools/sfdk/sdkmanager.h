@@ -133,6 +133,13 @@ public:
             Utils::optional<bool> runInTerminal = {},
             QIODevice *out = nullptr, QIODevice *err = nullptr);
 
+    static int runHook(const QString &program, const QStringList &arguments,
+            const QString &workingDirectory, const QProcessEnvironment &extraEnvironment);
+    static int runHookNative(const QString &program, const QStringList &arguments,
+            const QString &workingDirectory, const QProcessEnvironment &extraEnvironment);
+    static int runHookNativeByName(const QString &hook, const QStringList &arguments,
+            const QString &workingDirectory, const QProcessEnvironment &extraEnvironment);
+
     static void setEnableReversePathMapping(bool enable);
 
     static bool listTools(ListToolsOptions options, QList<ToolsInfo> *info);
@@ -182,6 +189,8 @@ private:
     QString cleanSharedTarget(QString *errorMessage) const;
     bool mapEnginePaths(QString *program, QStringList *arguments, QString *workingDirectory,
             QProcessEnvironment *environment) const;
+    bool reverseMapEnginePaths(QString *program, QStringList *arguments,
+            QString *workingDirectory, QProcessEnvironment *environment) const;
     QByteArray maybeReverseMapEnginePaths(const QByteArray &commandOutput) const;
     QProcessEnvironment environmentToForwardToEngine() const;
 

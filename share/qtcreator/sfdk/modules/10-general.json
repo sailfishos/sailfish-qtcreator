@@ -1,5 +1,5 @@
 {
-    "version": 3,
+    "version": 4,
     "domain": "general",
     "trBrief": "General usage",
 
@@ -32,5 +32,11 @@
 
     "options":
     [
+        {
+            "name": "hooks-dir",
+            "trArgument": "<dir>",
+            "trDescription": "Alter sfdk behavior with hooks in form of executable files located under the <dir> directory.\n\nAvailable hooks are described in a separate section of this manual.",
+            "validator": "module.validateExistingDirectory"
+        }
     ]
 }

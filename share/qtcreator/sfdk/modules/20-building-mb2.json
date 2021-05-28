@@ -1,5 +1,5 @@
 {
-    "version": 3,
+    "version": 4,
     "domain": "building",
     "trBrief": "Building software",
 
@@ -19,6 +19,7 @@
             "trSynopsis": "[--[no-]refresh] {pull|reset}",
             "trBrief": "Update build time dependencies",
             "configOptions": ["*", "target!", "-no-pull-build-requires"],
+            "hooks": ["[pre-|post-]pull-build-requires"],
             "trDescription": "When 'pull' is used, install or update the build-time dependencies as is done implicitly by the 'prepare', 'build' and 'qmake' (or 'cmake') commands but refresh the package cache first, unless '--no-refresh' is active.\n\nWhen the 'snapshot' configuration option is used, '--no-refresh' is implied. This can be overridden with '--refresh' - do not use unless you know what you are doing. If refresh is needed, refresh (and update) the original target instead, then do 'reset'.\n\nThe 'reset' command can only be used together with the 'snapshot' configuration option, with the effect of resetting the target snapshot forcefully to the (possibly updated) state of the original target first, pulling later."
         },
         {
@@ -39,6 +40,7 @@
             "trSynopsis": "[-p|--prepare] [--no-check] [-d|--enable-debug] [-j <n>] [--sign] [<project-dir-or-file>] [[--] <rpmbuild-extra-arg>...]",
             "trBrief": "Execute all build steps at once",
             "configOptions": ["*", "target!"],
+            "hooks": ["[pre-|post-]pull-build-requires", "post-package", "pre-sign"],
             "trDescription": "Run rpmbuild. Execute all sections of the .spec file except for %prep unless told otherwise.\n\nIf path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the .spec file.)\n\n--prepare         Run %prep section as well\n--no-check        Skip the %check section\n--enable-debug    Enable debug build\n-j <n>            Run up to <n> jobs simultaneously\n--sign            Sign packages",
             "preRun": "module.maybeImportSigningKey"
         },
@@ -47,6 +49,7 @@
             "trSynopsis": "[<project-dir-or-file>] [[--] <qmake-extra-arg>...]",
             "trBrief": "Execute qmake build step",
             "configOptions": ["*", "target!"],
+            "hooks": ["[pre-|post-]pull-build-requires"],
             "trDescription": "Run rpmbuild. Execute just the %build section of the .spec file, suppressing any 'make' invocation figuring in that section.\n\nIf path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the .spec file.)"
         },
         {
@@ -54,6 +57,7 @@
             "trSynopsis": "[<project-dir>] [[--] <cmake-extra-arg>...]\n--build . [<cmake-extra-arg>...] [-- <build-tool-extra-arg>...]",
             "trBrief": "Execute cmake build step",
             "configOptions": ["*", "target!"],
+            "hooks": ["[pre-|post-]pull-build-requires"],
             "trDescription": "Run rpmbuild. Execute just the %build section of the .spec file, suppressing any 'cmake' invocation figuring in that section, that does not match the execution form used here, i.e., does not trigger the desired action, namely 1) generate a project buildsystem or 2) build the project.\n\nAdditionally, any plain 'make' invocation will be recognized as implementing the \"build the project\" action and will be treated accordingly. Any possible <cmake-extra-arg> will be silently ignored and any possible <build-tools-extra-arg> will be used equally for each 'make' invocation in that case.\n\nIf path to a <project-dir> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory.",
             "commandLineFilter": "module.filterCMakeCommandLine"
         },
@@ -75,6 +79,7 @@
             "trSynopsis": "[--no-check] [--sign]",
             "trBrief": "Execute package creation build step",
             "configOptions": ["*", "target!"],
+            "hooks": ["post-package", "pre-sign"],
             "trDescription": "Run rpmbuild. Execute just the %install section of the .spec file, then build binary packages and optionally sign those. Unless '--no-check' is passed, execute also the %check section if present.",
             "preRun": "module.maybeImportSigningKey"
         }
@@ -120,7 +125,7 @@
         {
             "name": "snapshot",
             "trArgument": "[<suffix>]",
-            "trDescription": "Avoid installing build-time dependencies to the sb2 target - use a snapshot of that target instead.\n\nThe snapshot name will be determined by combining the original target name with the given <suffix>. Any occurrence of '%{task}' within the <suffix> will be substituted with the name specified with the 'task' option or with an empty string if the 'task' option is not set. When no suffix was specified or when the substitution yields an empty string, a temporary snapshot will be used (these have '.mb2.' followed by random character sequence in their names).\n\nSnapshot state is preserved across sfdk invocations unless the original target was updated meanwhile or it is a temporary snapshot that was previously used with different build tree, in which cases the snapshot will be reset. Snapshot can be reset forcefully using the 'build-requires reset' command."
+            "trDescription": "Avoid installing build-time dependencies to the sb2 target - use a snapshot of that target instead.\n\nThe snapshot name will be determined by combining the original target name with the given <suffix>. Any occurrence of '%{task}' within the <suffix> will be substituted with the name specified with the 'task' option or with an empty string if the 'task' option is not set. When no suffix was specified or when the substitution yields an empty string, a temporary snapshot will be used (these have '.sfdk.' followed by random character sequence in their names).\n\nSnapshot state is preserved across sfdk invocations unless the original target was updated meanwhile or it is a temporary snapshot that was previously used with different build tree, in which cases the snapshot will be reset. Snapshot can be reset forcefully using the 'build-requires reset' command."
         },
         {
             "name": "no-snapshot",
@@ -162,6 +167,35 @@
             "name": "package.signing-passphrase-file",
             "trArgument": "<file>",
             "trDescription": "In case a passphrase-protected signing key is selected for signing packages, read the passphrase from the <file>. Only the first line will be read. The file needs to be stored under the %{SdkVariant} workspace."
+        }
+    ],
+
+    "hooks":
+    [
+        {
+            "name": "pre-pull-build-requires",
+            "trSynopsis": "[<dependency>...]",
+            "trDescription": "This hook is invoked by commands that take care of updating build time dependencies – prior to doing so.\n\nThe arguments and available environment variables are the same as with the 'pull-build-requires' hook."
+        },
+        {
+            "name": "pull-build-requires",
+            "trSynopsis": "[<dependency>...]",
+            "trDescription": "This hook is invoked by commands that take care of updating build time dependencies. This hook fully overrides the default procedure of updating build time dependencies.\n\nAny <dependency> determined by querying the RPM spec file will be passed as an argument to this hook.\n\nThe following environment variables provide additional information to this hook:\n\nSFDK_OUTPUT_DIR\n    The effective output directory, possibly influenced by the 'output-dir' or 'output-prefix' configuration options.\n\nSFDK_OUTPUT_DIR_FILTERED\n    Only set when the 'search-output-dir' configuration option is active.  This points to a copy of the output directory with the RPM binaries built from the current project excluded.\n\nSFDK_TARGET\n    The active build target. With the 'snapshot' configuration option used, this is the snapshot target name and the original build target name is available as 'SFDK_TARGET_ORIGINAL'.\n\nSFDK_TARGET_ORIGINAL\n    See 'SFDK_TARGET'.\n\nSFDK_SPEC_FILE\n    The .spec file used for this build."
+        },
+        {
+            "name": "post-pull-build-requires",
+            "trSynopsis": "[<dependency>...]",
+            "trDescription": "This hook is invoked by commands that take care of updating build time dependencies – after doing so.\n\nThe arguments and available environment variables are the same as with the 'pull-build-requires' hook."
+        },
+        {
+            "name": "post-package",
+            "trSynopsis": "<package-file>...",
+            "trDescription": "This hook is invoked whenever binary packages have been produced.\n\nAny <package-file> that has been produced is passed as an argument to this hook."
+        },
+        {
+            "name": "pre-sign",
+            "trSynopsis": "<package-file>...",
+            "trDescription": "This hook is invoked whenever binary packages have been produced but prior to signing them.\n\nAny <package-file> that has been produced is passed as an argument to this hook."
         }
     ]
 }

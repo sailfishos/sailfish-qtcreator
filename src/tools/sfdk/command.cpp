@@ -2066,7 +2066,12 @@ bool EngineWorker::makeGlobalArguments(const Command *command, QStringList *argu
     auto unsetRequiredOptions = command->mandatoryConfigOptions.toSet();
 
     for (const OptionEffectiveOccurence &occurence : Configuration::effectiveState()) {
-        if (!occurence.isMasked() && command->configOptions.contains(occurence.option())) {
+        if (occurence.isMasked())
+            continue;
+        if (command->configOptions.contains(occurence.option())
+                // Do not require modules to deal with the hooks-dir option explicitly
+                || (occurence.option()->name == Constants::HOOKS_DIR_OPTION_NAME
+                    && !command->hooks.isEmpty())) {
             *arguments << makeGlobalArguments(command, occurence);
             unsetRequiredOptions.remove(occurence.option());
         }
