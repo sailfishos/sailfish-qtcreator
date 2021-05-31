@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019,2021 Jolla Ltd.
+** Copyright (C) 2019,2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -169,6 +169,9 @@ void RemoteProcess::start()
             : QProcess::ManagedInputChannel;
 
     if (runInTerminal)
+        m_lineEndPostprocessor = std::make_unique<LineEndPostprocessingMessageHandler>();
+
+    if (runInTerminal)
         m_runner->runInTerminal(fullCommand, m_sshConnectionParams, inputChannelMode);
     else
         m_runner->run(fullCommand, m_sshConnectionParams, inputChannelMode);
@@ -247,6 +250,8 @@ void RemoteProcess::finish()
 {
     QTC_ASSERT(!m_finished, return);
     m_finished = true;
+
+    m_lineEndPostprocessor.reset();
 
     const int exitCode = m_startedOk && m_runner->processExitStatus() == SshRemoteProcess::NormalExit
         && m_runner->processExitCode() != 255 // SSH error

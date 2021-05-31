@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019,2021 Jolla Ltd.
+** Copyright (C) 2019,2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -27,6 +27,7 @@
 #include "sfdkglobal.h"
 
 #include <utils/algorithm.h>
+#include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 
 #include <QCoreApplication>
@@ -48,6 +49,8 @@ extern "C" {
 #if defined(Q_OS_UNIX)
 # include <unistd.h>
 #endif
+
+using namespace Utils;
 
 namespace Sfdk {
 
@@ -164,6 +167,50 @@ Pager::~Pager()
                 << "exitCode" << m_pager.exitCode();
         }
     }
+}
+
+/*!
+ * \class LineEndPostprocessingMessageHandler
+ *
+ * Unix-only: Screen-oriented programs turn TTY output postprocessing off.
+ * This is also the case when SshRemoteProcessRunner::runInTerminal() runs
+ * `ssh -t`. While that is running, we need to do do the LF -> CRLF
+ * translation on our side or the possible log output would not be aligned.
+ */
+
+int LineEndPostprocessingMessageHandler::counter = 0;
+QtMessageHandler LineEndPostprocessingMessageHandler::defaultHandler;
+
+LineEndPostprocessingMessageHandler::LineEndPostprocessingMessageHandler()
+{
+    if (!HostOsInfo::isAnyUnixHost())
+        return;
+
+    if (++counter > 1)
+        return;
+
+    defaultHandler = qInstallMessageHandler(handler);
+}
+
+LineEndPostprocessingMessageHandler::~LineEndPostprocessingMessageHandler()
+{
+    if (!HostOsInfo::isAnyUnixHost())
+        return;
+
+    if (--counter > 0)
+        return;
+
+    qInstallMessageHandler(defaultHandler);
+}
+
+void LineEndPostprocessingMessageHandler::handler(QtMsgType type, const QMessageLogContext &context,
+        const QString &msg)
+{
+    defaultHandler(type, context, QString(msg)
+            // Replace possible internal line endings
+            .replace("\n", "\n\r")
+            // At this point the message does not contain the final LF yet, so append a CR
+            + '\r');
 }
 
 QString indent(int level)

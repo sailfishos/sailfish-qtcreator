@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019,2021 Jolla Ltd.
+** Copyright (C) 2019,2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -55,6 +55,19 @@ private:
     static bool s_enabled;
     QProcess m_pager;
     QTextStream m_stream;
+};
+
+class LineEndPostprocessingMessageHandler
+{
+public:
+    LineEndPostprocessingMessageHandler();
+    ~LineEndPostprocessingMessageHandler();
+
+private:
+    static void handler(QtMsgType type, const QMessageLogContext &context, const QString &msg);
+
+    static int counter;
+    static QtMessageHandler defaultHandler;
 };
 
 QString indent(int level);
