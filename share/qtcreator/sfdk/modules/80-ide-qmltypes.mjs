@@ -4,11 +4,8 @@ Array.prototype.flatMap = function(fn) {
 
 export function formatOption(name, argument, needsArgument, defaultFormat) {
     var mb2Options = [
-        "[no-]fix-version",
         "output-dir",
         "output-prefix",
-        "no-pull-build-requires",
-        "[no-]search-output-dir",
         "[no-]snapshot",
         "specfile",
         "[no-]task"
