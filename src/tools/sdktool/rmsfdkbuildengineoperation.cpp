@@ -160,7 +160,7 @@ bool RmSfdkBuildEngineOperation::test() const
                                                  QLatin1String("/test/sharedSrcPath"),
                                                  QLatin1String("/test/sharedConfigPath"),
                                                  QLatin1String("host"),QLatin1String("user"),
-                                                 QLatin1String("/test/privateKey"),22,80,7777,false);
+                                                 QLatin1String("/test/privateKey"),22,7777,false);
 
     map = AddSfdkBuildEngineOperation::addBuildEngine(map,
                                      QUrl("sfdkvm:VirtualBox#testBuildEngine2"), now, true,
@@ -171,7 +171,7 @@ bool RmSfdkBuildEngineOperation::test() const
                                      QLatin1String("/test/sharedSrcPath"),
                                      QLatin1String("/test/sharedConfigPath"),
                                      QLatin1String("host"),QLatin1String("user"),
-                                     QLatin1String("/test/privateKey"),22,80,7777,false);
+                                     QLatin1String("/test/privateKey"),22,7777,false);
 
     const QString engine1 = QString::fromLatin1(C::BUILD_ENGINES_DATA_KEY_PREFIX) + QString::number(0);
     const QString engine2 = QString::fromLatin1(C::BUILD_ENGINES_DATA_KEY_PREFIX) + QString::number(1);
