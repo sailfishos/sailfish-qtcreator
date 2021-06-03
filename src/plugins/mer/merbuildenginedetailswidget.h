@@ -64,7 +64,6 @@ public:
     void setSshPort(quint16 port);
     void setHeadless(bool enabled);
     void setSrcFolderChooserPath(const QString &path);
-    void setWwwPort(quint16 port);
     void setDBusPort(quint16 port);
     void setWwwProxy(const QString &type, const QString &servers, const QString &excludes);
     void setMemorySizeMb(int sizeMb);
@@ -82,7 +81,6 @@ signals:
     void sshTimeoutChanged(int timeout);
     void headlessCheckBoxToggled(bool checked);
     void srcFolderApplyButtonClicked(const QString &path);
-    void wwwPortChanged(quint16 port);
     void dBusPortChanged(quint16 port);
     void wwwProxyChanged(const QString &type, const QString &servers, const QString &excludes);
     void memorySizeMbChanged(int sizeMb);

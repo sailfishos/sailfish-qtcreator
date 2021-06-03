@@ -42,8 +42,8 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>450</width>
-        <height>906</height>
+        <width>459</width>
+        <height>808</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="scrollAreaContentsLayout">
@@ -180,19 +180,16 @@
            </layout>
           </item>
           <item row="4" column="0">
-           <widget class="QLabel" name="wwwPorLabel">
+           <widget class="QLabel" name="dBusPortLabel">
             <property name="text">
-             <string>Web port:</string>
-            </property>
-            <property name="buddy">
-             <cstring>wwwPortSpinBox</cstring>
+             <string>D-Bus port:</string>
             </property>
            </widget>
           </item>
           <item row="4" column="1">
-           <layout class="QHBoxLayout" name="horizontalLayout_3">
+           <layout class="QHBoxLayout" name="horizontalLayout_4">
             <item>
-             <widget class="QSpinBox" name="wwwPortSpinBox">
+             <widget class="QSpinBox" name="dBusPortSpinBox">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                 <horstretch>0</horstretch>
@@ -206,12 +203,12 @@
                <number>65535</number>
               </property>
               <property name="value">
-               <number>8080</number>
+               <number>7777</number>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QLabel" name="wwwPortInfoLabel">
+             <widget class="QLabel" name="dBusPortInfoLabel">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                 <horstretch>0</horstretch>
@@ -222,14 +219,14 @@
             </item>
            </layout>
           </item>
-          <item row="6" column="0">
+          <item row="5" column="0">
            <widget class="QLabel" name="wwwProxyLabel">
             <property name="text">
              <string>Web proxy:</string>
             </property>
            </widget>
           </item>
-          <item row="6" column="1">
+          <item row="5" column="1">
            <layout class="QGridLayout" name="gridLayout" columnstretch="0,0,1">
             <item row="3" column="1" colspan="2">
              <widget class="QLineEdit" name="wwwProxyExcludesLine"/>
@@ -274,14 +271,14 @@
             </item>
            </layout>
           </item>
-          <item row="7" column="0">
+          <item row="6" column="0">
            <widget class="QLabel" name="targetsLabel">
             <property name="text">
              <string>Build targets:</string>
             </property>
            </widget>
           </item>
-          <item row="7" column="1">
+          <item row="6" column="1">
            <widget class="QLabel" name="targetsListLabel">
             <property name="sizePolicy">
              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
@@ -300,7 +297,7 @@
             </property>
            </widget>
           </item>
-          <item row="8" column="0">
+          <item row="7" column="0">
            <widget class="QLabel" name="headlessLabel">
             <property name="text">
              <string>No win&amp;dow:</string>
@@ -310,7 +307,7 @@
             </property>
            </widget>
           </item>
-          <item row="8" column="1">
+          <item row="7" column="1">
            <widget class="QCheckBox" name="headlessCheckBox">
             <property name="toolTip">
              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If enabled the virtual machine will be run in a windowless mode (default).&lt;/p&gt;&lt;p&gt;Changing this setting requires restarting the virtual machine.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -319,46 +316,6 @@
              <string/>
             </property>
            </widget>
-          </item>
-          <item row="5" column="0">
-           <widget class="QLabel" name="dBusPortLabel">
-            <property name="text">
-             <string>D-Bus port:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="5" column="1">
-           <layout class="QHBoxLayout" name="horizontalLayout_4">
-            <item>
-             <widget class="QSpinBox" name="dBusPortSpinBox">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="minimum">
-               <number>1024</number>
-              </property>
-              <property name="maximum">
-               <number>65535</number>
-              </property>
-              <property name="value">
-               <number>7777</number>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="dBusPortInfoLabel">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-             </widget>
-            </item>
-           </layout>
           </item>
          </layout>
         </widget>
@@ -724,7 +681,6 @@
  </customwidgets>
  <tabstops>
   <tabstop>sshPortSpinBox</tabstop>
-  <tabstop>wwwPortSpinBox</tabstop>
   <tabstop>headlessCheckBox</tabstop>
   <tabstop>srcFolderApplyButton</tabstop>
   <tabstop>generateSshKeyPushButton</tabstop>
