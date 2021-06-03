@@ -92,7 +92,6 @@ private:
     void setSharedSrcPath(const Utils::FilePath &sharedSrcPath);
     void setSharedSshPath(const Utils::FilePath &sharedSshPath);
     void setSshParameters(const QSsh::SshConnectionParameters &sshParameters);
-    void setWwwPort(quint16 wwwPort);
     void setDBusPort(quint16 dBusPort);
 
     void initGuest();
@@ -125,7 +124,6 @@ private:
     Utils::FilePath sharedConfigPath;
     Utils::FilePath sharedSrcPath;
     Utils::FilePath sharedSshPath;
-    quint16 wwwPort = 0;
     quint16 dBusPort = 0;
     QString wwwProxyType;
     QString wwwProxyServers;

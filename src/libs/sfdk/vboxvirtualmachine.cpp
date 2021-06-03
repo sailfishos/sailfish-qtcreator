@@ -66,7 +66,6 @@ const char NATPF_RULE_TEMPLATE[] = "%1,tcp,127.0.0.1,%2,,%3";
 const char FREE_PORT_NATPF_RULE_NAME_TEMPLATE[] = "freeport_%1";
 const char QML_LIVE_NATPF_RULE_NAME_TEMPLATE[] = "qmllive_%1";
 const char SSH_NATPF_RULE_NAME[] = "guestssh";
-const char WWW_NATPF_RULE_NAME[] = "guestwww";
 const char DBUS_NATPF_RULE_NAME[] = "guestdbus";
 } // namespace anonymous
 
@@ -709,10 +708,6 @@ void VBoxVirtualMachinePrivate::doSetReservedPortForwarding(ReservedPort which, 
             ruleName = QLatin1String(SSH_NATPF_RULE_NAME);
             guestPort = 22;
             break;
-        case VirtualMachinePrivate::WwwPort:
-            ruleName = QLatin1String(WWW_NATPF_RULE_NAME);
-            guestPort = 8080;
-            break;
         case VirtualMachinePrivate::DBusPort:
             ruleName = QLatin1String(DBUS_NATPF_RULE_NAME);
             guestPort = 777;
@@ -970,8 +965,6 @@ VBoxVirtualMachineInfo VBoxVirtualMachinePrivate::virtualMachineInfoFromOutput(c
             quint16 port = rexp.cap(4).toUInt();
             if (ruleName.contains(QLatin1String(SSH_NATPF_RULE_NAME)))
                 info.sshPort = port;
-            else if (ruleName.contains(QLatin1String(WWW_NATPF_RULE_NAME)))
-                info.wwwPort = port;
             else if (ruleName.contains(QLatin1String(DBUS_NATPF_RULE_NAME)))
                 info.dBusPort = port;
             else if (ruleName.contains(QLatin1String(QML_LIVE_NATPF_RULE_NAME_MATCH)))

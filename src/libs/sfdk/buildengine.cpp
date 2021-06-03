@@ -220,25 +220,6 @@ void BuildEngine::setSshPort(quint16 sshPort, const QObject *context, const Func
     });
 }
 
-quint16 BuildEngine::wwwPort() const
-{
-    return d_func()->wwwPort;
-}
-
-void BuildEngine::setWwwPort(quint16 wwwPort, const QObject *context, const Functor<bool> &functor)
-{
-    QTC_CHECK(virtualMachine()->isLockedDown());
-
-    const QPointer<const QObject> context_{context};
-    VirtualMachinePrivate::get(virtualMachine())->setReservedPortForwarding(
-            VirtualMachinePrivate::WwwPort, wwwPort, this, [=](bool ok) {
-        if (ok)
-            d_func()->setWwwPort(wwwPort);
-        if (context_)
-            functor(ok);
-    });
-}
-
 quint16 BuildEngine::dBusPort() const
 {
     return d_func()->dBusPort;
@@ -372,7 +353,6 @@ QVariantMap BuildEnginePrivate::toMap() const
     data.insert(Constants::BUILD_ENGINE_WWW_PROXY_SERVERS, wwwProxyServers);
     data.insert(Constants::BUILD_ENGINE_WWW_PROXY_EXCLUDES, wwwProxyExcludes);
 
-    data.insert(Constants::BUILD_ENGINE_WWW_PORT, wwwPort);
     data.insert(Constants::BUILD_ENGINE_DBUS_PORT, dBusPort);
     data.insert(Constants::BUILD_ENGINE_HEADLESS, virtualMachine->isHeadless());
 
@@ -424,7 +404,6 @@ bool BuildEnginePrivate::fromMap(const QVariantMap &data)
         sshParameters.timeout = Constants::BUILD_ENGINE_DEFAULT_SSH_TIMEOUT;
     setSshParameters(sshParameters);
 
-    setWwwPort(data.value(Constants::BUILD_ENGINE_WWW_PORT).toUInt());
     setDBusPort(data.value(Constants::BUILD_ENGINE_DBUS_PORT).toUInt());
 
     q->setWwwProxy(data.value(Constants::BUILD_ENGINE_WWW_PROXY_TYPE,
@@ -543,7 +522,6 @@ void BuildEnginePrivate::updateVmProperties(const QObject *context, const Functo
         sshParameters.setPort(info.sshPort);
         setSshParameters(sshParameters);
 
-        setWwwPort(info.wwwPort);
         setDBusPort(info.dBusPort);
 
         if (context_)
@@ -562,7 +540,6 @@ bool BuildEnginePrivate::isValid() const
     QTC_ASSERT(!virtualMachine->sshParameters().host().isEmpty(), return false);
     QTC_ASSERT(!virtualMachine->sshParameters().userName().isEmpty(), return false);
     QTC_ASSERT(virtualMachine->sshParameters().port(), return false);
-    QTC_ASSERT(wwwPort, return false);
     QTC_ASSERT(dBusPort, return false);
     return true;
 }
@@ -630,14 +607,6 @@ void BuildEnginePrivate::setSshParameters(const QSsh::SshConnectionParameters &s
     virtualMachine->setSshParameters(sshParameters);
     if (sshParameters.port() != old.port())
         emit q->sshPortChanged(sshParameters.port());
-}
-
-void BuildEnginePrivate::setWwwPort(quint16 wwwPort)
-{
-    if (this->wwwPort == wwwPort)
-        return;
-    this->wwwPort = wwwPort;
-    emit q_func()->wwwPortChanged(wwwPort);
 }
 
 void BuildEnginePrivate::setDBusPort(quint16 dBusPort)
