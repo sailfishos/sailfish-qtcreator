@@ -158,6 +158,7 @@ void MerAddRemoveSpecialDeployStepsProjectListener::timerEvent(QTimerEvent *even
 {
     if (event->timerId() == m_updateTargetsTimer.timerId()) {
         m_updateTargetsTimer.stop();
+        m_updateTargetsQueue.removeAll(nullptr);
         while (!m_updateTargetsQueue.isEmpty())
             updateTarget(m_updateTargetsQueue.dequeue());
     } else {
