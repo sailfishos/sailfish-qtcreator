@@ -112,9 +112,9 @@ void MerCMakeBuildConfiguration::ensureBuildEngineRuns()
     if (engine->virtualMachine()->state() == VirtualMachine::Connected)
         return;
 
-    bool ok;
-    execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::connectTo),
-            engine->virtualMachine(), VirtualMachine::AskStartVm);
+    engine->virtualMachine()->connectTo(VirtualMachine::AskStartVm, engine, [](bool result) {
+        Q_UNUSED(result);
+    });
     // FIXME handle failure?
 }
 
