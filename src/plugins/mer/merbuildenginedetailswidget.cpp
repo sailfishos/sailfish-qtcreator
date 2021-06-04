@@ -58,12 +58,6 @@ MerBuildEngineDetailsWidget::MerBuildEngineDetailsWidget(QWidget *parent)
             + tr("Stop the virtual machine to unlock this field for editing.")
             + QLatin1String("</font>"));
 
-    m_ui->wwwPortInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
-    m_ui->wwwPortInfoLabel->setToolTip(
-            QLatin1String("<font color=\"red\">")
-            + tr("Stop the virtual machine to unlock this field for editing.")
-            + QLatin1String("</font>"));
-
     m_ui->dBusPortInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
     m_ui->dBusPortInfoLabel->setToolTip(
             QLatin1String("<font color=\"red\">")
@@ -96,8 +90,6 @@ MerBuildEngineDetailsWidget::MerBuildEngineDetailsWidget(QWidget *parent)
             this, &MerBuildEngineDetailsWidget::headlessCheckBoxToggled);
     connect(m_ui->srcFolderApplyButton, &QPushButton::clicked,
             this, &MerBuildEngineDetailsWidget::onSrcFolderApplyButtonClicked);
-    connect(m_ui->wwwPortSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-            this, &MerBuildEngineDetailsWidget::wwwPortChanged);
     connect(m_ui->dBusPortSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this, &MerBuildEngineDetailsWidget::dBusPortChanged);
     connect(m_ui->virtualMachineSettingsWidget, &MerVirtualMachineSettingsWidget::memorySizeMbChanged,
@@ -206,8 +198,6 @@ void MerBuildEngineDetailsWidget::setVmOffStatus(bool vmOff)
 {
     m_ui->sshPortSpinBox->setEnabled(vmOff);
     m_ui->sshPortInfoLabel->setVisible(!vmOff);
-    m_ui->wwwPortSpinBox->setEnabled(vmOff);
-    m_ui->wwwPortInfoLabel->setVisible(!vmOff);
     m_ui->dBusPortSpinBox->setEnabled(vmOff);
     m_ui->dBusPortInfoLabel->setVisible(!vmOff);
     m_ui->virtualMachineSettingsWidget->setVmOff(vmOff);
@@ -226,11 +216,6 @@ void MerBuildEngineDetailsWidget::setSshPort(quint16 port)
 void MerBuildEngineDetailsWidget::setHeadless(bool enabled)
 {
     m_ui->headlessCheckBox->setChecked(enabled);
-}
-
-void MerBuildEngineDetailsWidget::setWwwPort(quint16 port)
-{
-    m_ui->wwwPortSpinBox->setValue(port);
 }
 
 void MerBuildEngineDetailsWidget::setDBusPort(quint16 port)

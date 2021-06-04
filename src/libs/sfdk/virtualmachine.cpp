@@ -65,7 +65,6 @@ const char VM_INFO_SHARED_MEDIA[] = "SharedMedia";
 const char VM_INFO_SHARED_SRC[] = "SharedSrc";
 const char VM_INFO_SHARED_SSH[] = "SharedSsh";
 const char VM_INFO_SSH_PORT[] = "SshPort";
-const char VM_INFO_WWW_PORT[] = "WwwPort";
 const char VM_INFO_DBUS_PORT[] = "DBusPort";
 const char VM_INFO_FREE_PORTS[] = "FreePorts";
 const char VM_INFO_QML_LIVE_PORTS[] = "QmlLivePorts";
@@ -722,9 +721,6 @@ void VirtualMachinePrivate::setReservedPortForwarding(ReservedPort which, quint1
         case SshPort:
             virtualMachineInfo.sshPort = port;
             break;
-        case WwwPort:
-            virtualMachineInfo.wwwPort = port;
-            break;
         case DBusPort:
             virtualMachineInfo.dBusPort = port;
             break;
@@ -1083,7 +1079,6 @@ void VirtualMachineInfo::fromMap(const QVariantMap &data)
     sharedSrc = data.value(VM_INFO_SHARED_SRC).toString();
     sharedSsh = data.value(VM_INFO_SHARED_SSH).toString();
     sshPort = data.value(VM_INFO_SSH_PORT).toUInt();
-    wwwPort = data.value(VM_INFO_WWW_PORT).toUInt();
     dBusPort = data.value(VM_INFO_DBUS_PORT).toUInt();
 
     auto portsFromMap = [](QMap<QString, quint16> *ports, const QVariantMap &portsData) {
@@ -1116,7 +1111,6 @@ QVariantMap VirtualMachineInfo::toMap() const
     data.insert(VM_INFO_SHARED_SRC, sharedSrc);
     data.insert(VM_INFO_SHARED_SSH, sharedSsh);
     data.insert(VM_INFO_SSH_PORT, sshPort);
-    data.insert(VM_INFO_WWW_PORT, wwwPort);
     data.insert(VM_INFO_DBUS_PORT, dBusPort);
 
     auto portsToMap = [](const QMap<QString, quint16> &ports) {

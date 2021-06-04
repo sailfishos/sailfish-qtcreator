@@ -61,8 +61,6 @@ using namespace Utils;
 namespace Mer {
 namespace Internal {
 
-const char CONTROLCENTER_URL[] = "http://127.0.0.1:8080/";
-
 MerBuildEngineOptionsWidget::MerBuildEngineOptionsWidget(QWidget *parent)
     : QWidget(parent)
     , m_ui(new Ui::MerBuildEngineOptionsWidget)
@@ -101,8 +99,6 @@ MerBuildEngineOptionsWidget::MerBuildEngineOptionsWidget(QWidget *parent)
             this, &MerBuildEngineOptionsWidget::onHeadlessCheckBoxToggled);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::srcFolderApplyButtonClicked,
             this, &MerBuildEngineOptionsWidget::onSrcFolderApplyButtonClicked);
-    connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::wwwPortChanged,
-            this, &MerBuildEngineOptionsWidget::onWwwPortChanged);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::dBusPortChanged,
             this, &MerBuildEngineOptionsWidget::onDBusPortChanged);
     connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::wwwProxyChanged,
@@ -194,16 +190,6 @@ void MerBuildEngineOptionsWidget::store()
         }
         if (m_headless.contains(buildEngine))
             buildEngine->virtualMachine()->setHeadless(m_headless[buildEngine]);
-        if (m_wwwPort.contains(buildEngine)) {
-            bool stepOk;
-            execAsynchronous(std::tie(stepOk), std::mem_fn(&BuildEngine::setWwwPort), buildEngine,
-                    m_wwwPort[buildEngine]);
-            if (!stepOk) {
-                m_ui->buildEngineDetailsWidget->setWwwPort(buildEngine->wwwPort());
-                m_wwwPort.remove(buildEngine);
-                ok = false;
-            }
-        }
         if (m_dBusPort.contains(buildEngine)) {
             bool stepOk;
             execAsynchronous(std::tie(stepOk), std::mem_fn(&BuildEngine::setDBusPort), buildEngine,
@@ -287,7 +273,6 @@ void MerBuildEngineOptionsWidget::store()
     m_sshTimeout.clear();
     m_sshPort.clear();
     m_headless.clear();
-    m_wwwPort.clear();
     m_dBusPort.clear();
     m_memorySizeMb.clear();
     m_swapSizeMb.clear();
@@ -308,8 +293,6 @@ bool MerBuildEngineOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(Q
     for (BuildEngine *const buildEngine : qAsConst(m_buildEngines)) {
         if (m_sshPort.value(buildEngine) == buildEngine->sshPort())
             m_sshPort.remove(buildEngine);
-        if (m_wwwPort.value(buildEngine) == buildEngine->wwwPort())
-            m_wwwPort.remove(buildEngine);
         if (m_dBusPort.value(buildEngine) == buildEngine->dBusPort())
             m_dBusPort.remove(buildEngine);
         if (m_memorySizeMb.value(buildEngine) == buildEngine->virtualMachine()->memorySizeMb())
@@ -322,7 +305,6 @@ bool MerBuildEngineOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(Q
             m_storageSizeMb.remove(buildEngine);
 
         if (!m_sshPort.contains(buildEngine)
-                && !m_wwwPort.contains(buildEngine)
                 && !m_dBusPort.contains(buildEngine)
                 && !m_memorySizeMb.contains(buildEngine)
                 && !m_swapSizeMb.contains(buildEngine)
@@ -361,8 +343,6 @@ bool MerBuildEngineOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(Q
     for (BuildEngine *const buildEngine : qAsConst(failed)) {
         m_ui->buildEngineDetailsWidget->setSshPort(buildEngine->sshPort());
         m_sshPort.remove(buildEngine);
-        m_ui->buildEngineDetailsWidget->setWwwPort(buildEngine->wwwPort());
-        m_wwwPort.remove(buildEngine);
         m_ui->buildEngineDetailsWidget->setDBusPort(buildEngine->dBusPort());
         m_dBusPort.remove(buildEngine);
         m_ui->buildEngineDetailsWidget->setMemorySizeMb(
@@ -431,7 +411,6 @@ void MerBuildEngineOptionsWidget::onRemoveButtonClicked()
          m_sshTimeout.remove(removed);
          m_sshPort.remove(removed);
          m_headless.remove(removed);
-         m_wwwPort.remove(removed);
          m_dBusPort.remove(removed);
          m_wwwProxy.remove(removed);
          m_wwwProxyServers.remove(removed);
@@ -551,8 +530,6 @@ void MerBuildEngineOptionsWidget::onBuildEngineAdded(int index)
             this, cleaner(&m_sshPort, &m_sshPrivKeys, &m_sshTimeout));
     connect(buildEngine->virtualMachine(), &VirtualMachine::headlessChanged,
             this, cleaner(&m_headless));
-    connect(buildEngine, &BuildEngine::wwwPortChanged,
-            this, cleaner(&m_wwwPort));
     connect(buildEngine, &BuildEngine::dBusPortChanged,
             this, cleaner(&m_dBusPort));
     connect(buildEngine, &BuildEngine::wwwProxyChanged,
@@ -584,7 +561,6 @@ void MerBuildEngineOptionsWidget::onAboutToRemoveBuildEngine(int index)
     m_sshTimeout.remove(buildEngine);
     m_sshPort.remove(buildEngine);
     m_headless.remove(buildEngine);
-    m_wwwPort.remove(buildEngine);
     m_dBusPort.remove(buildEngine);
     m_wwwProxy.remove(buildEngine);
     m_wwwProxyServers.remove(buildEngine);
@@ -705,11 +681,6 @@ void MerBuildEngineOptionsWidget::update()
         else
             m_ui->buildEngineDetailsWidget->setHeadless(buildEngine->virtualMachine()->isHeadless());
 
-        if (m_wwwPort.contains(buildEngine))
-            m_ui->buildEngineDetailsWidget->setWwwPort(m_wwwPort[buildEngine]);
-        else
-            m_ui->buildEngineDetailsWidget->setWwwPort(buildEngine->wwwPort());
-
         if (m_dBusPort.contains(buildEngine))
             m_ui->buildEngineDetailsWidget->setDBusPort(m_dBusPort[buildEngine]);
         else
@@ -795,12 +766,6 @@ void MerBuildEngineOptionsWidget::onHeadlessCheckBoxToggled(bool checked)
     m_headless[m_buildEngines[m_virtualMachine]] = checked;
 }
 
-void MerBuildEngineOptionsWidget::onWwwPortChanged(quint16 port)
-{
-    //store keys to be saved on save click
-    m_wwwPort[m_buildEngines[m_virtualMachine]] = port;
-}
-
 void MerBuildEngineOptionsWidget::onDBusPortChanged(quint16 port)
 {
     //store keys to be saved on save click
@@ -845,8 +810,6 @@ void MerBuildEngineOptionsWidget::onVmOffChanged(bool vmOff)
     if (!vmOff) {
         m_ui->buildEngineDetailsWidget->setSshPort(buildEngine->sshPort());
         m_sshPort.remove(buildEngine);
-        m_ui->buildEngineDetailsWidget->setWwwPort(buildEngine->wwwPort());
-        m_wwwPort.remove(buildEngine);
         m_ui->buildEngineDetailsWidget->setDBusPort(buildEngine->dBusPort());
         m_dBusPort.remove(buildEngine);
         m_ui->buildEngineDetailsWidget->setMemorySizeMb(

@@ -47,7 +47,6 @@ namespace {
 const char DOCKER[] = "docker";
 const char SAILFISH_SDK_SYSTEM_DOCKER[] = "SAILFISH_SDK_SYSTEM_DOCKER";
 const quint16 GUESTSSHPORT = 22;
-const quint16 GUESTWWWPORT = 9292;
 const quint16 GUESTDBUSPORT = 777;
 const char SAILFISH_SDK_DOCKER_RUN_PRIVILEGED[] = "SAILFISH_SDK_DOCKER_RUN_PRIVILEGED";
 const char SAILFISH_SDK_DOCKER_CAP_ADD[] = "SAILFISH_SDK_DOCKER_CAP_ADD";
@@ -526,7 +525,6 @@ VirtualMachineInfo DockerVirtualMachinePrivate::virtualMachineInfoFromOutput(con
     };
 
     parsePort(VirtualMachinePrivate::SshPort, &info.sshPort);
-    parsePort(VirtualMachinePrivate::WwwPort, &info.wwwPort);
     parsePort(VirtualMachinePrivate::DBusPort, &info.dBusPort);
 
     auto parsePath = [=](VirtualMachinePrivate::SharedPath which, QString *path) {
@@ -549,7 +547,6 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
 {
     Q_Q(const DockerVirtualMachine);
     QTC_ASSERT(cachedInfo().sshPort != 0, return {});
-    QTC_ASSERT(cachedInfo().wwwPort != 0, return {});
     QTC_ASSERT(cachedInfo().dBusPort != 0, return {});
     QTC_ASSERT(!cachedInfo().sharedInstall.isEmpty(), return {});
     QTC_ASSERT(!cachedInfo().sharedSrc.isEmpty(), return {});
@@ -592,7 +589,6 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
         arguments.append(QString::number(hostPort) + ":" + QString::number(guestPort));
     };
     forwardPort(GUESTSSHPORT, cachedInfo().sshPort);
-    forwardPort(GUESTWWWPORT, cachedInfo().wwwPort);
     forwardPort(GUESTDBUSPORT, cachedInfo().dBusPort);
 
     auto sharePath = [&arguments](const QString &guestPath, const QString &hostPath,
@@ -673,8 +669,6 @@ QString DockerVirtualMachinePrivate::labelFor(VirtualMachinePrivate::ReservedPor
     switch (which) {
     case SshPort:
         return {Constants::BUILD_ENGINE_SSH_PORT};
-    case WwwPort:
-        return {Constants::BUILD_ENGINE_WWW_PORT};
     case DBusPort:
         return {Constants::BUILD_ENGINE_DBUS_PORT};
     }

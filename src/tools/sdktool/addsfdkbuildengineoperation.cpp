@@ -56,7 +56,6 @@ const char MER_PARAM_HOST[] = "--host";
 const char MER_PARAM_USERNAME[] = "--username";
 const char MER_PARAM_PRIVATE_KEY_FILE[] = "--private-key-file";
 const char MER_PARAM_SSH_PORT[] = "--ssh-port";
-const char MER_PARAM_WWW_PORT[] = "--www-port";
 const char MER_PARAM_DBUS_PORT[] = "--dbus-port";
 const char MER_PARAM_HEADLESS[] = "--headless";
 const char MER_PARAM_INSTALLDIR[] = "--installdir";
@@ -94,7 +93,6 @@ QString AddSfdkBuildEngineOperation::argumentsHelpText() const
          + indent + QLatin1String(MER_PARAM_USERNAME) + QLatin1String(" <NAME>             ssh username (required).\n")
          + indent + QLatin1String(MER_PARAM_PRIVATE_KEY_FILE) + QLatin1String(" <FILE>     ssh private key file (required).\n")
          + indent + QLatin1String(MER_PARAM_SSH_PORT) + QLatin1String(" <NUMBER>           ssh port (required).\n")
-         + indent + QLatin1String(MER_PARAM_WWW_PORT) + QLatin1String(" <NUMBER>           www port (required).\n")
          + indent + QLatin1String(MER_PARAM_DBUS_PORT) + QLatin1String(" <NUMBER>          D-Bus port (required).\n")
          + indent + QLatin1String(MER_PARAM_HEADLESS) + QLatin1String("                    set headless mode.\n");
 }
@@ -211,14 +209,6 @@ bool AddSfdkBuildEngineOperation::setArguments(const QStringList &args)
             continue;
         }
 
-        if (current == QLatin1String(MER_PARAM_WWW_PORT)) {
-            if (next.isNull())
-                return false;
-            ++i; // skip next;
-            m_wwwPort = next.toInt();
-            continue;
-        }
-
         if (current == QLatin1String(MER_PARAM_DBUS_PORT)) {
             if (next.isNull())
                 return false;
@@ -283,10 +273,6 @@ bool AddSfdkBuildEngineOperation::setArguments(const QStringList &args)
         std::cerr << MER_PARAM_SSH_PORT << MISSING << std::endl << std::endl;
         error = true;
     }
-    if (m_wwwPort == 0) {
-        std::cerr << MER_PARAM_WWW_PORT << MISSING << std::endl << std::endl;
-        error = true;
-    }
     if (m_dBusPort == 0) {
         std::cerr << MER_PARAM_DBUS_PORT << MISSING << std::endl << std::endl;
         error = true;
@@ -306,7 +292,7 @@ int AddSfdkBuildEngineOperation::execute() const
     const QVariantMap result = addBuildEngine(map, m_vmUri, QDateTime::currentDateTime(),
             m_autodetected, m_sharedInstallPath, m_sharedHomePath, m_sharedTargetsPath,
             m_sharedSshPath, m_sharedSrcPath, m_sharedConfigPath, m_host, m_userName,
-            m_privateKeyFile, m_sshPort, m_wwwPort, m_dBusPort, m_headless);
+            m_privateKeyFile, m_sshPort, m_dBusPort, m_headless);
 
     if (result.isEmpty() || map == result)
         return 2;
@@ -338,7 +324,6 @@ QVariantMap AddSfdkBuildEngineOperation::addBuildEngine(const QVariantMap &map,
                                           const QString &userName,
                                           const QString &privateKeyFile,
                                           quint16 sshPort,
-                                          quint16 wwwPort,
                                           quint16 dBusPort,
                                           bool headless)
 {
@@ -385,7 +370,6 @@ QVariantMap AddSfdkBuildEngineOperation::addBuildEngine(const QVariantMap &map,
     data << addPrefix(QLatin1String(C::BUILD_ENGINE_USER_NAME), QVariant(userName));
     data << addPrefix(QLatin1String(C::BUILD_ENGINE_PRIVATE_KEY_FILE), QVariant(privateKeyFile));
     data << addPrefix(QLatin1String(C::BUILD_ENGINE_SSH_PORT), QVariant(sshPort));
-    data << addPrefix(QLatin1String(C::BUILD_ENGINE_WWW_PORT), QVariant(wwwPort));
     data << addPrefix(QLatin1String(C::BUILD_ENGINE_DBUS_PORT), QVariant(dBusPort));
     data << addPrefix(QLatin1String(C::BUILD_ENGINE_HEADLESS), QVariant(headless));
     data << KeyValuePair(QLatin1String(C::BUILD_ENGINES_COUNT_KEY), QVariant(count + 1));
@@ -419,7 +403,7 @@ bool AddSfdkBuildEngineOperation::test() const
                  QLatin1String("/test/sharedConfigPath"),
                  QLatin1String("host"),
                  QLatin1String("user"),
-                 QLatin1String("/test/privateKey"),22,80,7777,false);
+                 QLatin1String("/test/privateKey"),22,7777,false);
 
     const QString sdk = QString::fromLatin1(C::BUILD_ENGINES_DATA_KEY_PREFIX) + QString::number(0);
 
@@ -462,8 +446,6 @@ bool AddSfdkBuildEngineOperation::test() const
             || sdkMap.value(QLatin1String(C::BUILD_ENGINE_PRIVATE_KEY_FILE)).toString() != QLatin1String("/test/privateKey")
             || !sdkMap.contains(QLatin1String(C::BUILD_ENGINE_SSH_PORT))
             || sdkMap.value(QLatin1String(C::BUILD_ENGINE_SSH_PORT)).toInt() != 22
-            || !sdkMap.contains(QLatin1String(C::BUILD_ENGINE_WWW_PORT))
-            || sdkMap.value(QLatin1String(C::BUILD_ENGINE_WWW_PORT)).toInt() != 80
             || !sdkMap.contains(QLatin1String(C::BUILD_ENGINE_DBUS_PORT))
             || sdkMap.value(QLatin1String(C::BUILD_ENGINE_DBUS_PORT)).toInt() != 7777
             || !sdkMap.contains(QLatin1String(C::BUILD_ENGINE_HEADLESS))
