@@ -198,11 +198,13 @@ public:
         bool lockDownOk = false;
 
         if (m_needsVmOff) {
-            if (SdkManager::isRunningReliably(m_virtualMachine)) {
+            if (!qEnvironmentVariableIsSet(Constants::SFDK_AUTO_STOP_VMS_ENV_VAR)
+                && SdkManager::isRunningReliably(m_virtualMachine)) {
                 *errorString = m_stopVmMessage;
             } else {
-                execAsynchronous(std::tie(lockDownOk), std::mem_fn(&VirtualMachine::lockDown),
-                        m_virtualMachine, true);
+                execAsynchronous(std::tie(lockDownOk),
+                    std::mem_fn(&VirtualMachine::lockDown),
+                    m_virtualMachine, true);
                 QTC_CHECK(lockDownOk);
             }
         }
