@@ -30,6 +30,7 @@
         "device",
         "output-dir",
         "output-prefix",
+        "[no-]snapshot",
         "specfile",
         "target",
         "[no-]task"

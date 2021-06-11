@@ -44,7 +44,6 @@ public:
     enum Action {
         ManagePackages,
         Refresh,
-        Synchronize,
     };
 
 public:
@@ -70,7 +69,6 @@ private:
     void onCurrentIdChanged(int id);
     void managePackages();
     void refresh();
-    void synchronize();
 
 private:
     Sfdk::BuildEngine *m_engine;

@@ -24,6 +24,7 @@
 #include "ui_mergeneraloptionswidget.h"
 
 #include "merbuildconfigurationaspect.h"
+#include "merbuildsteps.h"
 #include "merconstants.h"
 #include "merdeployconfiguration.h"
 #include "merdeploysteps.h"
@@ -70,6 +71,10 @@ MerGeneralOptionsWidget::MerGeneralOptionsWidget(QWidget *parent)
         if (!checked)
             m_ui->buildHostNameLineEdit->setText(Sdk::defaultBuildHostName());
     });
+
+    m_ui->clearBuildEnvironmentByDefaultCheckBox->setText(m_ui->clearBuildEnvironmentByDefaultCheckBox->text()
+            .arg(MerClearBuildEnvironmentStep::displayName()));
+    m_ui->clearBuildEnvironmentByDefaultCheckBox->setChecked(MerSettings::clearBuildEnvironmentByDefault());
 
     m_ui->rpmValidationByDefaultCheckBox->setToolTip(m_ui->rpmValidationByDefaultCheckBox->toolTip()
             .arg(MerRpmValidationStep::displayName())
@@ -156,6 +161,7 @@ void MerGeneralOptionsWidget::store()
     Sdk::setCustomBuildHostName(m_ui->buildHostNameCustomCheckBox->isChecked()
             ? m_ui->buildHostNameLineEdit->text()
             : QString());
+    MerSettings::setClearBuildEnvironmentByDefault(m_ui->clearBuildEnvironmentByDefaultCheckBox->isChecked());
     MerSettings::setRpmValidationByDefault(m_ui->rpmValidationByDefaultCheckBox->isChecked());
     MerSettings::setAskBeforeStartingVmEnabled(m_ui->askBeforeStartingVmCheckBox->isChecked());
     MerSettings::setAskBeforeClosingVmEnabled(m_ui->askBeforeClosingVmCheckBox->isChecked());
@@ -179,6 +185,7 @@ QString MerGeneralOptionsWidget::searchKeywords() const
     QString keywords;
     const QLatin1Char sep(' ');
     QTextStream(&keywords) << sep << m_ui->environmentFilterLabel->text()
+                           << sep << m_ui->clearBuildEnvironmentByDefaultCheckBox->text()
                            << sep << m_ui->rpmValidationInfoLabel->text()
                            << sep << m_ui->rpmValidationByDefaultCheckBox->text()
                            << sep << m_ui->askBeforeStartingVmCheckBox->text()

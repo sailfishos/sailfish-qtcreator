@@ -25,6 +25,8 @@
 
 #include "merabstractvmstartstep.h"
 
+#include <projectexplorer/abstractprocessstep.h>
+
 namespace Mer {
 namespace Internal {
 
@@ -39,6 +41,22 @@ public:
 
     static Utils::Id stepId();
     static QString displayName();
+};
+
+class MerClearBuildEnvironmentStep: public ProjectExplorer::AbstractProcessStep
+{
+    Q_OBJECT
+
+public:
+    MerClearBuildEnvironmentStep(ProjectExplorer::BuildStepList *bsl, Utils::Id id);
+
+    bool init() override;
+
+    static Utils::Id stepId();
+    static QString displayName();
+
+private:
+    Utils::StringAspect *m_arguments = nullptr;
 };
 
 template<class Step>

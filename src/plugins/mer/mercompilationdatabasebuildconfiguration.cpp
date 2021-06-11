@@ -56,6 +56,7 @@ MerCompilationDatabaseBuildConfiguration::MerCompilationDatabaseBuildConfigurati
     appendInitialBuildStep(Constants::MER_COMPILATION_DATABASE_MS_ID);
 
     appendInitialCleanStep(MerSdkStartStep::stepId());
+    appendInitialCleanStep(MerClearBuildEnvironmentStep::stepId());
     appendInitialCleanStep(Constants::MER_COMPILATION_DATABASE_MS_ID);
 }
 

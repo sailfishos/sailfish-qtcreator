@@ -105,12 +105,6 @@ public:
         return execSfdk(args);
     }
 
-    bool synchronize()
-    {
-        const QStringList args{"engine", "exec", "sdk-manage", "target", "sync", m_targetName};
-        return execSfdk(args);
-    }
-
 private:
     bool execSfdk(const QStringList &arguments)
     {
@@ -177,7 +171,7 @@ public:
     {
         m_ui->setupUi(this);
 
-        for (const QString &targetName : engine->buildTargetNames())
+        for (const QString &targetName : relevantBuildTargets())
             new QTreeWidgetItem(m_ui->targetsTreeWidget, {targetName});
 
         if (m_ui->targetsTreeWidget->topLevelItemCount() > 0) {
@@ -211,8 +205,6 @@ public:
             return MerTargetManagementDialog::ManagePackages;
         else if (m_ui->refreshRadioButton->isChecked())
             return MerTargetManagementDialog::Refresh;
-        else if (m_ui->synchronizeRadioButton->isChecked())
-            return MerTargetManagementDialog::Synchronize;
 
         QTC_ASSERT(false, return MerTargetManagementDialog::ManagePackages);
     }
@@ -225,9 +217,6 @@ public:
             return;
         case MerTargetManagementDialog::Refresh:
             m_ui->refreshRadioButton->click();
-            return;
-        case MerTargetManagementDialog::Synchronize:
-            m_ui->synchronizeRadioButton->click();
             return;
         }
 
@@ -244,6 +233,21 @@ public:
         return m_ui->manageRadioButton->isChecked()
             ? MerTargetManagementBaseWizardPage::PackagesPage
             : MerTargetManagementBaseWizardPage::ProgressPage;
+    }
+
+private:
+    QStringList relevantBuildTargets() const
+    {
+        QSet<QString> retv;
+
+        for (const BuildTargetData &target : m_engine->buildTargets()) {
+            if (target.flags & BuildTargetData::Snapshot)
+                retv.insert(target.origin);
+            else
+                retv.insert(target.name);
+        }
+
+        return retv.values();
     }
 
 private:
@@ -605,9 +609,6 @@ void MerTargetManagementDialog::onCurrentIdChanged(int id)
     case Refresh:
         refresh();
         return;
-    case Synchronize:
-        synchronize();
-        return;
     }
 }
 
@@ -657,27 +658,6 @@ void MerTargetManagementDialog::refresh()
     m_progressPage->setStatus(tr("Refreshing..."), false);
 
     if (!process.refresh()) {
-        m_progressPage->setStatus(tr("Failed"), true);
-        return;
-    }
-
-    m_progressPage->setStatus(tr("Done"), true);
-}
-
-void MerTargetManagementDialog::synchronize()
-{
-    MerTargetManagementProcess process(engine(), targetName());
-
-    connect(&process, &QProcess::readyReadStandardOutput, [&]() {
-        m_progressPage->appendDetails(QString::fromLocal8Bit(process.readAllStandardOutput()));
-    });
-    connect(&process, &QProcess::readyReadStandardError, [&]() {
-        m_progressPage->appendDetails(QString::fromLocal8Bit(process.readAllStandardOutput()));
-    });
-
-    m_progressPage->setStatus(tr("Synchronizing..."), false);
-
-    if (!process.synchronize()) {
         m_progressPage->setStatus(tr("Failed"), true);
         return;
     }

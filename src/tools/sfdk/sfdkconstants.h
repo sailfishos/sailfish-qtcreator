@@ -35,6 +35,8 @@ const char GENERAL_DOMAIN_NAME[] = "general";
 const char DEVICE_OPTION_NAME[] = "device";
 const char HOOKS_DIR_OPTION_NAME[] = "hooks-dir";
 const char TARGET_OPTION_NAME[] = "target";
+const char SNAPSHOT_OPTION_NAME[] = "snapshot";
+const char NO_SNAPSHOT_OPTION_NAME[] = "no-snapshot";
 
 const char BUILD_ENGINE_SYSTEM_BUS_CONNECTION[] = "build-engine-system-bus";
 const char SAILFISH_SDK_SFDK_DBUS_SERVICE[] = "SAILFISH_SDK_SFDK_DBUS_SERVICE";
