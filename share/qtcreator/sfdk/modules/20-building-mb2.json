@@ -37,7 +37,7 @@
         },
         {
             "name": "build",
-            "trSynopsis": "[-p|--prepare] [--no-check] [-d|--enable-debug] [-j <n>] [--sign] [<project-dir-or-file>] [[--] <rpmbuild-extra-arg>...]",
+            "trSynopsis": "[-p|--prepare] [--no-check] [-d|--enable-debug] [-j <n>] [--sign] [<project-dir-or-file>] [--] [<rpmbuild-extra-arg>...]",
             "trBrief": "Execute all build steps at once",
             "configOptions": ["*", "target!"],
             "hooks": ["[pre-|post-]pull-build-requires", "post-package", "pre-sign"],
@@ -46,7 +46,7 @@
         },
         {
             "name": "qmake",
-            "trSynopsis": "[<project-dir-or-file>] [[--] <qmake-extra-arg>...]",
+            "trSynopsis": "[<project-dir-or-file>] [--] [<qmake-extra-arg>...]",
             "trBrief": "Execute qmake build step",
             "configOptions": ["*", "target!"],
             "hooks": ["[pre-|post-]pull-build-requires"],
@@ -54,7 +54,7 @@
         },
         {
             "name": "cmake",
-            "trSynopsis": "[<project-dir>] [[--] <cmake-extra-arg>...]\n--build . [<cmake-extra-arg>...] [-- <build-tool-extra-arg>...]",
+            "trSynopsis": "[<project-dir>] [--] [<cmake-extra-arg>...]\n--build . [<cmake-extra-arg>...] [-- <build-tool-extra-arg>...]",
             "trBrief": "Execute cmake build step",
             "configOptions": ["*", "target!"],
             "hooks": ["[pre-|post-]pull-build-requires"],
