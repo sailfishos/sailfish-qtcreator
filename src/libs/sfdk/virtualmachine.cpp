@@ -985,8 +985,9 @@ void VirtualMachineInfoCache::insert(const QUrl &vmUri, const VirtualMachineInfo
     if (filePath.exists()) {
         PersistentSettingsReader reader;
         if (!reader.load(filePath))
-            return;
-        data = reader.restoreValues();
+            qCWarning(vms) << "Failed to read VM info cache";
+        else
+            data = reader.restoreValues();
     }
 
     QVariantMap vmInfos = data.value(VM_INFO_MAP).toMap();

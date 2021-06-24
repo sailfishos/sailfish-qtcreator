@@ -185,6 +185,7 @@ void DockerVirtualMachinePrivate::fetchInfo(VirtualMachineInfo::ExtraInfos extra
     Q_UNUSED(extraInfo)
 
     QStringList arguments;
+    arguments.append("image");
     arguments.append("inspect");
     arguments.append(q->name());
     arguments.append("--format={{json .Config.Labels}}");
