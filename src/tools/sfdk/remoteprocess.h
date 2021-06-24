@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2019 Jolla Ltd.
-** Copyright (C) 2019 Open Mobile Platform LLC.
+** Copyright (C) 2019,2021 Jolla Ltd.
+** Copyright (C) 2019,2020 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -24,6 +24,7 @@
 #pragma once
 
 #include "task.h"
+#include "textutils.h"
 
 #include <ssh/sshconnection.h>
 #include <utils/optional.h>
@@ -133,6 +134,7 @@ private:
     std::unique_ptr<QFile> m_stdin;
     LineBuffer m_stdoutBuffer;
     LineBuffer m_stderrBuffer;
+    std::unique_ptr<LineEndPostprocessingMessageHandler> m_lineEndPostprocessor;
 };
 
 } // namespace Sfdk
