@@ -72,7 +72,7 @@
             "name": "make-install",
             "trBrief": "Execute make-install build step",
             "configOptions": ["*", "target!"],
-            "trDescription": "Run rpmbuild. Execute just the %install section of the .spec file. This is not the same as using the 'make' command with 'install' argument."
+            "trDescription": "Run rpmbuild. Execute just the %install section of the .spec file in order to populate the RPM \"buildroot\". This is not the same as using the 'make' command with 'install' as an argument."
         },
         {
             "name": "package",
