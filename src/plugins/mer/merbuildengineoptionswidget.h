@@ -77,9 +77,6 @@ private slots:
     void onStopVirtualMachineButtonClicked();
     void onManageTargetsButtonClicked();
     //void onLaunchSDKControlCenterClicked();
-    void onGenerateSshKey(const QString &path);
-    void onAuthorizeSshKey(const QString &file);
-    void onSshKeyChanged(const QString &file);
     void onSshTimeoutChanged(int timeout);
     void onSshPortChanged(quint16 port);
     void onHeadlessCheckBoxToggled(bool checked);
@@ -101,7 +98,6 @@ private:
     QString m_status;
     QMap<QUrl, Sfdk::BuildEngine *> m_buildEngines;
     std::vector<std::unique_ptr<Sfdk::BuildEngine>> m_newBuildEngines;
-    QMap<Sfdk::BuildEngine *, QString> m_sshPrivKeys;
     QMap<Sfdk::BuildEngine *, int> m_sshTimeout;
     QMap<Sfdk::BuildEngine *, quint16> m_sshPort;
     QMap<Sfdk::BuildEngine *, bool> m_headless;

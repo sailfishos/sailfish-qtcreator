@@ -72,7 +72,6 @@ private slots:
     void onTestConnectionButtonClicked();
     void onStartVirtualMachineButtonClicked();
     void onStopVirtualMachineButtonClicked();
-    void onRegenerateSshKeysButtonClicked();
     void onEmulatorModeButtonClicked();
     void onFactoryResetButtonClicked();
     void update();

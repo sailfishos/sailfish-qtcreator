@@ -71,12 +71,6 @@ MerBuildEngineOptionsWidget::MerBuildEngineOptionsWidget(QWidget *parent)
             this, &MerBuildEngineOptionsWidget::onBuildEngineAdded);
     connect(Sdk::instance(), &Sdk::aboutToRemoveBuildEngine,
             this, &MerBuildEngineOptionsWidget::onAboutToRemoveBuildEngine);
-    connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::authorizeSshKey,
-            this, &MerBuildEngineOptionsWidget::onAuthorizeSshKey);
-    connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::generateSshKey,
-            this, &MerBuildEngineOptionsWidget::onGenerateSshKey);
-    connect(m_ui->buildEngineDetailsWidget, &MerBuildEngineDetailsWidget::sshKeyChanged,
-            this, &MerBuildEngineOptionsWidget::onSshKeyChanged);
     connect(m_ui->buildEngineComboBox, QOverload<int>::of(&QComboBox::activated),
             this, &MerBuildEngineOptionsWidget::onBuildEngineChanged);
     connect(m_ui->addButton, &QPushButton::clicked,
@@ -168,11 +162,6 @@ void MerBuildEngineOptionsWidget::store()
     for (BuildEngine *const buildEngine : qAsConst(m_buildEngines)) {
         progress.setLabelText(tr("Applying build engine settings: '%1'").arg(buildEngine->name()));
 
-        if (m_sshPrivKeys.contains(buildEngine)) {
-            SshConnectionParameters sshParameters = buildEngine->virtualMachine()->sshParameters();
-            sshParameters.privateKeyFile = m_sshPrivKeys[buildEngine];
-            buildEngine->virtualMachine()->setSshParameters(sshParameters);
-        }
         if (m_sshTimeout.contains(buildEngine)) {
             SshConnectionParameters sshParameters = buildEngine->virtualMachine()->sshParameters();
             sshParameters.timeout = m_sshTimeout[buildEngine];
@@ -269,7 +258,6 @@ void MerBuildEngineOptionsWidget::store()
         Sdk::addBuildEngine(std::move(newBuildEngine));
     m_newBuildEngines.clear();
 
-    m_sshPrivKeys.clear();
     m_sshTimeout.clear();
     m_sshPort.clear();
     m_headless.clear();
@@ -407,7 +395,6 @@ void MerBuildEngineOptionsWidget::onRemoveButtonClicked()
          else
              m_virtualMachine.clear();
 
-         m_sshPrivKeys.remove(removed);
          m_sshTimeout.remove(removed);
          m_sshPort.remove(removed);
          m_headless.remove(removed);
@@ -428,8 +415,6 @@ void MerBuildEngineOptionsWidget::onTestConnectionButtonClicked()
     BuildEngine *const buildEngine = m_buildEngines[m_virtualMachine];
     if (!buildEngine->virtualMachine()->isOff()) {
         SshConnectionParameters params = buildEngine->virtualMachine()->sshParameters();
-        if (m_sshPrivKeys.contains(buildEngine))
-            params.privateKeyFile = m_sshPrivKeys[buildEngine];
         if (m_sshPort.contains(buildEngine))
             params.setPort(m_sshPort[buildEngine]);
         m_ui->buildEngineDetailsWidget->setStatus(tr("Connecting…"));
@@ -439,29 +424,6 @@ void MerBuildEngineOptionsWidget::onTestConnectionButtonClicked()
         update();
     } else {
         m_ui->buildEngineDetailsWidget->setStatus(tr("Virtual machine is not running."));
-    }
-}
-
-void MerBuildEngineOptionsWidget::onAuthorizeSshKey(const QString &file)
-{
-    BuildEngine *const buildEngine = m_buildEngines[m_virtualMachine];
-    const QString pubKeyPath = file + QLatin1String(".pub");
-    const QString sshDirectoryPath = buildEngine->sharedSshPath().toString() + QLatin1Char('/');
-    const QStringList authorizedKeysPaths = QStringList()
-            << sshDirectoryPath + QLatin1String("root/")
-               + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER)
-            << sshDirectoryPath + buildEngine->virtualMachine()->sshParameters().userName()
-               + QLatin1Char('/') + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER);
-    foreach (const QString &path, authorizedKeysPaths) {
-        QString error;
-        const bool success = MerSdkManager::authorizePublicKey(path, pubKeyPath, error);
-        if (!success)
-            QMessageBox::critical(this, tr("Cannot Authorize Keys"), error);
-        else
-            QMessageBox::information(this, tr("Key Authorized "),
-                    tr("Key %1 added to \n %2")
-                    .arg(QDir::toNativeSeparators(pubKeyPath))
-                    .arg(QDir::toNativeSeparators(path)));
     }
 }
 
@@ -494,19 +456,6 @@ void MerBuildEngineOptionsWidget::onManageTargetsButtonClicked()
     dialog.exec();
 }
 
-void MerBuildEngineOptionsWidget::onGenerateSshKey(const QString &privKeyPath)
-{
-    QString error;
-    if (!MerSdkManager::generateSshKey(privKeyPath, error)) {
-       QMessageBox::critical(this, tr("Could not generate key."), error);
-    } else {
-       QMessageBox::information(this, tr("Key generated"),
-               tr("Key pair generated \n %1 \n You should authorize key now.")
-               .arg(QDir::toNativeSeparators(privKeyPath)));
-       m_ui->buildEngineDetailsWidget->setPrivateKeyFile(privKeyPath);
-    }
-}
-
 void MerBuildEngineOptionsWidget::onBuildEngineAdded(int index)
 {
     BuildEngine *const buildEngine = Sdk::buildEngines().at(index);
@@ -527,7 +476,7 @@ void MerBuildEngineOptionsWidget::onBuildEngineAdded(int index)
     };
 
     connect(buildEngine->virtualMachine(), &VirtualMachine::sshParametersChanged,
-            this, cleaner(&m_sshPort, &m_sshPrivKeys, &m_sshTimeout));
+            this, cleaner(&m_sshPort, &m_sshTimeout));
     connect(buildEngine->virtualMachine(), &VirtualMachine::headlessChanged,
             this, cleaner(&m_headless));
     connect(buildEngine, &BuildEngine::dBusPortChanged,
@@ -557,7 +506,6 @@ void MerBuildEngineOptionsWidget::onAboutToRemoveBuildEngine(int index)
             m_virtualMachine = m_buildEngines.first()->uri();
     }
 
-    m_sshPrivKeys.remove(buildEngine);
     m_sshTimeout.remove(buildEngine);
     m_sshPort.remove(buildEngine);
     m_headless.remove(buildEngine);
@@ -661,11 +609,6 @@ void MerBuildEngineOptionsWidget::update()
     if (show) {
         const auto sshParameters = buildEngine->virtualMachine()->sshParameters();
         m_ui->buildEngineDetailsWidget->setBuildEngine(buildEngine);
-        if (m_sshPrivKeys.contains(buildEngine))
-            m_ui->buildEngineDetailsWidget->setPrivateKeyFile(m_sshPrivKeys[buildEngine]);
-        else
-            m_ui->buildEngineDetailsWidget->setPrivateKeyFile(sshParameters.privateKeyFile);
-
         if (m_sshTimeout.contains(buildEngine))
             m_ui->buildEngineDetailsWidget->setSshTimeout(m_sshTimeout[buildEngine]);
         else
@@ -734,12 +677,6 @@ void MerBuildEngineOptionsWidget::update()
     m_ui->removeButton->setEnabled(show && !buildEngine->isAutodetected());
     m_ui->startVirtualMachineButton->setEnabled(show);
     m_ui->stopVirtualMachineButton->setEnabled(show);
-}
-
-void MerBuildEngineOptionsWidget::onSshKeyChanged(const QString &file)
-{
-    //store keys to be saved on save click
-    m_sshPrivKeys[m_buildEngines[m_virtualMachine]] = file;
 }
 
 void MerBuildEngineOptionsWidget::onSshTimeoutChanged(int timeout)

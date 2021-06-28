@@ -72,14 +72,6 @@ MerBuildEngineDetailsWidget::MerBuildEngineDetailsWidget(QWidget *parent)
             + QLatin1String("</font>"));
     m_ui->sshPortOccupiedLabel->setVisible(false);
 
-    connect(m_ui->authorizeSshKeyPushButton, &QPushButton::clicked,
-            this, &MerBuildEngineDetailsWidget::onAuthorizeSshKeyButtonClicked);
-    connect(m_ui->generateSshKeyPushButton, &QPushButton::clicked,
-            this, &MerBuildEngineDetailsWidget::onGenerateSshKeyButtonClicked);
-    connect(m_ui->privateKeyPathChooser, &PathChooser::editingFinished,
-            this, &MerBuildEngineDetailsWidget::onPathChooserEditingFinished);
-    connect(m_ui->privateKeyPathChooser, &PathChooser::browsingFinished,
-            this, &MerBuildEngineDetailsWidget::onPathChooserEditingFinished);
     connect(m_ui->testConnectionPushButton, &QPushButton::clicked,
             this, &MerBuildEngineDetailsWidget::testConnectionButtonClicked);
     connect(m_ui->sshPortSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
@@ -111,9 +103,6 @@ MerBuildEngineDetailsWidget::MerBuildEngineDetailsWidget(QWidget *parent)
     connect(m_ui->wwwProxyExcludesLine, &QLineEdit::textEdited,
             this, &MerBuildEngineDetailsWidget::onWwwProxyExcludesEdited);
 
-    m_ui->privateKeyPathChooser->setExpectedKind(PathChooser::File);
-    m_ui->privateKeyPathChooser->setPromptDialogTitle(tr("Select SSH Key"));
-
     m_ui->srcFolderPathChooser->setToolTip(m_ui->srcFolderPathChooser->toolTip().arg(Sdk::sdkVariant()));
 }
 
@@ -125,7 +114,7 @@ MerBuildEngineDetailsWidget::~MerBuildEngineDetailsWidget()
 QString MerBuildEngineDetailsWidget::searchKeyWordMatchString() const
 {
     const QChar blank = QLatin1Char(' ');
-    return  m_ui->privateKeyPathChooser->path() + blank
+    return  m_ui->sshKeyLabelText->text() + blank
             + m_ui->homeFolderPathLabel->text() + blank
             + m_ui->targetFolderPathLabel->text() + blank
             + m_ui->sshFolderPathLabel->text();
@@ -157,13 +146,9 @@ void MerBuildEngineDetailsWidget::setBuildEngine(const Sfdk::BuildEngine *buildE
         m_ui->targetsListLabel->setText(tr("Complete adding the build engine to see its build targets"));
     }
 
-    if (!buildEngine->sharedSshPath().isEmpty()) {
-        const QString authorized_keys = QDir::fromNativeSeparators(buildEngine->sharedSshPath().toString());
-        m_ui->authorizeSshKeyPushButton->setToolTip(tr("Add public key to %1").arg(
-                                                        QDir::toNativeSeparators(authorized_keys)));
-    }
-
     m_ui->userNameLabelText->setText(buildEngine->virtualMachine()->sshParameters().userName());
+    m_ui->sshKeyLabelText->setText(QDir::toNativeSeparators(
+                buildEngine->virtualMachine()->sshParameters().privateKeyFile));
 
     m_ui->virtualMachineSettingsWidget->setVmFeatures(buildEngine->virtualMachine()->features());
     m_ui->virtualMachineSettingsWidget->setMemorySizeMb(buildEngine->virtualMachine()->memorySizeMb());
@@ -175,13 +160,6 @@ void MerBuildEngineDetailsWidget::setBuildEngine(const Sfdk::BuildEngine *buildE
 void MerBuildEngineDetailsWidget::setTestButtonEnabled(bool enabled)
 {
     m_ui->testConnectionPushButton->setEnabled(enabled);
-}
-
-void MerBuildEngineDetailsWidget::setPrivateKeyFile(const QString &path)
-{
-    m_ui->privateKeyPathChooser->setPath(path);
-    m_ui->privateKeyPathChooser->triggerChanged();
-    onPathChooserEditingFinished();
 }
 
 void MerBuildEngineDetailsWidget::setStatus(const QString &status)
@@ -272,23 +250,6 @@ void MerBuildEngineDetailsWidget::onSrcFolderApplyButtonClicked()
                 tr("Not a valid workspace folder path: %1")
                 .arg(QDir::toNativeSeparators(m_ui->srcFolderPathChooser->path())));
     }
-}
-
-void MerBuildEngineDetailsWidget::onAuthorizeSshKeyButtonClicked()
-{
-    if (m_ui->privateKeyPathChooser->isValid())
-        emit authorizeSshKey(m_ui->privateKeyPathChooser->path());
-}
-
-void MerBuildEngineDetailsWidget::onGenerateSshKeyButtonClicked()
-{
-    emit generateSshKey(m_ui->privateKeyPathChooser->path());
-}
-
-void MerBuildEngineDetailsWidget::onPathChooserEditingFinished()
-{
-    if (m_ui->privateKeyPathChooser->isValid())
-        emit sshKeyChanged(m_ui->privateKeyPathChooser->path());
 }
 
 void MerBuildEngineDetailsWidget::onWwwProxyDisabledToggled(bool checked)
