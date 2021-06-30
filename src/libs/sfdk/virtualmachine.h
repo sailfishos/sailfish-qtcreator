@@ -79,6 +79,7 @@ public:
         OptionalHeadless = 0x10,
         Snapshots = 0x20,
         SwapMemory = 0x40,
+        ReserveStorageSize = 0x80,
     };
     Q_DECLARE_FLAGS(Features, Feature)
 
@@ -123,8 +124,11 @@ public:
     static int availableCpuCount();
 
     int storageSizeMb() const;
+    int freeStorageSizeMb() const;
     void setStorageSizeMb(int storageSizeMb, const QObject *context,
             const Functor<bool> &functor);
+    void reserveStorageSizeMb(int minFreeStorageSizeMb, int incrementMb, const QObject *context,
+                              const Functor<bool> &functor);
 
     bool hasPortForwarding(quint16 hostPort, QString *ruleName = nullptr) const;
     void addPortForwarding(const QString &ruleName, const QString &protocol,

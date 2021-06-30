@@ -372,6 +372,27 @@ int VirtualMachine::storageSizeMb() const
     return d->virtualMachineInfo.storageSizeMb;
 }
 
+int VirtualMachine::freeStorageSizeMb() const
+{
+    Q_D(const VirtualMachine);
+    QTC_ASSERT(d->initialized(), return -1);
+    QTC_ASSERT(d->features & ReserveStorageSize, return -1);
+    const Utils::FilePath dfPath = Utils::FilePath::fromString(d->cachedInfo().sharedConfig)
+            .pathAppended("df.cache");
+    FileReader reader;
+    if (!reader.fetch(dfPath.toString(), QIODevice::ReadOnly)) {
+        qCritical(lib).noquote() << "Unable to read df.cache:" << reader.errorString();
+        return -1;
+    }
+    bool ok = false;
+    int retVal = reader.data().toInt(&ok);
+    if (!ok) {
+        qCritical(lib) << "df.cache did not contain a number";
+        return -1;
+    }
+    return retVal;
+}
+
 void VirtualMachine::setStorageSizeMb(int storageSizeMb, const QObject *context,
         const Functor<bool> &functor)
 {
@@ -400,6 +421,38 @@ void VirtualMachine::setStorageSizeMb(int storageSizeMb, const QObject *context,
         if (context_)
             functor(ok);
     });
+}
+
+void VirtualMachine::reserveStorageSizeMb(int minFreeStorageSizeMb, int incrementMb, const QObject *context, const Functor<bool> &functor)
+{
+    Q_D(VirtualMachine);
+    QTC_ASSERT(incrementMb == 0 || incrementMb > minFreeStorageSizeMb, {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
+    QTC_ASSERT(d->features & ReserveStorageSize, {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    });
+    QTC_CHECK(d->features & GrowStorageSize);
+    QTC_CHECK(isLockedDown());
+
+    int currentFreeSizeMb = freeStorageSizeMb();
+    if (currentFreeSizeMb < 0) {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, false));
+        return;
+    }
+
+    if (currentFreeSizeMb >= minFreeStorageSizeMb) {
+        BatchComposer::enqueueCheckPoint(context, std::bind(functor, true));
+        return;
+    }
+
+    const int toAddMb = incrementMb
+            ? incrementMb
+            : minFreeStorageSizeMb - currentFreeSizeMb;
+
+    setStorageSizeMb(storageSizeMb() + toAddMb, context, functor);
 }
 
 bool VirtualMachine::hasPortForwarding(quint16 hostPort, QString *ruleName) const
