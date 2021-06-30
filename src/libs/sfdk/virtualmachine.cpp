@@ -72,7 +72,6 @@ const char VM_INFO_OTHER_PORTS[] = "OtherPorts";
 const char VM_INFO_MACS[] = "Macs";
 const char VM_INFO_HEADLESS[] = "Headless";
 const char VM_INFO_MEMORY_SIZE_MB[] = "MemorySizeMb";
-const char VM_INFO_SWAP_SUPPORTED[] = "SwapSupported";
 const char VM_INFO_SWAP_SIZE_MB[] = "SwapSizeMb";
 const char VM_INFO_CPU_COUNT[] = "CpuCount";
 const char VM_INFO_STORAGE_SIZE_MB[] = "StorageSizeMb";
