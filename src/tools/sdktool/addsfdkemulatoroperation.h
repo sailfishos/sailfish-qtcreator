@@ -54,6 +54,8 @@ public:
 #endif
 
     static QVariantMap addEmulator(const QVariantMap &map,
+           const QString &productName,
+           const QString &productRelease,
            const QUrl &vmUri,
            const QDateTime &creationTime,
            const QString &vmFactorySnapshot,
@@ -74,6 +76,8 @@ public:
 
 private:
     QString m_installDir;
+    QString m_productName;
+    QString m_productRelease;
     QUrl m_vmUri;
     QString m_vmFactorySnapshot;
     bool m_autodetected = true;
