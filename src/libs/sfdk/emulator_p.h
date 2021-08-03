@@ -86,6 +86,7 @@ private:
     QDateTime creationTime;
     std::unique_ptr<VirtualMachine> virtualMachine;
     bool autodetected = false;
+    ProductData product;
     Utils::FilePath sharedConfigPath;
     Utils::FilePath sharedMediaPath;
     Utils::FilePath sharedSshPath;
