@@ -371,7 +371,8 @@ bool EmulatorPrivate::initVirtualMachine(const QUrl &vmUri)
     Q_Q(Emulator);
     Q_ASSERT(!virtualMachine);
 
-    VirtualMachine::Features unsupportedFeatures = VirtualMachine::SwapMemory;
+    VirtualMachine::Features unsupportedFeatures = VirtualMachine::SwapMemory
+            | VirtualMachine::ReserveStorageSize;
 
     virtualMachine = VirtualMachineFactory::create(vmUri, ~unsupportedFeatures);
     QTC_ASSERT(virtualMachine, return false);

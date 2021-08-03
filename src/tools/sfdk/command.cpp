@@ -72,6 +72,7 @@ const char VM_MEMORY_SIZE_MB[] = "vm.memory-size";
 const char VM_SWAP_SIZE_MB[] = "vm.swap-size";
 const char VM_CPU_COUNT[] = "vm.cpu-count";
 const char VM_STORAGE_SIZE_MB[] = "vm.storage-size";
+const char VM_FREE_STORAGE_SIZE_MB[] = "vm.free-storage-size"; // intentionally undocumented, write-only
 
 const char QT_CREATOR_DEPLOYMENT_TXT[] = "QtCreatorDeployment.txt";
 
@@ -198,11 +199,13 @@ public:
         bool lockDownOk = false;
 
         if (m_needsVmOff) {
-            if (SdkManager::isRunningReliably(m_virtualMachine)) {
+            if (!qEnvironmentVariableIsSet(Constants::SFDK_AUTO_STOP_VMS_ENV_VAR)
+                && SdkManager::isRunningReliably(m_virtualMachine)) {
                 *errorString = m_stopVmMessage;
             } else {
-                execAsynchronous(std::tie(lockDownOk), std::mem_fn(&VirtualMachine::lockDown),
-                        m_virtualMachine, true);
+                execAsynchronous(std::tie(lockDownOk),
+                    std::mem_fn(&VirtualMachine::lockDown),
+                    m_virtualMachine, true);
                 QTC_CHECK(lockDownOk);
             }
         }
@@ -323,6 +326,26 @@ public:
                 return Failed;
             }
             return Prepared;
+        } else if (name == VM_FREE_STORAGE_SIZE_MB) {
+            int commaIndex = value.indexOf(',');
+            QString freeSize = value.left(commaIndex);
+            if (freeSize.endsWith('+')) {
+                freeSize.chop(1);
+            } else {
+                *errorString = valueCannotBeDecreasedMessage();
+                return Failed;
+            }
+            if (!parsePositiveInt(&m_freeSizeMb, freeSize, errorString))
+                return Failed;
+            if (commaIndex > 0) {
+                if (!parsePositiveInt(&m_incrementMb, value.mid(commaIndex + 1), errorString))
+                    return Failed;
+                if (m_incrementMb < m_freeSizeMb) {
+                    *errorString = tr("<step> cannot be smaller than <size>");
+                    return Failed;
+                }
+            }
+            return Prepared;
         } else {
             *errorString = unknownPropertyMessage();
             return Ignored;
@@ -361,6 +384,13 @@ public:
             ok &= stepOk;
         }
 
+        if (m_freeSizeMb > 0) {
+            bool stepOk;
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&VirtualMachine::reserveStorageSizeMb),
+                             m_vm.data(), m_freeSizeMb, m_incrementMb);
+            return stepOk;
+        }
+
         return ok;
     }
 
@@ -370,6 +400,8 @@ private:
     int m_swapSizeMb = 0;
     int m_cpuCount = 0;
     int m_storageSizeMb = 0;
+    int m_freeSizeMb = 0;
+    int m_incrementMb = 0;
 };
 
 /*!

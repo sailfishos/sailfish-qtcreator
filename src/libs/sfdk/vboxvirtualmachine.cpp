@@ -214,7 +214,8 @@ VirtualMachine::Features VBoxVirtualMachine::staticFeatures()
 {
     return VirtualMachine::LimitMemorySize | VirtualMachine::LimitCpuCount
         | VirtualMachine::GrowStorageSize | VirtualMachine::OptionalHeadless
-        | VirtualMachine::Snapshots | VirtualMachine::SwapMemory;
+        | VirtualMachine::Snapshots | VirtualMachine::SwapMemory
+        | VirtualMachine::ReserveStorageSize;
 }
 
 void VBoxVirtualMachine::fetchRegisteredVirtualMachines(const QObject *context,
