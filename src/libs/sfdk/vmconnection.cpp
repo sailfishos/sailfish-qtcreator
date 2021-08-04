@@ -45,9 +45,9 @@ using namespace Internal;
 namespace {
 const int VM_STATE_POLLING_INTERVAL_NORMAL = 10000;
 const int VM_STATE_POLLING_INTERVAL_FAST   = 1000;
-const int VM_START_TIMEOUT                 = 10000;
-const int VM_SOFT_CLOSE_TIMEOUT            = 15000; // via sdk-shutdown command
-const int VM_HARD_CLOSE_TIMEOUT            = 15000; // via ACPI poweroff
+const int VM_START_TIMEOUT                 = 20000;
+const int VM_SOFT_CLOSE_TIMEOUT            = 20000; // via sdk-shutdown command
+const int VM_HARD_CLOSE_TIMEOUT            = 20000; // via ACPI poweroff
 // Note that SshConnection internally operates with timeouts and has ability to
 // recover, but only limited state information is exposed publicly, so these
 // numbers cannot really be interpreted as that a new network connection attempt
