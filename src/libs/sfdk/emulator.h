@@ -41,6 +41,13 @@ class UserSettings;
 
 class EmulatorManager;
 
+class SFDK_EXPORT ProductData
+{
+public:
+    QString name;
+    QString release;
+};
+
 class SFDK_EXPORT DeviceModelData
 {
 public:
@@ -69,6 +76,7 @@ public:
 
     QUrl uri() const;
     QString name() const;
+    ProductData product() const;
 
     VirtualMachine *virtualMachine() const;
 

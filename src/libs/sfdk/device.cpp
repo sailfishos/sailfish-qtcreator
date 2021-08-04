@@ -566,7 +566,9 @@ void DeviceManager::onEmulatorAdded(int index)
     Emulator *const emulator = EmulatorManager::emulators().at(index);
     auto device = std::make_unique<EmulatorDevice>(emulator, this,
             EmulatorDevice::PrivateConstructorTag{});
-    device->setName(emulator->virtualMachine()->name());
+    device->setName(tr("%1 Emulator %2")
+            .arg(emulator->product().name)
+            .arg(emulator->product().release));
     addDevice(std::move(device));
 }
 

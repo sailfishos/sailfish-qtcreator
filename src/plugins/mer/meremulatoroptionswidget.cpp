@@ -28,10 +28,12 @@
 #include "meremulatordetailswidget.h"
 #include "meremulatordevice.h"
 #include "meremulatormodedialog.h"
+#include "mersdkmanager.h"
 #include "mervmconnectionui.h"
 #include "mervmselectiondialog.h"
 #include "ui_meremulatoroptionswidget.h"
 
+#include <sfdk/buildengine.h>
 #include <sfdk/emulator.h>
 #include <sfdk/sdk.h>
 #include <sfdk/virtualmachine.h>
@@ -84,8 +86,6 @@ MerEmulatorOptionsWidget::MerEmulatorOptionsWidget(QWidget *parent)
             this, &MerEmulatorOptionsWidget::onStartVirtualMachineButtonClicked);
     connect(m_ui->stopVirtualMachineButton, &QPushButton::clicked,
             this, &MerEmulatorOptionsWidget::onStopVirtualMachineButtonClicked);
-    connect(m_ui->regenerateSshKeysButton, &QPushButton::clicked,
-            this, &MerEmulatorOptionsWidget::onRegenerateSshKeysButtonClicked);
     connect(m_ui->emulatorModeButton, &QPushButton::clicked,
             this, &MerEmulatorOptionsWidget::onEmulatorModeButtonClicked);
     connect(m_ui->factoryResetButton, &QPushButton::clicked,
@@ -361,6 +361,9 @@ void MerEmulatorOptionsWidget::onEmulatorChanged(int index)
 
 void MerEmulatorOptionsWidget::onAddButtonClicked()
 {
+    // FIXME multiple engines
+    QTC_ASSERT(Sdk::buildEngines().count() == 1, return);
+
     MerVmSelectionDialog dialog(this);
     dialog.setWindowTitle(tr("Add a %1 Emulator").arg(Sdk::osVariant()));
     if (dialog.exec() != QDialog::Accepted)
@@ -389,9 +392,21 @@ void MerEmulatorOptionsWidget::onAddButtonClicked()
     // FIXME do this on Sfdk side
     SshConnectionParameters sshParameters = emulator->virtualMachine()->sshParameters();
     sshParameters.privateKeyFile =
-        MerEmulatorDevice::privateKeyFile(MerEmulatorDevice::idFor(*emulator),
-                Constants::MER_DEVICE_DEFAULTUSER);
+        Sdk::buildEngines().first()->sharedConfigPath().toString() + "/ssh/private_keys/sdk";
     emulator->virtualMachine()->setSshParameters(sshParameters);
+
+    const QString authorizedKeysPath = emulator->sharedSshPath()
+        .pathAppended(sshParameters.userName())
+        .pathAppended("authorized_keys")
+        .toString();
+    const QString pubKeyPath = sshParameters.privateKeyFile + QLatin1String(".pub");
+    QString errorString;
+    if (!MerSdkManager::authorizePublicKey(authorizedKeysPath, pubKeyPath, errorString)) {
+        QMessageBox::warning(this,
+                tr("Could not add a %1 Emulator").arg(Sdk::osVariant()),
+                tr("Failed to authorize SSH key: %1").arg(errorString));
+        return;
+    }
 
     // FIXME detect the device model and fallback to some default one on Sfdk side
     bool ok;
@@ -402,9 +417,7 @@ void MerEmulatorOptionsWidget::onAddButtonClicked()
     m_emulators[emulator->virtualMachine()->uri()] = emulator.get();
     m_virtualMachine = emulator->virtualMachine()->uri();
     m_newEmulators.emplace_back(std::move(emulator));
-    // FIXME originally this was done on user request, now we should only do it if needed, and it
-    // should be implemented on Sfdk side
-    onRegenerateSshKeysButtonClicked();
+
     update();
 }
 
@@ -471,13 +484,6 @@ void MerEmulatorOptionsWidget::onStopVirtualMachineButtonClicked()
     }
     emulator->virtualMachine()->disconnectFrom(this,
             IgnoreAsynchronousReturn<bool>);
-}
-
-void MerEmulatorOptionsWidget::onRegenerateSshKeysButtonClicked()
-{
-    Emulator *const emulator = m_emulators[m_virtualMachine];
-    MerEmulatorDevice::generateSshKey(emulator, QLatin1String(Constants::MER_DEVICE_DEFAULTUSER));
-    MerEmulatorDevice::generateSshKey(emulator, QLatin1String(Constants::MER_DEVICE_ROOTUSER));
 }
 
 void MerEmulatorOptionsWidget::onEmulatorModeButtonClicked()
@@ -635,7 +641,6 @@ void MerEmulatorOptionsWidget::update()
     m_ui->removeButton->setEnabled(show && !emulator->isAutodetected());
     m_ui->startVirtualMachineButton->setEnabled(show);
     m_ui->stopVirtualMachineButton->setEnabled(show);
-    m_ui->regenerateSshKeysButton->setEnabled(show);
     m_ui->emulatorModeButton->setEnabled(show);
     m_ui->factoryResetButton->setEnabled(show);
 }

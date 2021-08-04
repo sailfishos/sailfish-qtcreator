@@ -101,6 +101,11 @@ QString Emulator::name() const
     return d_func()->virtualMachine->name();
 }
 
+ProductData Emulator::product() const
+{
+    return d_func()->product;
+}
+
 VirtualMachine *Emulator::virtualMachine() const
 {
     return d_func()->virtualMachine.get();
@@ -290,6 +295,9 @@ QVariantMap EmulatorPrivate::toMap() const
     data.insert(Constants::EMULATOR_CREATION_TIME, creationTime);
     data.insert(Constants::EMULATOR_AUTODETECTED, autodetected);
 
+    data.insert(Constants::EMULATOR_PRODUCT_NAME, product.name);
+    data.insert(Constants::EMULATOR_PRODUCT_RELEASE, product.release);
+
     data.insert(Constants::EMULATOR_SHARED_CONFIG, sharedConfigPath.toString());
     data.insert(Constants::EMULATOR_SHARED_MEDIA, sharedMediaPath.toString());
     data.insert(Constants::EMULATOR_SHARED_SSH, sharedSshPath.toString());
@@ -332,6 +340,9 @@ bool EmulatorPrivate::fromMap(const QVariantMap &data)
 
     creationTime = data.value(Constants::EMULATOR_CREATION_TIME).toDateTime();
     autodetected = data.value(Constants::EMULATOR_AUTODETECTED).toBool();
+
+    product.name = data.value(Constants::EMULATOR_PRODUCT_NAME).toString();
+    product.release = data.value(Constants::EMULATOR_PRODUCT_RELEASE).toString();
 
     auto toFilePath = [](const QVariant &v) { return FilePath::fromString(v.toString()); };
     setSharedConfigPath(toFilePath(data.value(Constants::EMULATOR_SHARED_CONFIG)));
@@ -760,7 +771,7 @@ void EmulatorManager::fromMap(DeviceModelData *deviceModel, const QVariantMap &d
 QVariantMap EmulatorManager::toMap() const
 {
     QVariantMap data;
-    data.insert(Constants::EMULATORS_VERSION_KEY, 1);
+    data.insert(Constants::EMULATORS_VERSION_KEY, 2);
     data.insert(Constants::EMULATORS_INSTALL_DIR_KEY, m_installDir);
 
     int count = 0;
@@ -791,7 +802,7 @@ QVariantMap EmulatorManager::toMap() const
 void EmulatorManager::fromMap(const QVariantMap &data, bool fromSystemSettings)
 {
     const int version = data.value(Constants::EMULATORS_VERSION_KEY).toInt();
-    QTC_ASSERT(version == 1, return);
+    QTC_ASSERT(version == 2, return);
 
     m_installDir = data.value(Constants::EMULATORS_INSTALL_DIR_KEY).toString();
     QTC_ASSERT(!m_installDir.isEmpty(), return);

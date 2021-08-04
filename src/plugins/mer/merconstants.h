@@ -72,8 +72,6 @@ const char MER_SDK_CONNECTON_ACTION_ID[] = "Mer.SdkConnectionAction";
 const char MER_WIZARD_FEATURE_SAILFISHOS[] = "Mer.Wizard.Feature.SailfishOS";
 const char MER_WIZARD_FEATURE_EMULATOR[] = "Mer.Wizard.Feature.Emulator";
 
-const char MER_AUTHORIZEDKEYS_FOLDER[] = "authorized_keys";
-
 const char SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED[] = "SAILFISH_OS_SDK_ENVIRONMENT_FILTER";
 const char SAILFISH_SDK_ENVIRONMENT_FILTER[] = "SAILFISH_SDK_ENVIRONMENT_FILTER";
 

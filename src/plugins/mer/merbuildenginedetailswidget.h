@@ -58,7 +58,6 @@ public:
     void setBuildEngine(const Sfdk::BuildEngine *buildEngine);
     void setStatus(const QString &status);
     void setVmOffStatus(bool vmOff);
-    void setPrivateKeyFile(const QString &path);
     void setTestButtonEnabled(bool enabled);
     void setSshTimeout(int timeout);
     void setSshPort(quint16 port);
@@ -73,9 +72,6 @@ public:
     void setSshPortOccupied(bool portOccupied);
 
 signals:
-    void generateSshKey(const QString &key);
-    void sshKeyChanged(const QString &key);
-    void authorizeSshKey(const QString &key);
     void testConnectionButtonClicked();
     void sshPortChanged(quint16 port);
     void sshTimeoutChanged(int timeout);
@@ -89,9 +85,6 @@ signals:
     void storageSizeMbChnaged(int value);
 
 private slots:
-    void onAuthorizeSshKeyButtonClicked();
-    void onGenerateSshKeyButtonClicked();
-    void onPathChooserEditingFinished();
     void onSrcFolderApplyButtonClicked();
     void onWwwProxyDisabledToggled(bool checked);
     void onWwwProxyAutomaticToggled(bool checked);

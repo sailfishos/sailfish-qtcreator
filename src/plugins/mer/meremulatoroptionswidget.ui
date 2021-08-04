@@ -93,13 +93,6 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="regenerateSshKeysButton">
-       <property name="text">
-        <string>Regenerate SSH Keys</string>
-       </property>
-      </widget>
-     </item>
-     <item>
       <widget class="QPushButton" name="emulatorModeButton">
        <property name="text">
         <string>Emulator Mode...</string>

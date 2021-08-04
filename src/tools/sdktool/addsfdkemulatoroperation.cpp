@@ -44,6 +44,8 @@
 #include <iostream>
 
 // FIXME most of these should be possible to detect at first run
+const char MER_PARAM_PRODUCT_NAME[] = "--product-name";
+const char MER_PARAM_PRODUCT_RELEASE[] = "--product-release";
 const char MER_PARAM_VM_URI[] = "--vm-uri";
 const char MER_PARAM_VM_FACTORY_SNAPSHOT[] = "--vm-factory-snapshot";
 const char MER_PARAM_AUTODETECTED[] = "--autodetected";
@@ -82,6 +84,8 @@ QString AddSfdkEmulatorOperation::argumentsHelpText() const
 {
     const QString indent = QLatin1String("    ");
     return indent + QLatin1String(MER_PARAM_INSTALLDIR) + QLatin1String(" <DIR>            SDK installation directory (required).\n")
+         + indent + QLatin1String(MER_PARAM_PRODUCT_NAME) + QLatin1String(" <NAME>         product name (required).\n")
+         + indent + QLatin1String(MER_PARAM_PRODUCT_RELEASE) + QLatin1String(" <NAME>      product release name (required).\n")
          + indent + QLatin1String(MER_PARAM_VM_URI) + QLatin1String(" <URI>                virtual machine URI (required).\n")
          + indent + QLatin1String(MER_PARAM_VM_FACTORY_SNAPSHOT) + QLatin1String(" <NAME>  virtual machine factory snapshot (required).\n")
          + indent + QLatin1String(MER_PARAM_AUTODETECTED) + QLatin1String(" <BOOL>         is emulator autodetected.\n")
@@ -111,6 +115,22 @@ bool AddSfdkEmulatorOperation::setArguments(const QStringList &args)
                 return false;
             ++i; // skip next;
             m_installDir = QDir::fromNativeSeparators(next);
+            continue;
+        }
+
+        if (current == QLatin1String(MER_PARAM_PRODUCT_NAME)) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_productName = next;
+            continue;
+        }
+
+        if (current == QLatin1String(MER_PARAM_PRODUCT_RELEASE)) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_productRelease = next;
             continue;
         }
 
@@ -241,6 +261,14 @@ bool AddSfdkEmulatorOperation::setArguments(const QStringList &args)
         std::cerr << MER_PARAM_INSTALLDIR << MISSING << std::endl << std::endl;
         error = true;
     }
+    if (m_productName.isEmpty()) {
+        std::cerr << MER_PARAM_PRODUCT_NAME << MISSING << std::endl << std::endl;
+        error = true;
+    }
+    if (m_productRelease.isEmpty()) {
+        std::cerr << MER_PARAM_PRODUCT_RELEASE << MISSING << std::endl << std::endl;
+        error = true;
+    }
     if (m_vmUri.isEmpty()) {
         std::cerr << MER_PARAM_VM_URI << MISSING << std::endl << std::endl;
         error = true;
@@ -321,7 +349,7 @@ int AddSfdkEmulatorOperation::execute() const
         return 2;
     };
 
-    const QVariantMap result = addEmulator(map, m_vmUri, QDateTime::currentDateTime(),
+    const QVariantMap result = addEmulator(map, m_productName, m_productRelease, m_vmUri, QDateTime::currentDateTime(),
             m_vmFactorySnapshot, m_autodetected, m_sharedSshPath, m_sharedConfigPath, m_host,
             m_userName, m_privateKeyFile, m_sshPort, m_qmlLivePorts, m_freePorts, m_mac, m_subnet,
             deviceModelMap, m_viewScaled);
@@ -334,7 +362,7 @@ int AddSfdkEmulatorOperation::execute() const
 
 QVariantMap AddSfdkEmulatorOperation::initializeEmulators(const QString &installDir, int version)
 {
-    const int CURRENT_VERSION = 1;
+    const int CURRENT_VERSION = 2;
 
     QVariantMap map;
     map.insert(QLatin1String(C::EMULATORS_VERSION_KEY), version != -1 ? version : CURRENT_VERSION);
@@ -345,6 +373,8 @@ QVariantMap AddSfdkEmulatorOperation::initializeEmulators(const QString &install
 }
 
 QVariantMap AddSfdkEmulatorOperation::addEmulator(const QVariantMap &map,
+                                          const QString &productName,
+                                          const QString &productRelease,
                                           const QUrl &vmUri,
                                           const QDateTime &creationTime,
                                           const QString &vmFactorySnapshot,
@@ -392,6 +422,8 @@ QVariantMap AddSfdkEmulatorOperation::addEmulator(const QVariantMap &map,
     auto addPrefix = [&](const QString &key, const QVariant &value) {
         return KeyValuePair(QStringList{emulator, key}, value);
     };
+    data << addPrefix(QLatin1String(C::EMULATOR_PRODUCT_NAME), QVariant(productName));
+    data << addPrefix(QLatin1String(C::EMULATOR_PRODUCT_RELEASE), QVariant(productRelease));
     data << addPrefix(QLatin1String(C::EMULATOR_VM_URI), QVariant(vmUri));
     data << addPrefix(QLatin1String(C::EMULATOR_CREATION_TIME), QVariant(creationTime));
     data << addPrefix(QLatin1String(C::EMULATOR_FACTORY_SNAPSHOT), QVariant(vmFactorySnapshot));
@@ -416,11 +448,11 @@ QVariantMap AddSfdkEmulatorOperation::addEmulator(const QVariantMap &map,
 #ifdef WITH_TESTS
 bool AddSfdkEmulatorOperation::test() const
 {
-    QVariantMap map = initializeEmulators(QLatin1String("/dir"), 2);
+    QVariantMap map = initializeEmulators(QLatin1String("/dir"), 42);
 
     if (map.count() != 4
             || !map.contains(QLatin1String(C::EMULATORS_VERSION_KEY))
-            || map.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != 2
+            || map.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != 42
             || !map.contains(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY))
             || map.value(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY)).toString()
                 != QLatin1String("/dir")
@@ -433,6 +465,8 @@ bool AddSfdkEmulatorOperation::test() const
     const auto now = QDateTime::currentDateTime();
 
     map = addEmulator(map,
+                 QLatin1String("Sailfish OS"),
+                 QLatin1String("1.2.3.4"),
                  QUrl("sfdkvm:VirtualBox#testEmulator"),
                  now,
                  QLatin1String("testSnapshot"),
@@ -454,7 +488,7 @@ bool AddSfdkEmulatorOperation::test() const
 
     if (map.count() != 5
             || !map.contains(QLatin1String(C::EMULATORS_VERSION_KEY))
-            || map.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != 2
+            || map.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != 42
             || !map.contains(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY))
             || map.value(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY)).toString()
                 != QLatin1String("/dir")
@@ -466,7 +500,11 @@ bool AddSfdkEmulatorOperation::test() const
         return false;
 
     const QVariantMap emulatorMap = map.value(emulator).toMap();
-    if (emulatorMap.count() != 16
+    if (emulatorMap.count() != 18
+            || !emulatorMap.contains(QLatin1String(C::EMULATOR_PRODUCT_NAME))
+            || emulatorMap.value(QLatin1String(C::EMULATOR_PRODUCT_NAME)).toString() != QLatin1String("Sailfish OS")
+            || !emulatorMap.contains(QLatin1String(C::EMULATOR_PRODUCT_RELEASE))
+            || emulatorMap.value(QLatin1String(C::EMULATOR_PRODUCT_RELEASE)).toString() != QLatin1String("1.2.3.4")
             || !emulatorMap.contains(QLatin1String(C::EMULATOR_VM_URI))
             || emulatorMap.value(QLatin1String(C::EMULATOR_VM_URI)).toUrl() != QUrl("sfdkvm:VirtualBox#testEmulator")
             || !emulatorMap.contains(QLatin1String(C::EMULATOR_CREATION_TIME))

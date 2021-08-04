@@ -262,20 +262,20 @@ MerConnectionManager::MerConnectionManager():
     m_emulatorAction->setId(Constants::MER_EMULATOR_CONNECTON_ACTION_ID);
     m_emulatorAction->setIconOff(Icons::MER_EMULATOR_RUN.icon());
     m_emulatorAction->setIconOn(Icons::MER_EMULATOR_STOP.icon());
-    m_emulatorAction->setStartTip(tr("Start '%1'"));
-    m_emulatorAction->setStopTip(tr("Stop '%1'"));
+    m_emulatorAction->setStartTip(tr("Start the \"%1\" Emulator"));
+    m_emulatorAction->setStopTip(tr("Stop the \"%1\" Emulator"));
     m_emulatorAction->setConnectingTip(tr("Connecting..."));
     m_emulatorAction->setDisconnectingTip(tr("Disconnecting..."));
     m_emulatorAction->setClosingTip(tr("Closing..."));
     m_emulatorAction->setStartingTip(tr("Starting..."));
     m_emulatorAction->initialize();
 
-    m_sdkAction->setName(tr("Start/Stop a %1 Build Engine").arg(Sdk::osVariant()));
+    m_sdkAction->setName(tr("Start/Stop a %1 Build Engine").arg(Sdk::sdkVariant()));
     m_sdkAction->setId(Constants::MER_SDK_CONNECTON_ACTION_ID);
     m_sdkAction->setIconOff(Icons::MER_SDK_RUN.icon());
     m_sdkAction->setIconOn(Icons::MER_SDK_STOP.icon());
-    m_sdkAction->setStartTip(tr("Start '%1'"));
-    m_sdkAction->setStopTip(tr("Stop '%1'"));
+    m_sdkAction->setStartTip(tr("Start \"%1\""));
+    m_sdkAction->setStopTip(tr("Stop \"%1\""));
     m_sdkAction->setConnectingTip(tr("Connecting..."));
     m_sdkAction->setDisconnectingTip(tr("Disconnecting..."));
     m_sdkAction->setClosingTip(tr("Closing..."));

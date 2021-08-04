@@ -67,123 +67,8 @@ using namespace Internal;
 using namespace Constants;
 
 namespace {
-const char PRIVATE_KEY_PATH_TEMPLATE[] = "%1/ssh/private_keys/%2/%3";
+const char EMULATOR_DEVICE_ID_SUFFIX[] = "-emulator";
 } // namespace anonymous
-
-class PublicKeyDeploymentDialog : public QProgressDialog
-{
-    Q_OBJECT
-    enum State {
-        Init,
-        RemoveOldKeys,
-        GenerateSsh,
-        Deploy,
-        Error,
-        Idle
-    };
-
-public:
-    explicit PublicKeyDeploymentDialog(const QString &privKeyPath, const QString& user, const QString& sharedPath,
-                                       QWidget *parent = 0)
-        : QProgressDialog(parent)
-        , m_state(Init)
-        , m_privKeyPath(privKeyPath)
-        , m_user(user)
-        , m_sharedPath(sharedPath)
-    {
-        setAutoReset(false);
-        setAutoClose(false);
-        setMinimumDuration(0);
-        setMaximum(3);
-        QString title(tr("Generating new ssh key for %1").arg(user));
-        setWindowTitle(title);
-        setLabelText(title);
-        m_sshDirectoryPath = m_sharedPath + QLatin1Char('/') + m_user+ QLatin1Char('/')
-                 + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER);
-        QTimer::singleShot(0, this, &PublicKeyDeploymentDialog::updateState);
-    }
-
-private slots:
-    void updateState()
-    {
-        switch (m_state) {
-        case Init:
-            m_state = RemoveOldKeys;
-            setLabelText(tr("Removing old keys for %1 ...").arg(m_user));
-            setCancelButtonText(tr("Close"));
-            setValue(0);
-            show();
-            QTimer::singleShot(1, this, &PublicKeyDeploymentDialog::updateState);
-            break;
-        case RemoveOldKeys:
-            m_state = GenerateSsh;
-               setLabelText(tr("Generating ssh key for %1 ...").arg(m_user));
-            if(QFileInfo(m_privKeyPath).exists()) {
-                QFile(m_privKeyPath).remove();
-            }
-
-            if(QFileInfo(m_sshDirectoryPath).exists()) {
-                QFile(m_sshDirectoryPath).remove();
-            }
-            setValue(1);
-            QTimer::singleShot(0, this, &PublicKeyDeploymentDialog::updateState);
-            break;
-        case GenerateSsh:
-            m_state = Deploy;
-            m_error.clear();
-            setValue(2);
-            setLabelText(tr("Deploying key for %1 ...").arg(m_user));
-
-            if (!QFileInfo(m_privKeyPath).exists()) {
-                if (!MerSdkManager::generateSshKey(m_privKeyPath, m_error)) {
-                m_state = Error;
-                }
-            }
-            QTimer::singleShot(0, this, &PublicKeyDeploymentDialog::updateState);
-            break;
-        case Deploy: {
-            m_state = Idle;
-            const QString pubKeyPath = m_privKeyPath + QLatin1String(".pub");
-            if(m_sharedPath.isEmpty()) {
-                m_state = Error;
-                m_error.append(tr("SharedPath for emulator not found for this device"));
-                QTimer::singleShot(0, this, &PublicKeyDeploymentDialog::updateState);
-                return;
-            }
-
-            if(!MerSdkManager::authorizePublicKey(m_sshDirectoryPath, pubKeyPath, m_error)) {
-                 m_state = Error;
-            }else{
-                setValue(3);
-                setLabelText(tr("Deployed"));
-                setCancelButtonText(tr("Close"));
-            }
-            QTimer::singleShot(0, this, &PublicKeyDeploymentDialog::updateState);
-            break;
-        }
-        case Error:
-            QMessageBox::critical(ICore::dialogParent(), tr("Cannot Authorize Keys"), m_error);
-            setValue(0);
-            setLabelText(tr("Error occured"));
-            setCancelButtonText(tr("Close"));
-            close();
-            break;
-        case Idle:
-            close();
-        default:
-            break;
-        }
-    }
-
-private:
-    QTimer m_timer;
-    int m_state;
-    QString m_privKeyPath;
-    QString m_error;
-    QString m_user;
-    QString m_sharedPath;
-    QString m_sshDirectoryPath;
-};
 
 IDevice::Ptr MerEmulatorDevice::clone() const
 {
@@ -280,18 +165,6 @@ Sfdk::Emulator *MerEmulatorDevice::emulator() const
     return m_sdkDevice->emulator();
 }
 
-void MerEmulatorDevice::generateSshKey(Sfdk::Emulator *emulator, const QString& user)
-{
-    const QString privateKeyFile = MerEmulatorDevice::privateKeyFile(idFor(*emulator), user);
-    QTC_ASSERT(!privateKeyFile.isEmpty(), return);
-    PublicKeyDeploymentDialog dialog(privateKeyFile, user, emulator->sharedSshPath().toString(),
-            ICore::dialogParent());
-
-    const bool wasEnabled = emulator->virtualMachine()->setAutoConnectEnabled(false);
-    dialog.exec();
-    emulator->virtualMachine()->setAutoConnectEnabled(wasEnabled);
-}
-
 void MerEmulatorDevice::doFactoryReset(Sfdk::Emulator *emulator, QWidget *parent)
 {
     QProgressDialog progress(tr("Restoring '%1' to factory state...").arg(emulator->name()),
@@ -337,29 +210,20 @@ Utils::Id MerEmulatorDevice::idFor(const Sfdk::Emulator &emulator)
     // HACK: We know we do not have other than VirtualBox based emulators
     QTC_CHECK(emulator.uri().path() == "VirtualBox");
     QTC_CHECK(emulator.uri().fragment() == emulator.name());
-    return Utils::Id::fromString(emulator.name());
+    return Utils::Id::fromString(emulator.name() + EMULATOR_DEVICE_ID_SUFFIX);
 }
 
 QString MerEmulatorDevice::toSdkId(const Utils::Id &id)
 {
     // HACK
-    const QString emulatorName = id.toString();
+    QTC_CHECK(id.toString().endsWith(EMULATOR_DEVICE_ID_SUFFIX));
+    const QString emulatorName = id.toString()
+        .chopped(QString(EMULATOR_DEVICE_ID_SUFFIX).length());
     QUrl emulatorUri;
     emulatorUri.setScheme(Sfdk::Constants::VIRTUAL_MACHINE_URI_SCHEME);
     emulatorUri.setPath("VirtualBox");
     emulatorUri.setFragment(emulatorName);
     return emulatorUri.toString();
-}
-
-QString MerEmulatorDevice::privateKeyFile(Utils::Id emulatorId, const QString &user)
-{
-    // FIXME multiple engines
-    QTC_ASSERT(Sdk::buildEngines().count() == 1, return {});
-
-    return QString(PRIVATE_KEY_PATH_TEMPLATE)
-        .arg(Sdk::buildEngines().first()->sharedConfigPath().toString())
-        .arg(emulatorId.toString().replace(' ', '_'))
-        .arg(user);
 }
 
 /*!

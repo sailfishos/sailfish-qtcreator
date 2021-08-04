@@ -163,12 +163,14 @@ bool RmSfdkEmulatorOperation::test() const
 {
     const auto now = QDateTime::currentDateTime();
 
-    QVariantMap map = AddSfdkEmulatorOperation::initializeEmulators(QLatin1String("/dir"), 2);
+    QVariantMap map = AddSfdkEmulatorOperation::initializeEmulators(QLatin1String("/dir"), 42);
 
     map = AddSfdkDeviceModelOperation::addDeviceModel(map,
                  QLatin1String("Test Device"), 500, 1000, 50, 100, QLatin1String("Test dconf"));
 
     map = AddSfdkEmulatorOperation::addEmulator(map,
+                 QLatin1String("Sailfish OS"),
+                 QLatin1String("1.2.3.4"),
                  QUrl("sfdkvm:VirtualBox#testEmulator"),
                  now,
                  QLatin1String("testSnapshot"),
@@ -187,6 +189,8 @@ bool RmSfdkEmulatorOperation::test() const
                  false);
 
     map = AddSfdkEmulatorOperation::addEmulator(map,
+                 QLatin1String("Sailfish OS"),
+                 QLatin1String("4.3.2.1"),
                  QUrl("sfdkvm:VirtualBox#testEmulator2"),
                  now,
                  QLatin1String("testSnapshot"),
@@ -210,7 +214,7 @@ bool RmSfdkEmulatorOperation::test() const
 
     if (map.count() != 7
             || !map.contains(QLatin1String(C::EMULATORS_VERSION_KEY))
-            || map.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != 2
+            || map.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != 42
             || !map.contains(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY))
             || map.value(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY)).toString()
                 != QLatin1String("/dir")
@@ -233,7 +237,7 @@ bool RmSfdkEmulatorOperation::test() const
             || !result.contains(QLatin1String(C::DEVICE_MODELS_COUNT_KEY))
             || result.value(QLatin1String(C::DEVICE_MODELS_COUNT_KEY)).toInt() != 1
             || !result.contains(QLatin1String(C::EMULATORS_VERSION_KEY))
-            || result.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != 2
+            || result.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != 42
             || !map.contains(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY))
             || map.value(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY)).toString()
                 != QLatin1String("/dir"))
@@ -258,7 +262,7 @@ bool RmSfdkEmulatorOperation::test() const
               || !result.contains(QLatin1String(C::DEVICE_MODELS_COUNT_KEY))
               || result.value(QLatin1String(C::DEVICE_MODELS_COUNT_KEY)).toInt() != 1
               || !result.contains(QLatin1String(C::EMULATORS_VERSION_KEY))
-              || result.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != 2
+              || result.value(QLatin1String(C::EMULATORS_VERSION_KEY)).toInt() != 42
               || !map.contains(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY))
               || map.value(QLatin1String(C::EMULATORS_INSTALL_DIR_KEY)).toString()
                   != QLatin1String("/dir"))
