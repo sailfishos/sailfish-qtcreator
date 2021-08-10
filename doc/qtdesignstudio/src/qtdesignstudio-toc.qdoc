@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2020 The Qt Company Ltd.
+** Copyright (C) 2021 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Design Studio documentation.
@@ -56,12 +56,26 @@
                 \li \l{User Interface}
                     \list
                         \li \l{Selecting Modes}
-                     \endlist
-                \li \l{Editing QML Files in Design Mode}
-                    \list
+                        \li \l{Design Views}
+                            \list
+                                \li \l{Form Editor}
+                                \li \l{3D Editor}
+                                \li \l{Library}
+                                \li \l{Navigator}
+                                \li \l{Properties}
+                                \li \l{Connection View}
+                                \li \l{States}
+                                \li \l{Transition Editor}
+                                \li \l{Timeline}
+                                \li \l{Curve Editor}
+                                \li \l{Text Editor}
+                                \li \l{Projects}
+                                \li \l{File System}
+                                \li \l{Open Documents}
+                           \endlist
                         \li \l{Managing Workspaces}
                         \li \l{Managing Sessions}
-                     \endlist
+                    \endlist
                 \li \l{Tutorials}
                 \li \l{Qt Quick Best Practices}
                     \list
@@ -78,14 +92,23 @@
                         \li \l{Importing 3D Assets}
                     \endlist
                 \li \l{Converting UI Projects to Applications}
-                \li \l{Exporting QML}
+                \li \l{Exporting Components}
             \endlist
         \li \l{Creating UIs}
             \list
                 \li \l{Designing Application Flows}
+                    \list
+                        \li \l{Adding Flow Views}
+                        \li \l{Adding Flow Items}
+                        \li \l{Adding Action Areas and Transitions}
+                        \li \l{Applying Effects to Transitions}
+                        \li \l{Simulating Events}
+                        \li \l{Simulating Conditions}
+                        \li \l{Applying States in Flows}
+                        \li \l{Reacting to External Events}
+                    \endlist
                 \li \l{Creating Components}
                 \list
-                    \li \l{Editing 2D Content}
                     \li \l{Shapes}
                     \li \l{Text}
                     \li \l{Images}
@@ -93,36 +116,37 @@
                     \li \l{Lists and Other Data Models}
                     \li \l{2D Effects}
                     \li \l{Logic Helpers}
+                    \li \l Animations
                     \li \l{Creating Buttons}
                     \li \l{Creating Scalable Buttons and Borders}
                 \endlist
-                \li \l{Managing Item Hierarchy}
-                \li \l{Specifying Item Properties}
-                \li \l{Positioning Items}
+                \li \l{Specifying Component Properties}
+                \li \l{Positioning Components}
                 \li \l{Using Custom Fonts}
                 \li \l{Annotating Designs}
-                \li \l{Qt Quick UI Forms}
+                \li \l{UI Files}
            \endlist
        \li \l {Adding Dynamics}
             \list
                 \li \l{Creating Animations}
+                \list
+                    \li \l{Editing Easing Curves}
+                \endlist
                 \li \l{Adding Connections}
                 \list
-                    \li\l{Connecting Objects to Signals}
-                    \li\l{Specifying Dynamic Properties}
+                    \li\l{Connecting Components to Signals}
                     \li\l{Adding Bindings Between Properties}
+                    \li\l{Specifying Dynamic Properties}
                 \endlist
                 \li \l{Adding States}
             \endlist
         \li \l{Editing 3D Scenes}
                 \list
-                    \li \l{Editing 3D Assets in Design Mode}
-                    \li \l{Working in 3D Editor}
                     \li \l{Adding 3D Views}
                     \li \l{Using 3D Components}
                     \list
                        \li \l{Setting Group Properties}
-                       \li \l{Adding Models}
+                       \li \l{Adding 3D Models}
                        \li \l{Using Materials and Shaders}
                        \li \l{Attaching Textures to Materials}
                        \li \l{Using 3D Materials}
@@ -142,7 +166,6 @@
             \endlist
         \li \l{Advanced Topics}
         \list
-
             \li \l{Supported Platforms}
             \li \l{Keyboard Shortcuts}
             \li \l{Coding}
@@ -168,6 +191,7 @@
                         \li \l{Searching with the Locator}
                     \endlist
                 \li \l{Refactoring}
+                \li \l{Applying Refactoring Actions}
                 \li \l{Configuring the Editor}
                     \list
                         \li \l{Specifying Text Editor Settings}
@@ -187,7 +211,12 @@
                     \li \l{Profiling QML Applications}
                 \endlist
             \li \l{Using External Tools}
-            \li \l{Managing Data Collection Settings}
+            \li \l{Managing Data Collection}
+                \list
+                    \li \l {Collecting Usage Statistics}
+                    \li \l {Collecting User Feedback}
+                    \li \l {Reporting Crashes}
+                \endlist
         \endlist
         \li \l{Help}
         \list

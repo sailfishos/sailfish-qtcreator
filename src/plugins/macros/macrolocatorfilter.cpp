@@ -42,7 +42,7 @@ MacroLocatorFilter::MacroLocatorFilter()
 {
     setId("Macros");
     setDisplayName(tr("Text Editing Macros"));
-    setShortcutString("rm");
+    setDefaultShortcutString("rm");
 }
 
 MacroLocatorFilter::~MacroLocatorFilter() = default;
@@ -95,9 +95,4 @@ void MacroLocatorFilter::accept(Core::LocatorFilterEntry selection,
         editor->widget()->setFocus(Qt::OtherFocusReason);
 
     MacroManager::instance()->executeMacro(selection.displayName);
-}
-
-void MacroLocatorFilter::refresh(QFutureInterface<void> &future)
-{
-    Q_UNUSED(future)
 }

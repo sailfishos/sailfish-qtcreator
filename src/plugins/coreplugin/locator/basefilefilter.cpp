@@ -32,7 +32,6 @@
 
 #include <QDir>
 #include <QRegularExpression>
-#include <QTimer>
 
 using namespace Utils;
 
@@ -110,15 +109,12 @@ BaseFileFilter::~BaseFileFilter()
 void BaseFileFilter::prepareSearch(const QString &entry)
 {
     Q_UNUSED(entry)
-    d->m_current.iterator = d->m_data.iterator;
-    d->m_current.previousResultPaths = d->m_data.previousResultPaths;
-    d->m_current.forceNewSearchList = d->m_data.forceNewSearchList;
-    d->m_current.previousEntry = d->m_data.previousEntry;
+    d->m_current = d->m_data;
     d->m_data.forceNewSearchList = false;
 }
 
 ILocatorFilter::MatchLevel BaseFileFilter::matchLevelFor(const QRegularExpressionMatch &match,
-                                                         const QString &matchText) const
+                                                         const QString &matchText)
 {
     const int consecutivePos = match.capturedStart(1);
     if (consecutivePos == 0)
@@ -205,7 +201,8 @@ QList<LocatorFilterEntry> BaseFileFilter::matchesFor(QFutureInterface<LocatorFil
         d->m_current.clear(); // free memory
     } else {
         d->m_current.iterator.clear();
-        QTimer::singleShot(0, this, &BaseFileFilter::updatePreviousResultData);
+        QMetaObject::invokeMethod(this, &BaseFileFilter::updatePreviousResultData,
+                                  Qt::QueuedConnection);
     }
 
     for (auto &entry : entries) {

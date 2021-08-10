@@ -54,7 +54,7 @@ public:
     Utils::FilePath rootPathFromSettings() const;
 
 private:
-    void configureAsExampleProject(ProjectExplorer::Kit *kit, const QSet<Utils::Id> &preferredFeatures) override;
+    void configureAsExampleProject(ProjectExplorer::Kit *kit) override;
 };
 
 class CompilationDatabaseBuildSystem : public ProjectExplorer::BuildSystem

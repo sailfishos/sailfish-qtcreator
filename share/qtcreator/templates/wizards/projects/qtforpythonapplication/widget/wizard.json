@@ -7,7 +7,7 @@
     "trDisplayName": "Qt for Python - Window (UI file)",
     "trDisplayCategory": "Application (Qt for Python)",
     "icon": "../icons/icon.png",
-    "enabled": "%{JS: false // value('Plugins').indexOf('Python') >= 0}",
+    "enabled": "%{JS: value('Plugins').indexOf('Python') >= 0}",
 
     "options":
     [
@@ -29,6 +29,12 @@
             "typeId": "Fields",
             "data" :
             [
+                {
+                    "name": "PySideVersion",
+                    "trDisplayName": "PySide version:",
+                    "type": "ComboBox",
+                    "data": { "items": [ "PySide2", "PySide6" ] }
+                },
                 {
                     "name": "Class",
                     "trDisplayName": "Class name:",

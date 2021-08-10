@@ -10,7 +10,6 @@ HEADERS += \
     codegenerator.h \
     codegensettings.h \
     codegensettingspage.h \
-    copytolocationdialog.h \
     gettingstartedwelcomepage.h \
     qtbuildaspects.h \
     qtcppkitinfo.h \
@@ -23,7 +22,6 @@ HEADERS += \
     qtversionmanager.h \
     qtversionfactory.h \
     baseqtversion.h \
-    qmldumptool.h \
     qtoptionspage.h \
     qtsupportconstants.h \
     profilereader.h \
@@ -40,7 +38,6 @@ SOURCES += \
     codegenerator.cpp \
     codegensettings.cpp \
     codegensettingspage.cpp \
-    copytolocationdialog.cpp \
     gettingstartedwelcomepage.cpp \
     qtbuildaspects.cpp \
     qtcppkitinfo.cpp \
@@ -51,7 +48,6 @@ SOURCES += \
     qttestparser.cpp \
     qtversionmanager.cpp \
     baseqtversion.cpp \
-    qmldumptool.cpp \
     qtoptionspage.cpp \
     profilereader.cpp \
     qtparser.cpp \
@@ -68,7 +64,6 @@ FORMS   +=  \
     showbuildlog.ui \
     qtversioninfo.ui \
     qtversionmanager.ui \
-    copytolocationdialog.ui
 
 RESOURCES += \
     qtsupport.qrc

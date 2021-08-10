@@ -15,6 +15,7 @@ include (../../../../share/qtcreator/qml/qmlpuppet/types/types.pri)
 
 SOURCES += $$PWD/model/abstractview.cpp \
     $$PWD/imagecache/imagecachecollector.cpp \
+    $$PWD/imagecache/imagecachefontcollector.cpp \
     $$PWD/model/rewriterview.cpp \
     $$PWD/model/documentmessage.cpp \
     $$PWD/metainfo/metainfo.cpp \
@@ -87,7 +88,8 @@ SOURCES += $$PWD/model/abstractview.cpp \
     $$PWD/model/qmltimelinekeyframegroup.cpp \
     $$PWD/model/annotation.cpp \
     $$PWD/model/stylesheetmerger.cpp \
-    $$PWD/imagecache/imagecache.cpp \
+    $$PWD/imagecache/asynchronousimagecache.cpp \
+    $$PWD/imagecache/synchronousimagecache.cpp \
     $$PWD/imagecache/imagecacheconnectionmanager.cpp \
     $$PWD/imagecache/imagecachegenerator.cpp \
     $$PWD/imagecache/timestampprovider.cpp
@@ -95,6 +97,7 @@ SOURCES += $$PWD/model/abstractview.cpp \
 
 HEADERS += $$PWD/include/qmldesignercorelib_global.h \
     $$PWD/imagecache/imagecachecollector.h \
+    $$PWD/imagecache/imagecachefontcollector.h \
     $$PWD/include/abstractview.h \
     $$PWD/include/nodeinstanceview.h \
     $$PWD/include/rewriterview.h \
@@ -172,7 +175,9 @@ HEADERS += $$PWD/include/qmldesignercorelib_global.h \
     $$PWD/include/qmltimelinekeyframegroup.h \
     $$PWD/include/annotation.h \
     $$PWD/include/stylesheetmerger.h \
-    $$PWD/include/imagecache.h \
+    $$PWD/include/asynchronousimagecache.h \
+    $$PWD/include/synchronousimagecache.h \
+    $$PWD/include/imagecacheauxiliarydata.h \
     $$PWD/imagecache/imagecachecollectorinterface.h \
     $$PWD/imagecache/imagecacheconnectionmanager.h \
     $$PWD/imagecache/imagecachegeneratorinterface.h \

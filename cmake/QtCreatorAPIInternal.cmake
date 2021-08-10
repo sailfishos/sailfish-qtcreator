@@ -1,5 +1,7 @@
-if (CMAKE_VERSION VERSION_LESS 3.16)
-  set(BUILD_WITH_PCH OFF)
+if (CMAKE_VERSION VERSION_LESS 3.18)
+  if (CMAKE_CXX_COMPILER_ID STREQUAL GNU OR CMAKE_VERSION VERSION_LESS 3.16)
+    set(BUILD_WITH_PCH OFF)
+  endif()
 endif()
 
 include(FeatureSummary)
@@ -35,7 +37,7 @@ if (APPLE)
   set(_IDE_APP_PATH ".")
   set(_IDE_APP_TARGET "${IDE_DISPLAY_NAME}")
 
-  set(_IDE_OUTPUT_PATH "${_IDE_APP_PATH}/${_IDE_APP_TARGET}.app/Contents")
+  set(_IDE_OUTPUT_PATH "${_IDE_APP_TARGET}.app/Contents")
 
   set(_IDE_LIBRARY_BASE_PATH "Frameworks")
   set(_IDE_LIBRARY_PATH "${_IDE_OUTPUT_PATH}/${_IDE_LIBRARY_BASE_PATH}")
@@ -44,6 +46,9 @@ if (APPLE)
   set(_IDE_DATA_PATH "${_IDE_OUTPUT_PATH}/Resources")
   set(_IDE_DOC_PATH "${_IDE_OUTPUT_PATH}/Resources/doc")
   set(_IDE_BIN_PATH "${_IDE_OUTPUT_PATH}/MacOS")
+
+  set(_IDE_HEADER_INSTALL_PATH "${_IDE_DATA_PATH}/Headers/qtcreator")
+  set(_IDE_CMAKE_INSTALL_PATH "${_IDE_DATA_PATH}/lib/cmake")
 elseif(WIN32)
   set(_IDE_APP_PATH "bin")
   set(_IDE_APP_TARGET "${IDE_ID}")
@@ -55,6 +60,9 @@ elseif(WIN32)
   set(_IDE_DATA_PATH "share/qtcreator")
   set(_IDE_DOC_PATH "share/doc/qtcreator")
   set(_IDE_BIN_PATH "bin")
+
+  set(_IDE_HEADER_INSTALL_PATH "include/qtcreator")
+  set(_IDE_CMAKE_INSTALL_PATH "lib/cmake")
 else ()
   include(GNUInstallDirs)
   set(_IDE_APP_PATH "${CMAKE_INSTALL_BINDIR}")
@@ -67,6 +75,9 @@ else ()
   set(_IDE_DATA_PATH "${CMAKE_INSTALL_DATAROOTDIR}/qtcreator")
   set(_IDE_DOC_PATH "${CMAKE_INSTALL_DATAROOTDIR}/doc/qtcreator")
   set(_IDE_BIN_PATH "${CMAKE_INSTALL_BINDIR}")
+
+  set(_IDE_HEADER_INSTALL_PATH "include/qtcreator")
+  set(_IDE_CMAKE_INSTALL_PATH "lib/cmake")
 endif ()
 
 file(RELATIVE_PATH _PLUGIN_TO_LIB "/${_IDE_PLUGIN_PATH}" "/${_IDE_LIBRARY_PATH}")
@@ -91,6 +102,36 @@ set(__QTC_PLUGINS "" CACHE INTERNAL "*** Internal ***")
 set(__QTC_LIBRARIES "" CACHE INTERNAL "*** Internal ***")
 set(__QTC_EXECUTABLES "" CACHE INTERNAL "*** Internal ***")
 set(__QTC_TESTS "" CACHE INTERNAL "*** Internal ***")
+
+# handle SCCACHE hack
+# SCCACHE does not work with the /Zi option, which makes each compilation write debug info
+# into the same .pdb file - even with /FS, which usually makes this work in the first place.
+# Replace /Zi with /Z7, which leaves the debug info in the object files until link time.
+# This increases memory usage, disk space usage and linking time, so should only be
+# enabled if necessary.
+# Must be called after project(...).
+function(qtc_handle_sccache_support)
+  if (MSVC AND WITH_SCCACHE_SUPPORT)
+    foreach(config DEBUG RELWITHDEBINFO)
+      foreach(lang C CXX)
+        set(flags_var "CMAKE_${lang}_FLAGS_${config}")
+        string(REPLACE "/Zi" "/Z7" ${flags_var} "${${flags_var}}")
+        set(${flags_var} "${${flags_var}}" PARENT_SCOPE)
+      endforeach()
+    endforeach()
+  endif()
+endfunction()
+
+function(qtc_enable_release_for_debug_configuration)
+  if (MSVC)
+    string(REPLACE "/Od" "/O2" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    string(REPLACE "/Ob0" "/Ob1" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    string(REPLACE "/RTC1" ""  CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+  else()
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O2")
+  endif()
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}" PARENT_SCOPE)
+endfunction()
 
 function(append_extra_translations target_name)
   if(NOT ARGN)
@@ -190,7 +231,7 @@ function(set_public_includes target includes)
     file(RELATIVE_PATH include_dir_relative_path ${PROJECT_SOURCE_DIR} ${inc_dir})
     target_include_directories(${target} PUBLIC
       $<BUILD_INTERFACE:${inc_dir}>
-      $<INSTALL_INTERFACE:include/${include_dir_relative_path}>
+      $<INSTALL_INTERFACE:${_IDE_HEADER_INSTALL_PATH}/${include_dir_relative_path}>
     )
   endforeach()
 endfunction()
@@ -229,11 +270,25 @@ function(finalize_test_setup test_name)
   endif()
 endfunction()
 
+function(check_qtc_disabled_targets target_name dependent_targets)
+  foreach(dependency IN LISTS ${dependent_targets})
+    foreach(type PLUGIN LIBRARY)
+      string(TOUPPER "BUILD_${type}_${dependency}" build_target)
+      if (DEFINED ${build_target} AND NOT ${build_target})
+        message(SEND_ERROR "Target ${name} depends on ${dependency} which was disabled via ${build_target} set to ${${build_target}}")
+      endif()
+    endforeach()
+  endforeach()
+endfunction()
+
 function(add_qtc_depends target_name)
   cmake_parse_arguments(_arg "" "" "PRIVATE;PUBLIC" ${ARGN})
   if (${_arg_UNPARSED_ARGUMENTS})
     message(FATAL_ERROR "add_qtc_depends had unparsed arguments")
   endif()
+
+  check_qtc_disabled_targets(${target_name} _arg_PRIVATE)
+  check_qtc_disabled_targets(${target_name} _arg_PUBLIC)
 
   separate_object_libraries("${_arg_PRIVATE}"
     depends object_lib_depends object_lib_depends_objects)
@@ -251,10 +306,12 @@ function(add_qtc_depends target_name)
   endif()
 
   foreach(obj_lib IN LISTS object_lib_depends)
+    target_compile_options(${target_name} PRIVATE $<TARGET_PROPERTY:${obj_lib},INTERFACE_COMPILE_OPTIONS>)
     target_compile_definitions(${target_name} PRIVATE $<TARGET_PROPERTY:${obj_lib},INTERFACE_COMPILE_DEFINITIONS>)
     target_include_directories(${target_name} PRIVATE $<TARGET_PROPERTY:${obj_lib},INTERFACE_INCLUDE_DIRECTORIES>)
   endforeach()
   foreach(obj_lib IN LISTS object_public_depends)
+    target_compile_options(${target_name} PUBLIC $<TARGET_PROPERTY:${obj_lib},INTERFACE_COMPILE_OPTIONS>)
     target_compile_definitions(${target_name} PUBLIC $<TARGET_PROPERTY:${obj_lib},INTERFACE_COMPILE_DEFINITIONS>)
     target_include_directories(${target_name} PUBLIC $<TARGET_PROPERTY:${obj_lib},INTERFACE_INCLUDE_DIRECTORIES>)
   endforeach()

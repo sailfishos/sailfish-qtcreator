@@ -37,6 +37,7 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/locator/locatorconstants.h>
 #include <coreplugin/minisplitter.h>
+#include <utils/algorithm.h>
 #include <utils/infobar.h>
 #include <utils/qtcassert.h>
 #include <utils/theme/theme.h>
@@ -135,14 +136,14 @@ EditorView::EditorView(SplitterOrView *parentSplitterOrView, QWidget *parent) :
     m_container->addWidget(empty);
     m_widgetEditorMap.insert(empty, nullptr);
 
-    auto dropSupport = new DropSupport(this, [this](QDropEvent *event, DropSupport *dropSupport) -> bool {
+    const auto dropSupport = new DropSupport(this, [this](QDropEvent *event, DropSupport *) {
         // do not accept move events except from other editor views (i.e. their tool bars)
         // otherwise e.g. item views that support moving items within themselves would
         // also "move" the item into the editor view, i.e. the item would be removed from the
         // item view
         if (!qobject_cast<EditorToolBar*>(event->source()))
             event->setDropAction(Qt::CopyAction);
-        if (event->type() == QDropEvent::DragEnter && !dropSupport->isFileDrop(event))
+        if (event->type() == QDropEvent::DragEnter && !DropSupport::isFileDrop(event))
             return false; // do not accept drops without files
         return event->source() != m_toolBar; // do not accept drops on ourselves
     });
@@ -159,7 +160,7 @@ SplitterOrView *EditorView::parentSplitterOrView() const
     return m_parentSplitterOrView;
 }
 
-EditorView *EditorView::findNextView()
+EditorView *EditorView::findNextView() const
 {
     SplitterOrView *current = parentSplitterOrView();
     QTC_ASSERT(current, return nullptr);
@@ -182,7 +183,7 @@ EditorView *EditorView::findNextView()
     return nullptr;
 }
 
-EditorView *EditorView::findPreviousView()
+EditorView *EditorView::findPreviousView() const
 {
     SplitterOrView *current = parentSplitterOrView();
     QTC_ASSERT(current, return nullptr);
@@ -363,7 +364,7 @@ void EditorView::listSelectionActivated(int index)
     EditorManagerPrivate::activateEditorForEntry(this, DocumentModel::entryAtRow(index));
 }
 
-void EditorView::fillListContextMenu(QMenu *menu)
+void EditorView::fillListContextMenu(QMenu *menu) const
 {
     IEditor *editor = currentEditor();
     DocumentModel::Entry *entry = editor ? DocumentModel::entryForDocument(editor->document())
@@ -400,14 +401,27 @@ void EditorView::closeSplit()
 
 void EditorView::openDroppedFiles(const QList<DropSupport::FileSpec> &files)
 {
-    const int count = files.size();
-    for (int i = 0; i < count; ++i) {
-        const DropSupport::FileSpec spec = files.at(i);
-        EditorManagerPrivate::openEditorAt(this, spec.filePath, spec.line, spec.column, Id(),
-                                  i < count - 1 ? EditorManager::DoNotChangeCurrentEditor
-                                                  | EditorManager::DoNotMakeVisible
-                                                : EditorManager::NoFlags);
-    }
+    bool first = true;
+    auto openEntry = [&](const DropSupport::FileSpec &spec) {
+        if (first) {
+            first = false;
+            EditorManagerPrivate::openEditorAt(this, spec.filePath, spec.line, spec.column);
+        } else if (spec.column != -1 || spec.line != -1) {
+            EditorManagerPrivate::openEditorAt(this,
+                                               spec.filePath,
+                                               spec.line,
+                                               spec.column,
+                                               Id(),
+                                               EditorManager::DoNotChangeCurrentEditor
+                                                   | EditorManager::DoNotMakeVisible);
+        } else {
+            auto *factory = IEditorFactory::preferredEditorFactories(spec.filePath).value(0);
+            DocumentModelPrivate::addSuspendedDocument(spec.filePath,
+                                                       {},
+                                                       factory ? factory->id() : Id());
+        }
+    };
+    Utils::reverseForeach(files, openEntry);
 }
 
 void EditorView::setParentSplitterOrView(SplitterOrView *splitterOrView)

@@ -83,17 +83,14 @@ SshRemoteProcess::SshRemoteProcess(const QString &command, const QStringList &co
 void SshRemoteProcess::doStart()
 {
     QTC_ASSERT(!isRunning(), return);
+    const Utils::CommandLine cmd = fullLocalCommandLine();
     if (!d->displayName.isEmpty()) {
         QProcessEnvironment env = processEnvironment();
         env.insert("DISPLAY", d->displayName);
         setProcessEnvironment(env);
     }
-
-    const QString program = SshSettings::sshFilePath().toString();
-    const QStringList arguments = allLocalArguments();
-
-    qCDebug(sshLog) << "starting remote process:" << program << "arguments:" << arguments;
-    QProcess::start(program, arguments);
+    qCDebug(sshLog) << "starting remote process:" << cmd.toUserOutput();
+    QProcess::start(cmd.executable().toString(), cmd.splitArguments());
 }
 
 SshRemoteProcess::~SshRemoteProcess()
@@ -121,27 +118,22 @@ bool SshRemoteProcess::isRunning() const
     return state() == QProcess::Running;
 }
 
-QStringList SshRemoteProcess::allLocalArguments() const
-{
-    QStringList args;
-
-    if (!d->displayName.isEmpty())
-        args.append("-X");
-    if (d->useTerminal)
-        args.append("-tt");
-
-    args.append("-q");
-    args.append(d->connectionArgs);
-
-    if (!d->remoteCommand.isEmpty())
-        args.append(d->remoteCommand);
-
-    return args;
-}
-
 Utils::CommandLine SshRemoteProcess::fullLocalCommandLine() const
 {
-    return {SshSettings::sshFilePath(), allLocalArguments()};
+    Utils::CommandLine cmd{SshSettings::sshFilePath()};
+
+    if (!d->displayName.isEmpty())
+        cmd.addArg("-X");
+    if (d->useTerminal)
+        cmd.addArg("-tt");
+
+    cmd.addArg("-q");
+    cmd.addArgs(d->connectionArgs);
+
+    if (!d->remoteCommand.isEmpty())
+        cmd.addArg(d->remoteCommand);
+
+    return cmd;
 }
 
 } // namespace QSsh

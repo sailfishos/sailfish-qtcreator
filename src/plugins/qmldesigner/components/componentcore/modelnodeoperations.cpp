@@ -82,6 +82,8 @@
 #include <QPushButton>
 #include <QGridLayout>
 #include <QPointer>
+#include <QMessageBox>
+#include <QPair>
 
 #include <algorithm>
 #include <functional>
@@ -631,7 +633,7 @@ void addSignalHandlerOrGotoImplementation(const SelectionContext &selectionState
 
     if (!qmlObjectNode.isValid()) {
         QString title = QCoreApplication::translate("ModelNodeOperations", "Go to Implementation");
-        QString description = QCoreApplication::translate("ModelNodeOperations", "Invalid item.");
+        QString description = QCoreApplication::translate("ModelNodeOperations", "Invalid component.");
         Core::AsynchronousMessageBox::warning(title, description);
         return;
     }
@@ -972,24 +974,38 @@ Utils::FilePath projectFilePath()
     return Utils::FilePath();
 }
 
-bool addFontToProject(const QStringList &fileNames, const QString &defaultDirectory)
+static bool addFilesToProject(const QStringList &fileNames, const QString &defaultDirectory)
 {
-
-    QString adjustedDefaultDirectory = defaultDirectory;
-    Utils::FilePath fonts = projectFilePath().pathAppended("fonts");
-
-    if (fonts.exists())
-        adjustedDefaultDirectory = fonts.toString();
-
-    QString directory = AddImagesDialog::getDirectory(fileNames, adjustedDefaultDirectory);
+    QString directory = AddImagesDialog::getDirectory(fileNames, defaultDirectory);
 
     if (directory.isEmpty())
         return true;
 
     bool allSuccessful = true;
+    QList<QPair<QString, QString>> copyList;
+    QStringList removeList;
     for (const QString &fileName : fileNames) {
         const QString targetFile = directory + "/" + QFileInfo(fileName).fileName();
-        const bool success = QFile::copy(fileName, targetFile);
+        if (QFileInfo::exists(targetFile)) {
+            const QString title = QCoreApplication::translate(
+                        "ModelNodeOperations", "Overwrite Existing File?");
+            const QString question = QCoreApplication::translate(
+                        "ModelNodeOperations", "File already exists. Overwrite?\n\"%1\"").arg(targetFile);
+            if (QMessageBox::question(qobject_cast<QWidget *>(Core::ICore::dialogParent()),
+                                      title, question, QMessageBox::Yes | QMessageBox::No)
+                    != QMessageBox::Yes) {
+                continue;
+            }
+            removeList.append(targetFile);
+        }
+        copyList.append({fileName, targetFile});
+    }
+    // Defer actual file operations after we have dealt with possible popup dialogs to avoid
+    // unnecessarily refreshing file models multiple times during the operation
+    for (const auto &file : qAsConst(removeList))
+        QFile::remove(file);
+    for (const auto &filePair : qAsConst(copyList)) {
+        const bool success = QFile::copy(filePair.first, filePair.second);
 
         auto document = QmlDesignerPlugin::instance()->currentDesignDocument();
 
@@ -1000,7 +1016,7 @@ bool addFontToProject(const QStringList &fileNames, const QString &defaultDirect
             if (node) {
                 ProjectExplorer::FolderNode *containingFolder = node->parentFolderNode();
                 if (containingFolder)
-                    containingFolder->addFiles(QStringList(targetFile));
+                    containingFolder->addFiles(QStringList(filePair.second));
             }
         } else {
             allSuccessful = false;
@@ -1010,36 +1026,41 @@ bool addFontToProject(const QStringList &fileNames, const QString &defaultDirect
     return allSuccessful;
 }
 
+static QString getAssetDefaultDirectory(const QString &assetDir, const QString &defaultDirectory)
+{
+    QString adjustedDefaultDirectory = defaultDirectory;
+    Utils::FilePath assetPath = projectFilePath().pathAppended(assetDir);
+
+    if (!assetPath.exists()) {
+        // Create the default asset type directory if it doesn't exist
+        QDir dir(projectFilePath().toString());
+        dir.mkpath(assetDir);
+    }
+
+    if (assetPath.exists() && assetPath.isDir())
+        adjustedDefaultDirectory = assetPath.toString();
+
+    return adjustedDefaultDirectory;
+}
+
+bool addFontToProject(const QStringList &fileNames, const QString &defaultDirectory)
+{
+    return addFilesToProject(fileNames, getAssetDefaultDirectory("fonts", defaultDirectory));
+}
+
+bool addSoundToProject(const QStringList &fileNames, const QString &defaultDirectory)
+{
+    return addFilesToProject(fileNames, getAssetDefaultDirectory("sounds", defaultDirectory));
+}
+
+bool addShaderToProject(const QStringList &fileNames, const QString &defaultDirectory)
+{
+    return addFilesToProject(fileNames, getAssetDefaultDirectory("shaders", defaultDirectory));
+}
 
 bool addImageToProject(const QStringList &fileNames, const QString &defaultDirectory)
 {
-    QString directory = AddImagesDialog::getDirectory(fileNames, defaultDirectory);
-
-    if (directory.isEmpty())
-        return true;
-
-    bool allSuccessful = true;
-    for (const QString &fileName : fileNames) {
-        const QString targetFile = directory + "/" + QFileInfo(fileName).fileName();
-        const bool success = QFile::copy(fileName, targetFile);
-
-        auto document = QmlDesignerPlugin::instance()->currentDesignDocument();
-
-        QTC_ASSERT(document, return false);
-
-        if (success) {
-            ProjectExplorer::Node *node = ProjectExplorer::ProjectTree::nodeForFile(document->fileName());
-            if (node) {
-                ProjectExplorer::FolderNode *containingFolder = node->parentFolderNode();
-                if (containingFolder)
-                    containingFolder->addFiles(QStringList(targetFile));
-            }
-        } else {
-            allSuccessful = false;
-        }
-    }
-
-    return allSuccessful;
+    return addFilesToProject(fileNames, getAssetDefaultDirectory("images", defaultDirectory));
 }
 
 void createFlowActionArea(const SelectionContext &selectionContext)
@@ -1535,7 +1556,7 @@ void editAnnotation(const SelectionContext &selectionContext)
 {
     ModelNode selectedNode = selectionContext.currentSingleSelectedNode();
 
-    AnnotationEditor::showWidget(selectedNode);
+    ModelNodeEditorProxy::fromModelNode<AnnotationEditor>(selectedNode);
 }
 
 QVariant previewImageDataForGenericNode(const ModelNode &modelNode)
@@ -1558,6 +1579,15 @@ void openSignalDialog(const SelectionContext &selectionContext)
         return;
 
     SignalList::showWidget(selectionContext.currentSingleSelectedNode());
+}
+
+void updateImported3DAsset(const SelectionContext &selectionContext)
+{
+    if (selectionContext.view()) {
+        selectionContext.view()->emitCustomNotification(
+                    "UpdateImported3DAsset", {selectionContext.currentSingleSelectedNode()});
+
+    }
 }
 
 } // namespace ModelNodeOperations

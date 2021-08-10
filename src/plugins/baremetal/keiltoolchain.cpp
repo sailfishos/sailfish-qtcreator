@@ -60,9 +60,7 @@ namespace Internal {
 
 // Helpers:
 
-static const char compilerCommandKeyC[] = "CompilerPath";
 static const char compilerPlatformCodeGenFlagsKeyC[] = "PlatformCodeGenFlags";
-static const char targetAbiKeyC[] = "TargetAbi";
 
 static bool compilerExists(const FilePath &compilerPath)
 {
@@ -433,24 +431,8 @@ KeilToolChain::KeilToolChain() :
     ToolChain(Constants::KEIL_TOOLCHAIN_TYPEID)
 {
     setTypeDisplayName(tr("KEIL"));
-}
-
-void KeilToolChain::setTargetAbi(const Abi &abi)
-{
-    if (abi == m_targetAbi)
-        return;
-    m_targetAbi = abi;
-    toolChainUpdated();
-}
-
-Abi KeilToolChain::targetAbi() const
-{
-    return m_targetAbi;
-}
-
-bool KeilToolChain::isValid() const
-{
-    return true;
+    setTargetAbiKey("TargetAbi");
+    setCompilerCommandKey("CompilerPath");
 }
 
 ToolChain::MacroInspectionRunner KeilToolChain::createMacroInspectionRunner() const
@@ -458,17 +440,16 @@ ToolChain::MacroInspectionRunner KeilToolChain::createMacroInspectionRunner() co
     Environment env = Environment::systemEnvironment();
     addToEnvironment(env);
 
-    const Utils::FilePath compilerCommand = m_compilerCommand;
-    const Utils::Id lang = language();
+    const FilePath compiler = compilerCommand();
+    const Id lang = language();
 
     MacrosCache macroCache = predefinedMacrosCache();
     const QStringList extraArgs = m_extraCodeModelFlags;
 
-    return [env, compilerCommand, extraArgs, macroCache, lang]
-            (const QStringList &flags) {
+    return [env, compiler, extraArgs, macroCache, lang](const QStringList &flags) {
         Q_UNUSED(flags)
 
-        const Macros macros = dumpPredefinedMacros(compilerCommand, extraArgs, env.toStringList());
+        const Macros macros = dumpPredefinedMacros(compiler, extraArgs, env.toStringList());
         const auto report = MacroInspectionReport{macros, languageVersion(lang, macros)};
         macroCache->insert({}, report);
 
@@ -490,16 +471,15 @@ WarningFlags KeilToolChain::warningFlags(const QStringList &cxxflags) const
 ToolChain::BuiltInHeaderPathsRunner KeilToolChain::createBuiltInHeaderPathsRunner(
         const Environment &) const
 {
-    const Utils::FilePath compilerCommand = m_compilerCommand;
+    const FilePath compiler = compilerCommand();
+    const HeaderPathsCache headerPaths = headerPathsCache();
 
-    HeaderPathsCache headerPaths = headerPathsCache();
-
-    return [compilerCommand,
+    return [compiler,
             headerPaths](const QStringList &flags, const QString &fileName, const QString &) {
         Q_UNUSED(flags)
         Q_UNUSED(fileName)
 
-        const HeaderPaths paths = dumpHeaderPaths(compilerCommand);
+        const HeaderPaths paths = dumpHeaderPaths(compiler);
         headerPaths->insert({}, paths);
 
         return paths;
@@ -508,8 +488,8 @@ ToolChain::BuiltInHeaderPathsRunner KeilToolChain::createBuiltInHeaderPathsRunne
 
 void KeilToolChain::addToEnvironment(Environment &env) const
 {
-    if (!m_compilerCommand.isEmpty()) {
-        const FilePath path = m_compilerCommand.parentDir();
+    if (!compilerCommand().isEmpty()) {
+        const FilePath path = compilerCommand().parentDir();
         env.prependOrSetPath(path.toString());
     }
 }
@@ -522,9 +502,7 @@ QList<OutputLineParser *> KeilToolChain::createOutputParsers() const
 QVariantMap KeilToolChain::toMap() const
 {
     QVariantMap data = ToolChain::toMap();
-    data.insert(compilerCommandKeyC, m_compilerCommand.toString());
     data.insert(compilerPlatformCodeGenFlagsKeyC, m_extraCodeModelFlags);
-    data.insert(targetAbiKeyC, m_targetAbi.toString());
     return data;
 }
 
@@ -532,9 +510,7 @@ bool KeilToolChain::fromMap(const QVariantMap &data)
 {
     if (!ToolChain::fromMap(data))
         return false;
-    m_compilerCommand = FilePath::fromString(data.value(compilerCommandKeyC).toString());
     m_extraCodeModelFlags = data.value(compilerPlatformCodeGenFlagsKeyC).toStringList();
-    m_targetAbi = Abi::fromString(data.value(targetAbiKeyC).toString());
     return true;
 }
 
@@ -549,23 +525,9 @@ bool KeilToolChain::operator ==(const ToolChain &other) const
         return false;
 
     const auto customTc = static_cast<const KeilToolChain *>(&other);
-    return m_compilerCommand == customTc->m_compilerCommand
-            && m_targetAbi == customTc->m_targetAbi
-            && m_extraCodeModelFlags == customTc->m_extraCodeModelFlags
-            ;
-}
-
-void KeilToolChain::setCompilerCommand(const FilePath &file)
-{
-    if (file == m_compilerCommand)
-        return;
-    m_compilerCommand = file;
-    toolChainUpdated();
-}
-
-FilePath KeilToolChain::compilerCommand() const
-{
-    return m_compilerCommand;
+    return compilerCommand() == customTc->compilerCommand()
+            && targetAbi() == customTc->targetAbi()
+            && m_extraCodeModelFlags == customTc->m_extraCodeModelFlags;
 }
 
 void KeilToolChain::setExtraCodeModelFlags(const QStringList &flags)

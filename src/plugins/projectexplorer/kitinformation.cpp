@@ -207,7 +207,7 @@ void SysRootKitAspect::setSysRoot(Kit *k, const Utils::FilePath &v)
 // --------------------------------------------------------------------------
 
 namespace Internal {
-class ToolChainKitAspectWidget : public KitAspectWidget
+class ToolChainKitAspectWidget final : public KitAspectWidget
 {
     Q_DECLARE_TR_FUNCTIONS(ProjectExplorer::ToolChainKitAspect)
 
@@ -754,7 +754,7 @@ void ToolChainKitAspect::toolChainRemoved(ToolChain *tc)
 // DeviceTypeKitAspect:
 // --------------------------------------------------------------------------
 namespace Internal {
-class DeviceTypeKitAspectWidget : public KitAspectWidget
+class DeviceTypeKitAspectWidget final : public KitAspectWidget
 {
     Q_DECLARE_TR_FUNCTIONS(ProjectExplorer::DeviceTypeKitAspect)
 
@@ -872,7 +872,7 @@ QSet<Utils::Id> DeviceTypeKitAspect::availableFeatures(const Kit *k) const
 // DeviceKitAspect:
 // --------------------------------------------------------------------------
 namespace Internal {
-class DeviceKitAspectWidget : public KitAspectWidget
+class DeviceKitAspectWidget final : public KitAspectWidget
 {
     Q_DECLARE_TR_FUNCTIONS(ProjectExplorer::DeviceKitAspect)
 
@@ -1123,7 +1123,7 @@ void DeviceKitAspect::devicesChanged()
 // EnvironmentKitAspect:
 // --------------------------------------------------------------------------
 namespace Internal {
-class EnvironmentKitAspectWidget : public KitAspectWidget
+class EnvironmentKitAspectWidget final : public KitAspectWidget
 {
     Q_DECLARE_TR_FUNCTIONS(ProjectExplorer::EnvironmentKitAspect)
 

@@ -74,7 +74,8 @@ static QStringList filterInterfering(const QStringList &provided, QStringList *o
     for (const auto &arg : provided) {
         bool interferes = false;
         if (filterNext) {
-            omitted->append(arg);
+            if (omitted)
+                omitted->append(arg);
             filterNext = false;
             continue;
         }
@@ -104,7 +105,7 @@ QStringList CatchConfiguration::argumentsForTestRunner(QStringList *omitted) con
                                            ' ', Qt::SkipEmptyParts), omitted);
     }
 
-    auto settings = dynamic_cast<CatchTestSettings *>(framework()->frameworkSettings());
+    auto settings = dynamic_cast<CatchTestSettings *>(framework()->testSettings());
     if (!settings)
         return arguments;
 

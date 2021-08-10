@@ -27,14 +27,21 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuickDesignerTheme 1.0
 import HelperWidgets 2.0
+import StudioTheme 1.0 as StudioTheme
 
 Item {
+    id: delegateRoot
+
+    property alias textColor: text.color
+
+    signal showContextMenu()
+
     Rectangle {
         anchors.rightMargin: 1
         anchors.topMargin: 1
         anchors.fill: parent
 
-        color: Theme.qmlDesignerButtonColor()
+        color: StudioTheme.Values.themePanelBackground
 
         Image {
             id: itemIcon // to be set by model
@@ -65,17 +72,18 @@ Item {
             verticalAlignment: Qt.AlignVCenter
             horizontalAlignment: Qt.AlignHCenter
             text: itemName  // to be set by model
-            color: Theme.color(Theme.PanelTextColorLight)
+            color: StudioTheme.Values.themeTextColor
             renderType: Text.NativeRendering
         }
 
         ImagePreviewTooltipArea {
             id: mouseRegion
-
             anchors.fill: parent
 
+            onShowContextMenu: delegateRoot.showContextMenu()
             onPressed: {
-                rootView.startDragAndDrop(mouseRegion, itemLibraryEntry)
+                if (mouse.button === Qt.LeftButton)
+                    rootView.startDragAndDrop(itemLibraryEntry, mapToGlobal(mouse.x, mouse.y))
             }
         }
     }

@@ -27,6 +27,8 @@
 
 #include "basefilefilter.h"
 
+#include <functional>
+
 namespace Core {
 namespace Internal {
 
@@ -34,16 +36,23 @@ class SpotlightLocatorFilter : public BaseFileFilter
 {
     Q_OBJECT
 public:
-    SpotlightLocatorFilter()
-    {
-        // tr() must not be placed in .mm file.
-        setId("SpotlightFileNamesLocatorFilter");
-        setDisplayName(tr("Spotlight File Name Index"));
-        setShortcutString("md");
-    }
+    SpotlightLocatorFilter();
 
     void prepareSearch(const QString &entry) override;
-    void refresh(QFutureInterface<void> &future) override;
+
+    using ILocatorFilter::openConfigDialog;
+    bool openConfigDialog(QWidget *parent, bool &needsRefresh) final;
+
+protected:
+    void saveState(QJsonObject &obj) const final;
+    void restoreState(const QJsonObject &obj) final;
+
+private:
+    void reset();
+
+    QString m_command;
+    QString m_arguments;
+    QString m_caseSensitiveArguments;
 };
 
 } // Internal

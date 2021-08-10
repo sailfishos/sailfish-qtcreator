@@ -78,10 +78,24 @@ bool isSupportedAttachedProperties(const QString &propertyName)
 
 QStringList supportedVersionsList()
 {
-    static const QStringList list = {
-        "2.0", "2.1", "2.2", "2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9",
-        "2.10", "2.11", "2.12", "2.13", "2.14", "2.15"
-    };
+    static const QStringList list = {"2.0",
+                                     "2.1",
+                                     "2.2",
+                                     "2.3",
+                                     "2.4",
+                                     "2.5",
+                                     "2.6",
+                                     "2.7",
+                                     "2.8",
+                                     "2.9",
+                                     "2.10",
+                                     "2.11",
+                                     "2.12",
+                                     "2.13",
+                                     "2.14",
+                                     "2.15",
+                                     "6.0",
+                                     "6.1"};
     return list;
 }
 
@@ -104,16 +118,26 @@ QStringList globalQtEnums()
 
 QStringList knownEnumScopes()
 {
-    static const QStringList list = {
-        "TextInput", "TextEdit", "Material", "Universal", "Font", "Shape", "ShapePath",
-        "AbstractButton", "Text", "ShaderEffectSource", "Grid"
-    };
+    static const QStringList list = {"TextInput",
+                                     "TextEdit",
+                                     "Material",
+                                     "Universal",
+                                     "Font",
+                                     "Shape",
+                                     "ShapePath",
+                                     "AbstractButton",
+                                     "Text",
+                                     "ShaderEffectSource",
+                                     "Grid",
+                                     "ItemLayer",
+                                     "ImageLayer",
+                                     "SpriteLayer"};
     return list;
 }
 
 bool supportedQtQuickVersion(const QString &version)
 {
-    return supportedVersionsList().contains(version);
+    return version.isEmpty() || supportedVersionsList().contains(version);
 }
 
 QString stripQuotes(const QString &str)
@@ -787,11 +811,8 @@ void TextToModelMerger::setupImports(const Document::Ptr &doc,
                 differenceHandler.modelMissesImport(newImport);
         } else {
             QString importUri = toString(import->importUri);
-            if (importUri == QStringLiteral("Qt") && version == QStringLiteral("4.7")) {
-                importUri = QStringLiteral("QtQuick");
-                version = QStringLiteral("1.0");
-            }
-
+            if (version.isEmpty())
+                version = "2.15";
             const Import newImport =
                     Import::createLibraryImport(importUri, version, as, m_rewriterView->importDirectories());
 
@@ -839,7 +860,6 @@ static bool isBlacklistImport(const ImportKey &importKey, Model *model)
             || importKey.libraryQualifiedPath() == QStringLiteral("QtQuick.Dialogs")   //Unsupported
             || importKey.libraryQualifiedPath() == QStringLiteral("QtQuick.Controls.Styles")   //Unsupported
             || importKey.libraryQualifiedPath() == QStringLiteral("QtNfc") //Unsupported
-            || importKey.libraryQualifiedPath() == QStringLiteral("QtMultimedia")
             || importKey.libraryQualifiedPath() == QStringLiteral("Qt.WebSockets")
             || importKey.libraryQualifiedPath() == QStringLiteral("QtWebkit")
             || importKey.libraryQualifiedPath() == QStringLiteral("QtLocation")
@@ -871,14 +891,20 @@ static void removeUsedImports(QHash<QString, ImportKey> &filteredPossibleImportK
         filteredPossibleImportKeys.remove(import.info.path());
 }
 
-static QList<QmlDesigner::Import> generatePossibleFileImports(const QString &path)
+static QList<QmlDesigner::Import> generatePossibleFileImports(const QString &path,
+                                                              const QList<QmlJS::Import> &usedImports)
 {
+    QSet<QString> usedImportsSet;
+    for (const QmlJS::Import &i : usedImports)
+        usedImportsSet.insert(i.info.path());
+
     QList<QmlDesigner::Import> possibleImports;
 
     foreach (const QString &subDir, QDir(path).entryList(QDir::Dirs | QDir::NoDot | QDir::NoDotDot)) {
         QDir dir(path + "/" + subDir);
         if (!dir.entryInfoList(QStringList("*.qml"), QDir::Files).isEmpty()
-                && dir.entryInfoList(QStringList("qmldir"), QDir::Files).isEmpty()) {
+                && dir.entryInfoList(QStringList("qmldir"), QDir::Files).isEmpty()
+                && !usedImportsSet.contains(dir.path())) {
             QmlDesigner::Import import = QmlDesigner::Import::createFileImport(subDir);
             possibleImports.append(import);
         }
@@ -915,7 +941,7 @@ void TextToModelMerger::setupPossibleImports(const QmlJS::Snapshot &snapshot, co
 
     QList<QmlDesigner::Import> possibleImports = generatePossibleLibraryImports(filteredPossibleImportKeys);
 
-    possibleImports.append(generatePossibleFileImports(document()->path()));
+    possibleImports.append(generatePossibleFileImports(document()->path(), imports->all()));
 
     if (m_rewriterView->isAttached())
         m_rewriterView->model()->setPossibleImports(possibleImports);
@@ -929,15 +955,27 @@ void TextToModelMerger::setupUsedImports()
 
      const QList<QmlJS::Import> allImports = imports->all();
 
+     QSet<QString> usedImportsSet;
      QList<Import> usedImports;
 
-     foreach (const QmlJS::Import &import, allImports) {
-         if (import.used && !import.info.name().isEmpty()) {
-            if (import.info.type() == ImportType::Library) {
-                usedImports.append(Import::createLibraryImport(import.info.name(), import.info.version().toString(), import.info.as()));
-            } else if (import.info.type() == ImportType::Directory || import.info.type() == ImportType::File) {
+     // populate usedImportsSet from current model nodes
+     const QList<ModelNode> allModelNodes = m_rewriterView->allModelNodes();
+     for (const ModelNode &modelNode : allModelNodes) {
+         QString type = QString::fromUtf8(modelNode.type());
+         if (type.contains('.'))
+             usedImportsSet.insert(type.left(type.lastIndexOf('.')));
+     }
+
+     for (const QmlJS::Import &import : allImports) {
+         QString version = import.info.version().toString();
+         if (version.isEmpty())
+             version = "2.15";
+         if (!import.info.name().isEmpty() && usedImportsSet.contains(import.info.name())) {
+            if (import.info.type() == ImportType::Library)
+                usedImports.append(
+                    Import::createLibraryImport(import.info.name(), version, import.info.as()));
+            else if (import.info.type() == ImportType::Directory || import.info.type() == ImportType::File)
                 usedImports.append(Import::createFileImport(import.info.name(), import.info.version().toString(), import.info.as()));
-            }
          }
      }
 
@@ -992,7 +1030,7 @@ bool TextToModelMerger::load(const QString &data, DifferenceHandler &differenceH
     m_rewriterView->model()->clearMetaInfoCache();
 
     try {
-        Snapshot snapshot = m_rewriterView->textModifier()->qmljsSnapshot();
+        Snapshot snapshot = TextModifier::qmljsSnapshot();
 
         QList<DocumentMessage> errors;
         QList<DocumentMessage> warnings;
@@ -1025,9 +1063,7 @@ bool TextToModelMerger::load(const QString &data, DifferenceHandler &differenceH
         collectLinkErrors(&errors, ctxt);
 
         setupImports(m_document, differenceHandler);
-
-        if (!justSanityCheck)
-            setupPossibleImports(snapshot, m_vContext);
+        setupPossibleImports(snapshot, m_vContext);
 
         qCInfo(rewriterBenchmark) << "imports setup:" << time.elapsed();
 

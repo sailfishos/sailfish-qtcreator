@@ -131,12 +131,14 @@ public:
     bool isInSourceDirectory(const Utils::FilePath &filePath);
     bool isSubProject(const Utils::FilePath &filePath) const;
 
+    QString rccCommand() const;
     // used by UiCodeModelSupport
     QString uicCommand() const;
     QString designerCommand() const;
     QString linguistCommand() const;
     QString qscxmlcCommand() const;
     QString qmlsceneCommand() const;
+    QString qmlplugindumpCommand() const;
 
     QString qtVersionString() const;
     QtVersionNumber qtVersion() const;
@@ -180,11 +182,7 @@ public:
     static bool isQtQuickCompilerSupported(const ProjectExplorer::Kit *k, QString *reason = nullptr);
     bool isQtQuickCompilerSupported(QString *reason = nullptr) const;
 
-    QString qmlDumpTool(bool debugVersion) const;
-
-    bool hasQmlDump() const;
     bool hasQmlDumpWithRelocatableFlag() const;
-    bool needsQmlDump() const;
 
     virtual QtConfigWidget *createConfigurationWidget() const;
 
@@ -197,6 +195,7 @@ public:
     Utils::FilePath prefix() const;
 
     Utils::FilePath binPath() const;
+    Utils::FilePath libExecPath() const;
     Utils::FilePath configurationPath() const;
     Utils::FilePath dataPath() const;
     Utils::FilePath demosPath() const;
@@ -211,11 +210,11 @@ public:
     Utils::FilePath translationsPath() const;
 
     Utils::FilePath hostBinPath() const;
+    Utils::FilePath hostLibexecPath() const;
     Utils::FilePath hostDataPath() const;
     Utils::FilePath hostPrefixPath() const;
 
     Utils::FilePath mkspecsPath() const;
-    Utils::FilePath qmlBinPath() const;
     Utils::FilePath librarySearchPath() const;
 
     Utils::FilePaths directoriesToIgnoreInProjectTree() const;

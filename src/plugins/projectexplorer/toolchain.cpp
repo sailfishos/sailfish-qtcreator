@@ -35,7 +35,11 @@
 #include <utils/qtcassert.h>
 
 #include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
 #include <QUuid>
+
+using namespace Utils;
 
 static const char ID_KEY[] = "ProjectExplorer.ToolChain.Id";
 static const char DISPLAY_NAME_KEY[] = "ProjectExplorer.ToolChain.DisplayName";
@@ -68,6 +72,10 @@ public:
     }
 
     QByteArray m_id;
+    FilePath m_compilerCommand;
+    QString m_compilerCommandKey;
+    Abi m_targetAbi;
+    QString m_targetAbiKey;
     QSet<Utils::Id> m_supportedLanguages;
     mutable QString m_displayName;
     QString m_typeDisplayName;
@@ -185,6 +193,21 @@ Abis ToolChain::supportedAbis() const
     return {targetAbi()};
 }
 
+bool ToolChain::isValid() const
+{
+    if (compilerCommand().isEmpty())
+        return false;
+    QFileInfo fi = compilerCommand().toFileInfo();
+    return fi.isExecutable();
+}
+
+QStringList ToolChain::includedFiles(const QStringList &flags, const QString &directory) const
+{
+    Q_UNUSED(flags)
+    Q_UNUSED(directory)
+    return {};
+}
+
 Utils::Id ToolChain::language() const
 {
     return d->m_language;
@@ -203,7 +226,7 @@ bool ToolChain::operator == (const ToolChain &tc) const
 
 ToolChain *ToolChain::clone() const
 {
-    for (ToolChainFactory *f : Internal::g_toolChainFactories) {
+    for (ToolChainFactory *f : qAsConst(Internal::g_toolChainFactories)) {
         if (f->supportedToolChainType() == d->m_typeId) {
             ToolChain *tc = f->create();
             QTC_ASSERT(tc, return nullptr);
@@ -240,6 +263,10 @@ QVariantMap ToolChain::toMap() const
         result.insert(LANGUAGE_KEY_V1, oldLanguageId);
     // </Compatibility>
     result.insert(QLatin1String(LANGUAGE_KEY_V2), language().toSetting());
+    if (!d->m_targetAbiKey.isEmpty())
+        result.insert(d->m_targetAbiKey, d->m_targetAbi.toString());
+    if (!d->m_compilerCommandKey.isEmpty())
+        result.insert(d->m_compilerCommandKey, d->m_compilerCommand.toString());
     return result;
 }
 
@@ -253,19 +280,54 @@ void ToolChain::toolChainUpdated()
 
 void ToolChain::setDetection(ToolChain::Detection de)
 {
-    if (d->m_detection == de)
-        return;
-    if (d->m_detection == ToolChain::UninitializedDetection) {
-        d->m_detection = de;
-    } else {
-        d->m_detection = de;
-        toolChainUpdated();
-    }
+    d->m_detection = de;
 }
 
 QString ToolChain::typeDisplayName() const
 {
     return d->m_typeDisplayName;
+}
+
+Abi ToolChain::targetAbi() const
+{
+    return d->m_targetAbi;
+}
+
+void ToolChain::setTargetAbi(const Abi &abi)
+{
+    if (abi == d->m_targetAbi)
+        return;
+
+    d->m_targetAbi = abi;
+    toolChainUpdated();
+}
+
+void ToolChain::setTargetAbiNoSignal(const Abi &abi)
+{
+    d->m_targetAbi = abi;
+}
+
+void ToolChain::setTargetAbiKey(const QString &abiKey)
+{
+    d->m_targetAbiKey = abiKey;
+}
+
+FilePath ToolChain::compilerCommand() const
+{
+    return d->m_compilerCommand;
+}
+
+void ToolChain::setCompilerCommand(const FilePath &command)
+{
+    if (command == d->m_compilerCommand)
+        return;
+    d->m_compilerCommand = command;
+    toolChainUpdated();
+}
+
+void ToolChain::setCompilerCommandKey(const QString &commandKey)
+{
+    d->m_compilerCommandKey = commandKey;
 }
 
 void ToolChain::setTypeDisplayName(const QString &typeName)
@@ -308,6 +370,11 @@ bool ToolChain::fromMap(const QVariantMap &data)
 
     if (!d->m_language.isValid())
         d->m_language = Utils::Id(Constants::CXX_LANGUAGE_ID);
+
+    if (!d->m_targetAbiKey.isEmpty())
+        d->m_targetAbi = Abi::fromString(data.value(d->m_targetAbiKey).toString());
+
+    d->m_compilerCommand = FilePath::fromString(data.value(d->m_compilerCommandKey).toString());
 
     return true;
 }
@@ -387,6 +454,24 @@ Utils::LanguageVersion ToolChain::languageVersion(const Utils::Id &language, con
         QTC_CHECK(false && "Unexpected toolchain language, assuming latest C++ we support.");
         return LanguageVersion::LatestCxx;
     }
+}
+
+QStringList ToolChain::includedFiles(const QString &option,
+                                     const QStringList &flags,
+                                     const QString &directoryPath)
+{
+    QStringList result;
+
+    for (int i = 0; i < flags.size(); ++i) {
+        if (flags[i] == option && i + 1 < flags.size()) {
+            QString includeFile = flags[++i];
+            if (!QFileInfo(includeFile).isAbsolute())
+                includeFile = directoryPath + "/" + includeFile;
+            result.append(QDir::cleanPath(includeFile));
+        }
+    }
+
+    return result;
 }
 
 /*!

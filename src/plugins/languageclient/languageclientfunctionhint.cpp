@@ -108,7 +108,12 @@ void FunctionHintProcessor::handleSignatureResponse(const SignatureHelpRequest::
     if (auto error = response.error())
         m_client->log(error.value());
     m_client->removeAssistProcessor(this);
-    const SignatureHelp &signatureHelp = response.result().value().value();
+    auto result = response.result().value_or(LanguageClientValue<SignatureHelp>());
+    if (result.isNull()) {
+        setAsyncProposalAvailable(nullptr);
+        return;
+    }
+    const SignatureHelp &signatureHelp = result.value();
     if (signatureHelp.signatures().isEmpty()) {
         setAsyncProposalAvailable(nullptr);
     } else {
@@ -149,10 +154,11 @@ bool FunctionHintAssistProvider::isContinuationChar(const QChar &/*c*/) const
     return true;
 }
 
-void FunctionHintAssistProvider::setTriggerCharacters(QList<QString> triggerChars)
+void FunctionHintAssistProvider::setTriggerCharacters(
+    const Utils::optional<QList<QString>> &triggerChars)
 {
-    m_triggerChars = triggerChars;
-    for (const QString &trigger : triggerChars) {
+    m_triggerChars = triggerChars.value_or(QList<QString>());
+    for (const QString &trigger : qAsConst(m_triggerChars)) {
         if (trigger.length() > m_activationCharSequenceLength)
             m_activationCharSequenceLength = trigger.length();
     }

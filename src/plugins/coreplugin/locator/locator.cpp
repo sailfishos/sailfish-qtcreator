@@ -36,6 +36,7 @@
 #include "locatorsettingspage.h"
 #include "locatorwidget.h"
 #include "opendocumentsfilter.h"
+#include "spotlightlocatorfilter.h"
 #include "urllocatorfilter.h"
 
 #include <coreplugin/coreplugin.h>
@@ -59,10 +60,6 @@
 #include <QAction>
 #include <QSettings>
 
-#ifdef Q_OS_MACOS
-#include "spotlightlocatorfilter.h"
-#endif
-
 using namespace Utils;
 
 namespace Core {
@@ -81,9 +78,7 @@ public:
     LocatorManager m_locatorManager;
     LocatorSettingsPage m_locatorSettingsPage;
 
-#ifdef WITH_JAVASCRIPTFILTER
     JavaScriptFilter m_javaScriptFilter;
-#endif
     OpenDocumentsFilter m_openDocumentsFilter;
     FileSystemFilter m_fileSystemFilter;
     ExecuteFilter m_executeFilter;
@@ -92,14 +87,12 @@ public:
     MenuBarFilter m_menubarFilter;
     UrlLocatorFilter m_urlFilter{UrlLocatorFilter::tr("Web Search"), "RemoteHelpFilter"};
     UrlLocatorFilter m_bugFilter{UrlLocatorFilter::tr("Qt Project Bugs"), "QtProjectBugs"};
-#ifdef Q_OS_MACOS
     SpotlightLocatorFilter m_spotlightLocatorFilter;
-#endif
 };
 
 LocatorData::LocatorData()
 {
-    m_urlFilter.setShortcutString("r");
+    m_urlFilter.setDefaultShortcutString("r");
     m_urlFilter.addDefaultUrl("https://www.bing.com/search?q=%1");
     m_urlFilter.addDefaultUrl("https://www.google.com/search?q=%1");
     m_urlFilter.addDefaultUrl("https://search.yahoo.com/search?p=%1");
@@ -108,7 +101,7 @@ LocatorData::LocatorData()
         "http://en.cppreference.com/mwiki/index.php?title=Special%3ASearch&search=%1");
     m_urlFilter.addDefaultUrl("https://en.wikipedia.org/w/index.php?search=%1");
 
-    m_bugFilter.setShortcutString("bug");
+    m_bugFilter.setDefaultShortcutString("bug");
     m_bugFilter.addDefaultUrl("https://bugreports.qt.io/secure/QuickSearch.jspa?searchString=%1");
 }
 
@@ -176,10 +169,26 @@ bool Locator::delayedInitialize()
     return true;
 }
 
+ExtensionSystem::IPlugin::ShutdownFlag Locator::aboutToShutdown(
+    const std::function<void()> &emitAsynchronousShutdownFinished)
+{
+    m_shuttingDown = true;
+    m_refreshTimer.stop();
+    if (m_refreshTask.isRunning()) {
+        m_refreshTask.cancel();
+        m_refreshTask.waitForFinished();
+    }
+    return LocatorWidget::aboutToShutdown(emitAsynchronousShutdownFinished);
+}
+
 void Locator::loadSettings()
 {
     SettingsDatabase *settings = ICore::settingsDatabase();
-    settings->beginGroup("QuickOpen");
+    // check if we have to read old settings
+    // TOOD remove a few versions after 4.15
+    const QString settingsGroup = settings->contains("Locator") ? QString("Locator")
+                                                                : QString("QuickOpen");
+    settings->beginGroup(settingsGroup);
     m_refreshTimer.setInterval(settings->value("RefreshInterval", 60).toInt() * 60000);
 
     for (ILocatorFilter *filter : qAsConst(m_filters)) {
@@ -304,12 +313,14 @@ void Locator::saveSettings() const
 
     SettingsDatabase *s = ICore::settingsDatabase();
     s->beginTransaction();
-    s->beginGroup("QuickOpen");
+    s->beginGroup("Locator");
     s->remove(QString());
     s->setValue("RefreshInterval", refreshInterval());
     for (ILocatorFilter *filter : m_filters) {
-        if (!m_customFilters.contains(filter))
-            s->setValue(filter->id().toString(), filter->saveState());
+        if (!m_customFilters.contains(filter)) {
+            const QByteArray state = filter->saveState();
+            s->setValueWithDefault(filter->id().toString(), state);
+        }
     }
     s->beginGroup("CustomFilters");
     int i = 0;
@@ -318,7 +329,8 @@ void Locator::saveSettings() const
                                  Constants::CUSTOM_DIRECTORY_FILTER_BASEID)
                                  ? kDirectoryFilterPrefix
                                  : kUrlFilterPrefix;
-        s->setValue(prefix + QString::number(i), filter->saveState());
+        const QByteArray state = filter->saveState();
+        s->setValueWithDefault(prefix + QString::number(i), state);
         ++i;
     }
     s->endGroup();
@@ -374,8 +386,12 @@ void Locator::setRefreshInterval(int interval)
 
 void Locator::refresh(QList<ILocatorFilter *> filters)
 {
+    if (m_shuttingDown)
+        return;
+
     if (m_refreshTask.isRunning()) {
         m_refreshTask.cancel();
+        m_refreshTask.waitForFinished();
         // this is not ideal because some of the previous filters might have finished, but we
         // currently cannot find out which part of a map-reduce has finished
         filters = Utils::filteredUnique(m_refreshingFilters + filters);

@@ -38,8 +38,9 @@
 #include <QSet>
 #include <QMap>
 
-#include <map>
 #include <functional>
+#include <map>
+#include <unordered_map>
 
 namespace CPlusPlus {
 
@@ -82,6 +83,7 @@ public:
     ClassOrNamespace *lookupType(const Name *name, Block *block);
     ClassOrNamespace *findType(const Name *name);
     ClassOrNamespace *findBlock(Block *block);
+    ClassOrNamespace *getNested(const Name *name);
 
     Symbol *lookupInScope(const QList<const Name *> &fullName);
 
@@ -89,8 +91,8 @@ public:
     Class *rootClass() const { return _rootClass; }
 
 private:
-    typedef std::map<const Name *, ClassOrNamespace *, Name::Compare> Table;
-    typedef std::map<const TemplateNameId *, ClassOrNamespace *, TemplateNameId::Compare> TemplateNameIdTable;
+    typedef std::unordered_map<const Name *, ClassOrNamespace *, Name::Hash, Name::Equals> Table;
+    typedef std::unordered_map<const TemplateNameId *, ClassOrNamespace *, TemplateNameId::Hash, TemplateNameId::Equals> TemplateNameIdTable;
     typedef QHash<const AnonymousNameId *, ClassOrNamespace *> Anonymouses;
 
     /// \internal
@@ -243,27 +245,27 @@ protected:
     /// Creates bindings for the symbols reachable from the \a root symbol.
     void process(Symbol *root);
 
-    virtual bool visit(Template *templ);
-    virtual bool visit(Namespace *ns);
-    virtual bool visit(Class *klass);
-    virtual bool visit(ForwardClassDeclaration *klass);
-    virtual bool visit(Enum *e);
-    virtual bool visit(Declaration *decl);
-    virtual bool visit(Function *function);
-    virtual bool visit(Block *block);
+    bool visit(Template *templ) override;
+    bool visit(Namespace *ns) override;
+    bool visit(Class *klass) override;
+    bool visit(ForwardClassDeclaration *klass) override;
+    bool visit(Enum *e) override;
+    bool visit(Declaration *decl) override;
+    bool visit(Function *function) override;
+    bool visit(Block *block) override;
 
-    virtual bool visit(BaseClass *b);
-    virtual bool visit(UsingNamespaceDirective *u);
-    virtual bool visit(UsingDeclaration *u);
-    virtual bool visit(NamespaceAlias *a);
+    bool visit(BaseClass *b) override;
+    bool visit(UsingNamespaceDirective *u) override;
+    bool visit(UsingDeclaration *u) override;
+    bool visit(NamespaceAlias *a) override;
 
-    virtual bool visit(ObjCClass *klass);
-    virtual bool visit(ObjCBaseClass *b);
-    virtual bool visit(ObjCForwardClassDeclaration *klass);
-    virtual bool visit(ObjCProtocol *proto);
-    virtual bool visit(ObjCBaseProtocol *b);
-    virtual bool visit(ObjCForwardProtocolDeclaration *proto);
-    virtual bool visit(ObjCMethod *);
+    bool visit(ObjCClass *klass) override;
+    bool visit(ObjCBaseClass *b) override;
+    bool visit(ObjCForwardClassDeclaration *klass) override;
+    bool visit(ObjCProtocol *proto) override;
+    bool visit(ObjCBaseProtocol *b) override;
+    bool visit(ObjCForwardProtocolDeclaration *proto) override;
+    bool visit(ObjCMethod *) override;
 
 private:
     Symbol *instantiateTemplateFunction(const Name *instantiationName,

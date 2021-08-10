@@ -36,6 +36,10 @@ QT_BEGIN_NAMESPACE
 class QSettings;
 QT_END_NAMESPACE
 
+namespace Utils {
+class QtcSettings;
+}
+
 namespace Core {
 
 class RightPaneWidget;
@@ -65,10 +69,10 @@ public:
     RightPaneWidget();
     ~RightPaneWidget() override;
 
-    void saveSettings(QSettings *settings);
+    void saveSettings(Utils::QtcSettings *settings);
     void readSettings(QSettings *settings);
 
-    bool isShown();
+    bool isShown() const;
     void setShown(bool b);
 
     static RightPaneWidget *instance();
@@ -76,7 +80,7 @@ public:
     void setWidget(QWidget *widget);
     QWidget *widget() const;
 
-    int storedWidth();
+    int storedWidth() const;
 
 protected:
     void resizeEvent(QResizeEvent *) override;

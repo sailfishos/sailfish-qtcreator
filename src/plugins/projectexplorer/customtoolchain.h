@@ -64,9 +64,6 @@ public:
         QString displayName; ///< A translateable name to show in the user interface
     };
 
-    Abi targetAbi() const override;
-    void setTargetAbi(const Abi &);
-
     bool isValid() const override;
 
     MacroInspectionRunner createMacroInspectionRunner() const override;
@@ -90,8 +87,6 @@ public:
 
     bool operator ==(const ToolChain &) const override;
 
-    void setCompilerCommand(const Utils::FilePath &);
-    Utils::FilePath compilerCommand() const override;
     void setMakeCommand(const Utils::FilePath &);
     Utils::FilePath makeCommand(const Utils::Environment &environment) const override;
 
@@ -113,7 +108,6 @@ private:
     Utils::FilePath m_compilerCommand;
     Utils::FilePath m_makeCommand;
 
-    Abi m_targetAbi;
     Macros m_predefinedMacros;
     HeaderPaths m_builtInHeaderPaths;
     QStringList m_cxx11Flags;

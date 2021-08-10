@@ -336,7 +336,7 @@ QVariant DocumentModelPrivate::data(const QModelIndex &index, int role) const
             return lockedIcon();
         if (entry->pinned)
             return pinnedIcon();
-        return QIcon();
+        return QVariant();
     case Qt::ToolTipRole:
         return entry->fileName().isEmpty() ? entry->displayName() : entry->fileName().toUserOutput();
     default:
@@ -432,10 +432,12 @@ DocumentModel::Entry *DocumentModelPrivate::addSuspendedDocument(const QString &
                                                                  const QString &displayName,
                                                                  Id id)
 {
+    QTC_CHECK(id.isValid());
     auto entry = new DocumentModel::Entry;
     entry->document = new IDocument;
     entry->document->setFilePath(Utils::FilePath::fromString(fileName));
-    entry->document->setPreferredDisplayName(displayName);
+    if (!displayName.isEmpty())
+        entry->document->setPreferredDisplayName(displayName);
     entry->document->setId(id);
     entry->isSuspended = true;
     d->addEntry(entry);

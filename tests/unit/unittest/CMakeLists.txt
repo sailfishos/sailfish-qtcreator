@@ -110,12 +110,8 @@ add_qtc_test(unittest GTEST
     mocksearch.h
     mocksearchhandle.h
     mocksearchresult.h
-    mocksqlitedatabase.h
-    mocksqlitereadstatement.cpp
-    mocksqlitereadstatement.h
     mocksqlitestatement.h
     mocksqlitetransactionbackend.h
-    mocksqlitewritestatement.h
     mocksymbolindexertaskqueue.h
     mocksymbolindexing.h
     mocksymbolquery.h
@@ -179,7 +175,8 @@ add_qtc_test(unittest GTEST
     sqlstatementbuilder-test.cpp
     createtablesqlstatementbuilder-test.cpp
     sqlitevalue-test.cpp
-    imagecache-test.cpp
+    asynchronousimagecache-test.cpp
+    synchronousimagecache-test.cpp
     imagecachegenerator-test.cpp
     imagecachestorage-test.cpp
     sqlitedatabasemock.h
@@ -226,6 +223,14 @@ endforeach()
 
 extend_qtc_test_with_target_sources(Sqlite)
 
+extend_qtc_test(unittest DEFINES _HAVE_SQLITE_CONFIG_H)
+
+if (APPLE)
+extend_qtc_test(unittest DEFINES _BSD_SOURCE)
+elseif (UNIX)
+extend_qtc_test(unittest DEFINES _POSIX_C_SOURCE=200809L _GNU_SOURCE _DEFAULT_SOURCE)
+endif()
+
 # Do not work on the source directory data
 add_custom_command(TARGET unittest POST_BUILD
   COMMAND "${CMAKE_COMMAND}" -E copy_directory
@@ -241,7 +246,7 @@ string(REPLACE "$$QTCREATOR_VERSION" "${IDE_VERSION}" plugin_json_in ${plugin_js
 string(REPLACE "$$QTCREATOR_COMPAT_VERSION" "${IDE_VERSION_COMPAT}" plugin_json_in ${plugin_json_in})
 string(REPLACE "$$QTCREATOR_COPYRIGHT_YEAR" "${IDE_COPYRIGHT_YEAR}" plugin_json_in ${plugin_json_in})
 string(REPLACE "$$dependencyList" "\"Dependencies\" : []" plugin_json_in ${plugin_json_in})
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/CppTools.json" ${plugin_json_in}})
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/CppTools.json" ${plugin_json_in})
 
 extend_qtc_test(unittest
   CONDITION TARGET libclang
@@ -405,8 +410,10 @@ extend_qtc_test(unittest
     model/signalhandlerproperty.cpp include/signalhandlerproperty.h
     model/variantproperty.cpp include/variantproperty.h
     rewritertransaction.cpp rewritertransaction.h
-    imagecache/imagecache.cpp include/imagecache.h
-    include/imagecacheinterface.h
+    include/imagecacheauxiliarydata.h
+    imagecache/synchronousimagecache.cpp include/synchronousimagecache.h
+    imagecache/asynchronousimagecache.cpp include/asynchronousimagecache.h
+    include/asynchronousimagecacheinterface.h
     imagecache/imagecachecollectorinterface.h
     imagecache/imagecachegenerator.cpp imagecache/imagecachegenerator.h
     imagecache/imagecachegeneratorinterface.h

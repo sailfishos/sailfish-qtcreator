@@ -49,6 +49,7 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/iversioncontrol.h>
 #include <coreplugin/vcsmanager.h>
+#include <coreplugin/editormanager/documentmodel.h>
 
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/kitmanager.h>
@@ -386,6 +387,25 @@ void Project::setExtraProjectFiles(const QSet<Utils::FilePath> &projectDocumentP
                                                         d->m_document->mimeType(), p, this));
         }
     }
+}
+
+void Project::updateExtraProjectFiles(const QSet<Utils::FilePath> &projectDocumentPaths,
+                                      const DocUpdater &docUpdater)
+{
+    for (const Utils::FilePath &fp : projectDocumentPaths) {
+        for (const auto &doc : d->m_extraProjectDocuments) {
+            if (doc->filePath() == fp) {
+                docUpdater(doc.get());
+                break;
+            }
+        }
+    }
+}
+
+void Project::updateExtraProjectFiles(const DocUpdater &docUpdater)
+{
+    for (const auto &doc : qAsConst(d->m_extraProjectDocuments))
+        docUpdater(doc.get());
 }
 
 Target *Project::target(Utils::Id id) const
@@ -772,9 +792,6 @@ void Project::createTargetFromMap(const QVariantMap &map, int index)
 
     Kit *k = KitManager::kit(id);
     if (!k) {
-        qWarning("Warning: No kit '%s' found. Continuing.", qPrintable(id.toString()));
-        return;
-
         Utils::Id deviceTypeId = Utils::Id::fromSetting(targetMap.value(Target::deviceTypeKey()));
         if (!deviceTypeId.isValid())
             deviceTypeId = Constants::DESKTOP_DEVICE_TYPE;
@@ -940,7 +957,7 @@ bool Project::needsBuildConfigurations() const
     return d->m_needsBuildConfigurations;
 }
 
-void Project::configureAsExampleProject(Kit * /*kit*/, const QSet<Utils::Id> & /*preferredFeatures*/)
+void Project::configureAsExampleProject(Kit * /*kit*/)
 {
 }
 
@@ -1043,6 +1060,23 @@ QStringList Project::availableQmlPreviewTranslations(QString *errorMessage)
         const QString locale = qmFile.left(localeEndPosition).mid(localeStartPosition);
         return locale;
     });
+}
+
+QList<Core::IDocument *> Project::modifiedDocuments() const
+{
+    QList<Core::IDocument *> modifiedProjectDocuments;
+
+    for (Core::IDocument *doc : Core::DocumentModel::openedDocuments()) {
+        if (doc->isModified() && isKnownFile(doc->filePath()))
+            modifiedProjectDocuments.append(doc);
+    }
+
+    return modifiedProjectDocuments;
+}
+
+bool Project::isModified() const
+{
+    return !modifiedDocuments().isEmpty();
 }
 
 #if defined(WITH_TESTS)

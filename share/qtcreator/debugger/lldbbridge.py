@@ -196,7 +196,7 @@ class Dumper(DumperBase):
             if hasattr(nativeTargetType, 'GetCanonicalType'):
                 nativeTargetType = nativeTargetType.GetCanonicalType()
             val = self.fromNativeValue(nativeValue.Cast(nativeTargetType))
-            val.type = self.fromNativeType(nativeType)
+            val._type = self.fromNativeType(nativeType)
             #DumperBase.warn('CREATED TYPEDEF: %s' % val)
         else:
             val = self.Value(self)
@@ -215,7 +215,7 @@ class Dumper(DumperBase):
                     except:
                         pass
 
-            val.type = self.fromNativeType(nativeType)
+            val._type = self.fromNativeType(nativeType)
 
             if code == lldb.eTypeClassEnumeration:
                 intval = nativeValue.GetValueAsSigned()
@@ -331,7 +331,7 @@ class Dumper(DumperBase):
                 if fieldType.GetNumberOfDirectBaseClasses() == 0:
                     member = self.Value(self)
                     fieldName = fieldObj.GetName()
-                    member.type = self.fromNativeType(fieldType)
+                    member._type = self.fromNativeType(fieldType)
                     member.name = fieldName
                     member.fields = []
                     if False:
@@ -872,14 +872,6 @@ class Dumper(DumperBase):
             except:  # Could have been deleted in the mean time.
                 pass
 
-        self.ignoreStops = 0
-        if platform.system() == 'Linux':
-            if self.startMode_ == DebuggerStartMode.AttachCore:
-                pass
-            else:
-                if self.useTerminal_:
-                    self.ignoreStops = 1
-
         if self.platform_:
             self.debugger.SetCurrentPlatform(self.platform_)
         # sysroot has to be set *after* the platform
@@ -1418,9 +1410,6 @@ class Dumper(DumperBase):
                 if self.isInterrupting_:
                     self.isInterrupting_ = False
                     self.reportState("inferiorstopok")
-                elif self.ignoreStops > 0:
-                    self.ignoreStops -= 1
-                    self.process.Continue()
                 else:
                     self.reportState("stopped")
             else:

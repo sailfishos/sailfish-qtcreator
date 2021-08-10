@@ -53,11 +53,6 @@ class IarToolChain final : public ProjectExplorer::ToolChain
     Q_DECLARE_TR_FUNCTIONS(IarToolChain)
 
 public:
-    void setTargetAbi(const ProjectExplorer::Abi &abi);
-    ProjectExplorer::Abi targetAbi() const final;
-
-    bool isValid() const final;
-
     MacroInspectionRunner createMacroInspectionRunner() const final;
 
     Utils::LanguageExtensions languageExtensions(const QStringList &cxxflags) const final;
@@ -74,9 +69,6 @@ public:
 
     bool operator ==(const ToolChain &other) const final;
 
-    void setCompilerCommand(const Utils::FilePath &file);
-    Utils::FilePath compilerCommand() const final;
-
     void setExtraCodeModelFlags(const QStringList &flags);
     QStringList extraCodeModelFlags() const final;
 
@@ -85,8 +77,6 @@ public:
 private:
     IarToolChain();
 
-    ProjectExplorer::Abi m_targetAbi;
-    Utils::FilePath m_compilerCommand;
     QStringList m_extraCodeModelFlags;
 
     friend class IarToolChainFactory;

@@ -16,6 +16,7 @@ add_qtc_plugin(QmlDesigner
   PLUGIN_DEPENDS
     Core ProjectExplorer QmlJSEditor QmakeProjectManager QmlProjectManager
     QtSupport TextEditor
+  PLUGIN_RECOMMENDS QmlPreview
   SOURCES
     designersettings.cpp designersettings.h
     designmodecontext.cpp designmodecontext.h
@@ -30,6 +31,8 @@ add_qtc_plugin(QmlDesigner
     settingspage.cpp settingspage.h settingspage.ui
     shortcutmanager.cpp shortcutmanager.h
     designermcumanager.cpp designermcumanager.h
+    richtexteditordialog.cpp richtexteditordialog.h
+    editorproxy.cpp editorproxy.h
   EXPLICIT_MOC
     components/propertyeditor/propertyeditorvalue.h
     components/connectioneditor/connectionviewwidget.h
@@ -53,10 +56,10 @@ add_qtc_plugin(assetexporterplugin
     assetexporterplugin/componentexporter.h assetexporterplugin/componentexporter.cpp
     assetexporterplugin/exportnotification.h assetexporterplugin/exportnotification.cpp
     assetexporterplugin/filepathmodel.h assetexporterplugin/filepathmodel.cpp
-    assetexporterplugin/parsers/assetnodeparser.h assetexporterplugin/parsers/assetnodeparser.cpp
-    assetexporterplugin/parsers/modelitemnodeparser.h assetexporterplugin/parsers/modelitemnodeparser.cpp
-    assetexporterplugin/parsers/modelnodeparser.h assetexporterplugin/parsers/modelnodeparser.cpp
-    assetexporterplugin/parsers/textnodeparser.h assetexporterplugin/parsers/textnodeparser.cpp
+    assetexporterplugin/dumpers/assetnodedumper.h assetexporterplugin/dumpers/assetnodedumper.cpp
+    assetexporterplugin/dumpers/itemnodedumper.h assetexporterplugin/dumpers/itemnodedumper.cpp
+    assetexporterplugin/dumpers/nodedumper.h assetexporterplugin/dumpers/nodedumper.cpp
+    assetexporterplugin/dumpers/textnodedumper.h assetexporterplugin/dumpers/textnodedumper.cpp
     assetexporterplugin/assetexporterplugin.qrc
   PLUGIN_PATH ${QmlDesignerPluginInstallPrefix}
   SKIP_DEBUG_CMAKE_FILE_CHECK
@@ -213,6 +216,7 @@ extend_qtc_plugin(QmlDesigner
     selectioncontext.cpp selectioncontext.h
     theme.cpp theme.h
     zoomaction.cpp zoomaction.h
+    hdrimage.cpp hdrimage.h
 )
 
 extend_qtc_plugin(QmlDesigner
@@ -285,16 +289,6 @@ extend_qtc_plugin(QmlDesigner
 )
 
 extend_qtc_plugin(QmlDesigner
-  SOURCES_PREFIX components/importmanager
-  SOURCES
-    importlabel.cpp importlabel.h
-    importmanager.qrc
-    importmanagercombobox.cpp importmanagercombobox.h
-    importmanagerview.cpp importmanagerview.h
-    importswidget.cpp importswidget.h
-)
-
-extend_qtc_plugin(QmlDesigner
   SOURCES_PREFIX components/integration
   PUBLIC_INCLUDES components/integration
   SOURCES
@@ -309,28 +303,29 @@ extend_qtc_plugin(QmlDesigner
 extend_qtc_plugin(QmlDesigner
   SOURCES_PREFIX components/itemlibrary
   SOURCES
+    assetimportupdatedialog.cpp assetimportupdatedialog.h
+    assetimportupdatedialog.ui
+    assetimportupdatetreeitem.cpp assetimportupdatetreeitem.h
+    assetimportupdatetreeitemdelegate.cpp assetimportupdatetreeitemdelegate.h
+    assetimportupdatetreemodel.cpp assetimportupdatetreemodel.h
+    assetimportupdatetreeview.cpp assetimportupdatetreeview.h
     customfilesystemmodel.cpp customfilesystemmodel.h
     itemlibrary.qrc
     itemlibraryimageprovider.cpp itemlibraryimageprovider.h
     itemlibraryitem.cpp itemlibraryitem.h
     itemlibrarymodel.cpp itemlibrarymodel.h
     itemlibraryresourceview.cpp itemlibraryresourceview.h
-    itemlibrarysection.cpp itemlibrarysection.h
-    itemlibrarysectionmodel.cpp itemlibrarysectionmodel.h
+    itemlibrarycategory.cpp itemlibrarycategory.h
+    itemlibraryitemsmodel.cpp itemlibraryitemsmodel.h
     itemlibraryview.cpp itemlibraryview.h
     itemlibrarywidget.cpp itemlibrarywidget.h
     itemlibraryassetimportdialog.cpp itemlibraryassetimportdialog.h
     itemlibraryassetimportdialog.ui
     itemlibraryassetimporter.cpp itemlibraryassetimporter.h
     itemlibraryiconimageprovider.cpp itemlibraryiconimageprovider.h
-)
-
-find_package(Qt5 COMPONENTS Quick3DAssetImport QUIET)
-extend_qtc_plugin(QmlDesigner
-  CONDITION TARGET Qt5::Quick3DAssetImport
-  FEATURE_INFO "Qt Quick 3D asset import"
-  DEPENDS Qt5::Quick3DAssetImportPrivate
-  DEFINES IMPORT_QUICK3D_ASSETS
+    itemlibraryimport.cpp itemlibraryimport.h
+    itemlibrarycategoriesmodel.cpp itemlibrarycategoriesmodel.h
+    itemlibraryaddimportmodel.cpp itemlibraryaddimportmodel.h
 )
 
 extend_qtc_plugin(QmlDesigner
@@ -509,8 +504,10 @@ extend_qtc_plugin(QmlDesigner
     include/textmodifier.h
     include/variantproperty.h
     include/viewmanager.h
-    include/imagecache.h
-    include/imagecacheinterface.h
+    include/asynchronousimagecache.h
+    include/synchronousimagecache.h
+    include/imagecacheauxiliarydata.h
+    include/asynchronousimagecacheinterface.h
 )
 
 extend_qtc_plugin(QmlDesigner
@@ -599,7 +596,10 @@ extend_qtc_plugin(QmlDesigner
 
     imagecache/imagecachecollector.h
     imagecache/imagecachecollector.cpp
-    imagecache/imagecache.cpp
+    imagecache/imagecachefontcollector.h
+    imagecache/imagecachefontcollector.cpp
+    imagecache/asynchronousimagecache.cpp
+    imagecache/synchronousimagecache.cpp
     imagecache/imagecachecollectorinterface.h
     imagecache/imagecacheconnectionmanager.cpp
     imagecache/imagecacheconnectionmanager.h
@@ -636,9 +636,12 @@ extend_qtc_plugin(QmlDesigner
   SOURCES_PREFIX components/annotationeditor
   SOURCES annotationcommenttab.cpp annotationcommenttab.h annotationcommenttab.ui
   annotationeditordialog.cpp annotationeditordialog.h annotationeditordialog.ui
-  globalannotationeditordialog.cpp globalannotationeditordialog.h globalannotationeditordialog.ui
   annotationeditor.cpp annotationeditor.h
   globalannotationeditor.cpp globalannotationeditor.h
+  defaultannotations.cpp defaultannotations.h
+  annotationtableview.cpp annotationtableview.h
+  annotationtabwidget.cpp annotationtabwidget.h
+  annotationeditor.qrc
 )
 
 extend_qtc_plugin(QmlDesigner

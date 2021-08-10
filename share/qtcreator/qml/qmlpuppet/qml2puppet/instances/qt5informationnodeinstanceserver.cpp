@@ -102,6 +102,10 @@
 #endif
 #endif
 
+#ifdef IMPORT_QUICK3D_ASSETS
+#include <QtQuick3DAssetImport/private/qssgassetimportmanager_p.h>
+#endif
+
 // Uncomment to display FPS counter on the lower left corner of edit 3D view
 //#define FPS_COUNTER
 #ifdef FPS_COUNTER
@@ -251,6 +255,37 @@ void Qt5InformationNodeInstanceServer::handleInputEvents()
 
         render3DEditView();
     }
+}
+
+void Qt5InformationNodeInstanceServer::resolveImportSupport()
+{
+#ifdef IMPORT_QUICK3D_ASSETS
+    QSSGAssetImportManager importManager;
+    const QHash<QString, QStringList> supportedExtensions = importManager.getSupportedExtensions();
+    const QHash<QString, QVariantMap> supportedOptions = importManager.getAllOptions();
+
+    QVariantMap supportMap;
+
+    QVariantMap extMap;
+    auto itExt = supportedExtensions.constBegin();
+    while (itExt != supportedExtensions.constEnd()) {
+        extMap.insert(itExt.key(), itExt.value());
+        ++itExt;
+    }
+
+    QVariantMap optMap;
+    auto itOpt = supportedOptions.constBegin();
+    while (itOpt != supportedOptions.constEnd()) {
+        optMap.insert(itOpt.key(), itOpt.value());
+        ++itOpt;
+    }
+
+    supportMap.insert("options", optMap);
+    supportMap.insert("extensions", extMap);
+    nodeInstanceClient()->handlePuppetToCreatorCommand(
+                {PuppetToCreatorCommand::Import3DSupport, QVariant(supportMap)});
+
+#endif
 }
 
 void Qt5InformationNodeInstanceServer::createEditView3D()
@@ -671,8 +706,8 @@ void Qt5InformationNodeInstanceServer::renderModelNodeImageView()
 
 void Qt5InformationNodeInstanceServer::doRenderModelNodeImageView()
 {
-    // Disable preview in Qt6 until QTBUG-QTBUG-88320 is fixed
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    // This crashes on Qt 6.0.x due to QtQuick3D issue, so the preview generation is disabled
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0) || QT_VERSION >= QT_VERSION_CHECK(6, 1, 0)
     ServerNodeInstance instance;
     if (m_modelNodePreviewImageCommand.renderItemId() >= 0)
         instance = instanceForId(m_modelNodePreviewImageCommand.renderItemId());
@@ -915,6 +950,9 @@ Qt5InformationNodeInstanceServer::~Qt5InformationNodeInstanceServer()
     m_render3DEditViewTimer.stop();
     m_inputEventTimer.stop();
 
+    if (m_editView3DData.rootItem)
+        m_editView3DData.rootItem->disconnect(this);
+
     for (auto view : qAsConst(m_view3Ds))
         view->disconnect();
     for (auto node : qAsConst(m_3DSceneMap))
@@ -922,6 +960,15 @@ Qt5InformationNodeInstanceServer::~Qt5InformationNodeInstanceServer()
 
     if (m_editView3DData.rootItem)
         QMetaObject::invokeMethod(m_editView3DData.rootItem, "aboutToShutDown", Qt::DirectConnection);
+
+    if (!Internal::QuickItemNodeInstance::unifiedRenderPath()) {
+        if (m_editView3DData.contentItem)
+            designerSupport()->derefFromEffectItem(m_editView3DData.contentItem);
+        if (m_modelNode3DImageViewData.contentItem)
+            designerSupport()->derefFromEffectItem(m_modelNode3DImageViewData.contentItem);
+        if (m_modelNode2DImageViewData.contentItem)
+            designerSupport()->derefFromEffectItem(m_modelNode2DImageViewData.contentItem);
+    }
 }
 
 void Qt5InformationNodeInstanceServer::sendTokenBack()
@@ -1450,6 +1497,9 @@ void Qt5InformationNodeInstanceServer::createScene(const CreateSceneCommand &com
 
     QObject::connect(&m_renderModelNodeImageViewTimer, &QTimer::timeout,
                      this, &Qt5InformationNodeInstanceServer::doRenderModelNodeImageView);
+#ifdef IMPORT_QUICK3D_ASSETS
+    QTimer::singleShot(0, this, &Qt5InformationNodeInstanceServer::resolveImportSupport);
+#endif
 }
 
 void Qt5InformationNodeInstanceServer::sendChildrenChangedCommand(const QList<ServerNodeInstance> &childList)

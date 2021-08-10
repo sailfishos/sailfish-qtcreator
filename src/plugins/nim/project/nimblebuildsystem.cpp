@@ -35,7 +35,6 @@
 #include <utils/qtcassert.h>
 
 #include <QProcess>
-#include <QStandardPaths>
 
 using namespace ProjectExplorer;
 using namespace Utils;
@@ -43,6 +42,14 @@ using namespace Utils;
 namespace Nim {
 
 const char C_NIMBLEPROJECT_TASKS[] = "Nim.NimbleProject.Tasks";
+
+static QList<QByteArray> linesFromProcessOutput(QProcess *process)
+{
+    QList<QByteArray> lines = process->readAllStandardOutput().split('\n');
+    lines = Utils::transform(lines, [](const QByteArray &line){ return line.trimmed(); });
+    Utils::erase(lines, [](const QByteArray &line) { return line.isEmpty(); });
+    return lines;
+}
 
 static std::vector<NimbleTask> parseTasks(const QString &nimblePath, const QString &workingDirectory)
 {
@@ -53,9 +60,7 @@ static std::vector<NimbleTask> parseTasks(const QString &nimblePath, const QStri
 
     std::vector<NimbleTask> result;
 
-    QList<QByteArray> lines = process.readAllStandardOutput().split('\n');
-    lines = Utils::transform(lines, [](const QByteArray &line){ return line.trimmed(); });
-    Utils::erase(lines, [](const QByteArray &line) { return line.isEmpty(); });
+    const QList<QByteArray> &lines = linesFromProcessOutput(&process);
 
     for (const QByteArray &line : lines) {
         QList<QByteArray> tokens = line.trimmed().split(' ');
@@ -72,14 +77,12 @@ static NimbleMetadata parseMetadata(const QString &nimblePath, const QString &wo
 {
     QProcess process;
     process.setWorkingDirectory(workingDirectory);
-    process.start(QStandardPaths::findExecutable(nimblePath), {"dump"});
+    process.start(nimblePath, {"dump"});
     process.waitForFinished();
 
     NimbleMetadata result = {};
 
-    QList<QByteArray> lines = process.readAllStandardOutput().split('\n');
-    lines = Utils::transform(lines, [](const QByteArray &line){ return line.trimmed(); });
-    Utils::erase(lines, [](const QByteArray &line) { return line.isEmpty(); });
+    const QList<QByteArray> &lines = linesFromProcessOutput(&process);
 
     for (const QByteArray &line : lines) {
         QList<QByteArray> tokens = line.trimmed().split(':');
@@ -153,11 +156,11 @@ void NimbleBuildSystem::updateProject()
     const FilePath projectDir = projectDirectory();
     const FilePath nimble = Nim::nimblePathFromKit(kit());
 
-    m_metadata = parseMetadata(nimble.toString(), projectDir.toString());
-    const FilePath binDir = projectDir.pathAppended(m_metadata.binDir);
+    const NimbleMetadata metadata = parseMetadata(nimble.toString(), projectDir.toString());
+    const FilePath binDir = projectDir.pathAppended(metadata.binDir);
     const FilePath srcDir = projectDir.pathAppended("src");
 
-    QList<BuildTargetInfo> targets = Utils::transform(m_metadata.bin, [&](const QString &bin){
+    QList<BuildTargetInfo> targets = Utils::transform(metadata.bin, [&](const QString &bin){
         BuildTargetInfo info = {};
         info.displayName = bin;
         info.targetFilePath = binDir.pathAppended(bin);
@@ -185,11 +188,6 @@ void NimbleBuildSystem::updateProject()
 std::vector<NimbleTask> NimbleBuildSystem::tasks() const
 {
     return m_tasks;
-}
-
-NimbleMetadata NimbleBuildSystem::metadata() const
-{
-    return m_metadata;
 }
 
 void NimbleBuildSystem::saveSettings()

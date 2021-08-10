@@ -3,8 +3,6 @@ import qbs 1.0
 Project {
     name: "QtSupport"
 
-    QtcDevHeaders { }
-
     QtcPlugin {
         Depends { name: "Qt"; submodules: ["widgets", "xml"]; }
         Depends { name: "Utils" }
@@ -80,8 +78,6 @@ Project {
             "exampleslistmodel.h",
             "profilereader.cpp",
             "profilereader.h",
-            "qmldumptool.cpp",
-            "qmldumptool.h",
             "qscxmlcgenerator.cpp",
             "qscxmlcgenerator.h",
             "qtkitinformation.cpp",

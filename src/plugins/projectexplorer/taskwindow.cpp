@@ -202,6 +202,7 @@ TaskView::TaskView(QWidget *parent)
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     setMouseTracking(true);
+    setAutoScroll(false); // QTCREATORBUG-25101
 
     QFontMetrics fm(font());
     int vStepSize = fm.height() + 3;
@@ -229,8 +230,10 @@ void TaskView::mouseReleaseEvent(QMouseEvent *e)
 {
     if (m_linksActive && m_mouseButtonPressed == Qt::LeftButton) {
         const Location loc = locationForPos(e->pos());
-        if (!loc.file.isEmpty())
-            Core::EditorManager::openEditorAt(loc.file.toString(), loc.line, loc.column);
+        if (!loc.file.isEmpty()) {
+            Core::EditorManager::openEditorAt(loc.file.toString(), loc.line, loc.column, {},
+                                              Core::EditorManager::SwitchSplitIfAlreadyVisible);
+        }
     }
 
     // Mouse was released, activate links again
@@ -409,7 +412,7 @@ void TaskWindow::delayedInitialization()
 
     alreadyDone = true;
 
-    for (ITaskHandler *h : g_taskHandlers) {
+    for (ITaskHandler *h : qAsConst(g_taskHandlers)) {
         if (h->isDefaultHandler() && !d->m_defaultHandler)
             d->m_defaultHandler = h;
 
@@ -472,6 +475,7 @@ void TaskWindow::currentChanged(const QModelIndex &index)
         ITaskHandler *h = d->handler(action);
         action->setEnabled((task.isNull() || !h) ? false : h->canHandle(task));
     }
+    d->m_listview->scrollTo(index);
 }
 
 void TaskWindow::saveSettings()
@@ -809,8 +813,8 @@ QSize TaskDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelInd
     } else {
         s.setHeight(fontHeight + 3);
     }
-    if (s.height() < positions.minimumHeight())
-        s.setHeight(positions.minimumHeight());
+    if (s.height() < Positions::minimumHeight())
+        s.setHeight(Positions::minimumHeight());
 
     if (!selected) {
         m_cachedHeight = s.height();
@@ -833,7 +837,7 @@ void TaskDelegate::currentChanged(const QModelIndex &current, const QModelIndex 
 
 QString TaskDelegate::hrefForPos(const QPointF &pos)
 {
-    for (const auto &link : m_hrefs) {
+    for (const auto &link : qAsConst(m_hrefs)) {
         if (link.first.contains(pos))
             return link.second;
     }
@@ -877,7 +881,7 @@ void TaskDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, 
     // Paint TaskIconArea:
     QIcon icon = index.data(TaskModel::Icon).value<QIcon>();
     painter->drawPixmap(positions.left(), positions.top(),
-                        icon.pixmap(positions.taskIconWidth(), positions.taskIconHeight()));
+                        icon.pixmap(Positions::taskIconWidth(), Positions::taskIconHeight()));
 
     // Paint TextArea:
     if (!selected) {

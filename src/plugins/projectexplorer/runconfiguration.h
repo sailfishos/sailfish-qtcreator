@@ -114,6 +114,7 @@ protected:
     friend class RunConfiguration;
     void fromMap(const QVariantMap &map) override;
     void toMap(QVariantMap &data) const override;
+    void toActiveMap(QVariantMap &data) const override;
 
 private:
     bool m_useGlobalSettings = false;
@@ -250,9 +251,8 @@ protected:
     void addSupportedTargetDeviceType(Utils::Id deviceTypeId);
     void setDecorateDisplayNames(bool on);
 
-    virtual bool canHandle(Target *target) const;
-
 private:
+    bool canHandle(Target *target) const;
     RunConfiguration *create(Target *target) const;
 
     friend class RunConfigurationCreationInfo;

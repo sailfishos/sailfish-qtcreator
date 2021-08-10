@@ -350,18 +350,6 @@ void UvscEngine::activateFrame(int index)
     reloadPeripheralRegisters();
 }
 
-bool UvscEngine::stateAcceptsBreakpointChanges() const
-{
-    switch (state()) {
-    case InferiorRunOk:
-    case InferiorStopOk:
-        return true;
-    default:
-        break;
-    }
-    return false;
-}
-
 bool UvscEngine::acceptsBreakpoint(const BreakpointParameters &bp) const
 {
     if (bp.isCppBreakpoint()) {
@@ -645,6 +633,7 @@ void UvscEngine::handleProjectClosed()
     showMessage("UVSC: ALL INITIALIZED SUCCESSFULLY.");
 
     notifyEngineSetupOk();
+    runEngine();
 }
 
 void UvscEngine::handleUpdateLocation(quint64 address)

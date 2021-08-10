@@ -32,7 +32,6 @@
 
 #include <QCoreApplication>
 #include <QMapIterator>
-#include <QMutexLocker>
 #include <QProcess>
 
 using namespace ProjectExplorer;
@@ -88,7 +87,7 @@ Utils::Port IosSimulator::nextPort() const
         if (!portVerifier.waitForStarted())
             break;
         portVerifier.closeWriteChannel();
-        if (!portVerifier.waitForFinished() && portVerifier.state() == QProcess::Running)
+        if (!portVerifier.waitForFinished())
             break;
         if (portVerifier.exitStatus() != QProcess::NormalExit
                 || portVerifier.exitCode() != 0)

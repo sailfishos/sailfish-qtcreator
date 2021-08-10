@@ -34,11 +34,9 @@
 
 #include <utils/environmentfwd.h>
 #include <utils/fileutils.h>
-#include <utils/id.h>
 
 #include <QObject>
 #include <QFileSystemModel>
-#include <QSet>
 
 #include <functional>
 #include <memory>
@@ -142,8 +140,7 @@ public:
 
     virtual bool needsConfiguration() const;
     bool needsBuildConfigurations() const;
-    virtual void configureAsExampleProject(ProjectExplorer::Kit *kit,
-            const QSet<Utils::Id> &preferredFeauters = QSet<Utils::Id>());
+    virtual void configureAsExampleProject(ProjectExplorer::Kit *kit);
 
     virtual ProjectImporter *projectImporter() const;
 
@@ -172,6 +169,9 @@ public:
     void setExtraProjectFiles(const QSet<Utils::FilePath> &projectDocumentPaths,
                               const DocGenerator &docGenerator = {},
                               const DocUpdater &docUpdater = {});
+    void updateExtraProjectFiles(const QSet<Utils::FilePath> &projectDocumentPaths,
+                                 const DocUpdater &docUpdater);
+    void updateExtraProjectFiles(const DocUpdater &docUpdater);
 
     void setDisplayName(const QString &name);
     void setProjectLanguage(Utils::Id id, bool enabled);
@@ -181,6 +181,9 @@ public:
     QVariant extraData(const QString &key) const;
 
     QStringList availableQmlPreviewTranslations(QString *errorMessage);
+
+    QList<Core::IDocument *> modifiedDocuments() const;
+    bool isModified() const;
 
 signals:
     void projectFileIsDirty(const Utils::FilePath &path);

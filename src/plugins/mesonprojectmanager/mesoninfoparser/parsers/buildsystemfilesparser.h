@@ -22,10 +22,14 @@
 ** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
+
 #pragma once
+
 #include "../../mesonpluginconstants.h"
-#include "./common.h"
-#include "utils/fileutils.h"
+#include "common.h"
+
+#include <utils/fileutils.h>
+
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -38,8 +42,7 @@ namespace Internal {
 class BuildSystemFilesParser
 {
     std::vector<Utils::FilePath> m_files;
-    static void appendFiles(const Utils::optional<QJsonArray> &arr,
-                            std::vector<Utils::FilePath> &dest)
+    static void appendFiles(const Utils::optional<QJsonArray> &arr, std::vector<Utils::FilePath> &dest)
     {
         if (arr)
             std::transform(std::cbegin(*arr),
@@ -64,16 +67,15 @@ public:
     {
         auto arr = get<QJsonArray>(js.object(), "projectinfo", "buildsystem_files");
         appendFiles(arr, m_files);
-        auto subprojects = get<QJsonArray>(js.object(), "projectinfo", "subprojects");
-        std::for_each(std::cbegin(*subprojects),
-                      std::cend(*subprojects),
-                      [this](const auto &subproject) {
-                          auto arr = get<QJsonArray>(subproject.toObject(), "buildsystem_files");
-                          appendFiles(arr, m_files);
-                      });
+        const auto subprojects = get<QJsonArray>(js.object(), "projectinfo", "subprojects");
+        for (const auto &subproject : *subprojects) {
+            auto arr = get<QJsonArray>(subproject.toObject(), "buildsystem_files");
+            appendFiles(arr, m_files);
+        }
     }
 
     std::vector<Utils::FilePath> files() { return m_files; };
 };
+
 } // namespace Internal
 } // namespace MesonProjectManager

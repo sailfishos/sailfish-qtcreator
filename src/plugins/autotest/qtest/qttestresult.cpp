@@ -124,12 +124,12 @@ TestResult *QtTestResult::createIntermediateResultFor(const TestResult *other)
     const auto correspondingItem = intermediate->findTestTreeItem();
     if (correspondingItem && correspondingItem->line()) {
         intermediate->setFileName(correspondingItem->filePath());
-        intermediate->setLine(static_cast<int>(correspondingItem->line()));
+        intermediate->setLine(correspondingItem->line());
     }
     return intermediate;
 }
 
-const TestTreeItem *QtTestResult::findTestTreeItem() const
+const ITestTreeItem *QtTestResult::findTestTreeItem() const
 {
     Utils::Id id;
     if (m_type == TestType::QtTest)
@@ -141,11 +141,10 @@ const TestTreeItem *QtTestResult::findTestTreeItem() const
     const TestTreeItem *rootNode = framework->rootNode();
     QTC_ASSERT(rootNode, return nullptr);
 
-    const auto item = rootNode->findAnyChild([this](const Utils::TreeItem *item) {
+    return rootNode->findAnyChild([this](const Utils::TreeItem *item) {
         const TestTreeItem *treeItem = static_cast<const TestTreeItem *>(item);
         return treeItem && matches(treeItem);
     });
-    return static_cast<const TestTreeItem *>(item);
 }
 
 bool QtTestResult::matches(const TestTreeItem *item) const

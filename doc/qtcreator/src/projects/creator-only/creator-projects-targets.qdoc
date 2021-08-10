@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2020 The Qt Company Ltd.
+** Copyright (C) 2021 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -71,6 +71,8 @@
     \uicontrol Kits. For example, if you use CMake to build all your projects,
     you can hide Qbs and qmake settings by default.
 
+    \image qtcreator-kits.png
+
     To hide and show settings in the \uicontrol Kits tab for the
     current kit, select \uicontrol {Settings Filter}. To view and
     modify the settings displayed when you add a new kit, select
@@ -85,7 +87,7 @@
         \li Select \uicontrol Tools > \uicontrol Options > \uicontrol Kits >
             \uicontrol Add.
 
-            \image qtcreator-kits.png
+            \image qtcreator-kits-add.png
 
             To clone the selected kit, select \uicontrol Clone.
 
@@ -173,6 +175,7 @@
             with names beginning with the string \uicontrol CodeBlocks produce
             all the necessary data for the \QC code model. \QC displays a
             warning if you select a generator that is not supported.
+            For more information, see \l{Using Ninja as a CMake Generator}.
 
         \li In the \uicontrol {CMake configuration} field, select
             \uicontrol Change to edit the parameters of the CMake configuration
@@ -192,8 +195,6 @@
     \QC uses the \e {default kit} if it does not have enough information to
     choose the kit to use. To set the selected kit as the default kit,
     select \uicontrol {Make Default}.
-
-    \include creator-projects-cmake-building.qdocinc cmake ninja
 
     \section1 Editing Qbs Profiles
 

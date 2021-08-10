@@ -134,6 +134,7 @@ const char GOTOLASTEDIT[]          = "QtCreator.GotoLastEdit";
 const char ABOUT_QTCREATOR[]       = "QtCreator.AboutQtCreator";
 const char ABOUT_PLUGINS[]         = "QtCreator.AboutPlugins";
 const char S_RETURNTOEDITOR[]      = "QtCreator.ReturnToEditor";
+const char SHOWINGRAPHICALSHELL[]  = "QtCreator.ShowInGraphicalShell";
 
 // Default groups
 const char G_DEFAULT_ONE[]         = "QtCreator.Group.Default.One";
@@ -219,6 +220,7 @@ const char SETTINGS_DEFAULT_LINE_TERMINATOR[] = "General/DefaultLineTerminator";
 
 const char SETTINGS_THEME[] = "Core/CreatorTheme";
 const char DEFAULT_THEME[] = "flat";
+const char DEFAULT_DARK_THEME[] = "flat-dark";
 
 const char TR_CLEAR_MENU[]         = QT_TRANSLATE_NOOP("Core", "Clear Menu");
 

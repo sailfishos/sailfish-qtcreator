@@ -22,17 +22,21 @@
 ** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
-#include <coreplugin/find/itemviewfind.h>
-#include <projectexplorer/buildaspects.h>
-#include <projectexplorer/projectconfiguration.h>
-#include <utils/detailswidget.h>
-#include <utils/headerviewstretcher.h>
-#include <utils/layoutbuilder.h>
+
+#include "mesonbuildsettingswidget.h"
 
 #include "../mesonbuildconfiguration.h"
 #include "../mesonbuildsystem.h"
-#include "mesonbuildsettingswidget.h"
 #include "ui_mesonbuildsettingswidget.h"
+
+#include <coreplugin/find/itemviewfind.h>
+
+#include <projectexplorer/buildaspects.h>
+#include <projectexplorer/projectconfiguration.h>
+
+#include <utils/detailswidget.h>
+#include <utils/headerviewstretcher.h>
+#include <utils/layoutbuilder.h>
 
 using namespace Utils;
 
@@ -51,6 +55,7 @@ MesonBuildSettingsWidget::MesonBuildSettingsWidget(MesonBuildConfiguration *buil
     auto buildDirAspect = buildCfg->buildDirectoryAspect();
     buildDirAspect->addToLayout(buildDirWBuilder);
 
+    ui->parametersLineEdit->setText(buildCfg->parameters());
     ui->optionsFilterLineEdit->setFiltering(true);
 
     ui->optionsTreeView->sortByColumn(0, Qt::AscendingOrder);
@@ -132,6 +137,9 @@ MesonBuildSettingsWidget::MesonBuildSettingsWidget(MesonBuildConfiguration *buil
         ui->configureButton->setEnabled(false);
         m_showProgressTimer.start();
         bs->wipe();
+    });
+    connect(ui->parametersLineEdit, &QLineEdit::editingFinished, this, [this, buildCfg] {
+        buildCfg->setParameters(ui->parametersLineEdit->text());
     });
     bs->triggerParsing();
 }

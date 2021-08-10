@@ -7,7 +7,7 @@
     "trDisplayName": "Qt for Python - Empty",
     "trDisplayCategory": "Application (Qt for Python)",
     "icon": "icon.png",
-    "enabled": "%{JS: false // value('Plugins').indexOf('Python') >= 0}",
+    "enabled": "%{JS: value('Plugins').indexOf('Python') >= 0}",
 
     "options":
     [
@@ -21,6 +21,20 @@
             "trDisplayName": "Project Location",
             "trShortTitle": "Location",
             "typeId": "Project"
+        },
+        {
+            "trDisplayName": "Define Project Details",
+            "trShortTitle": "Details",
+            "typeId": "Fields",
+            "data" :
+            [
+                {
+                    "name": "PySideVersion",
+                    "trDisplayName": "PySide version:",
+                    "type": "ComboBox",
+                    "data": { "items": [ "PySide2", "PySide6" ] }
+                }
+            ]
         },
         {
             "trDisplayName": "Project Management",

@@ -49,6 +49,7 @@
 #include <extensionsystem/pluginmanager.h>
 #include <extensionsystem/pluginspec.h>
 #include <utils/algorithm.h>
+#include <utils/checkablemessagebox.h>
 #include <utils/infobar.h>
 #include <utils/macroexpander.h>
 #include <utils/mimetypes/mimedatabase.h>
@@ -62,6 +63,7 @@
 #include <QDebug>
 #include <QDir>
 #include <QJsonObject>
+#include <QLabel>
 #include <QMenu>
 #include <QMessageBox>
 #include <QSettings>
@@ -75,6 +77,17 @@ using namespace Utils;
 
 static CorePlugin *m_instance = nullptr;
 
+const char kWarnCrashReportingSetting[] = "WarnCrashReporting";
+const char kEnvironmentChanges[] = "Core/EnvironmentChanges";
+
+void CorePlugin::setupSystemEnvironment()
+{
+    m_instance->m_startupSystemEnvironment = Environment::systemEnvironment();
+    const EnvironmentItems changes = EnvironmentItem::fromStringList(
+        ICore::settings()->value(kEnvironmentChanges).toStringList());
+    setEnvironmentChanges(changes);
+}
+
 CorePlugin::CorePlugin()
 {
     qRegisterMetaType<Id>();
@@ -82,6 +95,7 @@ CorePlugin::CorePlugin()
     qRegisterMetaType<Utils::CommandLine>();
     qRegisterMetaType<Utils::FilePath>();
     m_instance = this;
+    setupSystemEnvironment();
 }
 
 CorePlugin::~CorePlugin()
@@ -150,7 +164,7 @@ bool CorePlugin::initialize(const QStringList &arguments, QString *errorMessage)
     Theme *themeFromArg = ThemeEntry::createTheme(args.themeId);
     setCreatorTheme(themeFromArg ? themeFromArg
                                  : ThemeEntry::createTheme(ThemeEntry::themeSetting()));
-    InfoBar::initialize(ICore::settings(), creatorTheme());
+    InfoBar::initialize(ICore::settings());
     new ActionManager(this);
     ActionManager::setPresentationModeEnabled(args.presentationMode);
     m_mainWindow = new MainWindow;
@@ -223,6 +237,11 @@ bool CorePlugin::initialize(const QStringList &arguments, QString *errorMessage)
 
     Utils::PathChooser::setAboutToShowContextMenuHandler(&CorePlugin::addToPathChooserContextMenu);
 
+#ifdef ENABLE_CRASHPAD
+    connect(ICore::instance(), &ICore::coreOpened, this, &CorePlugin::warnAboutCrashReporing,
+            Qt::QueuedConnection);
+#endif
+
     return true;
 }
 
@@ -259,11 +278,35 @@ QObject *CorePlugin::remoteCommand(const QStringList & /* options */,
         });
         return nullptr;
     }
-    IDocument *res = m_mainWindow->openFiles(
+    IDocument *res = MainWindow::openFiles(
                 args, ICore::OpenFilesFlags(ICore::SwitchMode | ICore::CanContainLineAndColumnNumbers | ICore::SwitchSplitIfAlreadyVisible),
                 workingDirectory);
     m_mainWindow->raiseWindow();
     return res;
+}
+
+Environment CorePlugin::startupSystemEnvironment()
+{
+    return m_instance->m_startupSystemEnvironment;
+}
+
+EnvironmentItems CorePlugin::environmentChanges()
+{
+    return m_instance->m_environmentChanges;
+}
+
+void CorePlugin::setEnvironmentChanges(const EnvironmentItems &changes)
+{
+    if (m_instance->m_environmentChanges == changes)
+        return;
+    m_instance->m_environmentChanges = changes;
+    Environment systemEnv = m_instance->m_startupSystemEnvironment;
+    systemEnv.modify(changes);
+    Environment::setSystemEnvironment(systemEnv);
+    ICore::settings()->setValueWithDefault(kEnvironmentChanges,
+                                           EnvironmentItem::toStringList(changes));
+    if (ICore::instance())
+        emit ICore::instance()->systemEnvironmentChanged();
 }
 
 void CorePlugin::fileOpenRequest(const QString &f)
@@ -344,9 +387,64 @@ void CorePlugin::checkSettings()
     showMsgBox(errorMsg, QMessageBox::Critical);
 }
 
+void CorePlugin::warnAboutCrashReporing()
+{
+    if (!ICore::infoBar()->canInfoBeAdded(kWarnCrashReportingSetting))
+        return;
+
+    QString warnStr = ICore::settings()->value("CrashReportingEnabled", false).toBool()
+            ? tr("%1 collects crash reports for the sole purpose of fixing bugs. "
+                 "To disable this feature go to %2.")
+            : tr("%1 can collect crash reports for the sole purpose of fixing bugs. "
+                 "To enable this feature go to %2.");
+
+    if (Utils::HostOsInfo::isMacHost()) {
+        warnStr = warnStr.arg(Core::Constants::IDE_DISPLAY_NAME)
+                         .arg(Core::Constants::IDE_DISPLAY_NAME + tr(" > Preferences > Environment > System"));
+    } else {
+        warnStr = warnStr.arg(Core::Constants::IDE_DISPLAY_NAME)
+                         .arg(tr("Tools > Options > Environment > System"));
+    }
+
+    Utils::InfoBarEntry info(kWarnCrashReportingSetting, warnStr,
+                             Utils::InfoBarEntry::GlobalSuppression::Enabled);
+    info.setCustomButtonInfo(tr("Configure..."), [] {
+        ICore::infoBar()->removeInfo(kWarnCrashReportingSetting);
+        ICore::infoBar()->globallySuppressInfo(kWarnCrashReportingSetting);
+        ICore::showOptionsDialog(Core::Constants::SETTINGS_ID_SYSTEM);
+    });
+
+    info.setDetailsWidgetCreator([]() -> QWidget * {
+        auto label = new QLabel;
+        label->setWordWrap(true);
+        label->setOpenExternalLinks(true);
+        label->setText(msgCrashpadInformation());
+        label->setContentsMargins(0, 0, 0, 8);
+        return label;
+    });
+    ICore::infoBar()->addInfo(info);
+}
+
+// static
+QString CorePlugin::msgCrashpadInformation()
+{
+    return tr("%1 uses Google Crashpad for collecting crashes and sending them to our backend "
+              "for processing. Crashpad may capture arbitrary contents from crashed process’ "
+              "memory, including user sensitive information, URLs, and whatever other content "
+              "users have trusted %1 with. The collected crash reports are however only used "
+              "for the sole purpose of fixing bugs.").arg(Core::Constants::IDE_DISPLAY_NAME)
+            + "<br><br>" + tr("More information:")
+            + "<br><a href='https://chromium.googlesource.com/crashpad/crashpad/+/master/doc/"
+                           "overview_design.md'>" + tr("Crashpad Overview") + "</a>"
+              "<br><a href='https://sentry.io/security/'>" + tr("%1 security policy").arg("Sentry.io")
+            + "</a>";
+}
+
 ExtensionSystem::IPlugin::ShutdownFlag CorePlugin::aboutToShutdown()
 {
     Find::aboutToShutdown();
+    ExtensionSystem::IPlugin::ShutdownFlag shutdownFlag = m_locator->aboutToShutdown(
+        [this] { emit asynchronousShutdownFinished(); });
     m_mainWindow->aboutToShutdown();
-    return SynchronousShutdown;
+    return shutdownFlag;
 }

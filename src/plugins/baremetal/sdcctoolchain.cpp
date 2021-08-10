@@ -58,9 +58,6 @@ namespace Internal {
 
 // Helpers:
 
-static const char compilerCommandKeyC[] = "CompilerPath";
-static const char targetAbiKeyC[] = "TargetAbi";
-
 static bool compilerExists(const FilePath &compilerPath)
 {
     const QFileInfo fi = compilerPath.toFileInfo();
@@ -218,24 +215,8 @@ SdccToolChain::SdccToolChain() :
     ToolChain(Constants::SDCC_TOOLCHAIN_TYPEID)
 {
     setTypeDisplayName(Internal::SdccToolChain::tr("SDCC"));
-}
-
-void SdccToolChain::setTargetAbi(const Abi &abi)
-{
-    if (abi == m_targetAbi)
-        return;
-    m_targetAbi = abi;
-    toolChainUpdated();
-}
-
-Abi SdccToolChain::targetAbi() const
-{
-    return m_targetAbi;
-}
-
-bool SdccToolChain::isValid() const
-{
-    return true;
+    setTargetAbiKey("TargetAbi");
+    setCompilerCommandKey("CompilerPath");
 }
 
 ToolChain::MacroInspectionRunner SdccToolChain::createMacroInspectionRunner() const
@@ -243,17 +224,17 @@ ToolChain::MacroInspectionRunner SdccToolChain::createMacroInspectionRunner() co
     Environment env = Environment::systemEnvironment();
     addToEnvironment(env);
 
-    const Utils::FilePath compilerCommand = m_compilerCommand;
-    const Utils::Id lang = language();
-    const Abi abi = m_targetAbi;
+    const FilePath compiler = compilerCommand();
+    const Id lang = language();
+    const Abi abi = targetAbi();
 
     MacrosCache macrosCache = predefinedMacrosCache();
 
-    return [env, compilerCommand, macrosCache, lang, abi]
+    return [env, compiler, macrosCache, lang, abi]
             (const QStringList &flags) {
         Q_UNUSED(flags)
 
-        const Macros macros = dumpPredefinedMacros(compilerCommand, env.toStringList(),
+        const Macros macros = dumpPredefinedMacros(compiler, env.toStringList(),
                                                    abi);
         const auto report = MacroInspectionReport{macros, languageVersion(lang, macros)};
         macrosCache->insert({}, report);
@@ -279,18 +260,18 @@ ToolChain::BuiltInHeaderPathsRunner SdccToolChain::createBuiltInHeaderPathsRunne
     Environment env = Environment::systemEnvironment();
     addToEnvironment(env);
 
-    const Utils::FilePath compilerCommand = m_compilerCommand;
-    const Abi abi = m_targetAbi;
+    const FilePath compiler = compilerCommand();
+    const Abi abi = targetAbi();
 
-    return [env, compilerCommand, abi](const QStringList &, const QString &, const QString &) {
-        return dumpHeaderPaths(compilerCommand, env.toStringList(), abi);
+    return [env, compiler, abi](const QStringList &, const QString &, const QString &) {
+        return dumpHeaderPaths(compiler, env.toStringList(), abi);
     };
 }
 
 void SdccToolChain::addToEnvironment(Environment &env) const
 {
-    if (!m_compilerCommand.isEmpty()) {
-        const FilePath path = m_compilerCommand.parentDir();
+    if (!compilerCommand().isEmpty()) {
+        const FilePath path = compilerCommand().parentDir();
         env.prependOrSetPath(path.toString());
     }
 }
@@ -298,23 +279,6 @@ void SdccToolChain::addToEnvironment(Environment &env) const
 QList<Utils::OutputLineParser *> SdccToolChain::createOutputParsers() const
 {
     return {new SdccParser};
-}
-
-QVariantMap SdccToolChain::toMap() const
-{
-    QVariantMap data = ToolChain::toMap();
-    data.insert(compilerCommandKeyC, m_compilerCommand.toString());
-    data.insert(targetAbiKeyC, m_targetAbi.toString());
-    return data;
-}
-
-bool SdccToolChain::fromMap(const QVariantMap &data)
-{
-    if (!ToolChain::fromMap(data))
-        return false;
-    m_compilerCommand = FilePath::fromString(data.value(compilerCommandKeyC).toString());
-    m_targetAbi = Abi::fromString(data.value(targetAbiKeyC).toString());
-    return true;
 }
 
 std::unique_ptr<ToolChainConfigWidget> SdccToolChain::createConfigurationWidget()
@@ -328,22 +292,8 @@ bool SdccToolChain::operator==(const ToolChain &other) const
         return false;
 
     const auto customTc = static_cast<const SdccToolChain *>(&other);
-    return m_compilerCommand == customTc->m_compilerCommand
-            && m_targetAbi == customTc->m_targetAbi
-            ;
-}
-
-void SdccToolChain::setCompilerCommand(const FilePath &file)
-{
-    if (file == m_compilerCommand)
-        return;
-    m_compilerCommand = file;
-    toolChainUpdated();
-}
-
-FilePath SdccToolChain::compilerCommand() const
-{
-    return m_compilerCommand;
+    return compilerCommand() == customTc->compilerCommand()
+            && targetAbi() == customTc->targetAbi();
 }
 
 FilePath SdccToolChain::makeCommand(const Environment &env) const

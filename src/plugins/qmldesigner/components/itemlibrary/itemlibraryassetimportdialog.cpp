@@ -28,26 +28,33 @@
 #include "qmldesignerplugin.h"
 #include "qmldesignerconstants.h"
 #include "model.h"
+#include "nodemetainfo.h"
+#include "variantproperty.h"
 
 #include "utils/outputformatter.h"
 #include "theme.h"
 
 #include <projectexplorer/project.h>
 #include <projectexplorer/session.h>
+#include <coreplugin/icore.h>
 
-#include <QtCore/qfileinfo.h>
-#include <QtCore/qdir.h>
-#include <QtCore/qloggingcategory.h>
-#include <QtCore/qtimer.h>
-#include <QtCore/qjsonarray.h>
-#include <QtWidgets/qpushbutton.h>
-#include <QtWidgets/qgridlayout.h>
-#include <QtWidgets/qlabel.h>
-#include <QtWidgets/qcheckbox.h>
-#include <QtWidgets/qspinbox.h>
-#include <QtWidgets/qscrollbar.h>
-#include <QtWidgets/qtabbar.h>
-#include <QtWidgets/qscrollarea.h>
+#include <QFileInfo>
+#include <QDir>
+#include <QLoggingCategory>
+#include <QTimer>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonParseError>
+#include <QPushButton>
+#include <QGridLayout>
+#include <QLabel>
+#include <QCheckBox>
+#include <QSpinBox>
+#include <QScrollBar>
+#include <QTabBar>
+#include <QScrollArea>
+#include <QMessageBox>
+#include <QFileDialog>
 
 namespace QmlDesigner {
 
@@ -70,11 +77,15 @@ static const int rowHeight = 26;
 
 }
 
-ItemLibraryAssetImportDialog::ItemLibraryAssetImportDialog(const QStringList &importFiles,
-                                     const QString &defaulTargetDirectory, QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::ItemLibraryAssetImportDialog),
-    m_importer(this)
+ItemLibraryAssetImportDialog::ItemLibraryAssetImportDialog(
+        const QStringList &importFiles, const QString &defaulTargetDirectory,
+        const QVariantMap &supportedExts, const QVariantMap &supportedOpts,
+        const QJsonObject &defaultOpts, const QSet<QString> &preselectedFilesForOverwrite,
+        QWidget *parent)
+    : QDialog(parent)
+    , ui(new Ui::ItemLibraryAssetImportDialog)
+    , m_importer(this)
+    , m_preselectedFilesForOverwrite(preselectedFilesForOverwrite)
 {
     setModal(true);
     ui->setupUi(this);
@@ -83,15 +94,24 @@ ItemLibraryAssetImportDialog::ItemLibraryAssetImportDialog(const QStringList &im
     m_outputFormatter->setPlainTextEdit(ui->plainTextEdit);
 
     // Skip unsupported assets
-    bool skipSome = false;
+    QHash<QString, bool> supportMap;
     for (const auto &file : importFiles) {
-        if (m_importer.isQuick3DAsset(file))
+        QString suffix = QFileInfo(file).suffix().toLower();
+        if (!supportMap.contains(suffix)) {
+            bool supported = false;
+            for (const auto &exts : supportedExts) {
+                if (exts.toStringList().contains(suffix)) {
+                    supported = true;
+                    break;
+                }
+            }
+            supportMap.insert(suffix, supported);
+        }
+        if (supportMap[suffix])
             m_quick3DFiles << file;
-        else
-            skipSome = true;
     }
 
-    if (skipSome)
+    if (m_quick3DFiles.size() != importFiles.size())
         addWarning("Cannot import 3D and other assets simultaneously. Skipping non-3D assets.");
 
     ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Import"));
@@ -153,15 +173,23 @@ ItemLibraryAssetImportDialog::ItemLibraryAssetImportDialog(const QStringList &im
     m_quick3DImportPath = candidatePath;
 
     if (!m_quick3DFiles.isEmpty()) {
-        const QHash<QString, QVariantMap> allOptions = m_importer.allOptions();
-        const QHash<QString, QStringList> supportedExtensions = m_importer.supportedExtensions();
         QVector<QJsonObject> groups;
 
-        auto optIt = allOptions.constBegin();
+        auto optIt = supportedOpts.constBegin();
         int optIndex = 0;
-        while (optIt != allOptions.constEnd()) {
-            QJsonObject options = QJsonObject::fromVariantMap(optIt.value());
+        while (optIt != supportedOpts.constEnd()) {
+            QJsonObject options = QJsonObject::fromVariantMap(qvariant_cast<QVariantMap>(optIt.value()));
             m_importOptions << options.value("options").toObject();
+            auto it = defaultOpts.constBegin();
+            while (it != defaultOpts.constEnd()) {
+                if (m_importOptions.last().contains(it.key())) {
+                    QJsonObject optObj = m_importOptions.last()[it.key()].toObject();
+                    QJsonValue value(it.value().toObject()["value"]);
+                    optObj.insert("value", value);
+                    m_importOptions.last().insert(it.key(), optObj);
+                }
+                ++it;
+            }
             groups << options.value("groups").toObject();
             const auto &exts = optIt.key().split(':');
             for (const auto &ext : exts)
@@ -173,10 +201,10 @@ ItemLibraryAssetImportDialog::ItemLibraryAssetImportDialog(const QStringList &im
         // Create tab for each supported extension group that also has files included in the import
         QMap<QString, int> tabMap; // QMap used for alphabetical order
         for (const auto &file : qAsConst(m_quick3DFiles)) {
-            auto extIt = supportedExtensions.constBegin();
+            auto extIt = supportedExts.constBegin();
             QString ext = QFileInfo(file).suffix().toLower();
-            while (extIt != supportedExtensions.constEnd()) {
-                if (!tabMap.contains(extIt.key()) && extIt.value().contains(ext)) {
+            while (extIt != supportedExts.constEnd()) {
+                if (!tabMap.contains(extIt.key()) && extIt.value().toStringList().contains(ext)) {
                     tabMap.insert(extIt.key(), m_extToImportOptionsMap.value(ext));
                     break;
                 }
@@ -228,7 +256,7 @@ ItemLibraryAssetImportDialog::ItemLibraryAssetImportDialog(const QStringList &im
             this, &ItemLibraryAssetImportDialog::setImportProgress);
 
     addInfo(tr("Select import options and press \"Import\" to import the following files:"));
-    for (const auto &file : m_quick3DFiles)
+    for (const auto &file : qAsConst(m_quick3DFiles))
         addInfo(file);
 
     QTimer::singleShot(0, [this]() {
@@ -240,6 +268,125 @@ ItemLibraryAssetImportDialog::ItemLibraryAssetImportDialog(const QStringList &im
 ItemLibraryAssetImportDialog::~ItemLibraryAssetImportDialog()
 {
     delete ui;
+}
+
+void ItemLibraryAssetImportDialog::updateImport(const ModelNode &updateNode,
+                                                const QVariantMap &supportedExts,
+                                                const QVariantMap &supportedOpts)
+{
+    QString errorMsg;
+    const ModelNode &node = updateNode;
+    if (node.isValid() && node.hasMetaInfo()) {
+        QString compFileName = node.metaInfo().componentFileName(); // absolute path
+        bool preselectNodeSource = false;
+        if (compFileName.isEmpty()) {
+            // Node is not a file component, so we have to check if the current doc itself is
+            compFileName = node.model()->fileUrl().toLocalFile();
+            preselectNodeSource = true;
+        }
+        QFileInfo compFileInfo{compFileName};
+
+        // Find to top asset folder
+        const QString assetFolder = QLatin1String(Constants::QUICK_3D_ASSETS_FOLDER).mid(1);
+        const QStringList parts = compFileName.split('/');
+        int i = parts.size() - 1;
+        int previousSize = 0;
+        for (; i >= 0; --i) {
+            if (parts[i] == assetFolder)
+                break;
+            previousSize = parts[i].size();
+        }
+        if (i >= 0) {
+            const QString assetPath = compFileName.left(compFileName.lastIndexOf(assetFolder)
+                                                        + assetFolder.size() + previousSize + 1);
+            const QDir assetDir(assetPath);
+
+            // Find import options and the original source scene
+            const QString jsonFileName = assetDir.absoluteFilePath(
+                        Constants::QUICK_3D_ASSET_IMPORT_DATA_NAME);
+            QFile jsonFile{jsonFileName};
+            if (jsonFile.open(QIODevice::ReadOnly)) {
+                QJsonParseError jsonError;
+                const QByteArray fileData = jsonFile.readAll();
+                auto jsonDocument = QJsonDocument::fromJson(fileData, &jsonError);
+                jsonFile.close();
+                if (jsonError.error == QJsonParseError::NoError) {
+                    QJsonObject jsonObj = jsonDocument.object();
+                    const QJsonObject options = jsonObj.value(
+                                Constants::QUICK_3D_ASSET_IMPORT_DATA_OPTIONS_KEY).toObject();
+                    QString sourcePath = jsonObj.value(
+                                Constants::QUICK_3D_ASSET_IMPORT_DATA_SOURCE_KEY).toString();
+                    if (options.isEmpty() || sourcePath.isEmpty()) {
+                        errorMsg = QCoreApplication::translate(
+                                    "ModelNodeOperations",
+                                    "Asset import data file \"%1\" is invalid.").arg(jsonFileName);
+                    } else {
+                        QFileInfo sourceInfo{sourcePath};
+                        if (!sourceInfo.exists()) {
+                            // Unable to find original scene source, launch file dialog to locate it
+                            QString initialPath;
+                            ProjectExplorer::Project *currentProject
+                                    = ProjectExplorer::SessionManager::projectForFile(
+                                        Utils::FilePath::fromString(compFileName));
+                            if (currentProject)
+                                initialPath = currentProject->projectDirectory().toString();
+                            else
+                                initialPath = compFileInfo.absolutePath();
+                            QStringList selectedFiles = QFileDialog::getOpenFileNames(
+                                        Core::ICore::dialogParent(),
+                                        tr("Locate 3D Asset \"%1\"").arg(sourceInfo.fileName()),
+                                        initialPath, sourceInfo.fileName());
+                            if (!selectedFiles.isEmpty()
+                                    && QFileInfo{selectedFiles[0]}.fileName() == sourceInfo.fileName()) {
+                                sourcePath = selectedFiles[0];
+                                sourceInfo.setFile(sourcePath);
+                            }
+                        }
+                        if (sourceInfo.exists()) {
+                            // In case of a selected node inside an imported component, preselect
+                            // any file pointed to by a "source" property of the node.
+                            QSet<QString> preselectedFiles;
+                            if (preselectNodeSource && updateNode.hasProperty("source")) {
+                                QString source = updateNode.variantProperty("source").value().toString();
+                                if (QFileInfo{source}.isRelative())
+                                    source = QDir{compFileInfo.absolutePath()}.absoluteFilePath(source);
+                                preselectedFiles.insert(source);
+                            }
+                            auto importDlg = new ItemLibraryAssetImportDialog(
+                                        {sourceInfo.absoluteFilePath()},
+                                        node.model()->fileUrl().toLocalFile(),
+                                        supportedExts, supportedOpts, options,
+                                        preselectedFiles, Core::ICore::mainWindow());
+                            importDlg->show();
+
+                        } else {
+                            errorMsg = QCoreApplication::translate(
+                                        "ModelNodeOperations", "Unable to locate source scene \"%1\".")
+                                    .arg(sourceInfo.fileName());
+                        }
+                    }
+                } else {
+                    errorMsg = jsonError.errorString();
+                }
+            } else {
+                errorMsg = QCoreApplication::translate("ModelNodeOperations",
+                                                       "Opening asset import data file \"%1\" failed.")
+                        .arg(jsonFileName);
+            }
+        } else {
+            errorMsg = QCoreApplication::translate("ModelNodeOperations",
+                                                   "Unable to resolve asset import path.");
+        }
+    }
+
+    if (!errorMsg.isEmpty()) {
+        QMessageBox::warning(
+                    qobject_cast<QWidget *>(Core::ICore::dialogParent()),
+                    QCoreApplication::translate("ModelNodeOperations", "Import Update Failed"),
+                    QCoreApplication::translate("ModelNodeOperations",
+                                                "Failed to update import.\nError:\n%1").arg(errorMsg),
+                    QMessageBox::Close);
+    }
 }
 
 void ItemLibraryAssetImportDialog::createTab(const QString &tabLabel, int optionsIndex,
@@ -284,10 +431,10 @@ void ItemLibraryAssetImportDialog::createTab(const QString &tabLabel, int option
 
     widgets.append(QVector<QPair<QWidget *, QWidget *>>());
 
-    for (const auto group : groups) {
+    for (const auto &group : groups) {
         const QString name = group.toObject().value("name").toString();
         const QJsonArray items = group.toObject().value("items").toArray();
-        for (const auto item : items)
+        for (const auto &item : items)
             optionToGroupMap.insert(item.toString(), name);
         auto groupLabel = new QLabel(name, optionsAreaContents);
         QFont labelFont = groupLabel->font();
@@ -600,7 +747,8 @@ void ItemLibraryAssetImportDialog::onImport()
 
     if (!m_quick3DFiles.isEmpty()) {
         m_importer.importQuick3D(m_quick3DFiles, m_quick3DImportPath,
-                                 m_importOptions, m_extToImportOptionsMap);
+                                 m_importOptions, m_extToImportOptionsMap,
+                                 m_preselectedFilesForOverwrite);
     }
 }
 

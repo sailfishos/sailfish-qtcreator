@@ -51,7 +51,7 @@ Rectangle {
             width: itemPane.width
             Section {
                 z: 2
-                caption: qsTr("Type")
+                caption: qsTr("Component")
 
                 anchors.left: parent.left
                 anchors.right: parent.right
@@ -71,6 +71,7 @@ Rectangle {
                             Label {
                                 anchors.fill: parent
                                 anchors.leftMargin: StudioTheme.Values.inputHorizontalPadding
+                                anchors.topMargin: StudioTheme.Values.typeLabelVerticalShift
                                 text: backendValues.className.value
                             }
                             ToolTipArea {
@@ -80,7 +81,7 @@ Rectangle {
                                     typeLineEdit.visible = ! typeLineEdit.visible
                                     typeLineEdit.forceActiveFocus()
                                 }
-                                tooltip: qsTr("Changes the type of this item.")
+                                tooltip: qsTr("Changes the type of this component.")
                                 enabled: !modelNodeBackend.multiSelection
                             }
 
@@ -127,7 +128,7 @@ Rectangle {
                     }
 
                     Label {
-                        text: qsTr("id")
+                        text: qsTr("ID")
                     }
 
                     SecondColumnLayout {
@@ -136,7 +137,7 @@ Rectangle {
                             id: lineEdit
 
                             backendValue: backendValues.id
-                            placeholderText: qsTr("id")
+                            placeholderText: qsTr("ID")
                             text: backendValues.id.value
                             Layout.fillWidth: true
                             width: 240
@@ -190,13 +191,13 @@ Rectangle {
                                 enabled: !modelNodeBackend.multiSelection
                                 anchors.fill: parent
                                 onClicked: toogleExportAlias()
-                                tooltip: qsTr("Exports this item as an alias property of the root item.")
+                                tooltip: qsTr("Exports this component as an alias property of the root component.")
                             }
                         }
                     }
 
                     Label {
-                        text: qsTr("Custom id")
+                        text: qsTr("Custom ID")
                     }
 
                     SecondColumnLayout {
@@ -338,6 +339,7 @@ Rectangle {
 
                     SecondColumnLayout {
                         SpinBox {
+                            width: StudioTheme.Values.squareComponentWidth * 4
                             sliderIndicatorVisible: true
                             backendValue: backendValues.opacity
                             decimals: 2

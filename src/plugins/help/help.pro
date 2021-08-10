@@ -4,10 +4,9 @@ INCLUDEPATH += $$PWD
 
 include(../../qtcreatorplugin.pri)
 
-# Temporarily disabled for lack of support for custom filters
-#minQtVersion(5, 15, 0) {
-#DEFINES += HELP_NEW_FILTER_ENGINE
-#}
+minQtVersion(5, 15, 0) {
+DEFINES += HELP_NEW_FILTER_ENGINE
+}
 
 DEFINES += \
     QT_CLUCENE_SUPPORT \
@@ -76,11 +75,14 @@ osx {
     }
 }
 
-exists($$PWD/qlitehtml/litehtml/CMakeLists.txt)|!isEmpty(LITEHTML_INSTALL_DIR) {
-    include(qlitehtml/qlitehtml.pri)
-    HEADERS += litehtmlhelpviewer.h
-    SOURCES += litehtmlhelpviewer.cpp
-    DEFINES += QTC_LITEHTML_HELPVIEWER
+QLITEHTML_DIR = $$PWD/../../libs/qlitehtml
+exists($$QLITEHTML_DIR/src/qlitehtml.pri) {
+    exists($$QLITEHTML_DIR/src/3rdparty/litehtml/CMakeLists.txt)|!isEmpty(LITEHTML_INSTALL_DIR) {
+        include($$QLITEHTML_DIR/src/qlitehtml.pri)
+        HEADERS += litehtmlhelpviewer.h
+        SOURCES += litehtmlhelpviewer.cpp
+        DEFINES += QTC_LITEHTML_HELPVIEWER
+    }
 }
 
 RESOURCES += help.qrc

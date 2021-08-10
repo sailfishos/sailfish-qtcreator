@@ -146,7 +146,6 @@ static bool debuggerActionsEnabledHelper(DebuggerState state)
     case InferiorRunFailed:
     case DebuggerNotReady:
     case EngineSetupRequested:
-    case EngineSetupOk:
     case EngineSetupFailed:
     case EngineRunRequested:
     case EngineRunFailed:
@@ -449,6 +448,7 @@ public:
         m_stackHandler.resetLocation();
         m_disassemblerAgent.resetLocation();
         m_toolTipManager.resetLocation();
+        m_breakHandler.resetLocation();
     }
 
 public:
@@ -460,7 +460,6 @@ public:
 
     DebuggerEngine *m_engine = nullptr; // Not owned.
     QString m_runId;
-    QPointer<DebuggerRunTool> m_runTool; // Not owned
     QString m_debuggerName;
     QPointer<Perspective> m_perspective;
     DebuggerRunParameters m_runParameters;
@@ -636,6 +635,7 @@ void DebuggerEnginePrivate::setupViews()
     m_modulesView->setModel(m_modulesHandler.model());
     m_modulesView->setSortingEnabled(true);
     m_modulesView->setSettings(settings, "Debugger.ModulesView");
+    m_modulesView->enableColumnHiding();
     connect(m_modulesView, &BaseTreeView::aboutToShow,
             m_engine, &DebuggerEngine::reloadModules,
             Qt::QueuedConnection);
@@ -647,6 +647,7 @@ void DebuggerEnginePrivate::setupViews()
     m_registerView->setModel(m_registerHandler.model());
     m_registerView->setRootIsDecorated(true);
     m_registerView->setSettings(settings, "Debugger.RegisterView");
+    m_registerView->enableColumnHiding();
     connect(m_registerView, &BaseTreeView::aboutToShow,
             m_engine, &DebuggerEngine::reloadRegisters,
             Qt::QueuedConnection);
@@ -658,6 +659,7 @@ void DebuggerEnginePrivate::setupViews()
     m_peripheralRegisterView->setModel(m_peripheralRegisterHandler.model());
     m_peripheralRegisterView->setRootIsDecorated(true);
     m_peripheralRegisterView->setSettings(settings, "Debugger.PeripheralRegisterView");
+    m_peripheralRegisterView->enableColumnHiding();
     connect(m_peripheralRegisterView, &BaseTreeView::aboutToShow,
             m_engine, &DebuggerEngine::reloadPeripheralRegisters,
             Qt::QueuedConnection);
@@ -669,6 +671,7 @@ void DebuggerEnginePrivate::setupViews()
     m_stackView->setModel(m_stackHandler.model());
     m_stackView->setSettings(settings, "Debugger.StackView");
     m_stackView->setIconSize(QSize(10, 10));
+    m_stackView->enableColumnHiding();
     m_stackWindow = addSearch(m_stackView);
     m_stackWindow->setObjectName("Debugger.Dock.Stack." + engineId);
     m_stackWindow->setWindowTitle(tr("&Stack"));
@@ -677,6 +680,7 @@ void DebuggerEnginePrivate::setupViews()
     m_sourceFilesView->setModel(m_sourceFilesHandler.model());
     m_sourceFilesView->setSortingEnabled(true);
     m_sourceFilesView->setSettings(settings, "Debugger.SourceFilesView");
+    m_sourceFilesView->enableColumnHiding();
     connect(m_sourceFilesView, &BaseTreeView::aboutToShow,
             m_engine, &DebuggerEngine::reloadSourceFiles,
             Qt::QueuedConnection);
@@ -690,6 +694,7 @@ void DebuggerEnginePrivate::setupViews()
     m_threadsView->setSettings(settings, "Debugger.ThreadsView");
     m_threadsView->setIconSize(QSize(10, 10));
     m_threadsView->setSpanColumn(ThreadData::FunctionColumn);
+    m_threadsView->enableColumnHiding();
     m_threadsWindow = addSearch(m_threadsView);
     m_threadsWindow->setObjectName("Debugger.Dock.Threads." + engineId);
     m_threadsWindow->setWindowTitle(tr("&Threads"));
@@ -739,6 +744,7 @@ void DebuggerEnginePrivate::setupViews()
     m_breakView->setSettings(settings, "Debugger.BreakWindow");
     m_breakView->setModel(m_breakHandler.model());
     m_breakView->setRootIsDecorated(true);
+    m_breakView->enableColumnHiding();
     m_breakWindow = addSearch(m_breakView);
     m_breakWindow->setObjectName("Debugger.Dock.Break." + engineId);
     m_breakWindow->setWindowTitle(tr("&Breakpoints"));
@@ -847,7 +853,7 @@ void DebuggerEnginePrivate::setupViews()
 
     m_perspective->addWindow(m_stackWindow, Perspective::SplitVertical, nullptr);
     m_perspective->addWindow(m_breakWindow, Perspective::SplitHorizontal, m_stackWindow);
-    m_perspective->addWindow(m_threadsWindow, Perspective::AddToTab, m_breakWindow,false);
+    m_perspective->addWindow(m_threadsWindow, Perspective::AddToTab, m_breakWindow);
     m_perspective->addWindow(m_modulesWindow, Perspective::AddToTab, m_threadsWindow, false);
     m_perspective->addWindow(m_sourceFilesWindow, Perspective::AddToTab, m_modulesWindow, false);
     m_perspective->addWindow(m_localsAndInspectorWindow, Perspective::AddToTab, nullptr, true, Qt::RightDockWidgetArea);
@@ -894,7 +900,6 @@ QString DebuggerEngine::stateName(int s)
     switch (s) {
         SN(DebuggerNotReady)
         SN(EngineSetupRequested)
-        SN(EngineSetupOk)
         SN(EngineSetupFailed)
         SN(EngineRunFailed)
         SN(EngineRunRequested)
@@ -913,6 +918,11 @@ QString DebuggerEngine::stateName(int s)
     }
     return QLatin1String("<unknown>");
 #    undef SN
+}
+
+void DebuggerEngine::notifyExitCode(int code)
+{
+    d->m_runParameters.exitCode = code;
 }
 
 void DebuggerEngine::showStatusMessage(const QString &msg, int timeout) const
@@ -1044,7 +1054,6 @@ void DebuggerEngine::setRunId(const QString &id)
 
 void DebuggerEngine::setRunTool(DebuggerRunTool *runTool)
 {
-    d->m_runTool = runTool;
     RunControl *runControl = runTool->runControl();
     d->m_device = runControl->device();
     if (!d->m_device)
@@ -1107,6 +1116,9 @@ void DebuggerEngine::gotoLocation(const Location &loc)
         d->m_locationMark.reset(new LocationMark(this, loc.fileName(), line));
         d->m_locationMark->setToolTip(tr("Current debugger location of %1").arg(displayName()));
     }
+
+    d->m_breakHandler.setLocation(loc);
+    d->m_watchHandler.setLocation(loc);
 }
 
 void DebuggerEngine::gotoCurrentLocation()
@@ -1171,13 +1183,13 @@ static bool isAllowedTransition(DebuggerState from, DebuggerState to)
         return to == EngineSetupRequested;
 
     case EngineSetupRequested:
-        return to == EngineSetupOk || to == EngineSetupFailed;
+        return to == EngineRunRequested
+            || to == EngineSetupFailed
+            || to == EngineShutdownRequested;
     case EngineSetupFailed:
         // In is the engine's task to go into a proper "Shutdown"
         // state before calling notifyEngineSetupFailed
         return to == DebuggerFinished;
-    case EngineSetupOk:
-        return to == EngineRunRequested || to == EngineShutdownRequested;
 
     case EngineRunRequested:
         return to == EngineRunFailed
@@ -1246,13 +1258,10 @@ void DebuggerEngine::notifyEngineSetupOk()
 //    CALLGRIND_START_INSTRUMENTATION;
 //#endif
     showMessage("NOTE: ENGINE SETUP OK");
-    d->m_progress.setProgressValue(250);
     QTC_ASSERT(state() == EngineSetupRequested, qDebug() << this << state());
-    setState(EngineSetupOk);
     setState(EngineRunRequested);
     showMessage("CALL: RUN ENGINE");
     d->m_progress.setProgressValue(300);
-    runEngine();
 }
 
 void DebuggerEngine::notifyEngineRunOkAndInferiorUnrunnable()
@@ -1510,7 +1519,7 @@ void DebuggerEnginePrivate::updateState()
     m_threadsHandler.threadSwitcher()->setEnabled(threadsEnabled);
     m_threadLabel->setEnabled(threadsEnabled);
 
-    const bool isCore = m_engine->runParameters().startMode == AttachCore;
+    const bool isCore = m_engine->runParameters().startMode == AttachToCore;
     const bool stopped = state == InferiorStopOk;
     const bool detachable = stopped && !isCore;
     m_detachAction.setEnabled(detachable);
@@ -1719,8 +1728,6 @@ void DebuggerEngine::notifyInferiorExited()
     CALLGRIND_STOP_INSTRUMENTATION;
     CALLGRIND_DUMP_STATS;
 #endif
-    QTC_ASSERT(isAllowedTransition(state(), InferiorShutdownFinished),
-            qDebug() << this << state(); return);
     showMessage("NOTE: INFERIOR EXITED");
     d->resetLocation();
     setState(InferiorShutdownFinished);
@@ -1848,9 +1855,6 @@ void DebuggerEngine::setState(DebuggerState state, bool forced)
     if (oldState != d->m_state)
         emit EngineManager::instance()->engineStateChanged(this);
 
-    if (state == InferiorRunOk && isPrimaryEngine())
-        emit d->m_runTool->inferiorRunning();
-
     if (state == DebuggerFinished) {
         d->setBusyCursor(false);
 
@@ -1944,7 +1948,7 @@ void DebuggerEngine::notifyInferiorPid(const ProcessHandle &pid)
     if (pid.isValid()) {
         showMessage(tr("Taking notice of pid %1").arg(pid.pid()));
         DebuggerStartMode sm = runParameters().startMode;
-        if (sm == StartInternal || sm == StartExternal || sm == AttachExternal)
+        if (sm == StartInternal || sm == StartExternal || sm == AttachToLocalProcess)
             d->m_inferiorPid.activate();
     }
 }
@@ -1992,9 +1996,6 @@ void DebuggerEngine::quitDebugger()
         interruptInferior();
         break;
     case EngineSetupRequested:
-        notifyEngineSetupFailed();
-        break;
-    case EngineSetupOk:
         notifyEngineSetupFailed();
         break;
     case EngineRunRequested:

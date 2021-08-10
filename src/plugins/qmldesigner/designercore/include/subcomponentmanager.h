@@ -48,6 +48,7 @@ public:
     explicit SubComponentManager(Model *model, QObject *parent = nullptr);
 
     void update(const QUrl &fileUrl, const QList<Import> &imports);
+    void updateImport(const Import &import);
 
     QStringList qmlFiles() const;
     QStringList directories() const;
@@ -57,15 +58,16 @@ private: // functions
     void parseFile(const QString &canonicalFilePath,  bool addToLibrary, const QString&);
     void parseFile(const QString &canonicalFilePath);
 
-    void addImport(int pos, const Import &import);
-    void removeImport(int pos);
+    void addImport(const Import &import, int index = -1);
+    void removeImport(int index);
     void parseDirectories();
     QFileInfoList watchedFiles(const QString &canonicalDirPath);
     void unregisterQmlFile(const QFileInfo &fileInfo, const QString &qualifier);
     void registerQmlFile(const QFileInfo &fileInfo, const QString &qualifier, bool addToLibrary);
     Model *model() const;
     QStringList importPaths() const;
-    void parseQuick3DAssetDir(const QString &assetPath);
+    void parseQuick3DAssetsDir(const QString &quick3DAssetsPath);
+    void parseQuick3DAssetsItem(const QString &importUrl, const QString &quick3DAssetsPath = {});
     QStringList quick3DAssetPaths() const;
 
 private: // variables

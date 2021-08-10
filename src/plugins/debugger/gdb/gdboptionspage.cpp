@@ -153,6 +153,11 @@ GdbOptionsPageWidget::GdbOptionsPageWidget()
         "<html><head/><body>GDB shows by default AT&&T style disassembly."
         "</body></html>"));
 
+    auto checkBoxUsePseudoTracepoints = new QCheckBox(groupBoxGeneral);
+    checkBoxUsePseudoTracepoints->setText(GdbOptionsPage::tr("Use pseudo message tracepoints"));
+    checkBoxUsePseudoTracepoints->setToolTip(GdbOptionsPage::tr(
+        "Uses Python to extend the ordinary GDB breakpoint class."));
+
     QString howToUsePython = GdbOptionsPage::tr(
         "<p>To execute simple Python commands, prefix them with \"python\".</p>"
         "<p>To execute sequences of Python commands spanning multiple lines "
@@ -225,6 +230,7 @@ GdbOptionsPageWidget::GdbOptionsPageWidget()
     formLayout->addRow(checkBoxLoadGdbInit);
     formLayout->addRow(checkBoxLoadGdbDumpers);
     formLayout->addRow(checkBoxIntelFlavor);
+    formLayout->addRow(checkBoxUsePseudoTracepoints);
 
     auto startLayout = new QGridLayout(groupBoxStartupCommands);
     startLayout->addWidget(textEditStartupCommands, 0, 0, 1, 1);
@@ -248,6 +254,7 @@ GdbOptionsPageWidget::GdbOptionsPageWidget()
     group.insert(action(IntelFlavor), checkBoxIntelFlavor);
     group.insert(action(UseMessageBoxForSignals), checkBoxUseMessageBoxForSignals);
     group.insert(action(SkipKnownFrames), checkBoxSkipKnownFrames);
+    group.insert(action(UsePseudoTracepoints), checkBoxUsePseudoTracepoints);
 
     //lineEditSelectedPluginBreakpointsPattern->
     //    setEnabled(action(SelectedPluginBreakpoints)->value().toBool());
@@ -286,8 +293,6 @@ GdbOptionsPageWidget2::GdbOptionsPageWidget2()
     groupBoxDangerous->setTitle(GdbOptionsPage::tr("Extended"));
 
     auto labelDangerous = new QLabel(GdbOptionsPage::tr(
-        "The options below should be used with care."));
-    labelDangerous->setToolTip(GdbOptionsPage::tr(
         "<html><head/><body>The options below give access to advanced "
         "or experimental functions of GDB. Enabling them may negatively "
         "impact your debugging experience.</body></html>"));

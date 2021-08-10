@@ -56,9 +56,9 @@ ClangCurrentDocumentFilter::ClangCurrentDocumentFilter()
 {
     setId(CppTools::Constants::CURRENT_DOCUMENT_FILTER_ID);
     setDisplayName(CppTools::Constants::CURRENT_DOCUMENT_FILTER_DISPLAY_NAME);
-    setShortcutString(QString(QLatin1Char('.')));
+    setDefaultShortcutString(".");
     setPriority(High);
-    setIncludedByDefault(false);
+    setDefaultIncludedByDefault(false);
 
     Core::EditorManager *editorManager = Core::EditorManager::instance();
     connect(editorManager, &Core::EditorManager::currentEditorChanged,
@@ -97,11 +97,17 @@ static Core::LocatorFilterEntry makeEntry(Core::ILocatorFilter *filter,
     return entry;
 }
 
+void ClangCurrentDocumentFilter::prepareSearch(const QString &entry)
+{
+    Q_UNUSED(entry)
+    m_preparedPath = m_currentPath;
+}
+
 QList<Core::LocatorFilterEntry> ClangCurrentDocumentFilter::matchesFor(
         QFutureInterface<Core::LocatorFilterEntry> &, const QString &entry)
 {
     QList<Core::LocatorFilterEntry> goodEntries;
-    if (!m_currentEditor)
+    if (m_preparedPath.isEmpty())
         return goodEntries;
 
     FuzzyMatcher::CaseSensitivity caseSesitivity = caseSensitivity(entry) == Qt::CaseSensitive
@@ -111,7 +117,7 @@ QList<Core::LocatorFilterEntry> ClangCurrentDocumentFilter::matchesFor(
     if (!regexp.isValid())
         return goodEntries;
 
-    ClangEditorDocumentProcessor *processor = ClangEditorDocumentProcessor::get(m_currentPath);
+    ClangEditorDocumentProcessor *processor = ClangEditorDocumentProcessor::get(m_preparedPath);
     if (!processor)
         return goodEntries;
 
@@ -139,14 +145,10 @@ void ClangCurrentDocumentFilter::accept(Core::LocatorFilterEntry selection,
                                       lineColumn.column - 1);
 }
 
-void ClangCurrentDocumentFilter::refresh(QFutureInterface<void> &)
+void ClangCurrentDocumentFilter::reset(Core::IEditor *newCurrent, const QString &path)
 {
-}
-
-void ClangCurrentDocumentFilter::reset()
-{
-    m_currentEditor = nullptr;
-    m_currentPath.clear();
+    m_currentEditor = newCurrent;
+    m_currentPath = path;
 }
 
 void ClangCurrentDocumentFilter::onEditorAboutToClose(Core::IEditor *editorAboutToClose)
@@ -161,11 +163,10 @@ void ClangCurrentDocumentFilter::onEditorAboutToClose(Core::IEditor *editorAbout
 void ClangCurrentDocumentFilter::onCurrentEditorChanged(Core::IEditor *newCurrent)
 {
     if (newCurrent) {
-        m_currentEditor = newCurrent;
-        Core::IDocument *document = m_currentEditor->document();
-        QTC_ASSERT(document, return;);
+        Core::IDocument *document = newCurrent->document();
+        QTC_ASSERT(document, reset(); return);
         if (auto *textDocument = qobject_cast<TextEditor::TextDocument *>(document)) {
-            m_currentPath = textDocument->filePath().toString();
+            reset(newCurrent, textDocument->filePath().toString());
             return;
         }
     }

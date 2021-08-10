@@ -42,14 +42,14 @@ namespace Core {
 namespace QmlDesigner {
 
 class QmlDesignerPluginPrivate;
-class ImageCache;
+class AsynchronousImageCache;
 
 namespace Internal { class DesignModeWidget; }
 
 class QMLDESIGNERCORE_EXPORT QmlDesignerPlugin final : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "plugins/qmldesigner/QmlDesigner.json")
+    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "QmlDesigner.json")
 
 public:
     QmlDesignerPlugin();
@@ -87,7 +87,7 @@ public:
     static void emitUsageStatisticsContextAction(const QString &identifier);
     static void emitUsageStatisticsTime(const QString &identifier, int elapsed);
 
-    static ImageCache &imageCache();
+    static AsynchronousImageCache &imageCache();
 
 signals:
     void usageStatisticsNotifier(const QString &identifier);

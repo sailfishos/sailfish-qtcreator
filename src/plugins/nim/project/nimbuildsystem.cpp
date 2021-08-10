@@ -28,7 +28,6 @@
 #include "nimconstants.h"
 #include "nimproject.h"
 #include "nimbleproject.h"
-#include "nimprojectnode.h"
 
 #include <projectexplorer/target.h>
 #include <projectexplorer/toolchain.h>
@@ -51,7 +50,7 @@ const char EXCLUDED_FILES_KEY[] = "ExcludedFiles";
 NimProjectScanner::NimProjectScanner(Project *project)
     : m_project(project)
 {
-    setFilter([this](const Utils::MimeType &, const FilePath &fp) {
+    m_scanner.setFilter([this](const Utils::MimeType &, const FilePath &fp) {
         const QString path = fp.toString();
         return excludedFiles().contains(path)
                 || path.endsWith(".nimproject")
@@ -111,11 +110,6 @@ void NimProjectScanner::saveSettings()
     QVariantMap settings;
     settings.insert(EXCLUDED_FILES_KEY, excludedFiles());
     m_project->setNamedSettings(SETTINGS_KEY, settings);
-}
-
-void NimProjectScanner::setFilter(const TreeScanner::FileFilter &filter)
-{
-    m_scanner.setFilter(filter);
 }
 
 void NimProjectScanner::startScan()

@@ -25,6 +25,10 @@ add_qtc_plugin(AutoTest
     catch/catchtestparser.cpp catch/catchtreeitem.h catch/catchtreeitem.cpp
     catch/catchtestsettings.cpp catch/catchtestsettings.h
     catch/catchtestsettingspage.cpp catch/catchtestsettingspage.h catch/catchtestsettingspage.ui
+    ctest/ctestconfiguration.cpp ctest/ctestconfiguration.h
+    ctest/ctestoutputreader.cpp ctest/ctestoutputreader.h
+    ctest/ctesttool.cpp ctest/ctesttool.h
+    ctest/ctesttreeitem.cpp ctest/ctesttreeitem.h
     gtest/gtest_utils.cpp gtest/gtest_utils.h
     gtest/gtestconfiguration.cpp gtest/gtestconfiguration.h
     gtest/gtestconstants.h
@@ -36,10 +40,10 @@ add_qtc_plugin(AutoTest
     gtest/gtestsettingspage.cpp gtest/gtestsettingspage.h gtest/gtestsettingspage.ui
     gtest/gtesttreeitem.cpp gtest/gtesttreeitem.h
     gtest/gtestvisitors.cpp gtest/gtestvisitors.h
-    iframeworksettings.h
     itemdatacache.h
     itestframework.cpp itestframework.h
     itestparser.cpp itestparser.h
+    itestsettings.h
     projectsettingswidget.cpp projectsettingswidget.h
     qtest/qttest_utils.cpp qtest/qttest_utils.h
     qtest/qttestconfiguration.cpp qtest/qttestconfiguration.h

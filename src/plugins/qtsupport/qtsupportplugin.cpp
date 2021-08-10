@@ -123,7 +123,6 @@ static void askAboutQtInstallation()
         Utils::InfoBarEntry::GlobalSuppression::Enabled);
     info.setCustomButtonInfo(QtSupportPlugin::tr("Link with Qt"), [] {
         ICore::infoBar()->removeInfo(kLinkWithQtInstallationSetting);
-        ICore::infoBar()->globallySuppressInfo(kLinkWithQtInstallationSetting);
         QTimer::singleShot(0, ICore::dialogParent(), &QtOptionsPage::linkWithQt);
     });
     ICore::infoBar()->addInfo(info);
@@ -159,6 +158,15 @@ void QtSupportPlugin::extensionsInitialized()
             return qt ? qt->binPath().toUserOutput() : QString();
         });
 
+    expander->registerVariable(
+        "CurrentDocument:Project:QT_HOST_LIBEXECS",
+        tr("Full path to the host libexec directory of the Qt version in the active kit "
+           "of the project containing the current document."),
+        []() {
+            const BaseQtVersion *const qt = currentQtVersion();
+            return qt ? qt->hostLibexecPath().toUserOutput() : QString();
+        });
+
     static const auto activeQtVersion = []() -> const BaseQtVersion * {
         ProjectExplorer::Project *project = SessionManager::startupProject();
         if (!project || !project->activeTarget())
@@ -183,6 +191,15 @@ void QtSupportPlugin::extensionsInitialized()
         []() {
             const BaseQtVersion * const qt = activeQtVersion();
             return qt ? qt->binPath().toUserOutput() : QString();
+        });
+
+    expander->registerVariable(
+        "ActiveProject::QT_HOST_LIBEXECS",
+        tr("Full path to the libexec bin directory of the Qt version in the active kit "
+           "of the active project."),
+        []() {
+            const BaseQtVersion *const qt = activeQtVersion();
+            return qt ? qt->hostLibexecPath().toUserOutput() : QString();
         });
 
     askAboutQtInstallation();

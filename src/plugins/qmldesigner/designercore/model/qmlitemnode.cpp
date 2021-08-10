@@ -43,6 +43,7 @@
 #include <QPlainTextEdit>
 #include <QFileInfo>
 #include <QDir>
+#include <QImageReader>
 
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
@@ -107,7 +108,12 @@ QmlItemNode QmlItemNode::createQmlItemNodeFromImage(AbstractView *view, const QS
             propertyPairList.append({PropertyName("source"), QVariant(relativeImageName)});
         }
 
-        newQmlItemNode = QmlItemNode(view->createModelNode("QtQuick.Image", metaInfo.majorVersion(), metaInfo.minorVersion(), propertyPairList));
+        TypeName type("QtQuick.Image");
+        QImageReader reader(imageName);
+        if (reader.supportsAnimation())
+            type = "QtQuick.AnimatedImage";
+
+        newQmlItemNode = QmlItemNode(view->createModelNode(type, metaInfo.majorVersion(), metaInfo.minorVersion(), propertyPairList));
         parentproperty.reparentHere(newQmlItemNode);
 
         QFileInfo fi(relativeImageName);
@@ -122,6 +128,54 @@ QmlItemNode QmlItemNode::createQmlItemNodeFromImage(AbstractView *view, const QS
         view->executeInTransaction("QmlItemNode::createQmlItemNodeFromImage", doCreateQmlItemNodeFromImage);
     else
         doCreateQmlItemNodeFromImage();
+
+    return newQmlItemNode;
+}
+
+QmlItemNode QmlItemNode::createQmlItemNodeFromFont(AbstractView *view,
+                                                   const QString &fontFamily,
+                                                   const QPointF &position,
+                                                   QmlItemNode parentQmlItemNode,
+                                                   bool executeInTransaction)
+{
+    if (!parentQmlItemNode.isValid())
+        parentQmlItemNode = QmlItemNode(view->rootModelNode());
+
+    NodeAbstractProperty parentProperty = parentQmlItemNode.defaultNodeAbstractProperty();
+
+    return QmlItemNode::createQmlItemNodeFromFont(view, fontFamily, position,
+                                                  parentProperty, executeInTransaction);
+}
+
+QmlItemNode QmlItemNode::createQmlItemNodeFromFont(AbstractView *view,
+                                                   const QString &fontFamily,
+                                                   const QPointF &position,
+                                                   NodeAbstractProperty parentproperty,
+                                                   bool executeInTransaction)
+{
+    QmlItemNode newQmlItemNode;
+
+    auto doCreateQmlItemNodeFromFont = [=, &newQmlItemNode, &parentproperty]() {
+        NodeMetaInfo metaInfo = view->model()->metaInfo("QtQuick.Text");
+        QList<QPair<PropertyName, QVariant>> propertyPairList;
+        propertyPairList.append({PropertyName("x"), QVariant(qRound(position.x()))});
+        propertyPairList.append({PropertyName("y"), QVariant(qRound(position.y()))});
+        propertyPairList.append({PropertyName("font.family"), QVariant(fontFamily)});
+        propertyPairList.append({PropertyName("text"), QVariant(fontFamily)});
+
+        newQmlItemNode = QmlItemNode(view->createModelNode("QtQuick.Text", metaInfo.majorVersion(),
+                                                           metaInfo.minorVersion(), propertyPairList));
+        parentproperty.reparentHere(newQmlItemNode);
+
+        newQmlItemNode.setId(view->generateNewId("text", "text"));
+
+        Q_ASSERT(newQmlItemNode.isValid());
+    };
+
+    if (executeInTransaction)
+        view->executeInTransaction("QmlItemNode::createQmlItemNodeFromImage", doCreateQmlItemNodeFromFont);
+    else
+        doCreateQmlItemNodeFromFont();
 
     return newQmlItemNode;
 }
@@ -719,7 +773,7 @@ ModelNode QmlFlowViewNode::addTransition(const QmlFlowTargetNode &from, const Qm
     return transition;
 }
 
-const QList<ModelNode> QmlFlowViewNode::transitions() const
+QList<ModelNode> QmlFlowViewNode::transitions() const
 {
     if (modelNode().nodeListProperty("flowTransitions").isValid())
         return modelNode().nodeListProperty("flowTransitions").toModelNodeList();
@@ -727,7 +781,7 @@ const QList<ModelNode> QmlFlowViewNode::transitions() const
     return {};
 }
 
-const QList<ModelNode> QmlFlowViewNode::wildcards() const
+QList<ModelNode> QmlFlowViewNode::wildcards() const
 {
     if (modelNode().nodeListProperty("flowWildcards").isValid())
         return modelNode().nodeListProperty("flowWildcards").toModelNodeList();
@@ -735,7 +789,7 @@ const QList<ModelNode> QmlFlowViewNode::wildcards() const
     return {};
 }
 
-const QList<ModelNode> QmlFlowViewNode::decicions() const
+QList<ModelNode> QmlFlowViewNode::decicions() const
 {
     if (modelNode().nodeListProperty("flowDecisions").isValid())
         return modelNode().nodeListProperty("flowDecisions").toModelNodeList();

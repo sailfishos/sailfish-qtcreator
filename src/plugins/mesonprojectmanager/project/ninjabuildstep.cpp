@@ -25,12 +25,12 @@
 
 #include "ninjabuildstep.h"
 
-#include "outputparsers/mesonoutputparser.h"
 #include "mesonbuildconfiguration.h"
 #include "mesonbuildsystem.h"
 #include "mesonpluginconstants.h"
-#include <settings/general/settings.h>
-#include <settings/tools/kitaspect/ninjatoolkitaspect.h>
+#include "outputparsers/mesonoutputparser.h"
+#include "settings/general/settings.h"
+#include "settings/tools/kitaspect/ninjatoolkitaspect.h"
 
 #include <coreplugin/find/itemviewfind.h>
 
@@ -50,6 +50,7 @@ using namespace Utils;
 
 namespace MesonProjectManager {
 namespace Internal {
+
 const char TARGETS_KEY[] = "MesonProjectManager.BuildStep.BuildTargets";
 const char TOOL_ARGUMENTS_KEY[] = "MesonProjectManager.BuildStep.AdditionalArguments";
 
@@ -198,9 +199,9 @@ void NinjaBuildStep::setupOutputFormatter(Utils::OutputFormatter *formatter)
     m_ninjaParser->setSourceDirectory(project()->projectDirectory());
     formatter->addLineParser(m_ninjaParser);
     auto additionalParsers = kit()->createOutputParsers();
-    std::for_each(std::cbegin(additionalParsers),
-                  std::cend(additionalParsers),
-                  [this](const auto parser) { parser->setRedirectionDetector(m_ninjaParser); });
+    for (const auto parser : additionalParsers) {
+        parser->setRedirectionDetector(m_ninjaParser);
+    }
     formatter->addLineParsers(additionalParsers);
     formatter->addSearchDir(processParameters()->effectiveWorkingDirectory());
     AbstractProcessStep::setupOutputFormatter(formatter);

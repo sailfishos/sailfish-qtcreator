@@ -46,7 +46,6 @@ class PathChooserPrivate;
 class QTCREATOR_UTILS_EXPORT PathChooser : public QWidget
 {
     Q_OBJECT
-    Q_ENUMS(Kind)
     Q_PROPERTY(QString path READ path WRITE setPath NOTIFY pathChanged DESIGNABLE true)
     Q_PROPERTY(QString promptDialogTitle READ promptDialogTitle WRITE setPromptDialogTitle DESIGNABLE true)
     Q_PROPERTY(QString promptDialogFilter READ promptDialogFilter WRITE setPromptDialogFilter DESIGNABLE true)
@@ -72,6 +71,7 @@ public:
         Command, // A command that may or may not exist at the time of selection (e.g. result of a build)
         Any
     };
+    Q_ENUM(Kind)
 
     // Default is <Directory>
     void setExpectedKind(Kind expected);
@@ -153,8 +153,6 @@ public:
 
     // Deprecated. Use filePath().toString() or better suitable conversions.
     QString path() const { return filePath().toString(); }
-    // Deprecated. Use filePath()
-    FilePath fileName() const { return filePath(); }
 
     // this sets the placeHolderText to defaultValue and enables to use this as
     // input value during validation if the real value is empty
@@ -179,8 +177,6 @@ signals:
 
 public slots:
     void setPath(const QString &);
-    // Deprecated: Use setFilePath()
-    void setFileName(const FilePath &path) { setFilePath(path); }
     void setFilePath(const FilePath &);
 
 private:

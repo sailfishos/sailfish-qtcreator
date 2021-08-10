@@ -29,6 +29,9 @@
 #include "../testframeworkmanager.h"
 
 #include <utils/id.h>
+#include <utils/qtcassert.h>
+
+#include <QRegularExpression>
 
 namespace Autotest {
 namespace Internal {
@@ -87,7 +90,7 @@ bool BoostTestResult::isDirectParentOf(const TestResult *other, bool *needsInter
     return false;
 }
 
-const TestTreeItem *BoostTestResult::findTestTreeItem() const
+const ITestTreeItem *BoostTestResult::findTestTreeItem() const
 {
     auto id = Utils::Id(Constants::FRAMEWORK_PREFIX).withSuffix(BoostTest::Constants::FRAMEWORK_NAME);
     ITestFramework *framework = TestFrameworkManager::frameworkForId(id);
@@ -96,10 +99,9 @@ const TestTreeItem *BoostTestResult::findTestTreeItem() const
     if (!rootNode)
         return nullptr;
 
-    const auto foundItem = rootNode->findAnyChild([this](const Utils::TreeItem *item) {
+    return rootNode->findAnyChild([this](const Utils::TreeItem *item) {
         return matches(static_cast<const BoostTestTreeItem *>(item));
     });
-    return static_cast<const TestTreeItem *>(foundItem);
 }
 
 bool BoostTestResult::matches(const BoostTestTreeItem *item) const

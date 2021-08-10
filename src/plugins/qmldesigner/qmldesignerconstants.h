@@ -69,8 +69,10 @@ const char QML_DESIGNER_SUBFOLDER[] = "/designer/";
 const char QUICK_3D_ASSETS_FOLDER[] = "/Quick3DAssets";
 const char QUICK_3D_ASSET_LIBRARY_ICON_SUFFIX[] = "_libicon";
 const char QUICK_3D_ASSET_ICON_DIR[] = "_icons";
+const char QUICK_3D_ASSET_IMPORT_DATA_NAME[] = "_importdata.json";
+const char QUICK_3D_ASSET_IMPORT_DATA_OPTIONS_KEY[] = "import_options";
+const char QUICK_3D_ASSET_IMPORT_DATA_SOURCE_KEY[] = "source_scene";
 const char DEFAULT_ASSET_IMPORT_FOLDER[] = "/asset_imports";
-const char QT_QUICK_3D_MODULE_NAME[] = "QtQuick3D";
 
 // Menus
 const char M_VIEW_WORKSPACES[] = "QmlDesigner.Menu.View.Workspaces";
@@ -86,7 +88,6 @@ const char EVENT_ANNOTATION_ADDED[] = "Annotation Added";
 const char EVENT_RESOURCE_IMPORTED[] = "Resource Imported ";
 const char EVENT_ACTION_EXECUTED[] = "Action Executed ";
 const char EVENT_IMPORT_ADDED[] = "Import Added ";
-const char EVENT_IMPORT_ADDED_FLOWTAG[] = "Import Added FlowTag ";
 const char EVENT_BINDINGEDITOR_OPENED[] = "Binding Editor Opened";
 const char EVENT_RICHTEXT_OPENED[] = "Richtext Editor Opened";
 const char EVENT_FORMEDITOR_TIME[] = "Form Editor";

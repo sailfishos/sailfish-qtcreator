@@ -108,7 +108,7 @@ void BoostTestOutputReader::sendCompleteInformation()
     if (m_lineNumber) {
         result->setLine(m_lineNumber);
         result->setFileName(m_fileName);
-    } else if (const TestTreeItem *it = result->findTestTreeItem()) {
+    } else if (const ITestTreeItem *it = result->findTestTreeItem()) {
         result->setLine(it->line());
         result->setFileName(it->filePath());
     }
@@ -396,6 +396,7 @@ void BoostTestOutputReader::processOutputLine(const QByteArray &outputLine)
 void BoostTestOutputReader::processStdError(const QByteArray &outputLine)
 {
     // we need to process the output, Boost UTF uses both out streams
+    checkForSanitizerOutput(outputLine);
     processOutputLine(outputLine);
     emit newOutputLineAvailable(outputLine, OutputChannel::StdErr);
 }
@@ -420,17 +421,17 @@ void BoostTestOutputReader::onFinished(int exitCode, QProcess::ExitStatus /*exit
     if (m_logLevel == LogLevel::Nothing && m_reportLevel == ReportLevel::No) {
         switch (exitCode) {
         case 0:
-            reportNoOutputFinish(tr("Running tests exited with ") + "boost::exit_success.",
+            reportNoOutputFinish(tr("Running tests exited with %1").arg("boost::exit_success."),
                                  ResultType::Pass);
             break;
         case 200:
             reportNoOutputFinish(
-                        tr("Running tests exited with ") + "boost::exit_test_exception.",
+                        tr("Running tests exited with %1").arg("boost::exit_test_exception."),
                         ResultType::MessageFatal);
             break;
         case 201:
-            reportNoOutputFinish(tr("Running tests exited with ")
-                                 + "boost::exit_test_failure.", ResultType::Fail);
+            reportNoOutputFinish(tr("Running tests exited with %1")
+                                 .arg("boost::exit_test_failure."), ResultType::Fail);
             break;
         }
     } else if (exitCode != 0 && exitCode != 201 && !m_description.isEmpty()) {

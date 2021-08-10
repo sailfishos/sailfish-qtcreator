@@ -24,12 +24,43 @@
 ****************************************************************************/
 
 #include "itestframework.h"
+
+#include "autotestconstants.h"
 #include "itestparser.h"
+#include "testtreeitem.h"
+#include "testtreemodel.h"
 
 namespace Autotest {
 
-ITestFramework::ITestFramework(bool activeByDefault)
+ITestBase::ITestBase(bool activeByDefault, const ITestBase::TestBaseType type)
     : m_active(activeByDefault)
+    , m_type(type)
+{}
+
+Utils::Id ITestBase::settingsId() const
+{
+    return Utils::Id(Constants::SETTINGSPAGE_PREFIX)
+            .withSuffix(QString("%1.%2").arg(priority()).arg(QLatin1String(name())));
+}
+
+Utils::Id ITestBase::id() const
+{
+    return Utils::Id(Constants::FRAMEWORK_PREFIX).withSuffix(name());
+}
+
+void ITestBase::resetRootNode()
+{
+    if (!m_rootNode)
+        return;
+    if (m_rootNode->model())
+        static_cast<TestTreeModel *>(m_rootNode->model())->takeItem(m_rootNode);
+    delete m_rootNode;
+    m_rootNode = nullptr;
+}
+
+
+ITestFramework::ITestFramework(bool activeByDefault)
+    : ITestBase(activeByDefault, ITestBase::Framework)
 {}
 
 ITestFramework::~ITestFramework()
@@ -42,7 +73,7 @@ TestTreeItem *ITestFramework::rootNode()
     if (!m_rootNode)
         m_rootNode = createRootNode();
     // These are stored in the TestTreeModel and destroyed on shutdown there.
-    return m_rootNode;
+    return static_cast<TestTreeItem *>(m_rootNode);
 }
 
 ITestParser *ITestFramework::testParser()
@@ -52,25 +83,16 @@ ITestParser *ITestFramework::testParser()
     return m_testParser;
 }
 
-Utils::Id ITestFramework::settingsId() const
-{
-    return Utils::Id(Constants::SETTINGSPAGE_PREFIX)
-            .withSuffix(QString("%1.%2").arg(priority()).arg(QLatin1String(name())));
-}
+ITestTool::ITestTool(bool activeByDefault)
+    : ITestBase(activeByDefault, ITestBase::Tool)
+{}
 
-Utils::Id ITestFramework::id() const
-{
-    return Utils::Id(Constants::FRAMEWORK_PREFIX).withSuffix(name());
-}
-
-void ITestFramework::resetRootNode()
+ITestTreeItem *ITestTool::rootNode()
 {
     if (!m_rootNode)
-        return;
-    if (m_rootNode->model())
-        static_cast<TestTreeModel *>(m_rootNode->model())->takeItem(m_rootNode);
-    delete m_rootNode;
-    m_rootNode = nullptr;
+        m_rootNode = createRootNode();
+    // These are stored in the TestTreeModel and destroyed on shutdown there.
+    return m_rootNode;
 }
 
 } // namespace Autotest

@@ -23,7 +23,10 @@
 **
 ****************************************************************************/
 
+#include "conanconstants.h"
 #include "conaninstallstep.h"
+#include "conanplugin.h"
+#include "conansettings.h"
 
 #include <projectexplorer/abstractprocessstep.h>
 #include <projectexplorer/buildconfiguration.h>
@@ -65,7 +68,8 @@ ConanInstallStep::ConanInstallStep(BuildStepList *bsl, Id id)
 
     auto conanFile = addAspect<StringAspect>();
     conanFile->setSettingsKey("ConanPackageManager.InstallStep.ConanFile");
-    conanFile->setFilePath(project()->projectDirectory() / "conanfile.txt");
+    conanFile->setFilePath(ConanPlugin::conanFilePath(project(),
+                           project()->projectDirectory() / "conanfile.txt"));
     conanFile->setLabelText(tr("Conan file:"));
     conanFile->setToolTip(tr("Enter location of conanfile.txt or conanfile.py."));
     conanFile->setDisplayStyle(StringAspect::PathChooserDisplay);
@@ -76,12 +80,22 @@ ConanInstallStep::ConanInstallStep(BuildStepList *bsl, Id id)
     additionalArguments->setLabelText(tr("Additional arguments:"));
     additionalArguments->setDisplayStyle(StringAspect::LineEditDisplay);
 
-    setCommandLineProvider([this, conanFile, additionalArguments] {
+    auto buildMissing = addAspect<BoolAspect>();
+    buildMissing->setSettingsKey("ConanPackageManager.InstallStep.BuildMissing");
+    buildMissing->setLabel("Build missing:", BoolAspect::LabelPlacement::InExtraLabel);
+    buildMissing->setDefaultValue(true);
+    buildMissing->setValue(true);
+
+    setCommandLineProvider([=] {
         BuildConfiguration::BuildType bt = buildConfiguration()->buildType();
         const QString buildType = bt == BuildConfiguration::Release ? QString("Release")
                                                                     : QString("Debug");
-        CommandLine cmd("conan");
-        cmd.addArgs({"install", "-s", "build_type=" + buildType, conanFile->value()});
+
+        CommandLine cmd(ConanPlugin::conanSettings()->conanFilePath());
+        cmd.addArgs({"install", "-s", "build_type=" + buildType});
+        if (buildMissing->value())
+            cmd.addArg("--build=missing");
+        cmd.addArg(conanFile->value());
         cmd.addArgs(additionalArguments->value(), CommandLine::Raw);
         return cmd;
     });
@@ -123,7 +137,7 @@ void ConanInstallStep::setupOutputFormatter(OutputFormatter *formatter)
 
 ConanInstallStepFactory::ConanInstallStepFactory()
 {
-    registerStep<ConanInstallStep>("ConanPackageManager.InstallStep");
+    registerStep<ConanInstallStep>(Constants::INSTALL_STEP);
     setDisplayName(ConanInstallStep::tr("Run conan install"));
 }
 

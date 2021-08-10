@@ -27,7 +27,6 @@
 
 #include "transitionwarningitem.h"
 #include <QGraphicsSceneMouseEvent>
-#include <QGraphicsTextItem>
 #include <QKeyEvent>
 #include <QPen>
 #include <QPointF>
@@ -80,7 +79,7 @@ public:
 
     void disconnectItem(ConnectableItem *item);
     void setStartItem(ConnectableItem *item);
-    void setEndItem(ConnectableItem *item);
+    void setEndItem(ConnectableItem *item, bool fixValue = true);
 
     void startTransitionFrom(ConnectableItem *item, const QPointF &mouseScenePos);
     void setEndPos(const QPointF &endPos, bool snap = true);
@@ -96,7 +95,7 @@ public:
     void init(ScxmlTag *tag, BaseItem *parentItem = nullptr, bool initChildren = true, bool blockUpdates = false) override;
     void updateEditorInfo(bool allChilds = true) override;
     void updateAttributes() override;
-    void updateTarget();
+    void updateTarget(bool fixValue = true);
     void finalizeCreation() override;
     void checkVisibility(double scaleFactor) override;
     bool containsScenePoint(const QPointF &p) const override;

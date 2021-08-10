@@ -32,14 +32,15 @@
 #include "cmaketoolmanager.h"
 
 #include <coreplugin/icore.h>
+#include <ios/iosconstants.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/projectexplorersettings.h>
 #include <projectexplorer/task.h>
 #include <projectexplorer/toolchain.h>
 #include <qtsupport/baseqtversion.h>
 #include <qtsupport/qtkitinformation.h>
-#include <projectexplorer/projectexplorerconstants.h>
 
 #include <app/app_version.h>
 
@@ -66,6 +67,13 @@ namespace CMakeProjectManager {
 // CMakeKitAspect:
 // --------------------------------------------------------------------
 
+static bool isIos(const Kit *k)
+{
+    const Utils::Id deviceType = DeviceTypeKitAspect::deviceTypeId(k);
+    return deviceType == Ios::Constants::IOS_DEVICE_TYPE
+           || deviceType == Ios::Constants::IOS_SIMULATOR_TYPE;
+}
+
 static Utils::Id defaultCMakeToolId()
 {
     CMakeTool *defaultTool = CMakeToolManager::defaultCMakeTool();
@@ -74,7 +82,7 @@ static Utils::Id defaultCMakeToolId()
 
 static const char TOOL_ID[] = "CMakeProjectManager.CMakeKitInformation";
 
-class CMakeKitAspectWidget : public KitAspectWidget
+class CMakeKitAspectWidget final : public KitAspectWidget
 {
     Q_DECLARE_TR_FUNCTIONS(CMakeProjectManager::Internal::CMakeKitAspect)
 public:
@@ -320,7 +328,7 @@ static const char EXTRA_GENERATOR_KEY[] = "ExtraGenerator";
 static const char PLATFORM_KEY[] = "Platform";
 static const char TOOLSET_KEY[] = "Toolset";
 
-class CMakeGeneratorKitAspectWidget : public KitAspectWidget
+class CMakeGeneratorKitAspectWidget final : public KitAspectWidget
 {
     Q_DECLARE_TR_FUNCTIONS(CMakeProjectManager::Internal::CMakeGeneratorKitAspect)
 public:
@@ -430,7 +438,7 @@ private:
 
         auto updateDialog = [&generatorList, generatorCombo, extraGeneratorCombo,
                 platformEdit, toolsetEdit](const QString &name) {
-            auto it = std::find_if(generatorList.constBegin(), generatorList.constEnd(),
+            const auto it = std::find_if(generatorList.constBegin(), generatorList.constEnd(),
                                    [name](const CMakeTool::Generator &g) { return g.name == name; });
             QTC_ASSERT(it != generatorList.constEnd(), return);
             generatorCombo->setCurrentText(name);
@@ -449,8 +457,8 @@ private:
 
         generatorCombo->setCurrentText(CMakeGeneratorKitAspect::generator(kit()));
         extraGeneratorCombo->setCurrentText(CMakeGeneratorKitAspect::extraGenerator(kit()));
-        platformEdit->setText(platformEdit->isEnabled() ? CMakeGeneratorKitAspect::platform(kit()) : QLatin1String("<unsupported>"));
-        toolsetEdit->setText(toolsetEdit->isEnabled() ? CMakeGeneratorKitAspect::toolset(kit()) : QLatin1String("<unsupported>"));
+        platformEdit->setText(platformEdit->isEnabled() ? CMakeGeneratorKitAspect::platform(kit()) : QString());
+        toolsetEdit->setText(toolsetEdit->isEnabled() ? CMakeGeneratorKitAspect::toolset(kit()) : QString());
 
         connect(generatorCombo, &QComboBox::currentTextChanged, updateDialog);
 
@@ -619,6 +627,14 @@ QStringList CMakeGeneratorKitAspect::generatorArguments(const Kit *k)
     return result;
 }
 
+bool CMakeGeneratorKitAspect::isMultiConfigGenerator(const Kit *k)
+{
+    const QString generator = CMakeGeneratorKitAspect::generator(k);
+    return generator.indexOf("Visual Studio") != -1 ||
+           generator == "Xcode" ||
+           generator == "Ninja Multi-Config";
+}
+
 QVariant CMakeGeneratorKitAspect::defaultValue(const Kit *k) const
 {
     QTC_ASSERT(k, return QVariant());
@@ -626,6 +642,9 @@ QVariant CMakeGeneratorKitAspect::defaultValue(const Kit *k) const
     CMakeTool *tool = CMakeKitAspect::cmakeTool(k);
     if (!tool)
         return QVariant();
+
+    if (isIos(k))
+        return GeneratorInfo("Xcode").toVariant();
 
     const QList<CMakeTool::Generator> known = tool->supportedGenerators();
     auto it = std::find_if(known.constBegin(), known.constEnd(), [](const CMakeTool::Generator &g) {
@@ -662,15 +681,13 @@ QVariant CMakeGeneratorKitAspect::defaultValue(const Kit *k) const
                               known.constEnd(),
                               [](const CMakeTool::Generator &g) {
                                   return g.matches("NMake Makefiles")
-                                         || g.matches("NMake Makefiles JOM")
-                                         || g.matches("Unix Makefiles");
+                                         || g.matches("NMake Makefiles JOM");
                               });
             if (ProjectExplorerPlugin::projectExplorerSettings().useJom) {
                 it = std::find_if(known.constBegin(),
                                   known.constEnd(),
                                   [](const CMakeTool::Generator &g) {
-                                      return g.matches("NMake Makefiles JOM")
-                                         || g.matches("Unix Makefiles");
+                                      return g.matches("NMake Makefiles JOM");
                                   });
             }
 
@@ -759,7 +776,7 @@ void CMakeGeneratorKitAspect::fix(Kit *k)
         dv.fromVariant(defaultValue(k));
         setGeneratorInfo(k, dv);
     } else {
-        const GeneratorInfo dv(info.generator,
+        const GeneratorInfo dv(isIos(k) ? QString("Xcode") : info.generator,
                                info.extraGenerator,
                                it->supportsPlatform ? info.platform : QString(),
                                it->supportsToolset ? info.toolset : QString());
@@ -828,7 +845,7 @@ static const char CMAKE_CXX_TOOLCHAIN_KEY[] = "CMAKE_CXX_COMPILER";
 static const char CMAKE_QMAKE_KEY[] = "QT_QMAKE_EXECUTABLE";
 static const char CMAKE_PREFIX_PATH_KEY[] = "CMAKE_PREFIX_PATH";
 
-class CMakeConfigurationKitAspectWidget : public KitAspectWidget
+class CMakeConfigurationKitAspectWidget final : public KitAspectWidget
 {
     Q_DECLARE_TR_FUNCTIONS(CMakeProjectManager::Internal::CMakeConfigurationKitAspect)
 public:

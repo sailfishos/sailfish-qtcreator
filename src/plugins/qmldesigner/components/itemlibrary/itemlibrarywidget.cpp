@@ -26,8 +26,8 @@
 #include "itemlibrarywidget.h"
 
 #include "customfilesystemmodel.h"
-#include "itemlibraryassetimportdialog.h"
 #include "itemlibraryiconimageprovider.h"
+#include "itemlibraryimport.h"
 
 #include <theme.h>
 
@@ -36,9 +36,9 @@
 #include <itemlibraryimageprovider.h>
 #include <itemlibraryinfo.h>
 #include <itemlibrarymodel.h>
+#include <itemlibraryaddimportmodel.h>
 #include <metainfo.h>
 #include <model.h>
-#include <previewtooltip/previewtooltipbackend.h>
 #include <rewritingexception.h>
 #include <qmldesignerconstants.h>
 #include <qmldesignerplugin.h>
@@ -54,16 +54,12 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/messagebox.h>
 
-#ifdef IMPORT_QUICK3D_ASSETS
-#include <QtQuick3DAssetImport/private/qssgassetimportmanager_p.h>
-#endif
-
 #include <QApplication>
 #include <QDrag>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFileSystemModel>
-#include <QGridLayout>
+#include <QVBoxLayout>
 #include <QImageReader>
 #include <QMenu>
 #include <QMimeData>
@@ -83,26 +79,87 @@ static QString propertyEditorResourcesPath() {
     return Core::ICore::resourcePath() + QStringLiteral("/qmldesigner/propertyEditorQmlSources");
 }
 
-ItemLibraryWidget::ItemLibraryWidget(ImageCache &imageCache)
+bool ItemLibraryWidget::eventFilter(QObject *obj, QEvent *event)
+{
+    if (event->type() == QEvent::FocusOut) {
+        if (obj == m_itemViewQuickWidget.data())
+            QMetaObject::invokeMethod(m_itemViewQuickWidget->rootObject(), "closeContextMenu");
+    } else if (event->type() == QMouseEvent::MouseMove) {
+        if (m_itemToDrag.isValid()) {
+            QMouseEvent *me = static_cast<QMouseEvent *>(event);
+            if ((me->globalPos() - m_dragStartPoint).manhattanLength() > 10) {
+                ItemLibraryEntry entry = m_itemToDrag.value<ItemLibraryEntry>();
+                // For drag to be handled correctly, we must have the component properly imported
+                // beforehand, so we import the module immediately when the drag starts
+                if (!entry.requiredImport().isEmpty()) {
+                    Import import = Import::createLibraryImport(entry.requiredImport());
+                    if (!m_model->hasImport(import, true, true)) {
+                        const QList<Import> possImports = m_model->possibleImports();
+                        for (const auto &possImport : possImports) {
+                            if (possImport.url() == import.url()) {
+                                m_model->changeImports({possImport}, {});
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                auto drag = new QDrag(this);
+                drag->setPixmap(Utils::StyleHelper::dpiSpecificImageFile(entry.libraryEntryIconPath()));
+                drag->setMimeData(m_itemLibraryModel->getMimeData(entry));
+                drag->exec();
+                drag->deleteLater();
+
+                m_itemToDrag = {};
+            }
+        }
+    } else if (event->type() == QMouseEvent::MouseButtonRelease) {
+        m_itemToDrag = {};
+    }
+
+    return QObject::eventFilter(obj, event);
+}
+
+ItemLibraryWidget::ItemLibraryWidget(AsynchronousImageCache &imageCache,
+                                     AsynchronousImageCache &asynchronousFontImageCache,
+                                     SynchronousImageCache &synchronousFontImageCache)
     : m_itemIconSize(24, 24)
+    , m_itemLibraryModel(new ItemLibraryModel(this))
+    , m_itemLibraryAddImportModel(new ItemLibraryAddImportModel(this))
+    , m_resourcesFileSystemModel{new CustomFileSystemModel(synchronousFontImageCache, this)}
+    , m_headerWidget(new QQuickWidget(this))
+    , m_addImportWidget(new QQuickWidget(this))
     , m_itemViewQuickWidget(new QQuickWidget(this))
-    , m_resourcesView(new ItemLibraryResourceView(this))
-    , m_importTagsWidget(new QWidget(this))
-    , m_addResourcesWidget(new QWidget(this))
+    , m_resourcesView(new ItemLibraryResourceView(asynchronousFontImageCache, this))
     , m_imageCache{imageCache}
-    , m_filterFlag(QtBasic)
 {
     m_compressionTimer.setInterval(200);
     m_compressionTimer.setSingleShot(true);
     ItemLibraryModel::registerQmlTypes();
 
     setWindowTitle(tr("Library", "Title of library view"));
+    setMinimumWidth(100);
 
-    /* create Items view and its model */
+    // create header widget
+    m_headerWidget->setResizeMode(QQuickWidget::SizeRootObjectToView);
+    Theme::setupTheme(m_headerWidget->engine());
+    m_headerWidget->engine()->addImportPath(propertyEditorResourcesPath() + "/imports");
+    m_headerWidget->setClearColor(Theme::getColor(Theme::Color::DSpanelBackground));
+    m_headerWidget->rootContext()->setContextProperty("rootView", QVariant::fromValue(this));
+
+    // create add imports widget
+    m_addImportWidget->setResizeMode(QQuickWidget::SizeRootObjectToView);
+    Theme::setupTheme(m_addImportWidget->engine());
+    m_addImportWidget->engine()->addImportPath(propertyEditorResourcesPath() + "/imports");
+    m_addImportWidget->setClearColor(Theme::getColor(Theme::Color::DSpanelBackground));
+    m_addImportWidget->rootContext()->setContextProperties({
+        {"addImportModel", QVariant::fromValue(m_itemLibraryAddImportModel.data())},
+        {"rootView", QVariant::fromValue(this)},
+    });
+
+    // set up Item Library view and model
     m_itemViewQuickWidget->setResizeMode(QQuickWidget::SizeRootObjectToView);
-
     m_itemViewQuickWidget->engine()->addImportPath(propertyEditorResourcesPath() + "/imports");
-    m_itemLibraryModel = new ItemLibraryModel(this);
 
     m_itemViewQuickWidget->rootContext()->setContextProperties(QVector<QQmlContext::PropertyPair>{
         {{"itemLibraryModel"}, QVariant::fromValue(m_itemLibraryModel.data())},
@@ -116,66 +173,29 @@ ItemLibraryWidget::ItemLibraryWidget(ImageCache &imageCache)
     m_itemViewQuickWidget->rootContext()->setContextProperty("tooltipBackend",
                                                              m_previewTooltipBackend.get());
 
-    m_itemViewQuickWidget->setClearColor(
-        Theme::getColor(Theme::Color::QmlDesigner_BackgroundColorDarkAlternate));
-
-    /* create Resources view and its model */
-    m_resourcesFileSystemModel = new CustomFileSystemModel(this);
-    m_resourcesView->setModel(m_resourcesFileSystemModel.data());
-
-    /* create image provider for loading item icons */
-    m_itemViewQuickWidget->engine()->addImageProvider(QStringLiteral("qmldesigner_itemlibrary"), new Internal::ItemLibraryImageProvider);
-
+    m_itemViewQuickWidget->setClearColor(Theme::getColor(Theme::Color::DSpanelBackground));
+    m_itemViewQuickWidget->engine()->addImageProvider(QStringLiteral("qmldesigner_itemlibrary"),
+                                                      new Internal::ItemLibraryImageProvider);
     Theme::setupTheme(m_itemViewQuickWidget->engine());
+    m_itemViewQuickWidget->installEventFilter(this);
 
-    /* other widgets */
-    auto tabBar = new QTabBar(this);
-    tabBar->addTab(tr("QML Types", "Title of library QML types view"));
-    tabBar->addTab(tr("Assets", "Title of library assets view"));
-    tabBar->addTab(tr("QML Imports", "Title of QML imports view"));
-    tabBar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    connect(tabBar, &QTabBar::currentChanged, this, &ItemLibraryWidget::setCurrentIndexOfStackedWidget);
-    connect(tabBar, &QTabBar::currentChanged, this, &ItemLibraryWidget::updateSearch);
-
-    m_filterLineEdit = new Utils::FancyLineEdit(this);
-    m_filterLineEdit->setObjectName(QStringLiteral("itemLibrarySearchInput"));
-    m_filterLineEdit->setPlaceholderText(tr("<Filter>", "Library search input hint text"));
-    m_filterLineEdit->setDragEnabled(false);
-    m_filterLineEdit->setMinimumWidth(75);
-    m_filterLineEdit->setTextMargins(0, 0, 20, 0);
-    m_filterLineEdit->setFiltering(true);
-    QWidget *lineEditFrame = new QWidget(this);
-    lineEditFrame->setObjectName(QStringLiteral("itemLibrarySearchInputFrame"));
-    auto lineEditLayout = new QGridLayout(lineEditFrame);
-    lineEditLayout->setContentsMargins(2, 2, 2, 2);
-    lineEditLayout->setSpacing(0);
-    lineEditLayout->addItem(new QSpacerItem(5, 3, QSizePolicy::Fixed, QSizePolicy::Fixed), 0, 0, 1, 3);
-    lineEditLayout->addItem(new QSpacerItem(5, 5, QSizePolicy::Fixed, QSizePolicy::Fixed), 1, 0);
-    lineEditLayout->addWidget(m_filterLineEdit.data(), 1, 1, 1, 1);
-    lineEditLayout->addItem(new QSpacerItem(5, 5, QSizePolicy::Fixed, QSizePolicy::Fixed), 1, 2);
-    connect(m_filterLineEdit.data(), &Utils::FancyLineEdit::filterChanged, this, &ItemLibraryWidget::setSearchFilter);
+    // connect Resources view and its model
+    m_resourcesView->setModel(m_resourcesFileSystemModel.data());
 
     m_stackedWidget = new QStackedWidget(this);
     m_stackedWidget->addWidget(m_itemViewQuickWidget.data());
     m_stackedWidget->addWidget(m_resourcesView.data());
+    m_stackedWidget->addWidget(m_addImportWidget.data());
     m_stackedWidget->setMinimumHeight(30);
     m_stackedWidget->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
 
-    QWidget *spacer = new QWidget(this);
-    spacer->setObjectName(QStringLiteral("itemLibrarySearchInputSpacer"));
-    spacer->setFixedHeight(4);
-
-    auto layout = new QGridLayout(this);
-    layout->setContentsMargins(0, 0, 0, 0);
+    auto layout = new QVBoxLayout(this);
+    layout->setContentsMargins({});
     layout->setSpacing(0);
-    layout->addWidget(tabBar, 0, 0, 1, 1);
-    layout->addWidget(spacer, 1, 0);
-    layout->addWidget(lineEditFrame, 2, 0, 1, 1);
-    layout->addWidget(m_importTagsWidget.data(), 3, 0, 1, 1);
-    layout->addWidget(m_addResourcesWidget.data(), 4, 0, 1, 1);
-    layout->addWidget(m_stackedWidget.data(), 5, 0, 1, 1);
+    layout->addWidget(m_headerWidget.data());
+    layout->addWidget(m_stackedWidget.data());
 
-    setSearchFilter(QString());
+    updateSearch();
 
     /* style sheets */
     setStyleSheet(Theme::replaceCssColors(QString::fromUtf8(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/stylesheet.css")))));
@@ -186,65 +206,28 @@ ItemLibraryWidget::ItemLibraryWidget(ImageCache &imageCache)
 
     connect(&m_compressionTimer, &QTimer::timeout, this, &ItemLibraryWidget::updateModel);
 
-    auto flowLayout = new Utils::FlowLayout(m_importTagsWidget.data());
-    flowLayout->setContentsMargins(4, 4, 4, 4);
-
-    m_addResourcesWidget->setVisible(false);
-    flowLayout = new Utils::FlowLayout(m_addResourcesWidget.data());
-    flowLayout->setContentsMargins(4, 4, 4, 4);
-    auto button = new QToolButton(m_addResourcesWidget.data());
-    auto font = button->font();
-    font.setPixelSize(Theme::instance()->smallFontPixelSize());
-    button->setFont(font);
-    button->setIcon(Utils::Icons::PLUS.icon());
-    button->setText(tr("Add New Assets..."));
-    button->setToolTip(tr("Add new assets to project."));
-    button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-    flowLayout->addWidget(button);
-    connect(button, &QToolButton::clicked, this, &ItemLibraryWidget::addResources);
-
-#ifdef IMPORT_QUICK3D_ASSETS
-    DesignerActionManager *actionManager =
-             &QmlDesignerPlugin::instance()->viewManager().designerActionManager();
-
-    auto handle3DModel = [](const QStringList &fileNames, const QString &defaultDir) -> bool {
-        auto importDlg = new ItemLibraryAssetImportDialog(fileNames, defaultDir, Core::ICore::mainWindow());
-        importDlg->show();
-        return true;
-    };
-
-    auto add3DHandler = [&](const QString &category, const QString &ext) {
-        const QString filter = QStringLiteral("*.%1").arg(ext);
-        actionManager->registerAddResourceHandler(
-                    AddResourceHandler(category, filter, handle3DModel, 10));
-    };
-
-    QSSGAssetImportManager importManager;
-    QHash<QString, QStringList> supportedExtensions = importManager.getSupportedExtensions();
-
-    // All things importable by QSSGAssetImportManager are considered to be in the same category
-    // so we don't get multiple separate import dialogs when different file types are imported.
-    const QString category = tr("3D Assets");
-
-    // Skip if 3D asset handlers have already been added
-    const QList<AddResourceHandler> handlers = actionManager->addResourceHandler();
-    bool categoryAlreadyAdded = false;
-    for (const auto &handler : handlers) {
-        if (handler.category == category) {
-            categoryAlreadyAdded = true;
-            break;
+    const auto dropSupport = new Utils::DropSupport(
+                m_resourcesView.data(), [this](QDropEvent *event, Utils::DropSupport *) {
+        // Accept supported file types
+        if (event->type() == QDropEvent::DragEnter && !Utils::DropSupport::isFileDrop(event))
+            return false; // do not accept drops without files
+        bool accept = false;
+        const QSet<QString> &suffixes = m_resourcesFileSystemModel->supportedSuffixes();
+        const QList<QUrl> urls = event->mimeData()->urls();
+        for (const QUrl &url : urls) {
+            QFileInfo fi(url.toLocalFile());
+            if (suffixes.contains(fi.suffix().toLower())) {
+                accept = true;
+                break;
+            }
         }
-    }
+        return accept;
+    });
+    connect(dropSupport, &Utils::DropSupport::filesDropped,
+            this, &ItemLibraryWidget::importDroppedFiles);
 
-    if (!categoryAlreadyAdded) {
-        const auto groups = supportedExtensions.keys();
-        for (const auto &group : groups) {
-            const auto extensions = supportedExtensions[group];
-            for (const auto &ext : extensions)
-                add3DHandler(category, ext);
-        }
-    }
-#endif
+    m_itemViewQuickWidget->engine()->addImageProvider("itemlibrary_preview",
+                                                      new ItemLibraryIconImageProvider{m_imageCache});
 
     // init the first load of the QML UI elements
     reloadQmlSource();
@@ -260,48 +243,60 @@ void ItemLibraryWidget::setItemLibraryInfo(ItemLibraryInfo *itemLibraryInfo)
     if (m_itemLibraryInfo) {
         disconnect(m_itemLibraryInfo.data(), &ItemLibraryInfo::entriesChanged,
                    this, &ItemLibraryWidget::delayedUpdateModel);
-        disconnect(m_itemLibraryInfo.data(), &ItemLibraryInfo::importTagsChanged,
-                   this, &ItemLibraryWidget::delayedUpdateModel);
+        disconnect(m_itemLibraryInfo.data(), &ItemLibraryInfo::priorityImportsChanged,
+                   this, &ItemLibraryWidget::handlePriorityImportsChanged);
     }
     m_itemLibraryInfo = itemLibraryInfo;
     if (itemLibraryInfo) {
         connect(m_itemLibraryInfo.data(), &ItemLibraryInfo::entriesChanged,
                 this, &ItemLibraryWidget::delayedUpdateModel);
-        connect(m_itemLibraryInfo.data(), &ItemLibraryInfo::importTagsChanged,
-                this, &ItemLibraryWidget::delayedUpdateModel);
+        connect(m_itemLibraryInfo.data(), &ItemLibraryInfo::priorityImportsChanged,
+                this, &ItemLibraryWidget::handlePriorityImportsChanged);
+        m_itemLibraryAddImportModel->setPriorityImports(m_itemLibraryInfo->priorityImports());
     }
     delayedUpdateModel();
 }
 
-void ItemLibraryWidget::updateImports()
-{
-    if (m_model)
-        setupImportTagWidget();
-}
-
-void ItemLibraryWidget::setImportsWidget(QWidget *importsWidget)
-{
-    m_stackedWidget->addWidget(importsWidget);
-}
-
 QList<QToolButton *> ItemLibraryWidget::createToolBarWidgets()
 {
+//    TODO: implement
     QList<QToolButton *> buttons;
     return buttons;
 }
 
-void ItemLibraryWidget::setSearchFilter(const QString &searchFilter)
+void ItemLibraryWidget::handleSearchfilterChanged(const QString &filterText)
 {
-    if (m_stackedWidget->currentIndex() == 0) {
-        m_itemLibraryModel->setSearchText(searchFilter);
-        m_itemViewQuickWidget->update();
-    } else {
-        QStringList nameFilterList;
+    m_filterText = filterText;
 
-        m_resourcesFileSystemModel->setSearchFilter(searchFilter);
-        m_resourcesFileSystemModel->setFilter(QDir::AllDirs | QDir::Files | QDir::NoDotAndDotDot);
-        m_resourcesView->scrollToTop();
+    updateSearch();
+}
+
+void ItemLibraryWidget::handleAddModule()
+{
+    QMetaObject::invokeMethod(m_headerWidget->rootObject(), "setTab", Q_ARG(QVariant, 0));
+    handleTabChanged(2);
+}
+
+void ItemLibraryWidget::handleAddAsset()
+{
+    addResources({});
+}
+
+void ItemLibraryWidget::handleAddImport(int index)
+{
+    Import import = m_itemLibraryAddImportModel->getImportAt(index);
+    if (import.isLibraryImport() && (import.url().startsWith("QtQuick")
+                                     || import.url().startsWith("SimulinkConnector"))) {
+        QmlDesignerPlugin::emitUsageStatistics(Constants::EVENT_IMPORT_ADDED
+                                               + import.toImportString());
     }
+
+    auto document = QmlDesignerPlugin::instance()->currentDesignDocument();
+    document->documentModel()->changeImports({import}, {});
+    document->updateSubcomponentManagerImport(import);
+
+    m_stackedWidget->setCurrentIndex(0); // switch to the Components view after import is added
+    updateSearch();
 }
 
 void ItemLibraryWidget::delayedUpdateModel()
@@ -315,35 +310,17 @@ void ItemLibraryWidget::delayedUpdateModel()
 
 void ItemLibraryWidget::setModel(Model *model)
 {
-    m_itemViewQuickWidget->engine()->removeImageProvider("itemlibrary_preview");
     m_model = model;
     if (!model)
         return;
 
-    m_itemViewQuickWidget->engine()->addImageProvider("itemlibrary_preview",
-                                                      new ItemLibraryIconImageProvider{m_imageCache});
-
     setItemLibraryInfo(model->metaInfo().itemLibraryInfo());
 }
 
-void ItemLibraryWidget::setCurrentIndexOfStackedWidget(int index)
+void ItemLibraryWidget::handleTabChanged(int index)
 {
-    if (index == 2) {
-        m_filterLineEdit->setVisible(false);
-        m_importTagsWidget->setVisible(true);
-        m_addResourcesWidget->setVisible(false);
-    }
-    if (index == 1) {
-        m_filterLineEdit->setVisible(true);
-        m_importTagsWidget->setVisible(false);
-        m_addResourcesWidget->setVisible(true);
-    } else {
-        m_filterLineEdit->setVisible(true);
-        m_importTagsWidget->setVisible(true);
-        m_addResourcesWidget->setVisible(false);
-    }
-
     m_stackedWidget->setCurrentIndex(index);
+    updateSearch();
 }
 
 QString ItemLibraryWidget::qmlSourcesPath()
@@ -353,53 +330,25 @@ QString ItemLibraryWidget::qmlSourcesPath()
 
 void ItemLibraryWidget::clearSearchFilter()
 {
-    m_filterLineEdit->clear();
+    QMetaObject::invokeMethod(m_headerWidget->rootObject(), "clearSearchFilter");
 }
 
 void ItemLibraryWidget::reloadQmlSource()
 {
-    QString itemLibraryQmlFilePath = qmlSourcesPath() + QStringLiteral("/ItemsView.qml");
-    QTC_ASSERT(QFileInfo::exists(itemLibraryQmlFilePath), return);
+    const QString libraryHeaderQmlPath = qmlSourcesPath() + "/LibraryHeader.qml";
+    QTC_ASSERT(QFileInfo::exists(libraryHeaderQmlPath), return);
+    m_headerWidget->engine()->clearComponentCache();
+    m_headerWidget->setSource(QUrl::fromLocalFile(libraryHeaderQmlPath));
+
+    const QString addImportQmlPath = qmlSourcesPath() + "/AddImport.qml";
+    QTC_ASSERT(QFileInfo::exists(addImportQmlPath), return);
+    m_addImportWidget->engine()->clearComponentCache();
+    m_addImportWidget->setSource(QUrl::fromLocalFile(addImportQmlPath));
+
+    const QString itemLibraryQmlPath = qmlSourcesPath() + "/ItemsView.qml";
+    QTC_ASSERT(QFileInfo::exists(itemLibraryQmlPath), return);
     m_itemViewQuickWidget->engine()->clearComponentCache();
-    m_itemViewQuickWidget->setSource(QUrl::fromLocalFile(itemLibraryQmlFilePath));
-}
-
-void ItemLibraryWidget::setupImportTagWidget()
-{
-    QTC_ASSERT(m_model, return);
-
-    const DesignerMcuManager &mcuManager = DesignerMcuManager::instance();
-    const bool isQtForMCUs = mcuManager.isMCUProject();
-
-    const QStringList imports = m_model->metaInfo().itemLibraryInfo()->showTagsForImports();
-
-    qDeleteAll(m_importTagsWidget->findChildren<QWidget*>("", Qt::FindDirectChildrenOnly));
-
-    auto flowLayout = m_importTagsWidget->layout();
-
-    auto createButton = [this](const QString &import) {
-        auto button = new QToolButton(m_importTagsWidget.data());
-        auto font = button->font();
-        font.setPixelSize(Theme::instance()->smallFontPixelSize());
-        button->setFont(font);
-        button->setIcon(Utils::Icons::PLUS.icon());
-        button->setText(import);
-        button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-        button->setToolTip(tr("Add import %1").arg(import));
-        connect(button, &QToolButton::clicked, this, [this, import]() {
-            addPossibleImport(import);
-        });
-        return button;
-    };
-
-    if (!isQtForMCUs) {
-        for (const QString &importPath : imports) {
-            const Import import = Import::createLibraryImport(importPath);
-            if (!m_model->hasImport(import, true, true)
-                && m_model->isImportPossible(import, true, true))
-                flowLayout->addWidget(createButton(importPath));
-        }
-    }
+    m_itemViewQuickWidget->setSource(QUrl::fromLocalFile(itemLibraryQmlPath));
 }
 
 void ItemLibraryWidget::updateModel()
@@ -419,13 +368,40 @@ void ItemLibraryWidget::updateModel()
     } else {
         m_updateRetry = false;
     }
-    updateImports();
     updateSearch();
+}
+
+void ItemLibraryWidget::updatePossibleImports(const QList<Import> &possibleImports)
+{
+    m_itemLibraryAddImportModel->update(possibleImports);
+    delayedUpdateModel();
+}
+
+void ItemLibraryWidget::updateUsedImports(const QList<Import> &usedImports)
+{
+    m_itemLibraryModel->updateUsedImports(usedImports);
 }
 
 void ItemLibraryWidget::updateSearch()
 {
-    setSearchFilter(m_filterLineEdit->text());
+    if (m_stackedWidget->currentIndex() == 0) { // Item Library tab selected
+        m_itemLibraryModel->setSearchText(m_filterText);
+        m_itemViewQuickWidget->update();
+    } else if (m_stackedWidget->currentIndex() == 1) { // Assets tab selected
+        m_resourcesFileSystemModel->setSearchFilter(m_filterText);
+        m_resourcesFileSystemModel->setFilter(QDir::AllDirs | QDir::Files | QDir::NoDotAndDotDot);
+        m_resourcesView->scrollToTop();
+    } else if (m_stackedWidget->currentIndex() == 2) {  // QML imports tab selected
+        m_itemLibraryAddImportModel->setSearchText(m_filterText);
+    }
+}
+
+void ItemLibraryWidget::handlePriorityImportsChanged()
+{
+    if (!m_itemLibraryInfo.isNull()) {
+        m_itemLibraryAddImportModel->setPriorityImports(m_itemLibraryInfo->priorityImports());
+        m_itemLibraryAddImportModel->update(m_model->possibleImports());
+    }
 }
 
 void ItemLibraryWidget::setResourcePath(const QString &resourcePath)
@@ -437,25 +413,13 @@ void ItemLibraryWidget::setResourcePath(const QString &resourcePath)
     updateSearch();
 }
 
-void ItemLibraryWidget::startDragAndDrop(QQuickItem *mouseArea, QVariant itemLibraryId)
+void ItemLibraryWidget::startDragAndDrop(const QVariant &itemLibEntry, const QPointF &mousePos)
 {
-    m_currentitemLibraryEntry = itemLibraryId.value<ItemLibraryEntry>();
-
-    QMimeData *mimeData = m_itemLibraryModel->getMimeData(m_currentitemLibraryEntry);
-    auto drag = new QDrag(this);
-
-    drag->setPixmap(Utils::StyleHelper::dpiSpecificImageFile(
-                        m_currentitemLibraryEntry.libraryEntryIconPath()));
-    drag->setMimeData(mimeData);
-
-    /* Workaround for bug in Qt. The release event is not delivered for Qt < 5.9 if a drag is started */
-    QMouseEvent event (QEvent::MouseButtonRelease, QPoint(-1, -1), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
-    QApplication::sendEvent(mouseArea, &event);
-
-    QTimer::singleShot(0, [drag]() {
-        drag->exec();
-        drag->deleteLater();
-    });
+    // Actual drag is created after mouse has moved to avoid a QDrag bug that causes drag to stay
+    // active (and blocks mouse release) if mouse is released at the same spot of the drag start.
+    // This doesn't completely eliminate the bug but makes it significantly harder to produce.
+    m_itemToDrag = itemLibEntry;
+    m_dragStartPoint = mousePos.toPoint();
 }
 
 void ItemLibraryWidget::setFlowMode(bool b)
@@ -463,55 +427,27 @@ void ItemLibraryWidget::setFlowMode(bool b)
     m_itemLibraryModel->setFlowMode(b);
 }
 
-void ItemLibraryWidget::removeImport(const QString &name)
+void ItemLibraryWidget::removeImport(const QString &importUrl)
 {
     QTC_ASSERT(m_model, return);
 
-    QList<Import> toBeRemovedImportList;
-    foreach (const Import &import, m_model->imports())
-        if (import.isLibraryImport() && import.url().compare(name, Qt::CaseInsensitive) == 0)
-            toBeRemovedImportList.append(import);
-
-    m_model->changeImports({}, toBeRemovedImportList);
-}
-
-void ItemLibraryWidget::addImport(const QString &name, const QString &version)
-{
-    QTC_ASSERT(m_model, return);
-    m_model->changeImports({Import::createLibraryImport(name, version)}, {});
-}
-
-void ItemLibraryWidget::addPossibleImport(const QString &name)
-{
-    QTC_ASSERT(m_model, return);
-    QmlDesignerPlugin::emitUsageStatistics(Constants::EVENT_IMPORT_ADDED_FLOWTAG
-                                           + name);
-    const Import import = m_model->highestPossibleImport(name);
-    try {
-        QList<Import> addedImports = {Import::createLibraryImport(name, import.version())};
-        // Special case for adding an import for 3D asset - also add QtQuick3D import
-        const QString asset3DPrefix = QLatin1String(Constants::QUICK_3D_ASSETS_FOLDER + 1)
-                + QLatin1Char('.');
-        if (name.startsWith(asset3DPrefix)) {
-            const QString q3Dlib = QLatin1String(Constants::QT_QUICK_3D_MODULE_NAME);
-            Import q3DImport = m_model->highestPossibleImport(q3Dlib);
-            if (q3DImport.url() == q3Dlib)
-                addedImports.prepend(Import::createLibraryImport(q3Dlib, q3DImport.version()));
-        }
-        RewriterTransaction transaction
-                = m_model->rewriterView()->beginRewriterTransaction(
-                    QByteArrayLiteral("ItemLibraryWidget::addPossibleImport"));
-
-        m_model->changeImports(addedImports, {});
-        transaction.commit();
+    ItemLibraryImport *importSection = m_itemLibraryModel->importByUrl(importUrl);
+    if (importSection) {
+        importSection->showAllCategories();
+        m_model->changeImports({}, {importSection->importEntry()});
     }
-    catch (const RewritingException &e) {
-        e.showException();
-    }
-    QmlDesignerPlugin::instance()->currentDesignDocument()->updateSubcomponentManager();
 }
 
-void ItemLibraryWidget::addResources()
+void ItemLibraryWidget::addImportForItem(const QString &importUrl)
+{
+    QTC_ASSERT(m_itemLibraryModel, return);
+    QTC_ASSERT(m_model, return);
+
+    Import import = m_itemLibraryAddImportModel->getImport(importUrl);
+    m_model->changeImports({import}, {});
+}
+
+void ItemLibraryWidget::addResources(const QStringList &files)
 {
     auto document = QmlDesignerPlugin::instance()->currentDesignDocument();
 
@@ -540,31 +476,38 @@ void ItemLibraryWidget::addResources()
         return priorities.value(first) < priorities.value(second);
     });
 
-    QStringList filters;
+    QStringList fileNames = files;
+    if (fileNames.isEmpty()) {
+        QStringList filters;
 
-    for (const QString &key : sortedKeys) {
-        QString str = key + " (";
-        str.append(map.values(key).join(" "));
-        str.append(")");
-        filters.append(str);
+        for (const QString &key : qAsConst(sortedKeys)) {
+            QString str = key + " (";
+            str.append(map.values(key).join(" "));
+            str.append(")");
+            filters.append(str);
+        }
+
+        filters.prepend(tr("All Files (%1)").arg(map.values().join(" ")));
+
+        static QString lastDir;
+        const QString currentDir = lastDir.isEmpty() ? document->fileName().parentDir().toString() : lastDir;
+
+        fileNames = QFileDialog::getOpenFileNames(Core::ICore::dialogParent(),
+                                                  tr("Add Assets"),
+                                                  currentDir,
+                                                  filters.join(";;"));
+
+        if (!fileNames.isEmpty()) {
+            lastDir = QFileInfo(fileNames.first()).absolutePath();
+            // switch to assets view after an asset is added
+            m_stackedWidget->setCurrentIndex(1);
+            QMetaObject::invokeMethod(m_headerWidget->rootObject(), "setTab", Q_ARG(QVariant, 1));
+        }
     }
-
-    filters.prepend(tr("All Files (%1)").arg(map.values().join(" ")));
-
-    static QString lastDir;
-    const QString currentDir = lastDir.isEmpty() ? document->fileName().parentDir().toString() : lastDir;
-
-    const auto fileNames = QFileDialog::getOpenFileNames(Core::ICore::dialogParent(),
-                                                         tr("Add Assets"),
-                                                         currentDir,
-                                                         filters.join(";;"));
-
-    if (!fileNames.isEmpty())
-        lastDir = QFileInfo(fileNames.first()).absolutePath();
 
     QMultiMap<QString, QString> partitionedFileNames;
 
-    for (const QString &fileName : fileNames) {
+    for (const QString &fileName : qAsConst(fileNames)) {
         const QString suffix = "*." + QFileInfo(fileName).suffix().toLower();
         const QString category = reverseMap.value(suffix);
         partitionedFileNames.insert(category, fileName);
@@ -581,5 +524,17 @@ void ItemLibraryWidget::addResources()
              }
          }
     }
+}
+
+void ItemLibraryWidget::importDroppedFiles(const QList<Utils::DropSupport::FileSpec> &files)
+{
+    QStringList fileNames;
+    for (const auto &file : files) {
+        QFileInfo fi(file.filePath);
+        if (m_resourcesFileSystemModel->supportedSuffixes().contains(fi.suffix().toLower()))
+            fileNames.append(fi.absoluteFilePath());
+    }
+    if (!fileNames.isEmpty())
+        addResources(fileNames);
 }
 } // namespace QmlDesigner

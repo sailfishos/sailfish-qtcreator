@@ -26,10 +26,12 @@
 #include "googletest.h"
 
 #include <sqlitedatabase.h>
+#include <sqlitelibraryinitializer.h>
+
 #include <sqliteglobal.h>
 #include <utils/temporarydirectory.h>
 
-#include <QCoreApplication>
+#include <QGuiApplication>
 #include <QLoggingCategory>
 
 #ifdef WITH_BENCHMARKS
@@ -52,9 +54,10 @@ public:
 
 int main(int argc, char *argv[])
 {
+    Sqlite::LibraryInitializer::initialize();
     Sqlite::Database::activateLogging();
 
-    QCoreApplication application(argc, argv);
+    QGuiApplication application(argc, argv);
 
     testing::InitGoogleTest(&argc, argv);
 #ifdef WITH_BENCHMARKS

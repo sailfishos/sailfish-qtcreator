@@ -63,6 +63,8 @@ public:
     static BaseQtVersion *qtVersion(const ProjectExplorer::Kit *k);
     static void setQtVersion(ProjectExplorer::Kit *k, const BaseQtVersion *v);
 
+    static void addHostBinariesToPath(const ProjectExplorer::Kit *k, Utils::Environment &env);
+
     static ProjectExplorer::Kit::Predicate platformPredicate(Utils::Id availablePlatforms);
     static ProjectExplorer::Kit::Predicate
     qtVersionPredicate(const QSet<Utils::Id> &required = QSet<Utils::Id>(),
@@ -79,6 +81,12 @@ private:
                            const QList<int> &removedIds,
                            const QList<int> &changedIds);
     void kitsWereLoaded();
+};
+
+class QTSUPPORT_EXPORT SuppliesQtQuickImportPath
+{
+public:
+    static Utils::Id id();
 };
 
 } // namespace QtSupport

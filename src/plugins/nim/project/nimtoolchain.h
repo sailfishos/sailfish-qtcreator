@@ -38,9 +38,6 @@ public:
     NimToolChain();
     explicit NimToolChain(Utils::Id typeId);
 
-    ProjectExplorer::Abi targetAbi() const override;
-    bool isValid() const override;
-
     MacroInspectionRunner createMacroInspectionRunner() const override;
     Utils::LanguageExtensions languageExtensions(const QStringList &flags) const final;
     Utils::WarningFlags warningFlags(const QStringList &flags) const final;
@@ -49,20 +46,16 @@ public:
             const Utils::Environment &) const override;
     void addToEnvironment(Utils::Environment &env) const final;
     Utils::FilePath makeCommand(const Utils::Environment &env) const final;
-    Utils::FilePath compilerCommand() const final;
     QString compilerVersion() const;
-    void setCompilerCommand(const Utils::FilePath &compilerCommand);
     QList<Utils::OutputLineParser *> createOutputParsers() const final;
     std::unique_ptr<ProjectExplorer::ToolChainConfigWidget> createConfigurationWidget() final;
 
-    QVariantMap toMap() const final;
     bool fromMap(const QVariantMap &data) final;
 
     static bool parseVersion(const Utils::FilePath &path, std::tuple<int, int, int> &version);
 
 private:
-    Utils::FilePath m_compilerCommand;
     std::tuple<int, int, int> m_version;
 };
 
-}
+} // Nim

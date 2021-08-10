@@ -29,6 +29,7 @@
 
 #include <QTimer>
 
+#include <atomic>
 #include <memory>
 
 QT_BEGIN_NAMESPACE
@@ -50,14 +51,13 @@ public:
                                                const QString &entry) override;
     void accept(Core::LocatorFilterEntry selection, QString *newText,
                 int *selectionStart, int *selectionLength) const override;
-    void refresh(QFutureInterface<void> &future) override;
 
 private:
     void setupEngine();
 
     mutable std::unique_ptr<QJSEngine> m_engine;
     QTimer m_abortTimer;
-    bool m_aborted = false;
+    std::atomic_bool m_aborted = false;
 };
 
 } // namespace Internal

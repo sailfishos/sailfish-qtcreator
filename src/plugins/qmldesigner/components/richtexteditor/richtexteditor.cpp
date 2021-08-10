@@ -119,6 +119,14 @@ RichTextEditor::RichTextEditor(QWidget *parent)
     ui->textEdit->setTextInteractionFlags(Qt::TextEditorInteraction | Qt::LinksAccessibleByMouse);
     ui->tableBar->setVisible(false);
 
+    const QColor backColor = Theme::getColor(Theme::DSpanelBackground);
+
+    const QString toolBarStyleSheet =
+            QString("QToolBar { background-color: %1; border-width: 1px }").arg(backColor.name());
+
+    ui->toolBar->setStyleSheet(toolBarStyleSheet);
+    ui->tableBar->setStyleSheet(toolBarStyleSheet);
+
     setupEditActions();
     setupTextActions();
     setupImageActions();
@@ -132,6 +140,8 @@ RichTextEditor::RichTextEditor(QWidget *parent)
             this, &RichTextEditor::currentCharFormatChanged);
     connect(ui->textEdit, &QTextEdit::cursorPositionChanged,
             this, &RichTextEditor::cursorPositionChanged);
+    connect(ui->textEdit, &QTextEdit::textChanged,
+            this, &RichTextEditor::onTextChanged);
     connect(m_linkDialog, &QDialog::accepted, [this]() {
         QTextCharFormat oldFormat = ui->textEdit->textCursor().charFormat();
 
@@ -199,8 +209,10 @@ void RichTextEditor::setDocumentBaseUrl(const QUrl& url)
 QIcon RichTextEditor::getIcon(Theme::Icon icon)
 {
     const QString fontName = "qtds_propertyIconFont.ttf";
+    const QColor iconColorNormal(Theme::getColor(Theme::DStextColor));
 
-    return Utils::StyleHelper::getIconFromIconFont(fontName, Theme::getIconUnicode(icon), 20, 20);
+    return Utils::StyleHelper::getIconFromIconFont(
+                fontName, Theme::getIconUnicode(icon), 20, 20, iconColorNormal);
 }
 
 QString RichTextEditor::richText() const
@@ -219,6 +231,10 @@ void RichTextEditor::cursorPositionChanged()
     alignmentChanged(ui->textEdit->alignment());
     styleChanged(ui->textEdit->textCursor());
     tableChanged(ui->textEdit->textCursor());
+}
+
+void RichTextEditor::onTextChanged() {
+    emit textChanged(richText());
 }
 
 void RichTextEditor::mergeFormatOnWordOrSelection(const QTextCharFormat &format)

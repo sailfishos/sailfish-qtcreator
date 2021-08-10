@@ -5,15 +5,10 @@ TEMPLATE = app
 CONFIG += console
 CONFIG -= app_bundle
 
-qtc_human_user_tool {
-    DESTDIR = $$IDE_BIN_PATH
-    target.path = $$INSTALL_BIN_PATH
-} else {
-    DESTDIR = $$IDE_LIBEXEC_PATH
-    target.path  = $$INSTALL_LIBEXEC_PATH
-}
+DESTDIR = $$IDE_LIBEXEC_PATH
 
-RPATH_BASE = $$DESTDIR
+RPATH_BASE = $$IDE_LIBEXEC_PATH
 include(rpath.pri)
 
+target.path  = $$INSTALL_LIBEXEC_PATH
 INSTALLS += target

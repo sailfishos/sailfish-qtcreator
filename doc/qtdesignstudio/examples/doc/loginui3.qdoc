@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2020 The Qt Company Ltd.
+** Copyright (C) 2021 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Design Studio documentation.
@@ -42,8 +42,8 @@
     first page, users can enter a username and password to log in. On the
     second page, they can register if they do not already have an account.
 
-    Because the second page will contain most of the same UI elements as the
-    login page, you will use \e states to show and hide UI elements as necessary
+    Because the second page will contain most of the same UI components as the
+    login page, you will use \e states to show and hide UI components as necessary
     when a user selects the \uicontrol {Create Account} button.
 
     These instructions build on:
@@ -53,8 +53,8 @@
         \li \l {Log In UI - Part 2}
     \endlist
 
-    The \e {Learn Qt Quick} sections provide additional information about the
-    features of QML and Qt Quick that are relevant to the task at hand.
+    The \e {Learn More} sections provide additional information relevant to the
+    task at hand.
 
     \section1 Adding UI Components
 
@@ -65,30 +65,31 @@
 
     To preview the changes that you make to the UI while you make
     them, select the \inlineimage live_preview.png
-    (\uicontrol {Show Live Preview}) button on the \uicontrol {Form Editor}
+    (\uicontrol {Show Live Preview}) button on the \l {Form Editor}
     toolbar or press \key {Alt+P}.
 
-    To add the text field and a back button needed on the registration page:
+    To add the text field and a back button needed on the registration page
+    to the \e Screen01 component:
 
     \list 1
         \li Open \e {Screen01.ui.qml} in \uicontrol {Form Editor} for editing.
-        \li Drag and drop a \uicontrol {Text Field} from \uicontrol Library
-            > \uicontrol {QML Types} > \uicontrol {Qt Quick Controls 2} to
-            \e fieldColumn in \uicontrol Navigator.
-        \li In \uicontrol Properties, change the id of the text field to
+        \li Drag-and-drop a \uicontrol {Text Field} from \l Library
+            > \uicontrol Components > \uicontrol {Qt Quick Controls} to
+            \e fieldColumn in \l Navigator.
+        \li In \l Properties, change the ID of the text field to
             \e verifyPasswordField.
         \li In the \uicontrol Geometry group, \uicontrol Size field, set the
             width of the field to \e 300 pixels to match the size of the
             existing fields.
         \li In the \uicontrol Placeholder field, set the placeholder text to
             \e {Verify password} and mark the text translatable.
-        \li Drag and drop a PushButton type from \uicontrol Library >
-            \uicontrol {My QML Components} to their parent rectangle in
-            \uicontrol Navigator.
-        \li Select the button in \uicontrol Navigator and change its id to
+        \li Drag-and-drop a PushButton component from \uicontrol Library >
+            \uicontrol Components > \uicontrol {My Components} to the root
+            rectangle in \uicontrol Navigator.
+        \li Select the button in \uicontrol Navigator and change its ID to
             \e backButton in \uicontrol Properties.
         \li In the \uicontrol Geometry group, \uicontrol Size field, set the
-            button width to \e 40 pixels.
+            button width to \e 40 pixels to create a small round button.
         \li In the \uicontrol Text field, enter \e <.
         \li In the \uicontrol Font group, \uicontrol Size field, set the font
             size to \e 24 pixels.
@@ -101,8 +102,8 @@
             to save your changes.
     \endlist
 
-    Your page now should look something like this in the Design mode and live
-    preview:
+    \e Screen01 should now look something like this in the \uicontrol Design
+    mode and live preview:
 
     \image loginui3-base-state.png "Login page with new UI components"
 
@@ -117,7 +118,7 @@
     components in the \uicontrol {Form Editor}, depending on the current page:
 
     \list 1
-        \li In the \uicontrol States view, select \uicontrol {Create New State}.
+        \li In the \l States view, select \uicontrol {Create New State}.
             \image loginui3-login-state.png "States view"
         \li Enter \e loginState as the state name.
         \li Select \e verifyPasswordField in the \uicontrol Navigator,
@@ -134,8 +135,8 @@
             \e registerState. This state should now look identical to the base
             state.
         \li Select \e loginButton in the \uicontrol Navigator, and deselect
-            the \uicontrol Visibility check box to hide the login button in
-            the registration state.
+            the \uicontrol Visibility check box in \uicontrol Properties to
+            hide the login button in the registration state.
         \li Select \uicontrol File > \uicontrol Save or press \key {Ctrl+S}
             to save your changes.
     \endlist
@@ -145,32 +146,28 @@
 
     \image loginui3-states.png "States view"
 
-    \section2 Learn Qt Quick - States
+    \section2 Learn More - States
 
-    In Qt Quick, the \e state of a particular visual item is the set of
-    information which describes how and where the individual component
-    parts of the visual item are displayed within it, and all the data
-    associated with that state. Most visual items in a UI will have a
-    limited number of states, each with well-defined properties.
+    The \l{Adding States}{state} of a particular visual component is the set of
+    information which describes how and where the individual parts of the visual
+    component are displayed within it, and all the data associated with that
+    state. Most visual components in a UI will have a limited number of states,
+    each with well-defined properties.
 
-    For example, an element in a list may be either selected or not, and if
+    For example, a list item may be either selected or not, and if
     selected, it may either be the currently active single selection or it
     may be part of a selection group. Each of those states may have certain
     associated visual appearance (neutral, highlighted, expanded, and so on).
 
-    Qt Quick provides a \l State type with properties which define its
-    semantics and can be used to trigger behavior or animations. UI components
-    typically have a state property and a default state. The default state
-    contains all of an item's initial property values, and is therefore useful
-    for managing property values before state changes.
+    Youn can apply states to trigger behavior or animations. UI components
+    typically have a default state that contains all of a component's initial
+    property values and is therefore useful for managing property values before
+    state changes.
 
-    UI components can specify additional states by adding new State objects to
-    the state property. Each state within a component has a unique name. To
-    change the current state of an item, the state property is set to the name
-    of the state. State changes can be bound to conditions by using the \c when
-    property.
-
-    For more information, see \l{Qt Quick States}.
+    You can specify additional states by adding new states. Each state within a
+    component has a unique name. To change the current state of an component,
+    the state property is set to the name of the state. State changes can be
+    bound to conditions by using the \c when property.
 
     Next, you will create connections to specify that clicking the
     \uicontrol {Create Account} button on the login page triggers a
@@ -180,21 +177,21 @@
 
     \section1 Connecting Buttons to States
 
-    QML types have predefined signals that are emitted when users interact
-    with the UI. The \e PushButton QML type contains a \l{Mouse Area} type
+    Components have predefined signals that are emitted when users interact
+    with the UI. The \e PushButton component contains a \l{Mouse Area} component
     that has a \e clicked signal. The signal is emitted whenever the mouse
     is clicked within the area.
 
-    You will now use the \uicontrol Connections view to
-    \l{Connecting Objects to Signals}{connect} the clicked signal of
+    You will now use \l {Connection View} to
+    \l{Connecting Components to Signals}{connect} the clicked signal of
     \e registerButton to \e registerState and that of \e backButton
     to \e loginState:
 
     \list 1
         \li Select \uicontrol View > \uicontrol Views >
-            \uicontrol {Connection View} to open the \uicontrol Connection view.
+            \uicontrol {Connection View} to open the \uicontrol Connections tab.
         \li Select \e registerButton in the \uicontrol Navigator.
-        \li In the \uicontrol Connection view, select the \inlineimage plus.png
+        \li In the \uicontrol Connections tab, select the \inlineimage plus.png
             button to add the action that the \c onClicked signal handler of
             \e registerButton should apply.
         \li Double-click the value \uicontrol Action column and select
@@ -206,9 +203,9 @@
             to save your changes.
     \endlist
 
-    You can now see the following connections in the Design mode:
+    You can now see the following connections in the \uicontrol Design mode:
 
-    \image loginui3-connections.png "Connections view"
+    \image loginui3-connections.png "Connections tab"
 
     In the live preview, you can now click the \uicontrol {Create Account}
     button to go to the registration page and the back button to return to
@@ -217,25 +214,26 @@
     \image loginui3.gif "Moving between login page and registration page"
 
 
-    \section2 Learn Qt Quick - Signal and Event Handlers
+    \section2 Learn More - Signal and Event Handlers
 
     UI components need to communicate with each other. For example, a button
     needs to know that the user has clicked on it. In response, the button may
     change color to indicate its state and perform an action.
 
-    QML has a signal and handler mechanism, where the signal is the event that
-    is responded to through a signal handler. When a signal is emitted, the
-    corresponding signal handler is invoked. Placing logic such as a script or
-    other operations in the handler allows the component to respond to the
-    event.
+    A \e {signal-and-handler} mechanism is used, where the \e signal is the
+    event that is responded to through a \e {signal handler}. When a signal is
+    emitted, the corresponding signal handler is invoked. Placing logic, such
+    as a script or other operations, in the handler allows the component to
+    respond to the event.
 
     For more information, see \l{Signal and Handler Event System}.
 
     \section1 Next Steps
 
-    For a more complicated UI, you would typically use QML types that specify
-    a view of items provided by a model, such as a \l ListView or \l StackView.
-    For more information, see \l{Using Data Models}.
+    For a more complicated UI, you would typically use components that specify
+    a view of items provided by a model, such as a \l{List and Grid Views}
+    {List View} or \l StackView. For more information, see
+    \l{Lists and Other Data Models}.
 
     To learn how to use a timeline to animate the transition between the login
     and registration pages, see the next tutorial in the series,

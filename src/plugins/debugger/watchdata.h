@@ -51,6 +51,7 @@ public:
     bool isInspect() const;
 
     QString expression() const;
+    QString sourceExpression() const;
     QString realName() const;
     QString internalName() const;
     QString toToolTip() const;
@@ -98,6 +99,7 @@ public:
     bool            wantsChildren;
     bool            valueEnabled;  // Value will be enabled or not
     bool            valueEditable; // Value will be editable
+    uint            autoDerefCount; // number of levels of automatic dereferencing that has taken place (for pointer types)
     bool            outdated;      // \internal item is to be removed.
     double          time = 0;      // Time used on the dumper side to produce this item
 

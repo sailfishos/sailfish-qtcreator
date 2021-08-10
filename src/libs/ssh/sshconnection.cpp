@@ -37,7 +37,6 @@
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 
-#include <QAbstractEventDispatcher>
 #include <QByteArrayList>
 #include <QDir>
 #include <QFileInfo>
@@ -113,13 +112,9 @@ struct SshConnection::SshConnectionPrivate
 
     QStringList connectionOptions(const FilePath &binary) const
     {
-        bool avoidUpdatingKnownHosts = false;
         QString hostKeyCheckingString;
         switch (connParams.hostKeyCheckingMode) {
         case SshHostKeyCheckingNone:
-            avoidUpdatingKnownHosts = true;
-            hostKeyCheckingString = "no";
-            break;
         case SshHostKeyCheckingAllowNoMatch:
             // There is "accept-new" as well, but only since 7.6.
             hostKeyCheckingString = "no";
@@ -131,8 +126,6 @@ struct SshConnection::SshConnectionPrivate
         QStringList args{"-o", "StrictHostKeyChecking=" + hostKeyCheckingString,
                     "-o", "User=" + connParams.userName(),
                     "-o", "Port=" + QString::number(connParams.port())};
-        if (avoidUpdatingKnownHosts)
-            args << "-o" << "UserKnownHostsFile=/dev/null";
         const bool keyOnly = connParams.authenticationType ==
                 SshConnectionParameters::AuthenticationTypeSpecificKey;
         if (keyOnly) {
@@ -163,7 +156,6 @@ struct SshConnection::SshConnectionPrivate
     SshProcess masterProcess;
     QString errorString;
     std::unique_ptr<QTemporaryDir> masterSocketDir;
-    std::unique_ptr<FileSystemWatcher> masterSocketWatcher;
     State state = Unconnected;
     const bool sharingEnabled = SshSettings::connectionSharingEnabled();
 };
@@ -181,21 +173,20 @@ SshConnection::SshConnection(const SshConnectionParameters &serverInfo, QObject 
             emitConnected();
             return;
         }
-        d->masterSocketWatcher.reset(new FileSystemWatcher(this));
-        auto * const socketWatcherTimer = new QTimer(d->masterSocketWatcher.get());
-        const auto socketFileChecker = [this, socketWatcherTimer] {
+        auto * const socketWatcher = new FileSystemWatcher(this);
+        auto * const socketWatcherTimer = new QTimer(this);
+        const auto socketFileChecker = [this, socketWatcher, socketWatcherTimer] {
             if (!QFileInfo::exists(d->socketFilePath()))
                 return;
-            d->masterSocketWatcher->disconnect();
-            d->masterSocketWatcher->deleteLater();
-            (void) d->masterSocketWatcher.release();
+            socketWatcher->disconnect();
+            socketWatcher->deleteLater();
             socketWatcherTimer->disconnect();
             socketWatcherTimer->stop();
+            socketWatcherTimer->deleteLater();
             emitConnected();
         };
-        connect(d->masterSocketWatcher.get(), &FileSystemWatcher::directoryChanged,
-                socketFileChecker);
-        d->masterSocketWatcher->addDirectory(socketInfo.path(), FileSystemWatcher::WatchAllChanges);
+        connect(socketWatcher, &FileSystemWatcher::directoryChanged, socketFileChecker);
+        socketWatcher->addDirectory(socketInfo.path(), FileSystemWatcher::WatchAllChanges);
         if (HostOsInfo::isMacHost()) {
             // QTBUG-72455
             socketWatcherTimer->setInterval(1000);
@@ -247,8 +238,6 @@ void SshConnection::disconnectFromHost()
     case Connecting:
     case Connected:
         if (!d->sharingEnabled) {
-            if (!QAbstractEventDispatcher::instance())
-                return;
             QTimer::singleShot(0, this, &SshConnection::emitDisconnected);
             return;
         }
@@ -367,6 +356,10 @@ void SshConnection::doConnectToHost()
                   .arg(sshBinary.toUserOutput()));
         return;
     }
+    if (!d->sharingEnabled) {
+        emitConnected();
+        return;
+    }
     d->masterSocketDir.reset(new QTemporaryDir);
     if (!d->masterSocketDir->isValid()) {
         emitError(tr("Cannot establish SSH connection: Failed to create temporary "
@@ -374,15 +367,8 @@ void SshConnection::doConnectToHost()
                   .arg(d->masterSocketDir->errorString()));
         return;
     }
-    QStringList args;
-    if (d->sharingEnabled) {
-        args = QStringList{"-M", "-N", "-o", "ControlPersist=no"}
+    QStringList args = QStringList{"-M", "-N", "-o", "ControlPersist=no"}
             << d->connectionArgs(sshBinary);
-    } else {
-        const QString notify = QString("echo I am not a socket > \"%1\"").arg(d->socketFilePath());
-        args = QStringList{"-N", "-o", "PermitLocalCommand=yes", "-o", "LocalCommand=" + notify}
-            << d->connectionArgs(sshBinary);
-    }
     if (!d->connParams.x11DisplayName.isEmpty())
         args.prepend("-X");
     qCDebug(sshLog) << "establishing connection:" << sshBinary.toUserOutput() << args;

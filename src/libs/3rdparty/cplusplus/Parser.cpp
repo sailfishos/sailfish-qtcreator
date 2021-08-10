@@ -39,7 +39,7 @@
 
 #define CPLUSPLUS_NO_DEBUG_RULE
 #define MAX_EXPRESSION_DEPTH 1000
-#define MAX_STATEMENT_DEPTH 100
+#define MAX_STATEMENT_DEPTH 300
 
 using namespace CPlusPlus;
 
@@ -1527,10 +1527,23 @@ bool Parser::parseDeclSpecifierSeq(SpecifierListAST *&decl_specifier_seq,
         } else if (! onlySimpleTypeSpecifiers && ! has_type_specifier &&
                    (LA() == T_TYPENAME || LA() == T_ENUM || lookAtClassKey())) {
             // typename-specifier, elaborated-type-specifier
-            int startOfElaboratedTypeSpecifier = cursor();
+            int startOfTypeSpecifier = cursor();
             if (! parseElaboratedTypeSpecifier(*decl_specifier_seq_ptr)) {
-                error(startOfElaboratedTypeSpecifier, "expected an elaborated type specifier");
-                break;
+                rewind(startOfTypeSpecifier);
+                if (LA() == T_ENUM) {
+                    if (!parseEnumSpecifier(*decl_specifier_seq_ptr)) {
+                        error(startOfTypeSpecifier, "expected an enum specifier");
+                        break;
+                    }
+                } else if (lookAtClassKey()) {
+                    if (!parseClassSpecifier(*decl_specifier_seq_ptr)) {
+                        error(startOfTypeSpecifier, "expected a class specifier");
+                        break;
+                    }
+                } else {
+                    error(startOfTypeSpecifier, "expected an elaborated type specifier");
+                    break;
+                }
             }
             decl_specifier_seq_ptr = &(*decl_specifier_seq_ptr)->next;
             has_type_specifier = true;
@@ -1660,6 +1673,7 @@ bool Parser::parseDeclarator(DeclaratorAST *&node, SpecifierListAST *decl_specif
                                 int rparen_token = consumeToken();
 
                                 FunctionDeclaratorAST *ast = new (_pool) FunctionDeclaratorAST;
+                                ast->decl_specifier_list = decl_specifier_list;
                                 ast->lparen_token = lparen_token;
                                 ast->parameter_declaration_clause = parameter_declaration_clause;
                                 ast->as_cpp_initializer = initializer;
@@ -1683,6 +1697,7 @@ bool Parser::parseDeclarator(DeclaratorAST *&node, SpecifierListAST *decl_specif
             }
 
             FunctionDeclaratorAST *ast = new (_pool) FunctionDeclaratorAST;
+            ast->decl_specifier_list = decl_specifier_list;
             ast->lparen_token = consumeToken();
             parseParameterDeclarationClause(ast->parameter_declaration_clause);
             if (LA() != T_RPAREN) {
@@ -1786,6 +1801,7 @@ bool Parser::parseAbstractDeclarator(DeclaratorAST *&node, SpecifierListAST *dec
     for (;;) {
         if (LA() == T_LPAREN) {
             FunctionDeclaratorAST *ast = new (_pool) FunctionDeclaratorAST;
+            ast->decl_specifier_list = decl_specifier_list;
             ast->lparen_token = consumeToken();
             if (LA() == T_RPAREN || parseParameterDeclarationClause(ast->parameter_declaration_clause)) {
                 if (LA() == T_RPAREN)
@@ -2097,6 +2113,11 @@ bool Parser::parseParameterDeclarationList(ParameterDeclarationListAST *&node)
 bool Parser::parseParameterDeclaration(ParameterDeclarationAST *&node)
 {
     DEBUG_THIS_RULE();
+    if (_languageFeatures.cxx11Enabled) {
+        SpecifierListAST *attr_specifier_seq = nullptr;
+        while (parseStdAttributeSpecifier(attr_specifier_seq))
+            ;
+    }
     SpecifierListAST *decl_specifier_seq = nullptr;
     if (parseDeclSpecifierSeq(decl_specifier_seq)) {
         ParameterDeclarationAST *ast = new (_pool) ParameterDeclarationAST;

@@ -161,8 +161,9 @@ public:
                     [](ToolChainFactory *factory) { return factory->canCreate();});
 
         m_model.setHeader({ToolChainOptionsPage::tr("Name"), ToolChainOptionsPage::tr("Type")});
-        auto autoRoot = new StaticTreeItem(ToolChainOptionsPage::tr("Auto-detected"));
-        auto manualRoot = new StaticTreeItem(ToolChainOptionsPage::tr("Manual"));
+        auto autoRoot = new StaticTreeItem({ProjectExplorer::Constants::msgAutoDetected()},
+                                           {ProjectExplorer::Constants::msgAutoDetectedToolTip()});
+        auto manualRoot = new StaticTreeItem(ProjectExplorer::Constants::msgManual());
 
         foreach (const Utils::Id &l, ToolChainManager::allLanguages()) {
             const QString dn = ToolChainManager::displayNameOfLanguageId(l);
@@ -309,7 +310,7 @@ public:
 
     void redetectToolchains();
 
-    void apply();
+    void apply() final;
 
  private:
     TreeModel<TreeItem, ToolChainTreeItem> m_model;

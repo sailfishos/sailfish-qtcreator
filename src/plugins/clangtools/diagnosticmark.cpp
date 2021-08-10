@@ -30,6 +30,10 @@
 
 #include <utils/utilsicons.h>
 
+#include <QAction>
+#include <QApplication>
+#include <QClipboard>
+
 namespace ClangTools {
 namespace Internal {
 
@@ -39,6 +43,8 @@ DiagnosticMark::DiagnosticMark(const Diagnostic &diagnostic)
                            Utils::Id(Constants::DIAGNOSTIC_MARK_ID))
     , m_diagnostic(diagnostic)
 {
+    setSettingsPage(Constants::SETTINGS_PAGE_ID);
+
     if (diagnostic.type == "error" || diagnostic.type == "fatal")
         setColor(Utils::Theme::CodeModel_Error_TextMarkColor);
     else
@@ -48,6 +54,21 @@ DiagnosticMark::DiagnosticMark(const Diagnostic &diagnostic)
     setIcon(markIcon.isNull() ? Utils::Icons::CODEMODEL_WARNING.icon() : markIcon);
     setToolTip(createDiagnosticToolTipString(diagnostic, Utils::nullopt,  true));
     setLineAnnotation(diagnostic.description);
+
+    // Copy to clipboard action
+    QVector<QAction *> actions;
+    QAction *action = new QAction();
+    action->setIcon(QIcon::fromTheme("edit-copy", Utils::Icons::COPY.icon()));
+    action->setToolTip(tr("Copy to Clipboard"));
+    QObject::connect(action, &QAction::triggered, [diagnostic]() {
+        const QString text = createFullLocationString(diagnostic.location)
+                             + ": "
+                             + diagnostic.description;
+        QApplication::clipboard()->setText(text);
+    });
+    actions << action;
+
+    setActions(actions);
 }
 
 void DiagnosticMark::disable()

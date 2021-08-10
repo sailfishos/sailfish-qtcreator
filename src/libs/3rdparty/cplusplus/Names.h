@@ -23,6 +23,7 @@
 #include "CPlusPlusForwardDeclarations.h"
 #include "Name.h"
 #include "FullySpecifiedType.h"
+#include <functional>
 #include <vector>
 
 namespace CPlusPlus {
@@ -35,17 +36,17 @@ public:
 
     virtual ~QualifiedNameId();
 
-    virtual const Identifier *identifier() const;
+    const Identifier *identifier() const override;
 
     const Name *base() const;
     const Name *name() const;
 
-    virtual const QualifiedNameId *asQualifiedNameId() const
+    const QualifiedNameId *asQualifiedNameId() const override
     { return this; }
 
 protected:
-    virtual void accept0(NameVisitor *visitor) const;
-    virtual bool match0(const Name *otherName, Matcher *matcher) const;
+    void accept0(NameVisitor *visitor) const override;
+    bool match0(const Name *otherName, Matcher *matcher) const override;
 
 private:
     const Name *_base;
@@ -58,16 +59,16 @@ public:
     DestructorNameId(const Name *name);
     virtual ~DestructorNameId();
 
-    virtual const Name *name() const;
+    const Name *name() const;
 
-    virtual const Identifier *identifier() const;
+    const Identifier *identifier() const override;
 
-    virtual const DestructorNameId *asDestructorNameId() const
+    const DestructorNameId *asDestructorNameId() const override
     { return this; }
 
 protected:
-    virtual void accept0(NameVisitor *visitor) const;
-    virtual bool match0(const Name *otherName, Matcher *matcher) const;
+    void accept0(NameVisitor *visitor) const override;
+    bool match0(const Name *otherName, Matcher *matcher) const override;
 
 private:
     const Name *_name;
@@ -113,6 +114,11 @@ public:
 
     bool match(const TemplateArgument &otherTy, Matcher *matcher = nullptr) const;
 
+    size_t hash() const
+    {
+        return _expressionTy.hash() ^ std::hash<const NumericLiteral *>()(_numericLiteral);
+    }
+
 private:
     FullySpecifiedType _expressionTy;
     const NumericLiteral *_numericLiteral = nullptr;
@@ -130,13 +136,13 @@ public:
 
     virtual ~TemplateNameId();
 
-    virtual const Identifier *identifier() const;
+    const Identifier *identifier() const override;
 
     // ### find a better name
     int templateArgumentCount() const;
     const TemplateArgument &templateArgumentAt(int index) const;
 
-    virtual const TemplateNameId *asTemplateNameId() const
+    const TemplateNameId *asTemplateNameId() const override
     { return this; }
 
     typedef std::vector<TemplateArgument>::const_iterator TemplateArgumentIterator;
@@ -145,14 +151,17 @@ public:
     TemplateArgumentIterator lastTemplateArgument() const { return _templateArguments.end(); }
     bool isSpecialization() const { return _isSpecialization; }
 
-    // Comparator needed to distinguish between two different TemplateNameId(e.g.:used in std::map)
-    struct Compare {
+    // Comparator needed to distinguish between two different TemplateNameId(e.g.:used in std::unordered_map)
+    struct Equals {
         bool operator()(const TemplateNameId *name, const TemplateNameId *other) const;
+    };
+    struct Hash {
+        size_t operator()(const TemplateNameId *name) const;
     };
 
 protected:
-    virtual void accept0(NameVisitor *visitor) const;
-    virtual bool match0(const Name *otherName, Matcher *matcher) const;
+    void accept0(NameVisitor *visitor) const override;
+    bool match0(const Name *otherName, Matcher *matcher) const override;
 
 private:
     const Identifier *_identifier;
@@ -224,14 +233,14 @@ public:
 
     Kind kind() const;
 
-    virtual const Identifier *identifier() const;
+    const Identifier *identifier() const override;
 
-    virtual const OperatorNameId *asOperatorNameId() const
+    const OperatorNameId *asOperatorNameId() const override
     { return this; }
 
 protected:
-    virtual void accept0(NameVisitor *visitor) const;
-    virtual bool match0(const Name *otherName, Matcher *matcher) const;
+    void accept0(NameVisitor *visitor) const override;
+    bool match0(const Name *otherName, Matcher *matcher) const override;
 
 private:
     Kind _kind;
@@ -245,14 +254,14 @@ public:
 
     FullySpecifiedType type() const;
 
-    virtual const Identifier *identifier() const;
+    const Identifier *identifier() const override;
 
-    virtual const ConversionNameId *asConversionNameId() const
+    const ConversionNameId *asConversionNameId() const override
     { return this; }
 
 protected:
-    virtual void accept0(NameVisitor *visitor) const;
-    virtual bool match0(const Name *otherName, Matcher *matcher) const;
+    void accept0(NameVisitor *visitor) const override;
+    bool match0(const Name *otherName, Matcher *matcher) const override;
 
 private:
     FullySpecifiedType _type;
@@ -267,13 +276,13 @@ public:
 
     virtual ~SelectorNameId();
 
-    virtual const Identifier *identifier() const;
+    const Identifier *identifier() const override;
 
     int nameCount() const;
     const Name *nameAt(int index) const;
     bool hasArguments() const;
 
-    virtual const SelectorNameId *asSelectorNameId() const
+    const SelectorNameId *asSelectorNameId() const override
     { return this; }
 
     typedef std::vector<const Name *>::const_iterator NameIterator;
@@ -282,8 +291,8 @@ public:
     NameIterator lastName() const { return _names.end(); }
 
 protected:
-    virtual void accept0(NameVisitor *visitor) const;
-    virtual bool match0(const Name *otherName, Matcher *matcher) const;
+    void accept0(NameVisitor *visitor) const override;
+    bool match0(const Name *otherName, Matcher *matcher) const override;
 
 private:
     std::vector<const Name *> _names;
@@ -298,14 +307,14 @@ public:
 
     int classTokenIndex() const;
 
-    virtual const Identifier *identifier() const;
+    const Identifier *identifier() const override;
 
-    virtual const AnonymousNameId *asAnonymousNameId() const
+    const AnonymousNameId *asAnonymousNameId() const override
     { return this; }
 
 protected:
-    virtual void accept0(NameVisitor *visitor) const;
-    virtual bool match0(const Name *otherName, Matcher *matcher) const;
+    void accept0(NameVisitor *visitor) const override;
+    bool match0(const Name *otherName, Matcher *matcher) const override;
 
 private:
     int _classTokenIndex;

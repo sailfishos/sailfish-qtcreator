@@ -25,6 +25,7 @@
 #include "catchtestparser.h"
 
 #include "catchcodeparser.h"
+#include "catchframework.h"
 #include "catchtreeitem.h"
 
 #include <cpptools/cppmodelmanager.h>
@@ -65,15 +66,24 @@ static bool isCatchMacro(const QString &macroName)
 static bool includesCatchHeader(const CPlusPlus::Document::Ptr &doc,
                                 const CPlusPlus::Snapshot &snapshot)
 {
-    static const QString catchHeader("catch.hpp");
+    static const QStringList catchHeaders{"catch.hpp", // v2
+                                          "catch_all.hpp", // v3 - new approach
+                                          "catch_amalgamated.hpp",
+                                          "catch_test_macros.hpp",
+                                          "catch_template_test_macros.hpp"
+                                         };
     for (const CPlusPlus::Document::Include &inc : doc->resolvedIncludes()) {
-        if (inc.resolvedFileName().endsWith(catchHeader))
-            return true;
+        for (const QString &catchHeader : catchHeaders) {
+            if (inc.resolvedFileName().endsWith(catchHeader))
+                return true;
+        }
     }
 
     for (const QString &include : snapshot.allIncludesForDocument(doc->fileName())) {
-        if (include.endsWith(catchHeader))
-            return true;
+        for (const QString &catchHeader : catchHeaders) {
+            if (include.endsWith(catchHeader))
+                return true;
+        }
     }
 
     return false;
@@ -95,13 +105,15 @@ static bool hasCatchNames(const CPlusPlus::Document::Ptr &document)
     return false;
 }
 
-static bool handleCatchDocument(QFutureInterface<TestParseResultPtr> futureInterface,
-                                const CPlusPlus::Document::Ptr &doc,
-                                ITestFramework *framework)
+bool CatchTestParser::processDocument(QFutureInterface<TestParseResultPtr> futureInterface, const QString &fileName)
 {
+    CPlusPlus::Document::Ptr doc = document(fileName);
+    if (doc.isNull() || !includesCatchHeader(doc, m_cppSnapshot) || !hasCatchNames(doc))
+        return false;
+
     const CppTools::CppModelManager *modelManager = CppTools::CppModelManager::instance();
     const QString &filePath = doc->fileName();
-    const QByteArray &fileContent = CppParser::getFileContent(filePath);
+    const QByteArray &fileContent = getFileContent(filePath);
 
     const QList<CppTools::ProjectPart::Ptr> projectParts = modelManager->projectPart(filePath);
     if (projectParts.isEmpty()) // happens if shutting down while parsing
@@ -113,7 +125,7 @@ static bool handleCatchDocument(QFutureInterface<TestParseResultPtr> futureInter
     CatchCodeParser codeParser(fileContent, projectPart->languageFeatures);
     const CatchTestCodeLocationList foundTests = codeParser.findTests();
 
-    CatchParseResult *parseResult = new CatchParseResult(framework);
+    CatchParseResult *parseResult = new CatchParseResult(framework());
     parseResult->itemType = TestTreeItem::TestSuite;
     parseResult->fileName = filePath;
     parseResult->name = filePath;
@@ -121,7 +133,7 @@ static bool handleCatchDocument(QFutureInterface<TestParseResultPtr> futureInter
     parseResult->proFile = projectParts.first()->projectFile;
 
     for (const CatchTestCodeLocationAndType & testLocation : foundTests) {
-        CatchParseResult *testCase = new CatchParseResult(framework);
+        CatchParseResult *testCase = new CatchParseResult(framework());
         testCase->fileName = filePath;
         testCase->name = testLocation.m_name;
         testCase->proFile = proFile;
@@ -136,15 +148,6 @@ static bool handleCatchDocument(QFutureInterface<TestParseResultPtr> futureInter
     futureInterface.reportResult(TestParseResultPtr(parseResult));
 
     return !foundTests.isEmpty();
-}
-
-bool CatchTestParser::processDocument(QFutureInterface<TestParseResultPtr> futureInterface, const QString &fileName)
-{
-    CPlusPlus::Document::Ptr doc = document(fileName);
-    if (doc.isNull() || !includesCatchHeader(doc, m_cppSnapshot) || !hasCatchNames(doc))
-        return false;
-
-    return handleCatchDocument(futureInterface, doc, framework());
 }
 
 TestTreeItem *CatchParseResult::createTestTreeItem() const

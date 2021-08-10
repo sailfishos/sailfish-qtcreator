@@ -379,7 +379,10 @@ CommandLine CMakeBuildStep::cmakeCommand() const
     CMakeTool *tool = CMakeKitAspect::cmakeTool(kit());
 
     Utils::CommandLine cmd(tool ? tool->cmakeExecutable() : Utils::FilePath(), {});
-    cmd.addArgs({"--build", "."});
+    QString buildDirectory = ".";
+    if (buildConfiguration())
+        buildDirectory = buildConfiguration()->buildDirectory().toString();
+    cmd.addArgs({"--build", buildDirectory});
 
     cmd.addArg("--target");
     cmd.addArgs(Utils::transform(m_buildTargets, [this](const QString &s) {
@@ -389,6 +392,13 @@ CommandLine CMakeBuildStep::cmakeCommand() const
         }
         return s;
     }));
+
+    auto bs = qobject_cast<CMakeBuildSystem*>(buildSystem());
+    auto bc = qobject_cast<CMakeBuildConfiguration*>(buildConfiguration());
+    if (bc && bs && bs->isMultiConfig()) {
+        cmd.addArg("--config");
+        cmd.addArg(bc->cmakeBuildType());
+    }
 
     if (!m_cmakeArguments->value().isEmpty())
         cmd.addArgs(m_cmakeArguments->value(), CommandLine::Raw);
@@ -401,29 +411,27 @@ CommandLine CMakeBuildStep::cmakeCommand() const
     return cmd;
 }
 
-QString CMakeBuildStep::cleanTarget()
+QString CMakeBuildStep::cleanTarget() const
 {
     return QString("clean");
 }
 
-QString CMakeBuildStep::allTarget()
+QString CMakeBuildStep::allTarget() const
 {
-    return QString("all");
+    return m_allTarget;
 }
 
-QString CMakeBuildStep::installTarget()
+QString CMakeBuildStep::installTarget() const
 {
-    return QString("install");
+    return m_installTarget;
 }
 
-QString CMakeBuildStep::testTarget()
+QStringList CMakeBuildStep::specialTargets(bool allCapsTargets)
 {
-    return QString("test");
-}
-
-QStringList CMakeBuildStep::specialTargets()
-{
-    return { allTarget(), cleanTarget(), installTarget(), testTarget() };
+    if (!allCapsTargets)
+        return {"all", "clean", "install", "install/strip", "package", "test"};
+    else
+        return {"ALL_BUILD", "clean", "INSTALL", "PACKAGE", "RUN_TESTS"};
 }
 
 QString CMakeBuildStep::activeRunConfigTarget() const
@@ -512,12 +520,34 @@ void CMakeBuildStep::recreateBuildTargetsModel()
     auto bs = qobject_cast<CMakeBuildSystem *>(buildSystem());
     QStringList targetList = bs ? bs->buildTargetTitles() : QStringList();
 
-    targetList.sort();
+    bool usesAllCapsTargets = bs ? bs->usesAllCapsTargets() : false;
+    if (usesAllCapsTargets) {
+        m_allTarget = "ALL_BUILD";
+        m_installTarget = "INSTALL";
+
+        int idx = m_buildTargets.indexOf(QString("all"));
+        if (idx != -1)
+            m_buildTargets[idx] = QString("ALL_BUILD");
+        idx = m_buildTargets.indexOf(QString("install"));
+        if (idx != -1)
+            m_buildTargets[idx] = QString("INSTALL");
+    }
+    targetList.removeDuplicates();
 
     addItem(QString(), true);
 
+    // Remove the targets that do not exist in the build system
+    // This can result when selected targets get renamed
+    if (!targetList.empty()) {
+        Utils::erase(m_buildTargets, [targetList](const QString &bt) {
+            return !bt.isEmpty() /* "current executable" */ && !targetList.contains(bt);
+        });
+        if (m_buildTargets.empty())
+            m_buildTargets.push_back(m_allTarget);
+    }
+
     for (const QString &buildTarget : qAsConst(targetList))
-        addItem(buildTarget, specialTargets().contains(buildTarget));
+        addItem(buildTarget, specialTargets(usesAllCapsTargets).contains(buildTarget));
 
     updateBuildTargetsModel();
 }

@@ -35,9 +35,10 @@
 #include <QString>
 
 namespace CMakeProjectManager {
-namespace Internal {
 
 class CMakeBuildConfiguration;
+
+namespace Internal {
 
 class BuildDirParameters {
 public:
@@ -54,6 +55,7 @@ public:
     Utils::FilePath sourceDirectory;
     Utils::FilePath buildDirectory;
     Utils::FilePath workDirectory; // either buildDirectory or a QTemporaryDirectory!
+    QString cmakeBuildType;
 
     Utils::Environment environment;
 

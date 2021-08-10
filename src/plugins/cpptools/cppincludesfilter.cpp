@@ -34,8 +34,6 @@
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
 
-#include <QTimer>
-
 using namespace Core;
 using namespace ProjectExplorer;
 using namespace Utils;
@@ -43,7 +41,7 @@ using namespace Utils;
 namespace CppTools {
 namespace Internal {
 
-class CppIncludesIterator : public BaseFileFilter::Iterator
+class CppIncludesIterator final : public BaseFileFilter::Iterator
 {
 public:
     CppIncludesIterator(CPlusPlus::Snapshot snapshot, const QSet<QString> &seedPaths);
@@ -123,8 +121,8 @@ CppIncludesFilter::CppIncludesFilter()
 {
     setId(Constants::INCLUDES_FILTER_ID);
     setDisplayName(Constants::INCLUDES_FILTER_DISPLAY_NAME);
-    setShortcutString("ai");
-    setIncludedByDefault(true);
+    setDefaultShortcutString("ai");
+    setDefaultIncludedByDefault(true);
     setPriority(ILocatorFilter::Low);
 
     connect(ProjectExplorerPlugin::instance(), &ProjectExplorerPlugin::fileListChanged,
@@ -168,7 +166,7 @@ void CppIncludesFilter::prepareSearch(const QString &entry)
 void CppIncludesFilter::refresh(QFutureInterface<void> &future)
 {
     Q_UNUSED(future)
-    QTimer::singleShot(0, this, &CppIncludesFilter::markOutdated);
+    QMetaObject::invokeMethod(this, &CppIncludesFilter::markOutdated, Qt::QueuedConnection);
 }
 
 void CppIncludesFilter::markOutdated()

@@ -100,6 +100,7 @@ public:
     ApplicationLauncher *q;
 
     bool m_isLocal = true;
+    bool m_runAsRoot = false;
 
     // Local
     QtcProcess m_guiProcess;
@@ -179,6 +180,11 @@ void ApplicationLauncher::setUseTerminal(bool on)
     d->m_useTerminal = on;
 }
 
+void ApplicationLauncher::setRunAsRoot(bool on)
+{
+    d->m_runAsRoot = on;
+}
+
 void ApplicationLauncher::stop()
 {
     d->stop();
@@ -194,7 +200,7 @@ void ApplicationLauncherPrivate::stop()
             localProcessDone(0, QProcess::CrashExit);
         } else {
             m_guiProcess.terminate();
-            if (!m_guiProcess.waitForFinished(1000) && m_guiProcess.state() == QProcess::Running) { // This is blocking, so be fast.
+            if (!m_guiProcess.waitForFinished(1000)) { // This is blocking, so be fast.
                 m_guiProcess.kill();
                 m_guiProcess.waitForFinished();
             }
@@ -368,8 +374,13 @@ void ApplicationLauncherPrivate::start(const Runnable &runnable, const IDevice::
         const QString fixedPath = FileUtils::normalizePathName(runnable.workingDirectory);
         m_guiProcess.setWorkingDirectory(fixedPath);
         m_consoleProcess.setWorkingDirectory(fixedPath);
-        m_guiProcess.setEnvironment(runnable.environment);
-        m_consoleProcess.setEnvironment(runnable.environment);
+
+        Environment env = runnable.environment;
+        if (m_runAsRoot)
+            RunControl::provideAskPassEntry(env);
+
+        m_guiProcess.setEnvironment(env);
+        m_consoleProcess.setEnvironment(env);
 
         m_processRunning = true;
     #ifdef Q_OS_WIN
@@ -377,13 +388,20 @@ void ApplicationLauncherPrivate::start(const Runnable &runnable, const IDevice::
             WinDebugInterface::instance()->start(); // Try to start listener again...
     #endif
 
-        if (!m_useTerminal) {
-            m_guiProcess.setCommand(runnable.commandLine());
+        CommandLine cmdLine = runnable.commandLine();
+        if (m_runAsRoot) {
+            CommandLine wrapped("sudo", {"-A"});
+            wrapped.addArgs(cmdLine);
+            cmdLine = wrapped;
+        }
+
+        if (m_useTerminal) {
+            m_consoleProcess.setCommand(cmdLine);
+            m_consoleProcess.start();
+        } else {
+            m_guiProcess.setCommand(cmdLine);
             m_guiProcess.closeWriteChannel();
             m_guiProcess.start();
-        } else {
-            m_consoleProcess.setCommand(runnable.commandLine());
-            m_consoleProcess.start();
         }
     } else {
         QTC_ASSERT(m_state == Inactive, return);

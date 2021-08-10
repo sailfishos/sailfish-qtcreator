@@ -140,6 +140,7 @@ QStringList CompilerOptionsBuilder::build(ProjectFile::Kind fileKind,
     addLanguageVersionAndExtensions();
     addMsvcExceptions();
 
+    addIncludedFiles(m_projectPart.includedFiles); // GCC adds these before precompiled headers.
     addPrecompiledHeaderOptions(usePrecompiledHeaders);
     addProjectConfigFileInclude();
 
@@ -172,14 +173,6 @@ void CompilerOptionsBuilder::add(const QStringList &args, bool gccOnlyOptions)
 void CompilerOptionsBuilder::addSyntaxOnly()
 {
     isClStyle() ? add("/Zs") : add("-fsyntax-only");
-}
-
-void CompilerOptionsBuilder::remove(const QStringList &args)
-{
-    auto foundPos = std::search(m_options.begin(), m_options.end(),
-                                args.begin(), args.end());
-    if (foundPos != m_options.end())
-        m_options.erase(foundPos, std::next(foundPos, args.size()));
 }
 
 QStringList createLanguageOptionGcc(ProjectFile::Kind fileKind, bool objcExt)
@@ -350,9 +343,9 @@ void CompilerOptionsBuilder::addHeaderPathOptions()
     using ProjectExplorer::HeaderPath;
     using ProjectExplorer::HeaderPathType;
 
-    for (const HeaderPath &headerPath : filter.userHeaderPaths)
+    for (const HeaderPath &headerPath : qAsConst(filter.userHeaderPaths))
         addIncludeDirOptionForPath(headerPath);
-    for (const HeaderPath &headerPath : filter.systemHeaderPaths)
+    for (const HeaderPath &headerPath : qAsConst(filter.systemHeaderPaths))
         addIncludeDirOptionForPath(headerPath);
 
     if (m_useTweakedHeaderPaths != UseTweakedHeaderPaths::No) {
@@ -363,32 +356,37 @@ void CompilerOptionsBuilder::addHeaderPathOptions()
         m_options.prepend("-nostdinc++");
         m_options.prepend("-nostdinc");
 
-        for (const HeaderPath &headerPath : filter.builtInHeaderPaths)
+        for (const HeaderPath &headerPath : qAsConst(filter.builtInHeaderPaths))
             addIncludeDirOptionForPath(headerPath);
+    }
+}
+
+void CompilerOptionsBuilder::addIncludeFile(const QString &file)
+{
+    if (QFile::exists(file)) {
+        add({isClStyle() ? QLatin1String(includeFileOptionCl)
+                         : QLatin1String(includeFileOptionGcc),
+             QDir::toNativeSeparators(file)});
+    }
+}
+
+void CompilerOptionsBuilder::addIncludedFiles(const QStringList &files)
+{
+    for (const QString &file : files) {
+        if (m_projectPart.precompiledHeaders.contains(file))
+            continue;
+
+        addIncludeFile(file);
     }
 }
 
 void CompilerOptionsBuilder::addPrecompiledHeaderOptions(UsePrecompiledHeaders usePrecompiledHeaders)
 {
-    for (const QString &pchFile : m_projectPart.precompiledHeaders) {
-        // Bail if build system precompiled header artifacts exists.
-        // Clang cannot handle foreign PCH files.
-        if (QFile::exists(pchFile + ".gch") || QFile::exists(pchFile + ".pch"))
-            usePrecompiledHeaders = UsePrecompiledHeaders::No;
+    if (usePrecompiledHeaders == UsePrecompiledHeaders::No)
+        return;
 
-        if (usePrecompiledHeaders == UsePrecompiledHeaders::No) {
-            // CMake PCH will already have force included the header file in
-            // command line options, remove it if exists.
-            // In case of Clang compilers, also remove the pch-inclusion arguments.
-            remove({"-Xclang", "-include-pch", "-Xclang", pchFile + ".gch"});
-            remove({"-Xclang", "-include-pch", "-Xclang", pchFile + ".pch"});
-            remove({isClStyle() ? QLatin1String(includeFileOptionCl)
-                                : QLatin1String(includeFileOptionGcc), pchFile});
-        } else if (QFile::exists(pchFile)) {
-            add({isClStyle() ? QLatin1String(includeFileOptionCl)
-                             : QLatin1String(includeFileOptionGcc),
-                 QDir::toNativeSeparators(pchFile)});
-        }
+    for (const QString &pchFile : m_projectPart.precompiledHeaders) {
+        addIncludeFile(pchFile);
     }
 }
 
@@ -828,6 +826,12 @@ void CompilerOptionsBuilder::evaluateCompilerFlags()
             || option.startsWith(includeSystemPathOption)
             || option.startsWith(includeUserPathOptionWindows)) {
             // Optimization and run-time flags.
+            continue;
+        }
+
+        // These were already parsed into ProjectPart::includedFiles.
+        if (option == includeFileOptionCl || option == includeFileOptionGcc) {
+            skipNext = true;
             continue;
         }
 

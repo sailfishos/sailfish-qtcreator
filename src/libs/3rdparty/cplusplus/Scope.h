@@ -55,6 +55,7 @@ public:
 
     Symbol *find(const Identifier *id) const;
     Symbol *find(OperatorNameId::Kind operatorId) const;
+    Symbol *find(const ConversionNameId *conv) const;
 
     /// Set the start offset of the scope
     int startOffset() const;
@@ -64,10 +65,10 @@ public:
     int endOffset() const;
     void setEndOffset(int offset);
 
-    virtual const Scope *asScope() const
+    const Scope *asScope() const override
     { return this; }
 
-    virtual Scope *asScope()
+    Scope *asScope() override
     { return this; }
 
 private:

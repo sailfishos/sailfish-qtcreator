@@ -37,6 +37,7 @@
 #include <utils/pathchooser.h>
 #include <utils/qtcassert.h>
 #include <utils/runextensions.h>
+#include <utils/synchronousprocess.h>
 #include <utils/temporarydirectory.h>
 #include <utils/wizard.h>
 #include <utils/wizardpage.h>
@@ -68,18 +69,18 @@ struct Data
 
 static QStringList libraryNameFilter()
 {
-    if (HostOsInfo().isWindowsHost())
+    if (HostOsInfo::isWindowsHost())
         return {"*.dll"};
-    if (HostOsInfo().isLinuxHost())
+    if (HostOsInfo::isLinuxHost())
         return {"*.so"};
     return {"*.dylib"};
 }
 
 static bool hasLibSuffix(const FilePath &path)
 {
-    return (HostOsInfo().isWindowsHost() && path.endsWith(".dll"))
-           || (HostOsInfo().isLinuxHost() && path.toFileInfo().completeSuffix().startsWith(".so"))
-           || (HostOsInfo().isMacHost() && path.endsWith(".dylib"));
+    return (HostOsInfo::isWindowsHost() && path.endsWith(".dll"))
+           || (HostOsInfo::isLinuxHost() && path.toFileInfo().completeSuffix().startsWith(".so"))
+           || (HostOsInfo::isMacHost() && path.endsWith(".dylib"));
 }
 
 static FilePath pluginInstallPath(bool installIntoApplication)
@@ -130,7 +131,7 @@ public:
         emit completeChanged();
     }
 
-    bool isComplete() const
+    bool isComplete() const final
     {
         const FilePath path = m_data->sourcePath;
         if (!QFile::exists(path.toString())) {
@@ -148,7 +149,7 @@ public:
         return true;
     }
 
-    int nextId() const
+    int nextId() const final
     {
         if (hasLibSuffix(m_data->sourcePath))
             return WizardPage::nextId() + 1; // jump over check archive
@@ -192,7 +193,7 @@ public:
         vlayout->addWidget(m_output);
     }
 
-    void initializePage()
+    void initializePage() final
     {
         m_isComplete = false;
         emit completeChanged();
@@ -306,7 +307,7 @@ public:
              InfoLabel::Error});
     }
 
-    void cleanupPage()
+    void cleanupPage() final
     {
         // back button pressed
         m_cancelButton->disconnect();
@@ -322,7 +323,7 @@ public:
         m_tempDir.reset();
     }
 
-    bool isComplete() const { return m_isComplete; }
+    bool isComplete() const final { return m_isComplete; }
 
     std::unique_ptr<TemporaryDirectory> m_tempDir;
     Archive *m_archive = nullptr;
@@ -406,7 +407,7 @@ public:
         vlayout->addWidget(m_summaryLabel);
     }
 
-    void initializePage()
+    void initializePage() final
     {
         m_summaryLabel->setText(
             PluginInstallWizard::tr("\"%1\" will be installed into \"%2\".")
@@ -418,6 +419,19 @@ private:
     QLabel *m_summaryLabel;
     Data *m_data = nullptr;
 };
+
+static std::function<void(QFileInfo)> postCopyOperation()
+{
+    return [](const QFileInfo &fi) {
+        if (!HostOsInfo::isMacHost())
+            return;
+        // On macOS, downloaded files get a quarantine flag, remove it, otherwise it is a hassle
+        // to get it loaded as a plugin in Qt Creator.
+        SynchronousProcess xattr;
+        xattr.setTimeoutS(1);
+        xattr.runBlocking({"/usr/bin/xattr", {"-d", "com.apple.quarantine", fi.absoluteFilePath()}});
+    };
+}
 
 static bool copyPluginFile(const FilePath &src, const FilePath &dest)
 {
@@ -445,6 +459,7 @@ static bool copyPluginFile(const FilePath &src, const FilePath &dest)
                                  .arg(destFile.toUserOutput()));
         return false;
     }
+    postCopyOperation()(destFile.toFileInfo());
     return true;
 }
 
@@ -476,8 +491,8 @@ bool PluginInstallWizard::exec()
             if (!FileUtils::copyRecursively(data.extractedPath,
                                             installPath,
                                             &error,
-                                            FileUtils::CopyAskingForOverwrite(
-                                                ICore::dialogParent()))) {
+                                            FileUtils::CopyAskingForOverwrite(ICore::dialogParent(),
+                                                                              postCopyOperation()))) {
                 QMessageBox::warning(ICore::dialogParent(),
                                      PluginInstallWizard::tr("Failed to Copy Plugin Files"),
                                      error);

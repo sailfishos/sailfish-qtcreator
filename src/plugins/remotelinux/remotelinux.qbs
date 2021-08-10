@@ -3,8 +3,6 @@ import qbs 1.0
 Project {
     name: "RemoteLinux"
 
-    QtcDevHeaders { }
-
     QtcPlugin {
         Depends { name: "Qt.widgets" }
         Depends { name: "QtcSsh" }
@@ -95,8 +93,6 @@ Project {
             "sshkeydeployer.h",
             "tarpackagecreationstep.cpp",
             "tarpackagecreationstep.h",
-            "typespecificdeviceconfigurationlistmodel.cpp",
-            "typespecificdeviceconfigurationlistmodel.h",
             "uploadandinstalltarpackagestep.cpp",
             "uploadandinstalltarpackagestep.h",
             "images/embeddedtarget.png",

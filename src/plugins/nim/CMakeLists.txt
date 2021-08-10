@@ -19,8 +19,8 @@ add_qtc_plugin(Nim
     project/nimbuildconfiguration.cpp project/nimbuildconfiguration.h
     project/nimcompilerbuildstep.cpp project/nimcompilerbuildstep.h
     project/nimcompilercleanstep.cpp project/nimcompilercleanstep.h
+    project/nimoutputtaskparser.cpp project/nimoutputtaskparser.h
     project/nimproject.cpp project/nimproject.h
-    project/nimprojectnode.cpp project/nimprojectnode.h
     project/nimrunconfiguration.cpp project/nimrunconfiguration.h
     project/nimtoolchain.cpp project/nimtoolchain.h
     project/nimtoolchainfactory.cpp project/nimtoolchainfactory.h

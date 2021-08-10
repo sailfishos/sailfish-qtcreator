@@ -22,15 +22,15 @@
 ** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
+
 #pragma once
+
+#include "mesonpluginconstants.h"
 #include "mesonwrapper.h"
 #include "ninjawrapper.h"
 #include "toolwrapper.h"
-#include <mesonpluginconstants.h>
 
 #include <utils/algorithm.h>
-
-#include <QObject>
 
 #include <memory>
 
@@ -45,7 +45,6 @@ class MesonTools : public QObject
 
 public:
     using Tool_t = std::shared_ptr<ToolWrapper>;
-
 
     static bool isMesonWrapper(const Tool_t &tool);
     static bool isNinjaWrapper(const Tool_t &tool);

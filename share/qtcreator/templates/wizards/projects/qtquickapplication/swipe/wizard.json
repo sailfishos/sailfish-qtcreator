@@ -8,7 +8,7 @@
     "trDisplayCategory": "Application (Qt Quick)",
     "icon": "icon.png",
     "featuresRequired": [ "QtSupport.Wizards.FeatureQt.5.7" ],
-    "enabled": "%{JS: false // value('Plugins').indexOf('QmakeProjectManager') >= 0 || value('Plugins').indexOf('QbsProjectManager') >= 0 || value('Plugins').indexOf('CMakeProjectManager') >= 0}",
+    "enabled": "%{JS: value('Plugins').indexOf('QmakeProjectManager') >= 0 || value('Plugins').indexOf('QbsProjectManager') >= 0 || value('Plugins').indexOf('CMakeProjectManager') >= 0}",
 
     "options":
     [
@@ -178,17 +178,9 @@
                     "type": "ComboBox",
                     "data":
                     {
-                        "index": 1,
+                        "index": 0,
                         "items":
                         [
-                            {
-                                "trKey": "Default",
-                                "value":
-                                {
-                                    "QtQuickControlsStyle": "Default",
-                                    "QtQuickControlsStyleTheme": ""
-                                }
-                            },
                             {
                                 "trKey": "Material Light",
                                 "value":

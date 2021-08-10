@@ -45,9 +45,9 @@ private:
     const char *name() const override;
     unsigned priority() const override;
     QString groupingToolTip() const override;
-    IFrameworkSettings *frameworkSettings() override { return &m_settings; }
+    ITestSettings *testSettings() override { return &m_settings; }
     ITestParser *createTestParser() override;
-    TestTreeItem *createRootNode() override;
+    ITestTreeItem *createRootNode() override;
 
     GTestSettings m_settings;
     GTestSettingsPage m_settingsPage{&m_settings, settingsId()};

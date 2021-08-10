@@ -29,6 +29,7 @@
 #include "reaper_p.h"
 
 #include <extensionsystem/iplugin.h>
+#include <utils/environment.h>
 
 QT_BEGIN_NAMESPACE
 class QMenu;
@@ -64,6 +65,11 @@ public:
                            const QString &workingDirectory,
                            const QStringList &args) override;
 
+    static Utils::Environment startupSystemEnvironment();
+    static Utils::EnvironmentItems environmentChanges();
+    static void setEnvironmentChanges(const Utils::EnvironmentItems &changes);
+    static QString msgCrashpadInformation();
+
 public slots:
     void fileOpenRequest(const QString&);
 
@@ -82,12 +88,16 @@ private slots:
 
 private:
     static void addToPathChooserContextMenu(Utils::PathChooser *pathChooser, QMenu *menu);
+    static void setupSystemEnvironment();
     void checkSettings();
+    void warnAboutCrashReporing();
 
     MainWindow *m_mainWindow = nullptr;
     EditMode *m_editMode = nullptr;
     Locator *m_locator = nullptr;
     ProcessReapers m_reaper;
+    Utils::Environment m_startupSystemEnvironment;
+    Utils::EnvironmentItems m_environmentChanges;
 };
 
 } // namespace Internal

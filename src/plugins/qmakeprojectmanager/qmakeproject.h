@@ -62,7 +62,7 @@ public:
 
     ProjectExplorer::Tasks projectIssues(const ProjectExplorer::Kit *k) const final;
 
-    void configureAsExampleProject(ProjectExplorer::Kit *kit, const QSet<Utils::Id> &preferredFeatures) final;
+    void configureAsExampleProject(ProjectExplorer::Kit *kit) final;
 
     ProjectExplorer::ProjectImporter *projectImporter() const final;
 
@@ -198,7 +198,7 @@ private:
 
     QString m_qmakeSysroot;
 
-    QFutureInterface<void> m_asyncUpdateFutureInterface;
+    std::unique_ptr<QFutureInterface<void>> m_asyncUpdateFutureInterface;
     int m_pendingEvaluateFuturesCount = 0;
     AsyncUpdateState m_asyncUpdateState = Base;
     bool m_cancelEvaluate = false;

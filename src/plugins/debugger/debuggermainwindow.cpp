@@ -500,8 +500,10 @@ void DebuggerMainWindow::savePersistentSettings() const
 
     QVariantHash states;
     qCDebug(perspectivesLog) << "PERSPECTIVE TYPES: " << d->m_lastTypePerspectiveStates.keys();
-    for (const QString &type : d->m_lastTypePerspectiveStates.keys()) {
-        const PerspectiveState state = d->m_lastTypePerspectiveStates.value(type);
+    for (auto it = d->m_lastTypePerspectiveStates.cbegin();
+         it != d->m_lastTypePerspectiveStates.cend(); ++it) {
+        const QString &type = it.key();
+        const PerspectiveState &state = it.value();
         qCDebug(perspectivesLog) << "PERSPECTIVE TYPE " << type
                                  << " HAS STATE: " << !state.mainWindowState.isEmpty();
         QTC_ASSERT(!state.mainWindowState.isEmpty(), continue);
@@ -571,8 +573,9 @@ void DebuggerMainWindowPrivate::resetCurrentPerspective()
 {
     QTC_ASSERT(m_currentPerspective, return);
     cleanDocks();
-    m_currentPerspective->d->resetPerspective();
     setCentralWidget(m_currentPerspective->d->m_centralWidget);
+    q->showCentralWidget(true);
+    m_currentPerspective->d->resetPerspective();
 }
 
 void DebuggerMainWindowPrivate::setCentralWidget(QWidget *widget)
@@ -965,6 +968,8 @@ void Perspective::rampUpAsCurrent()
     QTC_ASSERT(theMainWindow->d->m_currentPerspective == nullptr, return);
     theMainWindow->d->setCurrentPerspective(this);
     QTC_ASSERT(theMainWindow->d->m_currentPerspective == this, return);
+
+    theMainWindow->showCentralWidget(true);
 
     d->populatePerspective();
 

@@ -86,6 +86,7 @@ GridView::GridView(QWidget *parent)
     setSelectionMode(QAbstractItemView::NoSelection);
     setFrameShape(QFrame::NoFrame);
     setGridStyle(Qt::NoPen);
+    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
     QPalette pal;
     pal.setColor(QPalette::Base, themeColor(Theme::Welcome_BackgroundColor));
@@ -613,7 +614,7 @@ bool ListItemDelegate::editorEvent(QEvent *event, QAbstractItemModel *model,
             const QPoint pos = mev->pos();
             if (pos.y() > option.rect.y() + GridProxyModel::TagsSeparatorY) {
                 //const QStringList tags = idx.data(Tags).toStringList();
-                for (const auto &it : m_currentTagRects) {
+                for (const auto &it : qAsConst(m_currentTagRects)) {
                     if (it.second.contains(pos))
                         emit tagClicked(it.first);
                 }

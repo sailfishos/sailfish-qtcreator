@@ -149,6 +149,11 @@ public:
         TreeItem::insertOrderedChild(item, cmp0);
     }
 
+    ChildType *findAnyChild(const std::function<bool(TreeItem *)> &pred) const
+    {
+        return static_cast<ChildType *>(TreeItem::findAnyChild(pred));
+    }
+
     ChildType *reverseFindAnyChild(const std::function<bool(TreeItem *)> &pred) const
     {
         return static_cast<ChildType *>(TreeItem::reverseFindAnyChild(pred));
@@ -160,12 +165,14 @@ class QTCREATOR_UTILS_EXPORT StaticTreeItem : public TreeItem
 public:
     StaticTreeItem(const QStringList &displays);
     StaticTreeItem(const QString &display);
+    StaticTreeItem(const QStringList &displays, const QStringList &toolTips);
 
     QVariant data(int column, int role) const override;
     Qt::ItemFlags flags(int column) const override;
 
 private:
     QStringList m_displays;
+    QStringList m_toolTips;
 };
 
 // A general purpose multi-level model where each item can have its

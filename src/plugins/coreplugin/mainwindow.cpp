@@ -57,6 +57,7 @@
 #include <coreplugin/dialogs/externaltoolconfig.h>
 #include <coreplugin/dialogs/newdialog.h>
 #include <coreplugin/dialogs/shortcutsettings.h>
+#include <coreplugin/editormanager/documentmodel_p.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/editormanager_p.h>
 #include <coreplugin/editormanager/ieditor.h>
@@ -89,7 +90,6 @@
 #include <QSettings>
 #include <QStatusBar>
 #include <QStyleFactory>
-#include <QTimer>
 #include <QToolButton>
 #include <QUrl>
 
@@ -148,7 +148,7 @@ MainWindow::MainWindow()
 
     QApplication::setStyle(new ManhattanStyle(baseName));
     m_generalSettings->setShowShortcutsInContextMenu(
-        m_generalSettings->showShortcutsInContextMenu());
+        GeneralSettings::showShortcutsInContextMenu());
 
     setDockNestingEnabled(true);
 
@@ -308,7 +308,7 @@ void MainWindow::extensionsInitialized()
     m_windowSupport = new WindowSupport(this, Context("Core.MainWindow"));
     m_windowSupport->setCloseActionEnabled(false);
     OutputPaneManager::create();
-    m_vcsManager->extensionsInitialized();
+    VcsManager::extensionsInitialized();
     m_leftNavigationWidget->setFactories(INavigationWidgetFactory::allNavigationFactories());
     m_rightNavigationWidget->setFactories(INavigationWidgetFactory::allNavigationFactories());
 
@@ -319,8 +319,8 @@ void MainWindow::extensionsInitialized()
 
     emit m_coreImpl->coreAboutToOpen();
     // Delay restoreWindowState, since it is overridden by LayoutRequest event
-    QTimer::singleShot(0, this, &MainWindow::restoreWindowState);
-    QTimer::singleShot(0, m_coreImpl, &ICore::coreOpened);
+    QMetaObject::invokeMethod(this, &MainWindow::restoreWindowState, Qt::QueuedConnection);
+    QMetaObject::invokeMethod(m_coreImpl, &ICore::coreOpened, Qt::QueuedConnection);
 }
 
 static void setRestart(bool restart)
@@ -796,6 +796,14 @@ void MainWindow::registerDefaultActions()
 //    mhelp->addAction(cmd, Constants::G_HELP_ABOUT);
 //    tmpaction->setEnabled(true);
 //    connect(tmpaction, &QAction::triggered, qApp, &QApplication::aboutQt);
+
+    // Contact
+    tmpaction = new QAction(tr("Contact..."), this);
+    cmd = ActionManager::registerAction(tmpaction, "QtCreator.Contact");
+    mhelp->addAction(cmd, Constants::G_HELP_ABOUT);
+    tmpaction->setEnabled(true);
+    connect(tmpaction, &QAction::triggered, this, &MainWindow::contact);
+
     // About sep
     if (!HostOsInfo::isMacHost()) { // doesn't have the "About" actions in the Help menu
         tmpaction = new QAction(this);
@@ -877,7 +885,7 @@ IDocument *MainWindow::openFiles(const QStringList &fileNames,
     const QList<IDocumentFactory*> documentFactories = IDocumentFactory::allDocumentFactories();
     IDocument *res = nullptr;
 
-    foreach (const QString &fileName, fileNames) {
+    for (const QString &fileName : fileNames) {
         const QDir workingDir(workingDirectory.isEmpty() ? QDir::currentPath() : workingDirectory);
         const QFileInfo fi(workingDir, fileName);
         const QString absoluteFilePath = fi.absoluteFilePath();
@@ -898,12 +906,19 @@ IDocument *MainWindow::openFiles(const QStringList &fileNames,
                 emFlags |=  EditorManager::CanContainLineAndColumnNumber;
             if (flags & ICore::SwitchSplitIfAlreadyVisible)
                 emFlags |= EditorManager::SwitchSplitIfAlreadyVisible;
-            IEditor *editor = EditorManager::openEditor(absoluteFilePath, Id(), emFlags);
-            if (!editor) {
-                if (flags & ICore::StopOnLoadFail)
-                    return res;
-            } else if (!res) {
-                res = editor->document();
+            if (emFlags != EditorManager::NoFlags || !res) {
+                IEditor *editor = EditorManager::openEditor(absoluteFilePath, Id(), emFlags);
+                if (!editor) {
+                    if (flags & ICore::StopOnLoadFail)
+                        return res;
+                } else if (!res) {
+                    res = editor->document();
+                }
+            } else {
+                auto *factory = IEditorFactory::preferredEditorFactories(absoluteFilePath).value(0);
+                DocumentModelPrivate::addSuspendedDocument(absoluteFilePath,
+                                                           {},
+                                                           factory ? factory->id() : Id());
             }
         }
     }
@@ -922,7 +937,7 @@ void MainWindow::exit()
     // since on close we are going to delete everything
     // so to prevent the deleting of that object we
     // just append it
-    QTimer::singleShot(0, this,  &QWidget::close);
+    QMetaObject::invokeMethod(this,  &QWidget::close, Qt::QueuedConnection);
 }
 
 void MainWindow::openFileWith()
@@ -1029,6 +1044,8 @@ static const char windowGeometryKey[] = "WindowGeometry";
 static const char windowStateKey[] = "WindowState";
 static const char modeSelectorLayoutKey[] = "ModeSelectorLayout";
 
+static const bool askBeforeExitDefault = false;
+
 void MainWindow::readSettings()
 {
     QSettings *settings = PluginManager::settings();
@@ -1043,7 +1060,7 @@ void MainWindow::readSettings()
                                   QColor(StyleHelper::DEFAULT_BASE_COLOR)).value<QColor>());
     }
 
-    m_askConfirmationBeforeExit = settings->value(askBeforeExitKey, false).toBool();
+    m_askConfirmationBeforeExit = settings->value(askBeforeExitKey, askBeforeExitDefault).toBool();
 
     {
         ModeManager::Style modeStyle =
@@ -1070,13 +1087,17 @@ void MainWindow::readSettings()
 
 void MainWindow::saveSettings()
 {
-    QSettings *settings = PluginManager::settings();
+    QtcSettings *settings = PluginManager::settings();
     settings->beginGroup(QLatin1String(settingsGroup));
 
     if (!(m_overrideColor.isValid() && StyleHelper::baseColor() == m_overrideColor))
-        settings->setValue(QLatin1String(colorKey), StyleHelper::requestedBaseColor());
+        settings->setValueWithDefault(colorKey,
+                                      StyleHelper::requestedBaseColor(),
+                                      QColor(StyleHelper::DEFAULT_BASE_COLOR));
 
-    settings->setValue(askBeforeExitKey, m_askConfirmationBeforeExit);
+    settings->setValueWithDefault(askBeforeExitKey,
+                                  m_askConfirmationBeforeExit,
+                                  askBeforeExitDefault);
 
     settings->endGroup();
 
@@ -1222,6 +1243,33 @@ void MainWindow::aboutPlugins()
 {
     PluginDialog dialog(this);
     dialog.exec();
+}
+
+void MainWindow::contact()
+{
+    QMessageBox dlg(QMessageBox::Information, tr("Contact"),
+           tr("<p>Qt Creator developers can be reached at the Qt Creator mailing list:</p>"
+              "%1"
+              "<p>or the #qt-creator channel on Libera.Chat IRC:</p>"
+              "%2"
+              "<p>Our bug tracker is located at %3.</p>"
+              "<p>Please use %4 for bigger chunks of text.</p>")
+                    .arg("<p>&nbsp;&nbsp;&nbsp;&nbsp;"
+                            "<a href=\"https://lists.qt-project.org/listinfo/qt-creator\">"
+                            "mailto:qt-creator@qt-project.org"
+                         "</a></p>")
+                    .arg("<p>&nbsp;&nbsp;&nbsp;&nbsp;"
+                            "<a href=\"https://web.libera.chat/#qt-creator\">"
+                            "https://web.libera.chat/#qt-creator"
+                         "</a></p>")
+                    .arg("<a href=\"https://bugreports.qt.io/projects/QTCREATORBUG\">"
+                            "https://bugreports.qt.io"
+                         "</a>")
+                    .arg("<a href=\"https://pastebin.com\">"
+                            "https://pastebin.com"
+                         "</a>"),
+           QMessageBox::Ok, this);
+    dlg.exec();
 }
 
 QPrinter *MainWindow::printer() const

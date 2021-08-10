@@ -143,9 +143,9 @@ QmakeBuildConfiguration::QmakeBuildConfiguration(Target *target, Utils::Id id)
         if (!additionalArguments.isEmpty())
             qmakeStep->setUserArguments(additionalArguments);
 
-        aspect<SeparateDebugInfoAspect>()->setSetting(qmakeExtra.config.separateDebugInfo);
-        aspect<QmlDebuggingAspect>()->setSetting(qmakeExtra.config.linkQmlDebuggingQQ2);
-        aspect<QtQuickCompilerAspect>()->setSetting(qmakeExtra.config.useQtQuickCompiler);
+        aspect<SeparateDebugInfoAspect>()->setValue(qmakeExtra.config.separateDebugInfo);
+        aspect<QmlDebuggingAspect>()->setValue(qmakeExtra.config.linkQmlDebuggingQQ2);
+        aspect<QtQuickCompilerAspect>()->setValue(qmakeExtra.config.useQtQuickCompiler);
 
         setQMakeBuildConfiguration(config);
 
@@ -422,44 +422,43 @@ bool QmakeBuildConfiguration::isBuildDirAtSafeLocation() const
 
 TriState QmakeBuildConfiguration::separateDebugInfo() const
 {
-    return aspect<SeparateDebugInfoAspect>()->setting();
+    return aspect<SeparateDebugInfoAspect>()->value();
 }
 
 void QmakeBuildConfiguration::forceSeparateDebugInfo(bool sepDebugInfo)
 {
-    aspect<SeparateDebugInfoAspect>()->setSetting(sepDebugInfo
-                                                  ? TriState::Enabled
-                                                  : TriState::Disabled);
+    aspect<SeparateDebugInfoAspect>()->setValue(sepDebugInfo
+                                                ? TriState::Enabled
+                                                : TriState::Disabled);
 }
 
 TriState QmakeBuildConfiguration::qmlDebugging() const
 {
-    return aspect<QmlDebuggingAspect>()->setting();
+    return aspect<QmlDebuggingAspect>()->value();
 }
 
 void QmakeBuildConfiguration::forceQmlDebugging(bool enable)
 {
-    aspect<QmlDebuggingAspect>()->setSetting(enable ? TriState::Enabled : TriState::Disabled);
+    aspect<QmlDebuggingAspect>()->setValue(enable ? TriState::Enabled : TriState::Disabled);
 }
 
 TriState QmakeBuildConfiguration::useQtQuickCompiler() const
 {
-    return aspect<QtQuickCompilerAspect>()->setting();
+    return aspect<QtQuickCompilerAspect>()->value();
 }
 
 void QmakeBuildConfiguration::forceQtQuickCompiler(bool enable)
 {
-    aspect<QtQuickCompilerAspect>()->setSetting(enable ? TriState::Enabled : TriState::Disabled);
+    aspect<QtQuickCompilerAspect>()->setValue(enable ? TriState::Enabled : TriState::Disabled);
 }
 
 bool QmakeBuildConfiguration::runSystemFunction() const
 {
-    switch (aspect<RunSystemAspect>()->value()) {
-    case 0:
+    const TriState runSystem = aspect<RunSystemAspect>()->value();
+    if (runSystem == TriState::Enabled)
         return true;
-    case 1:
+    if (runSystem == TriState::Disabled)
         return false;
-    }
     return QmakeSettings::runSystemFunction();
 }
 
@@ -548,6 +547,12 @@ QmakeBuildConfiguration::MakefileState QmakeBuildConfiguration::compareToImportF
         return MakefileIncompatible;
     }
 
+    if (version->qmakeCommand() != parse.qmakePath()) {
+        qCDebug(logs) << "**Different Qt versions, buildconfiguration:" << version->qmakeCommand().toString()
+                      << " Makefile:"<< parse.qmakePath().toString();
+        return MakefileForWrongProject;
+    }
+
     // same qtversion
     BaseQtVersion::QmakeBuildConfigs buildConfig = parse.effectiveBuildConfig(version->defaultBuildConfig());
     if (qmakeBuildConfiguration() != buildConfig) {
@@ -564,11 +569,8 @@ QmakeBuildConfiguration::MakefileState QmakeBuildConfiguration::compareToImportF
     // and compare that on its own
     QString workingDirectory = QFileInfo(makefile).absolutePath();
     QStringList actualArgs;
-    QStringList rawAllArgs;
-    rawAllArgs += qs->allArguments(QtKitAspect::qtVersion(target()->kit()),
-            QMakeStep::ArgumentFlag::Expand);
-    rawAllArgs += QtcProcess::joinArgs(qs->extraParserArguments(), Utils::OsTypeLinux);
-    QString allArgs = macroExpander()->expandProcessArgs(rawAllArgs.join(' '));
+    QString allArgs = macroExpander()->expandProcessArgs(qs->allArguments(
+        QtKitAspect::qtVersion(target()->kit()), QMakeStep::ArgumentFlag::Expand));
     // This copies the settings from allArgs to actualArgs (minus some we
     // are not interested in), splitting them up into individual strings:
     extractSpecFromArguments(&allArgs, workingDirectory, version, &actualArgs);
@@ -829,15 +831,7 @@ BuildConfiguration::BuildType QmakeBuildConfiguration::buildType() const
 
 void QmakeBuildConfiguration::addToEnvironment(Environment &env) const
 {
-    setupBuildEnvironment(kit(), env);
-}
-
-void QmakeBuildConfiguration::setupBuildEnvironment(Kit *k, Environment &env)
-{
-    prependCompilerPathToEnvironment(k, env);
-    const BaseQtVersion *qt = QtKitAspect::qtVersion(k);
-    if (qt && !qt->hostBinPath().isEmpty())
-        env.prependOrSetPath(qt->hostBinPath().toString());
+    QtSupport::QtKitAspect::addHostBinariesToPath(kit(), env);
 }
 
 QmakeBuildConfiguration::LastKitState::LastKitState() = default;

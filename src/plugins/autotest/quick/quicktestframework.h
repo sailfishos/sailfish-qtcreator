@@ -44,11 +44,11 @@ public:
     QuickTestFramework() : ITestFramework(true) {}
     const char *name() const override;
     unsigned priority() const override;
-    IFrameworkSettings *frameworkSettings() override;
+    ITestSettings *testSettings() override;
 
 protected:
     ITestParser *createTestParser() override;
-    TestTreeItem *createRootNode() override;
+    ITestTreeItem *createRootNode() override;
 };
 
 } // namespace Internal

@@ -46,7 +46,6 @@ public:
     void start();
 
     bool isRunning() const;
-    QStringList allLocalArguments() const;
     Utils::CommandLine fullLocalCommandLine() const;
 
 signals:

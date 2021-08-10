@@ -45,24 +45,12 @@ NimToolChain::NimToolChain()
 
 NimToolChain::NimToolChain(Utils::Id typeId)
     : ToolChain(typeId)
-    , m_compilerCommand(FilePath())
     , m_version(std::make_tuple(-1,-1,-1))
 {
     setLanguage(Constants::C_NIMLANGUAGE_ID);
     setTypeDisplayName(tr("Nim"));
-}
-
-Abi NimToolChain::targetAbi() const
-{
-    return Abi::hostAbi();
-}
-
-bool NimToolChain::isValid() const
-{
-    if (m_compilerCommand.isEmpty())
-        return false;
-    QFileInfo fi = compilerCommand().toFileInfo();
-    return fi.isExecutable();
+    setTargetAbiNoSignal(Abi::hostAbi());
+    setCompilerCommandKey("Nim.NimToolChain.CompilerCommand");
 }
 
 ToolChain::MacroInspectionRunner NimToolChain::createMacroInspectionRunner() const
@@ -98,17 +86,6 @@ FilePath NimToolChain::makeCommand(const Environment &env) const
     return tmp.isEmpty() ? FilePath::fromString("make") : tmp;
 }
 
-FilePath NimToolChain::compilerCommand() const
-{
-    return m_compilerCommand;
-}
-
-void NimToolChain::setCompilerCommand(const FilePath &compilerCommand)
-{
-    m_compilerCommand = compilerCommand;
-    parseVersion(compilerCommand, m_version);
-}
-
 QList<Utils::OutputLineParser *> NimToolChain::createOutputParsers() const
 {
     return {};
@@ -119,16 +96,9 @@ std::unique_ptr<ProjectExplorer::ToolChainConfigWidget> NimToolChain::createConf
     return std::make_unique<NimToolChainConfigWidget>(this);
 }
 
-QVariantMap NimToolChain::toMap() const
-{
-    QVariantMap data = ToolChain::toMap();
-    data[Constants::C_NIMTOOLCHAIN_COMPILER_COMMAND_KEY] = m_compilerCommand.toString();
-    return data;
-}
-
 QString NimToolChain::compilerVersion() const
 {
-    return m_compilerCommand.isEmpty() || m_version == std::make_tuple(-1,-1,-1)
+    return compilerCommand().isEmpty() || m_version == std::make_tuple(-1,-1,-1)
             ? QString()
             : QString::asprintf("%d.%d.%d",
                                 std::get<0>(m_version),
@@ -140,7 +110,7 @@ bool NimToolChain::fromMap(const QVariantMap &data)
 {
     if (!ToolChain::fromMap(data))
         return false;
-    setCompilerCommand(FilePath::fromString(data.value(Constants::C_NIMTOOLCHAIN_COMPILER_COMMAND_KEY).toString()));
+    parseVersion(compilerCommand(), m_version);
     return true;
 }
 
@@ -164,4 +134,4 @@ bool NimToolChain::parseVersion(const FilePath &path, std::tuple<int, int, int> 
     return true;
 }
 
-}
+} // Nim

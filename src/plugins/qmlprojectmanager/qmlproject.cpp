@@ -53,11 +53,14 @@
 #include <texteditor/textdocument.h>
 
 #include <utils/algorithm.h>
+#include <utils/infobar.h>
 
 #include <QDebug>
+#include <QLoggingCategory>
+#include <QMessageBox>
 #include <QRegularExpression>
 #include <QTextCodec>
-#include <QLoggingCategory>
+#include <QTimer>
 
 using namespace Core;
 using namespace ProjectExplorer;
@@ -70,6 +73,24 @@ Q_LOGGING_CATEGORY(infoLogger, "QmlProjectManager.QmlBuildSystem", QtInfoMsg)
 
 namespace QmlProjectManager {
 
+const char openInQDSAppSetting[] = "OpenInQDSApp";
+
+static void openQDS(const QString &qdsPath, const Utils::FilePath &fileName)
+{
+    bool qdsStarted = false;
+    //-a and -client arguments help to append project to open design studio application
+    if (Utils::HostOsInfo::isMacHost())
+        qdsStarted = QProcess::startDetached("/usr/bin/open", {"-a", qdsPath, fileName.toString()});
+    else
+        qdsStarted = QProcess::startDetached(qdsPath, {"-client", fileName.toString()});
+
+    if (!qdsStarted) {
+        QMessageBox::warning(Core::ICore::dialogParent(),
+                             fileName.fileName(),
+                             QObject::tr("Failed to start Qt Design Studio."));
+    }
+}
+
 QmlProject::QmlProject(const Utils::FilePath &fileName)
     : Project(QString::fromLatin1(Constants::QMLPROJECT_MIMETYPE), fileName)
 {
@@ -79,6 +100,35 @@ QmlProject::QmlProject(const Utils::FilePath &fileName)
 
     setNeedsBuildConfigurations(false);
     setBuildSystemCreator([](Target *t) { return new QmlBuildSystem(t); });
+
+    QSettings *settings = Core::ICore::settings();
+    const QString qdsStandaloneEntry = "QML/Designer/StandAloneMode"; //entry from qml settings
+    const QString qdsInstallationEntry = "QML/Designer/DesignStudioInstallation"; //set in installer
+
+    const bool isDesigner = settings->value(qdsStandaloneEntry, false).toBool();
+
+    if (!isDesigner) {
+        const QString qdsPath = settings->value(qdsInstallationEntry).toString();
+        const bool foundQDS = Utils::FilePath::fromString(qdsPath).exists();
+
+        if (foundQDS) {
+            auto lambda = [fileName, qdsPath]() {
+                if (Core::ICore::infoBar()->canInfoBeAdded(openInQDSAppSetting)) {
+                    Utils::InfoBarEntry
+                        info(openInQDSAppSetting,
+                             tr("Would you like to open the project in Qt Design Studio?"),
+                             Utils::InfoBarEntry::GlobalSuppression::Enabled);
+                    info.setCustomButtonInfo(tr("Open in Qt Design Studio"), [&, qdsPath, fileName] {
+                        Core::ICore::infoBar()->removeInfo(openInQDSAppSetting);
+                        openQDS(qdsPath, fileName);
+                    });
+                    Core::ICore::infoBar()->addInfo(info);
+                }
+            };
+
+            QTimer::singleShot(0, this, lambda);
+        }
+    }
 }
 
 QmlBuildSystem::QmlBuildSystem(Target *target)
@@ -146,10 +196,9 @@ void QmlBuildSystem::parseProject(RefreshOptions options)
                           this, &QmlBuildSystem::refreshFiles);
 
               } else {
-                  MessageManager::write(tr("Error while loading project file %1.")
-                                        .arg(projectFilePath().toUserOutput()),
-                                        MessageManager::NoModeSwitch);
-                  MessageManager::write(errorMessage);
+                  MessageManager::writeFlashing(tr("Error while loading project file %1.")
+                                                    .arg(projectFilePath().toUserOutput()));
+                  MessageManager::writeSilently(errorMessage);
               }
         }
         if (m_projectItem) {
@@ -167,9 +216,9 @@ void QmlBuildSystem::parseProject(RefreshOptions options)
                 Utils::FileReader reader;
                 QString errorMessage;
                 if (!reader.fetch(mainFilePath, &errorMessage)) {
-                    MessageManager::write(tr("Warning while loading project file %1.")
-                                          .arg(projectFilePath().toUserOutput()));
-                    MessageManager::write(errorMessage);
+                    MessageManager::writeFlashing(tr("Warning while loading project file %1.")
+                                                      .arg(projectFilePath().toUserOutput()));
+                    MessageManager::writeSilently(errorMessage);
                 }
             }
         }
@@ -209,6 +258,11 @@ QString QmlBuildSystem::mainFile() const
     if (m_projectItem)
         return m_projectItem.data()->mainFile();
     return QString();
+}
+
+Utils::FilePath QmlBuildSystem::mainFilePath() const
+{
+    return projectDirectory().pathAppended(mainFile());
 }
 
 bool QmlBuildSystem::qtForMCUs() const

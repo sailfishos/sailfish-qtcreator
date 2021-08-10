@@ -45,6 +45,18 @@ namespace Internal {
 }
 class SearchResultWindow;
 
+class CORE_EXPORT SearchResultFilter : public QObject
+{
+    Q_OBJECT
+
+public:
+    virtual QWidget *createWidget() = 0;
+    virtual bool matches(const SearchResultItem &item) const = 0;
+
+signals:
+    void filterChanged();
+};
+
 class CORE_EXPORT SearchResult : public QObject
 {
     Q_OBJECT
@@ -64,19 +76,9 @@ public:
     void setAdditionalReplaceWidget(QWidget *widget);
 
 public slots:
-    void addResult(const QString &fileName,
-                   int lineNumber,
-                   const QString &lineText,
-                   int searchTermStart,
-                   int searchTermLength,
-                   const QVariant &userData = QVariant(),
-                   SearchResultColor::Style style = SearchResultColor::Style::Default);
-    void addResult(const QString &fileName,
-                   const QString &lineText,
-                   Search::TextRange mainRange,
-                   const QVariant &userData = QVariant(),
-                   SearchResultColor::Style style = SearchResultColor::Style::Default);
+    void addResult(const SearchResultItem &item);
     void addResults(const QList<SearchResultItem> &items, AddMode mode);
+    void setFilter(SearchResultFilter *filter); // Takes ownership
     void finishSearch(bool canceled);
     void setTextToReplace(const QString &textToReplace);
     void restart();

@@ -30,8 +30,16 @@
 #include <cplusplus/CppDocument.h>
 #include <cplusplus/Overview.h>
 
+#include <QFutureInterface>
 #include <QList>
 #include <QSet>
+
+namespace CPlusPlus {
+class LookupContext;
+class LookupItem;
+class Name;
+class Scope;
+}
 
 namespace CppTools {
 
@@ -57,19 +65,22 @@ private:
 class CPPTOOLS_EXPORT TypeHierarchyBuilder
 {
 public:
-    TypeHierarchyBuilder(CPlusPlus::Symbol *symbol, const CPlusPlus::Snapshot &snapshot);
-
-    TypeHierarchy buildDerivedTypeHierarchy();
-
+    static TypeHierarchy buildDerivedTypeHierarchy(CPlusPlus::Symbol *symbol,
+                                            const CPlusPlus::Snapshot &snapshot);
+    static TypeHierarchy buildDerivedTypeHierarchy(QFutureInterfaceBase &futureInterface,
+                                            CPlusPlus::Symbol *symbol,
+                                            const CPlusPlus::Snapshot &snapshot);
+    static CPlusPlus::LookupItem followTypedef(const CPlusPlus::LookupContext &context,
+                                               const CPlusPlus::Name *symbolName,
+                                               CPlusPlus::Scope *enclosingScope);
 private:
-    void reset();
-    void buildDerived(TypeHierarchy *typeHierarchy, const QStringList &dependencies);
-    QStringList filesDependingOn(CPlusPlus::Symbol *symbol) const;
+    TypeHierarchyBuilder() = default;
+    void buildDerived(QFutureInterfaceBase &futureInterface, TypeHierarchy *typeHierarchy,
+                      const CPlusPlus::Snapshot &snapshot,
+                      QHash<QString, QHash<QString, QString> > &cache, int depth = 0);
 
-    CPlusPlus::Symbol *_symbol;
-    CPlusPlus::Snapshot _snapshot;
     QSet<CPlusPlus::Symbol *> _visited;
-    QHash<QString, QSet<QString> > _candidates;
+    QHash<Utils::FilePath, QSet<QString> > _candidates;
     CPlusPlus::Overview _overview;
 };
 

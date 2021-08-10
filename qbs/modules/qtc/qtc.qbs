@@ -1,18 +1,17 @@
 import qbs
 import qbs.Environment
 import qbs.FileInfo
-import "qtc.js" as HelperFunctions
 
 Module {
-    property string qtcreator_display_version: '4.14.2'
+    property string qtcreator_display_version: '4.15.2'
     property string ide_version_major: '4'
-    property string ide_version_minor: '14'
+    property string ide_version_minor: '15'
     property string ide_version_release: '2'
     property string qtcreator_version: ide_version_major + '.' + ide_version_minor + '.'
                                        + ide_version_release
 
     property string ide_compat_version_major: '4'
-    property string ide_compat_version_minor: '14'
+    property string ide_compat_version_minor: '15'
     property string ide_compat_version_release: '0'
     property string qtcreator_compat_version: ide_compat_version_major + '.'
             + ide_compat_version_minor + '.' + ide_compat_version_release
@@ -91,27 +90,4 @@ Module {
         "QT_USE_QSTRINGBUILDER",
     ].concat(testsEnabled ? ["WITH_TESTS"] : [])
      .concat(qbs.toolchain.contains("msvc") ? ["_CRT_SECURE_NO_WARNINGS"] : [])
-
-    Rule {
-        condition: make_dev_package
-        inputs: product.type.filter(function f(t) {
-            return t === "dynamiclibrary" || t === "staticlibrary" || t === "qtc.dev-headers";
-        })
-        explicitlyDependsOn: ["qbs"]
-        Artifact {
-            filePath: product.name + "-module.qbs"
-            fileTags: ["qtc.dev-module"]
-        }
-        prepare: {
-            var cmd = new JavaScriptCommand();
-            cmd.description = "Creating " + output.fileName;
-            cmd.sourceCode = function() {
-                var transformedExportBlock = HelperFunctions.transformedExportBlock(product, input,
-                                                                                    output);
-                HelperFunctions.writeModuleFile(output, transformedExportBlock);
-
-            };
-            return [cmd];
-        }
-    }
 }

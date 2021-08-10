@@ -158,13 +158,10 @@ void DeviceManager::load()
     // Insert devices into the model. Prefer the higher device version when there are multiple
     // devices with the same id.
     foreach (IDevice::Ptr device, userDevices) {
-        if (hasDevice(device->displayName())) // HACK: Do not re-load "Desktop Device"
-            continue;
         foreach (const IDevice::Ptr &sdkDevice, sdkDevices) {
             if (device->id() == sdkDevice->id()) {
                 if (device->version() < sdkDevice->version())
                     device = sdkDevice;
-                addDevice(device);
                 sdkDevices.removeOne(sdkDevice);
                 break;
             }
@@ -271,6 +268,7 @@ void DeviceManager::removeDevice(Utils::Id id)
 {
     const IDevice::Ptr device = mutableDevice(id);
     QTC_ASSERT(device, return);
+    QTC_ASSERT(this != instance() || device->isAutoDetected(), return);
 
     const bool wasDefault = d->defaultDevices.value(device->type()) == device->id();
     const Utils::Id deviceType = device->type();

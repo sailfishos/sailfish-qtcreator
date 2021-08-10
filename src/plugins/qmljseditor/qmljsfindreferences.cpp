@@ -919,7 +919,7 @@ void FindReferences::findUsages(const QString &fileName, quint32 offset)
 {
     ModelManagerInterface *modelManager = ModelManagerInterface::instance();
 
-    QFuture<Usage> result = Utils::runAsync(&find_helper, modelManager->workingCopy(),
+    QFuture<Usage> result = Utils::runAsync(&find_helper, ModelManagerInterface::workingCopy(),
                                             modelManager->snapshot(), fileName, offset, QString());
     m_watcher.setFuture(result);
 }
@@ -934,7 +934,7 @@ void FindReferences::renameUsages(const QString &fileName, quint32 offset,
     if (newName.isNull())
         newName = QLatin1String("");
 
-    QFuture<Usage> result = Utils::runAsync(&find_helper, modelManager->workingCopy(),
+    QFuture<Usage> result = Utils::runAsync(&find_helper, ModelManagerInterface::workingCopy(),
                                             modelManager->snapshot(), fileName, offset, newName);
     m_watcher.setFuture(result);
 }
@@ -1008,11 +1008,12 @@ void FindReferences::displayResults(int first, int last)
     }
     for (int index = first; index != last; ++index) {
         Usage result = m_watcher.future().resultAt(index);
-        m_currentSearch->addResult(result.path,
-                                 result.line,
-                                 result.lineText,
-                                 result.col,
-                                 result.len);
+        SearchResultItem item;
+        item.setFilePath(Utils::FilePath::fromString(result.path));
+        item.setLineText(result.lineText);
+        item.setMainRange(result.line, result.col, result.len);
+        item.setUseTextEditorFont(true);
+        m_currentSearch->addResult(item);
     }
 }
 

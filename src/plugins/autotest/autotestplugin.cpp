@@ -24,54 +24,57 @@
 ****************************************************************************/
 
 #include "autotestplugin.h"
+
 #include "autotestconstants.h"
 #include "autotesticons.h"
 #include "projectsettingswidget.h"
 #include "testcodeparser.h"
 #include "testframeworkmanager.h"
+#include "testnavigationwidget.h"
 #include "testprojectsettings.h"
+#include "testresultspane.h"
 #include "testrunner.h"
 #include "testsettings.h"
 #include "testsettingspage.h"
 #include "testtreeitem.h"
-#include "testtreeview.h"
 #include "testtreemodel.h"
-#include "testresultspane.h"
-#include "testnavigationwidget.h"
+#include "testtreeview.h"
 
-#include "qtest/qttestframework.h"
-#include "quick/quicktestframework.h"
-#include "gtest/gtestframework.h"
 #include "boost/boosttestframework.h"
 #include "catch/catchframework.h"
+#include "ctest/ctesttool.h"
+#include "gtest/gtestframework.h"
+#include "qtest/qttestframework.h"
+#include "quick/quicktestframework.h"
 
-#include <coreplugin/icore.h>
-#include <coreplugin/icontext.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/icontext.h>
+#include <coreplugin/icore.h>
 #include <coreplugin/messagemanager.h>
 #include <cppeditor/cppeditorconstants.h>
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/buildmanager.h>
+#include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/projectexplorericons.h>
 #include <projectexplorer/projectpanelfactory.h>
-#include <projectexplorer/runconfiguration.h>
+#include <projectexplorer/runcontrol.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
-#include <texteditor/texteditor.h>
 #include <texteditor/textdocument.h>
+#include <texteditor/texteditor.h>
 #include <utils/textutils.h>
 #include <utils/utilsicons.h>
 
 #include <QAction>
 #include <QList>
-#include <QMap>
-#include <QMessageBox>
 #include <QMainWindow>
+#include <QMap>
 #include <QMenu>
+#include <QMessageBox>
 #include <QTextCursor>
 
 #ifdef WITH_TESTS
@@ -139,6 +142,8 @@ AutotestPluginPrivate::AutotestPluginPrivate()
     m_frameworkManager.registerTestFramework(new BoostTestFramework);
     m_frameworkManager.registerTestFramework(new CatchFramework);
 
+    m_frameworkManager.registerTestTool(new CTestTool);
+
     m_frameworkManager.synchronizeSettings(ICore::settings());
     m_navigationWidgetFactory = new TestNavigationWidgetFactory;
     m_resultsPane = TestResultsPane::instance();
@@ -152,8 +157,9 @@ AutotestPluginPrivate::AutotestPluginPrivate()
     });
     ProjectExplorer::ProjectPanelFactory::registerFactory(panelFactory);
 
-    m_frameworkManager.activateFrameworksFromSettings(&m_settings);
+    TestFrameworkManager::activateFrameworksAndToolsFromSettings(&m_settings);
     m_testTreeModel.synchronizeTestFrameworks();
+    m_testTreeModel.synchronizeTestTools();
 
     auto sessionManager = ProjectExplorer::SessionManager::instance();
     connect(sessionManager, &ProjectExplorer::SessionManager::startupProjectChanged,
@@ -201,7 +207,7 @@ void AutotestPluginPrivate::initializeMenuEntries()
     menu->setOnAllDisabledBehavior(ActionContainer::Show);
 
     QAction *action = new QAction(tr("Run &All Tests"), this);
-    action->setIcon(Utils::Icons::RUN_SMALL_TOOLBAR.icon());
+    action->setIcon(Utils::Icons::RUN_SMALL.icon());
     action->setToolTip(tr("Run All Tests"));
     Command *command = ActionManager::registerAction(action, Constants::ACTION_RUN_ALL_ID);
     command->setDefaultKeySequence(
@@ -211,10 +217,7 @@ void AutotestPluginPrivate::initializeMenuEntries()
     menu->addAction(command);
 
     action = new QAction(tr("&Run Selected Tests"), this);
-    Utils::Icon runSelectedIcon = Utils::Icons::RUN_SMALL_TOOLBAR;
-    for (const Utils::IconMaskAndColor &maskAndColor : Icons::RUN_SELECTED_OVERLAY)
-        runSelectedIcon.append(maskAndColor);
-    action->setIcon(runSelectedIcon.icon());
+    action->setIcon(Utils::Icons::RUN_SELECTED.icon());
     action->setToolTip(tr("Run Selected Tests"));
     command = ActionManager::registerAction(action, Constants::ACTION_RUN_SELECTED_ID);
     command->setDefaultKeySequence(
@@ -224,10 +227,7 @@ void AutotestPluginPrivate::initializeMenuEntries()
     menu->addAction(command);
 
     action = new QAction(tr("Run &Failed Tests"),  this);
-    Utils::Icon runFailedIcon = Utils::Icons::RUN_SMALL_TOOLBAR;
-    for (const Utils::IconMaskAndColor &maskAndColor: Icons::RUN_FAILED_OVERLAY)
-        runFailedIcon.append(maskAndColor);
-    action->setIcon(runFailedIcon.icon());
+    action->setIcon(Icons::RUN_FAILED.icon());
     action->setToolTip(tr("Run Failed Tests"));
     command = ActionManager::registerAction(action, Constants::ACTION_RUN_FAILED_ID);
     command->setDefaultKeySequence(
@@ -237,10 +237,7 @@ void AutotestPluginPrivate::initializeMenuEntries()
     menu->addAction(command);
 
     action = new QAction(tr("Run Tests for &Current File"), this);
-    Utils::Icon runFileIcon = Utils::Icons::RUN_SMALL_TOOLBAR;
-    for (const Utils::IconMaskAndColor &maskAndColor : Icons::RUN_FILE_OVERLAY)
-        runFileIcon.append(maskAndColor);
-    action->setIcon(runFileIcon.icon());
+    action->setIcon(Utils::Icons::RUN_FILE.icon());
     action->setToolTip(tr("Run Tests for Current File"));
     command = ActionManager::registerAction(action, Constants::ACTION_RUN_FILE_ID);
     command->setDefaultKeySequence(
@@ -327,7 +324,7 @@ void AutotestPluginPrivate::onRunSelectedTriggered()
 
 void AutotestPluginPrivate::onRunFailedTriggered()
 {
-    const QList<TestConfiguration *> failed = m_testTreeModel.getFailedTests();
+    const QList<ITestConfiguration *> failed = m_testTreeModel.getFailedTests();
     if (failed.isEmpty()) // the framework might not be able to provide them
         return;
     m_testRunner.setSelectedTests(failed);
@@ -344,7 +341,7 @@ void AutotestPluginPrivate::onRunFileTriggered()
     if (fileName.isEmpty())
         return;
 
-    const QList<TestConfiguration *> tests = m_testTreeModel.getTestsForFile(fileName);
+    const QList<ITestConfiguration *> tests = m_testTreeModel.getTestsForFile(fileName);
     if (tests.isEmpty())
         return;
 
@@ -352,12 +349,12 @@ void AutotestPluginPrivate::onRunFileTriggered()
     m_testRunner.prepareToRunTests(TestRunMode::Run);
 }
 
-static QList<TestConfiguration *> testItemsToTestConfigurations(const QList<TestTreeItem *> &items,
+static QList<ITestConfiguration *> testItemsToTestConfigurations(const QList<ITestTreeItem *> &items,
                                                                 TestRunMode mode)
 {
-    QList<TestConfiguration *> configs;
-    for (const TestTreeItem * item : items) {
-        if (TestConfiguration *currentConfig = item->asConfiguration(mode))
+    QList<ITestConfiguration *> configs;
+    for (const ITestTreeItem * item : items) {
+        if (ITestConfiguration *currentConfig = item->asConfiguration(mode))
             configs << currentConfig;
     }
     return configs;
@@ -372,22 +369,22 @@ void AutotestPluginPrivate::onRunUnderCursorTriggered(TestRunMode mode)
     if (text.isEmpty())
         return; // Do not trigger when no name under cursor
 
-    const QList<TestTreeItem *> testsItems = m_testTreeModel.testItemsByName(text);
+    const QList<ITestTreeItem *> testsItems = m_testTreeModel.testItemsByName(text);
     if (testsItems.isEmpty())
         return; // Wrong location triggered
 
     // check whether we have been triggered on a test function definition
     const int line = currentEditor->currentLine();
     const QString &filePath = currentEditor->textDocument()->filePath().toString();
-    const QList<TestTreeItem *> filteredItems = Utils::filtered(testsItems, [&](TestTreeItem *it){
+    const QList<ITestTreeItem *> filteredItems = Utils::filtered(testsItems, [&](ITestTreeItem *it){
         return it->line() == line && it->filePath() == filePath;
     });
 
-    const QList<TestConfiguration *> testsToRun = testItemsToTestConfigurations(
+    const QList<ITestConfiguration *> testsToRun = testItemsToTestConfigurations(
                 filteredItems.size() == 1 ? filteredItems : testsItems, mode);
 
     if (testsToRun.isEmpty()) {
-        MessageManager::write(tr("Selected test was not found (%1).").arg(text), MessageManager::Flash);
+        MessageManager::writeFlashing(tr("Selected test was not found (%1).").arg(text));
         return;
     }
 

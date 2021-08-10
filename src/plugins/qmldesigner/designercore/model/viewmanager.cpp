@@ -37,7 +37,6 @@
 #include <designmodewidget.h>
 #include <edit3dview.h>
 #include <formeditorview.h>
-#include <importmanagerview.h>
 #include <itemlibraryview.h>
 #include <navigatorview.h>
 #include <nodeinstanceview.h>
@@ -97,7 +96,7 @@ ViewManager::ViewManager()
 
 ViewManager::~ViewManager()
 {
-    for (const QPointer<AbstractView> &view : d->additionalViews)
+    for (const QPointer<AbstractView> &view : qAsConst(d->additionalViews))
         delete view.data();
 
 }
@@ -453,7 +452,7 @@ void ViewManager::enableStandardViews()
     attachViewsExceptRewriterAndComponetView();
 }
 
-ImageCache &ViewManager::imageCache()
+AsynchronousImageCache &ViewManager::imageCache()
 {
     return d->itemLibraryView.imageCache();
 }

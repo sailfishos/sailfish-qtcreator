@@ -71,17 +71,15 @@ class PROJECTEXPLORER_EXPORT GccToolChain : public ToolChain
 public:
     GccToolChain(Utils::Id typeId);
 
-    Abi targetAbi() const override;
     QString originalTargetTriple() const override;
     Utils::FilePath installDir() const override;
     QString version() const;
     Abis supportedAbis() const override;
-    void setTargetAbi(const Abi &);
-
-    bool isValid() const override;
 
     Utils::LanguageExtensions languageExtensions(const QStringList &cxxflags) const override;
     Utils::WarningFlags warningFlags(const QStringList &cflags) const override;
+    QStringList includedFiles(const QStringList &flags,
+                              const QString &directoryPath) const override;
 
     MacroInspectionRunner createMacroInspectionRunner() const override;
     BuiltInHeaderPathsRunner createBuiltInHeaderPathsRunner(const Utils::Environment &env) const override;
@@ -99,7 +97,6 @@ public:
     bool operator ==(const ToolChain &) const override;
 
     void resetToolChain(const Utils::FilePath &);
-    Utils::FilePath compilerCommand() const override;
     void setPlatformCodeGenFlags(const QStringList &);
     QStringList extraCodeModelFlags() const override;
     QStringList platformCodeGenFlags() const;
@@ -124,7 +121,6 @@ protected:
     using CacheItem = QPair<QStringList, Macros>;
     using GccCache = QVector<CacheItem>;
 
-    void setCompilerCommand(const Utils::FilePath &path);
     void setSupportedAbis(const Abis &abis);
     void setOriginalTargetTriple(const QString &targetTriple);
     void setInstallDir(const Utils::FilePath &installDir);
@@ -183,7 +179,6 @@ private:
                                            OptionsReinterpreter reinterpretOptions);
 
 protected:
-    Utils::FilePath m_compilerCommand;
     QStringList m_platformCodeGenFlags;
     QStringList m_platformLinkerFlags;
 
@@ -191,7 +186,6 @@ protected:
     mutable ExtraHeaderPathsFunction m_extraHeaderPathsFunction = [](HeaderPaths &) {};
 
 private:
-    Abi m_targetAbi;
     mutable Abis m_supportedAbis;
     mutable QString m_originalTargetTriple;
     mutable HeaderPaths m_headerPaths;

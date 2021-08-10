@@ -75,6 +75,8 @@ void decreaseIndexOfStackedContainer(const SelectionContext &selectionContext);
 void addTabBarToStackedContainer(const SelectionContext &selectionContext);
 bool addImageToProject(const QStringList &fileNames, const QString &directory);
 bool addFontToProject(const QStringList &fileNames, const QString &directory);
+bool addSoundToProject(const QStringList &fileNames, const QString &directory);
+bool addShaderToProject(const QStringList &fileNames, const QString &directory);
 void createFlowActionArea(const SelectionContext &selectionContext);
 void addTransition(const SelectionContext &selectionState);
 void addFlowEffect(const SelectionContext &selectionState, const TypeName &typeName);
@@ -87,6 +89,7 @@ void removeGroup(const SelectionContext &selectionContext);
 void editAnnotation(const SelectionContext &selectionContext);
 
 void openSignalDialog(const SelectionContext &selectionContext);
+void updateImported3DAsset(const SelectionContext &selectionContext);
 
 // ModelNodePreviewImageOperations
 QVariant previewImageDataForGenericNode(const ModelNode &modelNode);

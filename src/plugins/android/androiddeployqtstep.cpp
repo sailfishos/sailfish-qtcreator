@@ -32,6 +32,7 @@
 #include "androidconstants.h"
 #include "androidglobal.h"
 #include "androidavdmanager.h"
+#include "androidqtversion.h"
 
 #include <coreplugin/fileutils.h>
 #include <coreplugin/icore.h>
@@ -200,7 +201,7 @@ bool AndroidDeployQtStep::init()
             m_command = AndroidConfigurations::currentConfig().adbToolPath();
             AndroidManager::setManifestPath(target(), m_manifestName);
         } else {
-            QString jsonFile = node->data(Constants::AndroidDeploySettingsFile).toString();
+            QString jsonFile = AndroidQtVersion::androidDeploymentSettings(target()).toString();
             if (jsonFile.isEmpty()) {
                 const QString error = tr("Cannot find the androiddeploy Json file.");
                 emit addOutput(error, OutputFormat::Stderr);
@@ -562,7 +563,7 @@ void AndroidDeployQtStep::stdError(const QString &line)
     if (newOutput.startsWith("warning", Qt::CaseInsensitive)
         || newOutput.startsWith("note", Qt::CaseInsensitive))
         TaskHub::addTask(DeploymentTask(Task::Warning, newOutput));
-    else
+    else if (newOutput != QLatin1String("All files should be loaded. Notifying the device."))
         TaskHub::addTask(DeploymentTask(Task::Error, newOutput));
 }
 

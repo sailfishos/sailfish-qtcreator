@@ -42,6 +42,7 @@ class LayoutBuilder;
 
 namespace Internal {
 class AspectContainerPrivate;
+class BaseAspectPrivate;
 class BoolAspectPrivate;
 class IntegerAspectPrivate;
 class MultiSelectionAspectPrivate;
@@ -59,24 +60,44 @@ public:
     BaseAspect();
     ~BaseAspect() override;
 
-    void setId(Utils::Id id) { m_id = id; }
-    void setDisplayName(const QString &displayName) { m_displayName = displayName; }
+    Utils::Id id() const;
+    void setId(Utils::Id id);
+
+    QVariant value() const;
+    void setValue(const QVariant &value);
+    bool setValueQuietly(const QVariant &value);
+
+    QVariant defaultValue() const;
+    void setDefaultValue(const QVariant &value);
+
+    QString settingsKey() const;
     void setSettingsKey(const QString &settingsKey);
     void setSettingsKey(const QString &group, const QString &key);
 
-    Utils::Id id() const { return m_id; }
-    QString displayName() const { return m_displayName; }
-    QString settingsKey() const;
+    QString displayName() const;
+    void setDisplayName(const QString &displayName);
 
-    bool isVisible() const { return m_visible; }
-    void setVisible(bool visible) { m_visible = visible; }
+    QString toolTip() const;
+    void setToolTip(const QString &tooltip);
+
+    bool isVisible() const;
+    void setVisible(bool visible);
+
+    void setEnabled(bool enabled);
+
+    void setReadOnly(bool enabled);
+
+    QString labelText() const;
+    void setLabelText(const QString &labelText);
+    void setLabelPixmap(const QPixmap &labelPixmap);
 
     using ConfigWidgetCreator = std::function<QWidget *()>;
     void setConfigWidgetCreator(const ConfigWidgetCreator &configWidgetCreator);
     QWidget *createConfigWidget() const;
 
-    virtual void fromMap(const QVariantMap &);
-    virtual void toMap(QVariantMap &) const;
+    virtual void fromMap(const QVariantMap &map);
+    virtual void toMap(QVariantMap &map) const;
+    virtual void toActiveMap(QVariantMap &map) const { toMap(map); }
     virtual void acquaintSiblings(const BaseAspects &);
 
     virtual void addToLayout(LayoutBuilder &builder);
@@ -85,15 +106,23 @@ signals:
     void changed();
 
 protected:
+    QLabel *label() const;
+    void setupLabel();
+
+    template <class Widget, typename ...Args>
+    Widget *createSubWidget(Args && ...args) {
+        auto w = new Widget(args...);
+        registerSubWidget(w);
+        return w;
+    }
+
+    void registerSubWidget(QWidget *widget);
     virtual void setVisibleDynamic(bool visible) { Q_UNUSED(visible) } // TODO: Better name? Merge with setVisible() somehow?
     void saveToMap(QVariantMap &data, const QVariant &value,
                    const QVariant &defaultValue, const QString &keyExtension = {}) const;
 
-    Utils::Id m_id;
-    QString m_displayName;
-    QString m_settingsKey; // Name of data in settings.
-    bool m_visible = true;
-    ConfigWidgetCreator m_configWidgetCreator;
+private:
+    std::unique_ptr<Internal::BaseAspectPrivate> d;
 };
 
 class QTCREATOR_UTILS_EXPORT BaseAspects
@@ -126,6 +155,11 @@ public:
         return nullptr;
     }
 
+    template <typename T> T *aspect(Utils::Id id) const
+    {
+        return qobject_cast<T*>(aspect(id));
+    }
+
     void fromMap(const QVariantMap &map) const;
     void toMap(QVariantMap &map) const;
 
@@ -151,17 +185,9 @@ public:
     bool value() const;
     void setValue(bool val);
 
-    bool defaultValue() const;
-    void setDefaultValue(bool defaultValue);
-
     enum class LabelPlacement { AtCheckBox, AtCheckBoxWithoutDummyLabel, InExtraLabel };
     void setLabel(const QString &labelText,
                   LabelPlacement labelPlacement = LabelPlacement::InExtraLabel);
-    void setToolTip(const QString &tooltip);
-    void setEnabled(bool enabled);
-
-    void fromMap(const QVariantMap &map) override;
-    void toMap(QVariantMap &map) const override;
 
 private:
     std::unique_ptr<Internal::BoolAspectPrivate> d;
@@ -182,18 +208,10 @@ public:
 
     QString stringValue() const;
 
-    int defaultValue() const;
-    void setDefaultValue(int defaultValue);
-
     enum class DisplayStyle { RadioButtons, ComboBox };
     void setDisplayStyle(DisplayStyle style);
 
-    void setToolTip(const QString &tooltip);
-
     void addOption(const QString &displayName, const QString &toolTip = {});
-
-    void fromMap(const QVariantMap &map) override;
-    void toMap(QVariantMap &map) const override;
 
 protected:
     void setVisibleDynamic(bool visible) override;
@@ -221,10 +239,8 @@ public:
     QStringList allValues() const;
     void setAllValues(const QStringList &val);
 
-    void setLabelText(const QString &labelText);
-
-    void fromMap(const QVariantMap &map) override;
-    void toMap(QVariantMap &map) const override;
+protected:
+    void setVisibleDynamic(bool visible) override;
 
 private:
     std::unique_ptr<Internal::MultiSelectionAspectPrivate> d;
@@ -246,11 +262,7 @@ public:
     QString value() const;
     void setValue(const QString &val);
 
-    QString labelText() const;
-    void setLabelText(const QString &labelText);
-    void setLabelPixmap(const QPixmap &labelPixmap);
     void setShowToolTipOnLabel(bool show);
-    void setEnabled(bool enabled);
 
     void setDisplayFilter(const std::function<QString (const QString &)> &displayFilter);
     void setPlaceHolderText(const QString &placeHolderText);
@@ -259,8 +271,6 @@ public:
     void setFileDialogOnly(bool requireFileDialog);
     void setEnvironment(const Utils::Environment &env);
     void setBaseFileName(const Utils::FilePath &baseFileName);
-    void setToolTip(const QString &tooltip);
-    void setReadOnly(bool readOnly);
     void setUndoRedoEnabled(bool readOnly);
     void setMacroExpanderProvider(const Utils::MacroExpanderProvider &expanderProvider);
     void setValidationFunction(const Utils::FancyLineEdit::ValidationFunction &validator);
@@ -293,7 +303,7 @@ public:
 signals:
     void checkedChanged();
 
-private:
+protected:
     void update();
 
     std::unique_ptr<Internal::StringAspectPrivate> d;
@@ -313,17 +323,12 @@ public:
     void setValue(qint64 val);
 
     void setRange(qint64 min, qint64 max);
-    void setLabel(const QString &label);
+    void setLabel(const QString &label); // FIXME: Use setLabelText
     void setPrefix(const QString &prefix);
     void setSuffix(const QString &suffix);
     void setDisplayIntegerBase(int base);
     void setDisplayScaleFactor(qint64 factor);
-    void setEnabled(bool enabled);
     void setDefaultValue(qint64 defaultValue);
-    void setToolTip(const QString &tooltip);
-
-    void fromMap(const QVariantMap &map) override;
-    void toMap(QVariantMap &map) const override;
 
 private:
     std::unique_ptr<Internal::IntegerAspectPrivate> d;
@@ -360,8 +365,9 @@ public:
             const QString &offString = tr("Disable"),
             const QString &defaultString = tr("Leave at Default"));
 
-    TriState setting() const;
-    void setSetting(TriState setting);
+    TriState value() const;
+    void setValue(TriState setting);
+    void setDefaultValue(TriState setting);
 };
 
 class QTCREATOR_UTILS_EXPORT StringListAspect : public BaseAspect
@@ -376,9 +382,6 @@ public:
 
     QStringList value() const;
     void setValue(const QStringList &val);
-
-    void fromMap(const QVariantMap &map) override;
-    void toMap(QVariantMap &map) const override;
 
 private:
     std::unique_ptr<Internal::StringListAspectPrivate> d;
@@ -395,8 +398,6 @@ public:
 
     void addToLayout(LayoutBuilder &builder) override;
 
-    void setVisible(bool visible);
-    void setToolTip(const QString &tooltip);
     void setIconType(Utils::InfoLabel::InfoType t);
 
 private:

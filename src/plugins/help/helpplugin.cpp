@@ -359,8 +359,8 @@ void HelpPluginPrivate::saveExternalWindowSettings()
     if (!m_externalWindow)
         return;
     m_externalWindowState = m_externalWindow->geometry();
-    QSettings *settings = ICore::settings();
-    settings->setValue(kExternalWindowStateKey, QVariant::fromValue(m_externalWindowState));
+    ICore::settings()->setValueWithDefault(kExternalWindowStateKey,
+                                           QVariant::fromValue(m_externalWindowState));
 }
 
 HelpWidget *HelpPluginPrivate::createHelpWidget(const Context &context, HelpWidget::WidgetStyle style)
@@ -412,7 +412,7 @@ HelpViewer *HelpPluginPrivate::externalHelpViewer()
     return m_externalWindow->currentViewer();
 }
 
-HelpViewer *HelpPlugin::createHelpViewer(qreal zoom)
+HelpViewer *HelpPlugin::createHelpViewer()
 {
     const HelpViewerFactory factory = LocalHelpManager::viewerBackend();
     QTC_ASSERT(factory.create, return nullptr);
@@ -424,7 +424,10 @@ HelpViewer *HelpPlugin::createHelpViewer(qreal zoom)
             viewer, &HelpViewer::setViewerFont);
 
     // initialize zoom
-    viewer->setScale(zoom);
+    viewer->setFontZoom(LocalHelpManager::fontZoom());
+    connect(LocalHelpManager::instance(), &LocalHelpManager::fontZoomChanged,
+            viewer, &HelpViewer::setFontZoom);
+
     viewer->setScrollWheelZoomingEnabled(LocalHelpManager::isScrollWheelZoomingEnabled());
     connect(LocalHelpManager::instance(), &LocalHelpManager::scrollWheelZoomingEnabledChanged,
             viewer, &HelpViewer::setScrollWheelZoomingEnabled);

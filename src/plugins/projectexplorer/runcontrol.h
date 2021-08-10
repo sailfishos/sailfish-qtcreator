@@ -250,6 +250,8 @@ public:
                                        const QString &cancelButtonText = QString(),
                                        bool *prompt = nullptr);
 
+    static void provideAskPassEntry(Utils::Environment &env);
+
     RunWorker *createWorker(Utils::Id workerId);
 
     bool createMainWorker();
@@ -300,6 +302,7 @@ private:
 
     bool m_stopReported = false;
     bool m_useTerminal = false;
+    bool m_runAsRoot = false;
 };
 
 class PROJECTEXPLORER_EXPORT OutputFormatterFactory

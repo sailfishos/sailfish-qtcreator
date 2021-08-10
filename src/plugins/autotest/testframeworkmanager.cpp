@@ -24,9 +24,10 @@
 ****************************************************************************/
 
 #include "testframeworkmanager.h"
+
 #include "autotestconstants.h"
 #include "autotestplugin.h"
-#include "iframeworksettings.h"
+#include "itestsettings.h"
 #include "testsettings.h"
 
 #include <utils/algorithm.h>
@@ -34,7 +35,6 @@
 
 #include <QSettings>
 
-using namespace Core;
 using namespace Utils;
 
 namespace Autotest {
@@ -62,17 +62,33 @@ bool TestFrameworkManager::registerTestFramework(ITestFramework *framework)
     return true;
 }
 
-void TestFrameworkManager::activateFrameworksFromSettings(const Internal::TestSettings *settings)
+bool TestFrameworkManager::registerTestTool(ITestTool *testTool)
+{
+    QTC_ASSERT(testTool, return false);
+    QTC_ASSERT(!m_registeredTestTools.contains(testTool), return false);
+    m_registeredTestTools.append(testTool);
+    return true;
+}
+
+void TestFrameworkManager::activateFrameworksAndToolsFromSettings(
+        const Internal::TestSettings *settings)
 {
     for (ITestFramework *framework : qAsConst(s_instance->m_registeredFrameworks)) {
         framework->setActive(settings->frameworks.value(framework->id(), false));
         framework->setGrouping(settings->frameworksGrouping.value(framework->id(), false));
     }
+    for (ITestTool *testTool : qAsConst(s_instance->m_registeredTestTools))
+        testTool->setActive(settings->tools.value(testTool->id(), false));
 }
 
-TestFrameworks TestFrameworkManager::registeredFrameworks()
+const TestFrameworks TestFrameworkManager::registeredFrameworks()
 {
     return s_instance->m_registeredFrameworks;
+}
+
+const TestTools TestFrameworkManager::registeredTestTools()
+{
+    return s_instance->m_registeredTestTools;
 }
 
 ITestFramework *TestFrameworkManager::frameworkForId(Id frameworkId)
@@ -80,14 +96,33 @@ ITestFramework *TestFrameworkManager::frameworkForId(Id frameworkId)
     return Utils::findOrDefault(s_instance->m_registeredFrameworks,
             [frameworkId](ITestFramework *framework) {
                 return framework->id() == frameworkId;
-            });
+    });
+}
+
+ITestTool *TestFrameworkManager::testToolForId(Id testToolId)
+{
+    return Utils::findOrDefault(s_instance->m_registeredTestTools,
+            [testToolId](ITestTool *testTool) {
+                return testTool->id() == testToolId;
+    });
+}
+
+ITestTool *TestFrameworkManager::testToolForBuildSystemId(Id buildSystemId)
+{
+    if (!buildSystemId.isValid())
+        return nullptr;
+
+    return Utils::findOrDefault(s_instance->m_registeredTestTools,
+                                [&buildSystemId](ITestTool *testTool) {
+        return testTool->buildSystemId() == buildSystemId;
+    });
 }
 
 void TestFrameworkManager::synchronizeSettings(QSettings *s)
 {
     Internal::AutotestPlugin::settings()->fromSettings(s);
     for (ITestFramework *framework : qAsConst(m_registeredFrameworks)) {
-        if (IFrameworkSettings *fSettings = framework->frameworkSettings())
+        if (ITestSettings *fSettings = framework->testSettings())
             fSettings->fromSettings(s);
     }
 }

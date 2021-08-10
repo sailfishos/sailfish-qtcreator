@@ -25,6 +25,7 @@
 
 #include "boosttestparser.h"
 #include "boostcodeparser.h"
+#include "boosttestframework.h"
 #include "boosttesttreeitem.h"
 
 #include <cpptools/cppmodelmanager.h>
@@ -114,11 +115,13 @@ static BoostTestParseResult *createParseResult(const QString &name, const QStrin
 
 }
 
-static bool handleBoostTest(QFutureInterface<TestParseResultPtr> futureInterface,
-                            const CPlusPlus::Document::Ptr &doc,
-                            const CPlusPlus::Snapshot &snapshot,
-                            ITestFramework *framework)
+bool BoostTestParser::processDocument(QFutureInterface<TestParseResultPtr> futureInterface,
+                                      const QString &fileName)
 {
+    CPlusPlus::Document::Ptr doc = document(fileName);
+    if (doc.isNull() || !includesBoostTest(doc, m_cppSnapshot) || !hasBoostTestMacros(doc))
+        return false;
+
     const CppTools::CppModelManager *modelManager = CppTools::CppModelManager::instance();
     const QString &filePath = doc->fileName();
 
@@ -127,9 +130,9 @@ static bool handleBoostTest(QFutureInterface<TestParseResultPtr> futureInterface
         return false;
     const CppTools::ProjectPart::Ptr projectPart = projectParts.first();
     const auto projectFile = projectPart->projectFile;
-    const QByteArray &fileContent = CppParser::getFileContent(filePath);
+    const QByteArray &fileContent = getFileContent(filePath);
 
-    BoostCodeParser codeParser(fileContent, projectPart->languageFeatures, doc, snapshot);
+    BoostCodeParser codeParser(fileContent, projectPart->languageFeatures, doc, m_cppSnapshot);
     const BoostTestCodeLocationList foundTests = codeParser.findTests();
     if (foundTests.isEmpty())
         return false;
@@ -139,7 +142,7 @@ static bool handleBoostTest(QFutureInterface<TestParseResultPtr> futureInterface
         BoostTestInfo firstSuite = suitesStates.first();
         QStringList suites = firstSuite.fullName.split('/');
         BoostTestParseResult *topLevelSuite = createParseResult(suites.first(), filePath,
-                                                                projectFile, framework,
+                                                                projectFile, framework(),
                                                                 TestTreeItem::TestSuite,
                                                                 firstSuite);
         BoostTestParseResult *currentSuite = topLevelSuite;
@@ -148,7 +151,7 @@ static bool handleBoostTest(QFutureInterface<TestParseResultPtr> futureInterface
             firstSuite = suitesStates.first();
             suites = firstSuite.fullName.split('/');
             BoostTestParseResult *suiteResult = createParseResult(suites.last(), filePath,
-                                                                  projectFile, framework,
+                                                                  projectFile, framework(),
                                                                   TestTreeItem::TestSuite,
                                                                   firstSuite);
             currentSuite->children.append(suiteResult);
@@ -161,7 +164,7 @@ static bool handleBoostTest(QFutureInterface<TestParseResultPtr> futureInterface
                 locationAndType.m_suitesState.last().fullName + "::" + locationAndType.m_name,
                         locationAndType.m_state, locationAndType.m_line};
             BoostTestParseResult *funcResult = createParseResult(locationAndType.m_name, filePath,
-                                                                 projectFile, framework,
+                                                                 projectFile, framework(),
                                                                  locationAndType.m_type,
                                                                  tmpInfo);
             currentSuite->children.append(funcResult);
@@ -169,15 +172,6 @@ static bool handleBoostTest(QFutureInterface<TestParseResultPtr> futureInterface
         }
     }
     return true;
-}
-
-bool BoostTestParser::processDocument(QFutureInterface<TestParseResultPtr> futureInterface,
-                                      const QString &fileName)
-{
-    CPlusPlus::Document::Ptr doc = document(fileName);
-    if (doc.isNull() || !includesBoostTest(doc, m_cppSnapshot) || !hasBoostTestMacros(doc))
-        return false;
-    return handleBoostTest(futureInterface, doc, m_cppSnapshot, framework());
 }
 
 } // namespace Internal

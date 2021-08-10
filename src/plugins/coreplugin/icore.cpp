@@ -31,12 +31,10 @@
 #include <app/app_version.h>
 #include <extensionsystem/pluginmanager.h>
 
-#include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 
 #include <QApplication>
 #include <QDebug>
-#include <QRegularExpression>
 #include <QStandardPaths>
 #include <QSysInfo>
 
@@ -156,7 +154,6 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QStatusBar>
-#include <QTimer>
 
 using namespace Core::Internal;
 using namespace ExtensionSystem;
@@ -345,7 +342,7 @@ bool ICore::showWarningWithOptions(const QString &title, const QString &text,
 
     \sa settingsDatabase()
 */
-QSettings *ICore::settings(QSettings::Scope scope)
+QtcSettings *ICore::settings(QSettings::Scope scope)
 {
     if (scope == QSettings::UserScope)
         return PluginManager::settings();
@@ -387,11 +384,6 @@ QPrinter *ICore::printer()
 QString ICore::userInterfaceLanguage()
 {
     return qApp->property("qtc_locale").toString();
-}
-
-QString ICore::prefixPath()
-{
-    return QDir::cleanPath(QCoreApplication::applicationDirPath() + '/' + RELATIVE_PREFIX_PATH);
 }
 
 /*!
@@ -489,6 +481,19 @@ QString ICore::libexecPath()
     return QDir::cleanPath(QApplication::applicationDirPath() + '/' + RELATIVE_LIBEXEC_PATH);
 }
 
+QString ICore::crashReportsPath()
+{
+    if (Utils::HostOsInfo::isMacHost())
+        return libexecPath() + "/crashpad_reports/completed";
+    else
+        return libexecPath() + "/crashpad_reports/reports";
+}
+
+QString ICore::ideDisplayName()
+{
+    return Constants::IDE_DISPLAY_NAME;
+}
+
 static QString clangIncludePath(const QString &clangVersion)
 {
     return "/lib/clang/" + clangVersion + "/include";
@@ -572,27 +577,11 @@ static QString compilerString()
 */
 QString ICore::versionString()
 {
-    static QString sdkRelease = []() -> QString {
-        FileReader reader;
-        if (!reader.fetch(prefixPath() + "/sdk-release")) {
-            qWarning() << "Error reading sdk-release file:" << reader.errorString();
-            return {};
-        }
-        QRegularExpression re("^SDK_RELEASE=(.+)$");
-        re.setPatternOptions(QRegularExpression::MultilineOption);
-        QRegularExpressionMatch match = re.match(QString::fromUtf8(reader.data()));
-        if (!match.hasMatch()) {
-            qWarning() << "Error parsing sdk-release file";
-            return {};
-        }
-        return " " + match.captured(1);
-    }();
-
     QString ideVersionDescription;
     if (QLatin1String(Constants::IDE_VERSION_LONG) != QLatin1String(Constants::IDE_VERSION_DISPLAY))
-        ideVersionDescription = tr(" (%1%2)").arg(QLatin1String(Constants::IDE_VERSION_DISPLAY), sdkRelease);
+        ideVersionDescription = tr(" (%1)").arg(QLatin1String(Constants::IDE_VERSION_LONG));
     return tr("%1 %2%3").arg(QLatin1String(Constants::IDE_DISPLAY_NAME),
-                             QLatin1String(Constants::IDE_VERSION_LONG),
+                             QLatin1String(Constants::IDE_VERSION_DISPLAY),
                              ideVersionDescription);
 }
 
@@ -792,7 +781,7 @@ void ICore::registerWindow(QWidget *window, const Context &context)
 
 void ICore::openFiles(const QStringList &arguments, ICore::OpenFilesFlags flags)
 {
-    m_mainwindow->openFiles(arguments, flags);
+    MainWindow::openFiles(arguments, flags);
 }
 
 /*!
@@ -813,7 +802,7 @@ void ICore::addPreCloseListener(const std::function<bool ()> &listener)
 */
 QString ICore::systemInformation()
 {
-    QString result = PluginManager::instance()->systemInformation() + '\n';
+    QString result = PluginManager::systemInformation() + '\n';
     result += versionString() + '\n';
     result += buildCompatibilityString() + '\n';
 #ifdef IDE_REVISION
@@ -844,7 +833,7 @@ public:
     {
         QTC_ASSERT(watched == m_widget, return false);
         if (event->type() == QEvent::Show)
-            QTimer::singleShot(0, this, &ScreenShooter::helper);
+            QMetaObject::invokeMethod(this, &ScreenShooter::helper, Qt::QueuedConnection);
         return false;
     }
 

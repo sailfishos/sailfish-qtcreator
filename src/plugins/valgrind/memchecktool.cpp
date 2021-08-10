@@ -220,6 +220,8 @@ QStringList MemcheckToolRunner::toolArguments() const
     if (m_withGdb)
         arguments << "--vgdb=yes" << "--vgdb-error=0";
 
+    arguments << Utils::QtcProcess::splitArgs(m_settings.memcheckArguments());
+
     return arguments;
 }
 
@@ -1199,7 +1201,7 @@ HeobDialog::HeobDialog(QWidget *parent) :
 
     auto profilesLayout = new QHBoxLayout;
     m_profilesCombo = new QComboBox;
-    for (const auto &profile : m_profiles)
+    for (const auto &profile : qAsConst(m_profiles))
         m_profilesCombo->addItem(settings->value(profile + "/" + heobProfileNameC).toString());
     if (hasSelProfile) {
         int selIdx = m_profiles.indexOf(selProfile);
@@ -1641,7 +1643,7 @@ void HeobData::processFinished()
             debugger->setAttachPid(ProcessHandle(m_data[1]));
             debugger->setRunControlName(tr("Process %1").arg(m_data[1]));
             debugger->setInferiorDevice(DeviceKitAspect::device(m_kit));
-            debugger->setStartMode(AttachExternal);
+            debugger->setStartMode(AttachToLocalProcess);
             debugger->setCloseMode(DetachAtClose);
             debugger->setContinueAfterAttach(true);
             debugger->setInferiorExecutable(FilePath::fromString(Utils::imageName(m_data[1])));

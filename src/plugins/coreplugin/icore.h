@@ -28,6 +28,8 @@
 #include "core_global.h"
 #include "icontext.h"
 
+#include <utils/qtcsettings.h>
+
 #include <QList>
 #include <QMainWindow>
 #include <QObject>
@@ -87,17 +89,19 @@ public:
                                        Utils::Id settingsId = {},
                                        QWidget *parent = nullptr);
 
-    static QSettings *settings(QSettings::Scope scope = QSettings::UserScope);
+    static Utils::QtcSettings *settings(QSettings::Scope scope = QSettings::UserScope);
     static SettingsDatabase *settingsDatabase();
     static QPrinter *printer();
     static QString userInterfaceLanguage();
 
-    static QString prefixPath();
     static QString resourcePath();
     static QString userResourcePath();
     static QString cacheResourcePath();
     static QString installerResourcePath();
     static QString libexecPath();
+    static QString crashReportsPath();
+
+    static QString ideDisplayName();
 
     static QString versionString();
 
@@ -149,6 +153,7 @@ signals:
     void coreAboutToClose();
     void contextAboutToChange(const QList<Core::IContext *> &context);
     void contextChanged(const Core::Context &context);
+    void systemEnvironmentChanged();
 
 public:
     /* internal use */

@@ -23,25 +23,34 @@
 **
 ****************************************************************************/
 
-#include <QDebug>
+#include "iconrenderer/iconrenderer.h"
+#include "import3d/import3d.h"
 
+#include <qt5nodeinstanceclientproxy.h>
+#ifdef MULTILANGUAGE_TRANSLATIONPROVIDER
+#include <sqlitelibraryinitializer.h>
+#endif
+
+#include <QQmlComponent>
+#include <QQmlEngine>
+#include <QDebug>
 #include <QApplication>
 #include <QStringList>
 #include <QFileInfo>
 
 #include <iostream>
-
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "iconrenderer/iconrenderer.h"
-#include <qt5nodeinstanceclientproxy.h>
-
-#include <QQmlComponent>
-#include <QQmlEngine>
-
 #ifdef ENABLE_QT_BREAKPAD
 #include <qtsystemexceptionhandler.h>
+#endif
+
+#if defined(ENABLE_CRASHPAD) && defined(Q_OS_WIN)
+#define NOMINMAX
+#include "client/crashpad_client.h"
+#include "client/crash_report_database.h"
+#include "client/settings.h"
 #endif
 
 #ifdef Q_OS_WIN
@@ -98,6 +107,44 @@ void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QS
 }
 #endif
 
+#if defined(ENABLE_CRASHPAD) && defined(Q_OS_WIN)
+bool startCrashpad()
+{
+    using namespace crashpad;
+
+    // Cache directory that will store crashpad information and minidumps
+    base::FilePath database(L"crashpad_reports");
+    base::FilePath handler(L"crashpad_handler.exe");
+
+    // URL used to submit minidumps to
+    std::string url(CRASHPAD_BACKEND_URL);
+
+    // Optional annotations passed via --annotations to the handler
+    std::map<std::string, std::string> annotations;
+    annotations["qt-version"] = QT_VERSION_STR;
+
+    // Optional arguments to pass to the handler
+    std::vector<std::string> arguments;
+
+    CrashpadClient *client = new CrashpadClient();
+    bool success = client->StartHandler(
+        handler,
+        database,
+        database,
+        url,
+        annotations,
+        arguments,
+        /* restartable */ true,
+        /* asynchronous_start */ true
+    );
+    // TODO: research using this method, should avoid creating a separate CrashpadClient for the
+    // puppet (needed only on windows according to docs).
+//    client->SetHandlerIPCPipe(L"\\\\.\\pipe\\qml2puppet");
+
+    return success;
+}
+#endif
+
 int internalMain(QGuiApplication *application)
 {
     QCoreApplication::setOrganizationName("QtProject");
@@ -107,12 +154,14 @@ int internalMain(QGuiApplication *application)
 
     if (application->arguments().count() < 2
             || (application->arguments().at(1) == "--readcapturedstream" && application->arguments().count() < 3)
-            || (application->arguments().at(1) == "--rendericon" && application->arguments().count() < 5)) {
+            || (application->arguments().at(1) == "--rendericon" && application->arguments().count() < 5)
+            || (application->arguments().at(1) == "--import3dAsset" && application->arguments().count() < 6)) {
         qDebug() << "Usage:\n";
         qDebug() << "--test";
         qDebug() << "--version";
         qDebug() << "--readcapturedstream <stream file> [control stream file]";
         qDebug() << "--rendericon <icon size> <icon file name> <icon source qml>";
+        qDebug() << "--import3dAsset <source asset file name> <output dir> <id number> <import options JSON>";
 
         return -1;
     }
@@ -175,9 +224,24 @@ int internalMain(QGuiApplication *application)
         return application->exec();
     }
 
+    if (application->arguments().at(1) == "--import3dAsset") {
+        QString sourceAsset = application->arguments().at(2);
+        QString outDir = application->arguments().at(3);
+        int exitId = application->arguments().at(4).toInt();
+        QString options = application->arguments().at(5);
+
+        Import3D::import3D(sourceAsset, outDir, exitId, options);
+
+        return application->exec();
+    }
+
 #ifdef ENABLE_QT_BREAKPAD
     const QString libexecPath = QCoreApplication::applicationDirPath() + '/' + RELATIVE_LIBEXEC_PATH;
     QtSystemExceptionHandler systemExceptionHandler(libexecPath);
+#endif
+
+#if defined(ENABLE_CRASHPAD) && defined(Q_OS_WIN)
+    startCrashpad();
 #endif
 
     new QmlDesigner::Qt5NodeInstanceClientProxy(application);
@@ -210,6 +274,10 @@ int main(int argc, char *argv[])
                               || qgetenv("QMLDESIGNER_FORCE_QAPPLICATION") != "true")
             && qEnvironmentVariableIsSet("QT_QUICK_CONTROLS_STYLE")
             && qgetenv("QT_QUICK_CONTROLS_STYLE") != "Desktop";
+
+#ifdef MULTILANGUAGE_TRANSLATIONPROVIDER
+    Sqlite::LibraryInitializer::initialize();
+#endif
 
     if (useGuiApplication) {
         QGuiApplication application(argc, argv);

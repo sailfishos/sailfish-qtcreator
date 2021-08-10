@@ -31,6 +31,7 @@
 
 #include <coreplugin/dialogs/restartdialog.h>
 
+#include <utils/algorithm.h>
 #include <utils/checkablemessagebox.h>
 #include <utils/hostosinfo.h>
 #include <utils/infobar.h>
@@ -42,6 +43,7 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QStyleHints>
+#include <QTextCodec>
 
 using namespace Utils;
 
@@ -50,6 +52,7 @@ namespace Internal {
 
 const char settingsKeyDPI[] = "Core/EnableHighDpiScaling";
 const char settingsKeyShortcutsInContextMenu[] = "General/ShowShortcutsInContextMenu";
+const char settingsKeyCodecForLocale[] = "General/OverrideCodecForLocale";
 
 class GeneralSettingsWidget final : public IOptionsPageWidget
 {
@@ -64,10 +67,13 @@ public:
     void resetWarnings();
     void resetLanguage();
 
-    bool canResetWarnings() const;
+    static bool canResetWarnings();
     void fillLanguageBox() const;
-    QString language() const;
-    void setLanguage(const QString&);
+    static QString language();
+    static void setLanguage(const QString&);
+    void fillCodecBox() const;
+    static QByteArray codecForLocale();
+    static void setCodecForLocale(const QByteArray&);
 
     GeneralSettings *q;
     Ui::GeneralSettings m_ui;
@@ -79,6 +85,7 @@ GeneralSettingsWidget::GeneralSettingsWidget(GeneralSettings *q)
     m_ui.setupUi(this);
 
     fillLanguageBox();
+    fillCodecBox();
 
     m_ui.colorButton->setColor(StyleHelper::requestedBaseColor());
     m_ui.resetWarningsButton->setEnabled(canResetWarnings());
@@ -86,18 +93,18 @@ GeneralSettingsWidget::GeneralSettingsWidget(GeneralSettings *q)
     m_ui.showShortcutsInContextMenus->setText(
                 tr("Show keyboard shortcuts in context menus (default: %1)")
                 .arg(q->m_defaultShowShortcutsInContextMenu ? tr("on") : tr("off")));
-    m_ui.showShortcutsInContextMenus->setChecked(q->showShortcutsInContextMenu());
+    m_ui.showShortcutsInContextMenus->setChecked(GeneralSettings::showShortcutsInContextMenu());
 #if (QT_VERSION < QT_VERSION_CHECK(5, 13, 0))
     m_ui.showShortcutsInContextMenus->setVisible(false);
 #endif
 
-    if (Utils::HostOsInfo().isMacHost()) {
+    if (Utils::HostOsInfo::isMacHost()) {
         m_ui.dpiCheckbox->setVisible(false);
     } else {
-        const bool defaultValue = Utils::HostOsInfo().isWindowsHost();
+        const bool defaultValue = Utils::HostOsInfo::isWindowsHost();
         m_ui.dpiCheckbox->setChecked(ICore::settings()->value(settingsKeyDPI, defaultValue).toBool());
-        connect(m_ui.dpiCheckbox, &QCheckBox::toggled, this, [](bool checked) {
-            ICore::settings()->setValue(settingsKeyDPI, checked);
+        connect(m_ui.dpiCheckbox, &QCheckBox::toggled, this, [defaultValue](bool checked) {
+            ICore::settings()->setValueWithDefault(settingsKeyDPI, checked, defaultValue);
             QMessageBox::information(ICore::dialogParent(),
                                      tr("Restart Required"),
                                      tr("The high DPI settings will take effect after restart."));
@@ -151,13 +158,15 @@ void GeneralSettingsWidget::apply()
 {
     int currentIndex = m_ui.languageBox->currentIndex();
     setLanguage(m_ui.languageBox->itemData(currentIndex, Qt::UserRole).toString());
+    currentIndex = m_ui.codecBox->currentIndex();
+    setCodecForLocale(m_ui.codecBox->itemText(currentIndex).toLocal8Bit());
     q->setShowShortcutsInContextMenu(m_ui.showShortcutsInContextMenus->isChecked());
     // Apply the new base color if accepted
     StyleHelper::setBaseColor(m_ui.colorButton->color());
     m_ui.themeChooser->apply();
 }
 
-bool GeneralSettings::showShortcutsInContextMenu() const
+bool GeneralSettings::showShortcutsInContextMenu()
 {
     return ICore::settings()
         ->value(settingsKeyShortcutsInContextMenu,
@@ -177,7 +186,7 @@ void GeneralSettingsWidget::resetWarnings()
     m_ui.resetWarningsButton->setEnabled(false);
 }
 
-bool GeneralSettingsWidget::canResetWarnings() const
+bool GeneralSettingsWidget::canResetWarnings()
 {
     return InfoBar::anyGloballySuppressed()
         || CheckableMessageBox::hasSuppressedQuestions(ICore::settings());
@@ -189,7 +198,7 @@ void GeneralSettingsWidget::resetLanguage()
     m_ui.languageBox->setCurrentIndex(0);
 }
 
-QString GeneralSettingsWidget::language() const
+QString GeneralSettingsWidget::language()
 {
     QSettings *settings = ICore::settings();
     return settings->value(QLatin1String("General/OverrideLanguage")).toString();
@@ -197,25 +206,50 @@ QString GeneralSettingsWidget::language() const
 
 void GeneralSettingsWidget::setLanguage(const QString &locale)
 {
-    QSettings *settings = ICore::settings();
+    QtcSettings *settings = ICore::settings();
     if (settings->value(QLatin1String("General/OverrideLanguage")).toString() != locale) {
         RestartDialog dialog(ICore::dialogParent(),
                              tr("The language change will take effect after restart."));
         dialog.exec();
     }
 
-    if (locale.isEmpty())
-        settings->remove(QLatin1String("General/OverrideLanguage"));
-    else
-        settings->setValue(QLatin1String("General/OverrideLanguage"), locale);
+    settings->setValueWithDefault(QLatin1String("General/OverrideLanguage"), locale, {});
+}
+
+void GeneralSettingsWidget::fillCodecBox() const
+{
+    const QByteArray currentCodec = codecForLocale();
+
+    QByteArrayList codecs = QTextCodec::availableCodecs();
+    Utils::sort(codecs);
+    for (const QByteArray &codec : qAsConst(codecs)) {
+        m_ui.codecBox->addItem(QString::fromLocal8Bit(codec));
+        if (codec == currentCodec)
+            m_ui.codecBox->setCurrentIndex(m_ui.codecBox->count() - 1);
+    }
+}
+
+QByteArray GeneralSettingsWidget::codecForLocale()
+{
+    QSettings *settings = ICore::settings();
+    QByteArray codec = settings->value(settingsKeyCodecForLocale).toByteArray();
+    if (codec.isEmpty())
+        codec = QTextCodec::codecForLocale()->name();
+    return codec;
+}
+
+void GeneralSettingsWidget::setCodecForLocale(const QByteArray &codec)
+{
+    QtcSettings *settings = ICore::settings();
+    settings->setValueWithDefault(settingsKeyCodecForLocale, codec, {});
+    QTextCodec::setCodecForLocale(QTextCodec::codecForName(codec));
 }
 
 void GeneralSettings::setShowShortcutsInContextMenu(bool show)
 {
-    if (show == m_defaultShowShortcutsInContextMenu)
-        ICore::settings()->remove(settingsKeyShortcutsInContextMenu);
-    else
-        ICore::settings()->setValue(settingsKeyShortcutsInContextMenu, show);
+    ICore::settings()->setValueWithDefault(settingsKeyShortcutsInContextMenu,
+                                           show,
+                                           m_defaultShowShortcutsInContextMenu);
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 13, 0))
     QGuiApplication::styleHints()->setShowShortcutsInContextMenus(show);
 #endif

@@ -123,11 +123,6 @@ bool ConfigModel::hasChanges() const
     });
 }
 
-bool ConfigModel::hasCMakeChanges() const
-{
-    return Utils::contains(m_configuration, [](const InternalDataItem &i) { return i.isCMakeChanged; });
-}
-
 bool ConfigModel::canForceTo(const QModelIndex &idx, const ConfigModel::DataItem::Type type) const
 {
     if (idx.model() != const_cast<ConfigModel *>(this) || idx.column() != 1)
@@ -209,38 +204,33 @@ QList<ConfigModel::DataItem> ConfigModel::configurationForCMake() const
 void ConfigModel::setConfiguration(const CMakeConfig &config)
 {
     setConfiguration(Utils::transform(config, [](const CMakeConfigItem &i) {
-        ConfigModel::DataItem j;
-        j.key = QString::fromUtf8(i.key);
-        j.value = QString::fromUtf8(i.value);
-        j.description = QString::fromUtf8(i.documentation);
-        j.values = i.values;
-        j.inCMakeCache = i.inCMakeCache;
-
-        j.isAdvanced = i.isAdvanced;
-        j.isHidden = i.type == CMakeConfigItem::INTERNAL || i.type == CMakeConfigItem::STATIC;
-
-        switch (i.type) {
-        case CMakeConfigItem::FILEPATH:
-            j.type = ConfigModel::DataItem::FILE;
-            break;
-        case CMakeConfigItem::PATH:
-            j.type = ConfigModel::DataItem::DIRECTORY;
-            break;
-        case CMakeConfigItem::BOOL:
-            j.type = ConfigModel::DataItem::BOOLEAN;
-            break;
-        case CMakeConfigItem::STRING:
-            j.type = ConfigModel::DataItem::STRING;
-            break;
-        default:
-            j.type = ConfigModel::DataItem::UNKNOWN;
-            break;
-        }
-
-        return j;
+        return DataItem(i);
     }));
 }
 
+void ConfigModel::setBatchEditConfiguration(const CMakeConfig &config)
+{
+    for (const auto &c: config) {
+        DataItem di(c);
+        auto existing = std::find(m_configuration.begin(), m_configuration.end(), di);
+        if (existing != m_configuration.end()) {
+            existing->isUnset = c.isUnset;
+            if (!c.isUnset) {
+                existing->isUserChanged = true;
+                existing->setType(c.type);
+                existing->value = QString::fromUtf8(c.value);
+                existing->newValue = existing->value;
+            }
+        } else if (!c.isUnset) {
+            InternalDataItem i(di);
+            i.isUserNew = true;
+            i.newValue = di.value;
+            m_configuration.append(i);
+        }
+    }
+
+    generateTree();
+}
 
 void ConfigModel::setConfiguration(const QList<ConfigModel::InternalDataItem> &config)
 {
@@ -269,7 +259,6 @@ void ConfigModel::setConfiguration(const QList<ConfigModel::InternalDataItem> &c
             // merge old/new entry:
             InternalDataItem item(*newIt);
             item.newValue = (newIt->value != oldIt->newValue) ? oldIt->newValue : QString();
-            item.isCMakeChanged = (oldIt->value != newIt->value);
             item.isUserChanged = !item.newValue.isEmpty() && (item.newValue != item.value);
             result << item;
             ++newIt;
@@ -303,7 +292,7 @@ void ConfigModel::generateTree()
 
     // Generate nodes for *all* prefixes
     QHash<QString, QList<Utils::TreeItem *>> prefixes;
-    for (const InternalDataItem &di : m_configuration) {
+    for (const InternalDataItem &di : qAsConst(m_configuration)) {
         const QString p = prefix(di.key);
         if (!prefixes.contains(p)) {
             prefixes.insert(p, {});
@@ -395,7 +384,6 @@ QVariant ConfigModelTreeItem::data(int column, int role) const
             return toolTip();
         case Qt::FontRole: {
             QFont font;
-            font.setItalic(dataItem->isCMakeChanged);
             font.setBold(dataItem->isUserNew);
             font.setStrikeOut((!dataItem->inCMakeCache && !dataItem->isUserNew) || dataItem->isUnset);
             return font;
@@ -419,7 +407,6 @@ QVariant ConfigModelTreeItem::data(int column, int role) const
         case Qt::FontRole: {
             QFont font;
             font.setBold((dataItem->isUserChanged || dataItem->isUserNew) && !dataItem->isUnset);
-            font.setItalic(dataItem->isCMakeChanged);
             font.setStrikeOut((!dataItem->inCMakeCache && !dataItem->isUserNew) || dataItem->isUnset);
             return font;
         }

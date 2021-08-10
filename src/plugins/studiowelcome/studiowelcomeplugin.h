@@ -27,6 +27,8 @@
 
 #include <extensionsystem/iplugin.h>
 
+#include <QTimer>
+
 namespace StudioWelcome {
 namespace Internal {
 
@@ -37,16 +39,23 @@ class StudioWelcomePlugin final : public ExtensionSystem::IPlugin
 
 public slots:
     void closeSplashScreen();
+    void showSystemSettings();
 
 public:
+    StudioWelcomePlugin();
     ~StudioWelcomePlugin() final;
 
     bool initialize(const QStringList &arguments, QString *errorString) override;
     void extensionsInitialized() override;
     bool delayedInitialize() override;
 
+    void pauseRemoveSplashTimer();
+    void resumeRemoveSplashTimer();
+
 private:
     class WelcomeMode *m_welcomeMode = nullptr;
+    QTimer m_removeSplashTimer;
+    int m_removeSplashRemainingTime = 0;
 };
 
 } // namespace Internal

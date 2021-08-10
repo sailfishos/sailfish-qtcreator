@@ -41,9 +41,9 @@ public:
 private:
     const char *name() const override;
     unsigned priority() const override;
-    IFrameworkSettings *frameworkSettings() override { return &m_settings; }
+    ITestSettings *testSettings() override { return &m_settings; }
     ITestParser *createTestParser() override;
-    TestTreeItem *createRootNode() override;
+    ITestTreeItem *createRootNode() override;
 
     BoostTestSettings m_settings;
     BoostTestSettingsPage m_settingsPage{&m_settings, settingsId()};

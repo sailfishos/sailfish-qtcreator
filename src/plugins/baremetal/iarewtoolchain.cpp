@@ -58,9 +58,7 @@ namespace Internal {
 
 // Helpers:
 
-static const char compilerCommandKeyC[] = "CompilerPath";
 static const char compilerPlatformCodeGenFlagsKeyC[] = "PlatformCodeGenFlags";
-static const char targetAbiKeyC[] = "TargetAbi";
 
 static bool compilerExists(const FilePath &compilerPath)
 {
@@ -294,24 +292,8 @@ IarToolChain::IarToolChain() :
     ToolChain(Constants::IAREW_TOOLCHAIN_TYPEID)
 {
     setTypeDisplayName(Internal::IarToolChain::tr("IAREW"));
-}
-
-void IarToolChain::setTargetAbi(const Abi &abi)
-{
-    if (abi == m_targetAbi)
-        return;
-    m_targetAbi = abi;
-    toolChainUpdated();
-}
-
-Abi IarToolChain::targetAbi() const
-{
-    return m_targetAbi;
-}
-
-bool IarToolChain::isValid() const
-{
-    return true;
+    setTargetAbiKey("TargetAbi");
+    setCompilerCommandKey("CompilerPath");
 }
 
 ToolChain::MacroInspectionRunner IarToolChain::createMacroInspectionRunner() const
@@ -319,16 +301,16 @@ ToolChain::MacroInspectionRunner IarToolChain::createMacroInspectionRunner() con
     Environment env = Environment::systemEnvironment();
     addToEnvironment(env);
 
-    const Utils::FilePath compilerCommand = m_compilerCommand;
-    const Utils::Id languageId = language();
+    const FilePath compiler = compilerCommand();
+    const Id languageId = language();
     const QStringList extraArgs = m_extraCodeModelFlags;
     MacrosCache macrosCache = predefinedMacrosCache();
 
-    return [env, compilerCommand, extraArgs, macrosCache, languageId]
+    return [env, compiler, extraArgs, macrosCache, languageId]
             (const QStringList &flags) {
         Q_UNUSED(flags)
 
-        Macros macros = dumpPredefinedMacros(compilerCommand, extraArgs, languageId, env.toStringList());
+        Macros macros = dumpPredefinedMacros(compiler, extraArgs, languageId, env.toStringList());
         macros.append({"__intrinsic", "", MacroType::Define});
         macros.append({"__nounwind", "", MacroType::Define});
         macros.append({"__noreturn", "", MacroType::Define});
@@ -361,18 +343,18 @@ ToolChain::BuiltInHeaderPathsRunner IarToolChain::createBuiltInHeaderPathsRunner
     Environment env = Environment::systemEnvironment();
     addToEnvironment(env);
 
-    const Utils::FilePath compilerCommand = m_compilerCommand;
-    const Utils::Id languageId = language();
+    const FilePath compiler = compilerCommand();
+    const Id languageId = language();
 
     HeaderPathsCache headerPaths = headerPathsCache();
 
-    return [env, compilerCommand, headerPaths, languageId](const QStringList &flags,
-                                                                const QString &fileName,
-                                                                const QString &) {
+    return [env, compiler, headerPaths, languageId](const QStringList &flags,
+                                                    const QString &fileName,
+                                                    const QString &) {
         Q_UNUSED(flags)
         Q_UNUSED(fileName)
 
-        const HeaderPaths paths = dumpHeaderPaths(compilerCommand, languageId, env.toStringList());
+        const HeaderPaths paths = dumpHeaderPaths(compiler, languageId, env.toStringList());
         headerPaths->insert({}, paths);
 
         return paths;
@@ -381,8 +363,8 @@ ToolChain::BuiltInHeaderPathsRunner IarToolChain::createBuiltInHeaderPathsRunner
 
 void IarToolChain::addToEnvironment(Environment &env) const
 {
-    if (!m_compilerCommand.isEmpty()) {
-        const FilePath path = m_compilerCommand.parentDir();
+    if (!compilerCommand().isEmpty()) {
+        const FilePath path = compilerCommand().parentDir();
         env.prependOrSetPath(path.toString());
     }
 }
@@ -395,9 +377,7 @@ QList<Utils::OutputLineParser *> IarToolChain::createOutputParsers() const
 QVariantMap IarToolChain::toMap() const
 {
     QVariantMap data = ToolChain::toMap();
-    data.insert(compilerCommandKeyC, m_compilerCommand.toString());
     data.insert(compilerPlatformCodeGenFlagsKeyC, m_extraCodeModelFlags);
-    data.insert(targetAbiKeyC, m_targetAbi.toString());
     return data;
 }
 
@@ -405,9 +385,7 @@ bool IarToolChain::fromMap(const QVariantMap &data)
 {
     if (!ToolChain::fromMap(data))
         return false;
-    m_compilerCommand = FilePath::fromString(data.value(compilerCommandKeyC).toString());
     m_extraCodeModelFlags = data.value(compilerPlatformCodeGenFlagsKeyC).toStringList();
-    m_targetAbi = Abi::fromString(data.value(targetAbiKeyC).toString());
     return true;
 }
 
@@ -422,23 +400,8 @@ bool IarToolChain::operator==(const ToolChain &other) const
         return false;
 
     const auto customTc = static_cast<const IarToolChain *>(&other);
-    return m_compilerCommand == customTc->m_compilerCommand
-            && m_targetAbi == customTc->m_targetAbi
-            && m_extraCodeModelFlags == customTc->m_extraCodeModelFlags
-            ;
-}
-
-void IarToolChain::setCompilerCommand(const FilePath &file)
-{
-    if (file == m_compilerCommand)
-        return;
-    m_compilerCommand = file;
-    toolChainUpdated();
-}
-
-FilePath IarToolChain::compilerCommand() const
-{
-    return m_compilerCommand;
+    return compilerCommand() == customTc->compilerCommand()
+            && m_extraCodeModelFlags == customTc->m_extraCodeModelFlags;
 }
 
 void IarToolChain::setExtraCodeModelFlags(const QStringList &flags)

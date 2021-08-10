@@ -203,7 +203,7 @@ RawProjectPart makeRawProjectPart(const Utils::FilePath &projectFile,
                                                     ProjectExplorer::Constants::C_LANGUAGE_ID);
         }
         addDriverModeFlagIfNeeded(kitInfo.cToolChain, flags, originalFlags);
-        rpp.setFlagsForC({kitInfo.cToolChain, flags});
+        rpp.setFlagsForC({kitInfo.cToolChain, flags, workingDir});
     } else {
         if (!kitInfo.cxxToolChain) {
             kitInfo.cxxToolChain = toolchainFromFlags(kit,
@@ -211,7 +211,7 @@ RawProjectPart makeRawProjectPart(const Utils::FilePath &projectFile,
                                                       ProjectExplorer::Constants::CXX_LANGUAGE_ID);
         }
         addDriverModeFlagIfNeeded(kitInfo.cxxToolChain, flags, originalFlags);
-        rpp.setFlagsForCxx({kitInfo.cxxToolChain, flags});
+        rpp.setFlagsForCxx({kitInfo.cxxToolChain, flags, workingDir});
     }
 
     return rpp;
@@ -445,9 +445,8 @@ Utils::FilePath CompilationDatabaseProject::rootPathFromSettings() const
 #endif
 }
 
-void CompilationDatabaseProject::configureAsExampleProject(Kit *kit, const QSet<Utils::Id> &preferredFeatures)
+void CompilationDatabaseProject::configureAsExampleProject(Kit *kit)
 {
-    Q_UNUSED(preferredFeatures);
     if (kit)
         addTargetForKit(kit);
     else if (KitManager::defaultKit())
@@ -529,7 +528,7 @@ public:
 CompilationDatabaseBuildConfigurationFactory::CompilationDatabaseBuildConfigurationFactory()
 {
     registerBuildConfiguration<CompilationDatabaseBuildConfiguration>(
-            Constants::COMPILATIONDATABASE_BC_ID);
+        "CompilationDatabase.CompilationDatabaseBuildConfiguration");
 
     setSupportedProjectType(Constants::COMPILATIONDATABASEPROJECT_ID);
     setSupportedProjectMimeTypeName(Constants::COMPILATIONDATABASEMIMETYPE);

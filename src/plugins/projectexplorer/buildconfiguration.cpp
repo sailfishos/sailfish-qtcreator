@@ -45,6 +45,7 @@
 #include "target.h"
 #include "toolchain.h"
 
+#include <coreplugin/icore.h>
 #include <coreplugin/idocument.h>
 
 #include <utils/algorithm.h>
@@ -107,15 +108,8 @@ public:
         vbox->setContentsMargins(0, 0, 0, 0);
         vbox->addWidget(clearBox);
         vbox->addWidget(envWidget);
-
-        if (s_extender)
-            s_extender(vbox);
     }
-
-    static std::function<void(QVBoxLayout *)> s_extender;
 };
-
-std::function<void(QVBoxLayout *)> BuildEnvironmentWidget::s_extender;
 
 class CustomParsersBuildWidget : public NamedWidget
 {
@@ -150,6 +144,7 @@ public:
     BuildStepList m_buildSteps;
     BuildStepList m_cleanSteps;
     BuildDirectoryAspect *m_buildDirectoryAspect = nullptr;
+    StringAspect *m_tooltipAspect = nullptr;
     FilePath m_lastEmittedBuildDirectory;
     mutable Environment m_cachedEnvironment;
     QString m_configWidgetDisplayName;
@@ -194,6 +189,8 @@ BuildConfiguration::BuildConfiguration(Target *target, Utils::Id id)
                              [this](const QString &var) { return environment().expandedValueForKey(var); });
 
     updateCacheAndEmitEnvironmentChanged();
+    connect(Core::ICore::instance(), &Core::ICore::systemEnvironmentChanged,
+            this, &BuildConfiguration::updateCacheAndEmitEnvironmentChanged);
     connect(target, &Target::kitChanged,
             this, &BuildConfiguration::updateCacheAndEmitEnvironmentChanged);
     connect(this, &BuildConfiguration::environmentChanged,
@@ -213,6 +210,15 @@ BuildConfiguration::BuildConfiguration(Target *target, Utils::Id id)
     connect(this, &BuildConfiguration::environmentChanged, this, [this] {
         d->m_buildDirectoryAspect->setEnvironment(environment());
         emit this->target()->buildEnvironmentChanged(this);
+    });
+
+    d->m_tooltipAspect = addAspect<StringAspect>();
+    d->m_tooltipAspect->setLabelText(tr("Tooltip in target selector:"));
+    d->m_tooltipAspect->setToolTip(tr("Appears as a tooltip when hovering the build configuration"));
+    d->m_tooltipAspect->setDisplayStyle(StringAspect::LineEditDisplay);
+    d->m_tooltipAspect->setSettingsKey("ProjectExplorer.BuildConfiguration.Tooltip");
+    connect(d->m_tooltipAspect, &StringAspect::changed, this, [this] {
+        setToolTip(d->m_tooltipAspect->value());
     });
 
     connect(target, &Target::parsingStarted, this, &BuildConfiguration::enabledChanged);
@@ -410,7 +416,9 @@ bool BuildConfiguration::fromMap(const QVariantMap &map)
 
     d->m_customParsers = transform(map.value(CUSTOM_PARSERS_KEY).toList(), &Utils::Id::fromSetting);
 
-    return ProjectConfiguration::fromMap(map);
+    const bool res = ProjectConfiguration::fromMap(map);
+    setToolTip(d->m_tooltipAspect->value());
+    return res;
 }
 
 void BuildConfiguration::updateCacheAndEmitEnvironmentChanged()
@@ -421,12 +429,6 @@ void BuildConfiguration::updateCacheAndEmitEnvironmentChanged()
         return;
     d->m_cachedEnvironment = env;
     emit environmentChanged(); // might trigger buildDirectoryChanged signal!
-}
-
-void BuildConfiguration::setEnvironmentWidgetExtender(const std::function<void(QVBoxLayout *)> &extender)
-{
-    QTC_CHECK(!Internal::BuildEnvironmentWidget::s_extender);
-    Internal::BuildEnvironmentWidget::s_extender = extender;
 }
 
 void BuildConfiguration::emitBuildDirectoryChanged()
@@ -529,13 +531,11 @@ void BuildConfiguration::setUserEnvironmentChanges(const EnvironmentItems &diff)
 
 bool BuildConfiguration::isEnabled() const
 {
-    return !buildSystem()->isParsing() && buildSystem()->hasParsingData();
+    return buildSystem()->hasParsingData();
 }
 
 QString BuildConfiguration::disabledReason() const
 {
-    if (buildSystem()->isParsing())
-        return (tr("The project is currently being parsed."));
     if (!buildSystem()->hasParsingData())
         return (tr("The project was not parsed successfully."));
     return QString();
@@ -575,24 +575,6 @@ QString BuildConfiguration::buildTypeName(BuildConfiguration::BuildType type)
 bool BuildConfiguration::isActive() const
 {
     return target()->isActive() && target()->activeBuildConfiguration() == this;
-}
-
-/*!
- * Helper function that prepends the directory containing the C++ toolchain to
- * PATH. This is used to in build configurations targeting broken build systems
- * to provide hints about which compiler to use.
- */
-
-void BuildConfiguration::prependCompilerPathToEnvironment(Kit *k, Environment &env)
-{
-    const ToolChain *tc = ToolChainKitAspect::cxxToolChain(k);
-
-    if (!tc)
-        return;
-
-    const FilePath compilerDir = tc->compilerCommand().parentDir();
-    if (!compilerDir.isEmpty())
-        env.prependOrSetPath(compilerDir.toString());
 }
 
 ///
@@ -655,7 +637,7 @@ BuildConfigurationFactory *BuildConfigurationFactory::find(const Kit *k, const F
 {
     QTC_ASSERT(k, return nullptr);
     const Utils::Id deviceType = DeviceTypeKitAspect::deviceTypeId(k);
-    for (BuildConfigurationFactory *factory : g_buildConfigurationFactories) {
+    for (BuildConfigurationFactory *factory : qAsConst(g_buildConfigurationFactories)) {
         if (Utils::mimeTypeForFile(projectPath.toString())
                 .matchesName(factory->m_supportedProjectMimeTypeName)
                 && factory->supportsTargetDeviceType(deviceType))
@@ -667,7 +649,7 @@ BuildConfigurationFactory *BuildConfigurationFactory::find(const Kit *k, const F
 // create
 BuildConfigurationFactory * BuildConfigurationFactory::find(Target *parent)
 {
-    for (BuildConfigurationFactory *factory : g_buildConfigurationFactories) {
+    for (BuildConfigurationFactory *factory : qAsConst(g_buildConfigurationFactories)) {
         if (factory->canHandle(parent))
             return factory;
     }
@@ -729,7 +711,7 @@ BuildConfiguration *BuildConfigurationFactory::create(Target *parent, const Buil
 BuildConfiguration *BuildConfigurationFactory::restore(Target *parent, const QVariantMap &map)
 {
     const Utils::Id id = idFromMap(map);
-    for (BuildConfigurationFactory *factory : g_buildConfigurationFactories) {
+    for (BuildConfigurationFactory *factory : qAsConst(g_buildConfigurationFactories)) {
         QTC_ASSERT(factory->m_creator, return nullptr);
         if (!factory->canHandle(parent))
             continue;

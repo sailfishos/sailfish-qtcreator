@@ -23,6 +23,15 @@
 **
 ****************************************************************************/
 
+#include "mesonbuildconfiguration.h"
+
+#include "buildoptions/mesonbuildsettingswidget.h"
+#include "exewrappers/mesonwrapper.h"
+#include "mesonbuildsystem.h"
+#include "mesonpluginconstants.h"
+#include "mesonpluginconstants.h"
+#include "ninjabuildstep.h"
+
 #include <projectexplorer/buildinfo.h>
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/buildstep.h>
@@ -31,20 +40,15 @@
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/projectmacroexpander.h>
+
 #include <utils/fileutils.h>
+#include <utils/qtcprocess.h>
 
 #include <QDir>
 
-#include "buildoptions/mesonbuildsettingswidget.h"
-#include "mesonbuildconfiguration.h"
-#include "mesonbuildsystem.h"
-#include "mesonpluginconstants.h"
-#include "ninjabuildstep.h"
-#include <exewrappers/mesonwrapper.h>
-#include <mesonpluginconstants.h>
-
 namespace MesonProjectManager {
 namespace Internal {
+
 MesonBuildConfiguration::MesonBuildConfiguration(ProjectExplorer::Target *target, Utils::Id id)
     : ProjectExplorer::BuildConfiguration{target, id}
 {
@@ -114,10 +118,27 @@ void MesonBuildConfiguration::build(const QString &target)
         mesonBuildStep->setBuildTarget(originalBuildTarget);
 }
 
+QStringList MesonBuildConfiguration::mesonConfigArgs()
+{
+    return Utils::QtcProcess::splitArgs(m_parameters) + QStringList{QString("-Dbuildtype=%1").arg(mesonBuildTypeName(m_buildType))};
+}
+
+const QString &MesonBuildConfiguration::parameters() const
+{
+    return m_parameters;
+}
+
+void MesonBuildConfiguration::setParameters(const QString &params)
+{
+    m_parameters = params;
+    emit parametersChanged();
+}
+
 QVariantMap MesonBuildConfiguration::toMap() const
 {
     auto data = ProjectExplorer::BuildConfiguration::toMap();
     data[Constants::BuildConfiguration::BUILD_TYPE_KEY] = mesonBuildTypeName(m_buildType);
+    data[Constants::BuildConfiguration::PARAMETERS_KEY] = m_parameters;
     return data;
 }
 
@@ -127,6 +148,7 @@ bool MesonBuildConfiguration::fromMap(const QVariantMap &map)
     m_buildSystem = new MesonBuildSystem{this};
     m_buildType = mesonBuildType(
         map.value(Constants::BuildConfiguration::BUILD_TYPE_KEY).toString());
+    m_parameters = map.value(Constants::BuildConfiguration::PARAMETERS_KEY).toString();
     return res;
 }
 

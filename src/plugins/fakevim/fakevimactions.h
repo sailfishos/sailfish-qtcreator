@@ -107,6 +107,14 @@ enum FakeVimSettingsCode
     ConfigShowCmd,
     ConfigScrollOff,
     ConfigRelativeNumber,
+    ConfigFormatOptions,
+
+    // Plugin emulation
+    ConfigEmulateVimCommentary,
+    ConfigEmulateReplaceWithRegister,
+    ConfigEmulateExchange,
+    ConfigEmulateArgTextObj,
+    ConfigEmulateSurround,
 
     ConfigBlinkingCursor
 };

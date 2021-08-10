@@ -38,16 +38,16 @@
 #include <utils/fileutils.h>
 
 #include <QDir>
+#include <QJsonObject>
 #include <QPushButton>
 #include <QRegularExpression>
-#include <QTimer>
 
 using namespace Core;
 using namespace Core::Internal;
 using namespace Utils;
 
 ILocatorFilter::MatchLevel FileSystemFilter::matchLevelFor(const QRegularExpressionMatch &match,
-                                                           const QString &matchText) const
+                                                           const QString &matchText)
 {
     const int consecutivePos = match.capturedStart(1);
     if (consecutivePos == 0)
@@ -66,14 +66,15 @@ FileSystemFilter::FileSystemFilter()
 {
     setId("Files in file system");
     setDisplayName(tr("Files in File System"));
-    setShortcutString("f");
-    setIncludedByDefault(false);
+    setDefaultShortcutString("f");
+    setDefaultIncludedByDefault(false);
 }
 
 void FileSystemFilter::prepareSearch(const QString &entry)
 {
     Q_UNUSED(entry)
     m_currentDocumentDirectory = DocumentManager::fileDialogInitialDirectory();
+    m_currentIncludeHidden = m_includeHidden;
 }
 
 QList<LocatorFilterEntry> FileSystemFilter::matchesFor(QFutureInterface<LocatorFilterEntry> &future,
@@ -92,7 +93,7 @@ QList<LocatorFilterEntry> FileSystemFilter::matchesFor(QFutureInterface<LocatorF
     const QDir dirInfo(directory);
     QDir::Filters dirFilter = QDir::Dirs|QDir::Drives|QDir::NoDot|QDir::NoDotDot;
     QDir::Filters fileFilter = QDir::Files;
-    if (m_includeHidden) {
+    if (m_currentIncludeHidden) {
         dirFilter |= QDir::Hidden;
         fileFilter |= QDir::Hidden;
     }
@@ -174,7 +175,7 @@ void FileSystemFilter::accept(LocatorFilterEntry selection,
         *selectionStart = value.length();
     } else {
         // Don't block locator filter execution with dialog
-        QTimer::singleShot(0, EditorManager::instance(), [info, selection] {
+        QMetaObject::invokeMethod(EditorManager::instance(), [info, selection] {
             const QString targetFile = selection.internalData.toString();
             if (!info.exists()) {
                 if (Utils::CheckableMessageBox::shouldAskAgain(ICore::settings(), kAlwaysCreate)) {
@@ -207,7 +208,7 @@ void FileSystemFilter::accept(LocatorFilterEntry selection,
             EditorManager::openEditor(cleanedFilePath,
                                       Id(),
                                       EditorManager::CanContainLineAndColumnNumber);
-        });
+        }, Qt::QueuedConnection);
     }
 }
 
@@ -235,28 +236,36 @@ bool FileSystemFilter::openConfigDialog(QWidget *parent, bool &needsRefresh)
     return false;
 }
 
-QByteArray FileSystemFilter::saveState() const
+const char kIncludeHiddenKey[] = "includeHidden";
+
+void FileSystemFilter::saveState(QJsonObject &object) const
 {
-    QByteArray value;
-    QDataStream out(&value, QIODevice::WriteOnly);
-    out << m_includeHidden;
-    out << shortcutString();
-    out << isIncludedByDefault();
-    return value;
+    if (m_includeHidden != kIncludeHiddenDefault)
+        object.insert(kIncludeHiddenKey, m_includeHidden);
+}
+
+void FileSystemFilter::restoreState(const QJsonObject &object)
+{
+    m_currentIncludeHidden = object.value(kIncludeHiddenKey).toBool(kIncludeHiddenDefault);
 }
 
 void FileSystemFilter::restoreState(const QByteArray &state)
 {
-    QDataStream in(state);
-    in >> m_includeHidden;
+    if (isOldSetting(state)) {
+        // TODO read old settings, remove some time after Qt Creator 4.15
+        QDataStream in(state);
+        in >> m_includeHidden;
 
-    // An attempt to prevent setting this on old configuration
-    if (!in.atEnd()) {
-        QString shortcut;
-        bool defaultFilter;
-        in >> shortcut;
-        in >> defaultFilter;
-        setShortcutString(shortcut);
-        setIncludedByDefault(defaultFilter);
+        // An attempt to prevent setting this on old configuration
+        if (!in.atEnd()) {
+            QString shortcut;
+            bool defaultFilter;
+            in >> shortcut;
+            in >> defaultFilter;
+            setShortcutString(shortcut);
+            setIncludedByDefault(defaultFilter);
+        }
+    } else {
+        ILocatorFilter::restoreState(state);
     }
 }

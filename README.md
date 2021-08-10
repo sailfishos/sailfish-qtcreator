@@ -44,7 +44,8 @@ Prerequisites:
 * On Mac OS X: latest Xcode
 * On Linux: GCC 7 or later
 * LLVM/Clang 10 or later (optional, LLVM/Clang 11 is recommended.
-  See the section "Getting LLVM/Clang for the Clang Code Model".
+  See [instructions](#getting-llvmclang-for-the-clang-code-model) on how to
+  get LLVM.
   The ClangFormat, ClangPchManager and ClangRefactoring use the LLVM C++ API.
   Since the LLVM C++ API provides no compatibility guarantee,
   if later versions don't compile we don't support that version.)
@@ -63,7 +64,7 @@ Note that if you install Qt via the online installer, the path to Qt must
 include the version number and compiler ABI. The path to the online installer
 content is not enough.
 
-See "Getting LLVM/Clang for the Clang Code Model" for instructions on how to
+See [instructions](#getting-llvmclang-for-the-clang-code-model) on how to
 get LLVM.
 
     mkdir qtcreator_build
@@ -82,7 +83,7 @@ Note that if you install Qt via the online installer, the path to Qt must
 include the version number and compiler ABI. The path to the online installer
 content is not enough.
 
-See "Getting LLVM/Clang for the Clang Code Model" for instructions on how to
+See [instructions](#getting-llvmclang-for-the-clang-code-model) on how to
 get LLVM.
 
 Decide which compiler to use: MinGW or Microsoft Visual Studio.
@@ -151,8 +152,7 @@ supported LLVM/Clang version is 8.0.
 ### Prebuilt LLVM/Clang packages
 
 Prebuilt packages of LLVM/Clang can be downloaded from
-
-    https://download.qt.io/development_releases/prebuilt/libclang/
+https://download.qt.io/development_releases/prebuilt/libclang/
 
 This should be your preferred option because you will use the version that is
 shipped together with Qt Creator (with backported/additional patches). In
@@ -209,7 +209,7 @@ The ClangFormat plugin depends on the additional patch
 
     https://code.qt.io/cgit/clang/llvm-project.git/commit/?h=release_100-based&id=9b992a0f7f160dd6c75f20a4dcfcf7c60a4894df
 
-While the plugin builds without it, it will be disabled on start with an error message.
+While the plugin builds without it, it might not be fully functional.
 
 Note that the plugin is disabled by default.
 
@@ -649,3 +649,33 @@ SQLite (https://www.sqlite.org) is in the Public Domain.
   Qt Creator installations deliver Qbs. Its licensing and third party
   attributions are listed in Qbs Manual at
   https://doc.qt.io/qbs/attributions.html
+
+  ### conan.cmake
+
+  CMake script used by Qt Creator's auto setup of package manager dependencies.
+
+  The sources can be found in:
+    * QtCreator/src/share/3rdparty/package-manager/conan.cmake
+    * https://github.com/conan-io/cmake-conan
+
+  The MIT License (MIT)
+
+  Copyright (c) 2018 JFrog
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.

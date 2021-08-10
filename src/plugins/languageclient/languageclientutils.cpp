@@ -122,8 +122,8 @@ bool applyWorkspaceEdit(const WorkspaceEdit &edit)
             result |= applyTextDocumentEdit(documentChange);
     } else {
         const WorkspaceEdit::Changes &changes = edit.changes().value_or(WorkspaceEdit::Changes());
-        for (const DocumentUri &file : changes.keys())
-            result |= applyTextEdits(file, changes.value(file));
+        for (auto it = changes.cbegin(); it != changes.cend(); ++it)
+            result |= applyTextEdits(it.key(), it.value());
         return result;
     }
     return result;
@@ -171,7 +171,7 @@ void updateCodeActionRefactoringMarker(Client *client,
             } else if (optional<WorkspaceEdit::Changes> localChanges = edit.changes()) {
                 edits = localChanges.value()[uri];
             }
-            for (const TextEdit &edit : edits) {
+            for (const TextEdit &edit : qAsConst(edits)) {
                 marker.cursor = endOfLineCursor(edit.range().start().toTextCursor(doc->document()));
                 markers << marker;
             }
@@ -240,8 +240,8 @@ void updateEditorToolBar(Core::IEditor *editor)
                     QObject::connect(action, &QAction::triggered, reopen);
                 }
                 menu->addActions(clientsGroup->actions());
-                menu->addAction("Language Client Logs", []() {
-                    LanguageClientManager::showLogger();
+                menu->addAction("Inspect Language Clients", []() {
+                    LanguageClientManager::showInspector();
                 });
                 menu->addAction("Manage...", []() {
                     Core::ICore::showOptionsDialog(Constants::LANGUAGECLIENT_SETTINGS_PAGE);

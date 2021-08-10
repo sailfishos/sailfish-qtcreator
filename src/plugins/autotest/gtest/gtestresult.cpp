@@ -29,6 +29,7 @@
 #include "../testtreeitem.h"
 
 #include <utils/id.h>
+#include <utils/qtcassert.h>
 
 #include <QRegularExpression>
 
@@ -93,7 +94,7 @@ static QString normalizeTestName(const QString &testname)
     return normalizeName(nameWithoutTypeParam);
 }
 
-const TestTreeItem *GTestResult::findTestTreeItem() const
+const ITestTreeItem *GTestResult::findTestTreeItem() const
 {
     auto id = Utils::Id(Constants::FRAMEWORK_PREFIX).withSuffix(GTest::Constants::FRAMEWORK_NAME);
     ITestFramework *framework = TestFrameworkManager::frameworkForId(id);
@@ -102,11 +103,10 @@ const TestTreeItem *GTestResult::findTestTreeItem() const
     if (!rootNode)
         return nullptr;
 
-    const auto item = rootNode->findAnyChild([this](const Utils::TreeItem *item) {
+    return rootNode->findAnyChild([this](const Utils::TreeItem *item) {
         const auto treeItem = static_cast<const TestTreeItem *>(item);
         return treeItem && matches(treeItem);
     });
-    return static_cast<const TestTreeItem *>(item);
 }
 
 bool GTestResult::matches(const TestTreeItem *treeItem) const

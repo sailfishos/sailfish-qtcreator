@@ -28,19 +28,20 @@
 #include "itestparser.h"
 
 #include <qmljs/qmljsdocument.h>
+#include <utils/id.h>
 
-#include <QObject>
-#include <QMap>
 #include <QFutureWatcher>
+#include <QMap>
+#include <QObject>
 #include <QTimer>
 
 QT_BEGIN_NAMESPACE
 class QThreadPool;
 QT_END_NAMESPACE
 
-namespace Autotest {
+namespace ProjectExplorer { class Project; }
 
-class ITestFramework;
+namespace Autotest {
 
 namespace Internal {
 
@@ -61,7 +62,7 @@ public:
     State state() const { return m_parserState; }
     bool isParsing() const { return m_parserState == PartialParse || m_parserState == FullParse; }
     void setDirty() { m_dirty = true; }
-    void syncTestFrameworks(const QList<ITestFramework *> &frameworks);
+    void syncTestFrameworks(const QList<ITestParser *> &parsers);
 #ifdef WITH_TESTS
     bool furtherParsingExpected() const
     { return m_singleShotScheduled || m_fullUpdatePostponed || m_partialUpdatePostponed; }
@@ -74,11 +75,11 @@ signals:
     void parsingFinished();
     void parsingFailed();
     void requestRemoval(const QString &filePath);
-    void requestRemoveAll();
+    void requestRemoveAllFrameworkItems();
 
 public:
     void emitUpdateTestTree(ITestParser *parser = nullptr);
-    void updateTestTree(const QSet<ITestFramework *> &frameworks = {});
+    void updateTestTree(const QSet<ITestParser *> &parsers = {});
     void onCppDocumentUpdated(const CPlusPlus::Document::Ptr &document);
     void onQmlDocumentUpdated(const QmlJS::Document::Ptr &document);
     void onStartupProjectChanged(ProjectExplorer::Project *project);
@@ -88,7 +89,7 @@ public:
 private:
     bool postponed(const QStringList &fileList);
     void scanForTests(const QStringList &fileList = QStringList(),
-                      const QList<ITestFramework *> &parserIds = {});
+                      const QList<ITestParser *> &parsers = {});
 
     // qml files must be handled slightly different
     void onDocumentUpdated(const QString &fileName, bool isQmlFile = false);
@@ -98,6 +99,10 @@ private:
     void onPartialParsingFinished();
     void parsePostponedFiles();
     void releaseParserInternals();
+
+    // used internally to indicate a parse that failed due to having triggered a parse for a file that
+    // is not (yet) part of the CppModelManager's snapshot
+    bool m_parsingHasFailed = false;
 
     bool m_codeModelParsing = false;
     bool m_fullUpdatePostponed = false;
@@ -110,7 +115,7 @@ private:
     QFutureWatcher<TestParseResultPtr> m_futureWatcher;
     QList<ITestParser *> m_testCodeParsers; // ptrs are still owned by TestFrameworkManager
     QTimer m_reparseTimer;
-    QSet<ITestFramework *> m_updateParsers;
+    QSet<ITestParser *> m_updateParsers;
     QThreadPool *m_threadPool = nullptr;
 };
 

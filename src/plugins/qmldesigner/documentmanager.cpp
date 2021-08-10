@@ -324,6 +324,9 @@ void DocumentManager::addFileToVersionControl(const QString &directoryPath, cons
 
 Utils::FilePath DocumentManager::currentFilePath()
 {
+    if (!QmlDesignerPlugin::instance()->currentDesignDocument())
+        return {};
+
     return QmlDesignerPlugin::instance()->documentManager().currentDesignDocument()->fileName();
 }
 
@@ -495,5 +498,12 @@ bool DocumentManager::belongsToQmakeProject()
     return proNode;
 }
 
+Utils::FilePath DocumentManager::currentResourcePath()
+{
+    Utils::FilePath resourcePath = currentProjectDirPath();
+    if (resourcePath.isEmpty())
+        return currentFilePath().absolutePath();
+    return resourcePath;
+}
 
 } // namespace QmlDesigner

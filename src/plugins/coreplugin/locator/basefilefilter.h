@@ -49,7 +49,7 @@ public:
         virtual Utils::FilePath filePath() const = 0;
     };
 
-    class CORE_EXPORT ListIterator : public Iterator {
+    class CORE_EXPORT ListIterator final : public Iterator {
     public:
         ListIterator(const Utils::FilePaths &filePaths);
 
@@ -76,7 +76,8 @@ protected:
     QSharedPointer<Iterator> fileIterator();
 
 private:
-    MatchLevel matchLevelFor(const QRegularExpressionMatch &match, const QString &matchText) const;
+    static MatchLevel matchLevelFor(const QRegularExpressionMatch &match,
+                                    const QString &matchText);
     void updatePreviousResultData();
 
     Internal::BaseFileFilterPrivate *d = nullptr;

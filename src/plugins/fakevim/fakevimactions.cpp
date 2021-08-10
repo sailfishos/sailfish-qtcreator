@@ -113,6 +113,14 @@ FakeVimSettings::FakeVimSettings()
     createAction(ConfigBackspace,      QString("indent,eol,start"), "ConfigBackspace", "bs");
     createAction(ConfigIsKeyword,      QString("@,48-57,_,192-255,a-z,A-Z"), "IsKeyword", "isk");
     createAction(ConfigClipboard,      QString(), "Clipboard", "cb");
+    createAction(ConfigFormatOptions,  QString(), "formatoptions", "fo");
+
+    // Emulated plugins
+    createAction(ConfigEmulateVimCommentary, false, "commentary");
+    createAction(ConfigEmulateReplaceWithRegister, false, "ReplaceWithRegister");
+    createAction(ConfigEmulateExchange, false, "exchange");
+    createAction(ConfigEmulateArgTextObj, false, "argtextobj");
+    createAction(ConfigEmulateSurround, false, "surround");
 }
 
 FakeVimSettings::~FakeVimSettings()

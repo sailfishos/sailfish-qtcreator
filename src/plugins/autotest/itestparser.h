@@ -26,12 +26,12 @@
 #pragma once
 
 #include "testtreeitem.h"
-#include "testtreemodel.h"
 
-#include <utils/id.h>
 #include <cplusplus/CppDocument.h>
 #include <cpptools/cppworkingcopy.h>
 #include <qmljs/qmljsdocument.h>
+
+#include <QFutureInterface>
 
 namespace Autotest {
 
@@ -80,7 +80,7 @@ public:
     explicit CppParser(ITestFramework *framework);
     void init(const QStringList &filesToParse, bool fullParse) override;
     static bool selectedForBuilding(const QString &fileName);
-    static QByteArray getFileContent(const QString &filePath);
+    QByteArray getFileContent(const QString &filePath) const;
     void release() override;
 
     CPlusPlus::Document::Ptr document(const QString &fileName);

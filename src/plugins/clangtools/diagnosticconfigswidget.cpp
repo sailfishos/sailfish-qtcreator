@@ -25,6 +25,9 @@
 
 #include "diagnosticconfigswidget.h"
 
+#include "clangtoolsutils.h"
+#include "executableinfo.h"
+
 #include "ui_clazychecks.h"
 #include "ui_tidychecks.h"
 
@@ -38,14 +41,85 @@
 #include <utils/stringutils.h>
 
 #include <QDesktopServices>
+#include <QDialog>
 #include <QDialogButtonBox>
+#include <QHBoxLayout>
+#include <QPushButton>
 #include <QSortFilterProxyModel>
 #include <QStringListModel>
+#include <QTreeWidget>
+#include <QTreeWidgetItem>
+#include <QVBoxLayout>
 
 using namespace CppTools;
 
 namespace ClangTools {
 namespace Internal {
+
+class TidyOptionsDialog : public QDialog
+{
+    Q_OBJECT
+public:
+    TidyOptionsDialog(const QString &check, const ClangDiagnosticConfig::TidyCheckOptions &options,
+                      QWidget *parent = nullptr) : QDialog(parent)
+    {
+        setWindowTitle(tr("Options for %1").arg(check));
+        resize(600, 300);
+        const auto mainLayout = new QVBoxLayout(this);
+        const auto widgetLayout = new QHBoxLayout;
+        mainLayout->addLayout(widgetLayout);
+        m_optionsWidget.setColumnCount(2);
+        m_optionsWidget.setHeaderLabels({tr("Option"), tr("Value")});
+        const auto addItem = [this](const QString &option, const QString &value) {
+            const auto item = new QTreeWidgetItem(&m_optionsWidget, QStringList{option, value});
+            item->setFlags(item->flags() | Qt::ItemIsEditable);
+            return item;
+        };
+        for (auto it = options.begin(); it != options.end(); ++it)
+            addItem(it.key(), it.value());
+        m_optionsWidget.resizeColumnToContents(0);
+        widgetLayout->addWidget(&m_optionsWidget);
+        const auto buttonLayout = new QVBoxLayout;
+        widgetLayout->addLayout(buttonLayout);
+        const auto addButton = new QPushButton(tr("Add Option"));
+        connect(addButton, &QPushButton::clicked, this, [this, addItem] {
+            const auto item = addItem(tr("<new option>"), {});
+            m_optionsWidget.editItem(item);
+        });
+        buttonLayout->addWidget(addButton);
+        const auto removeButton = new QPushButton(tr("Remove Option"));
+        connect(removeButton, &QPushButton::clicked, this, [this] {
+            qDeleteAll(m_optionsWidget.selectedItems());
+        });
+        const auto toggleRemoveButtonEnabled = [this, removeButton] {
+            removeButton->setEnabled(!m_optionsWidget.selectionModel()->selectedRows().isEmpty());
+        };
+        connect(&m_optionsWidget, &QTreeWidget::itemSelectionChanged,
+                this, [toggleRemoveButtonEnabled] { toggleRemoveButtonEnabled(); });
+        toggleRemoveButtonEnabled();
+        buttonLayout->addWidget(removeButton);
+        buttonLayout->addStretch(1);
+
+        const auto buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok
+                                                    | QDialogButtonBox::Cancel);
+        connect(buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
+        connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
+        mainLayout->addWidget(buttonBox);
+    }
+
+    ClangDiagnosticConfig::TidyCheckOptions options() const
+    {
+        ClangDiagnosticConfig::TidyCheckOptions opts;
+        for (int i = 0; i < m_optionsWidget.topLevelItemCount(); ++i) {
+            const QTreeWidgetItem * const item = m_optionsWidget.topLevelItem(i);
+            opts.insert(item->text(0), item->text(1));
+        }
+        return opts;
+    }
+
+private:
+    QTreeWidget m_optionsWidget;
+};
 
 namespace ClangTidyPrefixTree {
 
@@ -266,8 +340,40 @@ public:
         }
     }
 
+    QModelIndex indexForName(const QString &name) const
+    {
+        return indexForName(QModelIndex(), name);
+    }
+
 protected:
     bool m_enabled = true;
+
+private:
+    QModelIndex indexForName(const QModelIndex &current, const QString &name) const
+    {
+        QString nodeName;
+        QString remainingName = name;
+        if (current.isValid()) {
+            nodeName = data(current).toString();
+            if (nodeName == name)
+                return current;
+            if (nodeName.endsWith('*'))
+                nodeName.chop(1);
+            if (!name.startsWith(nodeName)) {
+                if (!nodeName.contains("Level"))
+                    return {};
+            } else {
+                remainingName = name.mid(nodeName.length());
+            }
+        }
+        const int childCount = rowCount(current);
+        for (int i = 0; i < childCount; ++i) {
+            const QModelIndex theIndex = indexForName(index(i, 0, current), remainingName);
+            if (theIndex.isValid())
+                return theIndex;
+        }
+        return {};
+    }
 };
 
 static void openUrl(QAbstractItemModel *model, const QModelIndex &index)
@@ -322,7 +428,6 @@ public:
         }
     }
 
-private:
     QVariant data(const QModelIndex &fullIndex, int role = Qt::DisplayRole) const final
     {
         if (!fullIndex.isValid() || role == Qt::DecorationRole)
@@ -345,11 +450,26 @@ private:
             return BaseChecksTreeModel::data(fullIndex, role);
         }
 
+        if (fullIndex.column() == 2) {
+            if (hasChildren(fullIndex))
+                return {};
+            if (role == Qt::DisplayRole)
+                return tr("Options");
+            if (role == Qt::FontRole || role == Qt::ForegroundRole) {
+                return BaseChecksTreeModel::data(fullIndex.sibling(fullIndex.row(), LinkColumn),
+                                                 role);
+            }
+            return {};
+        }
+
         if (role == Qt::DisplayRole)
             return node->isDir ? (node->name + "*") : node->name;
 
         return ProjectExplorer::SelectableFilesModel::data(index, role);
     }
+
+private:
+    int columnCount(const QModelIndex &) const final { return 3; }
 
     QModelIndex indexForCheck(const QString &check) const {
         if (check == "*")
@@ -614,6 +734,9 @@ public:
 
     bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override
     {
+        if (!QSortFilterProxyModel::filterAcceptsRow(sourceRow, sourceParent))
+            return false;
+
         const QModelIndex index = sourceModel()->index(sourceRow, 0, sourceParent);
         if (!index.isValid())
             return false;
@@ -703,7 +826,16 @@ DiagnosticConfigsWidget::DiagnosticConfigsWidget(const ClangDiagnosticConfigs &c
     m_clazyChecks->invalidExecutableLabel->setElideMode(Qt::ElideNone);
     m_clazySortFilterProxyModel = new ClazyChecksSortFilterModel(this);
     m_clazySortFilterProxyModel->setSourceModel(m_clazyTreeModel.get());
+    m_clazySortFilterProxyModel->setRecursiveFilteringEnabled(true);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    m_clazySortFilterProxyModel->setAutoAcceptChildRows(true);
+#endif
     setupTreeView(m_clazyChecks->checksView, m_clazySortFilterProxyModel, 2);
+    m_clazyChecks->filterLineEdit->setFiltering(true);
+    m_clazyChecks->filterLineEdit->setPlaceholderText(tr("Textual Filter"));
+    connect(m_clazyChecks->filterLineEdit, &Utils::FancyLineEdit::filterChanged,
+            m_clazySortFilterProxyModel,
+            qOverload<const QString &>(&QSortFilterProxyModel::setFilterRegularExpression));
     m_clazyChecks->checksView->setSortingEnabled(true);
     m_clazyChecks->checksView->sortByColumn(0, Qt::AscendingOrder);
     auto topicsModel = new QStringListModel(Utils::toList(m_clazyTreeModel->topics()), this);
@@ -745,11 +877,43 @@ DiagnosticConfigsWidget::DiagnosticConfigsWidget(const ClangDiagnosticConfigs &c
     m_tidyChecks->setupUi(m_tidyChecksWidget);
     m_tidyChecks->invalidExecutableLabel->setType(Utils::InfoLabel::Warning);
     m_tidyChecks->invalidExecutableLabel->setElideMode(Qt::ElideNone);
-    setupTreeView(m_tidyChecks->checksPrefixesTree, m_tidyTreeModel.get());
+    const auto tidyFilterModel = new QSortFilterProxyModel(this);
+    tidyFilterModel->setRecursiveFilteringEnabled(true);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    tidyFilterModel->setAutoAcceptChildRows(true);
+#endif
+    tidyFilterModel->setSourceModel(m_tidyTreeModel.get());
+    setupTreeView(m_tidyChecks->checksPrefixesTree, tidyFilterModel);
+    m_tidyChecks->filterLineEdit->setFiltering(true);
+    connect(m_tidyChecks->filterLineEdit, &Utils::FancyLineEdit::filterChanged, tidyFilterModel,
+            qOverload<const QString &>(&QSortFilterProxyModel::setFilterRegularExpression));
 
     connect(m_tidyChecks->checksPrefixesTree,
             &QTreeView::clicked,
-            [model = m_tidyTreeModel.get()](const QModelIndex &index) { openUrl(model, index); });
+            [this, tidyFilterModel](const QModelIndex &proxyIndex) {
+                const QModelIndex index = tidyFilterModel->mapToSource(proxyIndex);
+                if (index.column() == 2) {
+                    if (m_tidyTreeModel->hasChildren(index))
+                        return;
+                    ClangDiagnosticConfig config = currentConfig();
+                    QString check;
+                    for (QModelIndex idx = index.siblingAtColumn(0); idx.isValid();
+                         idx = idx.parent()) {
+                        QString current = m_tidyTreeModel->data(idx).toString();
+                        if (current.endsWith('*'))
+                            current.chop(1);
+                        check.prepend(current);
+                    }
+                    TidyOptionsDialog dlg(check, config.tidyCheckOptions(check),
+                                          m_tidyChecks->checksPrefixesTree);
+                    if (dlg.exec() != QDialog::Accepted)
+                        return;
+                    config.setTidyCheckOptions(check, dlg.options());
+                    updateConfig(config);
+                    return;
+                }
+                openUrl(m_tidyTreeModel.get(), index);
+    });
 
     connect(m_tidyChecks->plainTextEditButton, &QPushButton::clicked, this, [this]() {
         const bool readOnly = currentConfig().isReadOnly();
@@ -956,6 +1120,30 @@ void DiagnosticConfigsWidget::syncClazyChecksGroupBox()
                                                    nullptr, checksCount)
                                               : tr("Checks (%n enabled)", nullptr, checksCount);
     m_clazyChecks->checksGroupBox->setTitle(title);
+}
+
+QString removeClangTidyCheck(const QString &checks, const QString &check)
+{
+    const ClangTidyInfo tidyInfo(clangTidyExecutable());
+    TidyChecksTreeModel model(tidyInfo.supportedChecks);
+    model.selectChecks(checks);
+    const QModelIndex index = model.indexForName(check);
+    if (!index.isValid())
+        return checks;
+    model.setData(index, false, Qt::CheckStateRole);
+    return model.selectedChecks();
+}
+
+QString removeClazyCheck(const QString &checks, const QString &check)
+{
+    const ClazyStandaloneInfo clazyInfo(clazyStandaloneExecutable());
+    ClazyChecksTreeModel model(clazyInfo.supportedChecks);
+    model.enableChecks(checks.split(',', Qt::SkipEmptyParts));
+    const QModelIndex index = model.indexForName(check.mid(QString("clazy-").length()));
+    if (!index.isValid())
+        return checks;
+    model.setData(index, false, Qt::CheckStateRole);
+    return model.enabledChecks().join(',');
 }
 
 } // namespace Internal

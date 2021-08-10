@@ -247,7 +247,7 @@ void CompileOutputWindow::registerPositionOf(const Task &task, int linkedOutputL
     if (linkedOutputLines <= 0)
         return;
 
-    const int blocknumber = m_outputWindow->document()->blockCount() - offset - 1;
+    const int blocknumber = m_outputWindow->document()->blockCount() - offset;
     const int firstLine = blocknumber - linkedOutputLines - skipLines;
     const int lastLine = firstLine + linkedOutputLines - 1;
 
@@ -305,21 +305,26 @@ void CompileOutputWindow::updateFilter()
                                            filterUsesRegexp(), filterIsInverted());
 }
 
+const bool kPopUpDefault = false;
+const bool kWrapOutputDefault = true;
+
 void CompileOutputWindow::loadSettings()
 {
     QSettings * const s = Core::ICore::settings();
-    m_settings.popUp = s->value(POP_UP_KEY, false).toBool();
-    m_settings.wrapOutput = s->value(WRAP_OUTPUT_KEY, true).toBool();
+    m_settings.popUp = s->value(POP_UP_KEY, kPopUpDefault).toBool();
+    m_settings.wrapOutput = s->value(WRAP_OUTPUT_KEY, kWrapOutputDefault).toBool();
     m_settings.maxCharCount = s->value(MAX_LINES_KEY,
                                        Core::Constants::DEFAULT_MAX_CHAR_COUNT).toInt() * 100;
 }
 
 void CompileOutputWindow::storeSettings() const
 {
-    QSettings * const s = Core::ICore::settings();
-    s->setValue(POP_UP_KEY, m_settings.popUp);
-    s->setValue(WRAP_OUTPUT_KEY, m_settings.wrapOutput);
-    s->setValue(MAX_LINES_KEY, m_settings.maxCharCount / 100);
+    Utils::QtcSettings *const s = Core::ICore::settings();
+    s->setValueWithDefault(POP_UP_KEY, m_settings.popUp, kPopUpDefault);
+    s->setValueWithDefault(WRAP_OUTPUT_KEY, m_settings.wrapOutput, kWrapOutputDefault);
+    s->setValueWithDefault(MAX_LINES_KEY,
+                           m_settings.maxCharCount / 100,
+                           Core::Constants::DEFAULT_MAX_CHAR_COUNT);
 }
 
 class CompileOutputSettingsWidget : public Core::IOptionsPageWidget

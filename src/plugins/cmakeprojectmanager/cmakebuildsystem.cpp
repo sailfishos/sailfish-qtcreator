@@ -39,10 +39,12 @@
 #include <android/androidconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/progressmanager/progressmanager.h>
+#include <coreplugin/reaper.h>
 #include <cpptools/cppprojectupdater.h>
 #include <cpptools/cpptoolsconstants.h>
 #include <cpptools/generatedcodemodelsupport.h>
 #include <projectexplorer/kitinformation.h>
+#include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
@@ -55,42 +57,53 @@
 
 #include <utils/checkablemessagebox.h>
 #include <utils/fileutils.h>
+#include <utils/macroexpander.h>
 #include <utils/mimetypes/mimetype.h>
 #include <utils/qtcassert.h>
+#include <utils/runextensions.h>
 
 #include <QClipboard>
 #include <QDir>
 #include <QGuiApplication>
 #include <QHash>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLoggingCategory>
 #include <QPushButton>
+#include <QRegularExpression>
 
 using namespace ProjectExplorer;
 using namespace Utils;
 
 namespace {
 
-void copySourcePathToClipboard(Utils::optional<QString> srcPath,
-                               const ProjectExplorer::ProjectNode *node)
+void copySourcePathsToClipboard(const QStringList &srcPaths,
+                                const ProjectExplorer::ProjectNode *node)
 {
     QClipboard *clip = QGuiApplication::clipboard();
 
     QDir projDir{node->filePath().toFileInfo().absoluteFilePath()};
-    clip->setText(QDir::cleanPath(projDir.relativeFilePath(srcPath.value())));
+    QString data = Utils::transform(srcPaths, [projDir](const QString &path) {
+        return QDir::cleanPath(projDir.relativeFilePath(path));
+    }).join(" ");
+    clip->setText(data);
 }
 
 void noAutoAdditionNotify(const QStringList &filePaths, const ProjectExplorer::ProjectNode *node)
 {
-    Utils::optional<QString> srcPath{};
+    const QStringList srcPaths = Utils::filtered(filePaths, [](const QString& file) {
+        const auto mimeType = Utils::mimeTypeForFile(file).name();
+        return mimeType == CppTools::Constants::C_SOURCE_MIMETYPE ||
+               mimeType == CppTools::Constants::C_HEADER_MIMETYPE ||
+               mimeType == CppTools::Constants::CPP_SOURCE_MIMETYPE ||
+               mimeType == CppTools::Constants::CPP_HEADER_MIMETYPE ||
+               mimeType == ProjectExplorer::Constants::FORM_MIMETYPE ||
+               mimeType == ProjectExplorer::Constants::RESOURCE_MIMETYPE ||
+               mimeType == ProjectExplorer::Constants::SCXML_MIMETYPE;
+    });
 
-    for (const QString &file : filePaths) {
-        if (Utils::mimeTypeForFile(file).name() == CppTools::Constants::CPP_SOURCE_MIMETYPE) {
-            srcPath = file;
-            break;
-        }
-    }
-
-    if (srcPath) {
+    if (!srcPaths.empty()) {
         CMakeProjectManager::Internal::CMakeSpecificSettings *settings
             = CMakeProjectManager::Internal::CMakeProjectPlugin::projectTypeSpecificSettings();
         switch (settings->afterAddFileSetting()) {
@@ -118,13 +131,13 @@ void noAutoAdditionNotify(const QStringList &filePaths, const ProjectExplorer::P
             }
 
             if (QDialogButtonBox::Yes == reply) {
-                copySourcePathToClipboard(srcPath, node);
+                copySourcePathsToClipboard(srcPaths, node);
             }
             break;
         }
 
         case CMakeProjectManager::Internal::COPY_FILE_PATH: {
-            copySourcePathToClipboard(srcPath, node);
+            copySourcePathsToClipboard(srcPaths, node);
             break;
         }
 
@@ -201,6 +214,7 @@ CMakeBuildSystem::CMakeBuildSystem(CMakeBuildConfiguration *bc)
 
 CMakeBuildSystem::~CMakeBuildSystem()
 {
+    m_futureSynchronizer.waitForFinished();
     if (!m_treeScanner.isFinished()) {
         auto future = m_treeScanner.future();
         future.cancel();
@@ -255,11 +269,11 @@ void CMakeBuildSystem::triggerParsing()
     if (m_waitingForScan) {
         qCDebug(cmakeBuildSystemLog) << "Starting TreeScanner";
         QTC_CHECK(m_treeScanner.isFinished());
-        m_treeScanner.asyncScanForFiles(projectDirectory());
-        Core::ProgressManager::addTask(m_treeScanner.future(),
-                                       tr("Scan \"%1\" project tree")
-                                           .arg(project()->displayName()),
-                                       "CMake.Scan.Tree");
+        if (m_treeScanner.asyncScanForFiles(projectDirectory()))
+            Core::ProgressManager::addTask(m_treeScanner.future(),
+                                           tr("Scan \"%1\" project tree")
+                                               .arg(project()->displayName()),
+                                           "CMake.Scan.Tree");
     }
 
     QTC_ASSERT(m_parameters.isValid(), return );
@@ -278,10 +292,13 @@ void CMakeBuildSystem::triggerParsing()
     }
 
     if ((0 == (reparseParameters & REPARSE_FORCE_EXTRA_CONFIGURATION))
-        && !m_parameters.extraCMakeArguments.isEmpty()) {
-        if (mustApplyExtraArguments())
-            reparseParameters |= REPARSE_FORCE_CMAKE_RUN | REPARSE_FORCE_EXTRA_CONFIGURATION;
+        && mustApplyExtraArguments(m_parameters)) {
+        reparseParameters |= REPARSE_FORCE_CMAKE_RUN | REPARSE_FORCE_EXTRA_CONFIGURATION;
     }
+
+    // The code model will be updated after the CMake run. There is no need to have an
+    // active code model updater when the next one will be triggered.
+    m_cppCodeModelUpdater->cancel();
 
     qCDebug(cmakeBuildSystemLog) << "Asking reader to parse";
     m_reader.parse(reparseParameters & REPARSE_FORCE_CMAKE_RUN,
@@ -409,15 +426,16 @@ void CMakeBuildSystem::setParametersAndRequestParse(const BuildDirParameters &pa
     }
 }
 
-bool CMakeBuildSystem::mustApplyExtraArguments() const
+bool CMakeBuildSystem::mustApplyExtraArguments(const BuildDirParameters &parameters) const
 {
-    if (m_parameters.extraCMakeArguments.isEmpty())
+    if (parameters.extraCMakeArguments.isEmpty())
         return false;
 
     auto answer = QMessageBox::question(Core::ICore::mainWindow(),
                                         tr("Apply configuration changes?"),
-                                        tr("Run CMake with \"%1\"?")
-                                            .arg(m_parameters.extraCMakeArguments.join(" ")),
+                                        "<p>" + tr("Run CMake with configuration changes?")
+                                            + "</p><pre>"
+                                            + parameters.extraCMakeArguments.join("\n") + "</pre>",
                                         QMessageBox::Apply | QMessageBox::Discard,
                                         QMessageBox::Apply);
     return answer == QMessageBox::Apply;
@@ -450,7 +468,8 @@ void CMakeBuildSystem::runCMakeWithExtraArguments()
 void CMakeBuildSystem::buildCMakeTarget(const QString &buildTarget)
 {
     QTC_ASSERT(!buildTarget.isEmpty(), return);
-    cmakeBuildConfiguration()->buildTarget(buildTarget);
+    if (ProjectExplorerPlugin::saveModifiedFiles())
+        cmakeBuildConfiguration()->buildTarget(buildTarget);
 }
 
 void CMakeBuildSystem::handleTreeScanningFinished()
@@ -476,12 +495,10 @@ bool CMakeBuildSystem::persistCMakeState()
     qCDebug(cmakeBuildSystemLog) << "Checking whether build system needs to be persisted:"
                                  << "workdir:" << parameters.workDirectory
                                  << "buildDir:" << parameters.buildDirectory
-                                 << "Has extraargs:" << !parameters.extraCMakeArguments.isEmpty()
-                                 << "must apply extra Args:"
-                                 << mustApplyExtraArguments();
+                                 << "Has extraargs:" << !parameters.extraCMakeArguments.isEmpty();
 
     if (parameters.workDirectory == parameters.buildDirectory
-        && !parameters.extraCMakeArguments.isEmpty() && mustApplyExtraArguments()) {
+        && mustApplyExtraArguments(parameters)) {
         reparseFlags = REPARSE_FORCE_EXTRA_CONFIGURATION;
         qCDebug(cmakeBuildSystemLog) << "   -> must run CMake with extra arguments.";
     }
@@ -510,20 +527,25 @@ void CMakeBuildSystem::clearCMakeCache()
 
     stopParsingAndClearState();
 
-    const FilePath cmakeCache = m_parameters.workDirectory / "CMakeCache.txt";
-    const FilePath cmakeFiles = m_parameters.workDirectory / "CMakeFiles";
+    const QList<FilePath> pathsToDelete = {
+        m_parameters.workDirectory / "CMakeCache.txt",
+        m_parameters.workDirectory / "CMakeCache.txt.prev",
+        m_parameters.workDirectory / "CMakeFiles",
+        m_parameters.workDirectory / ".cmake/api/v1/reply",
+        m_parameters.workDirectory / ".cmake/api/v1/reply.prev"
+    };
 
-    if (cmakeCache.exists())
-        Utils::FileUtils::removeRecursively(cmakeCache);
-    if (cmakeFiles.exists())
-        Utils::FileUtils::removeRecursively(cmakeFiles);
+    for (const FilePath &path : pathsToDelete) {
+        if (path.exists())
+            Utils::FileUtils::removeRecursively(path);
+    }
 }
 
-std::unique_ptr<CMakeProjectNode>
-    CMakeBuildSystem::generateProjectTree(const QList<const FileNode *> &allFiles)
+std::unique_ptr<CMakeProjectNode> CMakeBuildSystem::generateProjectTree(
+    const QList<const FileNode *> &allFiles, bool includeHeaderNodes)
 {
     QString errorMessage;
-    auto root = m_reader.generateProjectTree(allFiles, errorMessage);
+    auto root = m_reader.generateProjectTree(allFiles, errorMessage, includeHeaderNodes);
     checkAndReportError(errorMessage);
     return root;
 }
@@ -537,14 +559,19 @@ void CMakeBuildSystem::combineScanAndParse()
         if (m_combinedScanAndParseResult) {
             updateProjectData();
             m_currentGuard.markAsSuccess();
+        } else {
+            updateFallbackProjectData();
         }
     }
 
     m_reader.resetData();
 
     m_currentGuard = {};
+    m_testNames.clear();
 
     emitBuildSystemUpdated();
+
+    runCTest();
 }
 
 void CMakeBuildSystem::checkAndReportError(QString &errorMessage)
@@ -567,7 +594,7 @@ void CMakeBuildSystem::updateProjectData()
     {
         QSet<QString> res;
         QStringList apps;
-        for (const auto &target : m_buildTargets) {
+        for (const auto &target : qAsConst(m_buildTargets)) {
             if (target.targetType == CMakeProjectManager::DynamicLibraryType) {
                 res.insert(target.executable.parentDir().toString());
                 apps.push_back(target.executable.toUserOutput());
@@ -576,7 +603,7 @@ void CMakeBuildSystem::updateProjectData()
         }
         {
             CMakeConfigItem paths;
-            paths.key = "ANDROID_SO_LIBS_PATHS";
+            paths.key = Android::Constants::ANDROID_SO_LIBS_PATHS;
             paths.values = Utils::toList(res);
             patchedConfig.append(paths);
         }
@@ -592,42 +619,26 @@ void CMakeBuildSystem::updateProjectData()
 
     Project *p = project();
     {
-        auto newRoot = generateProjectTree(m_allFiles);
+        auto newRoot = generateProjectTree(m_allFiles, true);
         if (newRoot) {
             setRootProjectNode(std::move(newRoot));
-            CMakeConfigItem settingFileItem;
-            settingFileItem.key = "ANDROID_DEPLOYMENT_SETTINGS_FILE";
 
-            const FilePath buildDir = cmakeBuildConfiguration()->buildDirectory();
-            if (p->rootProjectNode()) {
+            if (QTC_GUARD(p->rootProjectNode())) {
                 const QString nodeName = p->rootProjectNode()->displayName();
                 p->setDisplayName(nodeName);
 
-                const Kit *k = kit();
-                if (DeviceTypeKitAspect::deviceTypeId(k) == Android::Constants::ANDROID_DEVICE_TYPE) {
-                    const QtSupport::BaseQtVersion *qt = QtSupport::QtKitAspect::qtVersion(k);
-                    if (qt && qt->qtVersion() >= QtSupport::QtVersionNumber{6, 0, 0}) {
-                        const QLatin1String jsonFile("android-%1-deployment-settings.json");
-                        settingFileItem.value = buildDir.pathAppended(jsonFile.arg(nodeName))
-                                                    .toString()
-                                                    .toUtf8();
-                    }
-                }
-            }
-
-            if (settingFileItem.value.isEmpty()) {
-                settingFileItem.value = buildDir.pathAppended("android_deployment_settings.json")
-                                            .toString()
-                                            .toUtf8();
-            }
-            patchedConfig.append(settingFileItem);
-
-            for (const CMakeBuildTarget &bt : m_buildTargets) {
-                const QString buildKey = bt.title;
-                if (ProjectNode *node = p->findNodeForBuildKey(buildKey)) {
-                    if (auto targetNode = dynamic_cast<CMakeTargetNode *>(node))
-                        targetNode->setConfig(patchedConfig);
-                }
+                // set config on target nodes
+                const QSet<QString> buildKeys = Utils::transform<QSet>(m_buildTargets,
+                                                                       &CMakeBuildTarget::title);
+                p->rootProjectNode()->forEachProjectNode(
+                    [patchedConfig, buildKeys](const ProjectNode *node) {
+                        if (buildKeys.contains(node->buildKey())) {
+                            auto targetNode = const_cast<CMakeTargetNode *>(
+                                dynamic_cast<const CMakeTargetNode *>(node));
+                            if (QTC_GUARD(targetNode))
+                                targetNode->setConfig(patchedConfig);
+                        }
+                    });
             }
         }
     }
@@ -652,10 +663,15 @@ void CMakeBuildSystem::updateProjectData()
         for (RawProjectPart &rpp : rpps) {
             rpp.setQtVersion(
                 kitInfo.projectPartQtVersion); // TODO: Check if project actually uses Qt.
-            if (kitInfo.cxxToolChain)
-                rpp.setFlagsForCxx({kitInfo.cxxToolChain, rpp.flagsForCxx.commandLineFlags});
-            if (kitInfo.cToolChain)
-                rpp.setFlagsForC({kitInfo.cToolChain, rpp.flagsForC.commandLineFlags});
+            const QString includeFileBaseDir = buildConfiguration()->buildDirectory().toString();
+            if (kitInfo.cxxToolChain) {
+                rpp.setFlagsForCxx({kitInfo.cxxToolChain, rpp.flagsForCxx.commandLineFlags,
+                                    includeFileBaseDir});
+            }
+            if (kitInfo.cToolChain) {
+                rpp.setFlagsForC({kitInfo.cToolChain, rpp.flagsForC.commandLineFlags,
+                                  includeFileBaseDir});
+            }
         }
 
         m_cppCodeModelUpdater->update({p, kitInfo, cmakeBuildConfiguration()->environment(), rpps});
@@ -666,6 +682,36 @@ void CMakeBuildSystem::updateProjectData()
     emit cmakeBuildConfiguration()->buildTypeChanged();
 
     qCDebug(cmakeBuildSystemLog) << "All CMake project data up to date.";
+}
+
+void CMakeBuildSystem::updateFallbackProjectData()
+{
+    qCDebug(cmakeBuildSystemLog) << "Updating fallback CMake project data";
+
+    QTC_ASSERT(m_treeScanner.isFinished() && !m_reader.isParsing(), return );
+
+    auto newRoot = generateProjectTree(m_allFiles, false);
+    setRootProjectNode(std::move(newRoot));
+
+    qCDebug(cmakeBuildSystemLog) << "All fallback CMake project data up to date.";
+}
+
+void CMakeBuildSystem::updateCMakeConfiguration(QString &errorMessage)
+{
+    CMakeConfig cmakeConfig = m_reader.takeParsedConfiguration(errorMessage);
+    for (auto &ci : cmakeConfig)
+        ci.inCMakeCache = true;
+    if (!errorMessage.isEmpty()) {
+        const CMakeConfig changes = cmakeBuildConfiguration()->configurationChanges();
+        for (const auto &ci : changes) {
+            const bool haveConfigItem = Utils::contains(cmakeConfig, [ci](const CMakeConfigItem& i) {
+                return i.key == ci.key;
+            });
+            if (!haveConfigItem)
+                cmakeConfig.append(ci);
+        }
+    }
+    cmakeBuildConfiguration()->setConfigurationFromCMake(cmakeConfig);
 }
 
 void CMakeBuildSystem::handleParsingSucceeded()
@@ -679,7 +725,7 @@ void CMakeBuildSystem::handleParsingSucceeded()
 
     QString errorMessage;
     {
-        m_buildTargets = Utils::transform(CMakeBuildStep::specialTargets(), [this](const QString &t) {
+        m_buildTargets = Utils::transform(CMakeBuildStep::specialTargets(m_reader.usesAllCapsTargets()), [this](const QString &t) {
             CMakeBuildTarget result;
             result.title = t;
             result.workingDirectory = m_parameters.workDirectory;
@@ -691,12 +737,11 @@ void CMakeBuildSystem::handleParsingSucceeded()
     }
 
     {
-        CMakeConfig cmakeConfig = m_reader.takeParsedConfiguration(errorMessage);
-        for (auto &ci : cmakeConfig)
-            ci.inCMakeCache = true;
-        cmakeBuildConfiguration()->setConfigurationFromCMake(cmakeConfig);
+        updateCMakeConfiguration(errorMessage);
         checkAndReportError(errorMessage);
     }
+
+    m_ctestPath = m_reader.ctestPath();
 
     setApplicationTargets(appTargets());
     setDeploymentData(deploymentData());
@@ -712,11 +757,10 @@ void CMakeBuildSystem::handleParsingFailed(const QString &msg)
     cmakeBuildConfiguration()->setError(msg);
 
     QString errorMessage;
-    CMakeConfig cmakeConfig = m_reader.takeParsedConfiguration(errorMessage);
-    for (auto &ci : cmakeConfig)
-        ci.inCMakeCache = true;
-    cmakeBuildConfiguration()->setConfigurationFromCMake(cmakeConfig);
+    updateCMakeConfiguration(errorMessage);
     // ignore errorMessage here, we already got one.
+
+    m_ctestPath.clear();
 
     QTC_CHECK(m_waitingForParse);
     m_waitingForParse = false;
@@ -771,12 +815,20 @@ void CMakeBuildSystem::wireUpConnections()
                 // No CMakeCache? Run with initial arguments!
                 qCDebug(cmakeBuildSystemLog) << "Requesting parse due to build directory change";
                 const BuildDirParameters parameters(cmakeBuildConfiguration());
-                const bool hasCMakeCache = QFile::exists(
-                    (parameters.buildDirectory / "CMakeCache.txt").toString());
+                const FilePath cmakeCacheTxt = parameters.buildDirectory.pathAppended("CMakeCache.txt");
+                const bool hasCMakeCache = QFile::exists(cmakeCacheTxt.toString());
                 const auto options = ReparseParameters(
                     hasCMakeCache
                         ? REPARSE_DEFAULT
                         : (REPARSE_FORCE_INITIAL_CONFIGURATION | REPARSE_FORCE_CMAKE_RUN));
+                if (hasCMakeCache) {
+                    QString errorMessage;
+                    const CMakeConfig config = CMakeBuildSystem::parseCMakeCacheDotTxt(cmakeCacheTxt, &errorMessage);
+                    if (!config.isEmpty() && errorMessage.isEmpty()) {
+                        QByteArray cmakeBuildTypeName = CMakeConfigItem::valueOf("CMAKE_BUILD_TYPE", config);
+                        cmakeBuildConfiguration()->setCMakeBuildType(QString::fromUtf8(cmakeBuildTypeName), true);
+                    }
+                }
                 setParametersAndRequestParse(BuildDirParameters(cmakeBuildConfiguration()), options);
             });
 
@@ -837,7 +889,8 @@ FilePath CMakeBuildSystem::workDirectory(const BuildDirParameters &parameters)
 
 void CMakeBuildSystem::stopParsingAndClearState()
 {
-    qCDebug(cmakeBuildSystemLog) << "stopping parsing run!";
+    qCDebug(cmakeBuildSystemLog) << cmakeBuildConfiguration()->displayName()
+                                 << "stopping parsing run!";
     m_reader.stop();
     m_reader.resetData();
 }
@@ -846,10 +899,6 @@ void CMakeBuildSystem::becameDirty()
 {
     qCDebug(cmakeBuildSystemLog) << "CMakeBuildSystem: becameDirty was triggered.";
     if (isParsing())
-        return;
-
-    const CMakeTool *tool = m_parameters.cmakeTool();
-    if (!tool->isAutoRun())
         return;
 
     setParametersAndRequestParse(BuildDirParameters(cmakeBuildConfiguration()), REPARSE_SCAN);
@@ -865,6 +914,73 @@ int CMakeBuildSystem::takeReparseParameters()
     int result = m_reparseParameters;
     m_reparseParameters = REPARSE_DEFAULT;
     return result;
+}
+
+void CMakeBuildSystem::runCTest()
+{
+    if (!cmakeBuildConfiguration()->error().isEmpty() || m_ctestPath.isEmpty()) {
+        qCDebug(cmakeBuildSystemLog) << "Cancel ctest run after failed cmake run";
+        emit testInformationUpdated();
+        return;
+    }
+    qCDebug(cmakeBuildSystemLog) << "Requesting ctest run after cmake run";
+
+    const BuildDirParameters parameters(cmakeBuildConfiguration());
+    QTC_ASSERT(parameters.isValid(), return);
+
+    const CommandLine cmd { m_ctestPath, { "-N", "--show-only=json-v1" } };
+    const QString workingDirectory = workDirectory(parameters).toString();
+    const QStringList environment = cmakeBuildConfiguration()->environment().toStringList();
+
+    auto future = Utils::runAsync([cmd, workingDirectory, environment]
+                                  (QFutureInterface<QByteArray> &futureInterface) {
+        QProcess process;
+        process.setEnvironment(environment);
+        process.setWorkingDirectory(workingDirectory);
+        process.start(cmd.executable().toString(), cmd.splitArguments(), QIODevice::ReadOnly);
+
+        if (!process.waitForStarted(1000) || !process.waitForFinished()) {
+            if (process.state() == QProcess::NotRunning)
+                return;
+            process.terminate();
+            if (process.waitForFinished(1000))
+                return;
+            process.kill();
+            process.waitForFinished(1000);
+            return;
+        }
+        if (process.exitCode() || process.exitStatus() != QProcess::NormalExit)
+            return;
+        futureInterface.reportResult(process.readAllStandardOutput());
+    });
+
+    Utils::onFinished(future, this, [this](const QFuture<QByteArray> &future) {
+        if (future.resultCount()) {
+            const QJsonDocument json = QJsonDocument::fromJson(future.result());
+            if (!json.isEmpty() && json.isObject()) {
+                const QJsonObject jsonObj = json.object();
+                const QJsonObject btGraph = jsonObj.value("backtraceGraph").toObject();
+                const QJsonArray cmakelists = btGraph.value("files").toArray();
+                const QJsonArray nodes = btGraph.value("nodes").toArray();
+                const QJsonArray tests = jsonObj.value("tests").toArray();
+                for (const QJsonValue &testVal : tests) {
+                    const QJsonObject test = testVal.toObject();
+                    QTC_ASSERT(!test.isEmpty(), continue);
+                    const int bt = test.value("backtrace").toInt(-1);
+                    QTC_ASSERT(bt != -1, continue);
+                    const QJsonObject btRef = nodes.at(bt).toObject();
+                    int file = btRef.value("file").toInt(-1);
+                    int line = btRef.value("line").toInt(-1);
+                    QTC_ASSERT(file != -1 && line != -1, continue);
+                    m_testNames.append({ test.value("name").toString(),
+                                         FilePath::fromString(cmakelists.at(file).toString()), line });
+                }
+            }
+        }
+        emit testInformationUpdated();
+    });
+
+    m_futureSynchronizer.addFuture(future);
 }
 
 CMakeBuildConfiguration *CMakeBuildSystem::cmakeBuildConfiguration() const
@@ -886,7 +1002,7 @@ const QList<BuildTargetInfo> CMakeBuildSystem::appTargets() const
     const bool forAndroid = DeviceTypeKitAspect::deviceTypeId(kit())
                             == Android::Constants::ANDROID_DEVICE_TYPE;
     for (const CMakeBuildTarget &ct : m_buildTargets) {
-        if (ct.targetType == UtilityType)
+        if (CMakeBuildSystem::filteredOutTarget(ct))
             continue;
 
         if (ct.targetType == ExecutableType || (forAndroid && ct.targetType == DynamicLibraryType)) {
@@ -917,7 +1033,10 @@ const QList<BuildTargetInfo> CMakeBuildSystem::appTargets() const
 
 QStringList CMakeBuildSystem::buildTargetTitles() const
 {
-    return transform(m_buildTargets, &CMakeBuildTarget::title);
+    auto nonAutogenTargets = filtered(m_buildTargets, [this](const CMakeBuildTarget &target){
+        return !CMakeBuildSystem::filteredOutTarget(target);
+    });
+    return transform(nonAutogenTargets, &CMakeBuildTarget::title);
 }
 
 const QList<CMakeBuildTarget> &CMakeBuildSystem::buildTargets() const
@@ -937,6 +1056,42 @@ CMakeConfig CMakeBuildSystem::parseCMakeCacheDotTxt(const Utils::FilePath &cache
     if (!errorMessage->isEmpty())
         return {};
     return result;
+}
+
+bool CMakeBuildSystem::filteredOutTarget(const CMakeBuildTarget &target)
+{
+    return target.title.endsWith("_autogen") ||
+           target.title.endsWith("_autogen_timestamp_deps");
+}
+
+bool CMakeBuildSystem::isMultiConfig() const
+{
+    return m_reader.isMultiConfig();
+}
+
+bool CMakeBuildSystem::usesAllCapsTargets() const
+{
+    return m_reader.usesAllCapsTargets();
+}
+
+const QList<TestCaseInfo> CMakeBuildSystem::testcasesInfo() const
+{
+    return m_testNames;
+}
+
+CommandLine CMakeBuildSystem::commandLineForTests(const QList<QString> &tests,
+                                                  const QStringList &options) const
+{
+    QStringList args = options;
+    auto current = Utils::transform<QSet<QString>>(m_testNames, &TestCaseInfo::name);
+    if (tests.isEmpty() || current == Utils::toSet(tests))
+        return {m_ctestPath, args};
+
+    const QString regex = Utils::transform(tests, [](const QString &current) {
+        return QRegularExpression::escape(current);
+    }).join('|');
+    args << "-R" << QString('(' + regex + ')');
+    return {m_ctestPath, args};
 }
 
 DeploymentData CMakeBuildSystem::deploymentData() const
@@ -990,8 +1145,8 @@ QList<ProjectExplorer::ExtraCompiler *> CMakeBuildSystem::findExtraCompilers()
 
     // Find all files generated by any of the extra compilers, in a rather crude way.
     Project *p = project();
-    const FilePaths fileList = p->files([&fileExtensions, p](const Node *n) {
-        if (!p->SourceFiles(n))
+    const FilePaths fileList = p->files([&fileExtensions](const Node *n) {
+        if (!Project::SourceFiles(n) || !n->isEnabled()) // isEnabled excludes nodes from the file system tree
             return false;
         const QString fp = n->filePath().toString();
         const int pos = fp.lastIndexOf('.');

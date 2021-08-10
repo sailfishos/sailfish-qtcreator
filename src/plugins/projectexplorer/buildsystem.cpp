@@ -107,7 +107,6 @@ void BuildSystem::emitParsingStarted()
     QTC_ASSERT(!d->m_isParsing, return);
 
     d->m_isParsing = true;
-    d->m_hasParsingData = false;
     emit parsingStarted();
     emit d->m_target->parsingStarted();
 }
@@ -365,6 +364,12 @@ QString BuildSystem::disabledReason(const QString &buildKey) const
             msg += '\n' + tr("The project file \"%1\" does not exist.").arg(projectFilePath.toString());
         return msg;
     }
+    return {};
+}
+
+CommandLine BuildSystem::commandLineForTests(const QList<QString> & /*tests*/,
+                                             const QStringList & /*options*/) const
+{
     return {};
 }
 

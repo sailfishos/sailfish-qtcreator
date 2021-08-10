@@ -31,6 +31,7 @@
 #include <cmakeprojectmanager/cmaketoolmanager.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/helpmanager.h>
+#include <coreplugin/messagemanager.h>
 #include <cmakeprojectmanager/cmakekitinformation.h>
 #include <debugger/debuggeritem.h>
 #include <debugger/debuggeritemmanager.h>
@@ -105,10 +106,14 @@ McuPackage::McuPackage(const QString &label, const QString &defaultPath,
     m_automaticKitCreation = automaticKitCreationFromSettings(QSettings::UserScope);
 }
 
+QString McuPackage::basePath() const
+{
+    return m_fileChooser != nullptr ? m_fileChooser->filePath().toString() : m_path;
+}
+
 QString McuPackage::path() const
 {
-    QString basePath = m_fileChooser != nullptr ? m_fileChooser->filePath().toString() : m_path;
-    return QFileInfo(basePath + m_relativePathModifier).absoluteFilePath();
+    return QFileInfo(basePath() + m_relativePathModifier).absoluteFilePath();
 }
 
 QString McuPackage::label() const
@@ -159,8 +164,12 @@ QWidget *McuPackage::widget()
 
     m_fileChooser->setPath(m_path);
 
+    QObject::connect(this, &McuPackage::statusChanged, this, [this] {
+        updateStatusUi();
+    });
+
     QObject::connect(m_fileChooser, &PathChooser::pathChanged, this, [this] {
-        updateStatus();
+        updatePath();
         emit changed();
     });
 
@@ -210,11 +219,7 @@ void McuPackage::writeToSettings() const
 {
     const QString key = QLatin1String(Constants::SETTINGS_GROUP) + '/' +
             QLatin1String(Constants::SETTINGS_KEY_PACKAGE_PREFIX) + m_settingsKey;
-    QSettings *settings = Core::ICore::settings();
-    if (m_path == m_defaultPath)
-        settings->remove(key);
-    else
-        settings->setValue(key, m_path);
+    Core::ICore::settings()->setValueWithDefault(key, m_path, m_defaultPath);
 }
 
 void McuPackage::setRelativePathModifier(const QString &path)
@@ -232,35 +237,58 @@ void McuPackage::setAutomaticKitCreationEnabled(const bool enabled)
     m_automaticKitCreation = enabled;
 }
 
+void McuPackage::updatePath()
+{
+   m_path = m_fileChooser->rawPath();
+   m_fileChooser->lineEdit()->button(FancyLineEdit::Right)->setEnabled(m_path != m_defaultPath);
+   updateStatus();
+}
+
 void McuPackage::updateStatus()
 {
-    m_path = m_fileChooser->rawPath();
-    const bool validPath = m_fileChooser->isValid();
-    const FilePath detectionPath = FilePath::fromString(
-                m_fileChooser->filePath().toString() + "/" + m_detectionPath);
-    const QString displayDetectionPath = FilePath::fromString(m_detectionPath).toUserOutput();
+    bool validPath = !m_path.isEmpty() && FilePath::fromString(m_path).exists();
+    const FilePath detectionPath = FilePath::fromString(basePath() + "/" + m_detectionPath);
     const bool validPackage = m_detectionPath.isEmpty() || detectionPath.exists();
 
-    m_status = validPath ? (validPackage ? ValidPackage : ValidPathInvalidPackage) : InvalidPath;
+    m_status = validPath ? (validPackage ? ValidPackage : ValidPathInvalidPackage) :
+        m_path.isEmpty() ? EmptyPath : InvalidPath;
 
+    emit statusChanged();
+}
+
+void McuPackage::updateStatusUi()
+{
     m_infoLabel->setType(m_status == ValidPackage ? InfoLabel::Ok : InfoLabel::NotOk);
+    m_infoLabel->setText(statusText());
+}
 
-    QString statusText;
+QString McuPackage::statusText() const
+{
+    const QString displayPackagePath = FilePath::fromString(m_path).toUserOutput();
+    const QString displayDetectionPath = FilePath::fromString(m_detectionPath).toUserOutput();
+    QString response;
     switch (m_status) {
     case ValidPackage:
-        statusText = m_detectionPath.isEmpty()
-                ? tr("Path exists.")
-                : tr("Path is valid, \"%1\" was found.").arg(displayDetectionPath);
+        response = m_detectionPath.isEmpty()
+                ? tr("Path %1 exists.").arg(displayPackagePath)
+                : tr("Path %1 is valid, %2 was found.")
+                  .arg(displayPackagePath, displayDetectionPath);
         break;
     case ValidPathInvalidPackage:
-        statusText = tr("Path exists, but does not contain \"%1\".").arg(displayDetectionPath);
+        response = tr("Path %1 exists, but does not contain %2.")
+                .arg(displayPackagePath, displayDetectionPath);
         break;
     case InvalidPath:
-        statusText = tr("Path does not exist.");
+        response = tr("Path %1 does not exist.").arg(displayPackagePath);
+        break;
+    case EmptyPath:
+        response = m_detectionPath.isEmpty()
+                ? tr("Path is empty.")
+                : tr("Path is empty, %1 not found.")
+                    .arg(displayDetectionPath);
         break;
     }
-    m_infoLabel->setText(statusText);
-    m_fileChooser->lineEdit()->button(FancyLineEdit::Right)->setEnabled(m_path != m_defaultPath);
+    return response;
 }
 
 McuToolChainPackage::McuToolChainPackage(const QString &label,
@@ -384,11 +412,14 @@ ToolChain *McuToolChainPackage::toolChain(Id language) const
 
 QString McuToolChainPackage::toolChainName() const
 {
-    return QLatin1String(m_type == TypeArmGcc
-                         ? "armgcc" : m_type == McuToolChainPackage::TypeIAR
-                           ? "iar" : m_type == McuToolChainPackage::TypeKEIL
-                             ? "keil" : m_type == McuToolChainPackage::TypeGHS
-                               ? "ghs" : "unsupported");
+    switch (m_type) {
+    case TypeArmGcc: return QLatin1String("armgcc");
+    case TypeIAR: return QLatin1String("iar");
+    case TypeKEIL: return QLatin1String("keil");
+    case TypeGHS: return QLatin1String("ghs");
+    case TypeGHSArm: return QLatin1String("ghs-arm");
+    default: return QLatin1String("unsupported");
+    }
 }
 
 QString McuToolChainPackage::cmakeToolChainFileName() const
@@ -457,8 +488,22 @@ McuTarget::Platform McuTarget::platform() const
 bool McuTarget::isValid() const
 {
     return !Utils::anyOf(packages(), [](McuPackage *package) {
+        package->updateStatus();
         return package->status() != McuPackage::ValidPackage;
     });
+}
+
+void McuTarget::printPackageProblems() const
+{
+    for (auto package: packages()) {
+        package->updateStatus();
+        if (package->status() != McuPackage::ValidPackage)
+            printMessage(QString("Error creating kit for target %1, package %2: %3").arg(
+                             McuSupportOptions::kitName(this),
+                             package->label(),
+                             package->statusText()),
+                         true);
+    }
 }
 
 QVersionNumber McuTarget::qulVersion() const
@@ -523,12 +568,19 @@ void McuSupportOptions::registerExamples()
     if (docsDir.isEmpty())
         return;
 
-    const FilePath examplesDir = McuSupportOptions::qulDirFromSettings().pathAppended("demos");
-    if (!examplesDir.exists())
-        return;
+    auto examples = {
+        std::make_pair(QStringLiteral("demos"), tr("Qt for MCUs Demos")),
+        std::make_pair(QStringLiteral("examples"), tr("Qt for MCUs Examples"))
+    };
+    for (const auto &dir : examples) {
+        const FilePath examplesDir =
+                McuSupportOptions::qulDirFromSettings().pathAppended(dir.first);
+        if (!examplesDir.exists())
+            continue;
 
-    QtSupport::QtVersionManager::registerExampleSet("Qt for MCUs", docsDir.toString(),
-                                                    examplesDir.toString());
+        QtSupport::QtVersionManager::registerExampleSet(dir.second, docsDir.toString(),
+                                                        examplesDir.toString());
+    }
 }
 
 void McuSupportOptions::deletePackagesAndTargets()
@@ -548,9 +600,10 @@ const QVersionNumber &McuSupportOptions::minimalQulVersion()
 void McuSupportOptions::setQulDir(const FilePath &dir)
 {
     deletePackagesAndTargets();
-    Sdk::targetsAndPackages(dir, &packages, &mcuTargets);
-    //packages.append(qtForMCUsSdkPackage);
-    for (auto package : packages)
+    qtForMCUsSdkPackage->updateStatus();
+    if (qtForMCUsSdkPackage->status() == McuPackage::Status::ValidPackage)
+        Sdk::targetsAndPackages(dir, &packages, &mcuTargets);
+    for (auto package : qAsConst(packages))
         connect(package, &McuPackage::changed, this, &McuSupportOptions::changed);
 
     emit changed();
@@ -579,7 +632,8 @@ static void setKitProperties(const QString &kitName, Kit *k, const McuTarget *mc
     k->makeSticky();
     if (mcuTarget->toolChainPackage()->isDesktopToolchain())
         k->setDeviceTypeForIcon(DEVICE_TYPE);
-    QSet<Id> irrelevant = { SysRootKitAspect::id() };
+    k->setValue(QtSupport::SuppliesQtQuickImportPath::id(), true);
+    QSet<Id> irrelevant = { SysRootKitAspect::id(), QtSupport::SuppliesQtQuickImportPath::id() };
     if (!kitNeedsQtVersion())
         irrelevant.insert(QtSupport::QtKitAspect::id());
     k->setIrrelevantAspects(irrelevant);
@@ -589,7 +643,8 @@ static void setKitToolchains(Kit *k, const McuToolChainPackage *tcPackage)
 {
     // No Green Hills toolchain, because support for it is missing.
     if (tcPackage->type() == McuToolChainPackage::TypeUnsupported
-        || tcPackage->type() == McuToolChainPackage::TypeGHS)
+        || tcPackage->type() == McuToolChainPackage::TypeGHS
+        || tcPackage->type() == McuToolChainPackage::TypeGHSArm)
         return;
 
     ToolChainKitAspect::setToolChain(k, tcPackage->toolChain(
@@ -606,6 +661,7 @@ static void setKitDebugger(Kit *k, const McuToolChainPackage *tcPackage)
             // No Green Hills and IAR debugger, because support for it is missing.
             || tcPackage->type() == McuToolChainPackage::TypeUnsupported
             || tcPackage->type() == McuToolChainPackage::TypeGHS
+            || tcPackage->type() == McuToolChainPackage::TypeGHSArm
             || tcPackage->type() == McuToolChainPackage::TypeIAR)
         return;
 
@@ -647,7 +703,7 @@ static void setKitEnvironment(Kit *k, const McuTarget *mcuTarget,
 
     // Clang not needed in version 1.7+
     if (mcuTarget->qulVersion() < QVersionNumber{1,7}) {
-        const QString path = QLatin1String(HostOsInfo().isWindowsHost() ? "Path" : "PATH");
+        const QString path = QLatin1String(HostOsInfo::isWindowsHost() ? "Path" : "PATH");
         pathAdditions.append("${" + path + "}");
         pathAdditions.append(QDir::toNativeSeparators(Core::ICore::libexecPath() + "/clang/bin"));
         changes.append({path, pathAdditions.join(HostOsInfo::pathListSeparator())});
@@ -665,17 +721,33 @@ static void setKitCMakeOptions(Kit *k, const McuTarget* mcuTarget, const QString
 
     CMakeConfig config = CMakeConfigurationKitAspect::configuration(k);
     // CMake ToolChain file for ghs handles CMAKE_*_COMPILER autonomously
-    if (mcuTarget->toolChainPackage()->type() != McuToolChainPackage::TypeGHS) {
+    if (mcuTarget->toolChainPackage()->type() != McuToolChainPackage::TypeGHS &&
+            mcuTarget->toolChainPackage()->type() != McuToolChainPackage::TypeGHSArm) {
         config.append(CMakeConfigItem("CMAKE_CXX_COMPILER", "%{Compiler:Executable:Cxx}"));
         config.append(CMakeConfigItem("CMAKE_C_COMPILER", "%{Compiler:Executable:C}"));
     }
-    if (!mcuTarget->toolChainPackage()->isDesktopToolchain())
+
+    if (!mcuTarget->toolChainPackage()->isDesktopToolchain()) {
+        const FilePath cMakeToolchainFile = FilePath::fromString(qulDir + "/lib/cmake/Qul/toolchain/"
+                           + mcuTarget->toolChainPackage()->cmakeToolChainFileName());
+
         config.append(CMakeConfigItem(
                           "CMAKE_TOOLCHAIN_FILE",
-                          (qulDir + "/lib/cmake/Qul/toolchain/"
-                           + mcuTarget->toolChainPackage()->cmakeToolChainFileName()).toUtf8()));
+                          cMakeToolchainFile.toString().toUtf8()));
+        if (!cMakeToolchainFile.exists()) {
+            printMessage(McuTarget::tr("Warning for target %1: missing CMake Toolchain File expected at %2.")
+                  .arg(McuSupportOptions::kitName(mcuTarget), cMakeToolchainFile.toUserOutput()), false);
+        }
+    }
+
+    const FilePath generatorsPath = FilePath::fromString(qulDir + "/lib/cmake/Qul/QulGenerators.cmake");
     config.append(CMakeConfigItem("QUL_GENERATORS",
-                                  (qulDir + "/lib/cmake/Qul/QulGenerators.cmake").toUtf8()));
+                                  generatorsPath.toString().toUtf8()));
+    if (!generatorsPath.exists()) {
+        printMessage(McuTarget::tr("Warning for target %1: missing QulGenerators expected at %2.")
+              .arg(McuSupportOptions::kitName(mcuTarget), generatorsPath.toUserOutput()), false);
+    }
+
     config.append(CMakeConfigItem("QUL_PLATFORM",
                                   mcuTarget->platform().name.toUtf8()));
 
@@ -688,6 +760,15 @@ static void setKitCMakeOptions(Kit *k, const McuTarget* mcuTarget, const QString
     if (kitNeedsQtVersion())
         config.append(CMakeConfigItem("CMAKE_PREFIX_PATH", "%{Qt:QT_INSTALL_PREFIX}"));
     CMakeConfigurationKitAspect::setConfiguration(k, config);
+
+    if (HostOsInfo::isWindowsHost()) {
+        auto type = mcuTarget->toolChainPackage()->type();
+        if (type == McuToolChainPackage::TypeGHS || type == McuToolChainPackage::TypeGHSArm) {
+            // See https://bugreports.qt.io/browse/UL-4247?focusedCommentId=565802&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-565802
+            // and https://bugreports.qt.io/browse/UL-4247?focusedCommentId=565803&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-565803
+            CMakeGeneratorKitAspect::setGenerator(k, "NMake Makefiles JOM");
+        }
+    }
 }
 
 static void setKitQtVersionOptions(Kit *k)
@@ -776,28 +857,99 @@ Kit *McuSupportOptions::newKit(const McuTarget *mcuTarget, const McuPackage *qtF
     return KitManager::registerKit(init);
 }
 
+void printMessage(const QString &message, bool important)
+{
+    const QString displayMessage = QCoreApplication::translate("QtForMCUs", "Qt for MCUs: %1").arg(message);
+    if (important)
+        Core::MessageManager::writeFlashing(displayMessage);
+    else
+        Core::MessageManager::writeSilently(displayMessage);
+}
+
 void McuSupportOptions::createAutomaticKits()
 {
-    if (qulDirFromSettings().isEmpty())
-        return;
-
     auto qtForMCUsPackage = Sdk::createQtForMCUsPackage();
 
+    const auto createKits = [qtForMCUsPackage]() {
     if (qtForMCUsPackage->automaticKitCreationEnabled()) {
+        qtForMCUsPackage->updateStatus();
+        if (qtForMCUsPackage->status() != McuPackage::ValidPackage) {
+            switch (qtForMCUsPackage->status()) {
+                case McuPackage::ValidPathInvalidPackage: {
+                    const QString displayPath = FilePath::fromString(qtForMCUsPackage->detectionPath())
+                        .toUserOutput();
+                    printMessage(tr("Path %1 exists, but does not contain %2.")
+                        .arg(qtForMCUsPackage->path(), displayPath),
+                                 true);
+                    break;
+                }
+                case McuPackage::InvalidPath: {
+                    printMessage(tr("Path %1 does not exist. Add the path in Tools > Options > Devices > MCU.")
+                        .arg(qtForMCUsPackage->path()),
+                                 true);
+                    break;
+                }
+                case McuPackage::EmptyPath: {
+                    printMessage(tr("Missing %1. Add the path in Tools > Options > Devices > MCU.")
+                        .arg(qtForMCUsPackage->detectionPath()),
+                                 true);
+                    return;
+                }
+                default: break;
+            }
+            return;
+        }
+
+        if (CMakeProjectManager::CMakeToolManager::cmakeTools().isEmpty()) {
+            printMessage(tr("No CMake tool was detected. Add a CMake tool in Tools > Options > Kits > CMake."),
+                         true);
+            return;
+        }
+
         auto dir = FilePath::fromUserInput(qtForMCUsPackage->path());
         QVector<McuPackage*> packages;
         QVector<McuTarget*> mcuTargets;
         Sdk::targetsAndPackages(dir, &packages, &mcuTargets);
 
         for (auto target: qAsConst(mcuTargets))
-            if (existingKits(target).isEmpty())
-                newKit(target, qtForMCUsPackage);
+            if (existingKits(target).isEmpty()) {
+                if (target->isValid())
+                    newKit(target, qtForMCUsPackage);
+                else
+                    target->printPackageProblems();
+            }
 
         qDeleteAll(packages);
         qDeleteAll(mcuTargets);
     }
+   };
 
+    createKits();
     delete qtForMCUsPackage;
+}
+
+/**
+ * @brief Fix/update existing kits if needed
+ */
+void McuSupportOptions::fixExistingKits()
+{
+    for (Kit *kit : KitManager::kits()) {
+        if (!kit->hasValue(Constants::KIT_MCUTARGET_KITVERSION_KEY) )
+            continue;
+
+        // Check if the MCU kits are flagged as supplying a QtQuick import path, in order
+        // to tell the QMLJS code-model that it won't need to add a fall-back import
+        // path.
+        const auto bringsQtQuickImportPath = QtSupport::SuppliesQtQuickImportPath::id();
+        auto irrelevantAspects = kit->irrelevantAspects();
+        if (!irrelevantAspects.contains(bringsQtQuickImportPath)) {
+            irrelevantAspects.insert(bringsQtQuickImportPath);
+            kit->setIrrelevantAspects(irrelevantAspects);
+        }
+        if (!kit->hasValue(bringsQtQuickImportPath)) {
+            kit->setValue(bringsQtQuickImportPath, true);
+        }
+    }
 }
 
 } // Internal

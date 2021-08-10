@@ -40,13 +40,6 @@ class ThemePrivate;
 class QTCREATOR_UTILS_EXPORT Theme : public QObject
 {
     Q_OBJECT
-
-    Q_ENUMS(Color)
-    Q_ENUMS(ImageFile)
-    Q_ENUMS(Gradient)
-    Q_ENUMS(Flag)
-    Q_ENUMS(WidgetStyle)
-
 public:
     Theme(const QString &id, QObject *parent = nullptr);
     ~Theme() override;
@@ -89,7 +82,7 @@ public:
         FancyToolButtonSelectedColor,
         FutureProgressBackgroundColor,
         InfoBarBackground,
-        InfoBarText,
+        InfoBarText, // TODO: Deprecate. Unused.
         MenuBarEmptyAreaBackgroundColor,
         MenuBarItemBackgroundColor,
         MenuBarItemTextColorDisabled,
@@ -197,7 +190,6 @@ public:
         IconsModeProjectActiveColor,
         IconsModeAnalyzeActiveColor,
         IconsModeHelpActiveColor,
-        IconsModeMerActiveColor,
 
         /* Code model Icons */
 
@@ -311,42 +303,121 @@ public:
 
         /* Palette for DS Controls */
 
-        DScontrolBackground,
-        DScontrolOutline,
-        DStextColor,
-        DSdisabledTextColor,
         DSpanelBackground,
-        DShoverHighlight,
-        DScolumnBackground,
-        DSfocusEdit,
-        DSfocusDrag,
-        DScontrolBackgroundPressed,
-        DScontrolBackgroundChecked,
         DSinteraction,
-        DSsliderActiveTrack,
-        DSsliderInactiveTrack,
-        DSsliderHandle,
-        DSsliderActiveTrackHover,
-        DSsliderInactiveTrackHover,
-        DSsliderHandleHover,
-        DSsliderActiveTrackFocus,
-        DSsliderInactiveTrackFocus,
-        DSsliderHandleFocus,
         DSerrorColor,
+        DSdisabledColor,
+        DScontrolBackground,
+        DScontrolBackgroundInteraction,
         DScontrolBackgroundDisabled,
+        DScontrolBackgroundGlobalHover,
+        DScontrolBackgroundHover,
+        DScontrolOutline,
+        DScontrolOutlineInteraction,
         DScontrolOutlineDisabled,
+        DStextColor,
         DStextColorDisabled,
         DStextSelectionColor,
         DStextSelectedTextColor,
+
+        DSplaceholderTextColor,
+        DSplaceholderTextColorInteraction,
+
+        DSiconColor,
+        DSiconColorHover,
+        DSiconColorInteraction,
+        DSiconColorDisabled,
+        DSiconColorSelected,
+        DSlinkIndicatorColor,
+        DSlinkIndicatorColorHover,
+        DSlinkIndicatorColorInteraction,
+        DSlinkIndicatorColorDisabled,
+        DSpopupBackground,
+        DSpopupOverlayColor,
+        DSsliderActiveTrack,
+        DSsliderActiveTrackHover,
+        DSsliderActiveTrackFocus,
+        DSsliderInactiveTrack,
+        DSsliderInactiveTrackHover,
+        DSsliderInactiveTrackFocus,
+        DSsliderHandle,
+        DSsliderHandleHover,
+        DSsliderHandleFocus,
+        DSsliderHandleInteraction,
         DSscrollBarTrack,
         DSscrollBarHandle,
-        DScontrolBackgroundInteraction,
-        DStranslationIndicatorBorder,
         DSsectionHeadBackground,
+        DSstateDefaultHighlight,
+        DSstateSeparatorColor,
+        DSstateBackgroundColor,
+        DSstatePreviewOutline,
         DSchangedStateText,
         DS3DAxisXColor,
         DS3DAxisYColor,
-        DS3DAxisZColor
+        DS3DAxisZColor,
+        DSactionBinding,
+        DSactionAlias,
+        DSactionKeyframe,
+        DSactionJIT,
+
+        DStableHeaderBackground,
+        DStableHeaderText,
+
+        DSdockContainerBackground,
+        DSdockContainerSplitter,
+        DSdockAreaBackground,
+
+        DSdockWidgetBackground,
+        DSdockWidgetSplitter,
+        DSdockWidgetTitleBar,
+
+        DStitleBarText,
+        DStitleBarIcon,
+        DStitleBarButtonHover,
+        DStitleBarButtonPress,
+
+        DStabContainerBackground,
+        DStabSplitter,
+
+        DStabInactiveBackground,
+        DStabInactiveText,
+        DStabInactiveIcon,
+        DStabInactiveButtonHover,
+        DStabInactiveButtonPress,
+
+        DStabActiveBackground,
+        DStabActiveText,
+        DStabActiveIcon,
+        DStabActiveButtonHover,
+        DStabActiveButtonPress,
+
+        DStabFocusBackground,
+        DStabFocusText,
+        DStabFocusIcon,
+        DStabFocusButtonHover,
+        DStabFocusButtonPress,
+
+        DSnavigatorBranch,
+        DSnavigatorBranchIndicator,
+        DSnavigatorItemBackground,
+        DSnavigatorItemBackgroundHover,
+        DSnavigatorItemBackgroundSelected,
+        DSnavigatorText,
+        DSnavigatorTextHover,
+        DSnavigatorTextSelected,
+        DSnavigatorIcon,
+        DSnavigatorIconHover,
+        DSnavigatorIconSelected,
+        DSnavigatorAliasIconChecked,
+        DSnavigatorDropIndicatorBackground,
+        DSnavigatorDropIndicatorOutline,
+
+        DSheaderViewBackground,
+        DStableViewAlternateBackground,
+
+        DStoolTipBackground,
+        DStoolTipOutline,
+        DStoolTipText
     };
 
     enum Gradient {
@@ -382,6 +453,11 @@ public:
         DarkUserInterface
     };
 
+    Q_ENUM(Color)
+    Q_ENUM(ImageFile)
+    Q_ENUM(Gradient)
+    Q_ENUM(Flag)
+
     Q_INVOKABLE bool flag(Flag f) const;
     Q_INVOKABLE QColor color(Color role) const;
     QString imageFile(ImageFile imageFile, const QString &fallBack) const;
@@ -397,6 +473,7 @@ public:
 
     void readSettings(QSettings &settings);
 
+    static bool systemUsesDarkMode();
     static QPalette initialPalette();
 
 protected:

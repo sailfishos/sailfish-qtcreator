@@ -55,11 +55,6 @@ public:
     QWidget *additionalReplaceWidget() const;
     void setAdditionalReplaceWidget(QWidget *widget);
 
-    void addResult(const QString &fileName,
-                   const QString &lineText,
-                   Search::TextRange mainRange,
-                   const QVariant &userData = QVariant(),
-                   SearchResultColor::Style style = SearchResultColor::Style::Default);
     void addResults(const QList<SearchResultItem> &items, SearchResult::AddMode mode);
 
     int count() const;
@@ -90,7 +85,9 @@ public:
 
     void setSearchAgainSupported(bool supported);
     void setSearchAgainEnabled(bool enabled);
-
+    void setFilter(SearchResultFilter *filter);
+    bool hasFilter() const;
+    void showFilterWidget(QWidget *parent);
     void setReplaceEnabled(bool enabled);
 
 public slots:
@@ -107,6 +104,8 @@ signals:
     void restarted();
     void visibilityChanged(bool visible);
     void requestPopup(bool focus);
+    void filterInvalidated();
+    void filterChanged();
 
     void navigateStateChanged();
 

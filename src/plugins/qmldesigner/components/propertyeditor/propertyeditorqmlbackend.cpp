@@ -593,9 +593,12 @@ QString PropertyEditorQmlBackend::templateGeneration(const NodeMetaInfo &type,
             continue; // private API
 
         if (!superType.hasProperty(propertyName)
-                && type.propertyIsWritable(propertyName)
-                && dotPropertyHeuristic(node, type, propertyName)) {
-            const QString typeName = QString::fromLatin1(type.propertyTypeName(propertyName));
+            && type.propertyIsWritable(propertyName)
+            && dotPropertyHeuristic(node, type, propertyName)) {
+            QString typeName = QString::fromLatin1(type.propertyTypeName(propertyName));
+
+            if (typeName == "alias" && node.isValid())
+                typeName = QString::fromLatin1(node.instanceType(propertyName));
 
             // Check if a template for the type exists
             if (allTypes.contains(typeName)) {
@@ -620,10 +623,13 @@ QString PropertyEditorQmlBackend::templateGeneration(const NodeMetaInfo &type,
 
     // Filter out the properties which have a basic type e.g. int, string, bool
     QList<PropertyName> basicProperties;
-    for (auto k : propertyMap.keys()) {
-        if (propertyMap.value(k).empty()) {
-            basicProperties.append(k);
-            propertyMap.remove(k);
+    auto it = propertyMap.begin();
+    while (it != propertyMap.end()) {
+        if (it.value().empty()) {
+            basicProperties.append(it.key());
+            it = propertyMap.erase(it);
+        } else {
+            ++it;
         }
     }
 
@@ -663,7 +669,6 @@ QString PropertyEditorQmlBackend::templateGeneration(const NodeMetaInfo &type,
     bool emptyTemplate = true;
 
     const QString anchorLeftRight = "anchors.left: parent.left\nanchors.right: parent.right\n";
-    const QString paddingLeftTopBottom = "leftPadding: 0\ntopPadding: 0\nbottomPadding: 0\n";
 
     qmlTemplate += "Column {\n";
     qmlTemplate += anchorLeftRight;
@@ -674,7 +679,6 @@ QString PropertyEditorQmlBackend::templateGeneration(const NodeMetaInfo &type,
     qmlTemplate += "Section {\n";
     qmlTemplate += "caption: \"User added properties\"\n";
     qmlTemplate += anchorLeftRight;
-    qmlTemplate += paddingLeftTopBottom;
     qmlTemplate += "Column {\n";
     qmlTemplate += "width: parent.width\n";
 
@@ -700,20 +704,22 @@ QString PropertyEditorQmlBackend::templateGeneration(const NodeMetaInfo &type,
     // Second the section containing properties of complex type for which no specific template exists e.g. Button
     if (!propertyMap.empty()) {
         emptyTemplate = false;
-        for (const auto &k : propertyMap.keys()) {
-            TypeName parentTypeName = type.propertyTypeName(k);
+        for (auto it = propertyMap.cbegin(); it != propertyMap.cend(); ++it) {
+            const auto &key = it.key();
+            TypeName parentTypeName = type.propertyTypeName(key);
             // alias resolution only possible with instance
             if (parentTypeName == "alias" && node.isValid())
-                parentTypeName = node.instanceType(k);
+                parentTypeName = node.instanceType(key);
 
             qmlTemplate += "Section {\n";
-            qmlTemplate += QStringLiteral("caption: \"%1 - %2\"\n").arg(QString::fromUtf8(k)).arg(QString::fromUtf8(parentTypeName));
+            qmlTemplate += QStringLiteral("caption: \"%1 - %2\"\n")
+                    .arg(QString::fromUtf8(key), QString::fromUtf8(parentTypeName));
             qmlTemplate += anchorLeftRight;
             qmlTemplate += "expanded: false\n";
             qmlTemplate += "level: 1\n";
             qmlTemplate += "SectionLayout {\n";
 
-            auto properties = propertyMap.value(k);
+            auto properties = it.value();
             Utils::sort(properties);
 
             for (const auto &p : qAsConst(properties)) {
@@ -739,7 +745,6 @@ QString PropertyEditorQmlBackend::templateGeneration(const NodeMetaInfo &type,
             qmlTemplate += "Section {\n";
             qmlTemplate += QStringLiteral("caption: \"%1 - %2\"\n").arg(QString::fromUtf8(p)).arg(QString::fromUtf8(parentTypeName));
             qmlTemplate += anchorLeftRight;
-            qmlTemplate += paddingLeftTopBottom;
             qmlTemplate += "level: 1\n";
             qmlTemplate += "Column {\n";
             qmlTemplate += "width: parent.width\n";

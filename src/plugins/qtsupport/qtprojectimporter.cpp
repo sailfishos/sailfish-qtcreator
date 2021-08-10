@@ -177,7 +177,8 @@ public:
     bool allDeleted() const { return m_deletedTestData.count() == m_testData.count();}
 
 protected:
-    QList<void *> examineDirectory(const Utils::FilePath &importPath) const override;
+    QList<void *> examineDirectory(const Utils::FilePath &importPath,
+                                   QString *warningMessage) const override;
     bool matchKit(void *directoryData, const Kit *k) const override;
     Kit *createKit(void *directoryData) const override;
     const QList<BuildInfo> buildInfoList(void *directoryData) const override;
@@ -196,8 +197,10 @@ QStringList TestQtProjectImporter::importCandidates()
     return QStringList();
 }
 
-QList<void *> TestQtProjectImporter::examineDirectory(const Utils::FilePath &importPath) const
+QList<void *> TestQtProjectImporter::examineDirectory(const Utils::FilePath &importPath,
+                                                      QString *warningMessage) const
 {
+    Q_UNUSED(warningMessage)
     m_path = importPath;
 
     assert(m_deletedTestData.isEmpty());
@@ -221,7 +224,7 @@ Kit *TestQtProjectImporter::createKit(void *directoryData) const
     const DirectoryData *dd = static_cast<const DirectoryData *>(directoryData);
     assert(dd->importPath == m_path);
 
-    if (KitManager::instance()->kit(dd->kit->id())) // known kit
+    if (KitManager::kit(dd->kit->id())) // known kit
         return dd->kit;
 
     // New temporary kit:

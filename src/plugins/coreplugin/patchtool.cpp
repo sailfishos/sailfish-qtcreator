@@ -35,37 +35,17 @@
 #include <QApplication>
 
 static const char settingsGroupC[] = "General";
-static const char legacySettingsGroupC[] = "VCS";
 static const char patchCommandKeyC[] = "PatchCommand";
 static const char patchCommandDefaultC[] = "patch";
 
 namespace Core {
 
-static QString readLegacyCommand()
-{
-    QSettings *s = ICore::settings();
-
-    s->beginGroup(QLatin1String(legacySettingsGroupC));
-    const bool legacyExists = s->contains(QLatin1String(patchCommandKeyC));
-    const QString legacyCommand = s->value(QLatin1String(patchCommandKeyC), QLatin1String(patchCommandDefaultC)).toString();
-    if (legacyExists)
-        s->remove(QLatin1String(patchCommandKeyC));
-    s->endGroup();
-
-    if (legacyExists && legacyCommand != QLatin1String(patchCommandDefaultC))
-        PatchTool::setPatchCommand(legacyCommand);
-
-    return legacyCommand;
-}
-
 QString PatchTool::patchCommand()
 {
     QSettings *s = ICore::settings();
 
-    const QString defaultCommand = readLegacyCommand(); // replace it with QLatin1String(patchCommandDefaultC) when dropping legacy stuff
-
-    s->beginGroup(QLatin1String(settingsGroupC));
-    const QString command = s->value(QLatin1String(patchCommandKeyC), defaultCommand).toString();
+    s->beginGroup(settingsGroupC);
+    const QString command = s->value(patchCommandKeyC, patchCommandDefaultC).toString();
     s->endGroup();
 
     return command;
@@ -73,9 +53,9 @@ QString PatchTool::patchCommand()
 
 void PatchTool::setPatchCommand(const QString &newCommand)
 {
-    QSettings *s = ICore::settings();
+    Utils::QtcSettings *s = ICore::settings();
     s->beginGroup(QLatin1String(settingsGroupC));
-    s->setValue(QLatin1String(patchCommandKeyC), newCommand);
+    s->setValueWithDefault(QLatin1String(patchCommandKeyC), newCommand, QString(patchCommandKeyC));
     s->endGroup();
 }
 
@@ -84,13 +64,18 @@ static bool runPatchHelper(const QByteArray &input, const QString &workingDirect
 {
     const QString patch = PatchTool::patchCommand();
     if (patch.isEmpty()) {
-        MessageManager::write(QApplication::translate("Core::PatchTool", "There is no patch-command configured in the general \"Environment\" settings."));
+        MessageManager::writeDisrupting(QApplication::translate(
+            "Core::PatchTool",
+            "There is no patch-command configured in the general \"Environment\" settings."));
         return false;
     }
 
     if (!Utils::FilePath::fromString(patch).exists()
             && !Utils::Environment::systemEnvironment().searchInPath(patch).exists()) {
-        MessageManager::write(QApplication::translate("Core::PatchTool", "The patch-command configured in the general \"Environment\" settings does not exist."));
+        MessageManager::writeDisrupting(
+            QApplication::translate("Core::PatchTool",
+                                    "The patch-command configured in the general \"Environment\" "
+                                    "settings does not exist."));
         return false;
     }
 
@@ -113,12 +98,16 @@ static bool runPatchHelper(const QByteArray &input, const QString &workingDirect
         args << QLatin1String("-R");
     if (withCrlf)
         args << QLatin1String("--binary");
-    MessageManager::write(QApplication::translate("Core::PatchTool", "Running in %1: %2 %3").
-                          arg(QDir::toNativeSeparators(workingDirectory),
-                              QDir::toNativeSeparators(patch), args.join(QLatin1Char(' '))));
+    MessageManager::writeDisrupting(
+        QApplication::translate("Core::PatchTool", "Running in %1: %2 %3")
+            .arg(QDir::toNativeSeparators(workingDirectory),
+                 QDir::toNativeSeparators(patch),
+                 args.join(QLatin1Char(' '))));
     patchProcess.start(patch, args);
     if (!patchProcess.waitForStarted()) {
-        MessageManager::write(QApplication::translate("Core::PatchTool", "Unable to launch \"%1\": %2").arg(patch, patchProcess.errorString()));
+        MessageManager::writeFlashing(
+            QApplication::translate("Core::PatchTool", "Unable to launch \"%1\": %2")
+                .arg(patch, patchProcess.errorString()));
         return false;
     }
     patchProcess.write(input);
@@ -127,7 +116,9 @@ static bool runPatchHelper(const QByteArray &input, const QString &workingDirect
     QByteArray stdErr;
     if (!Utils::SynchronousProcess::readDataFromProcess(patchProcess, 30, &stdOut, &stdErr, true)) {
         Utils::SynchronousProcess::stopProcess(patchProcess);
-        MessageManager::write(QApplication::translate("Core::PatchTool", "A timeout occurred running \"%1\"").arg(patch));
+        MessageManager::writeFlashing(
+            QApplication::translate("Core::PatchTool", "A timeout occurred running \"%1\"")
+                .arg(patch));
         return false;
 
     }
@@ -137,18 +128,22 @@ static bool runPatchHelper(const QByteArray &input, const QString &workingDirect
             crlfInput.replace('\n', "\r\n");
             return runPatchHelper(crlfInput, workingDirectory, strip, reverse, true);
         } else {
-            MessageManager::write(QString::fromLocal8Bit(stdOut));
+            MessageManager::writeFlashing(QString::fromLocal8Bit(stdOut));
         }
     }
     if (!stdErr.isEmpty())
-        MessageManager::write(QString::fromLocal8Bit(stdErr));
+        MessageManager::writeFlashing(QString::fromLocal8Bit(stdErr));
 
     if (patchProcess.exitStatus() != QProcess::NormalExit) {
-        MessageManager::write(QApplication::translate("Core::PatchTool", "\"%1\" crashed.").arg(patch));
+        MessageManager::writeFlashing(
+            QApplication::translate("Core::PatchTool", "\"%1\" crashed.").arg(patch));
         return false;
     }
     if (patchProcess.exitCode() != 0) {
-        MessageManager::write(QApplication::translate("Core::PatchTool", "\"%1\" failed (exit code %2).").arg(patch).arg(patchProcess.exitCode()));
+        MessageManager::writeFlashing(
+            QApplication::translate("Core::PatchTool", "\"%1\" failed (exit code %2).")
+                .arg(patch)
+                .arg(patchProcess.exitCode()));
         return false;
     }
     return true;

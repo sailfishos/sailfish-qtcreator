@@ -27,37 +27,80 @@ import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import QtQuickDesignerTheme 1.0
 import HelperWidgets 2.0
+import StudioControls 1.0 as StudioControls
 import StudioTheme 1.0 as StudioTheme
 
 /* The view displaying the item grid.
 
 The following Qml context properties have to be set:
-- listmodel itemLibraryModel
-- int itemLibraryIconWidth
-- int itemLibraryIconHeight
+- ItemLibraryModel  itemLibraryModel
+- int               itemLibraryIconWidth
+- int               itemLibraryIconHeight
+- ItemLibraryWidget rootView
+- QColor            highlightColor
 
-itemLibraryModel has to have the following structure:
+itemLibraryModel structure:
 
-ListModel {
-ListElement {
-int sectionLibId
-string sectionName
-list sectionEntries: [
-ListElement {
-int itemLibId
-string itemName
-pixmap itemPixmap
-},
-...
+itemLibraryModel [
+    ItemLibraryImport {
+        string importName
+        string importUrl
+        bool importVisible
+        bool importUsed
+        bool importExpanded
+
+        list categoryModel [
+            ItemLibraryCategory {
+                string categoryName
+                bool categoryVisible
+                bool categoryExpanded
+
+                list itemModel [
+                    ItemLibraryItem {
+                        string itemName
+                        string itemLibraryIconPath
+                        bool itemVisible
+                        string componentPath
+                        var itemLibraryEntry
+                    },
+                    ... more items
+                ]
+            },
+            ... more categories
+        ]
+    },
+    ... more imports
 ]
-}
-...
-}
 */
-
 
 ScrollView {
     id: itemsView
+
+    property string importToRemove: ""
+    property string importToAdd: ""
+    property var currentItem: null
+    property var currentCategory: null
+    property var currentImport: null
+
+    // called from C++ to close context menu on focus out
+    function closeContextMenu()
+    {
+        moduleContextMenu.close()
+        itemContextMenu.close()
+    }
+
+    function showImportCategories()
+    {
+        currentImport.importCatVisibleState = true
+        if (!itemLibraryModel.getIsAnyCategoryHidden())
+            itemLibraryModel.isAnyCategoryHidden = false
+    }
+
+    onContentHeightChanged: {
+        var maxPosition = Math.max(contentHeight - height, 0)
+        if (contentY > maxPosition)
+            contentY = maxPosition
+    }
 
     Item {
         id: styleConstants
@@ -71,40 +114,177 @@ ScrollView {
         // the following depend on the actual shape of the item delegate
         property int cellWidth: textWidth + 2 * cellHorizontalMargin
         property int cellHeight: itemLibraryIconHeight + textHeight +
-        2 * cellVerticalMargin + cellVerticalSpacing
+                                 2 * cellVerticalMargin + cellVerticalSpacing
+
+        StudioControls.Menu {
+            id: moduleContextMenu
+
+            StudioControls.MenuItem {
+                text: qsTr("Remove Module")
+                visible: currentCategory === null
+                height: visible ? implicitHeight : 0
+                enabled: importToRemove !== ""
+                onTriggered: {
+                    showImportCategories()
+                    rootView.removeImport(importToRemove)
+                }
+            }
+
+            StudioControls.MenuSeparator {
+                visible: currentCategory === null
+                height: StudioTheme.Values.border
+            }
+
+            StudioControls.MenuItem {
+                text: qsTr("Expand All")
+                visible: currentCategory === null
+                height: visible ? implicitHeight : 0
+                onTriggered: itemLibraryModel.expandAll()
+            }
+
+            StudioControls.MenuItem {
+                text: qsTr("Collapse All")
+                visible: currentCategory === null
+                height: visible ? implicitHeight : 0
+                onTriggered: itemLibraryModel.collapseAll()
+            }
+
+            StudioControls.MenuSeparator {
+                visible: currentCategory === null
+                height: StudioTheme.Values.border
+            }
+
+            StudioControls.MenuItem {
+                text: qsTr("Hide Category")
+                visible: currentCategory
+                height: visible ? implicitHeight : 0
+                onTriggered: {
+                    itemLibraryModel.isAnyCategoryHidden = true
+                    currentCategory.categoryVisible = false
+                }
+            }
+
+            StudioControls.MenuSeparator {
+                visible: currentCategory
+                height: StudioTheme.Values.border
+            }
+
+            StudioControls.MenuItem {
+                text: qsTr("Show Module Hidden Categories")
+                enabled: currentImport && !currentImport.importCatVisibleState
+                onTriggered: showImportCategories()
+            }
+
+            StudioControls.MenuItem {
+                text: qsTr("Show All Hidden Categories")
+                enabled: itemLibraryModel.isAnyCategoryHidden
+                onTriggered: {
+                    itemLibraryModel.isAnyCategoryHidden = false
+                    itemLibraryModel.showHiddenCategories()
+                }
+            }
+        }
+
+        StudioControls.Menu {
+            id: itemContextMenu
+            // Workaround for menu item implicit width not properly propagating to menu
+            width: importMenuItem.implicitWidth
+
+            StudioControls.MenuItem {
+                id: importMenuItem
+                text: qsTr("Add Module: ") + importToAdd
+                enabled: importToAdd !== ""
+                onTriggered: rootView.addImportForItem(importToAdd)
+            }
+        }
     }
 
     Column {
-        id: column
+        spacing: 2
         Repeater {
             model: itemLibraryModel  // to be set in Qml context
             delegate: Section {
                 width: itemsView.width -
-                       (itemsView.verticalScrollBarVisible ? StudioTheme.Values.scrollBarThickness : 0)
-                caption: sectionName // to be set by model
-                visible: sectionVisible
-                topPadding: 2
-                leftPadding: 2
-                rightPadding: 1
-                expanded: sectionExpanded
-                onExpandedChanged: itemLibraryModel.setExpanded(expanded, sectionName);
-                Grid {
-                    id: itemGrid
+                       (itemsView.verticalScrollBarVisible ? itemsView.verticalThickness : 0)
+                caption: importName
+                visible: importVisible
+                sectionHeight: 30
+                sectionFontSize: 15
+                showArrow: categoryModel.rowCount() > 0
+                labelColor: importUnimported ? StudioTheme.Values.themeUnimportedModuleColor
+                                             : StudioTheme.Values.themeTextColor
+                leftPadding: 0
+                rightPadding: 0
+                expanded: importExpanded
+                expandOnClick: false
+                onToggleExpand: {
+                    if (categoryModel.rowCount() > 0)
+                        importExpanded = !importExpanded
+                }
+                onShowContextMenu: {
+                    importToRemove = importRemovable ? importUrl : ""
+                    currentImport = model
+                    currentCategory = null
+                    moduleContextMenu.popup()
+                }
 
-                    columns: parent.width / styleConstants.cellWidth
-                    property int flexibleWidth: (parent.width - styleConstants.cellWidth * columns) / columns
-
+                Column {
+                    spacing: 2
+                    property var currentImportModel: model // allows accessing the import model from inside the category section
                     Repeater {
-                        model: sectionEntries
-                        delegate: ItemDelegate {
-                            visible: itemVisible
-                            width: styleConstants.cellWidth + itemGrid.flexibleWidth
-                            height: styleConstants.cellHeight
+                        model: categoryModel
+                        delegate: Section {
+                            width: itemsView.width -
+                                   (itemsView.verticalScrollBarVisible ? itemsView.verticalThickness : 0)
+                            sectionBackgroundColor: "transparent"
+                            showTopSeparator: index > 0
+                            hideHeader: categoryModel.rowCount() <= 1
+                            leftPadding: 0
+                            rightPadding: 0
+                            addTopPadding: categoryModel.rowCount() > 1
+                            addBottomPadding: index != categoryModel.rowCount() - 1
+                            caption: categoryName + " (" + itemModel.rowCount() + ")"
+                            visible: categoryVisible
+                            expanded: categoryExpanded
+                            expandOnClick: false
+                            onToggleExpand: categoryExpanded = !categoryExpanded
+                            onShowContextMenu: {
+                                currentCategory = model
+                                currentImport = parent.currentImportModel
+                                moduleContextMenu.popup()
+                            }
+
+                            Grid {
+                                id: itemGrid
+
+                                property real actualWidth: parent.width - itemGrid.leftPadding -itemGrid.rightPadding
+                                property int flexibleWidth: (itemGrid.actualWidth / columns) - styleConstants.cellWidth
+
+                                leftPadding: 6
+                                rightPadding: 6
+                                columns: itemGrid.actualWidth / styleConstants.cellWidth
+
+                                Repeater {
+                                    model: itemModel
+                                    delegate: ItemDelegate {
+                                        visible: itemVisible
+                                        textColor: importUnimported ? StudioTheme.Values.themeUnimportedModuleColor
+                                                                    : StudioTheme.Values.themeTextColor
+                                        width: styleConstants.cellWidth + itemGrid.flexibleWidth
+                                        height: styleConstants.cellHeight
+                                        onShowContextMenu: {
+                                            if (!itemUsable) {
+                                                importToAdd = itemRequiredImport
+                                                itemContextMenu.popup()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
         }
     }
-
 }

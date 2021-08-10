@@ -41,7 +41,7 @@ LocatorFiltersFilter::LocatorFiltersFilter():
 {
     setId("FiltersFilter");
     setDisplayName(tr("Available filters"));
-    setIncludedByDefault(true);
+    setDefaultIncludedByDefault(true);
     setHidden(true);
     setPriority(Highest);
     setConfigurable(false);
@@ -98,10 +98,4 @@ void LocatorFiltersFilter::accept(LocatorFilterEntry selection,
         *newText = shortcutString + ' ';
         *selectionStart = shortcutString.length() + 1;
     }
-}
-
-void LocatorFiltersFilter::refresh(QFutureInterface<void> &future)
-{
-    Q_UNUSED(future)
-    // Nothing to refresh
 }

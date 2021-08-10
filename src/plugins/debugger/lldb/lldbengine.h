@@ -65,7 +65,7 @@ private:
     void executeStepOver(bool byInstruction) override;
 
     void setupEngine() override;
-    void runEngine() override;
+    void runEngine();
     void shutdownInferior() override;
     void shutdownEngine() override;
     void abortDebuggerProcess() override;
@@ -84,7 +84,6 @@ private:
     void fetchFullBacktrace();
 
     // This should be always the last call in a function.
-    bool stateAcceptsBreakpointChanges() const override;
     bool acceptsBreakpoint(const BreakpointParameters &bp) const override;
     void insertBreakpoint(const Breakpoint &bp) override;
     void removeBreakpoint(const Breakpoint &bp) override;

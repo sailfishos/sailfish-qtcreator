@@ -28,6 +28,8 @@
 #include "classviewsymbollocation.h"
 #include "classviewsymbolinformation.h"
 
+#include <cplusplus/CppDocument.h>
+
 #include <QSharedPointer>
 #include <QHash>
 
@@ -41,60 +43,34 @@ class ParserTreeItemPrivate;
 class ParserTreeItem
 {
 public:
-    using Ptr = QSharedPointer<ParserTreeItem>;
     using ConstPtr = QSharedPointer<const ParserTreeItem>;
 
 public:
     ParserTreeItem();
+    ParserTreeItem(const Utils::FilePath &projectFilePath);
+    ParserTreeItem(const QHash<SymbolInformation, ConstPtr> &children);
     ~ParserTreeItem();
 
-    void copyTree(const ParserTreeItem::ConstPtr &from);
+    static ConstPtr parseDocument(const CPlusPlus::Document::Ptr &doc);
+    static ConstPtr mergeTrees(const Utils::FilePath &projectFilePath, const QList<ConstPtr> &docTrees);
 
-    void copy(const ParserTreeItem::ConstPtr &from);
-
-    void addSymbolLocation(const SymbolLocation &location);
-
-    void addSymbolLocation(const QSet<SymbolLocation> &locations);
-
-    void removeSymbolLocation(const SymbolLocation &location);
-
-    void removeSymbolLocations(const QSet<SymbolLocation> &locations);
-
+    Utils::FilePath projectFilePath() const;
     QSet<SymbolLocation> symbolLocations() const;
-
-    void appendChild(const ParserTreeItem::Ptr &item, const SymbolInformation &inf);
-
-    void removeChild(const SymbolInformation &inf);
-
-    ParserTreeItem::Ptr child(const SymbolInformation &inf) const;
-
+    ConstPtr child(const SymbolInformation &inf) const;
     int childCount() const;
 
-    void convertTo(QStandardItem *item) const;
-
-    // additional properties
-    //! Assigned icon
-    QIcon icon() const;
-
-    //! Set an icon for this tree node
-    void setIcon(const QIcon &icon);
-
-    void add(const ParserTreeItem::ConstPtr &target);
-
+    // Make sure that below two methods are called only from the GUI thread
     bool canFetchMore(QStandardItem *item) const;
-
     void fetchMore(QStandardItem *item) const;
 
-    void debugDump(int ident = 0) const;
-
-protected:
-    ParserTreeItem &operator=(const ParserTreeItem &other);
+    void debugDump(int indent = 0) const;
 
 private:
-    using CitSymbolInformations = QHash<SymbolInformation, ParserTreeItem::Ptr>::const_iterator;
-    //! Private class data pointer
+    friend class ParserTreeItemPrivate;
     ParserTreeItemPrivate *d;
 };
 
 } // namespace Internal
 } // namespace ClassView
+
+Q_DECLARE_METATYPE(ClassView::Internal::ParserTreeItem::ConstPtr)

@@ -370,7 +370,13 @@ void DesignDocument::close()
 void DesignDocument::updateSubcomponentManager()
 {
     Q_ASSERT(m_subComponentManager);
-    m_subComponentManager->update(QUrl::fromLocalFile(fileName().toString()), currentModel()->imports());
+    m_subComponentManager->update(QUrl::fromLocalFile(fileName().toString()),
+                                  currentModel()->imports() + currentModel()->possibleImports());
+}
+
+void DesignDocument::updateSubcomponentManagerImport(const Import &import)
+{
+    m_subComponentManager->updateImport(import);
 }
 
 void DesignDocument::deleteSelected()
@@ -504,9 +510,9 @@ void DesignDocument::paste()
             targetNode = targetNode.parentProperty().parentModelNode();
         } else {
             // if selection is empty and copied nodes are all 3D nodes, paste them under the active scene
-            bool all3DNodes = std::find_if(selectedNodes.begin(), selectedNodes.end(),
+            bool all3DNodes = std::find_if(selectedNodes.cbegin(), selectedNodes.cend(),
                                            [](const ModelNode &node) { return !node.isSubclassOf("QtQuick3D.Node"); })
-                              == selectedNodes.end();
+                              == selectedNodes.cend();
             if (all3DNodes) {
                 int activeSceneId = rootModelNode().auxiliaryData("active3dScene").toInt();
                 if (activeSceneId != -1) {

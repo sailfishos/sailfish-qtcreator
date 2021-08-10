@@ -105,7 +105,8 @@ ToolChainManager::ToolChainManager(QObject *parent) :
     connect(this, &ToolChainManager::toolChainUpdated, this, &ToolChainManager::toolChainsChanged);
 
     QSettings * const s = Core::ICore::settings();
-    d->m_detectionSettings.detectX64AsX32 = s->value(DETECT_X64_AS_X32_KEY, false).toBool();
+    d->m_detectionSettings.detectX64AsX32
+        = s->value(DETECT_X64_AS_X32_KEY, ToolchainDetectionSettings().detectX64AsX32).toBool();
 }
 
 ToolChainManager::~ToolChainManager()
@@ -137,8 +138,10 @@ void ToolChainManager::saveToolChains()
     QTC_ASSERT(d->m_accessor, return);
 
     d->m_accessor->saveToolChains(d->m_toolChains, Core::ICore::dialogParent());
-    QSettings * const s = Core::ICore::settings();
-    s->setValue(DETECT_X64_AS_X32_KEY, d->m_detectionSettings.detectX64AsX32);
+    QtcSettings *const s = Core::ICore::settings();
+    s->setValueWithDefault(DETECT_X64_AS_X32_KEY,
+                           d->m_detectionSettings.detectX64AsX32,
+                           ToolchainDetectionSettings().detectX64AsX32);
 }
 
 QList<ToolChain *> ToolChainManager::toolChains(const ToolChain::Predicate &predicate)
@@ -202,7 +205,11 @@ void ToolChainManager::notifyAboutUpdate(ToolChain *tc)
 bool ToolChainManager::registerToolChain(ToolChain *tc)
 {
     QTC_ASSERT(tc, return false);
-    QTC_ASSERT(isLanguageSupported(tc->language()), return false);
+    QTC_ASSERT(isLanguageSupported(tc->language()),
+               qDebug() << qPrintable("language \"" + tc->language().toString()
+                                      + "\" unknown while registering \""
+                                      + tc->compilerCommand().toString() + "\"");
+               return false);
     QTC_ASSERT(d->m_accessor, return false);
 
     if (d->m_toolChains.contains(tc))
@@ -256,9 +263,8 @@ bool ToolChainManager::isLanguageSupported(const Utils::Id &id)
 
 void ToolChainManager::aboutToShutdown()
 {
-#ifdef Q_OS_WIN
-    MsvcToolChain::cancelMsvcToolChainDetection();
-#endif
+    if (HostOsInfo::isWindowsHost())
+        MsvcToolChain::cancelMsvcToolChainDetection();
 }
 
 ToolchainDetectionSettings ToolChainManager::detectionSettings()

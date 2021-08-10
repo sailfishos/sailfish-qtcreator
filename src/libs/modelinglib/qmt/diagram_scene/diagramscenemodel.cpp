@@ -78,12 +78,12 @@ public:
     {
     }
 
-    QRectF boundingRect() const
+    QRectF boundingRect() const final
     {
         return QRectF(0.0, 0.0, 20.0, 20.0);
     }
 
-    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) final
     {
         Q_UNUSED(option)
         Q_UNUSED(widget)
@@ -829,7 +829,7 @@ void DiagramSceneModel::onEndRemoveElement(int row, const MDiagram *diagram)
     Q_UNUSED(diagram)
     QMT_CHECK(m_busyState == RemoveElement);
     // update elements from store (see above)
-    for (const Uid &end_uid : m_relationEndsUid) {
+    for (const Uid &end_uid : qAsConst(m_relationEndsUid)) {
         DElement *dEnd = m_diagramController->findElement(end_uid, diagram);
         if (dEnd)
             updateGraphicsItem(graphicsItem(dEnd), dEnd);

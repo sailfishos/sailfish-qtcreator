@@ -66,6 +66,7 @@ LiteHtmlHelpViewer::LiteHtmlHelpViewer(QWidget *parent)
     , m_viewer(new QLiteHtmlWidget)
 {
     m_viewer->setResourceHandler([](const QUrl &url) { return getData(url); });
+    m_viewer->setFrameStyle(QFrame::NoFrame);
     m_viewer->viewport()->installEventFilter(this);
     connect(m_viewer, &QLiteHtmlWidget::linkClicked, this, &LiteHtmlHelpViewer::setSource);
     connect(m_viewer,
@@ -89,34 +90,9 @@ LiteHtmlHelpViewer::LiteHtmlHelpViewer(QWidget *parent)
 
 LiteHtmlHelpViewer::~LiteHtmlHelpViewer() = default;
 
-QFont LiteHtmlHelpViewer::viewerFont() const
-{
-    return m_viewer->defaultFont();
-}
-
 void LiteHtmlHelpViewer::setViewerFont(const QFont &newFont)
 {
     m_viewer->setDefaultFont(newFont);
-}
-
-void LiteHtmlHelpViewer::scaleUp()
-{
-    setScale(scale() * 1.1);
-}
-
-void LiteHtmlHelpViewer::scaleDown()
-{
-    setScale(scale() * .9);
-}
-
-void LiteHtmlHelpViewer::resetScale()
-{
-    m_viewer->setZoomFactor(1);
-}
-
-qreal LiteHtmlHelpViewer::scale() const
-{
-    return m_viewer->zoomFactor();
 }
 
 void LiteHtmlHelpViewer::setScale(qreal scale)

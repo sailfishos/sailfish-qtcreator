@@ -297,6 +297,13 @@ QStringList sortedAndTrimmedStringListWithoutEmptyElements(const QStringList &li
 namespace CppEditor {
 namespace Internal {
 
+const bool kInsertVirtualKeywordDefault = false;
+const bool kHideReimplementedFunctionsDefault = false;
+const bool kInsertOVerrideReplacementDefault = false;
+const int kOverrideReplacementIndexDefault = 0;
+const InsertVirtualMethodsDialog::ImplementationMode kImplementationModeDefault
+    = InsertVirtualMethodsDialog::ModeOnlyDeclarations;
+
 class VirtualMethodsSettings
 {
 public:
@@ -304,37 +311,50 @@ public:
     {
         QSettings *s = Core::ICore::settings();
         s->beginGroup(group());
-        insertVirtualKeyword = s->value(insertVirtualKeywordKey(), false).toBool();
-        hideReimplementedFunctions = s->value(hideReimplementedFunctionsKey(), false).toBool();
-        insertOverrideReplacement = s->value(insertOverrideReplacementKey(), false).toBool();
-        overrideReplacementIndex = s->value(overrideReplacementIndexKey(), 0).toInt();
+        insertVirtualKeyword = s->value(insertVirtualKeywordKey(), kInsertVirtualKeywordDefault)
+                                   .toBool();
+        hideReimplementedFunctions
+            = s->value(hideReimplementedFunctionsKey(), kHideReimplementedFunctionsDefault).toBool();
+        insertOverrideReplacement
+            = s->value(insertOverrideReplacementKey(), kInsertOVerrideReplacementDefault).toBool();
+        overrideReplacementIndex
+            = s->value(overrideReplacementIndexKey(), kOverrideReplacementIndexDefault).toInt();
         userAddedOverrideReplacements = s->value(userAddedOverrideReplacementsKey()).toStringList();
         implementationMode = static_cast<InsertVirtualMethodsDialog::ImplementationMode>(
-                    s->value(implementationModeKey(), 1).toInt());
+            s->value(implementationModeKey(), int(kImplementationModeDefault)).toInt());
         s->endGroup();
     }
 
     void write() const
     {
-        QSettings *s = Core::ICore::settings();
+        Utils::QtcSettings *s = Core::ICore::settings();
         s->beginGroup(group());
-        s->setValue(insertVirtualKeywordKey(), insertVirtualKeyword);
-        s->setValue(hideReimplementedFunctionsKey(), hideReimplementedFunctions);
-        s->setValue(insertOverrideReplacementKey(), insertOverrideReplacement);
-        s->setValue(overrideReplacementIndexKey(), overrideReplacementIndex);
-        s->setValue(userAddedOverrideReplacementsKey(), userAddedOverrideReplacements);
-        s->setValue(implementationModeKey(), implementationMode);
+        s->setValueWithDefault(insertVirtualKeywordKey(),
+                               insertVirtualKeyword,
+                               kInsertVirtualKeywordDefault);
+        s->setValueWithDefault(hideReimplementedFunctionsKey(),
+                               hideReimplementedFunctions,
+                               kHideReimplementedFunctionsDefault);
+        s->setValueWithDefault(insertOverrideReplacementKey(),
+                               insertOverrideReplacement,
+                               kInsertOVerrideReplacementDefault);
+        s->setValueWithDefault(overrideReplacementIndexKey(),
+                               overrideReplacementIndex,
+                               kOverrideReplacementIndexDefault);
+        s->setValueWithDefault(userAddedOverrideReplacementsKey(), userAddedOverrideReplacements);
+        s->setValueWithDefault(implementationModeKey(),
+                               int(implementationMode),
+                               int(kImplementationModeDefault));
         s->endGroup();
     }
 
     QString overrideReplacement; // internal
     QStringList userAddedOverrideReplacements;
-    InsertVirtualMethodsDialog::ImplementationMode implementationMode =
-            InsertVirtualMethodsDialog::ModeOnlyDeclarations;
-    int overrideReplacementIndex = 0;
-    bool insertVirtualKeyword = false;
-    bool hideReimplementedFunctions = false;
-    bool insertOverrideReplacement = false;
+    InsertVirtualMethodsDialog::ImplementationMode implementationMode = kImplementationModeDefault;
+    int overrideReplacementIndex = kOverrideReplacementIndexDefault;
+    bool insertVirtualKeyword = kInsertVirtualKeywordDefault;
+    bool hideReimplementedFunctions = kHideReimplementedFunctionsDefault;
+    bool insertOverrideReplacement = kInsertOVerrideReplacementDefault;
 
 private:
     using _ = QLatin1String;
@@ -538,6 +558,11 @@ public:
                     m_classAST = path.at(index)->asClassSpecifier();
             }
         }
+
+        // Also offer the operation if we are on some "empty" part of the class declaration.
+        if (!m_classAST)
+            m_classAST = path.at(pathSize - 1)->asClassSpecifier();
+
         if (!m_classAST || !m_classAST->base_clause_list)
             return;
 
@@ -758,6 +783,7 @@ public:
         printer.showFunctionSignatures = true;
         printer.showReturnTypes = true;
         printer.showArgumentNames = true;
+        printer.showTemplateParameters = true;
         Utils::ChangeSet headerChangeSet;
         const CppRefactoringChanges refactoring(snapshot());
         const QString filename = currentFile()->fileName();
@@ -798,16 +824,31 @@ public:
                     headerChangeSet.insert(m_insertPosDecl, comment);
                     first = false;
                 }
-                // Construct declaration
-                // setup rewriting to get minimally qualified names
-                SubstitutionEnvironment env;
-                env.setContext(context());
-                env.switchScope(classItem->klass->enclosingScope());
-                env.enter(&useMinimalNames);
 
-                QString declaration;
-                const FullySpecifiedType tn = rewriteType(funcItem->function->type(), &env, control);
-                declaration += printer.prettyType(tn, funcItem->function->unqualifiedName());
+                // Function type minimalization: As base class and derived class could be in
+                // different namespaces, we must first make the type fully qualified before
+                // it can get minimized.
+                Clone cloner(control);
+                Function newFunc(&cloner, nullptr, const_cast<Function *>(funcItem->function));
+                newFunc.setEnclosingScope(const_cast<Class *>(targetClass));
+                SubstitutionEnvironment envQualified;
+                envQualified.setContext(context());
+                envQualified.switchScope(classItem->klass->enclosingScope());
+                UseQualifiedNames useQualifiedNames;
+                envQualified.enter(&useQualifiedNames);
+                newFunc.setReturnType(rewriteType(newFunc.returnType(), &envQualified, control));
+                const int argc = newFunc.argumentCount();
+                for (int i = 0; i < argc; ++i) {
+                    Argument * const arg = newFunc.argumentAt(i)->asArgument();
+                    QTC_ASSERT(arg, continue);
+                    arg->setType(rewriteType(arg->type(), &envQualified, control));
+                }
+                SubstitutionEnvironment envMinimized;
+                envMinimized.setContext(context());
+                envMinimized.switchScope(targetClass->enclosingScope());
+                envMinimized.enter(&useMinimalNames);
+                const FullySpecifiedType tn = rewriteType(newFunc.type(), &envMinimized, control);
+                QString declaration = printer.prettyType(tn, newFunc.unqualifiedName());
 
                 if (m_factory->settings()->insertVirtualKeyword)
                     declaration = QLatin1String("virtual ") + declaration;
@@ -1866,7 +1907,7 @@ void CppEditorPlugin::test_quickfix_InsertVirtualMethods_implementationFile()
     original =
         "class BaseA {\n"
         "public:\n"
-        "    virtual int a() = 0;\n"
+        "    virtual int a(const std::vector<int> &v) = 0;\n"
         "};\n\n"
         "class Derived : public Bas@eA {\n"
         "public:\n"
@@ -1875,7 +1916,7 @@ void CppEditorPlugin::test_quickfix_InsertVirtualMethods_implementationFile()
     expected =
         "class BaseA {\n"
         "public:\n"
-        "    virtual int a() = 0;\n"
+        "    virtual int a(const std::vector<int> &v) = 0;\n"
         "};\n\n"
         "class Derived : public BaseA {\n"
         "public:\n"
@@ -1883,7 +1924,7 @@ void CppEditorPlugin::test_quickfix_InsertVirtualMethods_implementationFile()
         "\n"
         "    // BaseA interface\n"
         "public:\n"
-        "    virtual int a();\n"
+        "    virtual int a(const std::vector<int> &v);\n"
         "};\n";
     testFiles << Tests::QuickFixTestDocument::create("file.h", original, expected);
 
@@ -1892,7 +1933,7 @@ void CppEditorPlugin::test_quickfix_InsertVirtualMethods_implementationFile()
     expected =
         "#include \"file.h\"\n"
         "\n\n"
-        "int Derived::a()\n"
+        "int Derived::a(const std::vector<int> &v)\n"
         "{\n}";
     testFiles << Tests::QuickFixTestDocument::create("file.cpp", original, expected);
 

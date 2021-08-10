@@ -367,7 +367,7 @@ def getConfiguredKits():
     # end of internal function for iterateQtVersions
     def __setQtVersionForKit__(kit, kitName, kitsQtVersionName):
         mouseClick(waitForObjectItem(":BuildAndRun_QTreeView", kit))
-        qtVersionStr = str(waitForObject(":Kits_QtVersion_QComboBox").currentText)
+        qtVersionStr = str(waitForObjectExists(":Kits_QtVersion_QComboBox").currentText)
         kitsQtVersionName[kitName] = qtVersionStr
     # end of internal function for iterate kits
 
@@ -579,7 +579,7 @@ def dumpChildren(item):
 
 def writeTestResults(folder):
     if not os.path.exists(folder):
-        print "Skipping writing test results (folder '%s' does not exist)." % folder
+        print("Skipping writing test results (folder '%s' does not exist)." % folder)
         return
     resultFile = open("%s.srf" % os.path.join(folder, os.path.basename(squishinfo.testCase)), "w")
     resultFile.write("suite:%s\n" % os.path.basename(os.path.dirname(squishinfo.testCase)))

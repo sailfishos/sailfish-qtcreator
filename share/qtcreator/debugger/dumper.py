@@ -188,6 +188,7 @@ class DumperBase():
         self.displayStringLimit = 100
         self.useTimeStamps = False
 
+        self.output = ''
         self.typesReported = {}
         self.typesToReport = {}
         self.qtNamespaceToReport = None
@@ -752,7 +753,7 @@ class DumperBase():
         buf = bytearray(struct.pack('i', ival))
         val = self.Value(self)
         val.ldata = bytes(buf)
-        val.type = self.createType(typish)
+        val._type = self.createType(typish)
         with SubItem(self, name):
             self.putItem(val)
 
@@ -942,7 +943,7 @@ class DumperBase():
                                    for (k, v) in list(value.items())]) + '}'
         if isinstance(value, list):
             return '[' + ','.join([self.resultToMi(k)
-                                   for k in list(value.items())]) + ']'
+                                   for k in value]) + ']'
         return '"%s"' % value
 
     def variablesToMi(self, value, prefix):
@@ -1311,6 +1312,11 @@ class DumperBase():
         savedCurrentChildType = self.currentChildType
         self.currentChildType = innerType.name
         derefValue.name = '*'
+        derefValue.autoDerefCount = value.autoDerefCount + 1
+
+        if derefValue.type.code != TypeCode.Pointer:
+            self.putField('autoderefcount', '{}'.format(derefValue.autoDerefCount))
+
         self.putItem(derefValue)
         self.currentChildType = savedCurrentChildType
 
@@ -1424,7 +1430,7 @@ class DumperBase():
             intSize = 4
             ptrSize = self.ptrSize()
             if self.qtVersion() >= 0x060000:
-                # Size of QObjectData: 7 pointer + 2 int
+                # Size of QObjectData: 9 pointer + 2 int
                 #   - vtable
                 #   - QObject *q_ptr;
                 #   - QObject *parent;
@@ -1432,7 +1438,8 @@ class DumperBase():
                 #   - uint isWidget : 1; etc...
                 #   - int postedEvents;
                 #   - QDynamicMetaObjectData *metaObject;
-                extra = self.extractPointer(dd + 7 * ptrSize + 2 * intSize)
+                #   - QBindingStorage bindingStorage;
+                extra = self.extractPointer(dd + 9 * ptrSize + 2 * intSize)
                 if extra == 0:
                     return False
 
@@ -1774,7 +1781,10 @@ class DumperBase():
 
     def metaString(self, metaObjectPtr, index, revision):
         ptrSize = self.ptrSize()
-        stringdata = self.extractPointer(toInteger(metaObjectPtr) + ptrSize)
+        stringdataOffset = ptrSize
+        if self.isWindowsTarget() and self.qtVersion() >= 0x060000:
+            stringdataOffset += ptrSize # indirect super data member
+        stringdata = self.extractPointer(toInteger(metaObjectPtr) + stringdataOffset)
 
         def unpackString(base, size):
             try:
@@ -1885,7 +1895,13 @@ class DumperBase():
         extraData = 0
         if qobjectPtr:
             dd = self.extractPointer(qobjectPtr + ptrSize)
-            if self.qtVersion() >= 0x50000:
+            if self.qtVersion() >= 0x60000:
+                (dvtablePtr, qptr, parent, children, bindingStorageData, bindingStatus,
+                    flags, postedEvents, dynMetaObjectPtr, # Up to here QObjectData.
+                    extraData, threadDataPtr, connectionListsPtr,
+                    sendersPtr, currentSenderPtr) \
+                    = self.split('pp{@QObject*}{@QList<@QObject *>}ppIIp' + 'ppppp', dd)
+            elif self.qtVersion() >= 0x50000:
                 (dvtablePtr, qptr, parent, children, flags, postedEvents,
                     dynMetaObjectPtr,  # Up to here QObjectData.
                     extraData, threadDataPtr, connectionListsPtr,
@@ -2907,7 +2923,7 @@ class DumperBase():
         def __init__(self, dumper):
             self.dumper = dumper
             self.name = None
-            self.type = None
+            self._type = None
             self.ldata = None        # Target address in case of references and pointers.
             self.laddress = None     # Own address.
             self.lvalue = None
@@ -2919,12 +2935,13 @@ class DumperBase():
             self.targetValue = None  # For references.
             self.isBaseClass = None
             self.nativeValue = None
+            self.autoDerefCount = 0
 
         def copy(self):
             val = self.dumper.Value(self.dumper)
             val.dumper = self.dumper
             val.name = self.name
-            val.type = self.type
+            val._type = self._type
             val.ldata = self.ldata
             val.laddress = self.laddress
             val.lIsInScope = self.lIsInScope
@@ -2935,6 +2952,12 @@ class DumperBase():
             val.targetValue = self.targetValue
             val.nativeValue = self.nativeValue
             return val
+
+        @property
+        def type(self):
+            if self._type is None and self.nativeValue is not None:
+                self._type = self.dumper.nativeValueType(self.nativeValue)
+            return self._type
 
         def check(self):
             if self.laddress is not None and not self.dumper.isInt(self.laddress):
@@ -3150,7 +3173,7 @@ class DumperBase():
             val = self.dumper.Value(self.dumper)
             val.name = field.name
             val.isBaseClass = field.isBase
-            val.type = field.fieldType()
+            val._type = field.fieldType()
 
             if field.isArtificial:
                 if self.laddress is not None:
@@ -3244,7 +3267,7 @@ class DumperBase():
                     val = self.dumper.Value(self.dumper)
                     val.laddress = None
                     val.ldata = bytes(struct.pack(self.dumper.packCode + 'Q', address))
-                    val.type = self.type
+                    val._type = self._type
                     return val
             raise RuntimeError('BAD DATA TO ADD TO: %s %s' % (self.type, other))
 
@@ -3267,17 +3290,17 @@ class DumperBase():
                     val.laddress = self.pointer()
                     if val.laddress is None and self.laddress is not None:
                         val.laddress = self.laddress
-                    val.type = self.type.dereference()
+                    val._type = self.type.dereference()
                     if self.dumper.useDynamicType:
-                        val.type = self.dumper.nativeDynamicType(val.laddress, val.type)
+                        val._type = self.dumper.nativeDynamicType(val.laddress, val.type)
                 else:
                     val = self.dumper.nativeValueDereferenceReference(self)
             elif self.type.code == TypeCode.Pointer:
                 if self.nativeValue is None:
                     val.laddress = self.pointer()
-                    val.type = self.type.dereference()
+                    val._type = self.type.dereference()
                     if self.dumper.useDynamicType:
-                        val.type = self.dumper.nativeDynamicType(val.laddress, val.type)
+                        val._type = self.dumper.nativeDynamicType(val.laddress, val.type)
                 else:
                     val = self.dumper.nativeValueDereferencePointer(self)
             else:
@@ -3286,7 +3309,7 @@ class DumperBase():
             #DumperBase.warn("DEREFERENCING TO: %s" % val)
             #dynTypeName = val.type.dynamicTypeName(val.laddress)
             #if dynTypeName is not None:
-            #    val.type = self.dumper.createType(dynTypeName)
+            #    val._type = self.dumper.createType(dynTypeName)
             return val
 
         def detypedef(self):
@@ -3294,7 +3317,7 @@ class DumperBase():
             if self.type.code != TypeCode.Typedef:
                 raise RuntimeError("WRONG")
             val = self.copy()
-            val.type = self.type.ltarget
+            val._type = self.type.ltarget
             #DumperBase.warn("DETYPEDEF FROM: %s" % self)
             #DumperBase.warn("DETYPEDEF TO: %s" % val)
             return val
@@ -3323,7 +3346,7 @@ class DumperBase():
             val.laddress = self.laddress
             val.lbitsize = self.lbitsize
             val.ldata = self.ldata
-            val.type = self.dumper.createType(typish)
+            val._type = self.dumper.createType(typish)
             return val
 
         def address(self):
@@ -3736,7 +3759,7 @@ class DumperBase():
         targetType = self.createType(targetTypish)
         if self.useDynamicType:
             targetType = targetType.dynamicType(targetAddress)
-        val.type = self.createPointerType(targetType)
+        val._type = self.createPointerType(targetType)
         return val
 
     def createReferenceValue(self, targetAddress, targetType):
@@ -3750,7 +3773,7 @@ class DumperBase():
         val.ldata = self.toPointerData(targetAddress)
         if self.useDynamicType:
             targetType = targetType.dynamicType(targetAddress)
-        val.type = self.createReferenceType(targetType)
+        val._type = self.createReferenceType(targetType)
         return val
 
     def createPointerType(self, targetType):
@@ -3862,6 +3885,8 @@ class DumperBase():
                 return self.knownArrayTypeSize()
             if typish == 'QObject':
                 return 2 * self.ptrSize()
+            if typish == 'QStandardItemData':
+                return 4 * self.ptrSize() if self.qtVersion() >= 0x060000 else 2 * self.ptrSize()
             if typish == 'Qt::ItemDataRole':
                 return 4
             if typish == 'QChar':
@@ -3924,12 +3949,12 @@ class DumperBase():
 
     def createValue(self, datish, typish):
         val = self.Value(self)
-        val.type = self.createType(typish)
+        val._type = self.createType(typish)
         if self.isInt(datish):  # Used as address.
             #DumperBase.warn('CREATING %s AT 0x%x' % (val.type.name, datish))
             val.laddress = datish
             if self.useDynamicType:
-                val.type = val.type.dynamicType(datish)
+                val._type = val.type.dynamicType(datish)
             return val
         if isinstance(datish, bytes):
             #DumperBase.warn('CREATING %s WITH DATA %s' % (val.type.name, self.hexencode(datish)))
@@ -3945,7 +3970,7 @@ class DumperBase():
         tdata.code = TypeCode.Struct
         self.registerType(type_name, tdata)
         val = self.Value(self)
-        val.type = self.Type(self, type_name)
+        val._type = self.Type(self, type_name)
         val.ldata = proxy_data
         return val
 

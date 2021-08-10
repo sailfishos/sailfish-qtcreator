@@ -32,12 +32,6 @@
 #include <utils/environment.h>
 #include <utils/fileutils.h>
 
-#include <functional>
-
-QT_BEGIN_NAMESPACE
-class QVBoxLayout;
-QT_END_NAMESPACE
-
 namespace Utils { class MacroExpander; }
 
 namespace ProjectExplorer {
@@ -97,8 +91,8 @@ public:
     bool fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
 
-    virtual bool isEnabled() const;
-    virtual QString disabledReason() const;
+    bool isEnabled() const;
+    QString disabledReason() const;
 
     virtual bool regenerateBuildFiles(Node *node);
 
@@ -116,9 +110,7 @@ public:
 
     bool isActive() const;
 
-    static void prependCompilerPathToEnvironment(Kit *k, Utils::Environment &env);
     void updateCacheAndEmitEnvironmentChanged();
-    static void setEnvironmentWidgetExtender(const std::function<void(QVBoxLayout *)> &extender);
 
     ProjectExplorer::BuildDirectoryAspect *buildDirectoryAspect() const;
     void setConfigWidgetDisplayName(const QString &display);
@@ -128,7 +120,7 @@ public:
 
     void addConfigWidgets(const std::function<void (NamedWidget *)> &adder);
 
-    virtual void doInitialize(const BuildInfo &info);
+    void doInitialize(const BuildInfo &info);
 
     Utils::MacroExpander *macroExpander() const;
 

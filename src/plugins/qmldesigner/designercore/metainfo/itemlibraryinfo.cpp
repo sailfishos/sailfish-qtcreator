@@ -344,13 +344,12 @@ QStringList ItemLibraryInfo::blacklistImports() const
     return list;
 }
 
-QStringList ItemLibraryInfo::showTagsForImports() const
+QSet<QString> ItemLibraryInfo::priorityImports() const
 {
-    auto list = m_showTagsForImports;
+    QSet<QString> set = m_priorityImports;
     if (m_baseInfo)
-        list.append(m_baseInfo->m_showTagsForImports);
-    list.removeDuplicates();
-    return list;
+        set.unite(m_baseInfo->m_priorityImports);
+    return set;
 }
 
 void ItemLibraryInfo::addBlacklistImports(const QStringList &list)
@@ -358,11 +357,11 @@ void ItemLibraryInfo::addBlacklistImports(const QStringList &list)
     m_blacklistImports.append(list);
 }
 
-void ItemLibraryInfo::addShowTagsForImports(const QStringList &list)
+void ItemLibraryInfo::addPriorityImports(const QSet<QString> &set)
 {
-    if (!list.isEmpty()) {
-        m_showTagsForImports.append(list);
-        emit importTagsChanged();
+    if (!set.isEmpty()) {
+        m_priorityImports.unite(set);
+        emit priorityImportsChanged();
     }
 }
 

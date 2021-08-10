@@ -108,6 +108,32 @@
         \li \c :undo, \c :redo
         \li \c :normal
         \li \c :<, \c :>
+        \li \c{set formatoptions=}, see \c{:h fo-table} in the Vim documentation.
+            Currently supported letters: \c fo-j
+    \endlist
+
+    \section2 Plugin Emulation
+
+    FakeVim also emulates some popular vim plugins. To enable plugin emulation
+    for particular plugins, select \uicontrol Tools > \uicontrol Options >
+    \uicontrol FakeVim > \uicontrol General > \uicontrol {Plugin Emulation}.
+
+    Currently emulated plugins:
+    \list
+        \li \l{https://github.com/tpope/vim-commentary}{vim-commentary}: \c gc
+        action to comment code regions. For example, \c gcc, \c gc2j, \c gcip
+        \li
+        \l{https://github.com/vim-scripts/ReplaceWithRegister}{ReplaceWithRegister}:
+        \list
+            \li \c [count]["x]gr{motion} to replace \c {motion} with the contents of
+        register \c x.
+            \li ["x]grr to replace the current line.
+        \endlist
+        \li \l{https://github.com/tommcdo/vim-exchange}{vim-exchange}
+        \li \l{https://github.com/vim-scripts/argtextobj.vim}{argtextobj.vim}:
+        Defines the \c ia and \c aa text objects for function parameters.
+        \li \l{https://github.com/tpope/vim-surround}{vim-surround}:
+        Adds mappings for deleting, adding and changing surroundings.
     \endlist
 
     \section2 Insert Mode

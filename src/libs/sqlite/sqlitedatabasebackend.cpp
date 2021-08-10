@@ -35,7 +35,10 @@
 #include <QThread>
 #include <QDebug>
 
-#include "sqlite3.h"
+#include "sqlite.h"
+
+#include <chrono>
+#include <thread>
 
 extern "C" {
 int sqlite3_carray_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi);
@@ -43,9 +46,15 @@ int sqlite3_carray_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines
 
 namespace Sqlite {
 
+using namespace std::literals;
+
 DatabaseBackend::DatabaseBackend(Database &database)
     : m_database(database)
     , m_databaseHandle(nullptr)
+    , m_busyHandler([](int) {
+        std::this_thread::sleep_for(10ms);
+        return true;
+    })
 {
 }
 
@@ -101,13 +110,11 @@ void DatabaseBackend::open(Utils::SmallStringView databaseFilePath, OpenMode mod
 {
     checkCanOpenDatabase(databaseFilePath);
 
-    int resultCode = sqlite3_open_v2(databaseFilePath.data(),
-                                     &m_databaseHandle,
-                                     openMode(mode),
-                                     nullptr);
+    int resultCode = sqlite3_open_v2(databaseFilePath.data(), &m_databaseHandle, openMode(mode), nullptr);
 
     checkDatabaseCouldBeOpened(resultCode);
 
+    sqlite3_extended_result_codes(m_databaseHandle, true);
     resultCode = sqlite3_carray_init(m_databaseHandle, nullptr, nullptr);
 
     checkCarrayCannotBeIntialized(resultCode);
@@ -121,7 +128,9 @@ sqlite3 *DatabaseBackend::sqliteDatabaseHandle() const
 
 void DatabaseBackend::setPragmaValue(Utils::SmallStringView pragmaKey, Utils::SmallStringView newPragmaValue)
 {
-    execute(Utils::SmallString{"PRAGMA ", pragmaKey, "='", newPragmaValue, "'"});
+    ReadWriteStatement<1>{Utils::SmallString{"PRAGMA ", pragmaKey, "='", newPragmaValue, "'"},
+                          m_database}
+        .execute();
     Utils::SmallString pragmeValueInDatabase = toValue<Utils::SmallString>("PRAGMA " + pragmaKey);
 
     checkPragmaValue(pragmeValueInDatabase, newPragmaValue);
@@ -165,7 +174,7 @@ void DatabaseBackend::setLastInsertedRowId(int64_t rowId)
 void DatabaseBackend::execute(Utils::SmallStringView sqlStatement)
 {
     try {
-        ReadWriteStatement statement(sqlStatement, m_database);
+        ReadWriteStatement<0> statement(sqlStatement, m_database);
         statement.execute();
     } catch (StatementIsBusy &) {
         execute(sqlStatement);
@@ -199,26 +208,22 @@ void DatabaseBackend::closeWithoutException()
     }
 }
 
+namespace {
+
+int busyHandlerCallback(void *userData, int counter)
+{
+    auto &&busyHandler = *static_cast<DatabaseBackend::BusyHandler *>(userData);
+
+    return busyHandler(counter);
+}
+
+} // namespace
+
 void DatabaseBackend::registerBusyHandler()
 {
-    int resultCode = sqlite3_busy_handler(sqliteDatabaseHandle(), &busyHandlerCallback, nullptr);
+    int resultCode = sqlite3_busy_handler(sqliteDatabaseHandle(), &busyHandlerCallback, &m_busyHandler);
 
     checkIfBusyTimeoutWasSet(resultCode);
-}
-
-void DatabaseBackend::registerRankingFunction()
-{
-}
-
-int DatabaseBackend::busyHandlerCallback(void *, int counter)
-{
-    Q_UNUSED(counter)
-#ifdef QT_DEBUG
-    //qWarning() << "Busy handler invoked" << counter << "times!";
-#endif
-    QThread::msleep(10);
-
-    return true;
 }
 
 void DatabaseBackend::checkForOpenDatabaseWhichCanBeClosed()
@@ -390,9 +395,15 @@ void DatabaseBackend::walCheckpointFull()
     switch (resultCode) {
     case SQLITE_OK:
         break;
+    case SQLITE_BUSY_RECOVERY:
+    case SQLITE_BUSY_SNAPSHOT:
+    case SQLITE_BUSY_TIMEOUT:
     case SQLITE_BUSY:
         throw DatabaseIsBusy("DatabaseBackend::walCheckpointFull: Operation could not concluded "
                              "because database is busy!");
+    case SQLITE_ERROR_MISSING_COLLSEQ:
+    case SQLITE_ERROR_RETRY:
+    case SQLITE_ERROR_SNAPSHOT:
     case SQLITE_ERROR:
         throwException("DatabaseBackend::walCheckpointFull: Error occurred!");
     case SQLITE_MISUSE:
@@ -410,6 +421,12 @@ void DatabaseBackend::setUpdateHook(
 void DatabaseBackend::resetUpdateHook()
 {
     sqlite3_update_hook(m_databaseHandle, nullptr, nullptr);
+}
+
+void DatabaseBackend::setBusyHandler(DatabaseBackend::BusyHandler &&busyHandler)
+{
+    m_busyHandler = std::move(busyHandler);
+    registerBusyHandler();
 }
 
 void DatabaseBackend::throwExceptionStatic(const char *whatHasHappens)
@@ -439,7 +456,7 @@ template <typename Type>
 Type DatabaseBackend::toValue(Utils::SmallStringView sqlStatement)
 {
     try {
-        ReadWriteStatement statement(sqlStatement, m_database);
+        ReadWriteStatement<1> statement(sqlStatement, m_database);
 
         statement.next();
 

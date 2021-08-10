@@ -38,8 +38,8 @@ JavaScriptFilter::JavaScriptFilter()
 {
     setId("JavaScriptFilter");
     setDisplayName(tr("Evaluate JavaScript"));
-    setIncludedByDefault(false);
-    setShortcutString("=");
+    setDefaultIncludedByDefault(false);
+    setDefaultShortcutString("=");
     m_abortTimer.setSingleShot(true);
     m_abortTimer.setInterval(1000);
     connect(&m_abortTimer, &QTimer::timeout, this, [this] {
@@ -108,12 +108,6 @@ void JavaScriptFilter::accept(Core::LocatorFilterEntry selection, QString *newTe
 
     QClipboard *clipboard = QGuiApplication::clipboard();
     clipboard->setText(selection.internalData.toString());
-}
-
-void JavaScriptFilter::refresh(QFutureInterface<void> &future)
-{
-    Q_UNUSED(future)
-    // Nothing to refresh
 }
 
 void JavaScriptFilter::setupEngine()

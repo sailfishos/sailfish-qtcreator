@@ -51,8 +51,9 @@
 #include <utils/globalfilechangeblocker.h>
 #include <utils/hostosinfo.h>
 #include <utils/mimetypes/mimedatabase.h>
-#include <utils/qtcassert.h>
+#include <utils/optional.h>
 #include <utils/pathchooser.h>
+#include <utils/qtcassert.h>
 #include <utils/reloadpromptutils.h>
 
 #include <QStringList>
@@ -70,6 +71,7 @@
 #include <QMenu>
 #include <QMessageBox>
 
+static const bool kUseProjectsDirectoryDefault = true;
 static Q_LOGGING_CATEGORY(log, "qtc.core.documentmanager", QtWarningMsg)
 
 /*!
@@ -182,7 +184,7 @@ public:
     bool m_postponeAutoReload = false;
     bool m_blockActivated = false;
     bool m_checkOnFocusChange = false;
-    bool m_useProjectsDirectory = true;
+    bool m_useProjectsDirectory = kUseProjectsDirectoryDefault;
 
     QFileSystemWatcher *m_fileWatcher = nullptr; // Delayed creation.
     QFileSystemWatcher *m_linkWatcher = nullptr; // Delayed creation (only UNIX/if a link is seen).
@@ -1140,7 +1142,7 @@ void DocumentManager::checkForReload()
     QStringList filesToDiff;
     foreach (IDocument *document, changedIDocuments) {
         IDocument::ChangeTrigger trigger = IDocument::TriggerInternal;
-        IDocument::ChangeType type = IDocument::TypePermissions;
+        optional<IDocument::ChangeType> type;
         bool changed = false;
         // find out the type & behavior from the two possible files
         // behavior is internal if all changes are expected (and none removed)
@@ -1173,7 +1175,7 @@ void DocumentManager::checkForReload()
             IDocument::ChangeType fileChange = changeTypes.value(fileKey);
             if (fileChange == IDocument::TypeRemoved)
                 type = IDocument::TypeRemoved;
-            else if (fileChange == IDocument::TypeContents && type == IDocument::TypePermissions)
+            else if (fileChange == IDocument::TypeContents && !type)
                 type = IDocument::TypeContents;
         }
 
@@ -1195,35 +1197,36 @@ void DocumentManager::checkForReload()
         QString errorString;
         // we've got some modification
         // check if it's contents or permissions:
-        if (type == IDocument::TypePermissions) {
+        if (!type) {
             // Only permission change
-            success = document->reload(&errorString, IDocument::FlagReload, IDocument::TypePermissions);
-        // now we know it's a content change or file was removed
-        } else if (defaultBehavior == IDocument::ReloadUnmodified
-                   && type == IDocument::TypeContents && !document->isModified()) {
+            document->checkPermissions();
+            success = true;
+            // now we know it's a content change or file was removed
+        } else if (defaultBehavior == IDocument::ReloadUnmodified && type == IDocument::TypeContents
+                   && !document->isModified()) {
             // content change, but unmodified (and settings say to reload in this case)
-            success = document->reload(&errorString, IDocument::FlagReload, type);
-        // file was removed or it's a content change and the default behavior for
-        // unmodified files didn't kick in
-        } else if (defaultBehavior == IDocument::ReloadUnmodified
-                   && type == IDocument::TypeRemoved && !document->isModified()) {
+            success = document->reload(&errorString, IDocument::FlagReload, *type);
+            // file was removed or it's a content change and the default behavior for
+            // unmodified files didn't kick in
+        } else if (defaultBehavior == IDocument::ReloadUnmodified && type == IDocument::TypeRemoved
+                   && !document->isModified()) {
             // file removed, but unmodified files should be reloaded
             // so we close the file
             documentsToClose << document;
         } else if (defaultBehavior == IDocument::IgnoreAll) {
             // content change or removed, but settings say ignore
-            success = document->reload(&errorString, IDocument::FlagIgnore, type);
-        // either the default behavior is to always ask,
-        // or the ReloadUnmodified default behavior didn't kick in,
-        // so do whatever the IDocument wants us to do
+            success = document->reload(&errorString, IDocument::FlagIgnore, *type);
+            // either the default behavior is to always ask,
+            // or the ReloadUnmodified default behavior didn't kick in,
+            // so do whatever the IDocument wants us to do
         } else {
             // check if IDocument wants us to ask
-            if (document->reloadBehavior(trigger, type) == IDocument::BehaviorSilent) {
+            if (document->reloadBehavior(trigger, *type) == IDocument::BehaviorSilent) {
                 // content change or removed, IDocument wants silent handling
                 if (type == IDocument::TypeRemoved)
                     documentsToClose << document;
                 else
-                    success = document->reload(&errorString, IDocument::FlagReload, type);
+                    success = document->reload(&errorString, IDocument::FlagReload, *type);
             // IDocument wants us to ask
             } else if (type == IDocument::TypeContents) {
                 // content change, IDocument wants to ask user
@@ -1317,7 +1320,7 @@ void DocumentManager::checkForReload()
 
     d->m_blockActivated = false;
     // re-check in case files where modified while the dialog was open
-    QTimer::singleShot(0, this, &DocumentManager::checkForReload);
+    QMetaObject::invokeMethod(this, &DocumentManager::checkForReload, Qt::QueuedConnection);
 //    dump();
 }
 
@@ -1366,14 +1369,16 @@ void DocumentManager::saveSettings()
         recentEditorIds.append(file.second.toString());
     }
 
-    QSettings *s = ICore::settings();
-    s->beginGroup(QLatin1String(settingsGroupC));
-    s->setValue(QLatin1String(filesKeyC), recentFiles);
-    s->setValue(QLatin1String(editorsKeyC), recentEditorIds);
+    QtcSettings *s = ICore::settings();
+    s->beginGroup(settingsGroupC);
+    s->setValueWithDefault(filesKeyC, recentFiles);
+    s->setValueWithDefault(editorsKeyC, recentEditorIds);
     s->endGroup();
-    s->beginGroup(QLatin1String(directoryGroupC));
-    s->setValue(QLatin1String(projectDirectoryKeyC), d->m_projectsDirectory.toString());
-    s->setValue(QLatin1String(useProjectDirectoryKeyC), d->m_useProjectsDirectory);
+    s->beginGroup(directoryGroupC);
+    s->setValueWithDefault(projectDirectoryKeyC, d->m_projectsDirectory.toString());
+    s->setValueWithDefault(useProjectDirectoryKeyC,
+                           d->m_useProjectsDirectory,
+                           kUseProjectsDirectoryDefault);
     s->endGroup();
 }
 
@@ -1403,8 +1408,8 @@ void readSettings()
         d->m_projectsDirectory = settingsProjectDir;
     else
         d->m_projectsDirectory = FilePath::fromString(PathChooser::homePath());
-    d->m_useProjectsDirectory = s->value(QLatin1String(useProjectDirectoryKeyC),
-                                         d->m_useProjectsDirectory).toBool();
+    d->m_useProjectsDirectory
+        = s->value(QLatin1String(useProjectDirectoryKeyC), kUseProjectsDirectoryDefault).toBool();
 
     s->endGroup();
 }

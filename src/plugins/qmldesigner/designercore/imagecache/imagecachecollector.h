@@ -54,10 +54,20 @@ public:
 
     void start(Utils::SmallStringView filePath,
                Utils::SmallStringView state,
+               const ImageCache::AuxiliaryData &auxiliaryData,
                CaptureCallback captureCallback,
                AbortCallback abortCallback) override;
 
+    std::pair<QImage, QImage> createImage(Utils::SmallStringView filePath,
+                                          Utils::SmallStringView state,
+                                          const ImageCache::AuxiliaryData &auxiliaryData) override;
+
+    QIcon createIcon(Utils::SmallStringView filePath,
+                     Utils::SmallStringView state,
+                     const ImageCache::AuxiliaryData &auxiliaryData) override;
+
     void setTarget(ProjectExplorer::Target *target);
+    ProjectExplorer::Target *target() const;
 
 private:
     ImageCacheConnectionManager &m_connectionManager;

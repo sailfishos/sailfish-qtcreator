@@ -158,7 +158,7 @@ void Environment::setupEnglishOutput(QStringList *environment)
 }
 
 FilePath Environment::searchInDirectory(const QStringList &execs, const FilePath &directory,
-                                        QSet<FilePath> &alreadyChecked) const
+                                        QSet<FilePath> &alreadyChecked)
 {
     const int checkedCount = alreadyChecked.count();
     alreadyChecked.insert(directory);
@@ -311,6 +311,11 @@ FilePaths Environment::pathListValue(const QString &varName) const
 void Environment::modifySystemEnvironment(const EnvironmentItems &list)
 {
     staticSystemEnvironment->modify(list);
+}
+
+void Environment::setSystemEnvironment(const Environment &environment)
+{
+    *staticSystemEnvironment = environment;
 }
 
 /** Expand environment variables in a string.

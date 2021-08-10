@@ -97,7 +97,12 @@ struct LocatorFilterEntry
     static bool compareLexigraphically(const Core::LocatorFilterEntry &lhs,
                                        const Core::LocatorFilterEntry &rhs)
     {
-        return lhs.displayName < rhs.displayName;
+        const int cmp = lhs.displayName.compare(rhs.displayName);
+        if (cmp < 0)
+            return true;
+        if (cmp > 0)
+            return false;
+        return lhs.extraInfo < rhs.extraInfo;
     }
 };
 
@@ -125,10 +130,12 @@ public:
     Utils::Id actionId() const;
 
     QString displayName() const;
+    void setDisplayName(const QString &displayString);
 
     Priority priority() const;
 
     QString shortcutString() const;
+    void setDefaultShortcutString(const QString &shortcut);
     void setShortcutString(const QString &shortcut);
 
     virtual void prepareSearch(const QString &entry);
@@ -138,7 +145,7 @@ public:
     virtual void accept(LocatorFilterEntry selection,
                         QString *newText, int *selectionStart, int *selectionLength) const = 0;
 
-    virtual void refresh(QFutureInterface<void> &future) = 0;
+    virtual void refresh(QFutureInterface<void> &future) { Q_UNUSED(future) };
 
     virtual QByteArray saveState() const;
     virtual void restoreState(const QByteArray &state);
@@ -147,6 +154,7 @@ public:
     bool isConfigurable() const;
 
     bool isIncludedByDefault() const;
+    void setDefaultIncludedByDefault(bool includedByDefault);
     void setIncludedByDefault(bool includedByDefault);
 
     bool isHidden() const;
@@ -156,7 +164,7 @@ public:
     static Qt::CaseSensitivity caseSensitivity(const QString &str);
     static QRegularExpression createRegExp(const QString &text,
                                            Qt::CaseSensitivity caseSensitivity = Qt::CaseInsensitive);
-    LocatorFilterEntry::HighlightInfo highlightInfo(const QRegularExpressionMatch &match,
+    static LocatorFilterEntry::HighlightInfo highlightInfo(const QRegularExpressionMatch &match,
         LocatorFilterEntry::HighlightInfo::DataType dataType = LocatorFilterEntry::HighlightInfo::DisplayName);
 
     static QString msgConfigureDialogTitle();
@@ -172,15 +180,22 @@ protected:
     void setHidden(bool hidden);
     void setId(Utils::Id id);
     void setPriority(Priority priority);
-    void setDisplayName(const QString &displayString);
     void setConfigurable(bool configurable);
+    bool openConfigDialog(QWidget *parent, QWidget *additionalWidget);
+
+    virtual void saveState(QJsonObject &object) const;
+    virtual void restoreState(const QJsonObject &object);
+
+    static bool isOldSetting(const QByteArray &state);
 
 private:
     Utils::Id m_id;
     QString m_shortcut;
     Priority m_priority = Medium;
     QString m_displayName;
-    bool m_includedByDefault = false;
+    QString m_defaultShortcut;
+    bool m_defaultIncludedByDefault = false;
+    bool m_includedByDefault = m_defaultIncludedByDefault;
     bool m_hidden = false;
     bool m_enabled = true;
     bool m_isConfigurable = true;

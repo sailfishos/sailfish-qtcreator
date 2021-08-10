@@ -46,7 +46,7 @@ template<typename Request>
 static void sendTextDocumentPositionParamsRequest(Client *client,
                                                   const Request &request,
                                                   const DynamicCapabilities &dynamicCapabilities,
-                                                  const Utils::optional<bool> &serverCapability)
+                                                  const ServerCapabilities &serverCapability)
 {
     if (!request.isValid(nullptr))
         return;
@@ -62,7 +62,11 @@ static void sendTextDocumentPositionParamsRequest(Client *client,
         else
             sendMessage = supportedFile;
     } else {
-        sendMessage = serverCapability.value_or(sendMessage) && supportedFile;
+        const Utils::optional<Utils::variant<bool, WorkDoneProgressOptions>> &provider
+            = serverCapability.referencesProvider();
+        sendMessage = provider.has_value();
+        if (sendMessage && Utils::holds_alternative<bool>(*provider))
+            sendMessage = Utils::get<bool>(*provider);
     }
     if (sendMessage)
         client->sendContent(request);
@@ -121,7 +125,7 @@ void SymbolSupport::findLinkAt(TextEditor::TextDocument *document,
     sendTextDocumentPositionParamsRequest(m_client,
                                           request,
                                           m_client->dynamicCapabilities(),
-                                          m_client->capabilities().referencesProvider());
+                                          m_client->capabilities());
 
 }
 
@@ -166,17 +170,15 @@ QList<Core::SearchResultItem> generateSearchResultItems(
         const QString &fileName = it.key();
 
         Core::SearchResultItem item;
-        item.path = QStringList() << fileName;
-        item.useTextEditorFont = true;
+        item.setFilePath(Utils::FilePath::fromString(fileName));
+        item.setUseTextEditorFont(true);
 
         QStringList lines = getFileContents(fileName);
         for (const ItemData &data : it.value()) {
-            item.mainRange = data.range;
+            item.setMainRange(data.range);
             if (data.range.begin.line > 0 && data.range.begin.line <= lines.size())
-                item.text = lines[data.range.begin.line - 1];
-            else
-                item.text.clear();
-            item.userData = data.userData;
+                item.setLineText(lines[data.range.begin.line - 1]);
+            item.setUserData(data.userData);
             result << item;
         }
     }
@@ -230,7 +232,7 @@ void SymbolSupport::findUsages(TextEditor::TextDocument *document, const QTextCu
     sendTextDocumentPositionParamsRequest(m_client,
                                           request,
                                           m_client->dynamicCapabilities(),
-                                          m_client->capabilities().referencesProvider());
+                                          m_client->capabilities());
 }
 
 static bool supportsRename(Client *client,
@@ -407,8 +409,8 @@ void SymbolSupport::applyRename(const QList<Core::SearchResultItem> &checkedItem
 {
     QMap<DocumentUri, QList<TextEdit>> editsForDocuments;
     for (const Core::SearchResultItem &item : checkedItems) {
-        auto uri = DocumentUri::fromFilePath(Utils::FilePath::fromString(item.path.value(0)));
-        TextEdit edit(item.userData.toJsonObject());
+        auto uri = DocumentUri::fromFilePath(Utils::FilePath::fromString(item.path().value(0)));
+        TextEdit edit(item.userData().toJsonObject());
         if (edit.isValid(nullptr))
             editsForDocuments[uri] << edit;
     }

@@ -2,7 +2,7 @@ configure_file(app_version.h.cmakein app_version.h ESCAPE_QUOTES)
 
 install(
   FILES ${CMAKE_CURRENT_BINARY_DIR}/app_version.h
-  DESTINATION include/src/app
+  DESTINATION ${IDE_HEADER_INSTALL_PATH}/src/app
   COMPONENT Devel EXCLUDE_FROM_ALL
 )
 
@@ -77,5 +77,20 @@ if (APPLE)
       ${CMAKE_CURRENT_BINARY_DIR}/qtcreator.icns
       ${CMAKE_CURRENT_BINARY_DIR}/qtcreator-project.icns
     DESTINATION ${IDE_DATA_PATH}
+  )
+endif()
+
+extend_qtc_executable(qtcreator
+  CONDITION BUILD_WITH_CRASHPAD
+  DEFINES
+    CRASHPAD_BACKEND_URL="${CRASHPAD_BACKEND_URL}"
+    ENABLE_CRASHPAD
+    WIN32_LEAN_AND_MEAN # It comes usually with precompiled header, but at the installer they are disabled
+  DEPENDS Crashpad::Crashpad
+)
+if(BUILD_WITH_CRASHPAD)
+  install(
+    PROGRAMS ${CRASHPAD_BIN_DIR}/crashpad_handler${CMAKE_EXECUTABLE_SUFFIX}
+    DESTINATION "${IDE_LIBEXEC_PATH}"
   )
 endif()

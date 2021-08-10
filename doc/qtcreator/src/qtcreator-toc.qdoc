@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2020 The Qt Company Ltd.
+** Copyright (C) 2021 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -38,6 +38,11 @@
                     \li \l{Selecting Modes}
                     \li \l{Working with Sidebars}
                     \li \l{Browsing Project Contents}
+                        \list
+                            \li \l{Projects}
+                            \li \l{File System}
+                            \li \l{Open Documents}
+                        \endlist
                     \li \l{Managing Workspaces}
                     \li \l{Viewing Output}
                  \endlist
@@ -75,6 +80,14 @@
                 \li \l{Adding Compilers}
                 \li \l{Adding Debuggers}
                 \li \l{Specifying Build Settings}
+                    \list
+                        \li \l{Cmake Build Configuration}
+                        \li \l{qmake Build Configuration}
+                        \li \l{Qbs Build Configuration}
+                        \li \l{Meson Build Configuration}
+                        \li \l{IncrediBuild Build Configuration}
+                        \li \l{Conan Build Configuration}
+                    \endlist
                 \li \l{Specifying Run Settings}
                 \li \l{Specifying Editor Settings}
                 \li \l{Specifying Code Style Settings}
@@ -90,37 +103,51 @@
             \li \l{Developing Qt Quick Applications}
             \list
                 \li \l {Creating Qt Quick Projects}
-                \li \l {Editing QML Files in Design Mode}
-
+                \li \l {Design Views}
+                    \list
+                        \li \l{Form Editor}
+                        \li \l{3D Editor}
+                        \li \l{Library}
+                        \li \l{Navigator}
+                        \li \l{Properties}
+                        \li \l{Connection View}
+                        \li \l{States}
+                        \li \l{Transition Editor}
+                        \li \l{Timeline}
+                        \li \l{Curve Editor}
+                        \li \l{Text Editor}
+                    \endlist
                 \li \l {Creating UIs}
                     \list
                         \li \l {Creating Components}
                         \list
-                            \li \l{Editing 2D Content}
                             \li \l{Shapes}
                             \li \l{Text}
                             \li \l{Images}
                             \li \l{User Interaction Methods}
                             \li \l{Lists and Other Data Models}
+                            \li \l{Animations}
                             \li \l{Creating Buttons}
                             \li \l{Creating Scalable Buttons and Borders}
                         \endlist
-                        \li \l{Managing Item Hierarchy}
-                        \li \l{Specifying Item Properties}
-                        \li \l{Positioning Items}
+                        \li \l{Specifying Component Properties}
+                        \li \l{Positioning Components}
                         \li \l{Using Custom Fonts}
                         \li \l{Annotating Designs}
                         \li \l{Loading Placeholder Data}
-                        \li \l{Qt Quick UI Forms}
+                        \li \l{UI Files}
                    \endlist
                 \li \l {Adding Dynamics}
                     \list
                         \li \l{Creating Animations}
+                            \list
+                                \li \l{Editing Easing Curves}
+                            \endlist
                         \li \l{Adding Connections}
                         \list
-                            \li \l{Connecting Objects to Signals}
-                            \li \l{Specifying Dynamic Properties}
+                            \li \l{Connecting Components to Signals}
                             \li \l{Adding Bindings Between Properties}
+                            \li \l{Specifying Dynamic Properties}
                             \li \l{Managing C++ Backend Objects}
                         \endlist
                         \li \l {Adding States}
@@ -133,13 +160,11 @@
                                     \li \l{Exporting from Maya}{Maya}
                                 \endlist
                             \li \l{Importing 3D Assets}
-                            \li \l{Editing 3D Assets in Design Mode}
-                            \li \l{Working in 3D Editor}
                             \li \l{Adding 3D Views}
                             \li \l{Using 3D Components}
                             \list
                                 \li \l{Setting Group Properties}
-                                \li \l{Adding Models}
+                                \li \l{Adding 3D Models}
                                 \li \l{Using Materials and Shaders}
                                 \li \l{Attaching Textures to Materials}
                                 \li \l{Using 3D Materials}
@@ -154,7 +179,7 @@
                 \li \l {Browsing ISO 7000 Icons}
                 \li \l {Using QML Modules with Plugins}
                 \li \l {Converting UI Projects to Applications}
-                \li \l {Exporting QML}
+                \li \l {Exporting Components}
             \endlist
             \li \l{Developing Widget Based Applications}
             \list
@@ -190,6 +215,7 @@
                 \li \l{Searching with the Locator}
             \endlist
             \li \l{Refactoring}
+            \li \l{Applying Refactoring Actions}
             \li \l{Beautifying Source Code}
             \li \l{Configuring the Editor}
             \list
@@ -283,7 +309,10 @@
             \li \l{Keyboard Shortcuts}
             \li \l{Using External Tools}
             \li \l{Showing Task List Files in Issues Pane}
-            \li \l{Managing Data Collection Settings}
+            \li \l{Managing Data Collection}
+                \list
+                    \li \l {Collecting Usage Statistics}
+                \endlist
         \endlist
         \li  \l{Getting Help}
         \list

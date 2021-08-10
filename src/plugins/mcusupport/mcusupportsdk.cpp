@@ -134,6 +134,23 @@ static McuToolChainPackage *createGhsToolchainPackage()
     return result;
 }
 
+static McuToolChainPackage *createGhsArmToolchainPackage()
+{
+    const char envVar[] = "GHS_ARM_COMPILER_DIR";
+
+    const QString defaultPath =
+            qEnvironmentVariableIsSet(envVar) ? qEnvironmentVariable(envVar) : QDir::homePath();
+
+    auto result = new McuToolChainPackage(
+                "Green Hills Compiler for ARM",
+                defaultPath,
+                Utils::HostOsInfo::withExecutableSuffix("cxarm"),
+                "GHSArmToolchain",
+                McuToolChainPackage::TypeGHSArm);
+    result->setEnvironmentVariableName(envVar);
+    return result;
+}
+
 static McuToolChainPackage *createIarToolChainPackage()
 {
     const char envVar[] = "IAR_ARM_COMPILER_DIR";
@@ -194,10 +211,14 @@ static McuPackage *createRGLPackage()
 static McuPackage *createStm32CubeProgrammerPackage()
 {
     QString defaultPath = QDir::homePath();
+    const QString cubePath = "/STMicroelectronics/STM32Cube/STM32CubeProgrammer/";
     if (Utils::HostOsInfo::isWindowsHost()) {
-        const QString programPath =
-                findInProgramFiles("/STMicroelectronics/STM32Cube/STM32CubeProgrammer/");
+        const QString programPath = findInProgramFiles(cubePath);
         if (!programPath.isEmpty())
+            defaultPath = programPath;
+    } else {
+        const QString programPath = QDir::homePath() + cubePath;
+        if (QFileInfo::exists(programPath))
             defaultPath = programPath;
     }
     auto result = new McuPackage(
@@ -244,6 +265,35 @@ static McuPackage *createMcuXpressoIdePackage()
     return result;
 }
 
+static McuPackage *createCypressProgrammerPackage()
+{
+    const char envVar[] = "CYPRESS_AUTO_FLASH_UTILITY_DIR";
+
+    QString defaultPath;
+    if (qEnvironmentVariableIsSet(envVar)) {
+        defaultPath = qEnvironmentVariable(envVar);
+    } else if (Utils::HostOsInfo::isWindowsHost()) {
+        auto candidate = findInProgramFiles(QLatin1String("/Cypress/Cypress Auto Flash Utility 1.0/"));
+        if (QFileInfo::exists(candidate)) {
+            defaultPath = candidate;
+        }
+    } else {
+        defaultPath = QLatin1String("/usr");
+    }
+
+    if (defaultPath.isEmpty()) {
+        defaultPath = QDir::homePath();
+    }
+
+    auto result = new McuPackage(
+                "Cypress Auto Flash Utility",
+                defaultPath,
+                Utils::HostOsInfo::withExecutableSuffix("/bin/openocd"),
+                "CypressAutoFlashUtil");
+    result->setEnvironmentVariableName(envVar);
+    return result;
+}
+
 struct McuTargetDescription
 {
     enum class TargetType {
@@ -265,6 +315,9 @@ struct McuTargetDescription
     TargetType type;
 };
 
+/// Create the McuPackage by checking the "boardSdk" property in the JSON file for the board.
+/// The name of the environment variable pointing to the the SDK for the board will be defined in the "envVar" property
+/// inside the "boardSdk".
 static McuPackage *createBoardSdkPackage(const McuTargetDescription& desc)
 {
     const auto generateSdkName = [](const QString& envVar) {
@@ -348,8 +401,10 @@ struct McuTargetFactory
     QVector<McuPackage *> getMcuPackages() const
     {
         QVector<McuPackage *> packages;
-        packages.append(boardSdkPkgs.values().toVector());
-        packages.append(freeRTOSPkgs.values().toVector());
+        for (auto *package : qAsConst(boardSdkPkgs))
+            packages.append(package);
+        for (auto *package : qAsConst(freeRTOSPkgs))
+            packages.append(package);
         return packages;
     }
 
@@ -489,11 +544,15 @@ static QVector<McuTarget *> targetsFromDescriptions(const QList<McuTargetDescrip
         {{"iar"}, createIarToolChainPackage()},
         {{"msvc"}, createMsvcToolChainPackage()},
         {{"gcc"}, createGccToolChainPackage()},
+        {{"arm-greenhills"}, createGhsArmToolchainPackage()},
     };
 
+    // Note: the vendor name (the key of the hash) is case-sensitive. It has to match the "platformVendor" key in the
+    // json file.
     const QHash<QString, McuPackage *> vendorPkgs = {
         {{"ST"}, createStm32CubeProgrammerPackage()},
         {{"NXP"}, createMcuXpressoIdePackage()},
+        {{"CYPRESS"}, createCypressProgrammerPackage()},
     };
 
     McuTargetFactory targetFactory(tcPkgs, vendorPkgs);
@@ -506,15 +565,21 @@ static QVector<McuTarget *> targetsFromDescriptions(const QList<McuTargetDescrip
 
     packages->append(Utils::transform<QVector<McuPackage *> >(
                          tcPkgs.values(), [&](McuToolChainPackage *tcPkg) { return tcPkg; }));
-    packages->append(vendorPkgs.values().toVector());
+    for (auto *package : vendorPkgs)
+        packages->append(package);
     packages->append(targetFactory.getMcuPackages());
 
     return  mcuTargets;
 }
 
+Utils::FilePath kitsPath(const Utils::FilePath &dir)
+{
+    return dir + "/kits/";
+}
+
 static QFileInfoList targetDescriptionFiles(const Utils::FilePath &dir)
 {
-    const QDir kitsDir(dir.toString() + "/kits/", "*.json");
+    const QDir kitsDir(kitsPath(dir).toString(), "*.json");
     return kitsDir.entryInfoList();
 }
 
@@ -551,14 +616,29 @@ void targetsAndPackages(const Utils::FilePath &dir, QVector<McuPackage *> *packa
 {
     QList<McuTargetDescription> descriptions;
 
-    for (const QFileInfo &fileInfo : targetDescriptionFiles(dir)) {
+    auto descriptionFiles = targetDescriptionFiles(dir);
+    for (const QFileInfo &fileInfo : descriptionFiles) {
         QFile file(fileInfo.absoluteFilePath());
         if (!file.open(QFile::ReadOnly))
             continue;
         const McuTargetDescription desc = parseDescriptionJson(file.readAll());
-        if (QVersionNumber::fromString(desc.qulVersion) < McuSupportOptions::minimalQulVersion())
-            return; // Invalid version means invalid SDK installation.
+        if (QVersionNumber::fromString(desc.qulVersion) < McuSupportOptions::minimalQulVersion()) {
+            auto pth = Utils::FilePath::fromString(fileInfo.filePath());
+            printMessage(McuTarget::tr("Skipped %1 - Unsupported version \"%2\" (should be >= %3)")
+                         .arg(
+                             QDir::toNativeSeparators(pth.fileNameWithPathComponents(1)),
+                             desc.qulVersion,
+                             McuSupportOptions::minimalQulVersion().toString()),
+                             false);
+            continue;
+        }
         descriptions.append(desc);
+    }
+
+    // No valid description means invalid SDK installation.
+    if (descriptions.empty() && kitsPath(dir).exists()) {
+        printMessage(McuTarget::tr("No valid kit descriptions found at %1.").arg(kitsPath(dir).toUserOutput()), true);
+        return;
     }
 
     // Workaround for missing JSON file for Desktop target.
@@ -570,13 +650,18 @@ void targetsAndPackages(const Utils::FilePath &dir, QVector<McuPackage *> *packa
         });
 
         if (!hasDesktopDescription) {
-            Utils::FilePath desktopLib;
-            if (Utils::HostOsInfo::isWindowsHost())
-                desktopLib = dir / "lib/QulQuickUltralite_QT_32bpp_Windows_Release.lib";
-            else
-                desktopLib = dir / "lib/libQulQuickUltralite_QT_32bpp_Linux_Debug.a";
+            QVector<Utils::FilePath> desktopLibs;
+            if (Utils::HostOsInfo::isWindowsHost()) {
+                desktopLibs << dir / "lib/QulQuickUltralite_QT_32bpp_Windows_Release.lib"; // older versions of QUL (<1.5?)
+                desktopLibs << dir / "lib/QulQuickUltralitePlatform_QT_32bpp_Windows_msvc_Release.lib"; // newer versions of QUL
+            } else {
+                desktopLibs << dir / "lib/libQulQuickUltralite_QT_32bpp_Linux_Debug.a"; // older versions of QUL (<1.5?)
+                desktopLibs << dir / "lib/libQulQuickUltralitePlatform_QT_32bpp_Linux_gnu_Debug.a"; // newer versions of QUL
+            }
 
-            if (desktopLib.exists()) {
+            if (Utils::anyOf(desktopLibs, [](const Utils::FilePath &desktopLib) {
+                             return desktopLib.exists(); })
+                    ) {
                 McuTargetDescription desktopDescription;
                 desktopDescription.qulVersion = descriptions.empty() ?
                             McuSupportOptions::minimalQulVersion().toString()
@@ -588,6 +673,13 @@ void targetsAndPackages(const Utils::FilePath &dir, QVector<McuPackage *> *packa
                 desktopDescription.toolchainId = Utils::HostOsInfo::isWindowsHost() ? QString("msvc") : QString("gcc");
                 desktopDescription.type = McuTargetDescription::TargetType::Desktop;
                 descriptions.prepend(desktopDescription);
+            } else {
+                if (dir.exists())
+                    printMessage(McuTarget::tr("Skipped creating fallback desktop kit: Could not find any of %1.")
+                                 .arg(Utils::transform(desktopLibs, [](const auto &path) {
+                                    return QDir::toNativeSeparators(path.fileNameWithPathComponents(1));
+                                 }).toList().join(" or ")),
+                                 false);
             }
         }
     }

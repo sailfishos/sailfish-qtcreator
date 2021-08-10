@@ -27,13 +27,68 @@
 #include "searchresulttreeitems.h"
 #include "searchresulttreeitemroles.h"
 
+#include <utils/algorithm.h>
+
 #include <QApplication>
 #include <QFont>
 #include <QFontMetrics>
 #include <QDebug>
 
-using namespace Core;
-using namespace Core::Internal;
+namespace Core {
+namespace Internal {
+
+class SearchResultTreeModel : public QAbstractItemModel
+{
+    Q_OBJECT
+
+public:
+    SearchResultTreeModel(QObject *parent = nullptr);
+    ~SearchResultTreeModel() override;
+
+    void setShowReplaceUI(bool show);
+    void setTextEditorFont(const QFont &font, const SearchResultColors &colors);
+
+    Qt::ItemFlags flags(const QModelIndex &index) const override;
+    QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const override;
+    QModelIndex parent(const QModelIndex &child) const override;
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    int columnCount(const QModelIndex &parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
+    bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
+    QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
+
+    QModelIndex next(const QModelIndex &idx, bool includeGenerated = false, bool *wrapped = nullptr) const;
+    QModelIndex prev(const QModelIndex &idx, bool includeGenerated = false, bool *wrapped = nullptr) const;
+
+    QList<QModelIndex> addResults(const QList<SearchResultItem> &items, SearchResult::AddMode mode);
+
+    static SearchResultTreeItem *treeItemAtIndex(const QModelIndex &idx);
+
+signals:
+    void jumpToSearchResult(const QString &fileName, int lineNumber,
+                            int searchTermStart, int searchTermLength);
+
+public slots:
+    void clear();
+
+private:
+    QModelIndex index(SearchResultTreeItem *item) const;
+    void addResultsToCurrentParent(const QList<SearchResultItem> &items, SearchResult::AddMode mode);
+    QSet<SearchResultTreeItem *> addPath(const QStringList &path);
+    QVariant data(const SearchResultTreeItem *row, int role) const;
+    bool setCheckState(const QModelIndex &idx, Qt::CheckState checkState, bool firstCall = true);
+    QModelIndex nextIndex(const QModelIndex &idx, bool *wrapped = nullptr) const;
+    QModelIndex prevIndex(const QModelIndex &idx, bool *wrapped = nullptr) const;
+
+    SearchResultTreeItem *m_rootItem;
+    SearchResultTreeItem *m_currentParent;
+    SearchResultColors m_colors;
+    QModelIndex m_currentIndex;
+    QStringList m_currentPath; // the path that belongs to the current parent
+    QFont m_textEditorFont;
+    bool m_showReplaceUI;
+    bool m_editorFontIsUsed;
+};
 
 SearchResultTreeModel::SearchResultTreeModel(QObject *parent)
     : QAbstractItemModel(parent)
@@ -149,7 +204,7 @@ int SearchResultTreeModel::columnCount(const QModelIndex &parent) const
     return 1;
 }
 
-SearchResultTreeItem *SearchResultTreeModel::treeItemAtIndex(const QModelIndex &idx) const
+SearchResultTreeItem *SearchResultTreeModel::treeItemAtIndex(const QModelIndex &idx)
 {
     return static_cast<SearchResultTreeItem*>(idx.internalPointer());
 }
@@ -239,44 +294,44 @@ QVariant SearchResultTreeModel::data(const SearchResultTreeItem *row, int role) 
         result = row->checkState();
         break;
     case Qt::ToolTipRole:
-        result = row->item.text.trimmed();
+        result = row->item.lineText().trimmed();
         break;
     case Qt::FontRole:
-        if (row->item.useTextEditorFont)
+        if (row->item.useTextEditorFont())
             result = m_textEditorFont;
         else
             result = QVariant();
         break;
     case Qt::ForegroundRole:
-        result = m_colors.value(row->item.style).textForeground;
+        result = m_colors.value(row->item.style()).textForeground;
         break;
     case Qt::BackgroundRole:
-        result = m_colors.value(row->item.style).textBackground;
+        result = m_colors.value(row->item.style()).textBackground;
         break;
     case ItemDataRoles::ResultLineRole:
     case Qt::DisplayRole:
-        result = row->item.text;
+        result = row->item.lineText();
         break;
     case ItemDataRoles::ResultItemRole:
         result = QVariant::fromValue(row->item);
         break;
     case ItemDataRoles::ResultBeginLineNumberRole:
-        result = row->item.mainRange.begin.line;
+        result = row->item.mainRange().begin.line;
         break;
     case ItemDataRoles::ResultIconRole:
-        result = row->item.icon;
+        result = row->item.icon();
         break;
     case ItemDataRoles::ResultHighlightBackgroundColor:
-        result = m_colors.value(row->item.style).highlightBackground;
+        result = m_colors.value(row->item.style()).highlightBackground;
         break;
     case ItemDataRoles::ResultHighlightForegroundColor:
-        result = m_colors.value(row->item.style).highlightForeground;
+        result = m_colors.value(row->item.style()).highlightForeground;
         break;
     case ItemDataRoles::ResultBeginColumnNumberRole:
-        result = row->item.mainRange.begin.column;
+        result = row->item.mainRange().begin.column;
         break;
     case ItemDataRoles::SearchTermLengthRole:
-        result = row->item.mainRange.length(row->item.text);
+        result = row->item.mainRange().length(row->item.lineText());
         break;
     case ItemDataRoles::IsGeneratedRole:
         result = row->isGenerated();
@@ -313,8 +368,8 @@ QSet<SearchResultTreeItem *> SearchResultTreeModel::addPath(const QStringList &p
         const int insertionIndex = currentItem->insertionIndex(part, &partItem);
         if (!partItem) {
             SearchResultItem item;
-            item.path = currentPath;
-            item.text = part;
+            item.setPath(currentPath);
+            item.setLineText(part);
             partItem = new SearchResultTreeItem(item, currentItem);
             if (m_showReplaceUI)
                 partItem->setCheckState(Qt::Checked);
@@ -368,14 +423,14 @@ void SearchResultTreeModel::addResultsToCurrentParent(const QList<SearchResultIt
 
 static bool lessThanByPath(const SearchResultItem &a, const SearchResultItem &b)
 {
-    if (a.path.size() < b.path.size())
+    if (a.path().size() < b.path().size())
         return true;
-    if (a.path.size() > b.path.size())
+    if (a.path().size() > b.path().size())
         return false;
-    for (int i = 0; i < a.path.size(); ++i) {
-        if (a.path.at(i) < b.path.at(i))
+    for (int i = 0; i < a.path().size(); ++i) {
+        if (a.path().at(i) < b.path().at(i))
             return true;
-        if (a.path.at(i) > b.path.at(i))
+        if (a.path().at(i) > b.path().at(i))
             return false;
     }
     return false;
@@ -392,15 +447,15 @@ QList<QModelIndex> SearchResultTreeModel::addResults(const QList<SearchResultIte
     std::stable_sort(sortedItems.begin(), sortedItems.end(), lessThanByPath);
     QList<SearchResultItem> itemSet;
     foreach (const SearchResultItem &item, sortedItems) {
-        m_editorFontIsUsed |= item.useTextEditorFont;
-        if (!m_currentParent || (m_currentPath != item.path)) {
+        m_editorFontIsUsed |= item.useTextEditorFont();
+        if (!m_currentParent || (m_currentPath != item.path())) {
             // first add all the items from before
             if (!itemSet.isEmpty()) {
                 addResultsToCurrentParent(itemSet, mode);
                 itemSet.clear();
             }
             // switch parent
-            pathNodes += addPath(item.path);
+            pathNodes += addPath(item.path());
         }
         itemSet << item;
     }
@@ -425,8 +480,6 @@ void SearchResultTreeModel::clear()
 
 QModelIndex SearchResultTreeModel::nextIndex(const QModelIndex &idx, bool *wrapped) const
 {
-    if (wrapped)
-        *wrapped = false;
     // pathological
     if (!idx.isValid())
         return index(0, 0);
@@ -468,8 +521,6 @@ QModelIndex SearchResultTreeModel::next(const QModelIndex &idx, bool includeGene
 
 QModelIndex SearchResultTreeModel::prevIndex(const QModelIndex &idx, bool *wrapped) const
 {
-    if (wrapped)
-        *wrapped = false;
     QModelIndex current = idx;
     bool checkForChildren = true;
     if (current.isValid()) {
@@ -502,3 +553,111 @@ QModelIndex SearchResultTreeModel::prev(const QModelIndex &idx, bool includeGene
     } while (value != idx && !includeGenerated && treeItemAtIndex(value)->isGenerated());
     return value;
 }
+
+SearchResultFilterModel::SearchResultFilterModel(QObject *parent) : QSortFilterProxyModel(parent)
+{
+    setSourceModel(new SearchResultTreeModel(this));
+}
+
+void SearchResultFilterModel::setFilter(SearchResultFilter *filter)
+{
+    if (m_filter)
+        m_filter->disconnect(this);
+    m_filter = filter;
+    if (m_filter) {
+        connect(m_filter, &SearchResultFilter::filterChanged,
+                this, [this] {
+            invalidateFilter();
+            emit filterInvalidated();
+        });
+    }
+    invalidateFilter();
+}
+
+void SearchResultFilterModel::setShowReplaceUI(bool show)
+{
+    sourceModel()->setShowReplaceUI(show);
+}
+
+void SearchResultFilterModel::setTextEditorFont(const QFont &font, const SearchResultColors &colors)
+{
+    sourceModel()->setTextEditorFont(font, colors);
+}
+
+QList<QModelIndex> SearchResultFilterModel::addResults(const QList<SearchResultItem> &items,
+                                                       SearchResult::AddMode mode)
+{
+    QList<QModelIndex> sourceIndexes = sourceModel()->addResults(items, mode);
+    sourceIndexes = Utils::filtered(sourceIndexes, [this](const QModelIndex &idx) {
+        return filterAcceptsRow(idx.row(), idx.parent());
+    });
+    return Utils::transform(sourceIndexes,
+                            [this](const QModelIndex &idx) { return mapFromSource(idx); });
+}
+
+void SearchResultFilterModel::clear()
+{
+    sourceModel()->clear();
+}
+
+QModelIndex SearchResultFilterModel::nextOrPrev(const QModelIndex &idx, bool *wrapped,
+        const std::function<QModelIndex (const QModelIndex &)> &func) const
+{
+    if (wrapped)
+        *wrapped = false;
+    const QModelIndex sourceIndex = mapToSource(idx);
+    QModelIndex nextOrPrevSourceIndex = func(sourceIndex);
+    while (nextOrPrevSourceIndex != sourceIndex
+           && !filterAcceptsRow(nextOrPrevSourceIndex.row(), nextOrPrevSourceIndex.parent())) {
+        nextOrPrevSourceIndex = func(nextOrPrevSourceIndex);
+    }
+    return mapFromSource(nextOrPrevSourceIndex);
+}
+
+QModelIndex SearchResultFilterModel::next(const QModelIndex &idx, bool includeGenerated,
+                                          bool *wrapped) const
+{
+    return nextOrPrev(idx, wrapped, [this, includeGenerated, wrapped](const QModelIndex &index) {
+        return sourceModel()->next(index, includeGenerated, wrapped); });
+}
+
+QModelIndex SearchResultFilterModel::prev(const QModelIndex &idx, bool includeGenerated,
+                                          bool *wrapped) const
+{
+    return nextOrPrev(idx, wrapped, [this, includeGenerated, wrapped](const QModelIndex &index) {
+        return sourceModel()->prev(index, includeGenerated, wrapped); });
+}
+
+SearchResultTreeItem *SearchResultFilterModel::itemForIndex(const QModelIndex &index) const
+{
+    return static_cast<SearchResultTreeItem *>(mapToSource(index).internalPointer());
+}
+
+bool SearchResultFilterModel::filterAcceptsRow(int source_row,
+                                               const QModelIndex &source_parent) const
+{
+    const QModelIndex idx = sourceModel()->index(source_row, 0, source_parent);
+    const SearchResultTreeItem * const item = SearchResultTreeModel::treeItemAtIndex(idx);
+    if (!item)
+        return false;
+    if (!m_filter)
+        return true;
+    if (item->item.userData().isValid())
+        return m_filter->matches(item->item);
+    const int childCount = sourceModel()->rowCount(idx);
+    for (int i = 0; i < childCount; ++i) {
+        if (filterAcceptsRow(i, idx))
+            return true;
+    }
+    return false;
+}
+
+SearchResultTreeModel *SearchResultFilterModel::sourceModel() const
+{
+    return static_cast<SearchResultTreeModel *>(QSortFilterProxyModel::sourceModel());
+}
+
+} // namespace Internal
+} // namespace Core
+
+#include <searchresulttreemodel.moc>

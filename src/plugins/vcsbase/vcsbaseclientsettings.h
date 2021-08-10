@@ -56,7 +56,7 @@ public:
     VcsBaseClientSettings &operator=(const VcsBaseClientSettings &other);
     virtual ~VcsBaseClientSettings();
 
-    void writeSettings(QSettings *settings) const;
+    void writeSettings(QSettings *settings, const VcsBaseClientSettings &defaultSettings) const;
     void readSettings(const QSettings *settings);
 
     bool equals(const VcsBaseClientSettings &rhs) const;
@@ -88,8 +88,6 @@ protected:
 
     void declareKey(const QString &key, const QVariant &defaultValue);
     QVariant keyDefaultValue(const QString &key) const;
-
-    virtual void readLegacySettings(const QSettings *settings);
 
 private:
     friend bool equals(const VcsBaseClientSettings &rhs);

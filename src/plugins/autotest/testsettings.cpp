@@ -24,6 +24,7 @@
 ****************************************************************************/
 
 #include "testsettings.h"
+
 #include "autotestconstants.h"
 #include "testframeworkmanager.h"
 
@@ -69,10 +70,14 @@ void TestSettings::toSettings(QSettings *s) const
     s->setValue(popupOnFailKey, popupOnFail);
     s->setValue(runAfterBuildKey, int(runAfterBuild));
     // store frameworks and their current active and grouping state
-    for (const Utils::Id &id : frameworks.keys()) {
-        s->setValue(id.toString(), frameworks.value(id));
+    for (auto it = frameworks.cbegin(); it != frameworks.cend(); ++it) {
+        const Utils::Id &id = it.key();
+        s->setValue(id.toString(), it.value());
         s->setValue(id.toString() + groupSuffix, frameworksGrouping.value(id));
     }
+    // ..and the testtools as well
+    for (auto it = tools.cbegin(); it != tools.cend(); ++it)
+        s->setValue(it.key().toString(), it.value());
     s->endGroup();
 }
 
@@ -102,6 +107,13 @@ void TestSettings::fromSettings(QSettings *s)
         frameworks.insert(id, s->value(key, framework->active()).toBool());
         // and whether grouping is enabled
         frameworksGrouping.insert(id, s->value(key + groupSuffix, framework->grouping()).toBool());
+    }
+    // ..and for test tools as well
+    const TestTools &registeredTools = TestFrameworkManager::registeredTestTools();
+    tools.clear();
+    for (const ITestTool *testTool : registeredTools) {
+        const Utils::Id id = testTool->id();
+        tools.insert(id, s->value(id.toString(), testTool->active()).toBool());
     }
     s->endGroup();
 }

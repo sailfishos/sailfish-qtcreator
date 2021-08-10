@@ -71,8 +71,6 @@ public:
     void setSolibSearchPath(const QStringList &list);
     void addSolibSearchDir(const QString &str);
 
-    void addSourcePathMap(const QString &installPath, const QString &buildPath);
-
     static void setBreakOnMainNextTime();
 
     void setInferior(const ProjectExplorer::Runnable &runnable);
@@ -110,6 +108,7 @@ public:
     void setUseCtrlCStub(bool on);
     void setBreakOnMain(bool on);
     void setUseTerminal(bool on);
+    void setRunAsRoot(bool on);
 
     void setCommandsAfterConnect(const QString &commands);
     void setCommandsForReset(const QString &commands);
@@ -132,9 +131,6 @@ public:
 
     Internal::TerminalRunner *terminalRunner() const;
     DebuggerEngineType cppEngineType() const;
-
-signals:
-    void inferiorRunning();
 
 private:
     bool fixupParameters();

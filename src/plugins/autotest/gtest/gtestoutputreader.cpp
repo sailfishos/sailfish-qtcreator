@@ -192,6 +192,7 @@ void GTestOutputReader::processOutputLine(const QByteArray &outputLine)
 void GTestOutputReader::processStdError(const QByteArray &outputLine)
 {
     // we need to process the output, GTest may uses both out streams
+    checkForSanitizerOutput(outputLine);
     processOutputLine(outputLine);
     emit newOutputLineAvailable(outputLine, OutputChannel::StdErr);
 }
@@ -202,11 +203,11 @@ TestResultPtr GTestOutputReader::createDefaultResult() const
     result->setTestCaseName(m_currentTestCase);
     result->setIteration(m_iteration);
 
-    const TestTreeItem *testItem = result->findTestTreeItem();
+    const ITestTreeItem *testItem = result->findTestTreeItem();
 
     if (testItem && testItem->line()) {
         result->setFileName(testItem->filePath());
-        result->setLine(static_cast<int>(testItem->line()));
+        result->setLine(testItem->line());
     }
 
     return TestResultPtr(result);

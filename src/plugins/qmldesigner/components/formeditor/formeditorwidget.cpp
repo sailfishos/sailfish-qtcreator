@@ -87,13 +87,13 @@ FormEditorWidget::FormEditorWidget(FormEditorView *view)
     m_noSnappingAction->setIcon(Icons::NO_SNAPPING.icon());
     registerActionAsCommand(m_noSnappingAction, Constants::FORMEDITOR_NO_SNAPPING, QKeySequence(Qt::Key_T));
 
-    m_snappingAndAnchoringAction = layoutActionGroup->addAction(tr("Snap to parent or sibling items and generate anchors."));
+    m_snappingAndAnchoringAction = layoutActionGroup->addAction(tr("Snap to parent or sibling components and generate anchors."));
     m_snappingAndAnchoringAction->setCheckable(true);
     m_snappingAndAnchoringAction->setChecked(true);
     m_snappingAndAnchoringAction->setIcon(Icons::NO_SNAPPING_AND_ANCHORING.icon());
     registerActionAsCommand(m_snappingAndAnchoringAction, Constants::FORMEDITOR_NO_SNAPPING_AND_ANCHORING, QKeySequence(Qt::Key_W));
 
-    m_snappingAction = layoutActionGroup->addAction(tr("Snap to parent or sibling items but do not generate anchors."));
+    m_snappingAction = layoutActionGroup->addAction(tr("Snap to parent or sibling components but do not generate anchors."));
     m_snappingAction->setCheckable(true);
     m_snappingAction->setChecked(true);
     m_snappingAction->setIcon(Icons::SNAPPING.icon());
@@ -108,7 +108,7 @@ FormEditorWidget::FormEditorWidget(FormEditorView *view)
     upperActions.append(separatorAction);
 
     m_showBoundingRectAction = new QAction(Utils::Icons::BOUNDING_RECT.icon(),
-                                           tr("Show bounding rectangles and stripes for empty items."),
+                                           tr("Show bounding rectangles and stripes for empty components."),
                                            this);
     m_showBoundingRectAction->setCheckable(true);
     m_showBoundingRectAction->setChecked(false);
@@ -123,14 +123,14 @@ FormEditorWidget::FormEditorWidget(FormEditorView *view)
     upperActions.append(separatorAction);
 
     m_rootWidthAction = new LineEditAction(tr("Override Width"), this);
-    m_rootWidthAction->setToolTip(tr("Override width of root item."));
+    m_rootWidthAction->setToolTip(tr("Override width of root component."));
     connect(m_rootWidthAction.data(), &LineEditAction::textChanged,
             this, &FormEditorWidget::changeRootItemWidth);
     addAction(m_rootWidthAction.data());
     upperActions.append(m_rootWidthAction.data());
 
     m_rootHeightAction = new LineEditAction(tr("Override Height"), this);
-    m_rootHeightAction->setToolTip(tr("Override height of root item."));
+    m_rootHeightAction->setToolTip(tr("Override height of root component."));
     connect(m_rootHeightAction.data(), &LineEditAction::textChanged,
             this, &FormEditorWidget::changeRootItemHeight);
     addAction(m_rootHeightAction.data());
@@ -149,18 +149,18 @@ FormEditorWidget::FormEditorWidget(FormEditorView *view)
 
     // Zoom actions
     const QString fontName = "qtds_propertyIconFont.ttf";
-    const QColor textColorNormal(Theme::getColor(Theme::MenuItemTextColorNormal));
-    const QColor textColorDisabled(Theme::getColor(Theme::MenuBarItemTextColorDisabled));
+    const QColor iconColorNormal(Theme::getColor(Theme::IconsBaseColor));
+    const QColor iconColorDisabled(Theme::getColor(Theme::IconsDisabledColor));
     const QIcon zoomAllIcon = Utils::StyleHelper::getIconFromIconFont(
-        fontName, Theme::getIconUnicode(Theme::Icon::zoomAll), 28, 28, textColorNormal);
+        fontName, Theme::getIconUnicode(Theme::Icon::zoomAll), 28, 28, iconColorNormal);
 
     const QString zoomSelectionUnicode = Theme::getIconUnicode(Theme::Icon::zoomSelection);
     const auto zoomSelectionNormal = Utils::StyleHelper::IconFontHelper(zoomSelectionUnicode,
-                                                                        textColorNormal,
+                                                                        iconColorNormal,
                                                                         QSize(28, 28),
                                                                         QIcon::Normal);
     const auto zoomSelectionDisabeld = Utils::StyleHelper::IconFontHelper(zoomSelectionUnicode,
-                                                                          textColorDisabled,
+                                                                          iconColorDisabled,
                                                                           QSize(28, 28),
                                                                           QIcon::Disabled);
 
@@ -168,9 +168,9 @@ FormEditorWidget::FormEditorWidget(FormEditorView *view)
                                                                             {zoomSelectionNormal,
                                                                              zoomSelectionDisabeld});
     const QIcon zoomInIcon = Utils::StyleHelper::getIconFromIconFont(
-        fontName, Theme::getIconUnicode(Theme::Icon::zoomIn), 28, 28, textColorNormal);
+        fontName, Theme::getIconUnicode(Theme::Icon::zoomIn), 28, 28, iconColorNormal);
     const QIcon zoomOutIcon = Utils::StyleHelper::getIconFromIconFont(
-        fontName, Theme::getIconUnicode(Theme::Icon::zoomOut), 28, 28, textColorNormal);
+        fontName, Theme::getIconUnicode(Theme::Icon::zoomOut), 28, 28, iconColorNormal);
 
     auto writeZoomLevel = [this]() {
         double level = m_graphicsView->transform().m11();
@@ -576,6 +576,9 @@ void FormEditorWidget::showEvent(QShowEvent *event)
         m_formEditorView->cleanupToolsAndScene();
         m_formEditorView->setupFormEditorWidget();
         m_formEditorView->resetToSelectionTool();
+        QmlItemNode rootNode = m_formEditorView->rootModelNode();
+        if (rootNode.isValid())
+            setRootItemRect(rootNode.instanceBoundingRect());
     }
 }
 

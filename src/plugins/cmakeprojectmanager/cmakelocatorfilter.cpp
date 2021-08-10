@@ -71,11 +71,13 @@ void CMakeTargetLocatorFilter::prepareSearch(const QString &entry)
 
         const QList<CMakeBuildTarget> buildTargets = bs->buildTargets();
         for (const CMakeBuildTarget &target : buildTargets) {
+            if (CMakeBuildSystem::filteredOutTarget(target))
+                continue;
             const int index = target.title.indexOf(entry);
             if (index >= 0) {
                 const FilePath path = target.backtrace.isEmpty() ? cmakeProject->projectFilePath()
-                                                                 : target.backtrace.first().path;
-                const int line = target.backtrace.isEmpty() ? -1 : target.backtrace.first().line;
+                                                                 : target.backtrace.last().path;
+                const int line = target.backtrace.isEmpty() ? -1 : target.backtrace.last().line;
 
                 QVariantMap extraData;
                 extraData.insert("project", cmakeProject->projectFilePath().toString());
@@ -100,11 +102,6 @@ QList<Core::LocatorFilterEntry> CMakeTargetLocatorFilter::matchesFor(QFutureInte
     return m_result;
 }
 
-void CMakeTargetLocatorFilter::refresh(QFutureInterface<void> &future)
-{
-    Q_UNUSED(future)
-}
-
 void CMakeTargetLocatorFilter::projectListUpdated()
 {
     // Enable the filter if there's at least one CMake project
@@ -119,7 +116,7 @@ BuildCMakeTargetLocatorFilter::BuildCMakeTargetLocatorFilter()
 {
     setId("Build CMake target");
     setDisplayName(tr("Build CMake target"));
-    setShortcutString("cm");
+    setDefaultShortcutString("cm");
     setPriority(High);
 }
 
@@ -168,7 +165,7 @@ OpenCMakeTargetLocatorFilter::OpenCMakeTargetLocatorFilter()
 {
     setId("Open CMake target definition");
     setDisplayName(tr("Open CMake target"));
-    setShortcutString("cmo");
+    setDefaultShortcutString("cmo");
     setPriority(Medium);
 }
 

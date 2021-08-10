@@ -666,8 +666,10 @@ void ExternalToolRunner::run()
     const CommandLine cmd{m_resolvedExecutable, m_resolvedArguments, CommandLine::Raw};
     m_process->setCommand(cmd);
     m_process->setEnvironment(m_resolvedEnvironment);
-    MessageManager::writeWithTime(tr("Starting external tool \"%1\"")
-                                  .arg(cmd.toUserOutput()), MessageManager::Silent);
+    const auto write = m_tool->outputHandling() == ExternalTool::ShowInPane
+                           ? QOverload<const QString &>::of(MessageManager::writeDisrupting)
+                           : QOverload<const QString &>::of(MessageManager::writeSilently);
+    write(tr("Starting external tool \"%1\"").arg(cmd.toUserOutput()));
     m_process->start();
 }
 
@@ -687,8 +689,10 @@ void ExternalToolRunner::finished(int exitCode, QProcess::ExitStatus status)
     }
     if (m_tool->modifiesCurrentDocument())
         DocumentManager::unexpectFileChange(m_expectedFileName);
-    MessageManager::writeWithTime(tr("\"%1\" finished")
-                                  .arg(m_resolvedExecutable.toUserOutput()), MessageManager::Silent);
+    const auto write = m_tool->outputHandling() == ExternalTool::ShowInPane
+                           ? QOverload<const QString &>::of(MessageManager::writeFlashing)
+                           : QOverload<const QString &>::of(MessageManager::writeSilently);
+    write(tr("\"%1\" finished").arg(m_resolvedExecutable.toUserOutput()));
     deleteLater();
 }
 
@@ -705,10 +709,12 @@ void ExternalToolRunner::readStandardOutput()
 {
     if (m_tool->outputHandling() == ExternalTool::Ignore)
         return;
-    QByteArray data = m_process->readAllStandardOutput();
-    QString output = m_outputCodec->toUnicode(data.constData(), data.length(), &m_outputCodecState);
+    const QByteArray data = m_process->readAllStandardOutput();
+    const QString output = m_outputCodec->toUnicode(data.constData(),
+                                                    data.length(),
+                                                    &m_outputCodecState);
     if (m_tool->outputHandling() == ExternalTool::ShowInPane)
-        MessageManager::write(output);
+        MessageManager::writeSilently(output);
     else if (m_tool->outputHandling() == ExternalTool::ReplaceSelection)
         m_processOutput.append(output);
 }
@@ -717,10 +723,12 @@ void ExternalToolRunner::readStandardError()
 {
     if (m_tool->errorHandling() == ExternalTool::Ignore)
         return;
-    QByteArray data = m_process->readAllStandardError();
-    QString output = m_outputCodec->toUnicode(data.constData(), data.length(), &m_errorCodecState);
+    const QByteArray data = m_process->readAllStandardError();
+    const QString output = m_outputCodec->toUnicode(data.constData(),
+                                                    data.length(),
+                                                    &m_errorCodecState);
     if (m_tool->errorHandling() == ExternalTool::ShowInPane)
-        MessageManager::write(output);
+        MessageManager::writeSilently(output);
     else if (m_tool->errorHandling() == ExternalTool::ReplaceSelection)
         m_processOutput.append(output);
 }

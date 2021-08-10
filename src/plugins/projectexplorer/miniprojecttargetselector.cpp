@@ -63,8 +63,6 @@
 #include <QAction>
 #include <QItemDelegate>
 
-#include <array>
-
 using namespace Utils;
 
 namespace ProjectExplorer {
@@ -425,8 +423,6 @@ private:
     void paint(QPainter *painter,
                const QStyleOptionViewItem &option,
                const QModelIndex &index) const override;
-    QString elide(const QString &text, const QStringList &otherTexts, const QFontMetrics &fm,
-            int width) const;
     SelectorView *m_view;
 };
 
@@ -472,14 +468,8 @@ void TargetSelectorDelegate::paint(QPainter *painter,
 
     QFontMetrics fm(option.font);
     QString text = index.data(Qt::DisplayRole).toString();
-    QStringList otherTexts;
-    for (QModelIndex other = index.sibling(0, 0); other.isValid(); other = other.sibling(other.row() + 1, 0)) {
-        if (other != index)
-            otherTexts.append(other.data(Qt::DisplayRole).toString());
-    }
-
     painter->setPen(textColor);
-    QString elidedText = elide(text, otherTexts, fm, option.rect.width() - 12);
+    QString elidedText = fm.elidedText(text, Qt::ElideMiddle, option.rect.width() - 12);
     if (elidedText != text)
         const_cast<QAbstractItemModel *>(index.model())->setData(index, text, Qt::ToolTipRole);
     else
@@ -494,37 +484,6 @@ void TargetSelectorDelegate::paint(QPainter *painter,
     }
 
     painter->restore();
-}
-
-QString TargetSelectorDelegate::elide(const QString &text, const QStringList &otherTexts,
-        const QFontMetrics &fm, int width) const
-{
-    std::array<Qt::TextElideMode, 3> modes{
-        Qt::ElideMiddle,
-        Qt::ElideRight,
-        Qt::ElideLeft
-    };
-
-    int minDuplicates = std::numeric_limits<int>::max();
-    QString retv;
-
-    foreach (const Qt::TextElideMode mode, modes) {
-        QString elidedText = fm.elidedText(text, mode, width);
-        int duplicates = 0;
-        foreach (const QString &otherText, otherTexts) {
-            QString otherElidedText = fm.elidedText(otherText, mode, width);
-            if (elidedText == otherElidedText)
-                ++duplicates;
-        }
-        if (duplicates < minDuplicates) {
-            minDuplicates = duplicates;
-            retv = elidedText;
-            if (duplicates == 0)
-                break;
-        }
-    }
-
-    return retv;
 }
 
 ////////
@@ -722,7 +681,7 @@ MiniProjectTargetSelector::MiniProjectTargetSelector(QAction *targetSelectorActi
     m_summaryLabel->setContentsMargins(3, 3, 3, 3);
     m_summaryLabel->setAlignment(Qt::AlignLeft | Qt::AlignTop);
     QPalette pal = m_summaryLabel->palette();
-    pal.setColor(QPalette::Window, Utils::StyleHelper().baseColor());
+    pal.setColor(QPalette::Window, StyleHelper::baseColor());
     m_summaryLabel->setPalette(pal);
     m_summaryLabel->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
     m_summaryLabel->setTextInteractionFlags(m_summaryLabel->textInteractionFlags() | Qt::LinksAccessibleByMouse);
@@ -1595,7 +1554,7 @@ void MiniProjectTargetSelector::updateSummary()
 void MiniProjectTargetSelector::paintEvent(QPaintEvent *)
 {
     QPainter painter(this);
-    painter.fillRect(rect(), Utils::StyleHelper().baseColor());
+    painter.fillRect(rect(), StyleHelper::baseColor());
     painter.setPen(creatorTheme()->color(Theme::MiniProjectTargetSelectorBorderColor));
     // draw border on top and right
     QRectF borderRect = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);

@@ -94,6 +94,7 @@ public:
     QProcess::ProcessError m_error = QProcess::UnknownError;
     QString m_errorString;
     bool m_abortOnMetaChars = true;
+    bool m_runAsRoot = false;
     QSettings *m_settings = nullptr;
 
     // Used on Unix only
@@ -545,6 +546,7 @@ bool ConsoleProcess::start()
     }
 
     d->m_environment.unset(QLatin1String("TERM"));
+
     const QStringList env = d->m_environment.toStringList();
     if (!env.isEmpty()) {
         d->m_tempFile = new QTemporaryFile();
@@ -571,20 +573,25 @@ bool ConsoleProcess::start()
 
     const QString stubPath = QCoreApplication::applicationDirPath()
             + QLatin1String("/" QTC_REL_TOOLS_PATH "/qtcreator_process_stub");
-    QStringList allArgs = terminalArgs.toUnixArgs()
-                          << stubPath
-                          << modeOption(d->m_mode)
-                          << d->m_stubServer.fullServerName()
-                          << msgPromptToClose()
-                          << workingDirectory()
-                          << (d->m_tempFile ? d->m_tempFile->fileName() : QString())
-                          << QString::number(getpid())
-                          << pcmd
-                          << pargs.toUnixArgs();
+
+    QStringList allArgs = terminalArgs.toUnixArgs();
+    if (d->m_runAsRoot)
+        allArgs << "sudo" << "-A";
+
+    allArgs << stubPath
+            << modeOption(d->m_mode)
+            << d->m_stubServer.fullServerName()
+            << msgPromptToClose()
+            << workingDirectory()
+            << (d->m_tempFile ? d->m_tempFile->fileName() : QString())
+            << QString::number(getpid())
+            << pcmd
+            << pargs.toUnixArgs();
 
     if (terminal.needsQuotes)
         allArgs = QStringList { QtcProcess::joinArgs(allArgs) };
 
+    d->m_process.setEnvironment(env);
     d->m_process.start(terminal.command, allArgs);
     if (!d->m_process.waitForStarted()) {
         stubServerShutdown();
@@ -602,6 +609,30 @@ bool ConsoleProcess::start()
 #endif
 
     return true;
+}
+
+void Utils::ConsoleProcess::kickoffProcess()
+{
+#ifdef Q_OS_WIN
+    // Not used.
+#else
+    if (d->m_stubSocket && d->m_stubSocket->isWritable()) {
+        d->m_stubSocket->write("c", 1);
+        d->m_stubSocket->flush();
+    }
+#endif
+}
+
+void ConsoleProcess::interruptProcess()
+{
+#ifdef Q_OS_WIN
+    // Not used.
+#else
+    if (d->m_stubSocket && d->m_stubSocket->isWritable()) {
+        d->m_stubSocket->write("i", 1);
+        d->m_stubSocket->flush();
+    }
+#endif
 }
 
 void ConsoleProcess::killProcess()
@@ -944,6 +975,11 @@ void ConsoleProcess::setEnvironment(const Environment &env)
 Environment ConsoleProcess::environment() const
 {
     return d->m_environment;
+}
+
+void Utils::ConsoleProcess::setRunAsRoot(bool on)
+{
+    d->m_runAsRoot = on;
 }
 
 QProcess::ProcessError ConsoleProcess::error() const

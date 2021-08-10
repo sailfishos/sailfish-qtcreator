@@ -501,29 +501,6 @@ void QmlEngine::closeConnection()
     }
 }
 
-void QmlEngine::runEngine()
-{
-    // we won't get any debug output
-    if (!terminal()) {
-        d->retryOnConnectFail = true;
-        d->automaticConnect = true;
-    }
-
-    QTC_ASSERT(state() == EngineRunRequested, qDebug() << state());
-
-    if (isPrimaryEngine()) {
-        // QML only.
-        if (runParameters().startMode == AttachToRemoteServer)
-            tryToConnect();
-        else if (runParameters().startMode == AttachToRemoteProcess)
-            beginConnection();
-        else
-            startApplicationLauncher();
-    } else {
-        tryToConnect();
-    }
-}
-
 void QmlEngine::startApplicationLauncher()
 {
     if (!d->applicationLauncher.isRunning()) {
@@ -575,6 +552,26 @@ void QmlEngine::shutdownEngine()
 void QmlEngine::setupEngine()
 {
     notifyEngineSetupOk();
+
+    // we won't get any debug output
+    if (!terminal()) {
+        d->retryOnConnectFail = true;
+        d->automaticConnect = true;
+    }
+
+    QTC_ASSERT(state() == EngineRunRequested, qDebug() << state());
+
+    if (isPrimaryEngine()) {
+        // QML only.
+        if (runParameters().startMode == AttachToRemoteServer)
+            tryToConnect();
+        else if (runParameters().startMode == AttachToRemoteProcess)
+            beginConnection();
+        else
+            startApplicationLauncher();
+    } else {
+        tryToConnect();
+    }
 
     if (d->automaticConnect)
         beginConnection();
@@ -1851,7 +1848,7 @@ void QmlEnginePrivate::messageReceived(const QByteArray &data)
 
                         int newColumn = sourceLineText.indexOf('(') + 1;
 
-                        for (const Breakpoint &bp : v8Breakpoints) {
+                        for (const Breakpoint &bp : qAsConst(v8Breakpoints)) {
                             QTC_ASSERT(bp, continue);
                             const BreakpointParameters &params = bp->requestedParameters();
 
@@ -1877,7 +1874,7 @@ void QmlEnginePrivate::messageReceived(const QByteArray &data)
 
                     if (inferiorStop) {
                         //Update breakpoint data
-                        for (const Breakpoint &bp : v8Breakpoints) {
+                        for (const Breakpoint &bp : qAsConst(v8Breakpoints)) {
                             QTC_ASSERT(bp, continue);
                             if (bp->functionName().isEmpty()) {
                                 bp->setFunctionName(invocationText);
@@ -1890,7 +1887,7 @@ void QmlEnginePrivate::messageReceived(const QByteArray &data)
                         }
 
                         if (engine->state() == InferiorRunOk) {
-                            for (const Breakpoint &bp : v8Breakpoints) {
+                            for (const Breakpoint &bp : qAsConst(v8Breakpoints)) {
                                 QTC_ASSERT(bp, continue);
                                 if (breakpointsTemp.contains(bp->responseId()))
                                     clearBreakpoint(bp);
@@ -2136,7 +2133,7 @@ void QmlEnginePrivate::handleFrame(const QVariantMap &response)
 
     // Send watchers list
     if (stackHandler->isContentsValid() && stackHandler->currentFrame().isUsable()) {
-        const QStringList watchers = watchHandler->watchedExpressions();
+        const QStringList watchers = WatchHandler::watchedExpressions();
         for (const QString &exp : watchers) {
             const QString iname = watchHandler->watcherName(exp);
             evaluate(exp, -1, [this, iname, exp](const QVariantMap &response) {

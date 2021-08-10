@@ -204,7 +204,7 @@ public:
                          const QString &message,
                          const QVector<qint32> &instanceIds);
 
-    void removeInstanceRelationsipForDeletedObject(QObject *object);
+    void removeInstanceRelationsipForDeletedObject(QObject *object, qint32 instanceId);
 
     void incrementNeedsExtraRender();
     void decrementNeedsExtraRender();
@@ -298,6 +298,7 @@ protected:
 
     virtual void resizeCanvasToRootItem() = 0;
     void setupState(qint32 stateInstanceId);
+    void registerFonts(const QUrl &resourceUrl) const;
 
 private:
     void setupOnlyWorkingImports(const QStringList &workingImportStatementList);

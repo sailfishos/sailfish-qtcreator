@@ -27,11 +27,15 @@
 
 #include <coreplugin/inavigationwidgetfactory.h>
 
+#include <QFuture>
+#include <QFutureWatcher>
+#include <QFutureSynchronizer>
 #include <QList>
-#include <QString>
-#include <QWidget>
+#include <QSharedPointer>
 #include <QStackedWidget>
 #include <QStandardItemModel>
+#include <QString>
+#include <QWidget>
 
 QT_BEGIN_NAMESPACE
 class QLabel;
@@ -43,11 +47,12 @@ QT_END_NAMESPACE
 namespace TextEditor { class TextEditorLinkLabel; }
 
 namespace Utils {
-class NavigationTreeView;
 class AnnotatedItemDelegate;
+class NavigationTreeView;
+class ProgressIndicator;
 }
 
-namespace CppTools { class CppClass; }
+namespace CppTools { class CppClass; class CppElement; }
 
 namespace CppEditor {
 namespace Internal {
@@ -71,18 +76,25 @@ class CppTypeHierarchyWidget : public QWidget
     Q_OBJECT
 public:
     CppTypeHierarchyWidget();
-    ~CppTypeHierarchyWidget() override;
 
     void perform();
 
+private slots:
+    void displayHierarchy();
+
 private:
     typedef QList<CppTools::CppClass> CppTools::CppClass::*HierarchyMember;
-    void buildHierarchy(const CppTools::CppClass &cppClass, QStandardItem *parent,
-                        bool isRoot, HierarchyMember member);
+    void performFromExpression(const QString &expression, const QString &fileName);
+    QStandardItem *buildHierarchy(const CppTools::CppClass &cppClass, QStandardItem *parent,
+                                  bool isRoot, HierarchyMember member);
     void showNoTypeHierarchyLabel();
     void showTypeHierarchy();
+    void showProgress();
+    void hideProgress();
     void clearTypeHierarchy();
     void onItemActivated(const QModelIndex &index);
+    void onItemDoubleClicked(const QModelIndex &index);
+    void updateSynchronizer();
 
     CppEditorWidget *m_cppEditor = nullptr;
     Utils::NavigationTreeView *m_treeView = nullptr;
@@ -91,7 +103,13 @@ private:
     QStandardItemModel *m_model = nullptr;
     Utils::AnnotatedItemDelegate *m_delegate = nullptr;
     TextEditor::TextEditorLinkLabel *m_inspectedClass = nullptr;
-    QLabel *m_noTypeHierarchyAvailableLabel = nullptr;
+    QLabel *m_infoLabel = nullptr;
+    QFuture<QSharedPointer<CppTools::CppElement>> m_future;
+    QFutureWatcher<void> m_futureWatcher;
+    QFutureSynchronizer<void> m_synchronizer;
+    Utils::ProgressIndicator *m_progressIndicator = nullptr;
+    QString m_oldClass;
+    bool m_showOldClass = false;
 };
 
 class CppTypeHierarchyFactory : public Core::INavigationWidgetFactory

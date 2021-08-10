@@ -90,7 +90,7 @@ DesignerActionToolBar *DesignerActionManager::createToolBar(QWidget *parent) con
         return l->priority() > r->priority();
     });
 
-    for (auto *categoryAction : categories) {
+    for (auto *categoryAction : qAsConst(categories)) {
         QList<ActionInterface* > actions = Utils::filtered(designerActions(), [categoryAction](ActionInterface *action) {
                 return action->category() == categoryAction->menuId();
         });
@@ -101,7 +101,7 @@ DesignerActionToolBar *DesignerActionManager::createToolBar(QWidget *parent) con
 
         bool addSeparator = false;
 
-        for (auto *action : actions) {
+        for (auto *action : qAsConst(actions)) {
             if ((action->type() == ActionInterface::Action || action->type() == ActionInterface::ToolBarAction)
                     && action->action()) {
                 toolBar->registerAction(action);
@@ -164,7 +164,7 @@ QGraphicsWidget *DesignerActionManager::createFormEditorToolBar(QGraphicsItem *p
     layout->setSpacing(0);
     toolbar->setLayout(layout);
 
-    for (ActionInterface *action : actions) {
+    for (ActionInterface *action : qAsConst(actions)) {
         auto button = new FormEditorToolButton(action->action(), toolbar);
         layout->addItem(button);
     }
@@ -197,6 +197,15 @@ QList<AddResourceHandler> DesignerActionManager::addResourceHandler() const
 void DesignerActionManager::registerAddResourceHandler(const AddResourceHandler &handler)
 {
     m_addResourceHandler.append(handler);
+}
+
+void DesignerActionManager::unregisterAddResourceHandlers(const QString &category)
+{
+    for (int i = m_addResourceHandler.size() - 1; i >= 0 ; --i) {
+        const AddResourceHandler &handler = m_addResourceHandler[i];
+        if (handler.category == category)
+            m_addResourceHandler.removeAt(i);
+    }
 }
 
 void DesignerActionManager::registerModelNodePreviewHandler(const ModelNodePreviewImageHandler &handler)
@@ -1403,32 +1412,41 @@ void DesignerActionManager::createDefaultDesignerActions()
                           66,
                           &openSignalDialog,
                           &singleSelectionAndHasSlotTrigger));
+
+    addDesignerAction(new ModelNodeContextMenuAction(
+                          update3DAssetCommandId,
+                          update3DAssetDisplayName,
+                          {},
+                          rootCategory,
+                          QKeySequence(),
+                          priorityGenericToolBar,
+                          &updateImported3DAsset,
+                          &selectionIsImported3DAsset,
+                          &selectionIsImported3DAsset));
 }
 
 void DesignerActionManager::createDefaultAddResourceHandler()
 {
-    registerAddResourceHandler(AddResourceHandler(ComponentCoreConstants::addImagesDisplayString,
-                                                  "*.png",
-                                                  ModelNodeOperations::addImageToProject));
-    registerAddResourceHandler(AddResourceHandler(ComponentCoreConstants::addImagesDisplayString,
-                                                  "*.jpg",
-                                                  ModelNodeOperations::addImageToProject));
-    registerAddResourceHandler(AddResourceHandler(ComponentCoreConstants::addImagesDisplayString,
-                                                  "*.bmp",
-                                                  ModelNodeOperations::addImageToProject));
-    registerAddResourceHandler(AddResourceHandler(ComponentCoreConstants::addImagesDisplayString,
-                                                  "*.svg",
-                                                  ModelNodeOperations::addImageToProject));
-    registerAddResourceHandler(AddResourceHandler(ComponentCoreConstants::addImagesDisplayString,
-                                                  "*.hdr",
-                                                  ModelNodeOperations::addImageToProject));
+    auto registerHandlers = [this](const QStringList &exts, AddResourceOperation op,
+                                   const QString &category) {
+        for (const QString &ext : exts)
+            registerAddResourceHandler(AddResourceHandler(category, ext, op));
+    };
 
-    registerAddResourceHandler(AddResourceHandler(ComponentCoreConstants::addFontsDisplayString,
-                                                  "*.ttf",
-                                                  ModelNodeOperations::addFontToProject));
-    registerAddResourceHandler(AddResourceHandler(ComponentCoreConstants::addFontsDisplayString,
-                                                  "*.otf",
-                                                  ModelNodeOperations::addFontToProject));
+    // The filters will be displayed in reverse order to these lists in file dialog,
+    // so declare most common types last
+    registerHandlers({"*.webp",  "*.hdr", "*.svg", "*.bmp", "*.jpg", "*.png"},
+                     ModelNodeOperations::addImageToProject,
+                     ComponentCoreConstants::addImagesDisplayString);
+    registerHandlers({"*.otf", "*.ttf"},
+                     ModelNodeOperations::addFontToProject,
+                     ComponentCoreConstants::addFontsDisplayString);
+    registerHandlers({"*.wav"},
+                     ModelNodeOperations::addSoundToProject,
+                     ComponentCoreConstants::addSoundsDisplayString);
+    registerHandlers({"*.glsl", "*.glslv", "*.glslf", "*.vsh", "*.fsh", "*.vert", "*.frag"},
+                     ModelNodeOperations::addShaderToProject,
+                     ComponentCoreConstants::addShadersDisplayString);
 }
 
 void DesignerActionManager::createDefaultModelNodePreviewImageHandlers()
@@ -1483,7 +1501,7 @@ void DesignerActionManager::addCreatorCommand(Core::Command *command, const QByt
 QList<QSharedPointer<ActionInterface> > DesignerActionManager::actionsForTargetView(const ActionInterface::TargetView &target)
 {
     QList<QSharedPointer<ActionInterface> > out;
-    for (auto interface : m_designerActions)
+    for (auto interface : qAsConst(m_designerActions))
         if (interface->targetView() == target)
             out << interface;
 
@@ -1495,6 +1513,14 @@ QList<ActionInterface* > DesignerActionManager::designerActions() const
     return Utils::transform(m_designerActions, [](const QSharedPointer<ActionInterface> &pointer) {
         return pointer.data();
     });
+}
+
+ActionInterface *DesignerActionManager::actionByMenuId(const QByteArray &id)
+{
+    for (const auto &action : m_designerActions)
+        if (action->menuId() == id)
+            return action.data();
+    return nullptr;
 }
 
 DesignerActionManager::DesignerActionManager(DesignerActionManagerView *designerActionManagerView)

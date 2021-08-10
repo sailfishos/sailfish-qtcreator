@@ -67,6 +67,7 @@ static const char kCurrentDocumentColumn[] = "CurrentDocument:Column";
 static const char kCurrentDocumentRowCount[] = "CurrentDocument:RowCount";
 static const char kCurrentDocumentColumnCount[] = "CurrentDocument:ColumnCount";
 static const char kCurrentDocumentFontSize[] = "CurrentDocument:FontSize";
+static const char kCurrentDocumentWordUnderCursor[] = "CurrentDocument:WordUnderCursor";
 
 class TextEditorPluginPrivate : public QObject
 {
@@ -172,12 +173,12 @@ void TextEditorPluginPrivate::extensionsInitialized()
     connect(&settings, &TextEditorSettings::fontSettingsChanged,
             this, &TextEditorPluginPrivate::updateSearchResultsFont);
 
-    updateSearchResultsFont(settings.fontSettings());
+    updateSearchResultsFont(TextEditorSettings::fontSettings());
 
-    connect(settings.codeStyle(), &ICodeStylePreferences::currentTabSettingsChanged,
+    connect(TextEditorSettings::codeStyle(), &ICodeStylePreferences::currentTabSettingsChanged,
             this, &TextEditorPluginPrivate::updateSearchResultsTabWidth);
 
-    updateSearchResultsTabWidth(settings.codeStyle()->currentTabSettings());
+    updateSearchResultsTabWidth(TextEditorSettings::codeStyle()->currentTabSettings());
 
     connect(ExternalToolManager::instance(), &ExternalToolManager::replaceSelectionRequested,
             this, &TextEditorPluginPrivate::updateCurrentSelection);
@@ -234,6 +235,15 @@ void TextEditorPlugin::extensionsInitialized()
             BaseTextEditor *editor = BaseTextEditor::currentTextEditor();
             return editor ? editor->widget()->font().pointSize() : 0;
         });
+
+    expander->registerVariable(kCurrentDocumentWordUnderCursor,
+                               tr("Word under the current document's text cursor."),
+                               []() {
+                                   BaseTextEditor *editor = BaseTextEditor::currentTextEditor();
+                                   if (!editor)
+                                       return QString();
+                                   return Text::wordUnderCursor(editor->editorWidget()->textCursor());
+                               });
 }
 
 LineNumberFilter *TextEditorPlugin::lineNumberFilter()

@@ -42,10 +42,10 @@ public:
 
 protected:
     ITestParser *createTestParser() override;
-    TestTreeItem *createRootNode() override;
+    ITestTreeItem *createRootNode() override;
 
 private:
-    IFrameworkSettings * frameworkSettings() override { return &m_settings; }
+    ITestSettings * testSettings() override { return &m_settings; }
     CatchTestSettings m_settings;
     CatchTestSettingsPage m_settingsPage{&m_settings, settingsId()};
 };

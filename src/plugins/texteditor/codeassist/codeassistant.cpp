@@ -254,7 +254,9 @@ void CodeAssistantPrivate::requestProposal(AssistReason reason,
     case IAssistProvider::Asynchronous: {
         processor->setAsyncCompletionAvailableHandler([this, reason, processor](IAssistProposal *newProposal) {
             // do not delete this processor directly since this function is called from within the processor
-            QTimer::singleShot(0, [processor]() { delete processor; });
+            QMetaObject::invokeMethod(QCoreApplication::instance(), [processor]() {
+                delete processor;
+            }, Qt::QueuedConnection);
             if (processor != m_asyncProcessor)
                 return;
             invalidateCurrentRequestData();
@@ -405,7 +407,7 @@ void CodeAssistantPrivate::finalizeProposal()
 
 bool CodeAssistantPrivate::isDisplayingProposal() const
 {
-    return m_proposalWidget != nullptr && m_proposalWidget->isVisible();
+    return m_proposalWidget != nullptr && m_proposalWidget->proposalIsVisible();
 }
 
 bool CodeAssistantPrivate::isWaitingForProposal() const
@@ -480,7 +482,7 @@ void CodeAssistantPrivate::destroyContext()
         cancelCurrentRequest();
     } else if (m_proposalWidget) {
         m_editorWidget->keepAutoCompletionHighlight(false);
-        if (m_proposalWidget->isVisible())
+        if (m_proposalWidget->proposalIsVisible())
             m_proposalWidget->closeProposal();
         disconnect(m_proposalWidget, &QObject::destroyed,
                    this, &CodeAssistantPrivate::finalizeProposal);

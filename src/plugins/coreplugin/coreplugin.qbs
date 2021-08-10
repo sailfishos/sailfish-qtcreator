@@ -5,8 +5,6 @@ import qbs.Utilities
 Project {
     name: "Core"
 
-    QtcDevHeaders { }
-
     QtcPlugin {
         Depends {
             name: "Qt"
@@ -22,11 +20,6 @@ Project {
         Depends { name: "Aggregation" }
 
         Depends { name: "app_version_header" }
-
-        Properties {
-            condition: Utilities.versionCompare(Qt.qml.version, "5.14.0") >= 0
-            cpp.defines: base.concat("WITH_JAVASCRIPTFILTER")
-        }
 
         cpp.dynamicLibraries: {
             if (qbs.targetOS.contains("windows"))
@@ -283,7 +276,7 @@ Project {
                 "locator/locator_test.cpp"
             ]
 
-            cpp.defines: outer.concat(['SRCDIR="' + path + "/locator" + '"'])
+            cpp.defines: outer.concat(['SRCDIR="' + path + '"'])
         }
 
         Group {
@@ -314,6 +307,7 @@ Project {
                 "optionspopup.cpp",
                 "optionspopup.h",
                 "searchresultcolor.h",
+                "searchresultitem.h",
                 "searchresulttreeitemdelegate.cpp",
                 "searchresulttreeitemdelegate.h",
                 "searchresulttreeitemroles.h",
@@ -351,6 +345,8 @@ Project {
                 "filesystemfilter.ui",
                 "ilocatorfilter.cpp",
                 "ilocatorfilter.h",
+                "javascriptfilter.cpp",
+                "javascriptfilter.h",
                 "locatorconstants.h",
                 "locatorfiltersfilter.cpp",
                 "locatorfiltersfilter.h",
@@ -367,28 +363,11 @@ Project {
                 "locatorwidget.h",
                 "opendocumentsfilter.cpp",
                 "opendocumentsfilter.h",
+                "spotlightlocatorfilter.h",
+                "spotlightlocatorfilter.cpp",
                 "urllocatorfilter.cpp",
                 "urllocatorfilter.h",
                 "urllocatorfilter.ui"
-            ]
-        }
-
-        Group {
-            name: "Locator Javascript Filter"
-            condition: Utilities.versionCompare(Qt.qml.version, "5.14.0") >= 0
-            prefix: "locator/"
-            files: [
-                "javascriptfilter.cpp",
-                "javascriptfilter.h",
-            ]
-        }
-
-        Group {
-            name: "Locator_mac"
-            condition: qbs.targetOS.contains("macos")
-            files: [
-                "locator/spotlightlocatorfilter.h",
-                "locator/spotlightlocatorfilter.mm",
             ]
         }
 

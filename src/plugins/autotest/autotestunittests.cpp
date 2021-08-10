@@ -23,9 +23,9 @@
 **
 ****************************************************************************/
 
+#include "autotestunittests.h"
 #include "autotestconstants.h"
 #include "autotestplugin.h"
-#include "autotestunittests.h"
 #include "testcodeparser.h"
 #include "testsettings.h"
 #include "testtreemodel.h"
@@ -80,7 +80,7 @@ void AutoTestUnitTests::initTestCase()
 
     m_tmpDir = new CppTools::Tests::TemporaryCopiedDir(":/unit_test");
 
-    if (!qgetenv("BOOST_INCLUDE_DIR").isEmpty()) {
+    if (!qEnvironmentVariableIsEmpty("BOOST_INCLUDE_DIR")) {
         m_checkBoost = true;
     } else {
         if (Utils::HostOsInfo::isLinuxHost()
@@ -200,7 +200,7 @@ void AutoTestUnitTests::testCodeParserSwitchStartup_data()
 
 void AutoTestUnitTests::testCodeParserGTest()
 {
-    if (qgetenv("GOOGLETEST_DIR").isEmpty())
+    if (qEnvironmentVariableIsEmpty("GOOGLETEST_DIR"))
         QSKIP("This test needs googletest - set GOOGLETEST_DIR (point to googletest repository)");
 
     QFETCH(QString, projectFilePath);
@@ -213,7 +213,7 @@ void AutoTestUnitTests::testCodeParserGTest()
     QVERIFY(parserSpy.wait(20000));
     QVERIFY(modelUpdateSpy.wait());
 
-    QCOMPARE(m_model->gtestNamesCount(), 7);
+    QCOMPARE(m_model->gtestNamesCount(), 8);
 
     QMultiMap<QString, int> expectedNamesAndSets;
     expectedNamesAndSets.insert(QStringLiteral("FactorialTest"), 3);
@@ -222,6 +222,7 @@ void AutoTestUnitTests::testCodeParserGTest()
     expectedNamesAndSets.insert(QStringLiteral("QueueTest"), 2);
     expectedNamesAndSets.insert(QStringLiteral("DummyTest"), 1); // used as parameterized test
     expectedNamesAndSets.insert(QStringLiteral("DummyTest"), 1); // used as 'normal' test
+    expectedNamesAndSets.insert(QStringLiteral("NumberAsNameStart"), 1);
     expectedNamesAndSets.insert(QStringLiteral("NamespaceTest"), 1);
 
     QMultiMap<QString, int> foundNamesAndSets = m_model->gtestNamesAndSets();

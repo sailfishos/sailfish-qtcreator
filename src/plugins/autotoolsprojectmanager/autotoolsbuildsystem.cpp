@@ -141,7 +141,7 @@ void AutotoolsBuildSystem::makefileParsingFinished()
     }
 
     auto newRoot = std::make_unique<ProjectNode>(project()->projectDirectory());
-    for (const QString &f : m_files) {
+    for (const QString &f : qAsConst(m_files)) {
         const Utils::FilePath path = Utils::FilePath::fromString(f);
         newRoot->addNestedNode(std::make_unique<FileNode>(path,
                                                           FileNode::fileTypeForFileName(path)));
@@ -188,8 +188,10 @@ void AutotoolsBuildSystem::updateCppCodeModel()
     QStringList cxxflags = m_makefileParserThread->cxxflags();
     if (cxxflags.isEmpty())
         cxxflags = cflags;
-    rpp.setFlagsForC({kitInfo.cToolChain, cflags});
-    rpp.setFlagsForCxx({kitInfo.cxxToolChain, cxxflags});
+
+    const QString includeFileBaseDir = projectDirectory().toString();
+    rpp.setFlagsForC({kitInfo.cToolChain, cflags, includeFileBaseDir});
+    rpp.setFlagsForCxx({kitInfo.cxxToolChain, cxxflags, includeFileBaseDir});
 
     const QString absSrc = project()->projectDirectory().toString();
     BuildConfiguration *bc = target()->activeBuildConfiguration();

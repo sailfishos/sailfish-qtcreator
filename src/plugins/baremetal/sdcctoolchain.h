@@ -52,11 +52,6 @@ class SdccToolChain final : public ProjectExplorer::ToolChain
     Q_DECLARE_TR_FUNCTIONS(SdccToolChain)
 
 public:
-    void setTargetAbi(const ProjectExplorer::Abi &abi);
-    ProjectExplorer::Abi targetAbi() const final;
-
-    bool isValid() const final;
-
     MacroInspectionRunner createMacroInspectionRunner() const final;
 
     Utils::LanguageExtensions languageExtensions(const QStringList &cxxflags) const final;
@@ -67,23 +62,14 @@ public:
     void addToEnvironment(Utils::Environment &env) const final;
     QList<Utils::OutputLineParser *> createOutputParsers() const final;
 
-    QVariantMap toMap() const final;
-    bool fromMap(const QVariantMap &data) final;
-
     std::unique_ptr<ProjectExplorer::ToolChainConfigWidget> createConfigurationWidget() final;
 
     bool operator ==(const ToolChain &other) const final;
-
-    void setCompilerCommand(const Utils::FilePath &file);
-    Utils::FilePath compilerCommand() const final;
 
     Utils::FilePath makeCommand(const Utils::Environment &env) const final;
 
 private:
     SdccToolChain();
-
-    ProjectExplorer::Abi m_targetAbi;
-    Utils::FilePath m_compilerCommand;
 
     friend class SdccToolChainFactory;
     friend class SdccToolChainConfigWidget;

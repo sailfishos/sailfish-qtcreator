@@ -43,7 +43,6 @@
 #include <QMessageBox>
 #include <QMetaProperty>
 #include <QPushButton>
-#include <QSettings>
 #include <QSysInfo>
 #include <QTextStream>
 #include <QTimer>
@@ -56,6 +55,7 @@
 #include <utils/hostosinfo.h>
 #include <utils/mimetypes/mimedatabase.h>
 #include <utils/qtcassert.h>
+#include <utils/qtcsettings.h>
 #include <utils/synchronousprocess.h>
 
 #ifdef WITH_TESTS
@@ -413,7 +413,7 @@ static QString filled(const QString &s, int min)
     return s + QString(qMax(0, min - s.size()), ' ');
 }
 
-QString PluginManager::systemInformation() const
+QString PluginManager::systemInformation()
 {
     QString result;
     CommandLine qtDiag(HostOsInfo::withExecutableSuffix(
@@ -487,7 +487,7 @@ void PluginManager::setPluginIID(const QString &iid)
     disabled plugins.
     Needs to be set before the plugin search path is set with setPluginPaths().
 */
-void PluginManager::setSettings(QSettings *settings)
+void PluginManager::setSettings(QtcSettings *settings)
 {
     d->setSettings(settings);
 }
@@ -497,7 +497,7 @@ void PluginManager::setSettings(QSettings *settings)
     default disabled plugins.
     Needs to be set before the plugin search path is set with setPluginPaths().
 */
-void PluginManager::setGlobalSettings(QSettings *settings)
+void PluginManager::setGlobalSettings(QtcSettings *settings)
 {
     d->setGlobalSettings(settings);
 }
@@ -506,7 +506,7 @@ void PluginManager::setGlobalSettings(QSettings *settings)
     Returns the user specific settings used for information about enabled and
     disabled plugins.
 */
-QSettings *PluginManager::settings()
+QtcSettings *PluginManager::settings()
 {
     return d->settings;
 }
@@ -514,7 +514,7 @@ QSettings *PluginManager::settings()
 /*!
     Returns the global (user-independent) settings used for information about default disabled plugins.
 */
-QSettings *PluginManager::globalSettings()
+QtcSettings *PluginManager::globalSettings()
 {
     return d->globalSettings;
 }
@@ -817,7 +817,7 @@ PluginSpec *PluginManagerPrivate::createSpec()
 /*!
     \internal
 */
-void PluginManagerPrivate::setSettings(QSettings *s)
+void PluginManagerPrivate::setSettings(QtcSettings *s)
 {
     if (settings)
         delete settings;
@@ -829,7 +829,7 @@ void PluginManagerPrivate::setSettings(QSettings *s)
 /*!
     \internal
 */
-void PluginManagerPrivate::setGlobalSettings(QSettings *s)
+void PluginManagerPrivate::setGlobalSettings(QtcSettings *s)
 {
     if (globalSettings)
         delete globalSettings;
@@ -864,7 +864,7 @@ void PluginManagerPrivate::nextDelayedInitialize()
         profilingSummary();
         emit q->initializationDone();
 #ifdef WITH_TESTS
-        if (q->testRunRequested())
+        if (PluginManager::testRunRequested())
             startTests();
 #endif
     } else {
@@ -905,8 +905,8 @@ void PluginManagerPrivate::writeSettings()
             tempForceEnabledPlugins.append(spec->name());
     }
 
-    settings->setValue(QLatin1String(C_IGNORED_PLUGINS), tempDisabledPlugins);
-    settings->setValue(QLatin1String(C_FORCEENABLED_PLUGINS), tempForceEnabledPlugins);
+    settings->setValueWithDefault(C_IGNORED_PLUGINS, tempDisabledPlugins);
+    settings->setValueWithDefault(C_FORCEENABLED_PLUGINS, tempForceEnabledPlugins);
 }
 
 /*!
@@ -1474,7 +1474,7 @@ void PluginManagerPrivate::loadPlugin(PluginSpec *spec, PluginSpec::State destSt
         return;
 
     std::unique_ptr<LockFile> lockFile;
-    if (enableCrashCheck)
+    if (enableCrashCheck && destState < PluginSpec::Stopped)
         lockFile.reset(new LockFile(this, spec));
 
     switch (destState) {
