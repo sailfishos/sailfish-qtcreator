@@ -30,7 +30,7 @@
 namespace Mer {
 namespace Internal {
 
-class MerCMakeBuildConfiguration : public CMakeProjectManager::Internal::CMakeBuildConfiguration
+class MerCMakeBuildConfiguration : public CMakeProjectManager::CMakeBuildConfiguration
 {
     Q_OBJECT
 
@@ -45,7 +45,7 @@ private:
     void ensureBuildEngineRuns();
 };
 
-class MerCMakeBuildConfigurationFactory : public CMakeProjectManager::Internal::CMakeBuildConfigurationFactory
+class MerCMakeBuildConfigurationFactory : public CMakeProjectManager::CMakeBuildConfigurationFactory
 {
 public:
     MerCMakeBuildConfigurationFactory();

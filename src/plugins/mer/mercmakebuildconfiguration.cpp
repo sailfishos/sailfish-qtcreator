@@ -46,7 +46,7 @@
 
 using namespace Core;
 using namespace ProjectExplorer;
-using namespace CMakeProjectManager::Internal;
+using namespace CMakeProjectManager;
 using namespace Sfdk;
 using namespace Utils;
 
@@ -103,7 +103,7 @@ void MerCMakeBuildConfiguration::addToEnvironment(Utils::Environment &env) const
 
 MerCMakeBuildConfigurationFactory::MerCMakeBuildConfigurationFactory()
 {
-    registerBuildConfiguration<MerCMakeBuildConfiguration>(CMakeProjectManager::Constants::CMAKE_PROJECT_BC_ID);
+    registerBuildConfiguration<MerCMakeBuildConfiguration>(CMakeProjectManager::Constants::CMAKE_BUILDCONFIGURATION_ID);
     addSupportedTargetDeviceType(Constants::MER_DEVICE_TYPE);
 }
 
