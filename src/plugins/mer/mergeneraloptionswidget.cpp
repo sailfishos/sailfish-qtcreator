@@ -133,7 +133,7 @@ MerGeneralOptionsWidget::MerGeneralOptionsWidget(QWidget *parent)
     QString error;
     execAsynchronous(std::tie(ok, availableKeys, error), Sfdk::availableGpgKeys);
     if (!ok)
-        Core::MessageManager::write(error, Core::MessageManager::Flash);
+        Core::MessageManager::writeFlashing(error);
 
     const QStringList items = Utils::transform(availableKeys, &GpgKeyInfo::toString);
     m_ui->defaultSigningUserComboBox->addItems(items);

@@ -19,7 +19,7 @@ QList<GpgKeyInfo> getAvailableKeys()
     QString error;
     execAsynchronous(std::tie(ok, availableKeys, error), Sfdk::availableGpgKeys);
     if (!ok)
-        Core::MessageManager::write(error, Core::MessageManager::Flash);
+        Core::MessageManager::writeFlashing(error);
 
     return availableKeys;
 }

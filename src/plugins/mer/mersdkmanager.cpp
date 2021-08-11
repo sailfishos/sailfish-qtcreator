@@ -679,8 +679,8 @@ void MerSdkManager::checkPkgConfigAvailability()
         QProcess process;
         process.start("pkg-config", {"--version"});
         if (!process.waitForFinished() || process.error() == QProcess::FailedToStart) {
-            MessageManager::write(tr("pkg-config is not available. Ensure it is installed and available from PATH"),
-                    MessageManager::Flash);
+            MessageManager::writeFlashing(
+                    tr("pkg-config is not available. Ensure it is installed and available from PATH"));
         }
     }
 }

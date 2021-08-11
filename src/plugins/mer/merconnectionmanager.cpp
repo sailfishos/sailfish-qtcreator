@@ -206,10 +206,9 @@ void MerConnectionAction::update()
         toolTip = m_closingTip;
         break;
     case VirtualMachine::Error:
-        MessageManager::write(tr("Error connecting to \"%1\" virtual machine: %2")
+        MessageManager::writeFlashing(tr("Error connecting to \"%1\" virtual machine: %2")
             .arg(m_virtualMachine->name())
-            .arg(m_virtualMachine->errorString()),
-            MessageManager::Flash);
+            .arg(m_virtualMachine->errorString()));
         toolTip = m_startTip;
         break;
     }

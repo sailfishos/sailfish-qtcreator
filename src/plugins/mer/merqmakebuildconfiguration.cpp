@@ -102,8 +102,8 @@ MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target, Utils::Id
             return;
         if (!project()->files(Project::AllFiles).contains(document->filePath())) {
             if (document->filePath().isChildOf(project()->rootProjectDirectory())) {
-                MessageManager::write(tr("Warning: RPM *.spec (or *.yaml) file not registered to the project."),
-                        MessageManager::Flash);
+                MessageManager::writeFlashing(
+                        tr("Warning: RPM *.spec (or *.yaml) file not registered to the project."));
             }
             return;
         }
