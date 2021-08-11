@@ -333,6 +333,4 @@ void MerEmulatorDeviceManager::stopWatching(Sfdk::EmulatorDevice *sdkDevice)
     sdkDevice->disconnect(this);
 }
 
-#include "meremulatordevice.moc"
-
 }
