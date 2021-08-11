@@ -31,6 +31,7 @@
 #include <projectexplorer/namedwidget.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/target.h>
+#include <qtsupport/qtkitinformation.h>
 
 using namespace ProjectExplorer;
 using namespace Utils;
@@ -78,7 +79,7 @@ void MerCompilationDatabaseBuildConfiguration::addToEnvironment(Utils::Environme
 {
     BuildConfiguration::addToEnvironment(env);
 
-    prependCompilerPathToEnvironment(target()->kit(), env);
+    QtSupport::QtKitAspect::addHostBinariesToPath(target()->kit(), env);
 
     auto aspect = this->aspect<MerBuildConfigurationAspect>();
     QTC_ASSERT(aspect, return);
