@@ -309,7 +309,7 @@ void MerQmakeBuildConfiguration::disableQmakeSystem()
     TriStateAspect *runSystemAspect = qobject_cast<TriStateAspect *>(Utils::findOrDefault(aspects(),
                     Utils::equal(&BaseAspect::settingsKey, QString("RunSystemFunction"))));
     QTC_ASSERT(runSystemAspect, return);
-    runSystemAspect->setSetting(TriState::Disabled);
+    runSystemAspect->setValue(TriState::Disabled);
     runSystemAspect->setVisible(false);
 }
 
