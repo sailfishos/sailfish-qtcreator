@@ -636,7 +636,7 @@ void DeviceManager::updateDevicesXml() const
                 : FilePath();
             if (!sharedConfigPath.isEmpty()) {
                 xmlData.m_sshKeyPath =
-                    FilePath::fromString(device->sshParameters().privateKeyFile).parentDir()
+                    FilePath::fromString(device->sshParameters().privateKeyFile)
                     .relativeChildPath(sharedConfigPath).toString();
                 emulatorConfigPaths << emulatorDevice->emulator()->sharedConfigPath();
             }
