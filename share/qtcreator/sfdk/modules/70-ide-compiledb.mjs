@@ -8,7 +8,7 @@ export function mapCompilationDatabasePaths() {
         return [true, ""];
 
     utils.updateFile(compilationDb, function (data) {
-        var target = configuration.optionArgument('target');
+        var target = configuration.effectiveTarget();
         var sysroot = buildEngine.sharedTargetsPath + '/' + target;
         var toolsPath = buildEngine.buildTargetToolsPath(target);
 
