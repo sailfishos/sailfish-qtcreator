@@ -160,7 +160,7 @@ private:
             port_is_used() {
                 local port=$1
                 local regex=$(printf '^[^:]*: [[:xdigit:]]*:%04x ' "$port")
-                grep -q -e "$regex" /proc/net/tcp*
+                grep -q -i -e "$regex" /proc/net/tcp*
             }
             # Ensure it really works - assume port 22 is always open
             if ! port_is_used 22; then
@@ -211,7 +211,7 @@ private:
             port_is_used() {
                 local port=$1
                 local regex=$(printf '^[^:]*: [[:xdigit:]]*:%04x ' "$port")
-                grep -q -e "$regex" /proc/net/tcp*
+                grep -q -i -e "$regex" /proc/net/tcp*
             }
             while ! port_is_used "$1"; do
                 sleep 1;
