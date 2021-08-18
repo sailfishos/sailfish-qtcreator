@@ -190,6 +190,18 @@ public:
         return optionEffectiveState(optionName)->argument();
     }
 
+    Q_INVOKABLE QString effectiveTarget() const
+    {
+        QString errorMessage;
+        const BuildTargetData target = SdkManager::configuredTarget(&errorMessage);
+        if (!target.isValid()) {
+            qjsEngine(this)->throwError(errorMessage);
+            return {};
+        }
+
+        return target.name;
+    }
+
 private:
     Utils::optional<OptionEffectiveOccurence> optionEffectiveState(const QString &optionName) const
     {
