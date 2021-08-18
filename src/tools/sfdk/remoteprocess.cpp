@@ -240,7 +240,7 @@ void RemoteProcess::kill(const QString &signal, void (RemoteProcess::*callback)(
         m_killRunner.reset(nullptr);
     });
 
-    QString killCommand = QString("kill -%1 -- -%2 %2").arg(signal).arg(m_processId);
+    QString killCommand = QString("kill -%1 -%2 %2").arg(signal).arg(m_processId);
     qCDebug(sfdk) << "Attempting to send signal to the remote process using" << killCommand;
 
     m_killRunner->run(killCommand, m_sshConnectionParams);
