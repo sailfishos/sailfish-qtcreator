@@ -771,7 +771,7 @@ void EmulatorManager::fromMap(DeviceModelData *deviceModel, const QVariantMap &d
 QVariantMap EmulatorManager::toMap() const
 {
     QVariantMap data;
-    data.insert(Constants::EMULATORS_VERSION_KEY, 2);
+    data.insert(Constants::EMULATORS_VERSION_KEY, 1);
     data.insert(Constants::EMULATORS_INSTALL_DIR_KEY, m_installDir);
 
     int count = 0;
@@ -802,7 +802,7 @@ QVariantMap EmulatorManager::toMap() const
 void EmulatorManager::fromMap(const QVariantMap &data, bool fromSystemSettings)
 {
     const int version = data.value(Constants::EMULATORS_VERSION_KEY).toInt();
-    QTC_ASSERT(version == 2, return);
+    QTC_ASSERT(version == 1, return);
 
     m_installDir = data.value(Constants::EMULATORS_INSTALL_DIR_KEY).toString();
     QTC_ASSERT(!m_installDir.isEmpty(), return);
