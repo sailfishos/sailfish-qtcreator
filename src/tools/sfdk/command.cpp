@@ -345,6 +345,16 @@ public:
                     return Failed;
                 }
             }
+            int currentFreeSizeMb = m_vm->freeStorageSizeMb();
+            if (currentFreeSizeMb < 0) {
+                *errorString = tr("Failed to determine current free storage size");
+                return Failed;
+            }
+            if (m_freeSizeMb <= currentFreeSizeMb) {
+                // nothing to do
+                *needsVmOff = false;
+                m_freeSizeMb = 0;
+            }
             return Prepared;
         } else {
             *errorString = unknownPropertyMessage();
