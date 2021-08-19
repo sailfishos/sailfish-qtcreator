@@ -362,7 +362,7 @@ int AddSfdkEmulatorOperation::execute() const
 
 QVariantMap AddSfdkEmulatorOperation::initializeEmulators(const QString &installDir, int version)
 {
-    const int CURRENT_VERSION = 2;
+    const int CURRENT_VERSION = 1;
 
     QVariantMap map;
     map.insert(QLatin1String(C::EMULATORS_VERSION_KEY), version != -1 ? version : CURRENT_VERSION);
