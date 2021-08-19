@@ -67,7 +67,6 @@ using namespace Internal;
 using namespace Constants;
 
 namespace {
-const char EMULATOR_DEVICE_ID_SUFFIX[] = "-emulator";
 } // namespace anonymous
 
 IDevice::Ptr MerEmulatorDevice::clone() const
@@ -210,15 +209,13 @@ Utils::Id MerEmulatorDevice::idFor(const Sfdk::Emulator &emulator)
     // HACK: We know we do not have other than VirtualBox based emulators
     QTC_CHECK(emulator.uri().path() == "VirtualBox");
     QTC_CHECK(emulator.uri().fragment() == emulator.name());
-    return Utils::Id::fromString(emulator.name() + EMULATOR_DEVICE_ID_SUFFIX);
+    return Utils::Id::fromString(emulator.name());
 }
 
 QString MerEmulatorDevice::toSdkId(const Utils::Id &id)
 {
     // HACK
-    QTC_CHECK(id.toString().endsWith(EMULATOR_DEVICE_ID_SUFFIX));
-    const QString emulatorName = id.toString()
-        .chopped(QString(EMULATOR_DEVICE_ID_SUFFIX).length());
+    const QString emulatorName = id.toString();
     QUrl emulatorUri;
     emulatorUri.setScheme(Sfdk::Constants::VIRTUAL_MACHINE_URI_SCHEME);
     emulatorUri.setPath("VirtualBox");
