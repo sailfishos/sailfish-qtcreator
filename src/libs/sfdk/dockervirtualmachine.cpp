@@ -114,9 +114,9 @@ private:
  */
 
 DockerVirtualMachine::DockerVirtualMachine(const QString &name, VirtualMachine::Features featureMask,
-        QObject *parent)
+        std::unique_ptr<ConnectionUi> &&connectionUi, QObject *parent)
     : VirtualMachine(std::make_unique<DockerVirtualMachinePrivate>(this), staticType(),
-            staticFeatures() & featureMask, name, parent)
+            staticFeatures() & featureMask, name, std::move(connectionUi), parent)
 {
     Q_D(DockerVirtualMachine);
     d->setDisplayType(staticDisplayType());

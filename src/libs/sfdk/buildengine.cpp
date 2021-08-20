@@ -124,6 +124,8 @@ struct BuildEngine::PrivateConstructorTag {};
  * \class BuildEngine
  */
 
+BuildEngine::VmConnectionUiCreator BuildEngine::s_vmConnectionUiCreator;
+
 BuildEngine::BuildEngine(QObject *parent, const PrivateConstructorTag &)
     : QObject(parent)
     , d_ptr(std::make_unique<BuildEnginePrivate>(this))
@@ -466,10 +468,12 @@ bool BuildEnginePrivate::initVirtualMachine(const QUrl &vmUri)
 {
     Q_Q(BuildEngine);
     Q_ASSERT(!virtualMachine);
+    QTC_ASSERT(BuildEngine::s_vmConnectionUiCreator, return false);
 
     VirtualMachine::Features unsupportedFeatures = VirtualMachine::Snapshots;
 
-    virtualMachine = VirtualMachineFactory::create(vmUri, ~unsupportedFeatures);
+    virtualMachine = VirtualMachineFactory::create(vmUri, ~unsupportedFeatures,
+            BuildEngine::s_vmConnectionUiCreator());
     QTC_ASSERT(virtualMachine, return false);
 
     SshConnectionParameters sshParameters;

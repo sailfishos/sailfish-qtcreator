@@ -223,9 +223,10 @@ class VirtualMachineFactory : public QObject
 #if Q_CC_MSVC && Q_CC_MSVC <= 1900
         template<typename T>
         static std::unique_ptr<VirtualMachine> creator(const QString &name,
-                VirtualMachine::Features featureMask)
+                VirtualMachine::Features featureMask,
+                std::unique_ptr<VirtualMachine::ConnectionUi> &&connectionUi)
         {
-            return std::make_unique<T>(name, featureMask);
+            return std::make_unique<T>(name, featureMask, std::move(connectionUi));
         }
 #endif
 
@@ -240,7 +241,8 @@ class VirtualMachineFactory : public QObject
 #if Q_CC_MSVC && Q_CC_MSVC <= 1900
             , create(creator<T>)
 #else
-            , create(std::make_unique<T, const QString &, VirtualMachine::Features>)
+            , create(std::make_unique<T, const QString &, VirtualMachine::Features,
+                    std::unique_ptr<VirtualMachine::ConnectionUi> &&>)
 #endif
         {
         }
@@ -251,7 +253,8 @@ class VirtualMachineFactory : public QObject
         QString displayType;
         void (*fetchRegisteredVirtualMachines)(const QObject *,
                 const Functor<const QStringList &, bool> &) = nullptr;
-        std::function<std::unique_ptr<VirtualMachine>(const QString &, VirtualMachine::Features)> create = {};
+        std::function<std::unique_ptr<VirtualMachine>(const QString &, VirtualMachine::Features,
+                std::unique_ptr<VirtualMachine::ConnectionUi> &&)> create = {};
     };
 
 public:
@@ -264,7 +267,8 @@ public:
     static void unusedVirtualMachines(const QObject *context,
             const Functor<const QList<VirtualMachineDescriptor> &, bool> &functor);
     static std::unique_ptr<VirtualMachine> create(const QUrl &uri,
-            VirtualMachine::Features featureMask);
+            VirtualMachine::Features featureMask,
+            std::unique_ptr<VirtualMachine::ConnectionUi> &&connectionUi);
 
     // FIXME use UUID instead of name
     static QUrl makeUri(const QString &type, const QString &name);

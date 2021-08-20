@@ -53,8 +53,9 @@
 #include "mervmconnectionui.h"
 #include "meremulatormodeoptionspage.h"
 
+#include <sfdk/buildengine.h>
+#include <sfdk/emulator.h>
 #include <sfdk/sdk.h>
-#include <sfdk/virtualmachine.h>
 
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -215,7 +216,8 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
 
     RunConfiguration::registerAspect<MerRunConfigurationAspect>();
 
-    VirtualMachine::registerConnectionUi<MerVmConnectionUi>();
+    BuildEngine::registerVmConnectionUi<MerVmConnectionUi>();
+    Emulator::registerVmConnectionUi<MerVmConnectionUi>();
 
     dd = new MerPluginPrivate;
 

@@ -26,12 +26,12 @@
 #include "sfdkglobal.h"
 
 #include "asynchronous.h"
+#include "virtualmachine.h"
 
 #include <utils/fileutils.h>
 
 namespace Sfdk {
 
-class VirtualMachine;
 class UserSettings;
 
 class SFDK_EXPORT RpmValidationSuiteData
@@ -124,6 +124,13 @@ public:
     void importPrivateGpgKey(const QString &id, const Utils::FilePath &passphraseFile,
             const QObject *context, const Functor<bool, QString> &functor);
 
+    template<typename Ui>
+    static void registerVmConnectionUi()
+    {
+        Q_ASSERT(!s_vmConnectionUiCreator);
+        s_vmConnectionUiCreator = std::make_unique<Ui>;
+    }
+
 signals:
     void sharedInstallPathChanged(const Utils::FilePath &sharedInstallPath);
     void sharedHomePathChanged(const Utils::FilePath &sharedHomePath);
@@ -143,6 +150,9 @@ private:
     std::unique_ptr<BuildEnginePrivate> d_ptr;
     Q_DISABLE_COPY(BuildEngine)
     Q_DECLARE_PRIVATE(BuildEngine)
+
+    using VmConnectionUiCreator = std::function<std::unique_ptr<VirtualMachine::ConnectionUi>()>;
+    static VmConnectionUiCreator s_vmConnectionUiCreator;
 };
 
 } // namespace Sfdk

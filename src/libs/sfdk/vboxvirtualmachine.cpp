@@ -183,9 +183,9 @@ private:
  */
 
 VBoxVirtualMachine::VBoxVirtualMachine(const QString &name, VirtualMachine::Features featureMask,
-        QObject *parent)
+        std::unique_ptr<ConnectionUi> &&connectionUi, QObject *parent)
     : VirtualMachine(std::make_unique<VBoxVirtualMachinePrivate>(this), staticType(),
-            staticFeatures() & featureMask, name, parent)
+            staticFeatures() & featureMask, name, std::move(connectionUi), parent)
 {
     Q_D(VBoxVirtualMachine);
     d->setDisplayType(staticDisplayType());

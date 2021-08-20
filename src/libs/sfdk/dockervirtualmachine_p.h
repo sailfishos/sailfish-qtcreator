@@ -34,7 +34,7 @@ class DockerVirtualMachine : public VirtualMachine
 
 public:
     explicit DockerVirtualMachine(const QString &name, VirtualMachine::Features featureMask,
-            QObject *parent = nullptr);
+            std::unique_ptr<ConnectionUi> &&connectionUi, QObject *parent = nullptr);
     ~DockerVirtualMachine() override;
 
     static bool isAvailable();

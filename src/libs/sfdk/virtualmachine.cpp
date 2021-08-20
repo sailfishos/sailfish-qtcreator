@@ -114,10 +114,9 @@ private:
  * \class VirtualMachine
  */
 
-VirtualMachine::ConnectionUiCreator VirtualMachine::s_connectionUiCreator;
-
 VirtualMachine::VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, const QString &type,
-        const Features &features, const QString &name, QObject *parent)
+        const Features &features, const QString &name, std::unique_ptr<ConnectionUi> &&connectionUi,
+        QObject *parent)
     : QObject(parent)
     , d_ptr(std::move(dd))
 {
@@ -126,8 +125,8 @@ VirtualMachine::VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, cons
     d->type = type;
     d->features = features;
     d->name = name;
-    QTC_ASSERT(s_connectionUiCreator, return);
-    d->connectionUi_ = s_connectionUiCreator(this);
+    d->connectionUi_ = std::move(connectionUi);
+    d->connectionUi_->setParent(this);
     d->connection = std::make_unique<VmConnection>(this);
     connect(d->connection.get(), &VmConnection::stateChanged, this, &VirtualMachine::stateChanged);
     connect(d->connection.get(), &VmConnection::stateChangePendingChanged,
@@ -903,7 +902,8 @@ void VirtualMachineFactory::unusedVirtualMachines(const QObject *context,
 }
 
 std::unique_ptr<VirtualMachine> VirtualMachineFactory::create(const QUrl &uri,
-        VirtualMachine::Features featureMask)
+        VirtualMachine::Features featureMask,
+        std::unique_ptr<VirtualMachine::ConnectionUi> &&connectionUi)
 {
     qCDebug(vms) << "Creating VM" << uri.toString();
 
@@ -921,7 +921,7 @@ std::unique_ptr<VirtualMachine> VirtualMachineFactory::create(const QUrl &uri,
             << "already exists";
     }
 
-    std::unique_ptr<VirtualMachine> vm = meta.create(name, featureMask);
+    std::unique_ptr<VirtualMachine> vm = meta.create(name, featureMask, std::move(connectionUi));
 
     connect(vm.get(), &QObject::destroyed, s_instance, [=]() {
         if (--s_instance->m_used[uri] == 0)

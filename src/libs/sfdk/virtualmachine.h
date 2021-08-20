@@ -148,13 +148,6 @@ public:
     void refreshConfiguration(const QObject *context, const Functor<bool> &functor);
     void refreshState(const QObject *context, const Functor<bool> &functor);
 
-    template<typename ConcreteUi>
-    static void registerConnectionUi()
-    {
-        Q_ASSERT(!s_connectionUiCreator);
-        s_connectionUiCreator = [](VirtualMachine *parent) { return std::make_unique<ConcreteUi>(parent); };
-    }
-
     void connectTo(ConnectOptions options, const QObject *context, const Functor<bool> &functor);
     void disconnectFrom(const QObject *context, const Functor<bool> &functor);
 
@@ -175,15 +168,13 @@ signals:
 
 protected:
     VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, const QString &type,
-            const Features &features, const QString &name, QObject *parent);
+            const Features &features, const QString &name,
+            std::unique_ptr<ConnectionUi> &&connectionUi, QObject *parent);
     std::unique_ptr<VirtualMachinePrivate> d_ptr;
 
 private:
     Q_DISABLE_COPY(VirtualMachine)
     Q_DECLARE_PRIVATE(VirtualMachine)
-
-    using ConnectionUiCreator = std::function<std::unique_ptr<ConnectionUi>(VirtualMachine *)>;
-    static ConnectionUiCreator s_connectionUiCreator;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(VirtualMachine::ConnectOptions)
