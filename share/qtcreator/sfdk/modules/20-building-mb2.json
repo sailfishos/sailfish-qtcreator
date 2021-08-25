@@ -138,10 +138,6 @@
             "trDescription": "Modifies behavior of 'output-prefix' and 'snapshot' options.  The task name can be specified either directly as <name> or it can be derived from the current Git branch name, if a value in the form 'git:<regex>' is set. The POSIX extended regular expression <regex> serves both as a condition to enable this option and as a mean to select a substring of the branch name to be used as the task name. Defaults to 'git:^[[:alpha:]]{2,5}[[:digit:]]{3,}'. The default expression is suitable to look for a leading bug reference in the branch name. E.g. 'bug1234' in 'bug1234-quickfix'."
         },
         {
-            "name": "no-task",
-            "trDescription": "Override 'task' option"
-        },
-        {
             "name": "fix-version",
             "trArgument": "[<tag>]",
             "trDescription": "This option is implied when used inside a Git working tree (use 'no-fix-version' to override).\n\nWith this option the version recorded in the .spec file will be ignored. Instead, package version will be derived from the name of the latest tag in the current git branch or the selected tag <tag> (the latter case is hardly useful on other than 'command' scope).\n\nIf the current HEAD, index or working tree differs from the tree denoted by the (latest or selected) tag, a suffix composed from the current branch name, time stamp and a commit SHA1 will be added to the package version. If git-state is not clean a git-stash will be created and its SHA1 will be used.\n\nIt is recommended to store 'Version: 0' and 'Release: 1' in the .spec file when this option is to be used; as a sign that the version recorded there is not relevant."

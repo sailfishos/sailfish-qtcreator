@@ -34,7 +34,7 @@
         "[no-]snapshot",
         "specfile",
         "target",
-        "[no-]task"
+        "task"
     ],
 
     "options":
