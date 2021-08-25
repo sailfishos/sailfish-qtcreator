@@ -40,6 +40,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QGuiApplication>
 #include <QSettings>
 #include <QStandardPaths>
 
@@ -415,6 +416,12 @@ Utils::FilePath SdkPrivate::cacheLocation()
     qCDebug(lib) << "Cache location" << cacheLocation;
 
     return cacheLocation;
+}
+
+Qt::ApplicationState SdkPrivate::applicationState()
+{
+    static auto *const app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
+    return app ? app->applicationState() : Qt::ApplicationActive;
 }
 
 void SdkPrivate::readGeneralSettings()

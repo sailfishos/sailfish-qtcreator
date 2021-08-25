@@ -505,6 +505,10 @@ void VmConnection::timerEvent(QTimerEvent *event)
         m_vmHardClosingTimeoutTimer.stop();
         vmStmScheduleExec();
     } else if (event->timerId() == m_vmStatePollTimer.timerId()) {
+        if (SdkPrivate::applicationState() != Qt::ApplicationActive
+                && m_pendingStateChangesCount == 0) {
+            return;
+        }
         vmPollState();
     } else if (event->timerId() == m_sshTryConnectTimer.timerId()) {
         sshTryConnect();

@@ -74,6 +74,8 @@ public:
     static QString customDockerPath() { return instance()->customDockerPath_; }
     static QString customGpgPath() { return instance()->customGpgPath_; }
 
+    static Qt::ApplicationState applicationState();
+
 signals:
     void enableUpdatesRequested();
     void updateOnceRequested();
