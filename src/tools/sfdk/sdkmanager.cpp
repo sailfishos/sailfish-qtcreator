@@ -287,8 +287,11 @@ public:
                 || listPackages.exitStatus() != QProcess::NormalExit
                 || (listPackages.exitCode() != EXIT_SUCCESS
                     && listPackages.exitCode() != SDK_MAINTENANCE_TOOL_EXIT_CANCEL)) {
-            qerr() << tr("Error listing installer-provided packages")
-                << ": " << listPackages.readAllStandardError() << endl;
+            qerr() << tr("Failed to list installer-provided packages");
+            const QByteArray stdErr = listPackages.readAllStandardError();
+            if (!stdErr.isEmpty())
+                qerr() << ": " << stdErr;
+            qerr() << endl;
             return false;
         }
 
@@ -362,8 +365,11 @@ public:
         if (!managePackages.waitForFinished(-1)
                 || managePackages.exitStatus() != QProcess::NormalExit
                 || managePackages.exitCode() != EXIT_SUCCESS) {
-            qerr() << tr("Error installing installer-provided packages")
-                << ": " << managePackages.readAllStandardError() << endl;
+            qerr() << tr("Failed to install installer-provided packages");
+            const QByteArray stdErr = managePackages.readAllStandardError();
+            if (!stdErr.isEmpty())
+                qerr() << ": " << stdErr;
+            qerr() << endl;
             return false;
         }
 
@@ -392,8 +398,11 @@ public:
         if (!managePackages.waitForFinished(-1)
                 || managePackages.exitStatus() != QProcess::NormalExit
                 || managePackages.exitCode() != EXIT_SUCCESS) {
-            qerr() << tr("Error uninstalling installer-provided packages")
-                << ": " << managePackages.readAllStandardError() << endl;
+            qerr() << tr("Failed to uninstall installer-provided packages");
+            const QByteArray stdErr = managePackages.readAllStandardError();
+            if (!stdErr.isEmpty())
+                qerr() << ": " << stdErr;
+            qerr() << endl;
             return false;
         }
 
