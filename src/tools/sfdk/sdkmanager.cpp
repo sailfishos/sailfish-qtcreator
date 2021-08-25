@@ -1188,7 +1188,7 @@ int SdkManager::runHookNative(const QString &program, const QStringList &argumen
     hook.setProcessEnvironment(environment);
 
     hook.start();
-    if (!hook.waitForFinished()) {
+    if (!hook.waitForFinished() || hook.exitStatus() != QProcess::NormalExit) {
         qerr() << tr("Error running hook \"%1\"").arg(program) << endl;
         return EXIT_FAILURE;
     }
