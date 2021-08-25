@@ -1014,10 +1014,10 @@ bool VmConnection::sshStmStep()
         } else if (m_cachedSshConnected) {
             sshStmTransition(SshConnected, "successfully connected");
         } else if (m_cachedSshErrorOccured) {
-            if (m_vmStartedOutside && !m_connectRequested) {
-                sshStmTransition(SshConnectingError, "connecting error+connect not requested");
-            } else if (m_vmStateEntryTimer.elapsed() < (m_vm->sshParameters().timeout * 1000)) {
+            if (m_vmStateEntryTimer.elapsed() < (m_vm->sshParameters().timeout * 1000)) {
                 ; // Do not report possibly recoverable boot-time failure
+            } else if (m_vmStartedOutside && !m_connectRequested) {
+                sshStmTransition(SshConnectingError, "connecting error+connect not requested");
             } else {
                 ask(Ui::CancelConnecting, &VmConnection::sshStmScheduleExec,
                         [=] { sshStmTransition(SshConnectingError, "connecting error+retry denied"); },
