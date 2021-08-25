@@ -109,7 +109,7 @@
         {
             "name": "output-prefix",
             "trArgument": "<dir>",
-            "trDescription": "Much like 'output-dir' except that a subdirectory of the given <dir> will be used, denoted by the build target name (see 'target'). When the '--task' option is active, output directories will be further grouped by task name ('<dir>/[<task>/]<target>').",
+            "trDescription": "Much like 'output-dir' except that a subdirectory of the given <dir> will be used, denoted by the build target name (see 'target'). When the 'task' option is active, output directories will be further grouped by task name ('<dir>/[<task>/]<target>').",
             "validator": "module.validateExistingDirectory"
         },
         {
