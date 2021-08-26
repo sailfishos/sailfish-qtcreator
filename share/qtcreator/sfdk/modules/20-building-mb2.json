@@ -109,7 +109,7 @@
         {
             "name": "output-prefix",
             "trArgument": "<dir>",
-            "trDescription": "Much like 'output-dir' except that a subdirectory of the given <dir> will be used, denoted by the build target name (see 'target'). When the '--task' option is active, output directories will be further grouped by task name ('<dir>/[<task>/]<target>').",
+            "trDescription": "Much like 'output-dir' except that a subdirectory of the given <dir> will be used, denoted by the build target name (see 'target'). When the 'task' option is active, output directories will be further grouped by task name ('<dir>/[<task>/]<target>').",
             "validator": "module.validateExistingDirectory"
         },
         {
@@ -135,11 +135,7 @@
         {
             "name": "task",
             "trArgument": "[<name>|git:<regex>]",
-            "trDescription": "Modifies behavior of 'output-prefix' and 'snapshot' options.  The task name can be specified either directly as <name> or it can be derived from the current Git branch name, if a value in the form 'git:<regex>' is set. The POSIX extended regular expression <regex> serves both as a condition to enable this option and as a mean to select a substring of the branch name to be used as the task name. Defaults to 'git:^[[:alpha:]]{2,5}[[:digit:]]{3,}'. The default expression is suitable to look for a leading bug reference in the branch name. E.g. 'bug1234' in 'bug1234-quickfix'."
-        },
-        {
-            "name": "no-task",
-            "trDescription": "Override 'task' option"
+            "trDescription": "Modifies behavior of the 'output-prefix' option.  The task name can be specified either directly as <name> or it can be derived from the current Git branch name, if a value in the form 'git:<regex>' is set. The POSIX extended regular expression <regex> serves both as a condition to enable this option and as a mean to select a substring of the branch name to be used as the task name. Defaults to 'git:^[[:alpha:]]{2,5}[[:digit:]]{3,}'. The default expression is suitable to look for a leading bug reference in the branch name. E.g. 'bug1234' in 'bug1234-quickfix'."
         },
         {
             "name": "fix-version",

@@ -8,7 +8,7 @@ export function formatOption(name, argument, needsArgument, defaultFormat) {
         "output-prefix",
         "[no-]snapshot",
         "specfile",
-        "[no-]task"
+        "task"
     ].flatMap(utils.expandCompacted);
 
     if (mb2Options.indexOf(name) >= 0)
