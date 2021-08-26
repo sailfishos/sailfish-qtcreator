@@ -219,16 +219,6 @@ class VirtualMachineFactory : public QObject
 {
     class Meta
     {
-// Not idea which version fixes it
-#if Q_CC_MSVC && Q_CC_MSVC <= 1900
-        template<typename T>
-        static std::unique_ptr<VirtualMachine> creator(const QString &name,
-                VirtualMachine::Features featureMask)
-        {
-            return std::make_unique<T>(name, featureMask);
-        }
-#endif
-
     public:
         Meta() {};
 
@@ -237,11 +227,8 @@ class VirtualMachineFactory : public QObject
             : type(T::staticType())
             , displayType(T::staticDisplayType())
             , fetchRegisteredVirtualMachines(T::fetchRegisteredVirtualMachines)
-#if Q_CC_MSVC && Q_CC_MSVC <= 1900
-            , create(creator<T>)
-#else
-            , create(std::make_unique<T, const QString &, VirtualMachine::Features>)
-#endif
+            , create(std::make_unique<T, const QString &, VirtualMachine::Features,
+                    std::unique_ptr<VirtualMachine::ConnectionUi> &&>)
         {
         }
 
@@ -251,7 +238,8 @@ class VirtualMachineFactory : public QObject
         QString displayType;
         void (*fetchRegisteredVirtualMachines)(const QObject *,
                 const Functor<const QStringList &, bool> &) = nullptr;
-        std::function<std::unique_ptr<VirtualMachine>(const QString &, VirtualMachine::Features)> create = {};
+        std::function<std::unique_ptr<VirtualMachine>(const QString &, VirtualMachine::Features,
+                std::unique_ptr<VirtualMachine::ConnectionUi> &&)> create = {};
     };
 
 public:
@@ -264,7 +252,8 @@ public:
     static void unusedVirtualMachines(const QObject *context,
             const Functor<const QList<VirtualMachineDescriptor> &, bool> &functor);
     static std::unique_ptr<VirtualMachine> create(const QUrl &uri,
-            VirtualMachine::Features featureMask);
+            VirtualMachine::Features featureMask,
+            std::unique_ptr<VirtualMachine::ConnectionUi> &&connectionUi);
 
     // FIXME use UUID instead of name
     static QUrl makeUri(const QString &type, const QString &name);

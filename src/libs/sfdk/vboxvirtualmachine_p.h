@@ -33,7 +33,7 @@ class VBoxVirtualMachine : public VirtualMachine
 
 public:
     explicit VBoxVirtualMachine(const QString &name, VirtualMachine::Features featureMask,
-            QObject *parent = nullptr);
+            std::unique_ptr<ConnectionUi> &&connectionUi, QObject *parent = nullptr);
     ~VBoxVirtualMachine() override;
 
     static bool isAvailable();

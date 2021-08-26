@@ -25,6 +25,7 @@
 #include "sfdkglobal.h"
 
 #include "asynchronous.h"
+#include "virtualmachine.h"
 
 #include <utils/fileutils.h>
 
@@ -36,7 +37,6 @@ class PortList;
 
 namespace Sfdk {
 
-class VirtualMachine;
 class UserSettings;
 
 class EmulatorManager;
@@ -108,6 +108,13 @@ public:
     void setDisplayProperties(const DeviceModelData &deviceModel, Qt::Orientation orientation,
             bool viewScaled, const QObject *context, const Functor<bool> &functor);
 
+    template<typename Ui>
+    static void registerVmConnectionUi()
+    {
+        Q_ASSERT(!s_vmConnectionUiCreator);
+        s_vmConnectionUiCreator = std::make_unique<Ui>;
+    }
+
 signals:
     void sharedConfigPathChanged(const Utils::FilePath &sharedConfigPath);
     void sharedMediaPathChanged(const Utils::FilePath &sharedMediaPath);
@@ -125,6 +132,9 @@ private:
     std::unique_ptr<EmulatorPrivate> d_ptr;
     Q_DISABLE_COPY(Emulator)
     Q_DECLARE_PRIVATE(Emulator)
+
+    using VmConnectionUiCreator = std::function<std::unique_ptr<VirtualMachine::ConnectionUi>()>;
+    static VmConnectionUiCreator s_vmConnectionUiCreator;
 };
 
 } // namespace Sfdk

@@ -78,10 +78,17 @@ bool DeviceModelData::operator!=(const DeviceModelData &other) const
 }
 
 /*!
- * \class Emulator
+ * \class Emulator::PrivateConstructorTag
+ * \internal
  */
 
 struct Emulator::PrivateConstructorTag {};
+
+/*!
+ * \class Emulator
+ */
+
+Emulator::VmConnectionUiCreator Emulator::s_vmConnectionUiCreator;
 
 Emulator::Emulator(QObject *parent, const PrivateConstructorTag &)
     : QObject(parent)
@@ -381,11 +388,13 @@ bool EmulatorPrivate::initVirtualMachine(const QUrl &vmUri)
 {
     Q_Q(Emulator);
     Q_ASSERT(!virtualMachine);
+    QTC_ASSERT(Emulator::s_vmConnectionUiCreator, return false);
 
     VirtualMachine::Features unsupportedFeatures = VirtualMachine::SwapMemory
             | VirtualMachine::ReserveStorageSize;
 
-    virtualMachine = VirtualMachineFactory::create(vmUri, ~unsupportedFeatures);
+    virtualMachine = VirtualMachineFactory::create(vmUri, ~unsupportedFeatures,
+            Emulator::s_vmConnectionUiCreator());
     QTC_ASSERT(virtualMachine, return false);
 
     QObject::connect(VirtualMachinePrivate::get(virtualMachine.get()),

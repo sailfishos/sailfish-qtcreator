@@ -53,8 +53,9 @@
 #include "mervmconnectionui.h"
 #include "meremulatormodeoptionspage.h"
 
+#include <sfdk/buildengine.h>
+#include <sfdk/emulator.h>
 #include <sfdk/sdk.h>
-#include <sfdk/virtualmachine.h>
 
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -215,7 +216,8 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
 
     RunConfiguration::registerAspect<MerRunConfigurationAspect>();
 
-    VirtualMachine::registerConnectionUi<MerVmConnectionUi>();
+    BuildEngine::registerVmConnectionUi<MerBuildEngineVmConnectionUi>();
+    Emulator::registerVmConnectionUi<MerEmulatorVmConnectionUi>();
 
     dd = new MerPluginPrivate;
 
@@ -276,7 +278,7 @@ IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
         if (!virtualMachine->isOff(&headless) && headless) {
             QMessageBox *prompt = new QMessageBox(
                     QMessageBox::Question,
-                    tr("Close Virtual Machine"),
+                    tr("Stop %1 Build Engine").arg(Sdk::sdkVariant()),
                     tr("The headless virtual machine \"%1\" is still running.\n\n"
                         "Close the virtual machine now?").arg(virtualMachine->name()),
                     QMessageBox::Yes | QMessageBox::No,

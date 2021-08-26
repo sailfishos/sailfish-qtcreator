@@ -52,14 +52,16 @@ public:
 
     static void informStateChangePending();
 
+protected:
+    virtual void formatWarning(Warning which, QString *title, QString *text) = 0;
+    virtual void formatQuestion(Question which, QString *title, QString *text) = 0;
+
 private:
-    QMessageBox *openWarningBox(const QString &title, const QString &text);
-    QMessageBox *openQuestionBox(std::function<void()> onStatusChanged,
-            const QString &title, const QString &text,
+    QMessageBox *openWarningBox(Warning which);
+    QMessageBox *openQuestionBox(Question which, std::function<void()> onStatusChanged,
             const QString &informativeText = QString(),
             std::function<void()> setDoNotAskAgain = nullptr);
-    QProgressDialog *openProgressDialog(std::function<void()> onStatusChanged,
-            const QString &title, const QString &text);
+    QProgressDialog *openProgressDialog(Question which, std::function<void()> onStatusChanged);
     template<class Dialog>
     void deleteDialog(QPointer<Dialog> &dialog);
     QuestionStatus status(QMessageBox *box) const;
@@ -72,6 +74,30 @@ private:
     QPointer<QMessageBox> m_closeVmQuestionBox;
     QPointer<QProgressDialog> m_connectingProgressDialog;
     QPointer<QProgressDialog> m_lockingDownProgressDialog;
+};
+
+class MerBuildEngineVmConnectionUi : public MerVmConnectionUi
+{
+    Q_OBJECT
+
+public:
+    using MerVmConnectionUi::MerVmConnectionUi;
+
+protected:
+    void formatWarning(Warning which, QString *title, QString *text) override;
+    void formatQuestion(Question which, QString *title, QString *text) override;
+};
+
+class MerEmulatorVmConnectionUi : public MerVmConnectionUi
+{
+    Q_OBJECT
+
+public:
+    using MerVmConnectionUi::MerVmConnectionUi;
+
+protected:
+    void formatWarning(Warning which, QString *title, QString *text) override;
+    void formatQuestion(Question which, QString *title, QString *text) override;
 };
 
 } // namespace Internal

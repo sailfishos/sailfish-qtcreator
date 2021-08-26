@@ -25,6 +25,8 @@
 
 #include "mersettings.h"
 
+#include <sfdk/sdk.h>
+
 #include <coreplugin/icore.h>
 #include <ssh/sshconnection.h>
 #include <utils/checkablemessagebox.h>
@@ -51,21 +53,13 @@ void MerVmConnectionUi::warn(Warning which)
     switch (which) {
     case UnableToCloseVm:
         QTC_CHECK(!m_unableToCloseVmWarningBox);
-        m_unableToCloseVmWarningBox = openWarningBox(
-                tr("Unable to Close Virtual Machine"),
-                tr("Timeout waiting for the \"%1\" virtual machine to close."));
+        m_unableToCloseVmWarningBox = openWarningBox(which);
         break;
     case VmNotRegistered:
-        openWarningBox(tr("Virtual Machine Not Found"),
-                tr("No virtual machine with the name \"%1\" found. Check your installation."))
-            ->setAttribute(Qt::WA_DeleteOnClose);
+        openWarningBox(which)->setAttribute(Qt::WA_DeleteOnClose);
         break;
     case SshPortOccupied:
-        openWarningBox(tr("Conflicting SSH Port Configuration"),
-                tr("Another application seems to be listening on the TCP port %1 configured as "
-                   "SSH port for the \"%%1\" virtual machine - choose another SSH port in options.")
-                .arg(virtualMachine()->sshParameters().port()))
-            ->setAttribute(Qt::WA_DeleteOnClose);
+        openWarningBox(which)->setAttribute(Qt::WA_DeleteOnClose);
         break;
     }
 }
@@ -98,11 +92,7 @@ void MerVmConnectionUi::ask(Question which, std::function<void()> onStatusChange
     switch (which) {
     case StartVm:
         QTC_CHECK(!m_startVmQuestionBox);
-        m_startVmQuestionBox = openQuestionBox(
-                onStatusChanged,
-                tr("Start Virtual Machine"),
-                tr("The \"%1\" virtual machine is not running. Do you want to start it now?"),
-                QString(),
+        m_startVmQuestionBox = openQuestionBox(which, onStatusChanged, QString(),
                 MerSettings::isAskBeforeStartingVmEnabled()
                     ? [] { MerSettings::setAskBeforeStartingVmEnabled(false); }
                     : std::function<void()>());
@@ -111,37 +101,24 @@ void MerVmConnectionUi::ask(Question which, std::function<void()> onStatusChange
         QTC_CHECK(!m_resetVmQuestionBox);
         bool startedOutside;
         virtualMachine()->isOff(0, &startedOutside);
-        m_resetVmQuestionBox = openQuestionBox(
-                onStatusChanged,
-                tr("Reset Virtual Machine"),
-                tr("Connection to the \"%1\" virtual machine failed recently. "
-                    "Do you want to reset the virtual machine first?"),
+        m_resetVmQuestionBox = openQuestionBox(which, onStatusChanged,
                 startedOutside ?
-                    tr("This virtual machine has been started outside of this Qt Creator session.")
+                    tr("The virtual machine has been started outside of this Qt Creator session.")
                     : QString());
         break;
     case CloseVm:
         QTC_CHECK(!m_closeVmQuestionBox);
-        m_closeVmQuestionBox = openQuestionBox(
-                onStatusChanged,
-                tr("Close Virtual Machine"),
-                tr("Do you really want to close the \"%1\" virtual machine?"),
-                tr("This virtual machine has been started outside of this Qt Creator session. "
+        m_closeVmQuestionBox = openQuestionBox(which, onStatusChanged,
+                tr("The virtual machine has been started outside of this Qt Creator session. "
                     "Answer \"No\" to disconnect and leave the virtual machine running."));
         break;
     case CancelConnecting:
         QTC_CHECK(!m_connectingProgressDialog);
-        m_connectingProgressDialog = openProgressDialog(
-                onStatusChanged,
-                tr("Connecting to Virtual Machine"),
-                tr("Connecting to the \"%1\" virtual machine…"));
+        m_connectingProgressDialog = openProgressDialog(which, onStatusChanged);
         break;
     case CancelLockingDown:
         QTC_CHECK(!m_lockingDownProgressDialog);
-        m_lockingDownProgressDialog = openProgressDialog(
-                onStatusChanged,
-                tr("Closing Virtual Machine"),
-                tr("Waiting for the \"%1\" virtual machine to close…"));
+        m_lockingDownProgressDialog = openProgressDialog(which, onStatusChanged);
         break;
     }
 }
@@ -197,8 +174,12 @@ void MerVmConnectionUi::informStateChangePending()
             tr("Another request pending. Try later."));
 }
 
-QMessageBox *MerVmConnectionUi::openWarningBox(const QString &title, const QString &text)
+QMessageBox *MerVmConnectionUi::openWarningBox(Warning which)
 {
+    QString title;
+    QString text;
+    formatWarning(which, &title, &text);
+
     QMessageBox *box = new QMessageBox(
             QMessageBox::Warning,
             title,
@@ -210,10 +191,14 @@ QMessageBox *MerVmConnectionUi::openWarningBox(const QString &title, const QStri
     return box;
 }
 
-QMessageBox *MerVmConnectionUi::openQuestionBox(std::function<void()> onStatusChanged,
-        const QString &title, const QString &text, const QString &informativeText,
+QMessageBox *MerVmConnectionUi::openQuestionBox(Question which,
+        std::function<void()> onStatusChanged, const QString &informativeText,
         std::function<void()> setDoNotAskAgain)
 {
+    QString title;
+    QString text;
+    formatQuestion(which, &title, &text);
+
     QMessageBox *box = new QMessageBox(
             QMessageBox::Question,
             title,
@@ -236,9 +221,13 @@ QMessageBox *MerVmConnectionUi::openQuestionBox(std::function<void()> onStatusCh
     return box;
 }
 
-QProgressDialog *MerVmConnectionUi::openProgressDialog(std::function<void()> onStatusChanged,
-        const QString &title, const QString &text)
+QProgressDialog *MerVmConnectionUi::openProgressDialog(Question which,
+        std::function<void()> onStatusChanged)
 {
+    QString title;
+    QString text;
+    formatQuestion(which, &title, &text);
+
     QProgressDialog *dialog = new QProgressDialog(ICore::mainWindow());
     dialog->setMaximum(0);
     dialog->setWindowTitle(title);
@@ -284,6 +273,122 @@ VirtualMachine::ConnectionUi::QuestionStatus MerVmConnectionUi::status(QProgress
         return dialog->wasCanceled() ? Yes : No;
     else
         return Asked;
+}
+
+/*!
+ * \class MerBuildEngineVmConnectionUi
+ * \internal
+ */
+
+void MerBuildEngineVmConnectionUi::formatWarning(Warning which, QString *title, QString *text)
+{
+    Q_ASSERT(title);
+    Q_ASSERT(text);
+
+    switch (which) {
+    case UnableToCloseVm:
+        *title = tr("Unable to Stop %1 Build Engine").arg(Sdk::sdkVariant());
+        *text = tr("Timeout waiting for the \"%1\" virtual machine to close.");
+        break;
+    case VmNotRegistered:
+        *title = tr("%1 Build Engine Not Found").arg(Sdk::sdkVariant());
+        *text = tr("No virtual machine with the name \"%1\" found. Check your installation.");
+        break;
+    case SshPortOccupied:
+        *title = tr("Conflicting SSH Port Configuration");
+        *text = tr("Another application seems to be listening on the TCP port %1 configured as "
+                "SSH port for the \"%%1\" virtual machine - choose another SSH port in options.")
+            .arg(virtualMachine()->sshParameters().port());
+        break;
+    }
+}
+
+void MerBuildEngineVmConnectionUi::formatQuestion(Question which, QString *title, QString *text)
+{
+    Q_ASSERT(title);
+    Q_ASSERT(text);
+
+    switch (which) {
+    case StartVm:
+        *title = tr("Start %1 Build Engine").arg(Sdk::sdkVariant());
+        *text = tr("The \"%1\" virtual machine is not running. Do you want to start it now?");
+        break;
+    case ResetVm:
+        *title = tr("Reset %1 Build Engine").arg(Sdk::sdkVariant());
+        *text = tr("Connection to the \"%1\" virtual machine failed recently. "
+                "Do you want to reset the virtual machine first?");
+        break;
+    case CloseVm:
+        *title = tr("Stop %1 Build Engine").arg(Sdk::sdkVariant());
+        *text = tr("Do you really want to close the \"%1\" virtual machine?");
+        break;
+    case CancelConnecting:
+        *title = tr("Connecting to %1 Build Engine").arg(Sdk::sdkVariant());
+        *text = tr("Connecting to the \"%1\" virtual machine…");
+        break;
+    case CancelLockingDown:
+        *title = tr("Stopping %1 Build Engine").arg(Sdk::sdkVariant());
+        *text = tr("Waiting for the \"%1\" virtual machine to close…");
+        break;
+    }
+}
+
+/*!
+ * \class MerEmulatorVmConnectionUi
+ * \internal
+ */
+
+void MerEmulatorVmConnectionUi::formatWarning(Warning which, QString *title, QString *text)
+{
+    Q_ASSERT(title);
+    Q_ASSERT(text);
+
+    switch (which) {
+    case UnableToCloseVm:
+        *title = tr("Unable to Stop %1 Emulator").arg(Sdk::osVariant());
+        *text = tr("Timeout waiting for the \"%1\" virtual machine to close.");
+        break;
+    case VmNotRegistered:
+        *title = tr("%1 Emulator Not Found").arg(Sdk::osVariant());
+        *text = tr("No virtual machine with the name \"%1\" found. Check your installation.");
+        break;
+    case SshPortOccupied:
+        *title = tr("Conflicting SSH Port Configuration");
+        *text = tr("Another application seems to be listening on the TCP port %1 configured as "
+                "SSH port for the \"%%1\" emulator - choose another SSH port in options.")
+            .arg(virtualMachine()->sshParameters().port());
+        break;
+    }
+}
+
+void MerEmulatorVmConnectionUi::formatQuestion(Question which, QString *title, QString *text)
+{
+    Q_ASSERT(title);
+    Q_ASSERT(text);
+
+    switch (which) {
+    case StartVm:
+        *title = tr("Start %1 Emulator").arg(Sdk::osVariant());
+        *text = tr("The \"%1\" virtual machine is not running. Do you want to start it now?");
+        break;
+    case ResetVm:
+        *title = tr("Reset %1 Emulator").arg(Sdk::osVariant());
+        *text = tr("Connection to the \"%1\" virtual machine failed recently. "
+                "Do you want to reset the virtual machine first?");
+        break;
+    case CloseVm:
+        *title = tr("Stop %1 Emulator").arg(Sdk::osVariant());
+        *text = tr("Do you really want to close the \"%1\" virtual machine?");
+        break;
+    case CancelConnecting:
+        *title = tr("Connecting to %1 Emulator").arg(Sdk::osVariant());
+        *text = tr("Connecting to the \"%1\" virtual machine…");
+        break;
+    case CancelLockingDown:
+        *title = tr("Stopping %1 Emulator").arg(Sdk::osVariant());
+        *text = tr("Waiting for the \"%1\" virtual machine to close…");
+        break;
+    }
 }
 
 } // namespace Internal

@@ -988,7 +988,8 @@ SdkManager::SdkManager(bool useSystemSettingsOnly)
 
     m_merSettings = std::make_unique<MerSettings>();
 
-    VirtualMachine::registerConnectionUi<VmConnectionUi>();
+    BuildEngine::registerVmConnectionUi<VmConnectionUi>();
+    Emulator::registerVmConnectionUi<VmConnectionUi>();
 
     Sdk::Options sdkOptions = Sdk::NoOption;
     if (qEnvironmentVariableIsEmpty(Constants::DISABLE_VM_INFO_CACHE_ENV_VAR))
