@@ -64,6 +64,8 @@ const char SDK_MAINTENANCE_TOOL[] = "SDKMaintenanceTool.app/Contents/MacOS/SDKMa
 const char SDK_MAINTENANCE_TOOL[] = "SDKMaintenanceTool" QTC_HOST_EXE_SUFFIX;
 #endif
 
+const int SDK_MAINTENANCE_TOOL_EXIT_CANCEL = 3;
+
 const char CUSTOM_PACKAGES_PREFIX[] = "x.";
 
 const char MINIMAL_UPDATES_XML[] = R"(
@@ -281,9 +283,15 @@ public:
         listPackages.setArguments(arguments);
 
         listPackages.start();
-        if (!listPackages.waitForFinished(-1)) {
-            qerr() << tr("Error listing installer-provided packages")
-                << ": " << listPackages.readAllStandardError() << endl;
+        if (!listPackages.waitForFinished(-1)
+                || listPackages.exitStatus() != QProcess::NormalExit
+                || (listPackages.exitCode() != EXIT_SUCCESS
+                    && listPackages.exitCode() != SDK_MAINTENANCE_TOOL_EXIT_CANCEL)) {
+            qerr() << tr("Failed to list installer-provided packages");
+            const QByteArray stdErr = listPackages.readAllStandardError();
+            if (!stdErr.isEmpty())
+                qerr() << ": " << stdErr;
+            qerr() << endl;
             return false;
         }
 
@@ -354,9 +362,14 @@ public:
         managePackages.setProcessEnvironment(addQpaPlatformMinimal());
         managePackages.setProcessChannelMode(QProcess::ForwardedChannels);
         managePackages.start();
-        if (!managePackages.waitForFinished(-1)) {
-            qerr() << tr("Error installing installer-provided packages")
-                << ": " << managePackages.readAllStandardError() << endl;
+        if (!managePackages.waitForFinished(-1)
+                || managePackages.exitStatus() != QProcess::NormalExit
+                || managePackages.exitCode() != EXIT_SUCCESS) {
+            qerr() << tr("Failed to install installer-provided packages");
+            const QByteArray stdErr = managePackages.readAllStandardError();
+            if (!stdErr.isEmpty())
+                qerr() << ": " << stdErr;
+            qerr() << endl;
             return false;
         }
 
@@ -382,9 +395,14 @@ public:
         managePackages.setProcessEnvironment(addQpaPlatformMinimal());
         managePackages.setProcessChannelMode(QProcess::ForwardedChannels);
         managePackages.start();
-        if (!managePackages.waitForFinished(-1)) {
-            qerr() << tr("Error uninstalling installer-provided packages")
-                << ": " << managePackages.readAllStandardError() << endl;
+        if (!managePackages.waitForFinished(-1)
+                || managePackages.exitStatus() != QProcess::NormalExit
+                || managePackages.exitCode() != EXIT_SUCCESS) {
+            qerr() << tr("Failed to uninstall installer-provided packages");
+            const QByteArray stdErr = managePackages.readAllStandardError();
+            if (!stdErr.isEmpty())
+                qerr() << ": " << stdErr;
+            qerr() << endl;
             return false;
         }
 
@@ -1170,7 +1188,7 @@ int SdkManager::runHookNative(const QString &program, const QStringList &argumen
     hook.setProcessEnvironment(environment);
 
     hook.start();
-    if (!hook.waitForFinished()) {
+    if (!hook.waitForFinished() || hook.exitStatus() != QProcess::NormalExit) {
         qerr() << tr("Error running hook \"%1\"").arg(program) << endl;
         return EXIT_FAILURE;
     }
