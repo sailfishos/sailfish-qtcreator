@@ -857,12 +857,18 @@ class EmulatorPackageManager
     Q_DECLARE_TR_FUNCTIONS(Sfdk::EmulatorPackageManager)
 
 public:
-    bool listAvailableEmulators(QList<EmulatorInfo> *info)
+    bool listEmulators(SdkManager::ListEmulatorsOptions options, QList<EmulatorInfo> *info)
     {
+        QTC_ASSERT(options & SdkManager::InstalledEmulators, return false); // Cannot exclude these
         QTC_ASSERT(info, return false);
 
-        if (!fetchInfo())
+        if (!fetchInstallerProvidedEmulatorsInfo(options & SdkManager::AvailableEmulators))
             return false;
+
+        if (options & SdkManager::UserDefinedEmulators) {
+            if (!fetchCustomEmulatorsInfo())
+                return false;
+        }
 
         for (auto it = m_flagsByPackage.cbegin(); it != m_flagsByPackage.cend(); ++it) {
             if (!validate(*it))
@@ -895,6 +901,11 @@ public:
         if (!packageForName(name, &package, &flags))
             return false;
 
+        if (flags & EmulatorInfo::UserDefined) {
+            qerr() << tr("Name used by user-defined emulator: \"%1\"").arg(name) << endl;
+            return false;
+        }
+
         if (flags & EmulatorInfo::Installed) {
             qerr() << tr("Already installed: \"%1\"").arg(name) << endl;
             return false;
@@ -913,6 +924,12 @@ public:
         if (!packageForName(name, &package, &flags))
             return false;
 
+        if (flags & EmulatorInfo::UserDefined) {
+            // FIXME Unimplemented
+            qerr() << tr("Cannot remove user-defined emulator \"%1\"") << endl;
+            return false;
+        }
+
         if (!(flags & EmulatorInfo::Installed)) {
             qerr() << tr("Not installed: \"%1\"").arg(name) << endl;
             return false;
@@ -924,13 +941,28 @@ public:
 private:
     bool fetchInfo()
     {
+        if (!fetchInstallerProvidedEmulatorsInfo())
+            return false;
+        if (!fetchCustomEmulatorsInfo())
+            return false;
+
+        return true;
+    }
+
+    bool fetchInstallerProvidedEmulatorsInfo(bool includeAvailable = true)
+    {
         QList<PackageManager::PackageInfo> allPackageInfo;
-        const bool ok = PackageManager().fetchInfo(&allPackageInfo, [](const QString &package) {
+        const bool ok = PackageManager().fetchInfo(&allPackageInfo, includeAvailable,
+                [](const QString &package) {
             return package.startsWith("org.merproject.emulators.")
                 && !package.contains("4qtcreator_");
         });
         if (!ok)
             return false;
+
+        Emulator *const defaultEmulator = Sdk::emulators().isEmpty()
+            ? nullptr
+            : Sdk::emulators().first();
 
         for (const PackageManager::PackageInfo &info : allPackageInfo) {
             EmulatorInfo::Flags flags;
@@ -945,6 +977,9 @@ private:
             else if (info.symbolicVersion == PackageManager::PackageInfo::EarlyAccess)
                 flags |= EmulatorInfo::EarlyAccess;
 
+            if (defaultEmulator && info.displayName == defaultEmulator->name())
+                flags |= EmulatorInfo::Default;
+
             m_packageByName.insert(info.displayName, info.name);
             m_nameByPackage.insert(info.name, info.displayName);
             m_flagsByPackage.insert(info.name, flags);
@@ -953,8 +988,31 @@ private:
         return true;
     }
 
-    bool packageForName(const QString &name, QString *package,
-            EmulatorInfo::Flags *flags) const
+    bool fetchCustomEmulatorsInfo()
+    {
+        Emulator *const defaultEmulator = Sdk::emulators().isEmpty()
+            ? nullptr
+            : Sdk::emulators().first();
+
+        for (Emulator *const emulator : Sdk::emulators()) {
+            if (emulator->isAutodetected())
+                continue;
+
+            EmulatorInfo::Flags flags = EmulatorInfo::UserDefined;
+
+            if (emulator == defaultEmulator)
+                flags |= EmulatorInfo::Default;
+
+            const QString package = CUSTOM_PACKAGES_PREFIX + emulator->name();
+            m_packageByName.insert(emulator->name(), package);
+            m_nameByPackage.insert(package, emulator->name());
+            m_flagsByPackage.insert(package, flags);
+        }
+
+        return true;
+    }
+
+    bool packageForName(const QString &name, QString *package, EmulatorInfo::Flags *flags) const
     {
         *package = m_packageByName.value(name);
         if (package->isEmpty()) {
@@ -1480,9 +1538,9 @@ int SdkManager::runOnEmulator(const Emulator &emulator, const QString &program,
     return runOnDevice(*emulatorDevice, program, arguments, runInTerminal);
 }
 
-bool SdkManager::listAvailableEmulators(QList<EmulatorInfo> *info)
+bool SdkManager::listEmulators(ListEmulatorsOptions options, QList<EmulatorInfo> *info)
 {
-    return EmulatorPackageManager().listAvailableEmulators(info);
+    return EmulatorPackageManager().listEmulators(options, info);
 }
 
 bool SdkManager::installEmulator(const QString &name)

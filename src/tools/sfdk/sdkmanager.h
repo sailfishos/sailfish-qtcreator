@@ -81,8 +81,10 @@ public:
         NoFlag = 0x0,
         Available = 0x1,
         Installed = 0x2,
-        Latest = 0x4,
-        EarlyAccess = 0x8
+        UserDefined = 0x4,
+        Default = 0x8,
+        Latest = 0x10,
+        EarlyAccess = 0x20
     };
     Q_DECLARE_FLAGS(Flags, Flag)
     Q_FLAG(Flags)
@@ -113,6 +115,15 @@ public:
     };
     Q_DECLARE_FLAGS(ListToolsOptions, ListToolsOption)
     Q_FLAG(ListToolsOptions)
+
+    enum ListEmulatorsOption {
+        NoListEmulatorOption = 0x0,
+        InstalledEmulators = 0x1,
+        AvailableEmulators = 0x2,
+        UserDefinedEmulators = 0x4
+    };
+    Q_DECLARE_FLAGS(ListEmulatorsOptions, ListEmulatorsOption)
+    Q_FLAG(ListEmulatorsOptions)
 
     explicit SdkManager(bool useSystemSettingsOnly);
     ~SdkManager();
@@ -165,7 +176,7 @@ public:
     static bool isEmulatorRunning(const Emulator &emulator);
     static int runOnEmulator(const Emulator &emulator, const QString &program,
             const QStringList &arguments, Utils::optional<bool> runInTerminal = {});
-    static bool listAvailableEmulators(QList<EmulatorInfo> *info);
+    static bool listEmulators(ListEmulatorsOptions options, QList<EmulatorInfo> *info);
     static bool installEmulator(const QString &name);
     static bool removeEmulator(const QString &name);
 
@@ -182,6 +193,7 @@ public:
     static QString stateAutodetectedMessage() { return tr("autodetected"); }
     static QString stateLatestMessage() { return tr("latest"); }
     static QString stateEarlyAccessMessage() { return tr("early-access"); }
+    static QString stateDefaultMessage() { return tr("default"); }
 
 private:
     QString cleanSharedSrc() const;

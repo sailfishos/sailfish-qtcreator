@@ -137,10 +137,8 @@ private:
     static void listDevices();
     static Device *deviceForNameOrIndex(const QString &deviceNameOrIndex,
             QString *errorString);
-    static void listEmulators();
-    static Emulator *emulatorForNameOrIndex(const QString &emulatorNameOrIndex,
-            QString *errorString);
-    static bool listAvailableEmulators();
+    static bool listEmulators(SdkManager::ListEmulatorsOptions options);
+    static Emulator *defaultEmulator(QString *errorString);
     static bool listTools(SdkManager::ListToolsOptions options, bool listToolings,
             bool listTargets);
     static bool stopVirtualMachines();
@@ -151,7 +149,7 @@ private:
 
     static QString runningYesNoMessage(bool running);
     static QString toString(ToolsInfo::Flags flags, bool saySdkProvided);
-    static QString toString(EmulatorInfo::Flags flags);
+    static QString toString(EmulatorInfo::Flags flags, bool saySdkProvided, bool indicateDefault);
 };
 
 class EngineWorker : public Worker
