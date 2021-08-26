@@ -151,7 +151,7 @@ private:
 
     static QString runningYesNoMessage(bool running);
     static QString toString(ToolsInfo::Flags flags, bool saySdkProvided);
-    static QString toString(AvailableEmulatorInfo::Flags flags);
+    static QString toString(EmulatorInfo::Flags flags);
 };
 
 class EngineWorker : public Worker

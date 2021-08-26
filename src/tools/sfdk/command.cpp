@@ -1848,13 +1848,13 @@ Emulator *BuiltinWorker::emulatorForNameOrIndex(const QString &emulatorNameOrInd
 
 bool BuiltinWorker::listAvailableEmulators()
 {
-    QList<AvailableEmulatorInfo> infoList;
+    QList<EmulatorInfo> infoList;
     const bool ok = SdkManager::listAvailableEmulators(&infoList);
     if (!ok)
         return false;
 
     QList<QStringList> table;
-    for (const AvailableEmulatorInfo &info : infoList)
+    for (const EmulatorInfo &info : infoList)
         table << QStringList{info.name, {}, toString(info.flags)};
 
     TreePrinter::Tree tree = TreePrinter::build(table, 0, 1);
@@ -1999,18 +1999,18 @@ QString BuiltinWorker::toString(ToolsInfo::Flags flags, bool saySdkProvided)
     return keywords.join(',');
 }
 
-QString BuiltinWorker::toString(AvailableEmulatorInfo::Flags flags)
+QString BuiltinWorker::toString(EmulatorInfo::Flags flags)
 {
     QStringList keywords;
 
     // The order matters.
-    if (flags & AvailableEmulatorInfo::Available)
+    if (flags & EmulatorInfo::Available)
         keywords << SdkManager::stateAvailableMessage();
-    if (flags & AvailableEmulatorInfo::Installed)
+    if (flags & EmulatorInfo::Installed)
         keywords << SdkManager::stateInstalledMessage();
-    if (flags & AvailableEmulatorInfo::Latest)
+    if (flags & EmulatorInfo::Latest)
         keywords << SdkManager::stateLatestMessage();
-    if (flags & AvailableEmulatorInfo::EarlyAccess)
+    if (flags & EmulatorInfo::EarlyAccess)
         keywords << SdkManager::stateEarlyAccessMessage();
 
     return keywords.join(',');

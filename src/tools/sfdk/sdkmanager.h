@@ -72,7 +72,7 @@ public:
     Flags flags = NoFlag;
 };
 
-class AvailableEmulatorInfo
+class EmulatorInfo
 {
     Q_GADGET
 
@@ -165,7 +165,7 @@ public:
     static bool isEmulatorRunning(const Emulator &emulator);
     static int runOnEmulator(const Emulator &emulator, const QString &program,
             const QStringList &arguments, Utils::optional<bool> runInTerminal = {});
-    static bool listAvailableEmulators(QList<AvailableEmulatorInfo> *info);
+    static bool listAvailableEmulators(QList<EmulatorInfo> *info);
     static bool installEmulator(const QString &name);
     static bool removeEmulator(const QString &name);
 

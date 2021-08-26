@@ -857,7 +857,7 @@ class EmulatorPackageManager
     Q_DECLARE_TR_FUNCTIONS(Sfdk::EmulatorPackageManager)
 
 public:
-    bool listAvailableEmulators(QList<AvailableEmulatorInfo> *info)
+    bool listAvailableEmulators(QList<EmulatorInfo> *info)
     {
         QTC_ASSERT(info, return false);
 
@@ -871,14 +871,14 @@ public:
 
         for (const QString &name : m_packageByName.keys()) {
             const QString package = m_packageByName.value(name);
-            const AvailableEmulatorInfo::Flags flags = m_flagsByPackage.value(package);
+            const EmulatorInfo::Flags flags = m_flagsByPackage.value(package);
 #if defined(Q_CC_MSVC)
-            AvailableEmulatorInfo i;
+            EmulatorInfo i;
             i.name = name;
             i.flags = flags;
             *info << i;
 #else
-            *info << AvailableEmulatorInfo{name, flags};
+            *info << EmulatorInfo{name, flags};
 #endif
         }
 
@@ -891,11 +891,11 @@ public:
             return false;
 
         QString package;
-        AvailableEmulatorInfo::Flags flags;
+        EmulatorInfo::Flags flags;
         if (!packageForName(name, &package, &flags))
             return false;
 
-        if (flags & AvailableEmulatorInfo::Installed) {
+        if (flags & EmulatorInfo::Installed) {
             qerr() << tr("Already installed: \"%1\"").arg(name) << endl;
             return false;
         }
@@ -909,11 +909,11 @@ public:
             return false;
 
         QString package;
-        AvailableEmulatorInfo::Flags flags;
+        EmulatorInfo::Flags flags;
         if (!packageForName(name, &package, &flags))
             return false;
 
-        if (!(flags & AvailableEmulatorInfo::Installed)) {
+        if (!(flags & EmulatorInfo::Installed)) {
             qerr() << tr("Not installed: \"%1\"").arg(name) << endl;
             return false;
         }
@@ -933,17 +933,17 @@ private:
             return false;
 
         for (const PackageManager::PackageInfo &info : allPackageInfo) {
-            AvailableEmulatorInfo::Flags flags;
+            EmulatorInfo::Flags flags;
 
             if (info.installed)
-                flags |= AvailableEmulatorInfo::Installed;
+                flags |= EmulatorInfo::Installed;
             else
-                flags |= AvailableEmulatorInfo::Available;
+                flags |= EmulatorInfo::Available;
 
             if (info.symbolicVersion == PackageManager::PackageInfo::Latest)
-                flags |= AvailableEmulatorInfo::Latest;
+                flags |= EmulatorInfo::Latest;
             else if (info.symbolicVersion == PackageManager::PackageInfo::EarlyAccess)
-                flags |= AvailableEmulatorInfo::EarlyAccess;
+                flags |= EmulatorInfo::EarlyAccess;
 
             m_packageByName.insert(info.displayName, info.name);
             m_nameByPackage.insert(info.name, info.displayName);
@@ -954,7 +954,7 @@ private:
     }
 
     bool packageForName(const QString &name, QString *package,
-            AvailableEmulatorInfo::Flags *flags) const
+            EmulatorInfo::Flags *flags) const
     {
         *package = m_packageByName.value(name);
         if (package->isEmpty()) {
@@ -966,9 +966,9 @@ private:
         return true;
     }
 
-    static bool validate(AvailableEmulatorInfo::Flags flags)
+    static bool validate(EmulatorInfo::Flags flags)
     {
-        using I = AvailableEmulatorInfo;
+        using I = EmulatorInfo;
 
         constexpr int maxFlags = std::numeric_limits<
             std::underlying_type_t<I::Flags::enum_type>
@@ -985,7 +985,7 @@ private:
 private:
     QHash<QString, QString> m_packageByName;
     QHash<QString, QString> m_nameByPackage;
-    QHash<QString, AvailableEmulatorInfo::Flags> m_flagsByPackage;
+    QHash<QString, EmulatorInfo::Flags> m_flagsByPackage;
 };
 
 } // namespace Sfdk
@@ -1480,7 +1480,7 @@ int SdkManager::runOnEmulator(const Emulator &emulator, const QString &program,
     return runOnDevice(*emulatorDevice, program, arguments, runInTerminal);
 }
 
-bool SdkManager::listAvailableEmulators(QList<AvailableEmulatorInfo> *info)
+bool SdkManager::listAvailableEmulators(QList<EmulatorInfo> *info)
 {
     return EmulatorPackageManager().listAvailableEmulators(info);
 }
