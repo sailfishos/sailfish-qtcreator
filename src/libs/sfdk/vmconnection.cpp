@@ -505,6 +505,10 @@ void VmConnection::timerEvent(QTimerEvent *event)
         m_vmHardClosingTimeoutTimer.stop();
         vmStmScheduleExec();
     } else if (event->timerId() == m_vmStatePollTimer.timerId()) {
+        if (SdkPrivate::applicationState() != Qt::ApplicationActive
+                && m_pendingStateChangesCount == 0) {
+            return;
+        }
         vmPollState();
     } else if (event->timerId() == m_sshTryConnectTimer.timerId()) {
         sshTryConnect();
@@ -1010,10 +1014,10 @@ bool VmConnection::sshStmStep()
         } else if (m_cachedSshConnected) {
             sshStmTransition(SshConnected, "successfully connected");
         } else if (m_cachedSshErrorOccured) {
-            if (m_vmStartedOutside && !m_connectRequested) {
-                sshStmTransition(SshConnectingError, "connecting error+connect not requested");
-            } else if (m_vmStateEntryTimer.elapsed() < (m_vm->sshParameters().timeout * 1000)) {
+            if (m_vmStateEntryTimer.elapsed() < (m_vm->sshParameters().timeout * 1000)) {
                 ; // Do not report possibly recoverable boot-time failure
+            } else if (m_vmStartedOutside && !m_connectRequested) {
+                sshStmTransition(SshConnectingError, "connecting error+connect not requested");
             } else {
                 ask(Ui::CancelConnecting, &VmConnection::sshStmScheduleExec,
                         [=] { sshStmTransition(SshConnectingError, "connecting error+retry denied"); },
