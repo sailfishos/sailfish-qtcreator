@@ -1214,12 +1214,13 @@ Worker::ExitStatus BuiltinWorker::runEmulator(const QStringList &arguments_, int
             return BadUsage;
         }
 
-        if (!parser.isSet(availableOption)) {
-            listEmulators();
-            *exitCode = EXIT_SUCCESS;
-        } else {
-            *exitCode = listAvailableEmulators() ? EXIT_SUCCESS : EXIT_FAILURE;
-        }
+        SdkManager::ListEmulatorsOptions options = SdkManager::InstalledEmulators;
+        if (parser.isSet(availableOption))
+            options = options | SdkManager::AvailableEmulators;
+        else
+            options = options | SdkManager::UserDefinedEmulators;
+
+        *exitCode = listEmulators(options) ? EXIT_SUCCESS : EXIT_FAILURE;
 
         return NormalExit;
     }
@@ -1248,9 +1249,9 @@ Worker::ExitStatus BuiltinWorker::runEmulator(const QStringList &arguments_, int
     Emulator *emulator;
     // Emulator name may not start with '-'
     if (arguments.count() < 2 || arguments.at(1).startsWith('-')) {
-        emulator = emulatorForNameOrIndex("0", &errorString);
+        emulator = defaultEmulator(&errorString);
     } else {
-        emulator = emulatorForNameOrIndex(arguments.at(1), &errorString);
+        emulator = SdkManager::emulatorByName(arguments.at(1), &errorString);
         if (emulator) {
             arguments.removeAt(1);
         } else if (arguments.first() == "exec" || arguments.first() == "set") {
@@ -1258,7 +1259,7 @@ Worker::ExitStatus BuiltinWorker::runEmulator(const QStringList &arguments_, int
             // an option (which would be caught by the top-level if/else) or
             // it must be an emulator name.
             if (!arguments.contains("--"))
-                emulator = emulatorForNameOrIndex("0", &errorString);
+                emulator = defaultEmulator(&errorString);
         }
     }
     if (!emulator) {
@@ -1800,68 +1801,36 @@ Device *BuiltinWorker::deviceForNameOrIndex(const QString &deviceNameOrIndex,
     }
 }
 
-void BuiltinWorker::listEmulators()
+bool BuiltinWorker::listEmulators(SdkManager::ListEmulatorsOptions options)
 {
-    auto maxLength = [](const QStringList &strings) {
-        const QList<int> lengths = Utils::transform(strings, &QString::length);
-        return *std::max_element(lengths.begin(), lengths.end());
-    };
-
-    const QString sdkProvided = SdkManager::stateSdkProvidedMessage();
-    const QString userDefined = SdkManager::stateUserDefinedMessage();
-    const int stateFieldWidth = maxLength({sdkProvided, userDefined});
-
-    int index = 0;
-    for (Emulator *const emulator : Sdk::emulators()) {
-        const QString state = emulator->isAutodetected()
-            ? sdkProvided
-            : userDefined;
-        const QString privateKeyFile = FilePath::fromString(
-                emulator->virtualMachine()->sshParameters().privateKeyFile)
-            .shortNativePath();
-
-        qout() << '#' << index << ' ' << '"' << emulator->name() << '"' << endl;
-        qout() << indent(1) << qSetFieldWidth(stateFieldWidth) << left << state
-            << qSetFieldWidth(0) << "  "
-            << emulator->virtualMachine()->sshParameters().url.authority() << endl;
-        qout() << indent(1) << tr("private-key:") << ' ' << privateKeyFile << endl;
-
-        ++index;
-    }
-}
-
-Emulator *BuiltinWorker::emulatorForNameOrIndex(const QString &emulatorNameOrIndex,
-        QString *errorString)
-{
-    bool isInt;
-    const int emulatorIndex = emulatorNameOrIndex.toInt(&isInt);
-    if (isInt) {
-        if (emulatorIndex < 0 || emulatorIndex > Sdk::emulators().count() - 1) {
-            *errorString = tr("Invalid emulator index: %1").arg(emulatorNameOrIndex);
-            return nullptr;
-        }
-        return Sdk::emulators().at(emulatorIndex);
-    } else {
-        return SdkManager::emulatorByName(emulatorNameOrIndex, errorString);
-    }
-}
-
-bool BuiltinWorker::listAvailableEmulators()
-{
-    QList<AvailableEmulatorInfo> infoList;
-    const bool ok = SdkManager::listAvailableEmulators(&infoList);
+    QList<EmulatorInfo> infoList;
+    const bool ok = SdkManager::listEmulators(options, &infoList);
     if (!ok)
         return false;
 
+    const bool saySdkProvided = !(options & SdkManager::AvailableEmulators);
+    const bool indicateDefault = !(options & SdkManager::AvailableEmulators);
+
     QList<QStringList> table;
-    for (const AvailableEmulatorInfo &info : infoList)
-        table << QStringList{info.name, {}, toString(info.flags)};
+    for (const EmulatorInfo &info : infoList)
+        table << QStringList{info.name, {}, toString(info.flags, saySdkProvided, indicateDefault)};
 
     TreePrinter::Tree tree = TreePrinter::build(table, 0, 1);
     TreePrinter::sort(&tree, 0, 0, true);
     TreePrinter::print(qout(), tree, {0, 2});
 
     return true;
+}
+
+Emulator *BuiltinWorker::defaultEmulator(QString *errorString)
+{
+    if (Sdk::emulators().isEmpty()) {
+        *errorString = tr("No emulator available");
+        return nullptr;
+    }
+
+    // Ordering forced in EmulatorManager::fromMap - the most recent one comes first
+    return Sdk::emulators().first();
 }
 
 bool BuiltinWorker::listTools(SdkManager::ListToolsOptions options, bool listToolings,
@@ -1999,19 +1968,25 @@ QString BuiltinWorker::toString(ToolsInfo::Flags flags, bool saySdkProvided)
     return keywords.join(',');
 }
 
-QString BuiltinWorker::toString(AvailableEmulatorInfo::Flags flags)
+QString BuiltinWorker::toString(EmulatorInfo::Flags flags, bool saySdkProvided, bool indicateDefault)
 {
     QStringList keywords;
 
     // The order matters.
-    if (flags & AvailableEmulatorInfo::Available)
+    if (flags & EmulatorInfo::Available)
         keywords << SdkManager::stateAvailableMessage();
-    if (flags & AvailableEmulatorInfo::Installed)
-        keywords << SdkManager::stateInstalledMessage();
-    if (flags & AvailableEmulatorInfo::Latest)
+    if (flags & EmulatorInfo::Installed) {
+        if (saySdkProvided)
+            keywords << SdkManager::stateSdkProvidedMessage();
+        else
+            keywords << SdkManager::stateInstalledMessage();
+    }
+    if (flags & EmulatorInfo::Latest)
         keywords << SdkManager::stateLatestMessage();
-    if (flags & AvailableEmulatorInfo::EarlyAccess)
+    if (flags & EmulatorInfo::EarlyAccess)
         keywords << SdkManager::stateEarlyAccessMessage();
+    if (indicateDefault && flags & EmulatorInfo::Default)
+        keywords << SdkManager::stateDefaultMessage();
 
     return keywords.join(',');
 }
