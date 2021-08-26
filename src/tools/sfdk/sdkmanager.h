@@ -159,7 +159,6 @@ public:
     static int runOnDevice(const Device &device, const QString &program,
             const QStringList &arguments, Utils::optional<bool> runInTerminal = {});
 
-    static QList<Emulator *> sortedEmulators();
     static Emulator *emulatorByName(const QString &emulatorName, QString *errorMessage);
     static bool startEmulator(const Emulator &emulator);
     static bool stopEmulator(const Emulator &emulator);

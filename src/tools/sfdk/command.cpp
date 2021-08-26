@@ -1812,7 +1812,7 @@ void BuiltinWorker::listEmulators()
     const int stateFieldWidth = maxLength({sdkProvided, userDefined});
 
     int index = 0;
-    for (Emulator *const emulator : SdkManager::sortedEmulators()) {
+    for (Emulator *const emulator : Sdk::emulators()) {
         const QString state = emulator->isAutodetected()
             ? sdkProvided
             : userDefined;
@@ -1840,7 +1840,7 @@ Emulator *BuiltinWorker::emulatorForNameOrIndex(const QString &emulatorNameOrInd
             *errorString = tr("Invalid emulator index: %1").arg(emulatorNameOrIndex);
             return nullptr;
         }
-        return SdkManager::sortedEmulators().at(emulatorIndex);
+        return Sdk::emulators().at(emulatorIndex);
     } else {
         return SdkManager::emulatorByName(emulatorNameOrIndex, errorString);
     }

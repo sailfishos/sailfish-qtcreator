@@ -475,6 +475,44 @@ void DeviceManager::fromMap(const QVariantMap &data)
         newDevicesData.insert(id, deviceData);
     }
 
+    // Force the desired ordering of devices. The ordering is not persisted by
+    // intention: trying to reorder existing devices to match new order from
+    // configuration without loosing relation to upper layer objects would
+    // unjustifiably complicate the implementation.
+    QList<QString> newDevicesOrder = newDevicesData.keys();
+    const QHash<QUrl, int> emulatorsIndexes = []() {
+        QHash<QUrl, int> retv;
+        int i = 0;
+        for (Emulator *emulator : EmulatorManager::emulators())
+            retv[emulator->uri()] = i++;
+        return retv;
+    }();
+    Utils::sort(newDevicesOrder, [&](const QString &id1, const QString &id2) {
+        auto v = [&](const QString &id, const QString &k) {
+            return newDevicesData.value(id).value(k);
+        };
+        using namespace Constants;
+
+        const auto machineType1 = static_cast<Device::MachineType>(v(id1, DEVICE_MACHINE_TYPE).toInt());
+        const auto machineType2 = static_cast<Device::MachineType>(v(id2, DEVICE_MACHINE_TYPE).toInt());
+
+        // Emulators first
+        if (machineType1 != machineType2)
+            return machineType1 == Device::EmulatorMachine;
+
+        switch (machineType1) {
+        case Device::HardwareMachine:
+            return id1 < id2;
+        case Device::EmulatorMachine:
+            // Same order for emulators and emulator devices
+            return emulatorsIndexes.value(v(id1, EMULATOR_DEVICE_EMULATOR_URI).toUrl())
+                < emulatorsIndexes.value(v(id2, EMULATOR_DEVICE_EMULATOR_URI).toUrl());
+        }
+
+        Q_UNREACHABLE();
+        return false;
+    });
+
     // Remove devices missing from the updated configuration.
     // Index the preserved ones by ID
     QMap<QString, Device *> existingDevices;
@@ -489,7 +527,10 @@ void DeviceManager::fromMap(const QVariantMap &data)
     }
 
     // Update existing/add new devices
-    for (const QString &id : newDevicesData.keys()) {
+    QTC_CHECK(newDevicesData.count() == newDevicesOrder.count());
+    m_devices.reserve(newDevicesData.count());
+    for (int i = 0; i < newDevicesData.count(); ++i) {
+        const QString id = newDevicesOrder.at(i);
         const QVariantMap deviceData = newDevicesData.value(id);
         Device *device = existingDevices.value(id);
         std::unique_ptr<Device> newDevice;
@@ -499,7 +540,6 @@ void DeviceManager::fromMap(const QVariantMap &data)
             switch (machineType) {
             case Device::HardwareMachine:
                 {
-                    const QString id = deviceData.value(Constants::DEVICE_ID).toString();
                     const auto architecture = static_cast<Device::Architecture>(
                             deviceData.value(Constants::DEVICE_ARCHITECTURE).toInt());
                     const auto wordWidth = deviceData.value(Constants::DEVICE_WORD_WIDTH,
@@ -519,6 +559,8 @@ void DeviceManager::fromMap(const QVariantMap &data)
                 }
             }
             device = newDevice.get();
+        } else {
+            QTC_CHECK(m_devices.at(i)->id() == id);
         }
 
         const bool ok = DevicePrivate::get(device)->fromMap(deviceData);
@@ -527,8 +569,8 @@ void DeviceManager::fromMap(const QVariantMap &data)
         if (newDevice) {
             connect(newDevice.get(), &Device::sshParametersChanged,
                     this, &DeviceManager::scheduleUpdateDeviceXmlIfPrimary);
-            m_devices.emplace_back(std::move(newDevice));
-            emit deviceAdded(m_devices.size() - 1);
+            m_devices.emplace(m_devices.begin() + i, std::move(newDevice));
+            emit deviceAdded(i);
         }
     }
 }

@@ -1417,21 +1417,6 @@ int SdkManager::runOnDevice(const Device &device, const QString &program,
     return process.exec();
 }
 
-QList<Emulator *> SdkManager::sortedEmulators()
-{
-    QList<Emulator *> emulators = Sdk::emulators();
-    Utils::sort(emulators, [](Emulator *e1, Emulator *e2) {
-        // Order latest emulator before EA emulator
-        if (e1->name().startsWith(e2->name()))
-            return false;
-        else if (e2->name().startsWith(e1->name()))
-            return true;
-        else
-            return e1->name() > e2->name();
-    });
-    return emulators;
-}
-
 Emulator *SdkManager::emulatorByName(const QString &emulatorName, QString *errorMessage)
 {
     Q_ASSERT(errorMessage);
