@@ -133,7 +133,7 @@ void MerConnectionAction::initialize()
 
     m_action->setText(m_name);
     m_action->setIcon(m_iconOff);
-    m_action->setToolTip(m_startTip.arg(vmName()));
+    m_action->setToolTip(m_name);
     connect(m_action, &QAction::triggered,
             this, &MerConnectionAction::handleTriggered);
 
