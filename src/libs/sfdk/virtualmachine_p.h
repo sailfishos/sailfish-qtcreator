@@ -134,6 +134,7 @@ public:
 
     virtual void start(const QObject *context, const Functor<bool> &functor) = 0;
     virtual void stop(const QObject *context, const Functor<bool> &functor) = 0;
+    virtual void commit(const QObject *context, const Functor<bool> &functor) = 0;
     virtual void probe(const QObject *context,
             const Functor<BasicState, bool> &functor) const = 0;
 

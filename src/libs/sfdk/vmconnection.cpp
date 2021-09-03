@@ -189,6 +189,7 @@ VmConnection::VmConnection(VirtualMachine *parent)
     , m_cachedVmRunningHeadless(false)
     , m_cachedSshConnected(false)
     , m_cachedSshErrorOccured(false)
+    , m_committing(false)
     , m_vmWantFastPollState(0)
     , m_pollingVmState(false)
 {
@@ -612,6 +613,7 @@ void VmConnection::updateState()
 
         case VmSoftClosing:
         case VmHardClosing:
+        case VmCommitting:
             m_state = VirtualMachine::Closing;
             break;
     }
@@ -859,7 +861,7 @@ bool VmConnection::vmStmStep()
         }
 
         if (!m_cachedVmRunning) {
-            vmStmTransition(VmOff, "successfully closed");
+            vmStmTransition(VmCommitting, "successfully closed");
         } else if (!m_remoteShutdownProcess) {
             vmStmTransition(VmHardClosing, "no previous successful connection");
         } else if (m_remoteShutdownProcess->isError()) {
@@ -899,7 +901,7 @@ bool VmConnection::vmStmStep()
         }
 
         if (!m_cachedVmRunning) {
-            vmStmTransition(VmOff, "successfully closed");
+            vmStmTransition(VmCommitting, "successfully closed");
         } else if (!m_vmHardClosingTimeoutTimer.isActive()) {
             qCWarning(lib) << "VmConnection: timeout waiting for the" << m_vm->uri().toString()
                 << "virtual machine to hard-close.";
@@ -923,6 +925,23 @@ bool VmConnection::vmStmStep()
             vmWantFastPollState(false);
             m_vmHardClosingTimeoutTimer.stop();
             ui()->dismissQuestion(Ui::CancelLockingDown);
+        }
+        break;
+
+    case VmCommitting:
+        ON_ENTRY {
+            m_committing = true;
+            BatchComposer composer_ = batchComposer();
+            VirtualMachinePrivate::get(m_vm)->commit(this, [=](bool ok) {
+                onCommitFinished(ok);
+            });
+        }
+
+        if (!m_committing)
+            vmStmTransition(VmOff, "committed");
+
+        ON_EXIT {
+            ;
         }
         break;
     }
@@ -1293,6 +1312,7 @@ const char *VmConnection::str(VmState vmState)
         "VmRunning",
         "VmSoftClosing",
         "VmHardClosing",
+        "VmCommitting",
         "VmZombie",
     };
 
@@ -1361,6 +1381,13 @@ void VmConnection::onGuestInitFinished()
 void VmConnection::onRemoteShutdownProcessFinished()
 {
     DBG << "Remote shutdown process finished. Succeeded:" << !m_remoteShutdownProcess->isError();
+    vmStmScheduleExec();
+}
+
+void VmConnection::onCommitFinished(bool ok)
+{
+    DBG << "Commit finished" << ok;
+    m_committing = false;
     vmStmScheduleExec();
 }
 
