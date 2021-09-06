@@ -61,9 +61,6 @@ const char BUILD_ENGINE_WWW_PROXY_EXCLUDES[] = "WwwProxyExcludes";
 const char BUILD_ENGINE_HEADLESS[] = "Headless";
 const char BUILD_ENGINE_TARGETS_COUNT_KEY[] = "BuildTargets.Count";
 const char BUILD_ENGINE_TARGET_DATA_KEY_PREFIX[] = "BuildTarget.";
-const char BUILD_ENGINE_HOST_TARGET_PATH_POSTFIX[] = "/mersdk/targets";
-const char BUILD_ENGINE_HOST_SSH_PATH_POSTFIX[] = "/mersdk/ssh";
-const char BUILD_ENGINE_HOST_CONFIG_PATH_POSTFIX[] = "/vmshare";
 const char BUILD_ENGINE_SHARED_INSTALL_MOUNT_POINT[] = "/host_install";
 const char BUILD_ENGINE_SHARED_CONFIG_MOUNT_POINT[] = "/etc/mersdk/share";
 const char BUILD_ENGINE_SHARED_HOME_MOUNT_POINT[] = "/host_home";
@@ -71,6 +68,7 @@ const char BUILD_ENGINE_SHARED_TARGET_MOUNT_POINT[] = "/host_targets";
 const char BUILD_ENGINE_SHARED_SSH_MOUNT_POINT[] = "/etc/ssh/authorized_keys";
 const char BUILD_ENGINE_ALIGNED_MOUNT_POINT_ENV_TEMPLATE[] = "SAILFISH_SDK_%1_MOUNT_POINT";
 const char BUILD_ENGINE_HOST_GNUPG_PATH_POSTFIX[] = "/gnupg";
+const char BUILD_ENGINE_HOST_SECCOMP_PATH_POSTFIX[] = "/mersdk/seccomp.json";
 
 const char BUILD_TARGET_NAME[] = "Name";
 const char BUILD_TARGET_ORIGIN[] = "Origin";

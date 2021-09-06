@@ -556,12 +556,17 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
     QTC_ASSERT(!cachedInfo().sharedConfig.isEmpty(), return {});
     QTC_ASSERT(!cachedInfo().sharedSsh.isEmpty(), return {});
 
+    const FilePath seccompProfile = FilePath::fromString(Sdk::installationPath())
+        .stringAppended(Constants::BUILD_ENGINE_HOST_SECCOMP_PATH_POSTFIX);
+
     QStringList arguments;
     arguments.append("create");
     arguments.append("--env=container=docker");
     arguments.append("--stop-signal=RTMIN+3");
     arguments.append("--cap-add=NET_ADMIN");
-    arguments.append("--security-opt=seccomp=unconfined");
+    arguments.append("--security-opt=seccomp=" + (seccompProfile.exists() ?
+                seccompProfile.toUserOutput()
+                : QString("unconfined")));
     arguments.append("--volume");
     arguments.append("/sys/fs/cgroup:/sys/fs/cgroup:ro");
 
