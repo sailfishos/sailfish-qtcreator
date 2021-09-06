@@ -61,6 +61,7 @@ public:
 
     void start(const QObject *context, const Functor<bool> &functor) override;
     void stop(const QObject *context, const Functor<bool> &functor) override;
+    void commit(const QObject *context, const Functor<bool> &functor) override;
     void probe(const QObject *context,
             const Functor<BasicState, bool> &functor) const override;
 

@@ -262,15 +262,23 @@ void DockerVirtualMachinePrivate::stop(const QObject *context, const Functor<boo
     Q_ASSERT(context);
     Q_ASSERT(functor);
 
-    BatchComposer composer = BatchComposer::createBatch("DockerVirtualMachinePrivate::stop");
-    composer.batch()->setPropagateFailure(true);
-    connect(composer.batch(), &CommandRunner::done, context, functor);
-
     QStringList stopArguments;
     stopArguments.append("stop");
     stopArguments.append(q->name());
 
-    BatchComposer::enqueue<DockerRunner>(stopArguments);
+    auto *runner = BatchComposer::enqueue<DockerRunner>(stopArguments);
+    connect(runner, &CommandRunner::done, context, functor);
+}
+
+void DockerVirtualMachinePrivate::commit(const QObject *context, const Functor<bool> &functor)
+{
+    Q_Q(DockerVirtualMachine);
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
+    BatchComposer composer = BatchComposer::createBatch("DockerVirtualMachinePrivate::commit");
+    composer.batch()->setPropagateFailure(true);
+    connect(composer.batch(), &CommandRunner::done, context, functor);
 
     QStringList commitArguments;
     commitArguments.append("commit");

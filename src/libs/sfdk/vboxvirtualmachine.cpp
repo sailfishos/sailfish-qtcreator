@@ -355,6 +355,16 @@ void VBoxVirtualMachinePrivate::stop(const QObject *context, const Functor<bool>
     connect(runner, &CommandRunner::done, context, functor);
 }
 
+void VBoxVirtualMachinePrivate::commit(const QObject *context, const Functor<bool> &functor)
+{
+    Q_Q(VBoxVirtualMachine);
+    Q_ASSERT(context);
+    Q_ASSERT(functor);
+
+    qCDebug(vms) << "Committing (no-op)" << q->uri().toString();
+    BatchComposer::enqueueCheckPoint(context, std::bind(functor, true));
+}
+
 void VBoxVirtualMachinePrivate::probe(const QObject *context,
         const Functor<BasicState, bool> &functor) const
 {

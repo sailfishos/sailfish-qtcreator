@@ -55,6 +55,7 @@ class VmConnection : public QObject
         VmRunning,
         VmSoftClosing,
         VmHardClosing,
+        VmCommitting,
         VmZombie,
     };
 
@@ -144,6 +145,7 @@ private slots:
     void onSshErrorOccured();
     void onGuestInitFinished();
     void onRemoteShutdownProcessFinished();
+    void onCommitFinished(bool ok);
     void onAboutToShutDown();
 
 private:
@@ -179,6 +181,7 @@ private:
     bool m_cachedSshErrorOccured;
     QString m_cachedSshErrorString;
     QPointer<QSsh::SshConnection> m_cachedSshErrorOrigin;
+    bool m_committing;
 
     // timeout timers
     QBasicTimer m_vmStartingTimeoutTimer;
