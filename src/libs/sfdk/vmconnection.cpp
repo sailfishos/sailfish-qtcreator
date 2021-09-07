@@ -257,7 +257,7 @@ bool VmConnection::isVirtualMachineOff(bool *runningHeadless, bool *startedOutsi
     if (startedOutside)
         *startedOutside = m_vmStartedOutside;
 
-    return !m_cachedVmRunning && m_vmState != VmStarting;
+    return !m_cachedVmRunning && m_vmState == VmOff;
 }
 
 void VmConnection::lockDown(const QObject *context, const Functor<bool> &functor)
@@ -690,6 +690,7 @@ bool VmConnection::vmStmStep()
         ON_ENTRY {
             m_disconnectRequested = false;
             m_vmStartedOutside = false;
+            emit virtualMachineOffChanged(true);
         }
 
         if (m_cachedVmRunning) {
@@ -712,7 +713,7 @@ bool VmConnection::vmStmStep()
         }
 
         ON_EXIT {
-            ;
+            emit virtualMachineOffChanged(false);
         }
         break;
 
@@ -1230,7 +1231,6 @@ void VmConnection::vmPollState(const QObject *context, const Functor<bool> &func
             DBG << "VM running:" << m_cachedVmRunning << "-->" << vmRunning;
             m_cachedVmRunning = vmRunning;
             m_cachedVmRunningHeadless = vmHeadless;
-            emit virtualMachineOffChanged(!m_cachedVmRunning);
         }
 
         if (vmExists != m_cachedVmExists) {
