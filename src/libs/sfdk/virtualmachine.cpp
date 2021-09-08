@@ -126,6 +126,7 @@ VirtualMachine::VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, cons
     d->features = features;
     d->name = name;
     d->connectionUi_ = std::move(connectionUi);
+    d->connectionUi_->setVirtualMachine(this);
     d->connectionUi_->setParent(this);
     d->connection = std::make_unique<VmConnection>(this);
     connect(d->connection.get(), &VmConnection::stateChanged, this, &VirtualMachine::stateChanged);
