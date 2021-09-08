@@ -39,8 +39,12 @@ class MerVmConnectionUi : public Sfdk::VirtualMachine::ConnectionUi
 {
     Q_OBJECT
 
+    class ProgressDialog;
+
 public:
     using Sfdk::VirtualMachine::ConnectionUi::ConnectionUi;
+
+    void setVirtualMachine(Sfdk::VirtualMachine *virtualmachine) override;
 
     void warn(Warning which) override;
     void dismissWarning(Warning which) override;
@@ -56,24 +60,27 @@ protected:
     virtual void formatWarning(Warning which, QString *title, QString *text) = 0;
     virtual void formatQuestion(Question which, QString *title, QString *text) = 0;
 
+private slots:
+    void onVmStateChanged();
+
 private:
     QMessageBox *openWarningBox(Warning which);
     QMessageBox *openQuestionBox(Question which, std::function<void()> onStatusChanged,
             const QString &informativeText = QString(),
             std::function<void()> setDoNotAskAgain = nullptr);
-    QProgressDialog *openProgressDialog(Question which, std::function<void()> onStatusChanged);
+    ProgressDialog *openProgressDialog(Question which);
     template<class Dialog>
     void deleteDialog(QPointer<Dialog> &dialog);
     QuestionStatus status(QMessageBox *box) const;
-    QuestionStatus status(QProgressDialog *dialog) const;
+    QuestionStatus status(ProgressDialog *dialog) const;
 
 private:
     QPointer<QMessageBox> m_unableToCloseVmWarningBox;
     QPointer<QMessageBox> m_startVmQuestionBox;
     QPointer<QMessageBox> m_resetVmQuestionBox;
     QPointer<QMessageBox> m_closeVmQuestionBox;
-    QPointer<QProgressDialog> m_connectingProgressDialog;
-    QPointer<QProgressDialog> m_lockingDownProgressDialog;
+    QPointer<ProgressDialog> m_connectingProgressDialog;
+    QPointer<ProgressDialog> m_lockingDownProgressDialog;
 };
 
 class MerBuildEngineVmConnectionUi : public MerVmConnectionUi
