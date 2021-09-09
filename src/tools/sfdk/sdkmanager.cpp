@@ -578,15 +578,6 @@ public:
         if (!packageForName(name, typeHint, &package, &flags))
             return false;
 
-        auto targetHasSnapshots = [=](const QString &targetName) {
-            return m_snapshotSourceNameByTargetPackage.values().contains(targetName);
-        };
-
-        if (flags & ToolsInfo::Target && !snapshotsOf && targetHasSnapshots(name)) {
-            qerr() << tr("The target has snapshots. Remove snapshots first.") << endl;
-            return false;
-        }
-
         if (flags & ToolsInfo::UserDefined || flags & ToolsInfo::Snapshot || snapshotsOf) {
             QStringList args;
             args += toArgs(typeHint);
