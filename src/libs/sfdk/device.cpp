@@ -494,7 +494,6 @@ void DeviceManager::fromMap(const QVariantMap &data)
             switch (machineType) {
             case Device::HardwareMachine:
                 {
-                    const QString id = deviceData.value(Constants::DEVICE_ID).toString();
                     const auto architecture = static_cast<Device::Architecture>(
                             deviceData.value(Constants::DEVICE_ARCHITECTURE).toInt());
                     const auto wordWidth = deviceData.value(Constants::DEVICE_WORD_WIDTH,
