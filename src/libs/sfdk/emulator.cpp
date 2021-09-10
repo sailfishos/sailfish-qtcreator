@@ -702,10 +702,7 @@ int EmulatorManager::addEmulator(std::unique_ptr<Emulator> &&emulator)
         EmulatorPrivate::get(emulator.get())->updateOnce();
     }
 
-    s_instance->m_emulators.emplace_back(std::move(emulator));
-    const int index = s_instance->m_emulators.size() - 1;
-    emit s_instance->emulatorAdded(index);
-    return index;
+    return s_instance->doAddEmulator(std::move(emulator));
 }
 
 void EmulatorManager::removeEmulator(const QUrl &uri)
@@ -871,10 +868,8 @@ void EmulatorManager::fromMap(const QVariantMap &data, bool fromSystemSettings)
         const bool ok = EmulatorPrivate::get(emulator)->fromMap(emulatorData);
         QTC_ASSERT(ok, return);
 
-        if (newEmulator) {
-            m_emulators.emplace_back(std::move(newEmulator));
-            emit emulatorAdded(m_emulators.size() - 1);
-        }
+        if (newEmulator)
+            doAddEmulator(std::move(newEmulator));
     }
 
     // Update device models
@@ -927,6 +922,16 @@ void EmulatorManager::fromMap(const QVariantMap &data, bool fromSystemSettings)
         fixDeviceModelsInUse(this, [=](bool ok) { Q_UNUSED(ok) });
         emit this->deviceModelsChanged();
     }
+}
+
+int EmulatorManager::doAddEmulator(std::unique_ptr<Emulator> &&emulator)
+{
+    QTC_ASSERT(emulator, return -1);
+
+    m_emulators.emplace_back(std::move(emulator));
+    const int index = m_emulators.size() - 1;
+    emit emulatorAdded(index);
+    return index;
 }
 
 void EmulatorManager::enableUpdates()

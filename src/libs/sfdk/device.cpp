@@ -413,13 +413,7 @@ int DeviceManager::addDevice(std::unique_ptr<Device> &&device)
     QTC_ASSERT(device, return -1);
     QTC_ASSERT(!DeviceManager::device(device->id()), return -1);
 
-    connect(device.get(), &Device::sshParametersChanged,
-            s_instance, &DeviceManager::scheduleUpdateDeviceXmlIfPrimary);
-
-    s_instance->m_devices.emplace_back(std::move(device));
-    const int index = s_instance->m_devices.size() - 1;
-    emit s_instance->deviceAdded(index);
-    return index;
+    return s_instance->doAddDevice(std::move(device));
 }
 
 void DeviceManager::removeDevice(const QString &id)
@@ -480,6 +474,7 @@ void DeviceManager::fromMap(const QVariantMap &data)
     QMap<QString, Device *> existingDevices;
     for (auto it = m_devices.cbegin(); it != m_devices.cend(); ) {
         if (!newDevicesData.contains(it->get()->id())) {
+            qCDebug(Log::device) << "Dropping device" << it->get()->id();
             emit aboutToRemoveDevice(it - m_devices.cbegin());
             it = m_devices.erase(it);
         } else {
@@ -505,6 +500,7 @@ void DeviceManager::fromMap(const QVariantMap &data)
                     const auto wordWidth = deviceData.value(Constants::DEVICE_WORD_WIDTH,
                             Constants::DEVICE_FALLBACK_WORD_WIDTH).value<unsigned char>();
                     newDevice = std::make_unique<HardwareDevice>(id, architecture, wordWidth, this);
+                    qCDebug(Log::device) << "Adding hardware device" << id;
                     break;
                 }
             case Device::EmulatorMachine:
@@ -515,22 +511,35 @@ void DeviceManager::fromMap(const QVariantMap &data)
                     QTC_ASSERT(emulator, return); // inter-file inconsistency
                     newDevice = std::make_unique<EmulatorDevice>(emulator, this,
                             EmulatorDevice::PrivateConstructorTag{});
+                    qCDebug(Log::device) << "Adding emulator device" << id;
                     break;
                 }
             }
             device = newDevice.get();
+        } else {
+            qCDebug(Log::device) << "Updating device" << id;
         }
 
         const bool ok = DevicePrivate::get(device)->fromMap(deviceData);
         QTC_ASSERT(ok, return);
 
-        if (newDevice) {
-            connect(newDevice.get(), &Device::sshParametersChanged,
-                    this, &DeviceManager::scheduleUpdateDeviceXmlIfPrimary);
-            m_devices.emplace_back(std::move(newDevice));
-            emit deviceAdded(m_devices.size() - 1);
-        }
+        if (newDevice)
+            doAddDevice(std::move(newDevice));
     }
+}
+
+int DeviceManager::doAddDevice(std::unique_ptr<Device> &&device)
+{
+    QTC_ASSERT(device, return -1);
+    QTC_ASSERT(!DeviceManager::device(device->id()), return -1);
+
+    connect(device.get(), &Device::sshParametersChanged,
+            this, &DeviceManager::scheduleUpdateDeviceXmlIfPrimary);
+
+    m_devices.emplace_back(std::move(device));
+    const int index = m_devices.size() - 1;
+    emit deviceAdded(index);
+    return index;
 }
 
 void DeviceManager::enableUpdates()

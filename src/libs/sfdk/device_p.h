@@ -141,6 +141,7 @@ protected:
 private:
     QVariantMap toMap() const;
     void fromMap(const QVariantMap &data);
+    int doAddDevice(std::unique_ptr<Device> &&device);
     void enableUpdates();
     void updateOnce();
     void checkSystemSettings();

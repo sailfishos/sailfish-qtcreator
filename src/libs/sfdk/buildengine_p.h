@@ -167,6 +167,7 @@ signals:
 private:
     QVariantMap toMap() const;
     void fromMap(const QVariantMap &data, bool fromSystemSettings = false);
+    int doAddBuildEngine(std::unique_ptr<BuildEngine> &&buildEngine);
     void enableUpdates();
     void updateOnce();
     void checkSystemSettings();
