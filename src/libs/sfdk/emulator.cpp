@@ -885,12 +885,8 @@ void EmulatorManager::fromMap(const QVariantMap &data, bool fromSystemSettings)
             newEmulator = std::make_unique<Emulator>(this, Emulator::PrivateConstructorTag{});
             emulator = newEmulator.get();
         } else {
+            QTC_CHECK(m_emulators.at(i)->uri() == vmUri);
             qCDebug(Log::emulator) << "Updating emulator" << vmUri.toString();
-            QTC_ASSERT(m_emulators.at(i)->uri() == vmUri, {
-                qCWarning(Log::device) << "Emulator order mismatch at index" << i << "."
-                    << "Old:" << newEmulatorsOrder
-                    << "New:" << Utils::transform(emulators(), &Emulator::uri);
-            });
         }
 
         QTC_ASSERT(!fromSystemSettings || newEmulator || emulator->isAutodetected(), return);

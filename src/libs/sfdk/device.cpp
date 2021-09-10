@@ -518,7 +518,6 @@ void DeviceManager::fromMap(const QVariantMap &data)
     QMap<QString, Device *> existingDevices;
     for (auto it = m_devices.cbegin(); it != m_devices.cend(); ) {
         if (!newDevicesData.contains(it->get()->id())) {
-            qCDebug(Log::device) << "Dropping device" << it->get()->id();
             emit aboutToRemoveDevice(it - m_devices.cbegin());
             it = m_devices.erase(it);
         } else {
@@ -546,7 +545,6 @@ void DeviceManager::fromMap(const QVariantMap &data)
                     const auto wordWidth = deviceData.value(Constants::DEVICE_WORD_WIDTH,
                             Constants::DEVICE_FALLBACK_WORD_WIDTH).value<unsigned char>();
                     newDevice = std::make_unique<HardwareDevice>(id, architecture, wordWidth, this);
-                    qCDebug(Log::device) << "Adding hardware device" << id;
                     break;
                 }
             case Device::EmulatorMachine:
@@ -557,18 +555,12 @@ void DeviceManager::fromMap(const QVariantMap &data)
                     QTC_ASSERT(emulator, return); // inter-file inconsistency
                     newDevice = std::make_unique<EmulatorDevice>(emulator, this,
                             EmulatorDevice::PrivateConstructorTag{});
-                    qCDebug(Log::device) << "Adding emulator device" << id;
                     break;
                 }
             }
             device = newDevice.get();
         } else {
-            qCDebug(Log::device) << "Updating device" << id;
-            QTC_ASSERT(m_devices.at(i)->id() == id, {
-                qCWarning(Log::device) << "Device order mismatch at index" << i << "."
-                    << "Old:" << newDevicesOrder
-                    << "New:" << Utils::transform(devices(), &Device::id);
-            });
+            QTC_CHECK(m_devices.at(i)->id() == id);
         }
 
         const bool ok = DevicePrivate::get(device)->fromMap(deviceData);
