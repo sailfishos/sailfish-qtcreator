@@ -535,8 +535,40 @@ int DeviceManager::doAddDevice(std::unique_ptr<Device> &&device)
     connect(device.get(), &Device::sshParametersChanged,
             this, &DeviceManager::scheduleUpdateDeviceXmlIfPrimary);
 
-    m_devices.emplace_back(std::move(device));
-    const int index = m_devices.size() - 1;
+    const QHash<QUrl, int> emulatorsIndexes = []() {
+        QHash<QUrl, int> retv;
+        int i = 0;
+        for (Emulator *emulator : EmulatorManager::emulators())
+            retv[emulator->uri()] = i++;
+        return retv;
+    }();
+
+    auto less = [&](Device *d1, Device *d2) -> bool {
+        // Emulators first
+        if (d1->machineType() != d2->machineType())
+            return d1->machineType() == Device::EmulatorMachine;
+
+        switch (d1->machineType()) {
+        case Device::HardwareMachine:
+            return d1->id() < d2->id();
+        case Device::EmulatorMachine:
+            // Same order for emulators and emulator devices
+            const auto d1_ = qobject_cast<EmulatorDevice *>(d1);
+            const auto d2_ = qobject_cast<EmulatorDevice *>(d2);
+            QTC_ASSERT(d1_ && d2_, return {});
+            return emulatorsIndexes.value(d1_->emulator()->uri())
+                < emulatorsIndexes.value(d2_->emulator()->uri());
+        }
+
+        Q_UNREACHABLE();
+        return {};
+    };
+
+    const auto it = std::find_if(m_devices.cbegin(), m_devices.cend(),
+            [&](const std::unique_ptr<Device> &other) { return !less(other.get(), device.get()); });
+    const int index = it - m_devices.cbegin();
+
+    m_devices.emplace(it, std::move(device));
     emit deviceAdded(index);
     return index;
 }
