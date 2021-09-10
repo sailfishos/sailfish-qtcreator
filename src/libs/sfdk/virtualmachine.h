@@ -208,6 +208,9 @@ public:
 
     using QObject::QObject;
 
+    virtual void setVirtualMachine(VirtualMachine *virtualMachine) { m_virtualMachine = virtualMachine; }
+    VirtualMachine *virtualMachine() const { return m_virtualMachine; }
+
     virtual void warn(Warning which) = 0;
     virtual void dismissWarning(Warning which) = 0;
 
@@ -216,8 +219,8 @@ public:
     virtual void dismissQuestion(Question which) = 0;
     virtual QuestionStatus status(Question which) const = 0;
 
-protected:
-    VirtualMachine *virtualMachine() const { return static_cast<VirtualMachine *>(parent()); }
+private:
+    QPointer<VirtualMachine> m_virtualMachine;
 };
 
 } // namespace Sfdk

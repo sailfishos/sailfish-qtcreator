@@ -33,8 +33,10 @@
 #include <utils/qtcassert.h>
 
 #include <QCheckBox>
+#include <QCloseEvent>
 #include <QMessageBox>
 #include <QProgressDialog>
+#include <QPushButton>
 #include <QTimer>
 
 using namespace Core;
@@ -45,7 +47,61 @@ namespace Mer {
 namespace Internal {
 
 namespace {
+const int PROGRESS_MINIMUM_DURATION_PROLONGED = 20000; // aligned with VmConnection timeouts
 const int DISMISS_MESSAGE_BOX_DELAY = 2000;
+}
+
+class MerVmConnectionUi::ProgressDialog : public QProgressDialog
+{
+    Q_OBJECT
+
+public:
+    ProgressDialog(QWidget *parent)
+        : QProgressDialog(parent)
+    {
+        m_cancelButton = new QPushButton(tr("Cancel"), this);
+        m_cancelButton->setEnabled(false);
+        setCancelButton(m_cancelButton);
+        connect(this, &QDialog::finished, [=]() {
+            if (m_cancelHandler)
+                m_cancelHandler();
+        });
+    }
+
+    void enableCancel(std::function<void()> handler)
+    {
+        m_cancelHandler = handler;
+        m_cancelButton->setEnabled(true);
+    }
+
+    void disableCancel()
+    {
+        m_cancelButton->setEnabled(false);
+        m_cancelHandler = {};
+    }
+
+    bool isCancelEnabled() const
+    {
+        return m_cancelButton->isEnabled();
+    }
+
+protected:
+    void closeEvent(QCloseEvent *event) override
+    {
+        event->ignore();
+    }
+
+private:
+    QPointer<QPushButton> m_cancelButton;
+    std::function<void()> m_cancelHandler;
+};
+
+void MerVmConnectionUi::setVirtualMachine(VirtualMachine *virtualMachine)
+{
+    ConnectionUi::setVirtualMachine(virtualMachine);
+
+    connect(virtualMachine, &VirtualMachine::stateChanged,
+            this, &MerVmConnectionUi::onVmStateChanged);
 }
 
 void MerVmConnectionUi::warn(Warning which)
@@ -113,12 +169,14 @@ void MerVmConnectionUi::ask(Question which, std::function<void()> onStatusChange
                     "Answer \"No\" to disconnect and leave the virtual machine running."));
         break;
     case CancelConnecting:
-        QTC_CHECK(!m_connectingProgressDialog);
-        m_connectingProgressDialog = openProgressDialog(which, onStatusChanged);
+        QTC_ASSERT(m_connectingProgressDialog, return);
+        m_connectingProgressDialog->enableCancel(onStatusChanged);
+        m_connectingProgressDialog->show();
         break;
     case CancelLockingDown:
-        QTC_CHECK(!m_lockingDownProgressDialog);
-        m_lockingDownProgressDialog = openProgressDialog(which, onStatusChanged);
+        QTC_ASSERT(m_lockingDownProgressDialog, return);
+        m_lockingDownProgressDialog->enableCancel(onStatusChanged);
+        m_lockingDownProgressDialog->show();
         break;
     }
 }
@@ -136,10 +194,12 @@ void MerVmConnectionUi::dismissQuestion(Question which)
         deleteDialog(m_closeVmQuestionBox);
         break;
     case CancelConnecting:
-        deleteDialog(m_connectingProgressDialog);
+        QTC_ASSERT(m_connectingProgressDialog, return);
+        m_connectingProgressDialog->disableCancel();
         break;
     case CancelLockingDown:
-        deleteDialog(m_lockingDownProgressDialog);
+        QTC_ASSERT(m_lockingDownProgressDialog, return);
+        m_lockingDownProgressDialog->disableCancel();
         break;
     }
 }
@@ -172,6 +232,53 @@ void MerVmConnectionUi::informStateChangePending()
 {
     QMessageBox::information(ICore::dialogParent(), tr("Request Pending"),
             tr("Another request pending. Try later."));
+}
+
+void MerVmConnectionUi::onVmStateChanged()
+{
+    switch (virtualMachine()->state()) {
+    case VirtualMachine::Disconnected:
+    case VirtualMachine::Error:
+    case VirtualMachine::Connected:
+        deleteDialog(m_connectingProgressDialog);
+        deleteDialog(m_lockingDownProgressDialog);
+        break;
+
+    case VirtualMachine::Starting:
+    case VirtualMachine::Connecting:
+        if (!m_connectingProgressDialog) {
+            m_connectingProgressDialog = openProgressDialog(ConnectionUi::CancelConnecting);
+            if (ICore::dialogParent() == ICore::mainWindow())
+                m_connectingProgressDialog->setMinimumDuration(PROGRESS_MINIMUM_DURATION_PROLONGED);
+        }
+        break;
+
+    case VirtualMachine::Disconnecting:
+        if (!m_lockingDownProgressDialog) {
+            // Avoid displaying the CancelLockingDown question unless we know
+            // for sure the VM is going to be closed.  E.g. when connection is
+            // requested after connection failure, it will disconnect first,
+            // then ask whether the VM should be also restarted, and the user
+            // may decide to NOT restart it.
+            if (!ICore::mainWindow()->isVisible()) {
+                m_lockingDownProgressDialog = openProgressDialog(ConnectionUi::CancelLockingDown);
+                m_lockingDownProgressDialog->show();
+            }
+        }
+        break;
+
+    case VirtualMachine::Closing:
+        if (!m_lockingDownProgressDialog) {
+            m_lockingDownProgressDialog = openProgressDialog(ConnectionUi::CancelLockingDown);
+            if (!ICore::mainWindow()->isVisible()) {
+                // Display immediately at Qt Creator shutdown
+                m_lockingDownProgressDialog->show();
+            } else if (ICore::dialogParent() == ICore::mainWindow()) {
+                m_lockingDownProgressDialog->setMinimumDuration(PROGRESS_MINIMUM_DURATION_PROLONGED);
+            }
+        }
+        break;
+    }
 }
 
 QMessageBox *MerVmConnectionUi::openWarningBox(Warning which)
@@ -221,21 +328,20 @@ QMessageBox *MerVmConnectionUi::openQuestionBox(Question which,
     return box;
 }
 
-QProgressDialog *MerVmConnectionUi::openProgressDialog(Question which,
-        std::function<void()> onStatusChanged)
+MerVmConnectionUi::ProgressDialog *MerVmConnectionUi::openProgressDialog(Question which)
 {
     QString title;
     QString text;
     formatQuestion(which, &title, &text);
 
-    QProgressDialog *dialog = new QProgressDialog(ICore::mainWindow());
+    ProgressDialog *dialog = new ProgressDialog(ICore::mainWindow());
+    // It is not really desired to make it modal, but it seems to be the
+    // only reliable way to ensure the dialog is on top when it becomes visible.
+    dialog->setWindowModality(Qt::ApplicationModal);
     dialog->setMaximum(0);
+    dialog->setValue(0); // Required to make setMinimumDuration work
     dialog->setWindowTitle(title);
     dialog->setLabelText(text.arg(virtualMachine()->name()));
-    connect(dialog, &QDialog::finished,
-            virtualMachine(), onStatusChanged);
-    dialog->show();
-    dialog->raise();
     return dialog;
 }
 
@@ -265,9 +371,9 @@ VirtualMachine::ConnectionUi::QuestionStatus MerVmConnectionUi::status(QMessageB
         return Asked;
 }
 
-VirtualMachine::ConnectionUi::QuestionStatus MerVmConnectionUi::status(QProgressDialog *dialog) const
+VirtualMachine::ConnectionUi::QuestionStatus MerVmConnectionUi::status(ProgressDialog *dialog) const
 {
-    if (!dialog)
+    if (!dialog || !dialog->isCancelEnabled())
         return NotAsked;
     else if (!dialog->isVisible())
         return dialog->wasCanceled() ? Yes : No;
@@ -393,3 +499,5 @@ void MerEmulatorVmConnectionUi::formatQuestion(Question which, QString *title, Q
 
 } // namespace Internal
 } // namespace Mer
+
+#include "mervmconnectionui.moc"
