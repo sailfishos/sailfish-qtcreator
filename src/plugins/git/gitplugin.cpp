@@ -1878,8 +1878,14 @@ bool GitPluginPrivate::vcsOpen(const QString & /*fileName*/)
 
 bool GitPluginPrivate::vcsAdd(const QString &fileName)
 {
+    static const bool asIntent = qEnvironmentVariableIntValue("QTC_GIT_INTENT_TO_ADD");
+
+    QStringList extraArguments;
+    if (asIntent)
+        extraArguments += "--intent-to-add";
+
     const QFileInfo fi(fileName);
-    return m_gitClient.synchronousAdd(fi.absolutePath(), {fi.fileName()}, {"--intent-to-add"});
+    return m_gitClient.synchronousAdd(fi.absolutePath(), {fi.fileName()}, extraArguments);
 }
 
 bool GitPluginPrivate::vcsDelete(const QString &fileName)
