@@ -33,6 +33,7 @@ namespace Git {
 namespace Internal {
 
 const QLatin1String GitSettings::pullRebaseKey("PullRebase");
+const QLatin1String GitSettings::addImmediatelyKey("AddImmediately");
 const QLatin1String GitSettings::showTagsKey("ShowTags");
 const QLatin1String GitSettings::omitAnnotationDateKey("OmitAnnotationDate");
 const QLatin1String GitSettings::ignoreSpaceChangesInDiffKey("SpaceIgnorantDiff");
@@ -57,6 +58,7 @@ GitSettings::GitSettings()
     declareKey(binaryPathKey, "git");
     declareKey(timeoutKey, Utils::HostOsInfo::isWindowsHost() ? 60 : 30);
     declareKey(pullRebaseKey, false);
+    declareKey(addImmediatelyKey, false);
     declareKey(showTagsKey, false);
     declareKey(omitAnnotationDateKey, false);
     declareKey(ignoreSpaceChangesInDiffKey, true);

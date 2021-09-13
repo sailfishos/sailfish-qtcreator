@@ -1878,10 +1878,8 @@ bool GitPluginPrivate::vcsOpen(const QString & /*fileName*/)
 
 bool GitPluginPrivate::vcsAdd(const QString &fileName)
 {
-    static const bool asIntent = qEnvironmentVariableIntValue("QTC_GIT_INTENT_TO_ADD");
-
     QStringList extraArguments;
-    if (asIntent)
+    if (!m_settings.boolValue(GitSettings::addImmediatelyKey))
         extraArguments += "--intent-to-add";
 
     const QFileInfo fi(fileName);

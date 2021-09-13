@@ -123,6 +123,16 @@
         </property>
        </widget>
       </item>
+      <item row="2" column="0">
+       <widget class="QCheckBox" name="addImmediatelyCheckBox">
+        <property name="toolTip">
+         <string>Do not use the &quot;--intent-to-add&quot; option to git-add</string>
+        </property>
+        <property name="text">
+         <string>Add new files immediately</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>

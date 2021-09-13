@@ -91,6 +91,7 @@ GitSettingsPageWidget::GitSettingsPageWidget(GitSettings *settings, const std::f
     m_ui.logCountSpinBox->setValue(s.intValue(GitSettings::logCountKey));
     m_ui.timeoutSpinBox->setValue(s.intValue(GitSettings::timeoutKey));
     m_ui.pullRebaseCheckBox->setChecked(s.boolValue(GitSettings::pullRebaseKey));
+    m_ui.addImmediatelyCheckBox->setChecked(s.boolValue(GitSettings::addImmediatelyKey));
     m_ui.winHomeCheckBox->setChecked(s.boolValue(GitSettings::winSetHomeEnvironmentKey));
     m_ui.gitkOptionsLineEdit->setText(s.stringValue(GitSettings::gitkOptionsKey));
     m_ui.repBrowserCommandPathChooser->setPath(s.stringValue(GitSettings::repositoryBrowserCmd));
@@ -103,6 +104,7 @@ void GitSettingsPageWidget::apply()
     rc.setValue(GitSettings::logCountKey, m_ui.logCountSpinBox->value());
     rc.setValue(GitSettings::timeoutKey, m_ui.timeoutSpinBox->value());
     rc.setValue(GitSettings::pullRebaseKey, m_ui.pullRebaseCheckBox->isChecked());
+    rc.setValue(GitSettings::addImmediatelyKey, m_ui.addImmediatelyCheckBox->isChecked());
     rc.setValue(GitSettings::winSetHomeEnvironmentKey, m_ui.winHomeCheckBox->isChecked());
     rc.setValue(GitSettings::gitkOptionsKey, m_ui.gitkOptionsLineEdit->text().trimmed());
     rc.setValue(GitSettings::repositoryBrowserCmd, m_ui.repBrowserCommandPathChooser->path().trimmed());
