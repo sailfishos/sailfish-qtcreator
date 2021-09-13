@@ -413,13 +413,7 @@ int DeviceManager::addDevice(std::unique_ptr<Device> &&device)
     QTC_ASSERT(device, return -1);
     QTC_ASSERT(!DeviceManager::device(device->id()), return -1);
 
-    connect(device.get(), &Device::sshParametersChanged,
-            s_instance, &DeviceManager::scheduleUpdateDeviceXmlIfPrimary);
-
-    s_instance->m_devices.emplace_back(std::move(device));
-    const int index = s_instance->m_devices.size() - 1;
-    emit s_instance->deviceAdded(index);
-    return index;
+    return s_instance->doAddDevice(std::move(device));
 }
 
 void DeviceManager::removeDevice(const QString &id)
@@ -475,44 +469,6 @@ void DeviceManager::fromMap(const QVariantMap &data)
         newDevicesData.insert(id, deviceData);
     }
 
-    // Force the desired ordering of devices. The ordering is not persisted by
-    // intention: trying to reorder existing devices to match new order from
-    // configuration without loosing relation to upper layer objects would
-    // unjustifiably complicate the implementation.
-    QList<QString> newDevicesOrder = newDevicesData.keys();
-    const QHash<QUrl, int> emulatorsIndexes = []() {
-        QHash<QUrl, int> retv;
-        int i = 0;
-        for (Emulator *emulator : EmulatorManager::emulators())
-            retv[emulator->uri()] = i++;
-        return retv;
-    }();
-    Utils::sort(newDevicesOrder, [&](const QString &id1, const QString &id2) {
-        auto v = [&](const QString &id, const QString &k) {
-            return newDevicesData.value(id).value(k);
-        };
-        using namespace Constants;
-
-        const auto machineType1 = static_cast<Device::MachineType>(v(id1, DEVICE_MACHINE_TYPE).toInt());
-        const auto machineType2 = static_cast<Device::MachineType>(v(id2, DEVICE_MACHINE_TYPE).toInt());
-
-        // Emulators first
-        if (machineType1 != machineType2)
-            return machineType1 == Device::EmulatorMachine;
-
-        switch (machineType1) {
-        case Device::HardwareMachine:
-            return id1 < id2;
-        case Device::EmulatorMachine:
-            // Same order for emulators and emulator devices
-            return emulatorsIndexes.value(v(id1, EMULATOR_DEVICE_EMULATOR_URI).toUrl())
-                < emulatorsIndexes.value(v(id2, EMULATOR_DEVICE_EMULATOR_URI).toUrl());
-        }
-
-        Q_UNREACHABLE();
-        return false;
-    });
-
     // Remove devices missing from the updated configuration.
     // Index the preserved ones by ID
     QMap<QString, Device *> existingDevices;
@@ -528,10 +484,7 @@ void DeviceManager::fromMap(const QVariantMap &data)
     }
 
     // Update existing/add new devices
-    QTC_CHECK(newDevicesData.count() == newDevicesOrder.count());
-    m_devices.reserve(newDevicesData.count());
-    for (int i = 0; i < newDevicesData.count(); ++i) {
-        const QString id = newDevicesOrder.at(i);
+    for (const QString &id : newDevicesData.keys()) {
         const QVariantMap deviceData = newDevicesData.value(id);
         Device *device = existingDevices.value(id);
         std::unique_ptr<Device> newDevice;
@@ -564,23 +517,60 @@ void DeviceManager::fromMap(const QVariantMap &data)
             device = newDevice.get();
         } else {
             qCDebug(Log::device) << "Updating device" << id;
-            QTC_ASSERT(m_devices.at(i)->id() == id, {
-                qCWarning(Log::device) << "Device order mismatch at index" << i << "."
-                    << "Old:" << newDevicesOrder
-                    << "New:" << Utils::transform(devices(), &Device::id);
-            });
         }
 
         const bool ok = DevicePrivate::get(device)->fromMap(deviceData);
         QTC_ASSERT(ok, return);
 
-        if (newDevice) {
-            connect(newDevice.get(), &Device::sshParametersChanged,
-                    this, &DeviceManager::scheduleUpdateDeviceXmlIfPrimary);
-            m_devices.emplace(m_devices.begin() + i, std::move(newDevice));
-            emit deviceAdded(i);
-        }
+        if (newDevice)
+            doAddDevice(std::move(newDevice));
     }
+}
+
+int DeviceManager::doAddDevice(std::unique_ptr<Device> &&device)
+{
+    QTC_ASSERT(device, return -1);
+    QTC_ASSERT(!DeviceManager::device(device->id()), return -1);
+
+    connect(device.get(), &Device::sshParametersChanged,
+            this, &DeviceManager::scheduleUpdateDeviceXmlIfPrimary);
+
+    const QHash<QUrl, int> emulatorsIndexes = []() {
+        QHash<QUrl, int> retv;
+        int i = 0;
+        for (Emulator *emulator : EmulatorManager::emulators())
+            retv[emulator->uri()] = i++;
+        return retv;
+    }();
+
+    auto less = [&](Device *d1, Device *d2) -> bool {
+        // Emulators first
+        if (d1->machineType() != d2->machineType())
+            return d1->machineType() == Device::EmulatorMachine;
+
+        switch (d1->machineType()) {
+        case Device::HardwareMachine:
+            return d1->id() < d2->id();
+        case Device::EmulatorMachine:
+            // Same order for emulators and emulator devices
+            const auto d1_ = qobject_cast<EmulatorDevice *>(d1);
+            const auto d2_ = qobject_cast<EmulatorDevice *>(d2);
+            QTC_ASSERT(d1_ && d2_, return {});
+            return emulatorsIndexes.value(d1_->emulator()->uri())
+                < emulatorsIndexes.value(d2_->emulator()->uri());
+        }
+
+        Q_UNREACHABLE();
+        return {};
+    };
+
+    const auto it = std::find_if(m_devices.cbegin(), m_devices.cend(),
+            [&](const std::unique_ptr<Device> &other) { return !less(other.get(), device.get()); });
+    const int index = it - m_devices.cbegin();
+
+    m_devices.emplace(it, std::move(device));
+    emit deviceAdded(index);
+    return index;
 }
 
 void DeviceManager::enableUpdates()

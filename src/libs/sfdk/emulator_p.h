@@ -134,6 +134,7 @@ signals:
 private:
     QVariantMap toMap() const;
     void fromMap(const QVariantMap &data, bool fromSystemSettings = false);
+    int doAddEmulator(std::unique_ptr<Emulator> &&emulator);
     void enableUpdates();
     void updateOnce();
     void checkSystemSettings();

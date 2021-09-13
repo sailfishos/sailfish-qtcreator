@@ -1238,10 +1238,7 @@ int BuildEngineManager::addBuildEngine(std::unique_ptr<BuildEngine> &&buildEngin
         BuildEnginePrivate::get(buildEngine.get())->updateOnce();
     }
 
-    s_instance->m_buildEngines.emplace_back(std::move(buildEngine));
-    const int index = s_instance->m_buildEngines.size() - 1;
-    emit s_instance->buildEngineAdded(index);
-    return index;
+    return s_instance->doAddBuildEngine(std::move(buildEngine));
 }
 
 void BuildEngineManager::removeBuildEngine(const QUrl &uri)
@@ -1342,11 +1339,18 @@ void BuildEngineManager::fromMap(const QVariantMap &data, bool fromSystemSetting
         const bool ok = BuildEnginePrivate::get(engine)->fromMap(engineData);
         QTC_ASSERT(ok, return);
 
-        if (newEngine) {
-            m_buildEngines.emplace_back(std::move(newEngine));
-            emit buildEngineAdded(m_buildEngines.size() - 1);
-        }
+        if (newEngine)
+            doAddBuildEngine(std::move(newEngine));
     }
+}
+
+int BuildEngineManager::doAddBuildEngine(std::unique_ptr<BuildEngine> &&buildEngine)
+{
+    QTC_ASSERT(buildEngine, return -1);
+    m_buildEngines.emplace_back(std::move(buildEngine));
+    const int index = m_buildEngines.size() - 1;
+    emit buildEngineAdded(index);
+    return index;
 }
 
 void BuildEngineManager::enableUpdates()

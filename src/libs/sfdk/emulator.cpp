@@ -702,10 +702,7 @@ int EmulatorManager::addEmulator(std::unique_ptr<Emulator> &&emulator)
         EmulatorPrivate::get(emulator.get())->updateOnce();
     }
 
-    s_instance->m_emulators.emplace_back(std::move(emulator));
-    const int index = s_instance->m_emulators.size() - 1;
-    emit s_instance->emulatorAdded(index);
-    return index;
+    return s_instance->doAddEmulator(std::move(emulator));
 }
 
 void EmulatorManager::removeEmulator(const QUrl &uri)
@@ -818,6 +815,16 @@ void EmulatorManager::fromMap(const QVariantMap &data, bool fromSystemSettings)
 
     const int newCount = data.value(Constants::EMULATORS_COUNT_KEY, 0).toInt();
     QMap<QUrl, QVariantMap> newEmulatorsData;
+    // Even though we reorder the emulators according to our needs in
+    // doAddEmulator(), we still want to preserve the order in which they arrive,
+    // as the device corresponding to the very first arriving emulator becomes
+    // the default device on QtC side (and there is no API to override).
+    //
+    // This relies on the fact that the installation order chosen by the
+    // installer matches the order dictated by doAddEmulator(). Otherwise the
+    // result will be different depending on whether it is QtC or sfdk what is
+    // started first after clean installation.
+    QList<QUrl> newEmulatorsOrder;
     for (int i = 0; i < newCount; ++i) {
         const QString key = QString::fromLatin1(Constants::EMULATORS_DATA_KEY_PREFIX)
             + QString::number(i);
@@ -828,22 +835,8 @@ void EmulatorManager::fromMap(const QVariantMap &data, bool fromSystemSettings)
         QTC_ASSERT(!vmUri.isEmpty(), return);
 
         newEmulatorsData.insert(vmUri, emulatorData);
+        newEmulatorsOrder.append(vmUri);
     }
-
-    // Force the desired ordering of emulators. The ordering is not persisted by
-    // intention: trying to reorder existing emulators to match new order from
-    // configuration without loosing relation to upper layer objects would
-    // unjustifiably complicate the implementation.  Similarly, maintaining the
-    // order from installer side would not be trivial.
-    QList<QUrl> newEmulatorsOrder = newEmulatorsData.keys();
-    Utils::sort(newEmulatorsOrder, [&](const QUrl &u1, const QUrl &u2) {
-        auto v = [&](const QUrl &u, const QString &k) {
-            return newEmulatorsData.value(u).value(k).toString();
-        };
-        using namespace Constants;
-        return v(u1, EMULATOR_PRODUCT_NAME) < v(u2, EMULATOR_PRODUCT_NAME)
-            || v(u1, EMULATOR_PRODUCT_RELEASE) > v(u2, EMULATOR_PRODUCT_RELEASE);
-    });
 
     QMap<QUrl, Emulator *> existingEmulators;
     QSet<QUrl> keepConfigEmulators;
@@ -871,10 +864,7 @@ void EmulatorManager::fromMap(const QVariantMap &data, bool fromSystemSettings)
     }
 
     // Update existing/add new emulators
-    QTC_CHECK(newEmulatorsData.count() == newEmulatorsOrder.count());
-    m_emulators.reserve(newEmulatorsData.count());
-    for (int i = 0; i < newEmulatorsData.count(); ++i) {
-        const QUrl vmUri = newEmulatorsOrder.at(i);
+    for (const QUrl &vmUri : newEmulatorsOrder) {
         const QVariantMap emulatorData = newEmulatorsData.value(vmUri);
         if (keepConfigEmulators.contains(vmUri))
             continue;
@@ -886,21 +876,14 @@ void EmulatorManager::fromMap(const QVariantMap &data, bool fromSystemSettings)
             emulator = newEmulator.get();
         } else {
             qCDebug(Log::emulator) << "Updating emulator" << vmUri.toString();
-            QTC_ASSERT(m_emulators.at(i)->uri() == vmUri, {
-                qCWarning(Log::device) << "Emulator order mismatch at index" << i << "."
-                    << "Old:" << newEmulatorsOrder
-                    << "New:" << Utils::transform(emulators(), &Emulator::uri);
-            });
         }
 
         QTC_ASSERT(!fromSystemSettings || newEmulator || emulator->isAutodetected(), return);
         const bool ok = EmulatorPrivate::get(emulator)->fromMap(emulatorData);
         QTC_ASSERT(ok, return);
 
-        if (newEmulator) {
-            m_emulators.emplace(m_emulators.begin() + i, std::move(newEmulator));
-            emit emulatorAdded(i);
-        }
+        if (newEmulator)
+            doAddEmulator(std::move(newEmulator));
     }
 
     // Update device models
@@ -953,6 +936,25 @@ void EmulatorManager::fromMap(const QVariantMap &data, bool fromSystemSettings)
         fixDeviceModelsInUse(this, [=](bool ok) { Q_UNUSED(ok) });
         emit this->deviceModelsChanged();
     }
+}
+
+int EmulatorManager::doAddEmulator(std::unique_ptr<Emulator> &&emulator)
+{
+    QTC_ASSERT(emulator, return -1);
+
+    // Latest emulators come first
+    auto less = [](Emulator *e1, Emulator *e2) {
+        return e1->product().name < e2->product().name
+            || e1->product().release > e2->product().release;
+    };
+
+    const auto it = std::find_if(m_emulators.cbegin(), m_emulators.cend(),
+            [&](const std::unique_ptr<Emulator> &other) { return !less(other.get(), emulator.get()); });
+    const int index = it - m_emulators.cbegin();
+
+    m_emulators.emplace(it, std::move(emulator));
+    emit emulatorAdded(index);
+    return index;
 }
 
 void EmulatorManager::enableUpdates()
