@@ -555,10 +555,10 @@ void VmConnection::updateState()
 
     switch (m_vmState) {
         case VmOff:
+        case VmAskBeforeStarting:
             m_state = VirtualMachine::Disconnected;
             break;
 
-        case VmAskBeforeStarting:
         case VmStarting:
             m_state = VirtualMachine::Starting;
             break;
