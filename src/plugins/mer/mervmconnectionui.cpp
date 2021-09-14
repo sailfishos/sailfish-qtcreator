@@ -85,12 +85,6 @@ public:
         return m_cancelButton->isEnabled();
     }
 
-protected:
-    void closeEvent(QCloseEvent *event) override
-    {
-        event->ignore();
-    }
-
 private:
     QPointer<QPushButton> m_cancelButton;
     std::function<void()> m_cancelHandler;
