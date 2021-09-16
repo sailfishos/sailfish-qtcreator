@@ -37,10 +37,12 @@ const char RESCAN_PROJECT[] = "CMakeProject.RescanProject";
 const char RUN_CMAKE_CONTEXT_MENU[] = "CMakeProject.RunCMakeContextMenu";
 const char BUILD_FILE_CONTEXT_MENU[] = "CMakeProject.BuildFileContextMenu";
 const char BUILD_FILE[] = "CMakeProject.BuildFile";
+const char CMAKE_HOME_DIR[] = "CMakeProject.HomeDirectory";
 
 // Project
 const char CMAKE_PROJECT_ID[] = "CMakeProjectManager.CMakeProject";
-const char CMAKE_PROJECT_BC_ID[] = "CMakeProjectManager.CMakeBuildConfiguration";
+
+const char CMAKE_BUILDCONFIGURATION_ID[] = "CMakeProjectManager.CMakeBuildConfiguration";
 
 // Menu
 const char M_CONTEXT[] = "CMakeEditor.ContextMenu";

@@ -25,6 +25,7 @@
 
 #include "clanghighlightingresultreporter.h"
 
+#include <cpptools/semantichighlighter.h>
 #include <texteditor/textstyles.h>
 #include <utils/qtcassert.h>
 
@@ -112,6 +113,11 @@ bool ignore(ClangBackEnd::HighlightingType type)
     case HighlightingType::ObjectiveCMethod:
     case HighlightingType::TemplateTypeParameter:
     case HighlightingType::TemplateTemplateParameter:
+    case HighlightingType::AngleBracketOpen:
+    case HighlightingType::AngleBracketClose:
+    case HighlightingType::DoubleAngleBracketClose:
+    case HighlightingType::TernaryIf:
+    case HighlightingType::TernaryElse:
         return true;
     }
 
@@ -136,9 +142,21 @@ TextEditor::TextStyles toTextStyles(ClangBackEnd::HighlightingTypes types)
 TextEditor::HighlightingResult toHighlightingResult(
         const ClangBackEnd::TokenInfoContainer &tokenInfo)
 {
+    using ClangBackEnd::HighlightingType;
     const auto textStyles = toTextStyles(tokenInfo.types);
-
-    return {tokenInfo.line, tokenInfo.column, tokenInfo.length, textStyles};
+    TextEditor::HighlightingResult result(tokenInfo.line, tokenInfo.column, tokenInfo.length,
+                                          textStyles);
+    if (tokenInfo.types.mixinHighlightingTypes.contains(HighlightingType::AngleBracketOpen))
+        result.kind = CppTools::SemanticHighlighter::AngleBracketOpen;
+    else if (tokenInfo.types.mixinHighlightingTypes.contains(HighlightingType::AngleBracketClose))
+        result.kind = CppTools::SemanticHighlighter::AngleBracketClose;
+    else if (tokenInfo.types.mixinHighlightingTypes.contains(HighlightingType::DoubleAngleBracketClose))
+        result.kind = CppTools::SemanticHighlighter::DoubleAngleBracketClose;
+    else if (tokenInfo.types.mixinHighlightingTypes.contains(HighlightingType::TernaryIf))
+        result.kind = CppTools::SemanticHighlighter::TernaryIf;
+    else if (tokenInfo.types.mixinHighlightingTypes.contains(HighlightingType::TernaryElse))
+        result.kind = CppTools::SemanticHighlighter::TernaryElse;
+    return result;
 }
 
 } // anonymous
@@ -197,13 +215,8 @@ void HighlightingResultReporter::run_internal()
 
     using ClangBackEnd::HighlightingType;
 
-    for (const auto &tokenInfo : m_tokenInfos) {
-        const HighlightingType mainType = tokenInfo.types.mainHighlightingType;
-        if (mainType == HighlightingType::StringLiteral)
-            continue;
-
+    for (const auto &tokenInfo : qAsConst(m_tokenInfos))
         reportChunkWise(toHighlightingResult(tokenInfo));
-    }
 
     if (isCanceled())
         return;

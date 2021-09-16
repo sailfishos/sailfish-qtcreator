@@ -395,11 +395,19 @@ void DebuggerRunTool::setUseTerminal(bool on)
 
     if (on && !d->terminalRunner && !useCdbConsole) {
         d->terminalRunner = new TerminalRunner(runControl(), m_runParameters.inferior);
+        d->terminalRunner->setRunAsRoot(m_runParameters.runAsRoot);
         addStartDependency(d->terminalRunner);
     }
     if (!on && d->terminalRunner) {
         QTC_CHECK(false); // User code can only switch from no terminal to one terminal.
     }
+}
+
+void DebuggerRunTool::setRunAsRoot(bool on)
+{
+    m_runParameters.runAsRoot = on;
+    if (d->terminalRunner)
+        d->terminalRunner->setRunAsRoot(on);
 }
 
 void DebuggerRunTool::setCommandsAfterConnect(const QString &commands)
@@ -666,7 +674,7 @@ void DebuggerRunTool::start()
         rc->setRunConfiguration(runConfig);
         auto name = QString(tr("%1 - Snapshot %2").arg(runControl()->displayName()).arg(++d->snapshotCounter));
         auto debugger = new DebuggerRunTool(rc);
-        debugger->setStartMode(AttachCore);
+        debugger->setStartMode(AttachToCore);
         debugger->setRunControlName(name);
         debugger->setCoreFileName(coreFile, true);
         debugger->startRunControl();
@@ -694,16 +702,29 @@ void DebuggerRunTool::start()
 
     if (m_runParameters.startMode == StartInternal) {
         QStringList unhandledIds;
-//        for (const GlobalBreakpoint &bp : BreakpointManager::globalBreakpoints()) {
-//            if (bp->isEnabled() && !m_engine->acceptsBreakpoint(bp))
-//                unhandledIds.append(bp.id().toString());
-//        }
+        bool hasQmlBreakpoints = false;
+        for (const GlobalBreakpoint &gbp : BreakpointManager::globalBreakpoints()) {
+            if (gbp->isEnabled()) {
+                const BreakpointParameters &bp = gbp->requestedParameters();
+                hasQmlBreakpoints = hasQmlBreakpoints || bp.isQmlFileAndLineBreakpoint();
+                if (!m_engine->acceptsBreakpoint(bp)) {
+                    if (!m_engine2 || !m_engine2->acceptsBreakpoint(bp))
+                        unhandledIds.append(gbp->displayName());
+                }
+            }
+        }
         if (!unhandledIds.isEmpty()) {
             QString warningMessage =
                     DebuggerPlugin::tr("Some breakpoints cannot be handled by the debugger "
-                                       "languages currently active, and will be ignored.\n"
+                                       "languages currently active, and will be ignored.<p>"
                                        "Affected are breakpoints %1")
                     .arg(unhandledIds.join(", "));
+
+            if (hasQmlBreakpoints) {
+                warningMessage += "<p>" +
+                    DebuggerPlugin::tr("QML debugging needs to be enabled both in the Build "
+                                       "and the Run settings.");
+            }
 
             showMessage(warningMessage, LogWarning);
 
@@ -717,7 +738,8 @@ void DebuggerRunTool::start()
         }
     }
 
-    appendMessage(tr("Debugging starts"), NormalMessageFormat);
+    appendMessage(tr("Debugging %1 ...").arg(m_runParameters.inferior.commandLine().toUserOutput()),
+                  NormalMessageFormat);
     QString debuggerName = m_engine->objectName();
     if (m_engine2)
         debuggerName += ' ' + m_engine2->objectName();
@@ -761,7 +783,12 @@ void DebuggerRunTool::handleEngineFinished(DebuggerEngine *engine)
 {
     engine->prepareForRestart();
     if (--d->engineStopsNeeded == 0) {
-        appendMessage(tr("Debugging has finished"), NormalMessageFormat);
+        QString cmd = m_runParameters.inferior.commandLine().toUserOutput();
+        QString msg = engine->runParameters().exitCode // Main engine.
+            ? tr("Debugging of %1 has finished with exit code %2.")
+                .arg(cmd).arg(engine->runParameters().exitCode.value())
+            : tr("Debugging of %1 has finished.").arg(cmd);
+        appendMessage(msg, NormalMessageFormat);
         reportStopped();
     }
 }
@@ -858,7 +885,7 @@ bool DebuggerRunTool::fixupParameters()
         } else {
             service = QmlDebug::QmlDebuggerServices;
         }
-        if (rp.startMode != AttachExternal && rp.startMode != AttachCrashedExternal) {
+        if (rp.startMode != AttachToLocalProcess && rp.startMode != AttachToCrashedProcess) {
             QString qmlarg = rp.isCppDebugging() && rp.nativeMixedEnabled
                     ? QmlDebug::qmlDebugNativeArguments(service, false)
                     : QmlDebug::qmlDebugTcpArguments(service, rp.qmlServer);
@@ -935,6 +962,8 @@ DebuggerRunTool::DebuggerRunTool(RunControl *runControl, AllowTerminal allowTerm
         m_runParameters.symbolFile = symbolsAspect->filePath();
     if (auto terminalAspect = runControl->aspect<TerminalAspect>())
         m_runParameters.useTerminal = terminalAspect->useTerminal();
+    if (auto runAsRootAspect = runControl->aspect<RunAsRootAspect>())
+        m_runParameters.runAsRoot = runAsRootAspect->value();
 
     Kit *kit = runControl->kit();
     QTC_ASSERT(kit, return);

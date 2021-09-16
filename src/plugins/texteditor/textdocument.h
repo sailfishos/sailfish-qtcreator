@@ -101,6 +101,7 @@ public:
 
     void setFormatter(Formatter *indenter); // transfers ownership
     void autoFormat(const QTextCursor &cursor);
+    bool applyChangeSet(const Utils::ChangeSet &changeSet);
 
     TextMarks marks() const;
     bool addMark(TextMark *mark);
@@ -115,10 +116,8 @@ public:
     QByteArray contents() const override;
     bool setContents(const QByteArray &contents) override;
     bool shouldAutoSave() const override;
-    bool isFileReadOnly() const override;
     bool isModified() const override;
     bool isSaveAsAllowed() const override;
-    void checkPermissions() override;
     bool reload(QString *errorString, ReloadFlag flag, ChangeType type) override;
     void setFilePath(const Utils::FilePath &newName) override;
 

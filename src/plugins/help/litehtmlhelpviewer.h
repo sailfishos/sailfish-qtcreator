@@ -45,10 +45,8 @@ public:
     explicit LiteHtmlHelpViewer(QWidget *parent = nullptr);
     ~LiteHtmlHelpViewer() override;
 
-    QFont viewerFont() const override;
     void setViewerFont(const QFont &font) override;
 
-    qreal scale() const override;
     void setScale(qreal scale) override;
 
     QString title() const override;
@@ -67,9 +65,6 @@ public:
     bool findText(const QString &text, Core::FindFlags flags,
                   bool incremental, bool fromSearch, bool *wrapped = nullptr) override;
 
-    void scaleUp() override;
-    void scaleDown() override;
-    void resetScale() override;
     void copy() override;
     void stop() override;
     void forward() override;

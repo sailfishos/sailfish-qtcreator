@@ -20,6 +20,18 @@
      id="defs4">
     <linearGradient
        inkscape:collect="always"
+       id="linearGradient2550">
+      <stop
+         style="stop-color:#459933;stop-opacity:1"
+         offset="0"
+         id="stop2546" />
+      <stop
+         style="stop-color:#79cc66;stop-opacity:1"
+         offset="1"
+         id="stop2548" />
+    </linearGradient>
+    <linearGradient
+       inkscape:collect="always"
        id="linearGradient3970">
       <stop
          style="stop-color:#000000;stop-opacity:0"
@@ -587,6 +599,15 @@
          values="0.66 0 0 0.35 0.0182292 0.02 0.66 0.02 0.35 0.0182292 0.08 0.08 0.66 0.35 0.02 0 0 0 1 0 "
          id="feColorMatrix2747" />
     </filter>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient2550"
+       id="linearGradient2552"
+       x1="74"
+       y1="530.5"
+       x2="75"
+       y2="534"
+       gradientUnits="userSpaceOnUse" />
   </defs>
   <sodipodi:namedview
      id="base"
@@ -9334,6 +9355,72 @@
          id="path5210-3" />
     </g>
     <g
+       id="src/plugins/projectexplorer/images/fileoverlay_product"
+       transform="translate(160)">
+      <use
+         x="0"
+         y="0"
+         xlink:href="#transparentBackgroundRect"
+         id="use2479-2"
+         width="100%"
+         transform="translate(80,68)"
+         height="100%" />
+      <path
+         id="path2592"
+         style="fill:#6300aa;stroke:#ffffff;stroke-width:2;stroke-linejoin:round;stroke-opacity:0.75;paint-order:stroke fill"
+         d="m 73.99414,527.11523 -1.03125,0.42579 0.22852,1.06445 -0.58399,0.58789 -1.0664,-0.22852 -0.42579,1.0293 0.91407,0.5918 v 0.82812 l -0.91407,0.5918 0.42579,1.03125 1.06445,-0.22852 0.58789,0.58399 -0.22852,1.0664 1.0293,0.42579 0.5918,-0.91407 h 0.82812 l 0.5918,0.91407 1.03125,-0.42579 -0.22852,-1.06445 0.58399,-0.58789 1.0664,0.22852 0.42579,-1.0293 -0.91407,-0.5918 v -0.82812 l 0.91407,-0.5918 -0.42579,-1.03125 -1.06445,0.22852 -0.58789,-0.58399 0.22852,-1.0664 -1.0293,-0.42579 -0.5918,0.91407 h -0.82812 z" />
+      <circle
+         style="fill:none;stroke:#ffffff"
+         id="path2669"
+         cx="75"
+         cy="531"
+         r="1.5" />
+    </g>
+    <g
+       id="src/plugins/projectexplorer/images/fileoverlay_modules"
+       transform="translate(176)">
+      <use
+         x="0"
+         y="0"
+         xlink:href="#transparentBackgroundRect"
+         id="use2538"
+         width="100%"
+         transform="translate(80,68)"
+         height="100%" />
+      <path
+         style="opacity:0.75;fill:#ffffff;stroke:#ffffff;stroke-linejoin:round"
+         d="m 68.5,529.19 7.5,-3.69 3.5,1.7 V 531.8 L 72,535.5 68.5,533.8 Z"
+         id="path4572"
+         sodipodi:nodetypes="ccccccc" />
+      <use
+         x="0"
+         y="0"
+         xlink:href="#g2810"
+         id="use2833"
+         transform="translate(4,-2)"
+         width="100%"
+         height="100%" />
+      <g
+         id="g2810"
+         transform="translate(-1)">
+        <path
+           style="fill:#97d98c;fill-opacity:1"
+           d="m 70,529.5 3,-1.5 3,1.5 -3,5.5 z"
+           id="path2816"
+           sodipodi:nodetypes="ccccc" />
+        <path
+           style="fill:url(#linearGradient2552);fill-opacity:1"
+           d="m 76,529.5 v 4 l -3,1.5 -3,-2.5 z"
+           id="path2814"
+           sodipodi:nodetypes="ccccc" />
+        <path
+           style="fill:#2e7326;fill-opacity:1"
+           d="m 70,529.5 v 4 l 3,1.5 v -4 z"
+           id="path2812"
+           sodipodi:nodetypes="ccccc" />
+      </g>
+    </g>
+    <g
        id="src/libs/utils/images/filesave">
       <rect
          style="display:inline;fill:#ffffff;fill-opacity:1"
@@ -10360,42 +10447,6 @@
          inkscape:connector-curvature="0"
          d="M 636.00003,403 H 641 v -4.67861 l -4.99997,0.67433 z M 642,398.18129 V 403 h 6.00003 v -5.6287 z m 0,10.72061 6.00003,0.81345 V 404 H 642 Z M 636.00003,408.09093 641,408.7667 V 404 h -4.99997 z"
          id="path5333" />
-    </g>
-    <g
-       id="src/plugins/qmldesigner/components/resources/images/spliteditorvertically"
-       transform="translate(12)">
-      <rect
-         transform="rotate(90)"
-         id="rect5154-0-3-5-8-1-6-8"
-         height="8"
-         width="16"
-         y="-858"
-         x="584"
-         style="fill:#ffffff" />
-      <path
-         id="formEditorSplit_"
-         style="fill:none;stroke:#000000"
-         d="m 852,592.5 h 5 m -5.5,-3 h 6 v 6 h -6 z"
-         inkscape:connector-curvature="0" />
-    </g>
-    <g
-       id="src/plugins/qmldesigner/components/resources/images/spliteditorhorizontally">
-      <rect
-         style="fill:#ffffff"
-         x="584"
-         y="-878"
-         width="16"
-         height="8"
-         id="rect5704"
-         transform="rotate(90)" />
-      <use
-         height="100%"
-         width="100%"
-         transform="rotate(90,864.5,602.5)"
-         id="use5730"
-         xlink:href="#formEditorSplit_"
-         y="0"
-         x="0" />
     </g>
     <g
        id="src/plugins/debugger/images/debugger_stop_mask"

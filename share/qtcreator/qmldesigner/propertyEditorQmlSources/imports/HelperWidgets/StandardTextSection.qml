@@ -109,7 +109,7 @@ Section {
         Label {
             visible: showElide
             text: qsTr("Maximum line count")
-            tooltip: qsTr("Limits the number of lines that the text item will show.")
+            tooltip: qsTr("Limits the number of lines that the text component will show.")
             disabledState: !backendValues.maximumLineCount.isAvailable
         }
 
@@ -127,19 +127,17 @@ Section {
             text: qsTr("Alignment")
         }
 
-        AligmentHorizontalButtons {
+        Row {
+            AligmentHorizontalButtons {}
 
+            Item {
+                visible: showVerticalAlignment
+                width: 20
+                height: 2
+            }
+
+            AligmentVerticalButtons { visible: showVerticalAlignment }
         }
-
-        Label {
-            visible: showVerticalAlignment
-            text: ("")
-        }
-
-        AligmentVerticalButtons {
-            visible: showVerticalAlignment
-        }
-
 
         Label {
             visible: showFormatProperty
@@ -157,7 +155,7 @@ Section {
 
         Label {
             text: qsTr("Render type")
-            toolTip: qsTr("Overrides the default rendering type for this item.")
+            toolTip: qsTr("Overrides the default rendering type for this component.")
             disabledState: !backendValues.renderType.isAvailable
         }
         ComboBox {

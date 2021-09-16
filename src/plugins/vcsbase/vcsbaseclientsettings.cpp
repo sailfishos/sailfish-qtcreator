@@ -30,6 +30,7 @@
 #include <utils/fileutils.h>
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
+#include <utils/qtcsettings.h>
 #include <utils/stringutils.h>
 
 #include <QSettings>
@@ -226,14 +227,15 @@ VcsBaseClientSettings::~VcsBaseClientSettings()
 {
 }
 
-void VcsBaseClientSettings::writeSettings(QSettings *settings) const
+void VcsBaseClientSettings::writeSettings(QSettings *settings,
+                                          const VcsBaseClientSettings &defaultSettings) const
 {
     QTC_ASSERT(!settingsGroup().isEmpty(), return);
 
     settings->remove(settingsGroup());
     settings->beginGroup(settingsGroup());
     foreach (const QString &key, keys())
-        settings->setValue(key, value(key));
+        QtcSettings::setValueWithDefault(settings, key, value(key), defaultSettings.value(key));
     settings->endGroup();
 }
 
@@ -258,8 +260,6 @@ void VcsBaseClientSettings::readSettings(const QSettings *settings)
             break;
         }
     }
-
-    this->readLegacySettings(settings);
 }
 
 bool VcsBaseClientSettings::equals(const VcsBaseClientSettings &rhs) const
@@ -395,11 +395,6 @@ QVariant VcsBaseClientSettings::keyDefaultValue(const QString &key) const
     if (d->m_defaultValueHash.contains(key))
         return d->m_defaultValueHash.value(key);
     return QVariant(valueType(key));
-}
-
-void VcsBaseClientSettings::readLegacySettings(const QSettings *settings)
-{
-    Q_UNUSED(settings)
 }
 
 } // namespace VcsBase

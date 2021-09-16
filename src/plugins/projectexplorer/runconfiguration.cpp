@@ -124,14 +124,25 @@ void GlobalOrProjectAspect::fromMap(const QVariantMap &map)
 {
     if (m_projectSettings)
         m_projectSettings->fromMap(map);
-    m_useGlobalSettings = map.value(m_id.toString() + QLatin1String(".UseGlobalSettings"), true).toBool();
+    m_useGlobalSettings = map.value(id().toString() + ".UseGlobalSettings", true).toBool();
 }
 
 void GlobalOrProjectAspect::toMap(QVariantMap &map) const
 {
     if (m_projectSettings)
         m_projectSettings->toMap(map);
-    map.insert(m_id.toString() + QLatin1String(".UseGlobalSettings"), m_useGlobalSettings);
+    map.insert(id().toString() + ".UseGlobalSettings", m_useGlobalSettings);
+}
+
+void GlobalOrProjectAspect::toActiveMap(QVariantMap &data) const
+{
+    if (m_useGlobalSettings)
+        m_globalSettings->toMap(data);
+    else if (m_projectSettings)
+        m_projectSettings->toMap(data);
+    // The debugger accesses the data directly, so this can actually happen.
+    //else
+    //    QTC_CHECK(false);
 }
 
 void GlobalOrProjectAspect::resetProjectToGlobalSettings()
@@ -177,6 +188,24 @@ RunConfiguration::RunConfiguration(Target *target, Utils::Id id)
         BuildConfiguration *bc = target->activeBuildConfiguration();
         return bc ? bc->macroExpander() : target->macroExpander();
     });
+    m_expander.registerPrefix("RunConfig:Env", tr("Variables in the run environment"),
+                             [this](const QString &var) {
+        const auto envAspect = aspect<EnvironmentAspect>();
+        return envAspect ? envAspect->environment().expandedValueForKey(var) : QString();
+    });
+    m_expander.registerVariable("RunConfig:WorkingDir",
+                               tr("The run configuration's working directory"),
+                               [this] {
+        const auto wdAspect = aspect<WorkingDirectoryAspect>();
+        return wdAspect ? wdAspect->workingDirectory(&m_expander).toString() : QString();
+    });
+    m_expander.registerVariable("RunConfig:Name", tr("The run configuration's name."),
+            [this] { return displayName(); });
+    m_expander.registerFileVariables("RunConfig:Executable",
+                                     tr("The run configuration's executable."),
+                                     [this] { return commandLine().executable().toString(); });
+
+
     m_commandLineGetter = [this] {
         FilePath executable;
         if (const auto executableAspect = aspect<ExecutableAspect>())
@@ -235,7 +264,7 @@ QMap<Utils::Id, QVariantMap> RunConfiguration::aspectData() const
 {
     QMap<Utils::Id, QVariantMap> data;
     for (BaseAspect *aspect : qAsConst(m_aspects))
-        aspect->toMap(data[aspect->id()]);
+        aspect->toActiveMap(data[aspect->id()]);
     return data;
 }
 
@@ -421,9 +450,7 @@ RunConfigurationFactory::~RunConfigurationFactory()
 
 QString RunConfigurationFactory::decoratedTargetName(const QString &targetName, Target *target)
 {
-    QString displayName;
-    if (!targetName.isEmpty())
-        displayName = QFileInfo(targetName).completeBaseName();
+    QString displayName = targetName;
     Utils::Id devType = DeviceTypeKitAspect::deviceTypeId(target->kit());
     if (devType != Constants::DESKTOP_DEVICE_TYPE) {
         if (IDevice::ConstPtr dev = DeviceKitAspect::device(target->kit())) {
@@ -556,7 +583,7 @@ RunConfiguration *RunConfigurationCreationInfo::create(Target *target) const
 
 RunConfiguration *RunConfigurationFactory::restore(Target *parent, const QVariantMap &map)
 {
-    for (RunConfigurationFactory *factory : g_runConfigurationFactories) {
+    for (RunConfigurationFactory *factory : qAsConst(g_runConfigurationFactories)) {
         if (factory->canHandle(parent)) {
             const Utils::Id id = idFromMap(map);
             if (id.name().startsWith(factory->m_runConfigurationId.name())) {
@@ -581,7 +608,7 @@ RunConfiguration *RunConfigurationFactory::clone(Target *parent, RunConfiguratio
 const QList<RunConfigurationCreationInfo> RunConfigurationFactory::creatorsForTarget(Target *parent)
 {
     QList<RunConfigurationCreationInfo> items;
-    for (RunConfigurationFactory *factory : g_runConfigurationFactories) {
+    for (RunConfigurationFactory *factory : qAsConst(g_runConfigurationFactories)) {
         if (factory->canHandle(parent))
             items.append(factory->availableCreators(parent));
     }

@@ -48,7 +48,7 @@ Rectangle {
             y: -1
             width: itemPane.width
             Section {
-                caption: qsTr("Type")
+                caption: qsTr("Component")
 
                 anchors.left: parent.left
                 anchors.right: parent.right
@@ -68,6 +68,7 @@ Rectangle {
                             Label {
                                 anchors.fill: parent
                                 anchors.leftMargin: StudioTheme.Values.inputHorizontalPadding
+                                anchors.topMargin: StudioTheme.Values.typeLabelVerticalShift
                                 text: backendValues.className.value
                             }
                             ToolTipArea {
@@ -77,7 +78,7 @@ Rectangle {
                                     typeLineEdit.visible = ! typeLineEdit.visible
                                     typeLineEdit.forceActiveFocus()
                                 }
-                                tooltip: qsTr("Change the type of this item.")
+                                tooltip: qsTr("Change the type of this component.")
                                 enabled: !modelNodeBackend.multiSelection
                             }
 
@@ -124,7 +125,7 @@ Rectangle {
                     }
 
                     Label {
-                        text: qsTr("id")
+                        text: qsTr("ID")
                     }
 
                     SecondColumnLayout {
@@ -133,7 +134,7 @@ Rectangle {
                             id: lineEdit
 
                             backendValue: backendValues.id
-                            placeholderText: qsTr("id")
+                            placeholderText: qsTr("ID")
                             text: backendValues.id.value
                             Layout.fillWidth: true
                             width: 240
@@ -187,7 +188,7 @@ Rectangle {
                                 enabled: !modelNodeBackend.multiSelection
                                 anchors.fill: parent
                                 onClicked: toogleExportAlias()
-                                tooltip: qsTr("Toggles whether this item is exported as an alias property of the root item.")
+                                tooltip: qsTr("Toggles whether this component is exported as an alias property of the root component.")
                             }
                         }
                     }

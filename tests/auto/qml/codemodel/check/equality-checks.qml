@@ -1,4 +1,4 @@
-import QtQuick 1.0
+import QtQuick 2.0
 
 Rectangle {
     function foo(k) {
@@ -10,54 +10,54 @@ Rectangle {
         var b = true
         var o = {}
 
-        if (s == s) {} // -1 15 16 # false positive
+        if (s == s) {}
         if (s == n) {} // 126 15 16
-        if (s == N) {} // -2 15 16 # wrong warning (always false)
-        if (s == u) {} // -2 15 16 # wrong warning (always false)
+        if (s == N) {} // 325 15 16
+        if (s == u) {} // 325 15 16
         if (s == b) {} // 126 15 16
         if (s == o) {} // 126 15 16
         if (s == k) {} // 126 15 16
 
         if (n == s) {} // 126 15 16
-        if (n == n) {} // -1 15 16 # false positive
-        if (n == N) {} // -2 15 16 # wrong warning (always false)
-        if (n == u) {} // -2 15 16 # wrong warning (always false)
+        if (n == n) {}
+        if (n == N) {} // 325 15 16
+        if (n == u) {} // 325 15 16
         if (n == b) {} // 126 15 16
         if (n == o) {} // 126 15 16
         if (n == k) {} // 126 15 16
 
-        if (N == s) {} // -2 15 16 # wrong warning (always false)
-        if (N == n) {} // -2 15 16 # wrong warning (always false)
-        if (N == N) {} // -1 15 16 # false positive
-        if (N == u) {} // -2 15 16 # wrong warning (always true)
+        if (N == s) {} // 325 15 16
+        if (N == n) {} // 325 15 16
+        if (N == N) {}
+        if (N == u) {}
 
-        if (N == b) {} // -2 15 16 # wrong warning (always false)
-        if (N == o) {} // -2 15 16 # wrong warning (always false)
+        if (N == b) {} // 325 15 16
+        if (N == o) {}
         if (N == k) {} // 126 15 16
 
-        if (u == s) {} // -2 15 16 # wrong warning (always false)
-        if (u == n) {} // -2 15 16 # wrong warning (always false)
-        if (u == N) {} // -2 15 16 # wrong warning (always true)
-        if (u == u) {} // -2 15 16 # wrong warning (always true)
-        if (u == b) {} // -2 15 16 # wrong warning (always false)
-        if (u == o) {} // -2 15 16 # wrong warning (always false)
+        if (u == s) {} // 325 15 16
+        if (u == n) {} // 325 15 16
+        if (u == N) {}
+        if (u == u) {}
+        if (u == b) {} // 325 15 16
+        if (u == o) {}
         if (u == k) {} // 126 15 16
 
         if (b == s) {} // 126 15 16
         if (b == n) {} // 126 15 16
 
-        if (b == N) {} // -2 15 16 # wrong warning (always false)
-        if (b == u) {} // -2 15 16 # wrong warning (always false)
-        if (b == b) {} // -1 15 16 # false positive
+        if (b == N) {} // 325 15 16
+        if (b == u) {} // 325 15 16
+        if (b == b) {}
         if (b == o) {} // 126 15 16
         if (b == k) {} // 126 15 16
 
         if (o == s) {} // 126 15 16
         if (o == n) {} // 126 15 16
-        if (o == N) {} // -2 15 16 # wrong warning (always false)
-        if (o == u) {} // -2 15 16 # wrong warning (always false)
+        if (o == N) {}
+        if (o == u) {}
         if (o == b) {} // 126 15 16
-        if (o == o) {} // -1 15 16 # false positive
+        if (o == o) {}
         if (o == k) {} // 126 15 16
 
         if (k == s) {} // 126 15 16
@@ -67,5 +67,70 @@ Rectangle {
         if (k == b) {} // 126 15 16
         if (k == o) {} // 126 15 16
         if (k == k) {} // 126 15 16
+
+        if (s === s) {}
+        if (s === n) {} // 325 15 17
+        if (s === N) {} // 325 15 17
+        if (s === u) {} // 325 15 17
+        if (s === b) {} // 325 15 17
+        if (s === o) {} // 325 15 17
+        if (s === k) {}
+        if (s !== s) {}
+        if (s !== n) {} // 325 15 17
+        if (s !== N) {} // 325 15 17
+        if (s !== u) {} // 325 15 17
+        if (s !== b) {} // 325 15 17
+        if (s !== o) {} // 325 15 17
+        if (s !== k) {}
+
+        if (n === s) {} // 325 15 17
+        if (n === n) {}
+        if (n === N) {} // 325 15 17
+        if (n === u) {} // 325 15 17
+        if (n === b) {} // 325 15 17
+        if (n === o) {} // 325 15 17
+        if (n === k) {}
+
+        if (N === s) {} // 325 15 17
+        if (N === n) {} // 325 15 17
+        if (N === N) {}
+        if (N === u) {}
+
+        if (N === b) {} // 325 15 17
+        if (N === o) {} // 325 15 17
+        if (N === k) {}
+
+        if (u === s) {} // 325 15 17
+        if (u === n) {} // 325 15 17
+        if (u === N) {}
+        if (u === u) {}
+        if (u === b) {} // 325 15 17
+        if (u === o) {} // 325 15 17
+        if (u === k) {}
+
+        if (b === s) {} // 325 15 17
+        if (b === n) {} // 325 15 17
+
+        if (b === N) {} // 325 15 17
+        if (b === u) {} // 325 15 17
+        if (b === b) {}
+        if (b === o) {} // 325 15 17
+        if (b === k) {}
+
+        if (o === s) {} // 325 15 17
+        if (o === n) {} // 325 15 17
+        if (o === N) {} // 325 15 17
+        if (o === u) {} // 325 15 17
+        if (o === b) {} // 325 15 17
+        if (o === o) {} // 325 15 17
+        if (o === k) {}
+
+        if (k === s) {}
+        if (k === n) {}
+        if (k === N) {}
+        if (k === u) {}
+        if (k === b) {}
+        if (k === o) {}
+        if (k === k) {}
     }
 }

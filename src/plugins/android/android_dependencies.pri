@@ -4,10 +4,12 @@ QTC_PLUGIN_DEPENDS += \
     debugger \
     projectexplorer \
     qtsupport \
-    texteditor
+    texteditor \
+    languageclient
 
 QTC_LIB_DEPENDS += \
     extensionsystem \
+    languageserverprotocol \
     qmldebug \
     ssh \
     utils

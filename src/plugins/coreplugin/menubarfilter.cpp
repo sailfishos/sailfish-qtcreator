@@ -39,7 +39,6 @@
 #include <QMenuBar>
 #include <QPointer>
 #include <QRegularExpression>
-#include <QTimer>
 
 QT_BEGIN_NAMESPACE
 Utils::QHashValueType qHash(const QPointer<QAction> &p, Utils::QHashValueType seed)
@@ -55,7 +54,7 @@ MenuBarFilter::MenuBarFilter()
 {
     setId("Actions from the menu");
     setDisplayName(tr("Actions from the Menu"));
-    setShortcutString("t");
+    setDefaultShortcutString("t");
     connect(ICore::instance(), &ICore::contextAboutToChange, this, [this] {
         if (LocatorManager::locatorHasFocus())
             updateEnabledActionCache();
@@ -84,16 +83,11 @@ void MenuBarFilter::accept(LocatorFilterEntry selection, QString *newText,
     Q_UNUSED(selectionStart)
     Q_UNUSED(selectionLength)
     if (auto action = selection.internalData.value<QPointer<QAction>>()) {
-        QTimer::singleShot(0, action, [action] {
+        QMetaObject::invokeMethod(action, [action] {
             if (action->isEnabled())
                 action->trigger();
-        });
+        }, Qt::QueuedConnection);
     }
-}
-
-void MenuBarFilter::refresh(QFutureInterface<void> &future)
-{
-    Q_UNUSED(future)
 }
 
 QList<LocatorFilterEntry> MenuBarFilter::matchesForAction(QAction *action,

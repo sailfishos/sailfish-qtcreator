@@ -49,11 +49,16 @@ public:
 
     QColor color() const;
 
+    bool isDialogOpen() const;
+
 public slots:
     void setColor(const QColor &color);
 
 signals:
+    void colorChangeStarted();
     void colorChanged(const QColor &color);
+    void colorUnchanged();
+
 protected:
     void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;

@@ -41,7 +41,6 @@
 #include <QPushButton>
 #include <QSortFilterProxyModel>
 #include <QStandardItem>
-#include <QTimer>
 
 Q_DECLARE_METATYPE(Core::IWizardFactory*)
 
@@ -484,9 +483,9 @@ void NewDialog::saveState()
     const QModelIndex idx = m_filterProxyModel->mapToSource(filterIdx);
     QStandardItem *currentItem = m_model->itemFromIndex(idx);
     if (currentItem)
-        ICore::settings()->setValue(QLatin1String(LAST_CATEGORY_KEY),
-                                    currentItem->data(Qt::UserRole));
-    ICore::settings()->setValue(QLatin1String(LAST_PLATFORM_KEY), m_ui->comboBox->currentData());
+        ICore::settings()->setValue(LAST_CATEGORY_KEY, currentItem->data(Qt::UserRole));
+    ICore::settings()->setValueWithDefault(LAST_PLATFORM_KEY,
+                                           m_ui->comboBox->currentData().toString());
 }
 
 static void runWizard(IWizardFactory *wizard, const QString &defaultLocation, Id platform,
@@ -502,8 +501,8 @@ void NewDialog::accept()
     if (m_ui->templatesView->currentIndex().isValid()) {
         IWizardFactory *wizard = currentWizardFactory();
         if (QTC_GUARD(wizard)) {
-            QTimer::singleShot(0, std::bind(&runWizard, wizard, m_defaultLocation,
-                                            selectedPlatform(), m_extraVariables));
+            QMetaObject::invokeMethod(wizard, std::bind(&runWizard, wizard, m_defaultLocation,
+                                      selectedPlatform(), m_extraVariables), Qt::QueuedConnection);
         }
     }
     QDialog::accept();

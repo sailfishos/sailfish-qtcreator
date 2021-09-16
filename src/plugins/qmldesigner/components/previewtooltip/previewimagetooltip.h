@@ -43,8 +43,9 @@ public:
     explicit PreviewImageTooltip(QWidget *parent = {});
     ~PreviewImageTooltip();
 
-    void setComponentPath(const QString &path);
-    void setComponentName(const QString &name);
+    void setName(const QString &name);
+    void setPath(const QString &path);
+    void setInfo(const QString &info);
     void setImage(const QImage &pixmap);
 
 private:

@@ -44,6 +44,7 @@ QT_END_NAMESPACE
 
 namespace ProjectExplorer {
 class Abi;
+class ArgumentsAspect;
 } // namespace ProjectExplorer
 
 namespace QtSupport { class BaseQtVersion; }
@@ -139,7 +140,7 @@ public:
     // arguments passed to the pro file parser
     QStringList parserArguments();
     // arguments set by the user
-    QString userArguments();
+    QString userArguments() const;
     void setUserArguments(const QString &arguments);
     // Extra arguments for qmake and pro file parser. Not user editable via UI.
     QStringList extraArguments() const;
@@ -171,7 +172,6 @@ private:
     // slots for handling buildconfiguration/step signals
     void qtVersionChanged();
     void qmakeBuildConfigChanged();
-    void userArgumentsChanged();
     void linkQmlDebuggingLibraryChanged();
     void useQtQuickCompilerChanged();
     void separateDebugInfoChanged();
@@ -190,7 +190,7 @@ private:
 
     Utils::CommandLine m_qmakeCommand;
     Utils::CommandLine m_makeCommand;
-    QString m_userArgs;
+    ProjectExplorer::ArgumentsAspect *m_userArgs = nullptr;
     // Extra arguments for qmake and pro file parser
     QStringList m_extraArgs;
     // Extra arguments for pro file parser only
@@ -212,9 +212,8 @@ private:
     bool m_ignoreChange = false;
 
     QLabel *abisLabel = nullptr;
-    QComboBox *buildConfigurationComboBox = nullptr;
-    QLineEdit *qmakeAdditonalArgumentsLineEdit = nullptr;
-    QPlainTextEdit *qmakeArgumentsEdit = nullptr;
+    Utils::SelectionAspect *m_buildType = nullptr;
+    Utils::StringAspect *m_effectiveCall = nullptr;
     QListWidget *abisListWidget = nullptr;
 };
 

@@ -27,6 +27,7 @@
 
 #include "cmakebuildconfiguration.h"
 #include "cmakekitinformation.h"
+#include "cmakeprojectconstants.h"
 #include "cmakeprojectplugin.h"
 #include "cmakespecificsettings.h"
 #include "cmaketoolmanager.h"
@@ -52,11 +53,13 @@ BuildDirParameters::BuildDirParameters(CMakeBuildConfiguration *bc)
 
     const Utils::MacroExpander *expander = bc->macroExpander();
 
-    initialCMakeArguments = Utils::transform(bc->initialCMakeArguments(),
-                                             [expander](const QString &s) {
-                                                 return expander->expand(s);
-                                             });
-    extraCMakeArguments = Utils::transform(bc->extraCMakeArguments(),
+    const QStringList expandedArguments = Utils::transform(bc->initialCMakeArguments(),
+                                                           [expander](const QString &s) {
+                                                               return expander->expand(s);
+                                                           });
+    initialCMakeArguments = Utils::filtered(expandedArguments,
+                                            [](const QString &s) { return !s.isEmpty(); });
+    extraCMakeArguments = Utils::transform(bc->configurationChangesArguments(),
                                              [expander](const QString &s) {
                                                  return expander->expand(s);
                                              });
@@ -67,8 +70,12 @@ BuildDirParameters::BuildDirParameters(CMakeBuildConfiguration *bc)
 
     projectName = p->displayName();
 
-    sourceDirectory = p->projectDirectory();
+    sourceDirectory = bc->sourceDirectory();
+    if (sourceDirectory.isEmpty())
+        sourceDirectory = p->projectDirectory();
     buildDirectory = bc->buildDirectory();
+
+    cmakeBuildType = bc->cmakeBuildType();
 
     environment = bc->environment();
     // Disable distributed building for configuration runs. CMake does not do those in parallel,

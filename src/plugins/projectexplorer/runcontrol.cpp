@@ -50,6 +50,8 @@
 #include <coreplugin/icontext.h>
 #include <coreplugin/icore.h>
 
+#include <ssh/sshsettings.h>
+
 #include <QDir>
 #include <QFormLayout>
 #include <QHash>
@@ -514,7 +516,7 @@ void RunControlPrivate::initiateReStart()
     checkState(RunControlState::Stopped);
 
     // Re-set worked on re-runs.
-    for (RunWorker *worker : m_workers) {
+    for (RunWorker *worker : qAsConst(m_workers)) {
         if (worker->d->state == RunWorkerState::Done)
             worker->d->state = RunWorkerState::Initialized;
     }
@@ -530,7 +532,7 @@ void RunControlPrivate::continueStart()
     checkState(RunControlState::Starting);
     bool allDone = true;
     debugMessage("Looking for next worker");
-    for (RunWorker *worker : m_workers) {
+    for (RunWorker *worker : qAsConst(m_workers)) {
         if (worker) {
             const QString &workerId = worker->d->id;
             debugMessage("  Examining worker " + workerId);
@@ -593,7 +595,7 @@ void RunControlPrivate::continueStopOrFinish()
         }
     };
 
-    for (RunWorker *worker : m_workers) {
+    for (RunWorker *worker : qAsConst(m_workers)) {
         if (worker) {
             const QString &workerId = worker->d->id;
             debugMessage("  Examining worker " + workerId);
@@ -645,7 +647,7 @@ void RunControlPrivate::forceStop()
         debugMessage("Was finished, too late to force Stop");
         return;
     }
-    for (RunWorker *worker : m_workers) {
+    for (RunWorker *worker : qAsConst(m_workers)) {
         if (worker) {
             const QString &workerId = worker->d->id;
             debugMessage("  Examining worker " + workerId);
@@ -761,7 +763,7 @@ void RunControlPrivate::onWorkerStopped(RunWorker *worker)
         return;
     }
 
-    for (RunWorker *dependent : worker->d->stopDependencies) {
+    for (RunWorker *dependent : qAsConst(worker->d->stopDependencies)) {
         switch (dependent->d->state) {
         case RunWorkerState::Done:
             break;
@@ -778,7 +780,7 @@ void RunControlPrivate::onWorkerStopped(RunWorker *worker)
 
     debugMessage("Checking whether all stopped");
     bool allDone = true;
-    for (RunWorker *worker : m_workers) {
+    for (RunWorker *worker : qAsConst(m_workers)) {
         if (worker) {
             const QString &workerId = worker->d->id;
             debugMessage("  Examining worker " + workerId);
@@ -1067,6 +1069,15 @@ bool RunControl::showPromptToStopDialog(const QString &title,
     return close;
 }
 
+void RunControl::provideAskPassEntry(Environment &env)
+{
+    if (env.value("SUDO_ASKPASS").isEmpty()) {
+        const FilePath askpass = QSsh::SshSettings::askpassFilePath();
+        if (askpass.exists())
+            env.set("SUDO_ASKPASS", askpass.toUserOutput());
+    }
+}
+
 bool RunControlPrivate::isAllowedTransition(RunControlState from, RunControlState to)
 {
     switch (from) {
@@ -1143,6 +1154,8 @@ SimpleTargetRunner::SimpleTargetRunner(RunControl *runControl)
     setId("SimpleTargetRunner");
     if (auto terminalAspect = runControl->aspect<TerminalAspect>())
         m_useTerminal = terminalAspect->useTerminal();
+    if (auto runAsRootAspect = runControl->aspect<RunAsRootAspect>())
+        m_runAsRoot = runAsRootAspect->value();
 }
 
 void SimpleTargetRunner::start()
@@ -1158,6 +1171,7 @@ void SimpleTargetRunner::doStart(const Runnable &runnable, const IDevice::ConstP
     m_stopReported = false;
     m_launcher.disconnect(this);
     m_launcher.setUseTerminal(m_useTerminal);
+    m_launcher.setRunAsRoot(m_runAsRoot);
 
     const bool isDesktop = device.isNull() || device.dynamicCast<const DesktopDevice>();
     const QString rawDisplayName = runnable.displayName();

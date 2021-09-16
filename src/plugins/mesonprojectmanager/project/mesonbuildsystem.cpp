@@ -24,17 +24,21 @@
 ****************************************************************************/
 
 #include "mesonbuildsystem.h"
+
 #include "mesonbuildconfiguration.h"
-#include <kithelper/kithelper.h>
-#include <machinefiles/machinefilemanager.h>
+#include "kithelper/kithelper.h"
+#include "machinefiles/machinefilemanager.h"
+#include "settings/general/settings.h"
+#include "settings/tools/kitaspect/mesontoolkitaspect.h"
+
 #include <projectexplorer/buildconfiguration.h>
-#include <settings/general/settings.h>
-#include <settings/tools/kitaspect/mesontoolkitaspect.h>
+#include <projectexplorer/taskhub.h>
+
+#include <qtsupport/qtcppkitinfo.h>
+#include <qtsupport/qtkitinformation.h>
 
 #include <QDir>
 #include <QLoggingCategory>
-#include <qtsupport/qtcppkitinfo.h>
-#include <qtsupport/qtkitinformation.h>
 
 #define LEAVE_IF_BUSY() \
     { \
@@ -53,9 +57,11 @@
         m_parseGuard = {}; \
     };
 
+using namespace ProjectExplorer;
+
 namespace MesonProjectManager {
 namespace Internal {
-static Q_LOGGING_CATEGORY(mesonBuildSystemLog, "qtc.meson.buildsystem", QtDebugMsg);
+static Q_LOGGING_CATEGORY(mesonBuildSystemLog, "qtc.meson.buildsystem", QtWarningMsg);
 
 MesonBuildSystem::MesonBuildSystem(MesonBuildConfiguration *bc)
     : ProjectExplorer::BuildSystem{bc}
@@ -98,6 +104,7 @@ void MesonBuildSystem::parsingCompleted(bool success)
         UNLOCK(true);
         emitBuildSystemUpdated();
     } else {
+        TaskHub::addTask(BuildSystemTask(Task::Error, tr("Meson build: Parsing failed")));
         UNLOCK(false);
         emitBuildSystemUpdated();
     }
@@ -110,7 +117,8 @@ ProjectExplorer::Kit *MesonBuildSystem::MesonBuildSystem::kit()
 
 QStringList MesonBuildSystem::configArgs(bool isSetup)
 {
-    if (!isSetup)
+    const QString &params = mesonBuildConfiguration()->parameters();
+    if (!isSetup || params.contains("--cross-file") || params.contains("--native-file"))
         return m_pendingConfigArgs + mesonBuildConfiguration()->mesonConfigArgs();
     else {
         return QStringList{
@@ -172,6 +180,10 @@ void MesonBuildSystem::init()
         updateKit(kit());
         this->triggerParsing();
     });
+    connect(mesonBuildConfiguration(), &MesonBuildConfiguration::parametersChanged, this, [this]() {
+        updateKit(kit());
+        wipe();
+    });
     connect(mesonBuildConfiguration(), &MesonBuildConfiguration::environmentChanged, this, [this]() {
         m_parser.setEnvironment(buildConfiguration()->environment());
     });
@@ -196,7 +208,7 @@ void MesonBuildSystem::init()
                                .pathAppended(Constants::MESON_INFO_DIR)
                                .pathAppended(Constants::MESON_INFO)
                                .toString(),
-                           Utils::FileSystemWatcher::WatchAllChanges);
+                           Utils::FileSystemWatcher::WatchModifiedDate);
 }
 
 bool MesonBuildSystem::parseProject()

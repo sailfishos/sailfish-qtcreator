@@ -172,6 +172,9 @@ public:
     void setExtraProjectFiles(const QSet<Utils::FilePath> &projectDocumentPaths,
                               const DocGenerator &docGenerator = {},
                               const DocUpdater &docUpdater = {});
+    void updateExtraProjectFiles(const QSet<Utils::FilePath> &projectDocumentPaths,
+                                 const DocUpdater &docUpdater);
+    void updateExtraProjectFiles(const DocUpdater &docUpdater);
 
     void setDisplayName(const QString &name);
     void setProjectLanguage(Utils::Id id, bool enabled);
@@ -181,6 +184,9 @@ public:
     QVariant extraData(const QString &key) const;
 
     QStringList availableQmlPreviewTranslations(QString *errorMessage);
+
+    QList<Core::IDocument *> modifiedDocuments() const;
+    bool isModified() const;
 
 signals:
     void projectFileIsDirty(const Utils::FilePath &path);

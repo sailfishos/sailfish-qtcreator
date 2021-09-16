@@ -37,6 +37,9 @@
    </property>
    <item>
     <widget class="QScrollArea" name="scrollArea">
+     <property name="frameShape">
+      <enum>QFrame::NoFrame</enum>
+     </property>
      <property name="widgetResizable">
       <bool>true</bool>
      </property>
@@ -90,6 +93,16 @@
            <bool>true</bool>
           </property>
           <layout class="QVBoxLayout" name="descriptionLayout">
+           <item>
+            <widget class="QLabel" name="descriptionHint">
+             <property name="text">
+              <string/>
+             </property>
+             <property name="wordWrap">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
            <item>
             <widget class="Utils::CompletingTextEdit" name="description">
              <property name="acceptRichText">

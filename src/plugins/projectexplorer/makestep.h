@@ -74,7 +74,7 @@ public:
     bool makeflagsJobCountMismatch() const;
 
     bool disablingForSubdirsSupported() const { return m_disablingForSubDirsSupported; }
-    bool enabledForSubDirs() const { return m_enabledForSubDirs; }
+    bool enabledForSubDirs() const;
 
     Utils::Environment makeEnvironment() const;
 
@@ -87,6 +87,13 @@ protected:
     void supportDisablingForSubdirs() { m_disablingForSubDirsSupported = true; }
     virtual QStringList displayArguments() const;
 
+    Utils::StringAspect *makeCommandAspect() const { return m_makeCommandAspect; }
+    Utils::MultiSelectionAspect *buildTargetsAspect() const { return m_buildTargetsAspect; }
+    Utils::StringAspect *userArgumentsAspect() const { return m_userArgumentsAspect; }
+    Utils::AspectContainer *jobCountContainer() const { return m_jobCountContainer; }
+    Utils::BoolAspect *disabledForSubdirsAspect() const { return m_disabledForSubdirsAspect; }
+
+
 private:
     static int defaultJobCount();
     QStringList jobArguments() const;
@@ -98,10 +105,9 @@ private:
     Utils::AspectContainer *m_jobCountContainer = nullptr;
     Utils::IntegerAspect *m_userJobCountAspect = nullptr;
     Utils::BoolAspect *m_overrideMakeflagsAspect = nullptr;
+    Utils::BoolAspect *m_disabledForSubdirsAspect = nullptr;
     Utils::TextDisplay *m_nonOverrideWarning = nullptr;
-    Utils::BoolAspect *m_cleanAspect = nullptr;
     bool m_disablingForSubDirsSupported = false;
-    bool m_enabledForSubDirs = true;
 };
 
 } // namespace ProjectExplorer

@@ -70,6 +70,17 @@ public:
                                                   NodeAbstractProperty parentproperty,
                                                   bool executeInTransaction = true);
 
+    static QmlItemNode createQmlItemNodeFromFont(AbstractView *view,
+                                                 const QString &fontFamily,
+                                                 const QPointF &position,
+                                                 QmlItemNode parentQmlItemNode,
+                                                 bool executeInTransaction = true);
+    static QmlItemNode createQmlItemNodeFromFont(AbstractView *view,
+                                                 const QString &fontFamily,
+                                                 const QPointF &position,
+                                                 NodeAbstractProperty parentproperty,
+                                                 bool executeInTransaction = true);
+
     QList<QmlItemNode> children() const;
     QList<QmlObjectNode> resources() const;
     QList<QmlObjectNode> allDirectSubNodes() const;
@@ -187,9 +198,9 @@ public:
     static bool isValidQmlFlowViewNode(const ModelNode &modelNode);
     QList<QmlFlowItemNode> flowItems() const;
     ModelNode addTransition(const QmlFlowTargetNode &from, const QmlFlowTargetNode &to);
-    const QList<ModelNode> transitions() const;
-    const QList<ModelNode> wildcards() const;
-    const QList<ModelNode> decicions() const;
+    QList<ModelNode> transitions() const;
+    QList<ModelNode> wildcards() const;
+    QList<ModelNode> decicions() const;
     QList<ModelNode> transitionsForTarget(const ModelNode &modelNode);
     QList<ModelNode> transitionsForSource(const ModelNode &modelNode);
     void removeDanglingTransitions();

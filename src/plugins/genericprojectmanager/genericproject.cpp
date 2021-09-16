@@ -251,7 +251,14 @@ GenericBuildSystem::GenericBuildSystem(Target *target)
     connect(&m_deployFileWatcher, &FileSystemWatcher::fileChanged,
             this, &GenericBuildSystem::updateDeploymentData);
 
-    connect(target, &Target::activeBuildConfigurationChanged, this, [this] { refresh(Everything); });
+    connect(target, &Target::activeBuildConfigurationChanged, this, [this, target] {
+        if (target == project()->activeTarget())
+            refresh(Everything);
+    });
+    connect(project(), &Project::activeTargetChanged, this, [this, target] {
+        if (target == project()->activeTarget())
+            refresh(Everything);
+    });
 }
 
 GenericBuildSystem::~GenericBuildSystem()
@@ -553,6 +560,8 @@ void GenericBuildSystem::refreshCppCodeModel()
 {
     if (!m_cppCodeModelUpdater)
         return;
+    if (target() != project()->activeTarget())
+        return;
     QtSupport::CppKitInfo kitInfo(kit());
     QTC_ASSERT(kitInfo.isValid(), return);
 
@@ -562,8 +571,8 @@ void GenericBuildSystem::refreshCppCodeModel()
     rpp.setQtVersion(kitInfo.projectPartQtVersion);
     rpp.setHeaderPaths(m_projectIncludePaths);
     rpp.setConfigFileName(m_configFileName);
-    rpp.setFlagsForCxx({nullptr, m_cxxflags});
-    rpp.setFlagsForC({nullptr, m_cflags});
+    rpp.setFlagsForCxx({nullptr, m_cxxflags, projectDirectory().toString()});
+    rpp.setFlagsForC({nullptr, m_cflags, projectDirectory().toString()});
     rpp.setFiles(m_files);
 
     m_cppCodeModelUpdater->update({project(), kitInfo, activeParseEnvironment(), {rpp}});
@@ -642,9 +651,7 @@ bool GenericProjectFile::reload(QString *errorString, IDocument::ReloadFlag flag
 {
     Q_UNUSED(errorString)
     Q_UNUSED(flag)
-    if (type == TypePermissions)
-        return true;
-
+    Q_UNUSED(type)
     if (Target *t = m_project->activeTarget())
         static_cast<GenericBuildSystem *>(t->buildSystem())->refresh(m_options);
 

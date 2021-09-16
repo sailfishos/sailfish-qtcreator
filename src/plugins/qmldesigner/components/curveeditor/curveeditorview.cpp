@@ -101,6 +101,9 @@ void CurveEditorView::nodeRemoved(const ModelNode &removedNode,
     ModelNode parent = parentProperty.parentModelNode();
     if (dirtyfiesView(parent))
         updateKeyframes();
+
+    if (!activeTimeline().isValid())
+        m_model->reset({});
 }
 
 void CurveEditorView::nodeReparented(const ModelNode &node,
@@ -118,6 +121,11 @@ void CurveEditorView::nodeReparented(const ModelNode &node,
         updateKeyframes();
     else if (QmlTimelineKeyframeGroup::checkKeyframesType(node))
         updateKeyframes();
+    else if (newPropertyParent.isValid() && !oldPropertyParent.isValid()) {
+        if (activeTimeline().hasKeyframeGroupForTarget(node)) {
+            updateKeyframes();
+        }
+    }
 }
 
 void CurveEditorView::auxiliaryDataChanged(const ModelNode &node,
@@ -338,7 +346,8 @@ void CurveEditorView::commitKeyframes(TreeItem *item)
                     group.setValue(QVariant(pos.y()), pos.x());
 
                     if (previous.isValid()) {
-                        if (frame.interpolation() == Keyframe::Interpolation::Bezier) {
+                        if (frame.interpolation() == Keyframe::Interpolation::Bezier ||
+                            frame.interpolation() == Keyframe::Interpolation::Step ) {
                             CurveSegment segment(previous, frame);
                             if (segment.isValid())
                                 attachEasingCurve(group, pos.x(), segment.easingCurve());
@@ -346,8 +355,6 @@ void CurveEditorView::commitKeyframes(TreeItem *item)
                             QVariant data = frame.data();
                             if (data.type() == static_cast<int>(QMetaType::QEasingCurve))
                                 attachEasingCurve(group, pos.x(), data.value<QEasingCurve>());
-                        } else if (frame.interpolation() == Keyframe::Interpolation::Step) {
-                            // Warning: Keyframe::Interpolation::Step not yet implemented
                         }
                     }
 
@@ -364,7 +371,8 @@ void CurveEditorView::commitKeyframes(TreeItem *item)
 void CurveEditorView::commitCurrentFrame(int frame)
 {
     QmlTimeline timeline = activeTimeline();
-    timeline.modelNode().setAuxiliaryData("currentFrame@NodeInstance", frame);
+    if (timeline.isValid())
+        timeline.modelNode().setAuxiliaryData("currentFrame@NodeInstance", frame);
 }
 
 void CurveEditorView::commitStartFrame(int frame)

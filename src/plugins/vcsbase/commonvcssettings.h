@@ -25,10 +25,11 @@
 
 #pragma once
 
+#include <utils/qtcsettings.h>
+
 #include <QString>
 
 QT_BEGIN_NAMESPACE
-class QSettings;
 class QDebug;
 QT_END_NAMESPACE
 
@@ -52,7 +53,7 @@ public:
     bool lineWrap;
     int lineWrapWidth;
 
-    void toSettings(QSettings *) const;
+    void toSettings(Utils::QtcSettings *) const;
     void fromSettings(QSettings *);
 
     bool equals(const CommonVcsSettings &rhs) const;

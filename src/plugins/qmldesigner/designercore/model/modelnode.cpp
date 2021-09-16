@@ -106,9 +106,8 @@ ModelNode::ModelNode(ModelNode &&other)
 
 ModelNode &ModelNode::operator=(ModelNode &&other)
 {
-    ModelNode newNode;
+    ModelNode newNode = std::move(other);
 
-    swap(other, newNode);
     swap(*this, newNode);
 
     return *this;
@@ -152,36 +151,14 @@ QString ModelNode::validId()
 
 static bool idIsQmlKeyWord(const QString& id)
 {
-    static const QSet<QString> keywords = {
-        "as",
-        "break",
-        "case",
-        "catch",
-        "continue",
-        "debugger",
-        "default",
-        "delete",
-        "do",
-        "else",
-        "finally",
-        "for",
-        "function",
-        "if",
-        "import",
-        "in",
-        "instanceof",
-        "new",
-        "return",
-        "switch",
-        "this",
-        "throw",
-        "try",
-        "typeof",
-        "var",
-        "void",
-        "while",
-        "with"
-    };
+    static const QSet<QString> keywords = {"as",         "break",    "case",    "catch",
+                                           "continue",   "debugger", "default", "delete",
+                                           "do",         "else",     "finally", "for",
+                                           "function",   "if",       "import",  "in",
+                                           "instanceof", "new",      "print",   "return",
+                                           "switch",     "this",     "throw",   "try",
+                                           "typeof",     "var",      "void",    "while",
+                                           "with"};
 
     return keywords.contains(id);
 }
@@ -226,7 +203,7 @@ static bool isIdToAvoid(const QString& id)
 
 static bool idContainsWrongLetter(const QString& id)
 {
-    static QRegularExpression idExpr(QStringLiteral("^[a-z_][a-zA-Z0-9_]+$"));
+    static QRegularExpression idExpr(QStringLiteral("^[a-z_][a-zA-Z0-9_]*$"));
     return !id.contains(idExpr);
 }
 
@@ -800,19 +777,19 @@ The list contains every ModelNode that belongs to one of this ModelNodes
 properties.
 \return a list of all ModelNodes that are direct children
 */
-const QList<ModelNode> ModelNode::directSubModelNodes() const
+QList<ModelNode> ModelNode::directSubModelNodes() const
 {
     return toModelNodeList(internalNode()->allDirectSubNodes(), view());
 }
 
-const QList<ModelNode> ModelNode::directSubModelNodesOfType(const TypeName &typeName) const
+QList<ModelNode> ModelNode::directSubModelNodesOfType(const TypeName &typeName) const
 {
     return Utils::filtered(directSubModelNodes(), [typeName](const ModelNode &node){
         return node.metaInfo().isValid() && node.metaInfo().isSubclassOf(typeName);
     });
 }
 
-const QList<ModelNode> ModelNode::subModelNodesOfType(const TypeName &typeName) const
+QList<ModelNode> ModelNode::subModelNodesOfType(const TypeName &typeName) const
 {
     return Utils::filtered(allSubModelNodes(), [typeName](const ModelNode &node){
         return node.metaInfo().isValid() && node.metaInfo().isSubclassOf(typeName);
@@ -826,12 +803,12 @@ All children in this list will be implicitly removed if this ModelNode is destro
 \return a list of all ModelNodes that are direct or indirect children
 */
 
-const QList<ModelNode> ModelNode::allSubModelNodes() const
+QList<ModelNode> ModelNode::allSubModelNodes() const
 {
     return toModelNodeList(internalNode()->allSubNodes(), view());
 }
 
-const QList<ModelNode> ModelNode::allSubModelNodesAndThisNode() const
+QList<ModelNode> ModelNode::allSubModelNodesAndThisNode() const
 {
     QList<ModelNode> modelNodeList;
     modelNodeList.append(*this);
@@ -1037,7 +1014,7 @@ QVariant ModelNode::toVariant() const
     return QVariant::fromValue(*this);
 }
 
-const QVariant ModelNode::auxiliaryData(const PropertyName &name) const
+QVariant ModelNode::auxiliaryData(const PropertyName &name) const
 {
     if (!isValid())
         throw InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
@@ -1065,7 +1042,7 @@ bool ModelNode::hasAuxiliaryData(const PropertyName &name) const
     return internalNode()->hasAuxiliaryData(name);
 }
 
-QHash<PropertyName, QVariant> ModelNode::auxiliaryData() const
+const QHash<PropertyName, QVariant> &ModelNode::auxiliaryData() const
 {
     if (!isValid())
         throw InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);

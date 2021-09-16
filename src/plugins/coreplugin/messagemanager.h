@@ -46,37 +46,23 @@ class CORE_EXPORT MessageManager : public QObject
 public:
     static MessageManager *instance();
 
-    enum PrintToOutputPaneFlag {
-        NoModeSwitch   = IOutputPane::NoModeSwitch,
-        ModeSwitch     = IOutputPane::ModeSwitch,
-        WithFocus      = IOutputPane::WithFocus,
-        EnsureSizeHint = IOutputPane::EnsureSizeHint,
-        Silent         = 256,
-        Flash          = 512
-    };
-
-    Q_DECLARE_FLAGS(PrintToOutputPaneFlags, PrintToOutputPaneFlag)
-
-    static void showOutputPane(PrintToOutputPaneFlags flags = NoModeSwitch);
-
     static void setFont(const QFont &font);
     static void setWheelZoomEnabled(bool enabled);
 
-    static void writeMessages(const QStringList &messages,
-                              PrintToOutputPaneFlags flags = NoModeSwitch);
-    static void write(const QString &text, PrintToOutputPaneFlags flags = NoModeSwitch);
-    static void writeWithTime(const QString &text, PrintToOutputPaneFlags flags = NoModeSwitch);
+    static void writeSilently(const QString &message);
+    static void writeFlashing(const QString &message);
+    static void writeDisrupting(const QString &message);
+
+    static void writeSilently(const QStringList &messages);
+    static void writeFlashing(const QStringList &messages);
+    static void writeDisrupting(const QStringList &messages);
 
 private:
     MessageManager();
     ~MessageManager() override;
-
-    static void doWrite(const QString &text, PrintToOutputPaneFlags flags);
 
     static void init();
     friend class Core::Internal::MainWindow;
 };
 
 } // namespace Core
-
-Q_DECLARE_METATYPE(Core::MessageManager::PrintToOutputPaneFlags)

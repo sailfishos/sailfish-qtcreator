@@ -216,6 +216,7 @@ LookupContext &LookupContext::operator=(const LookupContext &other)
 QList<const Name *> LookupContext::fullyQualifiedName(Symbol *symbol, InlineNamespacePolicy policy)
 {
     QList<const Name *> qualifiedName = path(symbol->enclosingScope(), policy);
+    QList<const Name *> symbolNames;
     addNames(symbol->name(), &qualifiedName, /*add all names*/ true);
     return qualifiedName;
 }
@@ -269,6 +270,27 @@ const Name *LookupContext::minimalName(Symbol *symbol, ClassOrNamespace *target,
 {
     const Name *n = nullptr;
     QList<const Name *> names = LookupContext::fullyQualifiedName(symbol);
+    ClassOrNamespace *current = target;
+
+    const auto getNameFromItems = [symbol, target, control](const QList<LookupItem> &items,
+            const QList<const Name *> &names) -> const Name * {
+        for (const LookupItem &item : items) {
+            if (!symbol->asUsingDeclaration() && !symbolIdentical(item.declaration(), symbol))
+                continue;
+
+            // eliminate inline namespaces
+            QList<const Name *> minimal = names;
+            for (int i = minimal.size() - 2; i >= 0; --i) {
+                const Name *candidate = toName(minimal.mid(0, i + 1), control);
+                if (isInlineNamespace(target, candidate))
+                    minimal.removeAt(i);
+            }
+
+            return toName(minimal, control);
+        }
+
+        return nullptr;
+    };
 
     for (int i = names.size() - 1; i >= 0; --i) {
         if (! n)
@@ -278,20 +300,24 @@ const Name *LookupContext::minimalName(Symbol *symbol, ClassOrNamespace *target,
 
         // once we're qualified enough to get the same symbol, break
         if (target) {
-            const QList<LookupItem> tresults = target->lookup(n);
-            foreach (const LookupItem &tr, tresults) {
-                if (symbolIdentical(tr.declaration(), symbol)) {
-                    // eliminate inline namespaces
-                    QList<const Name *> minimal = names.mid(i);
-                    for (int i = minimal.size() - 2; i >= 0; --i) {
-                        const Name *candidate = toName(minimal.mid(0, i + 1), control);
-                        if (isInlineNamespace(target, candidate))
-                            minimal.removeAt(i);
-                    }
-
-                    return toName(minimal, control);
+            const Name * const minimal = getNameFromItems(target->lookup(n), names.mid(i));
+            if (minimal)
+                return minimal;
+        }
+        if (current) {
+            const ClassOrNamespace * const nested = current->getNested(names.last());
+            if (nested) {
+                const QList<const Name *> nameList
+                        = names.mid(0, names.size() - i - 1) << names.last();
+                const QList<ClassOrNamespace *> usings = nested->usings();
+                for (ClassOrNamespace * const u : usings) {
+                    const Name * const minimal = getNameFromItems(u->lookup(symbol->name()),
+                                                                  nameList);
+                    if (minimal)
+                        return minimal;
                 }
             }
+            current = current->getNested(names.at(names.size() - i - 1));
         }
     }
 
@@ -765,10 +791,10 @@ void CreateBindings::lookupInScope(const Name *name, Scope *scope,
                                    const TemplateNameId *templateId,
                                    ClassOrNamespace *binding)
 {
-    if (! name) {
+    if (!name)
         return;
 
-    } else if (const OperatorNameId *op = name->asOperatorNameId()) {
+    if (const OperatorNameId *op = name->asOperatorNameId()) {
         for (Symbol *s = scope->find(op->kind()); s; s = s->next()) {
             if (! s->name())
                 continue;
@@ -786,8 +812,24 @@ void CreateBindings::lookupInScope(const Name *name, Scope *scope,
 
             result->append(item);
         }
+        return;
+    }
 
-    } else if (const Identifier *id = name->identifier()) {
+    if (const ConversionNameId * const conv = name->asConversionNameId()) {
+        if (Symbol * const s = scope->find(conv)) {
+            LookupItem item;
+            item.setDeclaration(s);
+            item.setBinding(binding);
+
+            if (Symbol *inst = instantiateTemplateFunction(name, s->asTemplate()))
+                item.setType(inst->type());
+
+            result->append(item);
+        }
+        return;
+    }
+
+    if (const Identifier *id = name->identifier()) {
         for (Symbol *s = scope->find(id); s; s = s->next()) {
             if (s->isFriend())
                 continue; // skip friends
@@ -904,6 +946,15 @@ ClassOrNamespace *ClassOrNamespace::findBlock(Block *block)
 {
     QSet<ClassOrNamespace *> processed;
     return findBlock_helper(block, &processed, true);
+}
+
+ClassOrNamespace *ClassOrNamespace::getNested(const Name *name)
+{
+    flush();
+    const auto it = _classOrNamespaces.find(name);
+    if (it != _classOrNamespaces.cend())
+        return it->second;
+    return nullptr;
 }
 
 Symbol *ClassOrNamespace::lookupInScope(const QList<const Name *> &fullName)

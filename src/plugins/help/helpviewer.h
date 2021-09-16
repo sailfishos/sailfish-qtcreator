@@ -51,12 +51,11 @@ public:
     explicit HelpViewer(QWidget *parent = nullptr);
     ~HelpViewer() override;
 
-    virtual QFont viewerFont() const = 0;
     virtual void setViewerFont(const QFont &font) = 0;
 
-    virtual qreal scale() const = 0;
     virtual void setScale(qreal scale) = 0;
 
+    void setFontZoom(int percentage);
     void setScrollWheelZoomingEnabled(bool enabled);
     bool isScrollWheelZoomingEnabled() const;
 
@@ -87,9 +86,9 @@ public:
 
     void home();
 
-    virtual void scaleUp() = 0;
-    virtual void scaleDown() = 0;
-    virtual void resetScale() = 0;
+    void scaleUp();
+    void scaleDown();
+    void resetScale();
     virtual void copy() = 0;
     virtual void stop() = 0;
     virtual void forward() = 0;
@@ -117,6 +116,9 @@ protected:
     Actions m_visibleActions;
     bool m_scrollWheelZoomingEnabled = true;
     int m_loadOverrideStack = 0;
+private:
+    void incrementZoom(int steps);
+    void applyZoom(int percentage);
 };
 
 }   // namespace Internal

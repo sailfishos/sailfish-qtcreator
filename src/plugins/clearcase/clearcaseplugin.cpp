@@ -392,8 +392,7 @@ ClearCasePluginPrivate::~ClearCasePluginPrivate()
 {
     cleanCheckInMessageFile();
     // wait for sync thread to finish reading activities
-    m_activityMutex.lock();
-    m_activityMutex.unlock();
+    QMutexLocker locker(&m_activityMutex);
 }
 
 void ClearCasePluginPrivate::cleanCheckInMessageFile()
@@ -1315,7 +1314,7 @@ void ClearCasePluginPrivate::diffActivity()
     }
 
     if ((m_settings.diffType == GraphicalDiff) && (filever.count() == 1)) {
-        QStringPair pair(filever.values().at(0));
+        QStringPair pair(filever.first());
         diffGraphical(pair.first, pair.second);
         return;
     }

@@ -1,6 +1,6 @@
 add_qtc_plugin(Android
-  DEPENDS QtcSsh QmlDebug Qt5::Xml
-  PLUGIN_DEPENDS Core Debugger ProjectExplorer QtSupport
+  DEPENDS QtcSsh QmlDebug Qt5::Xml LanguageServerProtocol
+  PLUGIN_DEPENDS Core Debugger ProjectExplorer QtSupport LanguageClient
   SOURCES
     adbcommandswidget.cpp adbcommandswidget.h adbcommandswidget.ui
     addnewavddialog.ui
@@ -48,6 +48,8 @@ add_qtc_plugin(Android
     createandroidmanifestwizard.cpp createandroidmanifestwizard.h
     javaeditor.cpp javaeditor.h
     javaindenter.cpp javaindenter.h
+    javalanguageserver.cpp javalanguageserver.h
     javaparser.cpp javaparser.h
-    splashiconcontainerwidget.cpp splashiconcontainerwidget.h
+    splashscreencontainerwidget.cpp splashscreencontainerwidget.h
+    splashscreenwidget.cpp splashscreenwidget.h
 )

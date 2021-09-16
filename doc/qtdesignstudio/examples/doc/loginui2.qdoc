@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2020 The Qt Company Ltd.
+** Copyright (C) 2021 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Design Studio documentation.
@@ -42,14 +42,14 @@
     describes how to position the UI components on pages to create a scalable
     UI.
 
-    To ensure that the layout is responsive and all the UI elements stay in
+    To ensure that the layout is responsive and all the UI components stay in
     their proper places when you resize the UI on the desktop or on devices
     with different screen sizes, you will use anchors and positioners.
 
     These instructions build on \l {Log In UI - Part 1}.
 
-    The \e {Learn Qt Quick} sections provide additional information about the
-    features of QML and Qt Quick that are relevant to the task at hand.
+    The \e {Learn More} sections provide additional information about the
+    task at hand.
 
     \section1 Anchoring UI Components
 
@@ -63,16 +63,16 @@
 
     To preview the changes that you make to the UI while you make
     them, select the \inlineimage live_preview.png
-    (\uicontrol {Show Live Preview}) button on the \uicontrol {Form Editor}
+    (\uicontrol {Show Live Preview}) button on the \l {Form Editor}
     toolbar or press \key {Alt+P}.
 
-    To anchor components on a page:
+    To anchor component instances on a page:
 
     \list 1
         \li Open \e {Screen01.ui.qml} for editing in the
             \uicontrol {Form Editor} view.
-        \li Select \e logo in the \uicontrol Navigator view.
-        \li In the \uicontrol Properties view, \uicontrol Layout tab,
+        \li Select \e logo in the \l Navigator view.
+        \li In the \l Properties view, \uicontrol Layout tab,
             select the \inlineimage icons/anchor-top.png
             (\uicontrol Top) and \inlineimage icons/anchor-left.png
             (\uicontrol Left) anchor buttons to anchor \e logo to the top left
@@ -86,28 +86,29 @@
             to save your changes.
     \endlist
 
-    Your page now should look something like this in the Design mode and live
-    preview:
+    Your page now should look something like this in the \uicontrol Design mode
+    and live preview:
 
     \image loginui2-loginpage.png "Login page in the Design mode"
 
-    \section2 Learn Qt Quick - Anchors
+    \section2 Learn More - Anchors
 
-    In an anchor-based layout, each QML type can be thought of as having a set
-    of invisible \e anchor lines: top, bottom, left, right, fill, horizontal
-    center, vertical center, and baseline.
+    In an anchor-based layout, each component instance can be thought of as
+    having a set of invisible \e anchor lines: top, bottom, left, right, fill,
+    horizontal center, vertical center, and baseline.
 
-    Anchors enable placing an object either adjacent to or inside of another
-    object, by attaching one or more of the object's anchor lines to the anchor
-    lines of the other object. If an object changes, the objects that are
-    anchored to it will adjust automatically to maintain the anchoring.
+    Anchors enable placing a component instance either adjacent to or inside of
+    another component instance, by attaching one or more of the instance's
+    anchor lines to the anchor lines of the other component instance. If a
+    component instance changes, the instances that are anchored to it will
+    adjust automatically to maintain the anchoring.
 
     For more information, see \l{Positioning with Anchors}.
 
     \section1 Using Column Positioners
 
     You will now add two entry fields to the page and position them in a column
-    to learn another method of \l{Using Positioners}{positioning items}.
+    to learn another method of \l{Using Positioners}{positioning components}.
     Next, you will position the push buttons on the page in another column.
     Finally, you will anchor the columns to the page to enable their positions
     to change when the screen size changes.
@@ -115,15 +116,11 @@
     To add entry fields to the page:
 
     \list 1
-        \li In \uicontrol Library > \uicontrol {QML Types}, select the
-            \uicontrol {+ \QtQuick.Controls} button to display the
-            \l {Qt Quick Controls 2} types in the tab:
-            \image loginui2-imports.png
-        \li Drag and drop two instances of the \uicontrol {Text Field}
-            type from the \uicontrol {Qt Quick Controls 2} tab to
-            \uicontrol {Form Editor}.
-        \li Select one of the text fields in \uicontrol Navigator, and
-            change its id to \e usernameField in \uicontrol Properties.
+        \li Drag-and-drop two instances of the \uicontrol {Text Field}
+            component from \l Library > \uicontrol Components >
+            \uicontrol {Qt Quick Controls} to \l {Form Editor}.
+        \li Select one of the text fields in \l Navigator, and
+            change its ID to \e usernameField in \l Properties.
         \li In the \uicontrol Geometry group, \uicontrol Size field,
             make the field wide enough to accommodate long user names
             by setting its width to \e 300 pixels.
@@ -131,12 +128,12 @@
             inside the field before users type in it to \e Username
         \li Select \uicontrol tr to mark the text translatable.
             \image loginui2-field-properties.png "Text field properties"
-        \li Select the other text field, and change its id to
+        \li Select the other text field, and change its ID to
             \e passwordField, placeholder text to \e Password,
             and width to \e 300 pixels.
     \endlist
 
-    The Text Field type has additional properties that you can use to change
+    The Text Field component has additional properties that you can use to change
     its appearance. For example, you can change the color, font, alignment, or
     word and letter spacing of the placeholder text.
 
@@ -149,7 +146,7 @@
         \li Select \uicontrol Position > \uicontrol {Position in Column}
             to position the fields on top of each other in
             \uicontrol {Form Editor}.
-        \li Select the column in \uicontrol Navigator and change its id
+        \li Select the column in \uicontrol Navigator and change its ID
             to \e fieldColumn in \uicontrol Properties.
         \li In the \uicontrol Spacing field, set the spacing between the
             fields to 5 pixels.
@@ -157,7 +154,7 @@
         \li Select \e loginButton and \e registerButton, and then select
             \uicontrol Position > \uicontrol {Position in Column} to position
             them in a column.
-        \li Select the button column, change its id to \e buttonColumn, and
+        \li Select the button column, change its ID to \e buttonColumn, and
             set the spacing between the buttons to 5 pixels, as above.
     \endlist
 
@@ -183,25 +180,21 @@
     \endlist
 
     The second iteration of your UI is now ready and should look something like
-    this in the Design mode and live preview:
+    this in the \uicontrol Design mode and live preview:
 
     \image loginui2-loginpage-ready.png "Login page in the Design mode"
 
-    \section1 Learn Qt Quick - Positioners
+    \section1 Learn More - Positioners
 
-    Qt Quick provides built-in positioner items. For many use cases, the best
-    positioner to use is a simple grid, row, or column, and Qt Quick provides
-    items that will position children in these formations in the most efficient
-    manner possible. For more information about using pre-defined positioners,
-    see \l {Item Positioners}.
+    For many use cases, the best positioner to use is a simple grid, row, or
+    column, and \QDS provides components that will position children in these
+    formations in the most efficient manner possible. For more information
+    about using preset positioners, see \l {Using Positioners}.
 
-    For more complicated UI designs, you can use QML types from the
-    \l {Qt Quick Layouts Overview}{Qt Quick Layouts module}.
+    For more complicated UI designs, you can use components from the
+    \l {Using Layouts}{Qt Quick Layouts module}.
 
     \section1 Next Steps
-
-    To learn more about positioning items in \QDS, see
-    \l{Positioning Items}.
 
     To learn how to add a second page and move to it from the main page, see
     the next tutorial in the series, \l {Log In UI - Part 3}.

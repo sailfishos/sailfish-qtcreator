@@ -98,6 +98,7 @@ enum DebuggerActionCode
     ShowThreadNames,
 
     UseToolTipsInMainEditor,
+    UseAnnotationsInMainEditor,
     UseToolTipsInLocalsView,
     UseToolTipsInBreakpointsView,
     UseToolTipsInStackView,
@@ -133,6 +134,7 @@ enum DebuggerActionCode
     WarnOnReleaseBuilds,
     MultiInferior,
     IntelFlavor,
+    UsePseudoTracepoints,
 
     // Stack
     MaximalStackDepth,

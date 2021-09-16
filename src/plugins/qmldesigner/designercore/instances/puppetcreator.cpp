@@ -47,6 +47,7 @@
 
 #include <qmlprojectmanager/qmlmultilanguageaspect.h>
 
+#include <qmlprojectmanager/qmlproject.h>
 #include <qtsupport/baseqtversion.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtsupportconstants.h>
@@ -165,6 +166,20 @@ QString PuppetCreator::getStyleConfigFileName() const
     }
 #endif
     return QString();
+}
+
+bool PuppetCreator::usesVirtualKeyboard() const
+{
+#ifndef QMLDESIGNER_TEST
+    if (m_target) {
+        auto *qmlbuild = qobject_cast<QmlProjectManager::QmlBuildSystem *>(m_target->buildSystem());
+
+        const Utils::EnvironmentItem virtualKeyboard("QT_IM_MODULE", "qtvirtualkeyboard");
+        return qmlbuild && qmlbuild->environment().indexOf(virtualKeyboard);
+    }
+
+#endif
+    return false;
 }
 
 PuppetCreator::PuppetCreator(ProjectExplorer::Target *target, const Model *model)
@@ -472,7 +487,7 @@ QProcessEnvironment PuppetCreator::processEnvironment() const
 #else
     const QString controlsStyle;
 #endif
-    if (!controlsStyle.isEmpty() && controlsStyle != "Default") {
+    if (!controlsStyle.isEmpty()) {
         environment.set("QT_QUICK_CONTROLS_STYLE", controlsStyle);
         environment.set("QT_LABS_CONTROLS_STYLE", controlsStyle);
     }
@@ -483,15 +498,13 @@ QProcessEnvironment PuppetCreator::processEnvironment() const
 
     const QString styleConfigFileName = getStyleConfigFileName();
 
-    /* QT_QUICK_CONTROLS_CONF is not supported for Qt Version < 5.8.1,
-     * but we can manually at least set the correct style. */
-    if (!styleConfigFileName.isEmpty()) {
-        QSettings infiFile(styleConfigFileName, QSettings::IniFormat);
-        environment.set("QT_QUICK_CONTROLS_STYLE", infiFile.value("Controls/Style", "Default").toString());
-    }
-
     if (!m_qrcMapping.isEmpty()) {
         environment.set("QMLDESIGNER_RC_PATHS", m_qrcMapping);
+    }
+
+    if (usesVirtualKeyboard()) {
+        environment.set("QT_IM_MODULE", "qtvirtualkeyboard");
+        environment.set("QT_VIRTUALKEYBOARD_DESKTOP_DISABLE", "1");
     }
 
 #ifndef QMLDESIGNER_TEST

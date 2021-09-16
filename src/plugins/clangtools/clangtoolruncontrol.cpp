@@ -296,7 +296,7 @@ void ClangToolRunWorker::start()
 
 void ClangToolRunWorker::stop()
 {
-    for (ClangToolRunner *runner : m_runners) {
+    for (ClangToolRunner *runner : qAsConst(m_runners)) {
         QObject::disconnect(runner, nullptr, this, nullptr);
         delete runner;
     }
@@ -418,7 +418,7 @@ void ClangToolRunWorker::finalize()
 {
     const QString toolName = tool()->name();
     if (m_filesNotAnalyzed.size() != 0) {
-        appendMessage(tr("Error: Failed to analyze %1 files.").arg(m_filesNotAnalyzed.size()),
+        appendMessage(tr("Error: Failed to analyze %n files.", nullptr, m_filesNotAnalyzed.size()),
                       ErrorMessageFormat);
         Target *target = runControl()->target();
         if (target && target->activeBuildConfiguration() && !target->activeBuildConfiguration()->buildDirectory().exists()

@@ -134,7 +134,7 @@ bool OutputLineParser::demoteErrorsToWarnings() const
     return d->demoteErrorsToWarnings;
 }
 
-FilePath OutputLineParser::absoluteFilePath(const FilePath &filePath)
+FilePath OutputLineParser::absoluteFilePath(const FilePath &filePath) const
 {
     if (filePath.isEmpty() || filePath.toFileInfo().isAbsolute())
         return filePath;
@@ -264,7 +264,7 @@ void OutputFormatter::addLineParser(OutputLineParser *parser)
 void OutputFormatter::setupLineParser(OutputLineParser *parser)
 {
     parser->setFileFinder(&d->fileFinder);
-    connect(parser, &OutputLineParser::newSearchDir, this, &OutputFormatter::addSearchDir);
+    connect(parser, &OutputLineParser::newSearchDirFound, this, &OutputFormatter::addSearchDir);
     connect(parser, &OutputLineParser::searchDirExpired, this, &OutputFormatter::dropSearchDir);
 }
 
@@ -496,6 +496,7 @@ void OutputFormatter::initFormats()
     d->formats[StdOutFormat].setForeground(theme->color(Theme::OutputPanes_StdOutTextColor));
     d->formats[StdErrFormat].setForeground(theme->color(Theme::OutputPanes_StdErrTextColor));
     d->formats[DebugFormat].setForeground(theme->color(Theme::OutputPanes_DebugTextColor));
+    d->formats[GeneralMessageFormat].setForeground(theme->color(Theme::OutputPanes_DebugTextColor));
     setBoldFontEnabled(d->boldFontEnabled);
 }
 

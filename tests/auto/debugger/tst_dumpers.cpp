@@ -1189,7 +1189,7 @@ void tst_Dumpers::initTestCase()
 
     m_qmakeBinary = QDir::fromNativeSeparators(QString::fromLocal8Bit(qgetenv("QTC_QMAKE_PATH_FOR_TEST")));
     if (m_qmakeBinary.isEmpty())
-        m_qmakeBinary = "qmake";
+        m_qmakeBinary = DEFAULT_QMAKE_BINARY;
     if (qEnvironmentVariableIntValue("QTC_USE_CMAKE_FOR_TEST"))
         m_buildSystem = BuildSystem::CMake;
 
@@ -1628,6 +1628,7 @@ void tst_Dumpers::dumper()
             "."
         };
         //qDebug() << "Starting cmake: " << m_cmakeBinary << ' ' << qPrintable(options.join(' '));
+        cmake.setProcessEnvironment(m_env);
         cmake.start(m_cmakeBinary, options);
         QVERIFY(cmake.waitForFinished());
         output = cmake.readAllStandardOutput();
@@ -1648,6 +1649,7 @@ void tst_Dumpers::dumper()
         if (m_qtVersion && m_qtVersion < 0x050000)
             options << "-spec" << "unsupported/macx-clang";
     #endif
+        qmake.setProcessEnvironment(m_env);
         qmake.start(m_qmakeBinary, options);
         QVERIFY(qmake.waitForFinished());
         output = qmake.readAllStandardOutput();
@@ -1936,9 +1938,9 @@ void tst_Dumpers::dumper()
         }
 
         const QString iname = check.iname;
-        WatchItem *item = static_cast<WatchItem *>(local.findAnyChild([iname](Utils::TreeItem *item) {
+        WatchItem *item = local.findAnyChild([iname](Utils::TreeItem *item) {
             return static_cast<WatchItem *>(item)->internalName() == iname;
-        }));
+        });
         if (!item) {
             if (check.optionallyPresent)
                 return true;
@@ -2301,35 +2303,6 @@ void tst_Dumpers::dumper_data()
                //     Value4("Tue Jan 1 13:15:32 1980"), "@QDateTime") % Optional()
                //+ Check("dt1.toUTC",
                //     Value5("Tue Jan 1 13:15:32 1980 GMT"), "@QDateTime") % Optional();
-
-
-#ifdef Q_OS_WIN
-    QString tempDir = "C:/Program Files";
-#else
-    QString tempDir = "/tmp";
-#endif
-    auto quoted = [](const QString &str) { return QString('"' + str + '"'); };
-
-    QTest::newRow("QDir")
-            << Data("#include <QDir>\n",
-
-                    "QDir dir(" + quoted(tempDir) + ");\n"
-                    "QString s = dir.absolutePath();\n"
-                    "QFileInfoList fil = dir.entryInfoList();\n"
-                    "QFileInfo fi = fil.first();",
-
-                    "&dir, &s, &fi")
-
-               + CoreProfile()
-               + QtVersion(0x50300)
-
-               + Check("dir", quoted(tempDir), "@QDir")
-            // + Check("dir.canonicalPath", quoted(tempDir), "@QString")
-               + Check("dir.absolutePath", quoted(tempDir), "@QString") % Optional()
-               + Check("dir.entryInfoList.0", "[0]", quoted(tempDir + "/."), "@QFileInfo") % NoCdbEngine
-               + Check("dir.entryInfoList.1", "[1]", quoted(tempDir + "/.."), "@QFileInfo") % NoCdbEngine
-               + Check("dir.entryList.0", "[0]", "\".\"", "@QString") % NoCdbEngine
-               + Check("dir.entryList.1", "[1]", "\"..\"", "@QString") % NoCdbEngine;
 
 
     QTest::newRow("QFileInfo")
@@ -5466,8 +5439,8 @@ void tst_Dumpers::dumper_data()
                + Check("map1", "<2 items>", "std::unordered_map<unsigned int, unsigned int>")
                + Check("map1.0", "[0] 22", "2", "") % NoCdbEngine
                + Check("map1.1", "[1] 11", "1", "") % NoCdbEngine
-               + Check("map1.0", "11", "1", "std::pair<unsigned int const ,unsigned int>") % CdbEngine
-               + Check("map1.1", "22", "2", "std::pair<unsigned int const ,unsigned int>") % CdbEngine
+               + Check("map1.0", "[0] 11", "1", "") % CdbEngine
+               + Check("map1.1", "[1] 22", "2", "") % CdbEngine
 
                + Check("map2", "<2 items>", "std::unordered_map<std::string, float>")
                + Check("map2.0", "[0] \"22.0\"", FloatValue("22.0"), "") % NoCdbEngine
@@ -5476,20 +5449,18 @@ void tst_Dumpers::dumper_data()
                + Check("map2.1", "[1] \"11.0\"", FloatValue("11.0"), "") % NoCdbEngine
                + Check("map2.1.first", "\"11.0\"", "std::string")        % NoCdbEngine
                + Check("map2.1.second", FloatValue("11"), "float")       % NoCdbEngine
-               + Check("map2.0", "\"11.0\"", FloatValue("11.0"),
-                       "std::pair<std::string, float>")             % CdbEngine
-               + Check("map2.0.first", "\"11.0\"", "std::string")   % CdbEngine
-               + Check("map2.0.second", FloatValue("11"), "float")  % CdbEngine
-               + Check("map2.1", "\"22.0\"", FloatValue("22.0"),
-                       "std::pair<std::string, float>")             % CdbEngine
-               + Check("map2.1.first", "\"22.0\"", "std::string")   % CdbEngine
-               + Check("map2.1.second", FloatValue("22"), "float")  % CdbEngine
+               + Check("map2.0", "[0] \"11.0\"", FloatValue("11.0"), "") % CdbEngine
+               + Check("map2.0.first", "\"11.0\"", "std::string")        % CdbEngine
+               + Check("map2.0.second", FloatValue("11"), "float")       % CdbEngine
+               + Check("map2.1", "[1] \"22.0\"", FloatValue("22.0"), "") % CdbEngine
+               + Check("map2.1.first", "\"22.0\"", "std::string")        % CdbEngine
+               + Check("map2.1.second", FloatValue("22"), "float")       % CdbEngine
 
                + Check("map3", "<2 items>", "std::unordered_multimap<int, std::string>")
                + Check("map3.0", "[0] 1", "\"Bar\"", "") % NoCdbEngine
                + Check("map3.1", "[1] 1", "\"Foo\"", "") % NoCdbEngine
-               + Check("map3.0", "1", "\"Foo\"", "std::pair<int const ,std::string>") % CdbEngine
-               + Check("map3.1", "1", "\"Bar\"", "std::pair<int const ,std::string>") % CdbEngine;
+               + Check("map3.0", "[0] 1", "\"Foo\"", "") % CdbEngine
+               + Check("map3.1", "[1] 1", "\"Bar\"", "") % CdbEngine;
 
 
     QTest::newRow("StdUnorderedSet")
@@ -8178,6 +8149,37 @@ void tst_Dumpers::dumper_data()
         + Check("x.2", "[2]", "3", "NI");
 #endif
 #endif
+
+
+/* FIXME for unknown reasons the following test must be the last one to not interfere with the
+         dumper tests and make all following fail */
+#ifdef Q_OS_WIN
+    QString tempDir = "C:/Program Files";
+#else
+    QString tempDir = "/tmp";
+#endif
+    auto quoted = [](const QString &str) { return QString('"' + str + '"'); };
+
+    QTest::newRow("QDir")
+            << Data("#include <QDir>\n",
+
+                    "QDir dir(" + quoted(tempDir) + ");\n"
+                    "QString s = dir.absolutePath();\n"
+                    "QFileInfoList fil = dir.entryInfoList();\n"
+                    "QFileInfo fi = fil.first();",
+
+                    "&dir, &s, &fi")
+
+               + CoreProfile()
+               + QtVersion(0x50300)
+
+               + Check("dir", quoted(tempDir), "@QDir")
+            // + Check("dir.canonicalPath", quoted(tempDir), "@QString")
+               + Check("dir.absolutePath", quoted(tempDir), "@QString") % Optional()
+               + Check("dir.entryInfoList.0", "[0]", quoted(tempDir + "/."), "@QFileInfo") % NoCdbEngine
+               + Check("dir.entryInfoList.1", "[1]", quoted(tempDir + "/.."), "@QFileInfo") % NoCdbEngine
+               + Check("dir.entryList.0", "[0]", "\".\"", "@QString") % NoCdbEngine
+               + Check("dir.entryList.1", "[1]", "\"..\"", "@QString") % NoCdbEngine;
 }
 
 int main(int argc, char *argv[])

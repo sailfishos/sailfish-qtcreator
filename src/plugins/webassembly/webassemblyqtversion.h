@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2019 The Qt Company Ltd.
+** Copyright (C) 2020 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
@@ -33,12 +33,21 @@ namespace Internal {
 
 class WebAssemblyQtVersion : public QtSupport::BaseQtVersion
 {
+    Q_DECLARE_TR_FUNCTIONS(WebAssembly::Internal::WebAssemblyQtVersion)
+
 public:
     WebAssemblyQtVersion();
 
     QString description() const override;
 
     QSet<Utils::Id> targetDeviceTypes() const override;
+
+    bool isValid() const override;
+    QString invalidReason() const override;
+
+    static const QtSupport::QtVersionNumber &minimumSupportedQtVersion();
+    static bool isQtVersionInstalled();
+    static bool isUnsupportedQtVersionInstalled();
 };
 
 class WebAssemblyQtVersionFactory : public QtSupport::QtVersionFactory

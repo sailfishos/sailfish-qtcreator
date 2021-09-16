@@ -42,8 +42,11 @@ namespace Sqlite {
 
 using namespace std::chrono_literals;
 
+template<int ResultCount>
 class ReadStatement;
 class WriteStatement;
+template<int ResultCount>
+class ReadWriteStatement;
 
 class SQLITE_EXPORT Database final : public TransactionInterface, public DatabaseInterface
 {
@@ -53,15 +56,18 @@ class SQLITE_EXPORT Database final : public TransactionInterface, public Databas
 
 public:
     using MutexType = std::mutex;
-    using ReadStatement = Sqlite::ReadStatement;
+    template<int ResultCount>
+    using ReadStatement = Sqlite::ReadStatement<ResultCount>;
     using WriteStatement = Sqlite::WriteStatement;
+    template<int ResultCount = 0>
+    using ReadWriteStatement = Sqlite::ReadWriteStatement<ResultCount>;
+    using BusyHandler = DatabaseBackend::BusyHandler;
 
     Database();
+    Database(Utils::PathString &&databaseFilePath, JournalMode journalMode = JournalMode::Wal);
     Database(Utils::PathString &&databaseFilePath,
-             JournalMode journalMode);
-    Database(Utils::PathString &&databaseFilePath,
-             std::chrono::milliseconds busyTimeout = 1000ms,
-             JournalMode journalMode=JournalMode::Wal);
+             std::chrono::milliseconds busyTimeout,
+             JournalMode journalMode = JournalMode::Wal);
     ~Database();
 
     Database(const Database &) = delete;
@@ -131,6 +137,11 @@ public:
 
     void setAttachedTables(const Utils::SmallStringVector &tables) override;
     void applyAndUpdateSessions() override;
+
+    void setBusyHandler(BusyHandler busyHandler)
+    {
+        m_databaseBackend.setBusyHandler(std::move(busyHandler));
+    }
 
     SessionChangeSets changeSets() const;
 

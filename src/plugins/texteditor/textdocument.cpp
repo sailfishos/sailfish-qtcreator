@@ -51,7 +51,6 @@
 #include <QScrollBar>
 #include <QStringList>
 #include <QTextCodec>
-#include <QTimer>
 
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
@@ -106,7 +105,6 @@ public:
     QScopedPointer<Indenter> m_indenter;
     QScopedPointer<Formatter> m_formatter;
 
-    bool m_fileIsReadOnly = false;
     int m_autoSaveRevision = -1;
 
     TextMarks m_marksCache; // Marks not owned
@@ -145,7 +143,7 @@ QTextCursor TextDocumentPrivate::indentOrUnindent(const QTextCursor &textCursor,
             const QString text = block.text();
             int indentPosition = tabSettings.lineIndentPosition(text);
             if (!doIndent && !indentPosition)
-                indentPosition = tabSettings.firstNonSpace(text);
+                indentPosition = TabSettings::firstNonSpace(text);
             int targetColumn = tabSettings.indentedColumn(
                         tabSettings.columnAt(text, indentPosition), doIndent);
             cursor.setPosition(block.position() + indentPosition);
@@ -184,7 +182,7 @@ QTextCursor TextDocumentPrivate::indentOrUnindent(const QTextCursor &textCursor,
                 , tabSettings(_tabSettings)
             {
                 indentPosition = tabSettings.positionAtColumn(text, column, nullptr, true);
-                spaces = tabSettings.spacesLeftFromPosition(text, indentPosition);
+                spaces = TabSettings::spacesLeftFromPosition(text, indentPosition);
             }
 
             void indent(const int targetColumn) const
@@ -520,13 +518,23 @@ void TextDocument::autoFormat(const QTextCursor &cursor)
     using namespace Utils::Text;
     if (!d->m_formatter)
         return;
-    if (QFutureWatcher<Replacements> *watcher = d->m_formatter->format(cursor, tabSettings())) {
-        connect(watcher, &QFutureWatcher<Replacements>::finished, this, [this, watcher]() {
+    if (QFutureWatcher<ChangeSet> *watcher = d->m_formatter->format(cursor, tabSettings())) {
+        connect(watcher, &QFutureWatcher<ChangeSet>::finished, this, [this, watcher]() {
             if (!watcher->isCanceled())
-                Utils::Text::applyReplacements(document(), watcher->result());
+                applyChangeSet(watcher->result());
             delete watcher;
         });
     }
+}
+
+bool TextDocument::applyChangeSet(const ChangeSet &changeSet)
+{
+    if (changeSet.isEmpty())
+        return true;
+    RefactoringChanges changes;
+    const RefactoringFilePtr file = changes.file(filePath().toString());
+    file->setChangeSet(changeSet);
+    return file->apply();
 }
 
 const ExtraEncodingSettings &TextDocument::extraEncodingSettings() const
@@ -702,28 +710,9 @@ void TextDocument::setFilePath(const Utils::FilePath &newName)
     IDocument::setFilePath(Utils::FilePath::fromUserInput(newName.toFileInfo().absoluteFilePath()));
 }
 
-bool TextDocument::isFileReadOnly() const
-{
-    if (filePath().isEmpty()) //have no corresponding file, so editing is ok
-        return false;
-    return d->m_fileIsReadOnly;
-}
-
 bool TextDocument::isModified() const
 {
     return d->m_document.isModified();
-}
-
-void TextDocument::checkPermissions()
-{
-    bool previousReadOnly = d->m_fileIsReadOnly;
-    if (!filePath().isEmpty()) {
-        d->m_fileIsReadOnly = !filePath().toFileInfo().isWritable();
-    } else {
-        d->m_fileIsReadOnly = false;
-    }
-    if (previousReadOnly != d->m_fileIsReadOnly)
-        emit changed();
 }
 
 Core::IDocument::OpenResult TextDocument::open(QString *errorString, const QString &fileName,
@@ -747,7 +736,6 @@ Core::IDocument::OpenResult TextDocument::openImpl(QString *errorString, const Q
 
     if (!fileName.isEmpty()) {
         const QFileInfo fi(fileName);
-        d->m_fileIsReadOnly = !fi.isWritable();
         readResult = read(realFileName, &content, errorString);
         const int chunks = content.size();
 
@@ -864,12 +852,7 @@ bool TextDocument::reload(QString *errorString, ReloadFlag flag, ChangeType type
             modificationChanged(true);
         return true;
     }
-    if (type == TypePermissions) {
-        checkPermissions();
-        return true;
-    } else {
-        return reload(errorString);
-    }
+    return reload(errorString);
 }
 
 void TextDocument::setSyntaxHighlighter(SyntaxHighlighter *highlighter)
@@ -927,12 +910,12 @@ void TextDocument::cleanWhitespace(QTextCursor &cursor, bool inEntireDocument,
         QString blockText = block.text();
 
         if (d->m_storageSettings.removeTrailingWhitespace(fileName))
-            currentTabSettings.removeTrailingWhitespace(cursor, block);
+            TabSettings::removeTrailingWhitespace(cursor, block);
 
         const int indent = indentations[block.blockNumber()];
         if (cleanIndentation && !currentTabSettings.isIndentationClean(block, indent)) {
             cursor.setPosition(block.position());
-            int firstNonSpace = currentTabSettings.firstNonSpace(blockText);
+            const int firstNonSpace = TabSettings::firstNonSpace(blockText);
             if (firstNonSpace == blockText.length()) {
                 cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
                 cursor.removeSelectedText();
@@ -1040,7 +1023,8 @@ void TextDocument::removeMarkFromMarksCache(TextMark *mark)
     auto scheduleLayoutUpdate = [documentLayout](){
         // make sure all destructors that may directly or indirectly call this function are
         // completed before updating.
-        QTimer::singleShot(0, documentLayout, &QPlainTextDocumentLayout::requestUpdate);
+        QMetaObject::invokeMethod(documentLayout, &QPlainTextDocumentLayout::requestUpdate,
+                                  Qt::QueuedConnection);
     };
 
     if (d->m_marksCache.isEmpty()) {

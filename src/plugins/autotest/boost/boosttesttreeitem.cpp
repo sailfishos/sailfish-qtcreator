@@ -26,6 +26,7 @@
 #include "boosttesttreeitem.h"
 #include "boosttestconstants.h"
 #include "boosttestconfiguration.h"
+#include "boosttestframework.h"
 #include "boosttestparser.h"
 #include "../testframeworkmanager.h"
 
@@ -173,9 +174,9 @@ static QString handleSpecialFunctionNames(const QString &name)
     return result;
 }
 
-QList<TestConfiguration *> BoostTestTreeItem::getAllTestConfigurations() const
+QList<ITestConfiguration *> BoostTestTreeItem::getAllTestConfigurations() const
 {
-    QList<TestConfiguration *> result;
+    QList<ITestConfiguration *> result;
     ProjectExplorer::Project *project = ProjectExplorer::SessionManager::startupProject();
     if (!project || type() != Root)
         return result;
@@ -187,13 +188,12 @@ QList<TestConfiguration *> BoostTestTreeItem::getAllTestConfigurations() const
 
     // we only need the unique project files (and number of test cases for the progress indicator)
     QHash<QString, BoostTestCases> testsPerProjectfile;
-    forAllChildren([&testsPerProjectfile](TreeItem *it){
-        auto item = static_cast<BoostTestTreeItem *>(it);
+    forAllChildItems([&testsPerProjectfile](TestTreeItem *item){
         if (item->type() != TestSuite)
             return;
         int funcChildren = 0;
-        item->forAllChildren([&funcChildren](TreeItem *child){
-            if (static_cast<BoostTestTreeItem *>(child)->type() == TestCase)
+        item->forAllChildItems([&funcChildren](TestTreeItem *child){
+            if (child->type() == TestCase)
                 ++funcChildren;
         });
         if (funcChildren) {
@@ -215,10 +215,10 @@ QList<TestConfiguration *> BoostTestTreeItem::getAllTestConfigurations() const
     return result;
 }
 
-QList<TestConfiguration *> BoostTestTreeItem::getTestConfigurations(
+QList<ITestConfiguration *> BoostTestTreeItem::getTestConfigurations(
         std::function<bool(BoostTestTreeItem *)> predicate) const
 {
-    QList<TestConfiguration *> result;
+    QList<ITestConfiguration *> result;
     ProjectExplorer::Project *project = ProjectExplorer::SessionManager::startupProject();
     if (!project || type() != Root)
         return result;
@@ -262,21 +262,21 @@ QList<TestConfiguration *> BoostTestTreeItem::getTestConfigurations(
     return result;
 }
 
-QList<TestConfiguration *> BoostTestTreeItem::getSelectedTestConfigurations() const
+QList<ITestConfiguration *> BoostTestTreeItem::getSelectedTestConfigurations() const
 {
     return getTestConfigurations([](BoostTestTreeItem *it) {
         return it->checked() == Qt::Checked;
     });
 }
 
-QList<TestConfiguration *> BoostTestTreeItem::getFailedTestConfigurations() const
+QList<ITestConfiguration *> BoostTestTreeItem::getFailedTestConfigurations() const
 {
     return getTestConfigurations([](BoostTestTreeItem *it) {
         return it->data(0, FailedRole).toBool();
     });
 }
 
-TestConfiguration *BoostTestTreeItem::testConfiguration() const
+ITestConfiguration *BoostTestTreeItem::testConfiguration() const
 {
     ProjectExplorer::Project *project = ProjectExplorer::SessionManager::startupProject();
     QTC_ASSERT(project, return nullptr);
@@ -285,7 +285,7 @@ TestConfiguration *BoostTestTreeItem::testConfiguration() const
     if (itemType == TestSuite || itemType == TestCase) {
         QStringList testCases;
         if (itemType == TestSuite) {
-            forFirstLevelChildren([&testCases](TestTreeItem *child) {
+            forFirstLevelChildItems([&testCases](TestTreeItem *child) {
                 QTC_ASSERT(child, return);
                 if (auto boostItem = static_cast<BoostTestTreeItem *>(child)) {
                     if (boostItem->enabled()) {
@@ -319,7 +319,7 @@ TestConfiguration *BoostTestTreeItem::testConfiguration() const
     return nullptr;
 }
 
-TestConfiguration *BoostTestTreeItem::debugConfiguration() const
+ITestConfiguration *BoostTestTreeItem::debugConfiguration() const
 {
     BoostTestConfiguration *config = static_cast<BoostTestConfiguration *>(testConfiguration());
     if (config)

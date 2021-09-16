@@ -86,6 +86,7 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/documentmanager.h>
+#include <hdrimage.h>
 #endif
 
 #include <projectexplorer/target.h>
@@ -284,7 +285,8 @@ void NodeInstanceView::handleCrash()
     if (elaspsedTimeSinceLastCrash > forceRestartTime)
         restartProcess();
     else
-        emitDocumentMessage(tr("Qt Quick emulation layer crashed."));
+        emitDocumentMessage(
+            ::QmlDesigner::NodeInstanceView::tr("Qt Quick emulation layer crashed."));
 
     emitCustomNotification(QStringLiteral("puppet crashed"));
 }
@@ -1070,6 +1072,12 @@ CreateSceneCommand NodeInstanceView::createCreateSceneCommand()
                               importVector,
                               mockupTypesVector,
                               model()->fileUrl(),
+#ifndef QMLDESIGNER_TEST
+                              QUrl::fromLocalFile(QmlDesigner::DocumentManager::currentResourcePath()
+                                                  .toFileInfo().absoluteFilePath()),
+#else
+                              QUrl::fromLocalFile(QFileInfo(model()->fileUrl().toLocalFile()).absolutePath()),
+#endif
                               m_edit3DToolStates[model()->fileUrl()],
                               lastUsedLanguage,
                               stateInstanceId);
@@ -1500,7 +1508,7 @@ void NodeInstanceView::token(const TokenCommand &command)
 
 void NodeInstanceView::debugOutput(const DebugOutputCommand & command)
 {
-    DocumentMessage error(tr("Qt Quick emulation layer crashed."));
+    DocumentMessage error(::QmlDesigner::NodeInstanceView::tr("Qt Quick emulation layer crashed."));
     if (command.instanceIds().isEmpty()) {
         emitDocumentMessage(command.text());
     } else {
@@ -1571,6 +1579,9 @@ void NodeInstanceView::handlePuppetToCreatorCommand(const PuppetToCreatorCommand
                 updatePreviewImageForNode(node, image);
             }
         }
+    } else if (command.type() == PuppetToCreatorCommand::Import3DSupport) {
+        const QVariantMap supportMap = qvariant_cast<QVariantMap>(command.data());
+        emitImport3DSupportChanged(supportMap);
     }
 }
 
@@ -1685,10 +1696,17 @@ QVariant NodeInstanceView::previewImageDataForImageNode(const ModelNode &modelNo
                     imageData.pixmap.setDevicePixelRatio(ratio);
 
                 }
-                imageData.info = QObject::tr("Source item: %1").arg(boundNode.id());
+                imageData.info = ::QmlDesigner::NodeInstanceView::tr("Source item: %1")
+                                     .arg(boundNode.id());
             }
         }
     } else {
+        if (imageSource.isEmpty() && modelNode.isComponent()) {
+            // Image component has no custom source set, so fall back to component rendering to get
+            // the default component image.
+            return previewImageDataForGenericNode(modelNode, {});
+        }
+
         QFileInfo imageFi(imageSource);
         if (imageFi.isRelative())
             imageSource = QFileInfo(modelNode.model()->fileUrl().toLocalFile()).dir().absoluteFilePath(imageSource);
@@ -1717,7 +1735,12 @@ QVariant NodeInstanceView::previewImageDataForImageNode(const ModelNode &modelNo
                     originalPixmap = QPixmap::fromImage(paintImage);
                 }
             } else {
-                originalPixmap.load(imageSource);
+#ifndef QMLDESIGNER_TEST
+                if (imageFi.suffix() == "hdr")
+                    originalPixmap = HdrImage{imageSource}.toPixmap();
+                else
+#endif
+                    originalPixmap.load(imageSource);
             }
             if (!originalPixmap.isNull()) {
                 const int dim = Constants::MODELNODE_PREVIEW_IMAGE_DIMENSIONS * ratio;
@@ -1725,7 +1748,10 @@ QVariant NodeInstanceView::previewImageDataForImageNode(const ModelNode &modelNo
                 imageData.pixmap.setDevicePixelRatio(ratio);
 
                 double imgSize = double(imageFi.size());
-                static QStringList units({QObject::tr("B"), QObject::tr("KB"), QObject::tr("MB"), QObject::tr("GB")});
+                static QStringList units({::QmlDesigner::NodeInstanceView::tr("B"),
+                                          ::QmlDesigner::NodeInstanceView::tr("KB"),
+                                          ::QmlDesigner::NodeInstanceView::tr("MB"),
+                                          ::QmlDesigner::NodeInstanceView::tr("GB")});
                 int unitIndex = 0;
                 while (imgSize > 1024. && unitIndex < units.size() - 1) {
                     ++unitIndex;

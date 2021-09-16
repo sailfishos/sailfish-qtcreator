@@ -30,6 +30,8 @@
 #include <utils/qtcassert.h>
 #include <utils/fileutils.h>
 
+#include <numeric>
+
 using namespace Utils;
 
 // As of MSVC 2015: "foo.cpp(42) :" -> "foo.cpp(42):"
@@ -65,7 +67,7 @@ static QPair<FilePath, int> parseFileName(const QString &input)
 using namespace ProjectExplorer;
 
 // nmake/jom messages.
-static bool handleNmakeJomMessage(const QString &line, Task *task)
+static Task handleNmakeJomMessage(const QString &line)
 {
     int matchLength = 0;
     if (line.startsWith("Error:"))
@@ -74,10 +76,9 @@ static bool handleNmakeJomMessage(const QString &line, Task *task)
         matchLength = 8;
 
     if (!matchLength)
-        return false;
+        return {};
 
-    *task = CompileTask(Task::Error, line.mid(matchLength).trimmed());
-    return true;
+    return CompileTask(Task::Error, line.mid(matchLength).trimmed());
 }
 
 static Task::TaskType taskType(const QString &category)
@@ -113,7 +114,7 @@ OutputLineParser::Result MsvcParser::handleLine(const QString &line, OutputForma
             if (m_lastTask.isNull())
                 return Status::NotHandled;
 
-            m_lastTask.details.append(rightTrimmed(line.mid(8)));
+            m_lastTask.details.append(rightTrimmed(line));
             ++m_lines;
             return Status::InProgress;
         }
@@ -121,7 +122,10 @@ OutputLineParser::Result MsvcParser::handleLine(const QString &line, OutputForma
         const Result res = processCompileLine(line);
         if (res.status != Status::NotHandled)
             return res;
-        if (handleNmakeJomMessage(line, &m_lastTask)) {
+        const Task t = handleNmakeJomMessage(line);
+        if (!t.isNull()) {
+            flush();
+            m_lastTask = t;
             m_lines = 1;
             return Status::InProgress;
         }
@@ -145,7 +149,10 @@ OutputLineParser::Result MsvcParser::handleLine(const QString &line, OutputForma
     if (res.status != Status::NotHandled)
         return res;
     // Jom outputs errors to stderr
-    if (handleNmakeJomMessage(line, &m_lastTask)) {
+    const Task t = handleNmakeJomMessage(line);
+    if (!t.isNull()) {
+        flush();
+        m_lastTask = t;
         m_lines = 1;
         return Status::InProgress;
     }
@@ -154,20 +161,32 @@ OutputLineParser::Result MsvcParser::handleLine(const QString &line, OutputForma
 
 MsvcParser::Result MsvcParser::processCompileLine(const QString &line)
 {
-    flush();
-
     QRegularExpressionMatch match = m_compileRegExp.match(line);
     if (match.hasMatch()) {
         QPair<FilePath, int> position = parseFileName(match.captured(1));
         const FilePath filePath = absoluteFilePath(position.first);
-        m_lastTask = CompileTask(taskType(match.captured(2)),
-                                 match.captured(3) + match.captured(4).trimmed(), // description
-                                 filePath, position.second);
-        m_lines = 1;
         LinkSpecs linkSpecs;
-        addLinkSpecForAbsoluteFilePath(linkSpecs, m_lastTask.file, m_lastTask.line, match, 1);
+        if (!m_lastTask.isNull() && line.contains("note: ")) {
+            addLinkSpecForAbsoluteFilePath(linkSpecs, filePath, position.second, match, 1);
+            const int offset = std::accumulate(m_lastTask.details.cbegin(),
+                    m_lastTask.details.cend(), 0,
+                    [](int total, const QString &line) { return total + line.length() + 1;});
+            for (LinkSpec &ls : linkSpecs)
+                ls.startPos += offset;
+            m_linkSpecs << linkSpecs;
+            m_lastTask.details.append(line);
+            ++m_lines;
+        } else {
+            flush();
+            m_lastTask = CompileTask(taskType(match.captured(2)),
+                                     match.captured(3) + match.captured(4).trimmed(), // description
+                                     filePath, position.second);
+            m_lines = 1;
+        }
         return {Status::InProgress, linkSpecs};
     }
+
+    flush();
     return Status::NotHandled;
 }
 
@@ -176,9 +195,10 @@ void MsvcParser::flush()
     if (m_lastTask.isNull())
         return;
 
-    setDetailsFormat(m_lastTask);
+    setDetailsFormat(m_lastTask, m_linkSpecs);
     Task t = m_lastTask;
     m_lastTask.clear();
+    m_linkSpecs.clear();
     scheduleTask(t, m_lines, 1);
 }
 
@@ -212,7 +232,10 @@ static inline bool isClangCodeMarker(const QString &trimmedLine)
 OutputLineParser::Result ClangClParser::handleLine(const QString &line, OutputFormat type)
 {
     if (type == StdOutFormat) {
-        if (handleNmakeJomMessage(line, &m_lastTask)) {
+        const Task t = handleNmakeJomMessage(line);
+        if (!t.isNull()) {
+            flush();
+            m_lastTask = t;
             m_linkedLines = 1;
             flush();
             return Status::Done;
@@ -221,7 +244,10 @@ OutputLineParser::Result ClangClParser::handleLine(const QString &line, OutputFo
     }
     const QString lne = rightTrimmed(line); // Strip \n.
 
-    if (handleNmakeJomMessage(lne, &m_lastTask)) {
+    const Task t = handleNmakeJomMessage(lne);
+    if (!t.isNull()) {
+        flush();
+        m_lastTask = t;
         m_linkedLines = 1;
         flush();
         return Status::Done;
@@ -290,6 +316,25 @@ void ProjectExplorerPlugin::testMsvcOutputParsers_data()
     QTest::addColumn<QString>("childStdErrLines");
     QTest::addColumn<Tasks >("tasks");
     QTest::addColumn<QString>("outputLines");
+
+    auto compileTask = [](Task::TaskType type,
+                          const QString &description,
+                          const Utils::FilePath &file,
+                          int line,
+                          const QVector<QTextLayout::FormatRange> formats)
+    {
+        CompileTask task(type, description, file, line);
+        task.formats = formats;
+        return task;
+    };
+
+    auto formatRange = [](int start, int length, const QString &anchorHref = QString())
+    {
+        QTextCharFormat format;
+        format.setAnchorHref(anchorHref);
+
+        return QTextLayout::FormatRange{start, length, format};
+    };
 
     QTest::newRow("pass-through stdout")
             << "Sometext" << OutputParserTester::STDOUT
@@ -410,14 +455,17 @@ void ProjectExplorerPlugin::testMsvcOutputParsers_data()
             << OutputParserTester::STDOUT
             << "" << ""
             << (Tasks()
-                << CompileTask(Task::Error,
+                << compileTask(Task::Error,
                                "C2440: 'initializing' : cannot convert from 'int' to 'std::_Tree<_Traits>::iterator'\n"
-                               "with\n"
-                               "[\n"
-                               "    _Traits=std::_Tmap_traits<int,double,std::less<int>,std::allocator<std::pair<const int,double>>,false>\n"
-                               "]\n"
-                               "No constructor could take the source type, or constructor overload resolution was ambiguous",
-                               FilePath::fromUserInput("..\\untitled\\main.cpp"), 19))
+                               "        with\n"
+                               "        [\n"
+                               "            _Traits=std::_Tmap_traits<int,double,std::less<int>,std::allocator<std::pair<const int,double>>,false>\n"
+                               "        ]\n"
+                               "        No constructor could take the source type, or constructor overload resolution was ambiguous",
+                               FilePath::fromUserInput("..\\untitled\\main.cpp"),
+                               19,
+                               QVector<QTextLayout::FormatRange>()
+                                   << formatRange(85, 247)))
             << "";
 
     QTest::newRow("Linker error 1")
@@ -476,14 +524,17 @@ void ProjectExplorerPlugin::testMsvcOutputParsers_data()
                 << CompileTask(Task::Unknown,
                         "see declaration of 'std::_Copy_impl'",
                         FilePath::fromUserInput("c:\\Program Files (x86)\\Microsoft Visual Studio 10.0\\VC\\INCLUDE\\xutility"), 2212)
-                << CompileTask(Task::Unknown,
+                << compileTask(Task::Unknown,
                         "see reference to function template instantiation '_OutIt std::copy<const unsigned char*,unsigned short*>(_InIt,_InIt,_OutIt)' being compiled\n"
-                        "with\n"
-                        "[\n"
-                        "    _OutIt=unsigned short *,\n"
-                        "    _InIt=const unsigned char *\n"
-                        "]",
-                        FilePath::fromUserInput("symbolgroupvalue.cpp"), 2314))
+                        "        with\n"
+                        "        [\n"
+                        "            _OutIt=unsigned short *,\n"
+                        "            _InIt=const unsigned char *\n"
+                        "        ]",
+                        FilePath::fromUserInput("symbolgroupvalue.cpp"),
+                        2314,
+                        QVector<QTextLayout::FormatRange>()
+                            << formatRange(141, 109)))
             << "";
 
     QTest::newRow("Ambiguous symbol")
@@ -516,13 +567,13 @@ void ProjectExplorerPlugin::testMsvcOutputParsers_data()
                "main.cpp(6): note: see declaration of 'func'"
             << OutputParserTester::STDOUT
             << "" << ""
-            << (Tasks()
-                << CompileTask(Task::Error,
-                               "C2733: 'func': second C linkage of overloaded function not allowed",
-                               FilePath::fromUserInput("main.cpp"), 7)
-                << CompileTask(Task::Unknown,
-                               "see declaration of 'func'",
-                               FilePath::fromUserInput("main.cpp"), 6))
+            << Tasks{compileTask(Task::Error,
+                               "C2733: 'func': second C linkage of overloaded function not allowed\n"
+                               "main.cpp(6): note: see declaration of 'func'",
+                               FilePath::fromUserInput("main.cpp"),
+                               7,
+                               QVector<QTextLayout::FormatRange>()
+                                   << formatRange(67, 44))}
             << "";
 
     QTest::newRow("cyrillic warning") // QTCREATORBUG-20297

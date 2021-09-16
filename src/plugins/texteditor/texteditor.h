@@ -366,6 +366,7 @@ public:
     void setExtraEncodingSettings(const TextEditor::ExtraEncodingSettings &);
 
     void circularPaste();
+    void pasteWithoutFormat();
     void switchUtf8bom();
 
     void zoomF(float delta);
@@ -620,6 +621,8 @@ private:
     friend class Internal::TextEditorWidgetPrivate;
     friend class Internal::TextEditorOverlay;
     friend class RefactorOverlay;
+
+    void updateVisualWrapColumn();
 };
 
 class TEXTEDITOR_EXPORT TextEditorLinkLabel : public Utils::ElidingLabel

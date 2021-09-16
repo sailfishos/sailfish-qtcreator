@@ -63,9 +63,9 @@ CurveEditorStyle CurveEditorModel::style() const
 {
     // Pseudo auto generated. See: CurveEditorStyleDialog
     CurveEditorStyle out;
-    out.backgroundBrush = QBrush(QColor(21, 21, 21));
-    out.backgroundAlternateBrush = QBrush(QColor(32, 32, 32));
-    out.fontColor = QColor(255, 255, 255);
+    out.backgroundBrush = QmlDesigner::Theme::getColor(QmlDesigner::Theme::DSsectionHeadBackground);
+    out.backgroundAlternateBrush = QmlDesigner::Theme::getColor(QmlDesigner::Theme::DSpanelBackground);
+    out.fontColor = QmlDesigner::Theme::getColor(QmlDesigner::Theme::DStextColor);
     out.gridColor = QColor(114, 116, 118);
     out.canvasMargin = 15;
     out.zoomInWidth = 99;
@@ -73,7 +73,7 @@ CurveEditorStyle CurveEditorModel::style() const
     out.timeAxisHeight = 60;
     out.timeOffsetLeft = 10;
     out.timeOffsetRight = 10;
-    out.rangeBarColor = QmlDesigner::Theme::instance()->qmlDesignerBackgroundColorDarkAlternate();
+    out.rangeBarColor = QmlDesigner::Theme::getColor(Theme::DScontrolBackground);
     out.rangeBarCapsColor = QmlDesigner::Theme::getColor(
         QmlDesigner::Theme::QmlDesigner_HighlightColor);
     out.valueAxisWidth = 60;
@@ -255,7 +255,7 @@ TreeItem *CurveEditorModel::createTopLevelItem(const QmlDesigner::QmlTimeline &t
     for (auto &&grp : timeline.keyframeGroupsForTarget(node)) {
         if (grp.isValid()) {
             AnimationCurve curve = createAnimationCurve(grp);
-            if (curve.isValid()) {
+            if (!curve.isEmpty()) {
                 QString name = QString::fromUtf8(grp.propertyName());
                 auto propertyItem = new PropertyTreeItem(name, curve, typeFrom(grp));
 

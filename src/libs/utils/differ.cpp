@@ -89,14 +89,13 @@ static QList<Diff> decode(const QList<Diff> &diffList, const QStringList &lines)
 {
     QList<Diff> newDiffList;
     newDiffList.reserve(diffList.count());
-    for (Diff diff : diffList) {
+    for (const Diff &diff : diffList) {
         QString text;
         for (QChar c : diff.text) {
             const int idx = static_cast<ushort>(c.unicode());
             text += lines.value(idx);
         }
-        diff.text = text;
-        newDiffList.append(diff);
+        newDiffList.append({diff.command, text});
     }
     return newDiffList;
 }
@@ -159,7 +158,7 @@ static QList<Diff> cleanupOverlaps(const QList<Diff> &diffList)
         Diff thisDiff = diffList.at(i);
         Diff nextDiff = i < diffList.count() - 1
                 ? diffList.at(i + 1)
-                : Diff(Diff::Equal, QString());
+                : Diff(Diff::Equal);
         if (thisDiff.command == Diff::Delete
                 && nextDiff.command == Diff::Insert) {
             const int delInsOverlap = commonOverlap(thisDiff.text, nextDiff.text);
@@ -697,7 +696,7 @@ static bool diffWithWhitespaceExpandedInEqualities(const QList<Diff> &leftInput,
     }
 
     Differ differ;
-    const QList<Diff> &diffList = differ.cleanupSemantics(
+    const QList<Diff> &diffList = Differ::cleanupSemantics(
                 differ.diff(leftText, rightText));
 
     QList<Diff> leftDiffList;
@@ -882,7 +881,7 @@ void Differ::diffBetweenEqualities(const QList<Diff> &leftInput,
                     && previousRightDiff.command == Diff::Insert) {
                 Differ differ;
                 differ.setDiffMode(Differ::CharMode);
-                const QList<Diff> commonOutput = differ.cleanupSemantics(
+                const QList<Diff> commonOutput = cleanupSemantics(
                             differ.diff(previousLeftDiff.text, previousRightDiff.text));
 
                 QList<Diff> outputLeftDiffList;
@@ -925,12 +924,6 @@ void Differ::diffBetweenEqualities(const QList<Diff> &leftInput,
 }
 
 ///////////////
-
-
-Diff::Diff() :
-    command(Diff::Equal)
-{
-}
 
 Diff::Diff(Command com, const QString &txt) :
     command(com),

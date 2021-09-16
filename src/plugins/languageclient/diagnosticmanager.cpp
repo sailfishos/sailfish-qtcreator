@@ -34,6 +34,9 @@
 #include <texteditor/textstyles.h>
 #include <utils/utilsicons.h>
 
+#include <QAction>
+#include <QApplication>
+#include <QClipboard>
 #include <QTextEdit>
 
 using namespace LanguageServerProtocol;
@@ -76,16 +79,20 @@ DiagnosticManager::~DiagnosticManager()
 }
 
 void DiagnosticManager::setDiagnostics(const LanguageServerProtocol::DocumentUri &uri,
-                                       const QList<LanguageServerProtocol::Diagnostic> &diagnostics)
+                                       const QList<LanguageServerProtocol::Diagnostic> &diagnostics,
+                                       const Utils::optional<int> &version)
 {
     removeDiagnostics(uri);
-    m_diagnostics[uri] = diagnostics;
+    m_diagnostics[uri] = {version, diagnostics};
 }
 
 void DiagnosticManager::hideDiagnostics(TextDocument *doc)
 {
     if (!doc)
         return;
+
+    for (BaseTextEditor *editor : BaseTextEditor::textEditorsForDocument(doc))
+        editor->editorWidget()->setExtraSelections(TextEditorWidget::CodeWarningsSelection, {});
     qDeleteAll(Utils::filtered(doc->marks(), Utils::equal(&TextMark::category, m_clientId)));
 }
 
@@ -103,7 +110,7 @@ static QTextEdit::ExtraSelection toDiagnosticsSelections(const Diagnostic &diagn
     cursor.setPosition(diagnostic.range().end().toPositionInDocument(textDocument),
                        QTextCursor::KeepAnchor);
 
-    const FontSettings &fontSettings = TextEditorSettings::instance()->fontSettings();
+    const FontSettings &fontSettings = TextEditorSettings::fontSettings();
     const DiagnosticSeverity severity = diagnostic.severity().value_or(DiagnosticSeverity::Warning);
     const TextStyle style = severity == DiagnosticSeverity::Error ? C_ERROR : C_WARNING;
 
@@ -115,10 +122,24 @@ void DiagnosticManager::showDiagnostics(const DocumentUri &uri)
     const FilePath &filePath = uri.toFilePath();
     if (TextDocument *doc = TextDocument::textDocumentForFilePath(filePath)) {
         QList<QTextEdit::ExtraSelection> extraSelections;
+        const VersionedDiagnostics &versionedDiagnostics =  m_diagnostics.value(uri);
+        const int docRevision = doc->document()->revision();
+        if (versionedDiagnostics.version.value_or(docRevision) == docRevision) {
+            const auto icon = QIcon::fromTheme("edit-copy", Utils::Icons::COPY.icon());
+            const QString tooltip = tr("Copy to Clipboard");
+            for (const Diagnostic &diagnostic : versionedDiagnostics.diagnostics) {
+                QAction *action = new QAction();
+                action->setIcon(icon);
+                action->setToolTip(tooltip);
+                QObject::connect(action, &QAction::triggered, [text = diagnostic.message()]() {
+                    QApplication::clipboard()->setText(text);
+                });
+                auto mark = new TextMark(filePath, diagnostic, m_clientId);
+                mark->setActions({action});
 
-        for (const Diagnostic &diagnostic : m_diagnostics.value(uri)) {
-            doc->addMark(new TextMark(filePath, diagnostic, m_clientId));
-            extraSelections << toDiagnosticsSelections(diagnostic, doc->document());
+                doc->addMark(mark);
+                extraSelections << toDiagnosticsSelections(diagnostic, doc->document());
+            }
         }
 
         for (BaseTextEditor *editor : BaseTextEditor::textEditorsForDocument(doc)) {
@@ -134,9 +155,16 @@ void DiagnosticManager::clearDiagnostics()
         removeDiagnostics(uri);
 }
 
-QList<Diagnostic> DiagnosticManager::diagnosticsAt(const DocumentUri &uri, const Range &range) const
+QList<Diagnostic> DiagnosticManager::diagnosticsAt(const DocumentUri &uri,
+                                                   const QTextCursor &cursor) const
 {
-    return Utils::filtered(m_diagnostics.value(uri), [range](const Diagnostic &diagnostic) {
+    const int documentRevision = cursor.document()->revision();
+    auto it = m_diagnostics.find(uri);
+    if (it == m_diagnostics.end())
+        return {};
+    if (documentRevision != it->version.value_or(documentRevision))
+        return {};
+    return Utils::filtered(it->diagnostics, [range = Range(cursor)](const Diagnostic &diagnostic) {
         return diagnostic.range().overlaps(range);
     });
 }

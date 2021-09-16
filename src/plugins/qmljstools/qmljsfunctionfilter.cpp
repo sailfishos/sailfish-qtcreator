@@ -44,15 +44,11 @@ FunctionFilter::FunctionFilter(LocatorData *data, QObject *parent)
 {
     setId("Functions");
     setDisplayName(tr("QML Functions"));
-    setShortcutString("m");
-    setIncludedByDefault(false);
+    setDefaultShortcutString("m");
+    setDefaultIncludedByDefault(false);
 }
 
 FunctionFilter::~FunctionFilter() = default;
-
-void FunctionFilter::refresh(QFutureInterface<void> &)
-{
-}
 
 QList<Core::LocatorFilterEntry> FunctionFilter::matchesFor(
         QFutureInterface<Core::LocatorFilterEntry> &future,

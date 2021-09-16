@@ -307,12 +307,13 @@ public:
         m_toolChains.append(this);
         setLanguage(Constants::CXX_LANGUAGE_ID);
         setTypeDisplayName("Test Tool Chain");
+        setTargetAbiNoSignal(Abi::hostAbi());
+        setCompilerCommand(FilePath::fromString("/tmp/test/gcc"));
     }
 
     static QList<TTC *> toolChains() { return m_toolChains; }
     static bool hasToolChains() { return !m_toolChains.isEmpty(); }
 
-    Abi targetAbi() const override { return Abi::hostAbi(); }
     bool isValid() const override { return m_valid; }
     MacroInspectionRunner createMacroInspectionRunner() const override { return MacroInspectionRunner(); }
     LanguageExtensions languageExtensions(const QStringList &cxxflags) const override { Q_UNUSED(cxxflags) return LanguageExtension::None; }
@@ -320,7 +321,6 @@ public:
     BuiltInHeaderPathsRunner createBuiltInHeaderPathsRunner(const Utils::Environment &) const override { return BuiltInHeaderPathsRunner(); }
     void addToEnvironment(Environment &env) const override { Q_UNUSED(env) }
     FilePath makeCommand(const Environment &) const override { return FilePath::fromString("make"); }
-    FilePath compilerCommand() const override { return Utils::FilePath::fromString("/tmp/test/gcc"); }
     QList<OutputLineParser *> createOutputParsers() const override { return {}; }
     std::unique_ptr<ToolChainConfigWidget> createConfigurationWidget() override { return nullptr; }
     bool operator ==(const ToolChain &other) const override {

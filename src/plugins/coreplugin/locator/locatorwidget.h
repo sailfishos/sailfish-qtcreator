@@ -27,11 +27,14 @@
 
 #include "locator.h"
 
+#include <extensionsystem/iplugin.h>
 #include <utils/optional.h>
 
 #include <QFutureWatcher>
 #include <QPointer>
 #include <QWidget>
+
+#include <functional>
 
 QT_BEGIN_NAMESPACE
 class QAbstractItemModel;
@@ -54,6 +57,7 @@ class LocatorWidget
 
 public:
     explicit LocatorWidget(Locator *locator);
+    ~LocatorWidget() override;
 
     void showText(const QString &text, int selectionStart = -1, int selectionLength = 0);
     QString currentText() const;
@@ -62,6 +66,9 @@ public:
     void updatePlaceholderText(Command *command);
 
     void scheduleAcceptEntry(const QModelIndex &index);
+
+    static ExtensionSystem::IPlugin::ShutdownFlag aboutToShutdown(
+        const std::function<void()> &emitAsynchronousShutdownFinished);
 
 signals:
     void showCurrentItemToolTip();
@@ -76,7 +83,7 @@ private:
     void showPopupDelayed();
     void showPopupNow();
     void acceptEntry(int row);
-    void showConfigureDialog();
+    static void showConfigureDialog();
     void addSearchResults(int firstIndex, int endIndex);
     void handleSearchFinished();
     void updateFilterList();
@@ -86,10 +93,14 @@ private:
     bool eventFilter(QObject *obj, QEvent *event) override;
 
     void updateCompletionList(const QString &text);
-    QList<ILocatorFilter*> filtersFor(const QString &text, QString &searchText);
+    static QList<ILocatorFilter*> filtersFor(const QString &text, QString &searchText);
     void setProgressIndicatorVisible(bool visible);
 
     LocatorModel *m_locatorModel = nullptr;
+
+    static bool m_shuttingDown;
+    static QFuture<void> m_sharedFuture;
+    static LocatorWidget *m_sharedFutureOrigin;
 
     QMenu *m_filterMenu = nullptr;
     QAction *m_refreshAction = nullptr;
@@ -100,6 +111,7 @@ private:
     QString m_requestedCompletionText;
     bool m_needsClearResult = true;
     bool m_updateRequested = false;
+    bool m_rerunAfterFinished = false;
     bool m_possibleToolTipRequest = false;
     QWidget *m_progressIndicator = nullptr;
     QTimer m_showProgressTimer;

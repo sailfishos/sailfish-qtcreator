@@ -23,7 +23,6 @@ HEADERS += \
     qtversionmanager.h \
     qtversionfactory.h \
     baseqtversion.h \
-    qmldumptool.h \
     qtoptionspage.h \
     qtsupportconstants.h \
     profilereader.h \
@@ -51,7 +50,6 @@ SOURCES += \
     qttestparser.cpp \
     qtversionmanager.cpp \
     baseqtversion.cpp \
-    qmldumptool.cpp \
     qtoptionspage.cpp \
     profilereader.cpp \
     qtparser.cpp \

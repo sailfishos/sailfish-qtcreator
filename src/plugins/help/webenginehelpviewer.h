@@ -82,9 +82,7 @@ class WebEngineHelpViewer : public HelpViewer
 public:
     explicit WebEngineHelpViewer(QWidget *parent = nullptr);
 
-    QFont viewerFont() const override;
     void setViewerFont(const QFont &font) override;
-    qreal scale() const override;
     void setScale(qreal scale) override;
     QString title() const override;
     QUrl source() const override;
@@ -99,9 +97,6 @@ public:
 
     WebEngineHelpPage *page() const;
 
-    void scaleUp() override;
-    void scaleDown() override;
-    void resetScale() override;
     void copy() override;
     void stop() override;
     void forward() override;

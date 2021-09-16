@@ -47,12 +47,15 @@ class ToolChain;
 namespace McuSupport {
 namespace Internal {
 
+void printMessage(const QString &message, bool important);
+
 class McuPackage : public QObject
 {
     Q_OBJECT
 
 public:
     enum Status {
+        EmptyPath,
         InvalidPath,
         ValidPathInvalidPackage,
         ValidPackage
@@ -62,10 +65,14 @@ public:
                const QString &settingsKey);
     virtual ~McuPackage() = default;
 
+    QString basePath() const;
     QString path() const;
     QString label() const;
     QString defaultPath() const;
     QString detectionPath() const;
+    QString statusText() const;
+    void updateStatus();
+
     Status status() const;
     void setDownloadUrl(const QString &url);
     void setEnvironmentVariableName(const QString &name);
@@ -84,9 +91,11 @@ public:
 
 signals:
     void changed();
+    void statusChanged();
 
 private:
-    void updateStatus();
+    void updatePath();
+    void updateStatusUi();
 
     QWidget *m_widget = nullptr;
     Utils::PathChooser *m_fileChooser = nullptr;
@@ -117,6 +126,7 @@ public:
         TypeGHS,
         TypeMSVC,
         TypeGCC,
+        TypeGHSArm,
         TypeUnsupported
     };
 
@@ -166,6 +176,7 @@ public:
     void setColorDepth(int colorDepth);
     int colorDepth() const;
     bool isValid() const;
+    void printPackageProblems() const;
 
 private:
     const QVersionNumber m_qulVersion;
@@ -198,6 +209,7 @@ public:
     static void removeOutdatedKits();
     static ProjectExplorer::Kit *newKit(const McuTarget *mcuTarget, const McuPackage *qtForMCUsSdk);
     static void createAutomaticKits();
+    static void fixExistingKits();
     void populatePackagesAndTargets();
     static void registerQchFiles();
     static void registerExamples();

@@ -32,11 +32,14 @@
 
 #include <cplusplus/CppDocument.h>
 
+#include <QFuture>
+#include <QIcon>
+#include <QSharedPointer>
 #include <QString>
 #include <QStringList>
-#include <QSharedPointer>
 #include <QTextCursor>
-#include <QIcon>
+
+#include <functional>
 
 namespace CPlusPlus {
 class LookupItem;
@@ -47,38 +50,27 @@ namespace CppTools {
 class CppElement;
 class CppModelManager;
 
-class CPPTOOLS_EXPORT CppElementEvaluator
+class CPPTOOLS_EXPORT CppElementEvaluator final
 {
 public:
     explicit CppElementEvaluator(TextEditor::TextEditorWidget *editor);
+    ~CppElementEvaluator();
 
     void setTextCursor(const QTextCursor &tc);
-    void setLookupBaseClasses(const bool lookup);
-    void setLookupDerivedClasses(const bool lookup);
 
     void execute();
+    static QFuture<QSharedPointer<CppElement>> asyncExecute(TextEditor::TextEditorWidget *editor);
+    static QFuture<QSharedPointer<CppElement>> asyncExecute(const QString &expression,
+                                                            const QString &fileName);
     bool identifiedCppElement() const;
     const QSharedPointer<CppElement> &cppElement() const;
     bool hasDiagnosis() const;
     const QString &diagnosis() const;
 
-private:
-    void clear();
-    void checkDiagnosticMessage(int pos);
-    bool matchIncludeFile(const CPlusPlus::Document::Ptr &document, int line);
-    bool matchMacroInUse(const CPlusPlus::Document::Ptr &document, int pos);
-    void handleLookupItemMatch(const CPlusPlus::Snapshot &snapshot,
-                               const CPlusPlus::LookupItem &lookupItem,
-                               const CPlusPlus::LookupContext &lookupContext,
-                               const CPlusPlus::Scope *scope);
+    static Utils::Link linkFromExpression(const QString &expression, const QString &fileName);
 
-    TextEditor::TextEditorWidget *m_editor;
-    CppTools::CppModelManager *m_modelManager;
-    QTextCursor m_tc;
-    bool m_lookupBaseClasses;
-    bool m_lookupDerivedClasses;
-    QSharedPointer<CppElement> m_element;
-    QString m_diagnosis;
+private:
+    class CppElementEvaluatorPrivate *d;
 };
 
 class CppClass;
@@ -123,8 +115,10 @@ public:
 
     CppClass *toCppClass() final;
 
-    void lookupBases(CPlusPlus::Symbol *declaration, const CPlusPlus::LookupContext &context);
-    void lookupDerived(CPlusPlus::Symbol *declaration, const CPlusPlus::Snapshot &snapshot);
+    void lookupBases(QFutureInterfaceBase &futureInterface,
+                     CPlusPlus::Symbol *declaration, const CPlusPlus::LookupContext &context);
+    void lookupDerived(QFutureInterfaceBase &futureInterface,
+                       CPlusPlus::Symbol *declaration, const CPlusPlus::Snapshot &snapshot);
 
 public:
     QList<CppClass> bases;

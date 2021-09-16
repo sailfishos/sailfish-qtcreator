@@ -65,7 +65,7 @@
 #include <utils/fancymainwindow.h>
 #include <utils/infolabel.h>
 #include <utils/progressindicator.h>
-#include <utils/theme/theme.h>
+#include <utils/proxyaction.h>
 #include <utils/utilsicons.h>
 
 #include <QAction>
@@ -188,7 +188,7 @@ class SelectFixitsCheckBox : public QCheckBox
     Q_OBJECT
 
 private:
-    void nextCheckState() final override
+    void nextCheckState() final
     {
         setCheckState(checkState() == Qt::Checked ? Qt::Unchecked : Qt::Checked);
     }
@@ -270,7 +270,7 @@ public:
             QVector<DiagnosticItem *> itemsSchedulable;
 
             // Construct refactoring operations
-            for (DiagnosticItem *diagnosticItem : fileInfo.diagnosticItems) {
+            for (DiagnosticItem *diagnosticItem : qAsConst(fileInfo.diagnosticItems)) {
                 const FixitStatus fixItStatus = diagnosticItem->fixItStatus();
 
                 const bool isScheduled = fixItStatus == FixitStatus::Scheduled;
@@ -289,7 +289,7 @@ public:
 
             // Collect replacements
             ReplacementOperations ops;
-            for (DiagnosticItem *item : itemsScheduledOrSchedulable)
+            for (DiagnosticItem *item : qAsConst(itemsScheduledOrSchedulable))
                 ops += item->fixitOperations();
 
             if (ops.empty())
@@ -311,11 +311,11 @@ public:
             model->addWatchedPath(ops.first()->fileName);
 
             // Update DiagnosticItem state
-            for (DiagnosticItem *diagnosticItem : itemsScheduled)
+            for (DiagnosticItem *diagnosticItem : qAsConst(itemsScheduled))
                 diagnosticItem->setFixItStatus(FixitStatus::Applied);
-            for (DiagnosticItem *diagnosticItem : itemsFailedToApply)
+            for (DiagnosticItem *diagnosticItem : qAsConst(itemsFailedToApply))
                 diagnosticItem->setFixItStatus(FixitStatus::FailedToApply);
-            for (DiagnosticItem *diagnosticItem : itemsInvalidated)
+            for (DiagnosticItem *diagnosticItem : qAsConst(itemsInvalidated))
                 diagnosticItem->setFixItStatus(FixitStatus::Invalidated);
         }
     }
@@ -333,7 +333,7 @@ static FileInfos sortedFileInfos(const QVector<CppTools::ProjectPart::Ptr> &proj
         if (!projectPart->selectedForBuilding)
             continue;
 
-        for (const CppTools::ProjectFile &file : projectPart->files) {
+        for (const CppTools::ProjectFile &file : qAsConst(projectPart->files)) {
             QTC_ASSERT(file.kind != CppTools::ProjectFile::Unclassified, continue);
             QTC_ASSERT(file.kind != CppTools::ProjectFile::Unsupported, continue);
             if (file.path == CppTools::CppModelManager::configurationFileName())
@@ -384,25 +384,12 @@ ClangTool::ClangTool()
     s_instance = this;
     m_diagnosticModel = new ClangToolsDiagnosticModel(this);
 
-    const Utils::Icon RUN_FILE_OVERLAY(
-        {{":/utils/images/run_file.png", Utils::Theme::IconsBaseColor}});
-
-    const Utils::Icon RUN_SELECTED_OVERLAY(
-        {{":/utils/images/runselected_boxes.png", Utils::Theme::BackgroundColorDark},
-         {":/utils/images/runselected_tickmarks.png", Utils::Theme::IconsBaseColor}});
-
     auto action = new QAction(tr("Analyze Project..."), this);
-    Utils::Icon runSelectedIcon = Utils::Icons::RUN_SMALL_TOOLBAR;
-    for (const Utils::IconMaskAndColor &maskAndColor : RUN_SELECTED_OVERLAY)
-        runSelectedIcon.append(maskAndColor);
-    action->setIcon(runSelectedIcon.icon());
+    action->setIcon(Utils::Icons::RUN_SELECTED_TOOLBAR.icon());
     m_startAction = action;
 
     action = new QAction(tr("Analyze Current File"), this);
-    Utils::Icon runFileIcon = Utils::Icons::RUN_SMALL_TOOLBAR;
-    for (const Utils::IconMaskAndColor &maskAndColor : RUN_FILE_OVERLAY)
-        runFileIcon.append(maskAndColor);
-    action->setIcon(runFileIcon.icon());
+    action->setIcon(Utils::Icons::RUN_FILE.icon());
     m_startOnCurrentFileAction = action;
 
     m_stopAction = Debugger::createStopAction();
@@ -583,7 +570,9 @@ ClangTool::ClangTool()
     });
 
     m_perspective.addToolBarAction(m_startAction);
-    m_perspective.addToolBarAction(m_startOnCurrentFileAction);
+    m_perspective.addToolBarAction(ProxyAction::proxyActionWithIcon(
+                                       m_startOnCurrentFileAction,
+                                       Utils::Icons::RUN_FILE_TOOLBAR.icon()));
     m_perspective.addToolBarAction(m_stopAction);
     m_perspective.addToolBarAction(m_openProjectSettings);
     m_perspective.addToolbarSeparator();
@@ -971,9 +960,6 @@ void ClangTool::filter()
         if (check.name.isEmpty()) {
             check.name = checkName;
             check.displayName = checkName;
-            const QString clangDiagPrefix = "clang-diagnostic-";
-            if (check.displayName.startsWith(clangDiagPrefix))
-                check.displayName = QString("-W%1").arg(check.name.mid(clangDiagPrefix.size()));
             check.count = 1;
             check.isShown = filterOptions ? filterOptions->checks.contains(checkName) : true;
             check.hasFixit = check.hasFixit || item->diagnostic().hasFixits;
@@ -1169,7 +1155,7 @@ void ClangTool::updateForCurrentState()
     const bool hasErrorText = !m_infoBarWidget->errorText().isEmpty();
     const bool hasErrors = m_filesFailed > 0;
     if (hasErrors && !hasErrorText) {
-        const QString text = makeLink( tr("Failed to analyze %1 files.").arg(m_filesFailed));
+        const QString text = makeLink(tr("Failed to analyze %n file(s).", nullptr, m_filesFailed));
         m_infoBarWidget->setError(InfoBarWidget::Warning, text, [this]() { showOutputPane(); });
     }
 
@@ -1185,9 +1171,8 @@ void ClangTool::updateForCurrentState()
         if (m_filesCount == 0) {
             infoText = tr("Analyzing..."); // Not yet fully started/initialized
         } else {
-            infoText = tr("Analyzing... %1 of %2 files processed.")
-                           .arg(m_filesSucceeded + m_filesFailed)
-                           .arg(m_filesCount);
+            infoText = tr("Analyzing... %1 of %n file(s) processed.", nullptr, m_filesCount)
+                           .arg(m_filesSucceeded + m_filesFailed);
         }
         break;
     case State::PreparationStarted:
@@ -1200,7 +1185,7 @@ void ClangTool::updateForCurrentState()
         infoText = tr("Analysis stopped by user.");
         break;
     case State::AnalyzerFinished:
-        infoText = tr("Finished processing %1 files.").arg(m_filesCount);
+        infoText = tr("Finished processing %n file(s).", nullptr, m_filesCount);
         break;
     case State::ImportFinished:
         infoText = tr("Diagnostics imported.");

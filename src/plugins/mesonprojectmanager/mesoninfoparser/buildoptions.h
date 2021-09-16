@@ -22,17 +22,19 @@
 ** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
+
 #pragma once
+
 #include <utils/fileutils.h>
 #include <utils/optional.h>
+
 #include <QCheckBox>
 #include <QComboBox>
 #include <QLabel>
 #include <QLineEdit>
 #include <QSpinBox>
-#include <QString>
 #include <QVariant>
-#include <QWidget>
+
 namespace MesonProjectManager {
 namespace Internal {
 
@@ -143,7 +145,7 @@ protected:
     QString m_currentValue;
 };
 
-struct FeatureBuildOption : BuildOption
+struct FeatureBuildOption final : BuildOption
 {
     QVariant value() const override { return QVariant::fromValue(m_currentValue); }
     QString valueStr() const override { return m_currentValue.value(); }
@@ -223,7 +225,7 @@ protected:
     QStringList m_currentValue;
 };
 
-struct BooleanBuildOption : BuildOption
+struct BooleanBuildOption final : BuildOption
 {
     QVariant value() const override { return m_currentValue; }
     QString valueStr() const override

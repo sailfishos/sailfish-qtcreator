@@ -102,7 +102,7 @@ ModelNode AbstractView::createModelNode(const TypeName &typeName,
     Returns the constant root model node.
 */
 
-const ModelNode AbstractView::rootModelNode() const
+ModelNode AbstractView::rootModelNode() const
 {
     Q_ASSERT(model());
     return ModelNode(model()->d->rootNode(), model(), const_cast<AbstractView*>(this));
@@ -329,6 +329,8 @@ void AbstractView::variantPropertiesChanged(const QList<VariantProperty>& /*prop
 {
 }
 
+void AbstractView::bindingPropertiesAboutToBeChanged(const QList<BindingProperty> &) {}
+
 void AbstractView::bindingPropertiesChanged(const QList<BindingProperty>& /*propertyList*/, PropertyChangeFlags /*propertyChange*/)
 {
 }
@@ -383,6 +385,10 @@ void AbstractView::renderImage3DChanged(const QImage & /*image*/)
 }
 
 void AbstractView::updateActiveScene3D(const QVariantMap & /*sceneState*/)
+{
+}
+
+void AbstractView::updateImport3DSupport(const QVariantMap & /*supportMap*/)
 {
 }
 
@@ -465,7 +471,7 @@ bool AbstractView::isSelectedModelNode(const ModelNode &modelNode) const
     Sets the list of nodes to the actual selected nodes. Returns a list of the
     selected nodes.
 */
-const QList<ModelNode> AbstractView::selectedModelNodes() const
+QList<ModelNode> AbstractView::selectedModelNodes() const
 {
     return toModelNodeList(model()->d->selectedNodes());
 }
@@ -690,6 +696,7 @@ void AbstractView::setEnabled(bool b)
 
 QList<ModelNode> AbstractView::allModelNodes() const
 {
+    QTC_ASSERT(model(), return {});
     return toModelNodeList(model()->d->allNodes());
 }
 
@@ -802,6 +809,12 @@ void AbstractView::emitModelNodelPreviewPixmapChanged(const ModelNode &node, con
 {
     if (model())
         model()->d->notifyModelNodePreviewPixmapChanged(node, pixmap);
+}
+
+void AbstractView::emitImport3DSupportChanged(const QVariantMap &supportMap)
+{
+    if (model())
+        model()->d->notifyImport3DSupportChanged(supportMap);
 }
 
 void AbstractView::emitRewriterEndTransaction()

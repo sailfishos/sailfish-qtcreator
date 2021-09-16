@@ -22,6 +22,8 @@
 #include "Type.h"
 #include "CoreTypes.h"
 
+#include <functional>
+
 using namespace CPlusPlus;
 
 FullySpecifiedType::FullySpecifiedType(Type *type) :
@@ -198,6 +200,11 @@ bool FullySpecifiedType::operator < (const FullySpecifiedType &other) const
     if (_type == other._type)
         return _flags < other._flags;
     return _type < other._type;
+}
+
+size_t FullySpecifiedType::hash() const
+{
+    return std::hash<Type *>()(_type) ^ std::hash<unsigned>()(_flags);
 }
 
 FullySpecifiedType FullySpecifiedType::simplified() const

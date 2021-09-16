@@ -23,20 +23,23 @@
 **
 ****************************************************************************/
 
+#include "testtreemodel.h"
+
 #include "autotestconstants.h"
 #include "autotestplugin.h"
 #include "testcodeparser.h"
 #include "testframeworkmanager.h"
 #include "testprojectsettings.h"
 #include "testsettings.h"
-#include "testtreeitem.h"
-#include "testtreemodel.h"
 
 #include <cpptools/cppmodelmanager.h>
+#include <projectexplorer/buildsystem.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/session.h>
+#include <projectexplorer/target.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
 #include <texteditor/texteditor.h>
+#include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
 using namespace ProjectExplorer;
@@ -61,8 +64,8 @@ TestTreeModel::TestTreeModel(TestCodeParser *parser) :
             this, &TestTreeModel::sweep, Qt::QueuedConnection);
     connect(m_parser, &TestCodeParser::parsingFailed,
             this, &TestTreeModel::sweep, Qt::QueuedConnection);
-    connect(m_parser, &TestCodeParser::requestRemoveAll,
-            this, &TestTreeModel::markAllForRemoval);
+    connect(m_parser, &TestCodeParser::requestRemoveAllFrameworkItems,
+            this, &TestTreeModel::markAllFrameworkItemsForRemoval);
     connect(m_parser, &TestCodeParser::requestRemoval,
             this, &TestTreeModel::markForRemoval);
     connect(this, &QAbstractItemModel::dataChanged,
@@ -89,12 +92,23 @@ void TestTreeModel::setupParsingConnections()
     m_parser->setState(TestCodeParser::Idle);
 
     SessionManager *sm = SessionManager::instance();
-    connect(sm, &SessionManager::startupProjectChanged, [this](Project *project) {
+    connect(sm, &SessionManager::startupProjectChanged, [this, sm](Project *project) {
         synchronizeTestFrameworks(); // we might have project settings
         m_parser->onStartupProjectChanged(project);
+        removeAllTestToolItems();
         m_checkStateCache = project ? AutotestPlugin::projectSettings(project)->checkStateCache()
                                     : nullptr;
+        onBuildSystemTestsUpdated(); // we may have old results if project was open before switching
         m_failedStateCache.clear();
+        if (project) {
+            if (sm->startupBuildSystem()) {
+                connect(sm->startupBuildSystem(), &BuildSystem::testInformationUpdated,
+                        this, &TestTreeModel::onBuildSystemTestsUpdated, Qt::UniqueConnection);
+            } else {
+                connect(project, &Project::activeTargetChanged,
+                        this, &TestTreeModel::onTargetChanged);
+            }
+        }
     });
 
     CppTools::CppModelManager *cppMM = CppTools::CppModelManager::instance();
@@ -118,7 +132,7 @@ bool TestTreeModel::setData(const QModelIndex &index, const QVariant &value, int
     if (!index.isValid())
         return false;
 
-    TestTreeItem *item = static_cast<TestTreeItem *>(index.internalPointer());
+    ITestTreeItem *item = static_cast<ITestTreeItem *>(index.internalPointer());
     if (item && item->setData(index.column(), value, role)) {
         emit dataChanged(index, index, {role});
         if (role == Qt::CheckStateRole) {
@@ -130,11 +144,15 @@ bool TestTreeModel::setData(const QModelIndex &index, const QVariant &value, int
                     setData(idx, checked ? Qt::Checked : Qt::Unchecked, Qt::CheckStateRole);
                 }
             }
-            if (item->parent() != rootItem() && item->parentItem()->checked() != checked)
-                revalidateCheckState(item->parentItem()); // handle parent too
+            if (item->parent() != rootItem()) {
+                auto parent = static_cast<ITestTreeItem *>(item->parent());
+                if (parent->checked() != checked)
+                    revalidateCheckState(parent); // handle parent too
+            }
             return true;
         } else if (role == FailedRole) {
-            m_failedStateCache.insert(item, true);
+            if (item->testBase()->type() == ITestBase::Framework)
+                m_failedStateCache.insert(static_cast<TestTreeItem *>(item), true);
         }
     }
     return false;
@@ -145,7 +163,7 @@ Qt::ItemFlags TestTreeModel::flags(const QModelIndex &index) const
     if (!index.isValid())
         return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
 
-    TestTreeItem *item = static_cast<TestTreeItem *>(itemForIndex(index));
+    ITestTreeItem *item = static_cast<ITestTreeItem *>(itemForIndex(index));
     return item->flags(index.column());
 }
 
@@ -158,49 +176,54 @@ bool TestTreeModel::hasTests() const
     return false;
 }
 
-QList<TestConfiguration *> TestTreeModel::getAllTestCases() const
+QList<ITestConfiguration *> TestTreeModel::getAllTestCases() const
 {
-    QList<TestConfiguration *> result;
-    for (Utils::TreeItem *frameworkRoot : *rootItem())
-        result.append(static_cast<TestTreeItem *>(frameworkRoot)->getAllTestConfigurations());
+    QList<ITestConfiguration *> result;
+    forItemsAtLevel<1>([&result](ITestTreeItem *testRoot) {
+        result.append(testRoot->getAllTestConfigurations());
+    });
     return result;
 }
 
-QList<TestConfiguration *> TestTreeModel::getSelectedTests() const
+QList<ITestConfiguration *> TestTreeModel::getSelectedTests() const
 {
-    QList<TestConfiguration *> result;
-    for (Utils::TreeItem *frameworkRoot : *rootItem())
-        result.append(static_cast<TestTreeItem *>(frameworkRoot)->getSelectedTestConfigurations());
+    QList<ITestConfiguration *> result;
+    forItemsAtLevel<1>([&result](ITestTreeItem *testRoot) {
+        result.append(testRoot->getSelectedTestConfigurations());
+    });
     return result;
 }
 
-QList<TestConfiguration *> TestTreeModel::getFailedTests() const
+QList<ITestConfiguration *> TestTreeModel::getFailedTests() const
 {
-    QList<TestConfiguration *> result;
-    for (Utils::TreeItem *frameworkRoot : *rootItem())
-        result.append(static_cast<TestTreeItem *>(frameworkRoot)->getFailedTestConfigurations());
+    QList<ITestConfiguration *> result;
+    forItemsAtLevel<1>([&result](ITestTreeItem *testRoot) {
+        result.append(testRoot->getFailedTestConfigurations());
+    });
     return result;
 }
 
-QList<TestConfiguration *> TestTreeModel::getTestsForFile(const Utils::FilePath &fileName) const
+QList<ITestConfiguration *> TestTreeModel::getTestsForFile(const Utils::FilePath &fileName) const
 {
-    QList<TestConfiguration *> result;
-    for (Utils::TreeItem *frameworkRoot : *rootItem())
-        result.append(static_cast<TestTreeItem *>(frameworkRoot)->getTestConfigurationsForFile(fileName));
+    QList<ITestConfiguration *> result;
+    forItemsAtLevel<1>([&result, &fileName](ITestTreeItem *testRoot) {
+        if (testRoot->testBase()->type() == ITestBase::Framework)
+            result.append(static_cast<TestTreeItem *>(testRoot)->getTestConfigurationsForFile(fileName));
+    });
     return result;
 }
 
-QList<TestTreeItem *> TestTreeModel::testItemsByName(TestTreeItem *root, const QString &testName)
+static QList<ITestTreeItem *> testItemsByName(TestTreeItem *root, const QString &testName)
 {
-    QList<TestTreeItem *> result;
+    QList<ITestTreeItem *> result;
 
-    root->forFirstLevelChildren([&testName, &result, this](TestTreeItem *node) {
+    root->forFirstLevelChildItems([&testName, &result](TestTreeItem *node) {
         if (node->type() == TestTreeItem::TestSuite || node->type() == TestTreeItem::TestCase) {
             if (node->name() == testName) {
                 result << node;
                 return; // prioritize test suites and cases over test functions
             }
-            TestTreeItem *testCase = node->findFirstLevelChild([&testName](TestTreeItem *it) {
+            TestTreeItem *testCase = node->findFirstLevelChildItem([&testName](TestTreeItem *it) {
                 QTC_ASSERT(it, return false);
                 return (it->type() == TestTreeItem::TestCase
                         || it->type() == TestTreeItem::TestFunction) && it->name() == testName;
@@ -214,11 +237,69 @@ QList<TestTreeItem *> TestTreeModel::testItemsByName(TestTreeItem *root, const Q
     return result;
 }
 
-QList<TestTreeItem *> TestTreeModel::testItemsByName(const QString &testName)
+void TestTreeModel::onTargetChanged(Target *target)
+{
+    if (target && target->buildSystem()) {
+        const Target *topLevelTarget = SessionManager::startupProject()->targets().first();
+        connect(topLevelTarget->buildSystem(), &BuildSystem::testInformationUpdated,
+                this, &TestTreeModel::onBuildSystemTestsUpdated, Qt::UniqueConnection);
+        disconnect(target->project(), &Project::activeTargetChanged,
+                   this, &TestTreeModel::onTargetChanged);
+    }
+}
+
+void TestTreeModel::onBuildSystemTestsUpdated()
+{
+    const BuildSystem *bs = SessionManager::startupBuildSystem();
+    if (!bs || !bs->project())
+        return;
+
+    QTC_ASSERT(m_checkStateCache, return);
+    m_checkStateCache->evolve(ITestBase::Tool);
+
+    ITestTool *testTool = TestFrameworkManager::testToolForBuildSystemId(bs->project()->id());
+    if (!testTool || !testTool->active())
+        return;
+
+    ITestTreeItem *rootNode = testTool->rootNode();
+    QTC_ASSERT(rootNode, return);
+    rootNode->removeChildren();
+    for (const auto &tci : bs->testcasesInfo()) {
+        ITestTreeItem *item = testTool->createItemFromTestCaseInfo(tci);
+        QTC_ASSERT(item, continue);
+        if (Utils::optional<Qt::CheckState> cached = m_checkStateCache->get(item))
+            item->setData(0, cached.value(), Qt::CheckStateRole);
+        m_checkStateCache->insert(item, item->checked());
+        rootNode->appendChild(item);
+    }
+    revalidateCheckState(rootNode);
+}
+
+const QList<TestTreeItem *> TestTreeModel::frameworkRootNodes() const
 {
     QList<TestTreeItem *> result;
-    for (Utils::TreeItem *frameworkRoot : *rootItem())
-        result << testItemsByName(static_cast<TestTreeItem *>(frameworkRoot), testName);
+    forItemsAtLevel<1>([&result](ITestTreeItem *rootNode) {
+        if (auto framework = rootNode->testBase()->asFramework())
+            result.append(framework->rootNode());
+    });
+    return result;
+}
+
+const QList<ITestTreeItem *> TestTreeModel::testToolRootNodes() const
+{
+    QList<ITestTreeItem *> result;
+    forItemsAtLevel<1>([&result](ITestTreeItem *rootNode) {
+        if (auto testTool = rootNode->testBase()->asTestTool())
+            result.append(testTool->rootNode());
+    });
+    return result;
+}
+
+QList<ITestTreeItem *> TestTreeModel::testItemsByName(const QString &testName)
+{
+    QList<ITestTreeItem *> result;
+    for (TestTreeItem *frameworkRoot : frameworkRootNodes())
+        result << Autotest::testItemsByName(frameworkRoot, testName);
 
     return result;
 }
@@ -227,44 +308,110 @@ void TestTreeModel::synchronizeTestFrameworks()
 {
     ProjectExplorer::Project *project = ProjectExplorer::SessionManager::startupProject();
     TestFrameworks sorted;
-    const QVariant useGlobal = project ? project->namedSettings(Constants::SK_USE_GLOBAL)
-                                       : QVariant();
-    if (!useGlobal.isValid() || AutotestPlugin::projectSettings(project)->useGlobalSettings()) {
+    if (!project || AutotestPlugin::projectSettings(project)->useGlobalSettings()) {
         sorted = Utils::filtered(TestFrameworkManager::registeredFrameworks(),
                                  &ITestFramework::active);
         qCDebug(LOG) << "Active frameworks sorted by priority" << sorted;
     } else { // we've got custom project settings
         const TestProjectSettings *settings = AutotestPlugin::projectSettings(project);
         const QHash<ITestFramework *, bool> active = settings->activeFrameworks();
-        sorted = Utils::filtered(active.keys(), [active](ITestFramework *framework) {
-            return active.value(framework);
+        sorted = Utils::filtered(TestFrameworkManager::registeredFrameworks(),
+                                 [active](ITestFramework *framework) {
+            return active.value(framework, false);
         });
-        Utils::sort(sorted, &ITestFramework::priority);
     }
 
+    const auto sortedParsers = Utils::transform(sorted, &ITestFramework::testParser);
     // pre-check to avoid further processing when frameworks are unchanged
     Utils::TreeItem *invisibleRoot = rootItem();
-    QSet<ITestFramework *> newlyAdded;
-    QList<Utils::TreeItem *> oldFrameworkRoots;
+    QSet<ITestParser *> newlyAdded;
+    QList<ITestTreeItem *> oldFrameworkRoots;
     for (Utils::TreeItem *oldFrameworkRoot : *invisibleRoot)
-        oldFrameworkRoots.append(oldFrameworkRoot);
+        oldFrameworkRoots.append(static_cast<ITestTreeItem *>(oldFrameworkRoot));
 
-    for (Utils::TreeItem *oldFrameworkRoot : oldFrameworkRoots)
+    for (ITestTreeItem *oldFrameworkRoot : oldFrameworkRoots)
         takeItem(oldFrameworkRoot);  // do NOT delete the ptr is still held by TestFrameworkManager
 
-    for (ITestFramework *framework : sorted) {
-        TestTreeItem *frameworkRootNode = framework->rootNode();
+    for (ITestParser *parser : sortedParsers) {
+        TestTreeItem *frameworkRootNode = parser->framework()->rootNode();
         invisibleRoot->appendChild(frameworkRootNode);
         if (!oldFrameworkRoots.removeOne(frameworkRootNode))
-            newlyAdded.insert(framework);
+            newlyAdded.insert(parser);
     }
-    for (Utils::TreeItem *oldFrameworkRoot : oldFrameworkRoots)
-        oldFrameworkRoot->removeChildren();
+    for (ITestTreeItem *oldFrameworkRoot : oldFrameworkRoots) {
+        if (oldFrameworkRoot->testBase()->type() == ITestBase::Framework)
+            oldFrameworkRoot->removeChildren();
+        else // re-add the test tools - they are handled separately
+            invisibleRoot->appendChild(oldFrameworkRoot);
+    }
 
-    m_parser->syncTestFrameworks(sorted);
+    m_parser->syncTestFrameworks(sortedParsers);
     if (!newlyAdded.isEmpty())
         m_parser->updateTestTree(newlyAdded);
-    emit updatedActiveFrameworks(sorted.size());
+    emit updatedActiveFrameworks(invisibleRoot->childCount());
+}
+
+void TestTreeModel::synchronizeTestTools()
+{
+    ProjectExplorer::Project *project = ProjectExplorer::SessionManager::startupProject();
+    TestTools tools;
+    if (!project || AutotestPlugin::projectSettings(project)->useGlobalSettings()) {
+        tools = Utils::filtered(TestFrameworkManager::registeredTestTools(),
+                                &ITestFramework::active);
+        qCDebug(LOG) << "Active test tools" << tools; // FIXME tools aren't sorted
+    } else { // we've got custom project settings
+        const TestProjectSettings *settings = AutotestPlugin::projectSettings(project);
+        const QHash<ITestTool *, bool> active = settings->activeTestTools();
+        tools = Utils::filtered(TestFrameworkManager::registeredTestTools(),
+                                [active](ITestTool *testTool) {
+            return active.value(testTool, false);
+        });
+    }
+
+    // pre-check to avoid further processing when test tools are unchanged
+    Utils::TreeItem *invisibleRoot = rootItem();
+    QSet<ITestTool *> newlyAdded;
+    QList<ITestTreeItem *> oldFrameworkRoots;
+    for (Utils::TreeItem *oldFrameworkRoot : *invisibleRoot) {
+        auto item = static_cast<ITestTreeItem *>(oldFrameworkRoot);
+        if (item->testBase()->type() == ITestBase::Tool)
+            oldFrameworkRoots.append(item);
+    }
+
+    for (ITestTreeItem *oldFrameworkRoot : oldFrameworkRoots)
+        takeItem(oldFrameworkRoot);  // do NOT delete the ptr is still held by TestFrameworkManager
+
+    for (ITestTool *testTool : qAsConst(tools)) {
+        ITestTreeItem *testToolRootNode = testTool->rootNode();
+        if (testTool->active()) {
+            invisibleRoot->appendChild(testToolRootNode);
+            if (!oldFrameworkRoots.removeOne(testToolRootNode))
+                newlyAdded.insert(testTool);
+        }
+    }
+
+    if (project) {
+        const QList<Target *> &allTargets = project->targets();
+        auto target = allTargets.empty() ? nullptr : allTargets.first();
+        if (QTC_GUARD(target)) {
+            auto bs = target->buildSystem();
+            for (ITestTool *testTool : newlyAdded) {
+                ITestTreeItem *rootNode = testTool->rootNode();
+                QTC_ASSERT(rootNode, return);
+                rootNode->removeChildren();
+                for (const auto &tci : bs->testcasesInfo()) {
+                    ITestTreeItem *item = testTool->createItemFromTestCaseInfo(tci);
+                    QTC_ASSERT(item, continue);
+                    if (Utils::optional<Qt::CheckState> cached = m_checkStateCache->get(item))
+                        item->setData(0, cached.value(), Qt::CheckStateRole);
+                    m_checkStateCache->insert(item, item->checked());
+                    rootNode->appendChild(item);
+                }
+                revalidateCheckState(rootNode);
+            }
+        }
+    }
+    emit updatedActiveFrameworks(invisibleRoot->childCount());
 }
 
 void TestTreeModel::filterAndInsert(TestTreeItem *item, TestTreeItem *root, bool groupingEnabled)
@@ -285,12 +432,12 @@ void TestTreeModel::rebuild(const QList<Utils::Id> &frameworkIds)
         TestTreeItem *frameworkRoot = framework->rootNode();
         const bool groupingEnabled = framework->grouping();
         for (int row = frameworkRoot->childCount() - 1; row >= 0; --row) {
-            auto testItem = frameworkRoot->childAt(row);
+            auto testItem = frameworkRoot->childItem(row);
             if (testItem->type() == TestTreeItem::GroupNode) {
                 // process children of group node and delete it afterwards if necessary
                 for (int childRow = testItem->childCount() - 1; childRow >= 0; --childRow) {
                     // FIXME should this be done recursively until we have a non-GroupNode?
-                    TestTreeItem *childTestItem = testItem->childAt(childRow);
+                    TestTreeItem *childTestItem = testItem->childItem(childRow);
                     takeItem(childTestItem);
                     filterAndInsert(childTestItem, frameworkRoot, groupingEnabled);
                 }
@@ -307,11 +454,10 @@ void TestTreeModel::rebuild(const QList<Utils::Id> &frameworkIds)
 
 void TestTreeModel::updateCheckStateCache()
 {
-    m_checkStateCache->evolve();
+    m_checkStateCache->evolve(ITestBase::Framework);
 
-    for (Utils::TreeItem *rootNode : *rootItem()) {
-        rootNode->forAllChildren([this](Utils::TreeItem *child) {
-            auto childItem = static_cast<TestTreeItem *>(child);
+    for (TestTreeItem *rootNode : frameworkRootNodes()) {
+        rootNode->forAllChildItems([this](TestTreeItem *childItem) {
             m_checkStateCache->insert(childItem, childItem->checked());
         });
     }
@@ -342,11 +488,12 @@ void TestTreeModel::removeFiles(const QStringList &files)
     sweep();
 }
 
-void TestTreeModel::markAllForRemoval()
+void TestTreeModel::markAllFrameworkItemsForRemoval()
 {
-    for (Utils::TreeItem *frameworkRoot : *rootItem()) {
-        for (Utils::TreeItem *item : *frameworkRoot)
-            static_cast<TestTreeItem *>(item)->markForRemovalRecursively(true);
+    for (TestTreeItem *frameworkRoot : frameworkRootNodes()) {
+        frameworkRoot->forFirstLevelChildItems([](TestTreeItem *child) {
+            child->markForRemovalRecursively(true);
+        });
     }
 }
 
@@ -355,10 +502,9 @@ void TestTreeModel::markForRemoval(const QString &filePath)
     if (filePath.isEmpty())
         return;
 
-    for (Utils::TreeItem *frameworkRoot : *rootItem()) {
-        TestTreeItem *root = static_cast<TestTreeItem *>(frameworkRoot);
-        for (int childRow = root->childCount() - 1; childRow >= 0; --childRow) {
-            TestTreeItem *child = root->childAt(childRow);
+    for (TestTreeItem *frameworkRoot : frameworkRootNodes()) {
+        for (int childRow = frameworkRoot->childCount() - 1; childRow >= 0; --childRow) {
+            TestTreeItem *child = frameworkRoot->childItem(childRow);
             child->markForRemovalRecursively(filePath);
         }
     }
@@ -366,10 +512,9 @@ void TestTreeModel::markForRemoval(const QString &filePath)
 
 void TestTreeModel::sweep()
 {
-    for (Utils::TreeItem *frameworkRoot : *rootItem()) {
-        TestTreeItem *root = static_cast<TestTreeItem *>(frameworkRoot);
-        sweepChildren(root);
-        revalidateCheckState(root);
+    for (TestTreeItem *frameworkRoot : frameworkRootNodes()) {
+        sweepChildren(frameworkRoot);
+        revalidateCheckState(frameworkRoot);
     }
     // even if nothing has changed by the sweeping we might had parse which added or modified items
     emit testTreeModelChanged();
@@ -386,7 +531,7 @@ bool TestTreeModel::sweepChildren(TestTreeItem *item)
 {
     bool hasChanged = false;
     for (int row = item->childCount() - 1; row >= 0; --row) {
-        TestTreeItem *child = item->childAt(row);
+        TestTreeItem *child = item->childItem(row);
 
         if (child->type() != TestTreeItem::Root && child->markedForRemoval()) {
             destroyItem(child);
@@ -410,11 +555,11 @@ static TestTreeItem *fullCopyOf(TestTreeItem *other)
     QTC_ASSERT(other, return nullptr);
     TestTreeItem *result = other->copyWithoutChildren();
     for (int row = 0, count = other->childCount(); row < count; ++row)
-        result->appendChild(fullCopyOf(other->childAt(row)));
+        result->appendChild(fullCopyOf(other->childItem(row)));
     return result;
 }
 
-static void applyParentCheckState(TestTreeItem *parent, TestTreeItem *newItem)
+static void applyParentCheckState(ITestTreeItem *parent, ITestTreeItem *newItem)
 {
     QTC_ASSERT(parent && newItem, return);
 
@@ -432,7 +577,7 @@ void TestTreeModel::insertItemInParent(TestTreeItem *item, TestTreeItem *root, b
 {
     TestTreeItem *parentNode = root;
     if (groupingEnabled && item->isGroupable()) {
-        parentNode = root->findFirstLevelChild([item] (const TestTreeItem *it) {
+        parentNode = root->findFirstLevelChildItem([item] (const TestTreeItem *it) {
             return it->isGroupNodeFor(item);
         });
         if (!parentNode) {
@@ -447,7 +592,7 @@ void TestTreeModel::insertItemInParent(TestTreeItem *item, TestTreeItem *root, b
     if (auto otherItem = parentNode->findChild(item)) {
         // only handle item's children and add them to the already present one
         for (int row = 0, count = item->childCount(); row < count; ++row) {
-            TestTreeItem *child = fullCopyOf(item->childAt(row));
+            TestTreeItem *child = fullCopyOf(item->childItem(row));
             // use check state of the original
             child->setData(0, item->childAt(row)->checked(), Qt::CheckStateRole);
             otherItem->appendChild(child);
@@ -470,26 +615,18 @@ void TestTreeModel::insertItemInParent(TestTreeItem *item, TestTreeItem *root, b
     }
 }
 
-void TestTreeModel::revalidateCheckState(TestTreeItem *item)
+static Qt::CheckState computeCheckStateByChildren(ITestTreeItem *item)
 {
-    QTC_ASSERT(item, return);
-
-    const TestTreeItem::Type type = item->type();
-    if (type == TestTreeItem::TestSpecialFunction || type == TestTreeItem::TestDataFunction
-            || type == TestTreeItem::TestDataTag) {
-        return;
-    }
-    const Qt::CheckState oldState = Qt::CheckState(item->data(0, Qt::CheckStateRole).toInt());
     Qt::CheckState newState = Qt::Checked;
     bool foundChecked = false;
     bool foundUnchecked = false;
     bool foundPartiallyChecked = false;
-    for (int row = 0, count = item->childCount(); row < count; ++row) {
-        TestTreeItem *child = item->childAt(row);
+
+    item->forFirstLevelChildren([&](ITestTreeItem *child) {
         switch (child->type()) {
         case TestTreeItem::TestDataFunction:
         case TestTreeItem::TestSpecialFunction:
-            continue;
+            return;
         default:
             break;
         }
@@ -497,24 +634,45 @@ void TestTreeModel::revalidateCheckState(TestTreeItem *item)
         foundChecked |= (child->checked() == Qt::Checked);
         foundUnchecked |= (child->checked() == Qt::Unchecked);
         foundPartiallyChecked |= (child->checked() == Qt::PartiallyChecked);
+
         if (foundPartiallyChecked || (foundChecked && foundUnchecked)) {
             newState = Qt::PartiallyChecked;
-            break;
+            return;
         }
-    }
+    });
+
     if (newState != Qt::PartiallyChecked)
         newState = foundUnchecked ? Qt::Unchecked : Qt::Checked;
+    return newState;
+}
+
+void TestTreeModel::revalidateCheckState(ITestTreeItem *item)
+{
+    QTC_ASSERT(item, return);
+
+    const ITestTreeItem::Type type = item->type();
+    if (type == ITestTreeItem::TestSpecialFunction || type == ITestTreeItem::TestDataFunction
+            || type == ITestTreeItem::TestDataTag) {
+        return;
+    }
+    const Qt::CheckState oldState = Qt::CheckState(item->data(0, Qt::CheckStateRole).toInt());
+    Qt::CheckState newState = computeCheckStateByChildren(item);
     if (oldState != newState) {
         item->setData(0, newState, Qt::CheckStateRole);
         emit dataChanged(item->index(), item->index(), {Qt::CheckStateRole});
-        if (item->parent() != rootItem() && item->parentItem()->checked() != newState)
-            revalidateCheckState(item->parentItem());
+        if (item->parent() != rootItem()) {
+            auto parent = static_cast<ITestTreeItem *>(item->parent());
+            if (parent->checked() != newState)
+                revalidateCheckState(parent);
+        }
     }
 }
 
 void TestTreeModel::onParseResultReady(const TestParseResultPtr result)
 {
-    TestTreeItem *rootNode = result->framework->rootNode();
+    ITestFramework *framework = result->framework;
+    QTC_ASSERT(framework, return);
+    TestTreeItem *rootNode = framework->rootNode();
     QTC_ASSERT(rootNode, return);
     handleParseResult(result.data(), rootNode);
 }
@@ -528,8 +686,10 @@ void Autotest::TestTreeModel::onDataChanged(const QModelIndex &topLeft,
     if (!roles.isEmpty() && !roles.contains(Qt::CheckStateRole))
         return;
 
+    if (!m_checkStateCache) // dataChanged() may be triggered by closing a project
+        return;
     for (int row = topLeft.row(), endRow = bottomRight.row(); row <= endRow; ++row) {
-        if (auto item = static_cast<TestTreeItem *>(itemForIndex(index(row, 0, parent))))
+        if (auto item = static_cast<ITestTreeItem *>(itemForIndex(index(row, 0, parent))))
             m_checkStateCache->insert(item, item->checked());
     }
 }
@@ -563,8 +723,7 @@ void TestTreeModel::handleParseResult(const TestParseResult *result, TestTreeIte
     QTC_ASSERT(newItem, return);
 
     // restore former check state and fail state if available
-    newItem->forAllChildren([this](Utils::TreeItem *child) {
-        auto childItem = static_cast<TestTreeItem *>(child);
+    newItem->forAllChildItems([this](TestTreeItem *childItem) {
         Utils::optional<Qt::CheckState> cached = m_checkStateCache->get(childItem);
         if (cached.has_value())
             childItem->setData(0, cached.value(), Qt::CheckStateRole);
@@ -578,11 +737,20 @@ void TestTreeModel::handleParseResult(const TestParseResult *result, TestTreeIte
 
 void TestTreeModel::removeAllTestItems()
 {
-    for (Utils::TreeItem *item : *rootItem()) {
+    for (TestTreeItem *item : frameworkRootNodes()) {
         item->removeChildren();
-        TestTreeItem *testTreeItem = static_cast<TestTreeItem *>(item);
-        if (testTreeItem->checked() == Qt::PartiallyChecked)
-            testTreeItem->setData(0, Qt::Checked, Qt::CheckStateRole);
+        if (item->checked() == Qt::PartiallyChecked)
+            item->setData(0, Qt::Checked, Qt::CheckStateRole);
+    }
+    emit testTreeModelChanged();
+}
+
+void TestTreeModel::removeAllTestToolItems()
+{
+    for (ITestTreeItem *item : testToolRootNodes()) {
+        item->removeChildren();
+        if (item->checked() == Qt::PartiallyChecked)
+            item->setData(0, Qt::Checked, Qt::CheckStateRole);
     }
     emit testTreeModelChanged();
 }
@@ -619,7 +787,7 @@ int TestTreeModel::autoTestsCount() const
     return rootNode ? rootNode->childCount() : 0;
 }
 
-bool TestTreeModel::hasUnnamedQuickTests(const TestTreeItem *rootNode) const
+bool TestTreeModel::hasUnnamedQuickTests(const ITestTreeItem* rootNode) const
 {
     for (int row = 0, count = rootNode->childCount(); row < count; ++row) {
         if (rootNode->childAt(row)->name().isEmpty())
@@ -628,13 +796,13 @@ bool TestTreeModel::hasUnnamedQuickTests(const TestTreeItem *rootNode) const
     return false;
 }
 
-TestTreeItem *TestTreeModel::unnamedQuickTests() const
+ITestTreeItem *TestTreeModel::unnamedQuickTests() const
 {
     TestTreeItem *rootNode = quickRootNode();
     if (!rootNode)
         return nullptr;
 
-    return rootNode->findFirstLevelChild([](TestTreeItem *it) { return it->name().isEmpty(); });
+    return rootNode->findFirstLevelChildItem([](TestTreeItem *it) { return it->name().isEmpty(); });
 }
 
 int TestTreeModel::namedQuickTestsCount() const
@@ -647,7 +815,7 @@ int TestTreeModel::namedQuickTestsCount() const
 
 int TestTreeModel::unnamedQuickTestsCount() const
 {
-    if (TestTreeItem *unnamed = unnamedQuickTests())
+    if (ITestTreeItem *unnamed = unnamedQuickTests())
         return unnamed->childCount();
     return 0;
 }
@@ -659,8 +827,8 @@ int TestTreeModel::dataTagsCount() const
         return 0;
 
     int dataTagCount = 0;
-    rootNode->forFirstLevelChildren([&dataTagCount](TestTreeItem *classItem) {
-        classItem->forFirstLevelChildren([&dataTagCount](TestTreeItem *functionItem) {
+    rootNode->forFirstLevelChildren([&dataTagCount](ITestTreeItem *classItem) {
+        classItem->forFirstLevelChildren([&dataTagCount](ITestTreeItem *functionItem) {
             dataTagCount += functionItem->childCount();
         });
     });
@@ -678,7 +846,7 @@ QMultiMap<QString, int> TestTreeModel::gtestNamesAndSets() const
     QMultiMap<QString, int> result;
 
     if (TestTreeItem *rootNode = gtestRootNode()) {
-        rootNode->forFirstLevelChildren([&result](TestTreeItem *child) {
+        rootNode->forFirstLevelChildren([&result](ITestTreeItem *child) {
             result.insert(child->name(), child->childCount());
         });
     }
@@ -696,7 +864,7 @@ QMap<QString, int> TestTreeModel::boostTestSuitesAndTests() const
     QMap<QString, int> result;
 
     if (TestTreeItem *rootNode = boostTestRootNode()) {
-        rootNode->forFirstLevelChildren([&result](TestTreeItem *child) {
+        rootNode->forFirstLevelChildItems([&result](TestTreeItem *child) {
             result.insert(child->name() + '|' + child->proFile(), child->childCount());
         });
     }
@@ -713,7 +881,7 @@ TestTreeSortFilterModel::TestTreeSortFilterModel(TestTreeModel *sourceModel, QOb
     setSourceModel(sourceModel);
 }
 
-void TestTreeSortFilterModel::setSortMode(TestTreeItem::SortMode sortMode)
+void TestTreeSortFilterModel::setSortMode(ITestTreeItem::SortMode sortMode)
 {
     m_sortMode = sortMode;
     invalidate();
@@ -748,11 +916,11 @@ TestTreeSortFilterModel::FilterMode TestTreeSortFilterModel::toFilterMode(int f)
 bool TestTreeSortFilterModel::lessThan(const QModelIndex &left, const QModelIndex &right) const
 {
     // root items keep the intended order
-    const TestTreeItem *leftItem = static_cast<TestTreeItem *>(left.internalPointer());
-    if (leftItem->type() == TestTreeItem::Root)
+    const ITestTreeItem *leftItem = static_cast<ITestTreeItem *>(left.internalPointer());
+    if (leftItem->type() == ITestTreeItem::Root)
         return left.row() > right.row();
 
-    const TestTreeItem *rightItem = static_cast<TestTreeItem *>(right.internalPointer());
+    const ITestTreeItem *rightItem = static_cast<ITestTreeItem *>(right.internalPointer());
     return leftItem->lessThan(rightItem, m_sortMode);
 }
 
@@ -762,12 +930,12 @@ bool TestTreeSortFilterModel::filterAcceptsRow(int sourceRow, const QModelIndex 
     if (!index.isValid())
         return false;
 
-    const TestTreeItem *item = static_cast<TestTreeItem *>(index.internalPointer());
+    const ITestTreeItem *item = static_cast<ITestTreeItem *>(index.internalPointer());
 
     switch (item->type()) {
-    case TestTreeItem::TestDataFunction:
+    case ITestTreeItem::TestDataFunction:
         return m_filterMode & ShowTestData;
-    case TestTreeItem::TestSpecialFunction:
+    case ITestTreeItem::TestSpecialFunction:
         return m_filterMode & ShowInitAndCleanup;
     default:
         return true;

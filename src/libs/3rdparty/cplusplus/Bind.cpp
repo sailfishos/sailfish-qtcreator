@@ -1253,12 +1253,39 @@ const StringLiteral *Bind::asStringLiteral(const AST *ast)
     const int firstToken = ast->firstToken();
     const int lastToken = ast->lastToken();
     std::string buffer;
+
+    const auto token = tokenAt(ast->firstToken());
+
+    if (token.isCharLiteral()) {
+        if (token.kind() == T_WIDE_CHAR_LITERAL)
+            buffer += 'L';
+        else if (token.kind() == T_UTF16_CHAR_LITERAL)
+            buffer += 'u';
+        else if (token.kind() == T_UTF32_CHAR_LITERAL)
+            buffer += 'U';
+        buffer += '\'';
+    } else if (token.isStringLiteral()) {
+        if (token.kind() == T_WIDE_STRING_LITERAL)
+            buffer += 'L';
+        else if (token.kind() == T_UTF16_STRING_LITERAL)
+            buffer += 'u';
+        else if (token.kind() == T_UTF32_STRING_LITERAL)
+            buffer += 'U';
+        else if (token.kind() == T_UTF8_STRING_LITERAL)
+            buffer += "u8";
+        buffer += '"';
+    }
     for (int index = firstToken; index != lastToken; ++index) {
         const Token &tk = tokenAt(index);
         if (index != firstToken && (tk.whitespace() || tk.newline()))
             buffer += ' ';
         buffer += tk.spell();
     }
+    if (token.isCharLiteral())
+        buffer += '\'';
+    else if (token.isStringLiteral())
+        buffer += '"';
+
     return control()->stringLiteral(buffer.c_str(), int(buffer.size()));
 }
 
@@ -1894,6 +1921,7 @@ bool Bind::visit(LambdaExpressionAST *ast)
 {
     this->lambdaIntroducer(ast->lambda_introducer);
     if (Function *function = this->lambdaDeclarator(ast->lambda_declarator)) {
+        function->setSourceLocation(ast->lambda_introducer->firstToken(), translationUnit());
         _scope->addMember(function);
         Scope *previousScope = switchScope(function);
         this->statement(ast->statement);
@@ -3308,10 +3336,20 @@ bool Bind::visit(FunctionDeclaratorAST *ast)
         _type = this->trailingReturnType(ast->trailing_return_type, _type);
     fun->setReturnType(_type);
 
+    // "static", "virtual" etc.
+    FullySpecifiedType declSpecifiers;
+    for (SpecifierListAST *it = ast->decl_specifier_list; it; it = it->next)
+        declSpecifiers = this->specifier(it->value, declSpecifiers);
+    setDeclSpecifiers(fun, declSpecifiers);
+
     // int lparen_token = ast->lparen_token;
     this->parameterDeclarationClause(ast->parameter_declaration_clause, ast->lparen_token, fun);
     // int rparen_token = ast->rparen_token;
     FullySpecifiedType type(fun);
+    type.setStatic(declSpecifiers.isStatic());
+    type.setVirtual(declSpecifiers.isVirtual());
+    type.setDeprecated(declSpecifiers.isDeprecated());
+    type.setUnavailable(declSpecifiers.isUnavailable());
     for (SpecifierListAST *it = ast->cv_qualifier_list; it; it = it->next) {
         type = this->specifier(it->value, type);
     }

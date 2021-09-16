@@ -44,8 +44,74 @@ public:
         ItemIsAdvancedRole = Qt::UserRole,
     };
 
-    class DataItem {
-    public:
+    struct DataItem {
+        bool operator == (const DataItem& other) const {
+            return key == other.key;
+        }
+
+        DataItem() {}
+        DataItem(const CMakeConfigItem &cmi) {
+            key = QString::fromUtf8(cmi.key);
+            value = QString::fromUtf8(cmi.value);
+            description = QString::fromUtf8(cmi.documentation);
+            values = cmi.values;
+            inCMakeCache = cmi.inCMakeCache;
+
+            isAdvanced = cmi.isAdvanced;
+            isHidden = cmi.type == CMakeConfigItem::INTERNAL || cmi.type == CMakeConfigItem::STATIC;
+
+            setType(cmi.type);
+        }
+
+        void setType(CMakeConfigItem::Type cmt) {
+            switch (cmt) {
+            case CMakeConfigItem::FILEPATH:
+                type = FILE;
+                break;
+            case CMakeConfigItem::PATH:
+                type = DIRECTORY;
+                break;
+            case CMakeConfigItem::BOOL:
+                type = BOOLEAN;
+                break;
+            case CMakeConfigItem::STRING:
+                type = STRING;
+                break;
+            default:
+                type = UNKNOWN;
+                break;
+            }
+        }
+
+        CMakeConfigItem toCMakeConfigItem() const {
+            CMakeConfigItem cmi;
+            cmi.key = key.toUtf8();
+            cmi.value = value.toUtf8();
+            switch (type) {
+                case DataItem::BOOLEAN:
+                    cmi.type = CMakeConfigItem::BOOL;
+                    break;
+                case DataItem::FILE:
+                    cmi.type = CMakeConfigItem::FILEPATH;
+                    break;
+                case DataItem::DIRECTORY:
+                    cmi.type = CMakeConfigItem::PATH;
+                    break;
+                case DataItem::STRING:
+                    cmi.type = CMakeConfigItem::STRING;
+                    break;
+                case DataItem::UNKNOWN:
+                    cmi.type = CMakeConfigItem::UNINITIALIZED;
+                    break;
+            }
+            cmi.isUnset = isUnset;
+            cmi.isAdvanced = isAdvanced;
+            cmi.values = values;
+            cmi.documentation = description.toUtf8();
+
+            return cmi;
+        }
+
         enum Type { BOOLEAN, FILE, DIRECTORY, STRING, UNKNOWN};
 
         QString key;
@@ -70,6 +136,7 @@ public:
                              const QString &description = QString(),
                              const QStringList &values = QStringList());
     void setConfiguration(const CMakeConfig &config);
+    void setBatchEditConfiguration(const CMakeConfig &config);
     void setConfiguration(const QList<DataItem> &config);
     void setConfigurationFromKit(const QHash<QString, QString> &kitConfig);
 
@@ -77,7 +144,6 @@ public:
     void resetAllChanges();
 
     bool hasChanges() const;
-    bool hasCMakeChanges() const;
 
     bool canForceTo(const QModelIndex &idx, const DataItem::Type type) const;
     void forceTo(const QModelIndex &idx, const DataItem::Type type);
@@ -101,7 +167,6 @@ private:
 
         bool isUserChanged = false;
         bool isUserNew = false;
-        bool isCMakeChanged = false;
         QString newValue;
         QString kitValue;
     };

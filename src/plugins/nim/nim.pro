@@ -20,12 +20,12 @@ HEADERS += \
     project/nimbleproject.h \
     project/nimblerunconfiguration.h \
     project/nimbletaskstep.h \
+    project/nimoutputtaskparser.h \
     tools/nimlexer.h \
     tools/sourcecodestream.h \
     project/nimbuildsystem.h \
     project/nimblebuildsystem.h \
     project/nimproject.h \
-    project/nimprojectnode.h \
     project/nimbuildconfiguration.h \
     project/nimcompilerbuildstep.h \
     project/nimcompilercleanstep.h \
@@ -57,11 +57,11 @@ SOURCES += \
     project/nimbletaskstep.cpp \
     project/nimbleproject.cpp \
     project/nimblerunconfiguration.cpp \
+    project/nimoutputtaskparser.cpp \
     tools/nimlexer.cpp \
     project/nimbuildsystem.cpp \
     project/nimblebuildsystem.cpp \
     project/nimproject.cpp \
-    project/nimprojectnode.cpp \
     project/nimbuildconfiguration.cpp \
     project/nimcompilerbuildstep.cpp \
     project/nimcompilercleanstep.cpp \

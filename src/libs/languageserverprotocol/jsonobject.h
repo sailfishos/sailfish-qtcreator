@@ -70,6 +70,11 @@ protected:
     iterator insert(const QString &key, const JsonObject &value);
     iterator insert(const QString &key, const QJsonValue &value);
 
+    template <typename T, typename V>
+    iterator insertVariant(const QString &key, const V &variant);
+    template <typename T1, typename T2, typename... Args, typename V>
+    iterator insertVariant(const QString &key, const V &variant);
+
     // QJSonObject redirections
     QJsonValue value(const QString &key) const { return m_jsonObject.value(key); }
     bool contains(const QString &key) const { return m_jsonObject.contains(key); }
@@ -129,6 +134,19 @@ private:
     QJsonObject m_jsonObject;
 };
 
+template<typename T, typename V>
+JsonObject::iterator JsonObject::insertVariant(const QString &key, const V &variant)
+{
+    return Utils::holds_alternative<T>(variant) ? insert(key, Utils::get<T>(variant)) : end();
+}
+
+template<typename T1, typename T2, typename... Args, typename V>
+JsonObject::iterator JsonObject::insertVariant(const QString &key, const V &variant)
+{
+    auto result = insertVariant<T1>(key, variant);
+    return result != end() ? result : insertVariant<T2, Args...>(key, variant);
+}
+
 template<typename T>
 T JsonObject::typedValue(const QString &key) const
 {
@@ -157,15 +175,20 @@ Utils::optional<LanguageClientValue<T>> JsonObject::optionalClientValue(const QS
 template<typename T>
 QList<T> JsonObject::array(const QString &key) const
 {
-    return LanguageClientArray<T>(value(key)).toList();
+    const Utils::optional<QList<T>> &array = optionalArray<T>(key);
+    if (array.has_value())
+        return array.value();
+    qCDebug(conversionLog) << QString("Expected array under %1 in:").arg(key) << *this;
+    return {};
 }
 
 template<typename T>
 Utils::optional<QList<T>> JsonObject::optionalArray(const QString &key) const
 {
-    using Result = Utils::optional<QList<T>>;
-    return contains(key) ? Result(LanguageClientArray<T>(value(key)).toList())
-                         : Result(Utils::nullopt);
+    const QJsonValue &jsonValue = value(key);
+    if (jsonValue.isUndefined())
+        return Utils::nullopt;
+    return Utils::transform<QList<T>>(jsonValue.toArray(), &fromJsonValue<T>);
 }
 
 template<typename T>

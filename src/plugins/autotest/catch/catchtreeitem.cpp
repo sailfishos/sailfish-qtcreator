@@ -89,7 +89,7 @@ TestTreeItem *CatchTreeItem::find(const TestParseResult *result)
         if (result->framework->grouping()) {
             const QString path = QFileInfo(result->fileName).absolutePath();
             for (int row = 0; row < childCount(); ++row) {
-                TestTreeItem *group = childAt(row);
+                TestTreeItem *group = childItem(row);
                 if (group->filePath() != path)
                     continue;
                 if (auto groupChild = group->findChildByFile(result->fileName))
@@ -153,7 +153,7 @@ bool CatchTreeItem::canProvideDebugConfiguration() const
     return canProvideTestConfiguration();
 }
 
-TestConfiguration *CatchTreeItem::testConfiguration() const
+ITestConfiguration *CatchTreeItem::testConfiguration() const
 {
     ProjectExplorer::Project *project = ProjectExplorer::SessionManager::startupProject();
     QTC_ASSERT(project, return nullptr);
@@ -171,7 +171,7 @@ TestConfiguration *CatchTreeItem::testConfiguration() const
     return config;
 }
 
-TestConfiguration *CatchTreeItem::debugConfiguration() const
+ITestConfiguration *CatchTreeItem::debugConfiguration() const
 {
     CatchConfiguration *config = static_cast<CatchConfiguration *>(testConfiguration());
     if (config)
@@ -192,7 +192,7 @@ static void collectTestInfo(const TestTreeItem *item,
     QTC_ASSERT(item, return);
     const int childCount = item->childCount();
     if (item->type() == TestTreeItem::GroupNode) {
-        item->forFirstLevelChildren([&testCasesForProfile, ignoreCheckState](TestTreeItem *it) {
+        item->forFirstLevelChildItems([&testCasesForProfile, ignoreCheckState](TestTreeItem *it) {
             collectTestInfo(it, testCasesForProfile, ignoreCheckState);
         });
         return;
@@ -201,14 +201,14 @@ static void collectTestInfo(const TestTreeItem *item,
     QTC_ASSERT(childCount != 0, return);
     QTC_ASSERT(item->type() == TestTreeItem::TestSuite, return);
     if (ignoreCheckState || item->checked() == Qt::Checked) {
-        const QString &projectFile = item->childAt(0)->proFile();
-        item->forAllChildren([&testCasesForProfile, &projectFile](TestTreeItem *it) {
+        const QString &projectFile = item->childItem(0)->proFile();
+        item->forAllChildItems([&testCasesForProfile, &projectFile](TestTreeItem *it) {
             CatchTreeItem *current = static_cast<CatchTreeItem *>(it);
             testCasesForProfile[projectFile].names.append(current->testCasesString());
         });
         testCasesForProfile[projectFile].internalTargets.unite(item->internalTargets());
     } else if (item->checked() == Qt::PartiallyChecked) {
-        item->forFirstLevelChildren([&testCasesForProfile](TestTreeItem *child) {
+        item->forFirstLevelChildItems([&testCasesForProfile](TestTreeItem *child) {
             QTC_ASSERT(child->type() == TestTreeItem::TestCase, return);
             if (child->checked() == Qt::Checked) {
                 CatchTreeItem *current = static_cast<CatchTreeItem *>(child);
@@ -227,10 +227,9 @@ static void collectFailedTestInfo(const CatchTreeItem *item,
     QTC_ASSERT(item, return);
     QTC_ASSERT(item->type() == TestTreeItem::Root, return);
 
-    item->forAllChildren([&testCasesForProfile](TestTreeItem *it) {
+    item->forAllChildItems([&testCasesForProfile](TestTreeItem *it) {
         QTC_ASSERT(it, return);
-        CatchTreeItem *parent = static_cast<CatchTreeItem *>(it->parentItem());
-        QTC_ASSERT(parent, return);
+        QTC_ASSERT(it->parentItem(), return);
         if (it->type() == TestTreeItem::TestCase && it->data(0, FailedRole).toBool()) {
             CatchTreeItem *current = static_cast<CatchTreeItem *>(it);
             testCasesForProfile[it->proFile()].names.append(current->testCasesString());
@@ -240,19 +239,19 @@ static void collectFailedTestInfo(const CatchTreeItem *item,
     });
 }
 
-QList<TestConfiguration *> CatchTreeItem::getAllTestConfigurations() const
+QList<ITestConfiguration *> CatchTreeItem::getAllTestConfigurations() const
 {
     return getTestConfigurations(true);
 }
 
-QList<TestConfiguration *> CatchTreeItem::getSelectedTestConfigurations() const
+QList<ITestConfiguration *> CatchTreeItem::getSelectedTestConfigurations() const
 {
     return getTestConfigurations(false);
 }
 
-QList<TestConfiguration *> CatchTreeItem::getFailedTestConfigurations() const
+QList<ITestConfiguration *> CatchTreeItem::getFailedTestConfigurations() const
 {
-    QList<TestConfiguration *> result;
+    QList<ITestConfiguration *> result;
     ProjectExplorer::Project *project = ProjectExplorer::SessionManager::startupProject();
     if (!project || type() != Root)
         return result;
@@ -274,16 +273,16 @@ QList<TestConfiguration *> CatchTreeItem::getFailedTestConfigurations() const
     return result;
 }
 
-QList<TestConfiguration *> CatchTreeItem::getTestConfigurationsForFile(const Utils::FilePath &fileName) const
+QList<ITestConfiguration *> CatchTreeItem::getTestConfigurationsForFile(const Utils::FilePath &fileName) const
 {
-    QList<TestConfiguration *> result;
+    QList<ITestConfiguration *> result;
     ProjectExplorer::Project *project = ProjectExplorer::SessionManager::startupProject();
     if (!project || type() != Root)
         return result;
 
     const QString filePath = fileName.toString();
     for (int row = 0, count = childCount(); row < count; ++row) {
-        const TestTreeItem *item = childAt(row);
+        const TestTreeItem *item = childItem(row);
         QTC_ASSERT(item, continue);
 
         if (childAt(row)->name() != filePath)
@@ -292,7 +291,7 @@ QList<TestConfiguration *> CatchTreeItem::getTestConfigurationsForFile(const Uti
         CatchConfiguration *testConfig = nullptr;
         QStringList testCases;
 
-        item->forFirstLevelChildren([&testCases](TestTreeItem *child) {
+        item->forFirstLevelChildItems([&testCases](TestTreeItem *child) {
             CatchTreeItem *current = static_cast<CatchTreeItem *>(child);
             testCases << current->testCasesString();
         });
@@ -318,17 +317,16 @@ QString CatchTreeItem::stateSuffix() const
     return types.isEmpty() ? QString() : QString(" [" + types.join(", ") + ']');
 }
 
-QList<TestConfiguration *> CatchTreeItem::getTestConfigurations(bool ignoreCheckState) const
+QList<ITestConfiguration *> CatchTreeItem::getTestConfigurations(bool ignoreCheckState) const
 {
-    QList<TestConfiguration *> result;
+    QList<ITestConfiguration *> result;
     ProjectExplorer::Project *project = ProjectExplorer::SessionManager::startupProject();
     if (!project || type() != Root)
         return result;
 
     QHash<QString, CatchTestCases> testCasesForProfile;
-    forFirstLevelChildren([&testCasesForProfile, ignoreCheckState](TestTreeItem *item) {
-        collectTestInfo(item, testCasesForProfile, ignoreCheckState);
-    });
+    for (int row = 0, end = childCount(); row < end; ++row)
+        collectTestInfo(childItem(row), testCasesForProfile, ignoreCheckState);
 
     for (auto it = testCasesForProfile.begin(), end = testCasesForProfile.end(); it != end; ++it) {
         for (const QString &target : qAsConst(it.value().internalTargets)) {

@@ -35,7 +35,8 @@ CppLocatorData::CppLocatorData()
 {
     m_search.setSymbolsToSearchFor(SymbolSearcher::Enums |
                                    SymbolSearcher::Classes |
-                                   SymbolSearcher::Functions);
+                                   SymbolSearcher::Functions |
+                                   SymbolSearcher::TypeAliases);
     m_pendingDocuments.reserve(MaxPendingDocuments);
 }
 
@@ -85,7 +86,6 @@ void CppLocatorData::onAboutToRemoveFiles(const QStringList &files)
 void CppLocatorData::flushPendingDocument(bool force) const
 {
     // TODO: move this off the UI thread and into a future.
-    QMutexLocker locker(&m_pendingDocumentsMutex);
     if (!force && m_pendingDocuments.size() < MaxPendingDocuments)
         return;
     if (m_pendingDocuments.isEmpty())
@@ -96,13 +96,4 @@ void CppLocatorData::flushPendingDocument(bool force) const
 
     m_pendingDocuments.clear();
     m_pendingDocuments.reserve(MaxPendingDocuments);
-}
-
-QList<IndexItem::Ptr> CppLocatorData::allIndexItems(
-        const QHash<QString, QList<IndexItem::Ptr>> &items) const
-{
-    QList<IndexItem::Ptr> result;
-    for (const QList<IndexItem::Ptr> &subItems : items)
-        result.append(subItems);
-    return result;
 }

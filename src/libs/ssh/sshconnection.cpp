@@ -37,7 +37,6 @@
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 
-#include <QAbstractEventDispatcher>
 #include <QByteArrayList>
 #include <QDir>
 #include <QFileInfo>
@@ -247,8 +246,6 @@ void SshConnection::disconnectFromHost()
     case Connecting:
     case Connected:
         if (!d->sharingEnabled) {
-            if (!QAbstractEventDispatcher::instance())
-                return;
             QTimer::singleShot(0, this, &SshConnection::emitDisconnected);
             return;
         }

@@ -24,6 +24,7 @@
 ****************************************************************************/
 
 #include "testresultmodel.h"
+
 #include "autotesticons.h"
 #include "autotestplugin.h"
 #include "testresultdelegate.h"
@@ -321,7 +322,7 @@ void TestResultModel::addTestResult(const TestResultPtr &testResult, bool autoEx
     }
 
     if (isFailed(testResult->result())) {
-        if (const TestTreeItem *it = testResult->findTestTreeItem()) {
+        if (const ITestTreeItem *it = testResult->findTestTreeItem()) {
             TestTreeModel *model = TestTreeModel::instance();
             model->setData(model->indexForItem(it), true, FailedRole);
         }
@@ -360,7 +361,7 @@ void TestResultModel::recalculateMaxWidthOfFileName(const QFont &font)
 {
     const QFontMetrics fm(font);
     m_maxWidthOfFileName = 0;
-    for (const QString &fileName : m_fileNames) {
+    for (const QString &fileName : qAsConst(m_fileNames)) {
         int pos = fileName.lastIndexOf('/');
         m_maxWidthOfFileName = qMax(m_maxWidthOfFileName, fm.horizontalAdvance(fileName.mid(pos + 1)));
     }
@@ -394,11 +395,10 @@ int TestResultModel::maxWidthOfLineNumber(const QFont &font)
 int TestResultModel::resultTypeCount(ResultType type) const
 {
     int result = 0;
-
-    for (const auto &id : m_testResultCount.keys()) {
+    for (auto it = m_testResultCount.cbegin(); it != m_testResultCount.cend(); ++it) {
         // if we got a result count from the framework prefer that over our counted results
-        int reported = m_reportedSummary[id].value(type);
-        result += reported != 0 ? reported : m_testResultCount.value(id).value(type);
+        int reported = m_reportedSummary[it.key()].value(type);
+        result += reported != 0 ? reported : it.value().value(type);
     }
     return result;
 }

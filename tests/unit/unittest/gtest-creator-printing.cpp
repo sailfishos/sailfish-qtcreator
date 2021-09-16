@@ -72,7 +72,7 @@
 #include <variantproperty.h>
 #include <qmldesigner/designercore/imagecache/imagecachestorageinterface.h>
 
-#include <sqlite3ext.h>
+#include <sqlite.h>
 
 namespace {
 ClangBackEnd::FilePathCaching *filePathCache = nullptr;
@@ -866,6 +866,11 @@ static const char *highlightingTypeToCStringLiteral(HighlightingType type)
         RETURN_TEXT_FOR_CASE(ObjectiveCMethod);
         RETURN_TEXT_FOR_CASE(TemplateTypeParameter);
         RETURN_TEXT_FOR_CASE(TemplateTemplateParameter);
+        RETURN_TEXT_FOR_CASE(AngleBracketOpen);
+        RETURN_TEXT_FOR_CASE(AngleBracketClose);
+        RETURN_TEXT_FOR_CASE(DoubleAngleBracketClose);
+        RETURN_TEXT_FOR_CASE(TernaryIf);
+        RETURN_TEXT_FOR_CASE(TernaryElse);
     }
 
     return "";
@@ -1566,9 +1571,14 @@ std::ostream &operator<<(std::ostream &out, const VariantProperty &property)
 }
 
 namespace Internal {
-std::ostream &operator<<(std::ostream &out, const ImageCacheStorageEntry &entry)
+std::ostream &operator<<(std::ostream &out, const ImageCacheStorageImageEntry &entry)
 {
     return out << "(" << entry.image << ", " << entry.hasEntry << ")";
+}
+
+std::ostream &operator<<(std::ostream &out, const ImageCacheStorageIconEntry &entry)
+{
+    return out << "(" << entry.icon << ", " << entry.hasEntry << ")";
 }
 
 } // namespace Internal

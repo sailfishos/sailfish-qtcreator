@@ -299,7 +299,7 @@ QList<Core::IWizardFactory *> JsonWizardFactory::createWizardFactories()
 
     if (verbose()) { // Print to output pane for Windows.
         qWarning("%s", qPrintable(verboseLog));
-        Core::MessageManager::write(verboseLog, Core::MessageManager::ModeSwitch);
+        Core::MessageManager::writeDisrupting(verboseLog);
     }
 
     return result;
@@ -514,8 +514,8 @@ bool JsonWizardFactory::isAvailable(Utils::Id platformId) const
     expander.registerVariable("Platform", tr("The platform selected for the wizard."),
                               [platformId]() { return platformId.toString(); });
     expander.registerVariable("Features", tr("The features available to this wizard."),
-                              [this, e, platformId]() { return JsonWizard::stringListToArrayString(Utils::Id::toStringList(availableFeatures(platformId)), e); });
-    expander.registerVariable("Plugins", tr("The plugins loaded."), [this, e]() {
+                              [e, platformId]() { return JsonWizard::stringListToArrayString(Utils::Id::toStringList(availableFeatures(platformId)), e); });
+    expander.registerVariable("Plugins", tr("The plugins loaded."), [e]() {
         return JsonWizard::stringListToArrayString(Utils::Id::toStringList(pluginFeatures()), e);
     });
     Core::JsExpander jsExpander;

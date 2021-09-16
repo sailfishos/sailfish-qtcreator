@@ -24,10 +24,13 @@
 ****************************************************************************/
 
 #include "toolsmodel.h"
+
 #include "tooltreeitem.h"
-#include "utils/qtcassert.h"
-#include "utils/stringutils.h"
-#include <exewrappers/mesontools.h>
+#include "exewrappers/mesontools.h"
+
+#include <projectexplorer/projectexplorerconstants.h>
+#include <utils/qtcassert.h>
+#include <utils/stringutils.h>
 
 namespace MesonProjectManager {
 namespace Internal {
@@ -35,8 +38,10 @@ namespace Internal {
 ToolsModel::ToolsModel()
 {
     setHeader({tr("Name"), tr("Location")});
-    rootItem()->appendChild(new Utils::StaticTreeItem(tr("Auto-detected")));
-    rootItem()->appendChild(new Utils::StaticTreeItem(tr("Manual")));
+    rootItem()->appendChild(
+        new Utils::StaticTreeItem({ProjectExplorer::Constants::msgAutoDetected()},
+                                  {ProjectExplorer::Constants::msgAutoDetectedToolTip()}));
+    rootItem()->appendChild(new Utils::StaticTreeItem(ProjectExplorer::Constants::msgManual()));
     for (const auto &tool : MesonTools::tools()) {
         addMesonTool(tool);
     }
@@ -81,13 +86,12 @@ void ToolsModel::apply()
         if (item->hasUnsavedChanges()) {
             MesonTools::updateTool(item->id(), item->name(), item->executable());
             item->setSaved();
-            emit this->dataChanged(item->index(),item->index());
+            emit this->dataChanged(item->index(), item->index());
         }
     });
     while (!m_itemsToRemove.isEmpty()) {
         MesonTools::removeTool(m_itemsToRemove.dequeue());
     }
-
 }
 
 void ToolsModel::addMesonTool(const MesonTools::Tool_t &tool)
@@ -114,5 +118,6 @@ Utils::TreeItem *ToolsModel::manualGroup() const
 {
     return rootItem()->childAt(1);
 }
+
 } // namespace Internal
 } // namespace MesonProjectManager

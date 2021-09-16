@@ -44,11 +44,12 @@
 #include <cplusplus/TypeVisitor.h>
 #include <cplusplus/CoreTypes.h>
 
-#include <QStack>
-#include <QByteArray>
 #include <QBitArray>
-#include <QDir>
+#include <QByteArray>
 #include <QDebug>
+#include <QDir>
+#include <QFutureInterface>
+#include <QStack>
 
 /*!
     \namespace CPlusPlus
@@ -82,7 +83,7 @@ public:
     }
 
 protected:
-    bool preVisit(Symbol *s)
+    bool preVisit(Symbol *s) final
     {
         if (s->line() < line || (s->line() == line && s->column() <= column)) {
             // skip blocks
@@ -874,8 +875,14 @@ Utils::FilePaths Snapshot::filesDependingOn(const Utils::FilePath &fileName) con
 
 void Snapshot::updateDependencyTable() const
 {
+    QFutureInterfaceBase futureInterface;
+    updateDependencyTable(futureInterface);
+}
+
+void Snapshot::updateDependencyTable(QFutureInterfaceBase &futureInterface) const
+{
     if (m_deps.files.isEmpty())
-        m_deps.build(*this);
+        m_deps.build(futureInterface, *this);
 }
 
 bool Snapshot::operator==(const Snapshot &other) const

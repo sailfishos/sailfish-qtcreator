@@ -39,13 +39,14 @@ namespace Utils { class ItemViewEvent; }
 namespace Debugger {
 namespace Internal {
 
-class BreakpointItem;
-class BreakpointMarker;
 class BreakHandler;
+class BreakpointItem;
+class BreakpointManager;
+class BreakpointMarker;
 class DebuggerCommand;
 class DebuggerEngine;
-class BreakpointManager;
 class GlobalBreakpointMarker;
+class Location;
 
 class SubBreakpointItem : public QObject, public Utils::TypedTreeItem<Utils::TreeItem, BreakpointItem>
 {
@@ -86,6 +87,7 @@ public:
 
     bool isEnabled() const { return m_params.enabled; }
     void setEnabled(bool enabled, bool descend = true);
+    void setParameters(const BreakpointParameters &params);
 
     const BreakpointParameters &requestedParameters() const { return m_params; }
 
@@ -121,7 +123,7 @@ public:
 
     QVariant data(int column, int role) const final;
 
-    QIcon icon() const;
+    QIcon icon(bool withLocationMarker = false) const;
 
     void setMarkerFileAndLine(const Utils::FilePath &fileName, int lineNumber);
     bool needsChange() const;
@@ -174,6 +176,7 @@ public:
     void setIgnoreCount(int count) { m_parameters.ignoreCount = count; }
     void setCommand(const QString &command) { m_parameters.command = command; }
     void setCondition(const QString &condition) { m_parameters.condition = condition; }
+    void setMessage(const QString& message) { m_parameters.message = message; }
 
     QString msgWatchpointByAddressTriggered(quint64 address) const;
     QString msgWatchpointByAddressTriggered(quint64 address, const QString &threadId) const;
@@ -196,6 +199,8 @@ public:
     const GlobalBreakpoint globalBreakpoint() const;
     void gotoState(BreakpointState target, BreakpointState assumedCurrent);
 
+    void setNeedsLocationMarker(bool needsLocationMarker);
+
 private:
     void destroyMarker();
     void updateMarker();
@@ -208,6 +213,7 @@ private:
     BreakpointMarker *m_marker = nullptr;
     QString m_responseId;      //!< Breakpoint number or id assigned by or used in the debugger backend.
     QString m_displayName;
+    bool m_needsLocationMarker = false;
 };
 
 using Breakpoint = QPointer<BreakpointItem>;
@@ -259,6 +265,9 @@ public:
 
     void updateDisassemblerMarker(const Breakpoint &bp);
     void removeDisassemblerMarker(const Breakpoint &bp);
+
+    void setLocation(const Location &loc);
+    void resetLocation();
 
 private:
     Breakpoint findBreakpointByIndex(const QModelIndex &index) const;

@@ -4,8 +4,6 @@ import qbs.FileInfo
 Project {
     name: "Utils"
 
-    QtcDevHeaders { }
-
     QtcLibrary {
 
         cpp.defines: base.concat([
@@ -225,6 +223,8 @@ Project {
             "qtcolorbutton.h",
             "qtcprocess.cpp",
             "qtcprocess.h",
+            "qtcsettings.cpp",
+            "qtcsettings.h",
             "reloadpromptutils.cpp",
             "reloadpromptutils.h",
             "removefiledialog.cpp",

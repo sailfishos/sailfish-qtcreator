@@ -103,8 +103,8 @@ public:
     ~OpTimer()
     {
         if (qEnvironmentVariableIsSet(Constants::QBS_PROFILING_ENV)) {
-            MessageManager::write(QString("operation %1 took %2ms")
-                                  .arg(QLatin1String(m_name)).arg(m_timer.elapsed()));
+            MessageManager::writeSilently(
+                QString("operation %1 took %2ms").arg(QLatin1String(m_name)).arg(m_timer.elapsed()));
         }
     }
 
@@ -141,11 +141,7 @@ ProjectImporter *QbsProject::projectImporter() const
 void QbsProject::configureAsExampleProject(Kit *kit)
 {
     QList<BuildInfo> infoList;
-    QList<Kit *> kits;
-    if (kit)
-        kits.append(kit);
-    else
-        kits = KitManager::kits();
+    const QList<Kit *> kits(kit != nullptr ? QList<Kit *>({kit}) : KitManager::kits());
     for (Kit *k : kits) {
         if (QtSupport::QtKitAspect::qtVersion(k) != nullptr) {
             if (auto factory = BuildConfigurationFactory::find(k, projectFilePath()))
@@ -371,7 +367,7 @@ bool QbsBuildSystem::addFilesToProduct(
                 product.value("full-display-name").toString(),
                 group.value("name").toString());
     if (result.error().hasError()) {
-        MessageManager::write(result.error().toString(), Core::MessageManager::ModeSwitch);
+        MessageManager::writeDisrupting(result.error().toString());
         *notAdded = result.failedFiles();
     }
     return notAdded->isEmpty();
@@ -405,7 +401,7 @@ RemovedFilesFromProject QbsBuildSystem::removeFilesFromProduct(
 
     *notRemoved = result.failedFiles();
     if (result.error().hasError())
-        MessageManager::write(result.error().toString(), Core::MessageManager::ModeSwitch);
+        MessageManager::writeDisrupting(result.error().toString());
     const bool success = notRemoved->isEmpty();
     if (!wildcardFiles.isEmpty())
         *notRemoved += wildcardFiles;
@@ -894,8 +890,8 @@ static RawProjectParts generateProjectParts(
             QStringList cFlags;
             QStringList cxxFlags;
             getExpandedCompilerFlags(cFlags, cxxFlags, props);
-            rpp.setFlagsForC({cToolChain.get(), cFlags});
-            rpp.setFlagsForCxx({cxxToolChain.get(), cxxFlags});
+            rpp.setFlagsForC({cToolChain.get(), cFlags, {}});
+            rpp.setFlagsForCxx({cxxToolChain.get(), cxxFlags, {}});
 
             const QStringList defines = arrayToStringList(props.value("cpp.defines"))
                     + arrayToStringList(props.value("cpp.platformDefines"));
@@ -984,6 +980,7 @@ static RawProjectParts generateProjectParts(
                 qCWarning(qbsPmLog) << "Expect problems with code model";
             }
             rpp.setPreCompiledHeaders(Utils::toList(pchFiles));
+            rpp.setIncludedFiles(arrayToStringList(props.value("cpp.prefixHeaders")));
             rpp.setFiles(filePathToSourceArtifact.keys(), {},
                          [filePathToSourceArtifact](const QString &filePath) {
                 // Keep this lambda thread-safe!
@@ -1125,8 +1122,8 @@ void QbsBuildSystem::updateApplicationTargets()
             RunEnvironmentResult result = session()->getRunEnvironment(productName, procEnv,
                                                                        setupRunEnvConfig);
             if (result.error().hasError()) {
-                Core::MessageManager::write(tr("Error retrieving run environment: %1")
-                                            .arg(result.error().toString()));
+                Core::MessageManager::writeFlashing(
+                    tr("Error retrieving run environment: %1").arg(result.error().toString()));
                 return;
             }
             QProcessEnvironment fullEnv = result.environment();

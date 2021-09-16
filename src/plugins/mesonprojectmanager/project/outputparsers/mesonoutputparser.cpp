@@ -22,9 +22,12 @@
 ** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
+
 #include "mesonoutputparser.h"
+
 #include <projectexplorer/task.h>
 #include <projectexplorer/taskhub.h>
+
 namespace MesonProjectManager {
 namespace Internal {
 
@@ -152,7 +155,7 @@ void MesonOutputParser::readStdo(const QByteArray &data)
 
 void MesonOutputParser::setSourceDirectory(const Utils::FilePath &sourceDir)
 {
-    emit addSearchDir(sourceDir);
+    emit newSearchDirFound(sourceDir);
 }
 
 } // namespace Internal

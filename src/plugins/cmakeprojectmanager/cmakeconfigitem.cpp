@@ -145,9 +145,11 @@ CMakeConfigItem::Type CMakeConfigItem::typeStringToType(const QByteArray &type)
         return CMakeConfigItem::PATH;
     if (type == "STATIC")
         return CMakeConfigItem::STATIC;
+    if (type == "INTERNAL")
+        return CMakeConfigItem::INTERNAL;
 
-    QTC_CHECK(type == "INTERNAL" || type == "UNINITIALIZED");
-    return CMakeConfigItem::INTERNAL;
+    QTC_CHECK(type == "UNINITIALIZED");
+    return CMakeConfigItem::UNINITIALIZED;
 }
 
 QString CMakeConfigItem::typeToTypeString(const CMakeConfigItem::Type t)
@@ -163,8 +165,10 @@ QString CMakeConfigItem::typeToTypeString(const CMakeConfigItem::Type t)
         return {"INTERNAL"};
     case CMakeProjectManager::CMakeConfigItem::STATIC:
         return {"STATIC"};
-    case CMakeConfigItem::BOOL:
+    case CMakeProjectManager::CMakeConfigItem::BOOL:
         return {"BOOL"};
+    case CMakeProjectManager::CMakeConfigItem::UNINITIALIZED:
+        return {"UNINITIALIZED"};
     }
     QTC_CHECK(false);
     return {};
@@ -196,7 +200,7 @@ QString CMakeConfigItem::expandedValue(const ProjectExplorer::Kit *k) const
 
 QString CMakeConfigItem::expandedValue(const Utils::MacroExpander *expander) const
 {
-    return expander->expand(QString::fromUtf8(value));
+    return expander ? expander->expand(QString::fromUtf8(value)) : QString::fromUtf8(value);
 }
 
 std::function<bool (const CMakeConfigItem &a, const CMakeConfigItem &b)> CMakeConfigItem::sortOperator()
@@ -417,6 +421,9 @@ QString CMakeConfigItem::toString(const Utils::MacroExpander *expander) const
         break;
     case CMakeProjectManager::CMakeConfigItem::INTERNAL:
         typeStr = QLatin1String("INTERNAL");
+        break;
+    case CMakeProjectManager::CMakeConfigItem::UNINITIALIZED:
+        typeStr = QLatin1String("UNINITIALIZED");
         break;
     case CMakeProjectManager::CMakeConfigItem::STRING:
     default:

@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include <QtGlobal>
+#include "projectexplorer_export.h"
 
 namespace ProjectExplorer {
 namespace Constants {
@@ -215,6 +215,7 @@ const char PROJECTTREE_ID[] = "Projects";
 const char FILEOVERLAY_QT[]=":/projectexplorer/images/fileoverlay_qt.png";
 const char FILEOVERLAY_GROUP[] = ":/projectexplorer/images/fileoverlay_group.png";
 const char FILEOVERLAY_PRODUCT[] = ":/projectexplorer/images/fileoverlay_product.png";
+const char FILEOVERLAY_MODULES[] = ":/projectexplorer/images/fileoverlay_modules.png";
 const char FILEOVERLAY_QML[]=":/projectexplorer/images/fileoverlay_qml.png";
 const char FILEOVERLAY_UI[]=":/projectexplorer/images/fileoverlay_ui.png";
 const char FILEOVERLAY_QRC[]=":/projectexplorer/images/fileoverlay_qrc.png";
@@ -229,6 +230,11 @@ const char ADD_FILES_DIALOG_FILTER_HISTORY_KEY[] = "ProjectExplorer.AddFilesFilt
 const char PROJECT_ROOT_PATH_KEY[] = "ProjectExplorer.Project.RootPath";
 const char STARTUPSESSION_KEY[] = "ProjectExplorer/SessionToRestore";
 const char LASTSESSION_KEY[] = "ProjectExplorer/StartupSession";
+
+// UI texts
+PROJECTEXPLORER_EXPORT QString msgAutoDetected();
+PROJECTEXPLORER_EXPORT QString msgAutoDetectedToolTip();
+PROJECTEXPLORER_EXPORT QString msgManual();
 
 } // namespace Constants
 } // namespace ProjectExplorer

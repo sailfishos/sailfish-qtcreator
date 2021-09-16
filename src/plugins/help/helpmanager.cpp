@@ -154,7 +154,7 @@ void HelpManager::unregisterDocumentation(const QStringList &fileNames)
     const auto getNamespaces = [](const QStringList &fileNames) {
         QMutexLocker locker(&d->m_helpengineMutex);
         return Utils::transform(fileNames, [](const QString &filePath) {
-            return d->m_helpEngine->namespaceName(filePath);
+            return QHelpEngineCore::namespaceName(filePath);
         });
     };
     unregisterNamespaces(getNamespaces(fileNames));
@@ -179,7 +179,7 @@ void HelpManager::registerDocumentationNow(QFutureInterface<bool> &futureInterfa
         if (futureInterface.isCanceled())
             break;
         futureInterface.setProgressValue(futureInterface.progressValue() + 1);
-        const QString &nameSpace = helpEngine.namespaceName(file);
+        const QString &nameSpace = QHelpEngineCore::namespaceName(file);
         if (nameSpace.isEmpty())
             continue;
         if (!nameSpaces.contains(nameSpace)) {
@@ -294,7 +294,7 @@ QStringList HelpManager::registeredNamespaces()
 QString HelpManager::namespaceFromFile(const QString &file)
 {
     QTC_ASSERT(!d->m_needsSetup, return {});
-    return d->m_helpEngine->namespaceName(file);
+    return QHelpEngineCore::namespaceName(file);
 }
 
 QString HelpManager::fileFromNamespace(const QString &nameSpace)
@@ -490,7 +490,7 @@ void HelpManagerPrivate::readSettings()
 void HelpManagerPrivate::writeSettings()
 {
     const QStringList list = Utils::toList(m_userRegisteredFiles);
-    ICore::settings()->setValue(QLatin1String(kUserDocumentationKey), list);
+    ICore::settings()->setValueWithDefault(kUserDocumentationKey, list);
 }
 
 } // Internal

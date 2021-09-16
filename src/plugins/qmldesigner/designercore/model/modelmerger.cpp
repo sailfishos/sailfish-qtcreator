@@ -43,7 +43,9 @@
 
 namespace QmlDesigner {
 
-static ModelNode createNodeFromNode(const ModelNode &modelNode,const QHash<QString, QString> &idRenamingHash, AbstractView *view);
+static ModelNode createNodeFromNode(const ModelNode &modelNode,
+                                    const QHash<QString, QString> &idRenamingHash,
+                                    AbstractView *view, const MergePredicate &mergePredicate);
 
 static QString fixExpression(const QString &expression, const QHash<QString, QString> &idRenamingHash)
 {
@@ -60,8 +62,13 @@ static QString fixExpression(const QString &expression, const QHash<QString, QSt
 
 static void syncVariantProperties(ModelNode &outputNode, const ModelNode &inputNode)
 {
-    foreach (const VariantProperty &variantProperty, inputNode.variantProperties()) {
-        outputNode.variantProperty(variantProperty.name()).setValue(variantProperty.value());
+    foreach (const VariantProperty &property, inputNode.variantProperties()) {
+        if (property.isDynamic()) {
+            outputNode.variantProperty(property.name()).
+                    setDynamicTypeNameAndValue(property.dynamicTypeName(), property.value());
+            continue;
+        }
+        outputNode.variantProperty(property.name()).setValue(property.value());
     }
 }
 
@@ -119,7 +126,8 @@ static void setupIdRenamingHash(const ModelNode &modelNode, QHash<QString, QStri
             int number = 1;
             splitIdInBaseNameAndNumber(newId, &baseId, &number);
 
-            while (view->hasId(newId) || idRenamingHash.values().contains(newId)) {
+            while (view->hasId(newId) || std::find(idRenamingHash.cbegin(),
+                        idRenamingHash.cend(), newId) != idRenamingHash.cend()) {
                 newId = baseId + QString::number(number);
                 number++;
             }
@@ -129,46 +137,56 @@ static void setupIdRenamingHash(const ModelNode &modelNode, QHash<QString, QStri
     }
 }
 
-static void syncNodeProperties(ModelNode &outputNode, const ModelNode &inputNode, const QHash<QString, QString> &idRenamingHash, AbstractView *view)
+static void syncNodeProperties(ModelNode &outputNode, const ModelNode &inputNode,
+                               const QHash<QString, QString> &idRenamingHash,
+                               AbstractView *view, const MergePredicate &mergePredicate)
 {
     foreach (const NodeProperty &nodeProperty, inputNode.nodeProperties()) {
-        ModelNode newNode = createNodeFromNode(nodeProperty.modelNode(), idRenamingHash, view);
+        ModelNode node = nodeProperty.modelNode();
+        if (!mergePredicate(node))
+            continue;
+        ModelNode newNode = createNodeFromNode(node, idRenamingHash, view, mergePredicate);
         outputNode.nodeProperty(nodeProperty.name()).reparentHere(newNode);
     }
 }
 
-static void syncNodeListProperties(ModelNode &outputNode, const ModelNode &inputNode, const QHash<QString, QString> &idRenamingHash, AbstractView *view)
+static void syncNodeListProperties(ModelNode &outputNode, const ModelNode &inputNode,
+                                   const QHash<QString, QString> &idRenamingHash,
+                                   AbstractView *view, const MergePredicate &mergePredicate)
 {
     foreach (const NodeListProperty &nodeListProperty, inputNode.nodeListProperties()) {
         foreach (const ModelNode &node, nodeListProperty.toModelNodeList()) {
-            ModelNode newNode = createNodeFromNode(node, idRenamingHash, view);
+            if (!mergePredicate(node))
+                continue;
+            ModelNode newNode = createNodeFromNode(node, idRenamingHash, view, mergePredicate);
             outputNode.nodeListProperty(nodeListProperty.name()).reparentHere(newNode);
         }
     }
 }
 
-static ModelNode createNodeFromNode(const ModelNode &modelNode,const QHash<QString, QString> &idRenamingHash, AbstractView *view)
+static ModelNode createNodeFromNode(const ModelNode &modelNode,
+                                    const QHash<QString, QString> &idRenamingHash,
+                                    AbstractView *view, const MergePredicate &mergePredicate)
 {
-    QList<QPair<PropertyName, QVariant> > propertyList;
-    QList<QPair<PropertyName, QVariant> > variantPropertyList;
-    foreach (const VariantProperty &variantProperty, modelNode.variantProperties()) {
-        propertyList.append(QPair<PropertyName, QVariant>(variantProperty.name(), variantProperty.value()));
-    }
     NodeMetaInfo nodeMetaInfo = view->model()->metaInfo(modelNode.type());
     ModelNode newNode(view->createModelNode(modelNode.type(), nodeMetaInfo.majorVersion(), nodeMetaInfo.minorVersion(),
-                                            propertyList, variantPropertyList, modelNode.nodeSource(), modelNode.nodeSourceType()));
+                                            {}, {}, modelNode.nodeSource(), modelNode.nodeSourceType()));
+    syncVariantProperties(newNode, modelNode);
     syncAuxiliaryProperties(newNode, modelNode);
     syncBindingProperties(newNode, modelNode, idRenamingHash);
     syncSignalHandlerProperties(newNode, modelNode, idRenamingHash);
     syncId(newNode, modelNode, idRenamingHash);
-    syncNodeProperties(newNode, modelNode, idRenamingHash, view);
-    syncNodeListProperties(newNode, modelNode, idRenamingHash, view);
+    syncNodeProperties(newNode, modelNode, idRenamingHash, view, mergePredicate);
+    syncNodeListProperties(newNode, modelNode, idRenamingHash, view, mergePredicate);
 
     return newNode;
 }
 
-ModelNode ModelMerger::insertModel(const ModelNode &modelNode)
+
+ModelNode ModelMerger::insertModel(const ModelNode &modelNode, const MergePredicate &predicate)
 {
+    if (!predicate(modelNode))
+        return {};
     RewriterTransaction transaction(view()->beginRewriterTransaction(QByteArrayLiteral("ModelMerger::insertModel")));
 
     QList<Import> newImports;
@@ -182,32 +200,36 @@ ModelNode ModelMerger::insertModel(const ModelNode &modelNode)
 
     QHash<QString, QString> idRenamingHash;
     setupIdRenamingHash(modelNode, idRenamingHash, view());
-    ModelNode newNode(createNodeFromNode(modelNode, idRenamingHash, view()));
+    ModelNode newNode(createNodeFromNode(modelNode, idRenamingHash, view(), predicate));
 
     return newNode;
 }
-void ModelMerger::replaceModel(const ModelNode &modelNode)
+
+void ModelMerger::replaceModel(const ModelNode &modelNode, const MergePredicate &predicate)
 {
-        view()->model()->changeImports(modelNode.model()->imports(), {});
-        view()->model()->setFileUrl(modelNode.model()->fileUrl());
+    if (!predicate(modelNode))
+        return;
 
-        view()->executeInTransaction("ModelMerger::replaceModel", [this, modelNode](){
-            ModelNode rootNode(view()->rootModelNode());
+    view()->model()->changeImports(modelNode.model()->imports(), {});
+    view()->model()->setFileUrl(modelNode.model()->fileUrl());
 
-            foreach (const PropertyName &propertyName, rootNode.propertyNames())
-                rootNode.removeProperty(propertyName);
+    view()->executeInTransaction("ModelMerger::replaceModel", [this, modelNode, &predicate](){
+        ModelNode rootNode(view()->rootModelNode());
 
-            QHash<QString, QString> idRenamingHash;
-            setupIdRenamingHash(modelNode, idRenamingHash, view());
+        foreach (const PropertyName &propertyName, rootNode.propertyNames())
+            rootNode.removeProperty(propertyName);
 
-            syncAuxiliaryProperties(rootNode, modelNode);
-            syncVariantProperties(rootNode, modelNode);
-            syncBindingProperties(rootNode, modelNode, idRenamingHash);
-            syncId(rootNode, modelNode, idRenamingHash);
-            syncNodeProperties(rootNode, modelNode, idRenamingHash, view());
-            syncNodeListProperties(rootNode, modelNode, idRenamingHash, view());
-            m_view->changeRootNodeType(modelNode.type(), modelNode.majorVersion(), modelNode.minorVersion());
-        });
+        QHash<QString, QString> idRenamingHash;
+        setupIdRenamingHash(modelNode, idRenamingHash, view());
+
+        syncAuxiliaryProperties(rootNode, modelNode);
+        syncVariantProperties(rootNode, modelNode);
+        syncBindingProperties(rootNode, modelNode, idRenamingHash);
+        syncId(rootNode, modelNode, idRenamingHash);
+        syncNodeProperties(rootNode, modelNode, idRenamingHash, view(), predicate);
+        syncNodeListProperties(rootNode, modelNode, idRenamingHash, view(), predicate);
+        m_view->changeRootNodeType(modelNode.type(), modelNode.majorVersion(), modelNode.minorVersion());
+    });
 }
 
 } //namespace QmlDesigner

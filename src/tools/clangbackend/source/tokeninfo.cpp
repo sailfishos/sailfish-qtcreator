@@ -226,6 +226,28 @@ bool TokenInfo::isArgumentInCurrentOutputArgumentLocations() const
     return isOutputArgument;
 }
 
+// For reasons I don't fully understand, the cursors from clang_annotateTokens() are sometimes
+// not the actual cursor for the respective token, but the one for a construct higher up
+// in the syntax tree. This is often not what we want (e.g. QTCREATORBUG-21522, QTCREATORBUG-21534),
+// so in such cases we re-retrieve the cursor for the token via clang_getCursor().
+Cursor TokenInfo::realCursor(const Cursor &cursor)
+{
+    // Magic Qt stuff.
+    if (cursor.kind() == CXCursor_InvalidFile && invalidFileKind() != QtMacroPart::None)
+        return cursor;
+
+    const SourceLocation tokenLoc = m_token->location();
+    const SourceLocation cursorLoc = cursor.sourceLocation();
+    if (tokenLoc == cursorLoc)
+        return cursor;
+
+    // Note: clang_getTokenLocation() does not work.
+    const CXFile cxFile = clang_getFile(m_token->tu(), tokenLoc.filePath().toByteArray());
+    const CXSourceLocation cxLoc = clang_getLocation(m_token->tu(), cxFile, tokenLoc.line(),
+                                                     tokenLoc.column());
+    return clang_getCursor(m_token->tu(), cxLoc);
+}
+
 bool TokenInfo::isOutputArgument() const
 {
     if (m_currentOutputArgumentRanges->empty())
@@ -358,6 +380,16 @@ void TokenInfo::identifierKind(const Cursor &cursor, Recursion recursion)
     if (cursor.isInvalidDeclaration())
         return;
 
+    if (recursion == Recursion::FirstPass
+            && cursor.kind() != CXCursor_NotImplemented
+            && cursor.kind() != CXCursor_PreprocessingDirective) {
+        const Cursor c = realCursor(cursor);
+        if (!clang_isInvalid(c.kind()) && c != cursor) {
+            identifierKind(c, Recursion::FirstPass);
+            return;
+        }
+    }
+
     const CXCursorKind kind = cursor.kind();
     switch (kind) {
         case CXCursor_Destructor:
@@ -440,14 +472,14 @@ void TokenInfo::identifierKind(const Cursor &cursor, Recursion recursion)
             m_types.mainHighlightingType = HighlightingType::PreprocessorDefinition;
             break;
         case CXCursor_InclusionDirective:
-            m_types.mainHighlightingType = HighlightingType::StringLiteral;
+            // Included files are sometimes reported as strings and sometimes as
+            // include directives, depending on various circumstances.
+            m_types.mainHighlightingType = m_token->spelling() == "include"
+                    ? HighlightingType::Preprocessor : HighlightingType::StringLiteral;
             break;
         case CXCursor_LabelRef:
         case CXCursor_LabelStmt:
             m_types.mainHighlightingType = HighlightingType::Label;
-            break;
-        case CXCursor_InvalidFile:
-            invalidFileKind();
             break;
         default:
             break;
@@ -556,27 +588,34 @@ void TokenInfo::punctuationOrOperatorKind()
         case CXCursor_CompoundAssignOperator:
         case CXCursor_ConditionalOperator:
             m_types.mixinHighlightingTypes.push_back(HighlightingType::Operator);
+            if (kind == CXCursor_ConditionalOperator) {
+                if (m_token->spelling() == "?")
+                    m_types.mixinHighlightingTypes.push_back(HighlightingType::TernaryIf);
+                else
+                    m_types.mixinHighlightingTypes.push_back(HighlightingType::TernaryElse);
+            }
             break;
         default:
             break;
     }
 
+    if (m_types.mainHighlightingType == HighlightingType::Punctuation
+            && m_types.mixinHighlightingTypes.empty()
+            && kind != CXCursor_OverloadedDeclRef
+            && kind != CXCursor_InclusionDirective
+            && kind != CXCursor_PreprocessingDirective) {
+        const ClangString spelling = m_token->spelling();
+        if (spelling == "<")
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::AngleBracketOpen);
+        else if (spelling == ">")
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::AngleBracketClose);
+        else if (spelling == ">>")
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::DoubleAngleBracketClose);
+    }
+
     if (isOutputArgument())
         m_types.mixinHighlightingTypes.push_back(HighlightingType::OutputArgument);
 }
-
-enum class QtMacroPart
-{
-    None,
-    SignalFunction,
-    SignalType,
-    SlotFunction,
-    SlotType,
-    Type,
-    Property,
-    Keyword,
-    FunctionOrPrimitiveType
-};
 
 static bool isFirstTokenOfCursor(const Cursor &cursor, const Token &token)
 {
@@ -594,7 +633,7 @@ static bool isValidMacroToken(const Cursor &cursor, const Token &token)
     return !isFirstTokenOfCursor(cursor, token) && !isLastTokenOfCursor(cursor, token);
 }
 
-static QtMacroPart propertyPart(const Token &token)
+TokenInfo::QtMacroPart TokenInfo::propertyPart(const Token &token)
 {
     static constexpr const char *propertyKeywords[]
             = {"READ", "WRITE", "MEMBER", "RESET", "NOTIFY", "REVISION", "DESIGNABLE",
@@ -625,7 +664,8 @@ static QtMacroPart propertyPart(const Token &token)
     return QtMacroPart::Type;
 }
 
-static QtMacroPart signalSlotPart(CXTranslationUnit cxTranslationUnit, CXToken *token, bool signal)
+TokenInfo::QtMacroPart TokenInfo::signalSlotPart(CXTranslationUnit cxTranslationUnit,
+                                                 CXToken *token, bool signal)
 {
     // We are inside macro so current token has at least '(' and macro name before it.
     const ClangString prevToken = clang_getTokenSpelling(cxTranslationUnit, *(token - 2));
@@ -634,7 +674,7 @@ static QtMacroPart signalSlotPart(CXTranslationUnit cxTranslationUnit, CXToken *
     return (prevToken == "SLOT") ? QtMacroPart::SlotFunction : QtMacroPart::SlotType;
 }
 
-static QtMacroPart qtMacroPart(const Token &token)
+TokenInfo::QtMacroPart TokenInfo::qtMacroPart(const Token &token)
 {
     const SourceLocation location = token.location();
 
@@ -655,7 +695,7 @@ static QtMacroPart qtMacroPart(const Token &token)
     return QtMacroPart::None;
 }
 
-void TokenInfo::invalidFileKind()
+TokenInfo::QtMacroPart TokenInfo::invalidFileKind()
 {
     const QtMacroPart macroPart = qtMacroPart(*m_token);
 
@@ -663,7 +703,7 @@ void TokenInfo::invalidFileKind()
     case QtMacroPart::None:
     case QtMacroPart::Keyword:
         m_types.mainHighlightingType = HighlightingType::Invalid;
-        return;
+        break;
     case QtMacroPart::SignalFunction:
     case QtMacroPart::SlotFunction:
         m_types.mainHighlightingType = HighlightingType::Function;
@@ -674,14 +714,16 @@ void TokenInfo::invalidFileKind()
         break;
     case QtMacroPart::Property:
         m_types.mainHighlightingType = HighlightingType::QtProperty;
-        return;
+        break;
     case QtMacroPart::Type:
         m_types.mainHighlightingType = HighlightingType::Type;
-        return;
+        break;
     case QtMacroPart::FunctionOrPrimitiveType:
         m_types.mainHighlightingType = HighlightingType::Function;
-        return;
+        break;
     }
+
+    return macroPart;
 }
 
 void TokenInfo::keywordKind()

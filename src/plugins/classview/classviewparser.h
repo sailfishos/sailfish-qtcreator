@@ -29,7 +29,6 @@
 
 #include "classviewparsertreeitem.h"
 
-#include <cplusplus/CPlusPlusForwardDeclarations.h>
 #include <cplusplus/CppDocument.h>
 
 // might be changed to forward declaration - is not done to be less dependent
@@ -53,69 +52,31 @@ public:
     explicit Parser(QObject *parent = nullptr);
     ~Parser() override;
 
-    bool canFetchMore(QStandardItem *item, bool skipRoot = false) const;
-
-    void fetchMore(QStandardItem *item, bool skipRoot = false) const;
-    bool hasChildren(QStandardItem *item) const;
-
-signals:
-    //! File list is changed
-    void filesAreRemoved();
-
-    void treeDataUpdate(QSharedPointer<QStandardItem> result);
-
-    void resetDataDone();
-
-public:
-    void clearCacheAll();
-
-    void clearCache();
-
     void requestCurrentState();
-
-    void setFileList(const QStringList &fileList);
-
     void removeFiles(const QStringList &fileList);
-
-    void resetData(const CPlusPlus::Snapshot &snapshot);
-
-    void resetDataToCurrentState();
-
-    void parseDocument(const CPlusPlus::Document::Ptr &doc);
-
+    void resetData(const QHash<Utils::FilePath, QPair<QString, Utils::FilePaths>> &projects);
+    void addProject(const Utils::FilePath &projectPath, const QString &projectName,
+                    const Utils::FilePaths &filesInProject);
+    void removeProject(const Utils::FilePath &projectPath);
     void setFlatMode(bool flat);
 
-protected:
-    using CitCachedDocTreeRevision = QHash<QString, unsigned>::const_iterator;
-    using CitCachedPrjFileLists = QHash<QString, QStringList>::const_iterator;
+    void updateDocuments(const QSet<Utils::FilePath> &documentPaths);
 
-    void onResetDataDone();
-
-    void addProject(const ParserTreeItem::Ptr &item, const QStringList &fileList,
-                    const QString &projectId = QString());
-
-    void addSymbol(const ParserTreeItem::Ptr &item, const CPlusPlus::Symbol *symbol);
-
-    ParserTreeItem::ConstPtr getParseDocumentTree(const CPlusPlus::Document::Ptr &doc);
-
-    ParserTreeItem::ConstPtr getCachedOrParseDocumentTree(const CPlusPlus::Document::Ptr &doc);
-
-    ParserTreeItem::Ptr getParseProjectTree(const QStringList &fileList, const QString &projectId);
-
-    ParserTreeItem::Ptr getCachedOrParseProjectTree(const QStringList &fileList,
-                                                    const QString &projectId);
-
-    void emitCurrentTree();
-
-    ParserTreeItem::ConstPtr parse();
-
-    ParserTreeItem::ConstPtr findItemByRoot(const QStandardItem *item, bool skipRoot = false) const;
-
-    QStringList addProjectTree(const ParserTreeItem::Ptr &item, const ProjectExplorer::Project *project);
-    QStringList getAllFiles(const ProjectExplorer::Project *project);
-    void addFlatTree(const ParserTreeItem::Ptr &item, const ProjectExplorer::Project *project);
+signals:
+    void treeRegenerated(const ParserTreeItem::ConstPtr &root);
 
 private:
+    void updateDocumentsFromSnapshot(const QSet<Utils::FilePath> &documentPaths,
+                                     const CPlusPlus::Snapshot &snapshot);
+
+    ParserTreeItem::ConstPtr getParseDocumentTree(const CPlusPlus::Document::Ptr &doc);
+    ParserTreeItem::ConstPtr getCachedOrParseDocumentTree(const CPlusPlus::Document::Ptr &doc);
+    ParserTreeItem::ConstPtr getParseProjectTree(const Utils::FilePath &projectPath,
+                                                 const QSet<Utils::FilePath> &filesInProject);
+    ParserTreeItem::ConstPtr getCachedOrParseProjectTree(const Utils::FilePath &projectPath,
+                                                         const QSet<Utils::FilePath> &filesInProject);
+    ParserTreeItem::ConstPtr parse();
+
     //! Private class data pointer
     ParserPrivate *d;
 };

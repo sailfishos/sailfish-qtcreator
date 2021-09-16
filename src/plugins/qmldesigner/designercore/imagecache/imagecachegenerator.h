@@ -27,10 +27,12 @@
 
 #include "imagecachegeneratorinterface.h"
 
+#include <imagecacheauxiliarydata.h>
 #include <utils/smallstring.h>
 
 #include <QThread>
 
+#include <deque>
 #include <memory>
 #include <mutex>
 
@@ -51,10 +53,11 @@ public:
     ~ImageCacheGenerator();
 
     void generateImage(Utils::SmallStringView filePath,
-                       Utils::SmallStringView state,
+                       Utils::SmallStringView extraId,
                        Sqlite::TimeStamp timeStamp,
-                       CaptureCallback &&captureCallback,
-                       AbortCallback &&abortCallback) override;
+                       ImageCache::CaptureImageWithSmallImageCallback &&captureCallback,
+                       ImageCache::AbortCallback &&abortCallback,
+                       ImageCache::AuxiliaryData &&auxiliaryData) override;
     void clean() override;
 
     void waitForFinished() override;
@@ -64,21 +67,24 @@ private:
     {
         Task() = default;
         Task(Utils::SmallStringView filePath,
-             Utils::SmallStringView state,
+             Utils::SmallStringView extraId,
+             ImageCache::AuxiliaryData &&auxiliaryData,
              Sqlite::TimeStamp timeStamp,
-             CaptureCallback &&captureCallback,
-             AbortCallback &&abortCallback)
+             ImageCache::CaptureImageWithSmallImageCallback &&captureCallback,
+             ImageCache::AbortCallback &&abortCallback)
             : filePath(filePath)
-            , state(std::move(state))
-            , captureCallback(std::move(captureCallback))
-            , abortCallback(std::move(abortCallback))
+            , extraId(std::move(extraId))
+            , auxiliaryData(std::move(auxiliaryData))
+            , captureCallbacks({std::move(captureCallback)})
+            , abortCallbacks({std::move(abortCallback)})
             , timeStamp(timeStamp)
         {}
 
         Utils::PathString filePath;
-        Utils::SmallString state;
-        CaptureCallback captureCallback;
-        AbortCallback abortCallback;
+        Utils::SmallString extraId;
+        ImageCache::AuxiliaryData auxiliaryData;
+        std::vector<ImageCache::CaptureImageWithSmallImageCallback> captureCallbacks;
+        std::vector<ImageCache::AbortCallback> abortCallbacks;
         Sqlite::TimeStamp timeStamp;
     };
 
@@ -93,7 +99,7 @@ private:
     std::unique_ptr<QThread> m_backgroundThread;
     mutable std::mutex m_mutex;
     std::condition_variable m_condition;
-    std::vector<Task> m_tasks;
+    std::deque<Task> m_tasks;
     ImageCacheCollectorInterface &m_collector;
     ImageCacheStorageInterface &m_storage;
     bool m_finishing{false};

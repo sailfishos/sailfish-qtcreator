@@ -42,6 +42,17 @@ if (NOT Qt6_FOUND)
   endif()
   return()
 else()
+  # since Qt 6.2 some components are renamed to *Private
+  foreach(possible_private_libs DesignerComponents QmlDebug)
+      list(FIND Qt5_FIND_COMPONENTS ${possible_private_libs} dcIndex)
+      if(dcIndex GREATER_EQUAL 0)
+        find_package(Qt6${possible_private_libs}Private CONFIG QUIET)
+        if(TARGET Qt6::${possible_private_libs}Private)
+          add_library(Qt5::${possible_private_libs} ALIAS Qt6::${possible_private_libs}Private)
+          list(REMOVE_AT Qt5_FIND_COMPONENTS ${dcIndex})
+        endif()
+      endif()
+  endforeach()
   find_package(Qt6 CONFIG ${__arguments} ${Qt5_FIND_COMPONENTS})
 endif()
 
@@ -59,7 +70,7 @@ foreach(comp IN LISTS Qt5_FIND_COMPONENTS)
 endforeach()
 
 # alias Qt6::Core5Compat to Qt6Core5Compat to make consistent with Qt5 path
-if (TARGET Qt6::Core5Compat AND NOT TARGET Qt6CoreCompat)
+if (TARGET Qt6::Core5Compat AND NOT TARGET Qt6Core5Compat)
   add_library(Qt6Core5Compat ALIAS Qt6::Core5Compat)
 endif()
 

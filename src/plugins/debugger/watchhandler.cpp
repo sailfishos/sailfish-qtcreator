@@ -38,6 +38,7 @@
 #include "memoryagent.h"
 #include "registerhandler.h"
 #include "simplifytype.h"
+#include "sourceutils.h"
 #include "watchdelegatewidgets.h"
 #include "watchutils.h"
 
@@ -67,6 +68,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QLabel>
+#include <QMap>
 #include <QMenu>
 #include <QMimeData>
 #include <QPainter>
@@ -473,6 +475,8 @@ public:
     QHash<QString, TypeInfo> m_reportedTypeInfo;
     QHash<QString, DisplayFormats> m_reportedTypeFormats; // Type name -> Dumper Formats
     QHash<QString, QString> m_valueCache;
+
+    Location m_location;
 };
 
 WatchModel::WatchModel(WatchHandler *handler, DebuggerEngine *engine)
@@ -517,6 +521,8 @@ WatchModel::WatchModel(WatchHandler *handler, DebuggerEngine *engine)
     connect(action(ShowQtNamespace), &SavedAction::valueChanged,
         m_engine, &DebuggerEngine::updateAll);
     connect(action(ShowQObjectNames), &SavedAction::valueChanged,
+        m_engine, &DebuggerEngine::updateAll);
+    connect(action(UseAnnotationsInMainEditor), &SavedAction::valueChanged,
         m_engine, &DebuggerEngine::updateAll);
 
     connect(SessionManager::instance(), &SessionManager::sessionLoaded,
@@ -862,6 +868,19 @@ static QString displayName(const WatchItem *item)
         result = '*' + p->name;
     else
         result = watchModel(item)->removeNamespaces(item->name);
+
+    // prepend '*'s to indicate where autodereferencing has taken place
+    if (item->autoDerefCount > 0) {
+        // add parentheses for everything except simple variable names (e.g. pointer arithmetics,...)
+        QRegularExpression variableNameRegex("^[a-zA-Z0-9_]+$");
+        bool addParanthesis = !variableNameRegex.match(result).hasMatch();
+        if (addParanthesis)
+            result = "(" + result;
+        for (uint i = 0; i < item->autoDerefCount; i++)
+            result = "*" + result;
+        if (addParanthesis)
+            result += ")";
+    }
 
     // Simplify names that refer to base classes.
     if (result.startsWith('[')) {
@@ -1672,7 +1691,7 @@ bool WatchModel::contextMenuEvent(const ItemViewEvent &ev)
               [this, item] { removeWatchItem(item); });
 
     addAction(menu, tr("Remove All Expression Evaluators"),
-              canRemoveWatches && !m_handler->watchedExpressions().isEmpty(),
+              canRemoveWatches && !WatchHandler::watchedExpressions().isEmpty(),
               [this] { clearWatches(); });
 
     addAction(menu, tr("Select Widget to Add into Expression Evaluator"),
@@ -1745,8 +1764,6 @@ bool WatchModel::contextMenuEvent(const ItemViewEvent &ev)
     menu->addAction(action(UseDynamicType)->action());
     menu->addAction(action(SettingsDialog)->action());
 
-    Internal::addHideColumnActions(menu, ev.view());
-    menu->addAction(action(SettingsDialog)->action());
     connect(menu, &QMenu::aboutToHide, menu, &QObject::deleteLater);
     menu->popup(ev.globalPos());
     return true;
@@ -2078,11 +2095,12 @@ void WatchHandler::cleanup()
 {
     m_model->m_expandedINames.clear();
     theWatcherNames.remove(QString());
-    for (const QString &exp : theTemporaryWatchers)
+    for (const QString &exp : qAsConst(theTemporaryWatchers))
         theWatcherNames.remove(exp);
     theTemporaryWatchers.clear();
     saveWatchers();
     m_model->reinitialize();
+    Internal::setValueAnnotations(m_model->m_location, {});
     emit m_model->updateFinished();
     m_model->m_separatedView->hide();
 }
@@ -2235,6 +2253,16 @@ void WatchHandler::notifyUpdateFinished()
             item->wantsChildren = false;
         }
     });
+
+    QMap<QString, QString> values;
+    if (boolSetting(UseAnnotationsInMainEditor)) {
+        m_model->forAllItems([&values](WatchItem *item) {
+            const QString expr = item->sourceExpression();
+            if (!expr.isEmpty())
+                values[expr] = item->value;
+        });
+    }
+    Internal::setValueAnnotations(m_model->m_location, values);
 
     m_model->m_contentsValid = true;
     updateLocalsWindow();
@@ -2750,6 +2778,11 @@ void WatchHandler::recordTypeInfo(const GdbMi &typeInfo)
             m_model->m_reportedTypeInfo.insert(typeName, ti);
         }
     }
+}
+
+void WatchHandler::setLocation(const Location &loc)
+{
+    m_model->m_location = loc;
 }
 
 /////////////////////////////////////////////////////////////////////

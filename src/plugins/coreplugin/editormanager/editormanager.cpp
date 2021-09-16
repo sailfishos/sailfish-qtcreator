@@ -125,10 +125,11 @@ static const char preferredEditorFactoriesKey[] = "EditorManager/PreferredEditor
 
 static const char scratchBufferKey[] = "_q_emScratchBuffer";
 
+// for lupdate
+using namespace Core;
+
 using namespace Core::Internal;
 using namespace Utils;
-
-namespace Core {
 
 //===================EditorManager=====================
 
@@ -420,6 +421,7 @@ EditorManagerPrivate::EditorManagerPrivate(QObject *parent) :
     m_closeOtherDocumentsContextAction(new QAction(EditorManager::tr("Close Others"), this)),
     m_closeAllEditorsExceptVisibleContextAction(new QAction(EditorManager::tr("Close All Except Visible"), this)),
     m_openGraphicalShellAction(new QAction(FileUtils::msgGraphicalShellAction(), this)),
+    m_openGraphicalShellContextAction(new QAction(FileUtils::msgGraphicalShellAction(), this)),
     m_openTerminalAction(new QAction(FileUtils::msgTerminalHereAction(), this)),
     m_findInDirectoryAction(new QAction(FileUtils::msgFindInDirectory(), this)),
     m_filePropertiesAction(new QAction(tr("Properties..."), this)),
@@ -521,8 +523,21 @@ void EditorManagerPrivate::init()
     // Close All Others Except Visible Action
     cmd = ActionManager::registerAction(m_closeAllEditorsExceptVisibleAction, Constants::CLOSEALLEXCEPTVISIBLE, editManagerContext, true);
     mfile->addAction(cmd, Constants::G_FILE_CLOSE);
-    connect(m_closeAllEditorsExceptVisibleAction, &QAction::triggered,
-            this, &EditorManagerPrivate::closeAllEditorsExceptVisible);
+    connect(m_closeAllEditorsExceptVisibleAction,
+            &QAction::triggered,
+            this,
+            &EditorManagerPrivate::closeAllEditorsExceptVisible);
+
+    cmd = ActionManager::registerAction(m_openGraphicalShellAction,
+                                        Constants::SHOWINGRAPHICALSHELL,
+                                        editManagerContext);
+    connect(m_openGraphicalShellAction, &QAction::triggered, this, [] {
+        if (!EditorManager::currentDocument())
+            return;
+        const FilePath fp = EditorManager::currentDocument()->filePath();
+        if (!fp.isEmpty())
+            FileUtils::showInGraphicalShell(ICore::dialogParent(), fp.toString());
+    });
 
     //Save XXX Context Actions
     connect(m_copyFilePathContextAction, &QAction::triggered,
@@ -548,8 +563,12 @@ void EditorManagerPrivate::init()
     connect(m_closeAllEditorsExceptVisibleContextAction, &QAction::triggered,
             this, &EditorManagerPrivate::closeAllEditorsExceptVisible);
 
-    connect(m_openGraphicalShellAction, &QAction::triggered,
-            this, &EditorManagerPrivate::showInGraphicalShell);
+    connect(m_openGraphicalShellContextAction, &QAction::triggered, this, [this] {
+        if (!m_contextMenuEntry || m_contextMenuEntry->fileName().isEmpty())
+            return;
+        FileUtils::showInGraphicalShell(ICore::dialogParent(),
+                                        m_contextMenuEntry->fileName().toString());
+    });
     connect(m_openTerminalAction, &QAction::triggered, this, &EditorManagerPrivate::openTerminal);
     connect(m_findInDirectoryAction, &QAction::triggered,
             this, &EditorManagerPrivate::findInDirectory);
@@ -726,16 +745,17 @@ bool EditorManagerPrivate::skipOpeningBigTextFile(const QString &filePath)
     if (!d->m_warnBeforeOpeningBigFilesEnabled)
         return false;
 
-    const QFileInfo fileInfo(filePath);
-    if (!fileInfo.exists(filePath))
+    if (!QFileInfo::exists(filePath))
         return false;
 
     Utils::MimeType mimeType = Utils::mimeTypeForFile(filePath);
     if (!mimeType.inherits("text/plain"))
         return false;
 
-    const double fileSizeInMB = fileInfo.size() / 1000.0 / 1000.0;
-    if (fileSizeInMB > d->m_bigFileSizeLimitInMB) {
+    const QFileInfo fileInfo(filePath);
+    const qint64 fileSize = fileInfo.size();
+    const double fileSizeInMB = fileSize / 1000.0 / 1000.0;
+    if (fileSizeInMB > d->m_bigFileSizeLimitInMB && fileSize < EditorManager::maxTextFileSize()) {
         const QString title = EditorManager::tr("Continue Opening Huge Text File?");
         const QString text = EditorManager::tr(
             "The text file \"%1\" has the size %2MB and might take more memory to open"
@@ -754,7 +774,7 @@ bool EditorManagerPrivate::skipOpeningBigTextFile(const QString &filePath)
         messageBox.setCheckBoxVisible(true);
         messageBox.setCheckBoxText(CheckableMessageBox::msgDoNotAskAgain());
         messageBox.exec();
-        d->setWarnBeforeOpeningBigFilesEnabled(!messageBox.isChecked());
+        setWarnBeforeOpeningBigFilesEnabled(!messageBox.isChecked());
         return messageBox.clickedStandardButton() != QDialogButtonBox::Yes;
     }
 
@@ -1447,7 +1467,7 @@ void EditorManagerPrivate::addEditor(IEditor *editor)
         emit m_instance->documentOpened(document);
     }
     emit m_instance->editorOpened(editor);
-    QTimer::singleShot(0, d, &EditorManagerPrivate::autoSuspendDocuments);
+    QMetaObject::invokeMethod(d, &EditorManagerPrivate::autoSuspendDocuments, Qt::QueuedConnection);
 }
 
 void EditorManagerPrivate::removeEditor(IEditor *editor, bool removeSuspendedEntry)
@@ -1543,7 +1563,8 @@ IEditor *EditorManagerPrivate::activateEditor(EditorView *view, IEditor *editor,
                             ModeManager::activateMode(Constants::MODE_EDIT);
                 }
                 editor->widget()->setFocus();
-                ICore::raiseWindow(editor->widget());
+                if (!(flags & EditorManager::DoNotRaise))
+                    ICore::raiseWindow(editor->widget());
             }
         }
     } else if (!(flags & EditorManager::DoNotMakeVisible)) {
@@ -1710,9 +1731,8 @@ bool EditorManagerPrivate::closeEditors(const QList<IEditor*> &editors, CloseFla
             if (editor == viewCurrentEditor && view == views.last()) {
                 // Avoid removing the globally current editor from its view,
                 // set a new current editor before.
-                const EditorManager::OpenEditorFlags flags = view != currentView
-                                                                 ? EditorManager::DoNotChangeCurrentEditor
-                                                                 : EditorManager::NoFlags;
+                EditorManager::OpenEditorFlags flags = view != currentView
+                        ? EditorManager::DoNotChangeCurrentEditor : EditorManager::NoFlags;
                 const QList<IEditor *> viewEditors = view->editors();
                 IEditor *newCurrent = viewEditors.size() > 1 ? viewEditors.at(viewEditors.size() - 2)
                                                              : nullptr;
@@ -1728,6 +1748,10 @@ bool EditorManagerPrivate::closeEditors(const QList<IEditor*> &editors, CloseFla
                         const QList<DocumentModel::Entry *> documents = DocumentModel::entries();
                         if (!documents.isEmpty()) {
                             if (IDocument *document = documents.last()->document) {
+                                // Do not auto-switch to design mode if the new editor will be for
+                                // the same document as the one that was closed.
+                                if (view == currentView && document == editor->document())
+                                    flags = EditorManager::DoNotSwitchToDesignMode;
                                 activateEditorForDocument(view, document, flags);
                             }
                         } else {
@@ -2353,7 +2377,8 @@ void EditorManagerPrivate::handleContextChange(const QList<IContext *> &context)
         // the locator line edit) first activates the window and sets focus to its focus widget.
         // Only afterwards the focus is shifted to the widget that received the click.
         d->m_scheduledCurrentEditor = editor;
-        QTimer::singleShot(0, d, &EditorManagerPrivate::setCurrentEditorFromContextChange);
+        QMetaObject::invokeMethod(d, &EditorManagerPrivate::setCurrentEditorFromContextChange,
+                                  Qt::QueuedConnection);
     } else {
         updateActions();
     }
@@ -2568,14 +2593,6 @@ void EditorManagerPrivate::autoSuspendDocuments()
             ++keptEditorCount;
     }
     closeEditors(DocumentModel::editorsForDocuments(documentsToSuspend), CloseFlag::Suspend);
-}
-
-void EditorManagerPrivate::showInGraphicalShell()
-{
-    if (!d->m_contextMenuEntry || d->m_contextMenuEntry->fileName().isEmpty())
-        return;
-    FileUtils::showInGraphicalShell(ICore::dialogParent(),
-                                    d->m_contextMenuEntry->fileName().toString());
 }
 
 void EditorManagerPrivate::openTerminal()
@@ -2870,11 +2887,11 @@ void EditorManager::addNativeDirAndOpenWithActions(QMenu *contextMenu, DocumentM
     QTC_ASSERT(contextMenu, return);
     d->m_contextMenuEntry = entry;
     bool enabled = entry && !entry->fileName().isEmpty();
-    d->m_openGraphicalShellAction->setEnabled(enabled);
+    d->m_openGraphicalShellContextAction->setEnabled(enabled);
     d->m_openTerminalAction->setEnabled(enabled);
     d->m_findInDirectoryAction->setEnabled(enabled);
     d->m_filePropertiesAction->setEnabled(enabled);
-    contextMenu->addAction(d->m_openGraphicalShellAction);
+    contextMenu->addAction(d->m_openGraphicalShellContextAction);
     contextMenu->addAction(d->m_openTerminalAction);
     contextMenu->addAction(d->m_findInDirectoryAction);
     contextMenu->addAction(d->m_filePropertiesAction);
@@ -3112,14 +3129,14 @@ void EditorManager::openEditorAtSearchResult(const SearchResultItem &item,
                                              OpenEditorFlags flags,
                                              bool *newEditor)
 {
-    if (item.path.empty()) {
-        openEditor(QDir::fromNativeSeparators(item.text), editorId, flags, newEditor);
+    if (item.path().empty()) {
+        openEditor(QDir::fromNativeSeparators(item.lineText()), editorId, flags, newEditor);
         return;
     }
 
-    openEditorAt(QDir::fromNativeSeparators(item.path.first()),
-                 item.mainRange.begin.line,
-                 item.mainRange.begin.column,
+    openEditorAt(QDir::fromNativeSeparators(item.path().first()),
+                 item.mainRange().begin.line,
+                 item.mainRange().begin.column,
                  editorId,
                  flags,
                  newEditor);
@@ -3608,7 +3625,7 @@ bool EditorManager::restoreState(const QByteArray &state)
         // restore windows
         QVector<QVariantHash> windowStates;
         stream >> windowStates;
-        for (const QVariantHash &windowState : windowStates) {
+        for (const QVariantHash &windowState : qAsConst(windowStates)) {
             EditorWindow *window = d->createEditorWindow();
             window->restoreState(windowState);
             window->show();
@@ -3860,5 +3877,3 @@ void CorePlugin::testSplitLineAndColumnNumber_data()
 }
 
 #endif // WITH_TESTS
-
-} // namespace Core

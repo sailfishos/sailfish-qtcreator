@@ -27,6 +27,8 @@
 
 #include "cmakeconfigitem.h"
 
+#include "fileapidataextractor.h"
+
 #include <projectexplorer/headerpath.h>
 #include <projectexplorer/projectmacro.h>
 
@@ -34,6 +36,7 @@
 #include <utils/fileutils.h>
 
 #include <QDir>
+#include <QFutureInterface>
 #include <QString>
 #include <QVector>
 
@@ -56,7 +59,9 @@ class ReplyFileContents
 {
 public:
     QString generator;
+    bool isMultiConfig = false;
     QString cmakeExecutable;
+    QString ctestExecutable;
     QString cmakeRoot;
 
     QVector<ReplyObject> replies;
@@ -237,14 +242,18 @@ public:
     FileApiDetails::ReplyFileContents replyFile;
     CMakeConfig cache;
     std::vector<FileApiDetails::CMakeFileInfo> cmakeFiles;
-    std::vector<FileApiDetails::Configuration> codemodel;
+    FileApiDetails::Configuration codemodel;
     std::vector<FileApiDetails::TargetDetails> targetDetails;
 };
 
 class FileApiParser
 {
+    Q_DECLARE_TR_FUNCTIONS(FileApiParser)
 public:
-    static FileApiData parseData(const QFileInfo &replyFileInfo, QString &errorMessage);
+    static FileApiData parseData(QFutureInterface<std::shared_ptr<FileApiQtcData>> &fi,
+                                 const QFileInfo &replyFileInfo,
+                                 const QString &cmakeBuildType,
+                                 QString &errorMessage);
 
     static bool setupCMakeFileApi(const Utils::FilePath &buildDirectory,
                                   Utils::FileSystemWatcher &watcher);

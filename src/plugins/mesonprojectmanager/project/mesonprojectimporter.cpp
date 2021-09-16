@@ -22,6 +22,7 @@
 ** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
+
 #include "mesonprojectimporter.h"
 
 #include <QLoggingCategory>
@@ -32,6 +33,7 @@ static Q_LOGGING_CATEGORY(mInputLog, "qtc.meson.import", QtWarningMsg);
 
 namespace MesonProjectManager {
 namespace Internal {
+
 MesonProjectImporter::MesonProjectImporter(const Utils::FilePath &path)
     : QtSupport::QtProjectImporter{path}
 {}
@@ -42,8 +44,10 @@ QStringList MesonProjectImporter::importCandidates()
     return {};
 }
 
-QList<void *> MesonProjectImporter::examineDirectory(const Utils::FilePath &importPath) const
+QList<void *> MesonProjectImporter::examineDirectory(const Utils::FilePath &importPath,
+                                                     QString *warningMessage) const
 {
+    Q_UNUSED(warningMessage)
     //TODO, this can be done later
     qCDebug(mInputLog()) << "examining build directory" << importPath.toUserOutput();
     QList<void *> data;

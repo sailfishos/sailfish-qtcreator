@@ -86,16 +86,16 @@ Id ExamplesWelcomePage::id() const
 QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileInfo, QStringList &filesToOpen, const QStringList& dependencies)
 {
     const QString projectDir = proFileInfo.canonicalPath();
-    QSettings *settings = ICore::settings();
+    QtcSettings *settings = ICore::settings();
+    const QString defaultRootDirectory = DocumentManager::projectsDirectory().toString();
     CopyToLocationDialog d(ICore::dialogParent());
     d.setSourcePath(projectDir);
-    d.setDestinationPath(FilePath::fromVariant(settings->value(QString::fromLatin1(C_FALLBACK_ROOT),
-                                         DocumentManager::projectsDirectory().toString())));
+    d.setDestinationPath(FilePath::fromVariant(settings->value(C_FALLBACK_ROOT, defaultRootDirectory)));
 
     while (QDialog::Accepted == d.exec()) {
         QString exampleDirName = proFileInfo.dir().dirName();
         QString destBaseDir = d.destinationPath().toString();
-        settings->setValue(QString::fromLatin1(C_FALLBACK_ROOT), destBaseDir);
+        settings->setValueWithDefault(C_FALLBACK_ROOT, destBaseDir, defaultRootDirectory);
         QDir toDirWithExamplesDir(destBaseDir);
         if (toDirWithExamplesDir.cd(exampleDirName)) {
             toDirWithExamplesDir.cdUp(); // step out, just to not be in the way

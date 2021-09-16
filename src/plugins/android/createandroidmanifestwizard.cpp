@@ -145,8 +145,8 @@ public:
     ChooseDirectoryPage(CreateAndroidManifestWizard *wizard);
 
 private:
-    void initializePage();
-    bool isComplete() const;
+    void initializePage() final;
+    bool isComplete() const final;
     void checkPackageSourceDir();
 
     CreateAndroidManifestWizard *m_wizard;
@@ -232,7 +232,8 @@ void ChooseDirectoryPage::initializePage()
         connect(m_androidPackageSourceDir, &PathChooser::rawPathChanged,
                 this, &ChooseDirectoryPage::checkPackageSourceDir);
     } else {
-        m_label->setText(tr("The Android template files will be created in the ANDROID_PACKAGE_SOURCE_DIR set in the .pro file."));
+        m_label->setText(tr("The Android template files will be created in the %1 set in the .pro "
+                            "file.").arg(QLatin1String(Constants::ANDROID_PACKAGE_SOURCE_DIR)));
         m_androidPackageSourceDir->setPath(androidPackageDir);
         m_androidPackageSourceDir->setReadOnly(true);
     }

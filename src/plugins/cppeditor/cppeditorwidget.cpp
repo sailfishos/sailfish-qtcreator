@@ -417,7 +417,12 @@ static void addSearchResults(CppTools::Usages usages, SearchResult &search, cons
         if (!lineContent.isEmpty()) {
             Search::TextRange range{Search::TextPosition(usage.line, usage.column - 1),
                                     Search::TextPosition(usage.line, usage.column + text.length() - 1)};
-            search.addResult(usage.path, lineContent, range);
+            SearchResultItem item;
+            item.setFilePath(FilePath::fromString(usage.path));
+            item.setLineText(lineContent);
+            item.setMainRange(range);
+            item.setUseTextEditorFont(true);
+            search.addResult(item);
         }
     }
 }
@@ -561,7 +566,7 @@ QList<ProjectPart::Ptr> fetchProjectParts(CppTools::CppModelManager *modelManage
 ProjectPart *findProjectPartForCurrentProject(const QList<ProjectPart::Ptr> &projectParts,
                                               ProjectExplorer::Project *currentProject)
 {
-    auto found = std::find_if(projectParts.cbegin(),
+    const auto found = std::find_if(projectParts.cbegin(),
                               projectParts.cend(),
                               [&](const CppTools::ProjectPart::Ptr &projectPart) {
                                   return projectPart->project == currentProject;
@@ -803,6 +808,11 @@ bool CppEditorWidget::isSemanticInfoValidExceptLocalUses() const
 bool CppEditorWidget::isSemanticInfoValid() const
 {
     return isSemanticInfoValidExceptLocalUses() && d->m_lastSemanticInfo.localUsesUpdated;
+}
+
+bool CppEditorWidget::isRenaming() const
+{
+    return d->m_localRenaming.isActive();
 }
 
 SemanticInfo CppEditorWidget::semanticInfo() const

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 
-project(%{ProjectName} LANGUAGES CXX)
+project(%{ProjectName} VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -44,6 +44,7 @@ set(PROJECT_SOURCES
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(%{ProjectName}
+        MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
     )
 @if %{HasTranslation}
@@ -70,3 +71,14 @@ target_compile_definitions(%{ProjectName}
   PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
 target_link_libraries(%{ProjectName}
   PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Quick)
+
+set_target_properties(%{ProjectName} PROPERTIES
+    MACOSX_BUNDLE_GUI_IDENTIFIER my.example.com
+    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
+    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
+)
+
+if(QT_VERSION_MAJOR EQUAL 6)
+    qt_import_qml_plugins(%{ProjectName})
+    qt_finalize_executable(%{ProjectName})
+endif()

@@ -42,8 +42,8 @@ private:
     const char *name() const override;
     unsigned priority() const override;
     ITestParser *createTestParser() override;
-    TestTreeItem *createRootNode() override;
-    IFrameworkSettings *frameworkSettings() override { return &m_settings; }
+    ITestTreeItem *createRootNode() override;
+    ITestSettings *testSettings() override { return &m_settings; }
 
     QtTestSettings m_settings;
     QtTestSettingsPage m_settingsPage{&m_settings, settingsId()};

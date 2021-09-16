@@ -357,7 +357,7 @@ void ArgumentsAspect::setArguments(const QString &arguments)
 }
 
 /*!
-    Sets the displayes label text to \a labelText.
+    Sets the displayed label text to \a labelText.
 */
 void ArgumentsAspect::setLabelText(const QString &labelText)
 {
@@ -734,6 +734,21 @@ UseDyldSuffixAspect::UseDyldSuffixAspect()
     setSettingsKey("RunConfiguration.UseDyldImageSuffix");
     setLabel(tr("Use debug version of frameworks (DYLD_IMAGE_SUFFIX=_debug)"),
              LabelPlacement::AtCheckBox);
+}
+
+/*!
+    \class ProjectExplorer::RunAsRootAspect
+    \inmodule QtCreator
+
+    \brief The RunAsRootAspect class lets a user specify whether the
+    application should run with root permissions.
+*/
+
+RunAsRootAspect::RunAsRootAspect()
+{
+    setId("RunAsRoot");
+    setSettingsKey("RunConfiguration.RunAsRoot");
+    setLabel(tr("Run as root user"), LabelPlacement::AtCheckBox);
 }
 
 } // namespace ProjectExplorer

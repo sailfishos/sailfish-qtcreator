@@ -29,18 +29,28 @@
 #include "classviewconstants.h"
 #include "classviewutils.h"
 
+#include <cplusplus/Icons.h>
+#include <cplusplus/Name.h>
+#include <cplusplus/Overview.h>
+#include <cplusplus/Symbol.h>
+#include <cplusplus/Symbols.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/projectnodes.h>
+#include <projectexplorer/session.h>
 #include <utils/algorithm.h>
 
 #include <QHash>
 #include <QPair>
 #include <QIcon>
 #include <QStandardItem>
-#include <QMutex>
 
 #include <QDebug>
 
 namespace ClassView {
 namespace Internal {
+
+static CPlusPlus::Overview g_overview;
 
 ///////////////////////////////// ParserTreeItemPrivate //////////////////////////////////
 
@@ -53,15 +63,119 @@ namespace Internal {
 class ParserTreeItemPrivate
 {
 public:
-    //! symbol locations
-    QSet<SymbolLocation> symbolLocations;
+    void mergeWith(const ParserTreeItem::ConstPtr &target);
+    void mergeSymbol(const CPlusPlus::Symbol *symbol);
+    ParserTreeItem::ConstPtr cloneTree() const;
 
-    //! symbol information
-    QHash<SymbolInformation, ParserTreeItem::Ptr> symbolInformations;
-
-    //! An icon
-    QIcon icon;
+    QHash<SymbolInformation, ParserTreeItem::ConstPtr> m_symbolInformations;
+    QSet<SymbolLocation> m_symbolLocations;
+    const Utils::FilePath m_projectFilePath;
 };
+
+void ParserTreeItemPrivate::mergeWith(const ParserTreeItem::ConstPtr &target)
+{
+    if (target.isNull())
+        return;
+
+    m_symbolLocations.unite(target->d->m_symbolLocations);
+
+    // merge children
+    for (auto it = target->d->m_symbolInformations.cbegin();
+              it != target->d->m_symbolInformations.cend(); ++it) {
+        const SymbolInformation &inf = it.key();
+        const ParserTreeItem::ConstPtr &targetChild = it.value();
+
+        ParserTreeItem::ConstPtr child = m_symbolInformations.value(inf);
+        if (!child.isNull()) {
+            child->d->mergeWith(targetChild);
+        } else {
+            const ParserTreeItem::ConstPtr clone = targetChild.isNull() ? ParserTreeItem::ConstPtr()
+                                                                   : targetChild->d->cloneTree();
+            m_symbolInformations.insert(inf, clone);
+        }
+    }
+}
+
+void ParserTreeItemPrivate::mergeSymbol(const CPlusPlus::Symbol *symbol)
+{
+    if (!symbol)
+        return;
+
+    // easy solution - lets add any scoped symbol and
+    // any symbol which does not contain :: in the name
+
+    //! \todo collect statistics and reorder to optimize
+    if (symbol->isForwardClassDeclaration()
+        || symbol->isExtern()
+        || symbol->isFriend()
+        || symbol->isGenerated()
+        || symbol->isUsingNamespaceDirective()
+        || symbol->isUsingDeclaration()
+        )
+        return;
+
+    const CPlusPlus::Name *symbolName = symbol->name();
+    if (symbolName && symbolName->isQualifiedNameId())
+        return;
+
+    QString name = g_overview.prettyName(symbolName).trimmed();
+    QString type = g_overview.prettyType(symbol->type()).trimmed();
+    int iconType = CPlusPlus::Icons::iconTypeForSymbol(symbol);
+
+    SymbolInformation information(name, type, iconType);
+
+    // If next line will be removed, 5% speed up for the initial parsing.
+    // But there might be a problem for some files ???
+    // Better to improve qHash timing
+    ParserTreeItem::ConstPtr childItem = m_symbolInformations.value(information);
+
+    if (childItem.isNull())
+        childItem = ParserTreeItem::ConstPtr(new ParserTreeItem());
+
+    // locations have 1-based column in Symbol, use the same here.
+    SymbolLocation location(QString::fromUtf8(symbol->fileName() , symbol->fileNameLength()),
+                            symbol->line(), symbol->column());
+
+    childItem->d->m_symbolLocations.insert(location);
+
+    // prevent showing a content of the functions
+    if (!symbol->isFunction()) {
+        if (const CPlusPlus::Scope *scope = symbol->asScope()) {
+            CPlusPlus::Scope::iterator cur = scope->memberBegin();
+            CPlusPlus::Scope::iterator last = scope->memberEnd();
+            while (cur != last) {
+                const CPlusPlus::Symbol *curSymbol = *cur;
+                ++cur;
+                if (!curSymbol)
+                    continue;
+
+                childItem->d->mergeSymbol(curSymbol);
+            }
+        }
+    }
+
+    // if item is empty and has not to be added
+    if (!symbol->isNamespace() || childItem->childCount())
+        m_symbolInformations.insert(information, childItem);
+}
+
+/*!
+    Creates a deep clone of this tree.
+*/
+ParserTreeItem::ConstPtr ParserTreeItemPrivate::cloneTree() const
+{
+    ParserTreeItem::ConstPtr newItem(new ParserTreeItem(m_projectFilePath));
+    newItem->d->m_symbolLocations = m_symbolLocations;
+
+    for (auto it = m_symbolInformations.cbegin(); it != m_symbolInformations.cend(); ++it) {
+        ParserTreeItem::ConstPtr child = it.value();
+        if (child.isNull())
+            continue;
+        newItem->d->m_symbolInformations.insert(it.key(), child->d->cloneTree());
+    }
+
+    return newItem;
+}
 
 ///////////////////////////////// ParserTreeItem //////////////////////////////////
 
@@ -72,8 +186,18 @@ public:
     Not virtual - to speed up its work.
 */
 
-ParserTreeItem::ParserTreeItem() :
-    d(new ParserTreeItemPrivate())
+ParserTreeItem::ParserTreeItem()
+    : d(new ParserTreeItemPrivate())
+{
+}
+
+ParserTreeItem::ParserTreeItem(const Utils::FilePath &projectFilePath)
+    : d(new ParserTreeItemPrivate({{}, {}, projectFilePath}))
+{
+}
+
+ParserTreeItem::ParserTreeItem(const QHash<SymbolInformation, ConstPtr> &children)
+    : d(new ParserTreeItemPrivate({children, {}, {}}))
 {
 }
 
@@ -82,98 +206,9 @@ ParserTreeItem::~ParserTreeItem()
     delete d;
 }
 
-ParserTreeItem &ParserTreeItem::operator=(const ParserTreeItem &other)
+Utils::FilePath ParserTreeItem::projectFilePath() const
 {
-    d->symbolLocations = other.d->symbolLocations;
-    d->icon = other.d->icon;
-    d->symbolInformations.clear();
-    return *this;
-}
-
-/*!
-    Copies a parser tree item from the location specified by \a from to this
-    item.
-*/
-
-void ParserTreeItem::copy(const ParserTreeItem::ConstPtr &from)
-{
-    if (from.isNull())
-        return;
-
-    d->symbolLocations = from->d->symbolLocations;
-    d->icon = from->d->icon;
-    d->symbolInformations = from->d->symbolInformations;
-}
-
-/*!
-    \fn void copyTree(const ParserTreeItem::ConstPtr &from)
-    Copies a parser tree item with children from the location specified by
-    \a from to this item.
-*/
-
-void ParserTreeItem::copyTree(const ParserTreeItem::ConstPtr &target)
-{
-    if (target.isNull())
-        return;
-
-    // copy content
-    d->symbolLocations = target->d->symbolLocations;
-    d->icon = target->d->icon;
-    d->symbolInformations.clear();
-
-    // reserve memory
-//    int amount = qMin(100 , target->d_ptr->symbolInformations.count() * 2);
-//    d_ptr->symbolInformations.reserve(amount);
-
-    // every child
-    CitSymbolInformations cur = target->d->symbolInformations.constBegin();
-    CitSymbolInformations end = target->d->symbolInformations.constEnd();
-
-    for (; cur != end; ++cur) {
-        ParserTreeItem::Ptr item(new ParserTreeItem());
-        item->copyTree(cur.value());
-        appendChild(item, cur.key());
-    }
-}
-
-/*!
-    Adds information about symbol location from a \location.
-    \sa SymbolLocation, removeSymbolLocation, symbolLocations
-*/
-
-void ParserTreeItem::addSymbolLocation(const SymbolLocation &location)
-{
-    d->symbolLocations.insert(location);
-}
-
-/*!
-    Adds information about symbol locations from \a locations.
-    \sa SymbolLocation, removeSymbolLocation, symbolLocations
-*/
-
-void ParserTreeItem::addSymbolLocation(const QSet<SymbolLocation> &locations)
-{
-    d->symbolLocations.unite(locations);
-}
-
-/*!
-    Removes information about \a location.
-    \sa SymbolLocation, addSymbolLocation, symbolLocations
-*/
-
-void ParserTreeItem::removeSymbolLocation(const SymbolLocation &location)
-{
-    d->symbolLocations.remove(location);
-}
-
-/*!
-    Removes information about \a locations.
-    \sa SymbolLocation, addSymbolLocation, symbolLocations
-*/
-
-void ParserTreeItem::removeSymbolLocations(const QSet<SymbolLocation> &locations)
-{
-    d->symbolLocations.subtract(locations);
+    return d->m_projectFilePath;
 }
 
 /*!
@@ -183,38 +218,16 @@ void ParserTreeItem::removeSymbolLocations(const QSet<SymbolLocation> &locations
 
 QSet<SymbolLocation> ParserTreeItem::symbolLocations() const
 {
-    return d->symbolLocations;
-}
-
-/*!
-    Appends the child item \a item to \a inf symbol information.
-*/
-
-void ParserTreeItem::appendChild(const ParserTreeItem::Ptr &item, const SymbolInformation &inf)
-{
-    // removeChild must be used to remove an item
-    if (item.isNull())
-        return;
-
-    d->symbolInformations[inf] = item;
-}
-
-/*!
-    Removes the \a inf symbol information.
-*/
-
-void ParserTreeItem::removeChild(const SymbolInformation &inf)
-{
-    d->symbolInformations.remove(inf);
+    return d->m_symbolLocations;
 }
 
 /*!
     Returns the child item specified by \a inf symbol information.
 */
 
-ParserTreeItem::Ptr ParserTreeItem::child(const SymbolInformation &inf) const
+ParserTreeItem::ConstPtr ParserTreeItem::child(const SymbolInformation &inf) const
 {
-    return d->symbolInformations.value(inf);
+    return d->m_symbolInformations.value(inf);
 }
 
 /*!
@@ -223,59 +236,28 @@ ParserTreeItem::Ptr ParserTreeItem::child(const SymbolInformation &inf) const
 
 int ParserTreeItem::childCount() const
 {
-    return d->symbolInformations.count();
+    return d->m_symbolInformations.count();
 }
 
-/*!
-    \property QIcon::icon
-    \brief the icon assigned to the tree item
-*/
-
-QIcon ParserTreeItem::icon() const
+ParserTreeItem::ConstPtr ParserTreeItem::parseDocument(const CPlusPlus::Document::Ptr &doc)
 {
-    return d->icon;
+    ConstPtr item(new ParserTreeItem());
+
+    const unsigned total = doc->globalSymbolCount();
+    for (unsigned i = 0; i < total; ++i)
+        item->d->mergeSymbol(doc->globalSymbolAt(i));
+
+    return item;
 }
 
-/*!
-    Sets the \a icon for the tree item.
- */
-void ParserTreeItem::setIcon(const QIcon &icon)
+ParserTreeItem::ConstPtr ParserTreeItem::mergeTrees(const Utils::FilePath &projectFilePath,
+                                               const QList<ConstPtr> &docTrees)
 {
-    d->icon = icon;
-}
+    ConstPtr item(new ParserTreeItem(projectFilePath));
+    for (const ConstPtr &docTree : docTrees)
+        item->d->mergeWith(docTree);
 
-/*!
-    Adds an internal state with \a target, which contains the correct current
-    state.
-*/
-
-void ParserTreeItem::add(const ParserTreeItem::ConstPtr &target)
-{
-    if (target.isNull())
-        return;
-
-    // add locations
-    d->symbolLocations = d->symbolLocations.unite(target->d->symbolLocations);
-
-    // add children
-    // every target child
-    CitSymbolInformations cur = target->d->symbolInformations.constBegin();
-    CitSymbolInformations end = target->d->symbolInformations.constEnd();
-    while (cur != end) {
-        const SymbolInformation &inf = cur.key();
-        const ParserTreeItem::Ptr &targetChild = cur.value();
-
-        ParserTreeItem::Ptr child = d->symbolInformations.value(inf);
-        if (!child.isNull()) {
-            child->add(targetChild);
-        } else {
-            ParserTreeItem::Ptr add(new ParserTreeItem());
-            add->copyTree(targetChild);
-            d->symbolInformations[inf] = add;
-        }
-        // next item
-        ++cur;
-    }
+    return item;
 }
 
 /*!
@@ -295,31 +277,34 @@ static QList<QVariant> locationsToRole(const QSet<SymbolLocation> &locations)
 }
 
 /*!
-    Appends this item to the QStandardIten item \a item.
+    Checks \a item in a QStandardItemModel for lazy data population.
+    Make sure this method is called only from the GUI thread.
 */
-
-void ParserTreeItem::convertTo(QStandardItem *item) const
+bool ParserTreeItem::canFetchMore(QStandardItem *item) const
 {
+    if (!item)
+        return false;
+    return item->rowCount() < d->m_symbolInformations.count();
+}
+
+/*!
+    Appends this item to the QStandardIten item \a item.
+    Make sure this method is called only from the GUI thread.
+*/
+void ParserTreeItem::fetchMore(QStandardItem *item) const
+{
+    using ProjectExplorer::SessionManager;
     if (!item)
         return;
 
-    QMap<SymbolInformation, ParserTreeItem::Ptr> map;
-
     // convert to map - to sort it
-    CitSymbolInformations curHash = d->symbolInformations.constBegin();
-    CitSymbolInformations endHash = d->symbolInformations.constEnd();
-    while (curHash != endHash) {
-        map.insert(curHash.key(), curHash.value());
-        ++curHash;
-    }
+    QMap<SymbolInformation, ConstPtr> map;
+    for (auto it = d->m_symbolInformations.cbegin(); it != d->m_symbolInformations.cend(); ++it)
+        map.insert(it.key(), it.value());
 
-    using MapCitSymbolInformations = QMap<SymbolInformation, ParserTreeItem::Ptr>::const_iterator;
-    // add to item
-    MapCitSymbolInformations cur = map.constBegin();
-    MapCitSymbolInformations end = map.constEnd();
-    while (cur != end) {
-        const SymbolInformation &inf = cur.key();
-        ParserTreeItem::Ptr ptr = cur.value();
+    for (auto it = map.cbegin(); it != map.cend(); ++it) {
+        const SymbolInformation &inf = it.key();
+        ConstPtr ptr = it.value();
 
         auto add = new QStandardItem;
         add->setData(inf.name(), Constants::SymbolNameRole);
@@ -328,7 +313,12 @@ void ParserTreeItem::convertTo(QStandardItem *item) const
 
         if (!ptr.isNull()) {
             // icon
-            add->setIcon(ptr->icon());
+            const Utils::FilePath &filePath = ptr->projectFilePath();
+            if (!filePath.isEmpty()) {
+                ProjectExplorer::Project *project = SessionManager::projectForFile(filePath);
+                if (project)
+                    add->setIcon(project->containerNode()->icon());
+            }
 
             // draggable
             if (!ptr->symbolLocations().isEmpty())
@@ -338,52 +328,22 @@ void ParserTreeItem::convertTo(QStandardItem *item) const
             add->setData(locationsToRole(ptr->symbolLocations()), Constants::SymbolLocationsRole);
         }
         item->appendRow(add);
-        ++cur;
     }
-}
-
-/*!
-    Checks \a item in a QStandardItemModel for lazy data population.
-*/
-
-bool ParserTreeItem::canFetchMore(QStandardItem *item) const
-{
-    if (!item)
-        return false;
-
-    int storedChildren = item->rowCount();
-    int internalChildren = d->symbolInformations.count();
-    return storedChildren < internalChildren;
-}
-
-/*!
-    Performs lazy data population for \a item in a QStandardItemModel if needed.
-*/
-
-void ParserTreeItem::fetchMore(QStandardItem *item) const
-{
-    if (!item)
-        return;
-
-    convertTo(item);
 }
 
 /*!
     Debug dump.
 */
 
-void ParserTreeItem::debugDump(int ident) const
+void ParserTreeItem::debugDump(int indent) const
 {
-    CitSymbolInformations curHash = d->symbolInformations.constBegin();
-    CitSymbolInformations endHash = d->symbolInformations.constEnd();
-    while (curHash != endHash) {
-        const SymbolInformation &inf = curHash.key();
-        qDebug() << QString(2*ident, QLatin1Char(' ')) << inf.iconType() << inf.name() << inf.type()
-                << curHash.value().isNull();
-        if (!curHash.value().isNull())
-            curHash.value()->debugDump(ident + 1);
-
-        ++curHash;
+    for (auto it = d->m_symbolInformations.cbegin(); it != d->m_symbolInformations.cend(); ++it) {
+        const SymbolInformation &inf = it.key();
+        const ConstPtr &child = it.value();
+        qDebug() << QString(2 * indent, QLatin1Char(' ')) << inf.iconType() << inf.name()
+                 << inf.type() << child.isNull();
+        if (!child.isNull())
+            child->debugDump(indent + 1);
     }
 }
 

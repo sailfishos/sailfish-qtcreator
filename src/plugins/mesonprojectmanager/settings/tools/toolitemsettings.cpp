@@ -24,11 +24,13 @@
 ****************************************************************************/
 
 #include "toolitemsettings.h"
+
 #include "tooltreeitem.h"
 #include "ui_toolitemsettings.h"
 
 namespace MesonProjectManager {
 namespace Internal {
+
 ToolItemSettings::ToolItemSettings(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::ToolItemSettings)
@@ -55,7 +57,7 @@ void ToolItemSettings::load(ToolTreeItem *item)
         ui->mesonNameLineEdit->setDisabled(item->isAutoDetected());
         ui->mesonNameLineEdit->setText(item->name());
         ui->mesonPathChooser->setDisabled(item->isAutoDetected());
-        ui->mesonPathChooser->setFileName(item->executable());
+        ui->mesonPathChooser->setFilePath(item->executable());
         m_currentId = item->id();
     } else {
         m_currentId = Utils::nullopt;

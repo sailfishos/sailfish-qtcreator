@@ -73,7 +73,7 @@ private:
     void selectBookmarkFolder(int index);
     void showContextMenu(const QPoint &point);
     void currentChanged(const QModelIndex& current);
-    bool eventFilter(QObject *object, QEvent *e);
+    bool eventFilter(QObject *object, QEvent *e) override;
 
     QString m_url;
     QString m_title;
@@ -117,10 +117,10 @@ private:
     void filterChanged();
     void expand(const QModelIndex& index);
     void activated(const QModelIndex &index);
-    void customContextMenuRequested(const QPoint &point);
+    void showContextMenu(const QPoint &point);
     void setup();
     void expandItems();
-    bool eventFilter(QObject *object, QEvent *event);
+    bool eventFilter(QObject *object, QEvent *event) override;
 
     QRegularExpression regExp;
     TreeView *treeView;
@@ -138,8 +138,8 @@ public:
     BookmarkModel(int rows, int columns, QObject *parent = 0);
     ~BookmarkModel();
 
-    Qt::DropActions supportedDropActions() const;
-    Qt::ItemFlags flags(const QModelIndex &index) const;
+    Qt::DropActions supportedDropActions() const override;
+    Qt::ItemFlags flags(const QModelIndex &index) const override;
 };
 
 class BookmarkManager : public QObject

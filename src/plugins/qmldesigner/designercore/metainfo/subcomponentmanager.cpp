@@ -25,6 +25,7 @@
 
 #include "subcomponentmanager.h"
 
+#include <itemlibraryimport.h>
 #include <qmldesignerconstants.h>
 
 #include "model.h"
@@ -68,10 +69,10 @@ SubComponentManager::SubComponentManager(Model *model, QObject *parent)
             this, [this](const QString &path) { parseDirectory(path); });
 }
 
-void SubComponentManager::addImport(int pos, const Import &import)
+void SubComponentManager::addImport(const Import &import, int index)
 {
     if (debug)
-        qDebug() << Q_FUNC_INFO << pos << import.file().toUtf8();
+        qDebug() << Q_FUNC_INFO << index << import.file().toUtf8();
 
     if (import.isFileImport()) {
         QFileInfo dirInfo = QFileInfo(m_filePath.resolved(import.file()).toLocalFile());
@@ -96,12 +97,15 @@ void SubComponentManager::addImport(int pos, const Import &import)
         // TODO: QDeclarativeDomImport::Library
     }
 
-    m_imports.insert(pos, import);
+    if (index == -1)
+        m_imports.append(import);
+    else
+        m_imports.insert(index, import);
 }
 
-void SubComponentManager::removeImport(int pos)
+void SubComponentManager::removeImport(int index)
 {
-    const Import import = m_imports.takeAt(pos);
+    const Import import = m_imports.takeAt(index);
 
     if (import.isFileImport()) {
         const QFileInfo dirInfo = QFileInfo(m_filePath.resolved(import.file()).toLocalFile());
@@ -175,7 +179,7 @@ void SubComponentManager::parseDirectory(const QString &canonicalDirPath, bool a
         return;
 
     if (canonicalDirPath.endsWith(QLatin1String(Constants::QUICK_3D_ASSETS_FOLDER))) {
-        parseQuick3DAssetDir(canonicalDirPath);
+        parseQuick3DAssetsDir(canonicalDirPath);
         return;
     }
 
@@ -336,7 +340,9 @@ void SubComponentManager::registerQmlFile(const QFileInfo &fileInfo, const QStri
         ItemLibraryEntry itemLibraryEntry;
         itemLibraryEntry.setType(componentName.toUtf8());
         itemLibraryEntry.setName(baseComponentName);
-        itemLibraryEntry.setCategory(tr("My QML Components"));
+#ifndef QMLDESIGNER_TEST
+        itemLibraryEntry.setCategory(ItemLibraryImport::userComponentsTitle());
+#endif
         itemLibraryEntry.setCustomComponentSource(fileInfo.absoluteFilePath());
         if (!qualifier.isEmpty()) {
             itemLibraryEntry.setRequiredImport(fixedQualifier);
@@ -360,83 +366,74 @@ QStringList SubComponentManager::importPaths() const
     return QStringList();
 }
 
-void SubComponentManager::parseQuick3DAssetDir(const QString &assetPath)
+void SubComponentManager::parseQuick3DAssetsDir(const QString &quick3DAssetsPath)
 {
-    QDir assetDir(assetPath);
-    const QString assetImportRoot = assetPath.mid(assetPath.lastIndexOf(QLatin1Char('/')) + 1);
-    QStringList assets = assetDir.entryList(QDir::Dirs | QDir::NoDot | QDir::NoDotDot);
+    QDir quick3DAssetsDir(quick3DAssetsPath);
+    QStringList assets = quick3DAssetsDir.entryList(QDir::Dirs | QDir::NoDot | QDir::NoDotDot);
     for (QString &asset : assets)
-        asset.prepend(assetImportRoot + QLatin1Char('.'));
-
-    QStringList newFlowTags;
-    const QStringList flowTags = model()->metaInfo().itemLibraryInfo()->showTagsForImports();
-    const QString quick3Dlib = QLatin1String(Constants::QT_QUICK_3D_MODULE_NAME);
-    const QList<Import> possibleImports = model()->possibleImports();
-
-    auto isPossibleImport = [&possibleImports](const QString &asset) {
-        for (const Import &import : possibleImports) {
-            if (import.url() == asset)
-                return true;
-        }
-        return false;
-    };
-
-    // If there are 3D assets in import path, add a flow tag for QtQuick3D
-    if (!assets.isEmpty() && !flowTags.contains(quick3Dlib) && isPossibleImport(quick3Dlib))
-        newFlowTags << quick3Dlib;
+        asset.prepend(QString(Constants::QUICK_3D_ASSETS_FOLDER).mid(1) + '.');
 
     // Create item library entries for Quick3D assets that are imported by document
-    const QString iconPath = QStringLiteral(":/ItemLibrary/images/item-3D_model-icon.png");
     for (auto &import : qAsConst(m_imports)) {
         if (import.isLibraryImport() && assets.contains(import.url())) {
             assets.removeOne(import.url());
-            QDirIterator qmlIt(assetDir.filePath(import.url().split('.').last()),
-                               {QStringLiteral("*.qml")}, QDir::Files);
-            while (qmlIt.hasNext()) {
-                qmlIt.next();
-                const QString name = qmlIt.fileInfo().baseName();
-                const QString type = import.url() + QLatin1Char('.') + name;
-                // For now we assume version is always 1.0 as that's what importer hardcodes
-                ItemLibraryEntry itemLibraryEntry;
-                itemLibraryEntry.setType(type.toUtf8(), 1, 0);
-                itemLibraryEntry.setName(name);
-                itemLibraryEntry.setCategory(tr("My Quick3D Components"));
-                itemLibraryEntry.setRequiredImport(import.url());
-                QString iconName = qmlIt.fileInfo().absolutePath() + '/'
-                        + Constants::QUICK_3D_ASSET_ICON_DIR + '/' + name
-                        + Constants::QUICK_3D_ASSET_LIBRARY_ICON_SUFFIX;
-                if (!QFileInfo::exists(iconName))
-                    iconName = iconPath;
-                itemLibraryEntry.setLibraryEntryIconPath(iconName);
-                itemLibraryEntry.setTypeIcon(QIcon(iconName));
+            parseQuick3DAssetsItem(import.url(), quick3DAssetsPath);
+        }
+    }
+}
 
-                // load hints file if exists
-                QFile hintsFile(qmlIt.fileInfo().absolutePath() + '/' + name + ".hints");
-                if (hintsFile.exists() && hintsFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-                    QTextStream in(&hintsFile);
-                    QHash<QString, QString> hints;
-                    while (!in.atEnd()) {
-                        QStringList hint = in.readLine().split(':');
-                        hints.insert(hint[0].trimmed(), hint[1].trimmed());
-                    }
-                    itemLibraryEntry.addHints(hints);
-                }
-
-                model()->metaInfo().itemLibraryInfo()->addEntries({itemLibraryEntry}, true);
+// parse one asset folder under Quick3DAssets
+void SubComponentManager::parseQuick3DAssetsItem(const QString &importUrl, const QString &quick3DAssetsPath)
+{
+    QString assetPath;
+    if (!quick3DAssetsPath.isEmpty()) {
+        assetPath = QDir(quick3DAssetsPath).filePath(importUrl.split('.').last());
+    } else {
+        // search for quick3DAssetsPath if not provided
+        const auto assetPaths = quick3DAssetPaths();
+        for (const auto &quick3DAssetPath : assetPaths) {
+            QString path = QDir(quick3DAssetPath).filePath(importUrl.split('.').last());
+            if (QFileInfo::exists(path)) {
+                assetPath = path;
+                break;
             }
         }
     }
 
-    // Create flow tags for the rest, if they are possible imports
-    if (!assets.isEmpty()) {
-        for (const QString &asset : qAsConst(assets)) {
-            if (!flowTags.contains(asset) && isPossibleImport(asset))
-                newFlowTags << asset;
-        }
-    }
+    const QString defaultIconPath = QStringLiteral(":/ItemLibrary/images/item-3D_model-icon.png");
+    QDirIterator qmlIt(assetPath, {"*.qml"}, QDir::Files);
+    while (qmlIt.hasNext()) {
+        qmlIt.next();
+        const QString name = qmlIt.fileInfo().baseName();
+        const QString type = importUrl + '.' + name;
+        // For now we assume version is always 1.0 as that's what importer hardcodes
+        ItemLibraryEntry itemLibraryEntry;
+        itemLibraryEntry.setType(type.toUtf8(), 1, 0);
+        itemLibraryEntry.setName(name);
+        itemLibraryEntry.setCategory(tr("My Quick3D Components"));
+        itemLibraryEntry.setRequiredImport(importUrl);
+        QString iconPath = qmlIt.fileInfo().absolutePath() + '/'
+                + Constants::QUICK_3D_ASSET_ICON_DIR + '/' + name
+                + Constants::QUICK_3D_ASSET_LIBRARY_ICON_SUFFIX;
+        if (!QFileInfo::exists(iconPath))
+            iconPath = defaultIconPath;
+        itemLibraryEntry.setLibraryEntryIconPath(iconPath);
+        itemLibraryEntry.setTypeIcon(QIcon(iconPath));
 
-    if (!newFlowTags.isEmpty())
-        model()->metaInfo().itemLibraryInfo()->addShowTagsForImports(newFlowTags);
+        // load hints file if exists
+        QFile hintsFile(qmlIt.fileInfo().absolutePath() + '/' + name + ".hints");
+        if (hintsFile.exists() && hintsFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            QTextStream in(&hintsFile);
+            QHash<QString, QString> hints;
+            while (!in.atEnd()) {
+                QStringList hint = in.readLine().split(':');
+                hints.insert(hint[0].trimmed(), hint[1].trimmed());
+            }
+            itemLibraryEntry.addHints(hints);
+        }
+
+        model()->metaInfo().itemLibraryInfo()->addEntries({itemLibraryEntry}, true);
+    }
 }
 
 QStringList SubComponentManager::quick3DAssetPaths() const
@@ -524,7 +521,7 @@ void SubComponentManager::update(const QUrl &filePath, const QList<Import> &impo
         removeImport(ii);
 
     for (int ii = i; ii < imports.size(); ++ii) {
-        addImport(ii, imports.at(ii));
+        addImport(imports.at(ii), ii);
     }
 
     const QString newPath = newDir.absoluteFilePath();
@@ -536,6 +533,48 @@ void SubComponentManager::update(const QUrl &filePath, const QList<Import> &impo
         m_watcher.addPath(assetPath);
 
     parseDirectories();
+}
+
+void SubComponentManager::updateImport(const Import &import)
+{
+    addImport(import);
+
+    if (import.isFileImport()) {
+        QFileInfo dirInfo = QFileInfo(m_filePath.resolved(import.file()).toLocalFile());
+        if (dirInfo.exists() && dirInfo.isDir())
+            parseDirectory(dirInfo.canonicalFilePath(), true, dirInfo.baseName().toUtf8());
+    } else {
+        QString url = import.url();
+
+        if (url.startsWith(QString(Constants::QUICK_3D_ASSETS_FOLDER).mid(1))) {
+            parseQuick3DAssetsItem(import.url());
+            return;
+        }
+        url.replace('.', '/');
+        QFileInfo dirInfo = QFileInfo(url);
+        const QStringList importPathList = importPaths();
+        bool parsed = false;
+        for (const QString &path : importPathList) {
+            QString fullUrl  = path + '/' + url;
+            dirInfo = QFileInfo(fullUrl);
+
+            if (dirInfo.exists() && dirInfo.isDir()) {
+                parseDirectory(dirInfo.canonicalFilePath(), false);
+                parsed = true;
+            }
+
+            QString fullUrlVersion = path + '/' + url + '.' + import.version().split('.').constFirst();
+            dirInfo = QFileInfo(fullUrlVersion);
+
+            if (dirInfo.exists() && dirInfo.isDir()) {
+                parseDirectory(dirInfo.canonicalFilePath(), false);
+                parsed = true;
+            }
+
+            if (parsed)
+                break;
+        }
+    }
 }
 
 } // namespace QmlDesigner

@@ -147,7 +147,7 @@ void CurveItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidg
 
 void CurveItem::lockedCallback()
 {
-    for (auto frame : m_keyframes)
+    for (auto frame : qAsConst(m_keyframes))
         frame->setLocked(locked());
 
     setHandleVisibility(!locked());
@@ -292,7 +292,7 @@ std::vector<AnimationCurve> CurveItem::curves() const
         }
     }
 
-    if (tmp.size() >= 2)
+    if (!tmp.empty())
         out.push_back(AnimationCurve(tmp));
 
     return out;
@@ -328,11 +328,11 @@ QVector<HandleItem *> CurveItem::handles() const
 CurveSegment CurveItem::segment(const KeyframeItem *keyframe, HandleItem::Slot slot) const
 {
     auto finder = [keyframe](KeyframeItem *item) { return item == keyframe; };
-    auto iter = std::find_if(m_keyframes.begin(), m_keyframes.end(), finder);
-    if (iter == m_keyframes.end())
+    const auto iter = std::find_if(m_keyframes.cbegin(), m_keyframes.cend(), finder);
+    if (iter == m_keyframes.cend())
         return CurveSegment();
 
-    int index = static_cast<int>(std::distance(m_keyframes.begin(), iter));
+    int index = static_cast<int>(std::distance(m_keyframes.cbegin(), iter));
     if (slot == HandleItem::Slot::Left && index > 0)
         return CurveSegment(m_keyframes[index - 1]->keyframe(), keyframe->keyframe());
     else if (slot == HandleItem::Slot::Right && index < (m_keyframes.size() - 1))
@@ -372,6 +372,9 @@ void CurveItem::restore()
         currItem->setInterpolation(segment.interpolation());
         prevItem = currItem;
     }
+
+    // It is now the last item.
+    prevItem->setRightHandle(QPointF());
 }
 
 void CurveItem::setDirty(bool dirty)
@@ -381,7 +384,7 @@ void CurveItem::setDirty(bool dirty)
 
 void CurveItem::setHandleVisibility(bool visible)
 {
-    for (auto frame : m_keyframes)
+    for (auto frame : qAsConst(m_keyframes))
         frame->setHandleVisibility(visible);
 }
 
@@ -404,19 +407,19 @@ void CurveItem::setCurve(const AnimationCurve &curve)
         item->setLocked(locked());
         item->setComponentTransform(m_transform);
         m_keyframes.push_back(item);
-        QObject::connect(item, &KeyframeItem::redrawCurve, this, &CurveItem::emitCurveChanged);
+        QObject::connect(item, &KeyframeItem::redrawCurve, this, &CurveItem::markDirty);
         QObject::connect(item, &KeyframeItem::keyframeMoved, this, &CurveItem::keyframeMoved);
         QObject::connect(item, &KeyframeItem::handleMoved, this, &CurveItem::handleMoved);
     }
 
-    emitCurveChanged();
+    markDirty();
 }
 
 QRectF CurveItem::setComponentTransform(const QTransform &transform)
 {
     prepareGeometryChange();
     m_transform = transform;
-    for (auto frame : m_keyframes)
+    for (auto frame : qAsConst(m_keyframes))
         frame->setComponentTransform(transform);
 
     return boundingRect();
@@ -426,7 +429,7 @@ void CurveItem::setStyle(const CurveEditorStyle &style)
 {
     m_style = style.curveStyle;
 
-    for (auto *frame : m_keyframes)
+    for (auto *frame : qAsConst(m_keyframes))
         frame->setStyle(style);
 }
 
@@ -459,7 +462,7 @@ void CurveItem::toggleUnified()
     if (m_keyframes.empty())
         return;
 
-    for (auto *frame : m_keyframes) {
+    for (auto *frame : qAsConst(m_keyframes)) {
         if (frame->selected())
             frame->toggleUnified();
     }
@@ -499,10 +502,12 @@ void CurveItem::deleteSelectedKeyframes()
     m_keyframes.erase(iter, m_keyframes.end());
     restore();
 
-    emitCurveChanged();
+    markDirty();
+
+    emit curveChanged(id(), curve());
 }
 
-void CurveItem::emitCurveChanged()
+void CurveItem::markDirty()
 {
     setDirty(true);
     update();

@@ -63,7 +63,6 @@ QString languageId(Language l);
 } // namespace Toolchain
 } // namespace Deprecated
 
-class Abi;
 class ToolChainConfigWidget;
 class ToolChainFactory;
 class Kit;
@@ -108,17 +107,19 @@ public:
     Utils::Id typeId() const;
     QString typeDisplayName() const;
 
-    virtual Abi targetAbi() const = 0;
+    Abi targetAbi() const;
+    void setTargetAbi(const Abi &abi);
 
     virtual ProjectExplorer::Abis supportedAbis() const;
     virtual QString originalTargetTriple() const { return QString(); }
     virtual QStringList extraCodeModelFlags() const { return QStringList(); }
     virtual Utils::FilePath installDir() const { return Utils::FilePath(); }
 
-    virtual bool isValid() const = 0;
+    virtual bool isValid() const;
 
     virtual Utils::LanguageExtensions languageExtensions(const QStringList &cxxflags) const = 0;
     virtual Utils::WarningFlags warningFlags(const QStringList &cflags) const = 0;
+    virtual QStringList includedFiles(const QStringList &flags, const QString &directory) const;
     virtual QString sysRoot() const;
 
     class MacroInspectionReport
@@ -144,7 +145,9 @@ public:
 
     Utils::Id language() const;
 
-    virtual Utils::FilePath compilerCommand() const = 0;
+    virtual Utils::FilePath compilerCommand() const; // FIXME: De-virtualize.
+    void setCompilerCommand(const Utils::FilePath &command);
+
     virtual QList<Utils::OutputLineParser *> createOutputParsers() const = 0;
 
     virtual bool operator ==(const ToolChain &) const;
@@ -170,6 +173,11 @@ protected:
 
     void setTypeDisplayName(const QString &typeName);
 
+    void setTargetAbiNoSignal(const Abi &abi);
+    void setTargetAbiKey(const QString &abiKey);
+
+    void setCompilerCommandKey(const QString &commandKey);
+
     const MacrosCache &predefinedMacrosCache() const;
     const HeaderPathsCache &headerPathsCache() const;
 
@@ -177,6 +185,10 @@ protected:
 
     // Make sure to call this function when deriving!
     virtual bool fromMap(const QVariantMap &data);
+
+    static QStringList includedFiles(const QString &option,
+                                     const QStringList &flags,
+                                     const QString &directoryPath);
 
 private:
     ToolChain(const ToolChain &) = delete;

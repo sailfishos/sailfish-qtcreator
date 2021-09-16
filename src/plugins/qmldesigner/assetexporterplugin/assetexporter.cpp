@@ -33,6 +33,7 @@
 #include "rewriterview.h"
 #include "qmlitemnode.h"
 #include "qmlobjectnode.h"
+#include "coreplugin/editormanager/editormanager.h"
 #include "utils/qtcassert.h"
 #include "utils/runextensions.h"
 #include "variantproperty.h"
@@ -122,7 +123,9 @@ void AssetExporter::exportQml(const Utils::FilePaths &qmlFiles, const Utils::Fil
 {
     m_perComponentExport = perComponentExport;
     ExportNotification::addInfo(tr("Export root directory: %1.\nExporting assets: %2")
-                                .arg(exportPath.toUserOutput())
+                                .arg(exportPath.isDir()
+                                     ? exportPath.toUserOutput()
+                                     : exportPath.parentDir().toUserOutput())
                                 .arg(exportAssets? tr("Yes") : tr("No")));
 
     if (m_perComponentExport)
@@ -133,7 +136,8 @@ void AssetExporter::exportQml(const Utils::FilePaths &qmlFiles, const Utils::Fil
     m_totalFileCount = m_exportFiles.count();
     m_components.clear();
     m_componentUuidCache.clear();
-    m_exportPath = exportPath;
+    m_exportPath = exportPath.isDir() ? exportPath : exportPath.parentDir();
+    m_exportFile = exportPath.fileName();
     m_currentState.change(ParsingState::Parsing);
     if (exportAssets)
         m_assetDumper = make_unique<AssetDumper>();
@@ -145,7 +149,7 @@ void AssetExporter::exportQml(const Utils::FilePaths &qmlFiles, const Utils::Fil
 
 void AssetExporter::beginExport()
 {
-    for (const Utils::FilePath &p : m_exportFiles) {
+    for (const Utils::FilePath &p : qAsConst(m_exportFiles)) {
         if (m_cancelled)
             break;
         preprocessQmlFile(p);
@@ -158,7 +162,7 @@ void AssetExporter::beginExport()
 void AssetExporter::cancel()
 {
     if (!m_cancelled) {
-        ExportNotification::addInfo(tr("Cancelling export."));
+        ExportNotification::addInfo(tr("Canceling export."));
         m_assetDumper.reset();
         m_cancelled = true;
     }
@@ -227,13 +231,13 @@ void AssetExporter::notifyLoadError(AssetExporterView::LoadState state)
         errorStr = tr("Loading file is taking too long.");
         break;
     case AssetExporterView::LoadState::QmlErrorState:
-        errorStr = tr("Cannot parse. QML file has errors.");
+        errorStr = tr("Cannot parse. The file contains coding errors.");
         break;
     default:
         return;
     }
     qCDebug(loggerError) << "QML load error:" << errorStr;
-    ExportNotification::addError(tr("Loading QML failed. %1").arg(errorStr));
+    ExportNotification::addError(tr("Loading components failed. %1").arg(errorStr));
 }
 
 void AssetExporter::notifyProgress(double value) const
@@ -250,13 +254,13 @@ void AssetExporter::onQmlFileLoaded()
                                                           ->documentManager()
                                                           .currentDesignDocument();
     if (designDocument->hasQmlParseErrors()) {
-        ExportNotification::addError(tr("Cannot export QML. Document \"%1\" have parsing errors.")
+        ExportNotification::addError(tr("Cannot export component. Document \"%1\" has parsing errors.")
                                      .arg(designDocument->displayName()));
     } else {
         exportComponent(m_view->rootModelNode());
         QString error;
         if (!m_view->saveQmlFile(&error)) {
-            ExportNotification::addError(tr("Error saving QML file. %1")
+            ExportNotification::addError(tr("Error saving component file. %1")
                                          .arg(error.isEmpty()? tr("Unknown") : error));
         }
     }
@@ -306,6 +310,16 @@ void AssetExporter::preprocessQmlFile(const Utils::FilePath &path)
             ExportNotification::addError(tr("Cannot update %1.\n%2")
                                          .arg(path.toString()).arg(saver.errorString()));
             return;
+        }
+
+        // Close the document if already open.
+        // UUIDS are changed and editor must reopen the document, otherwise stale state of the
+        // document is loaded.
+        for (Core::IDocument *doc : Core::DocumentModel::openedDocuments()) {
+            if (doc->filePath() == path) {
+                Core::EditorManager::closeDocuments({doc}, false);
+                break;
+            }
         }
     }
 
@@ -426,7 +440,7 @@ void AssetExporter::writeMetadata() const
         QJsonArray artboards;
         std::transform(m_components.cbegin(), m_components.cend(), back_inserter(artboards),
                        [](const unique_ptr<Component> &c) {return c->json(); });
-        writeFile(m_exportPath.pathAppended(projectName + ".metadata"), artboards);
+        writeFile(m_exportPath.pathAppended(m_exportFile), artboards);
     }
     notifyProgress(1.0);
     ExportNotification::addInfo(tr("Export finished."));

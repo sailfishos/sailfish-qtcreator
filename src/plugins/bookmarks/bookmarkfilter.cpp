@@ -40,15 +40,14 @@ BookmarkFilter::BookmarkFilter(BookmarkManager *manager)
     setId("Bookmarks");
     setDisplayName(tr("Bookmarks"));
     setPriority(Medium);
-    setShortcutString("b");
+    setDefaultShortcutString("b");
 }
 
-QList<LocatorFilterEntry> BookmarkFilter::matchesFor(QFutureInterface<LocatorFilterEntry> &future,
-                                                     const QString &entry)
+void BookmarkFilter::prepareSearch(const QString &entry)
 {
-    Q_UNUSED(future)
+    m_results = {};
     if (m_manager->rowCount() == 0)
-        return QList<LocatorFilterEntry>();
+        return;
 
     auto match = [this](const QString &name, BookmarkManager::Roles role) {
         return m_manager->match(m_manager->index(0, 0), role, name, -1,
@@ -74,7 +73,6 @@ QList<LocatorFilterEntry> BookmarkFilter::matchesFor(QFutureInterface<LocatorFil
                                                    + match(entry, BookmarkManager::Note)
                                                    + match(entry, BookmarkManager::LineText));
 
-    QList<LocatorFilterEntry> entries;
     for (const QModelIndex &idx : matches) {
         const Bookmark *bookmark = m_manager->bookmarkForIndex(idx);
         const QString filename = bookmark->fileName().fileName();
@@ -112,9 +110,16 @@ QList<LocatorFilterEntry> BookmarkFilter::matchesFor(QFutureInterface<LocatorFil
         }
 
         filterEntry.displayIcon = bookmark->icon();
-        entries.append(filterEntry);
+        m_results.append(filterEntry);
     }
-    return entries;
+}
+
+QList<LocatorFilterEntry> BookmarkFilter::matchesFor(QFutureInterface<LocatorFilterEntry> &future,
+                                                     const QString &entry)
+{
+    Q_UNUSED(future)
+    Q_UNUSED(entry)
+    return m_results;
 }
 
 void BookmarkFilter::accept(LocatorFilterEntry selection, QString *newText,
@@ -127,9 +132,4 @@ void BookmarkFilter::accept(LocatorFilterEntry selection, QString *newText,
                 selection.internalData.toModelIndex())) {
         m_manager->gotoBookmark(bookmark);
     }
-}
-
-void BookmarkFilter::refresh(QFutureInterface<void> &future)
-{
-    Q_UNUSED(future)
 }

@@ -42,9 +42,9 @@ CppCurrentDocumentFilter::CppCurrentDocumentFilter(CppTools::CppModelManager *ma
 {
     setId(Constants::CURRENT_DOCUMENT_FILTER_ID);
     setDisplayName(Constants::CURRENT_DOCUMENT_FILTER_DISPLAY_NAME);
-    setShortcutString(".");
+    setDefaultShortcutString(".");
     setPriority(High);
-    setIncludedByDefault(false);
+    setDefaultIncludedByDefault(false);
 
     search.setSymbolsToSearchFor(SymbolSearcher::Declarations |
                                  SymbolSearcher::Enums |
@@ -125,11 +125,6 @@ void CppCurrentDocumentFilter::accept(Core::LocatorFilterEntry selection,
     Q_UNUSED(selectionLength)
     IndexItem::Ptr info = qvariant_cast<CppTools::IndexItem::Ptr>(selection.internalData);
     Core::EditorManager::openEditorAt(info->fileName(), info->line(), info->column());
-}
-
-void CppCurrentDocumentFilter::refresh(QFutureInterface<void> &future)
-{
-    Q_UNUSED(future)
 }
 
 void CppCurrentDocumentFilter::onDocumentUpdated(Document::Ptr doc)

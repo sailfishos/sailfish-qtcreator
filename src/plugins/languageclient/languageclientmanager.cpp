@@ -25,20 +25,20 @@
 
 #include "languageclientmanager.h"
 
-#include "languageclientutils.h"
 #include "languageclientplugin.h"
+#include "languageclientutils.h"
 
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
 #include <coreplugin/find/searchresultwindow.h>
 #include <coreplugin/icore.h>
 #include <languageserverprotocol/messages.h>
-#include <projectexplorer/session.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/session.h>
+#include <texteditor/textdocument.h>
 #include <texteditor/texteditor.h>
 #include <texteditor/textmark.h>
-#include <texteditor/textdocument.h>
 #include <utils/executeondestruction.h>
 #include <utils/mimetypes/mimedatabase.h>
 #include <utils/theme/theme.h>
@@ -98,28 +98,56 @@ void LanguageClientManager::init()
     managerInstance = new LanguageClientManager(LanguageClientPlugin::instance());
 }
 
-void LanguageClientManager::startClient(Client *client)
+void LanguageClientManager::clientStarted(Client *client)
 {
     QTC_ASSERT(managerInstance, return);
     QTC_ASSERT(client, return);
     if (managerInstance->m_shuttingDown) {
-        managerInstance->clientFinished(client);
+        clientFinished(client);
         return;
     }
-    if (!managerInstance->m_clients.contains(client))
-        managerInstance->m_clients.append(client);
-    connect(client, &Client::finished, managerInstance, [client](){
-        managerInstance->clientFinished(client);
-    });
-    if (client->start())
-        client->initialize();
-    else
-        managerInstance->clientFinished(client);
+    if (!managerInstance->m_clients.contains(client)) {
+        managerInstance->m_clients << client;
+        connect(client, &Client::finished, managerInstance, [client]() { clientFinished(client); });
+        connect(client,
+                &Client::initialized,
+                managerInstance,
+                [client](const LanguageServerProtocol::ServerCapabilities &capabilities) {
+                    managerInstance->m_currentDocumentLocatorFilter.updateCurrentClient();
+                    managerInstance->m_inspector.clientInitialized(client->name(), capabilities);
+                });
+        connect(client,
+                &Client::capabilitiesChanged,
+                managerInstance,
+                [client](const DynamicCapabilities &capabilities) {
+                    managerInstance->m_inspector.updateCapabilities(client->name(), capabilities);
+                });
+    }
 
-    connect(client,
-            &Client::initialized,
-            &managerInstance->m_currentDocumentLocatorFilter,
-            &DocumentLocatorFilter::updateCurrentClient);
+    client->initialize();
+}
+
+void LanguageClientManager::clientFinished(Client *client)
+{
+    QTC_ASSERT(managerInstance, return);
+    constexpr int restartTimeoutS = 5;
+    const bool unexpectedFinish = client->state() != Client::Shutdown
+                                  && client->state() != Client::ShutdownRequested;
+    if (unexpectedFinish && !managerInstance->m_shuttingDown && client->reset()) {
+        client->disconnect(managerInstance);
+        client->log(tr("Unexpectedly finished. Restarting in %1 seconds.").arg(restartTimeoutS));
+        QTimer::singleShot(restartTimeoutS * 1000, client, [client]() { client->start(); });
+        for (TextEditor::TextDocument *document : managerInstance->m_clientForDocument.keys(client))
+            client->deactivateDocument(document);
+    } else {
+        if (unexpectedFinish && !managerInstance->m_shuttingDown)
+            client->log(tr("Unexpectedly finished."));
+        for (TextEditor::TextDocument *document : managerInstance->m_clientForDocument.keys(client))
+            managerInstance->m_clientForDocument.remove(document);
+        deleteClient(client);
+        if (managerInstance->m_shuttingDown && managerInstance->m_clients.isEmpty())
+            emit managerInstance->shutdownFinished();
+    }
 }
 
 Client *LanguageClientManager::startClient(BaseSettings *setting, ProjectExplorer::Project *project)
@@ -130,7 +158,7 @@ Client *LanguageClientManager::startClient(BaseSettings *setting, ProjectExplore
     Client *client = setting->createClient();
     QTC_ASSERT(client, return nullptr);
     client->setCurrentProject(project);
-    startClient(client);
+    client->start();
     managerInstance->m_clientsForSetting[setting->m_id].append(client);
     return client;
 }
@@ -150,7 +178,7 @@ void LanguageClientManager::addExclusiveRequest(const MessageId &id, Client *cli
 void LanguageClientManager::reportFinished(const MessageId &id, Client *byClient)
 {
     QTC_ASSERT(managerInstance, return);
-    for (Client *client : managerInstance->m_exclusiveRequests[id]) {
+    for (Client *client : qAsConst(managerInstance->m_exclusiveRequests[id])) {
         if (client != byClient)
             client->cancelRequest(id);
     }
@@ -187,11 +215,11 @@ void LanguageClientManager::shutdown()
     if (managerInstance->m_shuttingDown)
         return;
     managerInstance->m_shuttingDown = true;
-    for (Client *client : managerInstance->m_clients)
+    for (Client *client : qAsConst(managerInstance->m_clients))
         shutdownClient(client);
     QTimer::singleShot(3000, managerInstance, [](){
-        for (auto interface : managerInstance->m_clients)
-            deleteClient(interface);
+        for (Client *client : qAsConst(managerInstance->m_clients))
+            deleteClient(client);
         emit managerInstance->shutdownFinished();
     });
 }
@@ -215,31 +243,31 @@ void LanguageClientManager::applySettings()
     QTC_ASSERT(managerInstance, return);
     qDeleteAll(managerInstance->m_currentSettings);
     managerInstance->m_currentSettings
-        = Utils::transform(LanguageClientSettings::currentPageSettings(), &BaseSettings::copy);
+        = Utils::transform(LanguageClientSettings::pageSettings(), &BaseSettings::copy);
+    const QList<BaseSettings *> restarts = LanguageClientSettings::changedSettings();
     LanguageClientSettings::toSettings(Core::ICore::settings(), managerInstance->m_currentSettings);
-
-    const QList<BaseSettings *> restarts = Utils::filtered(managerInstance->m_currentSettings,
-                                                           &BaseSettings::needsRestart);
 
     for (BaseSettings *setting : restarts) {
         QList<TextEditor::TextDocument *> documents;
-        for (Client *client : clientForSetting(setting)) {
+        const QVector<Client *> currentClients = clientForSetting(setting);
+        for (Client *client : currentClients) {
             documents << managerInstance->m_clientForDocument.keys(client);
             shutdownClient(client);
         }
-        for (auto document : documents)
+        for (auto document : qAsConst(documents))
             managerInstance->m_clientForDocument.remove(document);
         if (!setting->isValid() || !setting->m_enabled)
             continue;
         switch (setting->m_startBehavior) {
         case BaseSettings::AlwaysOn: {
             Client *client = startClient(setting);
-            for (TextEditor::TextDocument *document : documents)
+            for (TextEditor::TextDocument *document : qAsConst(documents))
                 managerInstance->m_clientForDocument[document] = client;
             break;
         }
         case BaseSettings::RequiresFile: {
-            for (Core::IDocument *document : Core::DocumentModel::openedDocuments()) {
+            const QList<Core::IDocument *> &openedDocuments = Core::DocumentModel::openedDocuments();
+            for (Core::IDocument *document : openedDocuments) {
                 if (auto textDocument = qobject_cast<TextEditor::TextDocument *>(document)) {
                     if (setting->m_languageFilter.isSupported(document))
                         documents << textDocument;
@@ -247,19 +275,30 @@ void LanguageClientManager::applySettings()
             }
             if (!documents.isEmpty()) {
                 Client *client = startClient(setting);
-                for (TextEditor::TextDocument *document : documents)
+                for (TextEditor::TextDocument *document : qAsConst(documents))
                     client->openDocument(document);
             }
             break;
         }
         case BaseSettings::RequiresProject: {
-            for (Core::IDocument *doc : Core::DocumentModel::openedDocuments()) {
-                if (setting->m_languageFilter.isSupported(doc)) {
-                    const Utils::FilePath filePath = doc->filePath();
-                    for (ProjectExplorer::Project *project :
-                         ProjectExplorer::SessionManager::projects()) {
-                        if (project->isKnownFile(filePath))
-                            startClient(setting, project);
+            const QList<Core::IDocument *> &openedDocuments = Core::DocumentModel::openedDocuments();
+            QHash<ProjectExplorer::Project *, Client *> clientForProject;
+            for (Core::IDocument *document : openedDocuments) {
+                auto textDocument = qobject_cast<TextEditor::TextDocument *>(document);
+                if (!textDocument || !setting->m_languageFilter.isSupported(textDocument))
+                    continue;
+                const Utils::FilePath filePath = textDocument->filePath();
+                for (ProjectExplorer::Project *project :
+                     ProjectExplorer::SessionManager::projects()) {
+                    if (project->isKnownFile(filePath)) {
+                        Client *client = clientForProject[project];
+                        if (!client) {
+                            client = startClient(setting, project);
+                            if (!client)
+                                continue;
+                            clientForProject[project] = client;
+                        }
+                        client->openDocument(textDocument);
                     }
                 }
             }
@@ -301,8 +340,10 @@ QVector<Client *> LanguageClientManager::clientForSetting(const BaseSettings *se
 const BaseSettings *LanguageClientManager::settingForClient(Client *client)
 {
     QTC_ASSERT(managerInstance, return nullptr);
-    for (const QString &id : managerInstance->m_clientsForSetting.keys()) {
-        for (const Client *settingClient : managerInstance->m_clientsForSetting[id]) {
+    for (auto it = managerInstance->m_clientsForSetting.cbegin();
+         it != managerInstance->m_clientsForSetting.cend(); ++it) {
+        const QString &id = it.key();
+        for (const Client *settingClient : it.value()) {
             if (settingClient == client) {
                 return Utils::findOrDefault(managerInstance->m_currentSettings,
                                             [id](BaseSettings *setting) {
@@ -352,53 +393,22 @@ void LanguageClientManager::logBaseMessage(const LspLogMessage::MessageSender se
                                            const QString &clientName,
                                            const BaseMessage &message)
 {
-    instance()->m_logger.log(sender, clientName, message);
+    instance()->m_inspector.log(sender, clientName, message);
 }
 
-void LanguageClientManager::showLogger()
+void LanguageClientManager::showInspector()
 {
-    QWidget *loggerWidget = instance()->m_logger.createWidget();
-    loggerWidget->setAttribute(Qt::WA_DeleteOnClose);
-    loggerWidget->show();
+    QString clientName;
+    if (Client *client = clientForDocument(TextEditor::TextDocument::currentTextDocument()))
+        clientName = client->name();
+    QWidget *inspectorWidget = instance()->m_inspector.createWidget(clientName);
+    inspectorWidget->setAttribute(Qt::WA_DeleteOnClose);
+    inspectorWidget->show();
 }
 
 QVector<Client *> LanguageClientManager::reachableClients()
 {
     return Utils::filtered(m_clients, &Client::reachable);
-}
-
-static void sendToInterfaces(const IContent &content, const QVector<Client *> &interfaces)
-{
-    for (Client *interface : interfaces)
-        interface->sendContent(content);
-}
-
-void LanguageClientManager::sendToAllReachableServers(const IContent &content)
-{
-    sendToInterfaces(content, reachableClients());
-}
-
-void LanguageClientManager::clientFinished(Client *client)
-{
-    constexpr int restartTimeoutS = 5;
-    const bool unexpectedFinish = client->state() != Client::Shutdown
-            && client->state() != Client::ShutdownRequested;
-    if (unexpectedFinish && !m_shuttingDown && client->reset()) {
-        client->disconnect(this);
-        client->log(tr("Unexpectedly finished. Restarting in %1 seconds.").arg(restartTimeoutS),
-                    Core::MessageManager::Flash);
-        QTimer::singleShot(restartTimeoutS * 1000, client, [client]() { startClient(client); });
-        for (TextEditor::TextDocument *document : m_clientForDocument.keys(client))
-            client->deactivateDocument(document);
-    } else {
-        if (unexpectedFinish && !m_shuttingDown)
-            client->log(tr("Unexpectedly finished."), Core::MessageManager::Flash);
-        for (TextEditor::TextDocument *document : m_clientForDocument.keys(client))
-            m_clientForDocument.remove(document);
-        deleteClient(client);
-        if (m_shuttingDown && m_clients.isEmpty())
-            emit shutdownFinished();
-    }
 }
 
 void LanguageClientManager::editorOpened(Core::IEditor *editor)
@@ -422,15 +432,10 @@ void LanguageClientManager::editorOpened(Core::IEditor *editor)
                         if (auto client = clientForDocument(document))
                             client->symbolSupport().renameSymbol(document, cursor);
                     });
-            connect(widget, &TextEditorWidget::cursorPositionChanged, this, [this, widget]() {
-                // TODO This would better be a compressing timer
-                QTimer::singleShot(50, this, [widget = QPointer<TextEditorWidget>(widget)]() {
-                    if (!widget)
-                        return;
-                    if (Client *client = clientForDocument(widget->textDocument()))
-                        if (client->reachable())
-                            client->cursorPositionChanged(widget);
-                });
+            connect(widget, &TextEditorWidget::cursorPositionChanged, this, [widget]() {
+                if (Client *client = clientForDocument(widget->textDocument()))
+                    if (client->reachable())
+                        client->cursorPositionChanged(widget);
             });
             updateEditorToolBar(editor);
             if (TextEditor::TextDocument *document = textEditor->textDocument()) {
@@ -448,12 +453,13 @@ void LanguageClientManager::documentOpened(Core::IDocument *document)
         return;
 
     // check whether we have to start servers for this document
-    for (BaseSettings *setting : LanguageClientSettings::currentPageSettings()) {
+    const QList<BaseSettings *> settings = currentSettings();
+    for (BaseSettings *setting : settings) {
         QVector<Client *> clients = clientForSetting(setting);
         if (setting->isValid() && setting->m_enabled
             && setting->m_languageFilter.isSupported(document)) {
             if (setting->m_startBehavior == BaseSettings::RequiresProject) {
-                const Utils::FilePath filePath = document->filePath();
+                const Utils::FilePath &filePath = document->filePath();
                 for (ProjectExplorer::Project *project :
                      ProjectExplorer::SessionManager::projects()) {
                     // check whether file is part of this project
@@ -461,18 +467,22 @@ void LanguageClientManager::documentOpened(Core::IDocument *document)
                         continue;
 
                     // check whether we already have a client running for this project
-                    if (Utils::findOrDefault(clients,
-                                             [project](QPointer<Client> client) {
-                                                 return client->project() == project;
-                                             })) {
-                        continue;
+                    Client *clientForProject = Utils::findOrDefault(clients,
+                                                                    [project](Client *client) {
+                                                                        return client->project()
+                                                                               == project;
+                                                                    });
+                    if (!clientForProject) {
+                        clientForProject = startClient(setting, project);
+                        clients << clientForProject;
                     }
-                    clients << startClient(setting, project);
+                    QTC_ASSERT(clientForProject, continue);
+                    openDocumentWithClient(textDocument, clientForProject);
                 }
             } else if (setting->m_startBehavior == BaseSettings::RequiresFile && clients.isEmpty()) {
                 clients << startClient(setting);
             }
-            for (auto client : clients)
+            for (auto client : qAsConst(clients))
                 client->openDocument(textDocument);
         }
     }
@@ -481,7 +491,7 @@ void LanguageClientManager::documentOpened(Core::IDocument *document)
 void LanguageClientManager::documentClosed(Core::IDocument *document)
 {
     if (auto textDocument = qobject_cast<TextEditor::TextDocument *>(document)) {
-        for (Client *client : m_clients)
+        for (Client *client : qAsConst(m_clients))
             client->closeDocument(textDocument);
         m_clientForDocument.remove(textDocument);
     }
@@ -490,32 +500,35 @@ void LanguageClientManager::documentClosed(Core::IDocument *document)
 void LanguageClientManager::documentContentsSaved(Core::IDocument *document)
 {
     if (auto textDocument = qobject_cast<TextEditor::TextDocument *>(document)) {
-        for (Client *interface : reachableClients())
-            interface->documentContentsSaved(textDocument);
+        const QVector<Client *> &clients = reachableClients();
+        for (Client *client : clients)
+            client->documentContentsSaved(textDocument);
     }
 }
 
 void LanguageClientManager::documentWillSave(Core::IDocument *document)
 {
     if (auto textDocument = qobject_cast<TextEditor::TextDocument *>(document)) {
-        for (Client *interface : reachableClients())
-            interface->documentWillSave(textDocument);
+        const QVector<Client *> &clients = reachableClients();
+        for (Client *client : clients)
+            client->documentWillSave(textDocument);
     }
 }
 
 void LanguageClientManager::updateProject(ProjectExplorer::Project *project)
 {
-    for (BaseSettings *setting : m_currentSettings) {
+    for (BaseSettings *setting : qAsConst(m_currentSettings)) {
         if (setting->isValid()
             && setting->m_enabled
             && setting->m_startBehavior == BaseSettings::RequiresProject) {
             if (Utils::findOrDefault(clientForSetting(setting),
-                                     [project](QPointer<Client> client) {
+                                     [project](const QPointer<Client> &client) {
                                          return client->project() == project;
                                      })
                 == nullptr) {
                 Client *newClient = nullptr;
-                for (Core::IDocument *doc : Core::DocumentModel::openedDocuments()) {
+                const QList<Core::IDocument *> &openedDocuments = Core::DocumentModel::openedDocuments();
+                for (Core::IDocument *doc : openedDocuments) {
                     if (setting->m_languageFilter.isSupported(doc)
                         && project->isKnownFile(doc->filePath())) {
                         if (auto textDoc = qobject_cast<TextEditor::TextDocument *>(doc)) {
@@ -530,8 +543,9 @@ void LanguageClientManager::updateProject(ProjectExplorer::Project *project)
             }
         }
     }
-    for (Client *interface : reachableClients())
-        interface->projectOpened(project);
+    const QVector<Client *> &clients = reachableClients();
+    for (Client *client : clients)
+        client->projectOpened(project);
 }
 
 void LanguageClientManager::projectAdded(ProjectExplorer::Project *project)
@@ -544,8 +558,8 @@ void LanguageClientManager::projectAdded(ProjectExplorer::Project *project)
 void LanguageClientManager::projectRemoved(ProjectExplorer::Project *project)
 {
     project->disconnect(this);
-    for (Client *interface : m_clients)
-        interface->projectClosed(project);
+    for (Client *client : qAsConst(m_clients))
+        client->projectClosed(project);
 }
 
 } // namespace LanguageClient

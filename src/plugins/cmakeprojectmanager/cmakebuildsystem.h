@@ -29,12 +29,13 @@
 #include "cmakebuildtarget.h"
 #include "cmakeprojectnodes.h"
 #include "fileapireader.h"
-#include "utils/macroexpander.h"
 
 #include <projectexplorer/buildsystem.h>
 
 #include <utils/fileutils.h>
 #include <utils/temporarydirectory.h>
+
+#include <QFutureSynchronizer>
 
 namespace ProjectExplorer { class ExtraCompiler; }
 
@@ -43,9 +44,10 @@ class CppProjectUpdater;
 } // namespace CppTools
 
 namespace CMakeProjectManager {
-namespace Internal {
 
 class CMakeBuildConfiguration;
+
+namespace Internal {
 
 // --------------------------------------------------------------------
 // CMakeBuildSystem:
@@ -89,9 +91,18 @@ public:
 
     CMakeBuildConfiguration *cmakeBuildConfiguration() const;
 
+    QList<ProjectExplorer::TestCaseInfo> const testcasesInfo() const final;
+    Utils::CommandLine commandLineForTests(const QList<QString> &tests,
+                                           const QStringList &options) const final;
+
     // Generic CMake helper functions:
     static CMakeConfig parseCMakeCacheDotTxt(const Utils::FilePath &cacheFile,
                                              QString *errorMessage);
+
+    static bool filteredOutTarget(const CMakeBuildTarget &target);
+
+    bool isMultiConfig() const;
+    bool usesAllCapsTargets() const;
 
 private:
     // Actually ask for parsing:
@@ -109,7 +120,7 @@ private:
     void setParametersAndRequestParse(const BuildDirParameters &parameters,
                                       const int reparseParameters);
 
-    bool mustApplyExtraArguments() const;
+    bool mustApplyExtraArguments(const BuildDirParameters &parameters) const;
 
     // State handling:
     // Parser states:
@@ -123,11 +134,13 @@ private:
     void combineScanAndParse();
 
     std::unique_ptr<CMakeProjectNode> generateProjectTree(
-        const QList<const ProjectExplorer::FileNode *> &allFiles);
-
+        const QList<const ProjectExplorer::FileNode *> &allFiles, bool includeHeadersNode);
     void checkAndReportError(QString &errorMessage);
 
+    void updateCMakeConfiguration(QString &errorMessage);
+
     void updateProjectData();
+    void updateFallbackProjectData();
     QList<ProjectExplorer::ExtraCompiler *> findExtraCompilers();
     void updateQmlJSCodeModel();
 
@@ -142,6 +155,8 @@ private:
 
     void updateReparseParameters(const int parameters);
     int takeReparseParameters();
+
+    void runCTest();
 
     ProjectExplorer::TreeScanner m_treeScanner;
     QHash<QString, bool> m_mimeBinaryCache;
@@ -164,6 +179,11 @@ private:
         m_buildDirToTempDir;
     FileApiReader m_reader;
     mutable bool m_isHandlingError = false;
+
+    // CTest integration
+    QString m_ctestPath;
+    QList<ProjectExplorer::TestCaseInfo> m_testNames;
+    QFutureSynchronizer<QByteArray> m_futureSynchronizer;
 };
 
 } // namespace Internal

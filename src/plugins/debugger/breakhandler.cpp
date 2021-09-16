@@ -611,17 +611,13 @@ void BreakpointDialog::setPartsEnabled(unsigned partsMask)
     m_lineEditModule->setEnabled(partsMask & ModulePart);
 
     m_labelTracepoint->setEnabled(partsMask & TracePointPart);
-    m_labelTracepoint->hide();
     m_checkBoxTracepoint->setEnabled(partsMask & TracePointPart);
-    m_checkBoxTracepoint->hide();
 
     m_labelCommands->setEnabled(partsMask & CommandPart);
     m_textEditCommands->setEnabled(partsMask & CommandPart);
 
     m_labelMessage->setEnabled(partsMask & TracePointPart);
-    m_labelMessage->hide();
     m_lineEditMessage->setEnabled(partsMask & TracePointPart);
-    m_lineEditMessage->hide();
 }
 
 void BreakpointDialog::clearOtherParts(unsigned partsMask)
@@ -1051,7 +1047,7 @@ QVariant BreakpointItem::data(int column, int role) const
             if (role == Qt::DisplayRole)
                 return m_displayName.isEmpty() ? m_responseId : m_displayName;
             if (role == Qt::DecorationRole)
-                return icon();
+                return icon(m_needsLocationMarker);
             break;
         case BreakpointFunctionColumn:
             if (role == Qt::DisplayRole) {
@@ -1259,6 +1255,14 @@ void BreakpointItem::gotoState(BreakpointState target, BreakpointState assumedCu
     setState(target);
 }
 
+void BreakpointItem::setNeedsLocationMarker(bool needsLocationMarker)
+{
+    if (m_needsLocationMarker == needsLocationMarker)
+        return;
+    m_needsLocationMarker = needsLocationMarker;
+    update();
+}
+
 void BreakHandler::updateDisassemblerMarker(const Breakpoint &bp)
 {
     return m_engine->disassemblerAgent()->updateBreakpointMarker(bp);
@@ -1270,6 +1274,30 @@ void BreakHandler::removeDisassemblerMarker(const Breakpoint &bp)
     bp->destroyMarker();
     if (GlobalBreakpoint gbp = bp->globalBreakpoint())
         gbp->updateMarker();
+}
+
+static bool matches(const Location &loc, const BreakpointParameters &bp)
+{
+    if (loc.fileName() == bp.fileName && loc.lineNumber() == bp.lineNumber && bp.lineNumber > 0)
+        return true;
+    if (loc.address() == bp.address && bp.address > 0)
+        return true;
+    return false;
+}
+
+void BreakHandler::setLocation(const Location &loc)
+{
+    forItemsAtLevel<1>([loc](Breakpoint bp) {
+        bool needsMarker = matches(loc, bp->parameters());
+        if (GlobalBreakpoint gpb = bp->globalBreakpoint())
+            needsMarker = needsMarker || matches(loc, gpb->requestedParameters());
+        bp->setNeedsLocationMarker(needsMarker);
+    });
+}
+
+void BreakHandler::resetLocation()
+{
+    forItemsAtLevel<1>([](Breakpoint bp) { bp->setNeedsLocationMarker(false); });
 }
 
 void BreakpointItem::setState(BreakpointState state)
@@ -1671,7 +1699,6 @@ bool BreakHandler::contextMenuEvent(const ItemViewEvent &ev)
     menu->addSeparator();
 
     menu->addAction(action(UseToolTipsInBreakpointsView)->action());
-    Internal::addHideColumnActions(menu, ev.view());
     menu->addAction(action(SettingsDialog)->action());
 
     menu->popup(ev.globalPos());
@@ -1725,7 +1752,11 @@ void BreakHandler::editBreakpoint(const Breakpoint &bp, QWidget *parent)
         return;
 
     if (params != bp->requestedParameters()) {
-        bp->setParameters(params);
+        if (GlobalBreakpoint gbp = bp->globalBreakpoint()) {
+            gbp->setParameters(params);
+        } else {
+            bp->setParameters(params);
+        }
         updateDisassemblerMarker(bp);
         bp->updateMarker();
         bp->update();
@@ -1762,9 +1793,18 @@ void BreakHandler::editBreakpoints(const Breakpoints &bps, QWidget *parent)
 
     for (Breakpoint bp : bps) {
         if (bp) {
-            bp->m_parameters.condition = newCondition;
-            bp->m_parameters.ignoreCount = newIgnoreCount;
-            bp->m_parameters.threadSpec = newThreadSpec;
+            if (GlobalBreakpoint gbp = bp->globalBreakpoint()) {
+                BreakpointParameters params = bp->requestedParameters();
+                params.condition = newCondition;
+                params.ignoreCount = newIgnoreCount;
+                params.threadSpec = newThreadSpec;
+                gbp->setParameters(params);
+            } else {
+                bp->m_parameters.condition = newCondition;
+                bp->m_parameters.ignoreCount = newIgnoreCount;
+                bp->m_parameters.threadSpec = newThreadSpec;
+            }
+
             if (bp->m_state != BreakpointNew)
                 requestBreakpointUpdate(bp);
         }
@@ -1869,7 +1909,7 @@ void BreakpointItem::updateMarker()
         m_marker = new BreakpointMarker(this, file, line);
 }
 
-QIcon BreakpointItem::icon() const
+QIcon BreakpointItem::icon(bool withLocationMarker) const
 {
     // FIXME: This seems to be called on each cursor blink as soon as the
     // cursor is near a line with a breakpoint marker (+/- 2 lines or so).
@@ -1882,7 +1922,8 @@ QIcon BreakpointItem::icon() const
     if (!m_parameters.enabled)
         return Icons::BREAKPOINT_DISABLED.icon();
     if (m_state == BreakpointInserted && !m_parameters.pending)
-        return Icons::BREAKPOINT.icon();
+        return withLocationMarker ? Icons::BREAKPOINT_WITH_LOCATION.icon()
+                                  : Icons::BREAKPOINT.icon();
     return Icons::BREAKPOINT_PENDING.icon();
 }
 
@@ -2061,6 +2102,8 @@ QString BreakpointItem::msgBreakpointTriggered(const QString &threadId) const
 QVariant SubBreakpointItem::data(int column, int role) const
 {
     if (role == Qt::DecorationRole && column == 0) {
+        if (params.tracepoint)
+            return Icons::TRACEPOINT.icon();
         return params.enabled ? Icons::BREAKPOINT.icon()
                               : Icons::BREAKPOINT_DISABLED.icon();
     }
@@ -2310,6 +2353,16 @@ void GlobalBreakpointItem::setEnabled(bool enabled, bool descend)
                     handler->requestBreakpointEnabling(bp, enabled);
             }
         }
+    }
+}
+
+void GlobalBreakpointItem::setParameters(const BreakpointParameters &params)
+{
+    if (m_params != params) {
+        m_params = params;
+        if (m_marker)
+            m_marker->updateMarker();
+        update();
     }
 }
 
@@ -2632,7 +2685,6 @@ bool BreakpointManager::contextMenuEvent(const ItemViewEvent &ev)
     menu->addSeparator();
 
     menu->addAction(action(UseToolTipsInBreakpointsView)->action());
-    Internal::addHideColumnActions(menu, ev.view());
     menu->addAction(action(SettingsDialog)->action());
 
     menu->popup(ev.globalPos());
@@ -2716,6 +2768,7 @@ void BreakpointManager::editBreakpoints(const GlobalBreakpoints &gbps, QWidget *
         BreakpointManager::createBreakpoint(newParams);
     }
 }
+
 void BreakpointManager::saveSessionData()
 {
     QList<QVariant> list;

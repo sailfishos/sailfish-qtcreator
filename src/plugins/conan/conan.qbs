@@ -10,10 +10,13 @@ QtcPlugin {
     Depends { name: "ProjectExplorer" }
 
     files: [
+        "conanconstants.h",
+        "conaninstallstep.h",
+        "conaninstallstep.cpp",
         "conanplugin.h",
         "conanplugin.cpp",
-        "conaninstallstep.h",
-        "conaninstallstep.cpp"
+        "conansettings.h",
+        "conansettings.cpp"
     ]
 }
 

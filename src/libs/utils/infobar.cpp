@@ -27,6 +27,7 @@
 
 #include "algorithm.h"
 #include "qtcassert.h"
+#include "qtcsettings.h"
 #include "theme/theme.h"
 #include "utilsicons.h"
 
@@ -34,6 +35,7 @@
 #include <QSettings>
 #include <QVBoxLayout>
 #include <QLabel>
+#include <QPaintEngine>
 #include <QToolButton>
 #include <QComboBox>
 
@@ -43,7 +45,38 @@ namespace Utils {
 
 QSet<Id> InfoBar::globallySuppressed;
 QSettings *InfoBar::m_settings = nullptr;
-Utils::Theme *InfoBar::m_theme = nullptr;
+
+class InfoBarWidget : public QWidget
+{
+public:
+    InfoBarWidget(Qt::Edge edge, QWidget *parent = nullptr);
+
+protected:
+    void paintEvent(QPaintEvent *event) override;
+
+private:
+    const Qt::Edge m_edge;
+};
+
+InfoBarWidget::InfoBarWidget(Qt::Edge edge, QWidget *parent)
+    : QWidget(parent)
+    , m_edge(edge)
+{
+    const bool topEdge = m_edge == Qt::TopEdge;
+    setContentsMargins(2, topEdge ? 0 : 1, 0, topEdge ? 1 : 0);
+}
+
+void InfoBarWidget::paintEvent(QPaintEvent *event)
+{
+    QWidget::paintEvent(event);
+    QPainter p(this);
+    p.fillRect(rect(), creatorTheme()->color(Theme::InfoBarBackground));
+    const QRectF adjustedRect = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
+    const bool topEdge = m_edge == Qt::TopEdge;
+    p.setPen(creatorTheme()->color(Theme::FancyToolBarSeparatorColor));
+    p.drawLine(QLineF(topEdge ? adjustedRect.bottomLeft() : adjustedRect.topLeft(),
+                      topEdge ? adjustedRect.bottomRight() : adjustedRect.topRight()));
+}
 
 InfoBarEntry::InfoBarEntry(Id _id, const QString &_infoText, GlobalSuppression _globalSuppression)
     : m_id(_id)
@@ -146,10 +179,9 @@ void InfoBar::globallyUnsuppressInfo(Id id)
     writeGloballySuppressedToSettings();
 }
 
-void InfoBar::initialize(QSettings *settings, Theme *theme)
+void InfoBar::initialize(QSettings *settings)
 {
     m_settings = settings;
-    m_theme = theme;
 
     if (QTC_GUARD(m_settings)) {
         const QStringList list = m_settings->value(QLatin1String(C_SUPPRESSED_WARNINGS)).toStringList();
@@ -161,7 +193,7 @@ void InfoBar::clearGloballySuppressed()
 {
     globallySuppressed.clear();
     if (m_settings)
-        m_settings->setValue(QLatin1String(C_SUPPRESSED_WARNINGS), QStringList());
+        m_settings->remove(C_SUPPRESSED_WARNINGS);
 }
 
 bool InfoBar::anyGloballySuppressed()
@@ -174,7 +206,7 @@ void InfoBar::writeGloballySuppressedToSettings()
     if (!m_settings)
         return;
     const QStringList list = Utils::transform<QList>(globallySuppressed, &Id::toString);
-    m_settings->setValue(QLatin1String(C_SUPPRESSED_WARNINGS), list);
+    QtcSettings::setValueWithDefault(m_settings, C_SUPPRESSED_WARNINGS, list);
 }
 
 
@@ -204,9 +236,9 @@ void InfoBarDisplay::setInfoBar(InfoBar *infoBar)
     update();
 }
 
-void InfoBarDisplay::setStyle(QFrame::Shadow style)
+void InfoBarDisplay::setEdge(Qt::Edge edge)
 {
-    m_style = style;
+    m_edge = edge;
     update();
 }
 
@@ -225,7 +257,7 @@ void InfoBarDisplay::infoBarDestroyed()
 
 void InfoBarDisplay::update()
 {
-    for (QWidget *widget : m_infoWidgets) {
+    for (QWidget *widget : qAsConst(m_infoWidgets)) {
         widget->disconnect(this); // We want no destroyed() signal now
         delete widget;
     }
@@ -234,19 +266,8 @@ void InfoBarDisplay::update()
     if (!m_infoBar)
         return;
 
-    for (const InfoBarEntry &info : m_infoBar->m_infoBarEntries) {
-        QFrame *infoWidget = new QFrame;
-
-        QPalette pal;
-        if (QTC_GUARD(InfoBar::m_theme)) {
-            pal.setColor(QPalette::Window, InfoBar::m_theme->color(Theme::InfoBarBackground));
-            pal.setColor(QPalette::WindowText, InfoBar::m_theme->color(Theme::InfoBarText));
-        }
-
-        infoWidget->setPalette(pal);
-        infoWidget->setFrameStyle(QFrame::Panel | m_style);
-        infoWidget->setLineWidth(1);
-        infoWidget->setAutoFillBackground(true);
+    for (const InfoBarEntry &info : qAsConst(m_infoBar->m_infoBarEntries)) {
+        auto infoWidget = new InfoBarWidget(m_edge);
 
         auto hbox = new QHBoxLayout;
         hbox->setContentsMargins(2, 2, 2, 2);

@@ -1,6 +1,11 @@
-QFrame {
-   border: 2px;
-   background-color: creatorTheme.QmlDesigner_BackgroundColorDarkAlternate;
+QFrame,
+QScrollArea,
+QStackedWidget,
+QGraphicsView,
+QTabWidget,
+QTabWidget::pane { /* The tab widget frame */
+    border: 0px;
+    background-color: creatorTheme.DSpanelBackground;
 }
 
 QLabel {
@@ -8,65 +13,52 @@ QLabel {
     border-image: none;
     padding: 0;
     background: none;
-    color: creatorTheme.PanelTextColorLight;
+    color: creatorTheme.DStextColor;
+    selection-color: creatorTheme.DStextSelectedTextColor;
+    selection-background-color: creatorTheme.DSinteraction;
 }
 
-QScrollArea {
-     border: 0px;
-     background-color: creatorTheme.QmlDesigner_BackgroundColorDarkAlternate;
+QFrame {
+    border: 2px;
 }
 
-QStackedWidget {
-     border: 0px;
-     background-color: creatorTheme.QmlDesigner_BackgroundColorDarkAlternate;
+QTreeView,
+QListView {
+    color: creatorTheme.DStextColor;
+    selection-color: creatorTheme.DStextSelectedTextColor;
+    selection-background-color: creatorTheme.DSinteraction;
 }
 
-QGraphicsView {
-     border: 0px;
-     background-color: creatorTheme.QmlDesigner_BackgroundColorDarkAlternate;
+QPushButton {
+    color: creatorTheme.DStextColor;
+    border: 1px solid creatorTheme.DScontrolOutline;
+    background: creatorTheme.DScontrolBackground;
+    padding: 4px 2px 4px 2px;
+    min-width: 70px;
 }
 
-QLineEdit#itemLibrarySearchInput
-{
-    color: creatorTheme.PanelTextColorLight;
-    font-size: creatorTheme.smallFontPixelSize;
-    border: 1px solid creatorTheme.QmlDesigner_BackgroundColorDarker;
-    border-width: 1;
-    max-height: 20px;
-    min-height: 20px;
-    background-color: creatorTheme.FancyToolButtonSelectedColor;
+QPushButton:hover {
+    background: creatorTheme.DScontrolBackgroundHover;
 }
 
- QTreeView {
-    color: creatorTheme.PanelTextColorLight;
-    selection-color: creatorTheme.PanelTextColorLight;
-    selection-background-color: creatorTheme.QmlDesigner_HighlightColor;
- }
-
- QListView {
-    color: creatorTheme.PanelTextColorLight;
-    selection-color: creatorTheme.PanelTextColorLight;
-    selection-background-color: creatorTheme.QmlDesigner_HighlightColor;
- }
-
-  QComboBox QAbstractItemView {
-     show-decoration-selected: 1; /* make the selection span the entire width of the view */
-     background-color: creatorTheme.DSpanelBackground; /* sets background of the menu */
-     border: 1px solid black;
-     margin: 0px; /* some spacing around the menu */
-     color: creatorTheme.DStextColor;
-     selection-background-color: creatorTheme.DSinteraction;
-     selection-color: creatorTheme.DStextSelectedTextColor;
- }
-
-QTabWidget {
-     border: 0px;
-     background-color: creatorTheme.QmlDesigner_BackgroundColorDarkAlternate;
+QPushButton:pressed {
+    border-color: creatorTheme.DScontrolOutlineInteraction;
+    background: creatorTheme.DScontrolBackgroundInteraction;
+    color: creatorTheme.DSiconColorInteraction;
 }
 
-QTabWidget::pane { /* The tab widget frame */
-     border: 0px;
-     background-color: creatorTheme.QmlDesigner_BackgroundColorDarkAlternate;
+QCheckBox {
+    color: creatorTheme.DStextColor;
+}
+
+QComboBox QAbstractItemView {
+    show-decoration-selected: 1; /* make the selection span the entire width of the view */
+    background-color: creatorTheme.DSpopupBackground; /* sets background of the menu */
+    border: 1px solid creatorTheme.DScontrolOutline;
+    margin: 0px; /* some spacing around the menu */
+    color: creatorTheme.DStextColor;
+    selection-color: creatorTheme.DStextSelectedTextColor;
+    selection-background-color: creatorTheme.DSinteraction;
 }
 
 QTabBar::tab {
@@ -74,23 +66,32 @@ QTabBar::tab {
     height: 22px;
 
     border-image: none;
-    background-color: creatorTheme.QmlDesigner_TabDark;
-    color: creatorTheme.QmlDesigner_TabLight;
-
-    margin-top: 0x;
-    margin-bottom: 0px;
-    margin-left: 0px;
-    margin-right: 0px;
+    background-color: creatorTheme.DStabInactiveBackground;
+    color: creatorTheme.DStabInactiveText;
+    margin: 0px;
     font: bold;
     font-size: creatorTheme.captionFontPixelSize;
 }
 
 QTabBar::tab:selected {
     border: none; /* no border for a flat push button */
-    background-color: creatorTheme.QmlDesigner_TabLight;
-    color: creatorTheme.QmlDesigner_TabDark;
+    background-color: creatorTheme.DStabActiveBackground;
+    color: creatorTheme.DStabActiveText;
 }
 
-QWidget#itemLibrarySearchInputSpacer {
-    background-color: creatorTheme.QmlDesigner_TabLight;
+QLineEdit {
+    color: creatorTheme.DStextColor;
+    background-color: creatorTheme.DScontrolBackground;
+    border: 1px solid creatorTheme.DScontrolOutline;
+    selection-color: creatorTheme.DStextSelectedTextColor;
+    selection-background-color: creatorTheme.DStextSelectionColor;
+}
+
+QLineEdit:hover {
+    background-color: creatorTheme.DScontrolBackgroundHover;
+}
+
+QLineEdit:focus {
+    background-color: creatorTheme.DScontrolBackgroundInteraction;
+    border-color: creatorTheme.DScontrolOutlineInteraction;
 }

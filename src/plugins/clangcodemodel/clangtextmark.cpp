@@ -33,6 +33,7 @@
 #include "clangutils.h"
 
 #include <coreplugin/icore.h>
+#include <cpptools/cpptoolsconstants.h>
 #include <cpptools/clangdiagnosticconfigsmodel.h>
 #include <cpptools/cpptoolsreuse.h>
 #include <cpptools/cppcodemodelsettings.h>
@@ -210,13 +211,16 @@ void disableDiagnosticInCurrentProjectConfig(const ClangBackEnd::DiagnosticConta
 ClangTextMark::ClangTextMark(const FilePath &fileName,
                              const ClangBackEnd::DiagnosticContainer &diagnostic,
                              const RemovedFromEditorHandler &removedHandler,
-                             bool fullVisualization)
+                             bool fullVisualization, const ClangDiagnosticManager *diagMgr)
     : TextEditor::TextMark(fileName,
                            int(diagnostic.location.line),
                            categoryForSeverity(diagnostic.severity))
     , m_diagnostic(diagnostic)
     , m_removedFromEditorHandler(removedHandler)
+    , m_diagMgr(diagMgr)
 {
+    setSettingsPage(CppTools::Constants::CPP_CODE_MODEL_SETTINGS_ID);
+
     const bool warning = isWarningOrNote(diagnostic.severity);
     setDefaultToolTip(warning ? QApplication::translate("Clang Code Model Marks", "Code Model Warning")
                               : QApplication::translate("Clang Code Model Marks", "Code Model Error"));
@@ -233,6 +237,7 @@ ClangTextMark::ClangTextMark(const FilePath &fileName,
     QVector<QAction *> actions;
     QAction *action = new QAction();
     action->setIcon(QIcon::fromTheme("edit-copy", Icons::COPY.icon()));
+    action->setToolTip(QApplication::translate("Clang Code Model Marks", "Copy to Clipboard"));
     QObject::connect(action, &QAction::triggered, [diagnostic]() {
         const QString text = ClangDiagnosticWidget::createText({diagnostic},
                                                                ClangDiagnosticWidget::InfoBar);
@@ -245,6 +250,8 @@ ClangTextMark::ClangTextMark(const FilePath &fileName,
     if (project && isDiagnosticConfigChangable(project, diagnostic)) {
         action = new QAction();
         action->setIcon(Icons::BROKEN.icon());
+        action->setToolTip(QApplication::translate("Clang Code Model Marks",
+                                                   "Disable Diagnostic in Current Project"));
         QObject::connect(action, &QAction::triggered, [diagnostic]() {
             disableDiagnosticInCurrentProjectConfig(diagnostic);
         });
@@ -265,8 +272,10 @@ void ClangTextMark::updateIcon(bool valid)
 
 bool ClangTextMark::addToolTipContent(QLayout *target) const
 {
-    QWidget *widget = ClangDiagnosticWidget::createWidget({m_diagnostic},
-                                                          ClangDiagnosticWidget::ToolTip);
+
+    QWidget *widget = ClangDiagnosticWidget::createWidget(
+                {m_diagnostic}, ClangDiagnosticWidget::ToolTip,
+                color() == Utils::Theme::Color::IconsDisabledColor ? nullptr : m_diagMgr);
     target->addWidget(widget);
 
     return true;
@@ -280,4 +289,3 @@ void ClangTextMark::removedFromEditor()
 
 } // namespace Internal
 } // namespace ClangCodeModel
-

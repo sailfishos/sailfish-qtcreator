@@ -71,19 +71,6 @@ static SourceRangeContainer extractMatchingTokenRange(const Cursor &cursor,
     return SourceRangeContainer();
 }
 
-static int getTokenIndex(CXTranslationUnit tu, const Tokens &tokens, uint line, uint column)
-{
-    int tokenIndex = -1;
-    for (int i = tokens.size() - 1; i >= 0; --i) {
-        const SourceRange range(tu, tokens[i].extent());
-        if (range.contains(line, column)) {
-            tokenIndex = i;
-            break;
-        }
-    }
-    return tokenIndex;
-}
-
 FollowSymbolResult FollowSymbol::followSymbol(CXTranslationUnit tu,
                                               const Cursor &fullCursor,
                                               uint line,
@@ -100,7 +87,7 @@ FollowSymbolResult FollowSymbol::followSymbol(CXTranslationUnit tu,
         return SourceRangeContainer();
 
     std::vector<Cursor> cursors = tokens.annotate();
-    int tokenIndex = getTokenIndex(tu, tokens, line, column);
+    const int tokenIndex = tokens.getTokenIndex(tu, line, column);
     QTC_ASSERT(tokenIndex >= 0, return SourceRangeContainer());
 
     const Utf8String tokenSpelling = tokens[tokenIndex].spelling();
@@ -108,6 +95,16 @@ FollowSymbolResult FollowSymbol::followSymbol(CXTranslationUnit tu,
         return SourceRangeContainer();
 
     Cursor cursor{cursors[tokenIndex]};
+    if (cursor.kind() == CXCursor_CXXThisExpr && tokenSpelling != "this") { // QTCREATORBUG-25342
+        cursor.semanticParent().visit([&cursor](CXCursor current, CXCursor parent) {
+            if (current == cursor && parent.kind == CXCursor_MemberRefExpr
+                    && cursor.sourceLocation() == Cursor(parent).sourceLocation()) {
+                cursor = parent;
+                return CXChildVisit_Break;
+            }
+            return CXChildVisit_Recurse;
+        });
+    }
 
     if (cursor.kind() == CXCursor_InclusionDirective) {
         CXFile file = clang_getIncludedFile(cursors[tokenIndex].cx());

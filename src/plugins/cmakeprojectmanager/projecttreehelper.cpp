@@ -208,5 +208,45 @@ void addHeaderNodes(ProjectNode *root,
         root->addNode(std::move(headerNode));
 }
 
+void addFileSystemNodes(ProjectNode *root, const QList<const FileNode *> &allFiles)
+{
+    QTC_ASSERT(root, return );
+
+    static QIcon fileSystemNodeIcon = Core::FileIconProvider::directoryIcon(
+        ProjectExplorer::Constants::FILEOVERLAY_UNKNOWN);
+    auto fileSystemNode = std::make_unique<VirtualFolderNode>(root->filePath());
+    // just before special nodes like "CMake Modules"
+    fileSystemNode->setPriority(Node::DefaultPriority - 6);
+    fileSystemNode->setDisplayName(
+        QCoreApplication::translate("CMakeProjectManager::Internal::ProjectTreeHelper",
+                                    "<File System>"));
+    fileSystemNode->setIcon(fileSystemNodeIcon);
+
+    for (const FileNode *fn : allFiles) {
+        if (!fn->filePath().isChildOf(root->filePath()))
+            continue;
+
+        FileType fileType = fn->fileType();
+        if (fileType == FileType::Resource)
+            fileType = FileType::Source;
+
+        std::unique_ptr<FileNode> node(new FileNode(fn->filePath(), fileType));
+        node->setLine(fn->line());
+        node->setIsGenerated(fn->isGenerated());
+        node->setEnabled(false);
+        node->setPriority(fn->priority());
+        node->setListInProject(fn->listInProject());
+
+        fileSystemNode->addNestedNode(std::move(node));
+    }
+
+    if (!fileSystemNode->isEmpty()) {
+        // make file system nodes less probable to be selected when syncing with the current document
+        fileSystemNode->forEachGenericNode(
+            [](Node *n) { n->setPriority(n->priority() + Node::DefaultProjectFilePriority + 1); });
+        root->addNode(std::move(fileSystemNode));
+    }
+}
+
 } // namespace Internal
 } // namespace CMakeProjectManager

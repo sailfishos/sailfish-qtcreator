@@ -534,50 +534,12 @@ MacWebKitHelpViewer::~MacWebKitHelpViewer()
 
 }
 
-QFont MacWebKitHelpViewer::viewerFont() const
-{
-    @autoreleasepool {
-        WebPreferences *preferences = m_widget->webView().preferences;
-        QString family = QString::fromNSString([preferences standardFontFamily]);
-        int size = [preferences defaultFontSize];
-        return QFont(family, size);
-    }
-}
-
 void MacWebKitHelpViewer::setViewerFont(const QFont &font)
 {
     @autoreleasepool {
         WebPreferences *preferences = m_widget->webView().preferences;
         [preferences setStandardFontFamily:font.family().toNSString()];
         [preferences setDefaultFontSize:font.pointSize()];
-    }
-}
-
-void MacWebKitHelpViewer::scaleUp()
-{
-    @autoreleasepool {
-        m_widget->webView().textSizeMultiplier += 0.1f;
-    }
-}
-
-void MacWebKitHelpViewer::scaleDown()
-{
-    @autoreleasepool {
-        m_widget->webView().textSizeMultiplier = qMax(0.1f, m_widget->webView().textSizeMultiplier - 0.1f);
-    }
-}
-
-void MacWebKitHelpViewer::resetScale()
-{
-    @autoreleasepool {
-        m_widget->webView().textSizeMultiplier = 1.0f;
-    }
-}
-
-qreal MacWebKitHelpViewer::scale() const
-{
-    @autoreleasepool {
-        return m_widget->webView().textSizeMultiplier;
     }
 }
 

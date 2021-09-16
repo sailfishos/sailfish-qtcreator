@@ -22,10 +22,14 @@
 ** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
+
 #include "projecttree.h"
+
 #include <set>
+
 namespace MesonProjectManager {
 namespace Internal {
+
 ProjectTree::ProjectTree() {}
 
 void buildTargetTree(std::unique_ptr<MesonProjectNode> &root, const Target &target)
@@ -37,6 +41,11 @@ void buildTargetTree(std::unique_ptr<MesonProjectNode> &root, const Target &targ
                 std::make_unique<ProjectExplorer::FileNode>(Utils::FilePath::fromString(file),
                                                             ProjectExplorer::FileType::Source));
         }
+    }
+    for (const auto &extraFile : target.extraFiles) {
+        root->addNestedNode(
+            std::make_unique<ProjectExplorer::FileNode>(Utils::FilePath::fromString(extraFile),
+                                                        ProjectExplorer::FileType::Unknown));
     }
 }
 
@@ -75,14 +84,11 @@ std::unique_ptr<MesonProjectNode> ProjectTree::buildTree(const Utils::FilePath &
     using namespace ProjectExplorer;
     std::set<Utils::FilePath> targetPaths;
     auto root = std::make_unique<MesonProjectNode>(srcDir);
-    std::for_each(std::cbegin(targets),
-                  std::cend(targets),
-                  [&root, &targetPaths](const Target &target) {
-                      buildTargetTree(root, target);
-                      targetPaths.insert(
-                          Utils::FilePath::fromString(target.definedIn).absolutePath());
-                      addTargetNode(root, target);
-                  });
+    for (const Target &target : targets) {
+        buildTargetTree(root, target);
+        targetPaths.insert(Utils::FilePath::fromString(target.definedIn).absolutePath());
+        addTargetNode(root, target);
+    }
     for (Utils::FilePath bsFile : bsFiles) {
         if (!bsFile.toFileInfo().isAbsolute())
             bsFile = srcDir.pathAppended(bsFile.toString());
@@ -91,5 +97,6 @@ std::unique_ptr<MesonProjectNode> ProjectTree::buildTree(const Utils::FilePath &
     }
     return root;
 }
+
 } // namespace Internal
 } // namespace MesonProjectManager

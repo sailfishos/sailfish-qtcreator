@@ -24,14 +24,17 @@
 ****************************************************************************/
 
 #include "toolkitaspectwidget.h"
-#include "coreplugin/icore.h"
+
 #include "mesonpluginconstants.h"
 #include "mesontoolkitaspect.h"
 #include "ninjatoolkitaspect.h"
-#include "utils/qtcassert.h"
+
+#include <coreplugin/icore.h>
+#include <utils/qtcassert.h>
 
 namespace MesonProjectManager {
 namespace Internal {
+
 ToolKitAspectWidget::ToolKitAspectWidget(ProjectExplorer::Kit *kit,
                                          const ProjectExplorer::KitAspect *ki,
                                          ToolType type)
@@ -116,9 +119,9 @@ bool ToolKitAspectWidget::isCompatible(const MesonTools::Tool_t &tool)
 
 void ToolKitAspectWidget::loadTools()
 {
-    std::for_each(std::cbegin(MesonTools::tools()),
-                  std::cend(MesonTools::tools()),
-                  [this](const MesonTools::Tool_t &tool) { addTool(tool); });
+    for (const MesonTools::Tool_t &tool : MesonTools::tools()) {
+        addTool(tool);
+    }
     refresh();
     m_toolsComboBox->setEnabled(m_toolsComboBox->count());
 }
@@ -140,5 +143,6 @@ void ToolKitAspectWidget::setToDefault()
         setCurrentToolIndex(0);
     }
 }
+
 } // namespace Internal
 } // namespace MesonProjectManager

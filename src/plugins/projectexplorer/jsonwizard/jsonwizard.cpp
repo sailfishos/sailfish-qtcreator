@@ -423,7 +423,7 @@ void JsonWizard::handleNewPages(int pageId)
 
 void JsonWizard::handleError(const QString &message)
 {
-    Core::MessageManager::write(message, Core::MessageManager::ModeSwitch);
+    Core::MessageManager::writeDisrupting(message);
 }
 
 QString JsonWizard::stringify(const QVariant &v) const
@@ -452,7 +452,7 @@ void JsonWizard::openFiles(const JsonWizard::GeneratorFiles &files)
         }
         if (file.attributes() & Core::GeneratedFile::OpenProjectAttribute) {
             ProjectExplorerPlugin::OpenProjectResult result
-                    = ProjectExplorerPlugin::instance()->openProject(file.path());
+                    = ProjectExplorerPlugin::openProject(file.path());
             if (!result) {
                 errorMessage = result.errorMessage();
                 if (errorMessage.isEmpty()) {

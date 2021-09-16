@@ -70,6 +70,9 @@ CMakeSpecificSettingWidget::CMakeSpecificSettingWidget(CMakeSpecificSettings *se
         m_ui.neverCopyRadio->setChecked(true);
         break;
     }
+
+    m_ui.packageManagerAutoSetup->setChecked(settings->packageManagerAutoSetup());
+    m_ui.askBeforeReConfigureWithInitialParams->setChecked(settings->askBeforeReConfigureInitialParams());
 }
 
 void CMakeSpecificSettingWidget::apply()
@@ -77,6 +80,8 @@ void CMakeSpecificSettingWidget::apply()
     int popupSetting = m_ui.newFileAddedCopyToCpliSettingGroup->checkedId();
     m_settings->setAfterAddFileSetting(popupSetting == -1 ? AfterAddFileAction::ASK_USER
                                                   : static_cast<AfterAddFileAction>(popupSetting));
+    m_settings->setPackageManagerAutoSetup(m_ui.packageManagerAutoSetup->isChecked());
+    m_settings->setAskBeforeReConfigureInitialParams(m_ui.askBeforeReConfigureWithInitialParams->isChecked());
     m_settings->toSettings(Core::ICore::settings());
 }
 

@@ -37,6 +37,7 @@
 #include <addimportcontainer.h>
 #include <createscenecommand.h>
 #include <reparentinstancescommand.h>
+#include <clearscenecommand.h>
 
 #include <QDebug>
 #include <QOpenGLContext>
@@ -59,7 +60,8 @@ Qt5NodeInstanceServer::Qt5NodeInstanceServer(NodeInstanceClientInterface *nodeIn
 
 Qt5NodeInstanceServer::~Qt5NodeInstanceServer()
 {
-    delete quickWindow();
+    NodeInstanceServer::clearScene({});
+    delete m_viewData.window.data();
 }
 
 QQuickView *Qt5NodeInstanceServer::quickView() const
@@ -143,7 +145,8 @@ void Qt5NodeInstanceServer::resizeCanvasToRootItem()
 {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     m_viewData.bufferDirty = true;
-    m_viewData.contentItem->setPosition(-m_viewData.rootItem->position());
+    if (m_viewData.contentItem)
+        m_viewData.contentItem->setPosition(-m_viewData.rootItem->position());
 #endif
     quickWindow()->resize(rootNodeInstance().boundingRect().size().toSize());
 }

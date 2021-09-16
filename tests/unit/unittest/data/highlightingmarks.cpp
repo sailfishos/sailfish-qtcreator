@@ -736,3 +736,59 @@ void structuredBindingTest() {
     const int a[] = {1, 2};
     const auto [x, y] = a;
 }
+
+#define ASSIGN(decl, ptr) do { decl = *ptr; } while (false)
+#define ASSIGN2 ASSIGN
+void f4()
+{
+    int *thePointer = 0;
+    ASSIGN(int i, thePointer);
+    ASSIGN2(int i, thePointer);
+}
+
+const int MyConstant = 8;
+void f5()
+{
+    int arr[MyConstant][8];
+}
+
+static int GlobalVar = 0;
+
+namespace N { [[deprecated]] void f(); }
+
+template<typename T>
+void func(T v);
+
+void f6()
+{
+    GlobalVar = 5;
+    func(1);  // QTCREATORBUG-21856
+}
+
+template<typename T>
+void func(T v) {
+    GlobalVar = 5;
+}
+
+static std::vector<std::pair<int, int>> pv;
+
+template <class T, long S>
+struct vecn
+{
+    T v[S];
+};
+
+template <class T, long S>
+static inline constexpr vecn<T, S> operator<(vecn<T, S> a, vecn<T, S> b)
+{
+    vecn<T, S> x = vecn<T, S>{};
+    for(long i = 0; i < S; ++i)
+    {
+        x[i] = a[i] < b[i];
+    }
+    return x;
+}
+
+struct foo {
+#define blubb
+};

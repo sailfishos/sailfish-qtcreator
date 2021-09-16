@@ -249,11 +249,9 @@ def qdump__QStandardItemData(d, value):
 
 
 def qdump__QStandardItem(d, value):
-    # warm up cache
-    data_size = 4 * d.ptrSize() if d.qtVersion() >= 0x060000 else 2 * d.ptrSize()
-    d.createType('@QStandardItemData', data_size)
-    d.createType('@QStandardItem', d.ptrSize())
-    d.createType('@QStandardItem*', d.ptrSize())
+    d.createType('@QStandardItemData') # warm up cache
+    d.createType('@QStandardItem')
+    d.createType('@QStandardItem*')
 
     vtable, dptr = value.split('pp')
     if d.qtVersion() >= 0x060000:
@@ -1391,6 +1389,17 @@ if False:
             d.putSpecialValue('minimumitemcount', 0)
 
 
+def qdump__QPair(d, value):
+    typeCode = '{%s}@{%s}' % (value.type[0].name, value.type[1].name)
+    first, pad, second = value.split(typeCode)
+    with Children(d):
+        key = d.putSubItem('first', first)
+        value = d.putSubItem('second', second)
+    key = key.value if key.encoding is None else "..."
+    value = value.value if value.encoding is None else "..."
+    d.putValue('(%s, %s)' % (key, value))
+
+
 def qdump__QProcEnvKey(d, value):
     d.putByteArrayValue(value)
     d.putPlainChildren(value)
@@ -1845,7 +1854,7 @@ def qdump__QUrl(d, value):
 
     userNameEnc = d.encodeString(userName)
     hostEnc = d.encodeString(host)
-    pathEnc = d.encodeString(path)
+    elided, pathEnc = d.encodeStringHelper(path, d.displayStringLimit)
     url = d.encodeString(scheme)
     url += '3a002f002f00'  # '://'
     if len(userNameEnc):
@@ -1854,7 +1863,7 @@ def qdump__QUrl(d, value):
     if port >= 0:
         url += '3a00' + ''.join(['%02x00' % ord(c) for c in str(port)])
     url += pathEnc
-    d.putValue(url, 'utf16')
+    d.putValue(url, 'utf16', elided=elided)
 
     displayFormat = d.currentItemFormat()
     if displayFormat == DisplayFormat.Separate:
@@ -2092,7 +2101,9 @@ def qdumpHelper__QVariant6(d, value):
         _, data  = d.split('8s{%s}' % typeName, ptr)
         d.putItem(data)
     else:
-        d.putItem(d.createValue(data, typeName))
+        val = d.createValue(data, typeName)
+        val.laddress = value.laddress
+        d.putItem(val)
 
     d.putBetterType('@QVariant (%s)' % typeName)
 
@@ -2817,14 +2828,14 @@ def qdump_64__QJSValue_6(d, value):
     elif typ > 7:
         val = d.Value(d)
         val.ldata = struct.pack('q', dd ^ 0xfffc000000000000)
-        val.type = d.createType('double')
+        val._type = d.createType('double')
         d.putItem(val)
         d.putType(value.type.name + ' (double)')
     elif typ <= 3: # Heap
         if dd & 1: # String
             val = d.Value(d)
             val.ldata = struct.pack('q', dd & ~1)
-            val.type = d.createType('@QString*')
+            val._type = d.createType('@QString*')
             d.putItem(val)
             d.putType(value.type.name + ' (QString)')
         else:

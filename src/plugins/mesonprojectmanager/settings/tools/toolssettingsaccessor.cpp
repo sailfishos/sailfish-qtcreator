@@ -24,17 +24,22 @@
 ****************************************************************************/
 
 #include "toolssettingsaccessor.h"
+
+#include "mesonpluginconstants.h"
+
 #include <app/app_version.h>
 #include <coreplugin/icore.h>
-#include <iterator>
-#include <mesonpluginconstants.h>
 #include <utils/fileutils.h>
-#include <vector>
+
 #include <QCoreApplication>
 #include <QVariantMap>
 
+#include <iterator>
+#include <vector>
+
 namespace MesonProjectManager {
 namespace Internal {
+
 namespace {
 inline QString entryName(int index)
 {
@@ -59,20 +64,17 @@ void ToolsSettingsAccessor::saveMesonTools(const std::vector<MesonTools::Tool_t>
     using namespace Constants;
     QVariantMap data;
     int entry_count = 0;
-    std::for_each(std::cbegin(tools),
-                  std::cend(tools),
-                  [&data, &entry_count](const MesonTools::Tool_t &tool) {
-                      auto asMeson = std::dynamic_pointer_cast<MesonWrapper>(tool);
-                      if (asMeson)
-                          data.insert(entryName(entry_count), toVariantMap<MesonWrapper>(*asMeson));
-                      else {
-                          auto asNinja = std::dynamic_pointer_cast<NinjaWrapper>(tool);
-                          if (asNinja)
-                              data.insert(entryName(entry_count),
-                                          toVariantMap<NinjaWrapper>(*asNinja));
-                      }
-                      entry_count++;
-                  });
+    for (const MesonTools::Tool_t &tool : tools) {
+        auto asMeson = std::dynamic_pointer_cast<MesonWrapper>(tool);
+        if (asMeson)
+            data.insert(entryName(entry_count), toVariantMap<MesonWrapper>(*asMeson));
+        else {
+            auto asNinja = std::dynamic_pointer_cast<NinjaWrapper>(tool);
+            if (asNinja)
+                data.insert(entryName(entry_count), toVariantMap<NinjaWrapper>(*asNinja));
+        }
+        entry_count++;
+    }
     data.insert(ToolsSettings::ENTRY_COUNT, entry_count);
     saveSettings(data, parent);
 }
@@ -96,5 +98,6 @@ std::vector<MesonTools::Tool_t> ToolsSettingsAccessor::loadMesonTools(QWidget *p
     }
     return result;
 }
+
 } // namespace Internal
 } // namespace MesonProjectManager

@@ -33,7 +33,8 @@
 #include <utils/filesearch.h>
 
 #include <QFileDialog>
-#include <QTimer>
+#include <QJsonArray>
+#include <QJsonObject>
 
 using namespace Utils;
 
@@ -45,60 +46,102 @@ namespace Core {
     \internal
 */
 
-DirectoryFilter::DirectoryFilter(Id id)
-    : m_filters({"*.h", "*.cpp", "*.ui", "*.qrc"}),
-      m_exclusionFilters({"*/.git/*", "*/.cvs/*", "*/.svn/*"})
+const char kDisplayNameKey[] = "displayName";
+const char kDirectoriesKey[] = "directories";
+const char kFiltersKey[] = "filters";
+const char kFilesKey[] = "files";
+const char kExclusionFiltersKey[] = "exclusionFilters";
+
+const QStringList kFiltersDefault = {"*.h", "*.cpp", "*.ui", "*.qrc"};
+const QStringList kExclusionFiltersDefault = {"*/.git/*", "*/.cvs/*", "*/.svn/*"};
+
+static QString defaultDisplayName()
 {
-    setId(id);
-    setIncludedByDefault(true);
-    setDisplayName(tr("Generic Directory Filter"));
+    return DirectoryFilter::tr("Generic Directory Filter");
 }
 
-QByteArray DirectoryFilter::saveState() const
+DirectoryFilter::DirectoryFilter(Id id)
+    : m_filters(kFiltersDefault)
+    , m_exclusionFilters(kExclusionFiltersDefault)
+{
+    setId(id);
+    setDefaultIncludedByDefault(true);
+    setDisplayName(defaultDisplayName());
+}
+
+void DirectoryFilter::saveState(QJsonObject &object) const
+{
+    QMutexLocker locker(&m_lock); // m_files is modified in other thread
+
+    if (displayName() != defaultDisplayName())
+        object.insert(kDisplayNameKey, displayName());
+    if (!m_directories.isEmpty())
+        object.insert(kDirectoriesKey, QJsonArray::fromStringList(m_directories));
+    if (m_filters != kFiltersDefault)
+        object.insert(kFiltersKey, QJsonArray::fromStringList(m_filters));
+    if (!m_files.isEmpty())
+        object.insert(kFilesKey,
+                      QJsonArray::fromStringList(
+                          Utils::transform(m_files, &Utils::FilePath::toString)));
+    if (m_exclusionFilters != kExclusionFiltersDefault)
+        object.insert(kExclusionFiltersKey, QJsonArray::fromStringList(m_exclusionFilters));
+}
+
+static QStringList toStringList(const QJsonArray &array)
+{
+    return Utils::transform(array.toVariantList(), &QVariant::toString);
+}
+
+void DirectoryFilter::restoreState(const QJsonObject &object)
 {
     QMutexLocker locker(&m_lock);
-    QByteArray value;
-    QDataStream out(&value, QIODevice::WriteOnly);
-    out << displayName();
-    out << m_directories;
-    out << m_filters;
-    out << shortcutString();
-    out << isIncludedByDefault();
-    out << Utils::transform(m_files, &Utils::FilePath::toString);
-    out << m_exclusionFilters;
-    return value;
+    setDisplayName(object.value(kDisplayNameKey).toString(defaultDisplayName()));
+    m_directories = toStringList(object.value(kDirectoriesKey).toArray());
+    m_filters = toStringList(
+        object.value(kFiltersKey).toArray(QJsonArray::fromStringList(kFiltersDefault)));
+    m_files = Utils::transform(toStringList(object.value(kFilesKey).toArray()),
+                               &FilePath::fromString);
+    m_exclusionFilters = toStringList(
+        object.value(kExclusionFiltersKey)
+            .toArray(QJsonArray::fromStringList(kExclusionFiltersDefault)));
 }
 
 void DirectoryFilter::restoreState(const QByteArray &state)
 {
-    QMutexLocker locker(&m_lock);
+    if (isOldSetting(state)) {
+        // TODO read old settings, remove some time after Qt Creator 4.15
+        QMutexLocker locker(&m_lock);
 
-    QString name;
-    QStringList directories;
-    QString shortcut;
-    bool defaultFilter;
-    QStringList files;
+        QString name;
+        QStringList directories;
+        QString shortcut;
+        bool defaultFilter;
+        QStringList files;
 
-    QDataStream in(state);
-    in >> name;
-    in >> directories;
-    in >> m_filters;
-    in >> shortcut;
-    in >> defaultFilter;
-    in >> files;
-    m_files = Utils::transform(files, &Utils::FilePath::fromString);
-    if (!in.atEnd()) // Qt Creator 4.3 and later
-        in >> m_exclusionFilters;
-    else
-        m_exclusionFilters.clear();
+        QDataStream in(state);
+        in >> name;
+        in >> directories;
+        in >> m_filters;
+        in >> shortcut;
+        in >> defaultFilter;
+        in >> files;
+        m_files = Utils::transform(files, &Utils::FilePath::fromString);
+        if (!in.atEnd()) // Qt Creator 4.3 and later
+            in >> m_exclusionFilters;
+        else
+            m_exclusionFilters.clear();
 
-    if (m_isCustomFilter)
-        m_directories = directories;
-    setDisplayName(name);
-    setShortcutString(shortcut);
-    setIncludedByDefault(defaultFilter);
+        if (m_isCustomFilter)
+            m_directories = directories;
+        setDisplayName(name);
+        setShortcutString(shortcut);
+        setIncludedByDefault(defaultFilter);
 
-    updateFileIterator();
+        locker.unlock();
+        updateFileIterator();
+    } else {
+        ILocatorFilter::restoreState(state);
+    }
 }
 
 bool DirectoryFilter::openConfigDialog(QWidget *parent, bool &needsRefresh)
@@ -138,6 +181,8 @@ bool DirectoryFilter::openConfigDialog(QWidget *parent, bool &needsRefresh)
             &DirectoryFilter::updateOptionButtons,
             Qt::DirectConnection);
     m_ui->directoryList->clear();
+    // Note: assuming we only change m_directories in the Gui thread,
+    // we don't need to protect it here with mutex
     m_ui->directoryList->addItems(m_directories);
     m_ui->nameLabel->setVisible(m_isCustomFilter);
     m_ui->nameEdit->setVisible(m_isCustomFilter);
@@ -149,10 +194,14 @@ bool DirectoryFilter::openConfigDialog(QWidget *parent, bool &needsRefresh)
     m_ui->filePatternLabel->setText(Utils::msgFilePatternLabel());
     m_ui->filePatternLabel->setBuddy(m_ui->filePattern);
     m_ui->filePattern->setToolTip(Utils::msgFilePatternToolTip());
+    // Note: assuming we only change m_filters in the Gui thread,
+    // we don't need to protect it here with mutex
     m_ui->filePattern->setText(Utils::transform(m_filters, &QDir::toNativeSeparators).join(','));
     m_ui->exclusionPatternLabel->setText(Utils::msgExclusionPatternLabel());
     m_ui->exclusionPatternLabel->setBuddy(m_ui->exclusionPattern);
     m_ui->exclusionPattern->setToolTip(Utils::msgFilePatternToolTip());
+    // Note: assuming we only change m_exclusionFilters in the Gui thread,
+    // we don't need to protect it here with mutex
     m_ui->exclusionPattern->setText(
         Utils::transform(m_exclusionFilters, &QDir::toNativeSeparators).join(','));
     m_ui->shortcutEdit->setText(shortcutString());
@@ -222,24 +271,28 @@ void DirectoryFilter::updateOptionButtons()
 
 void DirectoryFilter::updateFileIterator()
 {
+    QMutexLocker locker(&m_lock);
     setFileIterator(new BaseFileFilter::ListIterator(m_files));
 }
 
 void DirectoryFilter::refresh(QFutureInterface<void> &future)
 {
-    QStringList directories;
+    QStringList directories, filters, exclusionFilters;
     {
         QMutexLocker locker(&m_lock);
         if (m_directories.isEmpty()) {
             m_files.clear();
-            QTimer::singleShot(0, this, &DirectoryFilter::updateFileIterator);
+            QMetaObject::invokeMethod(this, &DirectoryFilter::updateFileIterator,
+                                      Qt::QueuedConnection);
             future.setProgressRange(0, 1);
             future.setProgressValueAndText(1, tr("%1 filter update: 0 files").arg(displayName()));
             return;
         }
         directories = m_directories;
+        filters = m_filters;
+        exclusionFilters = m_exclusionFilters;
     }
-    Utils::SubDirFileIterator subDirIterator(directories, m_filters, m_exclusionFilters);
+    Utils::SubDirFileIterator subDirIterator(directories, filters, exclusionFilters);
     future.setProgressRange(0, subDirIterator.maxProgress());
     Utils::FilePaths filesFound;
     auto end = subDirIterator.end();
@@ -257,7 +310,7 @@ void DirectoryFilter::refresh(QFutureInterface<void> &future)
     if (!future.isCanceled()) {
         QMutexLocker locker(&m_lock);
         m_files = filesFound;
-        QTimer::singleShot(0, this, &DirectoryFilter::updateFileIterator);
+        QMetaObject::invokeMethod(this, &DirectoryFilter::updateFileIterator, Qt::QueuedConnection);
         future.setProgressValue(subDirIterator.maxProgress());
     } else {
         future.setProgressValueAndText(subDirIterator.currentProgress(), tr("%1 filter update: canceled").arg(displayName()));
@@ -273,7 +326,10 @@ void DirectoryFilter::setDirectories(const QStringList &directories)
 {
     if (directories == m_directories)
         return;
-    m_directories = directories;
+    {
+        QMutexLocker locker(&m_lock);
+        m_directories = directories;
+    }
     Internal::Locator::instance()->refresh({this});
 }
 
@@ -296,11 +352,13 @@ QStringList DirectoryFilter::directories() const
 
 void DirectoryFilter::setFilters(const QStringList &filters)
 {
+    QMutexLocker locker(&m_lock);
     m_filters = filters;
 }
 
 void DirectoryFilter::setExclusionFilters(const QStringList &exclusionFilters)
 {
+    QMutexLocker locker(&m_lock);
     m_exclusionFilters = exclusionFilters;
 }
 

@@ -110,7 +110,7 @@ void TransitionEditorView::nodeReparented(const ModelNode &node,
 
     const ModelNode parent = newPropertyParent.parentModelNode();
 
-    qDebug() << Q_FUNC_INFO << parent;
+    // qDebug() << Q_FUNC_INFO << parent;
     if (parent.isValid() && parent.metaInfo().isValid()
         && parent.metaInfo().isSubclassOf("QtQuick.Transition")) {
         asyncUpdate(parent);
@@ -262,12 +262,12 @@ ModelNode TransitionEditorView::addNewTransition()
                 transition.validId();
                 root.nodeListProperty("transitions").reparentHere(transition);
 
-                for (const QString &id : idPropertyList.keys()) {
+                for (auto it = idPropertyList.cbegin(); it != idPropertyList.cend(); ++it) {
                     ModelNode parallelAnimation = createModelNode("QtQuick.ParallelAnimation",
                                                                   2,
                                                                   12);
                     transition.defaultNodeAbstractProperty().reparentHere(parallelAnimation);
-                    for (const QString &property : idPropertyList.value(id)) {
+                    for (const QString &property : it.value()) {
                         ModelNode sequentialAnimation
                             = createModelNode("QtQuick.SequentialAnimation", 2, 12);
                         parallelAnimation.defaultNodeAbstractProperty().reparentHere(
@@ -285,7 +285,7 @@ ModelNode TransitionEditorView::addNewTransition()
                                                                       12,
                                                                       {{"property", property},
                                                                        {"duration", 150}});
-                        propertyAnimation.bindingProperty("target").setExpression(id);
+                        propertyAnimation.bindingProperty("target").setExpression(it.key());
                         sequentialAnimation.defaultNodeAbstractProperty().reparentHere(
                             propertyAnimation);
                     }
@@ -348,7 +348,7 @@ void TransitionEditorView::openSettingsDialog()
     dialog->show();
 }
 
-const QList<ModelNode> TransitionEditorView::allTransitions() const
+QList<ModelNode> TransitionEditorView::allTransitions() const
 {
     if (rootModelNode().isValid() && rootModelNode().hasProperty("transitions")) {
         NodeAbstractProperty transitions = rootModelNode().nodeAbstractProperty("transitions");

@@ -102,19 +102,19 @@ public:
 
 protected:
     static QString rightTrimmed(const QString &in);
-    Utils::FilePath absoluteFilePath(const Utils::FilePath &filePath);
+    Utils::FilePath absoluteFilePath(const Utils::FilePath &filePath) const;
     static QString createLinkTarget(const FilePath &filePath, int line, int column);
-    void addLinkSpecForAbsoluteFilePath(LinkSpecs &linkSpecs, const FilePath &filePath,
-                                        int lineNo, int pos, int len);
-    void addLinkSpecForAbsoluteFilePath(LinkSpecs &linkSpecs, const FilePath &filePath,
-                                        int lineNo, const QRegularExpressionMatch &match,
-                                        int capIndex);
-    void addLinkSpecForAbsoluteFilePath(LinkSpecs &linkSpecs, const FilePath &filePath,
-                                        int lineNo, const QRegularExpressionMatch &match,
-                                        const QString &capName);
+    static void addLinkSpecForAbsoluteFilePath(LinkSpecs &linkSpecs, const FilePath &filePath,
+                                               int lineNo, int pos, int len);
+    static void addLinkSpecForAbsoluteFilePath(LinkSpecs &linkSpecs, const FilePath &filePath,
+                                               int lineNo, const QRegularExpressionMatch &match,
+                                               int capIndex);
+    static void addLinkSpecForAbsoluteFilePath(LinkSpecs &linkSpecs, const FilePath &filePath,
+                                               int lineNo, const QRegularExpressionMatch &match,
+                                               const QString &capName);
 
 signals:
-    void newSearchDir(const Utils::FilePath &dir);
+    void newSearchDirFound(const Utils::FilePath &dir);
     void searchDirExpired(const Utils::FilePath &dir);
 
 private:

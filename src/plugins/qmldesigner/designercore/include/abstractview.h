@@ -142,7 +142,7 @@ public:
                          const QString &nodeSource = QString(),
                          ModelNode::NodeSourceType nodeSourceType = ModelNode::NodeWithoutSource);
 
-    const ModelNode rootModelNode() const;
+    ModelNode rootModelNode() const;
     ModelNode rootModelNode();
 
     void setSelectedModelNodes(const QList<ModelNode> &selectedNodeList);
@@ -155,7 +155,7 @@ public:
     bool hasSingleSelectedModelNode() const;
     bool isSelectedModelNode(const ModelNode &modelNode) const;
 
-    const QList<ModelNode> selectedModelNodes() const;
+    QList<ModelNode> selectedModelNodes() const;
     ModelNode firstSelectedModelNode() const;
     ModelNode singleSelectedModelNode() const;
 
@@ -189,6 +189,7 @@ public:
     void emitRenderImage3DChanged(const QImage &image);
     void emitUpdateActiveScene3D(const QVariantMap &sceneState);
     void emitModelNodelPreviewPixmapChanged(const ModelNode &node, const QPixmap &pixmap);
+    void emitImport3DSupportChanged(const QVariantMap &supportMap);
 
     void sendTokenToInstances(const QString &token, int number, const QVector<ModelNode> &nodeVector);
 
@@ -204,6 +205,7 @@ public:
     virtual void propertiesAboutToBeRemoved(const QList<AbstractProperty>& propertyList);
     virtual void propertiesRemoved(const QList<AbstractProperty>& propertyList);
     virtual void variantPropertiesChanged(const QList<VariantProperty>& propertyList, PropertyChangeFlags propertyChange);
+    virtual void bindingPropertiesAboutToBeChanged(const QList<BindingProperty> &propertyList);
     virtual void bindingPropertiesChanged(const QList<BindingProperty>& propertyList, PropertyChangeFlags propertyChange);
     virtual void signalHandlerPropertiesChanged(const QVector<SignalHandlerProperty>& propertyList, PropertyChangeFlags propertyChange);
     virtual void rootNodeTypeChanged(const QString &type, int majorVersion, int minorVersion);
@@ -248,6 +250,7 @@ public:
 
     virtual void renderImage3DChanged(const QImage &image);
     virtual void updateActiveScene3D(const QVariantMap &sceneState);
+    virtual void updateImport3DSupport(const QVariantMap &supportMap);
     virtual void modelNodePreviewPixmapChanged(const ModelNode &node, const QPixmap &pixmap);
 
     void changeRootNodeType(const TypeName &type, int majorVersion, int minorVersion);
@@ -284,6 +287,23 @@ public:
     bool isEnabled() const;
     void setEnabled(bool b);
 
+    bool isBlockingNotifications() const { return m_isBlockingNotifications; }
+
+    class NotificationBlocker
+    {
+    public:
+        NotificationBlocker(AbstractView *view)
+            : m_view{view}
+        {
+            m_view->m_isBlockingNotifications = true;
+        }
+
+        ~NotificationBlocker() { m_view->m_isBlockingNotifications = false; }
+
+    private:
+        AbstractView *m_view;
+    };
+
 protected:
     void setModel(Model * model);
     void removeModel();
@@ -296,10 +316,11 @@ protected:
 
 private: //functions
     QList<ModelNode> toModelNodeList(const QList<Internal::InternalNodePointer> &nodeList) const;
-    bool m_enabled = true;
 
 private:
     QPointer<Model> m_model;
+    bool m_enabled = true;
+    bool m_isBlockingNotifications = false;
 };
 
 QMLDESIGNERCORE_EXPORT QList<Internal::InternalNodePointer> toInternalNodeList(const QList<ModelNode> &nodeList);

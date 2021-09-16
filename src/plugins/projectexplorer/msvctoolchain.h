@@ -62,14 +62,12 @@ public:
     explicit MsvcToolChain(Utils::Id typeId);
     ~MsvcToolChain() override;
 
-    Abi targetAbi() const override;
-    void setTargetAbi(const Abi &abi);
-
     bool isValid() const override;
 
     QString originalTargetTriple() const override;
 
     QStringList suggestedMkspecList() const override;
+    Abis supportedAbis() const override;
 
     QVariantMap toMap() const override;
     bool fromMap(const QVariantMap &data) override;
@@ -79,12 +77,13 @@ public:
     MacroInspectionRunner createMacroInspectionRunner() const override;
     Utils::LanguageExtensions languageExtensions(const QStringList &cxxflags) const override;
     Utils::WarningFlags warningFlags(const QStringList &cflags) const override;
+    QStringList includedFiles(const QStringList &flags,
+                              const QString &directoryPath) const override;
     BuiltInHeaderPathsRunner createBuiltInHeaderPathsRunner(
             const Utils::Environment &env) const override;
     void addToEnvironment(Utils::Environment &env) const override;
 
     Utils::FilePath makeCommand(const Utils::Environment &environment) const override;
-    Utils::FilePath compilerCommand() const override;
     QList<Utils::OutputLineParser *> createOutputParsers() const override;
 
     QString varsBatArg() const { return m_varsBatArg; }
@@ -150,11 +149,7 @@ private:
     mutable Utils::Environment m_lastEnvironment;   // Last checked 'incoming' environment.
     mutable Utils::Environment m_resultEnvironment; // Resulting environment for VC
 
-    Utils::FilePath m_compilerCommand;
-
 protected:
-    Abi m_abi;
-
     QString m_vcvarsBat;
     QString m_varsBatArg; // Argument
 };
@@ -169,7 +164,7 @@ public:
     bool isValid() const override;
     QStringList suggestedMkspecList() const override;
     void addToEnvironment(Utils::Environment &env) const override;
-    Utils::FilePath compilerCommand() const override;
+    Utils::FilePath compilerCommand() const override; // FIXME: Remove
     QList<Utils::OutputLineParser *> createOutputParsers() const override;
     QVariantMap toMap() const override;
     bool fromMap(const QVariantMap &data) override;

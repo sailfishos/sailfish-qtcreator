@@ -110,6 +110,7 @@ public:
     QList<QSharedPointer<ActionInterface>> actionsForTargetView(const ActionInterface::TargetView &target);
 
     QList<ActionInterface* > designerActions() const;
+    ActionInterface *actionByMenuId(const QByteArray &id);
 
     void createDefaultDesignerActions();
     void createDefaultAddResourceHandler();
@@ -129,6 +130,7 @@ public:
 
     QList<AddResourceHandler> addResourceHandler() const;
     void registerAddResourceHandler(const AddResourceHandler &handler);
+    void unregisterAddResourceHandlers(const QString &category);
 
     void registerModelNodePreviewHandler(const ModelNodePreviewImageHandler &handler);
     bool hasModelNodePreviewHandler(const ModelNode &node) const;

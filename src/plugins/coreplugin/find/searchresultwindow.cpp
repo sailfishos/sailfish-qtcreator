@@ -110,13 +110,15 @@ namespace Internal {
         void moveWidgetToTop();
         void popupRequested(bool focus);
         void handleExpandCollapseToolButton(bool checked);
+        void updateFilterButton();
 
         SearchResultWindow *q;
         QList<Internal::SearchResultWidget *> m_searchResultWidgets;
         QToolButton *m_expandCollapseButton;
+        QToolButton *m_filterButton;
         QToolButton *m_newSearchButton;
         QAction *m_expandCollapseAction;
-        static const bool m_initiallyExpand = false;
+        static const bool m_initiallyExpand;
         QWidget *m_spacer;
         QLabel *m_historyLabel;
         QWidget *m_spacer2;
@@ -129,6 +131,8 @@ namespace Internal {
         int m_tabWidth;
 
     };
+
+    const bool SearchResultWindowPrivate::m_initiallyExpand = false;
 
     SearchResultWindowPrivate::SearchResultWindowPrivate(SearchResultWindow *window, QWidget *nsp) :
         q(window),
@@ -166,6 +170,11 @@ namespace Internal {
         cmd->setAttribute(Command::CA_UpdateText);
         m_expandCollapseButton->setDefaultAction(cmd->action());
 
+        m_filterButton = new QToolButton(m_widget);
+        m_filterButton->setText(tr("Filter Results"));
+        m_filterButton->setIcon(Utils::Icons::FILTER.icon());
+        m_filterButton->setEnabled(false);
+
         QAction *newSearchAction = new QAction(tr("New Search"), this);
         newSearchAction->setIcon(Utils::Icons::NEWSEARCH_TOOLBAR.icon());
         cmd = ActionManager::command(Constants::ADVANCED_FIND);
@@ -176,6 +185,13 @@ namespace Internal {
         connect(m_expandCollapseAction, &QAction::toggled,
                 this, &SearchResultWindowPrivate::handleExpandCollapseToolButton);
 
+        connect(m_filterButton, &QToolButton::clicked, this, [this] {
+            if (!isSearchVisible())
+                return;
+            m_searchResultWidgets.at(visibleSearchIndex())->showFilterWidget(m_filterButton);
+        });
+        connect(m_widget, &QStackedWidget::currentChanged,
+                this, &SearchResultWindowPrivate::updateFilterButton);
     }
 
     void SearchResultWindowPrivate::setCurrentIndex(int index, bool focus)
@@ -443,7 +459,7 @@ QWidget *SearchResultWindow::outputWidget(QWidget *)
 */
 QList<QWidget*> SearchResultWindow::toolBarWidgets() const
 {
-    return {d->m_expandCollapseButton, d->m_newSearchButton, d->m_spacer,
+    return {d->m_expandCollapseButton, d->m_filterButton, d->m_newSearchButton, d->m_spacer,
             d->m_historyLabel, d->m_spacer2, d->m_recentSearchesBox};
 }
 
@@ -483,17 +499,23 @@ SearchResult *SearchResultWindow::startNewSearch(const QString &label,
                                                  const QString &cfgGroup)
 {
     if (d->m_searchResults.size() >= MAX_SEARCH_HISTORY) {
+        if (d->m_currentIndex >= d->m_recentSearchesBox->count() - 1) {
+            // temporarily set the index to the last but one existing
+            d->m_currentIndex = d->m_recentSearchesBox->count() - 2;
+        }
         d->m_searchResultWidgets.last()->notifyVisibilityChanged(false);
         // widget first, because that might send interesting signals to SearchResult
         delete d->m_searchResultWidgets.takeLast();
         delete d->m_searchResults.takeLast();
         d->m_recentSearchesBox->removeItem(d->m_recentSearchesBox->count()-1);
-        if (d->m_currentIndex >= d->m_recentSearchesBox->count()) {
-            // temporarily set the index to the last existing
-            d->m_currentIndex = d->m_recentSearchesBox->count() - 1;
-        }
     }
     auto widget = new SearchResultWidget;
+    connect(widget, &SearchResultWidget::filterInvalidated, this, [this, widget] {
+        if (widget == d->m_searchResultWidgets.at(d->visibleSearchIndex()))
+            d->handleExpandCollapseToolButton(d->m_expandCollapseButton->isChecked());
+    });
+    connect(widget, &SearchResultWidget::filterChanged,
+            d, &SearchResultWindowPrivate::updateFilterButton);
     d->m_searchResultWidgets.prepend(widget);
     d->m_widget->insertWidget(1, widget);
     connect(widget, &SearchResultWidget::navigateStateChanged,
@@ -613,6 +635,12 @@ void SearchResultWindowPrivate::handleExpandCollapseToolButton(bool checked)
     }
 }
 
+void SearchResultWindowPrivate::updateFilterButton()
+{
+    m_filterButton->setEnabled(isSearchVisible()
+                               && m_searchResultWidgets.at(visibleSearchIndex())->hasFilter());
+}
+
 /*!
     \internal
 */
@@ -620,7 +648,8 @@ void SearchResultWindow::readSettings()
 {
     QSettings *s = ICore::settings();
     s->beginGroup(QLatin1String(SETTINGSKEYSECTIONNAME));
-    d->m_expandCollapseAction->setChecked(s->value(QLatin1String(SETTINGSKEYEXPANDRESULTS), d->m_initiallyExpand).toBool());
+    d->m_expandCollapseAction->setChecked(s->value(QLatin1String(SETTINGSKEYEXPANDRESULTS),
+                                                   SearchResultWindowPrivate::m_initiallyExpand).toBool());
     s->endGroup();
 }
 
@@ -629,9 +658,11 @@ void SearchResultWindow::readSettings()
 */
 void SearchResultWindow::writeSettings()
 {
-    QSettings *s = ICore::settings();
-    s->beginGroup(QLatin1String(SETTINGSKEYSECTIONNAME));
-    s->setValue(QLatin1String(SETTINGSKEYEXPANDRESULTS), d->m_expandCollapseAction->isChecked());
+    Utils::QtcSettings *s = ICore::settings();
+    s->beginGroup(SETTINGSKEYSECTIONNAME);
+    s->setValueWithDefault(SETTINGSKEYEXPANDRESULTS,
+                           d->m_expandCollapseAction->isChecked(),
+                           SearchResultWindowPrivate::m_initiallyExpand);
     s->endGroup();
 }
 
@@ -772,48 +803,18 @@ void SearchResult::setAdditionalReplaceWidget(QWidget *widget)
 /*!
     Adds a single result line to the \uicontrol {Search Results} output pane.
 
-    \a fileName, \a lineNumber, and \a lineText are shown on the result line.
-    \a searchTermStart and \a searchTermLength specify the region that
-    should be visually marked (string position and length in \a lineText).
-    You can attach arbitrary \a userData to the search result, which can
-    be used, for example, when reacting to the signals of the search results
-    for your search.
-
-    \sa addResults()
-*/
-void SearchResult::addResult(const QString &fileName, int lineNumber, const QString &lineText,
-                             int searchTermStart, int searchTermLength, const QVariant &userData,
-                             SearchResultColor::Style style)
-{
-    Search::TextRange mainRange;
-    mainRange.begin.line = lineNumber;
-    mainRange.begin.column = searchTermStart;
-    mainRange.end.line = mainRange.begin.line;
-    mainRange.end.column = mainRange.begin.column + searchTermLength;
-
-    m_widget->addResult(fileName, lineText, mainRange, userData, style);
-}
-
-/*!
-    Adds a single result line to the \uicontrol {Search Results} output pane.
-
-    \a mainRange specifies the region from the beginning of the search term
+    \a {item}.mainRange() specifies the region from the beginning of the search term
     through its length that should be visually marked.
-    \a fileName and \a lineText are shown on the result line.
-    You can attach arbitrary \a userData to the search result, which can
+    \a {item}.path(), \a {item}.text() are shown on the result line.
+    You can attach arbitrary \a {item}.userData() to the search result, which can
     be used, for example, when reacting to the signals of the search results
     for your search.
 
     \sa addResults()
 */
-void SearchResult::addResult(const QString &fileName,
-                             const QString &lineText,
-                             Search::TextRange mainRange,
-                             const QVariant &userData,
-                             SearchResultColor::Style style)
+void SearchResult::addResult(const SearchResultItem &item)
 {
-    m_widget->addResult(fileName, lineText, mainRange, userData, style);
-    emit countChanged(m_widget->count());
+    m_widget->addResults({item}, AddOrdered);
 }
 
 /*!
@@ -826,6 +827,11 @@ void SearchResult::addResults(const QList<SearchResultItem> &items, AddMode mode
 {
     m_widget->addResults(items, mode);
     emit countChanged(m_widget->count());
+}
+
+void SearchResult::setFilter(SearchResultFilter *filter)
+{
+    m_widget->setFilter(filter);
 }
 
 /*!

@@ -64,8 +64,8 @@ template<uint Size>
 class BasicSmallString
 {
 public:
-    using iterator = Internal::SmallStringIterator<std::random_access_iterator_tag, char>;
     using const_iterator = Internal::SmallStringIterator<std::random_access_iterator_tag, const char>;
+    using iterator = Internal::SmallStringIterator<std::random_access_iterator_tag, char>;
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
     using size_type = std::size_t;
@@ -113,8 +113,16 @@ public:
 
     BasicSmallString(const char *string, size_type size)
         : BasicSmallString(string, size, size)
-    {
-    }
+    {}
+
+    explicit BasicSmallString(const_iterator begin, const_iterator end)
+        : BasicSmallString{std::addressof(*begin), static_cast<std::size_t>(std::distance(begin, end))}
+    {}
+
+    explicit BasicSmallString(iterator begin, iterator end)
+
+        : BasicSmallString{std::addressof(*begin), static_cast<std::size_t>(std::distance(begin, end))}
+    {}
 
     template<typename Type, typename = std::enable_if_t<std::is_pointer<Type>::value>>
     BasicSmallString(Type characterPointer)

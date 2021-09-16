@@ -68,6 +68,7 @@ ImageCacheCollector::~ImageCacheCollector() = default;
 
 void ImageCacheCollector::start(Utils::SmallStringView name,
                                 Utils::SmallStringView state,
+                                const ImageCache::AuxiliaryData &,
                                 CaptureCallback captureCallback,
                                 AbortCallback abortCallback)
 {
@@ -88,7 +89,7 @@ void ImageCacheCollector::start(Utils::SmallStringView name,
     model->setRewriterView(&rewriterView);
 
     if (rewriterView.inErrorState() || !rewriterView.rootModelNode().metaInfo().isGraphicalItem()) {
-        abortCallback();
+        abortCallback(ImageCache::AbortReason::Failed);
         return;
     }
 
@@ -97,10 +98,18 @@ void ImageCacheCollector::start(Utils::SmallStringView name,
     if (stateNode.isValid())
         rewriterView.setCurrentStateNode(stateNode);
 
-    m_connectionManager.setCallback(std::move(captureCallback));
+    auto callback = [captureCallback = std::move(captureCallback)](const QImage &image) {
+        QSize smallImageSize = image.size().scaled(QSize{96, 96}.boundedTo(image.size()),
+                                                   Qt::KeepAspectRatio);
+        QImage smallImage = image.isNull() ? QImage{} : image.scaled(smallImageSize);
+
+        captureCallback(image, smallImage);
+    };
+
+    m_connectionManager.setCallback(std::move(callback));
 
     nodeInstanceView.setTarget(m_target.data());
-    nodeInstanceView.setCrashCallback(abortCallback);
+    nodeInstanceView.setCrashCallback([=] { abortCallback(ImageCache::AbortReason::Failed); });
     model->setNodeInstanceView(&nodeInstanceView);
 
     bool capturedDataArrived = m_connectionManager.waitForCapturedData();
@@ -112,12 +121,39 @@ void ImageCacheCollector::start(Utils::SmallStringView name,
     model->setRewriterView({});
 
     if (!capturedDataArrived)
-        abortCallback();
+        abortCallback(ImageCache::AbortReason::Failed);
+}
+
+std::pair<QImage, QImage> ImageCacheCollector::createImage(Utils::SmallStringView filePath,
+                                                           Utils::SmallStringView state,
+                                                           const ImageCache::AuxiliaryData &auxiliaryData)
+{
+    Q_UNUSED(filePath)
+    Q_UNUSED(state)
+    Q_UNUSED(auxiliaryData)
+
+    return {};
+}
+
+QIcon ImageCacheCollector::createIcon(Utils::SmallStringView filePath,
+                                      Utils::SmallStringView state,
+                                      const ImageCache::AuxiliaryData &auxiliaryData)
+{
+    Q_UNUSED(filePath)
+    Q_UNUSED(state)
+    Q_UNUSED(auxiliaryData)
+
+    return {};
 }
 
 void ImageCacheCollector::setTarget(ProjectExplorer::Target *target)
 {
     m_target = target;
+}
+
+ProjectExplorer::Target *ImageCacheCollector::target() const
+{
+    return m_target;
 }
 
 } // namespace QmlDesigner

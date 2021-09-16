@@ -52,7 +52,9 @@ HEADERS += \
     androidextralibrarylistmodel.h \
     createandroidmanifestwizard.h \
     androidsdkdownloader.h \
-    splashiconcontainerwidget.h
+    splashscreencontainerwidget.h \
+    splashscreenwidget.h \
+    javalanguageserver.h \
 
 SOURCES += \
     androidconfigurations.cpp \
@@ -97,7 +99,9 @@ SOURCES += \
     androidextralibrarylistmodel.cpp \
     createandroidmanifestwizard.cpp \
     androidsdkdownloader.cpp \
-    splashiconcontainerwidget.cpp
+    splashscreencontainerwidget.cpp \
+    splashscreenwidget.cpp \
+    javalanguageserver.cpp \
 
 FORMS += \
     androidsettingswidget.ui \

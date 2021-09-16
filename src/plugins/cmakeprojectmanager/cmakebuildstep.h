@@ -69,11 +69,10 @@ public:
 
     QVariantMap toMap() const override;
 
-    static QString cleanTarget();
-    static QString allTarget();
-    static QString installTarget();
-    static QString testTarget();
-    static QStringList specialTargets();
+    QString cleanTarget() const;
+    QString allTarget() const ;
+    QString installTarget() const;
+    static QStringList specialTargets(bool allCapsTargets);
 
     QString activeRunConfigTarget() const;
 
@@ -107,6 +106,9 @@ private:
     Utils::StringAspect *m_cmakeArguments = nullptr;
     Utils::StringAspect *m_toolArguments = nullptr;
     bool m_waiting = false;
+
+    QString m_allTarget = "all";
+    QString m_installTarget = "install";
 
     Utils::TreeModel<Utils::TreeItem, CMakeTargetItem> m_buildTargetModel;
 };

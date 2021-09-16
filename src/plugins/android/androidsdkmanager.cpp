@@ -566,7 +566,7 @@ void SdkManagerOutputParser::compilePackageAssociations()
     deleteAlreadyInstalled(images);
 
     // Associate the system images with sdk platforms.
-    for (AndroidSdkPackage *image : images) {
+    for (AndroidSdkPackage *image : qAsConst(images)) {
         int imageApi = m_systemImages[image];
         auto itr = std::find_if(m_packages.begin(), m_packages.end(),
                                 [imageApi](const AndroidSdkPackage *p) {
@@ -1014,10 +1014,12 @@ void AndroidSdkManagerPrivate::checkPendingLicense(SdkCmdFutureInterface &fi)
     AndroidSdkManager::OperationOutput result;
     result.type = AndroidSdkManager::LicenseCheck;
     const QStringList args = {"--licenses", sdkRootArg(m_config)};
-    if (!fi.isCanceled())
-        sdkManagerCommand(m_config, args, m_sdkManager, fi, result, 100.0);
-    else
+    if (!fi.isCanceled()) {
+        const int timeOutS = 4; // Short timeout as workaround for QTCREATORBUG-25667
+        sdkManagerCommand(m_config, args, m_sdkManager, fi, result, 100.0, true, timeOutS);
+    } else {
         qCDebug(sdkManagerLog) << "Update: Operation cancelled before start";
+    }
 
     fi.reportResult(result);
     fi.setProgressValue(100);
@@ -1151,7 +1153,7 @@ void AndroidSdkManagerPrivate::parseCommonArguments(QFutureInterface<QString> &f
 
 void AndroidSdkManagerPrivate::clearPackages()
 {
-    for (AndroidSdkPackage *p : m_allPackages)
+    for (AndroidSdkPackage *p : qAsConst(m_allPackages))
         delete p;
     m_allPackages.clear();
 }

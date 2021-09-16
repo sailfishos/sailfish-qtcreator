@@ -47,8 +47,8 @@ DocumentLocatorFilter::DocumentLocatorFilter()
 {
     setId(Constants::LANGUAGECLIENT_DOCUMENT_FILTER_ID);
     setDisplayName(Constants::LANGUAGECLIENT_DOCUMENT_FILTER_DISPLAY_NAME);
-    setShortcutString(".");
-    setIncludedByDefault(false);
+    setDefaultShortcutString(".");
+    setDefaultIncludedByDefault(false);
     setPriority(ILocatorFilter::Low);
     connect(Core::EditorManager::instance(), &Core::EditorManager::currentEditorChanged,
             this, &DocumentLocatorFilter::updateCurrentClient);
@@ -153,9 +153,9 @@ void DocumentLocatorFilter::prepareSearch(const QString &/*entry*/)
 QList<Core::LocatorFilterEntry> DocumentLocatorFilter::matchesFor(
     QFutureInterface<Core::LocatorFilterEntry> &future, const QString &entry)
 {
+    QMutexLocker locker(&m_mutex);
     if (!m_symbolCache)
         return {};
-    QMutexLocker locker(&m_mutex);
     if (!m_currentSymbols.has_value()) {
         QEventLoop loop;
         connect(this, &DocumentLocatorFilter::symbolsUpToDate, &loop, [&]() { loop.exit(1); });
@@ -197,8 +197,6 @@ void DocumentLocatorFilter::accept(Core::LocatorFilterEntry selection,
     }
 }
 
-void DocumentLocatorFilter::refresh(QFutureInterface<void> & /*future*/) {}
-
 WorkspaceLocatorFilter::WorkspaceLocatorFilter()
     : WorkspaceLocatorFilter(QVector<SymbolKind>())
 {}
@@ -208,8 +206,8 @@ WorkspaceLocatorFilter::WorkspaceLocatorFilter(const QVector<SymbolKind> &filter
 {
     setId(Constants::LANGUAGECLIENT_WORKSPACE_FILTER_ID);
     setDisplayName(Constants::LANGUAGECLIENT_WORKSPACE_FILTER_DISPLAY_NAME);
-    setShortcutString(":");
-    setIncludedByDefault(false);
+    setDefaultShortcutString(":");
+    setDefaultIncludedByDefault(false);
     setPriority(ILocatorFilter::Low);
 }
 
@@ -223,15 +221,19 @@ void WorkspaceLocatorFilter::prepareSearch(const QString &entry)
 
     QMutexLocker locker(&m_mutex);
     for (auto client : Utils::filtered(LanguageClientManager::clients(), &Client::reachable)) {
-        if (client->capabilities().workspaceSymbolProvider().value_or(false)) {
-            WorkspaceSymbolRequest request(params);
-            request.setResponseCallback(
-                [this, client](const WorkspaceSymbolRequest::Response &response) {
-                    handleResponse(client, response);
-                });
-            m_pendingRequests[client] = request.id();
-            client->sendContent(request);
-        }
+        Utils::optional<Utils::variant<bool, WorkDoneProgressOptions>> capability
+            = client->capabilities().workspaceSymbolProvider();
+        if (!capability.has_value())
+            continue;
+        if (Utils::holds_alternative<bool>(*capability) && !Utils::get<bool>(*capability))
+            continue;
+        WorkspaceSymbolRequest request(params);
+        request.setResponseCallback(
+            [this, client](const WorkspaceSymbolRequest::Response &response) {
+                handleResponse(client, response);
+            });
+        m_pendingRequests[client] = request.id();
+        client->sendContent(request);
     }
 }
 
@@ -279,8 +281,6 @@ void WorkspaceLocatorFilter::accept(Core::LocatorFilterEntry selection,
     }
 }
 
-void WorkspaceLocatorFilter::refresh(QFutureInterface<void> & /*future*/) {}
-
 void WorkspaceLocatorFilter::handleResponse(Client *client,
                                             const WorkspaceSymbolRequest::Response &response)
 {
@@ -298,7 +298,7 @@ WorkspaceClassLocatorFilter::WorkspaceClassLocatorFilter()
 {
     setId(Constants::LANGUAGECLIENT_WORKSPACE_CLASS_FILTER_ID);
     setDisplayName(Constants::LANGUAGECLIENT_WORKSPACE_CLASS_FILTER_DISPLAY_NAME);
-    setShortcutString("c");
+    setDefaultShortcutString("c");
 }
 
 WorkspaceMethodLocatorFilter::WorkspaceMethodLocatorFilter()
@@ -306,7 +306,7 @@ WorkspaceMethodLocatorFilter::WorkspaceMethodLocatorFilter()
 {
     setId(Constants::LANGUAGECLIENT_WORKSPACE_METHOD_FILTER_ID);
     setDisplayName(Constants::LANGUAGECLIENT_WORKSPACE_METHOD_FILTER_DISPLAY_NAME);
-    setShortcutString("m");
+    setDefaultShortcutString("m");
 }
 
 } // namespace LanguageClient

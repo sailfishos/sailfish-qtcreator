@@ -24,26 +24,28 @@
 ****************************************************************************/
 
 #include "testnavigationwidget.h"
-#include "testframeworkmanager.h"
-#include "testtreemodel.h"
-#include "testtreeview.h"
-#include "testtreeitemdelegate.h"
-#include "testcodeparser.h"
-#include "testrunner.h"
+
 #include "autotestconstants.h"
 #include "autotesticons.h"
+#include "testcodeparser.h"
+#include "testframeworkmanager.h"
+#include "testrunner.h"
 #include "testtreeitem.h"
+#include "testtreeitemdelegate.h"
+#include "testtreemodel.h"
+#include "testtreeview.h"
 
+#include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/coreconstants.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/find/itemviewfind.h>
-#include <coreplugin/coreconstants.h>
-#include <coreplugin/icore.h>
-#include <texteditor/texteditor.h>
+#include <projectexplorer/buildmanager.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/session.h>
+#include <utils/algorithm.h>
+#include <utils/link.h>
 #include <utils/progressindicator.h>
 #include <utils/utilsicons.h>
-#include <coreplugin/actionmanager/actionmanager.h>
-#include <projectexplorer/buildmanager.h>
-#include <projectexplorer/session.h>
 
 #include <QAction>
 #include <QMenu>
@@ -136,7 +138,7 @@ void TestNavigationWidget::contextMenuEvent(QContextMenuEvent *event)
         const QModelIndex index = list.first();
         QRect rect(m_view->visualRect(index));
         if (rect.contains(event->pos())) {
-            TestTreeItem *item = static_cast<TestTreeItem *>(
+            ITestTreeItem *item = static_cast<ITestTreeItem *>(
                         m_model->itemForIndex(m_sortFilterModel->mapToSource(index)));
             if (item->canProvideTestConfiguration()) {
                 runThisTest = new QAction(tr("Run This Test"), &menu);
@@ -152,7 +154,10 @@ void TestNavigationWidget::contextMenuEvent(QContextMenuEvent *event)
                     onRunThisTestTriggered(TestRunMode::RunWithoutDeploy);
                 });
             }
-            if (item->canProvideDebugConfiguration()) {
+            auto ttitem = item->testBase()->type() == ITestBase::Framework
+                              ? static_cast<TestTreeItem *>(item)
+                              : nullptr;
+            if (ttitem && ttitem->canProvideDebugConfiguration()) {
                 debugThisTest = new QAction(tr("Debug This Test"), &menu);
                 debugThisTest->setEnabled(enabled);
                 connect(debugThisTest, &QAction::triggered,
@@ -248,11 +253,11 @@ QList<QToolButton *> TestNavigationWidget::createToolButtons()
 
 void TestNavigationWidget::updateExpandedStateCache()
 {
-    m_expandedStateCache.evolve();
+    m_expandedStateCache.evolve(ITestBase::Framework);
 
     for (Utils::TreeItem *rootNode : *m_model->rootItem()) {
         rootNode->forAllChildren([this](Utils::TreeItem *child) {
-            m_expandedStateCache.insert(static_cast<TestTreeItem *>(child),
+            m_expandedStateCache.insert(static_cast<ITestTreeItem *>(child),
                                         m_view->isExpanded(child->index()));
         });
     }
@@ -323,7 +328,7 @@ void TestNavigationWidget::onRunThisTestTriggered(TestRunMode runMode)
     if (!sourceIndex.isValid())
         return;
 
-    TestTreeItem *item = static_cast<TestTreeItem *>(sourceIndex.internalPointer());
+    ITestTreeItem *item = static_cast<ITestTreeItem *>(sourceIndex.internalPointer());
     TestRunner::instance()->runTest(runMode, item);
 }
 
@@ -332,7 +337,7 @@ void TestNavigationWidget::reapplyCachedExpandedState()
     using namespace Utils;
     for (TreeItem *rootNode : *m_model->rootItem()) {
         rootNode->forAllChildren([this](TreeItem *child) {
-            optional<bool> cached = m_expandedStateCache.get(static_cast<TestTreeItem *>(child));
+            optional<bool> cached = m_expandedStateCache.get(static_cast<ITestTreeItem *>(child));
             if (cached.has_value()) {
                 QModelIndex index = child->index();
                 if (m_view->isExpanded(index) != cached.value())

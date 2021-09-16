@@ -33,11 +33,11 @@ namespace Internal {
 class QuickTestTreeItem : public TestTreeItem
 {
 public:
-    explicit QuickTestTreeItem(ITestFramework *framework,
+    explicit QuickTestTreeItem(ITestFramework *testFramework,
                                const QString &name = QString(),
                                const QString &filePath = QString(),
                                Type type = Root)
-        : TestTreeItem(framework, name, filePath, type)
+        : TestTreeItem(testFramework, name, filePath, type)
     {}
 
     TestTreeItem *copyWithoutChildren() override;
@@ -45,16 +45,16 @@ public:
     Qt::ItemFlags flags(int column) const override;
     bool canProvideTestConfiguration() const override;
     bool canProvideDebugConfiguration() const override;
-    TestConfiguration *testConfiguration() const override;
-    TestConfiguration *debugConfiguration() const override;
-    QList<TestConfiguration *> getAllTestConfigurations() const override;
-    QList<TestConfiguration *> getSelectedTestConfigurations() const override;
-    QList<TestConfiguration *> getFailedTestConfigurations() const override;
-    QList<TestConfiguration *> getTestConfigurationsForFile(const Utils::FilePath &fileName) const override;
+    ITestConfiguration *testConfiguration() const override;
+    ITestConfiguration *debugConfiguration() const override;
+    QList<ITestConfiguration *> getAllTestConfigurations() const override;
+    QList<ITestConfiguration *> getSelectedTestConfigurations() const override;
+    QList<ITestConfiguration *> getFailedTestConfigurations() const override;
+    QList<ITestConfiguration *> getTestConfigurationsForFile(const Utils::FilePath &fileName) const override;
     TestTreeItem *find(const TestParseResult *result) override;
     TestTreeItem *findChild(const TestTreeItem *other) override;
     bool modify(const TestParseResult *result) override;
-    bool lessThan(const TestTreeItem *other, SortMode mode) const override;
+    bool lessThan(const ITestTreeItem *other, SortMode mode) const override;
     bool isGroupNodeFor(const TestTreeItem *other) const override;
     bool removeOnSweepIfEmpty() const override;
     TestTreeItem *createParentGroupNode() const override;

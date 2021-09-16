@@ -30,6 +30,8 @@
 
 #include <android/androidconstants.h>
 #include <coreplugin/fileiconprovider.h>
+#include <ios/iosconstants.h>
+#include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
 
 #include <utils/qtcassert.h>
@@ -44,7 +46,9 @@ CMakeInputsNode::CMakeInputsNode(const Utils::FilePath &cmakeLists) :
 {
     setPriority(Node::DefaultPriority - 10); // Bottom most!
     setDisplayName(QCoreApplication::translate("CMakeFilesProjectNode", "CMake Modules"));
-    setIcon(QIcon(":/projectexplorer/images/session.png")); // TODO: Use a better icon!
+    static const QIcon modulesIcon = Core::FileIconProvider::directoryIcon(
+                ProjectExplorer::Constants::FILEOVERLAY_MODULES);
+    setIcon(modulesIcon);
     setListInProject(false);
 }
 
@@ -70,7 +74,9 @@ CMakeProjectNode::CMakeProjectNode(const Utils::FilePath &directory) :
     ProjectExplorer::ProjectNode(directory)
 {
     setPriority(Node::DefaultProjectPriority + 1000);
-    setIcon(QIcon(":/projectexplorer/images/projectexplorer.png")); // TODO: Use proper icon!
+    static const QIcon productIcon = Core::FileIconProvider::directoryIcon(
+                ProjectExplorer::Constants::FILEOVERLAY_PRODUCT);
+    setIcon(productIcon);
     setListInProject(false);
 }
 
@@ -128,27 +134,37 @@ QVariant CMakeTargetNode::data(Utils::Id role) const
     };
 
     if (role == Android::Constants::AndroidPackageSourceDir)
-        return value("ANDROID_PACKAGE_SOURCE_DIR");
+        return value(Android::Constants::ANDROID_PACKAGE_SOURCE_DIR);
 
     if (role == Android::Constants::AndroidDeploySettingsFile)
-        return value("ANDROID_DEPLOYMENT_SETTINGS_FILE");
+        return value(Android::Constants::ANDROID_DEPLOYMENT_SETTINGS_FILE);
 
     if (role == Android::Constants::AndroidExtraLibs)
-        return value("ANDROID_EXTRA_LIBS");
+        return value(Android::Constants::ANDROID_EXTRA_LIBS);
 
     if (role == Android::Constants::ANDROID_APPLICATION_ARGUMENTS)
-        return value("QT_ANDROID_APPLICATION_ARGUMENTS");
+        return value(Android::Constants::QT_ANDROID_APPLICATION_ARGUMENTS);
 
     if (role == Android::Constants::AndroidArch)
-        return value("ANDROID_ABI");
+        return value(Android::Constants::ANDROID_ABI);
 
     if (role == Android::Constants::AndroidSoLibPath)
-        return values("ANDROID_SO_LIBS_PATHS");
+        return values(Android::Constants::ANDROID_SO_LIBS_PATHS);
 
     if (role == Android::Constants::AndroidTargets)
         return values("TARGETS_BUILD_PATH");
 
-    QTC_CHECK(false);
+    if (role == Ios::Constants::IosTarget) {
+        // For some reason the artifact is e.g. "Debug/untitled.app/untitled" which is wrong.
+        // It actually is e.g. "Debug-iphonesimulator/untitled.app/untitled".
+        // Anyway, the iOS plugin is only interested in the app bundle name without .app.
+        return m_artifact.fileName();
+    }
+
+    if (role == Ios::Constants::IosBuildDir)
+        return {}; // defaults to build configuration build directory
+
+    QTC_ASSERT(false, qDebug() << "Unknown role" << role.toString());
     // Better guess than "not present".
     return value(role.toString().toUtf8());
 }
@@ -181,6 +197,7 @@ void CMakeTargetNode::setTargetInformation(const QList<Utils::FilePath> &artifac
         const QStringList tmp = Utils::transform(artifacts, &Utils::FilePath::toUserOutput);
         m_tooltip += QCoreApplication::translate("CMakeTargetNode", "Build artifacts:") + "<br>"
                 + tmp.join("<br>");
+        m_artifact = artifacts.first();
     }
 }
 

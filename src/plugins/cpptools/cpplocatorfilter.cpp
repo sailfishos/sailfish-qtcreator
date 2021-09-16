@@ -43,8 +43,8 @@ CppLocatorFilter::CppLocatorFilter(CppLocatorData *locatorData)
 {
     setId(Constants::LOCATOR_FILTER_ID);
     setDisplayName(Constants::LOCATOR_FILTER_DISPLAY_NAME);
-    setShortcutString(":");
-    setIncludedByDefault(false);
+    setDefaultShortcutString(":");
+    setDefaultIncludedByDefault(false);
 }
 
 CppLocatorFilter::~CppLocatorFilter() = default;
@@ -59,11 +59,6 @@ Core::LocatorFilterEntry CppLocatorFilter::filterEntryFromIndexItem(IndexItem::P
         filterEntry.extraInfo = info->symbolType();
 
     return filterEntry;
-}
-
-void CppLocatorFilter::refresh(QFutureInterface<void> &future)
-{
-    Q_UNUSED(future)
 }
 
 QList<Core::LocatorFilterEntry> CppLocatorFilter::matchesFor(

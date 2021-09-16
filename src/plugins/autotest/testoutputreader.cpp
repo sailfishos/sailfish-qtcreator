@@ -24,12 +24,16 @@
 ****************************************************************************/
 
 #include "testoutputreader.h"
+
 #include "testresult.h"
 #include "testresultspane.h"
+#include "testtreeitem.h"
 
 #include <utils/qtcassert.h>
 
 #include <QDebug>
+#include <QDir>
+#include <QFileInfo>
 #include <QProcess>
 
 namespace Autotest {
@@ -65,6 +69,12 @@ TestOutputReader::TestOutputReader(const QFutureInterface<TestResultPtr> &future
     }
 }
 
+TestOutputReader::~TestOutputReader()
+{
+    if (m_sanitizerResult)
+        sendAndResetSanitizerResult();
+}
+
 void TestOutputReader::processStdOutput(const QByteArray &outputLine)
 {
     processOutputLine(outputLine);
@@ -73,7 +83,7 @@ void TestOutputReader::processStdOutput(const QByteArray &outputLine)
 
 void TestOutputReader::processStdError(const QByteArray &outputLine)
 {
-    qWarning() << "AutoTest.Run: Ignored plain output:" << outputLine;
+    checkForSanitizerOutput(outputLine);
     emit newOutputLineAvailable(outputLine, OutputChannel::StdErr);
 }
 
@@ -115,8 +125,76 @@ QString TestOutputReader::removeCommandlineColors(const QString &original)
 
 void TestOutputReader::reportResult(const TestResultPtr &result)
 {
+    if (m_sanitizerResult)
+        sendAndResetSanitizerResult();
     m_futureInterface.reportResult(result);
     m_hadValidOutput = true;
+}
+
+void TestOutputReader::checkForSanitizerOutput(const QByteArray &line)
+{
+    const QString lineStr = removeCommandlineColors(QString::fromUtf8(line));
+    if (m_sanitizerOutputMode == SanitizerOutputMode::Asan) {
+        // append the new line and check for end
+        m_sanitizerLines.append(lineStr);
+        static const QRegularExpression regex("^==\\d+==\\s*ABORTING.*");
+        if (regex.match(lineStr).hasMatch())
+            sendAndResetSanitizerResult();
+        return;
+    }
+
+    static const QRegularExpression regex("^==\\d+==\\s*(ERROR|WARNING|Sanitizer CHECK failed):.*");
+    static const QRegularExpression ubsanRegex("^(.*):(\\d+):(\\d+): runtime error:.*");
+    QRegularExpressionMatch match = regex.match(lineStr);
+    SanitizerOutputMode mode = SanitizerOutputMode::None;
+    if (match.hasMatch()) {
+        mode = SanitizerOutputMode::Asan;
+    } else {
+        match = ubsanRegex.match(lineStr);
+        if (m_sanitizerOutputMode == SanitizerOutputMode::Ubsan && !match.hasMatch()) {
+            m_sanitizerLines.append(lineStr);
+            return;
+        }
+        if (match.hasMatch())
+            mode = SanitizerOutputMode::Ubsan;
+    }
+    if (mode != SanitizerOutputMode::None) {
+        if (m_sanitizerResult) // we have a result that has not been reported yet
+            sendAndResetSanitizerResult();
+
+        m_sanitizerOutputMode = mode;
+        m_sanitizerResult = createDefaultResult();
+        m_sanitizerLines.append("Sanitizer Issue");
+        m_sanitizerLines.append(lineStr);
+        if (m_sanitizerOutputMode == SanitizerOutputMode::Ubsan) {
+            const QString path = QFileInfo(m_buildDir, match.captured(1)).canonicalFilePath();
+            // path may be empty if not existing - so, provide at least what we have
+            m_sanitizerResult->setFileName(path.isEmpty() ? match.captured(1) : path);
+            m_sanitizerResult->setLine(match.captured(2).toInt());
+        }
+    }
+}
+
+void TestOutputReader::sendAndResetSanitizerResult()
+{
+    QTC_ASSERT(m_sanitizerResult, return);
+    m_sanitizerResult->setDescription(m_sanitizerLines.join('\n'));
+    m_sanitizerResult->setResult(m_sanitizerOutputMode == SanitizerOutputMode::Ubsan
+                                 ? ResultType::Fail : ResultType::MessageFatal);
+
+    if (m_sanitizerResult->fileName().isEmpty()) {
+        const ITestTreeItem *testItem = m_sanitizerResult->findTestTreeItem();
+        if (testItem && testItem->line()) {
+            m_sanitizerResult->setFileName(testItem->filePath());
+            m_sanitizerResult->setLine(testItem->line());
+        }
+    }
+
+    m_futureInterface.reportResult(m_sanitizerResult);
+    m_hadValidOutput = true;
+    m_sanitizerLines.clear();
+    m_sanitizerResult.reset();
+    m_sanitizerOutputMode = SanitizerOutputMode::None;
 }
 
 } // namespace Autotest

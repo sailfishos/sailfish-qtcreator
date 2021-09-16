@@ -55,7 +55,7 @@ ProMessageHandler::ProMessageHandler(bool verbose, bool exact)
 ProMessageHandler::~ProMessageHandler()
 {
     if (!m_messages.isEmpty())
-        Core::MessageManager::writeMessages(m_messages, Core::MessageManager::Flash);
+        Core::MessageManager::writeFlashing(m_messages);
 }
 
 

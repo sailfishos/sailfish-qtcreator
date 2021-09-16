@@ -1,0 +1,59 @@
+type: Group
+instructions:
+  - type: Group
+    instructions:
+      - type: EnvironmentVariable
+        variableName: QTC_BUILD_TYPE
+        variableValue: "RelWithDebInfo"
+      - type: EnvironmentVariable
+        variableName: QTC_QT_BASE_URL
+        variableValue: "http://ci-files02-hki-infra.intra.qt.io/packages/jenkins/archive/qt/6.1/6.1.0-final-released"
+      - type: EnvironmentVariable
+        variableName: QTC_QT_MODULES
+        variableValue: "qt5compat qtbase qtdeclarative qtimageformats qtquick3d qtquickcontrols2 qtquicktimeline qtserialport qtshadertools qtsvg qttools qttranslations"
+      - type: EnvironmentVariable
+        variableName: LLVM_BASE_URL
+        variableValue: http://master.qt.io/development_releases/prebuilt/libclang/libclang-release_110-based
+      - type: EnvironmentVariable
+        variableName: MACOSX_DEPLOYMENT_TARGET
+        variableValue: 10.14
+
+  - type: PrependToEnvironmentVariable
+    variableName: PATH
+    variableValue: "{{.InstallDir}}\\bin;"
+    enable_if:
+      condition: property
+      property: target.os
+      equals_value: Windows
+
+  - type: PrependToEnvironmentVariable
+    variableName: PATH
+    variableValue: "C:\\Utils\\gnuwin32\\bin;"
+    enable_if:
+      condition: property
+      property: target.os
+      equals_value: Windows
+
+  - type: EnvironmentVariable
+    variableName: LANG
+    variableValue: en_US.UTF-8
+    enable_if:
+      condition: property
+      property: host.os
+      in_values: [MacOS, Linux]
+
+  - type: Group
+    instructions:
+      - type: PrependToEnvironmentVariable
+        variableName: PATH
+        variableValue: "{{.InstallDir}}/bin:"
+      - type: EnvironmentVariable
+        variableName: DISPLAY
+        variableValue: ":0"
+      - type: PrependToEnvironmentVariable
+        variableName: PATH
+        variableValue: "/opt/rh/devtoolset-7/root/usr/bin:"
+    enable_if:
+      condition: property
+      property: host.os
+      equals_value: Linux

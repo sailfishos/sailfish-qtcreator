@@ -199,7 +199,7 @@ public:
             } else if (!m_isSupported) {
                 error = QCoreApplication::translate(
                     "CMakeProjectManager::Internal::CMakeToolTreeItem",
-                    "CMake executable does not provided required IDE integration features.");
+                    "CMake executable does not provide required IDE integration features.");
             }
             if (result.isEmpty() || error.isEmpty())
                 return QString("%1%2").arg(result).arg(error);
@@ -238,7 +238,9 @@ public:
 CMakeToolItemModel::CMakeToolItemModel()
 {
     setHeader({tr("Name"), tr("Location")});
-    rootItem()->appendChild(new StaticTreeItem(tr("Auto-detected")));
+    rootItem()->appendChild(
+        new StaticTreeItem({ProjectExplorer::Constants::msgAutoDetected()},
+                           {ProjectExplorer::Constants::msgAutoDetectedToolTip()}));
     rootItem()->appendChild(new StaticTreeItem(tr("Manual")));
 
     foreach (const CMakeTool *item, CMakeToolManager::cmakeTools())

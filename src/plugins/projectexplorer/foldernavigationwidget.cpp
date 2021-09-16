@@ -421,7 +421,7 @@ FolderNavigationWidget::FolderNavigationWidget(QWidget *parent) : QWidget(parent
             this,
             [this](int index) {
                 const auto directory = m_rootSelector->itemData(index).value<Utils::FilePath>();
-                m_rootSelector->setToolTip(directory.toString());
+                m_rootSelector->setToolTip(directory.toUserOutput());
                 setRootDirectory(directory);
                 const QModelIndex rootIndex = m_sortProxyModel->mapToSource(m_listView->rootIndex());
                 const QModelIndex fileIndex = m_sortProxyModel->mapToSource(m_listView->currentIndex());
@@ -681,7 +681,7 @@ void FolderNavigationWidget::openProjectsInDirectory(const QModelIndex &index)
 {
     const QStringList projectFiles = projectsInDirectory(index);
     if (!projectFiles.isEmpty())
-        Core::ICore::instance()->openFiles(projectFiles);
+        Core::ICore::openFiles(projectFiles);
 }
 
 void FolderNavigationWidget::createNewFolder(const QModelIndex &parent)
@@ -854,7 +854,8 @@ FolderNavigationWidgetFactory::FolderNavigationWidgetFactory()
     setDisplayName(tr("File System"));
     setPriority(400);
     setId("File System");
-    setActivationSequence(QKeySequence(Core::useMacShortcuts ? tr("Meta+Y") : tr("Alt+Y")));
+    setActivationSequence(QKeySequence(Core::useMacShortcuts ? tr("Meta+Y,Meta+F")
+                                                             : tr("Alt+Y,Alt+F")));
     insertRootDirectory({QLatin1String("A.Computer"),
                          0 /*sortValue*/,
                          FolderNavigationWidget::tr("Computer"),
@@ -876,7 +877,7 @@ FolderNavigationWidgetFactory::FolderNavigationWidgetFactory()
 Core::NavigationView FolderNavigationWidgetFactory::createWidget()
 {
     auto fnw = new FolderNavigationWidget;
-    for (const RootDirectory &root : m_rootDirectories)
+    for (const RootDirectory &root : qAsConst(m_rootDirectories))
         fnw->insertRootDirectory(root);
     connect(this,
             &FolderNavigationWidgetFactory::rootDirectoryAdded,
@@ -903,15 +904,28 @@ Core::NavigationView FolderNavigationWidgetFactory::createWidget()
     return n;
 }
 
-void FolderNavigationWidgetFactory::saveSettings(QSettings *settings, int position, QWidget *widget)
+const bool kHiddenFilesDefault = false;
+const bool kAutoSyncDefault = true;
+const bool kShowBreadCrumbsDefault = true;
+const bool kRootAutoSyncDefault = true;
+
+void FolderNavigationWidgetFactory::saveSettings(Utils::QtcSettings *settings,
+                                                 int position,
+                                                 QWidget *widget)
 {
     auto fnw = qobject_cast<FolderNavigationWidget *>(widget);
     QTC_ASSERT(fnw, return);
     const QString base = kSettingsBase + QString::number(position);
-    settings->setValue(base + kHiddenFilesKey, fnw->hiddenFilesFilter());
-    settings->setValue(base + kSyncKey, fnw->autoSynchronization());
-    settings->setValue(base + kShowBreadCrumbs, fnw->isShowingBreadCrumbs());
-    settings->setValue(base + kSyncRootWithEditor, fnw->rootAutoSynchronization());
+    settings->setValueWithDefault(base + kHiddenFilesKey,
+                                  fnw->hiddenFilesFilter(),
+                                  kHiddenFilesDefault);
+    settings->setValueWithDefault(base + kSyncKey, fnw->autoSynchronization(), kAutoSyncDefault);
+    settings->setValueWithDefault(base + kShowBreadCrumbs,
+                                  fnw->isShowingBreadCrumbs(),
+                                  kShowBreadCrumbsDefault);
+    settings->setValueWithDefault(base + kSyncRootWithEditor,
+                                  fnw->rootAutoSynchronization(),
+                                  kRootAutoSyncDefault);
 }
 
 void FolderNavigationWidgetFactory::restoreSettings(QSettings *settings, int position, QWidget *widget)
@@ -919,10 +933,12 @@ void FolderNavigationWidgetFactory::restoreSettings(QSettings *settings, int pos
     auto fnw = qobject_cast<FolderNavigationWidget *>(widget);
     QTC_ASSERT(fnw, return);
     const QString base = kSettingsBase + QString::number(position);
-    fnw->setHiddenFilesFilter(settings->value(base + kHiddenFilesKey, false).toBool());
-    fnw->setAutoSynchronization(settings->value(base + kSyncKey, true).toBool());
-    fnw->setShowBreadCrumbs(settings->value(base + kShowBreadCrumbs, true).toBool());
-    fnw->setRootAutoSynchronization(settings->value(base + kSyncRootWithEditor, true).toBool());
+    fnw->setHiddenFilesFilter(settings->value(base + kHiddenFilesKey, kHiddenFilesDefault).toBool());
+    fnw->setAutoSynchronization(settings->value(base + kSyncKey, kAutoSyncDefault).toBool());
+    fnw->setShowBreadCrumbs(
+        settings->value(base + kShowBreadCrumbs, kShowBreadCrumbsDefault).toBool());
+    fnw->setRootAutoSynchronization(
+        settings->value(base + kSyncRootWithEditor, kRootAutoSyncDefault).toBool());
 }
 
 void FolderNavigationWidgetFactory::insertRootDirectory(const RootDirectory &directory)

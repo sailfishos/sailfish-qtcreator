@@ -79,6 +79,8 @@ public:
         QmlRegisterType4,
         // int qmlRegisterType(const QUrl & url, const char * uri, int versionMajor, int versionMinor, const char * qmlName)
         QmlRegisterType5,
+        // template<typename T> inline auto qmlRegisterSingletonInstance(const char *uri, int versionMajor, int versionMinor, const char *typeName, T *cppObject)
+        QmlRegisterSingletonInstance,
         // template<typename T> int qmlRegisterSingletonType(const char * uri, int versionMajor, int versionMinor, const char * typeName, QObject *(* ) ( QQmlEngine *, QJSEngine * ) callback)
         QmlRegisterSingletonTypeCallback1,
         // int qmlRegisterSingletonType(const char * uri, int versionMajor, int versionMinor, const char * typeName, QJSValue(* ) ( QQmlEngine *, QJSEngine * ) callback)
@@ -153,12 +155,14 @@ protected:
             const Identifier *templateIdentifier = translationUnit()->identifier(templateId->identifier_token);
             if (!templateIdentifier)
                 return false;
-            const QString callName = QString::fromUtf8(templateIdentifier->chars());
-            if (callName == QLatin1String("qmlRegisterType"))
+            const QByteArray callName(templateIdentifier->chars());
+            if (callName == "qmlRegisterType")
                 registrationFunction = QmlRegisterType4;
-            else if (callName == QLatin1String("qmlRegisterSingletonType"))
+            else if (callName == "qmlRegisterSingletonInstance")
+                registrationFunction = QmlRegisterSingletonInstance;
+            else if (callName == "qmlRegisterSingletonType")
                 registrationFunction = QmlRegisterSingletonTypeCallback1;
-            else if (callName == QLatin1String("qmlRegisterUncreatableType"))
+            else if (callName == "qmlRegisterUncreatableType")
                 registrationFunction = QmlRegisterUncreatableType;
             else
                 return false;
@@ -189,6 +193,8 @@ protected:
             }
             if (fName == "qmlRegisterType")
                 registrationFunction = QmlRegisterType5;
+            else if (fName == "qmlRegisterSingletonInstance") // when called without explicit template parameter
+                registrationFunction = QmlRegisterSingletonInstance;
             else if (fName == "qmlRegisterSingletonType")
                 registrationFunction = QmlRegisterSingletonTypeCallback2;
             else if (fName == "qmlRegisterUncreatableMetaObject")
@@ -214,6 +220,7 @@ protected:
         case QmlRegisterType4:
             break;
         case QmlRegisterType5:
+        case QmlRegisterSingletonInstance:
         case QmlRegisterSingletonTypeCallback1:
         case QmlRegisterSingletonTypeCallback2:
         case QmlRegisterSingletonTypeUrl:
@@ -342,7 +349,8 @@ protected:
 
         // build the descriptor
         ExportedQmlType exportedType;
-        exportedType.isSingleton = registrationFunction == QmlRegisterSingletonTypeCallback1
+        exportedType.isSingleton = registrationFunction == QmlRegisterSingletonInstance
+                || registrationFunction == QmlRegisterSingletonTypeCallback1
                 || registrationFunction == QmlRegisterSingletonTypeCallback2
                 || registrationFunction == QmlRegisterSingletonTypeUrl;
         exportedType.isCreatable = !exportedType.isSingleton
@@ -915,30 +923,18 @@ bool FindExportedCppTypes::maybeExportsTypes(const CPlusPlus::Document::Ptr &doc
 {
     if (!document->control())
         return false;
-    const QByteArray qmlRegisterSingletonTypeToken("qmlRegisterType");
-    const QByteArray qmlRegisterTypeToken("qmlRegisterSingletonType");
-    const QByteArray qmlRegisterUncreatableTypeToken("qmlRegisterUncreatableType");
-    const QByteArray qmlRegisterUncreatableMetaObjectToken("qmlRegisterUncreatableMetaObject");
-    const QByteArray setContextPropertyToken("setContextProperty");
-    if (document->control()->findIdentifier(
-                qmlRegisterTypeToken.constData(), qmlRegisterTypeToken.size())) {
-        return true;
-    }
-    if (document->control()->findIdentifier(
-                qmlRegisterSingletonTypeToken.constData(), qmlRegisterSingletonTypeToken.size())) {
-        return true;
-    }
-    if (document->control()->findIdentifier(
-                qmlRegisterUncreatableTypeToken.constData(), qmlRegisterUncreatableTypeToken.size())) {
-        return true;
-    }
-    if (document->control()->findIdentifier(
-                setContextPropertyToken.constData(), setContextPropertyToken.size())) {
-        return true;
-    }
-    if (document->control()->findIdentifier(
-                qmlRegisterUncreatableMetaObjectToken.constData(), qmlRegisterUncreatableMetaObjectToken.size())) {
-        return true;
+    const QByteArray tokens[] = {
+        "qmlRegisterSingletonInstance",
+        "qmlRegisterSingletonType",
+        "qmlRegisterType",
+        "qmlRegisterUncreatableType",
+        "setContextProperty"
+        "qmlRegisterUncreatableMetaObject",
+    };
+    for (const QByteArray &token : tokens) {
+        if (document->control()->findIdentifier(token.constData(), token.size())) {
+            return true;
+        }
     }
     return false;
 }

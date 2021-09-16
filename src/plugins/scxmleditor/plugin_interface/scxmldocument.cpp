@@ -170,7 +170,7 @@ bool ScxmlDocument::generateSCXML(QIODevice *io, ScxmlTag *tag) const
 ScxmlTag *ScxmlDocument::createScxmlTag()
 {
     auto tag = new ScxmlTag(Scxml, this);
-    for (ScxmlNamespace *ns : m_namespaces) {
+    for (ScxmlNamespace *ns : qAsConst(m_namespaces)) {
         QString prefix = ns->prefix();
         if (prefix.isEmpty())
             prefix = "xmlns";
@@ -647,6 +647,14 @@ ScxmlTag *ScxmlDocument::scxmlRootTag() const
     }
 
     return tag;
+}
+
+ScxmlTag *ScxmlDocument::tagForId(const QString &id) const
+{
+    if (id.isEmpty())
+        return nullptr;
+    ScxmlTag *root = scxmlRootTag();
+    return root ? root->tagForId(id) : nullptr;
 }
 
 ScxmlTag *ScxmlDocument::rootTag() const

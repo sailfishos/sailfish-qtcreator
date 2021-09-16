@@ -41,6 +41,8 @@
 #include <QPair>
 #include <QVBoxLayout>
 
+#include <algorithm>
+
 using namespace Core;
 using namespace ProjectExplorer;
 using namespace Utils;
@@ -65,9 +67,7 @@ private:
 
     QComboBox m_languageComboBox;
     QLineEdit m_fileNameLineEdit;
-    QLabel m_suffixLabel;
     const QString m_enabledExpr;
-    bool m_lineEditEdited = false;
 };
 
 TranslationWizardPageFactory::TranslationWizardPageFactory()
@@ -109,19 +109,16 @@ TranslationWizardPage::TranslationWizardPage(const QString &enabledExpr)
                 });
     sort(localeStrings, [](const LocalePair &l1, const LocalePair &l2) {
         return l1.first < l2.first; });
+    localeStrings.erase(std::unique(localeStrings.begin(), localeStrings.end()),
+                        localeStrings.end());
     for (const LocalePair &lp : qAsConst(localeStrings))
         m_languageComboBox.addItem(lp.first, lp.second);
     formLayout->addRow(tr("Language:"), &m_languageComboBox);
     const auto fileNameLayout = new QHBoxLayout;
+    m_fileNameLineEdit.setReadOnly(true);
     fileNameLayout->addWidget(&m_fileNameLineEdit);
-    m_suffixLabel.setText(".ts");
-    fileNameLayout->addWidget(&m_suffixLabel);
     fileNameLayout->addStretch(1);
     formLayout->addRow(tr("Translation file:"), fileNameLayout);
-    connect(&m_fileNameLineEdit, &QLineEdit::textEdited, this, [this] {
-        emit completeChanged();
-        m_lineEditEdited = true;
-    });
     connect(&m_languageComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &TranslationWizardPage::updateLineEdit);
 }
@@ -152,14 +149,9 @@ bool TranslationWizardPage::validatePage()
 void TranslationWizardPage::updateLineEdit()
 {
     m_fileNameLineEdit.setEnabled(m_languageComboBox.currentIndex() != 0);
-    m_suffixLabel.setEnabled(m_fileNameLineEdit.isEnabled());
     if (m_fileNameLineEdit.isEnabled()) {
-        if (!m_lineEditEdited) {
-            const QString projectName
-                    = static_cast<JsonWizard *>(wizard())->stringValue("ProjectName");
-            m_fileNameLineEdit.setText(projectName + '_'
-                                       + m_languageComboBox.currentData().toString());
-        }
+        const QString projectName = static_cast<JsonWizard *>(wizard())->stringValue("ProjectName");
+        m_fileNameLineEdit.setText(projectName + '_' + m_languageComboBox.currentData().toString());
     } else {
         m_fileNameLineEdit.clear();
         m_fileNameLineEdit.setPlaceholderText(tr("<none>"));

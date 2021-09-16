@@ -38,8 +38,8 @@
 #include <utils/qtcassert.h>
 
 using namespace CPlusPlus;
-using namespace CppTools;
 
+namespace CppTools {
 namespace {
 
 static int ordering(InsertionPointLocator::AccessSpec xsSpec)
@@ -60,6 +60,7 @@ static int ordering(InsertionPointLocator::AccessSpec xsSpec)
 struct AccessRange
 {
     int start = 0;
+    int beforeStart = 0;
     unsigned end = 0;
     InsertionPointLocator::AccessSpec xsSpec = InsertionPointLocator::Invalid;
     unsigned colonToken = 0;
@@ -81,16 +82,14 @@ struct AccessRange
 class FindInClass: public ASTVisitor
 {
 public:
-    FindInClass(const Document::Ptr &doc, const Class *clazz, InsertionPointLocator::AccessSpec xsSpec)
-        : ASTVisitor(doc->translationUnit())
-        , _doc(doc)
+    FindInClass(TranslationUnit *tu, const Class *clazz)
+        : ASTVisitor(tu)
         , _clazz(clazz)
-        , _xsSpec(xsSpec)
     {}
 
-    InsertionLocation operator()()
+    ClassSpecifierAST *operator()()
     {
-        _result = InsertionLocation();
+        _result = nullptr;
 
         AST *ast = translationUnit()->ast();
         accept(ast);
@@ -107,145 +106,122 @@ protected:
             return true;
         if (!ast->symbol || !ast->symbol->match(_clazz))
             return true;
-
-        QList<AccessRange> ranges = collectAccessRanges(
-                    ast->member_specifier_list,
-                    tokenKind(ast->classkey_token) == T_CLASS ? InsertionPointLocator::Private : InsertionPointLocator::Public,
-                    ast->lbrace_token,
-                    ast->rbrace_token);
-
-        unsigned beforeToken = 0;
-        bool needsLeadingEmptyLine = false;
-        bool needsPrefix = false;
-        bool needsSuffix = false;
-        findMatch(ranges, _xsSpec, beforeToken, needsLeadingEmptyLine, needsPrefix, needsSuffix);
-
-        int line = 0, column = 0;
-        getTokenStartPosition(beforeToken, &line, &column);
-
-        QString prefix;
-        if (needsLeadingEmptyLine)
-            prefix += QLatin1String("\n");
-        if (needsPrefix)
-            prefix += InsertionPointLocator::accessSpecToString(_xsSpec) + QLatin1String(":\n");
-
-        QString suffix;
-        if (needsSuffix)
-            suffix = QLatin1Char('\n');
-
-        _result = InsertionLocation(_doc->fileName(), prefix, suffix,
-                                    line, column);
+        _result = ast;
         return false;
     }
 
-    static void findMatch(const QList<AccessRange> &ranges,
-                          InsertionPointLocator::AccessSpec xsSpec,
-                          unsigned &beforeToken,
-                          bool &needsLeadingEmptyLine,
-                          bool &needsPrefix,
-                          bool &needsSuffix)
-    {
-        QTC_ASSERT(!ranges.isEmpty(), return);
-        const int lastIndex = ranges.size() - 1;
-
-        needsLeadingEmptyLine = false;
-
-        // try an exact match, and ignore the first (default) access spec:
-        for (int i = lastIndex; i > 0; --i) {
-            const AccessRange &range = ranges.at(i);
-            if (range.xsSpec == xsSpec) {
-                beforeToken = range.end;
-                needsPrefix = false;
-                needsSuffix = (i != lastIndex);
-                return;
-            }
-        }
-
-        // try to find a fitting access spec to insert XXX:
-        for (int i = lastIndex; i > 0; --i) {
-            const AccessRange &current = ranges.at(i);
-
-            if (ordering(xsSpec) > ordering(current.xsSpec)) {
-                beforeToken = current.end;
-                needsPrefix = true;
-                needsSuffix = (i != lastIndex);
-                return;
-            }
-        }
-
-        // otherwise:
-        beforeToken = ranges.first().end;
-        needsLeadingEmptyLine = !ranges.first().isEmpty();
-        needsPrefix = true;
-        needsSuffix = (ranges.size() != 1);
-    }
-
-    QList<AccessRange> collectAccessRanges(DeclarationListAST *decls,
-                                           InsertionPointLocator::AccessSpec initialXs,
-                                           int firstRangeStart,
-                                           int lastRangeEnd) const
-    {
-        QList<AccessRange> ranges;
-        ranges.append(AccessRange(firstRangeStart, lastRangeEnd, initialXs, 0));
-
-        for (DeclarationListAST *iter = decls; iter; iter = iter->next) {
-            DeclarationAST *decl = iter->value;
-
-            if (AccessDeclarationAST *xsDecl = decl->asAccessDeclaration()) {
-                const unsigned token = xsDecl->access_specifier_token;
-                InsertionPointLocator::AccessSpec newXsSpec = initialXs;
-                bool isSlot = xsDecl->slots_token
-                        && tokenKind(xsDecl->slots_token) == T_Q_SLOTS;
-
-                switch (tokenKind(token)) {
-                case T_PUBLIC:
-                    newXsSpec = isSlot ? InsertionPointLocator::PublicSlot
-                                       : InsertionPointLocator::Public;
-                    break;
-
-                case T_PROTECTED:
-                    newXsSpec = isSlot ? InsertionPointLocator::ProtectedSlot
-                                       : InsertionPointLocator::Protected;
-                    break;
-
-                case T_PRIVATE:
-                    newXsSpec = isSlot ? InsertionPointLocator::PrivateSlot
-                                       : InsertionPointLocator::Private;
-                    break;
-
-                case T_Q_SIGNALS:
-                    newXsSpec = InsertionPointLocator::Signals;
-                    break;
-
-                case T_Q_SLOTS: {
-                    newXsSpec = (InsertionPointLocator::AccessSpec)
-                            (ranges.last().xsSpec | InsertionPointLocator::SlotBit);
-                    break;
-                }
-
-                default:
-                    break;
-                }
-
-                if (newXsSpec != ranges.last().xsSpec || ranges.size() == 1) {
-                    ranges.last().end = token;
-                    AccessRange r(token, lastRangeEnd, newXsSpec, xsDecl->colon_token);
-                    ranges.append(r);
-                }
-            }
-        }
-
-        ranges.last().end = lastRangeEnd;
-        return ranges;
-    }
-
 private:
-    Document::Ptr _doc;
     const Class *_clazz;
-    InsertionPointLocator::AccessSpec _xsSpec;
-
-    InsertionLocation _result;
+    ClassSpecifierAST *_result;
 };
+
+void findMatch(const QList<AccessRange> &ranges,
+               InsertionPointLocator::AccessSpec xsSpec,
+               InsertionPointLocator::Position positionInAccessSpec,
+               InsertionPointLocator::ForceAccessSpec forceAccessSpec,
+               unsigned &beforeToken,
+               bool &needsLeadingEmptyLine,
+               bool &needsPrefix,
+               bool &needsSuffix)
+{
+    QTC_ASSERT(!ranges.isEmpty(), return );
+    const int lastIndex = ranges.size() - 1;
+    const bool atEnd = positionInAccessSpec == InsertionPointLocator::AccessSpecEnd;
+    needsLeadingEmptyLine = false;
+
+    // Try an exact match. Ignore the default access spec unless there is no explicit one.
+    const int firstIndex = ranges.size() == 1
+            && forceAccessSpec == InsertionPointLocator::ForceAccessSpec::No ? 0 : 1;
+    for (int i = lastIndex; i >= firstIndex; --i) {
+        const AccessRange &range = ranges.at(i);
+        if (range.xsSpec == xsSpec) {
+            beforeToken = atEnd ? range.end : range.beforeStart;
+            needsLeadingEmptyLine = !atEnd;
+            needsPrefix = false;
+            needsSuffix = (i != lastIndex);
+            return;
+        }
+    }
+
+    // try to find a fitting access spec to insert XXX:
+    for (int i = lastIndex; i > 0; --i) {
+        const AccessRange &current = ranges.at(i);
+
+        if (ordering(xsSpec) > ordering(current.xsSpec)) {
+            beforeToken = atEnd ? current.end : current.end - 1;
+            needsLeadingEmptyLine = !atEnd;
+            needsPrefix = true;
+            needsSuffix = (i != lastIndex);
+            return;
+        }
+    }
+
+    // otherwise:
+    beforeToken = atEnd ? ranges.first().end : ranges.first().end - 1;
+    needsLeadingEmptyLine = !ranges.first().isEmpty();
+    needsPrefix = true;
+    needsSuffix = (ranges.size() != 1);
+}
+
+QList<AccessRange> collectAccessRanges(const CPlusPlus::TranslationUnit *tu,
+                                       DeclarationListAST *decls,
+                                       InsertionPointLocator::AccessSpec initialXs,
+                                       int firstRangeStart,
+                                       int lastRangeEnd)
+{
+    QList<AccessRange> ranges;
+    ranges.append(AccessRange(firstRangeStart, lastRangeEnd, initialXs, 0));
+
+    for (DeclarationListAST *iter = decls; iter; iter = iter->next) {
+        DeclarationAST *decl = iter->value;
+
+        if (AccessDeclarationAST *xsDecl = decl->asAccessDeclaration()) {
+            const unsigned token = xsDecl->access_specifier_token;
+            InsertionPointLocator::AccessSpec newXsSpec = initialXs;
+            bool isSlot = xsDecl->slots_token && tu->tokenKind(xsDecl->slots_token) == T_Q_SLOTS;
+
+            switch (tu->tokenKind(token)) {
+            case T_PUBLIC:
+                newXsSpec = isSlot ? InsertionPointLocator::PublicSlot
+                                   : InsertionPointLocator::Public;
+                break;
+
+            case T_PROTECTED:
+                newXsSpec = isSlot ? InsertionPointLocator::ProtectedSlot
+                                   : InsertionPointLocator::Protected;
+                break;
+
+            case T_PRIVATE:
+                newXsSpec = isSlot ? InsertionPointLocator::PrivateSlot
+                                   : InsertionPointLocator::Private;
+                break;
+
+            case T_Q_SIGNALS:
+                newXsSpec = InsertionPointLocator::Signals;
+                break;
+
+            case T_Q_SLOTS: {
+                newXsSpec = (InsertionPointLocator::AccessSpec)(ranges.last().xsSpec
+                                                                | InsertionPointLocator::SlotBit);
+                break;
+            }
+
+            default:
+                break;
+            }
+
+            if (newXsSpec != ranges.last().xsSpec || ranges.size() == 1) {
+                ranges.last().end = token;
+                AccessRange r(token, lastRangeEnd, newXsSpec, xsDecl->colon_token);
+                r.beforeStart = xsDecl->lastToken() - 1;
+                ranges.append(r);
+            }
+        }
+    }
+
+    ranges.last().end = lastRangeEnd;
+    return ranges;
+}
 
 } // end of anonymous namespace
 
@@ -297,15 +273,123 @@ InsertionPointLocator::InsertionPointLocator(const CppRefactoringChanges &refact
 InsertionLocation InsertionPointLocator::methodDeclarationInClass(
     const QString &fileName,
     const Class *clazz,
-    AccessSpec xsSpec) const
+    AccessSpec xsSpec,
+    ForceAccessSpec forceAccessSpec) const
 {
     const Document::Ptr doc = m_refactoringChanges.file(fileName)->cppDocument();
     if (doc) {
-        FindInClass find(doc, clazz, xsSpec);
-        return find();
+        FindInClass find(doc->translationUnit(), clazz);
+        ClassSpecifierAST *classAST = find();
+        return methodDeclarationInClass(doc->translationUnit(), classAST, xsSpec, AccessSpecEnd,
+                                        forceAccessSpec);
     } else {
         return InsertionLocation();
     }
+}
+
+InsertionLocation InsertionPointLocator::methodDeclarationInClass(const TranslationUnit *tu,
+    const ClassSpecifierAST *clazz,
+    InsertionPointLocator::AccessSpec xsSpec,
+    Position pos,
+    ForceAccessSpec forceAccessSpec) const
+{
+    if (!clazz)
+        return {};
+    QList<AccessRange> ranges = collectAccessRanges(tu,
+                                                    clazz->member_specifier_list,
+                                                    tu->tokenKind(clazz->classkey_token) == T_CLASS
+                                                        ? InsertionPointLocator::Private
+                                                        : InsertionPointLocator::Public,
+                                                    clazz->lbrace_token,
+                                                    clazz->rbrace_token);
+
+    unsigned beforeToken = 0;
+    bool needsLeadingEmptyLine = false;
+    bool needsPrefix = false;
+    bool needsSuffix = false;
+    findMatch(ranges, xsSpec, pos, forceAccessSpec, beforeToken, needsLeadingEmptyLine,
+              needsPrefix, needsSuffix);
+
+    int line = 0, column = 0;
+    if (pos == InsertionPointLocator::AccessSpecEnd)
+        tu->getTokenStartPosition(beforeToken, &line, &column);
+    else
+        tu->getTokenEndPosition(beforeToken, &line, &column);
+
+    QString prefix;
+    if (needsLeadingEmptyLine)
+        prefix += QLatin1String("\n");
+    if (needsPrefix)
+        prefix += InsertionPointLocator::accessSpecToString(xsSpec) + QLatin1String(":\n");
+
+    QString suffix;
+    if (needsSuffix)
+        suffix = QLatin1Char('\n');
+    const QString fileName = QString::fromUtf8(tu->fileName(), tu->fileNameLength());
+    return InsertionLocation(fileName, prefix, suffix, line, column);
+}
+
+InsertionPointLocator::AccessSpec symbolsAccessSpec(Symbol *symbol)
+{
+    if (symbol->isPrivate())
+        return InsertionPointLocator::Private;
+    if (symbol->isProtected())
+        return InsertionPointLocator::Protected;
+    if (symbol->isPublic())
+        return InsertionPointLocator::Public;
+    return InsertionPointLocator::Invalid;
+}
+
+InsertionLocation InsertionPointLocator::constructorDeclarationInClass(
+    const CPlusPlus::TranslationUnit *tu,
+    const ClassSpecifierAST *clazz,
+    InsertionPointLocator::AccessSpec xsSpec,
+    int constructorArgumentCount) const
+{
+    std::map<int, std::pair<DeclarationAST *, DeclarationAST *>> constructors;
+    for (DeclarationAST *rootDecl : clazz->member_specifier_list) {
+        if (SimpleDeclarationAST *ast = rootDecl->asSimpleDeclaration()) {
+            if (!ast->symbols)
+                continue;
+            if (symbolsAccessSpec(ast->symbols->value) != xsSpec)
+                continue;
+            if (ast->symbols->value->name() != clazz->name->name)
+                continue;
+            for (DeclaratorAST *d : ast->declarator_list) {
+                for (PostfixDeclaratorAST *decl : d->postfix_declarator_list) {
+                    if (FunctionDeclaratorAST *func = decl->asFunctionDeclarator()) {
+                        int params = 0;
+                        if (func->parameter_declaration_clause) {
+                            params = size(
+                                func->parameter_declaration_clause->parameter_declaration_list);
+                        }
+                        auto &entry = constructors[params];
+                        if (!entry.first)
+                            entry.first = rootDecl;
+                        entry.second = rootDecl;
+                    }
+                }
+            }
+        }
+    }
+    if (constructors.empty())
+        return methodDeclarationInClass(tu, clazz, xsSpec, AccessSpecBegin);
+
+    auto iter = constructors.lower_bound(constructorArgumentCount);
+    if (iter == constructors.end()) {
+        // we have a constructor with x arguments but there are only ones with < x arguments
+        --iter; // select greatest one (in terms of argument count)
+    }
+    const QString fileName = QString::fromUtf8(tu->fileName(), tu->fileNameLength());
+    int line, column;
+    if (iter->first <= constructorArgumentCount) {
+        tu->getTokenEndPosition(iter->second.second->lastToken() - 1, &line, &column);
+        return InsertionLocation(fileName, "\n", "", line, column);
+    }
+    // before iter
+    // end pos of firstToken-1 instead of start pos of firstToken to skip leading commend
+    tu->getTokenEndPosition(iter->second.first->firstToken() - 1, &line, &column);
+    return InsertionLocation(fileName, "\n", "", line, column);
 }
 
 namespace {
@@ -639,3 +723,137 @@ const QList<InsertionLocation> InsertionPointLocator::methodDefinition(
 
     return result;
 }
+
+/**
+ * @brief getListOfMissingNamespacesForLocation checks which namespaces are present at a given
+ * location and returns a list of namespace names that are needed to get the wanted namespace
+ * @param file The file of the location
+ * @param wantedNamespaces the namespace as list that should exists at the insert location
+ * @param loc The location that should be checked (the namespaces should be available there)
+ * @return A list of namespaces that are missing to reach the wanted namespaces.
+ */
+static QStringList getListOfMissingNamespacesForLocation(const CppRefactoringFile *file,
+                                                  const QStringList &wantedNamespaces,
+                                                  InsertionLocation loc)
+{
+    NSCheckerVisitor visitor(file, wantedNamespaces, file->position(loc.line(), loc.column()));
+    visitor.accept(file->cppDocument()->translationUnit()->ast());
+    return visitor.remainingNamespaces();
+}
+
+/**
+ * @brief getNamespaceNames Returns a list of namespaces for an enclosing namespaces of a
+ * namespace (contains the namespace itself)
+ * @param firstNamespace the starting namespace (included in the list)
+ * @return the enclosing namespaces, the outermost namespace is at the first index, the innermost
+ * at the last index
+ */
+QStringList getNamespaceNames(const Namespace *firstNamespace)
+{
+    QStringList namespaces;
+    for (const Namespace *scope = firstNamespace; scope; scope = scope->enclosingNamespace()) {
+        if (scope->name() && scope->name()->identifier()) {
+            namespaces.prepend(QString::fromUtf8(scope->name()->identifier()->chars(),
+                                                 scope->name()->identifier()->size()));
+        } else {
+            namespaces.prepend(""); // an unnamed namespace
+        }
+    }
+    namespaces.pop_front(); // the "global namespace" is one namespace, but not an unnamed
+    return namespaces;
+}
+
+/**
+ * @brief getNamespaceNames Returns a list of enclosing namespaces for a symbol
+ * @param symbol a symbol from which we want the enclosing namespaces
+ * @return the enclosing namespaces, the outermost namespace is at the first index, the innermost
+ * at the last index
+ */
+QStringList getNamespaceNames(const Symbol *symbol)
+{
+    return getNamespaceNames(symbol->enclosingNamespace());
+}
+
+InsertionLocation insertLocationForMethodDefinition(Symbol *symbol,
+                                                    const bool useSymbolFinder,
+                                                    NamespaceHandling namespaceHandling,
+                                                    const CppRefactoringChanges &refactoring,
+                                                    const QString &fileName,
+                                                    QStringList *insertedNamespaces)
+{
+    QTC_ASSERT(symbol, return InsertionLocation());
+
+    CppRefactoringFilePtr file = refactoring.file(fileName);
+    QStringList requiredNamespaces;
+    if (namespaceHandling == NamespaceHandling::CreateMissing) {
+        requiredNamespaces = getNamespaceNames(symbol);
+    }
+
+    // Try to find optimal location
+    // FIXME: The locator should not return a valid location if the namespaces don't match
+    //        (or provide enough context).
+    const InsertionPointLocator locator(refactoring);
+    const QList<InsertionLocation> list
+            = locator.methodDefinition(symbol, useSymbolFinder, fileName);
+    const bool isHeader = ProjectFile::isHeader(ProjectFile::classify(fileName));
+    const bool hasIncludeGuard = isHeader
+            && !file->cppDocument()->includeGuardMacroName().isEmpty();
+    int lastLine;
+    if (hasIncludeGuard) {
+        const TranslationUnit * const tu = file->cppDocument()->translationUnit();
+        tu->getTokenStartPosition(tu->ast()->lastToken(), &lastLine);
+    }
+    int i = 0;
+    for ( ; i < list.count(); ++i) {
+        InsertionLocation location = list.at(i);
+        if (!location.isValid() || location.fileName() != fileName)
+            continue;
+        if (hasIncludeGuard && location.line() == lastLine)
+            continue;
+        if (!requiredNamespaces.isEmpty()) {
+            QStringList missing = getListOfMissingNamespacesForLocation(file.get(),
+                                                                        requiredNamespaces,
+                                                                        location);
+            if (!missing.isEmpty())
+                continue;
+        }
+        return location;
+    }
+
+    // ...failed,
+    // if class member try to get position right after class
+    int line = 0, column = 0;
+    if (Class *clazz = symbol->enclosingClass()) {
+        if (symbol->fileName() == fileName.toUtf8()) {
+            file->cppDocument()->translationUnit()->getPosition(clazz->endOffset(), &line, &column);
+            if (line != 0) {
+                ++column; // Skipping the ";"
+                return InsertionLocation(fileName, QLatin1String("\n\n"), QLatin1String(""),
+                                         line, column);
+            }
+        }
+    }
+
+    // fall through: position at end of file, unless we find a matching namespace
+    const QTextDocument *doc = file->document();
+    int pos = qMax(0, doc->characterCount() - 1);
+    QString prefix = "\n\n";
+    QString suffix = "\n\n";
+    NSVisitor visitor(file.data(), requiredNamespaces, pos);
+    visitor.accept(file->cppDocument()->translationUnit()->ast());
+    if (visitor.enclosingNamespace())
+        pos = file->startOf(visitor.enclosingNamespace()->linkage_body) + 1;
+    for (const QString &ns : visitor.remainingNamespaces()) {
+        prefix += "namespace " + ns + " {\n";
+        suffix += "}\n";
+    }
+    if (insertedNamespaces)
+        *insertedNamespaces = visitor.remainingNamespaces();
+
+    //TODO watch for moc-includes
+
+    file->lineAndColumn(pos, &line, &column);
+    return InsertionLocation(fileName, prefix, suffix, line, column);
+}
+
+} // namespace CppTools;

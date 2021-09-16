@@ -51,7 +51,7 @@ public:
     Designer::FormClassWizardParameters parameters() const;
 
 protected:
-    void initializePage(int id) override;
+    void initializePage(int id) final;
 
 private:
     FormTemplateWizardPage *m_formPage = nullptr;

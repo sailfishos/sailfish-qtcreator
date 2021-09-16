@@ -145,7 +145,7 @@ OutputWindow::OutputWindow(Context context, const QString &settingsKey, QWidget 
     connect(this, &QPlainTextEdit::copyAvailable, copyAction, &QAction::setEnabled);
     connect(Core::ICore::instance(), &Core::ICore::saveSettingsRequested, this, [this] {
         if (!d->settingsKey.isEmpty())
-            Core::ICore::settings()->setValue(d->settingsKey, fontZoom());
+            Core::ICore::settings()->setValueWithDefault(d->settingsKey, fontZoom(), 0.f);
     });
 
     connect(outputFormatter(), &OutputFormatter::openInEditorRequested, this,
@@ -153,7 +153,7 @@ OutputWindow::OutputWindow(Context context, const QString &settingsKey, QWidget 
         EditorManager::openEditorAt(fp.toString(), line, column);
     });
 
-    connect(verticalScrollBar(), &QAbstractSlider::sliderMoved,
+    connect(verticalScrollBar(), &QAbstractSlider::actionTriggered,
             this, &OutputWindow::updateAutoScroll);
 
     undoAction->setEnabled(false);
@@ -449,7 +449,7 @@ void OutputWindow::handleOutputChunk(const QString &output, OutputFormat format)
 
 void OutputWindow::updateAutoScroll()
 {
-    d->scrollToBottom = isScrollbarAtBottom();
+    d->scrollToBottom = verticalScrollBar()->sliderPosition() >= verticalScrollBar()->maximum() - 1;
 }
 
 void OutputWindow::setMaxCharCount(int count)
@@ -471,11 +471,6 @@ void OutputWindow::appendMessage(const QString &output, OutputFormat format)
         d->queuedOutput.last().first.append(output);
     if (!d->queueTimer.isActive())
         d->queueTimer.start();
-}
-
-bool OutputWindow::isScrollbarAtBottom() const
-{
-    return verticalScrollBar()->value() == verticalScrollBar()->maximum();
 }
 
 QMimeData *OutputWindow::createMimeDataFromSelection() const
@@ -520,7 +515,7 @@ void OutputWindow::flush()
         return;
     }
     d->queueTimer.stop();
-    for (const auto &chunk : d->queuedOutput)
+    for (const auto &chunk : qAsConst(d->queuedOutput))
         handleOutputChunk(chunk.first, chunk.second);
     d->queuedOutput.clear();
     d->formatter.flush();
@@ -531,6 +526,7 @@ void OutputWindow::reset()
     flush();
     d->queueTimer.stop();
     d->formatter.reset();
+    d->scrollToBottom = true;
     if (!d->queuedOutput.isEmpty()) {
         d->queuedOutput.clear();
         d->formatter.appendMessage(tr("[Discarding excessive amount of pending output.]\n"),

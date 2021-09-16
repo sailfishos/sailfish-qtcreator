@@ -163,7 +163,8 @@ void CppToolsPlugin::test_cpplocatorfilters_CppLocatorFilter_data()
     ILocatorFilter *cppLocatorFilter = cppModelManager->locatorFilter();
 
     MyTestDataDir testDirectory("testdata_basic");
-    const QString testFile = testDirectory.file("file1.cpp");
+    QString testFile = testDirectory.file("file1.cpp");
+    testFile[0] = testFile[0].toLower(); // Ensure Windows path sorts after scope names.
     const QString objTestFile = testDirectory.file("file1.mm");
     const QString testFileShort = FilePath::fromString(testFile).shortNativePath();
     const QString objTestFileShort = FilePath::fromString(objTestFile).shortNativePath();
@@ -173,21 +174,21 @@ void CppToolsPlugin::test_cpplocatorfilters_CppLocatorFilter_data()
         << cppFunctionsFilter
         << "function"
         << ResultDataList{
+               ResultData("functionDefinedInClass(bool, int)",
+                          "<anonymous namespace>::MyClass (file1.cpp)"),
                ResultData("functionDefinedInClass(bool, int)", "MyClass (file1.cpp)"),
                ResultData("functionDefinedInClass(bool, int)",
                           "MyNamespace::MyClass (file1.cpp)"),
-               ResultData("functionDefinedInClass(bool, int)",
+               ResultData("functionDefinedOutSideClass(char)",
                           "<anonymous namespace>::MyClass (file1.cpp)"),
                ResultData("functionDefinedOutSideClass(char)", "MyClass (file1.cpp)"),
                ResultData("functionDefinedOutSideClass(char)",
                           "MyNamespace::MyClass (file1.cpp)"),
-               ResultData("functionDefinedOutSideClass(char)",
-                          "<anonymous namespace>::MyClass (file1.cpp)"),
                ResultData("functionDefinedOutSideClassAndNamespace(float)",
                           "MyNamespace::MyClass (file1.cpp)"),
-               ResultData("myFunction(bool, int)", testFileShort),
+               ResultData("myFunction(bool, int)", "<anonymous namespace> (file1.cpp)"),
                ResultData("myFunction(bool, int)", "MyNamespace (file1.cpp)"),
-               ResultData("myFunction(bool, int)", "<anonymous namespace> (file1.cpp)")
+               ResultData("myFunction(bool, int)", testFileShort)
            };
 
     QTest::newRow("CppFunctionsFilter-Sorting")
@@ -207,14 +208,14 @@ void CppToolsPlugin::test_cpplocatorfilters_CppLocatorFilter_data()
         << "function*bool"
         << ResultDataList{
                ResultData("functionDefinedInClass(bool, int)",
+                          "<anonymous namespace>::MyClass (file1.cpp)"),
+               ResultData("functionDefinedInClass(bool, int)",
                           "MyClass (file1.cpp)"),
                ResultData("functionDefinedInClass(bool, int)",
                           "MyNamespace::MyClass (file1.cpp)"),
-               ResultData("functionDefinedInClass(bool, int)",
-                          "<anonymous namespace>::MyClass (file1.cpp)"),
-               ResultData("myFunction(bool, int)", testFileShort),
+               ResultData("myFunction(bool, int)", "<anonymous namespace> (file1.cpp)"),
                ResultData("myFunction(bool, int)", "MyNamespace (file1.cpp)"),
-               ResultData("myFunction(bool, int)", "<anonymous namespace> (file1.cpp)")
+               ResultData("myFunction(bool, int)", testFileShort)
            };
 
     QTest::newRow("CppFunctionsFilter-WithNamespacePrefix")
@@ -238,17 +239,17 @@ void CppToolsPlugin::test_cpplocatorfilters_CppLocatorFilter_data()
         << "MyClass::func"
         << ResultDataList{
                ResultData("functionDefinedInClass(bool, int)",
+                          "<anonymous namespace>::MyClass (file1.cpp)"),
+               ResultData("functionDefinedInClass(bool, int)",
                           "MyClass (file1.cpp)"),
                ResultData("functionDefinedInClass(bool, int)",
                           "MyNamespace::MyClass (file1.cpp)"),
-               ResultData("functionDefinedInClass(bool, int)",
+               ResultData("functionDefinedOutSideClass(char)",
                           "<anonymous namespace>::MyClass (file1.cpp)"),
                ResultData("functionDefinedOutSideClass(char)",
                           "MyClass (file1.cpp)"),
                ResultData("functionDefinedOutSideClass(char)",
                           "MyNamespace::MyClass (file1.cpp)"),
-               ResultData("functionDefinedOutSideClass(char)",
-                          "<anonymous namespace>::MyClass (file1.cpp)"),
                ResultData("functionDefinedOutSideClassAndNamespace(float)",
                           "MyNamespace::MyClass (file1.cpp)"),
            };
@@ -258,9 +259,9 @@ void CppToolsPlugin::test_cpplocatorfilters_CppLocatorFilter_data()
         << cppClassesFilter
         << "myclass"
         << ResultDataList{
-               ResultData("MyClass", testFileShort),
+               ResultData("MyClass", "<anonymous namespace>"),
                ResultData("MyClass", "MyNamespace"),
-               ResultData("MyClass", "<anonymous namespace>")
+               ResultData("MyClass", testFileShort)
            };
 
     QTest::newRow("CppClassesFilter-WithNamespacePrefix")

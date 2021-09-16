@@ -253,11 +253,12 @@ void ResourceEditorPlugin::extensionsInitialized()
                 toReplace.append(fn);
         });
 
-        for (FileNode *file : toReplace) {
+        for (FileNode *file : qAsConst(toReplace)) {
             FolderNode *const pn = file->parentFolderNode();
             QTC_ASSERT(pn, continue);
             const Utils::FilePath path = file->filePath();
             auto topLevel = std::make_unique<ResourceTopLevelNode>(path, pn->filePath());
+            topLevel->setEnabled(file->isEnabled());
             topLevel->setIsGenerated(file->isGenerated());
             pn->replaceSubtree(file, std::move(topLevel));
         }

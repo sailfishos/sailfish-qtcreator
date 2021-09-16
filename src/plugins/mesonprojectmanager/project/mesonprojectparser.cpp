@@ -22,14 +22,18 @@
 ** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
+
 #include "mesonprojectparser.h"
+
 #include "projecttree/mesonprojectnodes.h"
 #include "projecttree/projecttree.h"
-#include <exewrappers/mesontools.h>
-#include <mesoninfoparser/mesoninfoparser.h>
+#include "exewrappers/mesontools.h"
+#include "mesoninfoparser/mesoninfoparser.h"
 
 #include <coreplugin/messagemanager.h>
+
 #include <projectexplorer/projectexplorer.h>
+
 #include <utils/fileinprojectfinder.h>
 #include <utils/optional.h>
 #include <utils/runextensions.h>
@@ -75,7 +79,7 @@ inline Utils::optional<ProjectExplorer::Macro> extractMacro(const QString &arg)
 CompilerArgs splitArgs(const QStringList &args)
 {
     CompilerArgs splited;
-    std::for_each(std::cbegin(args), std::cend(args), [&splited](const QString &arg) {
+    for (const QString &arg : args) {
         auto inc = extractInclude(arg);
         if (inc) {
             splited.includePaths << *inc;
@@ -87,7 +91,7 @@ CompilerArgs splitArgs(const QStringList &args)
                 splited.args << arg;
             }
         }
-    });
+    }
     return splited;
 }
 
@@ -198,22 +202,19 @@ bool MesonProjectParser::parse(const Utils::FilePath &sourcePath)
 QList<ProjectExplorer::BuildTargetInfo> MesonProjectParser::appsTargets() const
 {
     QList<ProjectExplorer::BuildTargetInfo> apps;
-    std::for_each(std::cbegin(m_parserResult.targets),
-                  std::cend(m_parserResult.targets),
-                  [&apps, srcDir = m_srcDir](const Target &target) {
-                      if (target.type == Target::Type::executable) {
-                          ProjectExplorer::BuildTargetInfo bti;
-                          bti.displayName = target.name;
-                          bti.buildKey = Target::fullName(srcDir, target);
-                          bti.displayNameUniquifier = bti.buildKey;
-                          bti.targetFilePath = Utils::FilePath::fromString(target.fileName.first());
-                          bti.workingDirectory
-                              = Utils::FilePath::fromString(target.fileName.first()).absolutePath();
-                          bti.projectFilePath = Utils::FilePath::fromString(target.definedIn);
-                          bti.usesTerminal = true;
-                          apps.append(bti);
-                      }
-                  });
+    for (const Target &target : m_parserResult.targets) {
+        if (target.type == Target::Type::executable) {
+            ProjectExplorer::BuildTargetInfo bti;
+            bti.displayName = target.name;
+            bti.buildKey = Target::fullName(m_srcDir, target);
+            bti.displayNameUniquifier = bti.buildKey;
+            bti.targetFilePath = Utils::FilePath::fromString(target.fileName.first());
+            bti.workingDirectory = Utils::FilePath::fromString(target.fileName.first()).absolutePath();
+            bti.projectFilePath = Utils::FilePath::fromString(target.definedIn);
+            bti.usesTerminal = true;
+            apps.append(bti);
+        }
+    }
     return apps;
 }
 bool MesonProjectParser::startParser()
@@ -284,9 +285,9 @@ ProjectExplorer::RawProjectPart MesonProjectParser::buildRawPart(
     part.setIncludePaths(toAbsolutePath(m_buildDir, flags.includePaths));
     part.setProjectFileLocation(target.definedIn);
     if (sources.language == "cpp")
-        part.setFlagsForCxx({cxxToolChain, flags.args});
+        part.setFlagsForCxx({cxxToolChain, flags.args, {}});
     else if (sources.language == "c")
-        part.setFlagsForC({cToolChain, flags.args});
+        part.setFlagsForC({cToolChain, flags.args, {}});
     part.setQtVersion(m_qtVersion);
     return part;
 }
@@ -304,7 +305,7 @@ void MesonProjectParser::processFinished(int exitCode, QProcess::ExitStatus exit
     } else {
         if (m_introType == IntroDataType::stdo) {
             auto data = m_process.stdErr();
-            Core::MessageManager::write(QString::fromLocal8Bit(data));
+            Core::MessageManager::writeSilently(QString::fromLocal8Bit(data));
             m_outputParser.readStdo(data);
         }
         emit parsingCompleted(false);

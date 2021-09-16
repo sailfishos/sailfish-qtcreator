@@ -417,7 +417,7 @@ private:
 
     void createGui();
     void showCategory(int index);
-    void updateEnabledTabs(Category *category, const QString &searchText);
+    static void updateEnabledTabs(Category *category, const QString &searchText);
     void ensureCategoryWidget(Category *category);
     void disconnectTabWidgets();
 
@@ -610,7 +610,7 @@ void SettingsDialog::ensureCategoryWidget(Category *category)
     m_model.ensurePages(category);
     auto tabWidget = new QTabWidget;
     tabWidget->tabBar()->setObjectName("qc_settings_main_tabbar"); // easier lookup in Squish
-    for (IOptionsPage *page : category->pages) {
+    for (IOptionsPage *page : qAsConst(category->pages)) {
         QWidget *widget = page->widget();
         ICore::setupScreenShooter(page->displayName(), widget);
         auto ssa = new SmartScrollArea(this);
@@ -755,7 +755,9 @@ bool SettingsDialog::execDialog()
         exec();
         m_running = false;
         m_instance = nullptr;
-        ICore::settings()->setValue(kPreferenceDialogSize, size());
+        ICore::settings()->setValueWithDefault(kPreferenceDialogSize,
+                                               size(),
+                                               QSize(kInitialWidth, kInitialHeight));
         // make sure that the current "single" instance is deleted
         // we can't delete right away, since we still access the m_applied member
         deleteLater();
