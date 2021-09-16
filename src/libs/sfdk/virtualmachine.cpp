@@ -1035,7 +1035,8 @@ void VirtualMachineInfoCache::insert(const QUrl &vmUri, const VirtualMachineInfo
 
     QVariantMap data;
 
-    if (filePath.exists()) {
+    // PersistentSettingsReader silently fails on empty files
+    if (filePath.exists() && filePath.toFileInfo().size() > 0) {
         PersistentSettingsReader reader;
         if (!reader.load(filePath))
             qCWarning(vms) << "Failed to read VM info cache";
