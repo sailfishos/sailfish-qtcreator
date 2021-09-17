@@ -75,7 +75,13 @@ int CMakeCommand::execute()
     QTC_ASSERT(arguments().first() == "cmake", return 1);
 
     QStringList filteredArguments = arguments();
-    if (filteredArguments.at(1) != "--build") {
+    if (filteredArguments.at(1) == "--build") {
+        // sfdk-cmake requires that the current working directory is the build directory. (It also
+        // only accepts literal "." as the build directory path for greater clarity.)
+        QTC_ASSERT(filteredArguments.count() >= 3, return 1);
+        QTC_ASSERT(filteredArguments.at(2) == QDir::currentPath(), return 1);
+        filteredArguments.replace(2, ".");
+    } else {
         // sfdk-cmake requires path to source directory to appear as the very first argument
         // and that the current working dirrectory is the build directory (so -B is redundant,
         // and so better dropped for greater clarity)
