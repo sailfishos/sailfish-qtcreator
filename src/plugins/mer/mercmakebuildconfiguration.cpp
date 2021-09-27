@@ -57,6 +57,8 @@ MerCMakeBuildConfiguration::MerCMakeBuildConfiguration(Target *target, Utils::Id
     : CMakeBuildConfiguration(target, id)
 {
     auto aspect = addAspect<MerBuildConfigurationAspect>(this);
+
+    updateCacheAndEmitEnvironmentChanged();
     connect(aspect, &BaseAspect::changed,
             this, &BuildConfiguration::updateCacheAndEmitEnvironmentChanged);
 
