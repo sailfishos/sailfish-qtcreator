@@ -122,11 +122,12 @@ MerDeviceDebugSupport::MerDeviceDebugSupport(RunControl *runControl)
         runControl->setRunnable(runnable);
     }
     auto gdbServer = new DebugServerRunner(runControl, portsGatherer());
+    // Alternative to setCloseMode(KillAndExitMonitorAtClose);
+    gdbServer->setUseOnce(true);
 
     addStartDependency(gdbServer);
 
     setStartMode(AttachToRemoteServer);
-    setCloseMode(KillAndExitMonitorAtClose);
     setUseExtendedRemote(true);
 
     if (isCppDebugging()) {

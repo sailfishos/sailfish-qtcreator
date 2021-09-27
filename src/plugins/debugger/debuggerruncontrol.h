@@ -180,11 +180,13 @@ public:
     ~DebugServerRunner() override;
 
     void setUseMulti(bool on);
+    void setUseOnce(bool on);
     void setAttachPid(Utils::ProcessHandle pid);
 
 private:
     Utils::ProcessHandle m_pid;
     bool m_useMulti = true;
+    bool m_useOnce = false;
 };
 
 extern DEBUGGER_EXPORT const char DebugServerRunnerWorkerId[];

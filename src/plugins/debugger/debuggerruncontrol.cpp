@@ -1156,6 +1156,8 @@ DebugServerRunner::DebugServerRunner(RunControl *runControl, DebugServerPortsGat
                 // Something resembling gdbserver
                 if (m_useMulti)
                     args.append("--multi");
+                if (m_useOnce)
+                    args.append("--once");
                 if (m_pid.isValid())
                     args.append("--attach");
                 args.append(QString(":%1").arg(portsGatherer->gdbServer().port()));
@@ -1174,6 +1176,12 @@ DebugServerRunner::~DebugServerRunner() = default;
 void DebugServerRunner::setUseMulti(bool on)
 {
     m_useMulti = on;
+}
+
+// Used by 3rd party Sailfish OS plugin
+void DebugServerRunner::setUseOnce(bool on)
+{
+    m_useOnce = on;
 }
 
 void DebugServerRunner::setAttachPid(ProcessHandle pid)
