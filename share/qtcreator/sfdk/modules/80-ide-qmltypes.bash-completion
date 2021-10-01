@@ -1,0 +1,16 @@
+# This file is part of sfdk.bash-completion                -*- shell-script -*-
+
+_sfdk_command_qmltypes()
+{
+    local -A options=(
+        [--no-keep]=
+        [--no-restore-emulator]=
+        [--restore-emulator]=
+    )
+
+    if [[ $cur == -* ]]; then
+        COMPREPLY=($(compgen -W "${!options[*]}" -- "$cur"))
+    fi
+}
+
+# ex: filetype=sh

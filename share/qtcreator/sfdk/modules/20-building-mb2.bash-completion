@@ -1,0 +1,187 @@
+# This file is part of sfdk.bash-completion                -*- shell-script -*-
+
+_sfdk_command_build_requires()
+{
+    COMPREPLY=($(compgen -W "--{no-,}refresh pull reset" -- "$cur"))
+}
+
+_sfdk_command_prepare()
+{
+    _sfdk_no_defaults
+}
+
+_sfdk_command_apply()
+{
+    COMPREPLY=($(compgen -W "-R" -- "$cur"))
+}
+
+_sfdk_command_build()
+{
+    local -A options=(
+        [-p]=
+        [--prepare]=
+        [--no-check]=
+        [-d]=
+        [--enable-debug]=
+        [-j]=1
+        [--sign]=
+    )
+
+    local non_option_idx=$(_sfdk_find_non_option $((_sfdk_command_idx + 1)) "$cword")
+    if [[ $non_option_idx ]]; then
+        # TODO complete some rpmbuild options?
+        return
+    fi
+
+    case $prev in
+        -j)
+            # Do not complete paths but still complete e.g. shell variables
+            compopt +o default
+            return
+            ;;
+    esac
+
+    if [[ $cur == -* ]]; then
+        COMPREPLY=($(compgen -W "${!options[*]} --" -- "$cur"))
+    fi
+}
+
+_sfdk_command_qmake()
+{
+    if ((cword == $_sfdk_command_idx + 1)); then
+        if [[ $cur == -* ]]; then
+            COMPREPLY=($(compgen -W "--" -- "$cur"))
+        else
+            compopt -o dirnames
+        fi
+        return
+    fi
+
+    # TODO complete some qmake options?
+}
+
+__sfdk_complete_cmake_configure_options()
+{
+    # TODO complete some cmake configure options?
+    :
+}
+
+__sfdk_complete_cmake_build_tool_options()
+{
+    # TODO complete some cmake build tool options?
+    :
+}
+
+__sfdk_complete_cmake_build_options()
+{
+    # TODO complete some more cmake build options?
+    local -A options=(
+        [--parallel]=1
+        [-j]=1
+        [--verbose]=
+    )
+
+    local non_option_idx=$(_sfdk_find_non_option $((_sfdk_command_idx + 3)) "$cword")
+    if [[ $non_option_idx ]]; then
+        if [[ ${words[non_option_idx]} == "--" ]]; then
+            __sfdk_complete_cmake_build_tool_options
+        fi
+        return
+    fi
+
+    case $prev in
+        --parallel|-j)
+            compopt +o default
+            return
+            ;;
+    esac
+
+    if [[ $cur == -* ]]; then
+        COMPREPLY=($(compgen -W "${!options[*]} --" -- "$cur"))
+    fi
+}
+
+_sfdk_command_cmake()
+{
+    if ((cword == $_sfdk_command_idx + 1)); then
+        if [[ $cur == -* ]]; then
+            COMPREPLY=($(compgen -W "-- --build" -- "$cur"))
+        else
+            compopt -o dirnames
+        fi
+        return
+    fi
+
+    case ${words[_sfdk_command_idx + 1]} in
+        --build)
+            if ((cword == _sfdk_command_idx + 2)); then
+                _sfdk_no_defaults
+                COMPREPLY=($(compgen -W "." -- "$cur"))
+            else
+                __sfdk_complete_cmake_build_options
+            fi
+            ;;
+        *)
+            __sfdk_complete_cmake_configure_options
+            ;;
+    esac
+}
+
+_sfdk_command_make()
+{
+    # TODO complete make arguments?
+    :
+}
+
+_sfdk_command_make_install()
+{
+    _sfdk_no_defaults
+}
+
+_sfdk_command_package()
+{
+    COMPREPLY=($(compgen -W "--no-check --sign" -- "$cur"))
+}
+
+_sfdk_config_option_target()
+{
+    _sfdk_no_defaults
+    local objects=$(_sfdk misc inspect targets)
+    COMPREPLY=($(compgen -W "$objects" -- "$cur"))
+}
+
+_sfdk_config_option_search_output_dir()
+{
+    _sfdk_no_defaults
+    COMPREPLY=($(compgen -W "verbose quiet" -- "$cur"))
+}
+
+_sfdk_config_option_no_snapshot()
+{
+    _sfdk_no_defaults
+    COMPREPLY=($(compgen -W "force" -- "$cur"))
+}
+
+_sfdk_config_option_fix_version()
+{
+    compopt +o default
+    local git_tags=$(git ${_sfdk_C_args:+"${_sfdk_C_args[@]}"} for-each-ref --merged=HEAD \
+        --format="%(refname:strip=2)" "refs/tags/$cur*" "refs/tags/$cur*/**" 2>/dev/null)
+    COMPREPLY=($(compgen -W "$git_tags" -- "$cur"))
+}
+
+_sfdk_config_option_package_signing_user()
+{
+    compopt +o default
+    local users=$(gpg --with-colons --list-secret-keys 2>/dev/null |grep ^uid: |cut -d: -f10)
+    IFS=$'\n' read -a COMPREPLY -d '' \
+        <<<$(IFS=$'\n' compgen -W "$users" -- "$cur")
+    COMPREPLY=("${COMPREPLY[@]@Q}")
+}
+
+_sfdk_config_option_package_signing_passphrase()
+{
+    compopt +o default
+}
+
+# ex: filetype=sh

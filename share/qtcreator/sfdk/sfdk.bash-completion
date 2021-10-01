@@ -1,0 +1,325 @@
+#                                                          -*- shell-script -*-
+#
+#   sfdk.bash-completion - command completion for sfdk under bash 4.2+
+#
+#   Copyright (C) 2021 Jolla Ltd.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2, or (at your option)
+#   any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation,
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+unset $(compgen -A variable _sfdk_ |grep -v -F --line-regexp _sfdk_debug)
+unset $(compgen -A variable __sfdk_)
+unset -f $(compgen -A function _sfdk_)
+unset -f $(compgen -A function __sfdk_)
+
+_sfdk_have_func()
+{
+    declare -f -- "$1" >&/dev/null
+}
+
+_sfdk_no_defaults()
+{
+    compopt +o bashdefault +o default
+}
+
+_sfdk_current_compopt()
+{
+    local compopt=($(compopt))
+    unset compopt[0] # 'compopt' (literaly)
+    unset compopt[-1] # completed command name
+    compopt=("${compopt[@]}")
+    local c=
+    for ((c = 0; c < ${#compopt[*]}; c += 2)); do
+        [[ ${compopt[c]} == -o ]] && printf '%s\n' "${compopt[*]:c:2}"
+    done
+}
+
+_sfdk_cache()
+{
+    local retv=$1 command=("${@:2}")
+
+    local cache_secs=30
+
+    if [[ ${__sfdk_cache[*]+1} && ${__sfdk_cache[command]} == "${command[*]}"
+            && ${__sfdk_cache[expire]} -gt "$EPOCHSECONDS" ]]; then
+        local "$retv" && _upvars -v "$retv" "${__sfdk_cache[output]}"
+        return
+    fi
+
+    local output=
+    output=$("${command[@]}") || return
+
+    declare -gA __sfdk_cache=()
+    __sfdk_cache[command]=${command[*]}
+    __sfdk_cache[expire]=$((EPOCHSECONDS + cache_secs))
+    __sfdk_cache[output]=$output
+
+    local "$retv" && _upvars -v "$retv" "$output"
+}
+
+_sfdk_find_non_option()
+{
+    : ${options[*]?} ${words[*]?}
+
+    local skip_at_start=
+    while (($# > 0)); do
+        case $1 in
+            --skip-at-start)
+                skip_at_start=1
+                ;;
+            *)
+                break
+                ;;
+        esac
+        shift
+    done
+
+    local start=$1 end=$2
+
+    local c= word=
+    for ((c = $start; c < $end; c++)); do
+        word=${words[c]}
+        if [[ ${options[$word]+1} ]]; then
+            [[ ${options[$word]} ]] && ((c++))
+        elif [[ $word != -- && $skip_at_start && $c -eq $start ]]; then
+            :
+        else
+            echo "$c"
+            return
+        fi
+    done
+
+    return 1
+}
+
+_sfdk_complete_config_option_name()
+{
+    COMPREPLY=($(compgen -W "${!__sfdk_config_options[*]}" -- "$cur"))
+}
+
+_sfdk_complete_config_option_value()
+{
+    local config_option_completion_func=_sfdk_config_option_${prev//[-.]/_}
+    if _sfdk_have_func "$config_option_completion_func"; then
+        "$config_option_completion_func"
+    elif [[ ! ${__sfdk_config_options[$prev]-} ]]; then
+        _sfdk_no_defaults
+    fi
+}
+
+_sfdk_complete_compact_config_option()
+{
+    if [[ $cur != *=* ]]; then
+        compopt -o nospace
+        _sfdk_complete_config_option_name
+        if [[ $cur && ${__sfdk_config_options[$cur]+1} ]]; then
+            COMPREPLY+=("$cur=")
+        fi
+    else
+        local prev=${cur%%=*} cur=${cur#*=}
+        _sfdk_complete_config_option_value
+    fi
+}
+
+_sfdk_complete_flags()
+{
+    local flags=("$@")
+    local lead=${cur%%+([^,])}
+    local cur=${cur##*,}
+    local sign=${cur%%[^+-]*}
+
+    flags=("${flags[@]/#/$sign}")
+
+    compopt -o nospace
+
+    COMPREPLY=($(compgen -W "${flags[*]}" -- "$cur"))
+    COMPREPLY+=($(compgen -W "+ -" -- "$cur"))
+    if [[ " ${flags[*]} " =~ " $cur " ]]; then
+        COMPREPLY+=("$cur,")
+    fi
+
+    # There seems to be no better way to complete comma separated values
+    # without modifying COMP_WORDBREAKS
+    if [[ $lead ]]; then
+        COMPREPLY=("${COMPREPLY[@]/#/$lead}")
+    fi
+}
+
+__sfdk_format_dict()
+{
+    local key= value=
+    while IFS='=' read -r key value; do
+        printf '[%q]=%q\n' "$key" "$value"
+    done
+}
+
+_sfdk_is_engine_running()
+{
+    local status=$(
+        [[ -v _sfdk_debug ]] || exec 2>/dev/null
+        LC_ALL=C sfdk engine status |sed -n 's/^running: //p'
+    )
+    [[ $status == yes ]]
+}
+
+_sfdk_hint()
+{
+    local hint=$*
+
+    _sfdk_no_defaults
+    compopt -o nosort
+    IFS=$'\n' read -a COMPREPLY -d '' \
+        <<<$(IFS=$'\n' compgen -W "<... $hint>"$'\n ' -- "$cur")
+    ((${#COMPREPLY[*]} == 1)) && COMPREPLY=()
+}
+
+_sfdk_hint_start_build_engine()
+{
+    _sfdk_hint "build engine not running"
+}
+
+_sfdk()
+(
+    [[ -v _sfdk_debug ]] || exec 2>/dev/null
+    export SFDK_NO_AUTO_START_VMS=1
+    sfdk ${_sfdk_c_args:+"${_sfdk_c_args[@]}"} "$@"
+)
+
+# Attention: whatever comes here must be independent of possible -C/-c args
+__sfdk_init()
+{
+    [[ -v __sfdk_loaded ]] && return
+    __sfdk_loaded=1
+
+    # TODO allow to show/set workspace as a global property with 'sfdk misc show/set'
+    __sfdk_workspace=$(_sfdk misc inspect workspace) || return
+
+    __sfdk_domains=($(_sfdk misc inspect domains)) || return
+
+    __sfdk_commands=($(_sfdk misc inspect commands)) || return
+
+    local __sfdk_config_options_=
+    __sfdk_config_options_=$(set -o pipefail; _sfdk misc inspect options |__sfdk_format_dict) || return
+    eval declare -gA __sfdk_config_options=($__sfdk_config_options_) || return
+
+    local __sfdk_config_aliases_=
+    __sfdk_config_aliases_=$(set -o pipefail; _sfdk misc inspect option-aliases |__sfdk_format_dict) || return
+    eval declare -gA __sfdk_config_aliases=($__sfdk_config_aliases_) || return
+
+    local module_completion
+    for module_completion in "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"/modules/*.bash-completion; do
+        . "$module_completion" || :
+    done
+}
+
+_sfdk_main()
+{
+    local cur prev words cword split
+    _init_completion -s || return
+
+    _sfdk_c_args=()
+
+    __sfdk_init || return
+
+    local -A options=(
+        [-h]=
+        [--help]=
+        [--help-all]=
+        [-C]=1
+        [-c]=1
+        [--debug]=
+        [--no-pager]=
+        [--no-session]=
+        [--quiet]=
+        [--system-config-only]=
+        [--version]=
+    )
+
+    local config_alias= config_option=
+    for config_alias in "${!__sfdk_config_aliases[@]}"; do
+        config_option=${__sfdk_config_aliases[$config_alias]}
+        options+=([--$config_alias]="${__sfdk_config_options[$config_option]}")
+    done
+
+    local domain=
+    for domain in "${__sfdk_domains[@]}"; do
+        [[ $domain == general ]] && continue
+        options+=([--help-$domain]=)
+    done
+
+    # Look for a (sub)command
+    local command= _sfdk_command_idx=
+    local c= word=
+    for ((c = 1; c < cword; c++)); do
+        word=${words[c]}
+        if [[ ${options[$word]+1} ]]; then
+            [[ ${options[$word]} ]] && ((c++))
+        else
+            command=$word
+            _sfdk_command_idx=$c
+            break
+        fi
+    done
+
+    # Remember any -c option
+    for ((c = 1; c < ${_sfdk_command_idx:-$cword} - 1; c++)); do
+        word=${words[c]}
+        case $word in
+            -c)
+                _sfdk_c_args+=(-c "${words[c+1]}")
+                ;;
+        esac
+        [[ ${options[$word]} ]] && ((c++))
+    done
+
+    if [[ ! $command ]]; then
+        if [[ ${options[$prev]-} ]]; then
+            case $prev in
+                -C)
+                    compopt -o dirnames
+                    ;;
+                -c)
+                    _sfdk_complete_compact_config_option
+                    ;;
+                *)
+                    local config_alias=${prev#--}
+                    if [[ ${__sfdk_config_aliases[$config_alias]+1} ]]; then
+                        prev=${__sfdk_config_aliases[$config_alias]}
+                        _sfdk_complete_config_option_value
+                    fi
+                    ;;
+            esac
+        elif [[ $cur == -* ]]; then
+            COMPREPLY=($(compgen -W "${!options[*]}" -- "$cur"))
+        else
+            COMPREPLY=($(compgen -W "${__sfdk_commands[*]}" -- "$cur"))
+        fi
+    else
+        local cmd_completion_func=_sfdk_command_${command//-/_}
+        if _sfdk_have_func "$cmd_completion_func"; then
+            "$cmd_completion_func"
+        fi
+    fi
+} &&
+    # Keep the options here in sync with _sfdk_no_defaults
+    complete -o bashdefault -o default -F _sfdk_main sfdk
+
+# Check for https://github.com/scop/bash-completion
+if [[ ! ${BASH_COMPLETION_VERSINFO-} ]]; then
+    echo "${BASH_SOURCE[0]}: bash-completion not available" >&2
+    return 1
+fi
+
+# ex: filetype=sh

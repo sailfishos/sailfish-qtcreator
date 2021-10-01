@@ -1,0 +1,51 @@
+# This file is part of sfdk.bash-completion                -*- shell-script -*-
+
+_sfdk_command_debug()
+{
+    local commands=(start attach load-core)
+    local -A options=(
+        [--dry-run]=
+        [--gdb]=1
+        [--gdb-args]=1
+        [--gdbserver]=1
+        [--gdbserver-args]=1
+        [--working-directory]=1
+        [--args]=
+        [--local-core]=
+    )
+
+    if ((cword == _sfdk_command_idx + 1)); then
+        if [[ $cur == -* ]]; then
+            COMPREPLY+=($(compgen -W "${!options[*]}" -- "$cur"))
+        else
+            COMPREPLY=($(compgen -W "${commands[*]}" -- "$cur"))
+        fi
+        return
+    fi
+
+    local begin_idx=$((_sfdk_command_idx + 1)) command=
+    if [[ " ${commands[*]} " =~ " ${words[begin_idx]} " ]]; then
+        command=${words[begin_idx]}
+        ((begin_idx++))
+    fi
+
+    local non_option_idx=$(_sfdk_find_non_option "$begin_idx" "$cword")
+    if [[ $non_option_idx ]]; then
+        return
+    fi
+
+    if [[ ${options[$prev]+1} && ${options[$prev]} ]]; then
+        return
+    fi
+
+    if [[ $command ]]; then
+        [[ $command == start ]] || unset options[--working-directory] options[--args]
+        [[ $command == load-core ]] || unset options[--local-core]
+    fi
+
+    if [[ $cur == -* ]]; then
+        COMPREPLY=($(compgen -W "${!options[*]}" -- "$cur"))
+    fi
+}
+
+# ex: filetype=sh

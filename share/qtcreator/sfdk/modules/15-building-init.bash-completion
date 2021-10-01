@@ -1,0 +1,42 @@
+# This file is part of sfdk.bash-completion                -*- shell-script -*-
+
+_sfdk_command_init()
+{
+    local options=(
+        -t --type
+        -b --builder
+        --force
+        -l --list-types
+    )
+
+    _sfdk_no_defaults
+
+    local objects=
+    case $prev in
+        -t|--type)
+            if _sfdk_cache objects _sfdk init --list-types; then
+                objects=$(sed -n '/^[^[:space:]]/s/ .*//p' <<<$objects)
+                COMPREPLY=($(compgen -W "$objects" -- "$cur"))
+            elif ! _sfdk_is_engine_running; then
+                _sfdk_hint_start_build_engine
+            fi
+            ;;
+        -b|--builder)
+            if _sfdk_cache objects _sfdk init --list-types; then
+                objects=$(sed -n 's/^[[:space:]]\+Builders: \([[:alnum:][:space:]]\+\).*/\1/p' \
+                    <<<$objects |tr --squeeze-repeats '[:space:]' '\n' |sort -u)
+                COMPREPLY=($(compgen -W "$objects" -- "$cur"))
+            elif ! _sfdk_is_engine_running; then
+                _sfdk_hint_start_build_engine
+            fi
+            ;;
+        -l|--list-types)
+            :
+            ;;
+        *)
+            COMPREPLY=($(compgen -W "${options[*]}" -- "$cur"))
+            ;;
+    esac
+}
+
+# ex: filetype=sh
