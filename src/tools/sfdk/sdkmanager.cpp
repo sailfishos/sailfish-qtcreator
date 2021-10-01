@@ -1136,6 +1136,11 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     // Assumption to minimize the time spent here: if the VM is running, we must have been waiting
     // before for the engine to fully start, so no need to wait for connectTo again
     if (!isEngineRunning()) {
+        if (qEnvironmentVariableIsSet(Constants::SFDK_NO_AUTO_START_VMS_ENV_VAR)) {
+            qerr() << tr("The build engine is not running and auto start is disabled") << endl;
+            return SFDK_EXIT_ABNORMAL;
+        }
+
         qCInfo(sfdk).noquote() << tr("Starting the build engine…");
         bool ok;
         execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::connectTo),
@@ -1428,6 +1433,11 @@ bool SdkManager::prepareForRunOnDevice(const Device &device, RemoteProcess *proc
         // Assumption to minimize the time spent here: if the VM is running, we must have been waiting
         // before for the emulator to fully start, so no need to wait for connectTo again
         if (!isEmulatorRunning(*emulator)) {
+            if (qEnvironmentVariableIsSet(Constants::SFDK_NO_AUTO_START_VMS_ENV_VAR)) {
+                qerr() << tr("The emulator is not running and auto start is disabled") << endl;
+                return false;
+            }
+
             qCInfo(sfdk).noquote() << tr("Starting the emulator…");
             bool ok;
             execAsynchronous(std::tie(ok), std::mem_fn(&VirtualMachine::connectTo),
