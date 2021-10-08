@@ -92,11 +92,11 @@
         },
         {
             "name": "build-shell",
-            "trSynopsis": "[<command> [<arg>...]]",
+            "trSynopsis": "[--maintain] [--] [<command> [<arg>...]]",
             "trBrief": "Execute custom build steps",
-            "configOptions": ["[no-]snapshot", "target!"],
+            "configOptions": ["build-shell.args", "build-shell.maintenance-args", "[no-]snapshot", "target!"],
             "dynamic": true,
-            "trDescription": "Execute an arbitrary <command> in the build environment.  If no <command> is specified, an interactive shell will be opened."
+            "trDescription": "Execute an arbitrary <command> in the build environment.  If no <command> is specified, an interactive shell will be opened.\n\nPass the '--maintain' option when running maintenance commands - such that are used to inspect and/or modify the build environment installation.  Failure to do so leads to undefined results.\n\nUnless the 'no-snapshot' configuration option is used, any modifications to the build environment introduced this way can be reverted with the 'build-requires reset' command, which also happens implicitly under certain conditions. Use any of the '[pre-|post-]pull-build-requires' hooks to persist your build environment modifications.  Alternatively, use the 'tools exec' command for direct modification of the original build target.\n\nIf all you are looking for is a way to supply locally available build time dependencies conveniently, see the 'search-output-dir' configuration option."
         }
     ],
 
@@ -164,6 +164,16 @@
         {
             "name": "no-pull-build-requires",
             "trDescription": "Do not update build-time dependencies unless required explicitly with 'build-requires pull'."
+        },
+        {
+            "name": "build-shell.args",
+            "trArgument": "<args>",
+            "trDescription": "Arguments to pass to sb2 when used to run build commands. Defaults to no arguments.\n\n<args> will be split into arguments as with shell word splitting. Use backslash to escape possible whitespace characters within arguments.\n\nThe essential '-t <target>' option is passed to sb2 independently of this configuration option and it is an error to include it in the <args>."
+        },
+        {
+            "name": "build-shell.maintenance-args",
+            "trArgument": "<args>",
+            "trDescription": "Arguments to pass to sb2 when used to run maintenance commands. Defaults to '-m sdk-install -R'.\n\n<args> will be split into arguments as with shell word splitting. Use backslash to escape possible whitespace characters within arguments.\n\nThe essential '-t <target>' option is passed to sb2 independently of this option and it is an error to include it in the <args>."
         },
         {
             "name": "package.signing-user",

@@ -155,6 +155,23 @@ _sfdk_command_package()
     fi
 }
 
+_sfdk_command_build_shell()
+{
+    local -A options=(
+        [--maintain]=
+    )
+
+    local non_option_idx=$(_sfdk_find_non_option $((_sfdk_command_idx + 1)) "$cword")
+    if [[ $non_option_idx ]]; then
+        # TODO complete build-shell command?
+        return
+    fi
+
+    if [[ $cur == -* ]]; then
+        COMPREPLY=($(compgen -W "${!options[*]} --" -- "$cur"))
+    fi
+}
+
 _sfdk_config_option_target()
 {
     _sfdk_no_defaults
