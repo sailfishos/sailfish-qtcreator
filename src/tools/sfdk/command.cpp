@@ -1937,7 +1937,7 @@ Worker::ExitStatus BuiltinWorker::setProperties(SetPropertiesTask *task,
 
 QString BuiltinWorker::runningYesNoMessage(bool running)
 {
-    return tr("Running: %1").arg(running ? tr("Yes") : tr("No"));
+    return tr("running: %1").arg(running ? tr("yes") : tr("no"));
 }
 
 QString BuiltinWorker::toString(ToolsInfo::Flags flags, bool saySdkProvided)
