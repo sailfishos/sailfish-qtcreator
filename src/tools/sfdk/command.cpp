@@ -1551,6 +1551,58 @@ Worker::ExitStatus BuiltinWorker::runMisc(const QStringList &arguments, int *exi
         return setProperties(&task, assignments, exitCode);
     }
 
+    // Internal command, intentionally undocumented
+    if (arguments.first() == "inspect") {
+        using P = CommandLineParser;
+
+        if (!P::checkPositionalArgumentsCount(arguments, 2, 2))
+            return BadUsage;
+
+        const QString query = arguments.at(1);
+        *exitCode = EXIT_FAILURE;
+
+        if (query == "targets") {
+            QTC_ASSERT(SdkManager::hasEngine(), return NormalExit);
+            const Option *const noSnapshotOption_ = Dispatcher::option(Constants::NO_SNAPSHOT_OPTION_NAME);
+            QTC_ASSERT(noSnapshotOption_, return {});
+            const Utils::optional<OptionEffectiveOccurence> noSnapshotOption =
+                Configuration::effectiveState(noSnapshotOption_);
+            if (noSnapshotOption)
+                qout() << SdkManager::engine()->buildTargetNames().join('\n') << endl;
+            else
+                qout() << SdkManager::engine()->buildTargetOrigins().join('\n') << endl;
+        } else if (query == "commands") {
+            for (const std::unique_ptr<const Command> &command : Dispatcher::commands())
+                qout() << command->name << endl;
+        } else if (query == "devices") {
+            for (Device *const device : Sdk::devices())
+                qout() << device->name() << endl;
+        } else if (query == "domains") {
+            for (const std::unique_ptr<const Domain> &domain : Dispatcher::domains())
+                qout() << domain->name << endl;
+        } else if (query == "emulators") {
+            for (Emulator *const emulator : Sdk::emulators())
+                qout() << emulator->name() << endl;
+        } else if (query == "options") {
+            for (const std::unique_ptr<const Option> &option : Dispatcher::options())
+                qout() << option->name << '=' << option->argumentDescription << endl;
+        } else if (query == "option-aliases") {
+            for (const std::unique_ptr<const Option> &option : Dispatcher::options()) {
+                if (!option->alias.isNull())
+                    qout() << option->alias << '=' << option->name << endl;
+            }
+        } else if (query == "workspace") {
+            QTC_ASSERT(SdkManager::hasEngine(), return NormalExit);
+            qout() << SdkManager::engine()->sharedSrcPath().toString() << endl;
+        } else {
+            qerr() << tr("Not a valid inspection query: \"%1\"").arg(query) << endl;
+            return NormalExit;
+        }
+
+        *exitCode = EXIT_SUCCESS;
+        return NormalExit;
+    }
+
     qerr() << P::unrecognizedCommandMessage(arguments.first()) << endl;
     return BadUsage;
 }
@@ -1937,7 +1989,7 @@ Worker::ExitStatus BuiltinWorker::setProperties(SetPropertiesTask *task,
 
 QString BuiltinWorker::runningYesNoMessage(bool running)
 {
-    return tr("Running: %1").arg(running ? tr("Yes") : tr("No"));
+    return tr("running: %1").arg(running ? tr("yes") : tr("no"));
 }
 
 QString BuiltinWorker::toString(ToolsInfo::Flags flags, bool saySdkProvided)

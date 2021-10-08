@@ -82,7 +82,6 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
         if (option->alias.isNull())
             continue;
 
-        QString domainHelpOptionName = "--help-" + option->module->domain->name;
         QCommandLineOption alias(option->alias);
         alias.setValueName(option->argumentDescription);
         alias.setDescription(tr("This is a shorthand alias for the '%1' configuration option.")

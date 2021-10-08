@@ -1,0 +1,94 @@
+# This file is part of sfdk.bash-completion                -*- shell-script -*-
+
+_sfdk_command_config()
+{
+    local command=
+    local option option_idx=
+
+    local -A scope_switches=(
+        [--session]=
+        [--global]=
+    )
+    local -A command_switches=(
+        [--show]=
+        [--push]=1
+        [--push-mask]=1
+        [--drop]=1
+    )
+
+    local c= word=
+    for ((c = _sfdk_command_idx + 1; c < cword; c++)); do
+        word=${words[c]}
+        if [[ ${scope_switches[$word]+1} ]]; then
+            :
+        elif [[ ${command_switches[$word]+1} ]]; then
+            command=$word
+        else
+            option=$word
+            option_idx=$c
+            break
+        fi
+    done
+
+    if [[ ! $command && ! $option ]]; then
+        if [[ $cur == -* ]]; then
+            COMPREPLY=($(compgen -W "${!scope_switches[*]} ${!command_switches[*]}" -- "$cur"))
+        else
+            _sfdk_complete_compact_config_option
+        fi
+    elif [[ $command == --show ]]; then
+        _sfdk_no_defaults
+    elif [[ ! $option ]]; then
+        _sfdk_complete_config_option_name
+    elif [[ $command == --push ]]; then
+        if ((cword == option_idx + 1)); then
+            _sfdk_complete_config_option_value
+        fi
+    fi
+}
+
+__sfdk_complete_misc_property_name()
+{
+    local properties=($(_sfdk misc show |cut -d: -f1))
+    COMPREPLY=($(compgen -W "${properties[*]}" -- "$cur"))
+}
+
+__sfdk_complete_misc_property_value()
+{
+    case $prev in
+        proxy)
+            COMPREPLY=($(compgen -W "direct auto manual" -- "$cur"))
+            ;;
+    esac
+}
+
+__sfdk_complete_misc_property_assignment()
+{
+    if [[ $cur != *=* ]]; then
+        compopt -o nospace
+        __sfdk_complete_misc_property_name
+        COMPREPLY=("${COMPREPLY[@]/%/=}")
+    else
+        local prev=${cur%%=*} cur=${cur#*=}
+        __sfdk_complete_misc_property_value
+    fi
+}
+
+_sfdk_command_misc()
+{
+    if ((cword == _sfdk_command_idx + 1)); then
+        COMPREPLY=($(compgen -W "set show stop-vms" -- "$cur"))
+        return
+    fi
+
+    case ${words[_sfdk_command_idx + 1]} in
+        set)
+            __sfdk_complete_misc_property_assignment
+            ;;
+        show|stop-vms)
+            _sfdk_no_defaults
+            ;;
+    esac
+}
+
+# ex: filetype=sh

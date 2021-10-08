@@ -1,0 +1,172 @@
+# This file is part of sfdk.bash-completion                -*- shell-script -*-
+
+__sfdk_complete_engine_property_name()
+{
+    local properties=$(_sfdk engine show |cut -d: -f1)
+    COMPREPLY=($(compgen -W "$properties" -- "$cur"))
+}
+
+__sfdk_complete_engine_property_value()
+{
+    case $prev in
+        *)
+            compopt +o default
+            ;;
+    esac
+}
+
+__sfdk_complete_engine_property_assignment()
+{
+    if [[ $cur != *=* ]]; then
+        compopt -o nospace
+        __sfdk_complete_engine_property_name
+        COMPREPLY=("${COMPREPLY[@]/%/=}")
+    else
+        local prev=${cur%%=*} cur=${cur#*=}
+        __sfdk_complete_engine_property_value
+    fi
+}
+
+_sfdk_command_engine()
+{
+    local commands=(start stop status set show exec)
+
+    if ((cword == _sfdk_command_idx + 1)); then
+        COMPREPLY=($(compgen -W "${commands[*]}" -- "$cur"))
+        return
+    fi
+
+    case ${words[_sfdk_command_idx + 1]} in
+        set)
+            __sfdk_complete_engine_property_assignment
+            ;;
+        exec)
+            local -A options=(
+                [-t]=
+            )
+
+            local non_option_idx=$(_sfdk_find_non_option $((_sfdk_command_idx + 2)) "$cword")
+            if [[ $non_option_idx ]]; then
+                # TODO complete engine command?
+                return
+            fi
+
+            if [[ $cur == -* ]]; then
+                COMPREPLY=($(compgen -W "${!options[*]} --" -- "$cur"))
+            fi
+            ;;
+        start|stop|status|show)
+            _sfdk_no_defaults
+            ;;
+    esac
+}
+
+__sfdk_complete_tools()
+{
+    local maybe_type=${1-}
+
+    _sfdk_no_defaults
+
+    local objects=
+    if _sfdk_cache objects _sfdk tools $maybe_type list; then
+        objects=$(sed 's/^[^[:alnum:]]*//' <<<$objects |awk '{ print $1 }')
+        COMPREPLY=($(compgen -W "$objects" -- "$cur"))
+    elif ! _sfdk_is_engine_running; then
+        _sfdk_hint_start_build_engine
+    fi
+}
+
+__sfdk_complete_available_tools()
+{
+    local maybe_type=${1-}
+
+    _sfdk_no_defaults
+
+    local objects=
+    if _sfdk_cache objects _sfdk tools $maybe_type list --available; then
+        objects=$(awk '($2 ~ /available/) { print $1 }' <<<$objects)
+        COMPREPLY=($(compgen -W "$objects" -- "$cur"))
+    elif ! _sfdk_is_engine_running; then
+        _sfdk_hint_start_build_engine
+    fi
+}
+
+_sfdk_command_tools()
+{
+    local commands=(list update register install install-custom remove package-list
+        package-install package-remove exec
+    )
+
+    local maybe_type=
+
+    local cmd_idx=$_sfdk_command_idx
+    if ((cword == cmd_idx + 1)); then
+        commands+=(tooling target)
+    elif [[ ${words[cmd_idx + 1]} == @(tooling|target) ]]; then
+        maybe_type=${words[cmd_idx + 1]}
+        ((cmd_idx++))
+    fi
+
+    if ((cword == cmd_idx + 1)); then
+        COMPREPLY=($(compgen -W "${commands[*]}" -- "$cur"))
+        return
+    fi
+
+    local command=${words[cmd_idx + 1]}
+    case $command,$prev in
+        list,@(-a|--available|--slow))
+            _sfdk_no_defaults
+            ;;
+        list,*)
+            _sfdk_no_defaults
+            if [[ $cur == -* ]]; then
+                COMPREPLY=($(compgen -W "-a --available --slow" -- "$cur"))
+            fi
+            ;;
+        update,*)
+            __sfdk_complete_tools $maybe_type
+            ;;
+        register,@(--user|--password))
+            _sfdk_no_defaults
+            ;;
+        register,*)
+            if [[ $cur == -* ]]; then
+                COMPREPLY=($(compgen -W "--all --user --password" -- "$cur"))
+            else
+                __sfdk_complete_tools $maybe_type
+            fi
+            ;;
+        install,*)
+            __sfdk_complete_available_tools $maybe_type
+            ;;
+        install-custom,--tooling)
+            __sfdk_complete_tools tooling
+            ;;
+        install-custom,*)
+            if [[ $cur == -* ]]; then
+                COMPREPLY=($(compgen -W "--no-snapshot --tooling" -- "$cur"))
+            fi
+            ;;
+        remove,*)
+            if [[ $cur == -* ]]; then
+                COMPREPLY=($(compgen -W "--snapshots-of" -- "$cur"))
+            else
+                __sfdk_complete_tools $maybe_type
+            fi
+            ;;
+        package-@(list|install|remove),*)
+            if ((cword == cmd_idx + 2)); then
+                __sfdk_complete_tools $maybe_type
+            fi
+            # TODO complete package name?
+            ;;
+        exec,*)
+            if ((cword == cmd_idx + 2)); then
+                __sfdk_complete_tools $maybe_type
+            fi
+            # TODO complete command?
+            ;;
+    esac
+}
+
+# ex: filetype=sh

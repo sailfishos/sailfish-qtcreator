@@ -1,0 +1,120 @@
+# This file is part of sfdk.bash-completion                -*- shell-script -*-
+
+_sfdk_command_deploy()
+{
+    local -A options=(
+        [--pkcon]=
+        [--rsync]=
+        [--sdk]=
+        [--zypper]=
+        [--zypper-dup]=
+        [--manual]=
+        [--all]=
+        [--debug]=
+        [-n]=
+        [--dry-run]=
+    )
+
+    local non_option_idx=$(_sfdk_find_non_option $((_sfdk_command_idx + 1)) "$cword")
+    if [[ $non_option_idx ]]; then
+        # TODO complete engine command?
+        return
+    fi
+
+    if [[ $cur == -* ]]; then
+        COMPREPLY=($(compgen -W "${!options[*]} --" -- "$cur"))
+    fi
+}
+
+_sfdk_command_undeploy()
+{
+    local -A options=(
+        [--pkcon]=
+        [--rpm]=
+        [--rsync]=
+        [--sdk]=
+        [--zypper]=
+        [--all]=
+        [-n]=
+        [--dry-run]=
+    )
+
+    local non_option_idx=$(_sfdk_find_non_option $((_sfdk_command_idx + 1)) "$cword")
+    if [[ $non_option_idx ]]; then
+        # TODO complete engine command?
+        return
+    fi
+
+    if [[ $cur == -* ]]; then
+        COMPREPLY=($(compgen -W "${!options[*]} --" -- "$cur"))
+    fi
+}
+
+__sfdk_complete_check_levels()
+{
+    _sfdk_no_defaults
+    _sfdk_complete_flags static source package dynamic unit system
+}
+
+__sfdk_complete_check_suites()
+{
+    _sfdk_no_defaults
+
+    # FIXME sfdk check --list-suites would create .sfdk directory
+    if [[ ! -d .sfdk ]]; then
+        _sfdk_hint "not an sfdk build directory"
+        return
+    fi
+
+    local suites=
+    if _sfdk_cache suites _sfdk check --list-suites; then
+        suites=$(sed -n -e 1d -e '/^[^[:space:]]/s/[[:space:]].*//p' <<<$suites)
+        _sfdk_complete_flags $suites
+    elif ! _sfdk_is_engine_running; then
+        _sfdk_hint_start_build_engine
+    fi
+}
+
+_sfdk_command_check()
+{
+    local -A options=(
+        [--list-suites]=
+        [-l]=1
+        [--levels]=1
+        [-s]=1
+        [--suites]=1
+    )
+
+    _sfdk_find_non_option $((_sfdk_command_idx + 1)) "$cword" >/dev/null && return
+
+    case $prev in
+        --list-suites)
+            _sfdk_no_defaults
+            return
+            ;;
+        -l|--levels)
+            __sfdk_complete_check_levels
+            return
+            ;;
+        -s|--suites)
+            __sfdk_complete_check_suites
+            return
+            ;;
+    esac
+
+    if [[ $cur == -* ]]; then
+        COMPREPLY=($(compgen -W "${!options[*]} --" -- "$cur"))
+    fi
+}
+
+_sfdk_config_option_check_levels()
+{
+    __sfdk_complete_check_levels
+}
+
+_sfdk_config_option_check_suites()
+{
+    __sfdk_complete_check_suites
+}
+
+# ex: filetype=sh
