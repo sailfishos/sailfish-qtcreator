@@ -89,6 +89,14 @@
             "hooks": ["post-package", "pre-sign"],
             "trDescription": "Run rpmbuild. Execute just the %install section of the .spec file, then build binary packages and optionally sign those. Unless '--no-check' is passed, execute also the %check section if present.",
             "preRun": "module.maybeImportSigningKey"
+        },
+        {
+            "name": "build-shell",
+            "trSynopsis": "[<command> [<arg>...]]",
+            "trBrief": "Execute custom build steps",
+            "configOptions": ["[no-]snapshot", "target!"],
+            "dynamic": true,
+            "trDescription": "Execute an arbitrary <command> in the build environment.  If no <command> is specified, an interactive shell will be opened."
         }
     ],
 
