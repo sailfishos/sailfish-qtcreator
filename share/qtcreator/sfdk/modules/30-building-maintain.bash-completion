@@ -108,7 +108,7 @@ _sfdk_command_tools()
     fi
 
     if ((cword == cmd_idx + 1)); then
-        COMPREPLY=($(compgen -W "${commands[*]}" -- "$cur"))
+        _sfdk_complete_with_shortcuts "${commands[@]}"
         return
     fi
 
