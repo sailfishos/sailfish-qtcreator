@@ -93,8 +93,8 @@ __sfdk_complete_available_tools()
 
 _sfdk_command_tools()
 {
-    local commands=(list update register install install-custom remove package-list
-        package-install package-remove exec
+    local commands=(list update register install install-custom remove
+        package-search package-install package-remove exec
     )
 
     local maybe_type=
@@ -154,7 +154,7 @@ _sfdk_command_tools()
                 __sfdk_complete_tools $maybe_type
             fi
             ;;
-        package-@(list|install|remove),*)
+        package-@(search|install|remove),*)
             if ((cword == cmd_idx + 2)); then
                 __sfdk_complete_tools $maybe_type
             fi
