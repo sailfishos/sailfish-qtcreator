@@ -56,7 +56,8 @@ namespace Sfdk {
 
 namespace {
 const int SHIFT_WIDTH = 4;
-const int WRAP_MARGIN = 78;
+const int MAN_LEFT_MARGIN = 8;
+const int WRAP_MARGIN = 78 - MAN_LEFT_MARGIN;
 const char PAGER[] = "less";
 
 const int TREE_SHIFT_WIDTH = 4;
@@ -170,6 +171,163 @@ Pager::~Pager()
 }
 
 /*!
+ * \class AsciiMan
+ * \brief Minimal rendered for AsciiDoc-like formatted man pages
+ *
+ * Recognized AsciiDoc constructs:
+ *
+ * - One line section titles without trailing title delimiter
+ *   - "== TITLE", not "== TITLE =="
+ * - Indented literal paragraphs
+ *   - Any indented text will be passed through as is
+ * - Open blocks styled as "verse"
+ * - List item continuation and/or nesting realized with open blocks
+ *   - Use of open blocks is mandatory here. Any indented text would be treated
+ *     as an indented literal paragraph
+ * - Bold words at the start of a line
+ *   - The enclosing asterisks are dropped
+ *
+ * Anything else will be passed as is.
+ */
+
+AsciiMan::AsciiMan(QTextStream &out)
+    : m_in(&m_buf)
+    , m_out(out)
+{
+}
+
+AsciiMan::~AsciiMan()
+{
+    flush();
+}
+
+void AsciiMan::flush()
+{
+    m_in.seek(0);
+    render(m_in, m_out);
+    m_buf.clear();
+}
+
+void AsciiMan::render(QTextStream &in, QTextStream &out)
+{
+    bool prevBlank = true;
+    bool expectOpenBlock = false;
+    bool verse = false;
+    int indentLevel = 0;
+    QString section;
+
+    const QRegularExpression headingRe("^=+ ");
+    const QRegularExpression attributesRe("^\\[(.*)\\]$");
+    const QRegularExpression boldLeadingWordsRe(R"(^\*([^\*]+)\*(| .*)$)");
+
+    QString line;
+    while (!in.atEnd()) {
+        line = in.readLine();
+
+        QRegularExpressionMatch match;
+        if (prevBlank && line.contains(headingRe, &match)) {
+            indentLevel = qMax(0, match.capturedLength() - 3);
+            line.remove(0, match.capturedLength());
+            if (indentLevel == 0)
+                line = line.toUpper();
+            section = line;
+            out << indent(indentLevel) << line << endl;
+            indentLevel++;
+            prevBlank = true;
+            continue;
+        } else if (line == "--") {
+            if (expectOpenBlock) {
+                if (!verse)
+                    indentLevel++;
+            } else {
+                if (!verse)
+                    indentLevel--;
+                verse = false;
+            }
+        } else if (line == "+") {
+            expectOpenBlock = true;
+        } else if (line.contains(attributesRe, &match)) {
+            verse = match.captured(1) == "verse";
+            if (!verse)
+                qCWarning(sfdk) << "Unrecognized AsciiDoc attribute" << match.captured(1);
+            expectOpenBlock = true;
+        } else {
+            if (line.endsWith("::"))
+                line.chop(2);
+
+            if (line.contains(boldLeadingWordsRe, &match))
+                line = match.capturedTexts().mid(1).join(QString());
+
+            expectOpenBlock = false;
+
+            if (verse || line.startsWith(' ') || line.startsWith('\n')) {
+                int extraIndent = 0;
+                if (section == "SYNOPSIS")
+                    extraIndent = 1;
+                out << indent(indentLevel + extraIndent) << line << endl;
+            } else {
+                wrapLine(out, indentLevel, {}, {}, line);
+            }
+        }
+
+        prevBlank = line.isEmpty();
+    }
+}
+
+void AsciiMan::header(QTextStream &out, const QString &title)
+{
+    out << "= " << title << "(1)" << endl;
+}
+
+void AsciiMan::section(QTextStream &out, const QString &title)
+{
+    out << "== " << title << endl;
+}
+
+void AsciiMan::subsection(QTextStream &out, const QString &title)
+{
+    out << "=== " << title << endl;
+}
+
+void AsciiMan::nameSection(QTextStream &out)
+{
+    section(out, "NAME");
+}
+
+void AsciiMan::synopsisSection(QTextStream &out)
+{
+    section(out, "SYNOPSIS");
+}
+
+void AsciiMan::verseBegin(QTextStream &out)
+{
+    out << "[verse]" << endl;
+    out << "--" << endl;
+}
+
+void AsciiMan::verseEnd(QTextStream &out)
+{
+    out << "--" << endl;
+}
+
+void AsciiMan::labeledListItemBegin(QTextStream &out, const QString &label)
+{
+    out << label << "::" << endl;
+    out << "+" << endl;
+    out << "--" << endl;
+}
+
+void AsciiMan::labeledListItemEnd(QTextStream &out)
+{
+    out << "--" << endl;
+}
+
+QString AsciiMan::boldLeadingWords(const QString &string)
+{
+    return '*' + string + '*';
+}
+
+/*!
  * \class LineEndPostprocessingMessageHandler
  *
  * Unix-only: Screen-oriented programs turn TTY output postprocessing off.
@@ -279,7 +437,7 @@ void wrapLine(QTextStream &out, int indentLevel, const QString &line)
  * prefixes will be printed.
  */
 void wrapLines(QTextStream &out, int indentLevel, const QStringList &prefix1,
-        const QStringList &prefix2, const QString &lines)
+        const QStringList &prefix2, const QString &lines, int indentCorrection)
 {
     QString prefix1_ = prefix1.join(' ');
     if (!prefix1_.isEmpty())
@@ -306,9 +464,9 @@ void wrapLines(QTextStream &out, int indentLevel, const QStringList &prefix1,
             : line.trimmed();
         wrapLine(out, indentLevel,
                 prefix1_ + prefix2_ + lineIndent,
-                QString(prefix1_.length() + prefix2_.length() + lineIndent.length(), ' '),
+                QString(prefix1_.length() + prefix2_.length() + lineIndent.length() + indentCorrection, ' '),
                 trimmed);
-        prefix1_ = QString(prefix1_.length(), ' ');
+        prefix1_ = QString(prefix1_.length() + indentCorrection, ' ');
     }
 }
 

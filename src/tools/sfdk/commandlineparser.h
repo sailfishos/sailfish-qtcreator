@@ -75,11 +75,15 @@ public:
 
     void badUsage(const QString &message) const;
     void briefUsage(QTextStream &out) const;
-    void usage(QTextStream &out) const;
+    void usage() const;
+    void usage(QTextStream &out, const QString &title) const;
     void commandBriefUsage(QTextStream &out, const Command *command) const;
-    void commandUsage(QTextStream &out, const Command *command) const;
-    void domainUsage(QTextStream &out, const Domain *domain) const;
-    void allDomainsUsage(QTextStream &out) const;
+    void commandUsage(const Command *command) const;
+    void commandUsage(QTextStream &out, const Command *command, const QString &title) const;
+    void domainUsage(const Domain *domain) const;
+    void domainUsage(QTextStream &out, const Domain *domain, const QString &title) const;
+    void allDomainsUsage() const;
+    void allDomainsUsage(QTextStream &out, const QString &title) const;
 
     static bool checkExclusiveOption(const QCommandLineParser &parser,
             const QList<const QCommandLineOption *> &options,
@@ -88,6 +92,8 @@ public:
     static int optionCount(const QCommandLineParser &parser, const QCommandLineOption &option);
     static bool splitArgs(const QString &cmd, Utils::OsType osType, QStringList *out);
 
+    static QString introManPageSummary(const QString &name);
+    static QString manPageSummary(const QString &name);
     static QString summary();
     static QString usageMessage();
     static QString unrecognizedCommandMessage(const QString &command);
@@ -106,12 +112,13 @@ public:
 
 private:
     static QString commandsOverviewHeading();
-    static QString commandsHeading();
+    static QString descriptionHeading();
     static QString globalOptionsHeading();
     static QString configurationOptionsHeading();
     static QString hooksHeading();
     static QString relatedConfigurationOptionsHeading(const Command *command);
     static QString relatedHooksHeading(const Command *command);
+    static QString seeAlsoHeading();
     static QString listRelatedConfigurationOptions(const Command *command);
     static QString listRelatedHooks(const Command *command);
     static QString environmentVariablesHeading();
@@ -125,15 +132,18 @@ private:
 
     static QStringList environmentVariableAsArguments(const char *name, bool *ok);
 
+    QString synopsis() const;
     void synopsis(QTextStream &out) const;
-    void describe(QTextStream &out, int indentLevel, const QList<QCommandLineOption> &options) const;
-    void describeBriefly(QTextStream &out, int indentLevel, const Command::ConstList &commands)
+    void describe(QTextStream &out, const QList<QCommandLineOption> &options) const;
+    void describeBriefly(QTextStream &out, const Command::ConstList &commands)
         const;
-    void describe(QTextStream &out, int indentLevel, const Command::ConstList &commands) const;
-    void describe(QTextStream &out, int indentLevel, const Option::ConstList &options) const;
-    void describe(QTextStream &out, int indentLevel, const Hook::ConstList &hooks) const;
-    void describeGlobalOptions(QTextStream &out, int indentLevel, const Domain *domain) const;
+    void describe(QTextStream &out, const Option::ConstList &options) const;
+    void describe(QTextStream &out, const Hook::ConstList &hooks) const;
+    void describeGlobalOptions(QTextStream &out, const Domain *domain) const;
     static void bottomSections(QTextStream &out);
+
+    void showManual(const QString &title, std::function<void(QTextStream &out)> generator) const;
+    static bool showManualPage(const QString &title);
 
 private:
     Result m_result;

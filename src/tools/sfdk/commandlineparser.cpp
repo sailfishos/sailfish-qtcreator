@@ -200,13 +200,13 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
         m_verbosity = Debug;
 
     if (parser.isSet(helpAllOption)) {
-        allDomainsUsage(Pager());
+        allDomainsUsage();
         m_result = Usage;
         return;
     }
     for (const QPair<QCommandLineOption, const Domain *> &pair : qAsConst(m_domainHelpOptions)) {
         if (parser.isSet(pair.first)) {
-            domainUsage(Pager(), pair.second);
+            domainUsage(pair.second);
             m_result = Usage;
             return;
         }
@@ -342,18 +342,18 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
         return;
     }
     if (commandArgumentsWithoutDynamicSubcommands.contains("--help")) {
-        commandUsage(Pager(), m_command);
+        commandUsage(m_command);
         m_result = Usage;
         return;
     }
     if (commandArgumentsWithoutDynamicSubcommands.contains("--help-all")) {
-        allDomainsUsage(Pager());
+        allDomainsUsage();
         m_result = Usage;
         return;
     }
     for (const std::unique_ptr<const Domain> &domain : Dispatcher::domains()) {
         if (commandArgumentsWithoutDynamicSubcommands.contains("--help-" + domain->name)) {
-            domainUsage(Pager(), domain.get());
+            domainUsage(domain.get());
             m_result = Usage;
             return;
         }
@@ -388,75 +388,94 @@ void CommandLineParser::badUsage(const QString &message) const
 
 void CommandLineParser::briefUsage(QTextStream &out) const
 {
-    synopsis(out);
+    wrapLines(out, 0, {usageMessage()}, {EXE_NAME}, synopsis());
     wrapLine(out, 0, summary());
     out << tryLongHelpMessage("--help") << endl;
 }
 
-void CommandLineParser::usage(QTextStream &out) const
+void CommandLineParser::usage() const
 {
-    synopsis(out);
-    out << endl;
-    wrapLine(out, 0, summary());
-    out << endl;
+    const QString title = QString(EXE_NAME);
+    showManual(title, [=](QTextStream &out) { usage(out, title); });
+}
 
-    out << commandsOverviewHeading() << endl;
-    out << endl;
-
-    for (const std::unique_ptr<const Domain> &domain : Dispatcher::domains()) {
-        wrapLine(out, 1, domain->briefDescription());
-        out << endl;
-        describeBriefly(out, 2, domain->commands());
-        out << endl;
-        if (domain->name == Constants::GENERAL_DOMAIN_NAME)
-            wrapLine(out, 2, tr("The detailed description of these commands follows below."));
-        else
-            wrapLine(out, 2, tryLongHelpMessage("--help-" + domain->name));
-        out << endl;
-    }
-
+void CommandLineParser::usage(QTextStream &out, const QString &title) const
+{
     const Domain *generalDomain = Dispatcher::domain(Constants::GENERAL_DOMAIN_NAME);
     QTC_ASSERT(generalDomain != nullptr, return);
 
-    for (const Module *module : generalDomain->modules()) {
-        if (!module->description.isEmpty())
-            wrapLines(out, 0, {}, {}, module->description);
+    AsciiMan::header(out, title);
+    out << endl;
+
+    AsciiMan::nameSection(out);
+    out << endl;
+    out << introManPageSummary(title) << endl;
+    out << endl;
+
+    AsciiMan::synopsisSection(out);
+    out << endl;
+    synopsis(out);
+    out << endl;
+
+    AsciiMan::subsection(out, commandsOverviewHeading());
+    out << endl;
+
+    for (const std::unique_ptr<const Domain> &domain : Dispatcher::domains()) {
+        out << "==== " << domain->briefDescription() << endl;
+        out << endl;
+        describeBriefly(out, domain->commands());
+        out << endl;
+        if (domain->name == Constants::GENERAL_DOMAIN_NAME) {
+            out << tr("More information follows below.") << endl;
+        } else {
+            out << tryLongHelpMessage("--help-" + domain->name) << endl;
+        }
+        out << endl;
     }
+
+    AsciiMan::section(out, descriptionHeading());
     out << endl;
 
-    out << commandsHeading() << endl;
-    out << endl;
-    wrapLine(out, 1, tr("This is the description of the general-usage commands. Use the '--help-<domain>' options to display description of commands specific to the particular <domain>."));
+    for (const Module *module : generalDomain->modules()) {
+        if (!module->description.isEmpty()) {
+            out << module->description << endl;
+            out << endl;
+            out << endl;
+        }
+    }
+
+    AsciiMan::section(out, globalOptionsHeading());
     out << endl;
 
-    describe(out, 1, generalDomain->commands());
+    out << tr("This is the description of the general-usage options. Use the '--help-<domain>' options to display description of options specific to the particular <domain>.") << endl;
     out << endl;
 
-    out << globalOptionsHeading() << endl;
-    out << endl;
-
-    describeGlobalOptions(out, 1, nullptr);
+    describeGlobalOptions(out, nullptr);
 
     const Option::ConstList generalDomainOptions = generalDomain->options();
     out << endl;
-    out << configurationOptionsHeading() << endl;
+    AsciiMan::section(out, configurationOptionsHeading());
     out << endl;
     if (generalDomainOptions.isEmpty()) {
-        wrapLine(out, 1, tr("None of the general-usage commands supports any configuration options. Use the '--help-<domain>' options to learn about configuration options supported by commands specific to the particular <domain>."));
+        out << tr("None of the general-usage commands supports any configuration options. Use the '--help-<domain>' options to learn about configuration options supported by commands specific to the particular <domain>.") << endl;
         out << endl;
     } else {
-        describe(out, 1, generalDomainOptions);
+        out << tr("This is the description of the general-usage configuration options. Use the '--help-<domain>' options to display description of configuration options specific to the particular <domain>.") << endl;
+        out << endl;
+        describe(out, generalDomainOptions);
     }
 
     const Hook::ConstList generalDomainHooks = generalDomain->hooks();
     out << endl;
-    out << hooksHeading() << endl;
+    AsciiMan::section(out, hooksHeading());
     out << endl;
     if (generalDomainHooks.isEmpty()) {
-        wrapLine(out, 1, tr("None of the general-usage commands supports any hooks. Use the '--help-<domain>' options to learn about hooks supported by commands specific to the particular <domain>."));
+        out << tr("None of the general-usage commands supports any hooks. Use the '--help-<domain>' options to learn about hooks supported by commands specific to the particular <domain>.") << endl;
         out << endl;
     } else {
-        describe(out, 1, generalDomainHooks);
+        out << tr("This is the description of the general-usage hooks. Use the '--help-<domain>' options to display description of hooks specific to the particular <domain>.") << endl;
+        out << endl;
+        describe(out, generalDomainHooks);
     }
 
     out << endl;
@@ -469,42 +488,72 @@ void CommandLineParser::commandBriefUsage(QTextStream &out, const Command *comma
     out << endl;
     wrapLine(out, 0, command->briefDescription);
     out << endl;
-    if (!command->configOptions.isEmpty()) {
-        wrapLine(out, 0, relatedConfigurationOptionsHeading(command)
-                + ' ' + listRelatedConfigurationOptions(command) + '.');
-        out << endl;
-    }
-    if (!command->hooks.isEmpty()) {
-        wrapLine(out, 0, relatedHooksHeading(command)
-                + ' ' + listRelatedHooks(command) + '.');
-        out << endl;
-    }
     wrapLine(out, 0, tryLongHelpMessage(command->name + " --help"));
 }
 
-void CommandLineParser::commandUsage(QTextStream &out, const Command *command) const
+void CommandLineParser::commandUsage(const Command *command) const
 {
-    wrapLines(out, 0, {usageMessage()}, {EXE_NAME, command->name}, command->synopsis);
-    out << endl;
-    wrapLines(out, 0, {}, {}, command->description);
-    out << endl;
-    if (!command->configOptions.isEmpty()) {
-        wrapLine(out, 0, relatedConfigurationOptionsHeading(command)
-                + ' ' + listRelatedConfigurationOptions(command) + '.');
-        out << endl;
-    }
-    if (!command->hooks.isEmpty()) {
-        wrapLine(out, 0, relatedHooksHeading(command)
-                + ' ' + listRelatedHooks(command) + '.');
-        out << endl;
-    }
-    if (command->module->domain->name == Constants::GENERAL_DOMAIN_NAME)
-        wrapLine(out, 0, tryLongHelpMessage("--help"));
-    else
-        wrapLine(out, 0, tryLongHelpMessage("--help-" + command->module->domain->name));
+    const QString title = QString(EXE_NAME) + '-' + command->name;
+    showManual(title, [=](QTextStream &out) { commandUsage(out, command, title); });
 }
 
-void CommandLineParser::domainUsage(QTextStream &out, const Domain *domain) const
+void CommandLineParser::commandUsage(QTextStream &out, const Command *command, const QString &title) const
+{
+    AsciiMan::header(out, title);
+    out << endl;
+
+    AsciiMan::nameSection(out);
+    out << endl;
+    out << EXE_NAME << '-' << command->name << " - " << command->briefDescription << endl;
+    out << endl;
+
+    AsciiMan::synopsisSection(out);
+    out << endl;
+    AsciiMan::verseBegin(out);
+    wrapLines(out, 0, {}, {AsciiMan::boldLeadingWords(QString(EXE_NAME) + ' ' + command->name)},
+            command->synopsis, AsciiMan::BOLD_INDENT_CORRECTION);
+    AsciiMan::verseEnd(out);
+    out << endl;
+
+    AsciiMan::section(out, descriptionHeading());
+    out << endl;
+    out << command->description << endl;
+    out << endl;
+
+    if (!command->configOptions.isEmpty()) {
+        AsciiMan::section(out, configurationOptionsHeading());
+        out << endl;
+        out << relatedConfigurationOptionsHeading(command) << endl;
+        out << endl;
+        out << listRelatedConfigurationOptions(command) << '.' << endl;
+        out << endl;
+    }
+
+    if (!command->hooks.isEmpty()) {
+        AsciiMan::section(out, hooksHeading());
+        out << endl;
+        out << relatedHooksHeading(command) << endl;
+        out << endl;
+        out << listRelatedHooks(command) << '.' << endl;
+        out << endl;
+    }
+
+    AsciiMan::section(out, seeAlsoHeading());
+    out << endl;
+
+    if (command->module->domain->name == Constants::GENERAL_DOMAIN_NAME)
+        out << tryLongHelpMessage("--help") << endl;
+    else
+        out << tryLongHelpMessage("--help-" + command->module->domain->name) << endl;
+}
+
+void CommandLineParser::domainUsage(const Domain *domain) const
+{
+    const QString title = QString(EXE_NAME) + "manual-" + domain->name;
+    showManual(title, [=](QTextStream &out) { domainUsage(out, domain, title); });
+}
+
+void CommandLineParser::domainUsage(QTextStream &out, const Domain *domain, const QString &title) const
 {
     QTC_ASSERT(domain->name != Constants::GENERAL_DOMAIN_NAME, return);
 
@@ -512,117 +561,138 @@ void CommandLineParser::domainUsage(QTextStream &out, const Domain *domain) cons
     const Option::ConstList domainOptions = domain->options();
     const Hook::ConstList domainHooks = domain->hooks();
 
-    synopsis(out);
-    out << endl;
-    wrapLine(out, 0, summary());
+    AsciiMan::header(out, title);
     out << endl;
 
-    wrapLine(out, 0, tr("This manual deals specifically with the \"%1\" aspect of '%3' usage. Try '%2' (without subcommand) for general overview of '%3' usage or '%4' for an all-in-one manual.")
+    AsciiMan::nameSection(out);
+    out << endl;
+    out << manPageSummary(title) << endl;
+    out << endl;
+
+    AsciiMan::synopsisSection(out);
+    out << endl;
+    synopsis(out);
+    out << endl;
+
+    AsciiMan::subsection(out, commandsOverviewHeading());
+    out << endl;
+
+    out << tr("This manual deals specifically with the \"%1\" aspect of '%3' usage. Try '%2' (without subcommand) for general overview of '%3' usage or '%4' for an all-in-one manual.")
             .arg(domain->briefDescription())
             .arg(QString(EXE_NAME) + " --help")
             .arg(QLatin1String(EXE_NAME))
-            .arg(QString(EXE_NAME) + " --help-all"));
+            .arg(QString(EXE_NAME) + " --help-all") << endl;
     out << endl;
 
-    out << commandsOverviewHeading() << endl;
+    out << tr("Related commands:") << endl;
     out << endl;
 
-    describeBriefly(out, 1, domainCommands);
+    describeBriefly(out, domainCommands);
     out << endl;
+    out << endl;
+
+    out << tr("Try '%1 <command> --help' for the detailed description of each command.")
+        .arg(EXE_NAME) << endl;
+
+    out << endl;
+
+    AsciiMan::section(out, descriptionHeading());
     out << endl;
 
     for (const Module *module : domain->modules()) {
         if (!module->description.isEmpty()) {
-            wrapLines(out, 0, {}, {}, module->description);
+            out << module->description << endl;
             out << endl;
             out << endl;
         }
     }
 
-    out << commandsHeading() << endl;
+    AsciiMan::section(out, globalOptionsHeading());
     out << endl;
 
-    describe(out, 1, domainCommands);
-    out << endl;
-
-    out << globalOptionsHeading() << endl;
-    out << endl;
-
-    describeGlobalOptions(out, 1, domain);
+    describeGlobalOptions(out, domain);
 
     if (!domainOptions.isEmpty()) {
         out << endl;
-        out << configurationOptionsHeading() << endl;
+        AsciiMan::section(out, configurationOptionsHeading());
         out << endl;
-        describe(out, 1, domainOptions);
+        describe(out, domainOptions);
     }
 
     out << endl;
-    out << hooksHeading() << endl;
+    AsciiMan::section(out, hooksHeading());
     out << endl;
     if (domainHooks.isEmpty()) {
-        wrapLine(out, 1, tr("None of the commands under this domain supports any hooks."));
+        out << tr("None of the commands under this domain supports any hooks.") << endl;
         out << endl;
     } else {
-        describe(out, 1, domainHooks);
+        describe(out, domainHooks);
     }
 
     out << endl;
     bottomSections(out);
 }
 
-void CommandLineParser::allDomainsUsage(QTextStream &out) const
+void CommandLineParser::allDomainsUsage() const
 {
-    synopsis(out);
-    out << endl;
-    wrapLine(out, 0, summary());
+    const QString title = QString(EXE_NAME) + "manual";
+    showManual(title, [=](QTextStream &out) { allDomainsUsage(out, title); });
+}
+
+void CommandLineParser::allDomainsUsage(QTextStream &out, const QString &title) const
+{
+    AsciiMan::header(out, title);
     out << endl;
 
-    out << commandsOverviewHeading() << endl;
+    AsciiMan::nameSection(out);
+    out << endl;
+    out << manPageSummary(title) << endl;
+    out << endl;
+
+    AsciiMan::synopsisSection(out);
+    out << endl;
+    synopsis(out);
+    out << endl;
+
+    AsciiMan::subsection(out, commandsOverviewHeading());
     out << endl;
 
     for (const std::unique_ptr<const Domain> &domain : Dispatcher::domains()) {
-        wrapLine(out, 1, domain->briefDescription());
+        out << domain->briefDescription() << endl;
         out << endl;
-        describeBriefly(out, 2, domain->commands());
+        describeBriefly(out, domain->commands());
         out << endl;
     }
+
+    AsciiMan::section(out, descriptionHeading());
+    out << endl;
 
     for (const std::unique_ptr<const Domain> &domain : Dispatcher::domains()) {
         for (const Module *module : domain->modules()) {
             if (!module->description.isEmpty()) {
-                wrapLines(out, 0, {}, {}, module->description);
+                out << module->description << endl;
                 out << endl;
                 out << endl;
             }
         }
     }
 
-    out << commandsHeading() << endl;
+    AsciiMan::section(out, globalOptionsHeading());
     out << endl;
 
-    for (const std::unique_ptr<const Domain> &domain : Dispatcher::domains()) {
-        wrapLine(out, 1, domain->briefDescription());
-        describe(out, 2, domain->commands());
-        out << endl;
-    }
-
-    out << globalOptionsHeading() << endl;
+    describeGlobalOptions(out, nullptr);
     out << endl;
 
-    describeGlobalOptions(out, 1, nullptr);
+    AsciiMan::section(out, configurationOptionsHeading());
     out << endl;
 
-    out << configurationOptionsHeading() << endl;
+    describe(out, Utils::toRawPointer<QList>(Dispatcher::options()));
     out << endl;
 
-    describe(out, 1, Utils::toRawPointer<QList>(Dispatcher::options()));
+    AsciiMan::section(out, hooksHeading());
     out << endl;
 
-    out << hooksHeading() << endl;
-    out << endl;
-
-    describe(out, 1, Utils::toRawPointer<QList>(Dispatcher::hooks()));
+    describe(out, Utils::toRawPointer<QList>(Dispatcher::hooks()));
     out << endl;
 
     bottomSections(out);
@@ -693,6 +763,16 @@ bool CommandLineParser::splitArgs(const QString &args, Utils::OsType osType, QSt
 
     QTC_CHECK(false);
     return false;
+}
+
+QString CommandLineParser::introManPageSummary(const QString &name)
+{
+    return tr("%1 - the command line frontend of the %2").arg(name).arg(Sdk::sdkVariant());
+}
+
+QString CommandLineParser::manPageSummary(const QString &name)
+{
+    return name + " - " + summary();
 }
 
 QString CommandLineParser::summary()
@@ -771,12 +851,12 @@ QString CommandLineParser::tryLongHelpMessage(const QString &options)
 
 QString CommandLineParser::commandsOverviewHeading()
 {
-    return tr("Commands Overview").toUpper();
+    return tr("Commands Overview");
 }
 
-QString CommandLineParser::commandsHeading()
+QString CommandLineParser::descriptionHeading()
 {
-    return tr("Commands").toUpper();
+    return tr("Description").toUpper();
 }
 
 QString CommandLineParser::globalOptionsHeading()
@@ -804,6 +884,11 @@ QString CommandLineParser::relatedHooksHeading(const Command *command)
 {
     return tr("The '%1' command supports the following hooks:")
         .arg(command->name);
+}
+
+QString CommandLineParser::seeAlsoHeading()
+{
+    return tr("See Also").toUpper();
 }
 
 /*
@@ -987,7 +1072,7 @@ QStringList CommandLineParser::environmentVariableAsArguments(const char *name, 
     return arguments;
 }
 
-void CommandLineParser::synopsis(QTextStream &out) const
+QString CommandLineParser::synopsis() const
 {
     QStringList synopsis;
     synopsis.append(tr("[global-options] <command> [command-options]"));
@@ -999,48 +1084,54 @@ void CommandLineParser::synopsis(QTextStream &out) const
     synopsis.last().append(" --help-all}");
     synopsis.append("--version");
 
-    wrapLines(out, 0, {usageMessage()}, {EXE_NAME}, synopsis.join('\n'));
+    return synopsis.join('\n');
 }
 
-void CommandLineParser::describe(QTextStream &out, int indentLevel, const QList<QCommandLineOption> &options) const
+void CommandLineParser::synopsis(QTextStream &out) const
+{
+    AsciiMan::verseBegin(out);
+    wrapLines(out, 0, {}, {AsciiMan::boldLeadingWords(EXE_NAME)}, synopsis(),
+            AsciiMan::BOLD_INDENT_CORRECTION);
+    AsciiMan::verseEnd(out);
+}
+
+void CommandLineParser::describe(QTextStream &out, const QList<QCommandLineOption> &options) const
 {
     for (const QCommandLineOption &option : options) {
         QString names = Utils::transform(option.names(), dashOption).join(", ");
-        wrapLines(out, indentLevel + 0, {}, {names}, option.valueName());
-        wrapLines(out, indentLevel + 1, {}, {}, option.description());
+        AsciiMan::labeledListItemBegin(out, names + ' ' + option.valueName());
+        out << option.description() << endl;
+        AsciiMan::labeledListItemEnd(out);
         out << endl;
     }
 }
 
-void CommandLineParser::describeBriefly(QTextStream &out, int indentLevel, const Command::ConstList &commands) const
+void CommandLineParser::describeBriefly(QTextStream &out, const Command::ConstList &commands) const
 {
-    for (const Command *command : commands)
-        wrapLines(out, indentLevel, {}, {command->name, ""}, command->briefDescription);
-}
-
-void CommandLineParser::describe(QTextStream &out, int indentLevel, const Command::ConstList &commands) const
-{
+    AsciiMan::verseBegin(out);
     for (const Command *command : commands) {
-        wrapLines(out, indentLevel + 0, {}, {command->name}, command->synopsis);
-        wrapLines(out, indentLevel + 1, {}, {}, command->description);
-        out << endl;
+        wrapLines(out, 0, {}, {AsciiMan::boldLeadingWords(command->name), ""},
+                command->briefDescription, AsciiMan::BOLD_INDENT_CORRECTION);
     }
+    AsciiMan::verseEnd(out);
 }
 
-void CommandLineParser::describe(QTextStream &out, int indentLevel, const Option::ConstList &options) const
+void CommandLineParser::describe(QTextStream &out, const Option::ConstList &options) const
 {
     for (const Option *option : options) {
-        wrapLines(out, indentLevel + 0, {}, {option->name}, option->argumentDescription);
-        wrapLines(out, indentLevel + 1, {}, {}, option->description);
+        AsciiMan::labeledListItemBegin(out, option->name + ' ' + option->argumentDescription);
+        out << option->description << endl;
+        AsciiMan::labeledListItemEnd(out);
         out << endl;
     }
 }
 
-void CommandLineParser::describe(QTextStream &out, int indentLevel, const Hook::ConstList &hooks) const
+void CommandLineParser::describe(QTextStream &out, const Hook::ConstList &hooks) const
 {
     for (const Hook *hook : hooks) {
-        wrapLines(out, indentLevel + 0, {}, {hook->name}, hook->synopsis);
-        wrapLines(out, indentLevel + 1, {}, {}, hook->description);
+        AsciiMan::labeledListItemBegin(out, hook->name + ' ' + hook->synopsis);
+        out << hook->description << endl;
+        AsciiMan::labeledListItemEnd(out);
         out << endl;
     }
 }
@@ -1049,20 +1140,24 @@ void CommandLineParser::describe(QTextStream &out, int indentLevel, const Hook::
  * Describe global options. If \a domain is not null, the alias options will be limited to
  * configuration options specific to the given domain. Write to \a out, starting at \a indentLevel.
  */
-void CommandLineParser::describeGlobalOptions(QTextStream &out, int indentLevel, const Domain *domain) const
+void CommandLineParser::describeGlobalOptions(QTextStream &out, const Domain *domain) const
 {
-    describe(out, indentLevel, m_helpOptions);
+    describe(out, m_helpOptions);
 
-    out << indent(indentLevel + 0) << tr("--help-<domain>") << endl;
+    AsciiMan::labeledListItemBegin(out, tr("--help-<domain>"));
     QString helpDomainDescription = tr("Display the <domain> specific description. The valid <domain> names are:");
-    wrapLine(out, indentLevel + 1, helpDomainDescription);
+    out << helpDomainDescription << endl;
     out << endl;
 
+    AsciiMan::verseBegin(out);
     for (const std::unique_ptr<const Domain> &domain : Dispatcher::domains()) {
         if (domain->name == Constants::GENERAL_DOMAIN_NAME)
             continue;
-        wrapLines(out, indentLevel + 2, {}, {domain->name, ""}, domain->briefDescription());
+        wrapLines(out, 1, {}, {AsciiMan::boldLeadingWords(domain->name), ""},
+                domain->briefDescription(), AsciiMan::BOLD_INDENT_CORRECTION);
     }
+    AsciiMan::verseEnd(out);
+    AsciiMan::labeledListItemEnd(out);
     out << endl;
 
     QList<QCommandLineOption> globalOptions;
@@ -1093,38 +1188,84 @@ void CommandLineParser::describeGlobalOptions(QTextStream &out, int indentLevel,
         return o1.names().first() < o2.names().first();
     });
 
-    describe(out, indentLevel, globalOptions);
+    describe(out, globalOptions);
 }
 
 void CommandLineParser::bottomSections(QTextStream &out)
 {
     QString body;
 
-    out << environmentVariablesHeading() << endl;
+    AsciiMan::section(out, environmentVariablesHeading());
     out << endl;
 
-    out << indent(1) << Constants::EXIT_ABNORMAL_ENV_VAR << endl;
-    body = tr("See the %1 section.").arg(exitStatusHeading());
-    wrapLines(out, 2, {}, {}, body);
+    AsciiMan::labeledListItemBegin(out, Constants::EXIT_ABNORMAL_ENV_VAR);
+    out << tr("See the %1 section.").arg(exitStatusHeading()) << endl;
+    AsciiMan::labeledListItemEnd(out);
     out << endl;
 
-    out << indent(1) << Constants::NO_SESSION_ENV_VAR << endl;
-    body = tr("See the '--no-session' option.");
-    wrapLines(out, 2, {}, {}, body);
+    AsciiMan::labeledListItemBegin(out, Constants::NO_SESSION_ENV_VAR);
+    out << tr("See the '--no-session' option.") << endl;
+    AsciiMan::labeledListItemEnd(out);
     out << endl;
 
-    out << indent(1) << Constants::OPTIONS_ENV_VAR << endl;
-    body = tr("Setting this variable has the same effect as passing the value on the command line before any other options.");
-    wrapLines(out, 2, {}, {}, body);
+    AsciiMan::labeledListItemBegin(out, Constants::OPTIONS_ENV_VAR);
+    out << tr("Setting this variable has the same effect as passing the value on the command line before any other options.") << endl;
+    AsciiMan::labeledListItemEnd(out);
     out << endl;
 
     out << endl;
 
-    out << exitStatusHeading() << endl;
+    AsciiMan::section(out, exitStatusHeading());
     out << endl;
-    body = tr("%1 exits with zero exit code on success, command-specific nonzero exit code on command failure, or the reserved exit code of %2 to indicate bad usage, internal error, (remote) command dispatching error and suchlike conditions, that either prevented command starting or resulted in premature or otherwise abnormal command termination (different exit code may be designated for this purpose through the '%3' environment variable).")
+    out << tr("%1 exits with zero exit code on success, command-specific nonzero exit code on command failure, or the reserved exit code of %2 to indicate bad usage, internal error, (remote) command dispatching error and suchlike conditions, that either prevented command starting or resulted in premature or otherwise abnormal command termination (different exit code may be designated for this purpose through the '%3' environment variable).")
         .arg(Constants::EXE_NAME)
         .arg(Constants::EXIT_ABNORMAL_DEFAULT_CODE)
-        .arg(Constants::EXIT_ABNORMAL_ENV_VAR);
-    wrapLines(out, 1, {}, {}, body);
+        .arg(Constants::EXIT_ABNORMAL_ENV_VAR)
+        << endl;
+}
+
+void CommandLineParser::showManual(const QString &title,
+        std::function<void(QTextStream &out)> generator) const
+{
+    if (qEnvironmentVariableIntValue(Constants::GENDOC_RUN_ENV_VAR)) {
+        generator(Pager());
+        return;
+    }
+
+    if (!qEnvironmentVariableIntValue(Constants::NO_MAN_ENV_VAR)) {
+        if (showManualPage(title))
+            return;
+    }
+
+    generator(AsciiMan(Pager()));
+}
+
+bool CommandLineParser::showManualPage(const QString &title)
+{
+    const FilePath manPath = FilePath::fromString(QCoreApplication::applicationDirPath())
+        .pathAppended(RELATIVE_DOC_PATH)
+        .pathAppended("man/man1")
+        .canonicalPath()
+        .resolvePath(title + ".1.gz");
+    if (!manPath.exists()) {
+        qCDebug(sfdk) << "Manual page does not exist:" << manPath.toString();
+        return false;
+    }
+
+    QStringList arguments;
+    if (!Pager::isEnabled())
+        arguments << "--pager" << "cat";
+
+    arguments << "--local-file" << manPath.toString();
+
+    QProcess viewer;
+    viewer.setProcessChannelMode(QProcess::ForwardedChannels);
+    viewer.start("man", arguments);
+    if (!viewer.waitForStarted() || !viewer.waitForFinished(-1)) {
+        qCDebug(sfdk) << "'man' could not be started";
+        return false;
+    }
+
+    // Intentionally ignore exit status and code
+    return true;
 }
