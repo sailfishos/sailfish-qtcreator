@@ -211,8 +211,8 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
             return;
         }
     }
-    if (parser.isSet(helpOption)) {
-        usage(Pager());
+    if (parser.isSet(helpOption) && parser.positionalArguments().isEmpty()) {
+        usage();
         m_result = Usage;
         return;
     }
@@ -301,6 +301,12 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
     if (m_command == nullptr) {
         badUsage(unrecognizedCommandMessage(commandName));
         m_result = BadUsage;
+        return;
+    }
+
+    if (parser.isSet(helpOption)) {
+        commandUsage(m_command);
+        m_result = Usage;
         return;
     }
 
