@@ -190,6 +190,69 @@ _sfdk_hint_start_build_engine()
     _sfdk_hint "build engine not running"
 }
 
+__sfdk_shortest_unique_prefix()
+{
+    local retv=$1
+    local word=$2
+    local words=$3
+
+    local c= prefix= matches=
+    for ((c = 1; c <= ${#word}; c++)); do
+        prefix=${word:0:c}
+        matches=($(compgen -W "$words" -- "$prefix"))
+        ((${#matches[*]} == 1)) && break
+    done
+
+    local "$retv" && _upvars -v "$retv" "$prefix"
+}
+
+__sfdk_complete_with_shortcuts__make_shortcuts()
+{
+    local -A sparse_words=()
+    local long_word= sparse_word=
+    for long_word in "${!long_words[@]}"; do
+        if [[ $long_word == *-* ]]; then
+            # foo-bar -> fbar, foo-bar-baz -> fbbaz
+            sparse_word=$(tr - '\n' <<<$long_word |sed -e '$q' -e 's/^\(.\).*/\1/' |tr -d '\n')
+            [[ ${long_words[$sparse_word]+1} ]] && continue
+            sparse_words+=([$sparse_word]=$long_word)
+        fi
+    done
+    local shortcut=
+    for sparse_word in "${!sparse_words[@]}"; do
+        __sfdk_shortest_unique_prefix shortcut "$sparse_word" "${!sparse_words[*]} ${!long_words[*]}"
+        shortcuts+=([$shortcut]=${sparse_words[$sparse_word]})
+        shortcuts_i+=([${sparse_words[$sparse_word]}]=$shortcut)
+    done
+}
+
+# Use this to complete when multiple (sub)command exist with one "prefix-"
+_sfdk_complete_with_shortcuts()
+{
+    local -A long_words=()
+    local long_word=
+    for long_word in "$@"; do
+        long_words+=([$long_word]=)
+    done
+
+    local -A shortcuts=()
+    local -A shortcuts_i=()
+    __sfdk_complete_with_shortcuts__make_shortcuts
+
+    if [[ $cur && ${shortcuts[$cur]+1} ]]; then
+        COMPREPLY=("${shortcuts[$cur]}")
+    else
+        COMPREPLY=($(compgen -W "${!long_words[*]}" -- "$cur"))
+        local c= long_word=
+        for ((c = 0; c < ${#COMPREPLY[*]}; c++)); do
+            long_word=${COMPREPLY[c]}
+            if [[ ${shortcuts_i[$long_word]+1} && ${shortcuts_i[$long_word]} == "$cur"* ]]; then
+                COMPREPLY[c]+=,${shortcuts_i[$long_word]}
+            fi
+        done
+    fi
+}
+
 _sfdk()
 (
     [[ -v _sfdk_debug ]] || exec 2>/dev/null
@@ -304,7 +367,7 @@ _sfdk_main()
         elif [[ $cur == -* ]]; then
             COMPREPLY=($(compgen -W "${!options[*]}" -- "$cur"))
         else
-            COMPREPLY=($(compgen -W "${__sfdk_commands[*]}" -- "$cur"))
+            _sfdk_complete_with_shortcuts "${__sfdk_commands[@]}"
         fi
     else
         local cmd_completion_func=_sfdk_command_${command//-/_}
