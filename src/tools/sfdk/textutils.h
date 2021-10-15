@@ -49,12 +49,45 @@ public:
     ~Pager();
     operator QTextStream &() { return m_stream; }
 
+    static bool isEnabled() { return s_enabled; }
     static void setEnabled(bool enabled) { s_enabled = enabled; }
 
 private:
     static bool s_enabled;
     QProcess m_pager;
     QTextStream m_stream;
+};
+
+class AsciiMan
+{
+public:
+    static const int BOLD_INDENT_CORRECTION = -2;
+
+public:
+    AsciiMan(QTextStream &out);
+    ~AsciiMan();
+    operator QTextStream &() { return m_in; }
+
+public:
+    void flush();
+
+    static void render(QTextStream &in, QTextStream &out);
+
+    static void header(QTextStream &out, const QString &title);
+    static void section(QTextStream &out, const QString &title);
+    static void subsection(QTextStream &out, const QString &title);
+    static void nameSection(QTextStream &out);
+    static void synopsisSection(QTextStream &out);
+    static void verseBegin(QTextStream &out);
+    static void verseEnd(QTextStream &out);
+    static void labeledListItemBegin(QTextStream &out, const QString &label);
+    static void labeledListItemEnd(QTextStream &out);
+    static QString boldLeadingWords(const QString &string);
+
+private:
+    QByteArray m_buf;
+    QTextStream m_in;
+    QTextStream &m_out;
 };
 
 class LineEndPostprocessingMessageHandler
@@ -75,7 +108,7 @@ void wrapLine(QTextStream &out, int indentLevel, const QString &prefix1, const Q
         const QString &line);
 void wrapLine(QTextStream &out, int indentLevel, const QString &line);
 void wrapLines(QTextStream &out, int indentLevel, const QStringList &prefix1,
-        const QStringList &prefix2, const QString &lines);
+        const QStringList &prefix2, const QString &lines, int indentCorrection = 0);
 
 bool expandCompacted(const QString &string, QStringList *expanded);
 

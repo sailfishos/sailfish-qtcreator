@@ -57,6 +57,8 @@ const char NO_BYPASS_OPENSSL_ARMCAP_ENV_VAR[] = "SFDK_NO_BYPASS_OPENSSL_ARMCAP";
 const char NO_SESSION_ENV_VAR[] = "SFDK_NO_SESSION";
 const char SFDK_NO_AUTO_START_VMS_ENV_VAR[] = "SFDK_NO_AUTO_START_VMS";
 const char SFDK_AUTO_STOP_VMS_ENV_VAR[] = "SFDK_AUTO_STOP_VMS";
+const char GENDOC_RUN_ENV_VAR[] = "SFDK_GENDOC_RUN";
+const char NO_MAN_ENV_VAR[] = "SFDK_NO_MAN";
 
 } // namespace Constants
 } // namespace Sfdk
