@@ -48,12 +48,10 @@
 #include <qmakeprojectmanager/qmakeproject.h>
 #include <qmakeprojectmanager/qmakeprojectmanagerconstants.h>
 #include <qmakeprojectmanager/qmakestep.h>
-#include <utils/checkablemessagebox.h>
+#include <utils/infobar.h>
 
 #include <QApplication>
-#include <QCheckBox>
 #include <QTimer>
-#include <QVBoxLayout>
 
 using namespace Core;
 using namespace ProjectExplorer;
@@ -65,6 +63,8 @@ namespace {
 
 // Avoid actions on temporary changes and asking questions too hastily
 const int UPDATE_EXTRA_PARSER_ARGUMENTS_DELAY_MS = 3000;
+
+const char RUN_QMAKE_ENTRY_ID[] = "Mer.RunQmake";
 
 } // namespace anonymous
 
@@ -112,6 +112,11 @@ MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target, Utils::Id
     });
 
     disableQmakeSystem();
+}
+
+MerQmakeBuildConfiguration::~MerQmakeBuildConfiguration()
+{
+    Core::ICore::infoBar()->removeInfo(RUN_QMAKE_ENTRY_ID);
 }
 
 void MerQmakeBuildConfiguration::doInitialize(const ProjectExplorer::BuildInfo &info)
@@ -237,9 +242,6 @@ void MerQmakeBuildConfiguration::maybeUpdateExtraParserArguments(bool now)
         return;
     }
 
-    if (m_qmakeQuestion)
-        return; // already asking
-
     if (!MerSettings::isImportQmakeVariablesEnabled())
         return;
 
@@ -248,31 +250,33 @@ void MerQmakeBuildConfiguration::maybeUpdateExtraParserArguments(bool now)
         return;
     }
 
-    m_qmakeQuestion = new QMessageBox(
-            QMessageBox::Question,
-            tr("Run qmake?"),
-            tr("Run qmake to detect possible additional qmake arguments now?")
-                + QString(45, ' '), // more horizontal space for the informative text
-            QMessageBox::Yes | QMessageBox::No,
-            ICore::mainWindow());
-    m_qmakeQuestion->setInformativeText(tr("Additional qmake arguments may be "
-                "introduced at the rpmbuild level. The qmake build step needs to "
-                "be executed to recognize these and augment the project model "
-                "with this information."
-                "\n\n"
-                "(You may need to re-run qmake manually when you find project "
-                "parsing inaccurate after changes to the build configuration.)"));
-    m_qmakeQuestion->setCheckBox(new QCheckBox(CheckableMessageBox::msgDoNotAskAgain()));
-    connect(m_qmakeQuestion, &QMessageBox::finished, [=](int result) {
-        if (m_qmakeQuestion->checkBox()->isChecked())
-            MerSettings::setAskImportQmakeVariablesEnabled(false);
-        if (result == QMessageBox::Yes)
-            updateExtraParserArguments();
+    if (!Core::ICore::infoBar()->canInfoBeAdded(RUN_QMAKE_ENTRY_ID))
+        return; // already asking
+
+    Utils::InfoBarEntry info(RUN_QMAKE_ENTRY_ID,
+            tr("Run qmake to detect possible additional qmake arguments?"));
+    info.setDetailsWidgetCreator([]() {
+        auto *label = new QLabel(
+                tr("<p>Additional qmake arguments may be introduced at the rpmbuild level. The qmake "
+                "build step needs to be executed to recognize these and augment the project model "
+                "with this information. (Remember to re-run qmake manually whenever you find "
+                "project parsing inaccurate after changes to the build configuration.)</p>"
+                "<a href='#configure'>Configure…</a>"));
+        label->setWordWrap(true);
+        label->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
+        label->setContentsMargins(0, 0, 0, 8);
+        connect(label, &QLabel::linkActivated, []() {
+            Core::ICore::showOptionsDialog(Mer::Constants::MER_GENERAL_OPTIONS_ID,
+                    Core::ICore::dialogParent());
+        });
+
+        return label;
     });
-    m_qmakeQuestion->setEscapeButton(QMessageBox::No);
-    m_qmakeQuestion->setAttribute(Qt::WA_DeleteOnClose);
-    m_qmakeQuestion->show();
-    m_qmakeQuestion->raise();
+    info.setCustomButtonInfo(tr("Run qmake"), [=]() {
+        Core::ICore::infoBar()->removeInfo(RUN_QMAKE_ENTRY_ID);
+        updateExtraParserArguments();
+    });
+    Core::ICore::infoBar()->addInfo(info);
 }
 
 void MerQmakeBuildConfiguration::updateExtraParserArguments()
