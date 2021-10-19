@@ -1192,13 +1192,18 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     process.setRunInTerminal(runInTerminal);
     process.setInputChannelMode(QProcess::ForwardedInputChannel);
 
+    // Just a bit of caching
+    QString ignoredErrorMessage;
+    const QString cleanSharedSrc = s_instance->cleanSharedSrc();
+    const QString cleanSharedTarget = s_instance->cleanSharedTarget(&ignoredErrorMessage);
+
     QObject::connect(&process, &RemoteProcess::standardOutput, [&](const QByteArray &data) {
-        out->write(s_instance->maybeReverseMapEnginePaths(data));
+        out->write(s_instance->maybeReverseMapEnginePaths(data, cleanSharedSrc, cleanSharedTarget));
         if (stdOut)
             stdOut->flush();
     });
     QObject::connect(&process, &RemoteProcess::standardError, [&](const QByteArray &data) {
-        err->write(s_instance->maybeReverseMapEnginePaths(data));
+        err->write(s_instance->maybeReverseMapEnginePaths(data, cleanSharedSrc, cleanSharedTarget));
         if (stdErr)
             stdErr->flush();
     });
@@ -1714,7 +1719,8 @@ bool SdkManager::reverseMapEnginePaths(QString *program, QStringList *arguments,
     return true;
 }
 
-QByteArray SdkManager::maybeReverseMapEnginePaths(const QByteArray &commandOutput) const
+QByteArray SdkManager::maybeReverseMapEnginePaths(const QByteArray &commandOutput,
+        const QString &cleanSharedSrc, const QString &cleanSharedTarget) const
 {
     QTC_ASSERT(hasEngine(), return {});
 
@@ -1725,14 +1731,52 @@ QByteArray SdkManager::maybeReverseMapEnginePaths(const QByteArray &commandOutpu
     if (!m_enableReversePathMapping)
         return commandOutput;
 
-    const QString cleanSharedSrc = this->cleanSharedSrc();
-
     QByteArray retv = commandOutput;
 
     QTC_ASSERT(!cleanSharedSrc.isEmpty(), return retv);
     QTC_ASSERT(!m_buildEngine->sharedSrcMountPoint().isEmpty(), return retv);
 
     retv.replace(m_buildEngine->sharedSrcMountPoint().toUtf8(), cleanSharedSrc.toUtf8());
+
+    if (!cleanSharedTarget.isEmpty()) {
+        const QByteArray sysRoot = cleanSharedTarget.toUtf8();
+        const QByteArray delims = " \t\n:\"'";
+
+        auto sysRootize = [&](const QByteArray &path) {
+            for (int i = 0; i < retv.size(); ++i) {
+                i = retv.indexOf(path, i);
+                if (i == -1)
+                    return;
+                if (i > 0 && !delims.contains(retv.at(i - 1)))
+                    continue;
+                retv.insert(i, sysRoot);
+                i += sysRoot.size();
+            }
+        };
+        sysRootize("/usr/include/");
+        sysRootize("/usr/local/include/");
+        sysRootize("/usr/lib/");
+        sysRootize("/usr/lib64/");
+        sysRootize("/usr/share/");
+
+        auto sysRootizeToolingPath = [&](const QByteArray &path) {
+            const QByteArray toolingPrefix = "/srv/mer/toolings/";
+            for (int i = 0; i < retv.size(); ++i) {
+                i = retv.indexOf(toolingPrefix, i);
+                if (i == -1)
+                    return;
+                // Skip tooling name
+                int j = retv.indexOf("/", i + toolingPrefix.size());
+                if (j == -1)
+                    return;
+                if (retv.mid(j, path.size()) == path)
+                    retv.replace(i, j - i, sysRoot);
+            }
+        };
+        // GCC's system include paths are under the tooling. Map them to the
+        // respective directories under the target.
+        sysRootizeToolingPath("/opt/cross/");
+    }
 
     return retv;
 }
