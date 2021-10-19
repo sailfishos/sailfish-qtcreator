@@ -202,7 +202,8 @@ private:
             QProcessEnvironment *environment) const;
     bool reverseMapEnginePaths(QString *program, QStringList *arguments,
             QString *workingDirectory, QProcessEnvironment *environment) const;
-    QByteArray maybeReverseMapEnginePaths(const QByteArray &commandOutput) const;
+    QByteArray maybeReverseMapEnginePaths(const QByteArray &commandOutput,
+            const QString &cleanSharedSrc, const QString &cleanSharedTarget) const;
     QProcessEnvironment environmentToForwardToEngine() const;
 
 private:

@@ -170,7 +170,7 @@ bool CMakeHelper::doCMakeApiReplyPathMapping(const QDir &src, const QDir &dst, c
         // Note how this is done selectively for cache-* replies in doCMakeApiCacheReplyPathMapping
         data.replace(QRegularExpression("(/usr/(local/)?include\\b)"),
                 target.sysRoot.toString() + "\\1");
-        data.replace(QRegularExpression("(/usr/lib\\b)"),
+        data.replace(QRegularExpression("(/usr/lib(64)?\\b)"),
                 target.sysRoot.toString() + "\\1");
         data.replace(QRegularExpression("(/usr/share\\b)"),
                 target.sysRoot.toString() + "\\1");
