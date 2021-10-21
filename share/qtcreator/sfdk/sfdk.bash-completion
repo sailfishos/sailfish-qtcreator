@@ -253,11 +253,20 @@ _sfdk_complete_with_shortcuts()
     fi
 }
 
+_sfdk_dos2unix()
+{
+    if [[ -v MSYSTEM ]]; then
+        dos2unix
+    else
+        cat
+    fi
+}
+
 _sfdk()
 (
     [[ -v _sfdk_debug ]] || exec 2>/dev/null
     export SFDK_NO_AUTO_START_VMS=1
-    sfdk ${_sfdk_c_args:+"${_sfdk_c_args[@]}"} "$@"
+    sfdk ${_sfdk_c_args:+"${_sfdk_c_args[@]}"} "$@" |_sfdk_dos2unix
 )
 
 # Attention: whatever comes here must be independent of possible -C/-c args
