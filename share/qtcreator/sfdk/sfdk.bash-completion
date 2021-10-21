@@ -273,6 +273,9 @@ _sfdk()
 __sfdk_init()
 {
     [[ -v __sfdk_loaded ]] && return
+
+    # Allow to try again after setting PATH or setting up an alias
+    type -t "${__sfdk?}" >/dev/null || return
     __sfdk_loaded=1
 
     # TODO allow to show/set workspace as a global property with 'sfdk misc show/set'
