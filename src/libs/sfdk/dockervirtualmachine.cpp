@@ -583,7 +583,7 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
     arguments.append("--device=/dev/fuse");
 #endif
 
-    if (qEnvironmentVariableIsSet(SAILFISH_SDK_DOCKER_RUN_PRIVILEGED))
+    if (qEnvironmentVariableIntValue(SAILFISH_SDK_DOCKER_RUN_PRIVILEGED))
         arguments.append("--privileged");
     for (const QString &capability : qEnvironmentVariable(SAILFISH_SDK_DOCKER_CAP_ADD)
             .split(',', Qt::SkipEmptyParts)) {

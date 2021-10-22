@@ -1424,8 +1424,7 @@ void VmConnection::ask(Ui::Question which,
 bool VmConnection::shouldCheckSshPortIsOccupied() const
 {
     return !m_vmStartedOutside
-           && qEnvironmentVariableIsEmpty(
-                   SFDK_BYPASS_SSH_PORT_OCCUPIED_CHECK);
+           && !qEnvironmentVariableIntValue(SFDK_BYPASS_SSH_PORT_OCCUPIED_CHECK);
 }
 
 } // Sfdk

@@ -372,7 +372,7 @@ void MerSettings::read()
 
     settings->endGroup();
 
-    if (qEnvironmentVariableIsSet(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED)) {
+    if (!qEnvironmentVariableIsEmpty(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED)) {
 #ifdef MER_LIBRARY // Log::mer would be the missing symbol here
         qCWarning(Log::mer) << "The environment variable"
             << QLatin1String(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED)

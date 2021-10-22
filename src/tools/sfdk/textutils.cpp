@@ -118,7 +118,7 @@ std::unique_ptr<QFile> binaryOut(FILE *out)
 bool isConnectedToTerminal()
 {
     static const bool isConnectedToTerminal = []() -> bool {
-        if (qEnvironmentVariableIsSet(Constants::CONNECTED_TO_TERMINAL_HINT_ENV_VAR))
+        if (!qEnvironmentVariableIsEmpty(Constants::CONNECTED_TO_TERMINAL_HINT_ENV_VAR))
             return qEnvironmentVariableIntValue(Constants::CONNECTED_TO_TERMINAL_HINT_ENV_VAR);
 
 #if defined(Q_OS_WIN)
