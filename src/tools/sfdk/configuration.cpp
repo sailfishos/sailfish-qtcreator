@@ -430,9 +430,7 @@ QString Configuration::print()
 QString Configuration::globalConfigurationPath()
 {
     // QStandardPaths does not give the same locations
-    QSettings settings(QSettings::IniFormat, QSettings::UserScope,
-            QCoreApplication::organizationName(),
-            QCoreApplication::applicationName());
+    QSettings settings;
     QFileInfo info(settings.fileName());
     return info.dir().absoluteFilePath(info.completeBaseName() + CONFIGURATION_SUFFIX);
 }

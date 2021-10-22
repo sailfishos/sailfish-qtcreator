@@ -40,6 +40,7 @@
 
 #include <QCommandLineParser>
 #include <QRegularExpression>
+#include <QSettings>
 
 using namespace Sfdk;
 using namespace Utils;
@@ -1243,7 +1244,8 @@ void CommandLineParser::showManual(const QString &title,
 bool CommandLineParser::showManualPage(const QString &title)
 {
     const FilePath manPath = FilePath::fromString(QCoreApplication::applicationDirPath())
-        .pathAppended(RELATIVE_DOC_PATH)
+        .resolvePath(QSettings().value(Constants::DOC_PATH_SETTINGS_KEY, RELATIVE_DOC_PATH)
+                .toString())
         .pathAppended("man/man1")
         .canonicalPath()
         .resolvePath(title + ".1.gz");

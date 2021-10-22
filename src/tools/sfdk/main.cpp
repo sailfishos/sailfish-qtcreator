@@ -121,6 +121,7 @@ int main(int argc, char **argv)
     const QString resourcePath = QDir::cleanPath(app.applicationDirPath() + '/'
             + RELATIVE_DATA_PATH);
 
+    QSettings::setDefaultFormat(QSettings::IniFormat);
     QSettings::setPath(QSettings::IniFormat, QSettings::SystemScope, resourcePath);
 
 #ifdef Q_OS_WIN
