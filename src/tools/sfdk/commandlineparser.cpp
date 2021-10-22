@@ -227,7 +227,7 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
     }
 
     if (parser.isSet(noSessionOption)
-            || !qEnvironmentVariableIsEmpty(Constants::NO_SESSION_ENV_VAR)) {
+            || qEnvironmentVariableIntValue(Constants::NO_SESSION_ENV_VAR)) {
         m_noSession = true;
     }
 

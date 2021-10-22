@@ -57,7 +57,7 @@ QProcessEnvironment addQpaPlatformMinimal(const QProcessEnvironment &environment
     QProcessEnvironment environment_ = environment;
 
 #ifdef Q_OS_LINUX
-    if (!qEnvironmentVariableIsSet(Constants::NO_QPA_PLATFORM_MINIMAL_ENV_VAR))
+    if (!qEnvironmentVariableIntValue(Constants::NO_QPA_PLATFORM_MINIMAL_ENV_VAR))
         environment_.insert("QT_QPA_PLATFORM", "minimal");
 #endif
 

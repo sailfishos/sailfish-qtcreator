@@ -64,7 +64,7 @@ Session::Session(bool enable)
     }
 
     if (HostOsInfo::hostOs() == OsTypeWindows) {
-        if (!qEnvironmentVariableIsSet(Constants::MSYS_DETECTION_ENV_VAR)) {
+        if (qEnvironmentVariableIsEmpty(Constants::MSYS_DETECTION_ENV_VAR)) {
             qerr() << tr("Not running under MSYS shell. Session management is not possible.") << endl;
             return;
         }

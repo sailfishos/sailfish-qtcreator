@@ -254,7 +254,7 @@ public:
             if (includeAvailable)
                 return {};
 
-            if (qEnvironmentVariableIsSet(Constants::NO_TEMP_REPOSITORY_ENV_VAR))
+            if (qEnvironmentVariableIntValue(Constants::NO_TEMP_REPOSITORY_ENV_VAR))
                 return {};
 
             auto dir = std::make_unique<QTemporaryDir>(QDir::temp().filePath("sfdk-empty-repo"));
@@ -1050,7 +1050,7 @@ SdkManager::SdkManager(bool useSystemSettingsOnly)
     Q_ASSERT(!s_instance);
     s_instance = this;
 
-    if (!qEnvironmentVariableIsEmpty(Constants::DISABLE_REVERSE_PATH_MAPPING_ENV_VAR))
+    if (qEnvironmentVariableIntValue(Constants::DISABLE_REVERSE_PATH_MAPPING_ENV_VAR))
         setEnableReversePathMapping(false);
 
     m_merSettings = std::make_unique<MerSettings>();
@@ -1059,7 +1059,7 @@ SdkManager::SdkManager(bool useSystemSettingsOnly)
     Emulator::registerVmConnectionUi<VmConnectionUi>();
 
     Sdk::Options sdkOptions = Sdk::NoOption;
-    if (qEnvironmentVariableIsEmpty(Constants::DISABLE_VM_INFO_CACHE_ENV_VAR))
+    if (!qEnvironmentVariableIntValue(Constants::DISABLE_VM_INFO_CACHE_ENV_VAR))
         sdkOptions |= Sdk::CachedVmInfo;
     if (useSystemSettingsOnly) {
         sdkOptions &= ~Sdk::CachedVmInfo;
@@ -1136,7 +1136,7 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     // Assumption to minimize the time spent here: if the VM is running, we must have been waiting
     // before for the engine to fully start, so no need to wait for connectTo again
     if (!isEngineRunning()) {
-        if (qEnvironmentVariableIsSet(Constants::SFDK_NO_AUTO_START_VMS_ENV_VAR)) {
+        if (qEnvironmentVariableIntValue(Constants::SFDK_NO_AUTO_START_VMS_ENV_VAR)) {
             qerr() << tr("The build engine is not running and auto start is disabled") << endl;
             return SFDK_EXIT_ABNORMAL;
         }
@@ -1438,7 +1438,7 @@ bool SdkManager::prepareForRunOnDevice(const Device &device, RemoteProcess *proc
         // Assumption to minimize the time spent here: if the VM is running, we must have been waiting
         // before for the emulator to fully start, so no need to wait for connectTo again
         if (!isEmulatorRunning(*emulator)) {
-            if (qEnvironmentVariableIsSet(Constants::SFDK_NO_AUTO_START_VMS_ENV_VAR)) {
+            if (qEnvironmentVariableIntValue(Constants::SFDK_NO_AUTO_START_VMS_ENV_VAR)) {
                 qerr() << tr("The emulator is not running and auto start is disabled") << endl;
                 return false;
             }

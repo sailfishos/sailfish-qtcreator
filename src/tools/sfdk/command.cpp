@@ -199,8 +199,8 @@ public:
         bool lockDownOk = false;
 
         if (m_needsVmOff) {
-            if (!qEnvironmentVariableIsSet(Constants::SFDK_AUTO_STOP_VMS_ENV_VAR)
-                && SdkManager::isRunningReliably(m_virtualMachine)) {
+            if (!qEnvironmentVariableIntValue(Constants::SFDK_AUTO_STOP_VMS_ENV_VAR)
+                    && SdkManager::isRunningReliably(m_virtualMachine)) {
                 *errorString = m_stopVmMessage;
             } else {
                 execAsynchronous(std::tie(lockDownOk),
