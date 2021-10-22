@@ -38,6 +38,8 @@ const char TARGET_OPTION_NAME[] = "target";
 const char SNAPSHOT_OPTION_NAME[] = "snapshot";
 const char NO_SNAPSHOT_OPTION_NAME[] = "no-snapshot";
 
+const char DOC_PATH_SETTINGS_KEY[] = "Sfdk/Documentation";
+
 const char BUILD_ENGINE_SYSTEM_BUS_CONNECTION[] = "build-engine-system-bus";
 const char SAILFISH_SDK_SFDK_DBUS_SERVICE[] = "SAILFISH_SDK_SFDK_DBUS_SERVICE";
 
