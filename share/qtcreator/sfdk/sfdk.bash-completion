@@ -266,13 +266,16 @@ _sfdk()
 (
     [[ -v _sfdk_debug ]] || exec 2>/dev/null
     export SFDK_NO_AUTO_START_VMS=1
-    sfdk ${_sfdk_c_args:+"${_sfdk_c_args[@]}"} "$@" |_sfdk_dos2unix
+    "${__sfdk?}" ${_sfdk_c_args:+"${_sfdk_c_args[@]}"} "$@" |_sfdk_dos2unix
 )
 
 # Attention: whatever comes here must be independent of possible -C/-c args
 __sfdk_init()
 {
     [[ -v __sfdk_loaded ]] && return
+
+    # Allow to try again after setting PATH or setting up an alias
+    type -t "${__sfdk?}" >/dev/null || return
     __sfdk_loaded=1
 
     # TODO allow to show/set workspace as a global property with 'sfdk misc show/set'
@@ -303,6 +306,7 @@ _sfdk_main()
 
     _sfdk_c_args=()
 
+    local __sfdk=$1
     __sfdk_init || return
 
     local -A options=(
