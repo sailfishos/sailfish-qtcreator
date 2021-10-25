@@ -1255,10 +1255,17 @@ bool CommandLineParser::showManualPage(const QString &title)
     }
 
     QStringList arguments;
-    if (!Pager::isEnabled())
-        arguments << "--pager" << "cat";
+    if (!Pager::isEnabled()) {
+        if (HostOsInfo::isMacHost())
+            arguments << "-P" << "cat";
+        else
+            arguments << "--pager" << "cat";
+    }
 
-    arguments << "--local-file" << manPath.toString();
+    if (!HostOsInfo::isMacHost())
+        arguments << "--local-file";
+
+    arguments << manPath.toString();
 
     QProcess viewer;
     viewer.setProcessChannelMode(QProcess::ForwardedChannels);
