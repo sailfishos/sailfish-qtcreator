@@ -18,21 +18,21 @@
             "name": "build-requires",
             "trSynopsis": "[--[no-]refresh] {pull|reset}",
             "trBrief": "Update build time dependencies",
-            "configOptions": ["*", "target!", "-no-pull-build-requires"],
+            "configOptions": ["*", "-no-pull-build-requires", "-package.*", "target!"],
             "hooks": ["[pre-|post-]pull-build-requires"],
             "trDescription": "When 'pull' is used, install or update the build-time dependencies as is done implicitly by the 'prepare', 'build' and 'qmake' (or 'cmake') commands but refresh the package cache first, unless '--no-refresh' is active.\n\nUnless the 'no-snapshot' configuration option is used, '--no-refresh' is implied. This can be overridden with '--refresh' - do not use unless you know what you are doing. If refresh is needed, refresh (and update) the original target instead, then do 'reset'.\n\nThe 'reset' command is an extended version that also ensures that nothing else than the current build-time dependencies is pulled in on top of the clean build environment. It does it by resetting the target snapshot to the (possibly updated) state of the original target first, pulling later. (Not available when the 'no-snapshot' configuration option is used.)"
         },
         {
             "name": "prepare",
             "trBrief": "Prepare sources using the recipe from spec file",
-            "configOptions": ["*", "target!"],
+            "configOptions": ["*", "-package.*", "target!"],
             "trDescription": "Run rpmbuild. Execute just the %prep section of the .spec file."
         },
         {
             "name": "apply",
             "trSynopsis": "[-R]",
             "trBrief": "Apply patches listed in the spec file",
-            "configOptions": ["*", "target!"],
+            "configOptions": ["*", "-no-pull-build-requires", "-[no-]search-output-dir", "-package.*", "target!"],
             "trDescription": "Apply all patches defined in the .spec file to the source tree.\n\n-R    reverse apply patches (patch -R)"
         },
         {
@@ -48,7 +48,7 @@
             "name": "qmake",
             "trSynopsis": "[<project-dir-or-file>] [--] [<qmake-extra-arg>...]",
             "trBrief": "Execute qmake build step",
-            "configOptions": ["*", "target!"],
+            "configOptions": ["*", "-package.*", "target!"],
             "hooks": ["[pre-|post-]pull-build-requires"],
             "trDescription": "Run rpmbuild. Execute just the %build section of the .spec file, suppressing any 'make' invocation figuring in that section.\n\nIf path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the .spec file.)"
         },
@@ -56,7 +56,7 @@
             "name": "cmake",
             "trSynopsis": "[<project-dir>] [--] [<cmake-extra-arg>...]\n--build . [<cmake-extra-arg>...] [-- <build-tool-extra-arg>...]",
             "trBrief": "Execute cmake build step",
-            "configOptions": ["*", "target!"],
+            "configOptions": ["*", "-package.*", "target!"],
             "hooks": ["[pre-|post-]pull-build-requires"],
             "trDescription": "Run rpmbuild. Execute just the %build section of the .spec file, suppressing any 'cmake' invocation figuring in that section, that does not match the execution form used here, i.e., does not trigger the desired action, namely 1) generate a project buildsystem or 2) build the project.\n\nAdditionally, any plain 'make' invocation will be recognized as implementing the \"build the project\" action and will be treated accordingly. Any possible <cmake-extra-arg> will be silently ignored and any possible <build-tools-extra-arg> will be used equally for each 'make' invocation in that case.\n\nIf path to a <project-dir> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory.",
             "commandLineFilter": "module.filterCMakeCommandLine"
@@ -65,20 +65,20 @@
             "name": "make",
             "trSynopsis": "[<make-extra-arg>...]",
             "trBrief": "Execute make build step",
-            "configOptions": ["*", "target!"],
+            "configOptions": ["[no-]fix-version", "[no-]snapshot", "specfile", "target!"],
             "trDescription": "Run rpmbuild. Execute just the %build section of the .spec file, suppressing any command figuring in that section, that is recognized as a command to generate project buildsystem. The following is a complete list of such commands:\n\n- any 'qmake' invocation\n- any 'cmake' invocation using the corresponding execution form\n\nFor CMake based projects that use 'make' as the build tool (usual), the following two commands should yield the same results:\n\n    make <make-extra-arg>...\n    cmake --build . -- <make-extra-arg>..."
         },
         {
             "name": "make-install",
             "trBrief": "Execute make-install build step",
-            "configOptions": ["*", "target!"],
+            "configOptions": ["[no-]fix-version", "[no-]snapshot", "specfile", "target!"],
             "trDescription": "Run rpmbuild. Execute just the %install section of the .spec file in order to populate the RPM \"buildroot\". This is not the same as using the 'make' command with 'install' as an argument."
         },
         {
             "name": "package",
             "trSynopsis": "[--no-check] [--sign]",
             "trBrief": "Execute package creation build step",
-            "configOptions": ["*", "target!"],
+            "configOptions": ["*", "-no-pull-build-requires", "-[no-]search-output-dir", "target!", "-task"],
             "hooks": ["post-package", "pre-sign"],
             "trDescription": "Run rpmbuild. Execute just the %install section of the .spec file, then build binary packages and optionally sign those. Unless '--no-check' is passed, execute also the %check section if present.",
             "preRun": "module.maybeImportSigningKey"
