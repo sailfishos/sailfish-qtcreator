@@ -498,6 +498,38 @@ bool expandCompacted(const QString &string, QStringList *expanded)
     return true;
 }
 
+bool endsWithAnsiEscapeCode(const QByteArray &data, int length)
+{
+    int i = length < 0
+        ? data.length()
+        : qMin(data.length(), length);
+
+    if (--i < 0)
+        return false;
+    if (data.at(i) != 'm' && data.at(i) != 'K')
+        return false;
+
+    for (;;) {
+        if (--i < 0)
+            return false;
+        if (data.at(i) >= '0' && data.at(i) <= '9')
+            continue;
+        if (data.at(i) == ';')
+            continue;
+        break;
+    }
+
+    if (data.at(i) != '[')
+        return false;
+
+    if (--i < 0)
+        return false;
+    if (data.at(i) != '\x1b')
+        return false;
+
+    return true;
+}
+
 TreePrinter::Tree TreePrinter::build(const QList<QStringList> &table, int idColumn,
         int parentIdColumn)
 {

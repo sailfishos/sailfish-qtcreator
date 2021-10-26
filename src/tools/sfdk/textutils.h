@@ -112,6 +112,8 @@ void wrapLines(QTextStream &out, int indentLevel, const QStringList &prefix1,
 
 bool expandCompacted(const QString &string, QStringList *expanded);
 
+bool endsWithAnsiEscapeCode(const QByteArray &data, int length = -1);
+
 class TreePrinter
 {
 public:
