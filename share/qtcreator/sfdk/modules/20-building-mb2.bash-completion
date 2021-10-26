@@ -2,7 +2,11 @@
 
 _sfdk_command_build_requires()
 {
-    COMPREPLY=($(compgen -W "--{no-,}refresh pull reset" -- "$cur"))
+    if [[ $cur == -* ]]; then
+        COMPREPLY=($(compgen -W "--{no-,}refresh" -- "$cur"))
+    else
+        COMPREPLY=($(compgen -W "pull reset" -- "$cur"))
+    fi
 }
 
 _sfdk_command_prepare()
@@ -12,7 +16,11 @@ _sfdk_command_prepare()
 
 _sfdk_command_apply()
 {
-    COMPREPLY=($(compgen -W "-R" -- "$cur"))
+    if [[ $cur == -* ]]; then
+        COMPREPLY=($(compgen -W "-R" -- "$cur"))
+    else
+        _sfdk_no_defaults
+    fi
 }
 
 _sfdk_command_build()
@@ -140,7 +148,11 @@ _sfdk_command_make_install()
 
 _sfdk_command_package()
 {
-    COMPREPLY=($(compgen -W "--no-check --sign" -- "$cur"))
+    if [[ $cur == -* ]]; then
+        COMPREPLY=($(compgen -W "--no-check --sign" -- "$cur"))
+    else
+        _sfdk_no_defaults
+    fi
 }
 
 _sfdk_config_option_target()

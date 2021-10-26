@@ -10,6 +10,8 @@ _sfdk_command_qmltypes()
 
     if [[ $cur == -* ]]; then
         COMPREPLY=($(compgen -W "${!options[*]}" -- "$cur"))
+    else
+        _sfdk_no_defaults
     fi
 }
 
