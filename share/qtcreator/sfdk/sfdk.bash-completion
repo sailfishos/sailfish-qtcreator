@@ -34,6 +34,17 @@ _sfdk_no_defaults()
     compopt +o bashdefault +o default
 }
 
+_sfdk_readlink_f()
+{
+    local path=$1
+
+    if [[ $(uname) == Darwin ]]; then
+        python -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$path"
+    else
+        readlink -f "$path"
+    fi
+}
+
 _sfdk_current_compopt()
 {
     local compopt=($(compopt))
@@ -294,7 +305,7 @@ __sfdk_init()
     eval declare -gA __sfdk_config_aliases=($__sfdk_config_aliases_) || return
 
     local module_completion
-    for module_completion in "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"/modules/*.bash-completion; do
+    for module_completion in "$(dirname "$(_sfdk_readlink_f "${BASH_SOURCE[0]}")")"/modules/*.bash-completion; do
         . "$module_completion" || :
     done
 }
