@@ -1747,7 +1747,7 @@ QByteArray SdkManager::maybeReverseMapEnginePaths(const QByteArray &commandOutpu
                 i = retv.indexOf(path, i);
                 if (i == -1)
                     return;
-                if (i > 0 && !delims.contains(retv.at(i - 1)))
+                if (i > 0 && !delims.contains(retv.at(i - 1)) && !endsWithAnsiEscapeCode(retv, i))
                     continue;
                 retv.insert(i, sysRoot);
                 i += sysRoot.size();
