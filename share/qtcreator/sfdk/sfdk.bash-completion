@@ -273,11 +273,21 @@ _sfdk_dos2unix()
     fi
 }
 
+# Allow possible shell alias expansion
+__sfdk()
+{
+    if [[ ${__sfdk?} == sfdk ]]; then
+        sfdk "$@"
+    else
+        "${__sfdk?}" "$@"
+    fi
+}
+
 _sfdk()
 (
     [[ -v _sfdk_debug ]] || exec 2>/dev/null
     export SFDK_NO_AUTO_START_VMS=1
-    "${__sfdk?}" ${_sfdk_c_args:+"${_sfdk_c_args[@]}"} "$@" |_sfdk_dos2unix
+    __sfdk ${_sfdk_c_args:+"${_sfdk_c_args[@]}"} "$@" |_sfdk_dos2unix
 )
 
 # Attention: whatever comes here must be independent of possible -C/-c args
