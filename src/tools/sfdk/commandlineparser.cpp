@@ -63,9 +63,9 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
     QCommandLineOption hOption("h");
     hOption.setDescription(tr("Display the brief description and exit"));
     QCommandLineOption helpOption("help");
-    helpOption.setDescription(tr("Display the generic, introductory description and exit"));
+    helpOption.setDescription(tr("Display the generic, introductory manual and exit"));
     QCommandLineOption helpAllOption("help-all");
-    helpAllOption.setDescription(tr("Display the all-in-one description and exit. This provides the combined view of all the --help-<domain> provided descriptions."));
+    helpAllOption.setDescription(tr("Display the all-in-one manual and exit. This provides the combined view of all the --help-<domain> provided manuals."));
     m_helpOptions = {hOption, helpOption, helpAllOption};
     parser.addOptions(m_helpOptions);
 
@@ -445,10 +445,13 @@ void CommandLineParser::usage(QTextStream &out, const QString &title) const
         }
     }
 
-    AsciiMan::section(out, globalOptionsHeading());
+    AsciiMan::subsection(out, tr("Further Reading"));
     out << endl;
 
-    out << tr("This is the description of the general-usage options. Use the '--help-<domain>' options to display description of options specific to the particular <domain>.") << endl;
+    out << tr("Use the '--help-<domain>' options to read more on the particular <domain> or the '--help-all' option for the all-in-one manual.") << endl;
+    out << endl;
+
+    AsciiMan::section(out, globalOptionsHeading());
     out << endl;
 
     describeGlobalOptions(out, nullptr);
@@ -1146,7 +1149,7 @@ void CommandLineParser::describeGlobalOptions(QTextStream &out, const Domain *do
     describe(out, m_helpOptions);
 
     AsciiMan::labeledListItemBegin(out, tr("--help-<domain>"));
-    QString helpDomainDescription = tr("Display the <domain> specific description. The valid <domain> names are:");
+    QString helpDomainDescription = tr("Display the <domain> specific manual and exit. The valid <domain> names are:");
     out << helpDomainDescription << endl;
     out << endl;
 

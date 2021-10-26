@@ -736,7 +736,16 @@ bool Dispatcher::loadCommandConfigOptions(Command *command, const QVariantList &
         }
 
         QStringList names;
-        if (!expandCompacted(optionSpec, &names)) {
+        if (optionSpec.endsWith("*")) {
+            names = Utils::filtered(m_optionByName.keys(),
+                    [prefix=optionSpec.chopped(1)](const QString &name) {
+                        return name.startsWith(prefix);
+                    });
+            if (names.isEmpty()) {
+                *errorString = tr("No option matches prefix: '%1'").arg(optionSpec);
+                return false;
+            }
+        } else if (!expandCompacted(optionSpec, &names)) {
             *errorString = tr("Invalid compacted option specification: '%1'").arg(optionSpec);
             return false;
         }
