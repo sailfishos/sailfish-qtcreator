@@ -628,6 +628,7 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
     arguments.append(q->name());
 
     arguments.append(q->name());
+    arguments.append({"/usr/bin/setarch", "i386", "/sbin/init"});
 
     return arguments;
 }
