@@ -135,7 +135,7 @@
         {
             "name": "task",
             "trArgument": "[<name>|git:<regex>]",
-            "trDescription": "Modifies behavior of the 'output-prefix' option.  The task name can be specified either directly as <name> or it can be derived from the current Git branch name, if a value in the form 'git:<regex>' is set. The POSIX extended regular expression <regex> serves both as a condition to enable this option and as a mean to select a substring of the branch name to be used as the task name. Defaults to 'git:^[[:alpha:]]{2,5}[[:digit:]]{3,}'. The default expression is suitable to look for a leading bug reference in the branch name. E.g. 'bug1234' in 'bug1234-quickfix'."
+            "trDescription": "Modifies behavior of the 'output-prefix' option.  The task name can be specified either directly as <name> or it can be derived from the current Git branch name, if a value in the form 'git:<regex>' is set.\n\nThe POSIX extended regular expression <regex> serves both as a condition to enable this option and as a mean to select a substring of the Git branch name to be used as the task name.\n\nThe argument may be omitted, in which case the default of\n\n  git:^[[:alpha:]]{2,5}[[:digit:]]{3,}\n\nwill be used, which is suitable to look for a bug reference at the beginning of the current Git branch name. E.g., when the branch is named 'bug1234-quickfix', then 'bug1234' (the portion matched by the regular expression) will be used as the task name."
         },
         {
             "name": "fix-version",
