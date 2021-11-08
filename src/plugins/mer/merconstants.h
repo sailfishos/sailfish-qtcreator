@@ -50,7 +50,7 @@ const char MER_TOOLS_MENU[] = "Mer.Tools.Menu";
 const char MER_EMULATOR_MODE_ACTION_ID[] = "Mer.Emulator.Mode.Action";
 const char MER_START_QML_LIVE_BENCH_ACTION_ID[] = "Mer.StartQmlLiveBench.Action";
 
-const char MER_DEVICE_DEFAULTUSER[] = "nemo";
+const char MER_DEVICE_DEFAULTUSER[] = "defaultuser";
 const char MER_DEVICE_ROOTUSER[] = "root";
 
 const char MER_SDK_PROXY_DISABLED[] = "direct";
