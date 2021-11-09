@@ -83,7 +83,7 @@ __sfdk_complete_available_tools()
     _sfdk_no_defaults
 
     local objects=
-    if _sfdk_cache objects _sfdk tools $maybe_type list --available; then
+    if _sfdk_cache objects _sfdk tools ${maybe_type:-target} list --available; then
         objects=$(sed 's/^[^[:alnum:]]*//' <<<$objects |awk '($2 ~ /available/) { print $1 }')
         COMPREPLY=($(compgen -W "$objects" -- "$cur"))
     elif ! _sfdk_is_engine_running; then
