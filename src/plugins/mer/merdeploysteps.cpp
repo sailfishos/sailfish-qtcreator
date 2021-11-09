@@ -691,7 +691,13 @@ void MerMb2RpmBuildStep::processFinished(int exitCode, QProcess::ExitStatus stat
 QString MerMb2RpmBuildStep::mainPackageFileName() const
 {
     QTC_ASSERT(!m_packages.isEmpty(), return {});
-    return m_packages.first();
+    const QString firstNonDebugPackage = Utils::findOrDefault(m_packages,
+            [](const QString &package) {
+                return !package.contains("-debuginfo-")
+                    && !package.contains("-debugsource-");
+            });
+    QTC_CHECK(!firstNonDebugPackage.isEmpty());
+    return firstNonDebugPackage;
 }
 
 void MerMb2RpmBuildStep::stdOutput(const QString &line)
