@@ -159,7 +159,7 @@ public:
                     .arg(virtualMachine()->name()));
             break;
         }
-}
+    }
 
     void dismissQuestion(Question which) override
     {
