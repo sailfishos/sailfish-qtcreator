@@ -181,7 +181,7 @@ private:
     bool m_cachedSshErrorOccured;
     QString m_cachedSshErrorString;
     QPointer<QSsh::SshConnection> m_cachedSshErrorOrigin;
-    bool m_committing;
+    bool m_vmCommitting;
 
     // timeout timers
     QBasicTimer m_vmStartingTimeoutTimer;
