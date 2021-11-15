@@ -189,7 +189,7 @@ VmConnection::VmConnection(VirtualMachine *parent)
     , m_cachedVmRunningHeadless(false)
     , m_cachedSshConnected(false)
     , m_cachedSshErrorOccured(false)
-    , m_committing(false)
+    , m_vmCommitting(false)
     , m_vmWantFastPollState(0)
     , m_pollingVmState(false)
 {
@@ -931,14 +931,14 @@ bool VmConnection::vmStmStep()
 
     case VmCommitting:
         ON_ENTRY {
-            m_committing = true;
+            m_vmCommitting = true;
             BatchComposer composer_ = batchComposer();
             VirtualMachinePrivate::get(m_vm)->commit(this, [=](bool ok) {
                 onCommitFinished(ok);
             });
         }
 
-        if (!m_committing)
+        if (!m_vmCommitting)
             vmStmTransition(VmOff, "committed");
 
         ON_EXIT {
@@ -1387,7 +1387,7 @@ void VmConnection::onRemoteShutdownProcessFinished()
 void VmConnection::onCommitFinished(bool ok)
 {
     DBG << "Commit finished" << ok;
-    m_committing = false;
+    m_vmCommitting = false;
     vmStmScheduleExec();
 }
 

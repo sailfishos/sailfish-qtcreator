@@ -57,6 +57,7 @@
 namespace {
 const int CONNECT_TIMEOUT_MS = 60000;
 const int LOCK_DOWN_TIMEOUT_MS = 60000;
+const int CLOSE_VM_TIMEOUT_MS = 7000; // just time to show an informal message
 
 #ifdef Q_OS_MACOS
 const char SDK_MAINTENANCE_TOOL[] = "SDKMaintenanceTool.app/Contents/MacOS/SDKMaintenanceTool";
@@ -93,6 +94,14 @@ class VmConnectionUi : public VirtualMachine::ConnectionUi
 
 public:
     using VirtualMachine::ConnectionUi::ConnectionUi;
+
+    void setVirtualMachine(VirtualMachine *virtualMachine) override
+    {
+        ConnectionUi::setVirtualMachine(virtualMachine);
+
+        connect(virtualMachine, &VirtualMachine::stateChanged,
+                this, &VmConnectionUi::onVmStateChanged);
+    }
 
     void warn(Warning which) override
     {
@@ -150,7 +159,7 @@ public:
                     .arg(virtualMachine()->name()));
             break;
         }
-}
+    }
 
     void dismissQuestion(Question which) override
     {
@@ -191,12 +200,49 @@ public:
     }
 
 private:
+    void onVmStateChanged()
+    {
+        switch (virtualMachine()->state()) {
+        case VirtualMachine::Disconnected:
+        case VirtualMachine::Error:
+        case VirtualMachine::Connected:
+            delete m_informClosingTimer;
+            break;
+
+        case VirtualMachine::Starting:
+        case VirtualMachine::Connecting:
+        case VirtualMachine::Disconnecting:
+            break;
+
+        case VirtualMachine::Closing:
+            m_informClosingTimer = startInfoTimer(CLOSE_VM_TIMEOUT_MS,
+                    // Align with the "Starting..." messages
+                    virtualMachine() == SdkManager::engine()->virtualMachine()
+                    // Docker VMs are usually fast to start but sometimes very slow to close (commit)
+                    ? tr("Stopping the build engine… (this may take some time)")
+                    // VBox VMs are usually slow to start but fast to close
+                    : tr("Stopping the emulator…"));
+            break;
+        }
+    }
+
     QTimer *startTimer(int timeout, std::function<void()> onStatusChanged, const QString &timeoutMessage)
     {
         QTimer *timer = new QTimer(this);
         connect(timer, &QTimer::timeout, [=] {
             qerr() << timeoutMessage << endl;
             onStatusChanged();
+        });
+        timer->setSingleShot(true);
+        timer->start(timeout);
+        return timer;
+    }
+
+    QTimer *startInfoTimer(int timeout, const QString &timeoutMessage)
+    {
+        QTimer *timer = new QTimer(this);
+        connect(timer, &QTimer::timeout, [=] {
+            qCInfo(sfdk).noquote() << timeoutMessage;
         });
         timer->setSingleShot(true);
         timer->start(timeout);
@@ -216,6 +262,7 @@ private:
 private:
     QPointer<QTimer> m_cancelConnectingTimer;
     QPointer<QTimer> m_cancelLockingDownTimer;
+    QPointer<QTimer> m_informClosingTimer;
 };
 
 class PackageManager
