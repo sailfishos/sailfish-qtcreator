@@ -79,6 +79,10 @@ void DeviceProcessList::update()
     QTC_ASSERT(device(), return);
 
     d->model.clear();
+    d->model.rootItem()->appendChild(
+                new DeviceProcessTreeItem(
+                    {0, tr("Fetching process list. This might take a while."), ""},
+                    Qt::NoItemFlags));
     d->state = Listing;
     doUpdate();
 }
@@ -87,6 +91,7 @@ void DeviceProcessList::reportProcessListUpdated(const QList<DeviceProcessItem> 
 {
     QTC_ASSERT(d->state == Listing, return);
     setFinished();
+    d->model.clear();
     for (const DeviceProcessItem &process : processes) {
         Qt::ItemFlags fl;
         if (process.pid != d->ownPid)
@@ -133,7 +138,7 @@ QVariant DeviceProcessTreeItem::data(int column, int role) const
 {
     if (role == Qt::DisplayRole || role == Qt::ToolTipRole) {
         if (column == 0)
-            return process.pid;
+            return process.pid ? process.pid : QVariant();
         else
             return process.cmdLine;
     }
