@@ -11,8 +11,10 @@ export function formatOption(name, argument, needsArgument, defaultFormat) {
         "task"
     ].flatMap(utils.expandCompacted);
 
-    if (mb2Options.indexOf(name) >= 0)
-        return [true, ["-Xmb2"].concat(defaultFormat)];
+    if (mb2Options.indexOf(name) >= 0) {
+        var format = defaultFormat.flatMap(argument => ["-Xmb2", argument]);
+        return [true, format];
+    }
 
     return [false, []];
 }
