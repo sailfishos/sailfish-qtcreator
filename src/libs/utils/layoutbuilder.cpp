@@ -124,7 +124,7 @@ LayoutBuilder::LayoutBuilder(QWidget *parent, LayoutType layoutType)
     if (layoutType == FormLayout) {
         m_formLayout = new QFormLayout(parent);
         m_formLayout->setContentsMargins(0, 0, 0, 0);
-        m_formLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+        m_formLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     } else {
         m_gridLayout = new QGridLayout(parent);
         m_gridLayout->setContentsMargins(0, 0, 0, 0);

@@ -275,6 +275,7 @@ public:
     void setMacroExpanderProvider(const Utils::MacroExpanderProvider &expanderProvider);
     void setValidationFunction(const Utils::FancyLineEdit::ValidationFunction &validator);
     void setOpenTerminalHandler(const std::function<void()> &openTerminal);
+    void setElideMode(Qt::TextElideMode elideMode);
 
     void validateInput();
 
