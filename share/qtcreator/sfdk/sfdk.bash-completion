@@ -168,6 +168,11 @@ _sfdk_complete_flags()
     fi
 }
 
+_sfdk_complete_boolean_property()
+{
+    COMPREPLY=($(compgen -W "yes no" -- "$cur"))
+}
+
 __sfdk_format_dict()
 {
     local key= value=

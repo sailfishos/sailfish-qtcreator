@@ -376,6 +376,11 @@ QString indent(int level)
     return QString(level * SHIFT_WIDTH, ' ');
 }
 
+QString indentLines(int level, const QString &lines)
+{
+    return indent(level) + lines.split('\n').join('\n' + indent(level));
+}
+
 /*!
  * Indent the \a line according to \a indentLevel and wrap it at the configured wrap margin. Use \a
  * prefix1 at the beginning and \a prefix2 on every continuation line. Write to \a out.

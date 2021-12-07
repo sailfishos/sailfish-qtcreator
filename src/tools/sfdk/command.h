@@ -139,6 +139,8 @@ private:
             QString *errorString);
     static bool listEmulators(SdkManager::ListEmulatorsOptions options);
     static Emulator *defaultEmulator(QString *errorString);
+    static void listDeviceModels();
+    static bool showDeviceModel(const QString &name);
     static bool listTools(SdkManager::ListToolsOptions options, bool listToolings,
             bool listTargets);
     static bool stopVirtualMachines();
