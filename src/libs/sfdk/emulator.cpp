@@ -377,9 +377,12 @@ bool EmulatorPrivate::fromMap(const QVariantMap &data)
 
     DeviceModelData deviceModel;
     EmulatorManager::fromMap(&deviceModel, data.value(Constants::EMULATOR_DEVICE_MODEL).toMap());
-    setDisplayProperties(deviceModel,
-            static_cast<Qt::Orientation>(data.value(Constants::EMULATOR_ORIENTATION).toInt()),
-            data.value(Constants::EMULATOR_VIEW_SCALED).toBool());
+    Qt::Orientation orientation = static_cast<Qt::Orientation>(
+            data.value(Constants::EMULATOR_ORIENTATION, Qt::Vertical).toInt());
+    if (orientation == 0)
+        orientation = Qt::Vertical;
+    const bool viewScaled = data.value(Constants::EMULATOR_VIEW_SCALED).toBool();
+    setDisplayProperties(deviceModel, orientation, viewScaled);
 
     return true;
 }
