@@ -59,6 +59,7 @@ MerRunConfiguration::MerRunConfiguration(Target *target, Utils::Id id)
     auto symbolsAspect = addAspect<SymbolFileAspect>();
     symbolsAspect->setLabelText(tr("Executable on host:"));
     symbolsAspect->setDisplayStyle(SymbolFileAspect::LabelDisplay);
+    symbolsAspect->setElideMode(Qt::ElideMiddle);
 
     addAspect<ArgumentsAspect>();
     addAspect<WorkingDirectoryAspect>();
