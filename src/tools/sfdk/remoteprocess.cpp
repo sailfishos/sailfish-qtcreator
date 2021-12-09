@@ -132,6 +132,18 @@ void RemoteProcess::enableLogAllOutput(std::function<const QLoggingCategory &()>
     }
 }
 
+int RemoteProcess::niceness() const
+{
+    return m_niceness;
+}
+
+void RemoteProcess::setNiceness(int niceness)
+{
+    QTC_CHECK(niceness >= 0);
+    QTC_CHECK(niceness <= 19);
+    m_niceness = niceness;
+}
+
 int RemoteProcess::exec()
 {
     QEventLoop loop;
@@ -151,6 +163,8 @@ void RemoteProcess::start()
         fullCommand.append("cd ").append(Utils::QtcProcess::quoteArgUnix(m_workingDirectory))
             .append(" && ");
     }
+    if (m_niceness > 0)
+        fullCommand.append(QString("{ renice -n %1 $$ >/dev/null || :; } && ").arg(m_niceness));
     fullCommand.append(environmentString(m_extraEnvironment));
     fullCommand.append(" exec ");
     fullCommand.append(Utils::QtcProcess::quoteArgUnix(m_program));
