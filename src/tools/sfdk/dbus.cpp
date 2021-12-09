@@ -128,13 +128,9 @@ public slots:
     void prepare(const QDBusMessage &message)
     {
         withDevice(message, [=](Device *device) {
-            RemoteProcess test;
-            test.setProgram("/bin/true");
-            test.setRunInTerminal(false);
-            if (!SdkManager::prepareForRunOnDevice(*device, &test)
-                    || test.exec() != EXIT_SUCCESS) {
+            RemoteProcess noop;
+            if (!SdkManager::prepareForRunOnDevice(*device, &noop))
                 replyError(message, tr("Failed to prepare device"));
-            }
         });
     }
 
