@@ -482,6 +482,7 @@ bool BuildEnginePrivate::initVirtualMachine(const QUrl &vmUri)
     sshParameters.timeout = Constants::BUILD_ENGINE_DEFAULT_SSH_TIMEOUT;
     sshParameters.hostKeyCheckingMode = SshHostKeyCheckingNone;
     sshParameters.authenticationType = SshConnectionParameters::AuthenticationTypeSpecificKey;
+    sshParameters.forwardAgent = true;
     virtualMachine->setSshParameters(sshParameters);
 
     QObject::connect(VirtualMachinePrivate::get(virtualMachine.get()),
