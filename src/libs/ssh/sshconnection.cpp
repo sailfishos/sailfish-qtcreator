@@ -74,6 +74,7 @@ static inline bool equals(const SshConnectionParameters &p1, const SshConnection
             && p1.authenticationType == p2.authenticationType
             && p1.privateKeyFile == p2.privateKeyFile
             && p1.hostKeyCheckingMode == p2.hostKeyCheckingMode
+            && p1.forwardAgent == p2.forwardAgent
             && p1.x11DisplayName == p2.x11DisplayName
             && p1.timeout == p2.timeout;
 }
@@ -140,6 +141,8 @@ struct SshConnection::SshConnectionPrivate
         }
         if (keyOnly || SshSettings::askpassFilePath().isEmpty())
             args << "-o" << "BatchMode=yes";
+        if (connParams.forwardAgent)
+            args << "-o" << "ForwardAgent=yes";
         if (sharingEnabled)
             args << "-o" << ("ControlPath=" + socketFilePath());
         bool useTimeout = connParams.timeout != 0;

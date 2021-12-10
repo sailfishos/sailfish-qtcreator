@@ -72,6 +72,7 @@ public:
     int timeout = 0; // In seconds.
     AuthenticationType authenticationType = AuthenticationTypeAll;
     SshHostKeyCheckingMode hostKeyCheckingMode = SshHostKeyCheckingAllowNoMatch;
+    bool forwardAgent = false;
 };
 
 QSSH_EXPORT bool operator==(const SshConnectionParameters &p1, const SshConnectionParameters &p2);
