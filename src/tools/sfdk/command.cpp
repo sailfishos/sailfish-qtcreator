@@ -1940,6 +1940,7 @@ Worker::ExitStatus BuiltinWorker::runTools(const QStringList &arguments_, int *e
     }
 
     if (arguments.first() == "package-list"
+            || arguments.first() == "package-search"
             || arguments.first() == "package-install"
             || arguments.first() == "package-remove") {
         QStringList allArguments = arguments_;
