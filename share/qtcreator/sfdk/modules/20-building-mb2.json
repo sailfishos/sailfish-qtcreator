@@ -15,6 +15,13 @@
     "commands":
     [
         {
+            "name": "build-init",
+            "trSynopsis": "[<project-dir-or-file>]",
+            "trBrief": "Initialize build directory",
+            "configOptions": ["[no-]snapshot", "specfile", "target!"],
+            "trDescription": "Prepares the current working directory for use as a build directory. This is normally done implicitly by the 'build', 'qmake' or 'cmake' commands and does not need to be done explicitly with this command.\n\nWhen a <project-dir-or-file> is passed, a shadow build directory will be initialized.  Otherwise the current working directory is treated as the project (source) directory.\n"
+        },
+        {
             "name": "build-requires",
             "trSynopsis": "[--[no-]refresh] {pull|reset}",
             "trBrief": "Update build time dependencies",
