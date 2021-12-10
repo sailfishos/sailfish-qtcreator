@@ -54,6 +54,10 @@
 
 #include <bitset>
 
+#if defined(Q_OS_UNIX)
+# include <sys/resource.h>
+#endif
+
 namespace {
 const int CONNECT_TIMEOUT_MS = 60000;
 const int LOCK_DOWN_TIMEOUT_MS = 60000;
@@ -1238,6 +1242,9 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     process.setExtraEnvironment(extraEnvironment);
     process.setRunInTerminal(runInTerminal);
     process.setInputChannelMode(QProcess::ForwardedInputChannel);
+#if defined(Q_OS_UNIX)
+    process.setNiceness(qMax(0, ::getpriority(PRIO_PROCESS, 0)));
+#endif
 
     // Just a bit of caching
     QString ignoredErrorMessage;

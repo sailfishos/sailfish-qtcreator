@@ -90,6 +90,9 @@ public:
 
     void enableLogAllOutput(std::function<const QLoggingCategory &()> category, const QString &key);
 
+    int niceness() const;
+    void setNiceness(int niceness);
+
     void start();
     int exec();
 
@@ -127,6 +130,7 @@ private:
     QProcessEnvironment m_extraEnvironment;
     Utils::optional<bool> m_runInTerminal;
     Utils::optional<QProcess::InputChannelMode> m_inputChannelMode;
+    int m_niceness = 0;
     bool m_standardOutputLineBuffered = false;
     bool m_startedOk = false;
     bool m_finished = false;
