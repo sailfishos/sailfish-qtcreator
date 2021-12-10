@@ -475,11 +475,12 @@ public:
     std::function<QString(const QString &)> m_displayFilter;
     std::unique_ptr<BoolAspect> m_checker;
 
+    Qt::TextElideMode m_elideMode = Qt::ElideNone;
     QString m_placeHolderText;
     QString m_historyCompleterKey;
     PathChooser::Kind m_expectedKind = PathChooser::File;
     Environment m_environment;
-    QPointer<QLabel> m_labelDisplay;
+    QPointer<ElidingLabel> m_labelDisplay;
     QPointer<FancyLineEdit> m_lineEditDisplay;
     QPointer<PathChooser> m_pathChooserDisplay;
     QPointer<QTextEdit> m_textEditDisplay;
@@ -744,6 +745,16 @@ void StringAspect::setPlaceHolderText(const QString &placeHolderText)
 }
 
 /*!
+    Sets \a elideMode as label elide mode.
+*/
+void StringAspect::setElideMode(Qt::TextElideMode elideMode)
+{
+    d->m_elideMode = elideMode;
+    if (d->m_labelDisplay)
+        d->m_labelDisplay->setElideMode(elideMode);
+}
+
+/*!
     Sets \a historyCompleterKey as key for the history completer settings for
     line edits and path chooser displays.
 
@@ -889,7 +900,8 @@ void StringAspect::addToLayout(LayoutBuilder &builder)
         builder.addItem(d->m_textEditDisplay.data());
         break;
     case LabelDisplay:
-        d->m_labelDisplay = createSubWidget<QLabel>();
+        d->m_labelDisplay = createSubWidget<ElidingLabel>();
+        d->m_labelDisplay->setElideMode(d->m_elideMode);
         d->m_labelDisplay->setTextInteractionFlags(Qt::TextSelectableByMouse);
         builder.addItem(d->m_labelDisplay.data());
         break;
