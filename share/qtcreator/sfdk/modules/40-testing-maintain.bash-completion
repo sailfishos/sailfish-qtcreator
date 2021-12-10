@@ -52,6 +52,15 @@ __sfdk_complete_emulator_property_name()
 __sfdk_complete_emulator_property_value()
 {
     case $prev in
+        device-model)
+            __sfdk_complete_device_model
+            ;;
+        orientation)
+            COMPREPLY=($(compgen -W "portrait landscape" -- "$cur"))
+            ;;
+        downscale)
+            _sfdk_complete_boolean_property
+            ;;
         *)
             compopt +o default
             ;;
@@ -88,12 +97,21 @@ __sfdk_complete_available_emulator_name()
     COMPREPLY=("${COMPREPLY[@]@Q}")
 }
 
+__sfdk_complete_device_model()
+{
+    local objects=$(_sfdk emulator device-model-list)
+    IFS=$'\n' read -a COMPREPLY -d '' \
+        <<<$(IFS=$'\n' compgen -W "$objects" -- "$cur")
+    COMPREPLY=("${COMPREPLY[@]@Q}")
+}
+
 _sfdk_command_emulator()
 {
-    local commands=(list start stop status set show exec install remove)
+    local commands=(list start stop status set show exec install remove
+        device-model-{list,show})
 
     if ((cword == _sfdk_command_idx + 1)); then
-        COMPREPLY=($(compgen -W "${commands[*]}" -- "$cur"))
+        _sfdk_complete_with_shortcuts "${commands[@]}"
         return
     fi
 
@@ -140,6 +158,12 @@ _sfdk_command_emulator()
             ;;
         install)
             ((cword == _sfdk_command_idx + 2)) && __sfdk_complete_available_emulator_name
+            ;;
+        device-model-list)
+            _sfdk_no_defaults
+            ;;
+        device-model-show)
+            ((cword == _sfdk_command_idx + 2)) && __sfdk_complete_device_model
             ;;
     esac
 }

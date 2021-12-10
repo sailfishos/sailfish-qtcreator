@@ -104,6 +104,7 @@ private:
 };
 
 QString indent(int level);
+QString indentLines(int level, const QString &lines);
 void wrapLine(QTextStream &out, int indentLevel, const QString &prefix1, const QString &prefix2,
         const QString &line);
 void wrapLine(QTextStream &out, int indentLevel, const QString &line);

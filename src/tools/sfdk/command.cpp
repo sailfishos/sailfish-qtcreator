@@ -62,6 +62,12 @@ const char INITIAL_ARGUMENTS_KEY[] = "initialArguments";
 const char OMIT_SUBCOMMAND_KEY[] = "omitSubcommand";
 const char OPTION_FORMATTER_KEY[] = "optionFormatter";
 
+const char EMULATOR_DEVICE_MODEL[] = "device-model";
+const char EMULATOR_ORIENTATION[] = "orientation";
+const char EMULATOR_DOWNSCALE[] = "downscale";
+// TODO Downscale 4x?
+//const char EMULATOR_DOWNSCALE_FACTOR[] = "downscale.factor";
+
 const char ENGINE_HOST_NAME[] = "host-name";
 
 const char WWW_PROXY_TYPE[] = "proxy";
@@ -127,6 +133,57 @@ protected:
         return true;
     }
 
+    static bool parseBoolean(bool *out, const QString &string, QString *errorString)
+    {
+        return parseWithDictionary(booleanDictionary(), out, string, errorString);
+    }
+
+    static QString showBoolean(bool value)
+    {
+        return showWithDictionary(booleanDictionary(), value);
+    }
+
+    static bool parseOrientation(Qt::Orientation *out, const QString &string, QString *errorString)
+    {
+        return parseWithDictionary(orientationDictionary(), out, string, errorString);
+    }
+
+    static QString showOrientation(Qt::Orientation value)
+    {
+        return showWithDictionary(orientationDictionary(), value);
+    }
+
+    template<typename T>
+    static bool parseWithDictionary(const QList<QPair<T, QString>> &dictionary, T *out,
+            const QString &string, QString *errorString)
+    {
+        auto it = std::find_if(std::begin(dictionary), std::end(dictionary), [&](const auto &item) {
+            return item.second == string;
+        });
+
+        if (it == std::end(dictionary)) {
+            const QStringList expected = Utils::transform(dictionary, &QPair<T, QString>::second);
+            *errorString = tr("One of %1 expected. Got: \"%2\"")
+                .arg(expected.join("/"))
+                .arg(string);
+            return false;
+        }
+
+        *out = it->first;
+        return true;
+    }
+
+    template<typename T>
+    static QString showWithDictionary(const QList<QPair<T, QString>> &dictionary, const T &value)
+    {
+        auto it = std::find_if(std::begin(dictionary), std::end(dictionary), [&](const auto &item) {
+            return item.first == value;
+        });
+        QTC_ASSERT(it != std::end(dictionary), return {});
+
+        return it->second;
+    }
+
     static QString valueTooBigMessage()
     {
         return tr("Value too big");
@@ -142,6 +199,11 @@ protected:
         return tr("Value cannot be increased");
     }
 
+    static QString valueEmptyMessage()
+    {
+        return tr("Unexpected empty string");
+    }
+
     static QString unknownPropertyMessage()
     {
         return tr("Unrecognized property");
@@ -150,6 +212,23 @@ protected:
     static QString readOnlyPropertyMessage()
     {
         return tr("Read-only property");
+    }
+
+private:
+    static QList<QPair<bool, QString>> booleanDictionary()
+    {
+        return {
+            {true, "yes"},
+            {false, "no"}
+        };
+    }
+
+    static QList<QPair<Qt::Orientation, QString>> orientationDictionary()
+    {
+        return {
+            {Qt::Vertical, "portrait"},
+            {Qt::Horizontal, "landscape"},
+        };
     }
 };
 
@@ -526,27 +605,94 @@ public:
         , m_vmAccessor(std::make_unique<VirtualMachinePropertiesAccessor>(
                     emulator->virtualMachine()))
     {
+        m_deviceModel = emulator->deviceModel().name;
+        m_orientation = emulator->orientation();
+        m_downscale = emulator->isViewScaled();
     }
 
     QMap<QString, QString> get() const override
     {
-        return m_vmAccessor->get();
+        return m_vmAccessor->get().unite(getOthers());
     }
 
     PrepareResult prepareSet(const QString &name, const QString &value, bool *needsVmOff,
             QString *errorString) override
     {
-        return m_vmAccessor->prepareSet(name, value, needsVmOff, errorString);
+        if (auto result = m_vmAccessor->prepareSet(name, value, needsVmOff, errorString))
+            return result;
+        if (auto result = prepareSetOther(name, value, needsVmOff, errorString))
+            return result;
+        return Ignored;
     }
 
     bool set() override
     {
-        return m_vmAccessor->set();
+        return m_vmAccessor->set() && setOthers();
     }
+
+private:
+    QMap<QString, QString> getOthers() const
+    {
+        QMap<QString, QString> values;
+        values.insert(EMULATOR_DEVICE_MODEL, m_deviceModel);
+        values.insert(EMULATOR_ORIENTATION, showOrientation(m_orientation));
+        values.insert(EMULATOR_DOWNSCALE, showBoolean(m_downscale));
+        return values;
+    }
+
+    PrepareResult prepareSetOther(const QString &name, const QString &value, bool *needsVmOff,
+            QString *errorString)
+    {
+        *needsVmOff = true;
+
+        if (name == EMULATOR_DEVICE_MODEL) {
+            if (value.isEmpty()) {
+                *errorString = valueEmptyMessage();
+                return Failed;
+            }
+            if (!Sdk::deviceModel(value).isValid()) {
+                *errorString = tr("No such device model: \"%1\"").arg(value);
+                return Failed;
+            }
+            m_deviceModel = value;
+            return Prepared;
+        } else if (name == EMULATOR_ORIENTATION) {
+            if (!parseOrientation(&m_orientation, value, errorString))
+                return Failed;
+            return Prepared;
+        } else if (name == EMULATOR_DOWNSCALE) {
+            if (!parseBoolean(&m_downscale, value, errorString))
+                return Failed;
+            return Prepared;
+        } else {
+            *errorString = unknownPropertyMessage();
+            return Ignored;
+        }
+    }
+
+    bool setOthers()
+    {
+        bool ok = true;
+
+        if (m_deviceModel != m_emulator->deviceModel().name
+                || m_orientation != m_emulator->orientation()
+                || m_downscale != m_emulator->isViewScaled()) {
+            bool stepOk;
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&Emulator::setDisplayProperties),
+                    m_emulator, Sdk::deviceModel(m_deviceModel), m_orientation, m_downscale);
+            ok &= stepOk;
+        }
+
+        return ok;
+    }
+
 
 private:
     QPointer<Emulator> m_emulator;
     std::unique_ptr<VirtualMachinePropertiesAccessor> m_vmAccessor;
+    QString m_deviceModel;
+    Qt::Orientation m_orientation{};
+    bool m_downscale{};
 };
 
 /*!
@@ -1245,6 +1391,23 @@ Worker::ExitStatus BuiltinWorker::runEmulator(const QStringList &arguments_, int
         return NormalExit;
     }
 
+    if (arguments.first() == "device-model-list") {
+        if (!P::checkPositionalArgumentsCount(arguments, 1, 1))
+            return BadUsage;
+        listDeviceModels();
+        *exitCode = EXIT_SUCCESS;
+        return NormalExit;
+    }
+
+    if (arguments.first() == "device-model-show") {
+        if (!P::checkPositionalArgumentsCount(arguments, 2, 2))
+            return BadUsage;
+
+        const QString name = arguments.at(1);
+        *exitCode = showDeviceModel(name) ? EXIT_SUCCESS : EXIT_FAILURE;
+        return NormalExit;
+    }
+
     QString errorString;
     Emulator *emulator;
     // Emulator name may not start with '-'
@@ -1883,6 +2046,35 @@ Emulator *BuiltinWorker::defaultEmulator(QString *errorString)
 
     // Ordering forced in EmulatorManager::fromMap - the most recent one comes first
     return Sdk::emulators().first();
+}
+
+void BuiltinWorker::listDeviceModels()
+{
+    for (const DeviceModelData &model : Sdk::deviceModels())
+        qout() << model.name << endl;
+}
+
+bool BuiltinWorker::showDeviceModel(const QString &name)
+{
+    const DeviceModelData model = Sdk::deviceModel(name);
+    if (!model.isValid()) {
+        qerr() << tr("%1: No such device model").arg(name) << endl;
+        return false;
+    }
+
+    qout() << tr("display-resolution") << ": " << QString("%1x%2 px")
+            .arg(model.displayResolution.width())
+            .arg(model.displayResolution.height());
+    qout() << endl;
+    qout() << tr("display-size") << ": " << QString("%1x%2 mm")
+            .arg(model.displaySize.width())
+            .arg(model.displaySize.height());
+    qout() << endl;
+    qout() << tr("dconf-properties") << ":" << endl;
+    qout() << indentLines(1, model.dconf.trimmed());
+    qout() << endl;
+
+    return true;
 }
 
 bool BuiltinWorker::listTools(SdkManager::ListToolsOptions options, bool listToolings,
