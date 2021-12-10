@@ -577,6 +577,8 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
                 : QString("unconfined")));
     arguments.append("--volume");
     arguments.append("/sys/fs/cgroup:/sys/fs/cgroup:ro");
+    arguments.append("--network");
+    arguments.append("sailfish-sdk");
 
 #ifdef Q_OS_WIN
     arguments.append("--cap-add=SYS_ADMIN");
