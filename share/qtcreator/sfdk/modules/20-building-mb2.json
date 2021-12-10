@@ -110,7 +110,7 @@
         {
             "name": "output-dir",
             "trArgument": "<dir>",
-            "trDescription": "Defaults to './RPMS'. The resulting RPM packages will be placed  directly under the specified <dir>. With this option existing files in  the output directory are preserved. Implies 'search-output-dir'",
+            "trDescription": "Defaults to './RPMS'. The resulting RPM packages will be placed  directly under the specified <dir>. Implies 'search-output-dir'.",
             "validator": "module.validateExistingDirectory"
         },
         {
@@ -171,6 +171,10 @@
             "name": "package.signing-passphrase-file",
             "trArgument": "<file>",
             "trDescription": "In case a passphrase-protected signing key is selected for signing packages, read the passphrase from the <file>. Only the first line will be read. The file needs to be stored under the %{SdkVariant} workspace."
+        },
+        {
+            "name": "package.timeline",
+            "trDescription": "Preserve older packages in the output directory."
         }
     ],
 
