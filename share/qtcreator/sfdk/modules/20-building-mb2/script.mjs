@@ -1,4 +1,4 @@
-export * from '10-general.mjs'
+export * from '../10-general/script.mjs'
 
 export function validateSpecFilePath(filePath) {
     if (utils.isFile(filePath))

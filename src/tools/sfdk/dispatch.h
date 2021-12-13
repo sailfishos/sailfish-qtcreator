@@ -40,7 +40,7 @@ public:
     using ConstList = QList<const Module *>;
     using ConstUniqueList = std::vector<std::unique_ptr<const Module>>;
 
-    QString fileName;
+    QString path;
     const Domain *domain;
     const Worker *worker;
     QString briefDescription;
@@ -70,7 +70,7 @@ public:
     Dispatcher();
     ~Dispatcher();
 
-    static bool load(const QString &moduleFileName);
+    static bool load(const QString &modulePath);
 
     static const Domain::ConstUniqueList &domains();
     static const Domain *domain(const QString &name);
@@ -111,7 +111,8 @@ private:
     static QString brandedString(const QString &value);
     static QString localizedString(const QVariant &value);
     const Domain *ensureDomain(const QString &name);
-    std::unique_ptr<Module> loadModule(const QVariantMap &data, QString *errorString);
+    std::unique_ptr<Module> loadModule(const QString &modulePath, const QVariantMap &data,
+            QString *errorString);
     bool loadExternOptions(const QVariantList &list, Option::ConstList *allModuleOptions,
             QString *errorString);
     bool loadOptions(const Module *module, const QVariantList &list,

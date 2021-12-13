@@ -32,10 +32,12 @@
 
 #include <sfdk/sdk.h>
 
+#include <utils/fileutils.h>
 #include <utils/pointeralgorithm.h>
 #include <utils/qtcassert.h>
 
 #include <QDebug>
+#include <QDir>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -44,6 +46,7 @@
 #include <QRegularExpression>
 
 using namespace Sfdk;
+using namespace Utils;
 
 namespace {
 
@@ -146,53 +149,52 @@ Dispatcher::~Dispatcher()
     s_instance = nullptr;
 }
 
-bool Dispatcher::load(const QString &moduleFileName)
+bool Dispatcher::load(const QString &modulePath)
 {
-    QFile moduleFile(moduleFileName);
-    if (!moduleFile.open(QIODevice::ReadOnly)) {
-        qCCritical(sfdk) << "Failed to open module" << moduleFileName << "for reading";
+    const QString manifestFileName = QDir(modulePath).filePath(Constants::MODULE_MANIFEST_FILE);
+    QFile manifestFile(manifestFileName);
+    if (!manifestFile.open(QIODevice::ReadOnly)) {
+        qCCritical(sfdk) << "Failed to open module manifest" << manifestFileName << "for reading";
         return false;
     }
 
-    const QByteArray moduleData = moduleFile.readAll();
+    const QByteArray manifestData = manifestFile.readAll();
 
     QJsonParseError error;
-    QJsonDocument json = QJsonDocument::fromJson(moduleData, &error);
+    QJsonDocument json = QJsonDocument::fromJson(manifestData, &error);
 
     if (error.error != QJsonParseError::NoError) {
         int line = 1;
         int column = 1;
         for (int i = 0; i < error.offset; ++i) {
-            if (moduleData.at(i) == '\n') {
+            if (manifestData.at(i) == '\n') {
                 ++line;
                 column = 1;
             } else {
                 ++column;
             }
         }
-        qCCritical(sfdk).noquote() << tr("Error parsing module: %1:%2:%3: %4")
-            .arg(moduleFileName).arg(line).arg(column)
+        qCCritical(sfdk).noquote() << tr("Error parsing module manifest: %1:%2:%3: %4")
+            .arg(manifestFileName).arg(line).arg(column)
             .arg(error.errorString());
         return false;
     }
 
     if (!json.isObject()) {
-        qCCritical(sfdk).noquote() << tr("No root JSON object in module '%1'").arg(moduleFileName);
+        qCCritical(sfdk).noquote() << tr("No root JSON object in module manifest '%1'").arg(manifestFileName);
         return false;
     }
 
     QVariantMap data = json.object().toVariantMap();
 
     QString errorString;
-    std::unique_ptr<Module> module = s_instance->loadModule(data, &errorString);
+    std::unique_ptr<Module> module = s_instance->loadModule(modulePath, data, &errorString);
     if (!module) {
-        qCCritical(sfdk).noquote() << tr("Data error in module file '%1': %2")
-            .arg(moduleFileName)
+        qCCritical(sfdk).noquote() << tr("Data error in module manifest '%1': %2")
+            .arg(manifestFileName)
             .arg(errorString);
         return false;
     }
-
-    module->fileName = moduleFileName;
 
     s_instance->m_modules.emplace_back(std::move(module));
 
@@ -354,13 +356,16 @@ const Domain *Dispatcher::ensureDomain(const QString &name)
     return m_domains.back().get();
 }
 
-std::unique_ptr<Module> Dispatcher::loadModule(const QVariantMap &data, QString *errorString)
+std::unique_ptr<Module> Dispatcher::loadModule(const QString &modulePath, const QVariantMap &data,
+        QString *errorString)
 {
     auto addContext = [](const QString &errorString, const QString &element) {
         return tr("Under element '%1': %2").arg(element).arg(errorString);
     };
 
     auto module = std::make_unique<Module>();
+
+    module->path = modulePath;
 
     QSet<QString> validKeys{VERSION_KEY, DOMAIN_KEY, TR_BRIEF_KEY, TR_DESCRIPTION_KEY, WORKER_KEY,
         COMMANDS_KEY, EXTERN_HOOKS_KEY, EXTERN_OPTIONS_KEY, OPTIONS_KEY, HOOKS_KEY};
