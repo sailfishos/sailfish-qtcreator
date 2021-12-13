@@ -1249,14 +1249,23 @@ void CommandLineParser::showManual(const QString &title,
 
 bool CommandLineParser::showManualPage(const QString &title)
 {
-    const FilePath manPath = FilePath::fromString(QCoreApplication::applicationDirPath())
-        .resolvePath(QSettings().value(Constants::DOC_PATH_SETTINGS_KEY, RELATIVE_DOC_PATH)
-                .toString())
-        .pathAppended("man/man1")
-        .canonicalPath()
-        .resolvePath(title + ".1.gz");
+    auto manPathForLanguage = [&](const QString &language = {}) {
+        return FilePath::fromString(QCoreApplication::applicationDirPath())
+            .resolvePath(QSettings().value(Constants::DOC_PATH_SETTINGS_KEY, RELATIVE_DOC_PATH)
+                    .toString())
+            .pathAppended("man")
+            .pathAppended(language)
+            .pathAppended("man1")
+            .canonicalPath()
+            .resolvePath(title + ".1.gz");
+    };
+
+    QList<FilePath> candidates = Utils::transform(uiLanguages(), manPathForLanguage);
+    candidates.append(manPathForLanguage());
+
+    const FilePath manPath = Utils::findOrDefault(candidates, &FilePath::exists);
     if (!manPath.exists()) {
-        qCDebug(sfdk) << "Manual page does not exist:" << manPath.toString();
+        qCDebug(sfdk) << "Manual page does not exist:" << title;
         return false;
     }
 
