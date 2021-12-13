@@ -1,0 +1,12 @@
+Run rpmbuild. Execute all sections of the .spec file except for %prep unless told otherwise.
+
+If path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the .spec file.)
+
+[verse]
+--
+--prepare         Run %prep section as well
+--no-check        Skip the %check section
+--enable-debug    Enable debug build
+-j <n>            Run up to <n> jobs simultaneously
+--sign            Sign packages
+--

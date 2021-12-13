@@ -438,8 +438,9 @@ void CommandLineParser::usage(QTextStream &out, const QString &title) const
     out << endl;
 
     for (const Module *module : generalDomain->modules()) {
-        if (!module->description.isEmpty()) {
-            out << module->description << endl;
+        const QString description = Dispatcher::describe(module);
+        if (!description.isEmpty()) {
+            out << description << endl;
             out << endl;
             out << endl;
         }
@@ -521,7 +522,7 @@ void CommandLineParser::commandUsage(QTextStream &out, const Command *command, c
 
     AsciiMan::section(out, descriptionHeading());
     out << endl;
-    out << command->description << endl;
+    out << Dispatcher::describe(command) << endl;
     out << endl;
 
     if (!command->configOptions.isEmpty()) {
@@ -604,8 +605,9 @@ void CommandLineParser::domainUsage(QTextStream &out, const Domain *domain, cons
     out << endl;
 
     for (const Module *module : domain->modules()) {
-        if (!module->description.isEmpty()) {
-            out << module->description << endl;
+        const QString description = Dispatcher::describe(module);
+        if (!description.isEmpty()) {
+            out << description << endl;
             out << endl;
             out << endl;
         }
@@ -673,8 +675,9 @@ void CommandLineParser::allDomainsUsage(QTextStream &out, const QString &title) 
 
     for (const std::unique_ptr<const Domain> &domain : Dispatcher::domains()) {
         for (const Module *module : domain->modules()) {
-            if (!module->description.isEmpty()) {
-                out << module->description << endl;
+            const QString description = Dispatcher::describe(module);
+            if (!description.isEmpty()) {
+                out << description << endl;
                 out << endl;
                 out << endl;
             }
@@ -1124,7 +1127,7 @@ void CommandLineParser::describe(QTextStream &out, const Option::ConstList &opti
 {
     for (const Option *option : options) {
         AsciiMan::labeledListItemBegin(out, option->name + ' ' + option->argumentDescription);
-        out << option->description << endl;
+        out << Dispatcher::describe(option) << endl;
         AsciiMan::labeledListItemEnd(out);
         out << endl;
     }
@@ -1134,7 +1137,7 @@ void CommandLineParser::describe(QTextStream &out, const Hook::ConstList &hooks)
 {
     for (const Hook *hook : hooks) {
         AsciiMan::labeledListItemBegin(out, hook->name + ' ' + hook->synopsis);
-        out << hook->description << endl;
+        out << Dispatcher::describe(hook) << endl;
         AsciiMan::labeledListItemEnd(out);
         out << endl;
     }

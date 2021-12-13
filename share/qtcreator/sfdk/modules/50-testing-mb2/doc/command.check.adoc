@@ -1,0 +1,36 @@
+Perform quality checks.
+
+By default, test suites operate on the artefacts associated with build tree under CWD. Alternatively, single path to a source tree and/or one or more package files may be specified as <artefact> on command line (build tree is always looked for under CWD).
+
+Each test suite realizes testing on one or more of the four recognized test levels. This is indicated in the output produced with the '--list-suites' option, using the keywords found in the first column of the following table.
+
+    | Level          | Tested art. | Executed at   | Default |
+    |----------------+-------------+---------------+---------|
+    |    static      |             |               |         |
+    | 1. ├── source  | Sources     | Build host    | +       |
+    | 2. └── package | Packages    | Build host    | +       |
+    |    dynamic     |             |               |         |
+    | 3. ├── unit    | Build tree  | Build host    | -       |
+    | 4. └── system  | Packages    | Target device | -       |
+
+(See also QUALITY ASSURANCE in the domain help.)
+
+-l, --levels [+|-]<level>...::
++
+--
+Select testing levels. Levels are selected using the keywords 'source', 'package', 'static', 'unit', 'system' and 'dynamic' as described before. The default selection is indicated in the above table and can be overriden with the configuration option 'check.levels'.
+--
+
+--list-suites::
++
+--
+List available test suites.
+--
+
+-s, --suites [+|-]<suite>...::
++
+--
+Select test suites to use. By default all and only the essential suites are selected. See '--list-suites'. The default selection may be overriden with the configuration option 'check.suites'.
+--
+
+The '--levels' and '--suites' options may be passed multiple values, separated with comma. If a name is prefixed with '+' or '-', the effect is cumulative and persists until overriden with later name prefixed with the opposite operator.

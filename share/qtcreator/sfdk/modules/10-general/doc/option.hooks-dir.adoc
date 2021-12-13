@@ -1,0 +1,3 @@
+Alter sfdk behavior with hooks in form of executable files located under the <dir> directory.
+
+Available hooks are described in a separate section of this manual.

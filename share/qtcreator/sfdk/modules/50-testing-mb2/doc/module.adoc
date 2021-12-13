@@ -1,0 +1,35 @@
+=== Quality Assurance
+
+Certain quality checks may be performed with the help of the 'check' command:
+
+    $ cd package
+    $ sfdk build
+    $ sfdk check
+
+The command enables execution of (pluggable) test suites, each realizing testing on one or more of the four recognized test levels:
+
+1. Static testing (verification) performed on the source tree
+
+2. Static testing (verification) performed on the build results (packages)
+
+3. Dynamic testing (validation) performed at build host (unit testing)
++
+--
+
+Testing at this level is only supported with the built-in suite 'rpmspec', that executes the steps defined by the '%check' section of the RPM .spec file if present.
+
+Testing at this level is normally performed by the 'build' and 'package' commands (unless used with the '--no-check' option) and so it is not enabled by default for this command. Performed with this command, it involves execution of the 'make-install' command.
+
+--
+
+4. Dynamic testing (validation) performed on a target device (system testing)
++
+--
+
+The 'check' command does not include the deployment step. Package(s) need to be deployed to the device selected with the 'device' configuration option beforehand, possibly with the 'deploy' command in case of packages associated with the build tree under CWD.
+
+--
+
+The available test suites may be listed with the '--list-suites' option to the 'check' command.
+
+See the 'check' command to learn how to override the default selection of test levels, suites and artefacts.

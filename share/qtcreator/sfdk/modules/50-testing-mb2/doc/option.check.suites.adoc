@@ -1,0 +1,1 @@
+Override the default test suites the 'check' command executes. See the '--suites' option to the 'check' command for more details.

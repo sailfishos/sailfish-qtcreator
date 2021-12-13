@@ -1,0 +1,1 @@
+In case a passphrase-protected signing key is selected for signing packages, read the passphrase from the <file>. Only the first line will be read. The file needs to be stored under the %{SdkVariant} workspace.

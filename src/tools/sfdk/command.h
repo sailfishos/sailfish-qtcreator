@@ -60,7 +60,6 @@ public:
     const Module *module = nullptr;
     QString name;
     QString synopsis;
-    QString description;
 };
 
 class Command
@@ -75,7 +74,6 @@ public:
     QString name;
     QString synopsis;
     QString briefDescription;
-    QString description;
     Option::ConstList configOptions;
     Option::ConstList mandatoryConfigOptions;
     Hook::ConstList hooks;

@@ -1,0 +1,1 @@
+Launch the interactive SDK Maintenance tool.

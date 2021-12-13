@@ -1,0 +1,5 @@
+When 'pull' is used, install or update the build-time dependencies as is done implicitly by the 'prepare', 'build' and 'qmake' (or 'cmake') commands but refresh the package cache first, unless '--no-refresh' is active.
+
+Unless the 'no-snapshot' configuration option is used, '--no-refresh' is implied. This can be overridden with '--refresh' - do not use unless you know what you are doing. If refresh is needed, refresh (and update) the original target instead, then do 'reset'.
+
+The 'reset' command is an extended version that also ensures that nothing else than the current build-time dependencies is pulled in on top of the clean build environment. It does it by resetting the target snapshot to the (possibly updated) state of the original target first, pulling later. (Not available when the 'no-snapshot' configuration option is used.)

@@ -1,0 +1,1 @@
+Defaults to './RPMS'. The resulting RPM packages will be placed  directly under the specified <dir>. Implies 'search-output-dir'.

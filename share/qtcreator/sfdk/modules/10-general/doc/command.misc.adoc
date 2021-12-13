@@ -1,0 +1,33 @@
+Miscellaneous SDK maintenance and control commands that do not fit elsewhere.
+
+The 'set' and 'show' commands can be used to set and query global SDK properties. Known global properties are described further below.
+
+The 'stop-vms' command can be used to ensure that none of the virtual machines provided by the SDK is running.
+
+Global SDK properties:
+
+proxy {direct|auto|manual}::
++
+--
+Network proxy configuration to be used throughout the SDK.
+
+Attention: Currently this option is only effective for the build engine.
+
+Setting this option to 'direct' enables direct access to the network.
+
+Using the 'auto' keyword enables automatic discovery of network proxy configuration. In this case it is optional to provide proxy autoconfiguration URL via the 'proxy.servers' option. The 'proxy.excludes' option is ignored in this case.
+
+When the 'manual' keyword is used, one or more 'proxy.servers' must be specified (example: "proxy1.example.com 1.2.3.4:8080") and optionally 'proxy.excludes' may be specified (example: "internal.example.com 10.0.0.0/8").
+--
+
+proxy.servers [<url>...]::
++
+--
+See 'proxy'.
+--
+
+proxy.excludes [<url>...]::
++
+--
+See 'proxy'.
+--

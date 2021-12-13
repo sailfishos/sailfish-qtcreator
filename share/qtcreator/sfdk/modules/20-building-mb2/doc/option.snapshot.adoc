@@ -1,0 +1,9 @@
+Use a particular snapshot of the build target. The snapshot name is determined by combining the original target name with the given <suffix>, separated with dot.
+
+By default, i.e., when this option is not set, the snapshot with suffix 'default' is used.
+
+When this option is set but no <suffix> was specified, '%pool' is assumed for compatibility with older sfdk versions. (Deprecated)
+
+When <suffix> is '%pool[,<N>]', a temporary snapshot will be used from a pool of the optionally given size <N> (default: 5).  The actual suffix will follow the pattern 'pool.XXX'.
+
+Snapshot state is preserved across sfdk invocations unless the original target was updated meanwhile or it is a temporary snapshot that was previously used with different build tree, in which cases the snapshot will be reset. Snapshot can be reset forcefully using the 'build-requires reset' command.

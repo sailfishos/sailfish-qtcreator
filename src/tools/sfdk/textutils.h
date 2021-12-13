@@ -42,6 +42,8 @@ std::unique_ptr<QFile> binaryOut(FILE *out);
 
 bool isConnectedToTerminal();
 
+QStringList uiLanguages();
+
 class Pager
 {
 public:

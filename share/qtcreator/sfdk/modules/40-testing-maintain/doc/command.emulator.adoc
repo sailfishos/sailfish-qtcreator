@@ -1,0 +1,97 @@
+The 'list' command lists the installed emulators. If the '--available' option is used, emulators available for installation from SDK repositories are listed, including those already installed. The status flags that may appear in the output are described further below.
+
+Some commands accept an optional <name> argument. If this is omitted, the default emulator is assumed as indicated by the 'list' command.
+
+Emulators available from SDK repositories may be installed using the 'install' command. Installed emulators may be removed using the 'remove' command. The 'install' and 'remove' commands accept <name> as reported by the 'list' command with '--available' option used (in case it differs in the view provided without '--available').
+
+The 'start' and 'stop' commands allow to control the emulator virtual machine conveniently. Starting an emulator explicitly is usually not required - commands that need the emulator running will ensure it is running. The 'status' command prints status information.
+
+Emulator properties can be set with the 'set' command and queried with the 'show' command. Known properties are described further below.
+
+The 'exec' command allows executing an arbitrary <command> inside the emulator. If no <command> is specified, an interactive shell is executed. The '-t' option follows the semantics of the '-t' option of ssh(1).
+
+Emulators may emulate various hardware devices in terms of their display properties. Other than that the set of emulated hardware features is fixed, including the CPU architecture which is always i486. Available device models can be queried with the 'device-model-list' command. Detailed information about particular device model can be retrieved with the 'device-model-show' command. The active device model of an emulator is controlled by the 'device-model' property.
+
+
+Status flags:
+
+available::
++
+--
+Emulator available from SDK repositories, available for installation using the 'install' command.
+--
+
+installed::
++
+--
+Emulator available from SDK repositories, currently installed
+--
+
+sdk-provided::
++
+--
+Synonym for 'installed'. Used in views where 'user-defined' may appear.
+--
+
+user-defined::
++
+--
+Emulator installed using other method. sfdk does not currently provide a way to achieve this, other tools may.
+--
+
+latest::
++
+--
+Emulator available from SDK repositories under the symbolic (floating) version 'latest'; subject to automatic upgrade between SDK releases.
+--
+
+early-access::
++
+--
+Emulator available from SDK repositories under the symbolic (floating) version 'early-access'; subject to automatic upgrade between SDK releases.
+--
+
+default::
++
+--
+Emulator that will be used when the optional <name> argument is omitted.
+--
+
+
+Emulator properties:
+
+device-model <name>::
++
+--
+The device model to emulate. Available device models can be queried with the 'device-model-list' command.
+--
+
+orientation portrait|landscape::
++
+--
+Display orientation.
+--
+
+downscale <boolean>::
++
+--
+When enabled, the display resolution will be downscaled by the factor of 2.
+--
+
+vm.cpu-count <number>::
++
+--
+The number of virtual CPUs inside the emulator virtual machine. The maximum is limited by the number of CPUs available on the host.
+--
+
+vm.memory-size <megabytes>::
++
+--
+The amount of memory (RAM) available to the emulator virtual machine. The maximum is limited by the size of the physical memory available on the host.
+--
+
+vm.storage-size <megabytes>::
++
+--
+The amount of storage (disk) space available to the emulator virtual machine. Storage size can only grow; shrinking is not possible.
+--

@@ -1,0 +1,3 @@
+Registered devices can be listed with the 'list' command.
+
+The 'exec' command allows executing an arbitrary <command> on the device specified with name or index as reported by the 'list' command. If no <name-or-idx> is passed, the device selected with the 'device' configuration option will be used. If no <command> is specified, an interactive shell is executed. The '-t' option follows the semantics of the '-t' option of ssh(1).

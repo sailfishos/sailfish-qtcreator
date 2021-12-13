@@ -1,0 +1,3 @@
+This hook is invoked by commands that take care of updating build time dependencies – prior to doing so.
+
+The arguments and available environment variables are the same as with the 'pull-build-requires' hook.

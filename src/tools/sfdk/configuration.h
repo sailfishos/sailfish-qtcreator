@@ -53,7 +53,6 @@ public:
     const Module *module;
     QString name;
     QString alias;
-    QString description;
     ArgumentType argumentType = NoArgument;
     QString argumentDescription;
     QString validatorJSFunctionName;

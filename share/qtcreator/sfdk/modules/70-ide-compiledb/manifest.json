@@ -3,8 +3,6 @@
     "domain": "ide",
     "trBrief": "IDE support",
 
-    "trDescription": "=== Enabling Advanced Code Editing Features for Compiled Languages\n\nAs explained thoroughly before, in the section devoted the the SDK Build Engine, file system paths involved at build time do not always exist on the host file system (where sfdk is executed). This may prevent advanced code editors and other tools from determining all information required for successfully parsing each translation unit.\n\nBeside this issue specific to %{SdkVariant}, a more general issue exists that a code editor or tool may not be capable of retrieving the required information from the build system utilized by a particular project. This is commonly adressed with the help of Clang's JSON Compilation Database format used as an interchangeable project description suitable for loading by tools. The same approach is applicable to the above mentioned issue.\n\nsfdk supports generating a compilation database conveniently with the 'compiledb' subcommand.\n\nAs an example consider using the ViM editor with YouCompleteMe plugin installed.\n\n    $ mkdir my-app && cd my-app\n    $ sfdk init --type qtquick\n    $ sfdk compiledb\n    $ vim src/my-app.cpp\n\nWith the YouCompleteMe plugin ViM looks for 'compile_commands.json' file up the file system hierarchy starting from the directory when the file being edited exists, so at this point it should be all set up, autocompleting identifiers from the 'SailfishApp' namespace and more.\n\nSee the 'compiledb' command description for details and to learn how to adjust the default behavior.",
-
     "worker":
     {
         "type": "engine-command",
@@ -19,7 +17,6 @@
             "trSynopsis": "[<make-extra-arg>...]",
             "trBrief": "Generate compilation database",
             "configOptions": ["*", "target!"],
-            "trDescription": "Run rpmbuild. Execute just the %build section of the .spec file, modifying any 'make' invocation figuring in that section in order to generate Clang's JSON Compilation Database file 'compile_commands.json' as described below.\n\nUnless the (top-level) makefile defines a target named 'compiledb' or 'compile_commands.json', 'make' will be wrapped with the 'compiledb' tool as the default option to generate the compilation database.\n\nA custom mechanism to generate the compilation database may be supplied by defining one of the above mentioned targets. In that case 'make' will be invoked with command line modified by adding that target name and removing any other target-like argument. (Any non-option, non-assignment argument will be removed.  Options that accept arguments need to be sticked together with their arguments with '='.)",
             "postRun": "module.mapCompilationDatabasePaths"
         }
     ],

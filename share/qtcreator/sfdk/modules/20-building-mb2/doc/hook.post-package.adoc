@@ -1,0 +1,3 @@
+This hook is invoked whenever binary packages have been produced.
+
+Any <package-file> that has been produced is passed as an argument to this hook.

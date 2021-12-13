@@ -44,7 +44,6 @@ public:
     const Domain *domain;
     const Worker *worker;
     QString briefDescription;
-    QString description;
 };
 
 class Domain
@@ -76,17 +75,21 @@ public:
     static const Domain *domain(const QString &name);
 
     static const Module::ConstUniqueList &modules();
+    static QString describe(const Module *module);
 
     static const Worker::ConstUniqueList &workers();
 
     static const Command::ConstUniqueList &commands();
     static const Command *command(const QString &name);
+    static QString describe(const Command *command);
 
     static const Hook::ConstUniqueList &hooks();
     static const Hook *hook(const QString &name);
+    static QString describe(const Hook *hook);
 
     static const Option::ConstUniqueList &options();
     static const Option *option(const QString &name);
+    static QString describe(const Option *option);
 
     template<typename Worker>
     static void registerWorkerType(const QString &name)
@@ -110,6 +113,8 @@ private:
 
     static QString brandedString(const QString &value);
     static QString localizedString(const QVariant &value);
+    static QString loadDescription(const Module *module, const QString &objectType,
+            const QString &objectName);
     const Domain *ensureDomain(const QString &name);
     std::unique_ptr<Module> loadModule(const QString &modulePath, const QVariantMap &data,
             QString *errorString);
