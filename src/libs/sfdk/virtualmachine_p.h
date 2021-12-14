@@ -155,6 +155,8 @@ public:
     VirtualMachine::ConnectionUi *connectionUi() const { return connectionUi_.get(); }
 
 protected:
+    virtual void doInitGuest();
+
     virtual void doSetMemorySizeMb(int memorySizeMb, const QObject *context,
             const Functor<bool> &functor) = 0;
     virtual void doSetSwapSizeMb(int swapSizeMb, const QObject *context,
@@ -192,7 +194,6 @@ protected:
 
 private:
     void enableUpdates();
-    void doInitGuest();
 
 signals:
     void initGuest();

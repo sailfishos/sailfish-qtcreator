@@ -813,6 +813,11 @@ void VirtualMachinePrivate::setReservedPortListForwarding(ReservedPortList which
 
 }
 
+void VirtualMachinePrivate::doInitGuest()
+{
+    // noop
+}
+
 void VirtualMachinePrivate::enableUpdates()
 {
     Q_Q(VirtualMachine);
@@ -828,19 +833,6 @@ void VirtualMachinePrivate::enableUpdates()
         // TODO Is that ideal?
         q->refreshConfiguration(q, [](bool ok) { QTC_CHECK(ok); });
     });
-}
-
-void VirtualMachinePrivate::doInitGuest()
-{
-    // Do not check for "running", it's likely it will end in "degraded" state
-    const QString watcher(R"(
-        while [[ $(systemctl is-system-running) == starting ]]; do
-            sleep 1
-        done
-    )");
-
-    BatchComposer::enqueue<RemoteProcessRunner>("wait-for-startup-completion",
-            watcher, sshParameters);
 }
 
 /*!
