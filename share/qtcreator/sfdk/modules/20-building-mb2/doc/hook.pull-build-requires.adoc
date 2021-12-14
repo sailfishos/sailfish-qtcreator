@@ -1,0 +1,35 @@
+This hook is invoked by commands that take care of updating build time dependencies. This hook fully overrides the default procedure of updating build time dependencies.
+
+Any <dependency> determined by querying the RPM spec file will be passed as an argument to this hook.
+
+The following environment variables provide additional information to this hook:
+
+SFDK_OUTPUT_DIR::
++
+--
+The effective output directory, possibly influenced by the 'output-dir' or 'output-prefix' configuration options.
+--
+
+SFDK_OUTPUT_DIR_FILTERED::
++
+--
+Only set when the 'search-output-dir' configuration option is active.  This points to a copy of the output directory with the RPM binaries built from the current project excluded.
+--
+
+SFDK_TARGET::
++
+--
+The active build target. Unless the 'no-snapshot' configuration option is used, this is the snapshot target name and the original build target name is available as 'SFDK_TARGET_ORIGINAL'.
+--
+
+SFDK_TARGET_ORIGINAL::
++
+--
+See 'SFDK_TARGET'.
+--
+
+SFDK_SPEC_FILE::
++
+--
+The .spec file used for this build.
+--

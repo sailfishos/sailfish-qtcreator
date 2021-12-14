@@ -155,7 +155,10 @@ int main(int argc, char **argv)
     dispatcher.registerWorkerType<EngineWorker>("engine-command");
 
     const QDir modulesDir(resourcePath + '/' + MODULES_PATH);
-    const QFileInfoList modules = modulesDir.entryInfoList({"*.json"}, QDir::Files, QDir::Name);
+    QFileInfoList modules = modulesDir.entryInfoList({}, QDir::Dirs, QDir::Name);
+    modules = Utils::filtered(modules, [](const QFileInfo &module) {
+        return QDir(module.filePath()).exists(Constants::MODULE_MANIFEST_FILE);
+    });
     if (modules.isEmpty()) {
         qCCritical(sfdk) << "No module found. Check your installation.";
         return SFDK_EXIT_ABNORMAL;

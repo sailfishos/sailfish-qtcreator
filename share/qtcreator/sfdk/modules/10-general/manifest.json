@@ -1,0 +1,38 @@
+{
+    "version": 4,
+    "domain": "general",
+    "trBrief": "General usage",
+
+    "worker":
+    {
+        "type": "builtin",
+        "version": 1
+    },
+
+    "commands":
+    [
+        {
+            "name": "config",
+            "trSynopsis": "[--show]\n[--<scope>] --push <name> [<value>]\n[--<scope>] --push-mask <name>\n[--<scope>] --drop <name>\n[--<scope>] <name>[=[<value>]]",
+            "trBrief": "Configure sfdk"
+        },
+        {
+            "name": "misc",
+            "trSynopsis": "set <property>=<value>...\nshow\nstop-vms",
+            "trBrief": "Maintain and control miscellaneous SDK properties"
+        },
+        {
+            "name": "maintain",
+            "trBrief": "Launch the interactive SDK Maintenance tool"
+        }
+    ],
+
+    "options":
+    [
+        {
+            "name": "hooks-dir",
+            "trArgument": "<dir>",
+            "validator": "module.validateExistingDirectory"
+        }
+    ]
+}

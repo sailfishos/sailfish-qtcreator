@@ -1,0 +1,46 @@
+{
+    "version": 4,
+    "domain": "testing",
+    "trBrief": "Testing software",
+
+    "worker":
+    {
+        "type": "builtin",
+        "version": 1
+    },
+
+    "commands":
+    [
+        {
+            "name": "device",
+            "trSynopsis": "list\nexec [<name-or-idx>] [-t] [--] [<command> [<arg>...]]",
+            "trBrief": "Maintain and control registered devices",
+            "configOptions": ["device"],
+            "hooks": ["prepare-device"],
+            "dynamicSubcommands": ["exec"]
+        },
+        {
+            "name": "emulator",
+            "trSynopsis": "list [-a|--available]\n{start|stop|status} [<name>]\nset [<name>] [--] <property>=<value>...\nshow [<name>]\nexec [<name>] [-t] [--] [<command> [<arg>...]]\ninstall <name>\nremove <name>\ndevice-model-list\ndevice-model-show <model>",
+            "trBrief": "Maintain and control emulators",
+            "dynamicSubcommands": ["exec"]
+        }
+    ],
+
+    "options":
+    [
+        {
+            "name": "device",
+            "trArgument": "<name>",
+            "validator": "module.validateDeviceName"
+        }
+    ],
+
+    "hooks":
+    [
+        {
+            "name": "prepare-device",
+            "trSynopsis": "<name>"
+        }
+    ]
+}

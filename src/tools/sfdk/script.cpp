@@ -23,6 +23,7 @@
 #include "script.h"
 
 #include "dispatch.h"
+#include "sfdkconstants.h"
 #include "sfdkglobal.h"
 #include "textutils.h"
 
@@ -343,8 +344,8 @@ JSEngine::JSEngine(QObject *parent)
 
 QJSValue JSEngine::evaluate(const QString &program, const Module *context)
 {
-    QTC_CHECK(context->fileName.endsWith(".json"));
-    const QString moduleExtensionFileName = context->fileName.chopped(5) + ".mjs";
+    const QString moduleExtensionFileName =
+        QDir(context->path).filePath(Constants::MODULE_SCRIPT_EXTENTION_FILE);
 
     if (QFileInfo(moduleExtensionFileName).exists()) {
         const QJSValue moduleExtension = importModule(moduleExtensionFileName);
@@ -368,14 +369,14 @@ QJSValue JSEngine::call(const QString &functionName, const QJSValueList &args,
         const QString errorFileName = function.property("fileName").toString();
         const int errorLineNumber = function.property("lineNumber").toInt();
         qCCritical(sfdk) << "Error dereferencing" << functionName
-            << "in the context of" << context->fileName << "module:"
+            << "in the context of" << context->path << "module:"
             << errorFileName << ":" << errorLineNumber << ":" << function.toString();
         return newErrorObject(QJSValue::GenericError, tr("Internal error"));
     }
 
     if (!function.isCallable()) {
         qCCritical(sfdk) << "Error dereferencing" << functionName
-            << "in the context of" << context->fileName << "module:"
+            << "in the context of" << context->path << "module:"
             << "The result is not callable";
         return newErrorObject(QJSValue::GenericError, tr("Internal error"));
     }
@@ -386,7 +387,7 @@ QJSValue JSEngine::call(const QString &functionName, const QJSValueList &args,
         const QString errorFileName = function.property("fileName").toString();
         const int errorLineNumber = function.property("lineNumber").toInt();
         qCCritical(sfdk) << "Error calling" << functionName
-            << "in the context of" << context->fileName << "module:"
+            << "in the context of" << context->path << "module:"
             << errorFileName << ":" << errorLineNumber << ":" << result.toString();
         return result;
     }
@@ -394,7 +395,7 @@ QJSValue JSEngine::call(const QString &functionName, const QJSValueList &args,
     QString errorString;
     if (returnTypeValidator && !returnTypeValidator(result, &errorString)) {
         qCCritical(sfdk) << "Error calling" << functionName
-            << "in the context of" << context->fileName << "module:"
+            << "in the context of" << context->path << "module:"
             << "Unexpected return value:" << errorString;
         return newErrorObject(QJSValue::GenericError, tr("Internal error"));
     }

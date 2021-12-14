@@ -1,0 +1,7 @@
+=== Generating Type Information for QML Modules With Plugins
+
+QML modules may use plugins to expose components implemented in C++ to QML applications.  The details on the APIs implemented by plugins are not directly available to a code editor. An external type information is required in order to enable advanced code editing features in this case.  Qt Creator recognizes so called 'qmltypes' files for this purpose.
+
+Beside the possibility to write qmltypes files manually, Qt comes with a tool named 'qmlplugindump' that allows generating qmltypes files automatically.  One needs to be aware, though, that due to the way it works, running qmlplugindump under build environment is not always possible.  Usually, it is necessary to deploy QML modules to a target, invoke qmlplugindump there and transfer the results back.
+
+sfdk provides the 'qmltypes' command that makes this task less cumbersome. It uses a %{OsVariant} Emulator as the target environment for qmlplugindump invocation and it takes care of restoring it to the original state after use.

@@ -1,0 +1,40 @@
+=== Introduction
+
+Sfdk divides its functionality into a number of commands available through the main executable.
+
+    $ sfdk <command> <args>...
+
+Pass '--help' together with a command name for the details on a particular command. Introductory guides and other information concerning multiple commands addressing a particular domain can be obtained with '--help-<domain>'. Alternatively, '--help-all' covers all domains on a single page.
+
+    $ sfdk --help <command>
+    $ sfdk --help-<domain>
+    $ sfdk --help-all
+
+Sfdk is strict about ordering any 'global options' (see GLOBAL OPTIONS) prior to a command name on the command line. Similarly, any non-global options ('command options') may only appear after the respective command name. The only exception to this rule are the various '--help*' options, which may be conveniently passed anywhere on the command line.
+
+    $ sfdk ... <command> ... --help
+    $ sfdk ... <command> ... --help-<domain>
+
+=== Configuration
+
+Many aspects of sfdk behavior are controlled with (persistent) 'configuration options' (see CONFIGURATION OPTIONS). Configuration can be maintained with the 'config' command.
+
+Configuration changes may be applied globally (with the '--global' option) or just for the current (shell) session.  One-time configuration changes are possible with the global option '-c'.  Let’s exercise all three options and review the effect:
+
+    $ sfdk config --global --push task bug-1234
+    $ sfdk config --push task feature-5678
+    $ sfdk -c task=bug-1234 config
+    # ---- command scope ---------
+    task = bug-1234
+
+    # ---- session scope ---------
+    # masked at command scope
+    ;task = feature-5678
+
+    # ---- global scope ---------
+    # masked at session scope
+    ;task = bug-1234
+
+Options pushed higher on the stack override (mask) those appearing more lower - as stated conveniently in the output.
+
+See the 'config' command for more details.

@@ -1,0 +1,66 @@
+{
+    "version": 4,
+    "domain": "testing",
+    "trBrief": "Testing software",
+
+    "worker":
+    {
+        "type": "engine-command",
+        "version": 4,
+        "program": "mb2"
+    },
+
+    "commands":
+    [
+        {
+            "name": "deploy",
+            "trSynopsis": "{--pkcon|--rsync|--sdk|--zypper|--zypper-dup|--manual} [--all] [--debug] [-n|--dry-run] [--] [[+|-]<pattern>...]",
+            "trBrief": "Deploy to a device",
+            "configOptions": ["*", "device!", "-[no-]fix-version", "-[no-]search-output-dir", "target!"],
+            "hooks": ["prepare-device"]
+        },
+        {
+            "name": "undeploy",
+            "trSynopsis": "{--pkcon|--rpm|--rsync|--sdk|--zypper} [--all] [-n|--dry-run] [--] [[+|-]<pattern>...]",
+            "trBrief": "Undeploy from a device",
+            "configOptions": ["device!", "specfile"],
+            "hooks": ["prepare-device"]
+        },
+        {
+            "name": "check",
+            "trSynopsis": "--list-suites\n[-l|--levels [+|-]<level>...] [-s|--suites [+|-]<suite>...] [--] [<artefact>]...",
+            "trBrief": "Perform quality checks",
+            "configOptions": ["*", "-[no-]search-output-dir", "target!"]
+        }
+    ],
+
+    "externOptions": [
+        "device",
+        "[no-]fix-version",
+        "output-dir",
+        "output-prefix",
+        "[no-]search-output-dir",
+        "[no-]snapshot",
+        "specfile",
+        "target",
+        "task"
+    ],
+
+    "options":
+    [
+        {
+            "name": "check.levels",
+            "trArgument": "[+|-]<level>...",
+            "validator": "module.validateCheckLevels"
+        },
+        {
+            "name": "check.suites",
+            "trArgument": "[+|-]<suite>...",
+            "validator": "module.validateCheckSuites"
+        }
+    ],
+
+    "externHooks": [
+        "prepare-device"
+    ]
+}

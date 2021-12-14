@@ -1,0 +1,3 @@
+Apply all patches defined in the .spec file to the source tree.
+
+-R    reverse apply patches (patch -R)

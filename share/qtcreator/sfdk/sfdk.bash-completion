@@ -321,7 +321,7 @@ __sfdk_init()
     eval declare -gA __sfdk_config_aliases=($__sfdk_config_aliases_) || return
 
     local module_completion
-    for module_completion in "$(dirname "$(_sfdk_readlink_f "${BASH_SOURCE[0]}")")"/modules/*.bash-completion; do
+    for module_completion in "$(dirname "$(_sfdk_readlink_f "${BASH_SOURCE[0]}")")"/modules/*/bash-completion; do
         . "$module_completion" || :
     done
 }

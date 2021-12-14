@@ -1,0 +1,1 @@
+In case a passphrase-protected signing key is selected for signing packages, use <string> as the passphrase.

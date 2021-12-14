@@ -1,0 +1,70 @@
+The 'list' command lists the installed build tools. If the '--available' option is used, build tools available for installation from SDK repositories are listed, including those already installed. To see the combined listing of targets grouped by the toolings they use, use the 'list' command without the leading 'tooling' or 'target' keyword. The status flags that may appear in the second column of 'list' output are described further below.
+
+By default the 'list' command caches or omits information that would be slow to retrieve. Use the '--slow' option to check the state more thoroughly.
+
+Build targets available from SDK repositories may be installed using the 'install' command. Required build tooling will be installed automatically. Build toolings available from SDK repositories cannot be installed explicitly without installing a build target requiring the build tooling.
+
+Custom build tools may be installed from a supplied image using the 'install-custom' command. The 'install-custom' command installs either a new build tooling or target, based on the detected type of the image specified with its <URL> or <file> name. If the auto detection fails, it is possible to specify the type of the image manually by prepending one of the 'tooling' or 'target' keywords. In case of a new target, an appropriate tooling will be selected automatically unless overridden with '--tooling'. Automatic creation of the default build target snapshot may be suppressed with the '--no-snapshot' option.
+
+Build tools previously installed either way can be removed using the 'remove' command. The same applies to build target snapshots. Use '--snapshots-of' to remove all snapshots of a build target while preserving the target itself.
+
+The 'update' command updates the given tooling or target. When updating a target, the tooling used by the target will be updated automatically prior to updating the target itself.
+
+The 'register' command enables installing/updating packages from repositories with restricted access. It can operate on a single named or all targets and/or toolings. User name and/or password will be queried interactively if not specified on command line.
+
+Basic management of the packages installed under toolings and targets is possible with the help of the commands 'package-search', 'package-install' and 'package-remove'. The first argument, common to all of these commands, is the tooling or target <name>. The 'package-search' command outputs all packages by default; it may be passed one or more <pattern>s in order to limit the listing to packages whose name match any of the given patterns. Patterns may use '*' and '?' wildcards and when a pattern is enclosed in '/', it is interpreted as a regular expression.
+
+Arbitrary maintenance commands may be executed under toolings and targets with the 'exec' command. The first argument is the tooling or target <name>. If <command> is omitted, an interactive shell will be opened.
+
+Any changes done to the build tools, including custom build tools installation, will be lost when the build engine is replaced during SDK update. Certain level of persistence can be achieved with the help of the '[pre-|post-]pull-build-requires' hooks.
+
+
+Status flags:
+
+available::
++
+--
+Build tools available from SDK repositories, available for installation using the 'install' command.
+--
+
+installed::
++
+--
+Build tools available from SDK repositories, currently installed.
+--
+
+sdk-provided::
++
+--
+Synonym for 'installed'. Used in views where 'user-defined' may appear.
+--
+
+user-defined::
++
+--
+Custom build tools installed using the 'install-custom' command
+--
+
+snapshot::
++
+--
+Build target which is a snapshot. By default, sfdk executes build steps under a writable snapshot of the configured build target. Snapshots with the suffix 'default' are pre-created and chosen by default. Additional snapshots may appear when the 'snapshot' configuration option is in use.
+--
+
+outdated::
++
+--
+This flag may only appear together with the 'snapshot' flag and only when the '--slow' option is used. Its presence meants the original target was updated or otherwise changed since the snapshot was taken or updated last time.
+--
+
+latest::
++
+--
+Build tools available from SDK repositories under the symbolic (floating) version 'latest'; subject to automatic upgrade between SDK releases.
+--
+
+early-access::
++
+--
+Build tools available from SDK repositories under the symbolic (floating) version 'early-access'; subject to automatic upgrade between SDK releases.
+--

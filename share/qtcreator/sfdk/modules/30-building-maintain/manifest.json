@@ -1,0 +1,31 @@
+{
+    "version": 4,
+    "domain": "building",
+    "trBrief": "Building software",
+
+    "worker":
+    {
+        "type": "builtin",
+        "version": 1
+    },
+
+    "commands":
+    [
+        {
+            "name": "engine",
+            "trSynopsis": "{start|stop|status}\nset <property>=<value>...\nshow\nexec [-t] [--] [<command> [<arg>...]]",
+            "trBrief": "Maintain and control the build engine",
+            "dynamicSubcommands": ["exec"]
+        },
+        {
+            "name": "tools",
+            "trSynopsis": "[tooling|target] list [-a|--available] [--slow]\n[tooling|target] update <name>\n[tooling|target] register [--user <user> [--password <password>]] {--all|<name>}\n[tooling|target] install <name>\n[tooling|target] install-custom <name> {<URL>|<file>} [--tooling <tooling>] [--no-snapshot]\n[tooling|target] remove [--snapshots-of] <name>\n[tooling|target] package-search <name> [<pattern>...]\n[tooling|target] package-install <name> <package>...\n[tooling|target] package-remove <name> <package>...\n[tooling|target] exec <name> [<command> [<arg>...]]",
+            "trBrief": "Maintain build tools",
+            "dynamicSubcommands": ["exec"]
+        }
+    ],
+
+    "options":
+    [
+    ]
+}

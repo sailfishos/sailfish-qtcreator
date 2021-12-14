@@ -1,0 +1,1 @@
+Use build targets directly. sfdk will refuse to directly use a target for which snapshots exist unless 'force' is passed as the optional argument.

@@ -1,0 +1,5 @@
+Arguments to pass to sb2 when used to run build commands. Defaults to no arguments.
+
+<args> will be split into arguments as with shell word splitting. Use backslash to escape possible whitespace characters within arguments.
+
+The essential '-t <target>' option is passed to sb2 independently of this configuration option and it is an error to include it in the <args>.

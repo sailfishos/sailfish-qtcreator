@@ -1,0 +1,5 @@
+Initialize a new project of the selected <type> under the current working directory. Project <name> will figure e.g. as the main package name and it defaults to the directory name. Depending on the selected project <type>, alternative <builder>s may be available to choose from.
+
+Valid project types together with available builders can be listed using the '--list-types' option.
+
+By default, the 'init' command refuses to do its job under a non-empty directory - this can be bypassed with the '--force' option.

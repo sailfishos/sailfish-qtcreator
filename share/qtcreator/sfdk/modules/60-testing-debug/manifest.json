@@ -1,0 +1,35 @@
+{
+    "version": 4,
+    "domain": "testing",
+    "trBrief": "Testing software",
+
+    "worker":
+    {
+        "type": "builtin",
+        "version": 1
+    },
+
+    "commands":
+    [
+        {
+            "name": "debug",
+            "trSynopsis": "[start] [<option>...] [--working-directory <dir>] {<executable> | --args <executable> <arg>...}\n[attach] [<option>...] <executable> <pid>\n[load-core] [<option>...] [--local-core] <executable> <core-file>",
+            "trBrief": "Debug software with the GNU debugger",
+            "configOptions": ["device!", "target!"],
+            "hooks": ["prepare-device"]
+        }
+    ],
+
+    "externOptions": [
+        "device",
+        "target"
+    ],
+
+    "options":
+    [
+    ],
+
+    "externHooks": [
+        "prepare-device"
+    ]
+}

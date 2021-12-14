@@ -1,0 +1,40 @@
+{
+    "version": 4,
+    "domain": "ide",
+    "trBrief": "IDE support",
+
+    "worker":
+    {
+        "type": "engine-command",
+        "version": 4,
+        "program": "mb2"
+    },
+
+    "commands":
+    [
+        {
+            "name": "compiledb",
+            "trSynopsis": "[<make-extra-arg>...]",
+            "trBrief": "Generate compilation database",
+            "configOptions": ["*", "target!"],
+            "postRun": "module.mapCompilationDatabasePaths"
+        }
+    ],
+
+    "externOptions":
+    [
+        "[no-]fix-version",
+        "output-dir",
+        "output-prefix",
+        "no-pull-build-requires",
+        "[no-]search-output-dir",
+        "[no-]snapshot",
+        "specfile",
+        "target",
+        "task"
+    ],
+
+    "options":
+    [
+    ]
+}

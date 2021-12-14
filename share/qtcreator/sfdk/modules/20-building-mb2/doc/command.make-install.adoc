@@ -1,0 +1,1 @@
+Run rpmbuild. Execute just the %install section of the .spec file in order to populate the RPM "buildroot". This is not the same as using the 'make' command with 'install' as an argument.

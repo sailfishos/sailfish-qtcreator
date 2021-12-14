@@ -1,0 +1,39 @@
+{
+    "version": 4,
+    "domain": "ide",
+    "trBrief": "IDE support",
+
+    "worker":
+    {
+        "type": "engine-command",
+        "version": 5,
+        "program": "sdk-make-qmltypes",
+        "omitSubcommand": true,
+        "optionFormatter": "module.formatOption"
+    },
+
+    "commands":
+    [
+        {
+            "name": "qmltypes",
+            "trSynopsis": "[--no-deploy] [--no-keep] [--no-restore-emulator] [--restore-emulator]",
+            "trBrief": "Generate qmltypes files",
+            "configOptions": ["*", "device!", "target!"]
+        }
+    ],
+
+    "externOptions":
+    [
+        "device",
+        "output-dir",
+        "output-prefix",
+        "[no-]snapshot",
+        "specfile",
+        "target",
+        "task"
+    ],
+
+    "options":
+    [
+    ]
+}

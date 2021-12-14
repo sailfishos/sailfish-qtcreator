@@ -1,0 +1,1 @@
+Do not update build-time dependencies unless required explicitly with 'build-requires pull'.

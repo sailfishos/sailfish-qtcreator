@@ -1,0 +1,153 @@
+=== Basic Building
+
+Start by choosing the build target. List the available build tools.
+
+    $ sfdk tools list
+    %{OsVariant:NoSpace}-3.0.0.8
+    └─%{OsVariant:NoSpace}-3.0.0.8-i486
+    %{OsVariant:NoSpace}-3.0.2.8
+    ├─%{OsVariant:NoSpace}-3.0.2.8-armv7hl
+    └─%{OsVariant:NoSpace}-3.0.2.8-i486
+
+Each build target lets you build software for a specific operating system version running on a specific hardware. Each target is listed under one tooling supporting the given OS version (see MANAGING SDK BUILD TOOLS below for more information).
+
+As with other configuration options, you can decide if you want to apply your choice globally or just for the current (shell) session. Let's pick the latest ARM target for global use and its i486 counterpart for this session only.
+
+    $ sfdk config --global --push target %{OsVariant:NoSpace}-3.0.2.8-armv7hl
+    $ sfdk config --push target %{OsVariant:NoSpace}-3.0.2.8-i486
+
+Enter a project directory and perform an all-in-one build procedure using the 'build' command. If you don't have an existing project available, you can create one as in the following example.
+
+    $ mkdir my-app && cd my-app
+    $ sfdk init --type qtquick2app
+    $ sfdk build
+
+After successful build the resulting RPM package(s) can be found under the RPMS directory.
+
+    $ ls ./RPMS
+    my-app-0-1.i486.rpm
+
+It is possible to invoke each build phase separately.
+
+    $ sfdk qmake
+    $ sfdk make
+    $ sfdk make-install
+    $ sfdk package
+
+After all pick a device from those configured inside the %{IdeVariant} (Qt Creator) and deploy the package.
+
+    $ sfdk device list
+    #0 "%{OsVariant} Emulator 3.1.0.12"
+        emulator         autodetected  nemo@127.0.0.1:2223
+        private-key: ~/%{OsVariant:NoSpace}/vmshare/ssh/private_keys/sdk
+    #1 "Xperia 10 - Dual SIM (ARM)"
+        hardware-device  user-defined  nemo@192.168.2.15:22
+        private-key: ~/.ssh/id_myx10
+    $ sfdk config --push device "%{OsVariant} Emulator 3.1.0.12"
+    $ sfdk deploy --sdk
+
+
+=== Shadow Builds
+
+Shadow builds can be initiated simply by passing project file or directory path to the 'build' or 'qmake' (or 'cmake') command:
+
+    $ mkdir build && cd build
+    $ sfdk build ../path/to/sources
+
+Or manually invoking each step:
+
+    $ mkdir build && cd build
+    $ sfdk qmake ../path/to/sources
+    $ sfdk make
+    $ sfdk rpm
+
+Limitations related to shadow builds:
+
+1. Shadow build is only available for packages that use qmake (or CMake or GNU Automake).  Additionally, their build and install procedure must be fully realized using qmake (or CMake or GNU Automake) with no additional steps implemented at .spec level.
+2. The '--prepare' option to the 'build' command cannot be used with shadow builds.
+3. If 'prep' or 'apply' is needed, it must be used directly on the source tree prior to starting a shadow build (shadow builds for multiple targets are still possible provided that the %prep section is target-independent).
+4. GNU Automake, Autoconf and related tools, in case of packages that invoke these at build time, still store their outputs (Makefile.in, configure, etc.) under the source tree.
+
+
+=== Working On Multiple Packages
+
+When modifications to two (or more) packages are needed under a task, and there is a build-time dependency between those, it is necessary to deploy the modified, locally built package to the build environment. This happens automatically when shared output directory is in use.
+
+Shared output directory is a simple but powerful concept, not limited to the above mentioned use case. It can be used to addres whole range of problems related to "super-project" handling. Integrated development environments call these "solutions", "workspaces", "sessions" etc. The terminology varies. sfdk is not that explicit about super-project handling, but it has a notion of "task", which may denote a super-project too.
+
+It is advisable to enable to enable per-task shared output directories by default, as in this example.
+
+    $ sfdk config --global --push output-prefix ~/RPMS
+    $ sfdk config --global --push task
+
+Notice that the 'task' option is enabled but no task name is passed. In this case it will be determined automatically, based on the current Git branch - check the description of the 'task' configuration option for more details.
+
+With this configuration we can satisfy build-time dependencies between packages conveniently. Consider 'packageB' with build-time dependency on 'packageA'.
+
+    $ sfdk config --push target my-target
+    $ cd packageA
+    $ git checkout -b bug12345
+    $ sfdk build
+    $ cd ../packageB
+    $ git checkout -b bug12345
+    $ sfdk build
+
+Package 'packageB' was built against package 'packageA' built in the previous step.  All resulting binary packages may be found in the shared output directory and they all can be also deployed to a device conveniently with the '--all' option:
+
+    $ ls -1 ~/RPMS/bug12345/my-target/
+    $ sfdk deploy --sdk --all
+
+We have learned how to deal with dependencies between packages. And we can deal with dependencies between tasks (projects) too. If task 'bug12345' depends on (or is derived from) task 'bug12300', it makes sense to chain the changes as in
+
+    $ cp -a --reflink=auto ~/RPMS/{bug12300,bug12345}
+
+Similarly it is possible to supply any custom build-time dependencies by simply copying them under a shared output directory.
+
+
+=== Deploying Platform Packages
+
+With platform packages, subpackages specific to a particular device variant often exist, so a careful selection of subpackages to install is needed. Platform packages can be udated conveniently with the help of 'zypper dup', which avoids the need for manual selection in many cases:
+
+    $ sfdk deploy --manual --all \
+        && sfdk device exec sudo zypper -p RPMS dup --from ~plus-repo-1
+
+A shorthand syntax exists for this approach – it is the '--zypper-dup' deployment method:
+
+    $ sfdk deploy --zypper-dup --all
+
+Pass '--dry-run' to preview the effect before actually applying it.
+
+
+=== Clean Builds
+
+Build time requirements of one package may interfere with those of another one. In order to avoid polluting build targets with dependencies of a particular package, sfdk uses build targets through writable snapshots. See the description of the 'snapshot' configuration option for details on how a snapshot is chosen.
+
+It is possible to return to the clean state where just the current build-time dependencies are pulled in with the 'build-requires reset' command.  Compared to the 'build-requires pull' command, this starts with a freshly re-created snapshot.
+
+The 'build-requires reset' command is implied whenever the original build target is updated, so if a locally built package is needed as a build-time dependency, you should not install it manually under the snapshot. Instead, rely on the above mentioned fact that a shared output directory can be used to supply build-time dependencies, and get locally built dependencies installed automatically that way.
+
+For similar reasons, when sfdk fails to install build-time dependencies due to errors like "file not found on the server", i.e., because the local repository cache got outdated, it is the original target that should be updated, not the snapshot.
+
+Existing snapshots can be listed and removed using the 'tools' command just like the ordinary targets.
+
+
+=== Signing Packages
+
+The 'build' and 'package' commands allow to optionally sign the resulting packages. Use the '--sign' option to these commands to enable this step.
+
+The cryptographic key to use for signing can be selected with the configuration option 'package.signing-user'. If this is a passphrase-protected key, the passphrase needs to be supplied with either the 'package.signing-passphrase' or 'package.signing-passphrase-file' option:
+
+    $ touch ~/path/to/passphrase-file
+    $ chmod 600 ~/path/to/passphrase-file
+    $ cat >~/path/to/passphrase-file
+    YourPassphrase
+    ^D
+    $ sfdk config --global --push package.signing-user NAME
+    $ sfdk config --global --push package.signing-passphrase-file \
+        ~/path/to/passphrase-file
+    # sfdk build --sign
+
+
+=== Maintaining Changelogs
+
+If a file exists with '.changes' extension, otherwise matching the spec file name, the effect will be the same as having a %changelog section in the spec file. If a file with '.changes.run' extension is found instead, this file will be executed and its output treated as the actual change log.

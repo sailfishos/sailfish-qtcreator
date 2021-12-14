@@ -1,0 +1,49 @@
+Deploy build results to the configured device (see the 'device' configuration option).
+
+By default, just the build results of the project under current working directory will be deployed. When a shared output directory is used (see 'output-dir' and 'output-prefix' configuration options), the option '--all' can be used to require deployment of all packages, no matter of their origin. The '--all' option is not available when the '--rsync' method is used.
+
+With the '--dry-run' option, the list of (sub)packages that would be deployed may be previewed without applying the changes.  Depending on the selected deployment method, the packages may still get transferred to the device.
+
+Selection of (sub)packages for deployment can be influenced with glob <pattern>s, each of which may be preceded with '+' or '-' to opt for either inclusion (default) or exclusion respectively as the desired effect.  The effect of multiple patterns is cumulative, evaluated from left to right.  The very first pattern determines whether it starts by removing from the full list or by adding to an empty list.  Extended, Bash-compatible patterns are allowed.  The '-*-debug@(info|source)' pattern is implied unless the '--debug' option is used.  (Note: '--debug' is not needed for successfull debugging with the 'debug' command as that command uses the local debug information.)  Options must precede patterns if any.
+
+The following deployment methods are available, corresponding to the mandatory option:
+
+--pkcon::
++
+--
+Uses 'pkcon' to install RPM packages.  Not all device operating system versions and configurations permit use of this method.
+--
+
+--rsync::
++
+--
+This method is special.  It can be used to transfer the RPM "buildroot" to the device as '/opt/sdk/<name>' without building and installing true RPM packages.  Use the 'make-install' command to populate the RPM buildroot.  Incompatible with '--all'.
+--
+
+--sdk::
++
+--
+Uses the method native to the SDK to install RPM packages. Requires developer mode enabled on the device.
+--
+
+--zypper::
++
+--
+Uses 'zypper' to install RPM packages.  Requires 'zypper' installed on the device. Requires root access to the device.
+--
+
+--zypper-dup::
++
+--
+Uses 'zypper dup' to install RPM packages.  Requires 'zypper' installed on the device.  Requires root access to the device.
+
+This method allows to deploy updates to platform packages conveniently.  With platform packages, subpackages specific to a particular device variant often exist, so a careful selection of subpackages to install is needed.  Compared to the '--zypper' method, which uses 'zypper in' and so fully relies on the user to select packages to install, the '--zypper-dup' method is capable of figuring out the right subset of packages automatically in many cases.
+--
+
+--manual::
++
+--
+Only transfers the RPM packages to the device for manual installation. Uses '~/RPMS' as the target directory on the device.
+--
+
+When "Requires root access to the device" is stated, the device will be accessed as the 'root' user instead of the configured user. Other connection parameters remain unchanged.

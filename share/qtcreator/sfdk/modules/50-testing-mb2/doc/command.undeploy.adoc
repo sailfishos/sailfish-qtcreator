@@ -1,0 +1,45 @@
+Undeploy build results previously deployed to a device.
+
+Initially, device packages are collected based on the build host name recorded in their metadata.  Just those packages that seem to originate from the host where sfdk is running will be considered for removal from the device.  For that it is vital that the host name is stable and unique among the host names recorded by packages installed from other sources.  See the 'host-name' property of the build engine for more information.
+
+Further, unless the '--all' option is used, just the build results of the project under current working directory will be considered for removal from the device.  When the '--all' option is used, any build results originated from this build host will be considered.  (Note how the effect of '--all' differs between 'deploy' and 'undeploy'.)
+
+With the '--dry-run' option, the list of (sub)packages that would be removed may be previewed without applying the changes.
+
+If needed, the selection can be furthermore adjusted with glob <pattern>s, each of which may be preceded with '+' or '-' to opt for either inclusion (default) or exclusion respectively as the desired effect.  The effect of multiple patterns is cumulative, evaluated from left to right.  The very first pattern determines whether it starts by removing from the full list or by adding to an empty list.  Extended, Bash-compatible patterns are allowed.  Options must precede patterns if any.
+
+Except for the '--rsync' method, the selected method is not required to match the method previously used with the 'deploy' command.
+
+The following methods of undeployment are available, corresponding to the mandatory option:
+
+--pkcon::
++
+--
+Uses 'pkcon' to remove RPM packages.  Not all device operating system versions and configurations permit use of this method.
+--
+
+--rpm::
++
+--
+Uses plain 'rpm' to remove RPM packages.  Requires root access to the device.
+--
+
+--rsync::
++
+--
+This method is special.  It does not work with RPM packages.  It is only capable of removing files previously copied under '/opt/sdk/<name>' with 'deploy --rsync'.  (The origin of the files is not verified!)
+--
+
+--sdk::
++
+--
+Uses the method native to the SDK to remove RPM packages. Requires developer mode enabled on the device. Not available with older device operating system versions.
+--
+
+--zypper::
++
+--
+Uses 'zypper' to remove RPM packages.  Requires 'zypper' installed on the device. Requires root access to the device.
+--
+
+When "Requires root access to the device" is stated, the device will be accessed as the 'root' user instead of the configured user. Other connection parameters remain unchanged.

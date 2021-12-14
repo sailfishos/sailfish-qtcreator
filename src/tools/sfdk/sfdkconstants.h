@@ -31,6 +31,9 @@ const char APP_ID[] = "sfdk";
 const char SDK_FRONTEND_ID[] = "sfdk";
 const char DISPATCH_TR_CONTEXT[] = "Sfdk::Dispatch";
 
+const char MODULE_MANIFEST_FILE[] = "manifest.json";
+const char MODULE_SCRIPT_EXTENTION_FILE[] = "script.mjs";
+
 const char GENERAL_DOMAIN_NAME[] = "general";
 const char DEVICE_OPTION_NAME[] = "device";
 const char HOOKS_DIR_OPTION_NAME[] = "hooks-dir";

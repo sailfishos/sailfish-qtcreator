@@ -1,0 +1,9 @@
+Modifies behavior of the 'output-prefix' option.  The task name can be specified either directly as <name> or it can be derived from the current Git branch name, if a value in the form 'git:<regex>' is set.
+
+The POSIX extended regular expression <regex> serves both as a condition to enable this option and as a means to select a substring of the Git branch name to be used as the task name.
+
+The argument may be omitted, in which case the default of
+
+  git:^[[:alpha:]]{2,5}[[:digit:]]{3,}
+
+will be used, which is suitable to look for a bug reference at the beginning of the current Git branch name. E.g., when the branch is named 'bug1234-quickfix', then 'bug1234' (the portion matched by the regular expression) will be used as the task name.

@@ -1,0 +1,1 @@
+Run rpmbuild. Execute just the %prep section of the .spec file.

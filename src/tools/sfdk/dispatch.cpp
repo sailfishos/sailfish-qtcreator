@@ -32,10 +32,12 @@
 
 #include <sfdk/sdk.h>
 
+#include <utils/fileutils.h>
 #include <utils/pointeralgorithm.h>
 #include <utils/qtcassert.h>
 
 #include <QDebug>
+#include <QDir>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -44,6 +46,7 @@
 #include <QRegularExpression>
 
 using namespace Sfdk;
+using namespace Utils;
 
 namespace {
 
@@ -63,12 +66,19 @@ const char POST_RUN_KEY[] = "postRun";
 const char PRE_RUN_KEY[] = "preRun";
 const char TR_ARGUMENT_KEY[] = "trArgument";
 const char TR_BRIEF_KEY[] = "trBrief";
-const char TR_DESCRIPTION_KEY[] = "trDescription";
 const char TR_SYNOPSIS_KEY[] = "trSynopsis";
 const char TYPE_KEY[] = "type";
 const char VALIDATOR_KEY[] = "validator";
 const char VERSION_KEY[] = "version";
 const char WORKER_KEY[] = "worker";
+
+const char DEFAULT_DOC_DIRECTORY[] = "doc";
+const char DOC_DIRECTORY_TEMPLATE[] = "doc_%1";
+const char ADOC_FILE_EXTENSION[] = "adoc";
+const char OBJECT_TYPE_MODULE[] = "module";
+const char OBJECT_TYPE_COMMAND[] = "command";
+const char OBJECT_TYPE_OPTION[] = "option";
+const char OBJECT_TYPE_HOOK[] = "hook";
 
 const char OS_VARIANT_MACRO[] = "%{OsVariant}";
 const char OS_VARIANT_NOSPACE_MACRO[] = "%{OsVariant:NoSpace}";
@@ -146,53 +156,52 @@ Dispatcher::~Dispatcher()
     s_instance = nullptr;
 }
 
-bool Dispatcher::load(const QString &moduleFileName)
+bool Dispatcher::load(const QString &modulePath)
 {
-    QFile moduleFile(moduleFileName);
-    if (!moduleFile.open(QIODevice::ReadOnly)) {
-        qCCritical(sfdk) << "Failed to open module" << moduleFileName << "for reading";
+    const QString manifestFileName = QDir(modulePath).filePath(Constants::MODULE_MANIFEST_FILE);
+    QFile manifestFile(manifestFileName);
+    if (!manifestFile.open(QIODevice::ReadOnly)) {
+        qCCritical(sfdk) << "Failed to open module manifest" << manifestFileName << "for reading";
         return false;
     }
 
-    const QByteArray moduleData = moduleFile.readAll();
+    const QByteArray manifestData = manifestFile.readAll();
 
     QJsonParseError error;
-    QJsonDocument json = QJsonDocument::fromJson(moduleData, &error);
+    QJsonDocument json = QJsonDocument::fromJson(manifestData, &error);
 
     if (error.error != QJsonParseError::NoError) {
         int line = 1;
         int column = 1;
         for (int i = 0; i < error.offset; ++i) {
-            if (moduleData.at(i) == '\n') {
+            if (manifestData.at(i) == '\n') {
                 ++line;
                 column = 1;
             } else {
                 ++column;
             }
         }
-        qCCritical(sfdk).noquote() << tr("Error parsing module: %1:%2:%3: %4")
-            .arg(moduleFileName).arg(line).arg(column)
+        qCCritical(sfdk).noquote() << tr("Error parsing module manifest: %1:%2:%3: %4")
+            .arg(manifestFileName).arg(line).arg(column)
             .arg(error.errorString());
         return false;
     }
 
     if (!json.isObject()) {
-        qCCritical(sfdk).noquote() << tr("No root JSON object in module '%1'").arg(moduleFileName);
+        qCCritical(sfdk).noquote() << tr("No root JSON object in module manifest '%1'").arg(manifestFileName);
         return false;
     }
 
     QVariantMap data = json.object().toVariantMap();
 
     QString errorString;
-    std::unique_ptr<Module> module = s_instance->loadModule(data, &errorString);
+    std::unique_ptr<Module> module = s_instance->loadModule(modulePath, data, &errorString);
     if (!module) {
-        qCCritical(sfdk).noquote() << tr("Data error in module file '%1': %2")
-            .arg(moduleFileName)
+        qCCritical(sfdk).noquote() << tr("Data error in module manifest '%1': %2")
+            .arg(manifestFileName)
             .arg(errorString);
         return false;
     }
-
-    module->fileName = moduleFileName;
 
     s_instance->m_modules.emplace_back(std::move(module));
 
@@ -214,6 +223,11 @@ const Module::ConstUniqueList &Dispatcher::modules()
     return s_instance->m_modules;
 }
 
+QString Dispatcher::describe(const Module *module)
+{
+    return loadDescription(module, OBJECT_TYPE_MODULE, QFileInfo(module->path).fileName());
+}
+
 const Worker::ConstUniqueList &Dispatcher::workers()
 {
     return s_instance->m_workers;
@@ -222,6 +236,11 @@ const Worker::ConstUniqueList &Dispatcher::workers()
 const Command::ConstUniqueList &Dispatcher::commands()
 {
     return s_instance->m_commands;
+}
+
+QString Dispatcher::describe(const Command *command)
+{
+    return loadDescription(command->module, OBJECT_TYPE_COMMAND, command->name);
 }
 
 const Command *Dispatcher::command(const QString &name)
@@ -239,6 +258,11 @@ const Hook *Dispatcher::hook(const QString &name)
     return s_instance->m_hookByName.value(name);
 }
 
+QString Dispatcher::describe(const Hook *hook)
+{
+    return loadDescription(hook->module, OBJECT_TYPE_HOOK, hook->name);
+}
+
 const Option::ConstUniqueList &Dispatcher::options()
 {
     return s_instance->m_options;
@@ -247,6 +271,11 @@ const Option::ConstUniqueList &Dispatcher::options()
 const Option *Dispatcher::option(const QString &name)
 {
     return s_instance->m_optionByName.value(name);
+}
+
+QString Dispatcher::describe(const Option *option)
+{
+    return loadDescription(option->module, OBJECT_TYPE_OPTION, option->name);
 }
 
 QVariant Dispatcher::value(const QVariantMap &data, const QString &key, QVariant::Type type, const
@@ -340,6 +369,43 @@ QString Dispatcher::localizedString(const QVariant &value)
     return brandedString(QCoreApplication::translate(Constants::DISPATCH_TR_CONTEXT, value.toByteArray()));
 }
 
+QString Dispatcher::loadDescription(const Module *module, const QString &objectType,
+        const QString &objectName)
+{
+    QString fileName = objectType;
+    if (objectType != OBJECT_TYPE_MODULE)
+        fileName += "." + objectName;
+    fileName += QString(".") + ADOC_FILE_EXTENSION;
+
+    auto pathForLanguage = [&](const QString &language = {}) {
+        return FilePath::fromString(module->path)
+            .pathAppended(
+                    language.isEmpty()
+                    ? QString(DEFAULT_DOC_DIRECTORY)
+                    : QString(DOC_DIRECTORY_TEMPLATE).arg(language))
+            .pathAppended(fileName);
+    };
+
+    QList<FilePath> candidates = Utils::transform(uiLanguages(), pathForLanguage);
+    candidates.append(pathForLanguage());
+
+    const FilePath path = Utils::findOrDefault(candidates, &FilePath::exists);
+    if (path.isEmpty()) {
+        if (objectType != OBJECT_TYPE_MODULE)
+            qCWarning(sfdk) << "No description found for" << (objectType + ":" + objectName);
+        return {};
+    }
+
+    QFile docFile(path.toString());
+    if (!docFile.open(QIODevice::ReadOnly)) {
+        qCWarning(sfdk) << "Failed to load description for" << (objectType + ":" + objectName)
+            << ":" << docFile.errorString();
+        return {};
+    }
+
+    return brandedString(QString::fromUtf8(docFile.readAll()).trimmed());
+}
+
 const Domain *Dispatcher::ensureDomain(const QString &name)
 {
     const Domain *existing = domain(name);
@@ -354,7 +420,8 @@ const Domain *Dispatcher::ensureDomain(const QString &name)
     return m_domains.back().get();
 }
 
-std::unique_ptr<Module> Dispatcher::loadModule(const QVariantMap &data, QString *errorString)
+std::unique_ptr<Module> Dispatcher::loadModule(const QString &modulePath, const QVariantMap &data,
+        QString *errorString)
 {
     auto addContext = [](const QString &errorString, const QString &element) {
         return tr("Under element '%1': %2").arg(element).arg(errorString);
@@ -362,7 +429,9 @@ std::unique_ptr<Module> Dispatcher::loadModule(const QVariantMap &data, QString 
 
     auto module = std::make_unique<Module>();
 
-    QSet<QString> validKeys{VERSION_KEY, DOMAIN_KEY, TR_BRIEF_KEY, TR_DESCRIPTION_KEY, WORKER_KEY,
+    module->path = modulePath;
+
+    QSet<QString> validKeys{VERSION_KEY, DOMAIN_KEY, TR_BRIEF_KEY, WORKER_KEY,
         COMMANDS_KEY, EXTERN_HOOKS_KEY, EXTERN_OPTIONS_KEY, OPTIONS_KEY, HOOKS_KEY};
     if (!checkKeys(data, validKeys, errorString))
         return {};
@@ -384,11 +453,6 @@ std::unique_ptr<Module> Dispatcher::loadModule(const QVariantMap &data, QString 
     if (!briefDescription.isValid())
         return {};
     module->briefDescription = localizedString(briefDescription.toString());
-
-    QVariant description = value(data, TR_DESCRIPTION_KEY, QVariant::String, QString(), errorString);
-    if (!description.isValid())
-        return {};
-    module->description = localizedString(description.toString());
 
     QVariant workerData = value(data, WORKER_KEY, QVariant::Map, {}, errorString);
     if (!workerData.isValid())
@@ -493,8 +557,7 @@ bool Dispatcher::loadOptions(const Module *module, const QVariantList &list,
         auto option = std::make_unique<Option>();
         option->module = module;
 
-        QSet<QString> validKeys{NAME_KEY, ALIAS_KEY, TR_DESCRIPTION_KEY, TR_ARGUMENT_KEY,
-            VALIDATOR_KEY};
+        QSet<QString> validKeys{NAME_KEY, ALIAS_KEY, TR_ARGUMENT_KEY, VALIDATOR_KEY};
         if (!checkKeys(data, validKeys, errorString))
             return false;
 
@@ -507,11 +570,6 @@ bool Dispatcher::loadOptions(const Module *module, const QVariantList &list,
         if (!alias.isValid())
             return false;
         option->alias = alias.toString();
-
-        QVariant description = value(data, TR_DESCRIPTION_KEY, QVariant::String, {}, errorString);
-        if (!description.isValid())
-            return false;
-        option->description = localizedString(description.toString());
 
         QVariant argumentDescription = value(data, TR_ARGUMENT_KEY, QVariant::String, QString(),
                 errorString);
@@ -589,7 +647,7 @@ bool Dispatcher::loadHooks(const Module *module, const QVariantList &list,
         auto hook = std::make_unique<Hook>();
         hook->module = module;
 
-        QSet<QString> validKeys{NAME_KEY, TR_SYNOPSIS_KEY, TR_DESCRIPTION_KEY};
+        QSet<QString> validKeys{NAME_KEY, TR_SYNOPSIS_KEY};
         if (!checkKeys(data, validKeys, errorString))
             return false;
 
@@ -602,11 +660,6 @@ bool Dispatcher::loadHooks(const Module *module, const QVariantList &list,
         if (!synopsis.isValid())
             return false;
         hook->synopsis = synopsis.toString();
-
-        QVariant description = value(data, TR_DESCRIPTION_KEY, QVariant::String, {}, errorString);
-        if (!description.isValid())
-            return false;
-        hook->description = localizedString(description.toString());
 
         allModuleHooks->append(hook.get());
 
@@ -630,7 +683,7 @@ bool Dispatcher::loadCommands(const Module *module, const QVariantList &list,
         auto command = std::make_unique<Command>();
         command->module = module;
 
-        QSet<QString> validKeys{NAME_KEY, TR_SYNOPSIS_KEY, TR_BRIEF_KEY, TR_DESCRIPTION_KEY,
+        QSet<QString> validKeys{NAME_KEY, TR_SYNOPSIS_KEY, TR_BRIEF_KEY,
             CONFIG_OPTIONS_KEY, HOOKS_KEY, DYNAMIC_KEY, DYNAMIC_SUBCOMMANDS_KEY,
             COMMAND_LINE_FILTER, PRE_RUN_KEY, POST_RUN_KEY};
         if (!checkKeys(data, validKeys, errorString))
@@ -651,11 +704,6 @@ bool Dispatcher::loadCommands(const Module *module, const QVariantList &list,
         if (!briefDescription.isValid())
             return false;
         command->briefDescription = localizedString(briefDescription.toString());
-
-        QVariant description = value(data, TR_DESCRIPTION_KEY, QVariant::String, {}, errorString);
-        if (!description.isValid())
-            return false;
-        command->description = localizedString(description.toString());
 
         QVariant configOptionsData = value(data, CONFIG_OPTIONS_KEY, QVariant::List, QVariantList(),
                 errorString);

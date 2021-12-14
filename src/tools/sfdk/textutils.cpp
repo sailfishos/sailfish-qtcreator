@@ -134,6 +134,20 @@ bool isConnectedToTerminal()
     return isConnectedToTerminal;
 }
 
+// QLocale::uiLanguages() does not provide the desired output
+QStringList uiLanguages()
+{
+    const QString name = QLocale::system().name();
+
+    QStringList languages;
+    languages.append(name);
+    const int pos = name.indexOf('_');
+    if (pos != -1)
+        languages.append(name.left(pos));
+
+    return languages;
+}
+
 /*!
  * \class Pager
  */

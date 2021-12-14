@@ -1,0 +1,1 @@
+Consider the RPM packages found in the output directory when installing build time dependencies. The optional value controls zypper verbosity.  The default is 'verbose'.

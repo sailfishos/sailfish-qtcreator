@@ -1,0 +1,3 @@
+Select the GnuPG key to sign packages with. Accepts the same values as the '--local-user' option of the 'gpg' command does. See GnuPG documentation for more details.
+
+Depending on your SDK variant, different semantics may apply.
