@@ -43,6 +43,7 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QHostInfo>
+#include <QJsonDocument>
 #include <QPointer>
 #include <QProcess>
 #include <QRegularExpression>
@@ -57,6 +58,7 @@ namespace {
 
 const char DEFAULT_SNAPSHOT_SUFFIX[] = "default";
 const char POOLED_SNAPSHOT_INFIX[] = ".pool.";
+const char PROXY_CONFIG_FILE[] = "proxy.json";
 
 const char* SIMPLE_WRAPPERS[] = {
     Constants::WRAPPER_CMAKE,
@@ -282,8 +284,7 @@ void BuildEngine::setWwwProxy(const QString &type, const QString &servers, const
     d->wwwProxyServers = servers;
     d->wwwProxyExcludes = excludes;
 
-    if (d->virtualMachine->state() == VirtualMachine::Connected)
-        d->syncWwwProxy();
+    d->syncWwwProxy();
 
     emit wwwProxyChanged(type, servers, excludes);
 }
@@ -466,7 +467,6 @@ bool BuildEnginePrivate::fromMap(const QVariantMap &data)
 
 bool BuildEnginePrivate::initVirtualMachine(const QUrl &vmUri)
 {
-    Q_Q(BuildEngine);
     Q_ASSERT(!virtualMachine);
     QTC_ASSERT(BuildEngine::s_vmConnectionUiCreator, return false);
 
@@ -484,11 +484,6 @@ bool BuildEnginePrivate::initVirtualMachine(const QUrl &vmUri)
     sshParameters.authenticationType = SshConnectionParameters::AuthenticationTypeSpecificKey;
     sshParameters.forwardAgent = true;
     virtualMachine->setSshParameters(sshParameters);
-
-    QObject::connect(VirtualMachinePrivate::get(virtualMachine.get()),
-            &VirtualMachinePrivate::initGuest,
-            q,
-            [=]() { initGuest(); });
 
     return true;
 }
@@ -651,11 +646,6 @@ void BuildEnginePrivate::setDBusPort(quint16 dBusPort)
     emit q_func()->dBusPortChanged(dBusPort);
 }
 
-void BuildEnginePrivate::initGuest()
-{
-    syncWwwProxy();
-}
-
 // FIXME This should be only done when the configuration changes
 void BuildEnginePrivate::syncWwwProxy()
 {
@@ -664,31 +654,34 @@ void BuildEnginePrivate::syncWwwProxy()
     const QStringList wwwProxyServers = this->wwwProxyServers.split(spaces, Qt::SkipEmptyParts);
     const QStringList wwwProxyExcludes = this->wwwProxyExcludes.split(spaces, Qt::SkipEmptyParts);
 
-    QStringList args;
-    args.append(wwwProxyType);
+    QVariantMap config;
+    config["Method"] = wwwProxyType;
 
     if (!wwwProxyServers.isEmpty()
-            && (wwwProxyType == Constants::WWW_PROXY_AUTOMATIC
-                || wwwProxyType == Constants::WWW_PROXY_MANUAL)) {
-        args.append(wwwProxyServers);
+            && wwwProxyType == Constants::WWW_PROXY_AUTOMATIC) {
+        // Proper messaging should be done on the UI side
+        if (wwwProxyServers.count() > 1) {
+            qCDebug(engine) << "Multiple proxy servers specified."
+                << "Using just the first one for auto configuration";
+        }
+        config["URL"] = wwwProxyServers.first();
+    }
+
+    if (!wwwProxyServers.isEmpty()
+            && wwwProxyType == Constants::WWW_PROXY_MANUAL) {
+        config["Servers"] = wwwProxyServers;
     }
 
     if (!wwwProxyExcludes.isEmpty()
             && wwwProxyType == Constants::WWW_PROXY_MANUAL) {
-        args.append("--excludes");
-        args.append(wwwProxyExcludes);
+        config["Excludes"] = wwwProxyExcludes;
     }
 
-    const QString connmanctl = QString::fromLatin1(R"(
-        mac=$(</sys/class/net/eth0/address)
-        service=ethernet_${mac//:}_cable
-        sudo connmanctl config "$service" proxy %1
-    )").arg(QtcProcess::joinArgs(args, Utils::OsTypeLinux));
-
-    qCDebug(engine) << "About to sync WWW proxy. connmanctl arguments:" << args;
-
-    BatchComposer::enqueue<RemoteProcessRunner>("sync-www-proxy-configuration",
-            connmanctl, sshParameters);
+    const FilePath configPath = sharedConfigPath.pathAppended(PROXY_CONFIG_FILE);
+    FileSaver saver(configPath.toString(), QIODevice::WriteOnly);
+    saver.write(QJsonDocument::fromVariant(config).toJson());
+    const bool ok = saver.finalize();
+    QTC_ASSERT(ok, qCCritical(engine) << saver.errorString());
 }
 
 void BuildEnginePrivate::updateBuildTargets()

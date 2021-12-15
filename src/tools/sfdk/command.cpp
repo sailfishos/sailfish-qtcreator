@@ -561,12 +561,13 @@ public:
 
     bool canSet(QString *errorString) const override
     {
-        if (m_wwwProxyType == Constants::WWW_PROXY_MANUAL
+        if ((m_wwwProxyType == Constants::WWW_PROXY_MANUAL
+                    || m_wwwProxyType == Constants::WWW_PROXY_AUTOMATIC)
                 && m_wwwProxyServers.isEmpty()) {
             *errorString = tr("The value of \"%1\" must not be empty when \"%2\" is set to \"%3\"")
                 .arg(WWW_PROXY_SERVERS)
                 .arg(WWW_PROXY_TYPE)
-                .arg(Constants::WWW_PROXY_MANUAL);
+                .arg(m_wwwProxyType);
             return false;
         }
 
@@ -581,6 +582,16 @@ public:
         if (m_wwwProxyType != engine->wwwProxyType()
                 || m_wwwProxyServers != engine->wwwProxyServers()
                 || m_wwwProxyExcludes != engine->wwwProxyExcludes()) {
+
+            if (m_wwwProxyType == Constants::WWW_PROXY_AUTOMATIC
+                    && m_wwwProxyServers.count() > 1) {
+                qCWarning(sfdk).noquote()
+                    << tr("Ignoring extra items in the \"%1\" list with \"%2\" set to \"%3\"")
+                    .arg(WWW_PROXY_SERVERS)
+                    .arg(WWW_PROXY_TYPE)
+                    .arg(Constants::WWW_PROXY_AUTOMATIC);
+            }
+
             engine->setWwwProxy(m_wwwProxyType, m_wwwProxyServers, m_wwwProxyExcludes);
         }
 
