@@ -70,6 +70,8 @@ public:
             const Functor<bool> &functor) override;
 
 protected:
+    void doInitGuest() override;
+
     void doSetMemorySizeMb(int memorySizeMb, const QObject *context,
             const Functor<bool> &functor) override;
     void doSetSwapSizeMb(int swapSizeMb, const QObject *context,

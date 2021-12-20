@@ -570,7 +570,6 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
     QStringList arguments;
     arguments.append("create");
     arguments.append("--env=container=docker");
-    arguments.append("--stop-signal=RTMIN+3");
     arguments.append("--cap-add=NET_ADMIN");
     arguments.append("--security-opt=seccomp=" + (seccompProfile.exists() ?
                 seccompProfile.toUserOutput()
@@ -630,7 +629,7 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
     arguments.append(q->name());
 
     arguments.append(q->name());
-    arguments.append({"/usr/bin/setarch", "i386", "/sbin/init"});
+    arguments.append({"/usr/bin/setarch", "i386", "/usr/sbin/init.container"});
 
     return arguments;
 }

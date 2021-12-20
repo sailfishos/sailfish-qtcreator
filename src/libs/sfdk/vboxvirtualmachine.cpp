@@ -443,6 +443,19 @@ void VBoxVirtualMachinePrivate::setVideoMode(const QSize &size, int depth,
     BatchComposer::enqueueCheckPoint(context, [=]() { functor(*allOk); });
 }
 
+void VBoxVirtualMachinePrivate::doInitGuest()
+{
+    // Do not check for "running", it's likely it will end in "degraded" state
+    const QString watcher(R"(
+        while [[ $(systemctl is-system-running) == starting ]]; do
+            sleep 1
+        done
+    )");
+
+    BatchComposer::enqueue<RemoteProcessRunner>("wait-for-startup-completion",
+            watcher, q_func()->sshParameters());
+}
+
 void VBoxVirtualMachinePrivate::doSetMemorySizeMb(int memorySizeMb, const QObject *context,
         const Functor<bool> &functor)
 {
