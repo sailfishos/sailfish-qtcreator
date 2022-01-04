@@ -815,7 +815,7 @@ void VirtualMachinePrivate::setReservedPortListForwarding(ReservedPortList which
 
 void VirtualMachinePrivate::doInitGuest()
 {
-    // noop
+    BatchComposer::enqueueCheckPoint(this, [](){});
 }
 
 void VirtualMachinePrivate::enableUpdates()
