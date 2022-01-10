@@ -1082,6 +1082,7 @@ bool VmConnection::sshStmStep()
             BatchComposer composer = BatchComposer::createBatch("VmConnection::initGuest");
             m_guestInitBatch = composer.batch();
             emit initGuest();
+            BatchComposer::enqueueCheckPoint(this, [](){});
             // Errors not considered fatal here
             connect(m_guestInitBatch.data(), &CommandRunner::done,
                     this, &VmConnection::onGuestInitFinished);
