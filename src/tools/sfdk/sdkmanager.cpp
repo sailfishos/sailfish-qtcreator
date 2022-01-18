@@ -619,6 +619,18 @@ public:
         return exitCode == EXIT_SUCCESS;
     }
 
+    bool cloneTools(const QString &name, const QString &cloneName,
+            SdkManager::ToolsTypeHint typeHint)
+    {
+        QStringList args;
+        args += toArgs(typeHint);
+        args += "clone";
+        args += name;
+        args += cloneName;
+        const int exitCode = SdkManager::runOnEngine("sdk-assistant", args);
+        return exitCode == EXIT_SUCCESS;
+    }
+
     bool removeTools(const QString &name, SdkManager::ToolsTypeHint typeHint, bool snapshotsOf)
     {
         if (!fetchInfo())
@@ -1375,6 +1387,12 @@ bool SdkManager::installCustomTools(const QString &name, const QString &imageFil
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
     return ToolsPackageManager().installCustomTools(name, imageFileOrUrl, typeHint, maybeTooling);
+}
+
+bool SdkManager::cloneTools(const QString &name, const QString &cloneName, ToolsTypeHint typeHint)
+{
+    QTC_ASSERT(s_instance->hasEngine(), return false);
+    return ToolsPackageManager().cloneTools(name, cloneName, typeHint);
 }
 
 bool SdkManager::removeTools(const QString &name, ToolsTypeHint typeHint, bool snapshotsOf)
