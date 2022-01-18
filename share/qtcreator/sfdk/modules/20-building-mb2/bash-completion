@@ -5,7 +5,7 @@ _sfdk_command_build_requires()
     if [[ $cur == -* ]]; then
         COMPREPLY=($(compgen -W "--{no-,}refresh" -- "$cur"))
     else
-        COMPREPLY=($(compgen -W "pull reset" -- "$cur"))
+        COMPREPLY=($(compgen -W "pull reset diff" -- "$cur"))
     fi
 }
 
