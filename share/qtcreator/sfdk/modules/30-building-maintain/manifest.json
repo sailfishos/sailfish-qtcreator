@@ -19,7 +19,7 @@
         },
         {
             "name": "tools",
-            "trSynopsis": "[tooling|target] list [-a|--available] [--slow]\n[tooling|target] update <name>\n[tooling|target] register [--user <user> [--password <password>]] {--all|<name>}\n[tooling|target] install <name>\n[tooling|target] install-custom <name> {<URL>|<file>} [--tooling <tooling>] [--no-snapshot]\n[tooling|target] remove [--snapshots-of] <name>\n[tooling|target] package-search <name> [<pattern>...]\n[tooling|target] package-install <name> <package>...\n[tooling|target] package-remove <name> <package>...\n[tooling|target] exec <name> [<command> [<arg>...]]",
+            "trSynopsis": "[tooling|target] list [-a|--available] [--slow]\n[tooling|target] update <name>\n[tooling|target] register [--user <user> [--password <password>]] {--all|<name>}\n[tooling|target] install <name>\n[tooling|target] install-custom <name> {<URL>|<file>} [--tooling <tooling>] [--no-snapshot]\n[tooling|target] clone <name> <clone-name>\n[tooling|target] remove [--snapshots-of] <name>\n[tooling|target] package-search <name> [<pattern>...]\n[tooling|target] package-install <name> <package>...\n[tooling|target] package-remove <name> <package>...\n[tooling|target] exec <name> [<command> [<arg>...]]",
             "trBrief": "Maintain build tools",
             "dynamicSubcommands": ["exec"]
         }

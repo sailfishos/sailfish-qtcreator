@@ -1928,6 +1928,29 @@ Worker::ExitStatus BuiltinWorker::runTools(const QStringList &arguments_, int *e
         return NormalExit;
     }
 
+    if (arguments.first() == "clone") {
+        QCommandLineParser parser;
+
+        parser.addPositionalArgument("name", QString());
+        parser.addPositionalArgument("clone-name", QString());
+
+        if (!parser.parse(arguments)) {
+            qerr() << parser.errorText() << endl;
+            return BadUsage;
+        }
+
+        if (!P::checkPositionalArgumentsCount(parser.positionalArguments(), 2, 2))
+            return BadUsage;
+
+        const QString name = parser.positionalArguments().at(0);
+        const QString cloneName = parser.positionalArguments().at(1);
+
+        *exitCode = SdkManager::cloneTools(name, cloneName, typeHint)
+            ? EXIT_SUCCESS
+            : EXIT_FAILURE;
+        return NormalExit;
+    }
+
     if (arguments.first() == "remove") {
         QCommandLineParser parser;
         QCommandLineOption snapshotsOfOption("snapshots-of");
