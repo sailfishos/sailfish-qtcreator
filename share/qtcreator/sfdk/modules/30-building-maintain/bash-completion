@@ -93,7 +93,7 @@ __sfdk_complete_available_tools()
 
 _sfdk_command_tools()
 {
-    local commands=(list update register install install-custom remove
+    local commands=(list update register install install-custom clone remove
         package-search package-install package-remove exec
     )
 
@@ -145,6 +145,11 @@ _sfdk_command_tools()
         install-custom,*)
             if [[ $cur == -* ]]; then
                 COMPREPLY=($(compgen -W "--no-snapshot --tooling" -- "$cur"))
+            fi
+            ;;
+        clone,*)
+            if ((cword == cmd_idx + 2)); then
+                __sfdk_complete_tools $maybe_type
             fi
             ;;
         remove,*)

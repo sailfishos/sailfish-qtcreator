@@ -20,7 +20,7 @@
         },
         {
             "name": "build-requires",
-            "trSynopsis": "[--[no-]refresh] {pull|reset}",
+            "trSynopsis": "[--[no-]refresh] {pull|reset|diff}",
             "trBrief": "Update build time dependencies",
             "configOptions": ["*", "-no-pull-build-requires", "-package.*", "target!"],
             "hooks": ["[pre-|post-]pull-build-requires"]
