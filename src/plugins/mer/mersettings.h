@@ -40,10 +40,6 @@ public:
 
     static QString sfdkPath();
 
-    static QString environmentFilter();
-    static void setEnvironmentFilter(const QString &filter);
-    static bool isEnvironmentFilterFromEnvironment();
-
     static bool clearBuildEnvironmentByDefault();
     static void setClearBuildEnvironmentByDefault(bool byDefault);
 
@@ -75,7 +71,6 @@ public:
     static void setSigningPassphraseFile(const QString &passphraseFile);
 
 signals:
-    void environmentFilterChanged(const QString &filter);
     void clearBuildEnvironmentByDefaultChanged(bool byDefault);
     void rpmValidationByDefaultChanged(bool byDefault);
     void qmlLiveBenchLocationChanged(const QString &location);
@@ -90,14 +85,10 @@ signals:
 
 private:
     void read();
-#ifdef MER_LIBRARY
     void save();
-#endif // MER_LIBRARY
 
 private:
     static MerSettings *s_instance;
-    QString m_environmentFilter;
-    QString m_environmentFilterFromEnvironment;
     bool m_clearBuildEnvironmentByDefault;
     bool m_rpmValidationByDefault;
     QString m_qmlLiveBenchLocation;

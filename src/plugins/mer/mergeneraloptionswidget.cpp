@@ -51,15 +51,15 @@ MerGeneralOptionsWidget::MerGeneralOptionsWidget(QWidget *parent)
 {
     m_ui->setupUi(this);
 
-    m_ui->environmentFilterTextEdit->setPlainText(MerSettings::environmentFilter());
-    m_ui->environmentFilterTextEdit->setEnabled(!MerSettings::isEnvironmentFilterFromEnvironment());
-    m_ui->environmentFilterTextEdit->setToolTip(m_ui->environmentFilterTextEdit->toolTip()
-            .arg(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER));
-    m_ui->environmentFilterInfoLabel->setVisible(MerSettings::isEnvironmentFilterFromEnvironment());
+    m_ui->environmentFilterTextEdit->setPlainText(Sdk::buildEnvironmentFilter().join('\n'));
+    m_ui->environmentFilterTextEdit->setEnabled(
+            !qEnvironmentVariableIsSet(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER));
+    m_ui->environmentFilterInfoLabel->setVisible(
+            qEnvironmentVariableIsSet(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER));
     m_ui->environmentFilterInfoLabel->setPixmap(Utils::Icons::WARNING.pixmap());
     m_ui->environmentFilterInfoLabel->setToolTip(
             QLatin1String("<font color=\"red\">")
-            + tr("This option is currently overridden with the %1 environment variable.")
+            + tr("This option is currently overridden with the (deprecated) %1 environment variable.")
                 .arg(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER)
             + QLatin1String("</font>"));
 
@@ -156,8 +156,8 @@ MerGeneralOptionsWidget::~MerGeneralOptionsWidget()
 
 void MerGeneralOptionsWidget::store()
 {
-    if (!MerSettings::isEnvironmentFilterFromEnvironment())
-        MerSettings::setEnvironmentFilter(m_ui->environmentFilterTextEdit->toPlainText());
+    Sdk::setBuildEnvironmentFilter(m_ui->environmentFilterTextEdit->toPlainText()
+            .split(QRegularExpression("[[:space:]]+"), Qt::SkipEmptyParts));
     Sdk::setCustomBuildHostName(m_ui->buildHostNameCustomCheckBox->isChecked()
             ? m_ui->buildHostNameLineEdit->text()
             : QString());

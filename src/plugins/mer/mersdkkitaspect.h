@@ -76,7 +76,6 @@ public:
     ProjectExplorer::Tasks validate(const ProjectExplorer::Kit *kit) const override;
     ItemList toUserOutput(const ProjectExplorer::Kit *kit) const override;
     ProjectExplorer::KitAspectWidget *createConfigWidget(ProjectExplorer::Kit *kit) const override;
-    void addToEnvironment(const ProjectExplorer::Kit *kit, Utils::Environment &env) const override;
 
     static Utils::Id id();
 

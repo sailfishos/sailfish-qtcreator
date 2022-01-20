@@ -151,6 +151,9 @@ public:
     static QString customBuildHostName();
     static void setCustomBuildHostName(const QString &hostName);
 
+    static QStringList buildEnvironmentFilter();
+    static void setBuildEnvironmentFilter(const QStringList &filter);
+
     static QList<BuildEngine *> buildEngines();
     static BuildEngine *buildEngine(const QUrl &uri);
     static void createBuildEngine(const QUrl &virtualMachineUri, const QObject *context,
@@ -160,6 +163,7 @@ public:
 
 signals:
     void customBuildHostNameChanged(const QString &hostName);
+    void buildEnvironmentFilterChanged(const QStringList &filter);
     void buildEngineAdded(int index);
     void aboutToRemoveBuildEngine(int index);
 
@@ -181,6 +185,7 @@ private:
     QString m_installDir;
     QString m_defaultBuildHostName;
     QString m_customBuildHostName;
+    QStringList m_buildEnvironmentFilter;
     std::vector<std::unique_ptr<BuildEngine>> m_buildEngines;
 };
 

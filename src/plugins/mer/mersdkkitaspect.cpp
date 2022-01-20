@@ -27,7 +27,6 @@
 #include "merconstants.h"
 #include "merdevicefactory.h"
 #include "merplugin.h"
-#include "mersettings.h"
 
 #include <sfdk/buildengine.h>
 #include <sfdk/sdk.h>
@@ -67,9 +66,6 @@ MerSdkKitAspect::MerSdkKitAspect()
     setDisplayName(Sdk::sdkVariant());
     setDescription(tr("%1 build engine and build target.").arg(Sdk::osVariant()));
     setPriority(24);
-
-    connect(MerSettings::instance(), &MerSettings::environmentFilterChanged,
-            this, &MerSdkKitAspect::notifyAllUpdated);
 }
 
 MerSdkKitAspect::~MerSdkKitAspect()
@@ -191,17 +187,6 @@ void MerSdkKitAspect::setBuildTarget(Kit *kit, const BuildEngine *buildEngine,
     QVariantMap data = toMap(buildEngine->uri(), buildTargetName);
     if (kit->value(MerSdkKitAspect::id()) != data)
         kit->setValue(MerSdkKitAspect::id(), data);
-}
-
-void MerSdkKitAspect::addToEnvironment(const Kit *kit, Environment &env) const
-{
-    Q_UNUSED(kit);
-
-    if (!MerSettings::isEnvironmentFilterFromEnvironment() &&
-            !MerSettings::environmentFilter().isEmpty()) {
-        env.appendOrSet(QLatin1String(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER),
-                MerSettings::environmentFilter());
-    }
 }
 
 void MerSdkKitAspect::notifyAboutUpdate(const Sfdk::BuildEngine *buildEngine)

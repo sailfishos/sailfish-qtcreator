@@ -64,7 +64,7 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The build environment is isolated from the host environment. List here the environment variables to be forwarded to the build environment.&lt;/p&gt;&lt;p&gt;Any white space works as a separator. Pattern matching is possible with the '*' character.&lt;/p&gt;&lt;p&gt;This option may be overridden with the %1 environment variable, in which case it becomes read-only here.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The build environment is isolated from the host environment. List here the environment variables to be forwarded to the build environment.&lt;/p&gt;&lt;p&gt;Any white space works as a separator. Pattern matching is possible with the '*' character.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
          </widget>
         </item>
