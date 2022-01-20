@@ -7,6 +7,12 @@ The 'exec' command allows executing an arbitrary <command> inside the build engi
 
 Build engine properties:
 
+environment.filter [<pattern>...]::
++
+--
+Build environment is isolated from host environment. Just those environment variables that match any <pattern> will be forwarded from host to the build environment. Pattern matching is possible with the "*" (asterisk) character. Multiple patterns may be set using whitespace as a separator.
+--
+
 host-name <name>::
 +
 --

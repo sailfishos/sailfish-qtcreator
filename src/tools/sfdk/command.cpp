@@ -69,6 +69,7 @@ const char EMULATOR_DOWNSCALE[] = "downscale";
 //const char EMULATOR_DOWNSCALE_FACTOR[] = "downscale.factor";
 
 const char ENGINE_HOST_NAME[] = "host-name";
+const char ENGINE_BUILD_ENVIRONMENT_FILTER[] = "environment.forward";
 
 const char WWW_PROXY_TYPE[] = "proxy";
 const char WWW_PROXY_SERVERS[] = "proxy.servers";
@@ -719,6 +720,7 @@ public:
                     engine->virtualMachine()))
     {
         m_hostName = Sdk::effectiveBuildHostName();
+        m_buildEnvironmentFilter = Sdk::buildEnvironmentFilter();
     }
 
     QMap<QString, QString> get() const override
@@ -746,6 +748,7 @@ private:
     {
         QMap<QString, QString> values;
         values.insert(ENGINE_HOST_NAME, m_hostName);
+        values.insert(ENGINE_BUILD_ENVIRONMENT_FILTER, m_buildEnvironmentFilter.join(' '));
         return values;
     }
 
@@ -766,6 +769,10 @@ private:
             m_hostName = value.isEmpty() ? QString() : value;
             m_hostNameChanged = true;
             return Prepared;
+        } else if (name == ENGINE_BUILD_ENVIRONMENT_FILTER) {
+            m_buildEnvironmentFilter = value.split(QRegularExpression("[[:space:]]+"),
+                    Qt::SkipEmptyParts);
+            return Prepared;
         } else {
             *errorString = unknownPropertyMessage();
             return Ignored;
@@ -776,6 +783,7 @@ private:
     {
         if (m_hostNameChanged)
             Sdk::setCustomBuildHostName(m_hostName);
+        Sdk::setBuildEnvironmentFilter(m_buildEnvironmentFilter);
 
         return true;
     }
@@ -785,6 +793,7 @@ private:
     std::unique_ptr<VirtualMachinePropertiesAccessor> m_vmAccessor;
     QString m_hostName;
     bool m_hostNameChanged = false;
+    QStringList m_buildEnvironmentFilter;
 };
 
 } // namespace Sfdk

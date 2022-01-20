@@ -31,12 +31,6 @@
 
 #include <memory>
 
-namespace Mer {
-namespace Internal {
-    class MerSettings;
-}
-}
-
 namespace Sfdk {
 
 class BuildEngine;
@@ -210,7 +204,6 @@ private:
 private:
     static SdkManager *s_instance;
     bool m_enableReversePathMapping = true;
-    std::unique_ptr<Mer::Internal::MerSettings> m_merSettings;
     std::unique_ptr<Sdk> m_sdk;
     BuildEngine *m_buildEngine = nullptr;
 };

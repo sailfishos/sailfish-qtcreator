@@ -1188,6 +1188,20 @@ void BuildEngineManager::setCustomBuildHostName(const QString &hostName)
     emit s_instance->customBuildHostNameChanged(s_instance->m_customBuildHostName);
 }
 
+QStringList BuildEngineManager::buildEnvironmentFilter()
+{
+    return s_instance->m_buildEnvironmentFilter;
+}
+
+void BuildEngineManager::setBuildEnvironmentFilter(const QStringList &filter)
+{
+    if (s_instance->m_buildEnvironmentFilter == filter)
+        return;
+
+    s_instance->m_buildEnvironmentFilter = filter;
+    emit s_instance->buildEnvironmentFilterChanged(s_instance->m_buildEnvironmentFilter);
+}
+
 QList<BuildEngine *> BuildEngineManager::buildEngines()
 {
     return Utils::toRawPointer<QList>(s_instance->m_buildEngines);
@@ -1250,6 +1264,7 @@ QVariantMap BuildEngineManager::toMap() const
     data.insert(Constants::BUILD_ENGINES_VERSION_KEY, 1);
     data.insert(Constants::BUILD_ENGINES_INSTALL_DIR_KEY, m_installDir);
     data.insert(Constants::BUILD_ENGINES_CUSTOM_BUILD_HOST_NAME_KEY, m_customBuildHostName);
+    data.insert(Constants::BUILD_ENGINES_BUILD_ENVIRONMENT_FILTER_KEY, m_buildEnvironmentFilter);
 
     int count = 0;
     for (const auto &engine : m_buildEngines) {
@@ -1276,6 +1291,11 @@ void BuildEngineManager::fromMap(const QVariantMap &data, bool fromSystemSetting
     if (!fromSystemSettings || m_customBuildHostName.isNull()) {
         setCustomBuildHostName(data.value(Constants::BUILD_ENGINES_CUSTOM_BUILD_HOST_NAME_KEY)
                 .toString());
+    }
+
+    if (!fromSystemSettings || m_buildEnvironmentFilter.isEmpty()) {
+        setBuildEnvironmentFilter(data.value(Constants::BUILD_ENGINES_BUILD_ENVIRONMENT_FILTER_KEY)
+                .toStringList());
     }
 
     const int newCount = data.value(Constants::BUILD_ENGINES_COUNT_KEY, 0).toInt();

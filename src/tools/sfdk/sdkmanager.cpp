@@ -39,7 +39,6 @@
 #include <sfdk/virtualmachine.h>
 
 #include <mer/merconstants.h>
-#include <mer/mersettings.h>
 #include <utils/algorithm.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
@@ -84,8 +83,6 @@ const char TARGET_NAME_FILE[] = ".sfdk/target";
 
 } // namespace anonymous
 
-using namespace Mer;
-using namespace Mer::Internal;
 using namespace QSsh;
 using namespace Sfdk;
 using namespace Utils;
@@ -1116,8 +1113,6 @@ SdkManager::SdkManager(bool useSystemSettingsOnly)
     if (qEnvironmentVariableIntValue(Constants::DISABLE_REVERSE_PATH_MAPPING_ENV_VAR))
         setEnableReversePathMapping(false);
 
-    m_merSettings = std::make_unique<MerSettings>();
-
     BuildEngine::registerVmConnectionUi<VmConnectionUi>();
     Emulator::registerVmConnectionUi<VmConnectionUi>();
 
@@ -1855,8 +1850,14 @@ QByteArray SdkManager::maybeReverseMapEnginePaths(const QByteArray &commandOutpu
 
 QProcessEnvironment SdkManager::environmentToForwardToEngine() const
 {
-    const QStringList patterns = MerSettings::environmentFilter()
-        .split(QRegularExpression("[[:space:]]+"), Qt::SkipEmptyParts);
+    QStringList patterns = Sdk::buildEnvironmentFilter();
+    if (qEnvironmentVariableIsSet(Mer::Constants::SAILFISH_SDK_ENVIRONMENT_FILTER)) {
+        qCWarning(sfdk) << "The" << Mer::Constants::SAILFISH_SDK_ENVIRONMENT_FILTER
+            << "environment variable is deprecated."
+            << "Use the corresponding build engine property instead.";
+        patterns = qEnvironmentVariable(Mer::Constants::SAILFISH_SDK_ENVIRONMENT_FILTER)
+            .split(QRegularExpression("[[:space:]]+"), Qt::SkipEmptyParts);
+    }
     if (patterns.isEmpty())
         return {};
 

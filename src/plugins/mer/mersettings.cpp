@@ -51,7 +51,6 @@ using namespace Constants;
 
 namespace {
 const char SETTINGS_CATEGORY[] = "Mer";
-const char ENVIRONMENT_FILTER_KEY[] = "EnvironmentFilter";
 const char CLEAR_BUILD_ENVIRONMENT_BY_DEFAULT_KEY[] = "ClearBuildEnvironmentByDefault";
 const char RPM_VALIDATION_BY_DEFAULT_KEY[] = "RpmValidationByDefault";
 const char QML_LIVE_BENCH_LOCATION_KEY[] = "QmlLiveBenchLocation";
@@ -98,31 +97,6 @@ MerSettings *MerSettings::instance()
 QString MerSettings::sfdkPath()
 {
     return Sdk::installationPath() + "/bin/sfdk" QTC_HOST_EXE_SUFFIX;
-}
-
-QString MerSettings::environmentFilter()
-{
-    if (!s_instance->m_environmentFilterFromEnvironment.isNull())
-        return s_instance->m_environmentFilterFromEnvironment;
-    else
-        return s_instance->m_environmentFilter;
-}
-
-void MerSettings::setEnvironmentFilter(const QString &filter)
-{
-    QTC_CHECK(!isEnvironmentFilterFromEnvironment());
-
-    if (s_instance->m_environmentFilter == filter)
-        return;
-
-    s_instance->m_environmentFilter = filter;
-
-    emit s_instance->environmentFilterChanged(s_instance->m_environmentFilter);
-}
-
-bool MerSettings::isEnvironmentFilterFromEnvironment()
-{
-    return !s_instance->m_environmentFilterFromEnvironment.isNull();
 }
 
 bool MerSettings::clearBuildEnvironmentByDefault()
@@ -353,8 +327,6 @@ void MerSettings::read()
 
     settings->beginGroup(QLatin1String(SETTINGS_CATEGORY));
 
-    m_environmentFilter = settings->value(QLatin1String(ENVIRONMENT_FILTER_KEY))
-        .toString();
     m_clearBuildEnvironmentByDefault = settings->value(QLatin1String(CLEAR_BUILD_ENVIRONMENT_BY_DEFAULT_KEY),
             true).toBool();
     m_rpmValidationByDefault = settings->value(QLatin1String(RPM_VALIDATION_BY_DEFAULT_KEY),
@@ -371,22 +343,6 @@ void MerSettings::read()
             settings->value(QLatin1String(DEFAULT_SIGNING_PASSPHRASE_FILE)).toString();
 
     settings->endGroup();
-
-    if (!qEnvironmentVariableIsEmpty(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED)) {
-#ifdef MER_LIBRARY // Log::mer would be the missing symbol here
-        qCWarning(Log::mer) << "The environment variable"
-            << QLatin1String(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED)
-            << "is deprecated. Use"
-            << QLatin1String(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER)
-            << "instead";
-#endif
-        qputenv(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER,
-                qgetenv(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED));
-        qunsetenv(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED);
-    }
-
-    m_environmentFilterFromEnvironment =
-        QProcessEnvironment::systemEnvironment().value(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER);
 }
 
 #ifdef MER_LIBRARY
@@ -395,7 +351,6 @@ void MerSettings::save()
     QSettings *settings = ICore::settings();
     settings->beginGroup(QLatin1String(SETTINGS_CATEGORY));
 
-    settings->setValue(QLatin1String(ENVIRONMENT_FILTER_KEY), m_environmentFilter);
     settings->setValue(QLatin1String(CLEAR_BUILD_ENVIRONMENT_BY_DEFAULT_KEY), m_clearBuildEnvironmentByDefault);
     settings->setValue(QLatin1String(RPM_VALIDATION_BY_DEFAULT_KEY), m_rpmValidationByDefault);
     if (m_qmlLiveBenchLocation.isEmpty())

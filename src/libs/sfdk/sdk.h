@@ -101,6 +101,9 @@ public:
     static QString customBuildHostName();
     static void setCustomBuildHostName(const QString &hostName);
 
+    static QStringList buildEnvironmentFilter();
+    static void setBuildEnvironmentFilter(const QStringList &filter);
+
 signals:
     void buildEngineAdded(int index);
     void aboutToRemoveBuildEngine(int index);
@@ -110,6 +113,7 @@ signals:
     void deviceAdded(int index);
     void aboutToRemoveDevice(int index);
     void customBuildHostNameChanged(const QString &hostName);
+    void buildEnvironmentFilterChanged(const QStringList &filter);
     void aboutToShutDown();
 
 private:

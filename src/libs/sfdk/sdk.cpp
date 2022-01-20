@@ -96,6 +96,8 @@ Sdk::Sdk(Options options)
             this, &Sdk::aboutToRemoveBuildEngine);
     connect(d->buildEngineManager.get(), &BuildEngineManager::customBuildHostNameChanged,
             this, &Sdk::customBuildHostNameChanged);
+    connect(d->buildEngineManager.get(), &BuildEngineManager::buildEnvironmentFilterChanged,
+            this, &Sdk::buildEnvironmentFilterChanged);
 
     d->emulatorManager = std::make_unique<EmulatorManager>(this);
 
@@ -298,6 +300,16 @@ QString Sdk::customBuildHostName()
 void Sdk::setCustomBuildHostName(const QString &hostName)
 {
     BuildEngineManager::setCustomBuildHostName(hostName);
+}
+
+QStringList Sdk::buildEnvironmentFilter()
+{
+    return BuildEngineManager::buildEnvironmentFilter();
+}
+
+void Sdk::setBuildEnvironmentFilter(const QStringList &filter)
+{
+    BuildEngineManager::setBuildEnvironmentFilter(filter);
 }
 
 /*!

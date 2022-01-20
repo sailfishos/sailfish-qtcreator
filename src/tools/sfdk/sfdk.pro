@@ -30,7 +30,6 @@ HEADERS = \
     sfdkglobal.h \
     task.h \
     textutils.h \
-    ../../plugins/mer/mersettings.h \
 
 SOURCES = \
     cmake.cpp \
@@ -48,7 +47,6 @@ SOURCES = \
     sfdkglobal.cpp \
     task.cpp \
     textutils.cpp \
-    ../../plugins/mer/mersettings.cpp \
 
 win32 {
     HEADERS += 3rdparty/iscygpty.h
