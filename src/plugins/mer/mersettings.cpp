@@ -80,9 +80,7 @@ MerSettings::MerSettings(QObject *parent)
 
 MerSettings::~MerSettings()
 {
-#ifdef MER_LIBRARY
     save();
-#endif // MER_LIBRARY
 
     s_instance = 0;
 }
@@ -317,13 +315,7 @@ void MerSettings::setSigningPassphraseFile(const QString &passphraseFile)
 
 void MerSettings::read()
 {
-#ifdef MER_LIBRARY
     QSettings *settings = ICore::settings();
-#else
-    auto settings = std::make_unique<QSettings>(QSettings::IniFormat, QSettings::UserScope,
-            QLatin1String(Core::Constants::IDE_SETTINGSVARIANT_STR),
-            QLatin1String(Core::Constants::IDE_CASED_ID));
-#endif // MER_LIBRARY
 
     settings->beginGroup(QLatin1String(SETTINGS_CATEGORY));
 
@@ -345,7 +337,6 @@ void MerSettings::read()
     settings->endGroup();
 }
 
-#ifdef MER_LIBRARY
 void MerSettings::save()
 {
     QSettings *settings = ICore::settings();
@@ -369,7 +360,6 @@ void MerSettings::save()
 
     settings->endGroup();
 }
-#endif // MER_LIBRARY
 
 } // Internal
 } // Mer

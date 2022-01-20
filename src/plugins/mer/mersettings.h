@@ -85,9 +85,7 @@ signals:
 
 private:
     void read();
-#ifdef MER_LIBRARY
     void save();
-#endif // MER_LIBRARY
 
 private:
     static MerSettings *s_instance;
