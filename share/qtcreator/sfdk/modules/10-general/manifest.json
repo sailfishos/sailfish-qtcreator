@@ -32,7 +32,7 @@
         {
             "name": "hooks-dir",
             "trArgument": "<dir>",
-            "validator": "module.validateExistingDirectory"
+            "validator": "module.validateExistingWorkspaceDirectory"
         }
     ]
 }

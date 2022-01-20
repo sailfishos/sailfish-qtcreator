@@ -57,9 +57,16 @@ const char JS_UTILS_EXTENSION_NAME[] = "utils";
 class JSUtilsExtension : public QObject
 {
     Q_OBJECT
+    Q_PROPERTY(QString sdkVariant READ sdkVariant)
+    Q_PROPERTY(QString pathSeparator READ pathSeparator)
 
 public:
     using QObject::QObject;
+
+    Q_INVOKABLE QString sdkVariant() const
+    {
+        return Sdk::sdkVariant();
+    }
 
     Q_INVOKABLE QString regExpEscape(const QString &string) const
     {
@@ -75,6 +82,11 @@ public:
         return false;
     }
 
+    Q_INVOKABLE QString pathSeparator() const
+    {
+        return QDir::separator();
+    }
+
     Q_INVOKABLE bool exists(const QString &fileName) const
     {
         return QFileInfo::exists(fileName);
@@ -88,6 +100,21 @@ public:
     Q_INVOKABLE bool isFile(const QString &fileName) const
     {
         return QFileInfo(fileName).isFile();
+    }
+
+    Q_INVOKABLE bool isAbsolute(const QString &path) const
+    {
+        return QDir::isAbsolutePath(path);
+    }
+
+    Q_INVOKABLE QString canonicalPath(const QString &path) const
+    {
+        return QDir(path).canonicalPath();
+    }
+
+    Q_INVOKABLE QString cleanPath(const QString &path) const
+    {
+        return QDir::cleanPath(path);
     }
 
     Q_INVOKABLE QString findFile_wide(const QStringList &paths, int maxDepth, const QString &nameFilter) const
