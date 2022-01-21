@@ -49,6 +49,12 @@ using namespace Utils;
 namespace Sfdk {
 
 namespace {
+const char SDK_RELEASE_FILE_PATH[] = "/sdk-release";
+const char SDK_RELEASE_INFO_RELEASE[] = "SDK_RELEASE";
+const char SDK_RELEASE_INFO_RELEASE_CYCLE[] = "SDK_RELEASE_CYCLE";
+const char SDK_RELEASE_INFO_CONFIG_VARIANT[] = "SDK_CONFIG_DIR"; // FIXME
+const char SDK_RELEASE_INFO_VENDOR[] = "SDK_VENDOR";
+
 const char SDK_MAINTENANCE_TOOL_DATA_FILE[] = "SDKMaintenanceTool.dat";
 const char MASKED_VM_TYPES[] = "MaskedVmTypes";
 const char VBOXMANAGE_PATH[] = "VBoxManagePath";
@@ -144,6 +150,33 @@ QString Sdk::sdkVariant(TextStyle textStyle)
 QString Sdk::ideVariant(TextStyle textStyle)
 {
     return tr(Constants::VARIANT_NAME) + separator(textStyle) + tr("IDE");
+}
+
+Sdk::ReleaseInfo Sdk::releaseInfo()
+{
+    const QString releaseFilePath = QDir::cleanPath(QCoreApplication::applicationDirPath()
+            + '/' + RELATIVE_PREFIX_PATH + '/' + SDK_RELEASE_FILE_PATH);
+    QSettings settings(releaseFilePath, QSettings::IniFormat);
+    if (settings.status() != QSettings::NoError) {
+        qCWarning(lib) << "Error reading sdk-release file:" << settings.status();
+        return {};
+    }
+
+    auto get = [&](const QString &key) -> QString {
+        if (!settings.contains(key)) {
+            qCWarning(lib) << "Missing key in sdk-release file:" << key;
+            return {};
+        }
+        return settings.value(key).toString();
+    };
+
+    ReleaseInfo info;
+    info.release = get(SDK_RELEASE_INFO_RELEASE);
+    info.releaseCycle = get(SDK_RELEASE_INFO_RELEASE_CYCLE);
+    info.configVariant = get(SDK_RELEASE_INFO_CONFIG_VARIANT);
+    info.vendor = get(SDK_RELEASE_INFO_VENDOR);
+
+    return info;
 }
 
 void Sdk::enableUpdates()
