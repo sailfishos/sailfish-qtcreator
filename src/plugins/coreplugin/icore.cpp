@@ -31,6 +31,7 @@
 #include <app/app_version.h>
 #include <extensionsystem/pluginmanager.h>
 
+#include <sfdk/sdk.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 
@@ -584,21 +585,7 @@ static QString compilerString()
 */
 QString ICore::versionString()
 {
-    static QString sdkRelease = []() -> QString {
-        FileReader reader;
-        if (!reader.fetch(prefixPath() + "/sdk-release")) {
-            qWarning() << "Error reading sdk-release file:" << reader.errorString();
-            return {};
-        }
-        QRegularExpression re("^SDK_RELEASE=(.+)$");
-        re.setPatternOptions(QRegularExpression::MultilineOption);
-        QRegularExpressionMatch match = re.match(QString::fromUtf8(reader.data()));
-        if (!match.hasMatch()) {
-            qWarning() << "Error parsing sdk-release file";
-            return {};
-        }
-        return " " + match.captured(1);
-    }();
+    static QString sdkRelease = Sfdk::Sdk::releaseInfo().release;
 
     QString ideVersionDescription;
     if (QLatin1String(Constants::IDE_VERSION_LONG) != QLatin1String(Constants::IDE_VERSION_DISPLAY))

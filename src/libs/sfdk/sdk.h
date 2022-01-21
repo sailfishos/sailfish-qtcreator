@@ -53,6 +53,13 @@ public:
     Q_DECLARE_FLAGS(Options, Option)
     Q_FLAG(Options)
 
+    struct ReleaseInfo {
+        QString release;
+        QString releaseCycle;
+        QString configVariant;
+        QString vendor;
+    };
+
     Sdk(Options options = NoOption);
     ~Sdk() override;
     static Sdk *instance();
@@ -60,6 +67,8 @@ public:
     static QString osVariant(TextStyle textStyle = TextStyle::Pretty);
     static QString sdkVariant(TextStyle textStyle = TextStyle::Pretty);
     static QString ideVariant(TextStyle textStyle = TextStyle::Pretty);
+
+    static ReleaseInfo releaseInfo();
 
     static void enableUpdates();
     static bool isApplyingUpdates();
