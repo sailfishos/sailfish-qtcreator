@@ -103,12 +103,12 @@
         {
             "name": "output-dir",
             "trArgument": "<dir>",
-            "validator": "module.validateExistingDirectory"
+            "validator": "module.validateExistingWorkspaceDirectory"
         },
         {
             "name": "output-prefix",
             "trArgument": "<dir>",
-            "validator": "module.validateExistingDirectory"
+            "validator": "module.validateExistingWorkspaceDirectory"
         },
         {
             "name": "search-output-dir",
@@ -158,7 +158,8 @@
         },
         {
             "name": "package.signing-passphrase-file",
-            "trArgument": "<file>"
+            "trArgument": "<file>",
+            "validator": "module.validateExistingWorkspaceFile"
         },
         {
             "name": "package.timeline"
