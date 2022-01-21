@@ -66,6 +66,7 @@
 #include <coreplugin/progressmanager/progressview.h>
 #include <coreplugin/settingsdatabase.h>
 #include <extensionsystem/pluginmanager.h>
+#include <sfdk/sdk.h>
 #include <utils/algorithm.h>
 #include <utils/historycompleter.h>
 #include <utils/hostosinfo.h>
@@ -1248,6 +1249,15 @@ void MainWindow::aboutPlugins()
 void MainWindow::contact()
 {
     QMessageBox dlg(QMessageBox::Information, tr("Contact"),
+           true ?
+           tr("<p>This is the %1 variant of Qt Creator. %1 developers can be reached at</p>"
+              "%2")
+                    .arg(Sfdk::Sdk::sdkVariant())
+                    .arg("<p>&nbsp;&nbsp;&nbsp;&nbsp;"
+                            "<a href=\"https://forum.sailfishos.org\">"
+                            "https://forum.sailfishos.org"
+                         "</a></p>")
+           :
            tr("<p>Qt Creator developers can be reached at the Qt Creator mailing list:</p>"
               "%1"
               "<p>or the #qt-creator channel on Libera.Chat IRC:</p>"
