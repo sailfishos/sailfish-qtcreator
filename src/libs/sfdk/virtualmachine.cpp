@@ -135,8 +135,6 @@ VirtualMachine::VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, cons
     connect(d->connection.get(), &VmConnection::virtualMachineOffChanged,
             this, &VirtualMachine::virtualMachineOffChanged);
     connect(d->connection.get(), &VmConnection::lockDownFailed, this, &VirtualMachine::lockDownFailed);
-    connect(d->connection.get(), &VmConnection::initGuest, d, &VirtualMachinePrivate::doInitGuest);
-    connect(d->connection.get(), &VmConnection::initGuest, d, &VirtualMachinePrivate::initGuest);
 
     if (SdkPrivate::isVersionedSettingsEnabled()) {
         if (SdkPrivate::isUpdatesEnabled()) {
@@ -675,6 +673,18 @@ void VirtualMachine::disconnectFrom(const QObject *context, const Functor<bool> 
 
 VirtualMachinePrivate::~VirtualMachinePrivate()
 {
+}
+
+void VirtualMachinePrivate::initGuest(const QObject *context, const Functor<> &functor)
+{
+    BatchComposer composer = BatchComposer::createBatch("VirtualMachine::initGuest");
+    const QPointer<const QObject> context_{context};
+
+    // Errors not considered fatal here
+    doInitGuest();
+    emit initGuest();
+
+    BatchComposer::enqueueCheckPoint(context, functor);
 }
 
 void VirtualMachinePrivate::setSharedPath(SharedPath which, const Utils::FilePath &path,

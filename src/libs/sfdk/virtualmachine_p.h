@@ -133,6 +133,7 @@ public:
     VirtualMachineInfo cachedInfo() const { return virtualMachineInfo; }
 
     virtual void start(const QObject *context, const Functor<bool> &functor) = 0;
+    void initGuest(const QObject *context, const Functor<> &functor);
     virtual void stop(const QObject *context, const Functor<bool> &functor) = 0;
     virtual void commit(const QObject *context, const Functor<bool> &functor) = 0;
     virtual void probe(const QObject *context,

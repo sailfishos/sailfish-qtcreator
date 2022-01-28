@@ -190,6 +190,7 @@ VmConnection::VmConnection(VirtualMachine *parent)
     , m_cachedSshConnected(false)
     , m_cachedSshErrorOccured(false)
     , m_vmCommitting(false)
+    , m_vmGuestInitializing(false)
     , m_vmWantFastPollState(0)
     , m_pollingVmState(false)
 {
@@ -588,7 +589,7 @@ void VmConnection::updateState()
                     break;
 
                 case SshConnected:
-                    if (!m_guestInitBatch)
+                    if (!m_vmGuestInitializing)
                         m_state = VirtualMachine::Connected;
                     break;
 
@@ -1078,14 +1079,11 @@ bool VmConnection::sshStmStep()
             m_connectRequested = false;
             m_connectOptions = VirtualMachine::NoConnectOption;
 
+            m_vmGuestInitializing = true;
             BatchComposer composer_ = batchComposer();
-            BatchComposer composer = BatchComposer::createBatch("VmConnection::initGuest");
-            m_guestInitBatch = composer.batch();
-            emit initGuest();
-            BatchComposer::enqueueCheckPoint(this, [](){});
-            // Errors not considered fatal here
-            connect(m_guestInitBatch.data(), &CommandRunner::done,
-                    this, &VmConnection::onGuestInitFinished);
+            VirtualMachinePrivate::get(m_vm)->initGuest(this, [=]() {
+                onGuestInitFinished();
+            });
         }
 
         if (m_vmState != VmRunning) {
@@ -1099,8 +1097,7 @@ bool VmConnection::sshStmStep()
         }
 
         ON_EXIT {
-            if (m_guestInitBatch)
-                m_guestInitBatch->queue()->cancel();
+            ;
         }
         break;
 
@@ -1375,7 +1372,7 @@ void VmConnection::onSshErrorOccured()
 void VmConnection::onGuestInitFinished()
 {
     DBG << "Guest init finished";
-    m_guestInitBatch = nullptr;
+    m_vmGuestInitializing = false;
     updateState();
 }
 

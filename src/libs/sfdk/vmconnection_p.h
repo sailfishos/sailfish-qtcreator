@@ -181,6 +181,7 @@ private:
     bool m_cachedSshErrorOccured;
     QString m_cachedSshErrorString;
     QPointer<QSsh::SshConnection> m_cachedSshErrorOrigin;
+    bool m_vmGuestInitializing;
     bool m_vmCommitting;
 
     // timeout timers
@@ -201,7 +202,6 @@ private:
     // auto invoke reset after properties are changed
     QBasicTimer m_resetTimer;
 
-    QPointer<BatchRunner> m_guestInitBatch;
     QPointer<VmConnectionRemoteShutdownProcess> m_remoteShutdownProcess;
 };
 
