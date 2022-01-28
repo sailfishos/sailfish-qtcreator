@@ -96,6 +96,7 @@ private:
     void setSshParameters(const QSsh::SshConnectionParameters &sshParameters);
     void setDBusPort(quint16 dBusPort);
 
+    void prepare();
     void syncWwwProxy();
     void updateBuildTargets();
     void updateBuildTargets(QList<BuildTargetDump> newTargets);

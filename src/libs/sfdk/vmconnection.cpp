@@ -189,6 +189,7 @@ VmConnection::VmConnection(VirtualMachine *parent)
     , m_cachedVmRunningHeadless(false)
     , m_cachedSshConnected(false)
     , m_cachedSshErrorOccured(false)
+    , m_vmPreparing(false)
     , m_vmCommitting(false)
     , m_vmGuestInitializing(false)
     , m_vmWantFastPollState(0)
@@ -557,6 +558,7 @@ void VmConnection::updateState()
     switch (m_vmState) {
         case VmOff:
         case VmAskBeforeStarting:
+        case VmPreparing:
             m_state = VirtualMachine::Disconnected;
             break;
 
@@ -709,7 +711,7 @@ bool VmConnection::vmStmStep()
             } else if (m_connectOptions & VirtualMachine::AskStartVm) {
                 vmStmTransition(VmAskBeforeStarting, "connect requested&ask before start VM");
             } else {
-                vmStmTransition(VmStarting, "connect requested");
+                vmStmTransition(VmPreparing, "connect requested");
             }
         }
 
@@ -731,7 +733,7 @@ bool VmConnection::vmStmStep()
         } else {
             ask(Ui::StartVm, &VmConnection::vmStmScheduleExec,
                     [=] {
-                        vmStmTransition(VmStarting, "start VM allowed");
+                        vmStmTransition(VmPreparing, "start VM allowed");
                     },
                     [=] {
                         m_connectRequested = false;
@@ -742,6 +744,23 @@ bool VmConnection::vmStmStep()
 
         ON_EXIT {
             ui()->dismissQuestion(Ui::StartVm);
+        }
+        break;
+
+    case VmPreparing:
+        ON_ENTRY {
+            m_vmPreparing = true;
+            BatchComposer composer_ = batchComposer();
+            VirtualMachinePrivate::get(m_vm)->prepare(this, [=]() {
+                onPrepareFinished();
+            });
+        }
+
+        if (!m_vmPreparing)
+            vmStmTransition(VmStarting, "prepared");
+
+        ON_EXIT {
+            ;
         }
         break;
 
@@ -1305,6 +1324,7 @@ const char *VmConnection::str(VmState vmState)
     static const char *strings[] = {
         "VmOff",
         "VmAskBeforeStarting",
+        "VmPreparing",
         "VmStarting",
         "VmStartingError",
         "VmRunning",
@@ -1367,6 +1387,13 @@ void VmConnection::onSshErrorOccured()
     m_cachedSshErrorOrigin = m_connection;
     vmPollState();
     sshStmScheduleExec();
+}
+
+void VmConnection::onPrepareFinished()
+{
+    DBG << "Prepared";
+    m_vmPreparing = false;
+    vmStmScheduleExec();
 }
 
 void VmConnection::onGuestInitFinished()

@@ -50,6 +50,7 @@ class VmConnection : public QObject
     enum VmState {
         VmOff,
         VmAskBeforeStarting,
+        VmPreparing,
         VmStarting,
         VmStartingError,
         VmRunning,
@@ -143,6 +144,7 @@ private slots:
     void onSshConnected();
     void onSshDisconnected();
     void onSshErrorOccured();
+    void onPrepareFinished();
     void onGuestInitFinished();
     void onRemoteShutdownProcessFinished();
     void onCommitFinished(bool ok);
@@ -181,6 +183,7 @@ private:
     bool m_cachedSshErrorOccured;
     QString m_cachedSshErrorString;
     QPointer<QSsh::SshConnection> m_cachedSshErrorOrigin;
+    bool m_vmPreparing;
     bool m_vmGuestInitializing;
     bool m_vmCommitting;
 

@@ -467,6 +467,7 @@ bool BuildEnginePrivate::fromMap(const QVariantMap &data)
 
 bool BuildEnginePrivate::initVirtualMachine(const QUrl &vmUri)
 {
+    Q_Q(BuildEngine);
     Q_ASSERT(!virtualMachine);
     QTC_ASSERT(BuildEngine::s_vmConnectionUiCreator, return false);
 
@@ -484,6 +485,11 @@ bool BuildEnginePrivate::initVirtualMachine(const QUrl &vmUri)
     sshParameters.authenticationType = SshConnectionParameters::AuthenticationTypeSpecificKey;
     sshParameters.forwardAgent = true;
     virtualMachine->setSshParameters(sshParameters);
+
+    QObject::connect(VirtualMachinePrivate::get(virtualMachine.get()),
+            QOverload<>::of(&VirtualMachinePrivate::prepare),
+            q,
+            [=]() { prepare(); });
 
     return true;
 }
@@ -646,7 +652,11 @@ void BuildEnginePrivate::setDBusPort(quint16 dBusPort)
     emit q_func()->dBusPortChanged(dBusPort);
 }
 
-// FIXME This should be only done when the configuration changes
+void BuildEnginePrivate::prepare()
+{
+    syncWwwProxy();
+}
+
 void BuildEnginePrivate::syncWwwProxy()
 {
     const SshConnectionParameters sshParameters = virtualMachine->sshParameters();

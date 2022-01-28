@@ -675,6 +675,18 @@ VirtualMachinePrivate::~VirtualMachinePrivate()
 {
 }
 
+void VirtualMachinePrivate::prepare(const QObject *context, const Functor<> &functor)
+{
+    BatchComposer composer = BatchComposer::createBatch("VirtualMachine::prepare");
+    const QPointer<const QObject> context_{context};
+
+    // Errors not considered fatal here
+    doPrepare();
+    emit prepare();
+
+    BatchComposer::enqueueCheckPoint(context, functor);
+}
+
 void VirtualMachinePrivate::initGuest(const QObject *context, const Functor<> &functor)
 {
     BatchComposer composer = BatchComposer::createBatch("VirtualMachine::initGuest");
@@ -821,6 +833,11 @@ void VirtualMachinePrivate::setReservedPortListForwarding(ReservedPortList which
             functor(toPorts(savedPorts.values()), true);
     });
 
+}
+
+void VirtualMachinePrivate::doPrepare()
+{
+    // noop
 }
 
 void VirtualMachinePrivate::doInitGuest()
