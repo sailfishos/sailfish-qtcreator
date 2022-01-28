@@ -135,8 +135,6 @@ VirtualMachine::VirtualMachine(std::unique_ptr<VirtualMachinePrivate> &&dd, cons
     connect(d->connection.get(), &VmConnection::virtualMachineOffChanged,
             this, &VirtualMachine::virtualMachineOffChanged);
     connect(d->connection.get(), &VmConnection::lockDownFailed, this, &VirtualMachine::lockDownFailed);
-    connect(d->connection.get(), &VmConnection::initGuest, d, &VirtualMachinePrivate::doInitGuest);
-    connect(d->connection.get(), &VmConnection::initGuest, d, &VirtualMachinePrivate::initGuest);
 
     if (SdkPrivate::isVersionedSettingsEnabled()) {
         if (SdkPrivate::isUpdatesEnabled()) {
@@ -677,6 +675,30 @@ VirtualMachinePrivate::~VirtualMachinePrivate()
 {
 }
 
+void VirtualMachinePrivate::prepare(const QObject *context, const Functor<> &functor)
+{
+    BatchComposer composer = BatchComposer::createBatch("VirtualMachine::prepare");
+    const QPointer<const QObject> context_{context};
+
+    // Errors not considered fatal here
+    doPrepare();
+    emit prepare();
+
+    BatchComposer::enqueueCheckPoint(context, functor);
+}
+
+void VirtualMachinePrivate::initGuest(const QObject *context, const Functor<> &functor)
+{
+    BatchComposer composer = BatchComposer::createBatch("VirtualMachine::initGuest");
+    const QPointer<const QObject> context_{context};
+
+    // Errors not considered fatal here
+    doInitGuest();
+    emit initGuest();
+
+    BatchComposer::enqueueCheckPoint(context, functor);
+}
+
 void VirtualMachinePrivate::setSharedPath(SharedPath which, const Utils::FilePath &path,
         const QObject *context, const Functor<bool> &functor)
 {
@@ -811,6 +833,11 @@ void VirtualMachinePrivate::setReservedPortListForwarding(ReservedPortList which
             functor(toPorts(savedPorts.values()), true);
     });
 
+}
+
+void VirtualMachinePrivate::doPrepare()
+{
+    // noop
 }
 
 void VirtualMachinePrivate::doInitGuest()

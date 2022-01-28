@@ -132,7 +132,9 @@ public:
             const Functor<const VirtualMachineInfo &, bool> &functor) const = 0;
     VirtualMachineInfo cachedInfo() const { return virtualMachineInfo; }
 
+    void prepare(const QObject *context, const Functor<> &functor);
     virtual void start(const QObject *context, const Functor<bool> &functor) = 0;
+    void initGuest(const QObject *context, const Functor<> &functor);
     virtual void stop(const QObject *context, const Functor<bool> &functor) = 0;
     virtual void commit(const QObject *context, const Functor<bool> &functor) = 0;
     virtual void probe(const QObject *context,
@@ -155,6 +157,7 @@ public:
     VirtualMachine::ConnectionUi *connectionUi() const { return connectionUi_.get(); }
 
 protected:
+    virtual void doPrepare();
     virtual void doInitGuest();
 
     virtual void doSetMemorySizeMb(int memorySizeMb, const QObject *context,
@@ -196,6 +199,7 @@ private:
     void enableUpdates();
 
 signals:
+    void prepare();
     void initGuest();
     void aboutToRestoreSnapshot(const std::shared_ptr<bool> &ok);
 
