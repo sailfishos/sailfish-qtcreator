@@ -153,7 +153,7 @@ public:
             const QString &maybeUserName, const QString &maybePassword);
     static bool installTools(const QString &name, ToolsTypeHint typeHint);
     static bool installCustomTools(const QString &name, const QString &imageFileOrUrl,
-            ToolsTypeHint typeHint, const QString &maybeTooling);
+            ToolsTypeHint typeHint, const QString &maybeTooling, bool noSnapshot);
     static bool cloneTools(const QString &name, const QString &cloneName, ToolsTypeHint typeHint);
     static bool removeTools(const QString &name, ToolsTypeHint typeHint, bool snapshotsOf);
 

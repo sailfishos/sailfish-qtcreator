@@ -601,7 +601,8 @@ public:
     }
 
     bool installCustomTools(const QString &name, const QString &imageFileOrUrl,
-            SdkManager::ToolsTypeHint typeHint, const QString &maybeTooling)
+            SdkManager::ToolsTypeHint typeHint, const QString &maybeTooling,
+            bool noSnapshot)
     {
         QStringList args;
         args += toArgs(typeHint);
@@ -612,6 +613,8 @@ public:
             args += "--tooling";
             args += maybeTooling;
         }
+        if (noSnapshot)
+            args += "--no-snapshot";
         const int exitCode = SdkManager::runOnEngine("sdk-assistant", args);
         return exitCode == EXIT_SUCCESS;
     }
@@ -1378,10 +1381,11 @@ bool SdkManager::installTools(const QString &name, ToolsTypeHint typeHint)
 }
 
 bool SdkManager::installCustomTools(const QString &name, const QString &imageFileOrUrl,
-        ToolsTypeHint typeHint, const QString &maybeTooling)
+        ToolsTypeHint typeHint, const QString &maybeTooling, bool noSnapshot)
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    return ToolsPackageManager().installCustomTools(name, imageFileOrUrl, typeHint, maybeTooling);
+    return ToolsPackageManager().installCustomTools(name, imageFileOrUrl, typeHint, maybeTooling,
+            noSnapshot);
 }
 
 bool SdkManager::cloneTools(const QString &name, const QString &cloneName, ToolsTypeHint typeHint)
