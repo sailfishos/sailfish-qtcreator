@@ -1914,8 +1914,9 @@ Worker::ExitStatus BuiltinWorker::runTools(const QStringList &arguments_, int *e
     if (arguments.first() == "install-custom") {
         QCommandLineParser parser;
         QCommandLineOption toolingOption("tooling", QString(), "tooling");
+        QCommandLineOption noSnapshotOption("no-snapshot");
 
-        parser.addOptions({toolingOption});
+        parser.addOptions({toolingOption, noSnapshotOption});
         parser.addPositionalArgument("name", QString(), "[name]");
         parser.addPositionalArgument("URL|file", QString(), "[URL|file]");
 
@@ -1930,8 +1931,10 @@ Worker::ExitStatus BuiltinWorker::runTools(const QStringList &arguments_, int *e
         const QString name = parser.positionalArguments().at(0);
         const QString imageFileOrUrl = parser.positionalArguments().at(1);
         const QString maybeTooling = parser.value(toolingOption);
+        const bool noSnapshot = parser.isSet(noSnapshotOption);
 
-        *exitCode = SdkManager::installCustomTools(name, imageFileOrUrl, typeHint, maybeTooling)
+        *exitCode = SdkManager::installCustomTools(name, imageFileOrUrl, typeHint, maybeTooling,
+                noSnapshot)
             ? EXIT_SUCCESS
             : EXIT_FAILURE;
         return NormalExit;
