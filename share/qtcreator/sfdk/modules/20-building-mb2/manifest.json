@@ -42,7 +42,8 @@
             "trBrief": "Execute all build steps at once",
             "configOptions": ["*", "target!"],
             "hooks": ["[pre-|post-]pull-build-requires", "post-package", "pre-sign"],
-            "preRun": "module.maybeImportSigningKey"
+            "preRun": "module.maybeImportSigningKey",
+            "commandLineFilter": "module.filterBuildCommandLine"
         },
         {
             "name": "qmake",

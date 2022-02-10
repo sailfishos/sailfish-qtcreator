@@ -59,3 +59,7 @@ export function filterCMakeCommandLine(args) {
         && !arg.startsWith("-DQT_QMAKE_EXECUTABLE:")
     );
 }
+
+export function filterBuildCommandLine(args) {
+    return args.concat("--no-rpmlint");
+}
