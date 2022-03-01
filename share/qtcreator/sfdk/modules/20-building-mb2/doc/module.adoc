@@ -13,8 +13,8 @@ Each build target lets you build software for a specific operating system versio
 
 As with other configuration options, you can decide if you want to apply your choice globally or just for the current (shell) session. Let's pick the latest ARM target for global use and its i486 counterpart for this session only.
 
-    $ sfdk config --global --push target %{OsVariant:NoSpace}-3.0.2.8-armv7hl
-    $ sfdk config --push target %{OsVariant:NoSpace}-3.0.2.8-i486
+    $ sfdk config --global target=%{OsVariant:NoSpace}-3.0.2.8-armv7hl
+    $ sfdk config target=%{OsVariant:NoSpace}-3.0.2.8-i486
 
 Enter a project directory and perform an all-in-one build procedure using the 'build' command. If you don't have an existing project available, you can create one as in the following example.
 
@@ -43,7 +43,7 @@ After all pick a device from those configured inside the %{IdeVariant} (Qt Crea
     #1 "Xperia 10 - Dual SIM (ARM)"
         hardware-device  user-defined  nemo@192.168.2.15:22
         private-key: ~/.ssh/id_myx10
-    $ sfdk config --push device "%{OsVariant} Emulator 3.1.0.12"
+    $ sfdk config device="%{OsVariant} Emulator 3.1.0.12"
     $ sfdk deploy --sdk
 
 
@@ -55,14 +55,14 @@ Shared output directory is a simple but powerful concept, not limited to the abo
 
 It is advisable to enable to enable per-task shared output directories by default, as in this example.
 
-    $ sfdk config --global --push output-prefix ~/RPMS
-    $ sfdk config --global --push task
+    $ sfdk config --global output-prefix=$HOME/RPMS
+    $ sfdk config --global task
 
 Notice that the 'task' option is enabled but no task name is passed. In this case it will be determined automatically, based on the current Git branch - check the description of the 'task' configuration option for more details.
 
 With this configuration we can satisfy build-time dependencies between packages conveniently. Consider 'packageB' with build-time dependency on 'packageA'.
 
-    $ sfdk config --push target my-target
+    $ sfdk config target=my-target
     $ cd packageA
     $ git checkout -b bug12345
     $ sfdk build

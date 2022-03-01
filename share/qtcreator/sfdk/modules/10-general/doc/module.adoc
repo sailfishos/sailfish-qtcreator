@@ -21,8 +21,8 @@ Many aspects of sfdk behavior are controlled with (persistent) 'configuration op
 
 Configuration changes may be applied globally (with the '--global' option) or just for the current (shell) session.  One-time configuration changes are possible with the global option '-c'.  Let’s exercise all three options and review the effect:
 
-    $ sfdk config --global --push task bug-1234
-    $ sfdk config --push task feature-5678
+    $ sfdk config --global task=bug-1234
+    $ sfdk config task=feature-5678
     $ sfdk -c task=bug-1234 config
     # ---- command scope ---------
     task = bug-1234
