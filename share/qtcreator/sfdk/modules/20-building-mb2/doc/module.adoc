@@ -3,18 +3,19 @@
 Start by choosing the build target. List the available build tools.
 
     $ sfdk tools list
-    %{OsVariant:NoSpace}-3.0.0.8
-    └─%{OsVariant:NoSpace}-3.0.0.8-i486
-    %{OsVariant:NoSpace}-3.0.2.8
-    ├─%{OsVariant:NoSpace}-3.0.2.8-armv7hl
-    └─%{OsVariant:NoSpace}-3.0.2.8-i486
+    %{OsVariant:NoSpace}-4.1.0.24
+    └─%{OsVariant:NoSpace}-4.1.0.24-i486
+    %{OsVariant:NoSpace}-4.2.0.21
+    ├─%{OsVariant:NoSpace}-4.2.0.21-aarch64
+    ├─%{OsVariant:NoSpace}-4.2.0.21-armv7hl
+    └─%{OsVariant:NoSpace}-4.2.0.21-i486
 
 Each build target lets you build software for a specific operating system version running on a specific hardware. Each target is listed under one tooling supporting the given OS version (see MANAGING SDK BUILD TOOLS below for more information).
 
 As with other configuration options, you can decide if you want to apply your choice globally or just for the current (shell) session. Let's pick the latest ARM target for global use and its i486 counterpart for this session only.
 
-    $ sfdk config --global target=%{OsVariant:NoSpace}-3.0.2.8-armv7hl
-    $ sfdk config target=%{OsVariant:NoSpace}-3.0.2.8-i486
+    $ sfdk config --global target=%{OsVariant:NoSpace}-4.2.0.21-aarch64
+    $ sfdk config target=%{OsVariant:NoSpace}-4.2.0.21-i486
 
 Enter a project directory and perform an all-in-one build procedure using the 'build' command. If you don't have an existing project available, you can create one as in the following example.
 
@@ -37,13 +38,13 @@ It is possible to invoke each build phase separately.
 After all pick a device from those configured inside the %{IdeVariant} (Qt Creator) and deploy the package.
 
     $ sfdk device list
-    #0 "%{OsVariant} Emulator 3.1.0.12"
+    #0 "%{OsVariant} Emulator 4.2.0.21"
         emulator         autodetected  nemo@127.0.0.1:2223
         private-key: ~/%{OsVariant:NoSpace}/vmshare/ssh/private_keys/sdk
     #1 "Xperia 10 - Dual SIM (ARM)"
         hardware-device  user-defined  nemo@192.168.2.15:22
         private-key: ~/.ssh/id_myx10
-    $ sfdk config device="%{OsVariant} Emulator 3.1.0.12"
+    $ sfdk config device="%{OsVariant} Emulator 4.2.0.21"
     $ sfdk deploy --sdk
 
 
