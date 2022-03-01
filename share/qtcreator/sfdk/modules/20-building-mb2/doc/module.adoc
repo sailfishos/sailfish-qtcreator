@@ -47,28 +47,6 @@ After all pick a device from those configured inside the %{IdeVariant} (Qt Crea
     $ sfdk deploy --sdk
 
 
-=== Shadow Builds
-
-Shadow builds can be initiated simply by passing project file or directory path to the 'build' or 'qmake' (or 'cmake') command:
-
-    $ mkdir build && cd build
-    $ sfdk build ../path/to/sources
-
-Or manually invoking each step:
-
-    $ mkdir build && cd build
-    $ sfdk qmake ../path/to/sources
-    $ sfdk make
-    $ sfdk rpm
-
-Limitations related to shadow builds:
-
-1. Shadow build is only available for packages that use qmake (or CMake or GNU Automake).  Additionally, their build and install procedure must be fully realized using qmake (or CMake or GNU Automake) with no additional steps implemented at .spec level.
-2. The '--prepare' option to the 'build' command cannot be used with shadow builds.
-3. If 'prep' or 'apply' is needed, it must be used directly on the source tree prior to starting a shadow build (shadow builds for multiple targets are still possible provided that the %prep section is target-independent).
-4. GNU Automake, Autoconf and related tools, in case of packages that invoke these at build time, still store their outputs (Makefile.in, configure, etc.) under the source tree.
-
-
 === Working On Multiple Packages
 
 When modifications to two (or more) packages are needed under a task, and there is a build-time dependency between those, it is necessary to deploy the modified, locally built package to the build environment. This happens automatically when shared output directory is in use.
@@ -102,6 +80,28 @@ We have learned how to deal with dependencies between packages. And we can deal 
     $ cp -a --reflink=auto ~/RPMS/{bug12300,bug12345}
 
 Similarly it is possible to supply any custom build-time dependencies by simply copying them under a shared output directory.
+
+
+=== Shadow Builds
+
+Shadow builds can be initiated simply by passing project file or directory path to the 'build' or 'qmake' (or 'cmake') command:
+
+    $ mkdir build && cd build
+    $ sfdk build ../path/to/sources
+
+Or manually invoking each step:
+
+    $ mkdir build && cd build
+    $ sfdk qmake ../path/to/sources
+    $ sfdk make
+    $ sfdk rpm
+
+Limitations related to shadow builds:
+
+1. Shadow build is only available for packages that use qmake (or CMake or GNU Automake).  Additionally, their build and install procedure must be fully realized using qmake (or CMake or GNU Automake) with no additional steps implemented at .spec level.
+2. The '--prepare' option to the 'build' command cannot be used with shadow builds.
+3. If 'prep' or 'apply' is needed, it must be used directly on the source tree prior to starting a shadow build (shadow builds for multiple targets are still possible provided that the %prep section is target-independent).
+4. GNU Automake, Autoconf and related tools, in case of packages that invoke these at build time, still store their outputs (Makefile.in, configure, etc.) under the source tree.
 
 
 === Deploying Platform Packages
