@@ -82,6 +82,19 @@ We have learned how to deal with dependencies between packages. And we can deal 
 Similarly it is possible to supply any custom build-time dependencies by simply copying them under a shared output directory.
 
 
+=== Clean Builds
+
+Build time requirements of one package may interfere with those of another one. In order to avoid polluting build targets with dependencies of a particular package, sfdk uses build targets through writable snapshots. See the description of the 'snapshot' configuration option for details on how a snapshot is chosen.
+
+It is possible to return to the clean state where just the current build-time dependencies are pulled in with the 'build-requires reset' command.  Compared to the 'build-requires pull' command, this starts with a freshly re-created snapshot.
+
+The 'build-requires reset' command is implied whenever the original build target is updated, so if a locally built package is needed as a build-time dependency, you should not install it manually under the snapshot. Instead, rely on the above mentioned fact that a shared output directory can be used to supply build-time dependencies, and get locally built dependencies installed automatically that way.
+
+For similar reasons, when sfdk fails to install build-time dependencies due to errors like "file not found on the server", i.e., because the local repository cache got outdated, it is the original target that should be updated, not the snapshot.
+
+Existing snapshots can be listed and removed using the 'tools' command just like the ordinary targets.
+
+
 === Shadow Builds
 
 Shadow builds can be initiated simply by passing project file or directory path to the 'build' or 'qmake' (or 'cmake') command:
@@ -116,19 +129,6 @@ A shorthand syntax exists for this approach – it is the '--zypper-dup' deploym
     $ sfdk deploy --zypper-dup --all
 
 Pass '--dry-run' to preview the effect before actually applying it.
-
-
-=== Clean Builds
-
-Build time requirements of one package may interfere with those of another one. In order to avoid polluting build targets with dependencies of a particular package, sfdk uses build targets through writable snapshots. See the description of the 'snapshot' configuration option for details on how a snapshot is chosen.
-
-It is possible to return to the clean state where just the current build-time dependencies are pulled in with the 'build-requires reset' command.  Compared to the 'build-requires pull' command, this starts with a freshly re-created snapshot.
-
-The 'build-requires reset' command is implied whenever the original build target is updated, so if a locally built package is needed as a build-time dependency, you should not install it manually under the snapshot. Instead, rely on the above mentioned fact that a shared output directory can be used to supply build-time dependencies, and get locally built dependencies installed automatically that way.
-
-For similar reasons, when sfdk fails to install build-time dependencies due to errors like "file not found on the server", i.e., because the local repository cache got outdated, it is the original target that should be updated, not the snapshot.
-
-Existing snapshots can be listed and removed using the 'tools' command just like the ordinary targets.
 
 
 === Signing Packages
