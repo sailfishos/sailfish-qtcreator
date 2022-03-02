@@ -33,6 +33,6 @@ Two types of SDK Build Tools are recognized:
 1. SDK Build Target - a target-compatible %{OsVariant} image, and
 2. SDK Build Tooling - a host-compatible collection of build time dependencies.
 
-The shorter terms "build tools", "(build) tooling(s)" and "(build) target(s)" are used instead of the official terms where the context admits. Also, since a single SDK Build Tooling is usually used with multiple SDK Build Targets that enable development for the same %{OsVariant} version and differ only by the supported target architecture, the term SDK Build Tools is sometimes used to denote a particular combination of SDK Build Target and Tooling, uniquely identified by the SDK Build Target name.
+The shorter terms "build tools", "(build) tooling(s)" and "(build) target(s)" are used instead of the official terms where the context admits.
 
 SDK Build Tools can be managed using the 'tools' command or with the help of the interactive SDK Installer/Maintenance Tool (see the 'maintain' command).
