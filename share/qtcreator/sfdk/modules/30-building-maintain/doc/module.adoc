@@ -31,8 +31,12 @@ The %{SdkVariant} abstracts the support for cross-development for particular tar
 Two types of SDK Build Tools are recognized:
 
 1. SDK Build Target - a target-compatible %{OsVariant} image, and
-2. SDK Build Tooling - a host-compatible collection of build time dependencies.
+2. SDK Build Tooling - a host-compatible collection of programs used at build time.
 
 The shorter terms "build tools", "(build) tooling(s)" and "(build) target(s)" are used instead of the official terms where the context admits.
+
+Pairs of build targets and toolings are combined using the Scratchbox 2 technology to form complete, virtual build environments, where developers get the feeling of building software the native way while cross-compilation actually happens under the hood.
+
+Build toolings are treated as read-only by Scratchbox 2. Any changes done under the build environment presented by Scratchbox 2 are persisted under the build targets.
 
 SDK Build Tools can be managed using the 'tools' command or with the help of the interactive SDK Installer/Maintenance Tool (see the 'maintain' command).

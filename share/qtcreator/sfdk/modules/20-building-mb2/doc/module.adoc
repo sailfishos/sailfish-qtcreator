@@ -85,15 +85,31 @@ Similarly it is possible to supply any custom build-time dependencies by simply 
 
 === Clean Builds
 
-Build time requirements of one package may interfere with those of another one. In order to avoid polluting build targets with dependencies of a particular package, sfdk uses build targets through writable snapshots. See the description of the 'snapshot' configuration option for details on how a snapshot is chosen.
+Build time requirements of one package may interfere with those of another one. Packages modified and deployed under the build environment in scope of one task may not be compatible with changes worked on in scope of other task. As time goes the build environment accumulates various changes, leading to generally non-reproducible build results.
 
-It is possible to return to the clean state where just the current build-time dependencies are pulled in with the 'build-requires reset' command.  Compared to the 'build-requires pull' command, this starts with a freshly re-created snapshot.
+Use the 'build-requires diff' command to see how the current build environment differs from the clean build environment in terms of package installations, removals and replacements.
 
-The 'build-requires reset' command is implied whenever the original build target is updated, so if a locally built package is needed as a build-time dependency, you should not install it manually under the snapshot. Instead, rely on the above mentioned fact that a shared output directory can be used to supply build-time dependencies, and get locally built dependencies installed automatically that way.
+Use the 'build-requires reset' command to ensure that nothing else than the build-time dependencies currently recorded at RPM 'SPEC' level is pulled in on top of the clean build environment.
 
-For similar reasons, when sfdk fails to install build-time dependencies due to errors like "file not found on the server", i.e., because the local repository cache got outdated, it is the original target that should be updated, not the snapshot.
+Use a shared output directory to supply locally built build-time dependencies without disturbance by (possibly implied) 'build-requires reset'. See WORKING ON MULTIPLE PACKAGES above.
 
-Existing snapshots can be listed and removed using the 'tools' command just like the ordinary targets.
+Detailed information follows.
+
+As explained later in the MANAGING SDK BUILD TOOLS section, any changes done under the build environment are persisted under build targets.  In order to avoid polluting build targets the abovementioned way, sfdk uses a working copy of a build target to set up the build environment. These working copies are called snapshots and the 'snapshot' configuration option controls how a snapshot is chosen. You are informed which snapshot is used with a message like:
+
+    NOTICE: Using the '%{OsVariant:NoSpace}-4.2.0.21-aarch64.default' snapshot
+    of the build target
+
+The original build target defines the clean state of the build environment.  The 'build-requires reset' command is implied whenever the original build target is updated, keeping your build environment ahead the clean state without any action required from you. See the 'snapshot' configuration option for more details.
+
+In most respects, build target snapshots are much like regular build targets. Most of the subcommands of the 'tools' command may be used equally on both. By modifyng an original build target you redefine the clean state. Depending on your use case, you may do better by cloning the original build target and using the clone to persist the redefined clean state.
+
+    $ sfdk tools clone %{OsVariant:NoSpace}-4.2.0.21-{aarch64,MyDevice}
+    $ sfdk tools exec %{OsVariant:NoSpace}-4.2.0.21-MyDevice
+    ... add/rm packages etc. ...
+    $ sfdk config target=%{OsVariant:NoSpace}-4.2.0.21-MyDevice
+
+When you are using live repositories and sfdk fails to install build-time dependencies due to errors like "file not found on the server", i.e., because the local repository cache got outdated, you will most likely want to update the original target, not the snapshot. Changes will be propagated to the snapshot automatically as described above.
 
 
 === Shadow Builds
