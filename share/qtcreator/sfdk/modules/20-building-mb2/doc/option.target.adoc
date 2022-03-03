@@ -1,1 +1,1 @@
-Select the sb2 target to use.
+Select the build target.
