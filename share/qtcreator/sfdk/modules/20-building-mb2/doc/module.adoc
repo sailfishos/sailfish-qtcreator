@@ -3,88 +3,120 @@
 Start by choosing the build target. List the available build tools.
 
     $ sfdk tools list
-    %{OsVariant:NoSpace}-3.0.0.8
-    └─%{OsVariant:NoSpace}-3.0.0.8-i486
-    %{OsVariant:NoSpace}-3.0.2.8
-    ├─%{OsVariant:NoSpace}-3.0.2.8-armv7hl
-    └─%{OsVariant:NoSpace}-3.0.2.8-i486
+    %{OsVariant:NoSpace}-4.1.0.24
+    └─%{OsVariant:NoSpace}-4.1.0.24-i486
+    %{OsVariant:NoSpace}-4.2.0.21
+    ├─%{OsVariant:NoSpace}-4.2.0.21-aarch64
+    ├─%{OsVariant:NoSpace}-4.2.0.21-armv7hl
+    └─%{OsVariant:NoSpace}-4.2.0.21-i486
 
 Each build target lets you build software for a specific operating system version running on a specific hardware. Each target is listed under one tooling supporting the given OS version (see MANAGING SDK BUILD TOOLS below for more information).
 
-As with other configuration options, you can decide if you want to apply your choice globally or just for the current (shell) session. Let's pick the latest ARM target for global use and its i486 counterpart for this session only.
+Let's pick the latest 64-bit ARM target on the list for global use.
 
-    $ sfdk config --global --push target %{OsVariant:NoSpace}-3.0.2.8-armv7hl
-    $ sfdk config --push target %{OsVariant:NoSpace}-3.0.2.8-i486
+    $ sfdk config --global target=%{OsVariant:NoSpace}-4.2.0.21-aarch64
 
-Enter a project directory and perform an all-in-one build procedure using the 'build' command. If you don't have an existing project available, you can create one as in the following example.
+Enter a directory and initialize it as a build directory. sfdk will create a subdirectory named '.sfdk' there, populated with build-specific data it maintains between invocations.
+
+    $ mkdir test && cd test
+    $ sfdk build-init
+    NOTICE: Using the '%{OsVariant:NoSpace}-4.2.0.21-aarch64.default' snapshot
+    of the build target
+
+At this point you can disregard the informal message which is regularly issued by the 'build-init' and later commands. It will be explained later in the CLEAN BUILDS section.
+
+Now you can open a build shell and cross-compile programs for the configured target.  sfdk's build shell allows you to run arbitrary build commands as easily as you would do in case of native compilation.  Try to cross-compile a Hello World program.
+
+    $ cat >hello.cpp <<END
+    #include <iostream>
+    int main() { std::cout << "Hello!" << std::endl; return 0; }
+    END
+    $ sfdk build-shell
+    [%{OsVariant:NoSpace}-4.2.0.21-aarch64] $ g++ -o hello hello.cpp
+
+Cross-compiled programs which do not have special requirements on the run-time environment can be also run under the build shell as simply as you would do with native programs.
+
+    [%{OsVariant:NoSpace}-4.2.0.21-aarch64] $ ./hello
+    Hello!
+
+Alternatively, you can invoke commands under the build shell simply by prepending them with 'sfdk build-shell'.
+
+    $ sfdk build-shell g++ -o hello hello.cpp
+    $ sfdk build-shell ./hello
+    Hello!
+
+Note: Under Bash, with Bash completion available, you can type just 'sfdk bs<TAB>' and let Bash expand the long command name.
+
+Addional build-time dependencies can be made available under the build environment by common means after passing the '--maintain' option to the 'build-shell' command. However, this explicit approach can be (and should be) avoided by expressing build-time dependencies on source level. Promote collaboration by making as little as possible assumptions on the build environment - treat it as something you can dispose of without loosing any value. With all build-time dependencies expressed on source level, you and others may build your software any time later with no extra effort. You will learn more in the following sections.
+
+
+=== Building Software Packages
+
+Various software packaging formats exist that allow to distribute software in their source or binary form or both, accompanied with metadata describing their dependencies and more. The primary packaging format used by %{OsVariant} is RPM and sfdk comes with built-in support for working with packages in this format.
+
+Enter a package directory. If you don't have an existing package available, you can start by creating a basic application as in the following example.
 
     $ mkdir my-app && cd my-app
     $ sfdk init --type qtquick2app
+    $ git init && git add .
+
+Even that this is a throwaway package, we immediately started tracking the sources with Git -- it will allow us to easily and reliably clean up between trials.
+
+The recipe for building RPM package(s) can be found under the 'rpm' directory. The primary packaging specification format is an RPM 'SPEC' file (file extension '.spec'). This is the format recognized by 'rpmbuild', the standard tool for building RPM packages, which is also used by sfdk internally.
+
+In addition to that, a simplified specification format is available. Designed with an emphasis on easy tool-assisted manipulation, it is based on the general purpose YAML data serialization language. Packages created the above mentioned way initially contain packaging specification in this simplified format, based on which an RPM 'SPEC' file will be generated automatically. Manual additions to the generated 'SPEC' file are possible between each pair of '>>' and '<<' comment lines. These additions will be preserved when the 'SPEC' file is regenerated after the YAML-based file is updated.
+
+Any dependencies of your package should be recorded as part of the package specification. With this information available, both the run-time and build-time environment can be set up automatically to suit the needs of your package, with no need for manual adjustments.
+
+You can perform an all-in-one build procedure using the 'build' command.
+
     $ sfdk build
 
 After successful build the resulting RPM package(s) can be found under the RPMS directory.
 
     $ ls ./RPMS
-    my-app-0-1.i486.rpm
+    my-app-0-1.aarch64.rpm
 
-It is possible to invoke each build phase separately.
+With well-written 'SPEC' files it is possible to invoke each build phase separately. See the documentation of the following commands for details.
 
     $ sfdk qmake
     $ sfdk make
     $ sfdk make-install
     $ sfdk package
 
-After all pick a device from those configured inside the %{IdeVariant} (Qt Creator) and deploy the package.
 
-    $ sfdk device list
-    #0 "%{OsVariant} Emulator 3.1.0.12"
-        emulator         autodetected  nemo@127.0.0.1:2223
-        private-key: ~/%{OsVariant:NoSpace}/vmshare/ssh/private_keys/sdk
-    #1 "Xperia 10 - Dual SIM (ARM)"
-        hardware-device  user-defined  nemo@192.168.2.15:22
-        private-key: ~/.ssh/id_myx10
-    $ sfdk config --push device "%{OsVariant} Emulator 3.1.0.12"
-    $ sfdk deploy --sdk
+=== Working With Multiple Targets
 
+When switching build target, ensure that all build artifacts created for the previous target are removed before you start building for the new build target. This can be achieved reliably with help of the version control system, like in this example with git.
 
-=== Shadow Builds
+Attention: The following command will remove all untracked content under your git working directory.
 
-Shadow builds can be initiated simply by passing project file or directory path to the 'build' or 'qmake' (or 'cmake') command:
+    $ git clean -xfd
 
-    $ mkdir build && cd build
-    $ sfdk build ../path/to/sources
+If you followed previous sections of this manual, you can continue with the following steps.  Note how omitting the '--global' option to 'config' makes the change effective for the current (shell) session only.
 
-Or manually invoking each step:
+    $ sfdk config target=%{OsVariant:NoSpace}-4.2.0.21-i486
+    $ git clean -xfd
+    $ sfdk build
 
-    $ mkdir build && cd build
-    $ sfdk qmake ../path/to/sources
-    $ sfdk make
-    $ sfdk rpm
-
-Limitations related to shadow builds:
-
-1. Shadow build is only available for packages that use qmake (or CMake or GNU Automake).  Additionally, their build and install procedure must be fully realized using qmake (or CMake or GNU Automake) with no additional steps implemented at .spec level.
-2. The '--prepare' option to the 'build' command cannot be used with shadow builds.
-3. If 'prep' or 'apply' is needed, it must be used directly on the source tree prior to starting a shadow build (shadow builds for multiple targets are still possible provided that the %prep section is target-independent).
-4. GNU Automake, Autoconf and related tools, in case of packages that invoke these at build time, still store their outputs (Makefile.in, configure, etc.) under the source tree.
-
+You can avoid the need to clean and rebuild when switching build targets by doing out-of-tree builds, more commonly known as shadow builds in Qt world. See SHADOW BUILDS further in this manual.
 
 === Working On Multiple Packages
 
-When modifications to two (or more) packages are needed under a task, and there is a build-time dependency between those, it is necessary to deploy the modified, locally built package to the build environment. This happens automatically when shared output directory is in use.
+When modifications to two (or more) packages are needed under a task, and there is a build-time dependency between those, it is necessary to deploy the modified, locally built package to the build environment. This happens automatically when shared output directory is in use and all build-time dependencies are recorded in the RPM 'SPEC' file.
 
 Shared output directory is a simple but powerful concept, not limited to the above mentioned use case. It can be used to addres whole range of problems related to "super-project" handling. Integrated development environments call these "solutions", "workspaces", "sessions" etc. The terminology varies. sfdk is not that explicit about super-project handling, but it has a notion of "task", which may denote a super-project too.
 
-It is advisable to enable to enable per-task shared output directories by default, as in this example.
+It is advisable to enable to utilize per-task shared output directories by default, as in this example.
 
-    $ sfdk config --global --push output-prefix ~/RPMS
-    $ sfdk config --global --push task
+    $ sfdk config --global output-prefix=$HOME/RPMS
+    $ sfdk config --global task
 
 Notice that the 'task' option is enabled but no task name is passed. In this case it will be determined automatically, based on the current Git branch - check the description of the 'task' configuration option for more details.
 
 With this configuration we can satisfy build-time dependencies between packages conveniently. Consider 'packageB' with build-time dependency on 'packageA'.
 
-    $ sfdk config --push target my-target
+    $ sfdk config target=my-target
     $ cd packageA
     $ git checkout -b bug12345
     $ sfdk build
@@ -104,6 +136,77 @@ We have learned how to deal with dependencies between packages. And we can deal 
 Similarly it is possible to supply any custom build-time dependencies by simply copying them under a shared output directory.
 
 
+=== Clean Builds
+
+Build time requirements of one package may interfere with those of another one. Packages modified and deployed under the build environment in scope of one task may not be compatible with changes worked on in scope of other task. As time goes the build environment accumulates various changes, leading to generally non-reproducible build results.
+
+Use the 'build-requires diff' command to see how the current build environment differs from the clean build environment in terms of package installations, removals and replacements.
+
+Use the 'build-requires reset' command to ensure that nothing else than the build-time dependencies currently recorded at RPM 'SPEC' level is pulled in on top of the clean build environment.
+
+Use a shared output directory to supply locally built build-time dependencies without disturbance by (possibly implied) 'build-requires reset'. See WORKING ON MULTIPLE PACKAGES above.
+
+Detailed information follows.
+
+As explained later in the MANAGING SDK BUILD TOOLS section, any changes done under the build environment are persisted under build targets.  In order to avoid polluting build targets the abovementioned way, sfdk uses a working copy of a build target to set up the build environment. These working copies are called snapshots and the 'snapshot' configuration option controls how a snapshot is chosen. You are informed which snapshot is used with a message like:
+
+    NOTICE: Using the '%{OsVariant:NoSpace}-4.2.0.21-aarch64.default' snapshot
+    of the build target
+
+The original build target defines the clean state of the build environment.  The 'build-requires reset' command is implied whenever the original build target is updated, keeping your build environment ahead the clean state without any action required from you. See the 'snapshot' configuration option for more details.
+
+In most respects, build target snapshots are much like regular build targets. Most of the subcommands of the 'tools' command may be used equally on both. By modifyng an original build target you redefine the clean state. Depending on your use case, you may do better by cloning the original build target and using the clone to persist the redefined clean state.
+
+    $ sfdk tools clone %{OsVariant:NoSpace}-4.2.0.21-{aarch64,MyDevice}
+    $ sfdk tools exec %{OsVariant:NoSpace}-4.2.0.21-MyDevice
+    ... add/rm packages etc. ...
+    $ sfdk config target=%{OsVariant:NoSpace}-4.2.0.21-MyDevice
+
+When you are using live repositories and sfdk fails to install build-time dependencies due to errors like "file not found on the server", i.e., because the local repository cache got outdated, you will most likely want to update the original target, not the snapshot. Changes will be propagated to the snapshot automatically as described above.
+
+
+=== Shadow Builds
+
+Shadow builds can be initiated simply by passing project file or directory path to the 'build' or 'qmake' (or 'cmake') command:
+
+    $ mkdir build && cd build
+    $ sfdk build ../path/to/sources
+
+Or manually invoking each step:
+
+    $ mkdir build && cd build
+    $ sfdk qmake ../path/to/sources
+    $ sfdk make
+    $ sfdk rpm
+
+Limitations related to shadow builds:
+
+1. Shadow build is only available for packages that use qmake (or CMake or GNU Automake).  Additionally, their build and install procedure must be fully realized using qmake (or CMake or GNU Automake) with no additional steps implemented at RPM 'SPEC' file level.
+2. The '--prepare' option to the 'build' command cannot be used with shadow builds.
+3. If 'prep' or 'apply' is needed, it must be used directly on the source tree prior to starting a shadow build (shadow builds for multiple targets are still possible provided that the %prep section is target-independent).
+4. GNU Automake, Autoconf and related tools, in case of packages that invoke these at build time, still store their outputs (Makefile.in, configure, etc.) under the source tree.
+
+
+=== Using %{OsVariant} Emulators
+
+%{OsVariant} Emulators allows you to test and debug your software directly on your development machine, without access to a physical target device.
+
+Each %{OsVariant} Emulator is capable of representing physical properties of various device models.
+
+    $ sfdk emulator device-model-list
+    ...
+    $ sfdk emulator set device-model="Xperia 10 II"
+
+No matter which 'device-model' it is set, a %{OsVariant} Emulator is always an 'i486' machine, so you need to build your software for this particular architecture.
+
+    $ sfdk config target=%{OsVariant:NoSpace}-4.2.0.21-i486
+    $ sfdk build
+    $ sfdk device list
+    ...
+    $ sfdk config device="%{OsVariant} Emulator 4.2.0.21"
+    $ sfdk deploy --sdk
+
+
 === Deploying Platform Packages
 
 With platform packages, subpackages specific to a particular device variant often exist, so a careful selection of subpackages to install is needed. Platform packages can be udated conveniently with the help of 'zypper dup', which avoids the need for manual selection in many cases:
@@ -116,19 +219,6 @@ A shorthand syntax exists for this approach – it is the '--zypper-dup' deploym
     $ sfdk deploy --zypper-dup --all
 
 Pass '--dry-run' to preview the effect before actually applying it.
-
-
-=== Clean Builds
-
-Build time requirements of one package may interfere with those of another one. In order to avoid polluting build targets with dependencies of a particular package, sfdk uses build targets through writable snapshots. See the description of the 'snapshot' configuration option for details on how a snapshot is chosen.
-
-It is possible to return to the clean state where just the current build-time dependencies are pulled in with the 'build-requires reset' command.  Compared to the 'build-requires pull' command, this starts with a freshly re-created snapshot.
-
-The 'build-requires reset' command is implied whenever the original build target is updated, so if a locally built package is needed as a build-time dependency, you should not install it manually under the snapshot. Instead, rely on the above mentioned fact that a shared output directory can be used to supply build-time dependencies, and get locally built dependencies installed automatically that way.
-
-For similar reasons, when sfdk fails to install build-time dependencies due to errors like "file not found on the server", i.e., because the local repository cache got outdated, it is the original target that should be updated, not the snapshot.
-
-Existing snapshots can be listed and removed using the 'tools' command just like the ordinary targets.
 
 
 === Signing Packages
@@ -150,4 +240,4 @@ The cryptographic key to use for signing can be selected with the configuration 
 
 === Maintaining Changelogs
 
-If a file exists with '.changes' extension, otherwise matching the spec file name, the effect will be the same as having a %changelog section in the spec file. If a file with '.changes.run' extension is found instead, this file will be executed and its output treated as the actual change log.
+If a file exists with '.changes' extension, otherwise matching the RPM 'SPEC' file name, the effect will be the same as having a %changelog section in the 'SPEC' file. If a file with '.changes.run' extension is found instead, this file will be executed and its output treated as the actual change log.
