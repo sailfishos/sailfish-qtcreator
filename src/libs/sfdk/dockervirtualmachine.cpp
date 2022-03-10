@@ -126,6 +126,11 @@ DockerVirtualMachine::~DockerVirtualMachine()
 {
 }
 
+QString DockerVirtualMachine::instanceName() const
+{
+    return name().replace(':', '_');
+}
+
 bool DockerVirtualMachine::isAvailable()
 {
     return !DockerRunner::path().isEmpty();
@@ -155,7 +160,7 @@ void DockerVirtualMachine::fetchRegisteredVirtualMachines(const QObject *context
     QStringList arguments;
     arguments.append("image");
     arguments.append("ls");
-    arguments.append("--format={{.Repository}}");
+    arguments.append("--format={{.Repository}}:{{.Tag}}");
 
     auto *runner = BatchComposer::enqueue<DockerRunner>(arguments);
     connect(runner, &DockerRunner::done, context, [=](bool ok) {
@@ -220,7 +225,7 @@ void DockerVirtualMachinePrivate::start(const QObject *context, const Functor<bo
         lsArguments.append("container");
         lsArguments.append("ls");
         lsArguments.append("--all");
-        lsArguments.append("--filter=name=" + q->name());
+        lsArguments.append("--filter=name=" + q->instanceName());
         lsArguments.append("--format={{.Image}}");
 
         auto *lsRunner = BatchComposer::enqueue<DockerRunner>(lsArguments);
@@ -240,7 +245,7 @@ void DockerVirtualMachinePrivate::start(const QObject *context, const Functor<bo
                 QStringList rmArguments;
                 rmArguments.append("container");
                 rmArguments.append("rm");
-                rmArguments.append(q->name());
+                rmArguments.append(q->instanceName());
 
                 BatchComposer::enqueue<DockerRunner>(rmArguments);
                 BatchComposer::enqueue<DockerRunner>(makeCreateArguments());
@@ -251,7 +256,7 @@ void DockerVirtualMachinePrivate::start(const QObject *context, const Functor<bo
     QStringList startArguments;
     startArguments.append("container");
     startArguments.append("start");
-    startArguments.append(q->name());
+    startArguments.append(q->instanceName());
 
     BatchComposer::enqueue<DockerRunner>(startArguments);
 }
@@ -264,7 +269,7 @@ void DockerVirtualMachinePrivate::stop(const QObject *context, const Functor<boo
 
     QStringList stopArguments;
     stopArguments.append("stop");
-    stopArguments.append(q->name());
+    stopArguments.append(q->instanceName());
 
     auto *runner = BatchComposer::enqueue<DockerRunner>(stopArguments);
     connect(runner, &CommandRunner::done, context, functor);
@@ -282,7 +287,7 @@ void DockerVirtualMachinePrivate::commit(const QObject *context, const Functor<b
 
     QStringList commitArguments;
     commitArguments.append("commit");
-    commitArguments.append(q->name());
+    commitArguments.append(q->instanceName());
     commitArguments.append(q->name());
 
     BatchComposer::enqueue<DockerRunner>(commitArguments);
@@ -290,7 +295,7 @@ void DockerVirtualMachinePrivate::commit(const QObject *context, const Functor<b
     QStringList rmArguments;
     rmArguments.append("container");
     rmArguments.append("rm");
-    rmArguments.append(q->name());
+    rmArguments.append(q->instanceName());
 
     BatchComposer::enqueue<DockerRunner>(rmArguments);
 
@@ -330,7 +335,7 @@ void DockerVirtualMachinePrivate::probe(const QObject *context,
         QStringList arguments;
         arguments.append("container");
         arguments.append("ls");
-        arguments.append("--filter=name=" + q->name());
+        arguments.append("--filter=name=" + q->instanceName());
         arguments.append("--quiet");
 
         auto *runner = BatchComposer::enqueue<DockerRunner>(arguments);
@@ -566,6 +571,8 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
 
     const FilePath seccompProfile = FilePath::fromString(Sdk::installationPath())
         .stringAppended(Constants::BUILD_ENGINE_HOST_SECCOMP_PATH_POSTFIX);
+    const QString userName = qEnvironmentVariable("USER", qEnvironmentVariable("USERNAME"));
+    const QString networkName = QString("sailfish-sdk:") + userName;
 
     QStringList arguments;
     arguments.append("create");
@@ -577,7 +584,7 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
     arguments.append("--volume");
     arguments.append("/sys/fs/cgroup:/sys/fs/cgroup:ro");
     arguments.append("--network");
-    arguments.append("sailfish-sdk");
+    arguments.append(networkName);
 
 #ifdef Q_OS_WIN
     arguments.append("--cap-add=SYS_ADMIN");
@@ -626,7 +633,7 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
     sharePath(Constants::BUILD_ENGINE_SHARED_SSH_MOUNT_POINT, cachedInfo().sharedSsh);
 
     arguments.append("--name");
-    arguments.append(q->name());
+    arguments.append(q->instanceName());
 
     arguments.append(q->name());
     arguments.append({"/usr/bin/setarch", "i386", "/usr/sbin/init.container"});

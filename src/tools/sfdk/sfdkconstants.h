@@ -64,6 +64,7 @@ const char SFDK_NO_AUTO_START_VMS_ENV_VAR[] = "SFDK_NO_AUTO_START_VMS";
 const char SFDK_AUTO_STOP_VMS_ENV_VAR[] = "SFDK_AUTO_STOP_VMS";
 const char GENDOC_RUN_ENV_VAR[] = "SFDK_GENDOC_RUN";
 const char NO_MAN_ENV_VAR[] = "SFDK_NO_MAN";
+const char I_KNOW_WHAT_I_AM_DOING_ENV_VAR[] = "SFDK_I_KNOW_WHAT_I_AM_DOING";
 
 } // namespace Constants
 } // namespace Sfdk

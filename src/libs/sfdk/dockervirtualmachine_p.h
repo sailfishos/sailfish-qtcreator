@@ -37,6 +37,8 @@ public:
             std::unique_ptr<ConnectionUi> &&connectionUi, QObject *parent = nullptr);
     ~DockerVirtualMachine() override;
 
+    QString instanceName() const;
+
     static bool isAvailable();
     static QString staticType();
     static QString staticDisplayType();

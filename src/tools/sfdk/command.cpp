@@ -67,9 +67,14 @@ const char EMULATOR_ORIENTATION[] = "orientation";
 const char EMULATOR_DOWNSCALE[] = "downscale";
 // TODO Downscale 4x?
 //const char EMULATOR_DOWNSCALE_FACTOR[] = "downscale.factor";
+const char EMULATOR_SSH_PORT[] = "ssh.port";
+const char EMULATOR_SSH_TIMEOUT[] = "ssh.timeout";
 
 const char ENGINE_HOST_NAME[] = "host-name";
 const char ENGINE_BUILD_ENVIRONMENT_FILTER[] = "environment.forward";
+const char ENGINE_SSH_PORT[] = "ssh.port";
+const char ENGINE_SSH_TIMEOUT[] = "ssh.timeout";
+const char ENGINE_DBUS_PORT[] = "dbus.port";
 
 const char WWW_PROXY_TYPE[] = "proxy";
 const char WWW_PROXY_SERVERS[] = "proxy.servers";
@@ -131,6 +136,24 @@ protected:
             return false;
         }
 
+        return true;
+    }
+
+    static bool parsePortNumber(quint16 *out, const QString &string, QString *errorString)
+    {
+        int asInt;
+        if (!parsePositiveInt(&asInt, string, errorString))
+            return false;
+        if (asInt > std::numeric_limits<quint16>::max()) {
+            *errorString = valueTooBigMessage();
+            return false;
+        }
+        if (asInt < 1024) {
+            *errorString = tr("Privileged ports may not be used");
+            return false;
+        }
+
+        *out = static_cast<quint16>(asInt);
         return true;
     }
 
@@ -620,6 +643,8 @@ public:
         m_deviceModel = emulator->deviceModel().name;
         m_orientation = emulator->orientation();
         m_downscale = emulator->isViewScaled();
+        m_sshPort = m_emulator->sshPort();
+        m_sshTimeout = m_emulator->virtualMachine()->sshParameters().timeout;
     }
 
     QMap<QString, QString> get() const override
@@ -649,6 +674,14 @@ private:
         values.insert(EMULATOR_DEVICE_MODEL, m_deviceModel);
         values.insert(EMULATOR_ORIENTATION, showOrientation(m_orientation));
         values.insert(EMULATOR_DOWNSCALE, showBoolean(m_downscale));
+
+        // Access to emulators with custom SSH port set is currently broken with
+        // the Docker-based build engine
+        if (qEnvironmentVariableIntValue(Constants::I_KNOW_WHAT_I_AM_DOING_ENV_VAR)) {
+            values.insert(EMULATOR_SSH_PORT, QString::number(m_sshPort));
+            values.insert(EMULATOR_SSH_TIMEOUT, QString::number(m_sshTimeout));
+        }
+
         return values;
     }
 
@@ -676,6 +709,15 @@ private:
             if (!parseBoolean(&m_downscale, value, errorString))
                 return Failed;
             return Prepared;
+        } else if (name == EMULATOR_SSH_PORT) {
+            if (!parsePortNumber(&m_sshPort, value, errorString))
+                return Failed;
+            *needsVmOff = true;
+            return Prepared;
+        } else if (name == EMULATOR_SSH_TIMEOUT) {
+            if (!parsePositiveInt(&m_sshTimeout, value, errorString))
+                return Failed;
+            return Prepared;
         } else {
             *errorString = unknownPropertyMessage();
             return Ignored;
@@ -695,9 +737,22 @@ private:
             ok &= stepOk;
         }
 
+        if (m_sshPort != m_emulator->sshPort()) {
+            bool stepOk;
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&Emulator::setSshPort),
+                    m_emulator.data(), m_sshPort);
+            ok &= stepOk;
+        }
+
+        if (m_sshTimeout != m_emulator->virtualMachine()->sshParameters().timeout) {
+            QSsh::SshConnectionParameters sshParameters =
+                m_emulator->virtualMachine()->sshParameters();
+            sshParameters.timeout = m_sshTimeout;
+            m_emulator->virtualMachine()->setSshParameters(sshParameters);
+        }
+
         return ok;
     }
-
 
 private:
     QPointer<Emulator> m_emulator;
@@ -705,6 +760,8 @@ private:
     QString m_deviceModel;
     Qt::Orientation m_orientation{};
     bool m_downscale{};
+    quint16 m_sshPort{};
+    int m_sshTimeout{};
 };
 
 /*!
@@ -721,6 +778,9 @@ public:
     {
         m_hostName = Sdk::effectiveBuildHostName();
         m_buildEnvironmentFilter = Sdk::buildEnvironmentFilter();
+        m_sshPort = m_engine->sshPort();
+        m_sshTimeout = m_engine->virtualMachine()->sshParameters().timeout;
+        m_dBusPort = m_engine->dBusPort();
     }
 
     QMap<QString, QString> get() const override
@@ -749,6 +809,9 @@ private:
         QMap<QString, QString> values;
         values.insert(ENGINE_HOST_NAME, m_hostName);
         values.insert(ENGINE_BUILD_ENVIRONMENT_FILTER, m_buildEnvironmentFilter.join(' '));
+        values.insert(ENGINE_SSH_PORT, QString::number(m_sshPort));
+        values.insert(ENGINE_SSH_TIMEOUT, QString::number(m_sshTimeout));
+        values.insert(ENGINE_DBUS_PORT, QString::number(m_dBusPort));
         return values;
     }
 
@@ -773,6 +836,20 @@ private:
             m_buildEnvironmentFilter = value.split(QRegularExpression("[[:space:]]+"),
                     Qt::SkipEmptyParts);
             return Prepared;
+        } else if (name == ENGINE_DBUS_PORT) {
+            if (!parsePortNumber(&m_dBusPort, value, errorString))
+                return Failed;
+            *needsVmOff = true;
+            return Prepared;
+        } else if (name == ENGINE_SSH_PORT) {
+            if (!parsePortNumber(&m_sshPort, value, errorString))
+                return Failed;
+            *needsVmOff = true;
+            return Prepared;
+        } else if (name == ENGINE_SSH_TIMEOUT) {
+            if (!parsePositiveInt(&m_sshTimeout, value, errorString))
+                return Failed;
+            return Prepared;
         } else {
             *errorString = unknownPropertyMessage();
             return Ignored;
@@ -781,11 +858,35 @@ private:
 
     bool setOthers()
     {
+        bool ok = true;
+
         if (m_hostNameChanged)
             Sdk::setCustomBuildHostName(m_hostName);
+
         Sdk::setBuildEnvironmentFilter(m_buildEnvironmentFilter);
 
-        return true;
+        if (m_sshPort != m_engine->sshPort()) {
+            bool stepOk;
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&BuildEngine::setSshPort),
+                    m_engine.data(), m_sshPort);
+            ok &= stepOk;
+        }
+
+        if (m_sshTimeout != m_engine->virtualMachine()->sshParameters().timeout) {
+            QSsh::SshConnectionParameters sshParameters =
+                m_engine->virtualMachine()->sshParameters();
+            sshParameters.timeout = m_sshTimeout;
+            m_engine->virtualMachine()->setSshParameters(sshParameters);
+        }
+
+        if (m_dBusPort != m_engine->dBusPort()) {
+            bool stepOk;
+            execAsynchronous(std::tie(stepOk), std::mem_fn(&BuildEngine::setDBusPort),
+                    m_engine.data(), m_dBusPort);
+            ok &= stepOk;
+        }
+
+        return ok;
     }
 
 private:
@@ -794,6 +895,9 @@ private:
     QString m_hostName;
     bool m_hostNameChanged = false;
     QStringList m_buildEnvironmentFilter;
+    quint16 m_sshPort{};
+    int m_sshTimeout{};
+    quint16 m_dBusPort{};
 };
 
 } // namespace Sfdk
