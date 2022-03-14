@@ -391,7 +391,7 @@ QString Configuration::print()
 
     QHash<const ConfigurationScope *, QList<OptionEffectiveOccurence>> scopeState;
     for (const OptionEffectiveOccurence &occurence : effectiveState())
-        scopeState[occurence.origin()].append(occurence);
+        scopeState[occurence.origin()].prepend(occurence);
 
     const QList<const ConfigurationScope *> scopes{
         s_instance->m_commandScope.get(),
