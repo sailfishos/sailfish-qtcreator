@@ -74,7 +74,7 @@
             "name": "package",
             "trSynopsis": "[--no-check] [--sign]",
             "trBrief": "Execute package creation build step",
-            "configOptions": ["*", "-no-pull-build-requires", "-[no-]search-output-dir", "target!", "-task"],
+            "configOptions": ["*", "-no-pull-build-requires", "-[no-]search-output-dir", "target!"],
             "hooks": ["post-package", "pre-sign"],
             "preRun": "module.maybeImportSigningKey"
         },
