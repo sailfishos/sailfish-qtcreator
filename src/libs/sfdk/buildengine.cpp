@@ -1051,7 +1051,8 @@ Utils::FilePath BuildEnginePrivate::sysRootForTarget(const QString &targetName) 
 
 Utils::FilePath BuildEnginePrivate::toolsPathForTarget(const QString &targetName) const
 {
-    return BuildTargetData::toolsPathCommonPrefix().pathAppended(virtualMachine->name())
+    return BuildTargetData::toolsPathCommonPrefix()
+        .pathAppended(virtualMachine->name().replace(':', '_'))
         .pathAppended(targetName);
 }
 
