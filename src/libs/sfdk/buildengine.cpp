@@ -990,9 +990,10 @@ bool BuildEnginePrivate::createPkgConfigWrapper(const FilePath &toolsPath, const
         return QDir::toNativeSeparators(sysRoot.pathAppended(path).toString());
     };
 
-    const QStringList libDirs = {"/usr/lib/pkgconfig",  "/usr/share/pkgconfig"};
-    const QString libDir = Utils::transform(libDirs, nativeSysRooted)
-        .join(QDir::listSeparator());
+    QStringList libDirs = {"/usr/lib64/pkgconfig", "/usr/lib/pkgconfig", "/usr/share/pkgconfig"};
+    libDirs = Utils::transform(libDirs, nativeSysRooted);
+    libDirs = Utils::filtered(libDirs, QOverload<const QString &>::of(QFileInfo::exists));
+    const QString libDir = libDirs.join(QDir::listSeparator());
 
     const QString fileName = toolsPath.pathAppended(Constants::WRAPPER_PKG_CONFIG).toString();
 
