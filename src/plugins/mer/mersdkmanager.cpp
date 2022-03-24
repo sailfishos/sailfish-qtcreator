@@ -537,8 +537,11 @@ void MerSdkManager::finalizeKitCreation(Kit* k, const BuildEngine *buildEngine,
     if (sdkProvided)
         k->setSdkProvided(true);
 
-    if (!(buildTarget.flags & BuildTargetData::Snapshot)
-            || buildTarget.flags & BuildTargetData::DefaultSnapshot) {
+    if (!(buildTarget.flags & BuildTargetData::Snapshot)) {
+        k->setUnexpandedDisplayName(QString::fromLatin1("%1 (in %2)")
+                .arg(buildTarget.name)
+                .arg(buildEngine->name()));
+    } else if (buildTarget.flags & BuildTargetData::DefaultSnapshot) {
         k->setUnexpandedDisplayName(QString::fromLatin1("%1 (in %2)")
                 .arg(buildTarget.origin)
                 .arg(buildEngine->name()));
