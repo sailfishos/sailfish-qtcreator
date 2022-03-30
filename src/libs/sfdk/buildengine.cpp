@@ -990,9 +990,9 @@ bool BuildEnginePrivate::createPkgConfigWrapper(const FilePath &toolsPath, const
         return QDir::toNativeSeparators(sysRoot.pathAppended(path).toString());
     };
 
-    const QStringList libDirs = {"/usr/lib/pkgconfig",  "/usr/share/pkgconfig"};
-    const QString libDir = Utils::transform(libDirs, nativeSysRooted)
-        .join(QDir::listSeparator());
+    QStringList libDirs = {"/usr/lib64/pkgconfig", "/usr/lib/pkgconfig", "/usr/share/pkgconfig"};
+    libDirs = Utils::transform(libDirs, nativeSysRooted);
+    libDirs = Utils::filtered(libDirs, QOverload<const QString &>::of(QFileInfo::exists));
 
     const QString fileName = toolsPath.pathAppended(Constants::WRAPPER_PKG_CONFIG).toString();
 
@@ -1008,7 +1008,7 @@ set PKG_CONFIG_SYSROOT_DIR=
 {real} %*
 )");
         scriptContent.replace("{real}", real);
-        scriptContent.replace("{libDir}", libDir);
+        scriptContent.replace("{libDir}", libDirs.join(QDir::listSeparator()));
     } else {
         scriptContent = QStringLiteral(R"(#!/bin/sh
 export PKG_CONFIG_DIR=
@@ -1018,7 +1018,7 @@ export PKG_CONFIG_SYSROOT_DIR="{sysRoot}"
 real=$(which -a pkg-config |sed -n 2p)
 exec ${real?} "$@"
 )");
-        scriptContent.replace("{libDir}", libDir);
+        scriptContent.replace("{libDir}", libDirs.join(QDir::listSeparator()));
         scriptContent.replace("{sysRoot}", sysRoot.toString());
     }
 
