@@ -240,4 +240,4 @@ The cryptographic key to use for signing can be selected with the configuration 
 
 === Maintaining Changelogs
 
-If a file exists with '.changes' extension, otherwise matching the RPM 'SPEC' file name, the effect will be the same as having a %changelog section in the 'SPEC' file. If a file with '.changes.run' extension is found instead, this file will be executed and its output treated as the actual change log.
+If a file exists with '.changes' extension, otherwise matching the RPM 'SPEC' file name, the effect will be the same as having a %changelog section in the 'SPEC' file. If a file with '.changes.run' extension is found instead, this file will be executed and its output treated as the actual change log. If both kind of files are found, '.changes.run' takes precedence.
