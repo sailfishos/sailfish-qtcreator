@@ -20,7 +20,7 @@ export function mapCompilationDatabasePaths() {
             if (object.command) {
                 if (!warnedAboutCommandField) {
                     console.warn(qsTr("%1: The \"command\" field is not supported - unit(s) excluded")
-                            .qsTr(compilationDb));
+                            .arg(compilationDb));
                     warnedAboutCommandField = true;
                 }
                 return acc;
