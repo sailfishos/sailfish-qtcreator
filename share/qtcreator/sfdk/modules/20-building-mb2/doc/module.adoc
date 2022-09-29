@@ -20,10 +20,6 @@ Enter a directory and initialize it as a build directory. sfdk will create a sub
 
     $ mkdir test && cd test
     $ sfdk build-init
-    NOTICE: Using the '%{OsVariant:NoSpace}-4.2.0.21-aarch64.default' snapshot
-    of the build target
-
-At this point you can disregard the informal message which is regularly issued by the 'build-init' and later commands. It will be explained later in the CLEAN BUILDS section.
 
 Now you can open a build shell and cross-compile programs for the configured target.  sfdk's build shell allows you to run arbitrary build commands as easily as you would do in case of native compilation.  Try to cross-compile a Hello World program.
 
@@ -148,10 +144,7 @@ Use a shared output directory to supply locally built build-time dependencies wi
 
 Detailed information follows.
 
-As explained later in the MANAGING SDK BUILD TOOLS section, any changes done under the build environment are persisted under build targets.  In order to avoid polluting build targets the abovementioned way, sfdk uses a working copy of a build target to set up the build environment. These working copies are called snapshots and the 'snapshot' configuration option controls how a snapshot is chosen. You are informed which snapshot is used with a message like:
-
-    NOTICE: Using the '%{OsVariant:NoSpace}-4.2.0.21-aarch64.default' snapshot
-    of the build target
+As explained later in the MANAGING SDK BUILD TOOLS section, any changes done under the build environment are persisted under build targets.  In order to avoid polluting build targets the abovementioned way, sfdk uses a working copy of a build target to set up the build environment. These working copies are called snapshots and the 'snapshot' configuration option controls how a snapshot is chosen.
 
 The original build target defines the clean state of the build environment.  The 'build-requires reset' command is implied whenever the original build target is updated, keeping your build environment ahead the clean state without any action required from you. See the 'snapshot' configuration option for more details.
 
