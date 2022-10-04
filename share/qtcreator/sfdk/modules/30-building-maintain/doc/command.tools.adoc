@@ -1,4 +1,4 @@
-The 'list' command lists the installed build tools. If the '--available' option is used, build tools available for installation from SDK repositories are listed, including those already installed. To see the combined listing of targets grouped by the toolings they use, use the 'list' command without the leading 'tooling' or 'target' keyword. The status flags that may appear in the second column of 'list' output are described further below.
+The 'list' command lists the installed build tools. If the '--available' option is used, build tools available for installation from SDK repositories are listed, including those already installed. To see the combined listing of targets grouped by the toolings they use, use the 'list' command without the leading 'tooling' or 'target' keyword. Use the '--snapshots' option to include build target snapshots in the listing. The status flags that may appear in the second column of 'list' output are described further below.
 
 By default the 'list' command caches or omits information that would be slow to retrieve. Use the '--slow' option to check the state more thoroughly.
 
@@ -50,7 +50,7 @@ Custom build tools installed using either the 'install-custom' or 'clone' comman
 snapshot::
 +
 --
-Build target which is a snapshot. By default, sfdk executes build steps under a writable snapshot of the configured build target. Snapshots with the suffix 'default' are pre-created and chosen by default. Additional snapshots may appear when the 'snapshot' configuration option is in use.
+Build target which is a snapshot. By default, sfdk executes build steps under a writable snapshot of the configured build target. Snapshots with the suffix 'default' are pre-created and chosen by default. Additional snapshots may appear when the 'snapshot' configuration option is in use. Snapshots are not included in the output of the 'list' command unless the '--snapshots' option is used.
 --
 
 outdated::

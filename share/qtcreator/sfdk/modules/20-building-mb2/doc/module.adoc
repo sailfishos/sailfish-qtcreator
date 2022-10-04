@@ -144,7 +144,7 @@ Use a shared output directory to supply locally built build-time dependencies wi
 
 Detailed information follows.
 
-As explained later in the MANAGING SDK BUILD TOOLS section, any changes done under the build environment are persisted under build targets.  In order to avoid polluting build targets the abovementioned way, sfdk uses a working copy of a build target to set up the build environment. These working copies are called snapshots and the 'snapshot' configuration option controls how a snapshot is chosen.
+As explained later in the MANAGING SDK BUILD TOOLS section, any changes done under the build environment are persisted under build targets.  In order to avoid polluting build targets the abovementioned way, sfdk uses a working copy of a build target to set up the build environment. These working copies are called snapshots and the 'snapshot' configuration option controls how a snapshot is chosen. Use the 'tools list' command with the '--snapshots' option to see the existing snapshots of your build targets.
 
 The original build target defines the clean state of the build environment.  The 'build-requires reset' command is implied whenever the original build target is updated, keeping your build environment ahead the clean state without any action required from you. See the 'snapshot' configuration option for more details.
 

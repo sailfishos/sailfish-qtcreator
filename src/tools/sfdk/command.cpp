@@ -1930,11 +1930,21 @@ Worker::ExitStatus BuiltinWorker::runTools(const QStringList &arguments_, int *e
     if (arguments.first() == "list") {
         QCommandLineParser parser;
         QCommandLineOption availableOption(QStringList{"available", "a"});
+        QCommandLineOption snapshotsOption(QStringList{"snapshots", "s"});
         QCommandLineOption slowOption("slow");
-        parser.addOptions({availableOption, slowOption});
+        parser.addOptions({availableOption, snapshotsOption, slowOption});
 
         if (!parser.parse(arguments)) {
             qerr() << parser.errorText() << endl;
+            return BadUsage;
+        }
+
+        if (!P::checkExclusiveOption(parser, {&availableOption, &snapshotsOption}))
+            return BadUsage;
+
+        if (parser.isSet(snapshotsOption) && typeHint == SdkManager::ToolingHint) {
+            qerr() << tr("The '%1' option cannot be used with toolings")
+                .arg(snapshotsOption.names().first()) << endl;
             return BadUsage;
         }
 
@@ -1942,10 +1952,13 @@ Worker::ExitStatus BuiltinWorker::runTools(const QStringList &arguments_, int *e
         if (parser.isSet(availableOption))
             options = options | SdkManager::AvailableTools;
         else
-            options = options | SdkManager::UserDefinedTools | SdkManager::SnapshotTools;
+            options = options | SdkManager::UserDefinedTools;
 
-        if (parser.isSet(slowOption))
-            options = options | SdkManager::CheckSnapshots;
+        if (parser.isSet(snapshotsOption)) {
+            options = options | SdkManager::SnapshotTools;
+            if (parser.isSet(slowOption))
+                options = options | SdkManager::CheckSnapshots;
+        }
 
         const bool listToolings = typeHint == SdkManager::NoToolsHint || typeHint == SdkManager::ToolingHint;
         const bool listTargets = typeHint == SdkManager::NoToolsHint || typeHint == SdkManager::TargetHint;
