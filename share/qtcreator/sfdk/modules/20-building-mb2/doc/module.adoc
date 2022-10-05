@@ -154,7 +154,7 @@ In most respects, build target snapshots are much like regular build targets. Mo
 
     $ sfdk tools clone %{OsVariant:NoSpace}-4.2.0.21-{aarch64,MyDevice}
     $ sfdk tools exec %{OsVariant:NoSpace}-4.2.0.21-MyDevice
-    ... add/rm packages etc. ...
+    ... add/rm repositories, packages etc. ...
     $ sfdk config target=%{OsVariant:NoSpace}-4.2.0.21-MyDevice
 
 When you are using live repositories and sfdk fails to install build-time dependencies due to errors like "file not found on the server", i.e., because the local repository cache got outdated, you will most likely want to update the original target, not the snapshot. Changes will be propagated to the snapshot automatically as described above.
