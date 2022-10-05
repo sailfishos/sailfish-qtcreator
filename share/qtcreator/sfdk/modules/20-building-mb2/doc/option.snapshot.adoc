@@ -4,8 +4,6 @@ By default, i.e., when this option is not set, the snapshot with suffix 'default
 
 When this option is set but no <suffix> was specified, '%pool' is assumed for compatibility with older sfdk versions. (Deprecated)
 
-When <suffix> is '%pool[,<N>]', a temporary snapshot will be used from a pool of the optionally given size <N> (default: 5).  The actual suffix will follow the pattern 'pool.XXX'.
+When <suffix> is '%pool[,<N>]', a temporary snapshot will be used from a pool of the optionally given size <N> (default: 5).  The actual suffix will follow the pattern 'pool.XXX'. Each temporary snapshot is used exclusively with single build tree at a time and it is reset automatically whenever it is taken into use with another build tree.
 
-Snapshot state is preserved across sfdk invocations unless 1) the original target was updated meanwhile (suppressed by the 'no-pull-build-requires' configuration option) or 2) a temporary snapshot is taken into use with other build tree than it was used with before.
-
-A snapshot can be reset forcefully using the 'build-requires reset' command.
+See the CLEAN BUILDS section for more information.
