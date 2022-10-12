@@ -58,7 +58,8 @@ namespace {
 const int SHIFT_WIDTH = 4;
 const int MAN_LEFT_MARGIN = 8;
 const int WRAP_MARGIN = 78 - MAN_LEFT_MARGIN;
-const char PAGER[] = "less";
+const QString PAGER = "less";
+const QStringList PAGER_ARGUMENTS = {"--ignore-case"};
 
 const int TREE_SHIFT_WIDTH = 4;
 const QString TREE_LAST_ITEM_PREFIX = "└── ";
@@ -161,6 +162,7 @@ Pager::Pager()
         return;
 
     m_pager.setProgram(PAGER);
+    m_pager.setArguments(PAGER_ARGUMENTS);
     m_pager.setProcessChannelMode(QProcess::ForwardedChannels);
     m_pager.start(); // Using WriteOnly open mode would break it on Windows
     if (m_pager.waitForStarted())
