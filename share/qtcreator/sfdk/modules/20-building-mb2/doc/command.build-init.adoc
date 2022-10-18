@@ -1,3 +1,5 @@
 Prepares the current working directory for use as a build directory. This is normally done implicitly by the 'build', 'qmake' or 'cmake' commands and does not need to be done explicitly with this command.
 
 When a <project-dir-or-file> is passed, a shadow build directory will be initialized.  Otherwise the current working directory is treated as the project (source) directory.
+
+Initializing a build directory creates a hidden directory called '.sfdk'. Removing this directory stops sfdk treating the containing directory as a build directory.
