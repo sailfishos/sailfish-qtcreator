@@ -144,15 +144,17 @@ Use a shared output directory to supply locally built build-time dependencies wi
 
 Detailed information follows.
 
-As explained later in the MANAGING SDK BUILD TOOLS section, any changes done under the build environment are persisted under build targets.  In order to avoid polluting build targets the abovementioned way, sfdk uses a working copy of a build target to set up the build environment. These working copies are called snapshots and the 'snapshot' configuration option controls how a snapshot is chosen.
+As explained later in the MANAGING SDK BUILD TOOLS section, any changes done under the build environment are persisted under build targets.  In order to avoid polluting build targets the abovementioned way, sfdk uses a working copy of a build target to set up the build environment. These working copies are called snapshots and the 'snapshot' configuration option controls how a snapshot is chosen. Use the 'tools list' command with the '--snapshots' option to see the existing snapshots of your build targets.
 
-The original build target defines the clean state of the build environment.  The 'build-requires reset' command is implied whenever the original build target is updated, keeping your build environment ahead the clean state without any action required from you. See the 'snapshot' configuration option for more details.
+The original build target defines the clean state of the build environment. The modified state is preserved across sfdk invocations unless the clean state was updated meanwhile, in which case the next time sfdk is checking for build-time dependencies it also resets the build environment to the updated clean state, keeping it ahead the clean state without any action required from you. This has the same effect as issuing the 'build-requires reset' command, which is also the way to reset to the (possibly updated) clean state forcefully at any time. See also the 'no-pull-build-requires' configuration option.
+
+If a temporary snapshot is used (see the 'snapshot' configuration option), it will be also reset whenever it is taken into use with other build tree.
 
 In most respects, build target snapshots are much like regular build targets. Most of the subcommands of the 'tools' command may be used equally on both. By modifyng an original build target you redefine the clean state. Depending on your use case, you may do better by cloning the original build target and using the clone to persist the redefined clean state.
 
     $ sfdk tools clone %{OsVariant:NoSpace}-4.2.0.21-{aarch64,MyDevice}
     $ sfdk tools exec %{OsVariant:NoSpace}-4.2.0.21-MyDevice
-    ... add/rm packages etc. ...
+    ... add/rm repositories, packages etc. ...
     $ sfdk config target=%{OsVariant:NoSpace}-4.2.0.21-MyDevice
 
 When you are using live repositories and sfdk fails to install build-time dependencies due to errors like "file not found on the server", i.e., because the local repository cache got outdated, you will most likely want to update the original target, not the snapshot. Changes will be propagated to the snapshot automatically as described above.

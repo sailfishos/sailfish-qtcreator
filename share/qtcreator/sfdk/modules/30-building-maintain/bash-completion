@@ -114,13 +114,13 @@ _sfdk_command_tools()
 
     local command=${words[cmd_idx + 1]}
     case $command,$prev in
-        list,@(-a|--available|--slow))
+        list,@(-a|--available|--slow|-s|--snapshots))
             _sfdk_no_defaults
             ;;
         list,*)
             _sfdk_no_defaults
             if [[ $cur == -* ]]; then
-                COMPREPLY=($(compgen -W "-a --available --slow" -- "$cur"))
+                COMPREPLY=($(compgen -W "-a --available --slow -s --snapshots" -- "$cur"))
             fi
             ;;
         update,*)
