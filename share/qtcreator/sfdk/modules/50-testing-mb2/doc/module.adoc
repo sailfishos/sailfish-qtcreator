@@ -16,7 +16,7 @@ The command enables execution of (pluggable) test suites, each realizing testing
 +
 --
 
-Testing at this level is only supported with the built-in suite 'rpmspec', that executes the steps defined by the '%check' section of the RPM 'SPEC' file if present.
+Testing at this level is only supported with the built-in suite 'rpmspec', that executes the steps defined by the '%check' section of the RPM SPEC file if present.
 
 Testing at this level is normally performed by the 'build' and 'package' commands (unless used with the '--no-check' option) and so it is not enabled by default for this command. Performed with this command, it involves execution of the 'make-install' command.
 

@@ -1,1 +1,1 @@
-Run rpmbuild. Execute just the %prep section of the RPM 'SPEC' file.
+Run rpmbuild. Execute just the %prep section of the RPM SPEC file.

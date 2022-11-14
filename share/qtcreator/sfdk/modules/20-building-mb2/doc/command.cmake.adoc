@@ -1,4 +1,4 @@
-Run rpmbuild. Execute just the %build section of the RPM 'SPEC' file, suppressing any 'cmake' invocation figuring in that section, that does not match the execution form used here, i.e., does not trigger the desired action, namely 1) generate a project buildsystem or 2) build the project.
+Run rpmbuild. Execute just the %build section of the RPM SPEC file, suppressing any 'cmake' invocation figuring in that section, that does not match the execution form used here, i.e., does not trigger the desired action, namely 1) generate a project buildsystem or 2) build the project.
 
 Additionally, any plain 'make' invocation will be recognized as implementing the "build the project" action and will be treated accordingly. Any possible <cmake-extra-arg> will be silently ignored and any possible <build-tools-extra-arg> will be used equally for each 'make' invocation in that case.
 

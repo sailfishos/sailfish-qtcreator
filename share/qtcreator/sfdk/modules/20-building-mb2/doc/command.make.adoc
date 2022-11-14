@@ -1,4 +1,4 @@
-Run rpmbuild. Execute just the %build section of the RPM 'SPEC' file, suppressing any command figuring in that section, that is recognized as a command to generate project buildsystem. The following is a complete list of such commands:
+Run rpmbuild. Execute just the %build section of the RPM SPEC file, suppressing any command figuring in that section, that is recognized as a command to generate project buildsystem. The following is a complete list of such commands:
 
 - any 'qmake' invocation
 - any 'cmake' invocation using the corresponding execution form

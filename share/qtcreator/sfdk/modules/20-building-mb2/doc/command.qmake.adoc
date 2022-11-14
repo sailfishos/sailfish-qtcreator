@@ -1,3 +1,3 @@
-Run rpmbuild. Execute just the %build section of the RPM 'SPEC' file, suppressing any 'make' invocation figuring in that section.
+Run rpmbuild. Execute just the %build section of the RPM SPEC file, suppressing any 'make' invocation figuring in that section.
 
-If path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the RPM 'SPEC' file.)
+If path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the RPM SPEC file.)

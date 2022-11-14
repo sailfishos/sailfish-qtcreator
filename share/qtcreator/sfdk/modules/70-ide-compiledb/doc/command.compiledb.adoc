@@ -1,4 +1,4 @@
-Run rpmbuild. Execute just the %build section of the RPM 'SPEC' file, modifying any 'make' invocation figuring in that section in order to generate Clang's JSON Compilation Database file 'compile_commands.json' as described below.
+Run rpmbuild. Execute just the %build section of the RPM SPEC file, modifying any 'make' invocation figuring in that section in order to generate Clang's JSON Compilation Database file 'compile_commands.json' as described below.
 
 Unless the (top-level) makefile defines a target named 'compiledb' or 'compile_commands.json', 'make' will be wrapped with the 'compiledb' tool as the default option to generate the compilation database.
 

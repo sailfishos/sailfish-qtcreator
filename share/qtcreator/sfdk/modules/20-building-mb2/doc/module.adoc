@@ -58,9 +58,9 @@ Enter a package directory. If you don't have an existing package available, you 
 
 Even that this is a throwaway package, we immediately started tracking the sources with Git -- it will allow us to easily and reliably clean up between trials.
 
-The recipe for building RPM package(s) can be found under the 'rpm' directory. The primary packaging specification format is an RPM 'SPEC' file (file extension '.spec'). This is the format recognized by 'rpmbuild', the standard tool for building RPM packages, which is also used by sfdk internally.
+The recipe for building RPM package(s) can be found under the 'rpm' directory. The primary packaging specification format is an RPM SPEC file (file extension '.spec'). This is the format recognized by 'rpmbuild', the standard tool for building RPM packages, which is also used by sfdk internally.
 
-In addition to that, a simplified specification format is available. Designed with an emphasis on easy tool-assisted manipulation, it is based on the general purpose YAML data serialization language. Packages created the above mentioned way initially contain packaging specification in this simplified format, based on which an RPM 'SPEC' file will be generated automatically. Manual additions to the generated 'SPEC' file are possible between each pair of '>>' and '<<' comment lines. These additions will be preserved when the 'SPEC' file is regenerated after the YAML-based file is updated.
+In addition to that, a simplified specification format is available. Designed with an emphasis on easy tool-assisted manipulation, it is based on the general purpose YAML data serialization language. Packages created the above mentioned way initially contain packaging specification in this simplified format, based on which an RPM SPEC file will be generated automatically. Manual additions to the generated SPEC file are possible between each pair of '>>' and '<<' comment lines. These additions will be preserved when the SPEC file is regenerated after the YAML-based file is updated.
 
 Any dependencies of your package should be recorded as part of the package specification. With this information available, both the run-time and build-time environment can be set up automatically to suit the needs of your package, with no need for manual adjustments.
 
@@ -73,7 +73,7 @@ After successful build the resulting RPM package(s) can be found under the RPMS 
     $ ls ./RPMS
     my-app-0-1.aarch64.rpm
 
-With well-written 'SPEC' files it is possible to invoke each build phase separately. See the documentation of the following commands for details.
+With well-written SPEC files it is possible to invoke each build phase separately. See the documentation of the following commands for details.
 
     $ sfdk qmake
     $ sfdk make
@@ -99,7 +99,7 @@ You can avoid the need to clean and rebuild when switching build targets by doin
 
 === Working On Multiple Packages
 
-When modifications to two (or more) packages are needed under a task, and there is a build-time dependency between those, it is necessary to deploy the modified, locally built package to the build environment. This happens automatically when shared output directory is in use and all build-time dependencies are recorded in the RPM 'SPEC' file.
+When modifications to two (or more) packages are needed under a task, and there is a build-time dependency between those, it is necessary to deploy the modified, locally built package to the build environment. This happens automatically when shared output directory is in use and all build-time dependencies are recorded in the RPM SPEC file.
 
 Shared output directory is a simple but powerful concept, not limited to the above mentioned use case. It can be used to addres whole range of problems related to "super-project" handling. Integrated development environments call these "solutions", "workspaces", "sessions" etc. The terminology varies. sfdk is not that explicit about super-project handling, but it has a notion of "task", which may denote a super-project too.
 
@@ -138,7 +138,7 @@ Build time requirements of one package may interfere with those of another one. 
 
 Use the 'build-requires diff' command to see how the current build environment differs from the clean build environment in terms of package installations, removals and replacements.
 
-Use the 'build-requires reset' command to ensure that nothing else than the build-time dependencies currently recorded at RPM 'SPEC' level is pulled in on top of the clean build environment.
+Use the 'build-requires reset' command to ensure that nothing else than the build-time dependencies currently recorded at RPM SPEC level is pulled in on top of the clean build environment.
 
 Use a shared output directory to supply locally built build-time dependencies without disturbance by (possibly implied) 'build-requires reset'. See WORKING ON MULTIPLE PACKAGES above.
 
@@ -176,7 +176,7 @@ Or manually invoking each step:
 
 Limitations related to shadow builds:
 
-1. Shadow build is only available for packages that use qmake (or CMake or GNU Automake).  Additionally, their build and install procedure must be fully realized using qmake (or CMake or GNU Automake) with no additional steps implemented at RPM 'SPEC' file level.
+1. Shadow build is only available for packages that use qmake (or CMake or GNU Automake).  Additionally, their build and install procedure must be fully realized using qmake (or CMake or GNU Automake) with no additional steps implemented at RPM SPEC file level.
 2. The '--prepare' option to the 'build' command cannot be used with shadow builds.
 3. If 'prep' or 'apply' is needed, it must be used directly on the source tree prior to starting a shadow build (shadow builds for multiple targets are still possible provided that the %prep section is target-independent).
 4. GNU Automake, Autoconf and related tools, in case of packages that invoke these at build time, still store their outputs (Makefile.in, configure, etc.) under the source tree.
@@ -235,4 +235,4 @@ The cryptographic key to use for signing can be selected with the configuration 
 
 === Maintaining Changelogs
 
-If a file exists with '.changes' extension, otherwise matching the RPM 'SPEC' file name, the effect will be the same as having a %changelog section in the 'SPEC' file. If a file with '.changes.run' extension is found instead, this file will be executed and its output treated as the actual change log. If both kind of files are found, '.changes.run' takes precedence.
+If a file exists with '.changes' extension, otherwise matching the RPM SPEC file name, the effect will be the same as having a %changelog section in the SPEC file. If a file with '.changes.run' extension is found instead, this file will be executed and its output treated as the actual change log. If both kind of files are found, '.changes.run' takes precedence.

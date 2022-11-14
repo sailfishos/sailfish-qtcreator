@@ -1,6 +1,6 @@
 This hook is invoked by commands that take care of updating build time dependencies. This hook fully overrides the default procedure of updating build time dependencies.
 
-Any <dependency> determined by querying the RPM 'SPEC' file will be passed as an argument to this hook.
+Any <dependency> determined by querying the RPM SPEC file will be passed as an argument to this hook.
 
 The following environment variables provide additional information to this hook:
 
@@ -31,5 +31,5 @@ See 'SFDK_TARGET'.
 SFDK_SPEC_FILE::
 +
 --
-The RPM 'SPEC' file used for this build.
+The RPM SPEC file used for this build.
 --

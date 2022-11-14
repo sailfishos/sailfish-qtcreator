@@ -1,1 +1,1 @@
-Run rpmbuild. Execute just the %install section of the RPM 'SPEC' file, then build binary packages and optionally sign those. Unless '--no-check' is passed, execute also the %check section if present.
+Run rpmbuild. Execute just the %install section of the RPM SPEC file, then build binary packages and optionally sign those. Unless '--no-check' is passed, execute also the %check section if present.
