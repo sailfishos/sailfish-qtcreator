@@ -27,13 +27,13 @@
         },
         {
             "name": "prepare",
-            "trBrief": "Prepare sources using the recipe from spec file",
+            "trBrief": "Prepare sources using the recipe from the RPM SPEC file",
             "configOptions": ["*", "-package.*", "target!"]
         },
         {
             "name": "apply",
             "trSynopsis": "[-R]",
-            "trBrief": "Apply patches listed in the spec file",
+            "trBrief": "Apply patches listed in the RPM SPEC file",
             "configOptions": ["*", "-no-pull-build-requires", "-[no-]search-output-dir", "-package.*", "target!"]
         },
         {
