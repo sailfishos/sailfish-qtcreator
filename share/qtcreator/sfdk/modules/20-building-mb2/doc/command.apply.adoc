@@ -1,3 +1,5 @@
 Apply all patches defined in the RPM 'SPEC' file to the source tree.
 
+Changes introduced this way are not automatically recorded in a version control system as is normally done by the 'prepare' command.
+
 -R    reverse apply patches (patch -R)

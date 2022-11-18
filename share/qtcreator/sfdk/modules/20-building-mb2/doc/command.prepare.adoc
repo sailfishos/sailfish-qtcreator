@@ -1,1 +1,3 @@
 Run rpmbuild. Execute just the %prep section of the RPM 'SPEC' file.
+
+If the %prep section applies any patches and a supported version control system (VCS) is used to manage the source tree, patches are applied with the help of the VCS unless the 'no-vcs-apply' configuration option is used. Speaking the language of Git, the only supported VCS at the moment, a new commit will be created for each applied patch.

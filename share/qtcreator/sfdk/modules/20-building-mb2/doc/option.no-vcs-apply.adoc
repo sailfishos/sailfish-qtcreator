@@ -1,0 +1,1 @@
+Do not record applied patches in the version control system, ignore safety checks. See the 'prepare' command for more information.
