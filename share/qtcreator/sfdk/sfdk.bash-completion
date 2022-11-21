@@ -135,6 +135,8 @@ _sfdk_complete_compact_config_option()
     if [[ $cur != *=* ]]; then
         compopt -o nospace
         _sfdk_complete_config_option_name
+        # Offer the equal sign for all options, not just those which accept a
+        # value, because a trailing equal sign is used for masking an option.
         if [[ $cur && ${__sfdk_config_options[$cur]+1} ]]; then
             COMPREPLY+=("$cur=")
         fi

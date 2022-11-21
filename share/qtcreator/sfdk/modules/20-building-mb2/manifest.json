@@ -22,7 +22,7 @@
             "name": "build-requires",
             "trSynopsis": "[--[no-]refresh] {pull|reset|diff}",
             "trBrief": "Update build time dependencies",
-            "configOptions": ["*", "-no-pull-build-requires", "-package.*", "target!"],
+            "configOptions": ["*", "-no-vcs-apply", "-no-pull-build-requires", "-package.*", "target!"],
             "hooks": ["[pre-|post-]pull-build-requires"]
         },
         {
@@ -34,7 +34,7 @@
             "name": "apply",
             "trSynopsis": "[-R]",
             "trBrief": "Apply patches listed in the RPM SPEC file",
-            "configOptions": ["*", "-no-pull-build-requires", "-[no-]search-output-dir", "-package.*", "target!"]
+            "configOptions": ["*", "-no-vcs-apply", "-no-pull-build-requires", "-[no-]search-output-dir", "-package.*", "target!"]
         },
         {
             "name": "build",
@@ -48,14 +48,14 @@
             "name": "qmake",
             "trSynopsis": "[<project-dir-or-file>] [--] [<qmake-extra-arg>...]",
             "trBrief": "Execute qmake build step",
-            "configOptions": ["*", "-package.*", "target!"],
+            "configOptions": ["*", "-no-vcs-apply", "-package.*", "target!"],
             "hooks": ["[pre-|post-]pull-build-requires"]
         },
         {
             "name": "cmake",
             "trSynopsis": "[<project-dir>] [--] [<cmake-extra-arg>...]\n--build . [<cmake-extra-arg>...] [-- <build-tool-extra-arg>...]",
             "trBrief": "Execute cmake build step",
-            "configOptions": ["*", "-package.*", "target!"],
+            "configOptions": ["*", "-no-vcs-apply", "-package.*", "target!"],
             "hooks": ["[pre-|post-]pull-build-requires"],
             "commandLineFilter": "module.filterCMakeCommandLine"
         },
@@ -74,7 +74,7 @@
             "name": "package",
             "trSynopsis": "[--no-check] [--sign]",
             "trBrief": "Execute package creation build step",
-            "configOptions": ["*", "-no-pull-build-requires", "-[no-]search-output-dir", "target!"],
+            "configOptions": ["*", "-no-vcs-apply", "-no-pull-build-requires", "-[no-]search-output-dir", "target!"],
             "hooks": ["post-package", "pre-sign"],
             "preRun": "module.maybeImportSigningKey"
         },
@@ -139,6 +139,9 @@
         },
         {
             "name": "no-pull-build-requires"
+        },
+        {
+            "name": "no-vcs-apply"
         },
         {
             "name": "build-shell.args",
