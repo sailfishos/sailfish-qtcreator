@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>628</width>
-    <height>272</height>
+    <height>376</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -22,8 +22,14 @@
   <layout class="QVBoxLayout" name="verticalLayout_3">
    <item>
     <widget class="QLabel" name="label_2">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
      <property name="text">
-      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Ensure that &lt;span style=&quot; font-weight:600;&quot;&gt;Developer Mode&lt;/span&gt; and &lt;span style=&quot; font-weight:600;&quot;&gt;Remote Connection&lt;/span&gt; are enabled under &lt;span style=&quot; font-weight:600;&quot;&gt;Settings &amp;gt; Developer tools&lt;/span&gt; on your device. This is also the place where you can find connection properties like &lt;span style=&quot; font-weight:600;&quot;&gt;IP address&lt;/span&gt; and &lt;span style=&quot; font-weight:600;&quot;&gt;Username&lt;/span&gt;.&lt;/p&gt;&lt;p&gt;If you are connecting your device via USB, connect it now and activate the developer mode.&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Ensure that &lt;span style=&quot; font-weight:600;&quot;&gt;Developer Mode&lt;/span&gt; and &lt;span style=&quot; font-weight:600;&quot;&gt;Remote Connection&lt;/span&gt; are enabled under &lt;span style=&quot; font-weight:600;&quot;&gt;Settings &amp;gt; Developer tools&lt;/span&gt; on your device. This is also the place where you can find connection properties like &lt;span style=&quot; font-weight:600;&quot;&gt;IP address&lt;/span&gt; and &lt;span style=&quot; font-weight:600;&quot;&gt;Username&lt;/span&gt;.&lt;/p&gt;&lt;p&gt;Unless you choose to sign your RPM packages, you will also need to set the &lt;span style=&quot; font-weight:600;&quot;&gt;Allow untrusted software&lt;/span&gt; option under &lt;span style=&quot; font-weight:600;&quot;&gt;Settings &amp;gt; Untrusted software&lt;/span&gt; on your device.&lt;/p&gt;&lt;p&gt;If you are connecting your device via USB, connect it now and activate the developer mode.&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
