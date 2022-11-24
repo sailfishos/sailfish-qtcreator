@@ -14,7 +14,7 @@ by running `make qmltypes` under the containing directory
 
 If you are adding a new qmltypes file, start by creating and empty file and adding it to Git index. Only files known to Git are recognized by this tool.
 
-The 'qmltypes' make target is supposed to invoke qmlplugindump in the same way as if the respective QML modules were already installed system-wide - the recipe will be executed inside a %{OsVariant} Emulator after installing the respective packages.
+The 'qmltypes' make target is supposed to invoke qmlplugindump in the same way as if the respective QML modules were already installed system-wide – the recipe will be executed inside a %{OsVariant} Emulator after installing the respective packages.
 
 Example how to achieve this with qmake-based projects:
 

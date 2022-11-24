@@ -1,6 +1,6 @@
 Execute an arbitrary <command> in the build environment.  If no <command> is specified, an interactive shell will be opened.
 
-Pass the '--maintain' option when running maintenance commands - such that are used to inspect and/or modify the build environment installation.  Failure to do so leads to undefined results.
+Pass the '--maintain' option when running maintenance commands – such that are used to inspect and/or modify the build environment installation.  Failure to do so leads to undefined results.
 
 Unless the 'no-snapshot' configuration option is used, any modifications to the build environment introduced this way can be reverted with the 'build-requires reset' command, which also happens implicitly under certain conditions. Use any of the '[pre-|post-]pull-build-requires' hooks to persist your build environment modifications.  Alternatively, use the 'tools exec' command for direct modification of the original build target.
 

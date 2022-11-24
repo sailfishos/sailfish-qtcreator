@@ -1,6 +1,6 @@
 Conveniently invoke GDB to debug the project (build tree) under the current working directory, using the configured device (see the 'device' configuration option).
 
-Usually, the 'start', 'attach' and 'load-core' subcommand selection can be deduced from the remaining arguments and does not need to be done explicitly - that style of invocation resembles basic GDB usage.
+Usually, the 'start', 'attach' and 'load-core' subcommand selection can be deduced from the remaining arguments and does not need to be done explicitly – that style of invocation resembles basic GDB usage.
 
 This command requires that all options are ordered before any positional arguments.
 
