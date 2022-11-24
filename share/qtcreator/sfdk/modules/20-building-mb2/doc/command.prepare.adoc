@@ -1,3 +1,9 @@
 Run rpmbuild. Execute just the %prep section of the RPM 'SPEC' file.
 
-If the %prep section applies any patches and a supported version control system (VCS) is used to manage the source tree, patches are applied with the help of the VCS unless the 'no-vcs-apply' configuration option is used. Speaking the language of Git, the only supported VCS at the moment, a new commit will be created for each applied patch.
+When a supported version control system (VCS) is used to manage the source tree, any changes introduced by executing the %prep section will be applied with the help of the VCS in order to keep your own changes safe and clearly separated.
+
+Speaking the language of Git, the only supported VCS at the moment, new commits will be created – one for each applied patch and a final one for changes introduced other way than by applying patches.
+
+Changes applied this way are ignored by the 'fix-version' configuration option. If you have no other changes, it will not indicate any change since the last tagged version.
+
+The above described behavior may be suppressed by the 'no-vcs-apply' configuration option.
