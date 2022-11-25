@@ -1,0 +1,19 @@
+This command is specifically designed to support maintenance of packages where
+
+1. the sources are under version control by Git,
+2. another source repository is embedded as a Git submodule, and
+3. the embedded repository is not write-accessible.
+
+If a need to update the code under the embedded repository (submodule) arises in this case, the changes may be shared in form of patch files versioned under the embedding repository (superproject). This command makes this option less tedious, automating the job of collecting patches for new commits appearing in submodules (recursively), updating existing patch files in a safe manner and as a last step removing the corresponding commits from submodules.
+
+This command may be used in pair with the 'prepare' command, which is capable of doing the opposite job: applying patches as commits.
+
+This command enforces certain patch formatting and file naming conventions. When used in pair with the 'prepare' command, it is not guaranteed (not desired) that it produces patch files matching the original patch files. Among others the file numbering is enforced, using discrete number ranges for patches originating from different submodules.
+
+Unless overriden with the '--output-dir' option, patches will be stored under the well known 'rpm' directory (where the RPM 'SPEC' file lives).
+
+Use the '--dry-run' option to preview the list of commits considered for scraping – there are no safety limits on the number of commits to process.
+
+For every Git submodule, all commits reported by 'git submodule summary' executed under its superproject are considered. Out of these, commits which have the 'Sfdk-scrape: discard' trailer line in their commit message, will be scraped without creating a patch.
+
+When the '--keep' option is used, commits will not be removed from submodules after patches are created from them.

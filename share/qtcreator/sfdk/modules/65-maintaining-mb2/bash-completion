@@ -1,0 +1,23 @@
+# This file is part of sfdk.bash-completion                -*- shell-script -*-
+
+_sfdk_command_scrape()
+{
+    local -A options=(
+        [-n]=
+        [--dry-run]=
+        [--keep]=
+        [-o]=1
+        [--output-dir]=1
+    )
+
+    case $prev in
+        -o|--output-dir)
+            compopt +o default -o dirnames
+            return
+            ;;
+    esac
+
+    if [[ $cur == -* ]]; then
+        COMPREPLY=($(compgen -W "${!options[*]} --" -- "$cur"))
+    fi
+}
