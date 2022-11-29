@@ -1,0 +1,31 @@
+{
+    "version": 5,
+    "domain": "maintaining",
+    "trBrief": "Maintaining software",
+
+    "worker":
+    {
+        "type": "engine-command",
+        "version": 4,
+        "program": "sfdk-changelog",
+        "omitSubcommand": true
+    },
+
+    "commands":
+    [
+        {
+            "name": "changelog",
+            "trSynopsis": "[-a|--auto-add-annotations] [-A|--only-add-annotations] [-T|--only-add-tagged] [-D|--descendants-of <rev>] [-d|--dense <regexp>] [--[no-]favor-tagger] [--no-squeeze-spaces] [--rev-list-args <args>] [-e|--sed-entries <script>] [-s|--since[-date|-rev] {<date>|<rev>|<file>}] [--sort-entries] [--strip-tag-prefix <prefix>] [-t|--tags <pattern>] [-F|--append-from <file>[,<opts>]] [--append-cmd <cmd>] [--tags-with-path] [-<number>] [--] [<revision>]\n{-u|--untagged-only} [--] [<revision>]\n--script <file>",
+            "trBrief": "Extract changelog from Git commit log",
+            "configOptions": []
+        }
+    ],
+
+    "options":
+    [
+    ],
+
+    "hooks":
+    [
+    ]
+}

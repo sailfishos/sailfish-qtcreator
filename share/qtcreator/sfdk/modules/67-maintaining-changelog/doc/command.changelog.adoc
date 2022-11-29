@@ -1,0 +1,320 @@
+Extracts changelog items embedded in Git commit messages, tag annotations and more.
+
+By default, all and only the lines matching the following pattern are recognized as changelog entries:
+
+    [BLANKS] '[' SHORT-DESCRIPTION ']' BLANKS LONG-DESCRIPTION
+
+These may appear anywhere in commit messages or tag annotations.
+
+If no <revision> is passed, searching starts from 'HEAD'. Any revision string understood by 'git-rev-parse(1)' is accepted.
+
+See EXAMPLES below.
+
+== OPTIONS
+
+-a, --auto-add-annotations::
++
+--
+Use the subjects (first lines) of tag annotations when no entry would be included for a revision otherwise.
+--
+
+-A, --only-add-annotations::
++
+--
+Always use the subjects (first lines) of tag annotations as changelog entries, completely ignore commit messages.
+--
+
+-T, --only-add-tagged::
++
+--
+Only consider tagged commits when searching for changelog entries. This honours the '--tags' option and therefore can be used to exclude upstream commits where '--rev-list-args' cannot be used.
+--
+
+-D, --descendants-of <rev>::
++
+--
+Only consider commits that exist directly on the ancestry path from <rev>, including <rev> itself.  This can be used to exclude upstream commits where '--rev-list-args' cannot be used.  This is most likely to be used together with '--tags'.
+--
+
+-d, --dense <regexp>::
++
+--
+Print headlines just for revisions denoted by tags matching the given <regexp>. This is matched agains the full refname, including the 'refs/...' prefix.  Can be used e.g. to omit headlines for patch-level revisions.  Implies '--favor-tagger'. See also '--tags'.
+--
+
+--[no-]favor-tagger::
++
+--
+Use tag-author instead of commit-author name/date/email in case of revisions denoted by annotated tags.
+--
+
+--no-squeeze-spaces::
++
+--
+Do not replace sequences of blank characters with single space character.
+--
+
+--rev-list-args <args>::
++
+--
+Additional arguments to 'git-rev-list' invoked to list commits between tags denoting consecutive revisions.  Passing multiple times appends <args>.  With empty <args> it clears everything including the implicit argument '--topo-order'.  Can be used to exclude upstream commits.
+--
+
+-e, --sed-entries <script>::
++
+--
+Use custom 'sed' <script> to extract entries from commit messages and tag annotations.  The script will be executed with auto-print disabled ('sed -n').
+--
+
+--script <file>::
++
+--
+Execute the given script <file> in a restricted execution environment, enabling untrusted sources to customize their changelog generation without the need for a full-fledged process isolation.
+
+It accepts a shell-like script that consists just from invocations of the following pseudo-commands:
+
+sfdk-changelog::
++
+--
+Invokes the 'changelog' command itself in a restricted mode: the '--append-cmd' option will not be available and any 'sed' script passed with '--sed-entries' or '--append-from' will be executed with 'sed --sandbox'.
+--
+
+git-show::
++
+--
+Invokes 'git-show(1)'.
+--
+
+echo::
++
+--
+Invokes the common shell command 'echo'.
+--
+
+Any other command will be rejected.
+
+Additionally, the script MUST start with the following shebang directive (exactly):
+
+    #!/usr/bin/sfdk-changelog --script
+
+A hash character ('#') appearing as the first non-blank character on a line introduces a comment. Any line ending with the backslash ('\') character preceded by at least one space will be joined with the next line.
+
+See EXAMPLES below.
+--
+
+-s, --since[-date|-rev] {<date>|<rev>|<file>}::
++
+--
+Only print revisions after the given <date>, <rev> or the latest revision found in the given changelog <file>. A given <rev> is compared literally, i.e., it does not neccessarily match the (prefixed) tag name! If the '-date' or '-rev' suffix is omitted from the option name, the type of the argument is guessed.
+--
+
+--sort-entries::
++
+--
+Sort entries alphabetically according to current locale - use thoughtfully! Normally entries appear in order of their appearance in output of 'git-rev-list'. See also '--rev-list-args'.
+--
+
+--strip-tag-prefix <prefix>::
++
+--
+When turning a tag name into revision name, remove <prefix> from tag base name.  Passing empty <prefix> clears the implicit "v" prefix.
+--
+
+-t, --tags <pattern>::
++
+--
+Override the default 'refs/tags/*' pattern used to enumerate tags. Compared to '--dense' this
+
+1. discards annotations from unmatched tags,
+2. does not imply '--favor-tagger' and
+3. accepts patterns as understood by 'git-for-each-ref(1)'
+--
+
+-F, --append-from <file>[,<opts>]::
++
+--
+Append new lines added to <file> for each revision.  Only the topmost batch of added lines will be considered, ignoring changes to recently added lines.  A comma separated list of following <opts> may follow:
+
+noindent::
++
+--
+Do not indent lines as continuation lines
+--
+notail::
++
+--
+Omit the very last revision
+--
+notrim::
++
+--
+Do not trim newlines
+--
+stick::
++
+--
+Do not separate with blank line
+--
+sed:<script>::
++
+--
+Process lines with the supplied 'sed' <script>. This option must appear as the very last one.
+--
+
+--
+
+--append-cmd <cmd>::
++
+--
+Append lines writtend to stdout by <cmd> for each revision.  This option is not available when invoked from a script executed with the '--script' option.
+
+<cmd> will be executed with a single argument in form of '[<rev-1>..]<rev>' (for the oldest revision only <rev> is passed). It can be an arbitrary complex shell script.
+
+The following commands are available to the <cmd> script as an extension to the host execution environment:
+
+changelog__head_added_lines [<rev-1>..]<rev> <file>::
++
+--
+Output lines prepended to the <file> between revisions <rev-1> and <rev> or the whole file when single <rev> is passed.
+--
+
+changelog__trim_newlines::
++
+--
+Filter stdin removing any extra starting or trailing newlines.
+--
+
+changelog__indent::
++
+--
+Add indentation suitable for changelog continuation lines.
+--
+
+changelog__nostick::
++
+--
+Prepend blank line to a non-empty input.
+--
+
+See EXAMPLES below.
+--
+
+--tags-with-path::
++
+--
+When turning a tag name into revision name, preserve the path prefix like 'git rev-parse --symbolic --abbrev-ref' would do for the tag.
+--
+
+-u, --untagged-only::
++
+--
+Print just the most recent entries not reachable from any tag denoting a revision for which a headline would be printed.
+--
+
+-<number>::
++
+--
+Limit output to <number> revisions.
+--
+
+== EXAMPLES
+
+=== Example #1
+
+Consider a Git history where, at some point in past, a decision was taken to
+
+1. start using annotated tags for changelog generation and
+2. no more require special markup for lines to be included in changelog
+
+In the following scenario, commit author is always John Author, committer is always Alice Committer (never figures in changelog) and tagging is always done by Jack Tagger.  They always perform their job on the first, second and third day of a month respectively. The #YYYY-MM task number designates the year and month of the commit/tag creation.
+
+    $ git commit -m 'Foo: Fix #2000-01'
+    $ git commit -m '[Foo] Fix #2000-02'
+    $ git commit -m '[Foo] Fix #2000-02 more'
+    $ git commit -m 'Foo: Fix #2000-03'
+    $ git tag 0.0.1
+
+    $ git commit -m '[Foo] Fix #2000-04'
+    $ git tag 0.1
+
+    $ # Use annotated tags since now
+
+    $ git commit -m 'Foo: Fix #2000-05'
+    $ git commit -m 'Foo: Fix #2000-05 more'
+    $ git tag 0.1.1 -a -m 'Foo: Fixed #2000-05'
+
+    $ git commit -m 'Foo: Fix #2000-06'
+    $ git commit -m 'Foo: Fix #2000-06 more'
+    $ git tag 0.2 -a -m 'Foo: Fixed #2000-06'
+
+Here is how the corresponding changelog with patch-level changes merged together would look like:
+
+[literal]
+--
+$ sfdk changelog --auto-add-annotations \
+>     --dense '/[0-9]\+\.[0-9]\+$'
+* Sat Jun 03 2000 Jack Tagger <jack.tagger@example.net> - 0.2
+- Foo: Fixed #2000-06
+- Foo: Fixed #2000-05
+
+* Sun Apr 02 2000 John Author <john.author@example.net> - 0.1
+- [Foo] Fix #2000-04
+- [Foo] Fix #2000-02 more
+- [Foo] Fix #2000-02
+--
+
+=== Example #2
+
+Consider a forked Git history. The upstream maintains the changelog in the 'Changelog' file in the same repository. The maintainer of the forked tree maintains the changelog with the help of 'sfdk changelog' instead, and uses the 'our/' namespace for the tags to separate them from upstream tags.
+
+In this example the '--append-from' option is used to append entries from upstream changelog maintained in the 'Changelog' file. For every revision, lines newly appearing in the file since the previous revision will be added.
+
+    $ sfdk changelog --tags 'refs/tags/our/*' \
+    >   --rev-list-args '^upstream/master' \
+    >   --append-from Changelog
+
+Here is an equivalent example, utilizing the versatile '--append-cmd' option instead.
+
+    $ my_append()
+    > {
+    >     changelog__head_added_lines "$1" Changelog \
+    >         |changelog__trim_newlines |changelog__indent \
+    >         |changelog__nostick
+    > }
+    $ sfdk changelog --tags 'refs/tags/our/*' \
+    >   --rev-list-args '^upstream/master' \
+    >   --append-cmd "$(declare -f my_append); my_append"
+
+=== Example #3
+
+Consider a Git history where, at some point in past, a decision was taken to stop maintaining changelog in the 'Changelog' file and start embedding changelog items in commit messages instead. The 'Changelog' file is preserved as 'Changelog.old'. The combined full changelog can be produced with a script like this:
+
+    $ {
+    >   sfdk changelog --since Changelog.old
+    >   echo
+    >   git show :Changelog.old
+    > } >Changelog
+
+=== Example #4
+
+The 'changelog' command may be used in a '.changes.run' file for automatic inclusion of the generated changelog in RPM package metadata as described in the MAINTAINING CHANGELOGS section of the domain help. In the execution environment of a '.changes.run' file it is available as a standalone command 'sfdk-changelog' (not a subcommand of sfdk). The automated version of the previous example:
+
+    $ cat >rpm/my-app.changes.run <<END
+    > #!/bin/bash
+    > sfdk-changelog --since Changelog.old
+    > echo
+    > git show :Changelog.old
+    > END
+
+=== Example #5
+
+The previous example adapted for execution under the restricted environment provided by the '--script' option:
+
+    $ cat >rpm/my-app.changes.run <<END
+    > #!/usr/bin/sfdk-changelog --script
+    > sfdk-changelog --since Changelog.old
+    > echo
+    > git-show :Changelog.old
+    > END
+
+Notice the use of 'git-show' (with dash) instead of 'git show' (with space). See the '--script' option for more details.
