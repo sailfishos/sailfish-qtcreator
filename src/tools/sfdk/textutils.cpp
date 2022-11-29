@@ -228,6 +228,7 @@ void AsciiMan::render(QTextStream &in, QTextStream &out)
 {
     bool prevBlank = true;
     bool expectOpenBlock = false;
+    bool literal = false;
     bool verse = false;
     int indentLevel = 0;
     QString section;
@@ -258,13 +259,14 @@ void AsciiMan::render(QTextStream &in, QTextStream &out)
             } else {
                 if (!verse)
                     indentLevel--;
-                verse = false;
+                literal = verse = false;
             }
         } else if (line == "+") {
             expectOpenBlock = true;
         } else if (line.contains(attributesRe, &match)) {
+            literal = match.captured(1) == "literal";
             verse = match.captured(1) == "verse";
-            if (!verse)
+            if (!literal && !verse)
                 qCWarning(sfdk) << "Unrecognized AsciiDoc attribute" << match.captured(1);
             expectOpenBlock = true;
         } else {
@@ -276,7 +278,7 @@ void AsciiMan::render(QTextStream &in, QTextStream &out)
 
             expectOpenBlock = false;
 
-            if (verse || line.startsWith(' ') || line.startsWith('\n')) {
+            if (literal || verse || line.startsWith(' ') || line.startsWith('\n')) {
                 int extraIndent = 0;
                 if (section == "SYNOPSIS")
                     extraIndent = 1;
