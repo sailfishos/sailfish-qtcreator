@@ -43,7 +43,7 @@ Alternatively, you can invoke commands under the build shell simply by prependin
 
 Note: Under Bash, with Bash completion available, you can type just 'sfdk bs<TAB>' and let Bash expand the long command name.
 
-Addional build-time dependencies can be made available under the build environment by common means after passing the '--maintain' option to the 'build-shell' command. However, this explicit approach can be (and should be) avoided by expressing build-time dependencies on source level. Promote collaboration by making as little as possible assumptions on the build environment - treat it as something you can dispose of without loosing any value. With all build-time dependencies expressed on source level, you and others may build your software any time later with no extra effort. You will learn more in the following sections.
+Addional build-time dependencies can be made available under the build environment by common means after passing the '--maintain' option to the 'build-shell' command. However, this explicit approach can be (and should be) avoided by expressing build-time dependencies on source level. Promote collaboration by making as little as possible assumptions on the build environment – treat it as something you can dispose of without loosing any value. With all build-time dependencies expressed on source level, you and others may build your software any time later with no extra effort. You will learn more in the following sections.
 
 
 === Building Software Packages
@@ -108,7 +108,7 @@ It is advisable to enable to utilize per-task shared output directories by defau
     $ sfdk config --global output-prefix=$HOME/RPMS
     $ sfdk config --global task
 
-Notice that the 'task' option is enabled but no task name is passed. In this case it will be determined automatically, based on the current Git branch - check the description of the 'task' configuration option for more details.
+Notice that the 'task' option is enabled but no task name is passed. In this case it will be determined automatically, based on the current Git branch – check the description of the 'task' configuration option for more details.
 
 With this configuration we can satisfy build-time dependencies between packages conveniently. Consider 'packageB' with build-time dependency on 'packageA'.
 
@@ -231,8 +231,3 @@ The cryptographic key to use for signing can be selected with the configuration 
     $ sfdk config --global --push package.signing-passphrase-file \
         ~/path/to/passphrase-file
     # sfdk build --sign
-
-
-=== Maintaining Changelogs
-
-If a file exists with '.changes' extension, otherwise matching the RPM 'SPEC' file name, the effect will be the same as having a %changelog section in the 'SPEC' file. If a file with '.changes.run' extension is found instead, this file will be executed and its output treated as the actual change log. If both kind of files are found, '.changes.run' takes precedence.

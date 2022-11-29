@@ -60,7 +60,7 @@ _sfdk_command_qmake()
         if [[ $cur == -* ]]; then
             COMPREPLY=($(compgen -W "--" -- "$cur"))
         else
-            compopt -o dirnames
+            compopt +o default -o dirnames
         fi
         return
     fi
@@ -115,7 +115,7 @@ _sfdk_command_cmake()
         if [[ $cur == -* ]]; then
             COMPREPLY=($(compgen -W "-- --build" -- "$cur"))
         else
-            compopt -o dirnames
+            compopt +o default -o dirnames
         fi
         return
     fi

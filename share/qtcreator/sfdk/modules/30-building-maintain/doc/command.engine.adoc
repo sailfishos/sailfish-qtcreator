@@ -1,4 +1,4 @@
-The 'start' and 'stop' commands allow to control the build engine virtual machine conveniently. Starting the build engine explicitly is usually not required - commands that need build engine running will ensure it is running. The 'status' command prints status information.
+The 'start' and 'stop' commands allow to control the build engine virtual machine conveniently. Starting the build engine explicitly is usually not required – commands that need build engine running will ensure it is running. The 'status' command prints status information.
 
 Build engine properties can be set with the 'set' command and queried with the 'show' command. Known properties are described further below.
 

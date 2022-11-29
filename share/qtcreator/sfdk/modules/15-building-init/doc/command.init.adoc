@@ -2,4 +2,4 @@ Initialize a new project of the selected <type> under the current working direct
 
 Valid project types together with available builders can be listed using the '--list-types' option.
 
-By default, the 'init' command refuses to do its job under a non-empty directory - this can be bypassed with the '--force' option.
+By default, the 'init' command refuses to do its job under a non-empty directory – this can be bypassed with the '--force' option.

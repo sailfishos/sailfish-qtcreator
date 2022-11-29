@@ -1,4 +1,4 @@
-Configuration is stack based. Options that occur higher on the stack may override earlier options, including those implied by the earlier options. (Note the analogy with command line - later options can override the earlier ones.)
+Configuration is stack based. Options that occur higher on the stack may override earlier options, including those implied by the earlier options. (Note the analogy with command line – later options can override the earlier ones.)
 
 Three configuration <scope>s are managed separately: 'global' (outermost), 'session' and 'command'.  The default is to operate at the 'session' scope.
 

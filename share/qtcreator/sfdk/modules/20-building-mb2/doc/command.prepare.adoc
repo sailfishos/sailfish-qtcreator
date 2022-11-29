@@ -6,4 +6,6 @@ Speaking the language of Git, the only supported VCS at the moment, new commits 
 
 Changes applied this way are ignored by the 'fix-version' configuration option. If you have no other changes, it will not indicate any change since the last tagged version.
 
+Changes originating from patches may be updated by usual ways of Git usage, after which the 'scrape' command can be used to propagate the changes back to the patches.
+
 The above described behavior may be suppressed by the 'no-vcs-apply' configuration option.

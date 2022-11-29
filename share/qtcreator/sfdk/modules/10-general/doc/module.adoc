@@ -35,6 +35,6 @@ Configuration changes may be applied globally (with the '--global' option) or ju
     # masked at session scope
     ;task = bug-1234
 
-Options pushed higher on the stack override (mask) those appearing more lower - as stated conveniently in the output.
+Options pushed higher on the stack override (mask) those appearing more lower – as stated conveniently in the output.
 
 See the 'config' command for more details.

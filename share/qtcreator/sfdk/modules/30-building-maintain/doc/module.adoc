@@ -30,8 +30,8 @@ The %{SdkVariant} abstracts the support for cross-development for particular tar
 
 Two types of SDK Build Tools are recognized:
 
-1. SDK Build Target - a target-compatible %{OsVariant} image, and
-2. SDK Build Tooling - a host-compatible collection of programs used at build time.
+1. SDK Build Target – a target-compatible %{OsVariant} image, and
+2. SDK Build Tooling – a host-compatible collection of programs used at build time.
 
 The shorter terms "build tools", "(build) tooling(s)" and "(build) target(s)" are used instead of the official terms where the context admits.
 

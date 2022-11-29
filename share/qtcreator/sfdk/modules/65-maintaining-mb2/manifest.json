@@ -1,0 +1,30 @@
+{
+    "version": 5,
+    "domain": "maintaining",
+    "trBrief": "Maintaining software",
+
+    "worker":
+    {
+        "type": "engine-command",
+        "version": 4,
+        "program": "mb2"
+    },
+
+    "commands":
+    [
+        {
+            "name": "scrape",
+            "trSynopsis": "[-n|--dry-run] [--keep] [-o|--output-dir <dir>]",
+            "trBrief": "Scrape modifications from sources and save them as patches",
+            "configOptions": []
+        }
+    ],
+
+    "options":
+    [
+    ],
+
+    "hooks":
+    [
+    ]
+}
