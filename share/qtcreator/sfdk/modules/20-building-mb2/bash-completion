@@ -26,11 +26,9 @@ _sfdk_command_apply()
 _sfdk_command_build()
 {
     local -A options=(
-        [-p]=
-        [--prepare]=
+        [{-p,--prepare}]=
         [--no-check]=
-        [-d]=
-        [--enable-debug]=
+        [{-d,--enable-debug}]=
         [-j]=1
         [--sign]=
     )

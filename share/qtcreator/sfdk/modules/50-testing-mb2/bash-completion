@@ -11,8 +11,7 @@ _sfdk_command_deploy()
         [--manual]=
         [--all]=
         [--debug]=
-        [-n]=
-        [--dry-run]=
+        [{-n,--dry-run}]=
     )
 
     local non_option_idx=$(_sfdk_find_non_option $((_sfdk_command_idx + 1)) "$cword")
@@ -35,8 +34,7 @@ _sfdk_command_undeploy()
         [--sdk]=
         [--zypper]=
         [--all]=
-        [-n]=
-        [--dry-run]=
+        [{-n,--dry-run}]=
     )
 
     local non_option_idx=$(_sfdk_find_non_option $((_sfdk_command_idx + 1)) "$cword")
@@ -79,10 +77,8 @@ _sfdk_command_check()
 {
     local -A options=(
         [--list-suites]=
-        [-l]=1
-        [--levels]=1
-        [-s]=1
-        [--suites]=1
+        [{-l,--levels}]=1
+        [{-s,--suites}]=1
     )
 
     _sfdk_find_non_option $((_sfdk_command_idx + 1)) "$cword" >/dev/null && return
