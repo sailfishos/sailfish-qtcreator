@@ -1,0 +1,49 @@
+# This file is part of sfdk.bash-completion                -*- shell-script -*-
+
+_sfdk_command_changelog()
+{
+    local -A options=(
+        [{-a,--auto-add-annotations}]=
+        [{-A,--only-add-annotations}]=
+        [{-T,--only-add-tagged}]=
+        [{-D,--descendants-of}]=1
+        [{-d,--dense}]=1
+        [--{no-,}favor-tagger]=
+        [--no-squeeze-spaces]=
+        [--rev-list-args]=1
+        [{-e,--sed-entries}]=1
+        [{-s,--since{,-date,-rev}}]=1
+        [--sort-entries]=
+        [--strip-tag-prefix]=1
+        [{-t,--tags}]=1
+        [{-F,--append-from}]=1
+        [--append-cmd]=1
+        [--tags-with-path]=
+        [{-u,--untagged-only}]=
+        [--script]=1
+    )
+
+    case $prev in
+        -s|--since)
+            return
+            ;;
+        -F|--append-from)
+            return
+            ;;
+    esac
+
+    local non_option_idx=$(_sfdk_find_non_option $((_sfdk_command_idx + 1)) "$cword")
+    if [[ $non_option_idx ]]; then
+        _sfdk_no_defaults
+        return
+    fi
+
+    if [[ ${options[$prev]+1} && ${options[$prev]} ]]; then
+        _sfdk_no_defaults
+        return
+    fi
+
+    if [[ $cur == -* ]]; then
+        COMPREPLY=($(compgen -W "${!options[*]} --" -- "$cur"))
+    fi
+}

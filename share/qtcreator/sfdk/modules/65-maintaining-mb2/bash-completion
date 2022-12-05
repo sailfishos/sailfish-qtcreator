@@ -3,11 +3,9 @@
 _sfdk_command_scrape()
 {
     local -A options=(
-        [-n]=
-        [--dry-run]=
+        [{-n,--dry-run}]=
         [--keep]=
-        [-o]=1
-        [--output-dir]=1
+        [{-o,--output-dir}]=1
     )
 
     case $prev in

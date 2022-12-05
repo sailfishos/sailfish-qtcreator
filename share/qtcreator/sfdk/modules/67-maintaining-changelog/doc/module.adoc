@@ -1,0 +1,45 @@
+=== Maintaining Changelogs
+
+Changelogs and commit logs serve different purposes:
+
+Changelog::
++
+--
+- Higher level description of 'what' has been done
+- Target audience is 'users'
+- Items best written in 'past tense'
+--
+
+Commit log::
++
+--
+- Lower level description of 'how' it has been achieved
+- Target audience is 'developers'
+- Items best written in 'present tense', using 'imperative' mood
+--
+
+A changelog may be supplied at build time for attaching as metadata of the resulting RPM packages.  There are three methods of doing so:
+
+1. Static changelog included directly under the %changelog section of the RPM 'SPEC' file
+2. Static changelog stored in a standalone file named after the RPM 'SPEC' file but using the '.changes' file name extension
+3. Dynamic changelog generated with an executable named after the RPM 'SPEC' file but using the '.changes.run' file name extension
+
+If both a '.changes' and a '.changes.run' files are found, the latter takes precedence.
+
+One option for dynamic changelog generation is through the 'changelog' command, which allows to extract changelog items embedded in Git commit messages, tag annotations and more.  In the execution environment of a '.changes.run' file the 'changelog' command is available as a standalone command 'sfdk-changelog' (not a subcommand of sfdk) and so it needs to be invoked as such:
+
+    $ cat >rpm/my-app.changes.run <<END
+    > #!/bin/bash
+    > sfdk-changelog --since 1.0
+    > echo
+    > echo "  [Some changelog entries trimmed for brevity]"
+    > END
+
+In the example above a changelog will be extracted automatically from the Git history for all revisions back to 1.0. Older items will be omitted, which will be noted at the end of the changelog.
+
+Now build the package and review the results:
+
+    $ sfdk build
+    $ sfdk build-shell rpm -q --changelog --package RPMS/my-app-*.rpm
+
+See 'sfdk changelog --help' for more information.
