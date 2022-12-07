@@ -591,6 +591,8 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
     arguments.append("--device=/dev/fuse");
 #endif
 
+    arguments.append("--ulimit=nofile=1024:524288");
+
     if (qEnvironmentVariableIntValue(SAILFISH_SDK_DOCKER_RUN_PRIVILEGED))
         arguments.append("--privileged");
     for (const QString &capability : qEnvironmentVariable(SAILFISH_SDK_DOCKER_CAP_ADD)
