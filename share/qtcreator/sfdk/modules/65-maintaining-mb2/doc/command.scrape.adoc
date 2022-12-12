@@ -10,6 +10,8 @@ This command may be used in pair with the 'prepare' command, which is capable of
 
 This command enforces certain patch formatting and file naming conventions. When used in pair with the 'prepare' command, it is not guaranteed (not desired) that it produces patch files matching the original patch files. Among others the file numbering is enforced, using discrete number ranges for patches originating from different submodules.
 
+Use the '--stable' option when it is desired to preserve the original file names of patches previously applied with the 'prepare' command.
+
 Unless overriden with the '--output-dir' option, patches will be stored under the well known 'rpm' directory (where the RPM 'SPEC' file lives).
 
 Use the '--dry-run' option to preview the list of commits considered for scraping – there are no safety limits on the number of commits to process.

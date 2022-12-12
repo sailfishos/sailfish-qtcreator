@@ -14,7 +14,7 @@
     [
         {
             "name": "scrape",
-            "trSynopsis": "[-n|--dry-run] [--keep] [-o|--output-dir <dir>]",
+            "trSynopsis": "[-n|--dry-run] [--keep] [-o|--output-dir <dir>] [--stable]",
             "trBrief": "Scrape modifications from sources and save them as patches",
             "configOptions": []
         }

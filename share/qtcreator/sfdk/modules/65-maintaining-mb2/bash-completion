@@ -6,6 +6,7 @@ _sfdk_command_scrape()
         [{-n,--dry-run}]=
         [--keep]=
         [{-o,--output-dir}]=1
+        [--stable]=
     )
 
     case $prev in
