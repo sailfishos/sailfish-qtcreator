@@ -546,7 +546,7 @@ public:
     PrepareResult prepareSet(const QString &name, const QString &value, bool *needsVmOff,
             QString *errorString) override
     {
-        *needsVmOff = false;
+        *needsVmOff = true;
 
         auto validateUrls = [](const QString &urls, QString *errorString) {
             for (const QString &url : urls.split(' ', Qt::SkipEmptyParts)) {
