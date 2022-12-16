@@ -11,7 +11,7 @@ proxy {direct|auto|manual}::
 --
 Network proxy configuration to be used throughout the SDK.
 
-Attention: Currently this option is only effective for the build engine.
+Attention: Currently this option is only effective in the build environment.
 
 Setting this option to 'direct' enables direct access to the network.
 
