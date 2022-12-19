@@ -577,6 +577,17 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
     QStringList arguments;
     arguments.append("create");
     arguments.append("--env=container=docker");
+
+#if defined(Q_OS_LINUX)
+    const QString hostOS = "Linux";
+#elif defined(Q_OS_WIN)
+    const QString hostOS = "Windows";
+#elif defined(Q_OS_DARWIN)
+    const QString hostOS = "Darwin";
+#endif
+    arguments.append("--env");
+    arguments.append(QString::fromLatin1(Constants::BUILD_ENGINE_HOST_OS_ENV_VAR) + "=" + hostOS);
+
     arguments.append("--cap-add=NET_ADMIN");
     arguments.append("--security-opt=seccomp=" + (seccompProfile.exists() ?
                 seccompProfile.toUserOutput()
