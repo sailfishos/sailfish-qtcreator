@@ -611,6 +611,10 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
         arguments.append("--cap-add=" + capability);
     }
 
+#ifdef Q_OS_LINUX
+    arguments.append("--volume=/dev:/dev");
+#endif
+
     auto addTmpfs = [&arguments](const QString &path) {
         arguments.append("--tmpfs");
         arguments.append(path);
