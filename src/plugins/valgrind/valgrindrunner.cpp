@@ -28,6 +28,7 @@
 
 #include "xmlprotocol/threadedparser.h"
 
+#include <ssh/sshconnection.h>
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
@@ -91,16 +92,15 @@ bool ValgrindRunner::Private::run()
 
         bool enableXml = !disableXml;
 
-        auto handleSocketParameter = [&enableXml, &cmd](const QString &prefix, const QTcpServer &tcpServer)
+        auto handleSocketParameter = [&enableXml, &cmd, this](const QString &prefix, const QTcpServer &tcpServer)
         {
-            QHostAddress serverAddress = tcpServer.serverAddress();
-            if (serverAddress.protocol() != QAbstractSocket::IPv4Protocol) {
+            if (localServerAddress.protocol() != QAbstractSocket::IPv4Protocol) {
                 // Report will end up in the Application Output pane, i.e. not have
                 // clickable items, but that's better than nothing.
                 qWarning("Need IPv4 for valgrind");
                 enableXml = false;
             } else {
-                cmd.addArg(QString("%1=%2:%3").arg(prefix).arg(serverAddress.toString())
+                cmd.addArg(QString("%1=%2:%3").arg(prefix).arg(localServerAddress.toString())
                            .arg(tcpServer.serverPort()));
             }
         };
@@ -376,7 +376,15 @@ void ValgrindRunner::readLogSocket()
 
 bool ValgrindRunner::startServers()
 {
-    bool check = d->xmlServer.listen(d->localServerAddress);
+    // If the device is accessible through the loopback device, then the connection is either
+    // tunelled or the device is a virtual device. In such cases we should listen on the loopback
+    // too and assume that we are accessible through the 'localServerAddress' from the device side.
+    const QHostAddress address =
+        QHostAddress(d->m_device->sshParameters().host()).isEqual(QHostAddress::LocalHost)
+        ? QHostAddress(QHostAddress::LocalHost)
+        : d->localServerAddress;
+
+    bool check = d->xmlServer.listen(address);
     const QString ip = d->localServerAddress.toString();
     if (!check) {
         emit processErrorReceived(tr("XmlServer on %1:").arg(ip) + ' '
@@ -386,7 +394,7 @@ bool ValgrindRunner::startServers()
     d->xmlServer.setMaxPendingConnections(1);
     connect(&d->xmlServer, &QTcpServer::newConnection,
             this, &ValgrindRunner::xmlSocketConnected);
-    check = d->logServer.listen(d->localServerAddress);
+    check = d->logServer.listen(address);
     if (!check) {
         emit processErrorReceived(tr("LogServer on %1:").arg(ip) + ' '
                                   + d->logServer.errorString(), QProcess::FailedToStart );
