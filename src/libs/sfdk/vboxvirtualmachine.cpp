@@ -428,6 +428,22 @@ void VBoxVirtualMachinePrivate::setVideoMode(const QSize &size, int depth,
         setExtraData(key, value, Sdk::instance(), [=](bool ok) { *allOk &= ok; });
     };
 
+    {
+        BatchComposer composer = BatchComposer::createBatch("setLastNormalWindowPosition");
+        fetchExtraData("GUI/LastNormalWindowPosition", Sdk::instance(),
+                [=, batch = composer.batch()](const QString &data, bool ok) {
+            *allOk &= ok;
+            if (!ok)
+                return;
+            QTC_ASSERT(data.startsWith("Value:"), { *allOk = false; return; });
+            const QStringList splitData = data.section(':',1,1).trimmed().split(',');
+            QTC_ASSERT(splitData.size() > 1, { *allOk = false; return; });
+            const QString lastPosition = splitData[0] + ',' + splitData[1] + ','
+                + QString::number(size.width()) + ',' + QString::number(size.height());
+            BatchComposer composer = BatchComposer::extendBatch(batch);
+            enqueue("GUI/LastNormalWindowPosition", lastPosition);
+        });
+    }
     enqueue("CustomVideoMode1", videoMode);
     enqueue("GUI/LastGuestSizeHint", hint);
     enqueue("GUI/AutoresizeGuest", QLatin1Literal("false"));
