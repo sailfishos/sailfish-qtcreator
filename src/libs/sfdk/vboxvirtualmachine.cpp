@@ -414,7 +414,6 @@ void VBoxVirtualMachinePrivate::setVideoMode(const QSize &size, int depth,
         << "depth" << depth;
 
     BatchComposer composer = BatchComposer::createBatch("VBoxVirtualMachinePrivate::setVideoMode");
-    composer.batch()->setPropagateFailure(true);
 
     QString videoMode = QStringLiteral("%1x%2x%3")
         .arg(size.width())
