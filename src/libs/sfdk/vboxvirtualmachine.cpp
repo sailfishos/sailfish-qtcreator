@@ -523,7 +523,6 @@ void VBoxVirtualMachinePrivate::doSetStorageSizeMb(int storageSizeMb, const QObj
     qCDebug(vms) << "Changing storage size of" << q->uri().toString() << "to" << storageSizeMb << "MB";
 
     BatchComposer composer = BatchComposer::createBatch("VBoxVirtualMachinePrivate::doSetStorageSizeMb");
-    composer.batch()->setPropagateFailure(true);
 
     const QPointer<const QObject> context_{context};
     fetchInfo(VirtualMachineInfo::StorageInfo, Sdk::instance(),
