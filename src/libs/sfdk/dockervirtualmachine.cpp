@@ -573,6 +573,7 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
         .stringAppended(Constants::BUILD_ENGINE_HOST_SECCOMP_PATH_POSTFIX);
     const QString userName = qEnvironmentVariable("USER", qEnvironmentVariable("USERNAME"));
     const QString networkName = QString("sailfish-sdk:") + userName;
+    const QString toolsVolumeName = QString("sailfish-sdk-tools_") + userName;
 
     QStringList arguments;
     arguments.append("create");
@@ -648,6 +649,9 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
     sharePath(Constants::BUILD_ENGINE_SHARED_TARGET_MOUNT_POINT, cachedInfo().sharedTargets);
     sharePath(Constants::BUILD_ENGINE_SHARED_CONFIG_MOUNT_POINT, cachedInfo().sharedConfig);
     sharePath(Constants::BUILD_ENGINE_SHARED_SSH_MOUNT_POINT, cachedInfo().sharedSsh);
+
+    arguments.append("--volume");
+    arguments.append(toolsVolumeName + ":/srv/mer");
 
     arguments.append("--name");
     arguments.append(q->instanceName());
