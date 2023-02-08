@@ -954,8 +954,8 @@ Worker::ExitStatus Worker::run(const Command *command, const QStringList &argume
         return true;
     };
 
-    auto doRunPrePost = [](const Command *command, const QString &jsFunctionName,
-            QString *errorString) {
+    auto doRunPrePost = [](const Command *command, const QStringList &arguments,
+            const QString &jsFunctionName, QString *errorString) {
         auto resultTypeValidator = [](const QJSValue &value, QString *errorString) {
             if (!value.isArray()
                     || value.property("length").toInt() < 2
@@ -967,8 +967,9 @@ Worker::ExitStatus Worker::run(const Command *command, const QStringList &argume
             return true;
         };
 
-        const QJSValue result = Dispatcher::jsEngine()->call(jsFunctionName, {}, command->module,
-                resultTypeValidator);
+        const QJSValue argumentsArray = Dispatcher::jsEngine()->toScriptValue(arguments);
+        const QJSValue result = Dispatcher::jsEngine()->call(jsFunctionName, {argumentsArray},
+                command->module, resultTypeValidator);
         if (result.isError()) {
             *errorString = result.toString();
             return false;
@@ -990,7 +991,7 @@ Worker::ExitStatus Worker::run(const Command *command, const QStringList &argume
     }
 
     if (!command->preRunJSFunctionName.isEmpty()
-            && !doRunPrePost(command, command->preRunJSFunctionName, &errorString)) {
+            && !doRunPrePost(command, arguments, command->preRunJSFunctionName, &errorString)) {
         qerr() << tr("Pre-run routine failed: ") << errorString << endl;
         *exitCode = SFDK_EXIT_ABNORMAL;
         return NormalExit;
@@ -1001,7 +1002,7 @@ Worker::ExitStatus Worker::run(const Command *command, const QStringList &argume
         return status;
 
     if (!command->postRunJSFunctionName.isEmpty()
-            && !doRunPrePost(command, command->postRunJSFunctionName, &errorString)) {
+            && !doRunPrePost(command, arguments, command->postRunJSFunctionName, &errorString)) {
         qerr() << tr("Post-run routine failed: ") << errorString << endl;
         *exitCode = SFDK_EXIT_ABNORMAL;
         return NormalExit;

@@ -329,6 +329,11 @@ public:
         });
     }
 
+    Q_INVOKABLE void setEnableReversePathMapping(bool enable)
+    {
+        SdkManager::setEnableReversePathMapping(enable);
+    }
+
 private:
     QString enginePath(Utils::FilePath (BuildEngine::*getter)() const) const
     {

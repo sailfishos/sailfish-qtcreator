@@ -46,6 +46,13 @@ export function maybeImportSigningKey() {
     return [true, ""];
 }
 
+export function disableReversePathMappingForInteractiveBuildShell(args) {
+    if (args.length === 0 || (args.length === 1 && args[0] === "--maintain"))
+        buildEngine.setEnableReversePathMapping(false);
+
+    return [true, ""];
+}
+
 export function filterCMakeCommandLine(args) {
     if (args.lenth === 0 || args[0] === "--build")
         return args;
