@@ -439,7 +439,7 @@ std::unique_ptr<Module> Dispatcher::loadModule(const QString &modulePath, const 
     QVariant version = value(data, VERSION_KEY, QVariant::LongLong, {}, errorString);
     if (!version.isValid())
         return {};
-    if (version.toInt() < 5 || version.toInt() > 5) {
+    if (version.toInt() < 5 || version.toInt() > 6) {
         *errorString = tr("Version unsupported: %1").arg(version.toInt());
         return {};
     }

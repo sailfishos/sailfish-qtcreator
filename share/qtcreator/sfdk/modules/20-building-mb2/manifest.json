@@ -1,5 +1,5 @@
 {
-    "version": 5,
+    "version": 6,
     "domain": "building",
     "trBrief": "Building software",
 
@@ -83,7 +83,8 @@
             "trSynopsis": "[--maintain] [--] [<command> [<arg>...]]",
             "trBrief": "Execute custom build steps",
             "configOptions": ["build-shell.args", "build-shell.maintenance-args", "[no-]snapshot", "target!"],
-            "dynamic": true
+            "dynamic": true,
+            "preRun": "module.disableReversePathMappingForInteractiveBuildShell"
         }
     ],
 
