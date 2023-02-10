@@ -97,7 +97,10 @@ private:
     void setDBusPort(quint16 dBusPort);
 
     void prepare();
+    void initGuest();
     void syncWwwProxy();
+    void fetchDBusNonce();
+    void saveDBusNonce(const QByteArray &nonce);
     void updateBuildTargets();
     void updateBuildTargets(QList<BuildTargetDump> newTargets);
     BuildTargetData createTargetData(const BuildTargetDump &targetDump) const;

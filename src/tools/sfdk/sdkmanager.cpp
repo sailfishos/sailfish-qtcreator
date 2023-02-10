@@ -1213,6 +1213,7 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     }
 
     DBusManager::Ptr dbus = DBusManager::get(s_instance->m_buildEngine->dBusPort(),
+            s_instance->m_buildEngine->dBusNonceFilePath(),
             Constants::BUILD_ENGINE_SYSTEM_BUS_CONNECTION);
 
     const QProcessEnvironment systemEnvironment = QProcessEnvironment::systemEnvironment();

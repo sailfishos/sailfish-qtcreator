@@ -109,6 +109,8 @@ public:
     quint16 dBusPort() const;
     void setDBusPort(quint16 dBusPort, const QObject *context, const Functor<bool> &functor);
 
+    Utils::FilePath dBusNonceFilePath() const;
+
     QString wwwProxyType() const;
     QString wwwProxyServers() const;
     QString wwwProxyExcludes() const;
@@ -141,6 +143,7 @@ signals:
     void sharedSshPathChanged(const Utils::FilePath &sharedSshPath);
     void sshPortChanged(quint16 sshPort);
     void dBusPortChanged(quint16 dBusPort);
+    void dBusNonceChanged(const QByteArray &dBusNonce);
     void wwwProxyChanged(const QString &type, const QString &servers, const QString &excludes);
 
     void buildTargetAdded(int index);

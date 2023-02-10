@@ -253,6 +253,13 @@ void BuildEngine::setDBusPort(quint16 dBusPort, const QObject *context, const Fu
     });
 }
 
+Utils::FilePath BuildEngine::dBusNonceFilePath() const
+{
+    const FilePath nonceDirPath = SdkPrivate::cacheLocation()
+        .pathAppended(Constants::BUILD_ENGINE_DBUS_NONCE_DIR);
+    return nonceDirPath.pathAppended(name().replace(':', '_'));
+}
+
 QString BuildEngine::wwwProxyType() const
 {
     return d_func()->wwwProxyType;
@@ -491,6 +498,11 @@ bool BuildEnginePrivate::initVirtualMachine(const QUrl &vmUri)
             q,
             [=]() { prepare(); });
 
+    QObject::connect(VirtualMachinePrivate::get(virtualMachine.get()),
+            QOverload<>::of(&VirtualMachinePrivate::initGuest),
+            q,
+            [=]() { initGuest(); });
+
     return true;
 }
 
@@ -657,6 +669,11 @@ void BuildEnginePrivate::prepare()
     syncWwwProxy();
 }
 
+void BuildEnginePrivate::initGuest()
+{
+    fetchDBusNonce();
+}
+
 void BuildEnginePrivate::syncWwwProxy()
 {
     const QRegularExpression spaces("[[:space:]]+");
@@ -691,6 +708,63 @@ void BuildEnginePrivate::syncWwwProxy()
     saver.write(QJsonDocument::fromVariant(config).toJson());
     const bool ok = saver.finalize();
     QTC_ASSERT(ok, qCCritical(engine) << saver.errorString());
+}
+
+void BuildEnginePrivate::fetchDBusNonce()
+{
+    Q_Q(BuildEngine);
+
+    const QString script(R"(
+        sudo cat /run/sdk-setup/sfdk_bus_nonce
+    )");
+
+    auto runner = std::make_unique<RemoteProcessRunner>("fetch-dbus-nonce",
+            script, virtualMachine->sshParameters());
+    QObject::connect(runner.get(), &CommandRunner::success, q, [=, sshRunner = runner->sshRunner()]() {
+        saveDBusNonce(sshRunner->readAllStandardOutput());
+    });
+
+    BatchComposer::enqueue(std::move(runner));
+}
+
+void BuildEnginePrivate::saveDBusNonce(const QByteArray &nonce)
+{
+    Q_Q(BuildEngine);
+
+    if (nonce.length() != 16) {
+        qCWarning(engine) << "Ignoring D-Bus nonce of unexpected length" << nonce.length();
+        return;
+    }
+
+    const FilePath nonceFilePath = q->dBusNonceFilePath();
+    const FilePath nonceDirPath = nonceFilePath.parentDir();
+    if (!QDir().mkpath(nonceDirPath.toString())) {
+        qCWarning(engine) << "Failed to create D-Bus nonce directory"
+            << nonceDirPath.toString();
+        return;
+    }
+
+    const QFileInfo nonceDirInfo(nonceDirPath.toString());
+    if (!nonceDirInfo.isDir()) {
+        qCWarning(engine) << "File is not a directory:" << nonceDirPath.toString();
+        return;
+    }
+
+    const QFileDevice::Permissions privateDirPermissions =
+        QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner;
+    if (nonceDirInfo.permissions() != privateDirPermissions
+            && !QFile::setPermissions(nonceDirPath.toString(), privateDirPermissions)) {
+        qCWarning(engine) << "Failed to set D-Bus nonce directory permissions:"
+            << nonceDirPath.toString();
+        return;
+    }
+
+    FileSaver nonceSaver(nonceFilePath.toString());
+    nonceSaver.write(nonce);
+    if (!nonceSaver.finalize()) {
+        qCWarning(engine) << "Failed to write D-Bus nonce file" << nonceFilePath.toString()
+            << ":" << nonceSaver.errorString();
+    }
 }
 
 void BuildEnginePrivate::updateBuildTargets()
