@@ -659,7 +659,6 @@ void BuildEnginePrivate::prepare()
 
 void BuildEnginePrivate::syncWwwProxy()
 {
-    const SshConnectionParameters sshParameters = virtualMachine->sshParameters();
     const QRegularExpression spaces("[[:space:]]+");
     const QStringList wwwProxyServers = this->wwwProxyServers.split(spaces, Qt::SkipEmptyParts);
     const QStringList wwwProxyExcludes = this->wwwProxyExcludes.split(spaces, Qt::SkipEmptyParts);
