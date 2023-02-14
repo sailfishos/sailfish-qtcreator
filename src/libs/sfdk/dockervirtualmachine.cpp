@@ -626,7 +626,7 @@ QStringList DockerVirtualMachinePrivate::makeCreateArguments() const
 
     auto forwardPort = [&arguments](quint16 guestPort, quint16 hostPort) {
         arguments.append("--publish");
-        arguments.append(QString::number(hostPort) + ":" + QString::number(guestPort));
+        arguments.append(QString("127.0.0.1:%1:%2").arg(hostPort).arg(guestPort));
     };
     forwardPort(GUESTSSHPORT, cachedInfo().sshPort);
     forwardPort(GUESTDBUSPORT, cachedInfo().dBusPort);

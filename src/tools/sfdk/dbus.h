@@ -28,6 +28,10 @@
 
 #include <memory>
 
+namespace Utils {
+    class FilePath;
+}
+
 namespace Sfdk {
 
 class DBusManager
@@ -36,10 +40,11 @@ public:
     using Ptr = std::shared_ptr<DBusManager>;
 
     struct PrivateConstructorTag;
-    DBusManager(quint16 busPort, const QString &connectionName, const PrivateConstructorTag &);
+    DBusManager(quint16 busPort, const Utils::FilePath &nonceFile, const QString &connectionName,
+            const PrivateConstructorTag &);
     ~DBusManager();
 
-    static Ptr get(quint16 busPort, const QString &connectionName);
+    static Ptr get(quint16 busPort, const Utils::FilePath &nonceFile, const QString &connectionName);
 
     QString serviceName() const { return m_serviceName; }
 

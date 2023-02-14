@@ -26,6 +26,7 @@
 #include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDBusMetaType>
+#include <QUrl>
 
 #include <utils/qtcassert.h>
 
@@ -318,11 +319,14 @@ struct DBusManager::PrivateConstructorTag {};
 
 QHash<QString, std::weak_ptr<DBusManager>> DBusManager::s_instances;
 
-DBusManager::DBusManager(quint16 busPort, const QString &connectionName, const PrivateConstructorTag &)
+DBusManager::DBusManager(quint16 busPort, const FilePath &nonceFile, const QString &connectionName,
+        const PrivateConstructorTag &)
     : m_busPort(busPort)
     , m_connectionName(connectionName)
 {
-    const QString address = QString("tcp:host=localhost,port=%1,family=ipv4").arg(busPort);
+    const QString address = QString("nonce-tcp:host=localhost,port=%1,family=ipv4,noncefile=%2")
+        .arg(busPort)
+        .arg(QString::fromLatin1(QUrl::toPercentEncoding(nonceFile.toString())));
     QDBusConnection bus = QDBusConnection::connectToBus(address, connectionName);
 
     if (!bus.isConnected()) {
@@ -363,11 +367,11 @@ DBusManager::~DBusManager()
         Hack_SuppressEventDispatcherError();
 }
 
-DBusManager::Ptr DBusManager::get(quint16 busPort, const QString &connectionName)
+DBusManager::Ptr DBusManager::get(quint16 busPort, const FilePath &nonceFile, const QString &connectionName)
 {
     Ptr instance = s_instances.value(connectionName).lock();
     if (!instance) {
-        instance = std::make_shared<DBusManager>(busPort, connectionName, PrivateConstructorTag{});
+        instance = std::make_shared<DBusManager>(busPort, nonceFile, connectionName, PrivateConstructorTag{});
         s_instances.insert(connectionName, instance);
         return instance;
     }
