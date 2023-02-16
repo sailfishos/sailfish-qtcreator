@@ -47,7 +47,7 @@ using namespace Utils;
 
 namespace {
 const int SESSION_FIELD = 5;
-const int STARTTIME_FIELD = 22;
+const int STARTTIME_FIELD = 21;
 const char SESSION_ID_DELIMITER = '.';
 }
 
