@@ -23,6 +23,7 @@
 
     "externOptions":
     [
+        "build-shell.args",
         "[no-]fix-version",
         "output-dir",
         "output-prefix",
