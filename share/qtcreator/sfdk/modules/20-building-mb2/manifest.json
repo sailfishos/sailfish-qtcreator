@@ -63,12 +63,12 @@
             "name": "make",
             "trSynopsis": "[<make-extra-arg>...]",
             "trBrief": "Execute make build step",
-            "configOptions": ["[no-]fix-version", "[no-]snapshot", "specfile", "target!"]
+            "configOptions": ["build-shell.args", "[no-]fix-version", "[no-]snapshot", "specfile", "target!"]
         },
         {
             "name": "make-install",
             "trBrief": "Execute make-install build step",
-            "configOptions": ["[no-]fix-version", "[no-]snapshot", "specfile", "target!"]
+            "configOptions": ["build-shell.args", "[no-]fix-version", "[no-]snapshot", "specfile", "target!"]
         },
         {
             "name": "package",

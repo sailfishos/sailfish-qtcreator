@@ -16,7 +16,7 @@
             "name": "deploy",
             "trSynopsis": "{--pkcon|--rsync|--sdk|--zypper|--zypper-dup|--manual} [--all] [--debug] [-n|--dry-run] [--] [[+|-]<pattern>...]",
             "trBrief": "Deploy to a device",
-            "configOptions": ["*", "device!", "-[no-]fix-version", "-[no-]search-output-dir", "target!"],
+            "configOptions": ["*", "-build-shell.args", "device!", "-[no-]fix-version", "-[no-]search-output-dir", "target!"],
             "hooks": ["prepare-device"]
         },
         {
@@ -35,6 +35,7 @@
     ],
 
     "externOptions": [
+        "build-shell.args",
         "device",
         "[no-]fix-version",
         "output-dir",
