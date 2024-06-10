@@ -569,14 +569,14 @@ void VBoxVirtualMachinePrivate::doSetStorageSizeMb(int storageSizeMb, const QObj
         }
 
         // Order matters!
-        QStringList toResize = virtualMachineInfo.allRelatedStorageUuids;
+        const QStringList toResize = virtualMachineInfo.allRelatedStorageUuids;
         qCDebug(vms) << "About to resize these storage images (in order):" << toResize;
 
         BatchComposer composer = BatchComposer::extendBatch(batch);
 
         auto allOk = std::make_shared<bool>(true);
 
-        for (const QString storageUuid : qAsConst(toResize)) {
+        for (const QString &storageUuid : toResize) {
             QStringList arguments;
             arguments.append("modifymedium");
             arguments.append(storageUuid);
