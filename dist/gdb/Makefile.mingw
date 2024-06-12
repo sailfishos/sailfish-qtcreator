@@ -9,9 +9,9 @@ expatversion=2.1.1
 iconvversion=1.14
 version=7.12
 targetdir=${broot}/qtcreator-gdb-${version}
-packageparts=${targetdir}/lib ${targetdir}/data-directory ${targetdir}/libiconv-2.dll ${targetdir}/python27.dll ${targetdir}/libexpat-1.dll
+packageparts=${targetdir}/bin/lib ${targetdir}/share/gdb ${targetdir}/bin/libiconv-2.dll ${targetdir}/bin/python27.dll ${targetdir}/bin/libexpat-1.dll
 arch=`uname -sm | sed 's/ /-/g' | tr A-Z a-z`
-packagename=qtcreator-gdb-${version}-${arch}.tar.gz
+packagename=sailfish-gdb-${version}-windows.7z
 mingwbin=$(shell dirname $(shell which gcc))
 
 ifeq ($(DOWNLOAD_URL),)
@@ -29,7 +29,7 @@ endif
 all: package
 
 clean:
-	rm -rf  ${broot}/qtcreator-gdb-* ${staging}/gdb-*
+	rm -rf  ${broot}/qtcreator-gdb-* ${staging}/gdb-* sailfish-gdb-*.7z
 
 distclean:
 	rm -rf ${staging} ${source} ${broot}/qtcreator-gdb-*
@@ -39,6 +39,8 @@ makesourcedir:
 
 maketargetdir:
 	@test -e ${targetdir} || mkdir ${targetdir}
+	@test -e ${targetdir}/bin || mkdir ${targetdir}/bin
+	@test -e ${targetdir}/share || mkdir ${targetdir}/share
 
 makestagingdir:
 	@test -e ${staging} || mkdir ${staging}
@@ -104,7 +106,7 @@ ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.bz2 | makestaging
 	./configure -prefix=${staging} --enable-static --build=i686-pc-mingw32 && \
 	${MAKE} && ${MAKE} install
 
-${targetdir}/gdb.exe: ${staging}/lib/libexpat.a ${staging}/lib/libiconv.a ${staging}/gdb-${version}/configure | maketargetdir ${broot}/python/python.exe
+${targetdir}/bin/gdb.exe: ${staging}/lib/libexpat.a ${staging}/lib/libiconv.a ${staging}/gdb-${version}/configure | maketargetdir ${broot}/python/python.exe
 	test -e ${staging}/gdb-${version}-build || mkdir ${staging}/gdb-${version}-build
 	export PYTHONHOME=${pydir} && \
 	LDFLAGS="L${pydir} -lpthread -ldl -lutil -lpython27" && \
@@ -114,20 +116,20 @@ ${targetdir}/gdb.exe: ${staging}/lib/libexpat.a ${staging}/lib/libiconv.a ${stag
 	--with-libiconv-prefix=${staging} \
 	--with-expat --with-libexpat-prefix=${staging} \
 	--with-separate-debug-dir="" \
+	--with-gdb-datadir='$$prefix/share/gdb' \
 	--with-python=${pydir} && \
 	${MAKE} MAKEFLAGS+= -j1 && \
-	strip -o ${targetdir}/gdb-$*.exe gdb/gdb.exe
+	strip -o ${targetdir}/bin/gdb.exe gdb/gdb.exe
 
-package: ${targetdir}/gdb.exe ${broot}/python/python.exe
-	cp ${staging}/bin/libiconv* ${targetdir} && \
-	cp ${staging}/bin/libexpat* ${targetdir} && \
-	cp ${pydir}/python*.dll ${targetdir} && \
-	cp -r ${pydir}/lib ${targetdir} && \
-	mkdir -p ${targetdir}/data-directory && \
+package: ${targetdir}/bin/gdb.exe ${broot}/python/python.exe
+	cp ${staging}/bin/libiconv* ${targetdir}/bin && \
+	cp ${staging}/bin/libexpat* ${targetdir}/bin && \
+	cp ${pydir}/python*.dll ${targetdir}/bin && \
+	cp -r ${pydir}/lib ${targetdir}/bin && \
+	{ ! test -e ${targetdir}/share/gdb || rm -r ${targetdir}/share/gdb; } && \
+	mkdir -p ${targetdir}/share/gdb && \
 	cp ${mingwbin}/libncursesw-6.dll ${targetdir}/bin && \
 	cp ${mingwbin}/libgcc_s_dw2-1.dll ${targetdir}/bin && \
-	cp -r ${staging}/gdb-${version}-build/gdb/data-directory/{python,syscalls} ${targetdir}/data-directory && \
-	mv ${targetdir} ${targetdir}-${arch} && \
+	cp -r ${staging}/gdb-${version}-build/gdb/data-directory/{python,syscalls} ${targetdir}/share/gdb && \
 	echo "Packing..." && \
-	tar czf ${packagename} qtcreator-gdb-${version}-${arch} && \
-	mv ${targetdir}-${arch} ${targetdir}
+	7z a ${packagename} ${targetdir}/*
