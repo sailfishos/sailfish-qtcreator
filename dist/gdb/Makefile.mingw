@@ -17,12 +17,6 @@ arch=`uname -sm | sed 's/ /-/g' | tr A-Z a-z`
 packagename=sailfish-gdb-${version}-windows.7z
 mingwbin=$(shell dirname $(shell which gcc))
 
-ifdef V
-Q=
-else
-Q=@
-endif
-
 ifeq ($(DOWNLOAD_URL),)
 	DL_GDB=http://ftp.gnu.org/gnu/gdb
 	DL_ICONV=http://ftp.gnu.org/pub/gnu/libiconv
@@ -55,16 +49,16 @@ makestagingdir:
 	@test -e ${staging} || mkdir ${staging}
 
 checkunzip:
-	$(Q)unzip -v &> /dev/null || mingw-get install msys-unzip
+	unzip -v &> /dev/null || mingw-get install msys-unzip
 
 ${source}/python.zip: | makesourcedir checkwget
-	$(Q)cd ${source} && \
+	cd ${source} && \
 	echo "Downloading python..." && \
 	wget -q $(DL_PYTHON)/python.zip && \
 	touch python.zip
 
 ${broot}/python/python.exe: ${source}/python.zip | checkunzip
-	$(Q)cd ${broot} && \
+	cd ${broot} && \
 	echo "Extracting python..." && \
 	unzip -oq ${source}/python.zip && \
 	touch python/python.exe
@@ -73,26 +67,26 @@ checkwget:
 	wget -V &> /dev/null || mingw-get install msys-wget-bin
 
 ${source}/gdb-${version}.tar.bz2: | makesourcedir checkwget
-	$(Q)cd ${source} && \
+	cd ${source} && \
 	echo "Downloading gdb..." && \
 	wget -q $(DL_GDB)/gdb-${version}.tar.bz2 || \
 	wget -qO gdb-${version}.tar.bz2 $(DL_GDB)/gdb-${version}a.tar.bz2 && \
 	touch gdb-${version}.tar.bz2
 
 ${source}/libiconv-${iconvversion}.tar.gz: | makesourcedir checkwget
-	$(Q)cd ${source} && \
+	cd ${source} && \
 	echo "Downloading iconv..." && \
 	wget -q $(DL_ICONV)/libiconv-${iconvversion}.tar.gz  && \
 	touch ${source}/libiconv-${iconvversion}.tar.gz
 
 ${source}/expat-${expatversion}.tar.gz: | makesourcedir checkwget
-	$(Q)cd ${source} && \
+	cd ${source} && \
 	echo "Downloading expat..." && \
 	wget -q $(DL_EXPAT)/expat-${expatversion}.tar.gz && \
 	touch ${source}/expat-${expatversion}.tar.gz
 
 ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestagingdir
-	$(Q)cd ${staging} && \
+	cd ${staging} && \
 	echo "Extracting gdb..." && \
 	tar xf ${source}/gdb-${version}.tar.bz2 && \
 	cd gdb-${version} && \
@@ -100,7 +94,7 @@ ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestag
 	patch -p2 < ${PATCHDIR}/mingw-compilation.patch
 
 ${staging}/lib/libiconv.a: ${source}/libiconv-${iconvversion}.tar.gz | makestagingdir
-	$(Q)cd ${staging} && \
+	cd ${staging} && \
 	echo "Extracting iconv..." && \
 	tar xf ${source}/libiconv-${iconvversion}.tar.gz && \
 	cd libiconv-${iconvversion} && \
@@ -108,7 +102,7 @@ ${staging}/lib/libiconv.a: ${source}/libiconv-${iconvversion}.tar.gz | makestagi
 	${MAKE} && ${MAKE} install
 
 ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.gz | makestagingdir
-	$(Q)cd ${staging} && \
+	cd ${staging} && \
 	echo "Extracting expat..." && \
 	tar xf ${source}/expat-${expatversion}.tar.gz && \
 	cd expat-${expatversion} && \
@@ -116,8 +110,8 @@ ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.gz | makestagingd
 	${MAKE} && ${MAKE} install
 
 ${gdbtargets}: ${targetdir}/bin/gdb-%: ${staging}/lib/libexpat.a ${staging}/lib/libiconv.a ${staging}/gdb-${version}/configure | maketargetdir ${broot}/python/python.exe
-	$(Q)test -e ${staging}/gdb-${version}-$* || mkdir ${staging}/gdb-${version}-$*
-	$(Q)export PYTHONHOME=${pydir} && \
+	test -e ${staging}/gdb-${version}-$* || mkdir ${staging}/gdb-${version}-$*
+	export PYTHONHOME=${pydir} && \
 	LDFLAGS="L${pydir} -lpthread -ldl -lutil -lpython27" && \
 	CFLAGS="-I${pydir}/include" && \
 	cd ${staging}/gdb-${version}-$* && \
@@ -131,13 +125,13 @@ ${gdbtargets}: ${targetdir}/bin/gdb-%: ${staging}/lib/libexpat.a ${staging}/lib/
 	strip -o ${targetdir}/bin/gdb-$*.exe gdb/gdb.exe
 
 ${targetdir}/share/gdb: ${gdbtargets} | maketargetdir
-	$(Q)! test -e ${targetdir}/share/gdb || rm -r ${targetdir}/share/gdb
-	$(Q)mkdir ${targetdir}/share/gdb
-	$(Q)cp -a ${staging}/gdb-${version}-$(word 1,${targets})/gdb/data-directory/{python,syscalls} ${targetdir}/share/gdb || \
+	! test -e ${targetdir}/share/gdb || rm -r ${targetdir}/share/gdb
+	mkdir ${targetdir}/share/gdb
+	cp -a ${staging}/gdb-${version}-$(word 1,${targets})/gdb/data-directory/{python,syscalls} ${targetdir}/share/gdb || \
 		{ rm -r ${targetdir}/share/gdb; false; }
 
 package: ${gdbtargets} ${broot}/python/python.exe ${targetdir}/share/gdb
-	$(Q)cp ${staging}/bin/libiconv* ${targetdir}/bin && \
+	cp ${staging}/bin/libiconv* ${targetdir}/bin && \
 	cp ${staging}/bin/libexpat* ${targetdir}/bin && \
 	cp ${pydir}/python*.dll ${targetdir}/bin && \
 	cp -r ${pydir}/lib ${targetdir}/bin && \

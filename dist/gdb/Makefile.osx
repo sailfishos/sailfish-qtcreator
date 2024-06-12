@@ -13,12 +13,6 @@ targetdir=${broot}/qtcreator-gdb-${version}
 gdbtargets=$(addprefix ${targetdir}/bin/gdb-, ${targets})
 packagename=sailfish-gdb-${version}-mac.7z
 
-ifdef V
-Q=
-else
-Q=@
-endif
-
 ifeq ($(DOWNLOAD_URL),)
 	DL_GDB=http://ftp.gnu.org/gnu/gdb
 	DL_PYTHON=http://www.python.org/ftp/python/${pyversion}
@@ -46,44 +40,44 @@ makestagingdir:
 	@test -e ${staging} || mkdir ${staging}
 
 ${source}/expat-${expatversion}.tar.gz: | makesourcedir
-	$(Q)cd ${source} && \
+	cd ${source} && \
 	echo "Downloading expat..." && \
 	wget -q $(DL_EXPAT)/expat-${expatversion}.tar.gz && \
 	touch ${source}/expat-${expatversion}.tar.gz
 
 ${source}/Python-${pyversion}.tgz: | makesourcedir
-	$(Q)cd ${source} && \
+	cd ${source} && \
 	echo "Downloading python..." && \
 	wget -q --no-check-certificate $(DL_PYTHON)/Python-${pyversion}.tgz && \
 	touch ${source}/Python-${pyversion}.tgz
 
 ${source}/gdb-${version}.tar.bz2: | makesourcedir
-	$(Q)cd ${source} && \
+	cd ${source} && \
 	echo "Downloading gdb..." && \
 	wget -q $(DL_GDB)/gdb-${version}.tar.bz2 || \
 	wget -qO gdb-${version}.tar.bz2 $(DL_GDB)/gdb-${version}a.tar.bz2 && \
 	touch gdb-*.tar.bz2
 
 ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.gz | makestagingdir
-	$(Q)cd ${staging} && \
+	cd ${staging} && \
 	echo "Extracting expat..." && \
 	tar xf ${source}/expat-${expatversion}.tar.gz && cd expat-${expatversion} && \
 	./configure --disable-shared -prefix=${staging} && \
 	${MAKE} -j$(shell getconf _NPROCESSORS_ONLN) && ${MAKE} install
 
 ${staging}/lib/libpython${pyversion_minor}.a: ${source}/Python-${pyversion}.tgz | makestagingdir
-	$(Q)unset PYTHONHOME && cd ${staging} && \
+	unset PYTHONHOME && cd ${staging} && \
 	echo "Extracting python..." && \
 	tar xf ${source}/Python-${pyversion}.tgz && \
 	cd Python-${pyversion} && \
 	./configure --prefix=${staging} && ${MAKE} -j$(shell getconf _NPROCESSORS_ONLN) && ${MAKE} install
 
 ${targetdir}/bin/python/include/python${pyversion_minor}/pyconfig.h: ${staging}/lib/libpython${pyversion_minor}.a | maketargetdir
-	$(Q)mkdir -p ${targetdir}/bin/python/lib && cp -a ${staging}/lib/python${pyversion_minor} ${targetdir}/bin/python/lib/
-	$(Q)mkdir -p ${targetdir}/bin/python/include/python${pyversion_minor} && cp ${staging}/include/python${pyversion_minor}/pyconfig.h ${targetdir}/bin/python/include/python${pyversion_minor}/
+	mkdir -p ${targetdir}/bin/python/lib && cp -a ${staging}/lib/python${pyversion_minor} ${targetdir}/bin/python/lib/
+	mkdir -p ${targetdir}/bin/python/include/python${pyversion_minor} && cp ${staging}/include/python${pyversion_minor}/pyconfig.h ${targetdir}/bin/python/include/python${pyversion_minor}/
 
 ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestagingdir
-	$(Q)cd ${staging} && \
+	cd ${staging} && \
 	echo "Extracting gdb..." && \
 	tar xf ${source}/gdb-${version}.tar.bz2 && \
 	cd gdb-${version} && \
@@ -91,8 +85,8 @@ ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestag
 	patch -p2 < ${PATCHDIR}/pythonhome-7.4_mac.patch
 
 ${gdbtargets}: ${targetdir}/bin/gdb-%: ${staging}/gdb-${version}/configure ${staging}/lib/libpython${pyversion_minor}.a ${staging}/lib/libexpat.a | maketargetdir
-	$(Q)test -e ${staging}/gdb-${version}-$* || mkdir ${staging}/gdb-${version}-$*
-	$(Q)export PYTHONHOME=${staging} && \
+	test -e ${staging}/gdb-${version}-$* || mkdir ${staging}/gdb-${version}-$*
+	export PYTHONHOME=${staging} && \
 	export PATH="${staging}/bin/:$$PATH" && \
 	cd ${staging}/gdb-${version}-$* && \
 	${staging}/gdb-${version}/configure --disable-nls --target=$* --with-separate-debug-dir="" \
@@ -102,9 +96,9 @@ ${gdbtargets}: ${targetdir}/bin/gdb-%: ${staging}/gdb-${version}/configure ${sta
 	strip -r -u -o ${targetdir}/bin/gdb-$* gdb/gdb
 
 ${targetdir}/share/gdb: ${gdbtargets} | maketargetdir
-	$(Q)! test -e ${targetdir}/share/gdb || rm -r ${targetdir}/share/gdb
-	$(Q)mkdir ${targetdir}/share/gdb
-	$(Q)cp -a ${staging}/gdb-${version}-$(word 1,${targets})/gdb/data-directory/{python,syscalls} ${targetdir}/share/gdb || \
+	! test -e ${targetdir}/share/gdb || rm -r ${targetdir}/share/gdb
+	mkdir ${targetdir}/share/gdb
+	cp -a ${staging}/gdb-${version}-$(word 1,${targets})/gdb/data-directory/{python,syscalls} ${targetdir}/share/gdb || \
 		{ rm -r ${targetdir}/share/gdb; false; }
 
 package: ${gdbtargets} ${targetdir}/bin/python/include/python${pyversion_minor}/pyconfig.h ${targetdir}/share/gdb
