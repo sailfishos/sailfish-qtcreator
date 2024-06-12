@@ -124,17 +124,14 @@ ${gdbtargets}: ${targetdir}/bin/gdb-%: ${staging}/lib/libexpat.a ${staging}/lib/
 	${MAKE} && \
 	strip -o ${targetdir}/bin/gdb-$*.exe gdb/gdb.exe
 
-${targetdir}/share/gdb: ${gdbtargets} | maketargetdir
-	! test -e ${targetdir}/share/gdb || rm -r ${targetdir}/share/gdb
-	mkdir ${targetdir}/share/gdb
-	cp -a ${staging}/gdb-${version}-$(word 1,${targets})/gdb/data-directory/{python,syscalls} ${targetdir}/share/gdb || \
-		{ rm -r ${targetdir}/share/gdb; false; }
-
-package: ${gdbtargets} ${broot}/python/python.exe ${targetdir}/share/gdb
+package: ${gdbtargets} ${broot}/python/python.exe
 	cp ${staging}/bin/libiconv* ${targetdir}/bin && \
 	cp ${staging}/bin/libexpat* ${targetdir}/bin && \
 	cp ${pydir}/python*.dll ${targetdir}/bin && \
 	cp -r ${pydir}/lib ${targetdir}/bin && \
+	{ ! test -e ${targetdir}/share/gdb || rm -r ${targetdir}/share/gdb; } && \
+	mkdir -p ${targetdir}/share/gdb && \
+	cp -a ${staging}/gdb-${version}-$(word 1,${targets})/gdb/data-directory/{python,syscalls} ${targetdir}/share/gdb \
 	cp ${mingwbin}/libncursesw-6.dll ${targetdir}/bin && \
 	cp ${mingwbin}/libgcc_s_dw2-1.dll ${targetdir}/bin && \
 	echo "Packing..." && \

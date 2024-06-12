@@ -95,12 +95,9 @@ ${gdbtargets}: ${targetdir}/bin/gdb-%: ${staging}/gdb-${version}/configure ${sta
 	${MAKE} -j$(shell getconf _NPROCESSORS_ONLN) && \
 	strip -r -u -o ${targetdir}/bin/gdb-$* gdb/gdb
 
-${targetdir}/share/gdb: ${gdbtargets} | maketargetdir
-	! test -e ${targetdir}/share/gdb || rm -r ${targetdir}/share/gdb
-	mkdir ${targetdir}/share/gdb
-	cp -a ${staging}/gdb-${version}-$(word 1,${targets})/gdb/data-directory/{python,syscalls} ${targetdir}/share/gdb || \
-		{ rm -r ${targetdir}/share/gdb; false; }
-
-package: ${gdbtargets} ${targetdir}/bin/python/include/python${pyversion_minor}/pyconfig.h ${targetdir}/share/gdb
+package: ${gdbtargets} ${targetdir}/bin/python/include/python${pyversion_minor}/pyconfig.h
+	{ ! test -e ${targetdir}/share/gdb || rm -r ${targetdir}/share/gdb; } && \
+	mkdir -p ${targetdir}/share/gdb && \
+	cp -a ${staging}/gdb-${version}-$(word 1,${targets})/gdb/data-directory/{python,syscalls} ${targetdir}/share/gdb
 	echo "Packing..."
 	7z a ${packagename} ${targetdir}/*
