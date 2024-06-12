@@ -1,43 +1,33 @@
-*** source/gdb-7.4/gdb/python/python.c	2012-02-01 10:39:59.812953656 +0100
---- staging/gdb-7.4/gdb/python/python.c	2012-02-01 10:33:45.842953480 +0100
-***************
-*** 32,38 ****
-  #include "serial.h"
-  #include "readline/tilde.h"
-  #include "python.h"
-  #include "cli/cli-utils.h"
-!
-  #include <ctype.h>
-  
---- 32,39 ----
-  #include "serial.h"
-  #include "readline/tilde.h"
-  #include "python.h"
-  #include "cli/cli-utils.h"
-! #include <libgen.h>
-+ #include <mach-o/dyld.h>
-  #include <ctype.h>
-  
-***************
-*** 1273,1278 ****
---- 1274,1293---
-  			     SLASH_STRING, "python", NULL));
-  #endif
-  
-+ 
-+   int bufsize = 1024;
-+   char readlinkbuffer[bufsize];
-+   int readlinks = _NSGetExecutablePath(readlinkbuffer, &bufsize);
-+   if (readlinks == -1) {//readlinkbuffer[readlinks] = 0; 
-+       
-+       return;
-+   }
-+   char *executeablepath = dirname(readlinkbuffer);
-+   char *pythonhome = malloc(strlen(executeablepath) + strlen("/python/") + 2);
-+   strcpy(pythonhome, executeablepath);
-+   strcat(pythonhome, "/python/");
-+   setenv("PYTHONHOME", pythonhome, 1);
-+ 
-    Py_Initialize ();
-    PyEval_InitThreads ();
-  
+diff --git a/gdb/python/python.c b/gdb/python/python.c
+index 67d06e5..147838d 100644
+--- a/gdb/python/python.c
++++ b/gdb/python/python.c
+@@ -33,7 +33,8 @@
+ #include "readline/tilde.h"
+ #include "python.h"
+ #include "cli/cli-utils.h"
+-
++#include <libgen.h>
++#include <mach-o/dyld.h>
+ #include <ctype.h>
+ 
+ /* Declared constants and enum for python stack printing.  */
+@@ -1568,6 +1569,18 @@ message == an error message without a stack will be printed."),
+ #endif
+ #endif
+ 
++  int bufsize = 1024;
++  char readlinkbuffer[bufsize];
++  int readlinks = _NSGetExecutablePath(readlinkbuffer, &bufsize);
++  if (readlinks == -1) {//readlinkbuffer[readlinks] = 0;
++      return;
++  }
++  char *executeablepath = dirname(readlinkbuffer);
++  char *pythonhome = malloc(strlen(executeablepath) + strlen("/python/") + 2);
++  strcpy(pythonhome, executeablepath);
++  strcat(pythonhome, "/python/");
++  setenv("PYTHONHOME", pythonhome, 1);
++
+   Py_Initialize ();
+   PyEval_InitThreads ();
+ 

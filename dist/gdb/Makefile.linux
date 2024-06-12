@@ -83,7 +83,7 @@ ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestag
 	tar xf ${source}/gdb-${version}.tar.bz2 && \
 	cd gdb-${version} && \
 	touch configure && \
-        patch -p2 < ${PATCHDIR}/pythonhome-7.4_linux.patch
+	patch -p2 < ${PATCHDIR}/pythonhome-7.4_linux.patch
 
 ${gdbtargets}: ${targetdir}/bin/gdb-%: ${staging}/gdb-${version}/configure ${staging}/lib/libpython${pyversion_minor}.a ${staging}/lib/libexpat.a | maketargetdir
 	test -e ${staging}/gdb-${version}-$* || mkdir ${staging}/gdb-${version}-$*
