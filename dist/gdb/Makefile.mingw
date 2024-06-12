@@ -1,4 +1,5 @@
 broot=${PWD}
+PATCHDIR?=${broot}/patches
 source=${broot}/source
 targets=arm-none-eabi,arm-none-linux-gnueabi,i686-pc-mingw32
 staging=${broot}/staging
@@ -84,7 +85,7 @@ ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.xz | makestagi
 	tar xf ${source}/gdb-${version}.tar.xz && \
 	cd gdb-${version} && \
 	touch configure && \
-	patch -p1 < ${broot}/patches/mingw-python.patch
+	patch -p1 < ${PATCHDIR}/mingw-python.patch
 
 ${staging}/lib/libiconv.a: ${source}/libiconv-${iconvversion}.tar.gz | makestagingdir
 	cd ${staging} && \
