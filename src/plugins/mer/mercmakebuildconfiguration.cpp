@@ -62,8 +62,13 @@ MerCMakeBuildConfiguration::MerCMakeBuildConfiguration(Target *target, Utils::Id
     connect(aspect, &BaseAspect::changed,
             this, &BuildConfiguration::updateCacheAndEmitEnvironmentChanged);
 
+    /*
+     * We want to be sure that BE is running before parsing starts.
+     * We should not start BE while parsing is in progress using AutoConnection - it lead to crash during kit disable.
+     * Instead we start BE on parsingStarted signal using QueuedConnection.
+     */
     connect(target, &Target::parsingStarted,
-            this, &MerCMakeBuildConfiguration::ensureBuildEngineRuns);
+            this, &MerCMakeBuildConfiguration::ensureBuildEngineRuns, Qt::QueuedConnection);
 }
 
 void MerCMakeBuildConfiguration::doInitialize(const ProjectExplorer::BuildInfo &info)
