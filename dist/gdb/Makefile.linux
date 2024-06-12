@@ -3,7 +3,9 @@ PATCHDIR?=${broot}/patches
 source=${broot}/source
 targets=x86_64-unknown-linux-gnu,i686-unknown-linux-gnu,arm-none-linux-gnueabi
 staging=${broot}/staging
-pyversion=2.7
+pyversion_minor=2.7
+pyversion_micro=15
+pyversion=${pyversion_minor}.${pyversion_micro}
 expatversion=2.1.1
 arch=`uname -sm | sed -e 's/ /-/g'  -e 's/x86_64/64/g' -e 's/i686/32/g' | tr A-Z a-z`
 version=7.12
@@ -62,7 +64,7 @@ ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.bz2 | makestaging
 	./configure --disable-shared -prefix=${staging} && \
 	${MAKE} -j$(shell getconf _NPROCESSORS_ONLN) && ${MAKE} install
 
-${staging}/lib/libpython${pyversion}.a: ${source}/Python-${pyversion}.tgz | makestagingdir
+${staging}/lib/libpython${pyversion_minor}.a: ${source}/Python-${pyversion}.tgz | makestagingdir
 	unset PYTHONHOME && cd ${staging} && \
 	echo "Extracting python..." && \
 	tar xf ${source}/Python-${pyversion}.tgz && \
@@ -70,9 +72,9 @@ ${staging}/lib/libpython${pyversion}.a: ${source}/Python-${pyversion}.tgz | make
 	export LDFLAGS="-pthread -lm" && \
 	./configure --prefix=${staging} && ${MAKE} -j$(shell getconf _NPROCESSORS_ONLN) && ${MAKE} install
 
-${targetdir}/bin/python/include/python${pyversion}/pyconfig.h: ${staging}/lib/libpython${pyversion}.a | maketargetdir
-	mkdir -p ${targetdir}/bin/python/lib && cp -a ${staging}/lib/python${pyversion} ${targetdir}/bin/python/lib/
-	mkdir -p ${targetdir}/bin/python/include/python${pyversion} && cp ${staging}/include/python${pyversion}/pyconfig.h ${targetdir}/bin/python/include/python${pyversion}/
+${targetdir}/bin/python/include/python${pyversion_minor}/pyconfig.h: ${staging}/lib/libpython${pyversion_minor}.a | maketargetdir
+	mkdir -p ${targetdir}/bin/python/lib && cp -a ${staging}/lib/python${pyversion_minor} ${targetdir}/bin/python/lib/
+	mkdir -p ${targetdir}/bin/python/include/python${pyversion_minor} && cp ${staging}/include/python${pyversion_minor}/pyconfig.h ${targetdir}/bin/python/include/python${pyversion_minor}/
 
 ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.xz | makestagingdir
 	cd ${staging} && \
@@ -82,7 +84,7 @@ ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.xz | makestagi
 	touch configure && \
 	patch -p1 < ${PATCHDIR}/pythonhome-7.4_linux.patch
 
-${targetdir}/bin/gdb: ${staging}/gdb-${version}/configure ${staging}/lib/libpython${pyversion}.a ${staging}/lib/libexpat.a | maketargetdir
+${targetdir}/bin/gdb: ${staging}/gdb-${version}/configure ${staging}/lib/libpython${pyversion_minor}.a ${staging}/lib/libexpat.a | maketargetdir
 	test -e ${staging}/gdb-${version}-build || mkdir ${staging}/gdb-${version}-build
 	export PYTHONHOME=${staging} && \
 	export PATH="${staging}/bin/:$$PATH" && \
@@ -95,7 +97,7 @@ ${targetdir}/bin/gdb: ${staging}/gdb-${version}/configure ${staging}/lib/libpyth
 	${MAKE} -j$(shell getconf _NPROCESSORS_ONLN) && \
 	strip -o ${targetdir}/bin/gdb gdb/gdb
 
-package: ${targetdir}/bin/gdb ${targetdir}/bin/python/include/python${pyversion}/pyconfig.h
+package: ${targetdir}/bin/gdb ${targetdir}/bin/python/include/python${pyversion_minor}/pyconfig.h
 	{ ! test -e ${targetdir}/share/gdb || rm -r ${targetdir}/share/gdb; } && \
 	mkdir -p ${targetdir}/share/gdb && \
 	cp -a ${staging}/gdb-${version}-build/gdb/data-directory/{python,syscalls} ${targetdir}/share/gdb
