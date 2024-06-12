@@ -1,7 +1,7 @@
 broot=${PWD}
 PATCHDIR?=${broot}/patches
 source=${broot}/source
-targets=arm-none-eabi,arm-none-linux-gnueabi,i686-pc-mingw32
+targets=i486-meego-linux-gnu,armv7hl-meego-linux-gnueabi,aarch64-meego-linux-gnu
 staging=${broot}/staging
 pyversion_minor=2.7
 pyversion_micro=15
