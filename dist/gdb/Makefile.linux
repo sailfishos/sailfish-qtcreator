@@ -9,6 +9,16 @@ version=7.12
 targetdir=${broot}/qtcreator-gdb-${version}
 packagename=qtcreator-gdb-${version}-${arch}.tar.gz
 
+ifeq ($(DOWNLOAD_URL),)
+	DL_GDB=http://ftp.gnu.org/gnu/gdb
+	DL_PYTHON=http://www.python.org/ftp/python/${pyversion}
+	DL_EXPAT=http://sourceforge.net/projects/expat/files/expat/${expatversion}
+else
+	DL_GDB=$(DOWNLOAD_URL)
+	DL_EXPAT=$(DOWNLOAD_URL)
+	DL_PYTHON=$(DOWNLOAD_URL)
+endif
+
 all:package
 
 clean:
@@ -26,20 +36,20 @@ makestagingdir:
 ${source}/expat-${expatversion}.tar.bz2: | makesourcedir
 	cd ${source} && \
 	echo "Downloading expat..." && \
-	wget -q http://sourceforge.net/projects/expat/files/expat/${expatversion}/expat-${expatversion}.tar.bz2 && \
+	wget -q $(DL_EXPAT)/expat-${expatversion}.tar.bz2 && \
 	touch ${source}/expat-${expatversion}.tar.bz2
 
 ${source}/Python-${pyversion}.tgz: | makesourcedir
 	cd ${source} && \
 	echo "Downloading python..." && \
-	wget -q http://www.python.org/ftp/python/${pyversion}/Python-${pyversion}.tgz && \
+	wget -q $(DL_PYTHON)/Python-${pyversion}.tgz && \
 	touch ${source}/Python-${pyversion}.tgz
 
 ${source}/gdb-${version}.tar.xz: | makesourcedir
 	cd ${source} && \
 	echo "Downloading gdb..." && \
-	wget -q http://ftp.gnu.org/gnu/gdb/gdb-${version}.tar.xz || \
-	wget -Oq gdb-${version}.tar.xz http://ftp.gnu.org/gnu/gdb/gdb-${version}a.tar.xz && \
+	wget -q $(DL_GDB)/gdb-${version}.tar.xz || \
+	wget -Oq gdb-${version}.tar.xz $(DL_GDB)/gdb-${version}a.tar.xz && \
 	touch gdb-*.tar.xz
 
 ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.bz2 | makestagingdir
