@@ -1,0 +1,32 @@
+diff --git a/gdb/python/python.c b/gdb/python/python.c
+index b00b70b..45e06c7 100644
+--- a/gdb/python/python.c
++++ b/gdb/python/python.c
+@@ -33,6 +33,8 @@
+ #include "python.h"
+ #include "extension-priv.h"
+ #include "cli/cli-utils.h"
++#include <libgen.h>
++#include <mach-o/dyld.h>
+ #include <ctype.h>
+ #include "location.h"
+ #include "ser-event.h"
+@@ -1748,6 +1750,18 @@ message == an error message without a stack will be printed."),
+ #endif
+ #endif
+ 
++  unsigned int bufsize = 1024;
++  char readlinkbuffer[bufsize];
++  int readlinks = _NSGetExecutablePath(readlinkbuffer, &bufsize);
++  if (readlinks == -1) {//readlinkbuffer[readlinks] = 0;
++      return;
++  }
++  char *executeablepath = dirname(readlinkbuffer);
++  char *pythonhome = (char*)malloc(strlen(executeablepath) + strlen("/python/") + 2);
++  strcpy(pythonhome, executeablepath);
++  strcat(pythonhome, "/python/");
++  setenv("PYTHONHOME", pythonhome, 1);
++
+   Py_Initialize ();
+   PyEval_InitThreads ();
+ 

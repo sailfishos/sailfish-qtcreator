@@ -1,4 +1,5 @@
 broot=${PWD}
+PATCHDIR?=${broot}/patches
 source=${broot}/source
 targets=x86_64-unknown-linux-gnu,i686-unknown-linux-gnu,arm-none-linux-gnueabi,x86_64-apple-darwin10
 staging=${broot}/staging
@@ -74,7 +75,8 @@ ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.xz | makestagi
 	echo "Extracting gdb..." && \
 	tar xf ${source}/gdb-${version}.tar.xz && \
 	cd gdb-${version} && \
-	touch configure
+	touch configure && \
+	patch -p1 < ${PATCHDIR}/pythonhome-7.4_mac.patch
 
 ${targetdir}/gdb: ${staging}/gdb-${version}/configure ${staging}/lib/libpython${pyversion}.a ${staging}/lib/libexpat.a | maketargetdir
 	test -e ${staging}/gdb-${version}-build || mkdir ${staging}/gdb-${version}-build
