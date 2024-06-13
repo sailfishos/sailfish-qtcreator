@@ -50,6 +50,7 @@
 #include <debugger/debuggeritemmanager.h>
 #include <debugger/debuggerkitinformation.h>
 #include <extensionsystem/pluginmanager.h>
+#include <projectexplorer/abi.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <projectexplorer/kit.h>
 #include <projectexplorer/kitmanager.h>
@@ -589,8 +590,7 @@ void MerSdkManager::ensureDebuggerIsSet(Kit *k, const BuildTargetData &buildTarg
             debugger.setUnexpandedDisplayName(QObject::tr("GDB (%1)")
                     .arg(buildTarget.gdb.toString()));
             debugger.setAutoDetected(true);
-            const int prefixLength = QString(Sfdk::Constants::DEBUGGER_FILENAME_PREFIX).length();
-            debugger.setAbi(Abi::abiFromTargetTriplet(buildTarget.gdb.toString().mid(prefixLength)));
+            debugger.setAbi(Abi::abiFromTargetTriplet(buildTarget.machine));
             QVariant id = DebuggerItemManager::registerDebugger(debugger);
             DebuggerKitAspect::setDebugger(k, id);
         }

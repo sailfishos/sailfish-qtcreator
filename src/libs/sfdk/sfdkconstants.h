@@ -113,14 +113,7 @@ const char WWW_PROXY_DISABLED[] = "direct";
 const char WWW_PROXY_AUTOMATIC[] = "auto";
 const char WWW_PROXY_MANUAL[] = "manual";
 
-const char i486_IDENTIFIER[] = "i486";
-const char ARM_IDENTIFIER[] = "arm";
-const char AARCH64_IDENTIFIER[] = "aarch64";
-
-const char DEFAULT_DEBUGGER_i486_FILENAME[] = "gdb-i486-meego-linux-gnu";
-const char DEFAULT_DEBUGGER_ARM_FILENAME[] = "gdb-armv7hl-meego-linux-gnueabi";
-const char DEFAULT_DEBUGGER_AARCH64_FILENAME[] = "gdb-aarch64-meego-linux-gnu";
-const char DEBUGGER_FILENAME_PREFIX[] = "gdb-";
+const char DEFAULT_DEBUGGER_FILENAME[] = "gdb";
 
 // hardcoded IPv4 address to prevent connecting via IPv6
 const char BUILD_ENGINE_DEFAULT_HOST[] = "127.0.0.1";
