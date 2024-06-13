@@ -8,7 +8,7 @@ pyversion_micro=15
 pyversion=${pyversion_minor}.${pyversion_micro}
 expatversion=2.1.1
 arch=`uname -sm | sed 's/ /-/g' | tr A-Z a-z`
-version=7.12
+version=7.12.1
 targetdir=${broot}/qtcreator-gdb-${version}
 packagename=sailfish-gdb-${version}-mac.7z
 
