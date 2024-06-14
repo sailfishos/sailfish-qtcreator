@@ -81,6 +81,7 @@ ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.xz | makestagi
 	tar xf ${source}/gdb-${version}.tar.xz && \
 	cd gdb-${version} && \
 	touch configure && \
+	patch -p1 < ${PATCHDIR}/gdb-basename-mac.patch && \
 	patch -p1 < ${PATCHDIR}/pythonhome-7.4_mac.patch
 
 ${targetdir}/bin/gdb: ${staging}/gdb-${version}/configure ${staging}/lib/libpython${pyversion_minor}.a ${staging}/lib/libexpat.a | maketargetdir
