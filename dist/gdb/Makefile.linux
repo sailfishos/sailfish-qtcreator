@@ -82,6 +82,7 @@ ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.xz | makestagi
 	tar xf ${source}/gdb-${version}.tar.xz && \
 	cd gdb-${version} && \
 	touch configure && \
+	touch --date tomorrow bfd/doc/bfd.info && \
 	patch -p1 < ${PATCHDIR}/pythonhome-7.4_linux.patch
 
 ${targetdir}/bin/gdb: ${staging}/gdb-${version}/configure ${staging}/lib/libpython${pyversion_minor}.a ${staging}/lib/libexpat.a | maketargetdir
