@@ -7,6 +7,7 @@ pyversion_minor=2.7
 pyversion_micro=15
 pyversion=${pyversion_minor}.${pyversion_micro}
 expatversion=2.1.1
+gmpversion=6.2.1
 arch=`uname -sm | sed -e 's/ /-/g'  -e 's/x86_64/64/g' -e 's/i686/32/g' | tr A-Z a-z`
 version=12.1
 targetdir=${broot}/qtcreator-gdb-${version}
@@ -16,10 +17,12 @@ ifeq ($(DOWNLOAD_URL),)
 	DL_GDB=http://ftp.gnu.org/gnu/gdb
 	DL_PYTHON=http://www.python.org/ftp/python/${pyversion}
 	DL_EXPAT=http://sourceforge.net/projects/expat/files/expat/${expatversion}
+	DL_GMP=https://gmplib.org/download/gmp
 else
 	DL_GDB=$(DOWNLOAD_URL)
 	DL_EXPAT=$(DOWNLOAD_URL)
 	DL_PYTHON=$(DOWNLOAD_URL)
+	DL_GMP=$(DOWNLOAD_URL)
 endif
 
 all:package
@@ -44,6 +47,12 @@ ${source}/expat-${expatversion}.tar.bz2: | makesourcedir
 	wget -q $(DL_EXPAT)/expat-${expatversion}.tar.bz2 && \
 	touch ${source}/expat-${expatversion}.tar.bz2
 
+${source}/gmp-${gmpversion}.tar.bz2: | makesourcedir
+	cd ${source} && \
+	echo "Downloading gmp..." && \
+	wget -q $(DL_GMP)/gmp-${gmpversion}.tar.bz2 && \
+	touch ${source}/gmp-${gmpversion}.tar.bz2
+
 ${source}/Python-${pyversion}.tgz: | makesourcedir
 	cd ${source} && \
 	echo "Downloading python..." && \
@@ -61,6 +70,13 @@ ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.bz2 | makestaging
 	cd ${staging} && \
 	echo "Extracting expat..." && \
 	tar xf ${source}/expat-${expatversion}.tar.bz2 && cd expat-${expatversion} && \
+	./configure --disable-shared -prefix=${staging} && \
+	${MAKE} -j$(shell getconf _NPROCESSORS_ONLN) && ${MAKE} install
+
+${staging}/lib/libgmp.a: ${source}/gmp-${gmpversion}.tar.bz2 | makestagingdir
+	cd ${staging} && \
+	echo "Extracting gmp..." && \
+	tar xf ${source}/gmp-${gmpversion}.tar.bz2 && cd gmp-${gmpversion} && \
 	./configure --disable-shared -prefix=${staging} && \
 	${MAKE} -j$(shell getconf _NPROCESSORS_ONLN) && ${MAKE} install
 
@@ -85,7 +101,7 @@ ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.xz | makestagi
 	touch --date tomorrow bfd/doc/bfd.info && \
 	patch -p1 < ${PATCHDIR}/pythonhome-7.4_linux.patch
 
-${targetdir}/bin/gdb: ${staging}/gdb-${version}/configure ${staging}/lib/libpython${pyversion_minor}.a ${staging}/lib/libexpat.a | maketargetdir
+${targetdir}/bin/gdb: ${staging}/gdb-${version}/configure ${staging}/lib/libpython${pyversion_minor}.a ${staging}/lib/libexpat.a ${staging}/lib/libgmp.a | maketargetdir
 	test -e ${staging}/gdb-${version}-build || mkdir ${staging}/gdb-${version}-build
 	export PYTHONHOME=${staging} && \
 	export PATH="${staging}/bin/:$$PATH" && \
@@ -93,7 +109,7 @@ ${targetdir}/bin/gdb: ${staging}/gdb-${version}/configure ${staging}/lib/libpyth
 	cd ${staging}/gdb-${version}-build && \
 	${staging}/gdb-${version}/configure --disable-nls --enable-targets=${targets} --with-separate-debug-dir="" \
 	--with-gdb-datadir='$$prefix/share/gdb' \
-	--disable-werror --with-python=${staging} --with-libexpat-prefix=${staging} && \
+	--disable-werror --with-python=${staging} --with-libexpat-prefix=${staging} --with-libgmp-prefix=${staging} && \
 	sleep 3 && \
 	${MAKE} -j$(shell getconf _NPROCESSORS_ONLN) && \
 	strip -o ${targetdir}/bin/gdb gdb/gdb
