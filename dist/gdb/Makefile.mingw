@@ -12,6 +12,7 @@ targetdir=${broot}/qtcreator-gdb-${version}
 packageparts=${targetdir}/lib ${targetdir}/data-directory ${targetdir}/libiconv-2.dll ${targetdir}/python27.dll ${targetdir}/libexpat-1.dll
 arch=`uname -sm | sed 's/ /-/g' | tr A-Z a-z`
 packagename=qtcreator-gdb-${version}-${arch}.tar.gz
+mingwbin=$(shell dirname $(shell which gcc))
 
 ifeq ($(DOWNLOAD_URL),)
 	DL_GDB=http://ftp.gnu.org/gnu/gdb
@@ -123,6 +124,8 @@ package: ${targetdir}/gdb.exe ${broot}/python/python.exe
 	cp ${pydir}/python*.dll ${targetdir} && \
 	cp -r ${pydir}/lib ${targetdir} && \
 	mkdir -p ${targetdir}/data-directory && \
+	cp ${mingwbin}/libncursesw-6.dll ${targetdir}/bin && \
+	cp ${mingwbin}/libgcc_s_dw2-1.dll ${targetdir}/bin && \
 	cp -r ${staging}/gdb-${version}-build/gdb/data-directory/{python,syscalls} ${targetdir}/data-directory && \
 	mv ${targetdir} ${targetdir}-${arch} && \
 	echo "Packing..." && \
