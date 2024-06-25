@@ -1,0 +1,24 @@
+diff --git a/gdb/configure b/gdb/configure
+index 7577ba4c798..900a0dae043 100755
+--- a/gdb/configure
++++ b/gdb/configure
+@@ -554,6 +554,7 @@ PACKAGE_URL=
+ ac_unique_file="main.c"
+ # Factoring default headers for most tests.
+ ac_includes_default="\
++#include <libgen.h>
+ #include <stdio.h>
+ #ifdef HAVE_SYS_TYPES_H
+ # include <sys/types.h>
+diff --git a/libiberty/configure b/libiberty/configure
+index 0f8e9b925e5..902fb185cb1 100755
+--- a/libiberty/configure
++++ b/libiberty/configure
+@@ -554,6 +554,7 @@ PACKAGE_URL=
+ ac_unique_file="xmalloc.c"
+ # Factoring default headers for most tests.
+ ac_includes_default="\
++#include <libgen.h>
+ #include <stdio.h>
+ #ifdef HAVE_SYS_TYPES_H
+ # include <sys/types.h>

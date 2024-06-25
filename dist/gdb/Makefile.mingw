@@ -1,17 +1,16 @@
 broot=${PWD}
 PATCHDIR?=${broot}/patches
 source=${broot}/source
-targets=i486-meego-linux-gnu armv7hl-meego-linux-gnueabi aarch64-meego-linux-gnu
+targets=i486-meego-linux-gnu,armv7hl-meego-linux-gnueabi,aarch64-meego-linux-gnu
 staging=${broot}/staging
 pyversion_minor=2.7
 pyversion_micro=15
 pyversion=${pyversion_minor}.${pyversion_micro}
 pydir=${broot}/python
-expatversion=2.0.1
+expatversion=2.1.1
 iconvversion=1.14
-version=7.6.2
+version=7.12.1
 targetdir=${broot}/qtcreator-gdb-${version}
-gdbtargets=$(addprefix ${targetdir}/bin/gdb-, ${targets})
 packageparts=${targetdir}/bin/lib ${targetdir}/share/gdb ${targetdir}/bin/libiconv-2.dll ${targetdir}/bin/python27.dll ${targetdir}/bin/libexpat-1.dll
 arch=`uname -sm | sed 's/ /-/g' | tr A-Z a-z`
 packagename=sailfish-gdb-${version}-windows.7z
@@ -21,7 +20,7 @@ ifeq ($(DOWNLOAD_URL),)
 	DL_GDB=http://ftp.gnu.org/gnu/gdb
 	DL_ICONV=http://ftp.gnu.org/pub/gnu/libiconv
 	DL_EXPAT=http://sourceforge.net/projects/expat/files/expat/${expatversion}
-	DL_PYTHON=http://master.qt-project.org/development_releases/prebuilt/gdb/build-prerequisites
+	DL_PYTHON=http://download.qt.io/development_releases/prebuilt/gdb/build-prerequisites
 else
 	DL_GDB=$(DOWNLOAD_URL)
 	DL_EXPAT=$(DOWNLOAD_URL)
@@ -66,12 +65,12 @@ ${broot}/python/python.exe: ${source}/python.zip | checkunzip
 checkwget:
 	wget -V &> /dev/null || mingw-get install msys-wget-bin
 
-${source}/gdb-${version}.tar.bz2: | makesourcedir checkwget
+${source}/gdb-${version}.tar.xz: | makesourcedir checkwget
 	cd ${source} && \
 	echo "Downloading gdb..." && \
-	wget -q $(DL_GDB)/gdb-${version}.tar.bz2 || \
-	wget -qO gdb-${version}.tar.bz2 $(DL_GDB)/gdb-${version}a.tar.bz2 && \
-	touch gdb-${version}.tar.bz2
+	wget -q $(DL_GDB)/gdb-${version}.tar.xz || \
+	wget -Oq gdb-${version}.tar.xz $(DL_GDB)/gdb-${version}a.tar.xz && \
+	touch gdb-${version}.tar.xz
 
 ${source}/libiconv-${iconvversion}.tar.gz: | makesourcedir checkwget
 	cd ${source} && \
@@ -79,60 +78,60 @@ ${source}/libiconv-${iconvversion}.tar.gz: | makesourcedir checkwget
 	wget -q $(DL_ICONV)/libiconv-${iconvversion}.tar.gz  && \
 	touch ${source}/libiconv-${iconvversion}.tar.gz
 
-${source}/expat-${expatversion}.tar.gz: | makesourcedir checkwget
+${source}/expat-${expatversion}.tar.bz2: | makesourcedir checkwget
 	cd ${source} && \
 	echo "Downloading expat..." && \
-	wget -q $(DL_EXPAT)/expat-${expatversion}.tar.gz && \
-	touch ${source}/expat-${expatversion}.tar.gz
+	wget -q $(DL_EXPAT)/expat-${expatversion}.tar.bz2 && \
+	touch ${source}/expat-${expatversion}.tar.bz2
 
-${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestagingdir
+${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.xz | makestagingdir
 	cd ${staging} && \
 	echo "Extracting gdb..." && \
-	tar xf ${source}/gdb-${version}.tar.bz2 && \
+	tar xf ${source}/gdb-${version}.tar.xz && \
 	cd gdb-${version} && \
 	touch configure && \
-	patch -p2 < ${PATCHDIR}/mingw-compilation.patch
+	patch -p1 < ${PATCHDIR}/mingw-python.patch
 
 ${staging}/lib/libiconv.a: ${source}/libiconv-${iconvversion}.tar.gz | makestagingdir
 	cd ${staging} && \
 	echo "Extracting iconv..." && \
 	tar xf ${source}/libiconv-${iconvversion}.tar.gz && \
 	cd libiconv-${iconvversion} && \
-	./configure -prefix=${staging} --enable-static && \
+	./configure -prefix=${staging} --enable-static --build=i686-pc-mingw32 && \
 	${MAKE} && ${MAKE} install
 
-${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.gz | makestagingdir
+${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.bz2 | makestagingdir
 	cd ${staging} && \
 	echo "Extracting expat..." && \
-	tar xf ${source}/expat-${expatversion}.tar.gz && \
+	tar xf ${source}/expat-${expatversion}.tar.bz2 && \
 	cd expat-${expatversion} && \
-	./configure -prefix=${staging} --enable-static && \
+	./configure -prefix=${staging} --enable-static --build=i686-pc-mingw32 && \
 	${MAKE} && ${MAKE} install
 
-${gdbtargets}: ${targetdir}/bin/gdb-%: ${staging}/lib/libexpat.a ${staging}/lib/libiconv.a ${staging}/gdb-${version}/configure | maketargetdir ${broot}/python/python.exe
-	test -e ${staging}/gdb-${version}-$* || mkdir ${staging}/gdb-${version}-$*
+${targetdir}/bin/gdb.exe: ${staging}/lib/libexpat.a ${staging}/lib/libiconv.a ${staging}/gdb-${version}/configure | maketargetdir ${broot}/python/python.exe
+	test -e ${staging}/gdb-${version}-build || mkdir ${staging}/gdb-${version}-build
 	export PYTHONHOME=${pydir} && \
 	LDFLAGS="L${pydir} -lpthread -ldl -lutil -lpython27" && \
 	CFLAGS="-I${pydir}/include" && \
-	cd ${staging}/gdb-${version}-$* && \
-	${staging}/gdb-${version}/configure --target=$* --disable-nls --disable-werror \
+	cd ${staging}/gdb-${version}-build && \
+	${staging}/gdb-${version}/configure --enable-targets=${targets} --disable-nls --disable-werror --build=i686-pc-mingw32 \
 	--with-libiconv-prefix=${staging} \
 	--with-expat --with-libexpat-prefix=${staging} \
 	--with-separate-debug-dir="" \
 	--with-gdb-datadir='$$prefix/share/gdb' \
 	--with-python=${pydir} && \
-	${MAKE} && \
-	strip -o ${targetdir}/bin/gdb-$*.exe gdb/gdb.exe
+	${MAKE} MAKEFLAGS+= -j1 && \
+	strip -o ${targetdir}/bin/gdb.exe gdb/gdb.exe
 
-package: ${gdbtargets} ${broot}/python/python.exe
+package: ${targetdir}/bin/gdb.exe ${broot}/python/python.exe
 	cp ${staging}/bin/libiconv* ${targetdir}/bin && \
 	cp ${staging}/bin/libexpat* ${targetdir}/bin && \
 	cp ${pydir}/python*.dll ${targetdir}/bin && \
 	cp -r ${pydir}/lib ${targetdir}/bin && \
 	{ ! test -e ${targetdir}/share/gdb || rm -r ${targetdir}/share/gdb; } && \
 	mkdir -p ${targetdir}/share/gdb && \
-	cp -a ${staging}/gdb-${version}-$(word 1,${targets})/gdb/data-directory/{python,syscalls} ${targetdir}/share/gdb \
 	cp ${mingwbin}/libncursesw-6.dll ${targetdir}/bin && \
 	cp ${mingwbin}/libgcc_s_dw2-1.dll ${targetdir}/bin && \
+	cp -r ${staging}/gdb-${version}-build/gdb/data-directory/{python,syscalls} ${targetdir}/share/gdb && \
 	echo "Packing..." && \
 	7z a ${packagename} ${targetdir}/*

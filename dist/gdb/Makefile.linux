@@ -1,16 +1,15 @@
 broot=${PWD}
 PATCHDIR?=${broot}/patches
 source=${broot}/source
-targets=i486-meego-linux-gnu armv7hl-meego-linux-gnueabi aarch64-meego-linux-gnu
+targets=i486-meego-linux-gnu,armv7hl-meego-linux-gnueabi,aarch64-meego-linux-gnu
 staging=${broot}/staging
 pyversion_minor=2.7
 pyversion_micro=15
 pyversion=${pyversion_minor}.${pyversion_micro}
-expatversion=2.0.1
+expatversion=2.1.1
 arch=`uname -sm | sed -e 's/ /-/g'  -e 's/x86_64/64/g' -e 's/i686/32/g' | tr A-Z a-z`
-version=7.6.2
+version=7.12.1
 targetdir=${broot}/qtcreator-gdb-${version}
-gdbtargets=$(addprefix ${targetdir}/bin/gdb-, ${targets})
 packagename=sailfish-gdb-${version}-${arch}.7z
 
 ifeq ($(DOWNLOAD_URL),)
@@ -39,29 +38,29 @@ maketargetdir:
 makestagingdir:
 	@test -e ${staging} || mkdir ${staging}
 
-${source}/expat-${expatversion}.tar.gz: | makesourcedir
+${source}/expat-${expatversion}.tar.bz2: | makesourcedir
 	cd ${source} && \
 	echo "Downloading expat..." && \
-	wget -q $(DL_EXPAT)/expat-${expatversion}.tar.gz && \
-	touch ${source}/expat-${expatversion}.tar.gz
+	wget -q $(DL_EXPAT)/expat-${expatversion}.tar.bz2 && \
+	touch ${source}/expat-${expatversion}.tar.bz2
 
 ${source}/Python-${pyversion}.tgz: | makesourcedir
 	cd ${source} && \
 	echo "Downloading python..." && \
-	wget -q --no-check-certificate $(DL_PYTHON)/Python-${pyversion}.tgz && \
+	wget -q $(DL_PYTHON)/Python-${pyversion}.tgz && \
 	touch ${source}/Python-${pyversion}.tgz
 
-${source}/gdb-${version}.tar.bz2: | makesourcedir
+${source}/gdb-${version}.tar.xz: | makesourcedir
 	cd ${source} && \
 	echo "Downloading gdb..." && \
-	wget -q $(DL_GDB)/gdb-${version}.tar.bz2 || \
-	wget -qO gdb-${version}.tar.bz2 $(DL_GDB)/gdb-${version}a.tar.bz2 && \
-	touch gdb-*.tar.bz2
+	wget -q $(DL_GDB)/gdb-${version}.tar.xz || \
+	wget -Oq gdb-${version}.tar.xz $(DL_GDB)/gdb-${version}a.tar.xz && \
+	touch gdb-*.tar.xz
 
-${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.gz | makestagingdir
+${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.bz2 | makestagingdir
 	cd ${staging} && \
 	echo "Extracting expat..." && \
-	tar xf ${source}/expat-${expatversion}.tar.gz && cd expat-${expatversion} && \
+	tar xf ${source}/expat-${expatversion}.tar.bz2 && cd expat-${expatversion} && \
 	./configure --disable-shared -prefix=${staging} && \
 	${MAKE} -j$(shell getconf _NPROCESSORS_ONLN) && ${MAKE} install
 
@@ -77,29 +76,32 @@ ${targetdir}/bin/python/include/python${pyversion_minor}/pyconfig.h: ${staging}/
 	mkdir -p ${targetdir}/bin/python/lib && cp -a ${staging}/lib/python${pyversion_minor} ${targetdir}/bin/python/lib/
 	mkdir -p ${targetdir}/bin/python/include/python${pyversion_minor} && cp ${staging}/include/python${pyversion_minor}/pyconfig.h ${targetdir}/bin/python/include/python${pyversion_minor}/
 
-${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestagingdir
+${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.xz | makestagingdir
 	cd ${staging} && \
 	echo "Extracting gdb..." && \
-	tar xf ${source}/gdb-${version}.tar.bz2 && \
+	tar xf ${source}/gdb-${version}.tar.xz && \
 	cd gdb-${version} && \
 	touch configure && \
-	patch -p2 < ${PATCHDIR}/pythonhome-7.4_linux.patch
+	patch -p1 < ${PATCHDIR}/gdb-TRAP_HWBKPT-redefinition.patch && \
+	patch -p1 < ${PATCHDIR}/gdb-build-with-glibc-2-33.patch && \
+	patch -p1 < ${PATCHDIR}/pythonhome-7.4_linux.patch
 
-${gdbtargets}: ${targetdir}/bin/gdb-%: ${staging}/gdb-${version}/configure ${staging}/lib/libpython${pyversion_minor}.a ${staging}/lib/libexpat.a | maketargetdir
-	test -e ${staging}/gdb-${version}-$* || mkdir ${staging}/gdb-${version}-$*
+${targetdir}/bin/gdb: ${staging}/gdb-${version}/configure ${staging}/lib/libpython${pyversion_minor}.a ${staging}/lib/libexpat.a | maketargetdir
+	test -e ${staging}/gdb-${version}-build || mkdir ${staging}/gdb-${version}-build
 	export PYTHONHOME=${staging} && \
 	export PATH="${staging}/bin/:$$PATH" && \
 	export LDFLAGS="-Wl,--no-as-needed -pthread -lm" && \
-	cd ${staging}/gdb-${version}-$* && \
-	${staging}/gdb-${version}/configure --disable-nls --target=$* --with-separate-debug-dir="" \
+	cd ${staging}/gdb-${version}-build && \
+	${staging}/gdb-${version}/configure --disable-nls --enable-targets=${targets} --with-separate-debug-dir="" \
 	--with-gdb-datadir='$$prefix/share/gdb' \
 	--disable-werror --with-python=${staging} --with-libexpat-prefix=${staging} && \
+	sleep 3 && \
 	${MAKE} -j$(shell getconf _NPROCESSORS_ONLN) && \
-	strip -o ${targetdir}/bin/gdb-$* gdb/gdb
+	strip -o ${targetdir}/bin/gdb gdb/gdb
 
-package: ${gdbtargets} ${targetdir}/bin/python/include/python${pyversion_minor}/pyconfig.h
+package: ${targetdir}/bin/gdb ${targetdir}/bin/python/include/python${pyversion_minor}/pyconfig.h
 	{ ! test -e ${targetdir}/share/gdb || rm -r ${targetdir}/share/gdb; } && \
 	mkdir -p ${targetdir}/share/gdb && \
-	cp -a ${staging}/gdb-${version}-$(word 1,${targets})/gdb/data-directory/{python,syscalls} ${targetdir}/share/gdb
+	cp -a ${staging}/gdb-${version}-build/gdb/data-directory/{python,syscalls} ${targetdir}/share/gdb
 	echo "Packing..."
 	7z a ${packagename} ${targetdir}/*
