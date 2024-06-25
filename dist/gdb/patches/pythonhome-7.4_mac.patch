@@ -19,7 +19,7 @@ index b00b70b..45e06c7 100644
 +  char readlinkbuffer[bufsize];
 +  int readlinks = _NSGetExecutablePath(readlinkbuffer, &bufsize);
 +  if (readlinks == -1) {//readlinkbuffer[readlinks] = 0;
-+      return;
++      return false;
 +  }
 +  char *executeablepath = dirname(readlinkbuffer);
 +  char *pythonhome = (char*)malloc(strlen(executeablepath) + strlen("/python/") + 2);
