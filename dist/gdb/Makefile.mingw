@@ -151,6 +151,9 @@ package: ${targetdir}/bin/gdb.exe ${broot}/python/python.exe
 	mkdir -p ${targetdir}/share/gdb && \
 	cp ${mingwbin}/libncursesw-6.dll ${targetdir}/bin && \
 	cp ${mingwbin}/libgcc_s_dw2-1.dll ${targetdir}/bin && \
+	cp ${mingwbin}/libstdc++-6.dll ${targetdir}/bin && \
+	cp ${mingwbin}/libwinpthread-1.dll ${targetdir}/bin && \
+	cp ${mingwbin}/libintl-8.dll ${targetdir}/bin && \
 	cp -r ${staging}/gdb-${version}-build/gdb/data-directory/{python,syscalls} ${targetdir}/share/gdb && \
 	echo "Packing..." && \
 	7z a ${packagename} ${targetdir}/*
