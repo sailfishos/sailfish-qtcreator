@@ -107,6 +107,7 @@ ${staging}/lib/libiconv.a: ${source}/libiconv-${iconvversion}.tar.gz | makestagi
 	echo "Extracting iconv..." && \
 	tar xf ${source}/libiconv-${iconvversion}.tar.gz && \
 	cd libiconv-${iconvversion} && \
+	patch -p1 < ${PATCHDIR}/libiconv-aliases2_lookup-mingw.patch && \
 	./configure -prefix=${staging} --enable-static --build=i686-pc-mingw32 && \
 	${MAKE} && ${MAKE} install
 
