@@ -1,4 +1,4 @@
-broot=${PWD}
+broot=$(shell cygpath -u ${PWD})
 PATCHDIR?=${broot}/patches
 source=${broot}/source
 targets=i486-meego-linux-gnu,armv7hl-meego-linux-gnueabi,aarch64-meego-linux-gnu
@@ -109,7 +109,7 @@ ${staging}/lib/libiconv.a: ${source}/libiconv-${iconvversion}.tar.gz | makestagi
 	tar xf ${source}/libiconv-${iconvversion}.tar.gz && \
 	cd libiconv-${iconvversion} && \
 	patch -p1 < ${PATCHDIR}/libiconv-aliases2_lookup-mingw.patch && \
-	./configure -prefix=${staging} --enable-static --build=i686-pc-mingw32 && \
+	./configure -prefix=${staging} --enable-static --build=x86_64-w64-mingw32 && \
 	${MAKE} && ${MAKE} install
 
 ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.bz2 | makestagingdir
@@ -117,7 +117,7 @@ ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.bz2 | makestaging
 	echo "Extracting expat..." && \
 	tar xf ${source}/expat-${expatversion}.tar.bz2 && \
 	cd expat-${expatversion} && \
-	./configure -prefix=${staging} --enable-static --build=i686-pc-mingw32 && \
+	./configure -prefix=${staging} --enable-static --build=x86_64-w64-mingw32 && \
 	${MAKE} && ${MAKE} install
 
 ${staging}/lib/libgmp.a: ${source}/gmp-${gmpversion}.tar.bz2 | makestagingdir
@@ -125,7 +125,7 @@ ${staging}/lib/libgmp.a: ${source}/gmp-${gmpversion}.tar.bz2 | makestagingdir
 	echo "Extracting gmp..." && \
 	tar xf ${source}/gmp-${gmpversion}.tar.bz2 && \
 	cd gmp-${gmpversion} && \
-	./configure -prefix=${staging} --enable-static --build=i686-pc-mingw32 && \
+	./configure -prefix=${staging} --enable-static --build=x86_64-w64-mingw32 && \
 	${MAKE} && ${MAKE} install
 
 ${targetdir}/bin/gdb.exe: ${staging}/lib/libexpat.a ${staging}/lib/libiconv.a ${staging}/lib/libgmp.a ${staging}/gdb-${version}/configure | maketargetdir ${broot}/python/python.exe
@@ -134,7 +134,7 @@ ${targetdir}/bin/gdb.exe: ${staging}/lib/libexpat.a ${staging}/lib/libiconv.a ${
 	LDFLAGS="L${pydir} -lpthread -ldl -lutil -lpython27" && \
 	CFLAGS="-I${pydir}/include" && \
 	cd ${staging}/gdb-${version}-build && \
-	${staging}/gdb-${version}/configure --enable-targets=${targets} --disable-nls --disable-werror --build=i686-pc-mingw32 \
+	${staging}/gdb-${version}/configure --enable-targets=${targets} --disable-nls --disable-werror --build=x86_64-w64-mingw32 \
 	--with-libiconv-prefix=${staging} \
 	--with-expat --with-libexpat-prefix=${staging} \
 	--with-libgmp-prefix=${staging} \
@@ -151,8 +151,8 @@ package: ${targetdir}/bin/gdb.exe ${broot}/python/python.exe
 	cp -r ${pydir}/lib ${targetdir}/bin && \
 	{ ! test -e ${targetdir}/share/gdb || rm -r ${targetdir}/share/gdb; } && \
 	mkdir -p ${targetdir}/share/gdb && \
-	cp ${mingwbin}/libncursesw-6.dll ${targetdir}/bin && \
-	cp ${mingwbin}/libgcc_s_dw2-1.dll ${targetdir}/bin && \
+	cp ${mingwbin}/libncursesw6.dll ${targetdir}/bin && \
+	cp ${mingwbin}/libgcc_s_seh-1.dll ${targetdir}/bin && \
 	cp ${mingwbin}/libstdc++-6.dll ${targetdir}/bin && \
 	cp ${mingwbin}/libwinpthread-1.dll ${targetdir}/bin && \
 	cp ${mingwbin}/libintl-8.dll ${targetdir}/bin && \
