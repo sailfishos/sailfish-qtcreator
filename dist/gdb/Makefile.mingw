@@ -127,6 +127,7 @@ ${staging}/lib/libpython${pyversion_minor}.dll.a: ${source}/Python-${pyversion}.
 	cd cpython-mingw-mingw-v${pyversion} && \
 	autoreconf -vfi && \
 	./configure --prefix=/ucrt64 --build=x86_64-w64-mingw32 \
+		--without-c-locale-coercion \
 		--enable-shared --with-system-ffi --without-ensurepip && \
 	${MAKE} && ${MAKE} install DESTDIR=${staging} && \
 	tar -C ${staging}/ucrt64 -cp . |tar -C ${staging} -xp
