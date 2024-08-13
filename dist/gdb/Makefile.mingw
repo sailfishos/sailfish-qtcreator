@@ -136,6 +136,7 @@ ${targetdir}/bin/python/include/python${pyversion_minor}/pyconfig.h: ${staging}/
 	mkdir -p ${targetdir}/bin && cp ${staging}/bin/libpython${pyversion_minor}.dll ${targetdir}/bin/
 	mkdir -p ${targetdir}/bin/python/lib && cp -a ${staging}/lib/python${pyversion_minor} ${targetdir}/bin/python/lib/
 	mkdir -p ${targetdir}/bin/python/include/python${pyversion_minor} && cp ${staging}/include/python${pyversion_minor}/pyconfig.h ${targetdir}/bin/python/include/python${pyversion_minor}/
+	cp ${mingwbin}/zlib1.dll ${targetdir}/bin/python/lib/python${pyversion_minor}/lib-dynload/
 
 ${targetdir}/bin/gdb.exe: ${staging}/lib/libexpat.a ${staging}/lib/libiconv.a ${staging}/lib/libgmp.a ${staging}/lib/libpython${pyversion_minor}.dll.a ${staging}/gdb-${version}/configure | maketargetdir
 	test -e ${staging}/gdb-${version}-build || mkdir ${staging}/gdb-${version}-build
