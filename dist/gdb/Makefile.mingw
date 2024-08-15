@@ -100,6 +100,7 @@ ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.xz | makestagi
 	cd gdb-${version} && \
 	touch configure && \
 	touch --date tomorrow bfd/doc/bfd.info && \
+	patch -p1 < ${PATCHDIR}/gdb-basename.patch && \
 	patch -p1 < ${PATCHDIR}/mingw-python.patch
 
 ${staging}/lib/libiconv.a: ${source}/libiconv-${iconvversion}.tar.gz | makestagingdir

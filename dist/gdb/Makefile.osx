@@ -98,7 +98,7 @@ ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.xz | makestagi
 	cd gdb-${version} && \
 	touch configure && \
 	touch -d "$$(date -v+1d "+%Y-%m-%dT%H:%M:%S")" bfd/doc/bfd.info && \
-	patch -p1 < ${PATCHDIR}/gdb-basename-mac.patch && \
+	patch -p1 < ${PATCHDIR}/gdb-basename.patch && \
 	patch -p1 < ${PATCHDIR}/pythonhome-7.4_mac.patch
 
 ${targetdir}/bin/gdb: ${staging}/gdb-${version}/configure ${staging}/lib/libpython${pyversion_minor}.a ${staging}/lib/libexpat.a ${staging}/lib/libgmp.a | maketargetdir
