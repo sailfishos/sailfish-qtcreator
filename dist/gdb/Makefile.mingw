@@ -99,7 +99,7 @@ ${staging}/lib/libiconv.a: ${source}/libiconv-${iconvversion}.tar.gz | makestagi
 	cd libiconv-${iconvversion} && \
 	patch -p1 < ${PATCHDIR}/libiconv-aliases2_lookup-mingw.patch && \
 	./configure -prefix=${staging} --enable-static --build=x86_64-w64-mingw32 && \
-	${MAKE} && ${MAKE} install
+	${MAKE} -j4 && ${MAKE} install
 
 ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.bz2 | makestagingdir
 	cd ${staging} && \
@@ -107,7 +107,7 @@ ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.bz2 | makestaging
 	tar xf ${source}/expat-${expatversion}.tar.bz2 && \
 	cd expat-${expatversion} && \
 	./configure -prefix=${staging} --enable-static --build=x86_64-w64-mingw32 && \
-	${MAKE} && ${MAKE} install
+	${MAKE} -j4 && ${MAKE} install
 
 ${staging}/lib/libgmp.a: ${source}/gmp-${gmpversion}.tar.bz2 | makestagingdir
 	cd ${staging} && \
@@ -115,7 +115,7 @@ ${staging}/lib/libgmp.a: ${source}/gmp-${gmpversion}.tar.bz2 | makestagingdir
 	tar xf ${source}/gmp-${gmpversion}.tar.bz2 && \
 	cd gmp-${gmpversion} && \
 	./configure -prefix=${staging} --enable-static --build=x86_64-w64-mingw32 && \
-	${MAKE} && ${MAKE} install
+	${MAKE} -j4 && ${MAKE} install
 
 ${staging}/lib/libpython${pyversion_minor}.dll.a: ${source}/Python-${pyversion}.tgz | makestagingdir
 	unset PYTHONHOME && cd ${staging} && \
@@ -126,7 +126,7 @@ ${staging}/lib/libpython${pyversion_minor}.dll.a: ${source}/Python-${pyversion}.
 	./configure --prefix=/ucrt64 --build=x86_64-w64-mingw32 \
 		--without-c-locale-coercion \
 		--enable-shared --with-system-ffi --without-ensurepip && \
-	${MAKE} && ${MAKE} install DESTDIR=${staging} && \
+	${MAKE} -j4 && ${MAKE} install DESTDIR=${staging} && \
 	tar -C ${staging}/ucrt64 -cp . |tar -C ${staging} -xp
 
 ${targetdir}/bin/python/include/python${pyversion_minor}/pyconfig.h: ${staging}/lib/libpython${pyversion_minor}.dll.a | maketargetdir
@@ -149,7 +149,7 @@ ${targetdir}/bin/gdb.exe: ${staging}/lib/libexpat.a ${staging}/lib/libiconv.a ${
 	--with-separate-debug-dir="" \
 	--with-gdb-datadir='$$prefix/share/gdb' \
 	--with-python=${staging}/bin/python3.exe && \
-	${MAKE} MAKEFLAGS+= -j1 && \
+	${MAKE} MAKEFLAGS+= -j4 && \
 	strip -o ${targetdir}/bin/gdb.exe gdb/gdb.exe
 
 package: ${targetdir}/bin/gdb.exe ${targetdir}/bin/python/include/python${pyversion_minor}/pyconfig.h
