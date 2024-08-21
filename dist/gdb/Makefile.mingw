@@ -1,38 +1,31 @@
-broot=${PWD}
+broot=$(shell cygpath -u ${PWD})
 PATCHDIR?=${broot}/patches
 source=${broot}/source
-targets=i486-meego-linux-gnu armv7hl-meego-linux-gnueabi aarch64-meego-linux-gnu
+targets=i486-meego-linux-gnu,armv7hl-meego-linux-gnueabi,aarch64-meego-linux-gnu
 staging=${broot}/staging
-pyversion_minor=2.7
-pyversion_micro=15
+pyversion_minor=3.10
+pyversion_micro=12
 pyversion=${pyversion_minor}.${pyversion_micro}
-pydir=${broot}/python
-expatversion=2.0.1
+expatversion=2.1.1
 iconvversion=1.14
-version=7.6.2
+gmpversion=6.2.1
+version=12.1
 targetdir=${broot}/qtcreator-gdb-${version}
-gdbtargets=$(addprefix ${targetdir}/bin/gdb-, ${targets})
-packageparts=${targetdir}/bin/lib ${targetdir}/bin/lib ${targetdir}/bin/libiconv-2.dll ${targetdir}/bin/python27.dll ${targetdir}/bin/libexpat-1.dll
-arch=`uname -sm | sed 's/ /-/g' | tr A-Z a-z`
 packagename=sailfish-gdb-${version}-windows.7z
 mingwbin=$(shell dirname $(shell which gcc))
-
-ifdef V
-Q=
-else
-Q=@
-endif
 
 ifeq ($(DOWNLOAD_URL),)
 	DL_GDB=http://ftp.gnu.org/gnu/gdb
 	DL_ICONV=http://ftp.gnu.org/pub/gnu/libiconv
 	DL_EXPAT=http://sourceforge.net/projects/expat/files/expat/${expatversion}
-	DL_PYTHON=http://master.qt-project.org/development_releases/prebuilt/gdb/build-prerequisites
+	DL_GMP=https://gmplib.org/download/gmp
+	DL_PYTHON=https://github.com/msys2-contrib/cpython-mingw/archive/refs/heads
 else
 	DL_GDB=$(DOWNLOAD_URL)
 	DL_EXPAT=$(DOWNLOAD_URL)
 	DL_ICONV=$(DOWNLOAD_URL)
-	DL_PYTHON=$(DOWNLOAD_URL)
+	DL_GMP=$(DOWNLOAD_URL)
+	DL_PYTHON=$(DOWNLOAD_URL)/cpython-mingw
 endif
 
 all: package
@@ -54,94 +47,121 @@ maketargetdir:
 makestagingdir:
 	@test -e ${staging} || mkdir ${staging}
 
-checkunzip:
-	$(Q)unzip -v &> /dev/null || mingw-get install msys-unzip
-
-${source}/python.zip: | makesourcedir checkwget
-	$(Q)cd ${source} && \
-	echo "Downloading python..." && \
-	wget -q $(DL_PYTHON)/python.zip && \
-	touch python.zip
-
-${broot}/python/python.exe: ${source}/python.zip | checkunzip
-	$(Q)cd ${broot} && \
-	echo "Extracting python..." && \
-	unzip -oq ${source}/python.zip && \
-	touch python/python.exe
-
 checkwget:
 	wget -V &> /dev/null || mingw-get install msys-wget-bin
 
-${source}/gdb-${version}.tar.bz2: | makesourcedir checkwget
-	$(Q)cd ${source} && \
+${source}/gdb-${version}.tar.xz: | makesourcedir checkwget
+	cd ${source} && \
 	echo "Downloading gdb..." && \
-	wget -q $(DL_GDB)/gdb-${version}.tar.bz2 || \
-	wget -qO gdb-${version}.tar.bz2 $(DL_GDB)/gdb-${version}a.tar.bz2 && \
-	touch gdb-${version}.tar.bz2
+	wget -q $(DL_GDB)/gdb-${version}.tar.xz || \
+	wget -Oq gdb-${version}.tar.xz $(DL_GDB)/gdb-${version}a.tar.xz && \
+	touch gdb-${version}.tar.xz
 
 ${source}/libiconv-${iconvversion}.tar.gz: | makesourcedir checkwget
-	$(Q)cd ${source} && \
+	cd ${source} && \
 	echo "Downloading iconv..." && \
 	wget -q $(DL_ICONV)/libiconv-${iconvversion}.tar.gz  && \
 	touch ${source}/libiconv-${iconvversion}.tar.gz
 
-${source}/expat-${expatversion}.tar.gz: | makesourcedir checkwget
-	$(Q)cd ${source} && \
+${source}/expat-${expatversion}.tar.bz2: | makesourcedir checkwget
+	cd ${source} && \
 	echo "Downloading expat..." && \
-	wget -q $(DL_EXPAT)/expat-${expatversion}.tar.gz && \
-	touch ${source}/expat-${expatversion}.tar.gz
+	wget -q $(DL_EXPAT)/expat-${expatversion}.tar.bz2 && \
+	touch ${source}/expat-${expatversion}.tar.bz2
 
-${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestagingdir
-	$(Q)cd ${staging} && \
+${source}/gmp-${gmpversion}.tar.bz2: | makesourcedir
+	cd ${source} && \
+	echo "Downloading gmp..." && \
+	wget -q $(DL_GMP)/gmp-${gmpversion}.tar.bz2 && \
+	touch ${source}/gmp-${gmpversion}.tar.bz2
+
+${source}/Python-${pyversion}.tgz: | makesourcedir
+	cd ${source} && \
+	echo "Downloading python..." && \
+	wget -q -O ${source}/Python-${pyversion}.tgz $(DL_PYTHON)/mingw-v${pyversion}.tar.gz && \
+	touch ${source}/Python-${pyversion}.tgz
+
+${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.xz | makestagingdir
+	cd ${staging} && \
 	echo "Extracting gdb..." && \
-	tar xf ${source}/gdb-${version}.tar.bz2 && \
+	tar xf ${source}/gdb-${version}.tar.xz && \
 	cd gdb-${version} && \
 	touch configure && \
-	patch -p2 < ${PATCHDIR}/mingw-compilation.patch
+	touch --date tomorrow bfd/doc/bfd.info && \
+	patch -p1 < ${PATCHDIR}/gdb-basename.patch && \
+	patch -p1 < ${PATCHDIR}/pythonhome-7.4_mingw.patch && \
+	patch -p1 < ${PATCHDIR}/mingw-python.patch
 
 ${staging}/lib/libiconv.a: ${source}/libiconv-${iconvversion}.tar.gz | makestagingdir
-	$(Q)cd ${staging} && \
+	cd ${staging} && \
 	echo "Extracting iconv..." && \
 	tar xf ${source}/libiconv-${iconvversion}.tar.gz && \
 	cd libiconv-${iconvversion} && \
-	./configure -prefix=${staging} --enable-static && \
-	${MAKE} && ${MAKE} install
+	patch -p1 < ${PATCHDIR}/libiconv-aliases2_lookup-mingw.patch && \
+	./configure -prefix=${staging} --enable-static --build=x86_64-w64-mingw32 && \
+	${MAKE} -j4 && ${MAKE} install
 
-${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.gz | makestagingdir
-	$(Q)cd ${staging} && \
+${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.bz2 | makestagingdir
+	cd ${staging} && \
 	echo "Extracting expat..." && \
-	tar xf ${source}/expat-${expatversion}.tar.gz && \
+	tar xf ${source}/expat-${expatversion}.tar.bz2 && \
 	cd expat-${expatversion} && \
-	./configure -prefix=${staging} --enable-static && \
-	${MAKE} && ${MAKE} install
+	./configure -prefix=${staging} --enable-static --build=x86_64-w64-mingw32 && \
+	${MAKE} -j4 && ${MAKE} install
 
-${gdbtargets}: ${targetdir}/bin/gdb-%: ${staging}/lib/libexpat.a ${staging}/lib/libiconv.a ${staging}/gdb-${version}/configure | maketargetdir ${broot}/python/python.exe
-	$(Q)test -e ${staging}/gdb-${version}-$* || mkdir ${staging}/gdb-${version}-$*
-	$(Q)export PYTHONHOME=${pydir} && \
-	LDFLAGS="L${pydir} -lpthread -ldl -lutil -lpython27" && \
-	CFLAGS="-I${pydir}/include" && \
-	cd ${staging}/gdb-${version}-$* && \
-	${staging}/gdb-${version}/configure --target=$* --disable-nls --disable-werror \
+${staging}/lib/libgmp.a: ${source}/gmp-${gmpversion}.tar.bz2 | makestagingdir
+	cd ${staging} && \
+	echo "Extracting gmp..." && \
+	tar xf ${source}/gmp-${gmpversion}.tar.bz2 && \
+	cd gmp-${gmpversion} && \
+	./configure -prefix=${staging} --enable-static --build=x86_64-w64-mingw32 && \
+	${MAKE} -j4 && ${MAKE} install
+
+${staging}/lib/libpython${pyversion_minor}.dll.a: ${source}/Python-${pyversion}.tgz | makestagingdir
+	unset PYTHONHOME && cd ${staging} && \
+	echo "Extracting python..." && \
+	tar xf ${source}/Python-${pyversion}.tgz && \
+	cd cpython-mingw-mingw-v${pyversion} && \
+	autoreconf -vfi && \
+	./configure --prefix=/ucrt64 --build=x86_64-w64-mingw32 \
+		--without-c-locale-coercion \
+		--enable-shared --with-system-ffi --without-ensurepip && \
+	${MAKE} -j4 && ${MAKE} install DESTDIR=${staging} && \
+	tar -C ${staging}/ucrt64 -cp . |tar -C ${staging} -xp
+
+${targetdir}/bin/python/include/python${pyversion_minor}/pyconfig.h: ${staging}/lib/libpython${pyversion_minor}.dll.a | maketargetdir
+	mkdir -p ${targetdir}/bin && cp ${staging}/bin/libpython${pyversion_minor}.dll ${targetdir}/bin/
+	mkdir -p ${targetdir}/bin/python/lib && cp -a ${staging}/lib/python${pyversion_minor} ${targetdir}/bin/python/lib/
+	mkdir -p ${targetdir}/bin/python/include/python${pyversion_minor} && cp ${staging}/include/python${pyversion_minor}/pyconfig.h ${targetdir}/bin/python/include/python${pyversion_minor}/
+	cp ${mingwbin}/zlib1.dll ${targetdir}/bin/python/lib/python${pyversion_minor}/lib-dynload/
+
+${targetdir}/bin/gdb.exe: ${staging}/lib/libexpat.a ${staging}/lib/libiconv.a ${staging}/lib/libgmp.a ${staging}/lib/libpython${pyversion_minor}.dll.a ${staging}/gdb-${version}/configure | maketargetdir
+	test -e ${staging}/gdb-${version}-build || mkdir ${staging}/gdb-${version}-build
+	export PYTHONHOME=${staging} && \
+	export PYTHONNOUSERSITE=1 && \
+	export PATH="${staging}/bin/:$$PATH" && \
+	export LDFLAGS="-L${staging}/lib" && \
+	cd ${staging}/gdb-${version}-build && \
+	${staging}/gdb-${version}/configure --enable-targets=${targets} --disable-nls --disable-werror --build=x86_64-w64-mingw32 \
 	--with-libiconv-prefix=${staging} \
 	--with-expat --with-libexpat-prefix=${staging} \
+	--with-libgmp-prefix=${staging} \
 	--with-separate-debug-dir="" \
 	--with-gdb-datadir='$$prefix/share/gdb' \
-	--with-python=${pydir} && \
-	${MAKE} && \
-	strip -o ${targetdir}/bin/gdb-$*.exe gdb/gdb.exe
+	--with-python=${staging}/bin/python3.exe && \
+	${MAKE} MAKEFLAGS+= -j4 && \
+	strip -o ${targetdir}/bin/gdb.exe gdb/gdb.exe
 
-${targetdir}/share/gdb: ${gdbtargets} | maketargetdir
-	$(Q)! test -e ${targetdir}/share/gdb || rm -r ${targetdir}/share/gdb
-	$(Q)mkdir ${targetdir}/share/gdb
-	$(Q)cp -a ${staging}/gdb-${version}-$(word 1,${targets})/gdb/data-directory/{python,syscalls} ${targetdir}/share/gdb || \
-		{ rm -r ${targetdir}/share/gdb; false; }
-
-package: ${gdbtargets} ${broot}/python/python.exe ${targetdir}/share/gdb
-	$(Q)cp ${staging}/bin/libiconv* ${targetdir}/bin && \
+package: ${targetdir}/bin/gdb.exe ${targetdir}/bin/python/include/python${pyversion_minor}/pyconfig.h
+	cp ${staging}/bin/libiconv* ${targetdir}/bin && \
 	cp ${staging}/bin/libexpat* ${targetdir}/bin && \
-	cp ${pydir}/python*.dll ${targetdir}/bin && \
-	cp -r ${pydir}/lib ${targetdir}/bin && \
-	cp ${mingwbin}/libncursesw-6.dll ${targetdir}/bin && \
-	cp ${mingwbin}/libgcc_s_dw2-1.dll ${targetdir}/bin && \
+	{ ! test -e ${targetdir}/share/gdb || rm -r ${targetdir}/share/gdb; } && \
+	mkdir -p ${targetdir}/share/gdb && \
+	cp ${mingwbin}/libncursesw6.dll ${targetdir}/bin && \
+	cp ${mingwbin}/libgcc_s_seh-1.dll ${targetdir}/bin && \
+	cp ${mingwbin}/libstdc++-6.dll ${targetdir}/bin && \
+	cp ${mingwbin}/libwinpthread-1.dll ${targetdir}/bin && \
+	cp ${mingwbin}/libintl-8.dll ${targetdir}/bin && \
+	cp -r ${staging}/gdb-${version}-build/gdb/data-directory/{python,syscalls} ${targetdir}/share/gdb && \
 	echo "Packing..." && \
 	7z a ${packagename} ${targetdir}/*

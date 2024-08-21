@@ -66,6 +66,7 @@ public:
 
     QString snapshotSuffix() const;
 
+    QString machine;
     Utils::FilePath sysRoot;
     Utils::FilePath toolsPath;
     Utils::FilePath gdb;

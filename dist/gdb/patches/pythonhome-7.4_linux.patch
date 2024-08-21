@@ -1,38 +1,35 @@
-*** source/gdb-7.4/gdb/python/python.c	2012-02-01 10:39:59.812953656 +0100
---- staging/gdb-7.4/gdb/python/python.c	2012-02-01 10:33:45.842953480 +0100
-***************
-*** 32,38 ****
-  #include "serial.h"
-  #include "readline/tilde.h"
-  #include "python.h"
-  #include "cli/cli-utils.h"
-! 
-  #include <ctype.h>
-  
---- 32,38 ----
-  #include "serial.h"
-  #include "readline/tilde.h"
-  #include "python.h"
-  #include "cli/cli-utils.h"
-! #include <libgen.h>
-  #include <ctype.h>
-  
-***************
-*** 1273,1278 ****
---- 1273,1288 ----
-  			     SLASH_STRING, "python", NULL));
-  #endif
-  
-+ 
-+   char readlinkbuffer[BUFSIZ];
-+   int readlinks = readlink("/proc/self/exe", readlinkbuffer, BUFSIZ - 1);
-+   readlinkbuffer[readlinks] = 0; 
-+   char *executeablepath = dirname(readlinkbuffer);
-+   char *pythonhome = malloc(strlen(executeablepath) + strlen("/python/") + 2);
-+   strcpy(pythonhome, executeablepath);
-+   strcat(pythonhome, "/python/");
-+   setenv("PYTHONHOME", pythonhome, 1);
-+ 
-    Py_Initialize ();
-    PyEval_InitThreads ();
-  
+commit 50439f7c338339d7943773a036dc6ca1220fea71 (HEAD -> master)
+Author: Martin Kampas <martin.kampas@seafarix.com>
+Date:   Wed Jun 12 17:52:31 2024 +0200
+
+    Find the bundled python
+
+diff --git a/gdb/python/python.c b/gdb/python/python.c
+index b00b70b..8f63090 100644
+--- a/gdb/python/python.c
++++ b/gdb/python/python.c
+@@ -33,6 +33,7 @@
+ #include "python.h"
+ #include "extension-priv.h"
+ #include "cli/cli-utils.h"
++#include <libgen.h>
+ #include <ctype.h>
+ #include "location.h"
+ #include "ser-event.h"
+@@ -1748,6 +1749,16 @@ message == an error message without a stack will be printed."),
+ #endif
+ #endif
+ 
++
++  char readlinkbuffer[BUFSIZ];
++  int readlinks = readlink("/proc/self/exe", readlinkbuffer, BUFSIZ - 1);
++  readlinkbuffer[readlinks] = 0;
++  char *executeablepath = dirname(readlinkbuffer);
++  char *pythonhome = (char*)malloc(strlen(executeablepath) + strlen("/python/") + 2);
++  strcpy(pythonhome, executeablepath);
++  strcat(pythonhome, "/python/");
++  setenv("PYTHONHOME", pythonhome, 1);
++
+   Py_Initialize ();
+   PyEval_InitThreads ();
+ 
