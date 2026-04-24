@@ -1,0 +1,61 @@
+Adjust the behavior of the 'fix-version' configuration option by using custom formatting for the suffix added to the version string when the current HEAD, index or working tree differs from the tree denoted by the (latest or selected) tag.
+
+The default format is:
+
+    '+$branch.$timestamp.$hash$submodule_info'
+
+The <format> will be evaluated as a shell expression within the build engine. It can be an arbitrary shell expression that evaluates to a string.
+
+The following shell variables will be available to the expression in addition to the pure build engine shell environment:
+
+branch::
++
+--
+The name of the current git branch
+--
+
+timestamp::
++
+--
+The time of the most recent change
+--
+
+hash::
++
+--
+The (abbreviated) hash of the most recent commit or stash
+--
+
+submodule_info::
++
+--
+List of name + hash pairs for all possibly modified submodules
+--
+
+The resulting string will be further sanitized and any characters not allowed in an RPM version string will be replaced with dots.
+
+Examples:
+
+[literal]
+--
+'+$branch.$timestamp.$hash${submodule_info:++submodules}'
+    Omit possibly long summary of submodule changes
+--
+
+[literal]
+--
+'+$(tr "a-z" "A-Z" <<<$branch).$timestamp'
+    Capitalize branch name and omit other info than the timestamp
+--
+
+[literal]
+--
+'+$timestamp$(echo "$timestamp $hash $submodule_info" >> log)'
+    Use just the timestamp and note other values in a file
+--
+
+[literal]
+--
+'""'
+    Do not add any suffix
+--
