@@ -4,7 +4,8 @@ _sfdk_command_qmltypes()
 {
     local -A options=(
         [--no-keep]=
-        [--{no-,}restore-emulator]=
+        [--restore-emulator]=
+        [--no-restore-emulator]=
     )
 
     if [[ $cur == -* ]]; then
