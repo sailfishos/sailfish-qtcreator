@@ -25,6 +25,7 @@
     [
         "build-shell.args",
         "[no-]fix-version",
+        "dirty-version-suffix",
         "output-dir",
         "output-prefix",
         "no-pull-build-requires",
