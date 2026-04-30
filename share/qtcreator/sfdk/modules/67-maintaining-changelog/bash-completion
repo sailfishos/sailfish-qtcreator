@@ -3,23 +3,24 @@
 _sfdk_command_changelog()
 {
     local -A options=(
-        [{-a,--auto-add-annotations}]=
-        [{-A,--only-add-annotations}]=
-        [{-T,--only-add-tagged}]=
-        [{-D,--descendants-of}]=1
-        [{-d,--dense}]=1
-        [--{no-,}favor-tagger]=
+        [-a]= [--auto-add-annotations]=
+        [-A]= [--only-add-annotations]=
+        [-T]= [--only-add-tagged]=
+        [-D]=1 [--descendants-of]=1
+        [-d]=1 [--dense]=1
+        [--favor-tagger]=
+        [--no-favor-tagger]=
         [--no-squeeze-spaces]=
         [--rev-list-args]=1
-        [{-e,--sed-entries}]=1
-        [{-s,--since{,-date,-rev}}]=1
+        [-e]=1 [--sed-entries]=1
+        [-s]=1 [--since]=1 [--since-date]=1 [--since-rev]=1
         [--sort-entries]=
         [--strip-tag-prefix]=1
-        [{-t,--tags}]=1
-        [{-F,--append-from}]=1
+        [-t]=1 [--tags]=1
+        [-F]=1 [--append-from]=1
         [--append-cmd]=1
         [--tags-with-path]=
-        [{-u,--untagged-only}]=
+        [-u]= [--untagged-only]=
         [--script]=1
     )
 
