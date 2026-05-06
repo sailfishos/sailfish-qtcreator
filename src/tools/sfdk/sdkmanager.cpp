@@ -1154,6 +1154,11 @@ QString SdkManager::sdkMaintenanceToolPath()
     return Sdk::installationPath() + '/' + SDK_MAINTENANCE_TOOL;
 }
 
+QString SdkManager::binPath()
+{
+    return Sdk::installationPath() + "/bin";
+}
+
 bool SdkManager::hasEngine()
 {
     return s_instance->m_buildEngine != nullptr;
