@@ -648,7 +648,10 @@ QVariant CMakeGeneratorKitAspect::defaultValue(const Kit *k) const
 
     const QList<CMakeTool::Generator> known = tool->supportedGenerators();
     auto it = std::find_if(known.constBegin(), known.constEnd(), [](const CMakeTool::Generator &g) {
-        return g.matches("Ninja");
+        // Sailfish SDK: Ninja is unsupported by other parts of the SDK involved through Qt Creator.
+        // Ensure it does not mistakenly enable ninja builds based on its presence on host.
+        //return g.matches("Ninja");
+        return false;
     });
     if (it != known.constEnd()) {
         const bool hasNinja = [k]() {
