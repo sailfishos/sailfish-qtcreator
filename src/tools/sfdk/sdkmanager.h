@@ -126,6 +126,7 @@ public:
 
     static QString installationPath();
     static QString sdkMaintenanceToolPath();
+    static QString binPath();
 
     static bool hasEngine();
     static QString noEngineFoundMessage();

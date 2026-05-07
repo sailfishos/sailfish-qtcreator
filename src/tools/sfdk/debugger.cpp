@@ -255,7 +255,7 @@ Debugger::Debugger(const Device *device, const BuildTargetData &target)
     QTC_ASSERT(target.isValid(), return);
 
     m_gdbServerExecutable = "gdbserver";
-    m_gdbExecutable = QCoreApplication::applicationDirPath()
+    m_gdbExecutable = SdkManager::binPath()
         + '/' + HostOsInfo::withExecutableSuffix(m_target.gdb.toString());
 }
 
