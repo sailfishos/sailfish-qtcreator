@@ -124,7 +124,9 @@ bool isConnectedToTerminal()
 
 #if defined(Q_OS_WIN)
         return GetConsoleWindow()
-            && is_cygpty(_fileno(stdin)) && is_cygpty(_fileno(stdout)) && is_cygpty(_fileno(stderr));
+            && (_isatty(_fileno(stdin)) || is_cygpty(_fileno(stdin)))
+            && (_isatty(_fileno(stdout)) || is_cygpty(_fileno(stdout)))
+            && (_isatty(_fileno(stderr)) || is_cygpty(_fileno(stderr)));
 #else
         return isatty(STDIN_FILENO) && isatty(STDOUT_FILENO) && isatty(STDERR_FILENO);
 #endif
