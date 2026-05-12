@@ -38,6 +38,7 @@
 #include <QJsonObject>
 #include <QProcess>
 #include <QRegularExpression>
+#include <QSettings>
 
 using namespace Utils;
 
@@ -61,6 +62,19 @@ QString dockerPath()
         return path;
 
     path = Utils::Environment::systemEnvironment().searchInPath(DOCKER).toString();
+    if (!path.isEmpty())
+        return path;
+
+    if (HostOsInfo::isWindowsHost()) {
+        // Not found in environment? Look up registry.
+        QSettings s(QLatin1String("HKEY_LOCAL_MACHINE\\SOFTWARE\\Docker Inc.\\Docker\\1.0"),
+                    QSettings::NativeFormat);
+        path = s.value(QLatin1String("BinPath")).toString();
+        if (path.startsWith(QLatin1Char('"')) && path.endsWith(QLatin1Char('"')))
+            path = path.mid(1, path.length() - 2); // remove quotes
+        if (!path.isEmpty())
+            path.append(QDir::separator() + QLatin1String(DOCKER));
+    }
 
     return path;
 }
