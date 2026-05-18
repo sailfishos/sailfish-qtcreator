@@ -45,7 +45,7 @@ using namespace Utils;
 namespace Sfdk {
 
 namespace {
-const char DOCKER[] = "docker";
+const char DOCKER[] = "docker" QTC_HOST_EXE_SUFFIX;
 const char SAILFISH_SDK_SYSTEM_DOCKER[] = "SAILFISH_SDK_SYSTEM_DOCKER";
 const quint16 GUESTSSHPORT = 22;
 const quint16 GUESTDBUSPORT = 777;
