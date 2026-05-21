@@ -122,7 +122,7 @@ private:
     static void removeStep(ProjectExplorer::BuildStepList *stepList, Utils::Id stepId);
 
 private:
-    QQueue<ProjectExplorer::Target *> m_updateTargetsQueue;
+    QQueue<QPointer<ProjectExplorer::Target>> m_updateTargetsQueue;
     QBasicTimer m_updateTargetsTimer;
 };
 
