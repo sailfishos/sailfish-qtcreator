@@ -73,7 +73,6 @@ void MerVirtualMachineSettingsWidget::setVmFeatures(VirtualMachine::Features fea
     else
         setToolTip(ui->cpuInfoLabel, tr("Virtual Machine does not allow changing cpu count"));
 
-    setStorageSizeLimits();
     if (features & (VirtualMachine::GrowStorageSize | VirtualMachine::ShrinkStorageSize))
         setToolTip(ui->storageSizeInfoLabel, stopVmText);
     else
