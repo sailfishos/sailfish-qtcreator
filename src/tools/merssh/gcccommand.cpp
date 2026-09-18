@@ -38,13 +38,16 @@ QString GccCommand::name() const
 
 int GccCommand::execute()
 {
+    FILE *stream = stdout;
+
     if (arguments().contains(QLatin1String("-dumpmachine")))
         m_cacheFile = QLatin1String(Sfdk::Constants::GCC_DUMP_MACHINE_CACHE);
     else if (arguments().contains(QLatin1String("-dM")))
         m_cacheFile = QLatin1String(Sfdk::Constants::GCC_DUMP_MACROS_CACHE);
-    else if (arguments().contains(QLatin1String("-E")) && arguments().contains(QLatin1String("-")))
+    else if (arguments().contains(QLatin1String("-E")) && arguments().contains(QLatin1String("-"))) {
         m_cacheFile = QLatin1String(Sfdk::Constants::GCC_DUMP_INCLUDES_CACHE);
-    else if (arguments().contains(QLatin1String("-print-search-dirs")))
+        stream = stderr;
+    } else if (arguments().contains(QLatin1String("-print-search-dirs")))
         m_cacheFile = QLatin1String(Sfdk::Constants::GCC_DUMP_INSTALL_DIR_CACHE);
 
     if (!m_cacheFile.isEmpty())
@@ -55,8 +58,8 @@ int GccCommand::execute()
         if (!cacheFile.open(QIODevice::ReadOnly)) {
             return 1;
         }
-        fprintf(stdout, "%s", cacheFile.readAll().constData());
-        fflush(stdout);
+        fprintf(stream, "%s", cacheFile.readAll().constData());
+        fflush(stream);
         return 0;
     }
 
