@@ -1,3 +1,27 @@
+var warnedAboutMarchUnrecognized = false;
+
+Array.prototype.flat1 = function() {
+    return this.reduce((acc, val) => acc.concat(val), []);
+};
+
+function replaceMarch(compilationDb, argument) {
+    if (argument === "-march=armv7-a")
+        return ["--target=armv7hl-linux-gnu", argument];
+    else if (argument === "-march=armv8-a")
+        return ["--target=aarch64-linux-gnu", argument];
+    else if (argument === "-march=i686")
+        return argument;
+
+    if (!warnedAboutMarchUnrecognized) {
+        console.warn(qsTr("%1: Unrecognized -march code: %2")
+                     .arg(compilationDb)
+                     .arg(argument.replace("-march=", "")));
+        warnedAboutMarchUnrecognized = true;
+    }
+
+    return argument;
+}
+
 export function mapCompilationDatabasePaths() {
     // Projects may use a subdirectory to store sources
     var maxDepth = 1;
@@ -39,6 +63,12 @@ export function mapCompilationDatabasePaths() {
                 return acc;
             }
             object.arguments[0] = command;
+
+            object.arguments.forEach((arg, index) => {
+                if (arg.startsWith("-march="))
+                    object.arguments[index] = replaceMarch(compilationDb, arg);
+            });
+            object.arguments = object.arguments.flat1();
 
             acc.push(object);
             return acc;
