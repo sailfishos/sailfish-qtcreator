@@ -3,3 +3,28 @@ Run rpmbuild. Execute just the %build section of the RPM 'SPEC' file, modifying 
 Unless the (top-level) makefile defines a target named 'compiledb' or 'compile_commands.json', 'make' will be wrapped with the 'compiledb' tool as the default option to generate the compilation database.
 
 A custom mechanism to generate the compilation database may be supplied by defining one of the above mentioned targets. In that case 'make' will be invoked with command line modified by adding that target name and removing any other target-like argument. (Any non-option, non-assignment argument will be removed.  Options that accept arguments need to be sticked together with their arguments with '='.)
+
+=== Compilation database usage
+
+As remarked in the ENABLING ADVANCED CODE EDITING FEATURES FOR COMPILED LANGUAGES section of the domain help, certain configuration may be needed by the tool consuming the compilation database in order to make it recognize the entire compilation context, including target-specific system headers, predefined macros, intrinsic values and all kind of information that is not explicitly expressed in the compilation database.
+
+For example the 'clangd' language server can be instructed to retrieve further details by actually executing the compiler command listed in the compilation database, passing it special arguments. The essential configuration consists of two steps.
+
+1. Whitelist the compiler
++
+--
+This is realized by passing 'clangd' the '--query-driver' option with the path to the compiler as an argument. Multiple paths may be passed separated by commas and it is possible to use glob patterns. A generic approach to whitelist all compilers provided by %{SdkVariant} looks like:
+
+  clangd --query-driver="/home/**/.config/SailfishSDK/\
+  libsfdk/build-target-tools/**/gcc"
+
+--
+2. Tell it which information it should query the driver for
++
+--
+This is currently limited to locating the built-in headers and it can be achieved with 'clangd' configuration snippet like:
+
+  CompileFlags:
+      BuiltinHeaders: QueryDriver
+
+--
