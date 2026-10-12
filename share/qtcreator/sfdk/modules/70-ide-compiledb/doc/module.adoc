@@ -13,6 +13,6 @@ As an example consider using the ViM editor with YouCompleteMe plugin installed.
     $ sfdk compiledb
     $ vim src/my-app.cpp
 
-With the YouCompleteMe plugin ViM looks for 'compile_commands.json' file up the file system hierarchy starting from the directory when the file being edited exists, so at this point it should be all set up, autocompleting identifiers from the 'SailfishApp' namespace and more.
+With the YouCompleteMe plugin ViM looks for 'compile_commands.json' file up the file system hierarchy starting from the directory when the file being edited exists, so at this point it should be already correctly autocompleting identifiers from the 'SailfishApp' namespace and more. Further configuration may be needed by the tool consuming the 'compile_commands.json' in order to make it recognize the entire compilation context, including system headers and target-specific properties.
 
 See the 'compiledb' command description for details and to learn how to adjust the default behavior.
