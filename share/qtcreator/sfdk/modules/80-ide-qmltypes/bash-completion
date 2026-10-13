@@ -3,6 +3,7 @@
 _sfdk_command_qmltypes()
 {
     local -A options=(
+        [--no-deploy]=
         [--no-keep]=
         [--restore-emulator]=
         [--no-restore-emulator]=
