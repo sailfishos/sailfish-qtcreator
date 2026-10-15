@@ -118,65 +118,65 @@ void Task::post(Event event)
 
 void Task::process(Event event)
 {
-    QTC_ASSERT(!processing, return);
-    QScopedValueRollback<bool> guard(processing, true);
+    QTC_ASSERT(!m_processing, return);
+    QScopedValueRollback<bool> guard(m_processing, true);
 
     bool changed = false;
 
-    this->event = event;
+    this->m_event = event;
     while (step())
         changed = true;
 
-    if (this->event != NoEvent) {
+    if (this->m_event != NoEvent) {
         qCWarning(sfdk) << "Task: unhandled event" << enumName(event) << "in state"
-            << enumName(state);
-        this->event = NoEvent;
+            << enumName(m_state);
+        this->m_event = NoEvent;
     }
 
-    if (changed && state != NotStarted)
+    if (changed && m_state != NotStarted)
         TaskManager::changed(this);
 }
 
 void Task::transition(State toState)
 {
     qCDebug(sfdk).nospace() << "Task " << this << " transition: "
-        << enumName(state) << " --" << enumName(event) << "--> " << enumName(toState);
+        << enumName(m_state) << " --" << enumName(m_event) << "--> " << enumName(toState);
 
-    state = toState;
-    onTransition = true;
-    event = NoEvent;
+    m_state = toState;
+    m_onTransition = true;
+    m_event = NoEvent;
 }
 
 void Task::internalTransition()
 {
-    QTC_CHECK(event != NoEvent);
-    qCDebug(sfdk) << "Task" << this << "internal transition:" << enumName(state) << "/"
-        << enumName(event);
-    event = NoEvent;
+    QTC_CHECK(m_event != NoEvent);
+    qCDebug(sfdk) << "Task" << this << "internal transition:" << enumName(m_state) << "/"
+        << enumName(m_event);
+    m_event = NoEvent;
 }
 
 bool Task::exiting()
 {
-    return onTransition;
+    return m_onTransition;
 }
 
 bool Task::entering()
 {
-    return std::exchange(onTransition, false);
+    return std::exchange(m_onTransition, false);
 }
 
 bool Task::step()
 {
 #define ON_ENTRY if (entering())
 #define ON_EXIT if (exiting())
-#define TRANSITION(events, toState_) if ((Events(events) & event) && (transition(toState_), true))
-#define INTERNAL_TRANSITION(events) if ((Events(events) & event) && (internalTransition(), true))
+#define TRANSITION(events, toState_) if ((Events(events) & m_event) && (transition(toState_), true))
+#define INTERNAL_TRANSITION(events) if ((Events(events) & m_event) && (internalTransition(), true))
 
     static auto sayStopping = []() { qerr() << tr("Stopping...") << endl; };
     static auto sayCleaningUp = []() { qerr() << tr("Cleaning up...") << endl; };
     static auto sayBusy = []() { qerr() << tr("Busy...") << endl; };
 
-    switch (state) {
+    switch (m_state) {
     case NotStarted:
         ON_ENTRY {
             TaskManager::exited(this);
@@ -271,7 +271,7 @@ bool Task::step()
         break;
     }
 
-    return onTransition;
+    return m_onTransition;
 
 #undef ON_ENTRY
 #undef ON_EXIT
@@ -361,7 +361,7 @@ void TaskManager::changed(Task *task)
     Q_UNUSED(task);
 
     bool allStopped = Utils::allOf(s_instance->tasks,
-            [](Task *task) { return task->state == Task::Stopped; });
+            [](Task *task) { return task->m_state == Task::Stopped; });
     if (allStopped)
         stop();
 }

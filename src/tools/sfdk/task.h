@@ -95,10 +95,10 @@ private:
     bool step();
 
 private:
-    State state = NotStarted;
-    bool onTransition = false;
-    bool processing = false;
-    Event event = NoEvent;
+    State m_state = NotStarted;
+    bool m_onTransition = false;
+    bool m_processing = false;
+    Event m_event = NoEvent;
 };
 
 class SignalHandler;
