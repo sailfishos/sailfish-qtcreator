@@ -352,6 +352,9 @@ void TaskManager::started(Task *task)
     QTC_ASSERT(!s_instance->tasks.contains(task), return);
 
     s_instance->tasks.insert(task);
+
+    if (task->narrowOutput())
+        TerminalManager::narrowScrollRegionRequest();
 }
 
 void TaskManager::changed(Task *task)
@@ -371,16 +374,23 @@ void TaskManager::exited(Task *task)
     QTC_ASSERT(task != nullptr, return);
     QTC_ASSERT(s_instance->tasks.contains(task), return);
 
+    if (task->narrowOutput())
+        TerminalManager::narrowScrollRegionRelease();
+
     s_instance->tasks.remove(task);
 }
 
 void TaskManager::stop()
 {
+    TerminalManager::maybeSuspendScrollRegion(true);
+
 #ifdef Q_OS_WIN
     QTC_CHECK(false);
 #else
     ::kill(::getpid(), SIGSTOP);
 #endif
+
+    TerminalManager::maybeSuspendScrollRegion(false);
 }
 
 /*!
@@ -491,6 +501,10 @@ void SignalHandler::setUp()
             TaskManager::process(TaskManager::Continue);
             break;
 
+        case SIGWINCH:
+            TerminalManager::handleResize();
+            break;
+
         default:
             qFatal("Read unexpected signal number");
         }
@@ -514,6 +528,8 @@ void SignalHandler::setUp()
         qFatal("Failed to set up SIGTSTP handling");
     if (sigaction(SIGCONT, &action, nullptr))
         qFatal("Failed to set up SIGCONT handling");
+    if (sigaction(SIGWINCH, &action, nullptr))
+        qFatal("Failed to set up SIGWINCH handling");
 }
 
 void SignalHandler::restore()
@@ -528,6 +544,8 @@ void SignalHandler::restore()
         qFatal("Failed to restore original SIGTSTP handling");
     if (signal(SIGCONT, SIG_DFL) == SIG_ERR)
         qFatal("Failed to restore original SIGCONT handling");
+    if (signal(SIGWINCH, SIG_DFL) == SIG_ERR)
+        qFatal("Failed to restore original SIGWINCH handling");
 
     close(signalFd[0]), signalFd[0] = -1;
     close(signalFd[1]), signalFd[1] = -1;

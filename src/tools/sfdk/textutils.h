@@ -30,6 +30,7 @@
 #include <QTextStream>
 
 #include <memory>
+#include <optional>
 
 QT_BEGIN_NAMESPACE
 class QFile;
@@ -43,8 +44,37 @@ QTextStream &qerr();
 std::unique_ptr<QFile> binaryOut(FILE *out);
 
 bool isConnectedToTerminal();
+bool isCompatibleTerminal();
 
 QStringList uiLanguages();
+
+class AnsiControl;
+class TerminalManager
+{
+public:
+    TerminalManager();
+    ~TerminalManager();
+
+public:
+    static void narrowScrollRegionRequest();
+    static void narrowScrollRegionRelease();
+    static void maybeSuspendScrollRegion(bool suspend);
+    static void handleResize();
+
+private:
+    void setScrollRegion(bool update = false);
+    void resetScrollRegion();
+    static std::optional<int> getLinesCount();
+    static std::optional<int> getCurrentRow(AnsiControl &ansi);
+
+#if defined(Q_OS_UNIX)
+    static std::function<void()> setNonCanonicalMode();
+#endif
+
+private:
+    static TerminalManager *s_instance;
+    int m_narrowScrollRegionReqCount{};
+};
 
 class Pager
 {
