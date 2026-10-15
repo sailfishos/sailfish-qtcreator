@@ -404,12 +404,15 @@ public:
         QTC_ASSERT(!info.isEmpty(), return false);
         QTC_ASSERT(!info.first().installed, return false);
 
+        qerr() << tr("Running SDK Maintenance Tool:") << endl;
+
         ProcessTask managePackages;
         managePackages.setProgram(SdkManager::sdkMaintenanceToolPath());
         managePackages.setArguments({"--verbose", "--manage-packages",
                 "non-interactive=1", "accept-licenses=1", "add-packages=" + name});
         managePackages.setProcessEnvironment(addQpaPlatformMinimal());
-        managePackages.setProcessChannelMode(QProcess::ForwardedChannels);
+        managePackages.setForwardProcessChannelsByCopy(true);
+        managePackages.setNarrowOutput(true);
         managePackages.start();
         if (!managePackages.waitForFinishedNoBlock(-1)
                 || managePackages.exitStatus() != QProcess::NormalExit
@@ -437,12 +440,15 @@ public:
         QTC_ASSERT(!info.isEmpty(), return false);
         QTC_ASSERT(info.first().installed, return false);
 
+        qerr() << tr("Running SDK Maintenance Tool:") << endl;
+
         ProcessTask managePackages;
         managePackages.setProgram(SdkManager::sdkMaintenanceToolPath());
         managePackages.setArguments({"--verbose", "--manage-packages",
                 "non-interactive=1", "accept-licenses=1", "remove-packages=" + name});
         managePackages.setProcessEnvironment(addQpaPlatformMinimal());
-        managePackages.setProcessChannelMode(QProcess::ForwardedChannels);
+        managePackages.setForwardProcessChannelsByCopy(true);
+        managePackages.setNarrowOutput(true);
         managePackages.start();
         if (!managePackages.waitForFinishedNoBlock(-1)
                 || managePackages.exitStatus() != QProcess::NormalExit

@@ -22,6 +22,10 @@
 
 #include "processtask.h"
 
+#include "textutils.h"
+
+#include <utils/qtcassert.h>
+
 #include <QCoreApplication>
 #include <QDebug>
 #include <QElapsedTimer>
@@ -32,6 +36,16 @@ using namespace Sfdk;
 /*!
  * \class ProcessTaskBase
  */
+
+void ProcessTaskBase::setForwardProcessChannelsByCopy(bool enabled)
+{
+    QTC_CHECK(enabled);
+
+    connect(&asQProcess(), &QProcess::readyReadStandardOutput,
+            [&]() { qout() << asQProcess().readAllStandardOutput() << flush; });
+    connect(&asQProcess(), &QProcess::readyReadStandardError,
+            [&]() { qerr() << asQProcess().readAllStandardError() << flush; });
+}
 
 bool ProcessTaskBase::waitForFinishedNoBlock(int msecs)
 {

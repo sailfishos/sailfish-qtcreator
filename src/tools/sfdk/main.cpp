@@ -137,6 +137,7 @@ int main(int argc, char **argv)
 
     initQSsh();
 
+    TerminalManager terminalManager;
     TaskManager taskManager;
 
     // TODO Qt Creator uses a more advanced approach, maybe worth to follow parts of it

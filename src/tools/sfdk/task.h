@@ -73,6 +73,9 @@ public:
 
     void terminate();
 
+    bool narrowOutput() const { return m_narrowOutput; }
+    void setNarrowOutput(bool narrow) { m_narrowOutput = narrow; };
+
 protected:
     void started();
     virtual void beginTerminate() = 0;
@@ -99,6 +102,7 @@ private:
     bool m_onTransition = false;
     bool m_processing = false;
     Event m_event = NoEvent;
+    bool m_narrowOutput = false;
 };
 
 class SignalHandler;

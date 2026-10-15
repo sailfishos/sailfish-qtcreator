@@ -33,6 +33,8 @@ class ProcessTaskBase : public Task
     Q_OBJECT
 
 public:
+    void setForwardProcessChannelsByCopy(bool enabled);
+
     bool waitForFinishedNoBlock(int msecs = 30000);
 
     virtual QProcess &asQProcess() = 0;
