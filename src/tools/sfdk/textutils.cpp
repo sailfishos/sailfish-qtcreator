@@ -155,7 +155,7 @@ QStringList uiLanguages()
  * \class Pager
  */
 
-bool Pager::s_enabled = true;
+bool Pager::s_enabled = isConnectedToTerminal();
 
 Pager::Pager()
     : m_stream(stdout)
