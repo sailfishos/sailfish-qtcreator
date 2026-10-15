@@ -1282,10 +1282,10 @@ bool CommandLineParser::showManualPage(const QString &title)
 
     arguments << manPath.toString();
 
-    QProcess viewer;
+    ProcessTask viewer;
     viewer.setProcessChannelMode(QProcess::ForwardedChannels);
     viewer.start("man", arguments);
-    if (!viewer.waitForStarted() || !viewer.waitForFinished(-1)) {
+    if (!viewer.waitForStarted() || !viewer.waitForFinishedNoBlock(-1)) {
         qCDebug(sfdk) << "'man' could not be started";
         return false;
     }

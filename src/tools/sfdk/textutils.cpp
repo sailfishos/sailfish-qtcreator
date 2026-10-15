@@ -168,7 +168,7 @@ Pager::Pager()
     m_pager.setProcessChannelMode(QProcess::ForwardedChannels);
     m_pager.start(); // Using WriteOnly open mode would break it on Windows
     if (m_pager.waitForStarted())
-        m_stream.setDevice(&m_pager);
+        m_stream.setDevice(&m_pager.asQProcess());
     else
         qCDebug(sfdk) << "Pager not available";
 }

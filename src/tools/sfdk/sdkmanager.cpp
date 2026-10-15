@@ -26,6 +26,7 @@
 #include "configuration.h"
 #include "dbus.h"
 #include "dispatch.h"
+#include "processtask.h"
 #include "remoteprocess.h"
 #include "sfdkconstants.h"
 #include "sfdkglobal.h"
@@ -318,7 +319,7 @@ public:
             return dir;
         }();
 
-        QProcess listPackages;
+        ProcessTask listPackages;
         listPackages.setProgram(SdkManager::sdkMaintenanceToolPath());
         listPackages.setProcessEnvironment(addQpaPlatformMinimal());
 
@@ -403,7 +404,7 @@ public:
         QTC_ASSERT(!info.isEmpty(), return false);
         QTC_ASSERT(!info.first().installed, return false);
 
-        QProcess managePackages;
+        ProcessTask managePackages;
         managePackages.setProgram(SdkManager::sdkMaintenanceToolPath());
         managePackages.setArguments({"--verbose", "--manage-packages",
                 "non-interactive=1", "accept-licenses=1", "add-packages=" + name});
@@ -436,7 +437,7 @@ public:
         QTC_ASSERT(!info.isEmpty(), return false);
         QTC_ASSERT(info.first().installed, return false);
 
-        QProcess managePackages;
+        ProcessTask managePackages;
         managePackages.setProgram(SdkManager::sdkMaintenanceToolPath());
         managePackages.setArguments({"--verbose", "--manage-packages",
                 "non-interactive=1", "accept-licenses=1", "remove-packages=" + name});
@@ -1306,7 +1307,7 @@ int SdkManager::runHookNative(const QString &program, const QStringList &argumen
 {
     qCDebug(sfdk) << "About to run hook" << program;
 
-    QProcess hook;
+    ProcessTask hook;
     hook.setProgram(program);
     hook.setArguments(arguments);
     hook.setWorkingDirectory(workingDirectory);

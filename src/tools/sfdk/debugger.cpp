@@ -361,7 +361,7 @@ int Debugger::exec(const QString &executable, const QList<QStringList> &gdbLateI
             qCDebug(sfdk) << '\t' << arg;
     }
 
-    QProcess gdb;
+    ProcessTask gdb;
     gdb.setProgram(m_gdbExecutable);
     gdb.setArguments(gdbArgs);
     gdb.setProcessChannelMode(QProcess::ForwardedChannels);
@@ -374,6 +374,10 @@ int Debugger::exec(const QString &executable, const QList<QStringList> &gdbLateI
         return SFDK_EXIT_ABNORMAL;
     }
 
+    // TODO There should be a flag on the Task that it handles Ctrl-C specially.
+    // Also, explicit forwarding of Ctrl-C/SIGTINT (via TaskManager::Terminate)
+    // only needs to be done for background processes like the one spawned by
+    // SshRemoteProcessRunner. Foreground processes receive it automatically.
     TaskManager::setCtrlCIgnored(true);
 
     while (gdb.state() != QProcess::NotRunning)

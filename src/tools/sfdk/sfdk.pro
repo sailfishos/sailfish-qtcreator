@@ -22,6 +22,7 @@ HEADERS = \
     dbus.h \
     debugger.h \
     dispatch.h \
+    processtask.h \
     sdkmanager.h \
     remoteprocess.h \
     script.h \
@@ -40,6 +41,7 @@ SOURCES = \
     debugger.cpp \
     dispatch.cpp \
     main.cpp \
+    processtask.cpp \
     remoteprocess.cpp \
     script.cpp \
     sdkmanager.cpp \

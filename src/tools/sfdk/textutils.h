@@ -23,6 +23,8 @@
 
 #pragma once
 
+#include "processtask.h"
+
 #include <QMetaEnum>
 #include <QProcess>
 #include <QTextStream>
@@ -56,7 +58,7 @@ public:
 
 private:
     static bool s_enabled;
-    QProcess m_pager;
+    ProcessTask m_pager;
     QTextStream m_stream;
 };
 
