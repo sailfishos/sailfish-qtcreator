@@ -177,8 +177,7 @@ Pager::~Pager()
 {
     if (m_pager.state() != QProcess::NotRunning) {
         m_pager.closeWriteChannel();
-        while (m_pager.state() != QProcess::NotRunning)
-            QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);
+        m_pager.waitForFinishedNoBlock(-1);
         if (m_pager.exitStatus() != QProcess::NormalExit
                 || m_pager.exitCode() != 0) {
             qCDebug(sfdk) << "Pager exited with error" << m_pager.error()

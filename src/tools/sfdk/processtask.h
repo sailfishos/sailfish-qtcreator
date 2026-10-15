@@ -33,6 +33,8 @@ class ProcessTaskBase : public Task
     Q_OBJECT
 
 public:
+    bool waitForFinishedNoBlock(int msecs = 30000);
+
     virtual QProcess &asQProcess() = 0;
 
 protected:
@@ -64,7 +66,6 @@ public:
 
     using QProcess::start;
     using QProcess::waitForStarted;
-    using QProcess::waitForFinished;
 
     using QProcess::state;
     using QProcess::error;

@@ -33,6 +33,26 @@ using namespace Sfdk;
  * \class ProcessTaskBase
  */
 
+bool ProcessTaskBase::waitForFinishedNoBlock(int msecs)
+{
+    QElapsedTimer timer;
+    timer.start();
+
+    bool timedOut = false;
+
+    while (asQProcess().state() != QProcess::NotRunning) {
+        if (msecs >= 0) {
+            timedOut = timer.elapsed() > msecs;
+            if (timedOut)
+                break;
+        }
+
+        QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);
+    }
+
+    return !timedOut;
+}
+
 void ProcessTaskBase::init()
 {
     connect(&asQProcess(), &QProcess::started,

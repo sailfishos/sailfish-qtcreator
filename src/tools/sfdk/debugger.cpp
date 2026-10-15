@@ -380,9 +380,7 @@ int Debugger::exec(const QString &executable, const QList<QStringList> &gdbLateI
     // SshRemoteProcessRunner. Foreground processes receive it automatically.
     TaskManager::setCtrlCIgnored(true);
 
-    while (gdb.state() != QProcess::NotRunning)
-        QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);
-
+    gdb.waitForFinishedNoBlock(-1);
     if (gdb.exitStatus() != QProcess::NormalExit) {
         // Assume GDB was already verbose enough
         return SFDK_EXIT_ABNORMAL;

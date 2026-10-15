@@ -332,7 +332,7 @@ public:
         listPackages.setArguments(arguments);
 
         listPackages.start();
-        if (!listPackages.waitForFinished(-1)
+        if (!listPackages.waitForFinishedNoBlock(-1)
                 || listPackages.exitStatus() != QProcess::NormalExit
                 || (listPackages.exitCode() != EXIT_SUCCESS
                     && listPackages.exitCode() != SDK_MAINTENANCE_TOOL_EXIT_CANCEL)) {
@@ -411,7 +411,7 @@ public:
         managePackages.setProcessEnvironment(addQpaPlatformMinimal());
         managePackages.setProcessChannelMode(QProcess::ForwardedChannels);
         managePackages.start();
-        if (!managePackages.waitForFinished(-1)
+        if (!managePackages.waitForFinishedNoBlock(-1)
                 || managePackages.exitStatus() != QProcess::NormalExit
                 || managePackages.exitCode() != EXIT_SUCCESS) {
             qerr() << tr("Failed to install installer-provided packages");
@@ -444,7 +444,7 @@ public:
         managePackages.setProcessEnvironment(addQpaPlatformMinimal());
         managePackages.setProcessChannelMode(QProcess::ForwardedChannels);
         managePackages.start();
-        if (!managePackages.waitForFinished(-1)
+        if (!managePackages.waitForFinishedNoBlock(-1)
                 || managePackages.exitStatus() != QProcess::NormalExit
                 || managePackages.exitCode() != EXIT_SUCCESS) {
             qerr() << tr("Failed to uninstall installer-provided packages");
@@ -1318,7 +1318,7 @@ int SdkManager::runHookNative(const QString &program, const QStringList &argumen
     hook.setProcessEnvironment(environment);
 
     hook.start();
-    if (!hook.waitForFinished() || hook.exitStatus() != QProcess::NormalExit) {
+    if (!hook.waitForFinishedNoBlock() || hook.exitStatus() != QProcess::NormalExit) {
         qerr() << tr("Error running hook \"%1\"").arg(program) << endl;
         return EXIT_FAILURE;
     }
