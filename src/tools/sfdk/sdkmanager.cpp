@@ -407,9 +407,14 @@ public:
         qerr() << tr("Running SDK Maintenance Tool:") << endl;
 
         ProcessTask managePackages;
-        managePackages.setProgram(SdkManager::sdkMaintenanceToolPath());
-        managePackages.setArguments({"--verbose", "--manage-packages",
-                "non-interactive=1", "accept-licenses=1", "add-packages=" + name});
+        //managePackages.setProgram(SdkManager::sdkMaintenanceToolPath());
+        //managePackages.setArguments({"--verbose", "--manage-packages",
+        //        "non-interactive=1", "accept-licenses=1", "add-packages=" + name});
+#if defined(Q_OS_WIN)
+        managePackages.setProgram("./lorem.bat");
+#else
+        managePackages.setProgram("./lorem.sh");
+#endif
         managePackages.setProcessEnvironment(addQpaPlatformMinimal());
         managePackages.setForwardProcessChannelsByCopy(true);
         managePackages.setNarrowOutput(true);
