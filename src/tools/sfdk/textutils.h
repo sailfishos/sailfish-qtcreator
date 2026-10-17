@@ -44,7 +44,6 @@ QTextStream &qerr();
 std::unique_ptr<QFile> binaryOut(FILE *out);
 
 bool isConnectedToTerminal();
-bool isCompatibleTerminal();
 
 QStringList uiLanguages();
 
@@ -64,12 +63,8 @@ public:
 private:
     void setScrollRegion(bool update = false);
     void resetScrollRegion();
-    static std::optional<int> getLinesCount();
+    static std::optional<int> getLinesCount(AnsiControl &ansi);
     static std::optional<int> getCurrentRow(AnsiControl &ansi);
-
-#if defined(Q_OS_UNIX)
-    static std::function<void()> setNonCanonicalMode();
-#endif
 
 private:
     static TerminalManager *s_instance;

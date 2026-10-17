@@ -141,35 +141,6 @@ bool isConnectedToTerminal()
     return isConnectedToTerminal;
 }
 
-bool isCompatibleTerminal()
-{
-    static const bool isCompatibleTerminal = []() -> bool {
-        if (!qEnvironmentVariableIsEmpty(Constants::TERMINAL_COMPATIBLE_HINT_ENV_VAR))
-            return qEnvironmentVariableIntValue(Constants::TERMINAL_COMPATIBLE_HINT_ENV_VAR);
-
-#if defined(Q_OS_WIN)
-        // Under Mintty it is not possible to use GetConsoleScreenBufferInfo. It
-        // should be possible to implement TerminalManager::getLinesCount() and
-        // TerminalManager::getCurrentRow() using ANSI codes, though it is said
-        // to be prone to break (get out of sync) easily.
-        const QString windowsTerminalSession = qEnvironmentVariable("WT_SESSION");
-        return !windowsTerminalSession.isEmpty();
-#else
-        const QString term = qEnvironmentVariable("TERM");
-        return term == "vt100"
-               || term.startsWith("linux")
-               || term == "mintty"
-               || term == "rxvt"
-               || term.startsWith("screen")
-               || term.startsWith("tmux")
-               || term.startsWith("xterm")
-        ;
-#endif
-    }();
-
-    return isCompatibleTerminal;
-}
-
 // QLocale::uiLanguages() does not provide the desired output
 QStringList uiLanguages()
 {
@@ -185,25 +156,176 @@ QStringList uiLanguages()
 }
 
 /*!
- * \class AnsiControl
+ * \class TerminalInfo
  */
 
-#if !defined(Q_OS_WIN)
-class AnsiControlBase
+class TerminalInfo
 {
-protected:
-    QTextStream &out() { return qout(); }
+    Q_GADGET
+
+public:
+    enum Feature {
+        NotCompatible = 0,
+        CanNarrowScrollRegion = 1<<1,
+
+        // Unix only
+        CanIoctlTIOCGWINSZ = 1<<10,
+
+        // Windows only
+        CanGetConsoleScreenBufferInfo = 1<<20,
+    };
+    Q_DECLARE_FLAGS(Features, Feature)
+    Q_FLAG(Features)
+
+    static Features features();
+
+    static bool canNarrowScrollRegion()
+    { return features() & CanNarrowScrollRegion; }
+    static bool canIoctlTIOCGWINSZ()
+    { return features() & CanIoctlTIOCGWINSZ; }
+    static bool canGetConsoleScreenBufferInfo()
+    { return features() & CanGetConsoleScreenBufferInfo; }
 };
 
-#else // Windows is special
-class AnsiControlBase
+TerminalInfo::Features TerminalInfo::features()
+{
+    static Features features = []() -> Features {
+        if (!qEnvironmentVariableIsEmpty(Constants::TERMINAL_COMPATIBLE_HINT_ENV_VAR)) {
+            Features features(
+                qEnvironmentVariableIntValue(Constants::TERMINAL_COMPATIBLE_HINT_ENV_VAR));
+            qCDebug(sfdk) << "Forcing TerminalInfo::features:" << features;
+            return features;
+        }
+
+        Features features;
+
+#if defined(Q_OS_WIN)
+        // Under Mintty it is not possible to use GetConsoleScreenBufferInfo and
+        // it is not really possible to use ANSI codes to query cursor position
+        // and window size there (see AnsiIOWindows::initInput). Therefore
+        // disabled.
+        //if (isConnectedToTerminal()) {
+        //    features |= CanNarrowScrollRegion;
+        //}
+
+        const QString windowsTerminalSession = qEnvironmentVariable("WT_SESSION");
+        if (!windowsTerminalSession.isEmpty()) {
+            features |= CanNarrowScrollRegion;
+            features |= CanGetConsoleScreenBufferInfo;
+        }
+#else
+        features |= CanIoctlTIOCGWINSZ;
+
+        const QString term = qEnvironmentVariable("TERM");
+        if (term == "vt100"
+            || term.startsWith("linux")
+            || term == "mintty"
+            || term == "rxvt"
+            || term.startsWith("screen")
+            || term.startsWith("tmux")
+            || term.startsWith("xterm")) {
+            features |= CanNarrowScrollRegion;
+        }
+#endif
+
+        qCDebug(sfdk) << "TerminalInfo::features:" << features;
+
+        return features;
+    }();
+
+    return features;
+}
+
+/*!
+ * \class AnsiIO
+ */
+
+class AnsiIO
 {
 public:
-    AnsiControlBase()
+    virtual ~AnsiIO() {}
+    virtual QTextStream &out() = 0;
+    virtual bool getChar(char *c) = 0;
+};
+
+/*!
+ * \class AnsiIOUnix
+ */
+
+class AnsiIOUnix : public AnsiIO
+{
+public:
+    ~AnsiIOUnix() override
+    {
+        if (m_restoreInput)
+            m_restoreInput();
+    }
+
+    QTextStream &out() override { return qout(); }
+
+    bool getChar(char *c) override
+    {
+        if (!m_in) {
+            if (!initInput()) {
+                static bool once = true;
+                if (once) {
+                    qCDebug(sfdk) << "Failed to set terminal to non-canonical mode";
+                    once = false;
+                }
+                return false;
+            }
+        }
+
+        return m_in->getChar(c);
+    }
+
+private:
+    bool initInput()
+    {
+        QTC_ASSERT(!m_restoreInput, return true);
+
+#if defined(Q_OS_UNIX)
+        struct termios originalAttributes;
+        if (tcgetattr(STDIN_FILENO, &originalAttributes) != 0)
+            return false;
+        struct termios newAttributes = originalAttributes;
+        newAttributes.c_lflag &= ~(ICANON | ECHO);
+        newAttributes.c_cc[VMIN] = 1;
+        newAttributes.c_cc[VTIME] = 0;
+        if (tcsetattr(STDIN_FILENO, TCSANOW, &newAttributes) != 0)
+            return false;
+
+        m_restoreInput = [=]() {
+            tcsetattr(STDIN_FILENO, TCSANOW, &originalAttributes);
+        };
+#endif
+
+        m_in = std::make_unique<QFile>();
+        if (!m_in->open(stdin, QIODevice::ReadOnly)) {
+            m_in.reset();
+            return false;
+        }
+
+        return true;
+    }
+
+private:
+    std::unique_ptr<QFile> m_in;
+    std::function<void()> m_restoreInput;
+};
+
+/*!
+ * \class AnsiIOWindows
+ */
+
+class AnsiIOWindows : public AnsiIO
+{
+public:
+    AnsiIOWindows()
         : m_outFile(binaryOut(stdout))
         , m_outStream(m_outFile.get())
     {
-        if (!enableVTProcessing()) {
+        if (!initOutput()) {
             static bool once = true;
             if (once) {
                 qCDebug(sfdk) << "Failed to enable VT processing";
@@ -212,15 +334,41 @@ public:
         }
     }
 
-protected:
-    QTextStream &out() { return m_outStream; }
+    ~AnsiIOWindows() override
+    {
+        if (m_restoreInput)
+            m_restoreInput();
+    }
+
+public:
+    QTextStream &out() override { return m_outStream; }
+
+    bool getChar(char *c) override
+    {
+        if (!m_getChar) {
+            if (!initInput()) {
+                static bool once = true;
+                if (once) {
+                    qCDebug(sfdk) << "Failed to set input console mode";
+                    once = false;
+                }
+
+                return false;
+            }
+        }
+
+        return m_getChar(c);
+    }
 
 private:
-    // The effect of this is not necessarily persistent. A child process may
-    // restore/override terminal settings at will. Hence the repeated invocation
-    // in constructor.
-    bool enableVTProcessing()
+    // The effect of this, though not explicitly reverted by this class, is not
+    // necessarily persistent. A child process may restore/override terminal
+    // settings at will. Hence the repeated invocation in constructor.
+    bool initOutput()
     {
+#if !defined(Q_OS_WIN)
+        QTC_ASSERT(false, return false);
+#else
         HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
         if (hOut == INVALID_HANDLE_VALUE)
             return false;
@@ -229,74 +377,133 @@ private:
         if (!GetConsoleMode(hOut, &dwMode))
             return false;
 
-        // Enable Virtual Terminal Processing (ANSI Escape Sequences)
         dwMode |= ENABLE_PROCESSED_OUTPUT;
         dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
         if (!SetConsoleMode(hOut, dwMode))
             return false;
 
         return true;
+#endif
+    }
+
+    bool initInput()
+    {
+#if !defined(Q_OS_WIN)
+        QTC_ASSERT(false, return false);
+#else
+        // This is rather a dead code left for reference.
+        //
+        // 1) Under Windows Terminal it is not needed as the native calls like
+        // GetConsoleScreenBufferInfo can be used there.
+        //
+        // 2) Under MSYS/Mintty it is unusable as it communicates with native
+        // Windows (MSVC) binaries via Windows Anonymous Pipes to emulate a UNIX
+        // pseudo-terminal and compared to the output path, which works
+        // reasonably well, there does not seem to be a way to persuade it to
+        // pass the terminal reply through to be succesfully read here.
+        // The only working way I found utilized some ntdll black magic combined
+        // with `stty` invocation in a subprocess to switch the terminal to raw
+        // mode. Something to be included only if really needed.
+
+        HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+        if (hIn == INVALID_HANDLE_VALUE)
+            return false;
+
+        DWORD oldMode;
+        if (!GetConsoleMode(hIn, &oldMode))
+            return false;
+
+        // Disable line input and echo so we can grab raw data instantly
+        DWORD rawMode = oldMode & ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
+        if (!SetConsoleMode(hIn, rawMode))
+            return false;
+
+        m_getChar = [=](char *c) {
+            DWORD read;
+            return ReadFile(hIn, c, 1, &read, NULL) && read > 0;
+        };
+
+        m_restoreInput = [=]() {
+            if (!SetConsoleMode(hIn, oldMode)) {
+                static bool once = true;
+                if (once) {
+                    qCDebug(sfdk) << "Failed to restore input console mode.";
+                    once = false;
+                }
+            }
+        };
+
+        return true;
+#endif
     }
 
 private:
     std::unique_ptr<QFile> m_outFile;
     QTextStream m_outStream;
+    std::function<bool(char *)> m_getChar;
+    std::function<void()> m_restoreInput;
 };
-#endif
 
-class AnsiControl : public AnsiControlBase
+/*
+ * \class AnsiControl
+ */
+
+class AnsiControl
 {
 public:
+    AnsiControl()
+    {
+        if (HostOsInfo::isWindowsHost())
+            m_io = std::make_unique<AnsiIOWindows>();
+        else
+            m_io = std::make_unique<AnsiIOUnix>();
+
+    }
+
     void flush()
     {
-        out().flush();
+        m_io->out().flush();
     }
 
     void setScrollRegion(int topLine, int bottomLine)
     {
-        out() << "\x1b[" << topLine << ';' << bottomLine << 'r';
+        m_io->out() << "\x1b[" << topLine << ';' << bottomLine << 'r';
     }
 
     void unsetScrollRegion()
     {
-        out() << "\x1b[r";
+        m_io->out() << "\x1b[r";
     }
 
     void saveCursorPosition()
     {
-        out() << "\x1b[s";
+        m_io->out() << "\x1b[s";
     }
 
     void restoreCursorPosition()
     {
-        out() << "\x1b[u";
+        m_io->out() << "\x1b[u";
     }
 
     void moveCursor(int row, int column = -1)
     {
-        out() << "\x1b[" << row;
+        m_io->out() << "\x1b[" << row;
         if (column > 0)
-            out() << ';' << column;
-        out() << 'H';
+            m_io->out() << ';' << column;
+        m_io->out() << 'H';
     }
 
     void askCursorPosition()
     {
-        out() << "\x1b[6n";
+        m_io->out() << "\x1b[6n";
     }
 
-#if defined(Q_OS_UNIX)
-    // Simply reading from stdin would not work on Windows
     bool readCursorPosition(int *row, int *column)
     {
-        QFile in;
-        if (!in.open(stdin, QIODevice::ReadOnly))
-            return false;
-
         QByteArray buf;
         char c;
         do {
-            if (!in.getChar(&c))
+            if (!m_io->getChar(&c))
                 return false;
             buf.append(c);
         } while (c != 'R');
@@ -305,7 +512,29 @@ public:
 
         return sscanf(buf.constData(), "\x1b[%d;%dR", row, column) == 2;
     }
-#endif
+
+    void askTextAreaSize()
+    {
+        m_io->out() << "\x1b[18t";
+    }
+
+    bool readTextAreaSize(int *rows, int *columns)
+    {
+        QByteArray buf;
+        char c;
+        do {
+            if (!m_io->getChar(&c))
+                return false;
+            buf.append(c);
+        } while (c != 't');
+
+        buf.append('\0');
+
+        return sscanf(buf.constData(), "\x1b[%d;%dt", rows, columns) == 2;
+    }
+
+private:
+    std::unique_ptr<AnsiIO> m_io;
 };
 
 /*!
@@ -327,7 +556,7 @@ TerminalManager::~TerminalManager()
 
 void TerminalManager::narrowScrollRegionRequest()
 {
-    if (!Pager::isEnabled() || !isCompatibleTerminal())
+    if (!Pager::isEnabled() || !TerminalInfo::canNarrowScrollRegion())
         return;
 
     if (++s_instance->m_narrowScrollRegionReqCount == 1)
@@ -336,7 +565,7 @@ void TerminalManager::narrowScrollRegionRequest()
 
 void TerminalManager::narrowScrollRegionRelease()
 {
-    if (!Pager::isEnabled() || !isCompatibleTerminal())
+    if (!Pager::isEnabled() || !TerminalInfo::canNarrowScrollRegion())
         return;
 
     QTC_CHECK(s_instance->m_narrowScrollRegionReqCount > 0);
@@ -346,7 +575,7 @@ void TerminalManager::narrowScrollRegionRelease()
 
 void TerminalManager::maybeSuspendScrollRegion(bool suspend)
 {
-    if (!Pager::isEnabled() || !isCompatibleTerminal())
+    if (!Pager::isEnabled() || !TerminalInfo::canNarrowScrollRegion())
         return;
     if (s_instance->m_narrowScrollRegionReqCount <= 0)
         return;
@@ -359,7 +588,7 @@ void TerminalManager::maybeSuspendScrollRegion(bool suspend)
 
 void TerminalManager::handleResize()
 {
-    if (!Pager::isEnabled() || !isCompatibleTerminal())
+    if (!Pager::isEnabled() || !TerminalInfo::canNarrowScrollRegion())
         return;
 
     if (s_instance->m_narrowScrollRegionReqCount > 0)
@@ -374,7 +603,7 @@ void TerminalManager::setScrollRegion(bool update)
     if (!update)
         qout() << QString(SCROLL_BOX_HEIGHT, '\n') << flush;
 
-    const int termLines = getLinesCount().value_or(-1);
+    const int termLines = getLinesCount(ansi).value_or(-1);
     if (termLines < 0)
         return;
 
@@ -415,67 +644,81 @@ void TerminalManager::resetScrollRegion()
 // Doing this with ANSI codes would be unnecessarily complicated on Windows (not
 // possible to simply read the response with standard library IO as on Linux)
 // and also less reliable on Linux during window resizing.
-std::optional<int> TerminalManager::getLinesCount()
+std::optional<int> TerminalManager::getLinesCount(AnsiControl &ansi)
 {
 #if defined(Q_OS_WIN)
-    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    if (TerminalInfo::canGetConsoleScreenBufferInfo()) {
+        HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
 
-    if (!GetConsoleScreenBufferInfo(hOut, &csbi)) {
-        static bool once = true;
-        if (once) {
-            qCWarning(sfdk) << "Failed to determine terminal window size";
-            once = false;
+        if (!GetConsoleScreenBufferInfo(hOut, &csbi)) {
+            static bool once = true;
+            if (once) {
+                qCWarning(sfdk) << "Failed to determine terminal window size";
+                once = false;
+            }
+            return {};
         }
-        return {};
-    }
 
-    return csbi.dwSize.Y;
+        return csbi.dwSize.Y;
+    }
 #else
-    struct winsize w;
+    if (TerminalInfo::canIoctlTIOCGWINSZ()) {
+        struct winsize w;
 
-    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) != 0) {
+        if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) != 0) {
+            static bool once = true;
+            if (once) {
+                qCWarning(sfdk) << "Failed to determine terminal window size";
+                once = false;
+            }
+            return {};
+        }
+
+        return w.ws_row;
+    }
+#endif
+
+    ansi.askTextAreaSize();
+    ansi.flush();
+
+    int rows = 0;
+    int columns = 0;
+    bool ok = ansi.readTextAreaSize(&rows, &columns);
+
+    if (!ok) {
         static bool once = true;
         if (once) {
-            qCWarning(sfdk) << "Failed to determine terminal window size";
+            qCDebug(sfdk) << "Failed to determine lines count";
             once = false;
         }
         return {};
     }
 
-    return w.ws_row;
-#endif
+    return rows;
 }
 
 std::optional<int> TerminalManager::getCurrentRow(AnsiControl &ansi)
 {
 #if defined(Q_OS_WIN)
-    Q_UNUSED(ansi);
-    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    if (TerminalInfo::canGetConsoleScreenBufferInfo()) {
+        Q_UNUSED(ansi);
+        HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
 
-    if (!GetConsoleScreenBufferInfo(hOut, &csbi)) {
-        static bool once = true;
-        if (once) {
-            qCWarning(sfdk) << "Failed to determine cursor position";
-            once = false;
+        if (!GetConsoleScreenBufferInfo(hOut, &csbi)) {
+            static bool once = true;
+            if (once) {
+                qCWarning(sfdk) << "Failed to determine cursor position";
+                once = false;
+            }
+            return {};
         }
-        return {};
-    }
 
-    // Add one to align with 1-based indexing with ANSI
-    return csbi.dwCursorPosition.Y + 1;
-#else
-    auto restore = setNonCanonicalMode();
-    if (!restore) {
-        static bool once = true;
-        if (once) {
-            qCDebug(sfdk) << "Failed to set terminal to non-canonical mode:"
-                    << strerror(errno);
-            once = false;
-        }
-        return {};
+        // Add one to align with 1-based indexing with ANSI
+        return csbi.dwCursorPosition.Y + 1;
     }
+#endif
 
     ansi.askCursorPosition();
     ansi.flush();
@@ -483,8 +726,6 @@ std::optional<int> TerminalManager::getCurrentRow(AnsiControl &ansi)
     int row = 0;
     int column = 0;
     bool ok = ansi.readCursorPosition(&row, &column);
-
-    restore();
 
     if (!ok) {
         static bool once = true;
@@ -496,30 +737,7 @@ std::optional<int> TerminalManager::getCurrentRow(AnsiControl &ansi)
     }
 
     return row;
-#endif
 }
-
-#if defined(Q_OS_UNIX)
-// Needed for reading ANSI responses
-std::function<void()> TerminalManager::setNonCanonicalMode()
-{
-    struct termios originalAttributes;
-    if (tcgetattr(STDIN_FILENO, &originalAttributes) != 0)
-        return {};
-    struct termios newAttributes = originalAttributes;
-    newAttributes.c_lflag &= ~(ICANON | ECHO);
-    newAttributes.c_cc[VMIN] = 1;
-    newAttributes.c_cc[VTIME] = 0;
-    if (tcsetattr(STDIN_FILENO, TCSANOW, &newAttributes) != 0)
-        return {};
-
-    auto restore = [=]() {
-        tcsetattr(STDIN_FILENO, TCSANOW, &originalAttributes);
-    };
-
-    return restore;
-}
-#endif
 
 /*!
  * \class Pager
@@ -1062,3 +1280,5 @@ QList<QStringList> TreePrinter::topoSort(const QList<QStringList> &table, int id
 }
 
 } // namespace Sfdk
+
+#include "textutils.moc"
