@@ -34,7 +34,7 @@
 #include <sfdk/emulator.h>
 #include <sfdk/virtualmachine.h>
 
-#include "remoteprocess.h"
+#include "remoteprocesstask.h"
 #include "sdkmanager.h"
 #include "sfdkglobal.h"
 
@@ -129,7 +129,7 @@ public slots:
     void prepare(const QDBusMessage &message)
     {
         withDevice(message, [=](Device *device) {
-            RemoteProcess noop;
+            RemoteProcessTask noop;
             if (!SdkManager::prepareForRunOnDevice(*device, &noop))
                 replyError(message, tr("Failed to prepare device"));
         });

@@ -21,7 +21,7 @@
 **
 ****************************************************************************/
 
-#include "remoteprocess.h"
+#include "remoteprocesstask.h"
 
 #include "sfdkconstants.h"
 #include "sfdkglobal.h"
@@ -51,23 +51,23 @@ using namespace Sfdk;
  * \class RemoteProcess
  */
 
-RemoteProcess::RemoteProcess(QObject *parent)
+RemoteProcessTask::RemoteProcessTask(QObject *parent)
     : Task(parent)
     , m_runner(std::make_unique<SshRemoteProcessRunner>(this))
 {
     connect(m_runner.get(), &SshRemoteProcessRunner::processStarted,
-            this, &RemoteProcess::onProcessStarted);
+            this, &RemoteProcessTask::onProcessStarted);
     connect(m_runner.get(), &SshRemoteProcessRunner::readyReadStandardOutput,
-            this, &RemoteProcess::onReadyReadStandardOutput);
+            this, &RemoteProcessTask::onReadyReadStandardOutput);
     connect(m_runner.get(), &SshRemoteProcessRunner::readyReadStandardError,
-            this, &RemoteProcess::onReadyReadStandardError);
+            this, &RemoteProcessTask::onReadyReadStandardError);
     connect(m_runner.get(), &SshRemoteProcessRunner::connectionError,
-            this, &RemoteProcess::onConnectionError);
+            this, &RemoteProcessTask::onConnectionError);
     connect(m_runner.get(), &SshRemoteProcessRunner::processClosed,
-            this, &RemoteProcess::onProcessClosed);
+            this, &RemoteProcessTask::onProcessClosed);
 }
 
-RemoteProcess::~RemoteProcess()
+RemoteProcessTask::~RemoteProcessTask()
 {
     if (m_stdoutBuffer.hasData())
         emit standardOutput(m_stdoutBuffer.flush());
@@ -75,79 +75,79 @@ RemoteProcess::~RemoteProcess()
         emit standardError(m_stderrBuffer.flush());
 }
 
-void RemoteProcess::setProgram(const QString& program)
+void RemoteProcessTask::setProgram(const QString& program)
 {
     m_program = program;
 }
 
-void RemoteProcess::setArguments(const QStringList& arguments)
+void RemoteProcessTask::setArguments(const QStringList& arguments)
 {
     m_arguments = arguments;
 }
 
-void RemoteProcess::setWorkingDirectory(const QString& workingDirectory)
+void RemoteProcessTask::setWorkingDirectory(const QString& workingDirectory)
 {
     m_workingDirectory = workingDirectory;
 }
 
-void RemoteProcess::setSshParameters(const SshConnectionParameters& params)
+void RemoteProcessTask::setSshParameters(const SshConnectionParameters& params)
 {
     m_sshConnectionParams = params;
 }
 
-void RemoteProcess::setExtraEnvironment(const QProcessEnvironment &extraEnvironment)
+void RemoteProcessTask::setExtraEnvironment(const QProcessEnvironment &extraEnvironment)
 {
     m_extraEnvironment = extraEnvironment;
 }
 
-void RemoteProcess::setRunInTerminal(Utils::optional<bool> runInTerminal)
+void RemoteProcessTask::setRunInTerminal(Utils::optional<bool> runInTerminal)
 {
     m_runInTerminal = runInTerminal;
 }
 
-void RemoteProcess::setInputChannelMode(Utils::optional<QProcess::InputChannelMode> inputChannelMode)
+void RemoteProcessTask::setInputChannelMode(Utils::optional<QProcess::InputChannelMode> inputChannelMode)
 {
     m_inputChannelMode = inputChannelMode;
 }
 
-void RemoteProcess::setStandardOutputLineBuffered(bool lineBuffered)
+void RemoteProcessTask::setStandardOutputLineBuffered(bool lineBuffered)
 {
     m_standardOutputLineBuffered = lineBuffered;
 }
 
-void RemoteProcess::enableLogAllOutput(std::function<const QLoggingCategory &()> category, const QString &key)
+void RemoteProcessTask::enableLogAllOutput(std::function<const QLoggingCategory &()> category, const QString &key)
 {
     if (category().isDebugEnabled()) {
         auto rtrim1eol = [](const QByteArray &a) {
             return a.endsWith('\n') ? a.chopped(1) : a;
         };
-        QObject::connect(this, &RemoteProcess::standardOutput, [=](const QByteArray &data) {
+        QObject::connect(this, &RemoteProcessTask::standardOutput, [=](const QByteArray &data) {
             for (const QByteArray &line : rtrim1eol(data).split('\n'))
                 qCDebug(category).noquote().nospace() << key << "/stdout: " << line;
         });
-        QObject::connect(this, &RemoteProcess::standardError, [=](const QByteArray &data) {
+        QObject::connect(this, &RemoteProcessTask::standardError, [=](const QByteArray &data) {
             for (const QByteArray &line : rtrim1eol(data).split('\n'))
                 qCDebug(category).noquote().nospace() << key << "/stderr: " << line;
         });
     }
 }
 
-int RemoteProcess::niceness() const
+int RemoteProcessTask::niceness() const
 {
     return m_niceness;
 }
 
-void RemoteProcess::setNiceness(int niceness)
+void RemoteProcessTask::setNiceness(int niceness)
 {
     QTC_CHECK(niceness >= 0);
     QTC_CHECK(niceness <= 19);
     m_niceness = niceness;
 }
 
-int RemoteProcess::exec()
+int RemoteProcessTask::exec()
 {
     QEventLoop loop;
-    connect(this, &RemoteProcess::finished, &loop, &QEventLoop::exit);
+    connect(this, &RemoteProcessTask::finished, &loop, &QEventLoop::exit);
 
     start();
     const int exitCode = loop.exec();
@@ -155,7 +155,7 @@ int RemoteProcess::exec()
     return exitCode;
 }
 
-void RemoteProcess::start()
+void RemoteProcessTask::start()
 {
     QString fullCommand;
     fullCommand.append("echo $$ && ");
@@ -193,22 +193,22 @@ void RemoteProcess::start()
     started();
 }
 
-void RemoteProcess::beginTerminate()
+void RemoteProcessTask::beginTerminate()
 {
-    kill(SIGNAL_TERM, &RemoteProcess::endTerminate);
+    kill(SIGNAL_TERM, &RemoteProcessTask::endTerminate);
 }
 
-void RemoteProcess::beginStop()
+void RemoteProcessTask::beginStop()
 {
-    kill(SIGNAL_STOP, &RemoteProcess::endStop);
+    kill(SIGNAL_STOP, &RemoteProcessTask::endStop);
 }
 
-void RemoteProcess::beginContinue()
+void RemoteProcessTask::beginContinue()
 {
-    kill(SIGNAL_CONT, &RemoteProcess::endContinue);
+    kill(SIGNAL_CONT, &RemoteProcessTask::endContinue);
 }
 
-void RemoteProcess::kill(const QString &signal, void (RemoteProcess::*callback)(bool))
+void RemoteProcessTask::kill(const QString &signal, void (RemoteProcessTask::*callback)(bool))
 {
     if (m_killRunner != nullptr) {
         qCDebug(sfdk) << "Already trying to terminate the remote process";
@@ -260,7 +260,7 @@ void RemoteProcess::kill(const QString &signal, void (RemoteProcess::*callback)(
     m_killRunner->run(killCommand, m_sshConnectionParams);
 }
 
-void RemoteProcess::finish()
+void RemoteProcessTask::finish()
 {
     QTC_ASSERT(!m_finished, return);
     m_finished = true;
@@ -283,7 +283,7 @@ void RemoteProcess::finish()
     emit finished(exitCode);
 }
 
-QString RemoteProcess::environmentString(const QProcessEnvironment &environment)
+QString RemoteProcessTask::environmentString(const QProcessEnvironment &environment)
 {
     if (environment.isEmpty())
         return {};
@@ -300,23 +300,23 @@ QString RemoteProcess::environmentString(const QProcessEnvironment &environment)
     return assignments.join(' ');
 }
 
-void RemoteProcess::onProcessStarted()
+void RemoteProcessTask::onProcessStarted()
 {
     m_startedOk = true;
 }
 
-void RemoteProcess::onConnectionError()
+void RemoteProcessTask::onConnectionError()
 {
     emit connectionError(m_runner->lastConnectionErrorString());
     finish();
 }
 
-void RemoteProcess::onProcessClosed()
+void RemoteProcessTask::onProcessClosed()
 {
     finish();
 }
 
-void RemoteProcess::onReadyReadStandardOutput()
+void RemoteProcessTask::onReadyReadStandardOutput()
 {
     if (!m_standardOutputLineBuffered && m_processId != 0) {
         emit standardOutput(m_runner->readAllStandardOutput());
@@ -342,7 +342,7 @@ void RemoteProcess::onReadyReadStandardOutput()
         emit standardOutput(data);
 }
 
-void RemoteProcess::onReadyReadStandardError()
+void RemoteProcessTask::onReadyReadStandardError()
 {
     if (!m_stderrBuffer.append(m_runner->readAllStandardError()))
         return;
@@ -354,18 +354,18 @@ void RemoteProcess::onReadyReadStandardError()
  * \class RemoteProcess::LineBuffer
  */
 
-bool RemoteProcess::LineBuffer::hasData() const
+bool RemoteProcessTask::LineBuffer::hasData() const
 {
     return !m_buffer.isEmpty();
 }
 
-bool RemoteProcess::LineBuffer::append(const QByteArray &data)
+bool RemoteProcessTask::LineBuffer::append(const QByteArray &data)
 {
     m_buffer.append(data);
     return data.contains('\n') || m_buffer.size() > LINE_BUFFER_MAX;
 }
 
-QByteArray RemoteProcess::LineBuffer::flush(bool all)
+QByteArray RemoteProcessTask::LineBuffer::flush(bool all)
 {
     int cut = m_buffer.lastIndexOf('\n');
     if (all || cut == -1) {

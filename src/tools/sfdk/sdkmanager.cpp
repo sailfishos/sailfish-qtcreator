@@ -27,7 +27,7 @@
 #include "dbus.h"
 #include "dispatch.h"
 #include "processtask.h"
-#include "remoteprocess.h"
+#include "remoteprocesstask.h"
 #include "sfdkconstants.h"
 #include "sfdkglobal.h"
 #include "textutils.h"
@@ -1257,7 +1257,7 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
         err = stdErr.get();
     }
 
-    RemoteProcess process;
+    RemoteProcessTask process;
     process.setSshParameters(s_instance->m_buildEngine->virtualMachine()->sshParameters());
     process.setProgram(program_);
     process.setArguments(arguments_);
@@ -1274,20 +1274,20 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     const QString cleanSharedSrc = s_instance->cleanSharedSrc();
     const QString cleanSharedTarget = s_instance->cleanSharedTarget(&ignoredErrorMessage);
 
-    QObject::connect(&process, &RemoteProcess::standardOutput, [&](const QByteArray &data) {
+    QObject::connect(&process, &RemoteProcessTask::standardOutput, [&](const QByteArray &data) {
         out->write(s_instance->maybeReverseMapEnginePaths(data, cleanSharedSrc, cleanSharedTarget));
         if (stdOut)
             stdOut->flush();
     });
-    QObject::connect(&process, &RemoteProcess::standardError, [&](const QByteArray &data) {
+    QObject::connect(&process, &RemoteProcessTask::standardError, [&](const QByteArray &data) {
         err->write(s_instance->maybeReverseMapEnginePaths(data, cleanSharedSrc, cleanSharedTarget));
         if (stdErr)
             stdErr->flush();
     });
-    QObject::connect(&process, &RemoteProcess::connectionError, [&](const QString &errorString) {
+    QObject::connect(&process, &RemoteProcessTask::connectionError, [&](const QString &errorString) {
         qerr() << tr("Error connecting to the build engine: ") << errorString << endl;
     });
-    QObject::connect(&process, &RemoteProcess::processError, [&](const QString &errorString) {
+    QObject::connect(&process, &RemoteProcessTask::processError, [&](const QString &errorString) {
         qerr() << tr("Error running command on the build engine: ") << errorString << endl;
     });
 
@@ -1507,7 +1507,7 @@ Device *SdkManager::deviceByName(const QString &deviceName, QString *errorMessag
     return device;
 }
 
-bool SdkManager::prepareForRunOnDevice(const Device &device, RemoteProcess *process)
+bool SdkManager::prepareForRunOnDevice(const Device &device, RemoteProcessTask *process)
 {
     // Keep in sync with mb2
     if (runHookNativeByName("prepare-device", {device.name()}, QDir::currentPath(),
@@ -1540,13 +1540,13 @@ bool SdkManager::prepareForRunOnDevice(const Device &device, RemoteProcess *proc
 
     process->setSshParameters(device.sshParameters());
 
-    QObject::connect(process, &RemoteProcess::connectionError, [&](const QString &errorString) {
+    QObject::connect(process, &RemoteProcessTask::connectionError, [&](const QString &errorString) {
         if (device.machineType() == Device::EmulatorMachine)
             qerr() << tr("Error connecting to the emulator: ") << errorString << endl;
         else
             qerr() << tr("Error connecting to the device: ") << errorString << endl;
     });
-    QObject::connect(process, &RemoteProcess::processError, [&](const QString &errorString) {
+    QObject::connect(process, &RemoteProcessTask::processError, [&](const QString &errorString) {
         if (device.machineType() == Device::EmulatorMachine)
             qerr() << tr("Error running command on the emulator: ") << errorString << endl;
         else
@@ -1562,17 +1562,17 @@ int SdkManager::runOnDevice(const Device &device, const QString &program,
     std::unique_ptr<QFile> stdOut = binaryOut(stdout);
     std::unique_ptr<QFile> stdErr = binaryOut(stderr);
 
-    RemoteProcess process;
+    RemoteProcessTask process;
     process.setProgram(program);
     process.setArguments(arguments);
     process.setRunInTerminal(runInTerminal);
     process.setInputChannelMode(QProcess::ForwardedInputChannel);
 
-    QObject::connect(&process, &RemoteProcess::standardOutput, [&](const QByteArray &data) {
+    QObject::connect(&process, &RemoteProcessTask::standardOutput, [&](const QByteArray &data) {
         stdOut->write(data);
         stdOut->flush();
     });
-    QObject::connect(&process, &RemoteProcess::standardError, [&](const QByteArray &data) {
+    QObject::connect(&process, &RemoteProcessTask::standardError, [&](const QByteArray &data) {
         stdErr->write(data);
         stdErr->flush();
     });

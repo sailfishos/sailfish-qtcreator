@@ -24,7 +24,7 @@ HEADERS = \
     dispatch.h \
     processtask.h \
     sdkmanager.h \
-    remoteprocess.h \
+    remoteprocesstask.h \
     script.h \
     session.h \
     sfdkconstants.h \
@@ -42,7 +42,7 @@ SOURCES = \
     dispatch.cpp \
     main.cpp \
     processtask.cpp \
-    remoteprocess.cpp \
+    remoteprocesstask.cpp \
     script.cpp \
     sdkmanager.cpp \
     session.cpp \

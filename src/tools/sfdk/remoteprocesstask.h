@@ -45,7 +45,7 @@ class SshRemoteProcessRunner;
 
 namespace Sfdk {
 
-class RemoteProcess : public Task
+class RemoteProcessTask : public Task
 {
     Q_OBJECT
 
@@ -61,8 +61,8 @@ class RemoteProcess : public Task
     };
 
 public:
-    explicit RemoteProcess(QObject *parent = 0);
-    ~RemoteProcess() override;
+    explicit RemoteProcessTask(QObject *parent = 0);
+    ~RemoteProcessTask() override;
 
     QString program() const { return m_program; }
     void setProgram(const QString& program);
@@ -109,7 +109,7 @@ protected:
     void beginContinue() override;
 
 private:
-    void kill(const QString &signal, void (RemoteProcess::*callback)(bool));
+    void kill(const QString &signal, void (RemoteProcessTask::*callback)(bool));
     void finish();
     static QString environmentString(const QProcessEnvironment &environment);
 
