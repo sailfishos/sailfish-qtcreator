@@ -22,7 +22,7 @@
 
 #include "debugger.h"
 
-#include "remoteprocess.h"
+#include "remoteprocesstask.h"
 #include "sfdkconstants.h"
 #include "sdkmanager.h"
 #include "sfdkglobal.h"
@@ -73,10 +73,10 @@ public:
     {
         m_remoteProcess.enableLogAllOutput(sfdk, "gdbserver");
 
-        QObject::connect(&m_remoteProcess, &RemoteProcess::finished, [this]() {
+        QObject::connect(&m_remoteProcess, &RemoteProcessTask::finished, [this]() {
             m_state = NotStarted;
         });
-        QObject::connect(&m_remoteProcess, &RemoteProcess::standardError,
+        QObject::connect(&m_remoteProcess, &RemoteProcessTask::standardError,
                 [this](const QByteArray &data) {
             if (data.contains(GDB_SERVER_CONNECTION_ESTABLISHED_MESSAGE))
                 m_state = Connected;
@@ -93,11 +93,11 @@ public:
             // Give it some time - it might be just under load and terminating
             // it is unnecessary verbose because gdbserver does not handle SIGTERM
             QTimer::singleShot(GDB_SERVER_EXIT_TIMEOUT_MS, &m_remoteProcess,
-                    &RemoteProcess::terminate);
+                    &RemoteProcessTask::terminate);
         }
 
         QEventLoop loop;
-        QObject::connect(&m_remoteProcess, &RemoteProcess::finished, &loop, &QEventLoop::quit);
+        QObject::connect(&m_remoteProcess, &RemoteProcessTask::finished, &loop, &QEventLoop::quit);
         QTimer::singleShot(GDB_SERVER_EXIT_TIMEOUT_MS * 2, &loop, []() {
             qCInfo(sfdk).noquote() << tr("Waiting for the on-device gdbserver process to exit…");
         });
@@ -182,7 +182,7 @@ private:
 
         const QString freePorts = device.freePorts().toString();
 
-        RemoteProcess scanner;
+        RemoteProcessTask scanner;
         scanner.setProgram("/bin/sh");
         scanner.setArguments(QStringList{"-c", scannerScript, scanner.program(), freePorts});
         scanner.setRunInTerminal(false);
@@ -194,7 +194,7 @@ private:
             qCInfo(sfdk).noquote() << tr("Scanning for free port for gdbserver…");
         });
 
-        QObject::connect(&scanner, &RemoteProcess::standardOutput, [port](const QByteArray &data) {
+        QObject::connect(&scanner, &RemoteProcessTask::standardOutput, [port](const QByteArray &data) {
             bool ok;
             int number = data.toInt(&ok);
             QTC_ASSERT(ok, return);
@@ -218,7 +218,7 @@ private:
             done
         )");
 
-        RemoteProcess watcher;
+        RemoteProcessTask watcher;
         watcher.setProgram("/bin/sh");
         watcher.setArguments(QStringList{"-c", watcherScript, watcher.program(), port.toString()});
         watcher.setRunInTerminal(false);
@@ -237,7 +237,7 @@ private:
     bool m_dryRunEnabled = false;
     QString m_executable;
     QStringList m_extraArgs;
-    RemoteProcess m_remoteProcess;
+    RemoteProcessTask m_remoteProcess;
     State m_state = NotStarted;
 };
 
@@ -361,7 +361,7 @@ int Debugger::exec(const QString &executable, const QList<QStringList> &gdbLateI
             qCDebug(sfdk) << '\t' << arg;
     }
 
-    QProcess gdb;
+    ProcessTask gdb;
     gdb.setProgram(m_gdbExecutable);
     gdb.setArguments(gdbArgs);
     gdb.setProcessChannelMode(QProcess::ForwardedChannels);
@@ -374,11 +374,13 @@ int Debugger::exec(const QString &executable, const QList<QStringList> &gdbLateI
         return SFDK_EXIT_ABNORMAL;
     }
 
+    // TODO There should be a flag on the Task that it handles Ctrl-C specially.
+    // Also, explicit forwarding of Ctrl-C/SIGTINT (via TaskManager::Terminate)
+    // only needs to be done for background processes like the one spawned by
+    // SshRemoteProcessRunner. Foreground processes receive it automatically.
     TaskManager::setCtrlCIgnored(true);
 
-    while (gdb.state() != QProcess::NotRunning)
-        QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);
-
+    gdb.waitForFinishedNoBlock(-1);
     if (gdb.exitStatus() != QProcess::NormalExit) {
         // Assume GDB was already verbose enough
         return SFDK_EXIT_ABNORMAL;

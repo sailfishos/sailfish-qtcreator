@@ -118,65 +118,65 @@ void Task::post(Event event)
 
 void Task::process(Event event)
 {
-    QTC_ASSERT(!processing, return);
-    QScopedValueRollback<bool> guard(processing, true);
+    QTC_ASSERT(!m_processing, return);
+    QScopedValueRollback<bool> guard(m_processing, true);
 
     bool changed = false;
 
-    this->event = event;
+    this->m_event = event;
     while (step())
         changed = true;
 
-    if (this->event != NoEvent) {
+    if (this->m_event != NoEvent) {
         qCWarning(sfdk) << "Task: unhandled event" << enumName(event) << "in state"
-            << enumName(state);
-        this->event = NoEvent;
+            << enumName(m_state);
+        this->m_event = NoEvent;
     }
 
-    if (changed && state != NotStarted)
+    if (changed && m_state != NotStarted)
         TaskManager::changed(this);
 }
 
 void Task::transition(State toState)
 {
     qCDebug(sfdk).nospace() << "Task " << this << " transition: "
-        << enumName(state) << " --" << enumName(event) << "--> " << enumName(toState);
+        << enumName(m_state) << " --" << enumName(m_event) << "--> " << enumName(toState);
 
-    state = toState;
-    onTransition = true;
-    event = NoEvent;
+    m_state = toState;
+    m_onTransition = true;
+    m_event = NoEvent;
 }
 
 void Task::internalTransition()
 {
-    QTC_CHECK(event != NoEvent);
-    qCDebug(sfdk) << "Task" << this << "internal transition:" << enumName(state) << "/"
-        << enumName(event);
-    event = NoEvent;
+    QTC_CHECK(m_event != NoEvent);
+    qCDebug(sfdk) << "Task" << this << "internal transition:" << enumName(m_state) << "/"
+        << enumName(m_event);
+    m_event = NoEvent;
 }
 
 bool Task::exiting()
 {
-    return onTransition;
+    return m_onTransition;
 }
 
 bool Task::entering()
 {
-    return std::exchange(onTransition, false);
+    return std::exchange(m_onTransition, false);
 }
 
 bool Task::step()
 {
 #define ON_ENTRY if (entering())
 #define ON_EXIT if (exiting())
-#define TRANSITION(events, toState_) if ((Events(events) & event) && (transition(toState_), true))
-#define INTERNAL_TRANSITION(events) if ((Events(events) & event) && (internalTransition(), true))
+#define TRANSITION(events, toState_) if ((Events(events) & m_event) && (transition(toState_), true))
+#define INTERNAL_TRANSITION(events) if ((Events(events) & m_event) && (internalTransition(), true))
 
     static auto sayStopping = []() { qerr() << tr("Stopping...") << endl; };
     static auto sayCleaningUp = []() { qerr() << tr("Cleaning up...") << endl; };
     static auto sayBusy = []() { qerr() << tr("Busy...") << endl; };
 
-    switch (state) {
+    switch (m_state) {
     case NotStarted:
         ON_ENTRY {
             TaskManager::exited(this);
@@ -271,7 +271,7 @@ bool Task::step()
         break;
     }
 
-    return onTransition;
+    return m_onTransition;
 
 #undef ON_ENTRY
 #undef ON_EXIT
@@ -352,6 +352,9 @@ void TaskManager::started(Task *task)
     QTC_ASSERT(!s_instance->tasks.contains(task), return);
 
     s_instance->tasks.insert(task);
+
+    if (task->narrowOutput())
+        TerminalManager::narrowScrollRegionRequest();
 }
 
 void TaskManager::changed(Task *task)
@@ -361,7 +364,7 @@ void TaskManager::changed(Task *task)
     Q_UNUSED(task);
 
     bool allStopped = Utils::allOf(s_instance->tasks,
-            [](Task *task) { return task->state == Task::Stopped; });
+            [](Task *task) { return task->m_state == Task::Stopped; });
     if (allStopped)
         stop();
 }
@@ -371,16 +374,23 @@ void TaskManager::exited(Task *task)
     QTC_ASSERT(task != nullptr, return);
     QTC_ASSERT(s_instance->tasks.contains(task), return);
 
+    if (task->narrowOutput())
+        TerminalManager::narrowScrollRegionRelease();
+
     s_instance->tasks.remove(task);
 }
 
 void TaskManager::stop()
 {
+    TerminalManager::maybeSuspendScrollRegion(true);
+
 #ifdef Q_OS_WIN
     QTC_CHECK(false);
 #else
     ::kill(::getpid(), SIGSTOP);
 #endif
+
+    TerminalManager::maybeSuspendScrollRegion(false);
 }
 
 /*!
@@ -491,6 +501,10 @@ void SignalHandler::setUp()
             TaskManager::process(TaskManager::Continue);
             break;
 
+        case SIGWINCH:
+            TerminalManager::handleResize();
+            break;
+
         default:
             qFatal("Read unexpected signal number");
         }
@@ -514,6 +528,8 @@ void SignalHandler::setUp()
         qFatal("Failed to set up SIGTSTP handling");
     if (sigaction(SIGCONT, &action, nullptr))
         qFatal("Failed to set up SIGCONT handling");
+    if (sigaction(SIGWINCH, &action, nullptr))
+        qFatal("Failed to set up SIGWINCH handling");
 }
 
 void SignalHandler::restore()
@@ -528,6 +544,8 @@ void SignalHandler::restore()
         qFatal("Failed to restore original SIGTSTP handling");
     if (signal(SIGCONT, SIG_DFL) == SIG_ERR)
         qFatal("Failed to restore original SIGCONT handling");
+    if (signal(SIGWINCH, SIG_DFL) == SIG_ERR)
+        qFatal("Failed to restore original SIGWINCH handling");
 
     close(signalFd[0]), signalFd[0] = -1;
     close(signalFd[1]), signalFd[1] = -1;

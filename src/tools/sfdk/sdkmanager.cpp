@@ -26,7 +26,8 @@
 #include "configuration.h"
 #include "dbus.h"
 #include "dispatch.h"
-#include "remoteprocess.h"
+#include "processtask.h"
+#include "remoteprocesstask.h"
 #include "sfdkconstants.h"
 #include "sfdkglobal.h"
 #include "textutils.h"
@@ -318,7 +319,7 @@ public:
             return dir;
         }();
 
-        QProcess listPackages;
+        ProcessTask listPackages;
         listPackages.setProgram(SdkManager::sdkMaintenanceToolPath());
         listPackages.setProcessEnvironment(addQpaPlatformMinimal());
 
@@ -331,7 +332,7 @@ public:
         listPackages.setArguments(arguments);
 
         listPackages.start();
-        if (!listPackages.waitForFinished(-1)
+        if (!listPackages.waitForFinishedNoBlock(-1)
                 || listPackages.exitStatus() != QProcess::NormalExit
                 || (listPackages.exitCode() != EXIT_SUCCESS
                     && listPackages.exitCode() != SDK_MAINTENANCE_TOOL_EXIT_CANCEL)) {
@@ -403,14 +404,17 @@ public:
         QTC_ASSERT(!info.isEmpty(), return false);
         QTC_ASSERT(!info.first().installed, return false);
 
-        QProcess managePackages;
+        qerr() << tr("Running SDK Maintenance Tool:") << endl;
+
+        ProcessTask managePackages;
         managePackages.setProgram(SdkManager::sdkMaintenanceToolPath());
         managePackages.setArguments({"--verbose", "--manage-packages",
                 "non-interactive=1", "accept-licenses=1", "add-packages=" + name});
         managePackages.setProcessEnvironment(addQpaPlatformMinimal());
-        managePackages.setProcessChannelMode(QProcess::ForwardedChannels);
+        managePackages.setForwardProcessChannelsByCopy(true);
+        managePackages.setNarrowOutput(true);
         managePackages.start();
-        if (!managePackages.waitForFinished(-1)
+        if (!managePackages.waitForFinishedNoBlock(-1)
                 || managePackages.exitStatus() != QProcess::NormalExit
                 || managePackages.exitCode() != EXIT_SUCCESS) {
             qerr() << tr("Failed to install installer-provided packages");
@@ -436,14 +440,17 @@ public:
         QTC_ASSERT(!info.isEmpty(), return false);
         QTC_ASSERT(info.first().installed, return false);
 
-        QProcess managePackages;
+        qerr() << tr("Running SDK Maintenance Tool:") << endl;
+
+        ProcessTask managePackages;
         managePackages.setProgram(SdkManager::sdkMaintenanceToolPath());
         managePackages.setArguments({"--verbose", "--manage-packages",
                 "non-interactive=1", "accept-licenses=1", "remove-packages=" + name});
         managePackages.setProcessEnvironment(addQpaPlatformMinimal());
-        managePackages.setProcessChannelMode(QProcess::ForwardedChannels);
+        managePackages.setForwardProcessChannelsByCopy(true);
+        managePackages.setNarrowOutput(true);
         managePackages.start();
-        if (!managePackages.waitForFinished(-1)
+        if (!managePackages.waitForFinishedNoBlock(-1)
                 || managePackages.exitStatus() != QProcess::NormalExit
                 || managePackages.exitCode() != EXIT_SUCCESS) {
             qerr() << tr("Failed to uninstall installer-provided packages");
@@ -1250,7 +1257,7 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
         err = stdErr.get();
     }
 
-    RemoteProcess process;
+    RemoteProcessTask process;
     process.setSshParameters(s_instance->m_buildEngine->virtualMachine()->sshParameters());
     process.setProgram(program_);
     process.setArguments(arguments_);
@@ -1267,20 +1274,20 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     const QString cleanSharedSrc = s_instance->cleanSharedSrc();
     const QString cleanSharedTarget = s_instance->cleanSharedTarget(&ignoredErrorMessage);
 
-    QObject::connect(&process, &RemoteProcess::standardOutput, [&](const QByteArray &data) {
+    QObject::connect(&process, &RemoteProcessTask::standardOutput, [&](const QByteArray &data) {
         out->write(s_instance->maybeReverseMapEnginePaths(data, cleanSharedSrc, cleanSharedTarget));
         if (stdOut)
             stdOut->flush();
     });
-    QObject::connect(&process, &RemoteProcess::standardError, [&](const QByteArray &data) {
+    QObject::connect(&process, &RemoteProcessTask::standardError, [&](const QByteArray &data) {
         err->write(s_instance->maybeReverseMapEnginePaths(data, cleanSharedSrc, cleanSharedTarget));
         if (stdErr)
             stdErr->flush();
     });
-    QObject::connect(&process, &RemoteProcess::connectionError, [&](const QString &errorString) {
+    QObject::connect(&process, &RemoteProcessTask::connectionError, [&](const QString &errorString) {
         qerr() << tr("Error connecting to the build engine: ") << errorString << endl;
     });
-    QObject::connect(&process, &RemoteProcess::processError, [&](const QString &errorString) {
+    QObject::connect(&process, &RemoteProcessTask::processError, [&](const QString &errorString) {
         qerr() << tr("Error running command on the build engine: ") << errorString << endl;
     });
 
@@ -1306,7 +1313,7 @@ int SdkManager::runHookNative(const QString &program, const QStringList &argumen
 {
     qCDebug(sfdk) << "About to run hook" << program;
 
-    QProcess hook;
+    ProcessTask hook;
     hook.setProgram(program);
     hook.setArguments(arguments);
     hook.setWorkingDirectory(workingDirectory);
@@ -1317,7 +1324,7 @@ int SdkManager::runHookNative(const QString &program, const QStringList &argumen
     hook.setProcessEnvironment(environment);
 
     hook.start();
-    if (!hook.waitForFinished() || hook.exitStatus() != QProcess::NormalExit) {
+    if (!hook.waitForFinishedNoBlock() || hook.exitStatus() != QProcess::NormalExit) {
         qerr() << tr("Error running hook \"%1\"").arg(program) << endl;
         return EXIT_FAILURE;
     }
@@ -1500,7 +1507,7 @@ Device *SdkManager::deviceByName(const QString &deviceName, QString *errorMessag
     return device;
 }
 
-bool SdkManager::prepareForRunOnDevice(const Device &device, RemoteProcess *process)
+bool SdkManager::prepareForRunOnDevice(const Device &device, RemoteProcessTask *process)
 {
     // Keep in sync with mb2
     if (runHookNativeByName("prepare-device", {device.name()}, QDir::currentPath(),
@@ -1533,13 +1540,13 @@ bool SdkManager::prepareForRunOnDevice(const Device &device, RemoteProcess *proc
 
     process->setSshParameters(device.sshParameters());
 
-    QObject::connect(process, &RemoteProcess::connectionError, [&](const QString &errorString) {
+    QObject::connect(process, &RemoteProcessTask::connectionError, [&](const QString &errorString) {
         if (device.machineType() == Device::EmulatorMachine)
             qerr() << tr("Error connecting to the emulator: ") << errorString << endl;
         else
             qerr() << tr("Error connecting to the device: ") << errorString << endl;
     });
-    QObject::connect(process, &RemoteProcess::processError, [&](const QString &errorString) {
+    QObject::connect(process, &RemoteProcessTask::processError, [&](const QString &errorString) {
         if (device.machineType() == Device::EmulatorMachine)
             qerr() << tr("Error running command on the emulator: ") << errorString << endl;
         else
@@ -1555,17 +1562,17 @@ int SdkManager::runOnDevice(const Device &device, const QString &program,
     std::unique_ptr<QFile> stdOut = binaryOut(stdout);
     std::unique_ptr<QFile> stdErr = binaryOut(stderr);
 
-    RemoteProcess process;
+    RemoteProcessTask process;
     process.setProgram(program);
     process.setArguments(arguments);
     process.setRunInTerminal(runInTerminal);
     process.setInputChannelMode(QProcess::ForwardedInputChannel);
 
-    QObject::connect(&process, &RemoteProcess::standardOutput, [&](const QByteArray &data) {
+    QObject::connect(&process, &RemoteProcessTask::standardOutput, [&](const QByteArray &data) {
         stdOut->write(data);
         stdOut->flush();
     });
-    QObject::connect(&process, &RemoteProcess::standardError, [&](const QByteArray &data) {
+    QObject::connect(&process, &RemoteProcessTask::standardError, [&](const QByteArray &data) {
         stdErr->write(data);
         stdErr->flush();
     });

@@ -37,7 +37,7 @@ class BuildEngine;
 class BuildTargetData;
 class Device;
 class Emulator;
-class RemoteProcess;
+class RemoteProcessTask;
 class Sdk;
 class VirtualMachine;
 
@@ -162,7 +162,7 @@ public:
 
     static Device *configuredDevice(QString *errorMessage);
     static Device *deviceByName(const QString &deviceName, QString *errorMessage);
-    static bool prepareForRunOnDevice(const Device &device, RemoteProcess *process);
+    static bool prepareForRunOnDevice(const Device &device, RemoteProcessTask *process);
     static int runOnDevice(const Device &device, const QString &program,
             const QStringList &arguments, Utils::optional<bool> runInTerminal = {});
 
